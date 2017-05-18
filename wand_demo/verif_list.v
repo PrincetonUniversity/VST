@@ -155,9 +155,7 @@ Proof.
    Exists (b,s1c,u0,z). unfold fst, snd.
    simpl app.
    entailer!.
-   rewrite sepcon_assoc.
-   eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh (b :: s1c ++ s2))] |].
-   rewrite sepcon_comm.
+   sep_apply (singleton_lseg sh (b :: s1c ++ s2) a t u0).
    apply wand_frame_ver.
 + (* after the loop *)
    clear v s1' H0.
@@ -167,9 +165,8 @@ Proof.
    rewrite (listrep_null _ s1b) by auto.
    entailer!.
    simpl app.
-   rewrite (sepcon_assoc _ (@field_at _ _ _ _ _ _) (@field_at _ _ _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh s2)] | apply derives_refl] |].
-   rewrite (sepcon_comm _ (lseg _ _ _ _ _)).
+   sep_apply (singleton_lseg sh s2 a t y).
+   rewrite <- sepcon_assoc.
    eapply derives_trans; [apply sepcon_derives; [apply wand_frame_ver | apply derives_refl] |].
    rewrite sepcon_comm.
    apply wand_frame_elim.
@@ -217,9 +214,7 @@ Proof.
    simpl app.
    entailer!.
      1: apply (app_assoc s1a [b] (c :: s1d)).
-   rewrite sepcon_assoc.
-   eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh (c :: s1d ++ s2))] |].
-   rewrite sepcon_comm.
+   sep_apply (singleton_lseg sh (c :: s1d ++ s2) b t u0).
    apply app_lseg.
 + (* after the loop *)
    clear v s1' H0.
@@ -229,10 +224,8 @@ Proof.
    rewrite (listrep_null _ s1c) by auto.
    entailer!.
    simpl app.
-   rewrite (sepcon_assoc _ (@field_at _ _ _ _ _ _) (@field_at _ _ _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh s2)] | apply derives_refl] |].
-   rewrite (sepcon_comm _ (lseg _ _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply app_lseg | apply derives_refl] |].
+   sep_apply (singleton_lseg sh s2 b t y).
+   sep_apply (app_lseg sh s1a [b] s2 x t y) using (simpl app).
    rewrite sepcon_comm.
    apply wand_frame_elim.
 Qed.
