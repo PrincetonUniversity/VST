@@ -15,47 +15,6 @@ Require Import floyd.deadvars.
 
 Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 
-Lemma Bridge s I n bytes J ss (M: mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss):
-  match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
-  reseed_counter <= reseed_interval -> prediction_resistance = false ->
-  match J with (ws,sstrength,prflag) =>
-  s=ss /\ Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ws
-  end end.
-Proof. destruct I. destruct J as [[ws sstrength] prf]. simpl. simpl in M.
-remember (n >? 1024) as d; destruct d; try discriminate.
-rewrite andb_negb_r in M. intros; subst.
-apply Zgt_is_gt_bool_f in H. rewrite H.
-remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z HMAC256 key V n) as p; destruct p.
-unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in M; simpl in M.
-rewrite H, <- Heqp in M. inv M; split; trivial.
-Qed.
-
-Definition mbedlts_generate s I n :=
-   match mbedtls_HMAC256_DRBG_generate_function s I n [] 
-   with ENTROPY.success (bytes, J) ss =>
-          match J with ((((VV, KK), RC), _), PR) =>
-            Some (bytes, ss, HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
-                                 (hmac256drbgabs_reseed_interval I))
-          end
-      | _ => None  
-   end.
-
-Lemma Bridge' s I n bytes F ss (M: mbedlts_generate s I n = Some(bytes, ss, F)):
-  match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
-  reseed_counter <= reseed_interval -> prediction_resistance = false ->
-  match F with HMAC256DRBGabs KK VV rc _ _ _ =>
-  s=ss /\ rc=reseed_counter+1 /\
-  Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ((VV,KK), rc)
-  end end.
-Proof. destruct I. destruct F. simpl. unfold mbedlts_generate in M. simpl in M.
-remember (n >? 1024) as d; destruct d; try discriminate.
-rewrite andb_negb_r in M. intros; subst.
-apply Zgt_is_gt_bool_f in H. rewrite H.
-remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z HMAC256 key V n) as p; destruct p.
-unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in M; simpl in M.
-rewrite H, <- Heqp in M. inv M; auto. 
-Qed.
-
 Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
@@ -288,7 +247,7 @@ Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
 Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
   destruct I. simpl. destruct J. destruct p. destruct d. destruct p. f_equal.
 Qed. 
-
+(*
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
 Proof. unfold Z.gtb.
   remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
@@ -299,7 +258,7 @@ Lemma false_zge z a: false = (z >=? a) -> z<=a.
 Proof. unfold Z.geb.
   remember (z ?= a). destruct c; intros; try discriminate.
   symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
-Qed.
+Qed.*)
 
 Lemma HMAC_DRBG_updateWF a b c d e:
       (d,e) = HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256 a b c ->

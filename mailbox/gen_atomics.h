@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "threads.h"
 
 int load_SC(int *tgt);
