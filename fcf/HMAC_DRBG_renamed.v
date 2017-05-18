@@ -59,7 +59,7 @@ Qed.
 - Write the theorem statements (final theorem, inductive hypothesis) X
 
 - Prove equivalence of the new Generate_v oracle outputs (moving re-sampling v) to old Generate_v oracle outputs X
-- Apply the hybrid argument in G1_G2_close and make sure that theorem can be proven with Gi_Gi_plus_1_close X
+- Apply the hybrid argument in G1_G2_close and make sure that theorem can be proven with Gi_adjacent_hybrids_close X
 - Move my proof to a separate file? or review it X
 - Comment the uncommented games X
 
@@ -401,7 +401,7 @@ Qed.
 
 (* G_real: calls Generate, then Generate
 G1_prg: uses Generate_noV, then Generate_v (v moved) *)
-Theorem Generate_v_v_output_probability :
+Theorem Generate_move_v_update :
   Pr[G_real] == Pr[G1_prg].
 Proof.
   rewrite Generate_v_split_close.
@@ -572,7 +572,7 @@ Qed.
 
 (* wait what? it needs identical until bad??? *)
 (* TODO make sure the numbering is right *)
-Lemma G1_Gi_O_equal :
+Lemma G_real_is_first_hybrid :
   Pr[G1_prg] == Pr[Gi_prg O].
 Proof.
   rewrite G1_G1_acc_equal.
@@ -810,7 +810,7 @@ Close Scope nat.
 
 (* G2 is equal to last hybrid *)
 (* should be even easier than G1 since no Generate_noV happening? Wrong *)
-Lemma G2_Gi_n_equal :
+Lemma G_ideal_is_last_hybrid :
   Pr[G_ideal] == Pr[Gi_prg numCalls].
 Proof.
 (*  Print G_ideal.*)
@@ -1297,7 +1297,7 @@ Definition PRF_Advantage_Max := PRF_Advantage_Game (argMax PRF_Advantage_Game nu
    Gi_rf 2:  RB RB RF  PRF PRF 
 need to use `Gi_prf i` instead of `Gi_prg i` because this matches the form of 
 `Gi_rf` closer so we can match the form of PRF_Advantage*)4
-Lemma Gi_prf_rf_close_i : forall (i : nat),
+Lemma Gi_replace_prf_with_rf_oracle_i : forall (i : nat),
   | Pr[Gi_prf i] - Pr[Gi_rf i] | <= PRF_Advantage_Game i.
 Proof.
   intros i.
@@ -1308,13 +1308,13 @@ Proof.
   reflexivity. 
 Qed.
 
-Lemma Gi_prf_rf_close : forall (i : nat),
+Lemma Gi_replace_prf_with_rf_oracle : forall (i : nat),
     (i <= numCalls)%nat ->
   | Pr[Gi_prf i] - Pr[Gi_rf i] | <= PRF_Advantage_Max.
 Proof.
   intros.
   eapply leRat_trans.
-  apply Gi_prf_rf_close_i.
+  apply Gi_replace_prf_with_rf_oracle_i.
   apply PRF_Advantage_max_exists.
   auto.
 Qed. *)
@@ -1465,7 +1465,7 @@ Qed.
 (* ------- *)
 
 (* second induction used to prove the lemma after it. calls = i, then destruct, the induction on calls > i *)
-Lemma Gi_normal_prf_eq_calls_eq_i :
+Lemma Gi_prog_equiv_prf_oracle_calls_eq_i :
   forall (l : list nat) (i calls : nat) (k1 k2 v : Bvector eta) init,
     calls = i ->
     comp_spec
@@ -1625,7 +1625,7 @@ Proof.
   - fcf_skip. fcf_skip.
 Qed.
 
-Theorem Gi_normal_prf_eq_compspec :
+Theorem Gi_prog_equiv_prf_oracle_compspec :
   forall (l : list nat) (i calls : nat) (k1 k2 v : Bvector eta) init,
     calls <= i ->
 
@@ -1720,7 +1720,7 @@ Proof.
     
     (* calls = i *)
   + clear IHxs.
-    apply Gi_normal_prf_eq_calls_eq_i; omega.
+    apply Gi_prog_equiv_prf_oracle_calls_eq_i; omega.
 Qed.
         
 Transparent oracleMap.
@@ -1733,7 +1733,7 @@ Transparent Oi_oc'.
    Gi_prf 0: PRF PRF PRF PRF
    Gi_prg 2: RB RB PRF PRF
    Gi_prf 2: RB RB PRF PRF *)
-Lemma Gi_normal_prf_eq : forall (i : nat),
+Lemma Gi_prog_equiv_prf_oracle : forall (i : nat),
   Pr[Gi_prg i] == Pr[Gi_prf i].
 Proof.
   intros.
@@ -1765,7 +1765,7 @@ Proof.
   instantiate (1 := fun x y => bitsVEq x y).
   -
     Transparent oracleMap.
-    pose proof Gi_normal_prf_eq_compspec as Gi_prf_compspec.
+    pose proof Gi_prog_equiv_prf_oracle_compspec as Gi_prf_compspec.
     unfold oracleMap.
     specialize (Gi_prf_compspec requestList i 0 b b0 b1 nil).
     eapply comp_spec_eq_trans_r.
@@ -4416,7 +4416,7 @@ Gi_prg 2:    RB  RB  PRF
 
 Gi_rf  2:    RB  RB  RF
 Gi_prg 3:    RB  RB  RB *)
-Lemma Gi_rf_rb_close : forall (i : nat), (* not true for i = 0 (and not needed) *)
+Lemma Gi_replace_rf_with_rb_oracle : forall (i : nat), (* not true for i = 0 (and not needed) *)
   | Pr[Gi_rf i] - Pr[Gi_prg (S i)] | <= Pr_collisions. 
 Proof.
   intros.
@@ -4446,7 +4446,7 @@ Qed.
 need to use `Gi_prf i` instead of `Gi_prg i` because this matches the form of 
 `Gi_rf` closer so we can match the form of PRF_Advantage*)
 
-Lemma Gi_prf_rf_close_i : forall (i : nat),
+Lemma Gi_replace_prf_with_rf_oracle_i : forall (i : nat),
   | Pr[Gi_prf i] - Pr[Gi_rf i] | <= PRF_Advantage_Game i.
 Proof.
   intros i.
@@ -4491,7 +4491,7 @@ Proof.
     apply IHlen'. auto. omega.
 Qed.
 
-Theorem Gi_Gi_plus_1_close_outofbounds :
+Theorem Gi_adjacent_hybrids_close_outofbounds :
   forall (i : nat),
     (i > numCalls)%nat ->
    Pr[Gi_prg i] == Pr[Gi_prg (S i)].
@@ -4509,13 +4509,13 @@ Proof.
 Qed.
 Close Scope nat.
 
-Lemma Gi_prf_rf_close : forall (i : nat),
+Lemma Gi_replace_prf_with_rf_oracle : forall (i : nat),
     (i <= numCalls)%nat ->
 | Pr[Gi_prf i] - Pr[Gi_rf i] | <= PRF_Advantage_Max.
 Proof.
   intros.
   eapply leRat_trans.
-  apply Gi_prf_rf_close_i.
+  apply Gi_replace_prf_with_rf_oracle_i.
   apply PRF_Advantage_max_exists.
   auto.
 Qed.
@@ -4531,7 +4531,7 @@ Gi_prg 0: PRF PRF PRF
 Gi_rf  0:  RF PRF PRF
 Gi_prg 1:  RB PRF PRF
 Gi_rf  1:  RB  RF PRF *)
-Theorem Gi_Gi_plus_1_close :
+Theorem Gi_adjacent_hybrids_close :
   (* TODO: constructed PRF adversary *)
   forall (n : nat),
   | Pr[Gi_prg n] - Pr[Gi_prg (S n)] | <= Gi_Gi_plus_1_bound.
@@ -4542,11 +4542,11 @@ Proof.
 
   -  unfold Gi_Gi_plus_1_bound. intros.
      eapply ratDistance_le_trans. (* do the PRF advantage and collision bound separately *)
-     rewrite Gi_normal_prf_eq.    (* changed this *)
-     apply Gi_prf_rf_close; auto.        (* Basically already proven via PRF_Advantage magic *)
-     apply Gi_rf_rb_close.
+     rewrite Gi_prog_equiv_prf_oracle.    (* changed this *)
+     apply Gi_replace_prf_with_rf_oracle; auto.        (* Basically already proven via PRF_Advantage magic *)
+     apply Gi_replace_rf_with_rb_oracle.
 
-  - rewrite Gi_Gi_plus_1_close_outofbounds.
+  - rewrite Gi_adjacent_hybrids_close_outofbounds.
     assert (Heq : | Pr  [Gi_prg (S n) ] - Pr  [Gi_prg (S n) ] | == 0).
     { rewrite <- ratIdentityIndiscernables. reflexivity. }
     rewrite Heq.
@@ -4561,10 +4561,10 @@ Qed.
 Theorem G1_G2_close :
   | Pr[G_real] - Pr[G_ideal] | <= (numCalls / 1) * Gi_Gi_plus_1_bound.
 Proof.
-  rewrite Generate_v_v_output_probability.
-  rewrite G1_Gi_O_equal.
-  rewrite G2_Gi_n_equal.
-  specialize (distance_le_prod_f (fun i => Pr[Gi_prg i]) Gi_Gi_plus_1_close numCalls).
+  rewrite Generate_move_v_update.
+  rewrite G_real_is_first_hybrid.
+  rewrite G_ideal_is_last_hybrid.
+  specialize (distance_le_prod_f (fun i => Pr[Gi_prg i]) Gi_adjacent_hybrids_close numCalls).
   intuition.
 Qed.
 
