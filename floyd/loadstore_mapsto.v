@@ -33,7 +33,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
        (Sset id e1)
        (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id v2 :: remove_localdef id Q)
+           (LOCALx (temp id v2 :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.
@@ -66,7 +66,7 @@ Proof.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
         intros; apply prop_derives; congruence.
-      * apply remove_localdef_PROP.
+      * apply remove_localdef_temp_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
@@ -88,7 +88,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
        (Sset id (Ecast e1 t1))
        (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef id Q)
+           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
@@ -121,7 +121,7 @@ Proof.
         intros; apply prop_derives.
         unfold force_val1.
         congruence.
-      * apply remove_localdef_PROP.
+      * apply remove_localdef_temp_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
@@ -205,7 +205,7 @@ Lemma semax_load_nth_ram :
       (Sset id e1)
       (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id v :: remove_localdef id Q)
+           (LOCALx (temp id v :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.
@@ -241,7 +241,7 @@ Lemma semax_cast_load_nth_ram :
      (Sset id (Ecast e1 t2))
      (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef id Q)
+           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.

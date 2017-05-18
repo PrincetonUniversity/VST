@@ -227,3 +227,11 @@ Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
  | nil => emp
  | b::r => b * fold_right_sepcon r
  end.
+
+Ltac solve_andp' :=
+  first [ apply derives_refl
+        | apply andp_left1; solve_andp'
+        | apply andp_left2; solve_andp'].
+
+Ltac solve_andp := repeat apply andp_right; solve_andp'.
+

@@ -28,7 +28,7 @@ Definition maybe_retval (Q: environ -> mpred) retty ret :=
 
 Definition removeopt_localdef (ret: option ident) (l: list localdef) : list localdef :=
   match ret with
-   | Some id => remove_localdef id l
+   | Some id => remove_localdef_temp id l
    | None => l
    end.
 
@@ -75,7 +75,7 @@ Proof.
     repeat rewrite normal_ret_assert_eq.
     normalize.
     destruct ret.
-    - eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply remove_localdef_PROP]].
+    - eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply remove_localdef_temp_PROP]].
       normalize.
       apply exp_right with old.
       autorewrite with subst.
@@ -105,7 +105,7 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
           (Scall (Some id) a bl)
           (normal_ret_assert
             (`(Post ts x: environ -> mpred) (get_result1 id)
-               * PROPx P (LOCALx (remove_localdef id Q) (SEPx R)))).
+               * PROPx P (LOCALx (remove_localdef_temp id Q) (SEPx R)))).
 Proof.
 intros.
 apply semax_call'; auto.
@@ -267,7 +267,7 @@ Lemma semax_call_id1:
              bl)
     (normal_ret_assert
        ((`(Post ts x: environ -> mpred) (get_result1 ret)
-           * PROPx P (LOCALx (remove_localdef ret Q) (SEPx R))))).
+           * PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx R))))).
 Proof.
 intros. rename H0 into Ht. rename H1 into H0.
  rename H2 into Hret.
@@ -1175,7 +1175,6 @@ Lemma semax_call_id00_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-Print call_setup1.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
@@ -1223,7 +1222,7 @@ Lemma semax_call_id1_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: remove_localdef ret Q = Qnew)
+   (DELETE: remove_localdef_temp ret Q = Qnew)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1257,7 +1256,7 @@ eapply semax_call_aux55; eauto.
     `(PROPx (Ppost vret)
      (LOCAL  (temp ret_temp (F vret))
       (SEPx (Rpost vret))))%assert (get_result1 ret)
-     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (remove_localdef ret Q) (SEPx Frame)))).
+     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
  clear.
  go_lowerx. normalize. apply exp_right with x; normalize.
  apply exp_left; intro vret. apply exp_right with vret.
@@ -1298,8 +1297,8 @@ Lemma semax_call_id1_x_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: remove_localdef ret Q = Qnew)
-   (DELETE' : remove_localdef ret' Q = Q)
+   (DELETE: remove_localdef_temp ret Q = Qnew)
+   (DELETE' : remove_localdef_temp ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
@@ -1417,8 +1416,8 @@ Lemma semax_call_id1_y_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: remove_localdef ret Q = Qnew)
-   (DELETE' : remove_localdef ret' Q = Q)
+   (DELETE: remove_localdef_temp ret Q = Qnew)
+   (DELETE' : remove_localdef_temp ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
