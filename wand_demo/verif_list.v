@@ -1,5 +1,6 @@
 Require Import floyd.proofauto.
 Require Import wand_demo.wand_frame.
+Require Import wand_demo.wand_frame_tactic.
 Require Import wand_demo.wandQ_frame.
 Require Import wand_demo.list.
 Require Import wand_demo.list_lemmas.
@@ -53,8 +54,7 @@ Proof.
     forward. (* * p = h *)
   thaw Fr.
   forward. (* return *)
-  cancel.
-  rewrite sepcon_comm. apply wand_frame_elim.
+  apply_wand_frame_elim; cancel.
 Qed.
 
 Lemma body_head_head_switch: semax_body Vprog Gprog f_head_head_switch head_head_switch_spec.
@@ -81,9 +81,7 @@ Proof.
     forward. (* l2 -> head = h1; *)
   thaw Fr.
   forward. (* return *)
-  rewrite sepcon_assoc.
-  eapply derives_trans; [apply sepcon_derives; [apply wand_frame_hor | apply derives_refl] |].
-  rewrite sepcon_comm. apply wand_frame_elim.
+  apply_wand_frame_elim; cancel.
 Qed.
 
 End VerifHeadSwitch.
@@ -166,10 +164,7 @@ Proof.
    entailer!.
    simpl app.
    sep_apply (singleton_lseg sh s2 a t y).
-   rewrite <- sepcon_assoc.
-   eapply derives_trans; [apply sepcon_derives; [apply wand_frame_ver | apply derives_refl] |].
-   rewrite sepcon_comm.
-   apply wand_frame_elim.
+   unfold lseg; simpl app; apply_wand_frame_elim; cancel.
 Qed.
 
 End ProofByWandFrame1.
@@ -215,7 +210,7 @@ Proof.
    entailer!.
      1: apply (app_assoc s1a [b] (c :: s1d)).
    sep_apply (singleton_lseg sh (c :: s1d ++ s2) b t u0).
-   apply app_lseg.
+   apply lseg_lseg.
 + (* after the loop *)
    clear v s1' H0.
    forward. (* t -> tail = y; *)
@@ -225,9 +220,9 @@ Proof.
    entailer!.
    simpl app.
    sep_apply (singleton_lseg sh s2 b t y).
-   sep_apply (app_lseg sh s1a [b] s2 x t y) using (simpl app).
-   rewrite sepcon_comm.
-   apply wand_frame_elim.
+   sep_apply (lseg_lseg sh s1a [b] s2 x t y) using (simpl app).
+   sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
+   auto.
 Qed.
 
 End ProofByWandFrame2.
@@ -272,10 +267,8 @@ Proof.
    simpl app.
    entailer!.
      1: apply (app_assoc s1a [b] (c :: s1d)).
-   rewrite sepcon_assoc.
-   eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh (c :: s1d ++ s2))] |].
-   rewrite sepcon_comm.
-   apply app_lseg.
+   sep_apply (singleton_lseg sh (c :: s1d ++ s2) b t u0).
+   apply lseg_lseg.
 + (* after the loop *)
    clear v s1' H0.
    forward. (* t -> tail = y; *)
@@ -284,19 +277,10 @@ Proof.
    rewrite (listrep_null _ s1c) by auto.
    entailer!.
    simpl app.
-   rewrite (sepcon_assoc _ (@field_at _ _ _ _ _ _) (@field_at _ _ _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh s2)] | apply derives_refl] |].
-   rewrite (sepcon_comm _ (lseg _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply app_lseg | apply derives_refl] |].
-   rewrite sepcon_comm.
-   unfold lseg.
-   change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
-   change
-     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh ((s1a ++ [b]) ++ tcontents) x)
-   with
-     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh ((s1a ++ [b]) ++ tcontents) x))).
-   change (listrep sh ((s1a ++ [b]) ++ s2) x) with ((fun s2 => listrep sh ((s1a ++ [b]) ++ s2) x) s2).
-   apply wandQ_frame_elim.
+   sep_apply (singleton_lseg sh s2 b t y).
+   sep_apply (lseg_lseg sh s1a [b] x t y) using (simpl app).
+   sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
+   auto.
 Qed.
 
 End ProofByWandQFrame.

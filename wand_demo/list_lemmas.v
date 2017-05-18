@@ -47,13 +47,21 @@ Proof.
   cancel.
 Qed.
 
-Lemma app_lseg: forall sh (s1 s2 t: list int) (x y z: val),
+Lemma lseg_lseg: forall sh (s1 s2 t: list int) (x y z: val),
   lseg sh t s2 y z * lseg sh (s2 ++ t) s1 x y |-- lseg sh t (s1 ++ s2) x z.
 Proof.
   intros.
   unfold lseg.
   eapply derives_trans; [apply wand_frame_ver |].
   rewrite app_assoc; auto.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s2 s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  unfold lseg.
+  apply wand_frame_elim.
 Qed.
 
 End LsegWandFrame.
@@ -78,7 +86,7 @@ Proof.
   cancel.
 Qed.
 
-Lemma app_lseg: forall sh (s1 s2: list int) (x y z: val),
+Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
   lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
 Proof.
   intros.
@@ -89,6 +97,20 @@ Proof.
   f_equal; extensionality tcontents; simpl.
   rewrite app_assoc.
   auto.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  unfold lseg.
+  change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
+   change
+     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh (s1 ++ tcontents) x)
+   with
+     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
+   change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
+   apply wandQ_frame_elim.
 Qed.
 
 End LsegWandQFrame.
