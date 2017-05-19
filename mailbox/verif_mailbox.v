@@ -570,6 +570,7 @@ Proof.
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
     forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
     { entailer!. }
+    { entailer!. }
     { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
         [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
       { apply AE_inv_precise; auto. }
@@ -2251,13 +2252,9 @@ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
-{ destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  apply exp_left; intro.
-  apply exp_left; intro.
-  unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
+{ unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
   unfold liftx, lift; simpl.
-  apply derives_extract_prop; intros (? & ?).
-  apply derives_extract_prop; intros (? & ?); subst.
+  Intros; subst.
   apply prop_right; unfold make_ext_rval, eval_id in *; simpl in *.
   destruct ret; auto. }
 semax_func_cons body_surely_malloc.
