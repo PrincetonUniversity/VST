@@ -196,6 +196,68 @@ Definition drbg_reseed_spec_abs :=
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          Stream (get_stream_result F))).
 
+Definition generate_absPOST ret_value contents additional add_len output out_len ctx I kv s :=
+if out_len >? 1024
+then (!!(ret_value = Vint (Int.neg (Int.repr 3))) &&
+       (data_at_ Tsh (tarray tuchar out_len) output *
+         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+         AREP kv I ctx * Stream s))
+else
+  if (add_len >? 256)
+  then (!!(ret_value = Vint (Int.neg (Int.repr 5))) &&
+       (data_at_ Tsh (tarray tuchar out_len) output *
+         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+         AREP kv I ctx * Stream s))
+  else let g := (mbedtls_HMAC256_DRBG_generate_function s I out_len (contents_with_add additional add_len contents))
+       in (!!(return_value_relate_result g ret_value)) &&
+          (match g with
+            | ENTROPY.error _ _ => (data_at_ Tsh (tarray tuchar out_len) output)
+            | ENTROPY.success (bytes, _) _ => (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output)
+          end *
+          (*hmac256drbgabs_common_mpreds (hmac256drbgabs_generate I s out_len (contents_with_add additional add_len contents)) initial_state ctx info_contents **)
+          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+          Stream (get_stream_result g) *
+          (*K_vector kv*)
+          AREP kv (hmac256drbgabs_generate I s out_len (contents_with_add additional add_len contents)) ctx).
+
+Definition hmac_drbg_generate_abs_spec :=
+  DECLARE _mbedtls_hmac_drbg_random_with_add
+   WITH contents: list Z,
+        additional: val, add_len: Z,
+        output: val, out_len: Z,
+        ctx: val, 
+        I: hmac256drbgabs,
+        kv: val, s: ENTROPY.stream
+    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, _additional OF (tptr tuchar), _add_len OF tuint ]
+       PROP (
+         0 <= add_len <= Int.max_unsigned;
+         0 <= out_len <= Int.max_unsigned;
+         Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
+         add_len = Zlength contents;
+         0 < hmac256drbgabs_entropy_len I; 
+         hmac256drbgabs_entropy_len I + Zlength contents <= 384;
+(*         hmac256drbgabs_reseed_interval I = 10000;*)
+         RI_range (hmac256drbgabs_reseed_interval I) /\
+         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed;
+         Forall isbyteZ (hmac256drbgabs_value I);
+         Forall isbyteZ contents
+       )
+       LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
+              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+       SEP (
+         data_at_ Tsh (tarray tuchar out_len) output;
+         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;(*
+         data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
+         hmac256drbg_relate I initial_state;
+         K_vector kv;
+         data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);*)
+         AREP kv I ctx; Stream s)
+    POST [ tint ]
+       EX ret_value:_,
+       PROP ()
+       LOCAL (temp ret_temp ret_value)
+       SEP (generate_absPOST ret_value contents additional add_len output out_len ctx I kv s).
+
 (*random_with_add not yet done using REP/AREP*)
 (*from verif_hmacdrbg_other*)
 Definition drbg_random_abs_spec :=
@@ -247,18 +309,6 @@ Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
 Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
   destruct I. simpl. destruct J. destruct p. destruct d. destruct p. f_equal.
 Qed. 
-(*
-Lemma false_zgt z a: false = (z >? a) -> z<=a. 
-Proof. unfold Z.gtb.
-  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
-  discriminate.
-Qed. 
-Lemma false_zge z a: false = (z >=? a) -> z<=a. 
-Proof. unfold Z.geb.
-  remember (z ?= a). destruct c; intros; try discriminate.
-  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
-Qed.*)
 
 Lemma HMAC_DRBG_updateWF a b c d e:
       (d,e) = HMAC_DRBG_algorithms.HMAC_DRBG_update HMAC256_functional_prog.HMAC256 a b c ->
