@@ -27,6 +27,8 @@ Proof.
   apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
 Qed.
 
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+
 Section atomics.
 
 Context {CS : compspecs}.
@@ -90,8 +92,7 @@ Context {state : Type}.
 (* Iris-weak gives a more in-depth encoding of protocol assertions in terms of invariants and ghost state. This
    simpler one is probably still sound and almost as powerful. *)
 Definition protocol_inv (ord : state -> state -> Prop) T l g g' := EX v : Z, EX s : state,
-  !!(field_compatible tint [] l /\ repable_signed v) &&
-  mapsto Tsh tint l (vint v) * ghost_master s g * ghost_var gsh1 s g' * T s v.
+  !!(repable_signed v) && data_at Tsh tint (vint v) l * ghost_master s g * ghost_var gsh1 s g' * T s v.
 
 Definition protocol_R l g g' (s : state) ord T := invariant (protocol_inv ord T l g g') * ghost_snap s g.
 
@@ -129,32 +130,101 @@ Qed.
 
 Context `{PCM_order state}.
 
-Lemma protocol_R_duplicable : forall l g g' s ord T, duplicable (protocol_R l g g' s ord T).
+Lemma protocol_R_duplicable : forall l g g' s T, duplicable (protocol_R l g g' s ord T).
 Proof.
   intros; unfold protocol_R.
   apply sepcon_duplicable; auto with dup.
   apply ghost_snap_duplicable.
 Qed.
 
+Lemma protocol_W_R : forall l g g' s T,
+  view_shift (protocol_W l g g' s ord T) (protocol_W l g g' s ord T * protocol_R l g g' s ord T).
+Proof.
+  intros; unfold protocol_W, protocol_R.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (invariant _)), <- sepcon_assoc, <- general_atomics.invariant_duplicable.
+  rewrite sepcon_assoc, !(sepcon_comm (invariant _)); apply invariant_view_shift.
+  unfold protocol_inv.
+  rewrite !(later_exp' _ 0); view_shift_intro v.
+  rewrite !(later_exp' _ s); view_shift_intro s'.
+  rewrite !later_sepcon, !sepcon_assoc, !(sepcon_comm (|>(_ && _))).
+  rewrite sepcon_comm, !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, ghost_timeless|].
+  etransitivity; [apply view_shift_sepcon1, master_snap|].
+  rewrite sepcon_comm, !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, ghost_timeless|].
+  apply derives_view_shift.
+  assert_PROP (s' = s).
+  { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)).
+    rewrite <- !sepcon_assoc, (sepcon_comm (ghost_var gsh2 _ _)).
+    setoid_rewrite ghost_var_share_join'; eauto; entailer!. }
+  Exists v; entailer!.
+  rewrite (later_exp' _ s); Exists s; rewrite !later_sepcon; entailer!.
+  apply now_later.
+Qed.
+
+Lemma protocol_R_W : forall l g g' s s' T,
+  view_shift (protocol_W l g g' s ord T * protocol_R l g g' s' ord T) (!!(ord s' s) && protocol_W l g g' s ord T).
+Proof.
+  intros; unfold protocol_W, protocol_R.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (invariant _)), <- sepcon_assoc, <- general_atomics.invariant_duplicable.
+  rewrite <- sepcon_andp_prop.
+  rewrite sepcon_assoc, !(sepcon_comm (invariant _)); apply invariant_view_shift.
+  unfold protocol_inv.
+  rewrite !(later_exp' _ 0); view_shift_intro v.
+  rewrite !(later_exp' _ s); view_shift_intro s0.
+  rewrite !later_sepcon, !sepcon_assoc, !(sepcon_comm (|>(_ && _))).
+  rewrite <- !sepcon_assoc, (sepcon_comm _ (|>ghost_master _ _)).
+  rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, ghost_timeless|].
+  rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- sepcon_assoc.
+  rewrite 3sepcon_assoc; etransitivity; [apply view_shift_sepcon1, master_snap_absorb_gen|].
+  rewrite <- !sepcon_assoc, (sepcon_comm _ (|>ghost_var _ _ _)).
+  rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, ghost_timeless|].
+  apply derives_view_shift; Intros.
+  assert_PROP (s0 = s).
+  { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)).
+    rewrite <- !sepcon_assoc, (sepcon_comm (ghost_var gsh2 _ _)).
+    setoid_rewrite ghost_var_share_join'; eauto; entailer!. }
+  Exists v; entailer!.
+  rewrite (later_exp' _ s); Exists s; rewrite !later_sepcon; entailer!.
+  apply now_later.
+Qed.
+
+Lemma make_protocol : forall l v s T, repable_signed v ->
+  view_shift (data_at Tsh tint (vint v) l * T s v) (EX g : val, EX g' : val, protocol_W l g g' s ord T).
+Proof.
+  intros.
+  etransitivity; [apply ghost_alloc with (g := (Tsh, s)); auto with init|].
+  etransitivity; [apply ghost_alloc with (g := (@None state, Some s)), master_init|].
+  view_shift_intro g; view_shift_intro g'.
+  setoid_rewrite <- ghost_var_share_join; eauto.
+  etransitivity.
+  - rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 s g')), !sepcon_assoc.
+    apply view_shift_sepcon2.
+    apply make_inv with (Q := protocol_inv ord T l g g'); unfold protocol_inv.
+    Exists v s; entailer!.
+  - apply derives_view_shift; unfold protocol_W.
+    Exists g g'; cancel.
+Qed.
+
 End protocols.
 
 Definition OrdType s := ArrowType s (ArrowType s (ConstType Prop)).
+Definition PredType s := ArrowType s (ArrowType (ConstType Z) Mpred).
 
 Definition LA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * val * val))
-  (DependentType 0)) (OrdType (DependentType 0)))
-  (ArrowType (DependentType 0) (ArrowType (ConstType Z) Mpred))) Mpred) (ArrowType (ConstType Z) Mpred).
+  (DependentType 0)) (OrdType (DependentType 0))) (PredType (DependentType 0))) Mpred)
+  (PredType (DependentType 0)).
 
 Program Definition load_acq_spec := TYPE LA_type
-  WITH l : val, g : val, g' : val, s : _, ord : _ -> _ -> Prop, T : _ -> Z -> mpred, P : mpred, Q : Z -> mpred
+  WITH l : val, g : val, g' : val, s : _, ord : _ -> _ -> Prop, T : _ -> Z -> mpred, P : mpred, Q : _ -> Z -> mpred
   PRE [ 1%positive OF tptr tint ]
-   PROP (forall s' v, ord s s' -> repable_signed v -> view_shift (P * T s' v) (Q v); forall v, duplicable (Q v))
+   PROP (forall s' v, ord s s' -> repable_signed v -> view_shift (P * T s' v) (P * T s' v * Q s' v)%logic;
+         forall s' v, duplicable (Q s' v))
    LOCAL (temp 1%positive l)
    SEP (protocol_R l g g' s ord T; P)
   POST [ tint ]
    EX v : Z, EX s' : _,
    PROP (repable_signed v; ord s s')
    LOCAL (temp ret_temp (vint v))
-   SEP (protocol_R l g g' s' ord T; Q v).
+   SEP (protocol_R l g g' s' ord T; P; Q s' v).
 Next Obligation.
 Proof.
   repeat intro.
@@ -167,6 +237,7 @@ Proof.
       setoid_rewrite approx_imp; do 2 apply f_equal.
       rewrite view_shift_super_non_expansive, !approx_sepcon; auto.
     + f_equal.
+      rewrite !prop_forall, !(approx_allp _ _ _ s); f_equal; extensionality s'.
       rewrite !prop_forall, !(approx_allp _ _ _ 0); f_equal; extensionality v'.
       apply duplicable_super_non_expansive.
   - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
@@ -180,13 +251,14 @@ Proof.
   rewrite !approx_exp; apply f_equal; extensionality s'.
   unfold PROPx; simpl; rewrite !approx_andp; apply f_equal.
   unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
-  unfold SEPx; simpl; rewrite !approx_sepcon, protocol_R_super_non_expansive, approx_idem; auto.
+  unfold SEPx; simpl; rewrite !approx_sepcon, protocol_R_super_non_expansive, !approx_idem; auto.
 Qed.
 
 Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * val * val))
-  (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0)))
-  (ArrowType (DependentType 0) (ArrowType (ConstType Z) Mpred))) Mpred) Mpred.
+  (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0))) (PredType (DependentType 0))) Mpred) Mpred.
 
+(* single_writer version - multi-writer version uses protocol_R and requires that for all s',
+   ord s s' -> ord s' s''. *)
 Program Definition store_rel_spec := TYPE SR_type
   WITH l : val, v : Z, g : val, g' : val, s : _, s'' : _, st_ord : _ -> _ -> Prop, T : _ -> Z -> mpred, P : mpred, Q : mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
@@ -219,8 +291,8 @@ Proof.
 Qed.
 
 Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z * val * val))
-  (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0)))
-  (ArrowType (DependentType 0) (ArrowType (ConstType Z) Mpred))) Mpred) (ArrowType (ConstType Z) Mpred).
+  (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0))) (PredType (DependentType 0))) Mpred)
+  (ArrowType (ConstType Z) Mpred).
 
 Program Definition CAS_RA_spec := TYPE CRA_type
   WITH l : val, c : Z, v : Z, g : val, g' : val, s : _, s'' : _, ord : _ -> _ -> Prop, T : _ -> Z -> mpred,

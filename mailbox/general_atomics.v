@@ -13,8 +13,19 @@ Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
 Axiom invariant_precise : forall P, precise (invariant P).
 
 (* I think this is sound, and follows from Iris's rules... *)
-Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (Q * R) ->
+Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * |>R) (Q * |>R) ->
   view_shift (P * invariant R) (Q * invariant R).
+
+Lemma invariants_view_shift : forall {CS : compspecs} lR P Q,
+  view_shift (P * fold_right sepcon emp (map later lR)) (Q * fold_right sepcon emp (map later lR)) ->
+  view_shift (P * fold_right sepcon emp (map invariant lR)) (Q * fold_right sepcon emp (map invariant lR)).
+Proof.
+  induction lR; auto; simpl; intros.
+  rewrite <- !sepcon_assoc; apply IHlR.
+  rewrite !sepcon_assoc, !(sepcon_comm (invariant _)), <- !sepcon_assoc.
+  apply invariant_view_shift.
+  etransitivity; [|etransitivity; eauto]; apply derives_view_shift; cancel.
+Qed.
 
 Axiom invariant_super_non_expansive : forall n P, compcert_rmaps.RML.R.approx n (invariant P) =
 compcert_rmaps.RML.R.approx n (invariant (compcert_rmaps.RML.R.approx n P)).
