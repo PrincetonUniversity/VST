@@ -28,6 +28,79 @@ Qed.
 
 End ListHead.
 
+Module LsegRecursive.
+
+Fixpoint lseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  match contents with
+  | h::hs => !! (x<>z) && 
+             EX y:val,
+               field_at sh t_struct_list [StructField _head] (Vint h) x *
+               field_at sh t_struct_list [StructField _tail] y x *
+               lseg sh hs y z
+ | nil => !! (x = z /\ is_pointer_or_null x) && emp
+ end.
+
+Arguments lseg sh contents x z : simpl never.
+
+Lemma singleton_lseg: forall sh (contents: list int) (a: int) (x y: val),
+  readable_share sh ->
+  field_at sh t_struct_list [StructField _head] (Vint a) x *
+  field_at sh t_struct_list [StructField _tail] y x *
+  listrep sh contents y |--
+  lseg sh [a] x y *
+  listrep sh contents y.
+Proof.
+  intros.
+  unfold lseg.
+  Exists y.
+  entailer.
+  destruct contents; unfold listrep at 1; fold listrep;
+  entailer.
+Qed.
+
+Lemma singleton_lseg': forall sh (a b: int) (x y: val),
+  readable_share sh ->
+  field_at sh t_struct_list [StructField _head] (Vint a) x *
+  field_at sh t_struct_list [StructField _tail] y x *
+  field_at sh t_struct_list [StructField _head] (Vint b) y |--
+  lseg sh [a] x y *
+  field_at sh t_struct_list [StructField _head] (Vint b) y.
+Proof.
+  intros.
+  unfold lseg.
+  Exists y.
+  entailer.
+Qed.
+
+Lemma lseg_lseg: forall sh (s1 s2: list int) (a: int) (x y z: val),
+  readable_share sh ->
+  lseg sh s2 y z * lseg sh s1 x y * field_at sh t_struct_list [StructField _head] (Vint a) z |--
+  lseg sh (s1 ++ s2) x z * field_at sh t_struct_list [StructField _head] (Vint a) z.
+Proof.
+  intros.
+  revert x; induction s1; intros; simpl.
+  + unfold lseg at 2; entailer!.
+  + unfold lseg at 2 3; fold lseg.
+    Intros y'; Exists y'.
+    entailer.
+    sep_apply (IHs1 y').
+    cancel.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  revert x; induction s1; intros; simpl.
+  + unfold lseg at 1. entailer!.
+  + unfold lseg; fold lseg.
+    Intros x'; Exists x'.
+    entailer!.
+    apply IHs1.
+Qed.
+
+End LsegRecursive.
+
 Module LsegWandFrame.
 
 Definition lseg (sh: share) (tcontents contents: list int) (x z: val) : mpred :=
