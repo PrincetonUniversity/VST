@@ -596,7 +596,7 @@ rewrite H, <- Heqp in M. inv M; split; trivial.
 Qed.
 
 (*The function occurring in the VST spec of mbedtls' random function ie no additional input*) 
-Definition mbedlts_generate s I n :=
+Definition mbedtls_generate s I n :=
    match mbedtls_HMAC256_DRBG_generate_function s I n [] 
    with ENTROPY.success (bytes, J) ss =>
           match J with ((((VV, KK), RC), _), PR) =>
@@ -606,7 +606,7 @@ Definition mbedlts_generate s I n :=
       | _ => None  
    end.
 
-Lemma Bridge' s I n bytes F ss (M: mbedlts_generate s I n = Some(bytes, ss, F)):
+Lemma Bridge' s I n bytes F ss (M: mbedtls_generate s I n = Some(bytes, ss, F)):
   match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
   match F with HMAC256DRBGabs KK VV rc _ _ _ =>
@@ -614,7 +614,7 @@ Lemma Bridge' s I n bytes F ss (M: mbedlts_generate s I n = Some(bytes, ss, F)):
   FunGenerate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ((VV,KK), rc)
   end end.
 Proof. destruct I. destruct F. Transparent FunGenerate. simpl. Opaque FunGenerate.
-unfold mbedlts_generate in M. simpl in M.
+unfold mbedtls_generate in M. simpl in M.
 remember (n >? 1024) as d; destruct d; try discriminate.
 rewrite andb_negb_r in M. intros; subst.
 apply Zgt_is_gt_bool_f in H.  rewrite H.
@@ -623,7 +623,7 @@ unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in M; simpl 
 rewrite H, <- Heqp in M. inv M; auto. 
 Qed.
 
-Lemma Bridge_ok' s I (n:nat) bytes F ss (M: mbedlts_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
+Lemma Bridge_ok' s I (n:nat) bytes F ss (M: mbedtls_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
   match I with HMAC256DRBGabs k v reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
   forall (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat),
@@ -669,7 +669,7 @@ Proof. induction l; simpl; intros. + omega.
 + rewrite IHl, Blist.to_list_length; clear IHl. omega.
 Qed. 
 
-Lemma mbedlts_generate_Bridge s I (n:nat) bytes F ss (M: mbedlts_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
+Lemma mbedtls_generate_Bridge s I (n:nat) bytes F ss (M: mbedtls_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
   match I with HMAC256DRBGabs k v reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
   forall (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat),
@@ -704,12 +704,18 @@ Definition Generate_refactored state := AsGame (GenUpdate_original_core state).
 Lemma Refactored kv n: 
      comp_spec (fun x y => x=y)
                (@Generate _ HMAC_Bvec eqDecState kv n)
-               (AsGame (GenUpdate_original_core kv) n).
+               (*(AsGame (GenUpdate_original_core kv) n)*) (ret (GenUpdate_original_core kv n)).
 Proof.
   unfold AsGame, Generate, GenUpdate_original_core.
   destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
 Qed.
 
+Lemma OK256: (256 <> 0)%nat. Proof. omega. Qed.
+
+Definition Instantiated_G1_G2_close := G1_G2_close OK256 HMAC_Bvec eqDecState.
+(*How should we instantiate blocksPerCall numCalls : nat,
+       (numCalls > 0)%nat ->
+       (blocksPerCall > 0)%nat ->?*)
 (* final theorem? 
 Theorem X_close kv :
   | Pr[AsGame (GenUpdate_original_core kv)] - Pr[@G_ideal 256] | <= (numCalls / 1) * Gi_Gi_plus_1_bound.

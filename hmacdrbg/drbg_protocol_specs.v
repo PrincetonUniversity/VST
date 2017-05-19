@@ -267,7 +267,7 @@ Definition drbg_random_abs_spec :=
         s: ENTROPY.stream, bytes:_, F:_, ss:_
     PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
        PROP (0 <= n <= 1024;
-         mbedlts_generate s I n = Some(bytes, ss, F))
+         mbedtls_generate s I n = Some(bytes, ss, F))
        LOCAL (temp _p_rng ctx; temp _output output;
               temp _out_len (Vint (Int.repr n)); gvar sha._K256 kv)
        SEP (data_at_ Tsh (tarray tuchar n) output;
@@ -1175,7 +1175,7 @@ Proof.
   { rewrite Zlength_nil.
     repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
     constructor. }
-  Intros v. forward. unfold mbedlts_generate in M.
+  Intros v. forward. unfold mbedtls_generate in M.
   remember (mbedtls_HMAC256_DRBG_generate_function s I n []) as q; destruct q; try discriminate. 
   destruct p as [bytes' J].
   destruct J as [[[[V K] RC] x] PR]. inv M.

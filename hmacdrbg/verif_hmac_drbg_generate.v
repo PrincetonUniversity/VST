@@ -2002,7 +2002,7 @@ Opaque HMAC256_DRBG_generate_function.
     remember (get_entropy 32(*256*) entropy_len entropy_len false s) as ENT.
     destruct ENT.
     - subst MRES'. 
-      remember  MGen as MGen'. subst MGen.
+      remember  MGen as MGen'. subst MGen. simpl in *.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
       unfold mbedtls_HMAC256_DRBG_generate_function, HMAC256_DRBG_generate_function, DRBG_generate_function in HeqMGen'.
