@@ -79,7 +79,7 @@ Proof.
   intros j B l p; specialize (B l p).
   apply resource_at_join with (loc := l) in j.
   rewrite B in j.
-  inv j; eauto.
+  inv j; eauto. apply NO_ext.
   erewrite join_to_bot_l; eauto.
 Qed.
 
@@ -88,7 +88,7 @@ Lemma resource_fmap_YES_inv f g r sh rsh k pp :
   exists pp', r = YES sh rsh k pp' /\ pp = preds_fmap f g pp'.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
-  injection 1 as <- <- <- <-. eauto.
+  injection 1 as <- <- <-. exists p0. split; auto. apply YES_ext; auto.
 Qed.
 
 Lemma resource_fmap_PURE_inv f g r k pp :
@@ -99,9 +99,9 @@ Proof.
   injection 1 as <- <-. eauto.
 Qed.
 
-Lemma resource_fmap_NO_inv f g r rsh :
-  resource_fmap f g r = NO rsh ->
-  r = NO rsh.
+Lemma resource_fmap_NO_inv f g r sh nsh :
+  resource_fmap f g r = NO sh nsh ->
+  r = NO sh nsh.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
 Qed.
@@ -251,6 +251,12 @@ Proof.
     Abort.
 Abort.
 
+           Lemma perm_of_res'_resource_fmap f g r :
+             perm_of_res' (resource_fmap f g r) = perm_of_res' r.
+           Proof.
+             destruct r; simpl; auto.
+           Qed.
+
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
   mem_cohere' (m_dry jm) Phi ->
   sepalg.join (m_phi jm) X Phi ->
@@ -330,14 +336,14 @@ Proof.
         exfalso.
         destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
         all: breakhyps.
-        injection H as -> -> -> ->.
-        apply join_pfullshare in H5.
-        destruct H5.
+        apply YES_inj in H. inv H. inv H0.
+         clear - RJ0 rsh5. apply join_top_l in RJ0. subst.
+         apply shares.bot_unreadable; auto.
 
     + (* from both X and jm' *)
-      symmetry in H1.
-      apply resource_fmap_YES_inv in H1.
-      destruct H1 as (pp' & -> & ->).
+      symmetry in H0.
+      apply resource_fmap_YES_inv in H0.
+      destruct H0 as (pp' & -> & ->).
       simpl in *.
       inv J; eauto.
 
@@ -384,15 +390,10 @@ Proof.
            destruct Freed; congruence.
         -- unfold max_access_at in * (* same Cur and Max *).
            rewrite <-(Same Max), E'.
-           Lemma perm_of_res'_resource_fmap f g r :
-             perm_of_res' (resource_fmap f g r) = perm_of_res' r.
-           Proof.
-             destruct r; simpl; auto.
-           Qed.
            rewrite perm_of_res'_resource_fmap; auto.
 
     + (* "Write" case *)
-      destruct RD as (rsh & v & v' & E & E').
+      destruct RD as (sh & wsh & v & v' & E & E').
       rewrite decay_rewrite in dec.
       specialize (dec loc).
       unfold rmap_bound in *.
@@ -423,18 +424,17 @@ Proof.
               apply resource_fmap_YES_inv in H.
               destruct H as (pp' & -> & Epp).
               simpl; f_equal.
-              assert (rsh0 = rsh2) by congruence. subst.
+              assert (sh0 = sh2) by congruence. subst.
               eapply join_eq; eauto.
            ++ destruct (X @ loc); congruence.
            ++ destruct (X @ loc); congruence.
-           ++ assert (rsh0 = rsh2) by congruence. subst.
-              assert (sh0 = sh2) by congruence. subst.
+           ++ assert (sh0 = sh2) by congruence. subst.
               symmetry in H5.
+              assert (sh3=sh4) by (eapply join_eq; eauto). subst.
               apply resource_fmap_YES_inv in H5.
-              destruct H5 as (pp' & -> & Epp).
+              destruct H5 as (pp' & ? & Epp).
+              destruct (Phi @ loc); inv H.
               simpl; f_equal.
-              ** eapply join_eq; eauto.
-              ** eapply join_eq; eauto.
 
     + (* "Alloc" case *)
       autospec NN.
@@ -459,7 +459,8 @@ Proof.
         inv J'.
         apply join_bot_bot_eq in RJ; subst.
         simpl. if_tac. auto. tauto.
-      * apply join_pfullshare in H0. tauto.
+      * elimtype False; clear - RJ rsh2.  apply join_top_l in RJ. subst.
+         apply shares.bot_unreadable; auto.
 
   - (* Proving alloc_cohere *)
     intros loc g.
@@ -476,7 +477,8 @@ Proof.
     rewr (X @ loc) in J'.
     simpl in J'.
     inv J'.
-    rewrite (join_bot_bot_eq rsh3); auto.
+    apply NO_ext.
+    rewrite (join_bot_bot_eq sh3); auto.
 Qed.
 
 (** About lock_coherence *)
@@ -636,9 +638,12 @@ Proof.
         { unfold ii; split. omega.
           unfold LKSIZE, align_chunk, size_chunk in *.
           omega. }
-        pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii sh1' as H.
+        pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii
+                          (shares.readable_part sh1')
+
+               as H.
         assert_specialize H.
-        { rewrite EPhi. reflexivity. }
+        { rewrite EPhi. simpl. reflexivity. }
         replace (Int.intval ofs + ii)%Z with ofs' in H by (unfold ii; omega).
         rewrite E in H. simpl in H. congruence.
 

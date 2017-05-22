@@ -164,7 +164,7 @@ Proof.
     simpl in B. unfold nested_field_lemmas.nested_field_offset in B.
     simpl in B. unfold nested_field_lemmas.nested_field_type in B.
     simpl in B. unfold reptype_lemmas.default_val in B.
-    simpl in B. unfold Znth in B.
+    simpl in B. unfold sublist.Znth in B.
     simpl in B. repeat rewrite Int.add_assoc in B.
     unfold data_at_rec_lemmas.data_at_rec in *.
     simpl in B.
@@ -176,23 +176,18 @@ Proof.
     unfold SeparationLogic.mapsto in *.
     simpl in B.
     destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
-    destruct B as [B|B]. now destruct B as [[]].
-    destruct B as [_ (v2', Hmaps)].
-    rewrite reptype_lemmas.int_add_repr_0_r in *.
-    apply mapsto_can_store with (v := v2') (rsh := (Share.unrel Share.Lsh shx)).
+    autorewrite with norm in B.
+    rewrite !FF_orp in B.
+    autorewrite with norm in B.
+    destruct B as [v1' B]. 
+    autorewrite with norm in B.
+    destruct B as [v2' B]. 
+    rewrite !TT_andp in B.
+    apply mapsto_can_store with (v := v2') (sh := shx); try assumption.
     simpl (m_phi _).
-    (* if array size > 4:
-          rewrite <-TT_sepcon_TT.
-          rewrite <-sepcon_assoc.
-     *)
-    exists phi0, phi1; split; auto. split; auto.
-    (* if array size > 4:
-          exists phi00, phi01; split; auto. split; auto.
-     *)
-    exact_eq Hmaps.
-    f_equal.
-    f_equal.
-    apply writable_share_right. assumption.
+    destruct B as [phi0a [phi0b [? [? ?]]]].
+    destruct (join_assoc H Join) as [f [? ?]].
+    exists phi0a, f; split; auto.
   }
   destruct Hm' as (m', Hstore).
 
@@ -223,10 +218,12 @@ Proof.
 
     eapply step_mklock
     with (c := ci) (Hcompatible := mem_compatible_forget compat)
-                   (R := Rx) (phi'0 := phi').
-    all: try reflexivity.
-    all: try eassumption.
+                   (R := Rx) (phi'0 := phi');
+    try eassumption; try reflexivity.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. assumption.
+    simpl.
+    clear - RLphi.
+    admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)    
   }
 
   (* we move on to the preservation part *)
@@ -250,17 +247,18 @@ Proof.
   assert (notfound : lockRes tp (b, Int.intval ofs) = None). {
     spec lock_coh (b, Int.intval ofs). cleanup.
     destruct (AMap.find _ _) as [o|] eqn:Eo. 2:reflexivity. exfalso.
-    assert (C : exists (R : pred rmap), (lkat R (b, Int.intval ofs)) Phi).
-    destruct o; breakhyps; eauto. clear lock_coh.
-    destruct C as ((* sh &  *)R' & At).
+    assert (C : exists (R : pred rmap), (lkat R (b, Int.intval ofs)) Phi)
+      by (destruct o; breakhyps; eauto). clear lock_coh.
+    destruct C as (R' & At).
     destruct Hrmap' as (_ & _ & inside).
     spec inside (b, Int.intval ofs).
     spec inside. split; auto; unfold Int.unsigned in *; lkomega.
-    destruct inside as (val' & sh'' & E & _).
+    destruct inside as (val' & sh'' & rsh'' & E & _).
     spec At (b, Int.intval ofs). simpl in At.
     spec At. now split; auto; lkomega.
-    if_tac in At. 2:tauto.
-    breakhyps.
+    destruct At as [sh [rsh  At]].
+    rewrite if_true in At by auto.
+    progress breakhyps.
   }
 
   assert (APhi' : age Phi' (age_to n Phi')) by (apply age_to_1; congruence).
@@ -278,8 +276,12 @@ Proof.
     rewrite E; eauto.
     rewrite (age_resource_at APhi' (loc := loc)) in E''.
     destruct (Phi' @ loc); simpl in E''; try congruence.
-    injection E''; intros <- <- <- <- ; eexists; split. reflexivity.
+    injection E''; intros <- <- <-.
+    apply YES_inj in E''. exists p; simpl.
+    split. apply YES_ext; reflexivity.
     rewrite level_age_to. 2:omega. reflexivity.
+    clear - nr.
+    admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
   }
 
   assert (mcompat' : mem_compatible_with' (age_tp_to n (updLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Int.intval ofs) None)) m' (age_to n Phi')). {
@@ -305,9 +307,12 @@ Proof.
       * intros rsh sh v loc pp E''.
         destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
         -- exfalso.
-           destruct Hrmap' as (_ & _ & inside). spec inside loc. autospec inside.
+           destruct Hrmap' as (_ & _ & inside). spec inside loc.
+           spec inside.
+           clear - r.
+           admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
            rewrite age_to_resource_at in E''.
-           destruct inside as (? & ? & _ & E').
+           destruct inside as (? & ? & ? & ? & ? & E').
            rewrite E' in E''. if_tac in E''; simpl in E''; congruence.
         -- destruct (Phi'rev _ _ _ _ _ nr E'') as (pp' & E & ->).
            cut (contents_at m loc = v /\ pp' = NoneP).
@@ -341,10 +346,10 @@ Proof.
         exact_eq M. f_equal.
         destruct Hrmap' as (_ & Same & Changed).
         spec Same loc. spec Changed loc.
-        destruct (adr_range_dec (b, Int.unsigned ofs) (4 * 1) loc) as [r|nr].
+        destruct (adr_range_dec (b, Int.unsigned ofs) (4 * 2) loc) as [r|nr].
         -- autospec Changed.
-           destruct Changed as (val & sh & -> & ->).
-           if_tac; reflexivity.
+           destruct Changed as (val & sh & rsh & ? & ? & ?).
+           rewrite H; if_tac in H1; rewrite H1; reflexivity.
         -- autospec Same. rewrite <-Same.
            reflexivity.
 
@@ -394,18 +399,16 @@ Proof.
         destruct Hrmap' as (_ & _ & inside).
         specialize (inside (b, ofs0)).
         spec C (b, ofs0).
-        spec inside. hnf. split; auto.
-        destruct inside as (val & sh & E & _).
+        spec inside. hnf. split. auto.
+        clear - r. hnf in r. simpl in r.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+        destruct inside as (val & sh & rsh & E & ? & ?).
         rewrite E in C.
         unfold max_access_at in *.
         eapply po_trans. eassumption.
         unfold perm_of_res' in *.
         unfold perm_of_sh in *.
-        Ltac share_tac :=
-          change (pshare_sh pfullshare) with Share.top in *;
-          pose proof Share.nontrivial;
-          try tauto.
-        repeat if_tac; try constructor; share_tac.
+        repeat if_tac; try constructor; tauto.
       * eapply loc_writable; eauto.
 
     + (* juicyLocks_in_lockSet *)
@@ -423,7 +426,7 @@ Proof.
       apply outside.
       intros r.
       spec inside loc r.
-      destruct inside as (val & sh' & _ & E1).
+      destruct inside as (val & sh' & rsh' & ? & _ & E1).
       rewrite E1 in E'.
       if_tac in E'.
       * unfold Int.unsigned in *. congruence.
@@ -445,7 +448,10 @@ Proof.
         if_tac in inside. 2:tauto.
         rewrite age_to_resource_at.
         breakhyps.
-        rewr (Phi' @ (b, Int.unsigned ofs)). simpl. eauto.
+        rewr (Phi' @ (b, Int.unsigned ofs)). simpl.
+        do 3 eexists.
+        replace LKSIZE with 8%Z by admit. (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+        apply YES_ext; reflexivity.
       * intros tr. spec J tr. auto.
         destruct Hrmap' as (_ & outside & inside).
         spec outside loc.
@@ -561,12 +567,15 @@ Proof.
         auto.
 
       * (* LK_at *)
-        subst loc.
+        subst loc. simpl.
         split. apply AT.
-        split. apply AT.
+        split.
+        admit.  (* not sure how to prove (Int.intval ofs + 4 <= Int.modulus)%Z *)
         exists Rx.
         intros loc r.
-        destruct Hrmap' as (_ & _ & inside). spec inside loc r.
+        destruct Hrmap' as (_ & _ & inside). spec inside loc.
+        spec inside. clear - r.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
         rewrite age_to_resource_at.
         breakhyps.
         rewr (Phi' @ loc).
@@ -576,7 +585,9 @@ Proof.
            unfold LKSIZE in *.
            unfold sync_preds_defs.pack_res_inv in *.
            simpl.
-           eexists _, _. f_equal. f_equal. extensionality Ts.
+           eexists x0, x1.
+           replace (LK 8) with (LK 4) by admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+           f_equal. f_equal. extensionality Ts.
            eauto.
            rewrite level_age_to. 2:omega.
            apply approx_approx'. omega.
@@ -734,11 +745,19 @@ Proof.
       * unfold option_map.
         destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
         -- destruct Hrmap' as (_ & _ & inside).
-           spec inside loc r. rewrite isLK_age_to.
-           if_tac in inside; intros []; intros ? ?; breakhyps.
+           spec inside loc.
+        spec inside. clear - r.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+           rewrite isLK_age_to.
+           destruct inside as [? [? [? [? [? inside]]]]].
+           rewrite if_false in inside by auto. rewrite inside.
+           clear. unfold isLK; simpl. intros [? [? [? [? ?]]]]. inv H.
         -- destruct Hrmap' as (_ & outside & _).
            rewrite age_to_resource_at.
-           spec outside loc nr. rewrite <-outside.
+           spec outside loc.
+        spec outside. clear - nr.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+           rewrite <-outside.
            clear -lock_coh.
            unfold isLK, isCT in *.
            destruct (Phi @ loc) as [t0 | t0 p [] p0 | k p]; (* split; *) simpl in *; intro; breakhyps.
@@ -817,14 +836,16 @@ Proof.
               exists b, ofs; split. auto.
               intros loc. simpl.
               destruct RL0 as (Lphi0 & outside & inside).
+              replace 2%Z with 1%Z in AT by admit. (* mismatch between LKSIZE=4 and LKSIZE=8 *)
               pose proof data_at_unfold _ _ _ _ _ 1 Hwritable AT as Hbefore.
               spec Hbefore loc.
               if_tac [r|nr]; [ if_tac [e|ne] | ].
-              -- rewrite writable_share_right; auto.
-                 exists top_share_nonunit.
-                 spec inside loc r.
+              -- exists ((writable_readable_share Hwritable)).
+                 spec inside loc.
+        spec inside. clear - r.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
                  if_tac in inside. 2:unfold Int.unsigned in *; congruence.
-                 destruct inside as (val & sh & E & E').
+                 destruct inside as (val & sh & rsh & E & wsh & E').
                  if_tac in Hbefore. 2:tauto.
                  rewrite age_to_resource_at.
                  destruct Hbefore as (v, Hb). rewrite Hb in E.
@@ -833,21 +854,24 @@ Proof.
                  unfold pfullshare.
                  rewrite approx_approx'. 2: join_level_tac; omega.
                  rewrite level_age_to.  2: join_level_tac; omega.
+                 replace (LK 8) with (LK LKSIZE) by admit. apply YES_ext.
                  reflexivity.
-              -- rewrite writable_share_right; auto.
-                 exists top_share_nonunit.
-                 spec inside loc r.
+              -- exists ((writable_readable_share Hwritable)).
+                 spec inside loc.
+        spec inside. clear - r.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
                  if_tac in inside. unfold Int.unsigned in *; congruence.
-                 destruct inside as (val & sh & E & E').
+                 destruct inside as (val & sh & rsh & E & wsh & E').
                  if_tac in Hbefore. 2:tauto.
                  rewrite age_to_resource_at.
                  destruct Hbefore as (v, Hb). rewrite Hb in E.
                  injection E as -> <-.
-                 rewrite E'. simpl.
-                 unfold pfullshare, NoneP.
+                 rewrite E'. simpl.  apply YES_ext.
                  reflexivity.
               -- if_tac in Hbefore. tauto.
-                 spec outside loc nr.
+                 spec outside loc.
+        spec outside. clear - nr.
+        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
                  rewrite age_to_resource_at, <-outside.
                  apply empty_NO in Hbefore.
                  destruct Hbefore as [-> | (? & ? & ->)]; simpl.
@@ -891,4 +915,4 @@ Proof.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
   Unshelve. exists Phi. apply compat.
-Qed.
+Admitted.

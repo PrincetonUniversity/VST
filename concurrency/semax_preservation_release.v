@@ -137,11 +137,11 @@ Lemma preservation_release
   (c : code)
   (b : block)
   (ofs : int)
-  (psh : pshare)
   (d_phi : rmap)
   (R : pred rmap)
   (phi' : rmap)
   (sh : Share.t)
+  (rsh : shares.readable_share sh)
   (Hthread : getThreadC i tp cnti = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (UNLOCK(* , ef_sig UNLOCK *), Vptr b ofs :: nil))
   (His_locked : lockRes tp (b, Int.intval ofs) = SNone)
@@ -154,7 +154,7 @@ Lemma preservation_release
   (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m')
   (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
   (*                     b (Int.intval ofs) (Vint Int.one) = Some m') *)
-  (HJcanwrite : getThreadR i tp cnti @ (b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+  (HJcanwrite : getThreadR i tp cnti @ (b, Int.intval ofs) = YES sh rsh (LK LKSIZE) (pack_res_inv R))
   (Hrem_lock_res : join d_phi phi' (getThreadR i tp cnti))
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil
              (age_tp_to n
