@@ -2050,7 +2050,13 @@ Proof.
   (* It's a rather major flaw that we have to reiterate the precondition here. Could we figure it out instead? *)
   forward_spawn (val * val * val * val * val * val * list val * list val * list val *
                  share * share * share * list share * list val * list val * list val * list val * share * share)%type
-    (writer_, vint 0, (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs,
+    (writer_, vint 0, fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
+      share * list share * list val * list val * list val * list val * share * share) =>
+      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
+            g, g0, g1, g2, gsh1, gsh2) := x in
+      [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
+       (_lock, lock); (_comm, comm); (_bufs, buf)],
+    (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs,
                        g, g0, g1, g2, gsh1, gsh2),
     fun (x : (val * val * val * val * val * val * list val * list val * list val *
               share * share * share * list share * list val * list val * list val * list val * share * share)%type)
@@ -2079,15 +2085,13 @@ Proof.
     rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; auto|].
     apply andp_right; [apply prop_right; repeat split; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto|].
     apply andp_right; [apply prop_right|].
     { unfold liftx; simpl; unfold lift, make_args'; simpl.
-      rewrite eval_id_other, eval_id_same; auto; discriminate. }
-    Exists _arg (fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
-      share * list share * list val * list val * list val * list val * share * share) =>
-      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
-            g, g0, g1, g2, gsh1, gsh2) := x in
-      [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
-       (_lock, lock); (_comm, comm); (_bufs, buf)]).
+      erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ writer_) by eauto.
+      rewrite eval_id_same, eval_id_other, eval_id_same; [|discriminate].
+      repeat split; auto; apply gvar_denote_global; auto. }
+    Exists _arg.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'.
       f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
@@ -2173,7 +2177,12 @@ Proof.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     forward_spawn (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
                    share * share * share * val * val * val * val * share * share)%type
-      (reader_, d, (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
+      (reader_, d, fun x : (Z * val * val * val * val * val * list val * list val * list val * list val *
+        list val * share * share * share * val * val * val * val * share * share) =>
+        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
+              g, g0, g1, g2, gsh1, gsh2) := x in
+        [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)],
+      (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
                     Znth i shs1 Tsh, gsh2, Znth i shs Tsh, Znth i g Vundef, Znth i g0 Vundef, Znth i g1 Vundef,
                     Znth i g2 Vundef, gsh1, gsh2),
       fun (x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
@@ -2198,18 +2207,15 @@ Proof.
       rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
       apply andp_right; [apply prop_right; auto|].
       apply andp_right; [apply prop_right; repeat split; auto|].
+      apply andp_right; [apply prop_right; repeat split; auto|].
       apply andp_right; [apply prop_right|].
       { unfold liftx; simpl; unfold lift, make_args'; simpl.
-        rewrite eval_id_other, eval_id_same; [|discriminate].
-        assert (isptr d) by (match goal with H : field_compatible _ _ d |- _ => destruct H;
-          destruct d; auto; contradiction end).
-        replace (eval_id _d rho) with d by auto.
-        rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-      Exists _arg (fun x : (Z * val * val * val * val * val * list val * list val * list val * list val *
-        list val * share * share * share * val * val * val * val * share * share) =>
-        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
-              g, g0, g1, g2, gsh1, gsh2) := x in
-        [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)]).
+        erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ reader_) by eauto.
+        rewrite eval_id_same, eval_id_other, eval_id_same; [|discriminate].
+        replace (eval_id _d rho) with d.
+        rewrite force_val_sem_cast_neutral_isptr'; rewrite force_val_sem_cast_neutral_isptr'; auto.
+        repeat split; auto; apply gvar_denote_global; auto. }
+      Exists _arg.
       rewrite !sepcon_assoc; apply sepcon_derives.
       { apply derives_refl'.
         f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.

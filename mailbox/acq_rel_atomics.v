@@ -78,6 +78,14 @@ Proof.
 Qed.
 Hint Resolve prop_duplicable : dup.
 
+Lemma exp_duplicable : forall {A} (P : A -> mpred), (forall x, duplicable (P x)) -> duplicable (exp P).
+Proof.
+  unfold duplicable; intros.
+  view_shift_intro x.
+  etransitivity; eauto.
+  apply derives_view_shift; Exists x x; auto.
+Qed.
+
 Lemma duplicable_super_non_expansive : forall n P, compcert_rmaps.RML.R.approx n (!!duplicable P) =
   compcert_rmaps.RML.R.approx n (!!duplicable (compcert_rmaps.RML.R.approx n P)).
 Proof.
@@ -187,6 +195,15 @@ Proof.
   apply now_later.
 Qed.
 
+Lemma protocol_R_R : forall l g g' s1 s2 T, ord s1 s2 ->
+  protocol_R l g g' s1 ord T * protocol_R l g g' s2 ord T = protocol_R l g g' s2 ord T.
+Proof.
+  intros; unfold protocol_R.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (invariant _)), <- sepcon_assoc, <- general_atomics.invariant_duplicable.
+  erewrite sepcon_assoc, ghost_snap_join; eauto.
+  apply join_comm, ord_join; auto.
+Qed.
+
 Lemma make_protocol : forall l v s T, repable_signed v ->
   view_shift (data_at Tsh tint (vint v) l * T s v) (EX g : val, EX g' : val, protocol_W l g g' s ord T).
 Proof.
@@ -204,7 +221,25 @@ Proof.
     Exists g g'; cancel.
 Qed.
 
+Lemma protocol_R_choose : forall l g g' s1 s2 T
+  (Hcompat : forall s2 s' s'', ord s1 s2 -> join s2 s' s'' -> exists s0, join s1 s' s0 /\ ord s0 s''),
+  view_shift (protocol_R l g g' s1 ord T * protocol_R l g g' s2 ord T) (protocol_R l g g' s1 ord T).
+Proof.
+  intros; unfold protocol_R.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (invariant _)), <- sepcon_assoc, <- general_atomics.invariant_duplicable.
+  rewrite sepcon_assoc; apply view_shift_sepcon2, ghost_snap_choose; auto.
+Qed.
+
 End protocols.
+
+Existing Instance max_PCM.
+
+Lemma protocol_R_choose' : forall l g g' s1 s2 T,
+  view_shift (protocol_R l g g' s1 Z.le T * protocol_R l g g' s2 Z.le T) (protocol_R l g g' s1 Z.le T).
+Proof.
+  intros; apply protocol_R_choose; simpl; intros; subst.
+  do 2 eexists; eauto; apply Z.max_le_compat_r; auto.
+Qed.
 
 Definition OrdType s := ArrowType s (ArrowType s (ConstType Prop)).
 Definition PredType s := ArrowType s (ArrowType (ConstType Z) Mpred).

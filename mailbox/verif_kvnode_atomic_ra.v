@@ -65,17 +65,18 @@ Defined.
 
 Definition log_latest s (v1 v2 : Z) := s v1 = Some v2 /\ forall v', v1 < v' -> s v' = None.
 
-Definition version_T (s v : Z) := !!(v = s) && emp.
+Definition data_T g s (v : Z) := EX ver : Z, !!(Z.even ver = true /\ log_latest s ver v) &&
+  ghost_snap (ver - 1) g.
 
-Definition data_T version g g' s (v : Z) := EX ver : Z, !!(Z.even ver = true /\ log_latest s ver v) &&
-  protocol_R version g g' (ver - 1) Z.le version_T.
+Definition node_entry v vs locs g lg lg' i := EX log : _, !!(log_latest log v (Znth i vs 0)) &&
+  protocol_R (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T g).
 
-Definition node_entry v vs version locs g g' lg lg' i := EX log : _, !!(log_latest log v (Znth i vs 0)) &&
-  protocol_R (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T version g g').
+Definition version_T locs g lg lg' (s v : Z) := !!(v = s) && EX vs : list Z,
+  fold_right sepcon emp (map (node_entry (if Z.even v then v else v - 1) vs locs g lg lg') (upto (Z.to_nat size))).
 
 Definition node_state v vs version locs g g' lg lg' := !!(Z.even v = true) &&
-  protocol_R version g g' v Z.le version_T *
-  fold_right sepcon emp (map (node_entry v vs version locs g g' lg lg') (upto (Z.to_nat size))).
+  protocol_R version g g' v Z.le (version_T locs g lg lg') *
+  fold_right sepcon emp (map (node_entry v vs locs g lg lg') (upto (Z.to_nat size))).
 
 Program Definition write_spec := DECLARE _write atomic_spec
   (ConstType (val * val * share * share * val * list val * list Z * val * val * list val * list val * Z * list Z))
@@ -86,18 +87,18 @@ Program Definition write_spec := DECLARE _write atomic_spec
      readable_share shi /\ isptr version /\ Forall isptr locs /\ Zlength locs = size /\
      Forall repable_signed vals /\ Z.even v0 = true /\ Zlength vs0 = size) &&
    data_at sh tnode (version, locs) n * data_at shi (tarray tint size) (map (fun x => vint x) vals) input *
-   protocol_W version g g' v0 Z.le version_T * fold_right sepcon emp (map (fun i =>
+   protocol_W version g g' v0 Z.le (version_T locs g lg lg') * fold_right sepcon emp (map (fun i =>
      EX log : _, !!(log_latest log v0 (Znth i vs0 0)) &&
-       protocol_W (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T version g g'))
+       protocol_W (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T g))
      (upto (Z.to_nat size))))
   (fun _ '(n, input, sh, shi, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) =>
    node_state v vs version locs g g' lg lg')
   tt []
   (fun _ '(n, input, sh, shi, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) _ =>
    data_at sh tnode (version, locs) n * data_at shi (tarray tint size) (map (fun x => vint x) vals) input *
-   protocol_W version g g' (v0 + 2) Z.le version_T * fold_right sepcon emp (map (fun i =>
+   protocol_W version g g' (v0 + 2) Z.le (version_T locs g lg lg') * fold_right sepcon emp (map (fun i =>
      EX log : _, !!(log_latest log (v0 + 2) (Znth i vals 0)) &&
-       protocol_W (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T version g g'))
+       protocol_W (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) log log_incl (data_T g))
      (upto (Z.to_nat size))))
   (fun _ '(n, input, sh, shi, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) _ =>
    (* !!(v = v0 /\ vs = vs0) && *) node_state (v0 + 2) vals version locs g g' lg lg')
@@ -138,7 +139,8 @@ Program Definition read_spec := DECLARE _read atomic_spec
   [fun _ '(n, out, sh, shi, version, locs, g, g', lg, lg', v0, vs0) => temp _n n;
    fun _ '(n, out, sh, shi, version, locs, g, g', lg, lg', v0, vs0) => temp _out out]
   (fun _ '(n, out, sh, shi, version, locs, g, g', lg, lg', v0, vs0) => !!(readable_share sh /\
-     writable_share shi /\ isptr version /\ Forall isptr locs /\ Zlength locs = size /\ Zlength vs0 = size) &&
+     writable_share shi /\ isptr version /\ Forall isptr locs /\ Zlength locs = size /\ Zlength vs0 = size /\
+     Z.even v0 = true) &&
    data_at sh tnode (version, locs) n * data_at_ shi (tarray tint size) out *
    node_state v0 vs0 version locs g g' lg lg')
   (fun _ '(n, out, sh, shi, version, locs, g, g', lg, lg', v0, vs0) '(v, vs) =>
@@ -148,7 +150,7 @@ Program Definition read_spec := DECLARE _read atomic_spec
    data_at sh tnode (version, locs) n * data_at shi (tarray tint size) (map (fun x => vint x) vals) out *
    node_state v' vals version locs g g' lg lg')
   (fun _ '(n, out, sh, shi, version, locs, g, g', lg, lg', v0, vs0) '(v, vs) '(v', vals) =>
-   !!(Z.even v' = true /\ v' <= v) && node_state v vs version locs g g' lg lg')
+   node_state v vs version locs g g' lg lg' * node_state v' vals version locs g g' lg lg')
   _ _ _ _ _ _.
 (* We can prove the stronger postcondition, but the writer doesn't really care what it overwrites. *)
 Next Obligation.
@@ -933,7 +935,7 @@ lazymatch goal with
      [ .. | 
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
-         forward_call_id1_wow
+         forward_call_id1_wow'
       | |- call_setup2' _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
@@ -976,6 +978,105 @@ end.
 
 Tactic Notation "forward_call_dep" constr(ts) constr(witness) := fwd_call_dep ts witness.
 
+Lemma node_entry_duplicable : forall v vs locs g lg lg' i, duplicable (node_entry v vs locs g lg lg' i).
+Proof.
+  intros; unfold node_entry.
+  apply exp_duplicable; intro.
+  apply prop_duplicable, protocol_R_duplicable.
+Qed.
+
+Lemma version_T_duplicable : forall locs g lg lg' s v, duplicable (version_T locs g lg lg' s v).
+Proof.
+  intros; unfold version_T.
+  apply prop_duplicable, exp_duplicable; intro.
+  apply sepcon_list_duplicable.
+  rewrite Forall_map, Forall_forall; intros; apply node_entry_duplicable.
+Qed.
+
+Definition map_add {A B} (m1 m2 : A -> option B) v := match m1 v with Some v' => Some v' | None => m2 v end.
+
+Lemma log_join_spec : forall m1 m2 m3, join m1 m2 m3 -> m3 = map_add m1 m2.
+Proof.
+  simpl; intros.
+  extensionality x; unfold map_add.
+  destruct (m1 x) eqn: Hm1.
+  - rewrite H; auto.
+  - destruct (m2 x) eqn: Hm2.
+    + rewrite H; auto.
+    + destruct (m3 x) eqn: Hm3; auto.
+      rewrite H in Hm3; destruct Hm3 as [Hm3 | Hm3]; rewrite Hm3 in *; discriminate.
+Qed.
+
+Lemma map_add_incl_compat : forall m1 m2 m3, log_incl m1 m2 -> log_incl (map_add m3 m1) (map_add m3 m2).
+Proof.
+  unfold map_add; repeat intro.
+  destruct (m3 v1); auto.
+Qed.
+
+Lemma node_entry_choose : forall v1 v2 vs1 vs2 locs g lg lg' i,
+  view_shift (node_entry v1 vs1 locs g lg lg' i * node_entry v2 vs2 locs g lg lg' i)
+             (node_entry v1 vs1 locs g lg lg' i).
+Proof.
+  intros; unfold node_entry.
+  view_shift_intro log1; view_shift_intro log2; view_shift_intros.
+  etransitivity; [apply protocol_R_choose | apply derives_view_shift; Exists log1; entailer!].
+  intros ??? Hincl Hjoin.
+  apply join_comm in Hjoin.
+  pose proof (log_join_spec _ _ _ Hjoin); subst.
+  exists (map_add s' log1); split; [|apply map_add_incl_compat; auto].
+  repeat intro; unfold map_add.
+  destruct (s' v0) eqn: Hin; split; auto; intros [|]; auto; try discriminate.
+  exploit Hincl; eauto; intro.
+  simpl in Hjoin.
+  assert (map_add s' s2 v0 = Some z) as Hin' by (rewrite Hjoin; auto).
+  assert (map_add s' s2 v0 = Some v3) as Hin2 by (rewrite Hjoin; auto).
+  rewrite Hin' in Hin2; inv Hin2; auto.
+Qed.
+
+Definition list_max v l := fold_right Z.max v l.
+
+Lemma list_max_app : forall v l1 l2, list_max v (l1 ++ l2) = list_max (list_max v l2) l1.
+Proof.
+  intros; apply fold_right_app.
+Qed.
+
+Lemma list_max_max : forall l v1 v2, Z.max v1 (list_max v2 l) = list_max (Z.max v1 v2) l.
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite Z.max_assoc, !IHl.
+  rewrite Z.max_assoc, (Z.max_comm a); auto.
+Qed.
+
+Lemma list_max_spec : forall l v, v <= list_max v l /\ Forall (fun v' => v' <= list_max v l) l.
+Proof.
+  induction l; simpl; intros.
+  - split; auto; omega.
+  - rewrite list_max_max.
+    destruct (IHl (Z.max a v)) as [H]; split; [|repeat constructor; auto].
+    + etransitivity; eauto; apply Zle_max_r.
+    + etransitivity; eauto; apply Zle_max_l.
+Qed.
+
+Lemma log_incl_latest : forall v1 v2 v1' v2' log log' (Hincl : log_incl log log')
+  (Hlatest : log_latest log v1 v2) (Hlatest' : log_latest log' v1' v2'), v1 <= v1'.
+Proof.
+  intros.
+  destruct (zlt v1' v1); [|omega].
+  destruct Hlatest' as (? & Hlatest').
+  specialize (Hlatest' _ l).
+  destruct Hlatest as (Hv1 & _); specialize (Hincl _ _ Hv1).
+  rewrite Hincl in Hlatest'; discriminate.
+Qed.
+
+Lemma node_state_duplicable : forall v vs version locs g g' lg lg',
+  duplicable (node_state v vs version locs g g' lg lg').
+Proof.
+  intros; apply sepcon_duplicable.
+  - apply prop_duplicable, protocol_R_duplicable.
+  - apply sepcon_list_duplicable; rewrite Forall_map, Forall_forall; intros; simpl.
+    apply node_entry_duplicable.
+Qed.
+
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_atomic_function.
@@ -986,77 +1087,58 @@ Proof.
   apply semax_pre with (P' := EX v : Z, EX vers : list Z,
     PROP (Forall (fun v' => Z.even v' = true /\ v' - 1 <= v) vers; Zlength vers = size)
     LOCAL (temp _n n; temp _out out)
-    SEP (@data_at CompSpecs sh tnode (version, locs) n; data_at_ Tsh (tarray tint size) out;
-         protocol_R version g g' v (version_T lg); fold_right sepcon emp (map (fun i =>
-           protocol_R (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) (Znth i vers 0) (data_T g))
-             (upto (Z.to_nat size))))).
-  { Exists v0 (repeat v0 (Z.to_nat size)); entailer!.
+    SEP (@data_at CompSpecs sh tnode (version, locs) n; data_at_ shi (tarray tint size) out;
+         protocol_R version g g' v Z.le (version_T locs g lg lg');
+         EX vals : list Z, fold_right sepcon emp (map (fun i => node_entry (Znth i vers 0) vals locs g lg lg' i)
+             (upto (Z.to_nat size))); fold_right sepcon emp (map (fun p : Z => invariant (II p)) lI); P)).
+  { Exists v0 (repeat v0 (Z.to_nat size)) vs0; unfold node_state; entailer!.
     { split; [apply Forall_repeat; split; auto; omega | rewrite Zlength_repeat, Z2Nat.id; auto]. }
     erewrite map_ext_in; eauto; intros; simpl.
     rewrite In_upto in *; rewrite Znth_repeat'; auto. }
   eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
-  Intros v vers.
+  Intros v vers vals.
   repeat forward.
-  forward_call (version, g, g', v, version_T lg, fold_right sepcon emp (map (fun i =>
-      protocol_R (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef) (Znth i vers 0) (data_T g)) (upto (Z.to_nat size))),
-    fun s v : Z => !!(if Z.even v then v = s else True) && fold_right sepcon emp (map (fun i =>
-      protocol_R (Znth i locs Vundef) (Znth i lg Vundef) (Znth i lg' Vundef)
-        (if Z.even v then s else Znth i vers 0) (data_T g)) (upto (Z.to_nat size)))).
-  { split.
-    intros; unfold version_T.
-    apply derives_view_shift.
-    Intros; destruct (Z.even v1) eqn: Heven; [|entailer!].
-    apply andp_right.
-    { entailer!.
-      match goal with H : _ \/ _ |- _ => destruct H; auto; subst end.
-      rewrite Z.even_add in Heven; replace (Z.even s') with true in Heven; discriminate. }
-    setoid_rewrite (list_Znth_eq Vundef lg) at 2.
-    setoid_rewrite (list_Znth_eq Vundef lg) at 4.
-    replace (length lg) with (Z.to_nat size) by (symmetry; rewrite <- Zlength_length; auto).
-    rewrite !map_map, <- !sepcon_map.
-    erewrite map_ext_in; eauto; intros; simpl.
-    unfold protocol_R.
-    rewrite <- sepcon_assoc, (sepcon_comm (ghost_snap _ _)), !sepcon_assoc, !ghost_snap_join', !Z.max_r; auto.
-    { omega. }
-    { eapply Forall_Znth, Forall_impl; eauto; simpl.
-      { rewrite In_upto, Z2Nat.id in * by auto; omega. }
-      intros a0 (Heven' & ?).
-      destruct (eq_dec a0 (v + 1)); try omega; subst.
-      destruct (eq_dec v s'); try omega; subst.
-      rewrite Z.even_add in Heven'; replace (Z.even s') with true in Heven'; discriminate. }
-    { intros; apply prop_duplicable, sepcon_list_duplicable.
-      rewrite Forall_map, Forall_forall; intros; simpl.
-      apply protocol_R_duplicable. } }
-  Intros x; destruct x as (v1', v1); simpl in *.
+  forward_call_dep [Z : Type] (version, g, g', v, Z.le, version_T locs g lg lg',
+    fold_right sepcon emp (map (fun i => node_entry (Znth i vers 0) vals locs g lg lg' i) (upto (Z.to_nat size))),
+    version_T locs g lg lg').
+  { split; intros; [|apply version_T_duplicable].
+    etransitivity; [apply view_shift_sepcon2, version_T_duplicable|].
+    rewrite <- sepcon_assoc; reflexivity. }
+  unfold version_T at 2; Intros x vs1; destruct x as (v1', v1); simpl in *; subst.
+  gather_SEP 2 1; rewrite <- sepcon_map; eapply view_shift_sepcon_list with (l2 := map _ (upto (Z.to_nat size)));
+    rewrite ?Zlength_map; auto; intros.
+  { erewrite !Znth_map, !Znth_upto by (auto; rewrite ?Zlength_upto in *; omega).
+    apply node_entry_choose. }
   match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-    forward_if (PROP (Z.even v1' = true) (LOCALx Q (SEPx R))) end.
+    forward_if (PROP (Z.even v1 = true) (LOCALx Q (SEPx R))) end.
   { eapply semax_pre; [|apply semax_continue].
     unfold POSTCONDITION, abbreviate, overridePost.
     destruct (eq_dec EK_continue EK_normal); [discriminate|].
     unfold loop1_ret_assert.
     go_lower.
     unfold Int.one in *; rewrite and_repr, land_1, Zmod_even in *.
-    destruct (Z.even v1'); auto; try contradiction.
-    Exists v1 vers; entailer!.
-    eapply Forall_impl; [|eauto].
-    intros ? []; split; auto; omega. }
+    destruct (Z.even v1) eqn: Hodd; try contradiction.
+    Exists v1 (repeat (v1 - 1) (Z.to_nat size)) vs1; entailer!.
+    { split; [apply Forall_repeat; rewrite Z.even_sub, Hodd; split; auto; omega|].
+      rewrite Zlength_repeat, Z2Nat.id; auto. }
+    erewrite map_ext_in; eauto; simpl; intros.
+    rewrite In_upto in *; rewrite Znth_repeat'; auto. }
   { forward.
     entailer!.
     unfold Int.one in *; rewrite and_repr, land_1, Zmod_even in *.
-    destruct (Z.even v1'); auto; discriminate. }
+    destruct (Z.even v1); auto; discriminate. }
   Intros.
-  replace (Z.even v1') with true.
-  match goal with H : Z.even _ = _ |- _ => rewrite H in *; subst end.
+  replace (Z.even v1) with true.
   forward_for_simple_bound 8 (EX i : Z, EX vals : list Z, PROP (Zlength vals = i)
     LOCAL (temp _snap (vint v1); temp _ver version; temp _n n; temp _out out)
     SEP (@data_at CompSpecs sh tnode (version, locs) n;
-         data_at Tsh (tarray tint size) (map (fun x => vint x) vals ++ repeat Vundef (Z.to_nat (size - i))) out;
+         data_at shi (tarray tint size) (map (fun x => vint x) vals ++ repeat Vundef (Z.to_nat (size - i))) out;
          EX vers' : list Z, !!(Zlength vers' = i /\ Forall (fun v => Z.even v = true /\ v1 <= v) vers') &&
-           protocol_R version g g' (list_max v1 (map (fun x => x - 1) vers')) (version_T lg) *
-           fold_right sepcon emp (map (fun i => protocol_R (Znth i locs Vundef) (Znth i lg Vundef)
-             (Znth i lg' Vundef) (Znth i vers' 0) (data_T g)) (sublist 0 i (upto (Z.to_nat size))));
-         fold_right sepcon emp (map (fun i => protocol_R (Znth i locs Vundef) (Znth i lg Vundef)
-           (Znth i lg' Vundef) v1 (data_T g)) (sublist i size (upto (Z.to_nat size)))))).
+           protocol_R version g g' (list_max v1 (map (fun x => x - 1) vers')) Z.le (version_T locs g lg lg') *
+           fold_right sepcon emp (map (fun i => node_entry (Znth i vers' 0) vals locs g lg lg' i)
+             (sublist 0 i (upto (Z.to_nat size))));
+         fold_right sepcon emp (map (node_entry v1 vs1 locs g lg lg') (sublist i size (upto (Z.to_nat size))));
+         fold_right sepcon emp (map (fun p : Z => invariant (II p)) lI); P)).
   { Exists (@nil Z) (@nil Z).
     rewrite data_at__eq; unfold default_val; simpl data_at.
     rewrite repeat_list_repeat, Z.sub_0_r; entailer!.
@@ -1069,72 +1151,88 @@ Proof.
       eapply Forall_impl; [|eauto]; auto. }
     { rewrite <- size_def; apply prop_right; auto. }
     erewrite sublist_next with (i0 := i), Znth_upto by (rewrite ?Zlength_upto, ?Z2Nat.id; auto; omega); simpl.
-    forward_call (Znth i locs Vundef, Znth i lg Vundef, Znth i lg' Vundef, v1, data_T g,
-      protocol_R version g g' (list_max v1 (map (fun x => x - 1) vers')) (version_T lg),
-      fun s v : Z => !!(Z.even s = true) &&
-        protocol_R version g g' (list_max v1 (map (fun x => x - 1) (vers' ++ [s]))) (version_T lg)).
-    { split; [|intros; apply prop_duplicable, protocol_R_duplicable].
+    unfold node_entry; Intros log.
+    Print node_entry.
+    forward_call_dep [Z -> option Z : Type] (Znth i locs Vundef, Znth i lg Vundef, Znth i lg' Vundef, log,
+      log_incl, data_T g,
+      protocol_R version g g' (list_max v1 (map (fun x => x - 1) vers')) Z.le (version_T locs g lg lg'),
+      fun s v => EX v' : Z, !!(Z.even v' = true /\ log_latest s v' v) &&
+        protocol_R version g g' (list_max v1 (map (fun x => x - 1) (vers' ++ [v']))) Z.le (version_T locs g lg lg')).
+    { split; [|intros; apply exp_duplicable; intro; apply prop_duplicable, protocol_R_duplicable].
       intros; unfold data_T.
-      apply derives_view_shift.
-      Intros; apply andp_right.
-      { apply prop_right; auto. }
-      unfold protocol_R.
-      rewrite <- sepcon_assoc, (sepcon_comm (ghost_snap _ _)), !sepcon_assoc, !ghost_snap_join'.
+      view_shift_intro ver; view_shift_intros.
+      etransitivity; [apply view_shift_sepcon1, protocol_R_duplicable|].
+      etransitivity; [apply view_shift_sepcon2, ghost_snap_duplicable|].
+      unfold protocol_R at 2; rewrite !sepcon_assoc, <- (sepcon_assoc (ghost_snap _ _)), ghost_snap_join'.
+      apply derives_view_shift; Exists ver ver; unfold protocol_R; entailer!.
       rewrite map_app, list_max_app; simpl.
-      rewrite Z.max_comm, !list_max_max.
-      rewrite Z.max_assoc, Z.max_id; auto. }
-    Intros y; destruct y as (d, v'); simpl in *.
+      rewrite Z.max_comm, list_max_max; auto. }
+    Intros y v'; destruct y as (d, log'); simpl in *.
+    gather_SEP 1 2; rewrite protocol_R_R.
     forward.
     go_lower; Exists (x ++ [d]) (vers' ++ [v']); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil.
-    rewrite <- size_def, upd_init, !map_app, <- app_assoc by (rewrite ?Zlength_map; omega); entailer!.
-    { rewrite Forall_app; repeat constructor; auto. }
-    rewrite sublist_split with (mid := Zlength x)(hi := Zlength x + 1) by (rewrite ?Zlength_upto, ?Z2Nat.id; simpl; omega).
+    rewrite <- size_def, upd_init, !map_app, <- app_assoc by (rewrite ?Zlength_map; omega);
+      unfold node_entry; entailer!.
+    { rewrite Forall_app; repeat constructor; auto.
+      eapply log_incl_latest; eauto. }
+    rewrite sublist_split with (mid := Zlength x)(hi := Zlength x + 1)
+      by (rewrite ?Zlength_upto, ?Z2Nat.id; simpl; omega).
     erewrite sublist_len_1, Znth_upto by (rewrite ?Zlength_upto, ?Z2Nat.id; simpl; omega).
     rewrite map_app, sepcon_app; simpl.
-    rewrite !app_Znth2 by omega.
-    replace (Zlength vers') with (Zlength x); rewrite Zminus_diag, !Znth_0_cons; simpl; cancel.
+    Exists log'; rewrite !app_Znth2 by omega.
+    replace (Zlength vers') with (Zlength x); rewrite Zminus_diag, !Znth_0_cons; simpl; entailer!.
     apply sepcon_list_derives; rewrite !Zlength_map; auto.
     intros ? Hi; erewrite !Znth_map by auto.
     rewrite Zlength_sublist in Hi by (rewrite ?Zlength_upto, ?Z2Nat.id; simpl; omega).
     rewrite !Znth_sublist, !Znth_upto by (rewrite ?Z2Nat.id; simpl; omega).
     rewrite !app_Znth1 by omega; auto.
-  - Intros vals vers'; rewrite <- size_def in *.
+    { rewrite map_app, list_max_app; simpl.
+      rewrite <- list_max_max; apply Z.le_max_r. }
+  - Intros vals' vers'; rewrite <- size_def in *.
     rewrite Zminus_diag, app_nil_r, sublist_nil, sublist_same by (rewrite ?Zlength_upto, ?Z2Nat.id; auto).
-    forward_call (version, g, g', list_max v1 (map (fun x => x - 1) vers'), version_T lg, emp,
-      fun s v : Z => !!(if Z.even v then v = s else True) && emp).
+    forward_call_dep [Z : Type] (version, g, g', list_max v1 (map (fun x => x - 1) vers'), Z.le,
+      version_T locs g lg lg', emp, fun s v : Z => !!(v = s) && emp).
     { split; [|auto with dup].
       intros; unfold version_T.
-      apply derives_view_shift; entailer!.
-      match goal with H : _ \/ _ |- _ => destruct H; subst; [if_tac; auto|] end.
-      rewrite Z.even_add; replace (Z.even s') with true; simpl; auto. }
-    Intros x; destruct x as (v2', v2); simpl in *.
+      apply derives_view_shift; entailer!. }
+    Intros x; destruct x as (v2', v2); simpl in *; subst.
     match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      forward_if (PROP (v2' <> v1) (LOCALx Q (SEPx R))) end.
+      forward_if (PROP (v2 <> v1) (LOCALx Q (SEPx R))) end.
     + subst.
-      match goal with H : Z.even v1 = _ |- _ => rewrite H in *; subst end.
+      rewrite <- (map_map II).
+      gather_SEP 0 5 8 7; rewrite <- !sepcon_assoc; apply invariants_view_shift with
+        (Q0 := node_state v1 vals' version locs g g' lg lg' * EX v : Z, EX vs : list Z, Q (v, vs) (v1, vals')).
+      { rewrite !map_map, !sepcon_assoc, (sepcon_comm P), <- sepcon_assoc.
+        etransitivity; [apply view_shift_sepcon2, HP|].
+        view_shift_intro x; destruct x as (vi, vsi).
+        rewrite <- exp_sepcon2.
+        etransitivity; [|apply view_shift_sepcon2; etransitivity; [apply (HQ (vi, vsi) (v1, vals')) |
+          apply derives_view_shift; Exists vi vsi; cancel]].
+        etransitivity; [apply view_shift_sepcon1|].
+        { etransitivity; [|apply (node_state_duplicable v1 vals' version locs g g' lg lg')].
+          apply derives_view_shift; unfold node_state; entailer!.
+          erewrite map_ext_in; eauto; intros; f_equal.
+          rewrite In_upto, Z2Nat.id in * by auto.
+          match goal with H : Forall _ vers' |- _ => apply Forall_Znth with (i := a)(d := 0) in H;
+            [destruct H as [Heven] | omega] end.
+          destruct (list_max_spec (map (fun x => x - 1) vers') v1) as [_ Hmax].
+          rewrite Forall_map in Hmax.
+          apply Forall_Znth with (i := a)(d := 0) in Hmax; [simpl in Hmax | omega].
+          destruct (eq_dec (Znth a vers' 0) (v1 + 1)); [|omega].
+          rewrite e, Z.even_add in Heven; replace (Z.even v1) with true in Heven; discriminate. }
+        apply derives_view_shift; fast_cancel. }
+      Intros vi vsi.
       forward.
-      Exists v2 vals; unfold node_state; entailer!.
-      erewrite map_ext_in; eauto; simpl; intros.
-      replace (Znth a vers' 0) with v2; auto.
-      rewrite In_upto, Z2Nat.id in * by auto.
-      assert (0 <= a < Zlength vers') by omega.
-      match goal with H : Forall _ vers' |- _ => apply Forall_Znth with (i := a)(d := 0) in H; auto;
-        destruct H as (Heven & ?) end.
-      destruct (list_max_spec v2 (map (fun x => x - 1) vers')) as (_ & Hle).
-      rewrite Forall_map in Hle; apply Forall_Znth with (i := a)(d := 0) in Hle; auto.
-      simpl in Hle.
-      destruct (eq_dec (Znth a vers' 0) (v2 + 1)); try omega.
-      rewrite e, Z.even_add in Heven.
-      replace (Z.even v2) with true in Heven; discriminate.
+      rewrite map_map; Exists (v1, vals') (vi, vsi); entailer!.
     + forward.
       entailer!.
     + intros; unfold overridePost.
       destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
-      Intros; go_lower; Exists v2 vers'; entailer!.
+      Intros; go_lower; Exists v2 vers' vals'; entailer!.
       rewrite Forall_forall; intros ? Hin.
       split; [match goal with H : Forall _ vers' |- _ => rewrite Forall_forall in H; apply H; auto end|].
-      destruct (list_max_spec v1 (map (fun x => x - 1) vers')) as (_ & Hle).
+      destruct (list_max_spec (map (fun x => x - 1) vers') v1) as (_ & Hle).
       rewrite Forall_map, Forall_forall in Hle; specialize (Hle _ Hin); simpl in Hle; omega.
 Qed.
 
@@ -1152,35 +1250,19 @@ Proof.
     intro; if_tac; auto; omega.
 Qed.
 
-(* up *)
-Lemma sepcon_list_view_shift : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
-  (Hi : forall i, 0 <= i < Zlength l1 -> view_shift (Znth i l1 FF) (Znth i l2 FF)),
-  view_shift (fold_right sepcon emp l1) (fold_right sepcon emp l2).
-Proof.
-  induction l1; intros.
-  - symmetry in Hlen; apply Zlength_nil_inv in Hlen; subst; reflexivity.
-  - destruct l2; [apply Zlength_nil_inv in Hlen; discriminate|].
-    rewrite !Zlength_cons in *; simpl.
-    apply view_shift_sepcon, IHl1; try omega.
-    + lapply (Hi 0); [|pose proof (Zlength_nonneg l1); omega].
-      rewrite !Znth_0_cons; auto.
-    + intros; lapply (Hi (i + 1)); [|omega].
-      rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
-Qed.
-
-Lemma update_entries : forall v v' vs vals version locs g g' lg lg', view_shift
+Lemma update_entries : forall v v' vs vals locs g lg lg', view_shift
   (fold_right sepcon emp (map (fun j => EX log : _, !! log_latest log v' (Znth j vals 0) &&
-     protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T version g g'))
+     protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
      (upto (Z.to_nat size))) *
-   fold_right sepcon emp (map (node_entry v vs version locs g g' lg lg') (upto (Z.to_nat size))))
+   fold_right sepcon emp (map (node_entry v vs locs g lg lg') (upto (Z.to_nat size))))
   (fold_right sepcon emp (map (fun j => EX log : _, !! log_latest log v' (Znth j vals 0) &&
-     protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T version g g'))
+     protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
      (upto (Z.to_nat size))) *
-   fold_right sepcon emp (map (node_entry v' vals version locs g g' lg lg') (upto (Z.to_nat size)))).
+   fold_right sepcon emp (map (node_entry v' vals locs g lg lg') (upto (Z.to_nat size)))).
 Proof.
   intros.
   rewrite <- !sepcon_map.
-  apply sepcon_list_view_shift; rewrite !Zlength_map; auto; intros.
+  apply view_shift_sepcon_list; rewrite !Zlength_map; auto; intros.
   erewrite !Znth_map, !Znth_upto by (auto; rewrite ?Zlength_upto in *; omega).
   unfold node_entry.
   view_shift_intro log'; view_shift_intro log; view_shift_intros.
@@ -1197,8 +1279,8 @@ Proof.
   forward.
   rewrite map_map in HP, HQ.
   focus_SEP 2; apply protocol_W_R.
-  forward_call_dep [(Z : Type)] (version, g, g', v0, Z.le, version_T, protocol_W version g g' v0 Z.le version_T,
-    fun s v : Z => !!(v = s) && emp).
+  forward_call_dep [Z : Type] (version, g, g', v0, Z.le, version_T locs g lg lg',
+    protocol_W version g g' v0 Z.le (version_T locs g lg lg'), fun s v : Z => !!(v = s) && emp).
   { split; [|auto with dup].
     intros.
     apply derives_view_shift; unfold version_T; entailer!. }
@@ -1206,10 +1288,11 @@ Proof.
   gather_SEP 1 0; apply protocol_R_W; Intros.
   assert (v = v0) by omega; subst.
   assert (repable_signed (v0 + 1)) by admit. (* version stays in range *)
-  forward_call_dep [(Z : Type)] (version, v0 + 1, g, g', v0, v0 + 1, Z.le, version_T, emp, emp).
+  forward_call_dep [Z : Type] (version, v0 + 1, g, g', v0, v0 + 1, Z.le, version_T locs g lg lg', emp, emp).
   { split; [auto | split; [|omega]].
     intros.
-    apply derives_view_shift; unfold version_T; entailer!. }
+    apply derives_view_shift; unfold version_T.
+    Intros vs; Exists vs; subst; rewrite Z.even_add, Z.add_simpl_r; replace (Z.even v0) with true; simpl; entailer!. }
   assert (0 <= size) by (rewrite size_def; computable).
   assert_PROP (Zlength (map (fun x => vint x) vals) = size) by entailer!.
   assert (Z.even (v0 + 2) = true) by (rewrite Z.even_add; replace (Z.even v0) with true; auto).
@@ -1218,10 +1301,10 @@ Proof.
   match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx (_ :: ?R)))) _ _ =>
   forward_for_simple_bound 8 (EX i : Z, PROP () (LOCALx Q
     (SEPx (fold_right sepcon emp (map (fun j => EX log : _, !!(log_latest log (v0 + 2) (Znth j vals 0)) &&
-             protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T version g g'))
+             protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
              (sublist 0 i (upto (Z.to_nat size)))) ::
            fold_right sepcon emp (map (fun j => EX log : _, !!(log_latest log v0 (Znth j vs0 0)) &&
-             protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T version g g'))
+             protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
              (sublist i size (upto (Z.to_nat size)))) :: R)))) end.
   { rewrite sublist_nil, sublist_same by (rewrite ?Zlength_upto, ?Z2Nat.id; auto).
     entailer!. }
@@ -1235,33 +1318,46 @@ Proof.
     Intros log.
     rewrite Zlength_map in *.
     destruct (log_latest_upd log v0 (Znth i vs0 0) (v0 + 2) (Znth i vals 0)); auto; try omega.
-    forward_call_dep [(Z -> option Z : Type)] (Znth i locs Vundef, Znth i vals 0, Znth i lg Vundef,
-      Znth i lg' Vundef, log, map_upd log (v0 + 2) (Znth i vals 0), log_incl, data_T version g g',
-      protocol_W version g g' (v0 + 1) Z.le version_T, protocol_W version g g' (v0 + 1) Z.le version_T).
+    forward_call_dep [Z -> option Z : Type] (Znth i locs Vundef, Znth i vals 0, Znth i lg Vundef,
+      Znth i lg' Vundef, log, map_upd log (v0 + 2) (Znth i vals 0), log_incl, data_T g,
+      protocol_W version g g' (v0 + 1) Z.le (version_T locs g lg lg'),
+      protocol_W version g g' (v0 + 1) Z.le (version_T locs g lg lg')).
     { split; [apply Forall_Znth; auto; omega|].
       destruct (log_latest_upd log v0 (Znth i vs0 0) (v0 + 2) (Znth i vals 0)); auto; try omega.
       split; auto; intros.
       unfold data_T.
       view_shift_intro ver; view_shift_intros.
-      etransitivity; [apply protocol_R_W|].
-      view_shift_intros.
-      etransitivity; [apply protocol_W_R|].
-      apply derives_view_shift; Exists (v0 + 2); rewrite <- Z.add_sub_assoc; entailer!. }
+      etransitivity; [apply view_shift_sepcon1, protocol_W_R|].
+      rewrite sepcon_assoc; etransitivity.
+      { apply view_shift_sepcon2; unfold protocol_R.
+        rewrite sepcon_assoc.
+        apply view_shift_sepcon2, ghost_snap_choose'. }
+      apply derives_view_shift; Exists (v0 + 2); rewrite <- Z.add_sub_assoc.
+      unfold protocol_W; rewrite general_atomics.invariant_duplicable at 3; entailer!. }
     erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1, Znth_upto, map_app, sepcon_app
       by (rewrite ?Zlength_upto, ?Z2Nat.id; auto; omega); simpl fold_right.
     rewrite <- size_def; Exists (map_upd log (v0 + 2) (Znth i vals 0)); entailer!.
   - rewrite <- size_def, sublist_nil, sublist_same by (rewrite ?Zlength_upto, ?Z2Nat.id; auto; omega).
     assert (repable_signed (v0 + 2)) by admit.
-    forward_call_dep [(Z : Type)] (version, v0 + 2, g, g', v0 + 1, v0 + 2, Z.le, version_T, emp, emp).
+    forward_call_dep [Z : Type] (version, v0 + 2, g, g', v0 + 1, v0 + 2, Z.le, version_T locs g lg lg',
+      fold_right sepcon emp (map (fun j => EX log : _, !! log_latest log (v0 + 2) (Znth j vals 0) &&
+        protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
+        (upto (Z.to_nat size))),
+      fold_right sepcon emp (map (fun j => EX log : _, !! log_latest log (v0 + 2) (Znth j vals 0) &&
+        protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
+        (upto (Z.to_nat size)))).
     { fast_cancel. }
     { split; [auto | split; [|omega]].
-      intros.
-      apply derives_view_shift; unfold version_T; entailer!. }
+      intros; unfold version_T.
+      view_shift_intro vs.
+      etransitivity; [apply update_entries|].
+      rewrite Z.even_add; replace (Z.even v0) with true; simpl.
+      apply derives_view_shift; Exists vals; entailer!. }
     rewrite <- (map_map II).
-    gather_SEP 0 2 7 6; rewrite <- !sepcon_assoc; apply invariants_view_shift with
-      (Q0 := protocol_W version g g' (v0 + 2) Z.le version_T * fold_right sepcon emp (map (fun j =>
-        EX log : _, !!(log_latest log (v0 + 2) (Znth j vals 0)) &&
-          protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T version g g'))
+    gather_SEP 0 1 6 5; rewrite <- !sepcon_assoc; apply invariants_view_shift with
+      (Q0 := protocol_W version g g' (v0 + 2) Z.le (version_T locs g lg lg') *
+        fold_right sepcon emp (map (fun j => EX log : _, !!(log_latest log (v0 + 2) (Znth j vals 0)) &&
+          protocol_W (Znth j locs Vundef) (Znth j lg Vundef) (Znth j lg' Vundef) log log_incl (data_T g))
         (upto (Z.to_nat size))) * EX v : Z, EX vs : list Z, Q (v, vs) tt).
     { rewrite !map_map, !sepcon_assoc, (sepcon_comm P), <- sepcon_assoc.
       etransitivity; [apply view_shift_sepcon2, HP|].
