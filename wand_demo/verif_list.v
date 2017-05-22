@@ -5,6 +5,20 @@ Require Import wand_demo.wandQ_frame.
 Require Import wand_demo.list.
 Require Import wand_demo.list_lemmas.
 
+Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
+  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+Proof.
+  intros.
+  destruct p; try contradiction; reflexivity.
+Qed.
+
+Axiom Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
+
+Axiom data_at_share_join': forall {cs : compspecs} sh1 sh2 sh t v1 v2 p,
+  readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p = data_at sh t v2 p.
+
 Module VerifHeadSwitch.
 
 Import ListHead.
@@ -90,7 +104,7 @@ Module VerifAppend.
 
 Definition append_spec (_append: ident) :=
  DECLARE _append
-  WITH sh : share, contents : list int, x: val, y: val, s1: list int, s2: list int
+  WITH sh : share, x: val, y: val, s1: list int, s2: list int
   PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
      PROP(writable_share sh)
      LOCAL (temp _x x; temp _y y)
@@ -323,7 +337,7 @@ Proof.
    simpl app.
    entailer!.
      1: apply (app_assoc s1a [b] (c :: s1d)).
-   sep_apply (singleton_lseg sh (c :: s1d ++ s2) b t u0).
+   sep_apply (singleton_lseg sh b t u0).
    apply lseg_lseg.
 + (* after the loop *)
    clear v s1' H0.
@@ -333,7 +347,7 @@ Proof.
    rewrite (listrep_null _ s1c) by auto.
    entailer!.
    simpl app.
-   sep_apply (singleton_lseg sh s2 b t y).
+   sep_apply (singleton_lseg sh b t y).
    sep_apply (lseg_lseg sh s1a [b] x t y) using (simpl app).
    sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
    auto.
@@ -342,5 +356,164 @@ Qed.
 End ProofByWandQFrame.
 
 End VerifAppend1.
+
+Module VerifAppend2.
+
+Import ListLib.
+Import LBsegWandQFrame.
+  
+Definition append2_spec := append_spec _append2.
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [ append2_spec ]).
+
+Lemma data_at__Tsh_wand_frame_intro: forall {CS: compspecs} sh t p,
+  writable_share sh ->
+  data_at_ Tsh t p |-- data_at_ sh t p *
+    ALL v: reptype t, data_at sh t v p -* data_at Tsh t v p.
+Proof.
+  intros.
+  destruct (Tsh_split sh) as [sh' ?].
+  unfold data_at_ at 1, field_at_.
+  simpl nested_field_type.
+  fold (data_at Tsh t (default_val t) p).
+  rewrite <- (data_at_share_join  _ _ _ t _ p H0).
+  cancel.
+  apply allp_right; intros v.
+  apply wand_sepcon_adjoint.
+  rewrite (data_at_share_join' _ _ Tsh t _ _ p); auto.
+Qed.
+
+Lemma body_append2: semax_body Vprog Gprog f_append2 append2_spec.
+Proof.
+  start_function.
+  rename lvar0 into retp.
+  rename x into head.
+  replace_SEP 0
+    (data_at_ sh (tptr t_struct_list) retp * ALL v: val, data_at sh (tptr t_struct_list) v retp -* data_at Tsh (tptr t_struct_list) v retp).
+    {
+      entailer!.
+      apply data_at__Tsh_wand_frame_intro; auto.
+    }
+  Intros. freeze [1] Fr.
+  forward. (* head = x; *)
+  assert_PROP (is_pointer_or_null head) by entailer!.
+  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  forward. (* curp = & head *)
+  forward. (* cur = x *)
+  forward. (* retp = & head *)
+  forward_while
+      ( EX s1a: list int, EX s1b: list int, EX curp: val, EX cur: val,
+            PROP (s1 = s1a ++ s1b)
+            LOCAL (temp _retp retp; temp _cur cur; temp _y y; temp _curp curp; lvar _head (tptr t_struct_list) retp)
+            SEP (lbseg sh s1a retp curp;
+                 listrep sh s1b cur;
+                 listrep sh s2 y;
+                 data_at sh (tptr t_struct_list) cur curp;
+                 FRZL Fr))%assert.
+  + (* current assertion implies loop invariant *)
+    Exists (@nil int) s1 retp head.
+    entailer!. unfold lbseg; simpl; apply allp_right; intros; cancel_wand.
+  + (* loop test is safe to execute *)
+    entailer!.
+  + (* loop body preserves invariant *)
+    forward. (* curp = & (cur -> tail); *)
+    assert_PROP (offset_val
+              (align (align 0 (alignof tint) + sizeof tint)
+                (alignof (tptr (Tstruct _list noattr)))) cur =
+                 field_address t_struct_list [StructField _tail] cur).
+    Focus 1. {
+      entailer!.
+      symmetry; apply field_address_eq_offset'; auto.
+      auto with field_compatible.
+    } Unfocus.
+    rewrite H1; clear H1.
+    rewrite (listrep_nonnull _ _ cur) by auto.
+    Intros b s1c next.
+    subst s1b.
+    forward. (* cur = * curp *)
+    Exists (s1a ++ [b], s1c, (field_address t_struct_list [StructField _tail] cur), next).
+    simpl snd; simpl fst.
+    entailer!.
+      1: rewrite <- app_assoc; auto.
+    sep_apply (singleton_lbseg sh b curp cur).
+    sep_apply (lbseg_lbseg sh s1a [b] retp curp (field_address t_struct_list [StructField _tail] cur)).
+    rewrite field_at_data_at.
+    cancel.
+  + (* After loop *)
+    rewrite (listrep_null _ _ cur) by auto.
+    Intros.
+    forward. (* * curp = y *)
+    assert_PROP (is_pointer_or_null y) by entailer!.
+    rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+    gather_SEP 1 2 3.
+    replace_SEP 0 (listboxrep sh s2 curp).
+    Focus 1. {
+      entailer!.
+      unfold listboxrep; Exists y.
+      cancel.
+    } Unfocus.
+    gather_SEP 0 1.
+    replace_SEP 0 (listboxrep sh (s1a ++ s2) retp).
+    Focus 1. {
+      entailer!.
+      sep_apply (listbox_lbseg sh s1a s2 retp curp).
+      cancel.
+    } Unfocus.
+    unfold listboxrep; Intros head'.
+    thaw Fr.
+    gather_SEP 0 2.
+    replace_SEP 0 (data_at Tsh (tptr t_struct_list) head' retp).
+    Focus 1. {
+      entailer!.
+      rewrite sepcon_comm; apply wand_sepcon_adjoint.
+      apply (allp_left _ head').
+      auto.
+    } Unfocus.
+    forward. (* ret = * retp *)
+    forward. (* return ret *)
+    Exists retp head'.
+    entailer!.
+    rewrite app_nil_r.
+    auto.
+Qed.
+
+End VerifAppend2.
+
+Module VerifAppend3.
+
+Import ListLib.
+Import LsegWandQFrame.
+  
+Definition append3_spec := append_spec _append3.
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [ append3_spec ]).
+
+Lemma body_append3: semax_body Vprog Gprog f_append3 append3_spec.
+Proof.
+  start_function.
+  forward_if. (* if (x == NULL) *)
+  + forward. (* return y; *)
+    rewrite (listrep_null _ _ nullval) by auto.
+    Exists y; entailer!.
+  + rewrite (listrep_nonnull _ _ x) by auto.
+    Intros a s1b x'.
+    subst s1.
+    forward. (* t = x -> tail; *)
+    forward_call (sh, x', y, s1b, s2). (* t = append3(t, y); *)
+    Intros x''.
+    forward. (* x -> tail = t; *)
+    assert_PROP (is_pointer_or_null x'') by entailer!.
+    rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+    forward. (* return x *)
+    Exists x.
+    entailer!.
+    unfold listrep at 2; fold listrep.
+    Exists x''.
+    entailer!.
+Qed.
+
+End VerifAppend3.
 
 End VerifAppend.

@@ -2007,7 +2007,10 @@ Proof.
     get_global_function'' _f; Intros.
     apply extract_exists_pre; intros f_.
     forward_spawn (share * share * share * list (val * val) * val * val * list val * val * Z * val * val * val * val)%type
-      (f_, t, (Znth i shs Ews, Znth i shs' Tsh, sh2, entries, gh, g, lg, m_entries, i, locksp, Znth i locks Vundef, resp,
+      (f_, t, (fun x : (share * share * share * list (val * val) * val * val * list val * val * Z * val * val * val * val) =>
+        let '(sh, gsh, tsh, entries, gh, g, lg, p, t, locksp, lockt, resultsp, res) := x in
+        [(_m_entries, p); (_thread_locks, locksp); (_results, resultsp)]),
+        (Znth i shs Ews, Znth i shs' Tsh, sh2, entries, gh, g, lg, m_entries, i, locksp, Znth i locks Vundef, resp,
                Znth i res Vundef),
     fun (x : (share * share * share * list (val * val) * val * val * list val * val * Z * val * val * val * val)%type)
         (tid : val) =>
@@ -2023,53 +2026,49 @@ Proof.
         data_at_ Tsh tint res;
         lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh g lg p t locksp lockt resultsp res)]).
     { unfold spawn_pre; go_lower.
-      Exists _arg (fun x : (share * share * share * list (val * val) * val * val * list val * val * Z * val * val * val * val) =>
-        let '(sh, gsh, tsh, entries, gh, g, lg, p, t, locksp, lockt, resultsp, res) := x in
-        [(_m_entries, p); (_thread_locks, locksp); (_results, resultsp)]).
-      rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
-      repeat (apply andp_right; [apply prop_right; repeat split; auto|]).
-      { rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
+      erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ f_), !force_val_sem_cast_neutral_isptr' by
+        (rewrite ?force_val_sem_cast_neutral_isptr'; eauto).
+      assert (0 <= i < Zlength shs) by omega.
+      assert (Znth i shs' Tsh <> Share.bot).
+      { intro X; contradiction unreadable_bot; rewrite <- X.
+        apply Forall_Znth; auto; omega. }
+      rewrite (extract_nth_sepcon (map _ (upto 3)) i) by (rewrite Zlength_map; auto).
+      erewrite Znth_map, Znth_upto by (auto; simpl; omega).
+      destruct (zlt i i); [omega|].
+      rewrite lock_inv_isptr; Intros.
+      Exists _arg; entailer!.
+      { repeat split; try apply gvar_denote_global; auto.
+        apply Forall_Znth; auto. }
       rewrite !sepcon_assoc; apply sepcon_derives.
       { apply derives_refl'.
         f_equal; f_equal; extensionality.
         destruct x0 as (?, x0); repeat destruct x0 as (x0, ?); simpl.
         extensionality; apply mpred_ext; entailer!. }
-      rewrite (extract_nth_sepcon (map _ (upto 3)) i) by (rewrite Zlength_map; auto).
-      erewrite Znth_map, Znth_upto by (auto; simpl; omega).
-      destruct (zlt i i); [omega|].
-      rewrite lock_inv_isptr; Intros.
-      assert (0 <= i < Zlength shs) by omega.
-      assert (Znth i shs' Tsh <> Share.bot).
-      { intro X; contradiction unreadable_bot; rewrite <- X.
-        apply Forall_Znth; auto; omega. }
-      apply andp_right.
-      - apply prop_right; split; [omega|]; split; [omega|]; repeat (split; auto).
-        apply Forall_Znth; auto.
-      - rewrite <- !(data_at_share_join _ _ _ _ _ _ Hj3).
-        rewrite (add_andp (ghost_hist _ _ _) (!!disjoint ([] : hist) [])) by entailer!.
-        rewrite andp_comm, <- (ghost_hist_join _ _ _ _ _ _ _ Hj3'); auto.
-        rewrite <- (lock_inv_share_join sh1 sh2) by auto.
-        fast_cancel; cancel.
-        rewrite (sepcon_comm _ (data_at (Znth i shs Ews) _ _ locksp)), !sepcon_assoc; apply sepcon_derives.
-        { rewrite lock_struct_array; apply stronger_array_ext.
-          - unfold unfold_reptype; simpl; rewrite upd_Znth_Zlength; auto.
-          - intros j ???; unfold unfold_reptype; simpl.
-            destruct (eq_dec j i).
-            + subst; rewrite upd_Znth_same; auto.
-            + rewrite upd_Znth_diff by auto.
-              rewrite Znth_repeat with (x1 := Vundef)(n0 := 3%nat); apply stronger_default_val. }
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at (Znth i shs Ews) _ _ resp)),
-          !sepcon_assoc; apply sepcon_derives.
-        { apply stronger_array_ext.
-          - unfold unfold_reptype; simpl; rewrite upd_Znth_Zlength; auto.
-          - intros j ???; unfold unfold_reptype; simpl.
-            destruct (eq_dec j i).
-            + subst; rewrite upd_Znth_same; auto.
-            + rewrite upd_Znth_diff' by auto.
-              rewrite Znth_repeat with (x1 := Vundef)(n0 := 3%nat); apply stronger_default_val. }
-        erewrite sublist_next by (auto; omega); simpl; fast_cancel.
-        { intro; subst; contradiction unreadable_bot.
-          eapply join_readable1, readable_share_list_join; eauto. } }
+      rewrite <- !(data_at_share_join _ _ _ _ _ _ Hj3).
+      rewrite (add_andp (ghost_hist _ _ _) (!!disjoint ([] : hist) [])) by entailer!.
+      rewrite andp_comm, <- (ghost_hist_join _ _ _ _ _ _ _ Hj3'); auto.
+      rewrite <- (lock_inv_share_join sh1 sh2) by auto.
+      fast_cancel; cancel.
+      rewrite (sepcon_comm _ (data_at (Znth i shs Ews) _ _ locksp)), !sepcon_assoc; apply sepcon_derives.
+      { rewrite lock_struct_array; apply stronger_array_ext.
+        - unfold unfold_reptype; simpl; rewrite upd_Znth_Zlength; auto.
+        - intros j ???; unfold unfold_reptype; simpl.
+          destruct (eq_dec j i).
+          + subst; rewrite upd_Znth_same; auto.
+          + rewrite upd_Znth_diff by auto.
+            rewrite Znth_repeat with (x1 := Vundef)(n0 := 3%nat); apply stronger_default_val. }
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at (Znth i shs Ews) _ _ resp)),
+        !sepcon_assoc; apply sepcon_derives.
+      { apply stronger_array_ext.
+        - unfold unfold_reptype; simpl; rewrite upd_Znth_Zlength; auto.
+        - intros j ???; unfold unfold_reptype; simpl.
+          destruct (eq_dec j i).
+          + subst; rewrite upd_Znth_same; auto.
+          + rewrite upd_Znth_diff' by auto.
+            rewrite Znth_repeat with (x1 := Vundef)(n0 := 3%nat); apply stronger_default_val. }
+      erewrite sublist_next by (auto; omega); simpl; fast_cancel.
+      { intro; subst; contradiction unreadable_bot.
+        eapply join_readable1, readable_share_list_join; eauto. } }
     go_lower.
     Exists sh3 sh3'; entailer!.
     rewrite replace_nth_sepcon; apply sepcon_list_derives; rewrite upd_Znth_Zlength; rewrite !Zlength_map;
@@ -2189,12 +2188,12 @@ Proof.
     rewrite sublist_nil in H; inv H end.
   gather_SEP 2 1; apply invariant_view_shift with (Q := !!(exists l HT, hist_list (concat (map fst lr)) l /\
     apply_hist empty_map l = Some HT) && ghost_hist Tsh (concat (map fst lr)) gh).
-  { apply derives_view_shift.
-    unfold hashtable_inv; Intros HT hr; Exists HT hr.
+  { eapply view_shift_assert_later; [|intro X; rewrite prop_true_andp by (apply X); reflexivity].
+    eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
+    rewrite <- later_sepcon; apply later_derives.
+    unfold hashtable_inv; Intros HT hr.
     rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_ref _ _)), <- sepcon_assoc,
       (sepcon_comm _ (ghost_hist _ _ _)).
-    rewrite (add_andp (ghost_hist _ _ _ * _) (!!exists l HT, hist_list (concat (map fst lr)) l /\
-      apply_hist empty_map l = Some HT)); [entailer!|].
     rewrite hist_ref_join by (apply Share.nontrivial).
     Intros h'; apply prop_right.
     exists hr, HT; split; auto.

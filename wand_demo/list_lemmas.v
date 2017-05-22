@@ -6,6 +6,45 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
 
+Module GeneralLseg.
+
+Section GeneralLseg.
+
+Variable listrep: share -> list int -> val -> mpred.
+
+Definition lseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  ALL tcontents: list int, listrep sh tcontents z -* listrep sh (contents ++ tcontents) x.
+
+Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
+  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
+Proof.
+  intros.
+  unfold lseg.
+  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
+  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
+  apply derives_refl'.
+  f_equal; extensionality tcontents; simpl.
+  rewrite app_assoc.
+  auto.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  unfold lseg.
+  change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
+   change
+     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh (s1 ++ tcontents) x)
+   with
+     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
+   change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
+   apply wandQ_frame_elim.
+Qed.
+
+End GeneralLseg.
+End GeneralLseg.
+
 Fixpoint listrep (sh: share) (contents: list int) (x: val) : mpred :=
  match contents with
  | h::hs => field_at sh t_struct_list [StructField _head] (Vint h) x *
@@ -144,7 +183,7 @@ Module LsegWandQFrame.
 Definition lseg (sh: share) (contents: list int) (x z: val) : mpred :=
   ALL tcontents: list int, listrep sh tcontents z -* listrep sh (contents ++ tcontents) x.
 
-Lemma singleton_lseg: forall sh (contents: list int) (a: int) (x y: val),
+Lemma singleton_lseg: forall sh (a: int) (x y: val),
   field_at sh t_struct_list [StructField _head] (Vint a) x *
   field_at sh t_struct_list [StructField _tail] y x |--
   lseg sh [a] x y.
@@ -161,30 +200,11 @@ Qed.
 
 Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
   lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
-Proof.
-  intros.
-  unfold lseg.
-  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
-  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
-  apply derives_refl'.
-  f_equal; extensionality tcontents; simpl.
-  rewrite app_assoc.
-  auto.
-Qed.
+Proof. intros. apply (@GeneralLseg.lseg_lseg listrep). Qed.
 
 Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
   listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
-Proof.
-  intros.
-  unfold lseg.
-  change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
-   change
-     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh (s1 ++ tcontents) x)
-   with
-     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
-   change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
-   apply wandQ_frame_elim.
-Qed.
+Proof. intros. apply (@GeneralLseg.list_lseg listrep). Qed.
 
 End LsegWandQFrame.
 
@@ -195,15 +215,19 @@ Module ListLib.
 Lemma listrep_local_facts:
   forall sh contents p,
      listrep sh contents p |--
-     !! (is_pointer_or_null p /\ (p=nullval <-> contents=nil)).
+     !! (is_pointer_or_null p /\ (p <> nullval -> field_compatible t_struct_list [] p) /\ (p <> nullval -> isptr p)).
 Proof.
-intros.
-revert p; induction contents; unfold listrep; fold listrep; intros; normalize.
-apply prop_right; split; simpl; auto. intuition.
-entailer!.
-split; intro. subst p. destruct H; contradiction. inv H4.
+  intros.
+  destruct contents.
+  + unfold listrep.
+    entailer!.
+  + unfold listrep; fold listrep.
+    Intros y; entailer!.
+    intros.
+    rewrite field_compatible_cons in H.
+    simpl in H.
+    tauto.
 Qed.
-
 Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
@@ -251,14 +275,43 @@ Proof.
       entailer!.
 Qed.
 
-(*
-Lemma is_pointer_or_null_not_null:
- forall x, is_pointer_or_null x -> x <> nullval -> isptr x.
-Proof.
-intros.
- destruct x; try contradiction. hnf in H; subst i. contradiction H0; reflexivity.
- apply I.
-Qed.
-*)
 End ListLib.
 
+Definition listboxrep (sh: share) (contents: list int) (x: val) : mpred :=
+  EX y: val, data_at sh (tptr t_struct_list) y x * listrep sh contents y.
+
+Module LBsegWandQFrame.
+
+Definition lbseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  ALL tcontents: list int, listboxrep sh tcontents z -* listboxrep sh (contents ++ tcontents) x.
+
+Lemma singleton_lbseg: forall sh (a: int) (x y: val),
+  data_at sh (tptr t_struct_list) y x * 
+  field_at sh t_struct_list [StructField _head] (Vint a) y |--
+  lbseg sh [a] x (field_address t_struct_list [StructField _tail] y).
+Proof.
+  intros.
+  unfold lbseg.
+  apply allp_right; intros.
+  apply -> wand_sepcon_adjoint.
+  simpl app.
+  unfold listboxrep.
+  Intros z.
+  change (tptr t_struct_list) with (nested_field_type t_struct_list [StructField _tail]) at 2.
+  rewrite <- field_at_data_at.
+  unfold listrep at 2; fold listrep.
+  Exists y z.
+  cancel.
+Qed.
+
+Lemma lbseg_lbseg: forall sh (s1 s2: list int) (x y z: val),
+  lbseg sh s2 y z * lbseg sh s1 x y |-- lbseg sh (s1 ++ s2) x z.
+Proof. intros. apply (@GeneralLseg.lseg_lseg listboxrep). Qed.
+
+Lemma listbox_lbseg: forall sh (s1 s2: list int) (x y: val),
+  listboxrep sh s2 y * lbseg sh s1 x y |-- listboxrep sh (s1 ++ s2) x.
+Proof. intros. apply (@GeneralLseg.list_lseg listboxrep). Qed.
+
+End LBsegWandQFrame.
+
+Arguments listboxrep sh contents x : simpl never.

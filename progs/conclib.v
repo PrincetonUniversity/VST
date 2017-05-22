@@ -2947,6 +2947,33 @@ Proof.
   apply malloc_compatible_field_compatible; auto.
 Qed.
 
+Lemma gvar_eval_var: forall i t v rho,
+  gvar_denote i v rho -> eval_var i t rho = v.
+Proof.
+  unfold eval_var, gvar_denote; intros.
+  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction|].
+  destruct (ge_of rho i); auto; contradiction.
+Qed.
+
+Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
+  force_val (sem_cast_neutral v) = v.
+Proof.
+  intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
+  rewrite !Heq; auto.
+Qed.
+
+Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_neutral v) = v.
+Proof.
+  intros; apply force_val_sem_cast_neutral_isptr in H.
+  inversion H as [Heq]; rewrite !Heq; auto.
+Qed.
+
+Lemma gvar_denote_global : forall i v rho, gvar_denote i v rho -> gvar_denote i v (globals_only rho).
+Proof.
+  unfold gvar_denote; intros; simpl.
+  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction | auto].
+Qed.
+
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
    try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |

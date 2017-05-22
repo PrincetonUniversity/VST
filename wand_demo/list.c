@@ -37,10 +37,11 @@ struct list * append1 (struct list * x, struct list * y) {
 }
 
 struct list * append2 (struct list * x, struct list * y) {
-  struct list * * retp, * * curp, * ret, * cur;
+  struct list * head, * * retp, * ret, * * curp, * cur;
+  head = x;
+  curp = & head;
   cur = x;
-  curp = & x;
-  retp = & x;
+  retp = & head;
   while (cur != NULL) {
     curp = & (cur -> tail);
     cur = * curp;
