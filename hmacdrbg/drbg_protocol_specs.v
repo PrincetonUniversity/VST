@@ -214,10 +214,8 @@ else
             | ENTROPY.error _ _ => (data_at_ Tsh (tarray tuchar out_len) output)
             | ENTROPY.success (bytes, _) _ => (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output)
           end *
-          (*hmac256drbgabs_common_mpreds (hmac256drbgabs_generate I s out_len (contents_with_add additional add_len contents)) initial_state ctx info_contents **)
           da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
           Stream (get_stream_result g) *
-          (*K_vector kv*)
           AREP kv (hmac256drbgabs_generate I s out_len (contents_with_add additional add_len contents)) ctx).
 
 Definition hmac_drbg_generate_abs_spec :=
@@ -228,29 +226,25 @@ Definition hmac_drbg_generate_abs_spec :=
         ctx: val, 
         I: hmac256drbgabs,
         kv: val, s: ENTROPY.stream
-    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, _additional OF (tptr tuchar), _add_len OF tuint ]
+    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, 
+          _additional OF (tptr tuchar), _add_len OF tuint ]
        PROP (
          0 <= add_len <= Int.max_unsigned;
          0 <= out_len <= Int.max_unsigned;
-         Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
+         (*Zlength (hmac256drbgabs_value I) = 32 ;*)(*Z.of_nat SHA256.DigestLength*)
          add_len = Zlength contents;
-         0 < hmac256drbgabs_entropy_len I; 
+         (*0 < hmac256drbgabs_entropy_len I; *)
          hmac256drbgabs_entropy_len I + Zlength contents <= 384;
-(*         hmac256drbgabs_reseed_interval I = 10000;*)
-         RI_range (hmac256drbgabs_reseed_interval I) /\
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed;
-         Forall isbyteZ (hmac256drbgabs_value I);
+         (*RI_range (hmac256drbgabs_reseed_interval I) /\*)
+         (*0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed;*)
+         (*Forall isbyteZ (hmac256drbgabs_value I);*)
          Forall isbyteZ contents
        )
        LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
               temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
        SEP (
          data_at_ Tsh (tarray tuchar out_len) output;
-         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;(*
-         data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
-         hmac256drbg_relate I initial_state;
-         K_vector kv;
-         data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);*)
+         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
          AREP kv I ctx; Stream s)
     POST [ tint ]
        EX ret_value:_,
@@ -258,8 +252,6 @@ Definition hmac_drbg_generate_abs_spec :=
        LOCAL (temp ret_temp ret_value)
        SEP (generate_absPOST ret_value contents additional add_len output out_len ctx I kv s).
 
-(*random_with_add not yet done using REP/AREP*)
-(*from verif_hmacdrbg_other*)
 Definition drbg_random_abs_spec :=
   DECLARE _mbedtls_hmac_drbg_random
    WITH output: val, n: Z, ctx: val, 
