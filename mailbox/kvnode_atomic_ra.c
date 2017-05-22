@@ -2,6 +2,12 @@
 
 typedef struct node { int *version; int *data[8]; } node;
 
+void *surely_malloc (size_t n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+
 void read(node *n, int *out){
   while(1){
     int *ver = n->version;
