@@ -87,6 +87,7 @@ Proof.
   intros C F.
   split.
   - intros ofs' r. eapply lset_range_perm; eauto.
+     unfold LKSIZE; simpl in r; omega. (* Andrew says: looks fishy *)
   - eapply lock_coherence_align; eauto.
 Qed.
 
@@ -335,14 +336,13 @@ Proof.
   eapply Mem.valid_access_implies with (p1 := Writable).
   2:destruct p; constructor || tauto.
   pose proof lset_range_perm.
-  do 6 autospec H.
-  split; auto.
-  (* (* necessary if we change LKSIZE to something bigger than 4: *)
-  intros loc range.
-  apply H.
-  unfold size_chunk in *.
-  unfold LKSIZE in *.
-  omega. *)
+  do 6 autospec H;
+  split; auto;
+  intros loc range;
+  apply H;
+  unfold size_chunk in *;
+  unfold LKSIZE in *;
+  omega.
 Qed.
 
 Lemma LockRes_age_content1 js n a :

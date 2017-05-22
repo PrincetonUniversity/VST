@@ -693,6 +693,7 @@ Proof.
             destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
             * discriminate.
             * tauto.
+            * unfold LKSIZE; simpl in range; clear - range; omega.
           + constructor.
         - (* basic alignment *)
           eapply lock_coherence_align; eauto.
@@ -742,7 +743,7 @@ Proof.
           simpl in lk.
           assert (adr_range (b, ofs) 4%Z (b, ofs0))
             by apply interval_adr_range, interval.
-          spec lk. now split; auto.
+          spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; omega.
           if_tac in lk.
           * destruct lk as (? & ? & ->). simpl. constructor.
           * destruct lk as (? & ? & ->). simpl. constructor.

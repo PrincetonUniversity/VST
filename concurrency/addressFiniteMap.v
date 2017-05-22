@@ -413,20 +413,17 @@ Proof.
   destruct a as ((b_, ofs_), a). intros E b'' ofs''. simpl. unfold setPerm.
   repeat rewrite PMap.gsspec.
   destruct (peq b'' b_) as [-> | ne]. destruct (peq b_ b_); [ | tauto]. 2:now auto.
-  destruct (zeq (ofs_ + 3) ofs''); simpl; auto.
-  destruct (zeq (ofs_ + 2) ofs''); simpl; auto.
-  destruct (zeq (ofs_ + 1) ofs''); simpl; auto.
-  destruct (zeq (ofs_ + 0) ofs''); simpl; auto.
+  repeat match goal with |- (if ssrbool.is_left ?A then _ else _) = _ =>  destruct A; simpl; auto end.
 Qed.
 
 Lemma A2P_overwrite A : forall a b e, fst a = fst b -> PMap_eq (@A2P A (A2P e a) b) (@A2P A e a).
 Proof.
   intros ((b1, ofs1), x1) (k2, x2) e; simpl. intros <- b'' ofs''.
   f_equal.
-  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 3)). rewrite setPerm_b_idem. f_equal.
-  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 2)). rewrite setPerm_b_idem. f_equal.
-  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 1)). rewrite setPerm_b_idem. f_equal.
-  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 0)). rewrite setPerm_b_idem. f_equal.
+ repeat 
+ match goal with |- setPerm _ _ ?A _ = _ =>
+     repeat rewrite (setPerm_b_comm _ _ _ A); rewrite setPerm_b_idem; f_equal
+  end.
 Qed.
 
 Lemma setPerm_comm b1 o1 b2 o2 e:
@@ -459,25 +456,18 @@ Qed.
 Lemma A2P_comm A e a b : PMap_eq (@A2P A (A2P e a) b) (@A2P A (A2P e b) a).
 Proof.
   destruct a as ((b1, o1), a1), b as ((b2, o2), a2); simpl.
-  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
-  apply setPerm_congr.
-  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
-  apply setPerm_congr.
-  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
-  apply setPerm_congr.
-  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
-  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
+
+repeat (
+ repeat 
+ ( lazymatch goal with |- PMap_eq (setPerm _ _ (o2 + _) _) _ => idtac end;
+   eapply PMap_eq_trans;
+ [ repeat  lazymatch goal with 
+  |- PMap_eq (setPerm _ _ (o2 + _) (setPerm _ _ (o2 + _) _)) _ => 
+       apply setPerm_congr
+ end;
+  apply setPerm_comm |
+ ]);
+ apply setPerm_congr).
   apply PMap_eq_refl.
 Qed.
 
@@ -522,7 +512,7 @@ Proof.
     injection C as <- <- .
     intros r.
     exfalso.
-    do 4 match goal with H : (b, ?x) <> (b, ?y) |- _ => assert (x <> y) by (intros <-; tauto); clear H end.
+    do 8 match goal with H : (b, ?x) <> (b, ?y) |- _ => assert (x <> y) by (intros <-; tauto); clear H end.
     omega.
   - rewrite fold_right_cons.
     simpl.
@@ -581,20 +571,16 @@ Proof.
   set (fold_right _ _ _) as m; clearbody m; clear.
   simpl.
   unfold setPerm in *.
-  do 7 rewrite PMap.gsspec.
+  repeat rewrite PMap.gsspec.
   if_tac [->|ne]; swap 1 2.
   { if_tac. destruct H. congruence. reflexivity. }
   destruct (peq b b). 2:tauto.
-  destruct (zeq (ofs + 3) ofs') as [<- | ne3]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
-  destruct (zeq (ofs + 2) ofs') as [<- | ne2]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
-  destruct (zeq (ofs + 1) ofs') as [<- | ne1]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
-  destruct (zeq (ofs + 0) ofs') as [<- | ne0]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
-  if_tac [r|nr]; auto.
-  destruct r. unfold LKSIZE in *; omega.
+ repeat 
+ lazymatch goal with |- context [zeq ?A ?B] =>
+   destruct (zeq A B) as [<- | ?]; simpl;
+    [if_tac; auto; destruct H; split; auto; unfold LKSIZE; omega | ]
+ end.
+  if_tac; auto. destruct H. unfold LKSIZE in H0. omega.
 Qed.
 
 Lemma find_too_small A y a x l :

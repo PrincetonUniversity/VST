@@ -118,14 +118,14 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
       (4 | snd loc) /\
-      (snd loc + 4 <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Int.modulus)%Z /\
       exists R, lkat R loc phi
 
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
       (4 | snd loc) /\
-      (snd loc + 4 <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Int.modulus)%Z /\
       exists (R : mpred),
         lkat R loc phi /\
         (app_pred R (age_by 1 lockphi) \/ level phi = O)
