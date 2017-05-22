@@ -177,7 +177,7 @@ Proof.
   destruct (RD loc) as [NN [R|[R|[[P [v R]]|R]]]].
   + rewrite E in R. simpl in R; rewrite <- R.
     eauto.
-  + rewrite E in R. destruct R as (sh'' & v & v' & R & H). discriminate.
+  + rewrite E in R. destruct R as (sh'' & wsh'' & v & v' & R & H). discriminate.
   + specialize (LB loc).
     cut (fst loc < b)%positive. now intro; exfalso; eauto.
     apply LB. destruct (AMap.find (elt:=option rmap) loc lset).
@@ -190,7 +190,7 @@ Proof.
 Qed.
 
 Lemma isLK_rewrite r :
-  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  (forall (sh : Share.t) (rsh : shares.readable_share sh) (z : Z) (P : preds), r <> YES sh rsh (LK z) P)
   <->
   ~ isLK r.
 Proof.
@@ -224,9 +224,9 @@ Proof.
         destruct (phi @ loc); try destruct k; simpl in R; try discriminate;
           [ refine ((* proj1 *) (LC _ _ _ _) _); eauto
           (* | refine (proj2 (LC _ _ _ _) _); eauto *) ].
-    + destruct R as (sh'' & v & v' & E & E'). (* split; *) congruence.
+    + destruct R as (sh'' & wsh & v & v' & E & E'). (* split; *) congruence.
     + (* split; *) congruence.
-    + destruct R as (sh'' & v & v' & R). (* split; *) congruence.
+    + destruct R as (v & PP  & ? & ?). (* split; *) congruence.
 
   - assert (fst loc < b)%positive.
     { apply BOUND.

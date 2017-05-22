@@ -798,7 +798,7 @@ Definition spawn_pre :=
    match x with
    | (f, b, w, pre) =>
      PROP ()
-     LOCAL (temp _args b)
+     LOCAL (temp _f f; temp _args b)
      SEP (
        EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
          (func_ptr'
@@ -829,6 +829,9 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
     (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) (rho: environ) =>
      PROP ()
      LOCAL (
+       match x with
+       | (f, b, w, pre) => temp _f f
+       end;
        match x with
        | (f, b, w, pre) => temp _args b
        end)
@@ -863,6 +866,10 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
     nil
     ((fun ts x =>
         match x with
+        | (f, b, w, pre) => temp _f f
+        end) ::
+     (fun ts x =>
+        match x with
         | (f, b, w, pre) => temp _args b
         end) :: nil)
     ((fun (ts: list Type) x =>
@@ -885,6 +892,8 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
        match x with
        | (f, b, w, pre) => pre w b
        end) :: nil)); repeat constructor.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre]; auto.
   + hnf; intros.
     destruct x as [[[f b] w] pre]; auto.
   + hnf; intros.

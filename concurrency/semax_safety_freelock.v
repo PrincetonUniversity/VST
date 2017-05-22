@@ -332,7 +332,7 @@ Proof.
     rewrite E; eauto.
     rewrite (age_resource_at APhi' (loc := loc)) in E''.
     destruct (Phi' @ loc); simpl in E''; try congruence.
-    injection E''; intros <- <- <- <- ; eexists; split. reflexivity.
+    injection E''; intros <- <- <- ; eexists; split. apply YES_ext. reflexivity.
     rewrite level_age_to. 2:omega. reflexivity.
   }
 
@@ -371,9 +371,9 @@ Proof.
         destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
         -- destruct Hrmap' as (_ & _ & inside). spec inside loc. autospec inside.
            rewrite age_to_resource_at in E''.
-           destruct inside as (? & E' & E).
+           destruct inside as (sh' & rsh' & E' & wsh' & E).
            rewrite E' in E''. simpl in E''.
-           injection E'' as <- <- <- <-.
+           injection E'' as <- <- <-.
            split; auto.
         -- destruct (Phi'rev _ _ _ _ _ nr E'') as (pp' & E & ->).
            cut (contents_at m loc = v /\ pp' = NoneP).
@@ -390,7 +390,8 @@ Proof.
         spec Same loc. spec Changed loc.
         destruct (adr_range_dec (b, Int.unsigned ofs) (4 * 1) loc) as [r|nr].
         -- autospec Changed.
-           destruct Changed as (val & -> & ->).
+           destruct Changed as (sh'' & rsh'' & ? & ? & ?).
+           rewrite H,H1.
            if_tac; reflexivity.
         -- autospec Same. rewrite <-Same.
            reflexivity.
@@ -447,7 +448,7 @@ Proof.
         apply outside.
         intros r.
         spec inside loc r.
-        destruct inside as (val & E1' & E1).
+        destruct inside as (sh' & rsh' & E1' & wsh' & E1).
         rewrite E1' in E'.
         congruence.
 
@@ -500,7 +501,7 @@ Proof.
       spec inside loc. subst loc. rewrite isLK_age_to.
       spec inside. split; auto; unfold Int.unsigned in *; omega.
       unfold Int.unsigned in *.
-      destruct inside as (sh & -> & ?). intros HH.
+      destruct inside as (sh & rsh & ? & wsh & ?). intros HH.
       unfold isLK in *. breakhyps.
     + spec lock_coh_ loc.
       destruct (AMap.find loc _) as [[uphi|]|] eqn:Eo; simpl.
@@ -737,9 +738,11 @@ Proof.
               unfold semax_conc_pred.lock_inv in *.
               exists (age_to n phi0lockinv'), (age_to n phi0sat).
               split. now apply age_to_join; auto.
-              split. now apply age_to_pred; assumption.
-              now apply age_to_pred; auto.
-
+              split. 
+              apply age_to_pred.
+              replace 2%Z with 1%Z by admit.   (* mismatch between LKSIZE=4 and LKSIZE=8 *)
+              assumption.
+              apply age_to_pred. assumption.
           + exact_eq Safe'.
             unfold jsafeN, safeN.
             f_equal.
@@ -776,4 +779,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-Qed.
+Admitted.
