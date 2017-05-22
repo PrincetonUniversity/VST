@@ -338,7 +338,7 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed_common.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
-  drbg_protocol_specs.v
+  drbg_protocol_specs.v verif_hmac_drbg_generate_abs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \

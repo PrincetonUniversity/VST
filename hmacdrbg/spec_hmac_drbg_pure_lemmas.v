@@ -9,11 +9,6 @@ Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import hmacdrbg.spec_hmac_drbg.
-(*Require Import sha.spec_hmacNK.
-Require Import sha.funspec_hmacNK.
-*)(*
-Require Import sha.spec_hmac.
-Require Import sha.protocol_spec_hmac.*)
 
 Lemma isbyteZ_initialKey: Forall isbyteZ initial_key.
 Proof. apply sublist.Forall_list_repeat; split; omega. Qed.

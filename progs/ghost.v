@@ -52,6 +52,16 @@ Proof.
   focus_SEP 1; auto.
 Qed.
 
+Corollary view_shift_sepcon1 : forall P Q P' (HP : view_shift P P'), view_shift (P * Q) (P' * Q).
+Proof.
+  intros; apply view_shift_sepcon; auto; reflexivity.
+Qed.
+
+Corollary view_shift_sepcon2 : forall P Q Q' (HQ : view_shift Q Q'), view_shift (P * Q) (P * Q').
+Proof.
+  intros; apply view_shift_sepcon; auto; reflexivity.
+Qed.
+
 Lemma view_shift_exists : forall {A} (P : A -> mpred) Q,
   (forall x, view_shift (P x) Q) -> view_shift (EX x : _, P x) Q.
 Proof.
@@ -73,6 +83,13 @@ Proof.
   intros.
   rewrite (add_andp P (!!PP)) by auto.
   rewrite andp_comm; apply view_shift_prop; auto.
+Qed.
+
+Lemma view_shift_prop_right : forall (P1 : Prop) P Q, P1 -> view_shift P Q -> view_shift P (!!P1 && Q).
+Proof.
+  intros.
+  etransitivity; eauto.
+  apply derives_view_shift; entailer!.
 Qed.
 
 End ViewShift.
@@ -449,6 +466,46 @@ Proof.
   repeat (split; auto); reflexivity.
 Qed.
 
+Lemma master_init : forall (a : A), exists g', joins (None, Some a) g'.
+Proof.
+  intros; exists (None, None), (None, Some a); simpl.
+  repeat (split; auto); reflexivity.
+Qed.
+
+Lemma master_snap : forall v p, view_shift (ghost_master v p) (ghost_snap v p * ghost_master v p).
+Proof.
+  intros; rewrite snap_master_join.
+  etransitivity; [|apply derives_view_shift, andp_right; [apply prop_right; reflexivity | auto]].
+  apply ghost_update.
+  intros (s, m) ((s', m') & ? & [[]|[]] & ?); try discriminate; simpl in *; subst.
+  assert (s' = s).
+  { destruct s, s'; auto; contradiction. }
+  subst; exists (Some v, Some v); simpl; split; [|split; auto; reflexivity].
+  destruct s; auto.
+  apply ord_join; auto.
+Qed.
+
+Lemma master_snap_absorb_gen : forall v1 v2 p,
+  view_shift (ghost_snap v1 p * ghost_master v2 p) (!!(ord v1 v2) && ghost_master v2 p).
+Proof.
+  intros; rewrite snap_master_join; apply view_shift_prop; intro.
+  apply view_shift_prop_right; auto.
+  apply ghost_update.
+  intros (s, m) ((s', m') & Hjoin & [[]|[]] & ?); try discriminate; simpl in *; subst.
+  exists (s, Some v2); simpl.
+  destruct s; simpl; auto.
+  split; auto; split; auto.
+  destruct s'; [|contradiction].
+  apply join_ord in Hjoin; destruct Hjoin.
+  etransitivity; eauto.
+Qed.
+
+Corollary master_snap_absorb : forall v p, view_shift (ghost_snap v p * ghost_master v p) (ghost_master v p).
+Proof.
+  intros; etransitivity; [apply master_snap_absorb_gen|].
+  apply view_shift_prop; intro; reflexivity.
+Qed.
+
 End Snapshot.
 
 Section PVar.
@@ -490,6 +547,11 @@ Qed.
 Lemma snap_master_init' : forall (v : Z), exists g', joins (Some v, Some v) g'.
 Proof.
   intro; apply snap_master_init.
+Qed.
+
+Lemma master_init' : forall (v : Z), exists g', joins (@None Z, Some v) g'.
+Proof.
+  intro; apply master_init.
 Qed.
 
 End PVar.
@@ -1251,7 +1313,7 @@ End Ghost.
 
 Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil add_events_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
-Hint Resolve ghost_var_init snap_master_init' ghost_map_init ghost_hist_init : init.
+Hint Resolve ghost_var_init snap_master_init' master_init' ghost_map_init ghost_hist_init : init.
 
 Ltac view_shift_intro a := repeat rewrite ?exp_sepcon1, ?exp_sepcon2, ?sepcon_andp_prop, ?sepcon_andp_prop';
   repeat match goal with

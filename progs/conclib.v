@@ -2844,14 +2844,6 @@ Proof.
     pose proof (ageable.necR_level _ _ Ha'); omega.
 Qed.
 
-Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
-  compcert_rmaps.R.approx n P.
-Proof.
-  intros.
-  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
-  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
-Qed.
-
 Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
   compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
         (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
