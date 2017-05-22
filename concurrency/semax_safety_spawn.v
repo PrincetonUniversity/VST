@@ -222,18 +222,17 @@ Proof.
   funspec_destruct "makelock".
   funspec_destruct "freelock".
   funspec_destruct "spawn".
-  intros (phix, (ts, (((xf, xarg), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
+  intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as ((PreA' & ((PreB1 & PreB2 & PreB3) & [phi00 [phi01 [jphi0 [[_y [globals Func]] fPRE]]]])) & necr).
+  destruct A as (((PreA & PreA') & ((PreB1 & PreB2 & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
   change Logic.True in PreA'. clear PreA'.
-  change Logic.True in PreB3. clear PreB3.
 (*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
   simpl in fPRE.
   rewrite seplog.sepcon_emp in fPRE.
   hnf in PreB1,  PreB2.
-  assert (xarg_defined: xarg <> Vundef) by admit. (* maybe this should be in PreA *)
+(*  assert (xarg_defined: xarg <> Vundef) by admit. (* maybe this should be in PreA *) *)
   clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
 
 
@@ -249,25 +248,25 @@ Proof.
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
 
   Import SeparationLogicSoundness.SoundSeparationLogic.CSL.
-  destruct Func as (Func, emp00).
   assert (phi01 = phi0). {
-    clear -emp00 jphi0.
     eapply join_unit1_e; eauto.
-    apply emp00.
+    assumption.
   }
   pose proof func_ptr_isptr _ _ _ Func as isp.
   unfold expr.isptr in *.
-  destruct xf as [ | | | | | f_b f_ofs]; try contradiction.
+  destruct f as [ | | | | | f_b f_ofs]; try contradiction.
+(*  destruct b as [ | | | | | b_b b_ofs]; try contradiction. *)
   clear isp.
   destruct args as [ | args1 args]; [contradiction Hargsty | ].
   destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
   destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
 
-  apply shape_of_args3 in PreB1; auto.
-  apply shape_of_args2 in PreB2; auto. 2: clear; congruence.
-(*  destruct Hargsty as [Harg1ty [Harg2ty _]]. *)
+  apply shape_of_args3 in PreB1; auto. 2: congruence.
+  apply shape_of_args2 in PreB2; auto.
+   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
 
   destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
+  destruct PreB2 as [arg1 PreB2]. inv PreB2.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
   destruct SP as (prog & CS_ & V & semaxprog & Ege & FA).
@@ -301,7 +300,7 @@ Proof.
   unfold filter_genv in *.
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun _y args2 A P' Q' NEP' NEQ' semaxprog as HEP.
+       id_fun _y b A P' Q' NEP' NEQ' semaxprog as HEP.
 
   subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
@@ -339,8 +338,7 @@ Proof.
   }
   *)
 
-  spec HEP.
-   admit. (* args2 <> Vundef *)
+  spec HEP PreA.
   destruct HEP as (q_new & Initcore & Safety).
 
   change (initial_core (juicy_core_sem cl_core_sem)) with cl_initial_core in Initcore.
@@ -348,9 +346,8 @@ Proof.
   apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
   assert (phi1 = phi1'). {
-    clear -emp00 jphi1'.
     eapply join_unit1_e; eauto.
-    apply emp00.
+    eassumption.
   }
   subst phi1'.
 
@@ -390,7 +387,7 @@ Proof.
   assert (compat' :
             mem_compatible_with
               (addThread (updThread i tp cnti (Kresume ci Vundef) phi1)
-                         (Vptr f_b Int.zero) xarg phi0) m Phi).
+                         (Vptr f_b Int.zero) b phi0) m Phi).
   {
     split; try apply compat.
     clear -jphi compat. destruct compat as [jj jj']. simpl in jphi.
@@ -404,7 +401,6 @@ Proof.
   apply (@mem_compatible_with_age n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
   replace (S n - 1) with n by omega.
-  destruct PreB2 as [arg1 PreB2]. inv PreB2.
 
   apply state_invariant_c with (mcompat := compat').
 
@@ -451,7 +447,7 @@ Proof.
 
       eapply Safety.
       * rewrite Ejm.
-        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (xarg, f_with_x)).
+        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
 
         (* cond_approx_eq *)
         eauto.
@@ -485,18 +481,18 @@ Proof.
         reflexivity.
 
         (* LOCAL 2 : locald_denote of global variables *)
-admit. (*
+       {
         clear - PreB3.
         induction (globals f_with_x). constructor.
         split; [ | now apply IHl; destruct PreB3; auto ].
-        destruct PreB3 as [WOB _]. clear IHglobals.
+        destruct PreB3 as [WOB _]. clear IHl.
         simpl in *.
         unfold canon.gvar_denote in *. simpl in *.
         unfold make_venv, Map.get, empty_env. rewrite PTree.gempty.
         unfold Genv.find_symbol in *.
         rewrite symb2genv_ax in *.
         assumption.
-*)
+       }
 
         (* SEP: only precondition of spawned condition *)
         unfold canon.SEPx in *.
@@ -584,4 +580,4 @@ admit. (*
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)
