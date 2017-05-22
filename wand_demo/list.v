@@ -53,7 +53,7 @@ Definition _append1 : ident := 66%positive.
 Definition _append2 : ident := 71%positive.
 Definition _append3 : ident := 72%positive.
 Definition _cur : ident := 70%positive.
-Definition _curp : ident := 68%positive.
+Definition _curp : ident := 69%positive.
 Definition _h : ident := 54%positive.
 Definition _h1 : ident := 59%positive.
 Definition _h2 : ident := 60%positive.
@@ -67,7 +67,7 @@ Definition _l2 : ident := 58%positive.
 Definition _list : ident := 2%positive.
 Definition _main : ident := 73%positive.
 Definition _p : ident := 53%positive.
-Definition _ret : ident := 69%positive.
+Definition _ret : ident := 68%positive.
 Definition _retp : ident := 67%positive.
 Definition _t : ident := 64%positive.
 Definition _tail : ident := 3%positive.
@@ -172,24 +172,24 @@ Definition f_append2 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr (Tstruct _list noattr))) ::
                 (_y, (tptr (Tstruct _list noattr))) :: nil);
-  fn_vars := ((_x, (tptr (Tstruct _list noattr))) :: nil);
+  fn_vars := ((_head, (tptr (Tstruct _list noattr))) :: nil);
   fn_temps := ((_retp, (tptr (tptr (Tstruct _list noattr)))) ::
-               (_curp, (tptr (tptr (Tstruct _list noattr)))) ::
                (_ret, (tptr (Tstruct _list noattr))) ::
+               (_curp, (tptr (tptr (Tstruct _list noattr)))) ::
                (_cur, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sassign (Evar _x (tptr (Tstruct _list noattr)))
+  (Sassign (Evar _head (tptr (Tstruct _list noattr)))
     (Etempvar _x (tptr (Tstruct _list noattr))))
   (Ssequence
-    (Sset _cur (Evar _x (tptr (Tstruct _list noattr))))
+    (Sset _curp
+      (Eaddrof (Evar _head (tptr (Tstruct _list noattr)))
+        (tptr (tptr (Tstruct _list noattr)))))
     (Ssequence
-      (Sset _curp
-        (Eaddrof (Evar _x (tptr (Tstruct _list noattr)))
-          (tptr (tptr (Tstruct _list noattr)))))
+      (Sset _cur (Etempvar _x (tptr (Tstruct _list noattr))))
       (Ssequence
         (Sset _retp
-          (Eaddrof (Evar _x (tptr (Tstruct _list noattr)))
+          (Eaddrof (Evar _head (tptr (Tstruct _list noattr)))
             (tptr (tptr (Tstruct _list noattr)))))
         (Ssequence
           (Swhile
