@@ -38,7 +38,8 @@ void write(node *n, int *in){
 node *make_node(){
   node *n = surely_malloc(sizeof(node));
   n->version = surely_malloc(sizeof(int));
-  n->data = surely_malloc(sizeof(int*) * 8);
+  for(int i = 0; i < 8; i++)
+    n->data[i] = surely_malloc(sizeof(int));
 }
 
 void *writer(node *n){
