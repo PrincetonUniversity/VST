@@ -109,11 +109,24 @@ Lemmas about memory_block
 
 Hint Rewrite memory_block_zero_Vptr: norm.
 
-Lemma memory_block_local_facts: forall sh n p, memory_block sh n p |-- !! (isptr p).
+Definition size_compatible' (n: Z) (p: val) :=
+match p with
+| Vundef => True
+| Vint _ => True
+| Vlong _ => True
+| Vfloat _ => True
+| Vsingle _ => True
+| Vptr _ i_ofs => Int.unsigned i_ofs + n <= Int.modulus
+end.
+
+Lemma memory_block_local_facts: forall sh n p, 
+  memory_block sh n p |-- !! (isptr p /\ size_compatible' n p).
 Proof.
   intros.
-  destruct p; simpl; normalize.
+   unfold memory_block.
+  destruct p; simpl; normalize. apply prop_right; auto.
 Qed.
+
 Hint Resolve memory_block_local_facts : saturate_local.
 
 Lemma memory_block_offset_zero:
@@ -122,7 +135,7 @@ Proof.
   intros.
   rewrite <- local_facts_offset_zero.
   reflexivity.
-  apply memory_block_local_facts.
+  intro. eapply derives_trans;[ apply memory_block_local_facts | ]. normalize.
 Qed.
 
 Lemma memory_block_isptr: forall sh n p, memory_block sh n p = !!(isptr p) && memory_block sh n p.
@@ -130,7 +143,7 @@ Proof.
   intros.
   eapply local_facts_isptr.
   + apply memory_block_local_facts.
-  + auto.
+  + intuition.
 Qed.
 
 Lemma memory_block_zero: forall sh p, memory_block sh 0 p = !! isptr p && emp.

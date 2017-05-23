@@ -1,4 +1,7 @@
+#include <stdlib.h>
 #include "threads.h"
+
+void *surely_malloc(size_t n);
 
 int load_SC(int *tgt);
 void store_SC(int *tgt, int v);

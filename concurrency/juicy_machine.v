@@ -337,11 +337,11 @@ Module Concur.
       t H js b ofs 1%Z.
       t H js b ofs 2%Z.
       t H js b ofs 3%Z.
-      (*t H js b ofs 4%Z.
+      t H js b ofs 4%Z.
       t H js b ofs 5%Z.
       t H js b ofs 6%Z.
       t H js b ofs 7%Z.
-      t H js b ofs 8%Z.
+(*      t H js b ofs 8%Z.
       t H js b ofs 9%Z.
       t H js b ofs 10%Z.
       t H js b ofs 11%Z.
@@ -351,17 +351,16 @@ Module Concur.
       t H js b ofs 15%Z.*)
 
       pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
-      assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
+      assert (forall z, (z <= ofs < z + LKSIZE)%Z -> lockRes js (b, z) = None).
       intros.
       assert (O : (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 \/
-                   z = ofs-4 (* \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 \/
+                   z = ofs-4  \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 (* \/
                    z = ofs-8 \/ z = ofs-9 \/ z = ofs-10 \/ z = ofs-11 \/
                    z = ofs-12 \/ z = ofs-13 \/ z = ofs-14 \/ z = ofs-15 \/
-                   z = ofs-16*))%Z) by omega.
-      repeat (destruct O as [-> | O]; auto). omega.
+                   z = ofs-16*))%Z) by (unfold LKSIZE in *; omega).
+      repeat (destruct O as [-> | O]; auto). subst z; auto.
 
-      apply e in H4. rewrite H4.
-      apply po_None.
+      rewrite e. apply po_None. auto.
     Qed.
 
     Lemma mem_compatible_locks_ltwritable:

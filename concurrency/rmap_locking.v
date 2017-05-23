@@ -31,6 +31,7 @@ Require Import floyd.type_induction.
 Require Import concurrency.permjoin.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.semax_conc_pred.
+Require Import concurrency.lksize.
 
 Require Import Setoid.
 
@@ -977,18 +978,19 @@ Qed.
 
 Lemma lock_inv_rmap_freelock CS sh b ofs R phi m :
   (4 | Int.unsigned ofs) ->
-  Int.unsigned ofs + 4 <= Int.modulus ->
+  Int.unsigned ofs + LKSIZE <= Int.modulus ->
   writable_share sh ->
   app_pred (@lock_inv sh (Vptr b ofs) R) phi ->
   exists phi',
-    rmap_freelock phi phi' m (b, Int.unsigned ofs) R 4 /\
-    app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) 1 noattr) (Vptr b ofs)) phi'.
+    rmap_freelock phi phi' m (b, Int.unsigned ofs) R LKSIZE /\
+    app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (LKSIZE/4) noattr) (Vptr b ofs)) phi'.
 Proof.
+  match goal with |- context [?A / ?B] => set (z := A / B); compute  in z; subst z end.
   intros Halign Hbound Hwritable Hli.
   destruct Hli as (? & ? & E & Hli). injection E as <- <- .
 
-  pose proof make_rmap (freelock_f phi m (b, Int.unsigned ofs) 4) as Hphi'.
-
+  pose proof make_rmap (freelock_f phi m (b, Int.unsigned ofs) LKSIZE) as Hphi'.
+  unfold LKSIZE in *.
   assert_specialize Hphi'. {
     intros b' ofs'.
     clear Hphi'.
@@ -1044,39 +1046,11 @@ Proof.
         -- if_tac; f_equal; try apply proof_irr;
              try congruence.
            
-  - split; [repeat split|]. assumption. assumption.
-    split. reflexivity. simpl. rewrite seplog.sepcon_emp.
-    unfold mapsto_memory_block.at_offset in *.
-    simpl.
-    rewrite int_add_repr_0_r.
-    change (app_pred (mapsto sh (Tpointer Tvoid noattr) (Vptr b (Int.add ofs (Int.repr 0))) Vundef) phi').
-    rewrite int_add_repr_0_r.
-    unfold mapsto in *; simpl.
-    pose proof writable_readable_share Hwritable as Hr.
-    if_tac. 2:tauto. right. split; [reflexivity|].
-    eexists _, (_ :: _ :: _ :: _ :: nil); split.
-    { repeat split; assumption. }
-    intros x. spec Hli x. simpl in *. unfold lksize.LKSIZE in *.
-    rewrite Ephi'. unfold freelock_f.
-    if_tac [r|nr]. 2:assumption.
-    exists  (writable_readable_share Hwritable).
-    if_tac [<-|ne] in Hli.
-    * destruct Hli as (p & ->). f_equal.
-      apply proof_irr.
-      simpl.
-      replace (Int.unsigned ofs - Int.unsigned ofs) with 0 by omega; simpl.
-      reflexivity.
-    * destruct Hli as (p & ->). f_equal.
-      apply proof_irr.
-      destruct x as (b', ox); simpl in r; destruct r as (<-, r); simpl.
-      assert (A : forall a b c, a - b = c -> a = b + c) by (intros; omega).
-      destruct (nat_of_Z (ox - Int.unsigned ofs)) as [|[|[|[|[|]]]]] eqn:Ez; auto.
-      { apply juicy_mem_lemmas.Zminus_lem in Ez. subst ox; auto. apply r. }
-      all: apply nat_of_Z_nonzero in Ez; auto; apply A in Ez; subst ox.
-      all: try reflexivity.
-      -- simpl in r; omega.
-      -- simpl in r; zify; omega.
-Qed.
+  - rewrite data_at__memory_block.
+     split. repeat split; assumption. simpl sizeof.
+     clear - Hli Ephi'.
+     admit.  (* should be straightforward, says Andrew *)
+Admitted.
 
 Lemma rmap_makelock_unique phi phi1 phi2 loc R len :
   rmap_makelock phi phi1 loc R len ->

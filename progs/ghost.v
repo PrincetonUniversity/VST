@@ -62,6 +62,21 @@ Proof.
   intros; apply view_shift_sepcon; auto; reflexivity.
 Qed.
 
+Lemma view_shift_sepcon_list : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
+  (Hall : forall i, 0 <= i < Zlength l1 -> view_shift (Znth i l1 FF) (Znth i l2 FF)),
+  view_shift (fold_right sepcon emp l1) (fold_right sepcon emp l2).
+Proof.
+  induction l1; intros.
+  - symmetry in Hlen; apply Zlength_nil_inv in Hlen; subst; reflexivity.
+  - destruct l2; [apply Zlength_nil_inv in Hlen; discriminate|].
+    rewrite !Zlength_cons in *.
+    simpl; apply view_shift_sepcon, IHl1; try omega; intros.
+    + lapply (Hall 0); [|pose proof (Zlength_nonneg l1); omega].
+      rewrite !Znth_0_cons; auto.
+    + lapply (Hall (i + 1)); [|omega].
+      rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
+Qed.
+
 Lemma view_shift_exists : forall {A} (P : A -> mpred) Q,
   (forall x, view_shift (P x) Q) -> view_shift (EX x : _, P x) Q.
 Proof.
@@ -83,6 +98,16 @@ Proof.
   intros.
   rewrite (add_andp P (!!PP)) by auto.
   rewrite andp_comm; apply view_shift_prop; auto.
+Qed.
+
+Lemma view_shift_assert_later : forall P Q PP (HPP : P |-- |>!!PP) (Hshift : PP -> view_shift P Q),
+  view_shift P Q.
+Proof.
+  intros.
+  rewrite (add_andp _ _ HPP).
+  repeat intro; eapply semax_extract_later_prop''; eauto.
+  intro X; apply (Hshift X) in H.
+  rewrite <- add_andp; auto.
 Qed.
 
 Lemma view_shift_prop_right : forall (P1 : Prop) P Q, P1 -> view_shift P Q -> view_shift P (!!P1 && Q).
@@ -506,6 +531,36 @@ Proof.
   apply view_shift_prop; intro; reflexivity.
 Qed.
 
+Lemma ghost_snap_forget : forall v1 v2 p
+  (Hcompat : forall v' v'', join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
+  ord v1 v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
+Proof.
+  intros; apply ghost_update.
+  intros (s, m) ((s', ?) & ? & Hcase & ?); simpl in *.
+  destruct s, s'; try contradiction.
+  - exploit Hcompat; eauto; intros (s' & ? & ?).
+    exists (Some s', m); simpl; split; auto; split; auto.
+    destruct m; auto.
+    destruct Hcase as [[]|[]]; try discriminate; subst; simpl in *.
+    etransitivity; eauto.
+  - exists (Some v1, m); simpl; split; auto; split; auto.
+    destruct m; auto.
+    destruct Hcase as [[]|[]]; try discriminate; subst; simpl in *.
+    etransitivity; eauto.
+Qed.
+
+Lemma ghost_snap_choose : forall v1 v2 p
+  (Hcompat : forall v2 v' v'', ord v1 v2 -> join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
+  view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
+Proof.
+  intros.
+  eapply view_shift_assert.
+  { apply ghost_conflict. }
+  intros (([v'|], ?) & Hjoin & _); try contradiction; simpl in Hjoin.
+  erewrite ghost_snap_join by eauto; apply join_ord in Hjoin; destruct Hjoin.
+  apply ghost_snap_forget; eauto.
+Qed.
+
 End Snapshot.
 
 Section PVar.
@@ -552,6 +607,21 @@ Qed.
 Lemma master_init' : forall (v : Z), exists g', joins (@None Z, Some v) g'.
 Proof.
   intro; apply master_init.
+Qed.
+
+Lemma ghost_snap_le : forall v1 v2 p, v1 <= v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
+Proof.
+  intros; apply ghost_snap_forget; auto; simpl; intros; subst.
+  do 2 eexists; eauto.
+  apply Z.max_le_compat_r; auto.
+Qed.
+
+Lemma ghost_snap_choose' : forall (v1 v2 : Z) p, view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
+Proof.
+  intros.
+  apply ghost_snap_choose; simpl; intros; subst.
+  do 2 eexists; eauto.
+  apply Z.max_le_compat_r; auto.
 Qed.
 
 End PVar.

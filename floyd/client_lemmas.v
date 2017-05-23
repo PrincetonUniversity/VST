@@ -323,6 +323,16 @@ Hint Resolve (@LiftClassicalSep environ) : typeclass_instances.
 
 Definition func_ptr' f v := func_ptr f v && emp.
 
+Hint Resolve func_ptr_isptr: saturate_local.
+
+Lemma func_ptr'_isptr: forall f v, func_ptr' f v |-- !! isptr v.
+Proof.
+intros.
+unfold func_ptr'.
+apply andp_left1. apply func_ptr_isptr.
+Qed.
+Hint Resolve func_ptr'_isptr: saturate_local.
+
 Lemma approx_func_ptr': forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Proof.
@@ -1065,6 +1075,18 @@ Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
 (*Hint Rewrite Vint_inj' : go_lower.*)
 
+Lemma lvar_align_compatible_tint:
+  forall {cs: compspecs} id t v rho, 
+    locald_denote (lvar id t v) rho ->
+    align_compatible tint v.
+Proof.
+intros.
+hnf in H.
+destruct (Map.get (ve_of rho) id) as [[? ?]|]; try contradiction.
+destruct H; subst.
+exists 0. normalize.
+Qed.
+
 (*** New go_lower stuff ****)
 
 
@@ -1098,8 +1120,8 @@ eapply lower_one_temp; eauto.
 Qed.
 
 Lemma lower_one_lvar:
- forall t rho Delta P i v Q R S,
-  (isptr v -> lvar_denote i t v rho ->
+ forall {cs: compspecs} t rho Delta P i v Q R S,
+  (isptr v -> align_compatible tint v -> lvar_denote i t v rho ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S.
 Proof.
@@ -1114,6 +1136,7 @@ apply H; auto.
 hnf in H1.
 destruct (Map.get (ve_of rho) i); try contradiction.
 destruct p. destruct H1; subst. apply I.
+eapply lvar_align_compatible_tint; eauto.
 Qed.
 
 Lemma gvar_size_compatible:
@@ -1406,7 +1429,7 @@ first [simple apply quick_finish_lower
  | simple eapply lower_one_temp;
      [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
-     fold_types1; fancy_intro true; intros ?LV
+     fold_types1; fancy_intro true; intros ?VALIGN ?LV
  | simple eapply lower_one_gvar;
      [try reflexivity; eauto  | compute; apply finish_compute_le
      | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]

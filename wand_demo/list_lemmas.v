@@ -215,15 +215,19 @@ Module ListLib.
 Lemma listrep_local_facts:
   forall sh contents p,
      listrep sh contents p |--
-     !! (is_pointer_or_null p /\ (p=nullval <-> contents=nil)).
+     !! (is_pointer_or_null p /\ (p <> nullval -> field_compatible t_struct_list [] p) /\ (p <> nullval -> isptr p)).
 Proof.
-intros.
-revert p; induction contents; unfold listrep; fold listrep; intros; normalize.
-apply prop_right; split; simpl; auto. intuition.
-entailer!.
-split; intro. subst p. destruct H; contradiction. inv H4.
+  intros.
+  destruct contents.
+  + unfold listrep.
+    entailer!.
+  + unfold listrep; fold listrep.
+    Intros y; entailer!.
+    intros.
+    rewrite field_compatible_cons in H.
+    simpl in H.
+    tauto.
 Qed.
-
 Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
@@ -311,64 +315,3 @@ Proof. intros. apply (@GeneralLseg.list_lseg listboxrep). Qed.
 End LBsegWandQFrame.
 
 Arguments listboxrep sh contents x : simpl never.
-
-Module ListBoxLib.
-
-Lemma listboxrep_local_facts:
-  forall sh contents p,
-     listboxrep sh contents p |-- !! isptr p.
-Proof.
-  intros.
-  unfold listboxrep.
-  Intros y.
-  entailer!.
-Qed.
-
-Hint Resolve listboxrep_local_facts : saturate_local.
-
-Lemma listboxrep_valid_pointer:
-  forall sh contents p,
-   sepalg.nonidentity sh ->
-   listboxrep sh contents p |-- valid_pointer p.
-Proof.
-  intros.
-  unfold listboxrep.
-  Intros y.
-  entailer!.
-Qed.
-
-Hint Resolve listboxrep_valid_pointer : valid_pointer.
-(*
-Lemma listrep_null: forall sh contents x,
-  x = nullval ->
-  listrep sh contents x = !! (contents=nil) && emp.
-Proof.
-  intros; subst.
-  destruct contents; unfold listrep; fold listrep.
-  normalize.
-  apply pred_ext.
-  Intros y. entailer. destruct H; contradiction.
-  Intros.
-Qed.
-
-Lemma listrep_nonnull: forall sh contents x,
-  x <> nullval ->
-  listrep sh contents x = EX h: int, EX hs: list int, EX y:val,
-    !! (contents = h :: hs) &&
-    field_at sh t_struct_list [StructField _head] (Vint h) x *
-    field_at sh t_struct_list [StructField _tail] y x *
-    listrep sh hs y.
-Proof.
-  intros.
-  destruct contents; unfold listrep; fold listrep.
-  + apply pred_ext; [normalize |].
-    Intros h hs y.
-  + apply pred_ext.
-    - Intros y. Exists i contents y.
-      entailer!.
-    - Intros h hs y. Exists y.
-      inv H0; subst.
-      entailer!.
-Qed.
-*)
-End ListBoxLib.
