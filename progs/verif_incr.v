@@ -158,21 +158,21 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
-  forward_spawn (val * share * val * val)%type (f_, Vint (Int.repr 0), (ctr, sh1, lock, lockt),
+  forward_spawn (val * share * val * val)%type (f_, Vint (Int.repr 0),
+    fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
+      [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)], (ctr, sh1, lock, lockt),
     fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, lockt) := x in
          !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
          lock_inv sh lockt (thread_lock_inv sh ctr lock lockt)).
   { simpl spawn_pre; entailer!.
-    Exists _args (fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
-      [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)]); entailer.
+    { erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ f_) by eauto.
+      split; auto; repeat split; apply gvar_denote_global; auto. }
+    Exists _args; entailer!.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'. f_equal.
-      unfold NDmk_funspec.
-      apply mk_funspec_congr; auto.
-      apply eq_JMeq.
-      extensionality x x0.
-      destruct x0 as (?, (((?, ?), ?), ?)); simpl.
-      rewrite <- !sepcon_assoc; reflexivity.  }
+      f_equal; extensionality.
+      destruct x as (?, x); repeat destruct x as (x, ?); simpl.
+      extensionality; apply mpred_ext; entailer!. }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
