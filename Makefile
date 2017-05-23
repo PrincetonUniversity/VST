@@ -334,9 +334,10 @@ HMACDRBG_FILES = \
   spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   hmacdrbg_test_noPredRes_noReseed.v \
-  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
+  verif_hmac_drbg_update.v \
+  verif_hmac_drbg_reseed_common.v verif_hmac_drbg_generate_common.v \
+  verif_hmac_drbg_seed_common.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
-  verif_hmac_drbg_seed_common.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
   drbg_protocol_specs.v drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
 
