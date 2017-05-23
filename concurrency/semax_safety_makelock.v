@@ -207,21 +207,23 @@ Proof.
   destruct Hrmap' as (Phi' & Hrmap' & J').
 
   subst args.
-
-  eexists (m', ge, (sch, _)); split.
+  evar (tpx: thread_pool).
+  eexists (m', ge, (sch, tpx)); split.
 
   { (* "progress" part of the proof *)
     constructor.
 
     eapply JuicyMachine.sync_step
-    with (Htid := cnti); auto.
+    with (Htid := cnti) (Hcmpt := mem_compatible_forget compat); auto.
 
     eapply step_mklock
     with (c := ci) (Hcompatible := mem_compatible_forget compat)
                    (R := Rx) (phi'0 := phi');
     try eassumption; try reflexivity.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. assumption.
+    subst tpx; reflexivity.
   }
+  subst tpx.
 
   (* we move on to the preservation part *)
 
@@ -257,7 +259,6 @@ Proof.
     rewrite if_true in At by auto.
     progress breakhyps.
   }
-
   assert (APhi' : age Phi' (age_to n Phi')) by (apply age_to_1; congruence).
 
   assert (Phi'rev : forall sh psh k pp' loc,
@@ -278,6 +279,7 @@ Proof.
     split. apply YES_ext; reflexivity.
     rewrite level_age_to. 2:omega. reflexivity.
   }
+
 
   assert (mcompat' : mem_compatible_with' (age_tp_to n (updLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Int.intval ofs) None)) m' (age_to n Phi')). {
     constructor.
@@ -425,7 +427,6 @@ Proof.
       if_tac in E'.
       * unfold Int.unsigned in *. congruence.
       * congruence.
-
     + (* lockSet_in_juicyLocks *)
       cleanup.
       pose proof lset_in_juice compat as J.
@@ -436,6 +437,7 @@ Proof.
       unfold lset.
       rewrite AMap_find_add.
       if_tac.
+
       * intros []. subst loc. change Int.intval with Int.unsigned in *.
         destruct Hrmap' as (_ & _ & inside). spec inside (b, Int.unsigned ofs). spec inside.
         { split; auto; omega. }
@@ -443,7 +445,7 @@ Proof.
         rewrite age_to_resource_at.
         breakhyps.
         rewr (Phi' @ (b, Int.unsigned ofs)). simpl.
-        do 3 eexists.
+        exists x0, x1; eexists.
         apply YES_ext; reflexivity.
       * intros tr. spec J tr. auto.
         destruct Hrmap' as (_ & outside & inside).
@@ -512,7 +514,6 @@ Proof.
       zify. omega.
   }
 
-
   left.
   unshelve eapply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
@@ -563,7 +564,8 @@ Proof.
         subst loc. simpl.
         split. apply AT.
         split.
-        admit.  (* not sure how to prove (Int.intval ofs + 4 <= Int.modulus)%Z *)
+        destruct AT as [[_ [_ [_ [_ [_ [H5 _]]]]]] _ ].
+        apply H5.
         exists Rx.
         intros loc r.
         destruct Hrmap' as (_ & _ & inside). spec inside loc.
@@ -900,5 +902,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-  Unshelve. exists Phi. apply compat.
-Admitted.
+Qed.
