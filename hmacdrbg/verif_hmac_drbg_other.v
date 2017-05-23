@@ -88,15 +88,15 @@ Proof.
                destruct FC; simpl in *; omega.
                rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; right. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; right. left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. left; trivial.
             }
       clear FR1. clear FR.
