@@ -2823,6 +2823,7 @@ as big as [m] *)
       assumption.
   Qed.
 
+  (*TODO: Generalize what is stored, chunk, value, etc.*)
   Lemma strong_mem_obs_eq_store:
     forall mc mf mc' mf' rmap rmapF bl1 bl2 ofsl f v
       (Hlt: permMapLt rmap (getMaxPerm mc))
@@ -2832,9 +2833,9 @@ as big as [m] *)
       (Hf: f bl1 = Some bl2)
       (Hinjective: forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
       (Hobs_eq: strong_mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
-      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mc) # bl1)
+      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mc) # bl1)
                                                (Mem.mem_contents mc))
-      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mf) # bl2)
+      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mf) # bl2)
                                                 (Mem.mem_contents mf))
       (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
       (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b),
@@ -2877,7 +2878,7 @@ as big as [m] *)
       erewrite! Mem.setN_outside by (left; auto);
         by assumption.
       destruct (Z_lt_ge_dec
-                  ofs0 (ofsl + (size_chunk Mint32)))
+                  ofs0 (ofsl + (size_chunk Mint64)))
         as [Hofs_lt | Hofs_ge'].
 
       apply setN_obs_eq with (access := fun q => q = ofs0);
@@ -2899,10 +2900,10 @@ as big as [m] *)
           f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
       (Hmem_obs_eq: mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
       (Hcontents: Mem.mem_contents mc' =
-                  PMap.set bl1 (Mem.setN (encode_val Mint32 (Vint v)) ofsl
+                  PMap.set bl1 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl
                                          (Mem.mem_contents mc) # bl1) (Mem.mem_contents mc))
       (HcontentsF: Mem.mem_contents mf' =
-                   PMap.set bl2 (Mem.setN (encode_val Mint32 (Vint v)) ofsl
+                   PMap.set bl2 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl
                                           (Mem.mem_contents mf) # bl2) (Mem.mem_contents mf))
       (Hvb: forall b : block, Mem.valid_block mc b <-> Mem.valid_block mc' b)
       (HvbF: forall b : block, Mem.valid_block mf b <-> Mem.valid_block mf' b),
