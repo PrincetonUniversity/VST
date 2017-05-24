@@ -150,7 +150,7 @@ Record SM_simulation_inject := {
   (** The clause that relates initial states. *)
 ; core_initial :
     forall v vals1 c1 m1 j vals2 m2 DomS DomT,
-    initial_core Sem1 ge1 v vals1 = Some c1 ->
+    initial_core Sem1 0 ge1 v vals1 = Some c1 ->
     Mem.inject j m1 m2 ->
     Forall2 (val_inject j) vals1 vals2 ->
     meminj_preserves_globals ge1 j ->
@@ -170,7 +170,7 @@ Record SM_simulation_inject := {
     (forall b, DomT b = true -> Mem.valid_block m2 b) ->
 
     exists cd, exists c2,
-    initial_core Sem2 ge2 v vals2 = Some c2
+    initial_core Sem2 0 ge2 v vals2 = Some c2
     /\ match_state cd
          (initial_SM DomS DomT
            (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))

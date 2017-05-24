@@ -54,7 +54,7 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
       Mem.mem_inj j mS mT /\
       val_inject j rv1 rv2.
 
-    Lemma concur_whole_sim main psrc ptgt (sch : mySchedule.schedule) :
+    (* Lemma concur_whole_sim main psrc ptgt (sch : mySchedule.schedule) :
       Wholeprog_sim
         (DMachineSem sch psrc)
         (Machine.DryConc.MachineSemantics sch ptgt)
@@ -62,7 +62,7 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
         ge_inv init_inv halt_inv.
     Proof.
       
-    Admitted.
+    Admitted. *)
 
     Lemma concur_sim main psrc ptgt (sch : mySchedule.schedule) :
       Machine_sim
@@ -71,20 +71,19 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.
-      econstructor.
       
-      
-
       (*Transitivity lemma*)
       Lemma compose_machine_simulations:
         forall G1 G2 G3 C1 C2 C3 TID SCH TR M, 
         forall (Sem1: @ConcurSemantics G1 TID SCH TR C1 M)
           (Sem2: @ConcurSemantics G2 TID SCH TR C2 M)
           (Sem3: @ConcurSemantics G3 TID SCH TR C3 M)
-          g1 g2 g3 main,
-        Machine_sim Sem1 Sem2 g1 g2 main ->
-        Machine_sim Sem2 Sem3 g2 g3 main ->
-        Machine_sim Sem1 Sem3 g1 g3 main.
+          g1 g2 g3 main ge_inv1 ge_inv2 init_inv1 init_inv2 halt_inv1 halt_inv2,
+        Machine_sim Sem1 Sem2 g1 g2 main ge_inv1 init_inv1 halt_inv1 ->
+        Machine_sim Sem2 Sem3 g2 g3 main ge_inv2 init_inv2 halt_inv2->
+        exists ge_inv3 init_inv3 halt_inv3,
+          (Machine_sim Sem1 Sem3 g1 g3 main ge_inv3 init_inv3 halt_inv3) .
+        
       Admitted.
 
       eapply compose_machine_simulations.

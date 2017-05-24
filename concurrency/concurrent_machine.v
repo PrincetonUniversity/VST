@@ -168,8 +168,8 @@ Module Type ConcurrentMachine.
   Parameter MachineSemantics: schedule -> option RES.res ->
                               CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
-  Axiom initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Axiom initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
       U' = U /\ tr = nil.
 End ConcurrentMachine.
 
@@ -195,7 +195,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   | StartThread: forall tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
                     (Hcode: getThreadC ctn = Kinit vf arg)
-                    (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                    (Hinitial: initial_core Sem (tid2nat tid0)
+                                            genv vf (arg::nil) = Some c_new)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread' genv ctn ms'.
@@ -422,7 +423,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U r)
+                              (fun n => init_machine U r)
                               at_external
                               after_external
                               halted
@@ -482,8 +483,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
-  Lemma initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
       U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].
@@ -1080,7 +1081,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   | StartThread: forall tid0 ms ms' c_new vf arg
                    (ctn: containsThread ms tid0)
                    (Hcode: getThreadC ctn = Kinit vf arg)
-                   (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                   (Hinitial: initial_core Sem 0 genv vf (arg::nil) = Some c_new)
                    (Hinv: invariant ms)
                    (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread' genv ctn ms'.
@@ -1209,7 +1210,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U p)
+                              (fun _ => init_machine U p)
                               at_external
                               after_external
                               halted
@@ -1221,8 +1222,8 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   Defined.
 
 
-  Lemma initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals =  Some (U',tr,c) ->
       U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].

@@ -377,7 +377,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
 
    Definition init_mach (_ : option unit) (genv:G)
               (v:val)(args:list val):option thread_pool :=
-     match initial_core Sem genv v args with
+     match initial_core Sem 0 genv v args with
      | Some c =>
        Some (initial_machine c)
      | None => None
