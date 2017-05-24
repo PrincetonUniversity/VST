@@ -930,7 +930,7 @@ Proof.
     apply orp_left; [ trivial | normalize].
 Time Qed. (*Coq8.6: 2.3secs*)
 
-Require Import hmacdrbg.verif_hmac_drbg_update_lemmas.
+Require Import hmacdrbg.verif_hmac_drbg_update_common.
 
 Lemma HMAC_DRBG_update_concreteWF c K V k v
       (H: (k, v) = HMAC_DRBG_update_concrete HMAC256 c K V):

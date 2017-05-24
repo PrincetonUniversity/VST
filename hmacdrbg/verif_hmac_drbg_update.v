@@ -8,7 +8,7 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
-Require Import hmacdrbg.verif_hmac_drbg_update_lemmas.
+Require Import hmacdrbg.verif_hmac_drbg_update_common.
 
 (*Inlining this lemma reduces overall processing time of this file by 50%,
   as only a fraction of this lemma's Qed time is added to the final Qed of BDYupdate
