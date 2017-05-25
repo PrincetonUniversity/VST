@@ -2663,7 +2663,7 @@ try eapply semax_seq';
  end
  | .. ].
 
-Ltac forward_advise :=
+Ltac advise_prepare_postcondition := 
  match goal with
  | Delta' := @abbreviate tycontext _, Post' := @abbreviate ret_assert ?R |- semax ?Delta _ ?s ?Post =>
      tryif (constr_eq Post' Post; constr_eq Delta' Delta)
@@ -2676,7 +2676,9 @@ Ltac forward_advise :=
  | MC := @abbreviate statement _ |- _ => subst MC; unfold abbreviate
  | |- _ => simple apply seq_assoc1
  end;
- try simple eapply semax_seq;
+ try simple eapply semax_seq.
+
+Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
        tryif unify (no_breaks body) true
@@ -2698,11 +2700,27 @@ Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant o
 Otherwise, you can use the general case:
 Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
                else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+  end.
+
+Ltac forward_advise_if := 
+  advise_prepare_postcondition;
+ lazymatch goal with
    | |- semax _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
        then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches"
-       else fail "Use [forward_if] to prove this loop; you don't need to supply a postcondition"
-   | |- semax ?Delta _ (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
+       else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
+  end.
+
+Ltac forward_advise_while := 
+  advise_prepare_postcondition;
+ lazymatch goal with
+   | |- semax _ _ (Swhile _ _) _ =>
+       fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
+  end.
+
+Ltac forward_advise_call :=
+ lazymatch goal with
+   | |- semax ?Delta _ (Scall _ (Evar ?f _) ?bl) _ =>
       let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
       evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
       get_global_fun_def Delta f fsig cc A Pre Post;
@@ -2711,18 +2729,16 @@ Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant o
 end.
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
-                                     can take a normal_ret_assert AND DO NOT USE DELTA_SPECS *)
-  clear_Delta_specs;
-  lazymatch s with
-  | Sassign _ _ => store_tac
-  | Sset _ ?e =>
-    first [no_loads_expr e false; forward_setx
-            | load_tac]
-(*  | Sifthenelse ?e _ _ => forward_if_complain
-  | Swhile _ _ => forward_while_complain
-  | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
+                                     can take a normal_ret_assert *)
+    lazymatch s with
+  | Sassign _ _ => clear_Delta_specs; store_tac
+  | Sset _ ?e => clear_Delta_specs;
+    first [no_loads_expr e false; forward_setx | load_tac]
+  | Sifthenelse ?e _ _ => forward_advise_if
+  | Swhile _ _ => forward_advise_while
+  | Sfor _ _ _ _ => forward_advise_for
   | Scall _ (Evar _ _) _ =>  advise_forward_call
-*)  | Sskip => forward_skip
+  | Sskip => forward_skip
   end.
 
 Ltac derives_after_forward :=
@@ -2759,6 +2775,18 @@ Ltac fwd_result :=
   unfold replace_nth, repinject; cbv beta iota zeta;
   repeat simpl_proj_reptype.
 
+Ltac check_precondition :=
+  lazymatch goal with
+  | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
+    lazymatch R with context [sepcon] =>
+        fail "The SEP clause of the precondition contains * (separating conjunction).
+You must flatten the SEP clause, e.g. by doing [Intros],
+or else hide the * by making a Definition"
+       | _ => idtac
+    end
+  | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
+ end.
+
 Ltac forward :=
   check_Delta;
   repeat rewrite <- seq_assoc;
@@ -2779,13 +2807,13 @@ Ltac forward :=
     end;
     match goal with
     | |- semax _ _ (Ssequence ?c _) _ =>
+      check_precondition;
       eapply semax_seq';
       [ forward1 c
       | fwd_result;
         Intros;
         abbreviate_semax;
         try fwd_skip ]
-    | |- _ => forward_advise
     end
   end.
 

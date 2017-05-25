@@ -4,7 +4,6 @@ Require Import progs.object.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-
 Local Open Scope Z.
 Local Open Scope logic.
 
@@ -12,8 +11,6 @@ Record object_schema : Type :=
  build_object_schema {
    object_type: type;
    object_invariant: list Z -> val -> mpred;
-   mtable_type: nested_field_type object_type [StructField _mtable] = 
-                        tptr (Tstruct _methods noattr);
 }.
 
 Definition tobject := tptr (Tstruct _object noattr).
@@ -60,12 +57,11 @@ Definition object_mpred (history: list Z) (self: val) : mpred :=
      field_at Tsh (Tstruct _object noattr) [StructField _mtable] mtable self*
      object_invariant schema history self).
 
-Program Definition foo_schema : object_schema :=
+Definition foo_schema : object_schema :=
   build_object_schema (Tstruct _foo_object noattr)
   (fun (history: list Z) p => field_at Tsh (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history))) p
-      *  malloc_token Tsh (sizeof (Tstruct _foo_object noattr)) p)
-   _.
+      *  malloc_token Tsh (sizeof (Tstruct _foo_object noattr)) p).
 
 Definition foo_reset_spec :=
  DECLARE _foo_reset (reset_spec foo_schema).
@@ -97,7 +93,7 @@ Proof.
 unfold foo_reset_spec, foo_schema, reset_spec.
 start_function.
 simpl.
-Intros.  (* TODO:  if this is not done (to flatten the SEP) then the error message is not understandable *)
+Intros.
 forward.
 forward.
 Qed.
@@ -107,7 +103,7 @@ Proof.
 unfold foo_twiddle_spec, foo_schema, twiddle_spec.
 start_function.
 simpl.
-Intros.  (* TODO: see above Intros TODO *)
+Intros.
 forward.
 forward.
 forward.
@@ -176,6 +172,7 @@ forward_call tt.
 contradiction.
 *
 rewrite if_false by (intro; subst; inv H).
+Intros.
 forward.
 entailer!.
 *
@@ -195,7 +192,6 @@ Exists foo_schema mtable.
 sep_apply (split_object_methods foo_schema mtable).
 unfold object_invariant.
 entailer!.
-destruct p; inv PNp; reflexivity. (* TODO: why is this not automatic? *)
 simpl.
 unfold_field_at 1%nat.
 cancel.
@@ -238,41 +234,6 @@ unfold object_methods.
 Exists Ews reset twiddle.
 unfold_data_at 1%nat.
 subst.
-
-Ltac ensure_no_augment_funspecs Gprog ::=
-            let x := fresh "x" in
-            pose (x := Gprog); unfold Gprog in x;
-             match goal with
-             | x:=augment_funspecs _ _:_
-               |- _ =>
-                   fail 10 "Do not define Gprog with augment_funspecs,"
-                    "use with_library instead; see the reference manual"
-             | |- _ => clear x
-             end.
-
-Ltac simplify_func_tycontext' DD :=
-  match DD with context [(func_tycontext ?f ?V ?G)] =>
-   ensure_no_augment_funspecs G;
-    let D1 := fresh "D1" in let Delta := fresh "Delta" in
-    pose (Delta := @abbreviate tycontext (func_tycontext f V G));
-    change (func_tycontext f V G) with Delta;
-    unfold func_tycontext, make_tycontext in Delta;
-    let DS := fresh "Delta_specs" in let DS1 := fresh "DS1" in 
-    pose (DS1 := make_tycontext_s G);
-    pose (DS := @abbreviate (PTree.t funspec) DS1);
-    change (make_tycontext_s G) with DS in Delta;
-    hnf in DS1;
-    cbv beta iota delta [ptree_set] in DS1;
-    subst DS1;
-    cbv beta iota zeta delta - [abbreviate DS] in Delta;
-    check_ground_Delta
-   end.
-
-Ltac simplify_func_tycontext ::=
-match goal with
- | |- semax ?DD _ _ _ => simplify_func_tycontext'  DD
- | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
-end.
 
 simplify_func_tycontext.
 assert_PROP (field_compatible (Tstruct _methods noattr) [StructField _reset] mtable). {

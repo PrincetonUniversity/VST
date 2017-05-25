@@ -69,20 +69,17 @@ Proof.
   forward.
   forward.
   forward_call (lock, sh, dlock_inv data).
-  { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   unfold dlock_inv; simpl.
   Intro i.
   forward.
   forward_call (cond, sh).
   rewrite field_at_isptr; Intros.
   forward_call (lock, sh, dlock_inv data).
-  { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   { lock_props.
     unfold dlock_inv; Exists 1; cancel. }
   rewrite cond_var_isptr; Intros.
   forward_call (lockt, sh, cond_var sh cond * lock_inv sh lock (dlock_inv data),
                 tlock_inv sh lockt lock cond data).
-  { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   { unfold tlock_inv; lock_props.
     - apply selflock_precise, precise_sepcon; auto.
     - rewrite sepcon_comm; apply selflock_rec.
@@ -114,10 +111,8 @@ Proof.
   rewrite field_at_isptr; Intros.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
-  { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
-  { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
@@ -151,16 +146,13 @@ Proof.
   { entailer. }
   - (* loop body *)
     forward_call (cond, lock, sh2, sh2, dlock_inv data).
-    { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
     unfold dlock_inv; Intro i'.
     forward.
     unfold dlock_inv; Exists i'; entailer!.
     Exists i'; entailer!.
   - forward_call (lockt, sh2, tlock_inv sh1 lockt lock cond data).
-    { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
     forward_call (lockt, Ews, sh1, |>(cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data)),
                   |>tlock_inv sh1 lockt lock cond data).
-    { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
     { unfold tlock_inv; lock_props.
       + apply later_positive; auto.
       + unfold rec_inv.
@@ -171,7 +163,6 @@ Proof.
         erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
         rewrite !sepcon_assoc; eapply sepcon_derives; [apply lock_inv_later | cancel]. }
     forward_call (lock, Ews, dlock_inv data).
-    { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
     { lock_props.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     forward_call (cond, Ews).

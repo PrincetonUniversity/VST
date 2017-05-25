@@ -185,17 +185,20 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   (field_at Tsh t_struct_elem [StructField _b] (snd rep) p *
    (field_at_ Tsh t_struct_elem [StructField _next]) p).
 
-Definition fifo (contents: list val) (p: val) : mpred :=
-  (EX ht: (val*val), let (hd,tl) := ht in
-      !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh (sizeof t_struct_fifo) p *
-      if isnil contents
+Definition fifo_body (contents: list val) (hd tl: val) :=
+      (if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val,
               !!(contents = prefix++tl::nil)
             &&  (lseg QS Qsh Tsh prefix hd tl
                    * list_cell QS Qsh (Vundef,Vundef) tl
                    * field_at Tsh t_struct_elem [StructField _next] nullval tl)))%logic.
+
+Definition fifo (contents: list val) (p: val) : mpred :=
+  (EX ht: (val*val), let (hd,tl) := ht in
+      !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
+      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh (sizeof t_struct_fifo) p *
+      fifo_body contents hd tl).
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -303,7 +306,7 @@ Qed.
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
 intros.
- unfold fifo.
+ unfold fifo, fifo_body.
  if_tac; entailer; destruct ht; entailer!.
 Qed.
 
@@ -317,7 +320,7 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
-unfold fifo.
+unfold fifo, fifo_body.
 Exists (hd,tl).
 destruct (isnil contents).
 * entailer!.
@@ -348,7 +351,7 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
-  Exists q. unfold fifo. Exists (nullval,nullval).
+  Exists q. unfold fifo, fifo_body. Exists (nullval,nullval).
   rewrite if_true by auto.
   entailer!.
 Qed.
@@ -359,13 +362,13 @@ start_function.
 unfold fifo at 1.
 Intros ht; destruct ht as [hd tl].
 Intros.
-(* goal_7 *)
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 
 forward_if
   (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
-* if_tac; entailer.  (* typechecking clause *)
+* unfold fifo_body.
+   if_tac; entailer.  (* typechecking clause *)
     (* entailer! should perhaps solve this one too *)
 * (* then clause *)
   subst.
@@ -374,6 +377,7 @@ forward_if
   forward. (* Q->tail=p; *)
   (* goal 10 *)
   entailer.
+  unfold fifo, fifo_body.
   destruct (isnil contents).
   + subst. Exists (p,p).
      simpl. rewrite if_false by congruence.
@@ -389,6 +393,7 @@ forward_if
       contradiction (field_compatible_isptr _ _ _ H11).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
+  unfold fifo_body.
   destruct (isnil contents).
   + Intros. contradiction H; auto.
   + Intros prefix.
@@ -397,7 +402,7 @@ forward_if
      forward. (* Q->tail=p; *)
   (* goal 13 *)
      entailer!.
-     unfold fifo. Exists (hd, p).
+     unfold fifo, fifo_body. Exists (hd, p).
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ tl :: nil).
      entailer.
@@ -406,7 +411,6 @@ forward_if
      end.     (* prevent it from canceling! *)
      simpl sizeof.
      cancel. subst A.
-(* XXX: eapply derives_trans. Focus 2. apply lseg_cons_right_neq. *)
      eapply derives_trans; [ |
        apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
         auto ].
@@ -418,7 +422,7 @@ Qed.
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
 start_function.
-unfold fifo at 1.
+unfold fifo, fifo_body at 1.
 Intros ht; destruct ht as [hd tl].
 rewrite if_false by congruence.
 Intros prefix.
@@ -431,7 +435,7 @@ destruct prefix; inversion H; clear H.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
-   unfold fifo. Exists (nullval, tl).
+   unfold fifo, fifo_body. Exists (nullval, tl).
    rewrite if_true by congruence.
    simpl sizeof; entailer!.
 + rewrite lseg_cons_eq by auto.
@@ -441,7 +445,7 @@ destruct prefix; inversion H; clear H.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
     forward. (* return p; *)
-    unfold fifo. Exists (x, tl).
+    unfold fifo, fifo_body. Exists (x, tl).
     rewrite if_false by (destruct prefix; simpl; congruence).
     Exists prefix.
     entailer!.

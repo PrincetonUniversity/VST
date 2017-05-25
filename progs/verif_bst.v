@@ -397,9 +397,9 @@ Proof.
     Exists b t. entailer.
     apply ramify_PPQQ.
   * (* Loop body *)
-    forward. (* Sskip *)
     unfold insert_inv.
     Intros b1 t1.
+    forward. (* Sskip *)
     unfold treebox_rep at 1. Intros p1.
     forward. (* p = *t; *)
     forward_if.

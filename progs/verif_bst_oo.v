@@ -381,10 +381,10 @@ Proof.
     apply allp_right; intros q.
     apply wand_sepcon_adjoint; entailer!.
   * (* Loop body *)
-    (* TODO: why this skip is here? *)
-    forward. (* Sskip *)
     unfold subscr_inv.
     Intros b1 t1.
+    (* TODO: why this skip is here? *)
+    forward. (* Sskip *)
     destruct t1; simpl treebox_rep at 1; normalize.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)

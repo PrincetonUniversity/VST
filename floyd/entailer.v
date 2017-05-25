@@ -8,6 +8,13 @@ Require Import floyd.sublist.
 
 Local Open Scope logic.
 
+Lemma isptr_force_val_sem_cast_neutral :
+  forall p, isptr p -> isptr (force_val (sem_cast_neutral p)).
+Proof.
+intros. destruct p; try contradiction; apply I.
+Qed.
+Hint Resolve isptr_force_val_sem_cast_neutral : norm.
+
 Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
     using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 
