@@ -2778,7 +2778,7 @@ Ltac fwd_result :=
 Ltac check_precondition :=
   lazymatch goal with
   | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
-    lazymatch R with context [sepcon] =>
+    lazymatch R with context [sepcon _ _] =>
         fail "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition"
