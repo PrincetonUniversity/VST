@@ -1059,7 +1059,8 @@ Proof.
   destruct (peq b0 b).
    2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
   subst b0; rewrite !PMap.gss.
-  cut (~ (z <= ofs < z+4))%Z.
+  cut (~ (z <= ofs < z+LKSIZE))%Z.
+  unfold LKSIZE.
    intro.
   repeat match goal with |- context [is_left ?A] => destruct A; [ omega | simpl ] end.
   apply IHal. intros. apply H7. right; auto.

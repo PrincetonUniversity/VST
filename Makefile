@@ -244,7 +244,7 @@ CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v
 PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
-  insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
+  insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
@@ -335,11 +335,12 @@ HMACDRBG_FILES = \
   spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   hmacdrbg_test_noPredRes_noReseed.v \
-  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
+  verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
+  verif_hmac_drbg_reseed_common.v verif_hmac_drbg_generate_common.v \
+  verif_hmac_drbg_seed_common.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
-  verif_hmac_drbg_seed_common.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
-  drbg_protocol_specs.v verif_hmac_drbg_generate_abs.v
+  drbg_protocol_specs.v drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -352,7 +353,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -481,6 +482,8 @@ progs/sumarray.v: progs/sumarray.c
 progs/sumarray2.v: progs/sumarray2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/message.v: progs/message.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/object.v: progs/object.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/insertionsort.v: progs/insertionsort.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

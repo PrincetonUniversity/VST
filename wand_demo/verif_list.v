@@ -12,6 +12,13 @@ Proof.
   destruct p; try contradiction; reflexivity.
 Qed.
 
+Axiom Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
+
+Axiom data_at_share_join': forall {cs : compspecs} sh1 sh2 sh t v1 v2 p,
+  readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p = data_at sh t v2 p.
+
 Module VerifHeadSwitch.
 
 Import ListHead.
@@ -97,7 +104,7 @@ Module VerifAppend.
 
 Definition append_spec (_append: ident) :=
  DECLARE _append
-  WITH sh : share, contents : list int, x: val, y: val, s1: list int, s2: list int
+  WITH sh : share, x: val, y: val, s1: list int, s2: list int
   PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
      PROP(writable_share sh)
      LOCAL (temp _x x; temp _y y)
@@ -353,44 +360,12 @@ End VerifAppend1.
 Module VerifAppend2.
 
 Import ListLib.
-Import ListBoxLib.
 Import LBsegWandQFrame.
   
 Definition append2_spec := append_spec _append2.
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [ append2_spec ]).
-
-Lemma listrep_local_facts:
-  forall sh contents p,
-     listrep sh contents p |--
-     !! (is_pointer_or_null p /\ (p=nullval <-> contents=nil) /\ (p <> nullval -> field_compatible t_struct_list [] p) /\ (p <> nullval -> isptr p)).
-Proof.
-  intros.
-  destruct contents.
-  + entailer!.
-    split; intros; exfalso; apply H0; tauto.
-  + unfold listrep; fold listrep.
-    Intros y; entailer!.
-    split; [split |].
-    - intros; exfalso.
-      destruct H as [? _]; subst.
-      simpl in H; auto.
-    - intros.
-      congruence.
-    - intros.
-      rewrite field_compatible_cons in H.
-      simpl in H.
-      tauto.
-Qed.
-Hint Resolve listrep_local_facts : saturate_local.
-
-Axiom Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
-
-Axiom data_at_share_join': forall {cs : compspecs} sh1 sh2 sh t v1 v2 p,
-  readable_share sh2 ->
-  sepalg.join sh1 sh2 sh ->
-  data_at sh1 t v1 p * data_at sh2 t v2 p = data_at sh t v2 p.
 
 Lemma data_at__Tsh_wand_frame_intro: forall {CS: compspecs} sh t p,
   writable_share sh ->
@@ -427,7 +402,6 @@ Proof.
   forward. (* curp = & head *)
   forward. (* cur = x *)
   forward. (* retp = & head *)
-  (* TODO: split this top share into 2 pieces. *)
   forward_while
       ( EX s1a: list int, EX s1b: list int, EX curp: val, EX cur: val,
             PROP (s1 = s1a ++ s1b)
@@ -506,6 +480,40 @@ Qed.
 
 End VerifAppend2.
 
+Module VerifAppend3.
+
+Import ListLib.
+Import LsegWandQFrame.
+  
+Definition append3_spec := append_spec _append3.
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [ append3_spec ]).
+
+Lemma body_append3: semax_body Vprog Gprog f_append3 append3_spec.
+Proof.
+  start_function.
+  forward_if. (* if (x == NULL) *)
+  + forward. (* return y; *)
+    rewrite (listrep_null _ _ nullval) by auto.
+    Exists y; entailer!.
+  + rewrite (listrep_nonnull _ _ x) by auto.
+    Intros a s1b x'.
+    subst s1.
+    forward. (* t = x -> tail; *)
+    forward_call (sh, x', y, s1b, s2). (* t = append3(t, y); *)
+    Intros x''.
+    forward. (* x -> tail = t; *)
+    assert_PROP (is_pointer_or_null x'') by entailer!.
+    rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+    forward. (* return x *)
+    Exists x.
+    entailer!.
+    unfold listrep at 2; fold listrep.
+    Exists x''.
+    entailer!.
+Qed.
+
+End VerifAppend3.
+
 End VerifAppend.
-
-

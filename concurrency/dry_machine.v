@@ -317,14 +317,14 @@ Module Concur.
              (** install the thread's permissions on lock locations*)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
              (** check if the thread has permission to acquire the lock and the lock is free*)
-             (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
+             (Hload: Mem.load Mint64 m0 b (Int.intval ofs) = Some (Vlong Int64.one))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
                                        b (Int.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
              (Hlt': permMapLt pmap_tid' (getMaxPerm m))
              (Hrestrict_pmap: restrPermMap Hlt' = m1)
              (** acquire the lock*)
-             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+             (Hstore: Mem.store Mint64 m1 b (Int.intval ofs) (Vlong Int64.zero) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
              (Hangel1: permMapJoin pmap.1 (getThreadR cnt0).1 newThreadPerm.1)
              (Hangel2: permMapJoin pmap.2 (getThreadR cnt0).2 newThreadPerm.2)
@@ -358,14 +358,14 @@ Module Concur.
                             Some (UNLOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations *)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
-             (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
+             (Hload: Mem.load Mint64 m0 b (Int.intval ofs) = Some (Vlong Int64.zero))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
                                       b (Int.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
              (Hlt': permMapLt pmap_tid' (getMaxPerm m))
              (Hrestrict_pmap: restrPermMap Hlt' = m1)
              (** release the lock *)
-             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+             (Hstore: Mem.store Mint64 m1 b (Int.intval ofs) (Vlong Int64.one) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some rmap)
              (** And the lock is taken*)
              (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
@@ -419,7 +419,7 @@ Module Concur.
              (** install the thread's data permissions*)
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).1 = m1)
              (** lock is created in acquired state*)
-             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+             (Hstore: Mem.store Mint64 m1 b (Int.intval ofs) (Vlong Int64.zero) = Some m')
              (** The thread's data permissions are set to Nonempty*)
              (Hdata_perm: setPermBlock
                             (Some Nonempty)
@@ -490,7 +490,7 @@ Module Concur.
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** Lock is already acquired.*)
-           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
+           (Hload: Mem.load Mint64 m1 b (Int.intval ofs) = Some (Vlong Int64.zero)),
            ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
 
      Definition threadStep (genv : G): forall {tid0 ms m},

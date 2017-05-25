@@ -1160,3 +1160,49 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  | _ => None
  end.
 
+
+Lemma make_func_ptr: 
+ forall id (Espec: OracleKind) (CS: compspecs) Delta P Q R fs p c Post,
+   (var_types Delta) ! id = None ->
+   (glob_specs Delta) ! id = Some fs ->
+   (glob_types Delta) ! id = Some (type_of_funspec fs) ->
+    PTree.get id (snd (fst ((fst (local2ptree Q))))) = Some (vardesc_visible_global p) ->
+  semax Delta (PROPx P (LOCALx Q (SEPx (func_ptr' fs p :: R)))) c Post ->
+  semax Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+apply (semax_fun_id id fs Delta); auto.
+eapply semax_pre; try apply H3. clear H3.
+destruct (local2ptree Q) as [[[? ?] ?] ?] eqn:?.
+simpl in H2.
+pose proof (local2ptree_soundness P Q R t t0 l l0 Heqp0).
+apply (LocalD_sound_visible_global id p t t0 l0) in H2.
+forget (LocalD t t0 l0) as Q'.
+clear - H2 H3.
+rewrite <- insert_SEP.
+unfold func_ptr'.
+normalize.
+rewrite corable_andp_sepcon1
+  by (unfold_lift; simpl; intros; apply corable_func_ptr).
+apply andp_right; [ | apply andp_left2; apply andp_left1; normalize].
+rewrite H3.
+clear H3.
+rewrite <- andp_assoc.
+eapply derives_trans.
+apply andp_right.
+apply andp_left1.
+eapply in_local; eassumption.
+apply andp_left2. apply derives_refl.
+clear.
+intro rho.
+unfold_lift. unfold local, lift1; simpl.
+normalize.
+unfold eval_var.
+hnf in H.
+destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
+destruct (ge_of rho id); try contradiction.
+subst; auto.
+Qed.
+
+Ltac make_func_ptr id :=
+ eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].

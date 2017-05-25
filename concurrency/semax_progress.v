@@ -175,18 +175,12 @@ Proof.
   simpl.
   pose proof compat.(loc_writable) as LW.
   spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
-  do 4 rewrite setPerm_spec.
-  if_tac [e|n3]; [constructor|].
-  if_tac [e|n2]; [constructor|].
-  if_tac [e|n1]; [constructor|].
-  if_tac [e|n0]; [constructor|].
+  rewrite !setPerm_spec.
+  repeat (if_tac; [constructor |]).
   exfalso.
   simpl in r.
   assert (A : forall z, (b, z) <> (b, ofs') -> z <> ofs') by congruence.
-  apply A in n0.
-  apply A in n1.
-  apply A in n2.
-  apply A in n3.
+  repeat match goal with H: (_,_)<>(_,_) |- _ => apply A in H end.
   omega.
 Qed.
 
@@ -207,12 +201,10 @@ Proof.
   pose proof compat.(loc_writable) as LW.
   spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
   rewrite RR.
-  do 4 rewrite setPerm_spec.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  rewrite <-RR.
+  rewrite !setPerm_spec.
+ repeat (
+  if_tac; [match goal with H: (_,_) = (_,_) |-_ => inv H; apply LW; split; simpl; unfold Int.unsigned in *; lkomega end | ]).
+ rewrite <-RR.
   apply juice2Perm_locks_cohere, mem_compat_thread_max_cohere.
   eexists; eauto.
 Qed.
@@ -1156,9 +1148,6 @@ Section Progress.
                (phi'0 := phi')
         ; try eassumption; auto.
         constructor.
-        simpl. unfold LKSIZE.
-        clear - RLphi.
-        admit.  (* mismatch between LKSIZE=4 and LKSIZE=8 *)
       }
 
       { (* the case of freelock *)
@@ -1288,7 +1277,7 @@ Section Progress.
 
         destruct COPY as (phi0lockinv' & Hrmap00 & Hlkat).
 
-        assert (Hpos'' : (0 < 4)%Z) by omega.
+        assert (Hpos'' : (0 < LKSIZE)%Z) by (clear; unfold LKSIZE; omega). 
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
         destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
@@ -1527,6 +1516,6 @@ Section Progress.
     }
     (* end of Kinit *)
     Unshelve. eexists; eauto.
-  Admitted. (* Theorem progress *)
+Qed. (* Theorem progress *)
 
 End Progress.

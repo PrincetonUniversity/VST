@@ -281,7 +281,7 @@ Proof.
         split; swap 1 2.
         - (* the rmap is unchanged (but we have to prove the SAT information) *)
           cut ((4 | snd (b, Int.intval ofs)) /\
-               (snd (b, Int.intval ofs) + 4 <= Int.modulus)%Z /\
+               (snd (b, Int.intval ofs) + LKSIZE <= Int.modulus)%Z /\
                exists (* sh0 *) R0,
                   (lkat R0 (* sh0 *) (b, Int.intval ofs)) Phi /\
                   (app_pred R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
@@ -425,12 +425,12 @@ Proof.
 
           destruct SPA as [bOUT | [<- ofsOUT]].
           + rewrite gsoLockSet_2; auto.
-            eapply lockSet_spec_2.
-            * hnf; simpl. eauto. (* if LKSIZE>4: lkomega. instantiate (1 := ofs'). lkomega. *)
+            apply lockSet_spec_2 with ofs'.
+            * hnf; simpl. eauto. clear -int0; simpl in *; omega.
             * cleanup. rewrite Eo. reflexivity.
           + rewrite gsoLockSet_1; auto.
-            * eapply lockSet_spec_2.
-              -- hnf; simpl. eauto. (* if LKSIZE>4: lkomega. instantiate (1 := ofs'). lkomega. *)
+            * apply lockSet_spec_2 with ofs'.
+              -- hnf; simpl. eauto.  clear -int0; simpl in *; omega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
               simpl in *.

@@ -232,7 +232,6 @@ Proof.
   simpl in fPRE.
   rewrite seplog.sepcon_emp in fPRE.
   hnf in PreB1,  PreB2.
-(*  assert (xarg_defined: xarg <> Vundef) by admit. (* maybe this should be in PreA *) *)
   clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
 
 
