@@ -1160,7 +1160,7 @@ Module THE_DRY_MACHINE_SOURCE.
       { (*Kinit*)
 
         (*then it must be ready to start*)
-        destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem prog v [:: v0]) eqn:Hinit.
+        destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem (SCH.TID.tid2nat i) prog v [:: v0]) eqn:Hinit.
         Focus 2. {
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.

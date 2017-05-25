@@ -1088,7 +1088,7 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
+      assert (HinitF := core_inj_init (dry_machine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
       exists tpf', mf, fi, tr.

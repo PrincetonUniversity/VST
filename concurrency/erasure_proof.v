@@ -932,14 +932,14 @@ Module Parching <: ErasureSig.
 
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : Mem.mem) rmap pmap main genv,
+        (vals : list Values.val) (m : Mem.mem) rmap pmap main genv h,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
         no_locks_perm rmap ->
-        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
+        initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
+          initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil,ds) /\
           DryMachine.invariant ds /\
           match_st js ds.
     Proof.
@@ -952,7 +952,7 @@ Module Parching <: ErasureSig.
       simpl in H2.
       unfold JuicyMachine.init_machine in H2.
       unfold JSEM.init_mach in H2. simpl in H2.
-      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) genv main vals) eqn:C; try solve[inversion H2].
+      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) 0 genv main vals) eqn:C; try solve[inversion H2].
       inversion H2.
       exists (DryMachine.initial_machine pmap.1 c).
 

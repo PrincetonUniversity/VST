@@ -1081,7 +1081,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   | StartThread: forall tid0 ms ms' c_new vf arg
                    (ctn: containsThread ms tid0)
                    (Hcode: getThreadC ctn = Kinit vf arg)
-                   (Hinitial: initial_core Sem 0 genv vf (arg::nil) = Some c_new)
+                   (Hinitial: initial_core Sem (tid2nat tid0) genv vf (arg::nil) = Some c_new)
                    (Hinv: invariant ms)
                    (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread' genv ctn ms'.

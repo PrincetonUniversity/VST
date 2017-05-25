@@ -1255,7 +1255,7 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (CREATE, vf::arg::nil))
-            (Hinitial: initial_core the_sem genv vf (arg::nil) = Some c_new)
+            (Hinitial: initial_core the_sem 0 genv vf (arg::nil) = Some c_new)
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
@@ -1620,7 +1620,7 @@ Qed.
         (AMap.empty (option res)).
 
     Definition init_mach rmap (genv:G)(v:val)(args:list val) : option thread_pool:=
-      match initial_core the_sem genv v args with
+      match initial_core the_sem 0 genv v args with
       | Some c =>
         match rmap with
         | Some rmap => Some (initial_machine rmap c)

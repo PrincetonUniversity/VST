@@ -65,9 +65,9 @@ Module X86Context <: AsmContext X86SEM X86Machines.
     Definition sc_semantics :=
     SC.MachineSemantics initU None.
 
-  Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.
-  Definition tpf_init f arg := initial_core fine_semantics the_ge f arg.
-  Definition sc_init f arg := initial_core sc_semantics the_ge f arg.
+  Definition tpc_init f arg := initial_core coarse_semantics 0 the_ge f arg.
+  Definition tpf_init f arg := initial_core fine_semantics 0 the_ge f arg.
+  Definition sc_init f arg := initial_core sc_semantics 0 the_ge f arg.
 
 End X86Context.
 

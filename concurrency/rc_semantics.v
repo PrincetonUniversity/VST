@@ -55,7 +55,7 @@ Definition upd_locs locs (st : state) :=
   end.
 
 Definition initial_core ge v vs :=
-  match initial_core sem ge v vs with
+  match initial_core sem 0 ge v vs with
     | Some c => Some (mk c (getBlocks vs))
     | None => None
   end.
@@ -65,7 +65,7 @@ Lemma initial_core_locs ge v vs c :
   locs c = getBlocks vs.
 Proof.
 unfold initial_core.
-case_eq (semantics.initial_core sem ge v vs).
+case_eq (semantics.initial_core sem 0 ge v vs).
 solve[intros c0 H; inversion 1; subst; simpl; auto].
 solve[intros _; inversion 1].
 Qed.
@@ -159,7 +159,7 @@ Qed.
 
 Program Definition coresem : CoreSemantics (Genv.t F V) state mem :=
   Build_CoreSemantics _ _ _
-    initial_core
+    ( fun _ => initial_core)
     at_external
     after_external
     halted
@@ -248,7 +248,7 @@ Record t : Type := {
 
 ; init_ax :
   forall v vs c m,
-  initial_core sem ge v vs = Some c ->
+  initial_core sem 0 ge v vs = Some c ->
   I c m (getBlocks vs)
 
 ; step_ax :
