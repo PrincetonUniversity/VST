@@ -109,26 +109,6 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     intpair_serialize_spec; intpair_deserialize_spec; main_spec]).
 
-Lemma memory_block_field_compatible_tarray_tint:
-  forall sh n buf, 
-   0 <= n -> 4*n < Int.modulus ->
-   align_compatible tint buf ->
-   memory_block sh (sizeof (tarray tint n)) buf =
-   !! field_compatible (tarray tint n) [] buf && memory_block sh (sizeof (tarray tint n)) buf.
-Proof.
-intros.
-apply pred_ext; [ apply andp_right; auto | apply andp_left2; auto].
-rewrite memory_block_size_compatible.
-Intros.
-entailer!.
-destruct buf; try contradiction.
-repeat split; auto; simpl; auto; try computable.
-destruct n; try reflexivity.
-hnf in H. simpl in H. elimtype False; auto.
-unfold size_compatible in H2. simpl in H2.
-rewrite Z.max_r by omega. auto.
-Qed.
-
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.
 unfold intpair_serialize_spec.
