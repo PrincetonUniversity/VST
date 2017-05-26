@@ -518,7 +518,7 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 	sh util/make_version
 
 _CoqProject: Makefile
-	echo $(COQFLAGS) | sed 's/ -/\n-/g' >_CoqProject
+	echo $(COQFLAGS) | sed 's/ -/ -/g' >_CoqProject
 
 .loadpath: Makefile _CoqProject
 	echo $(COQFLAGS) > .loadpath
