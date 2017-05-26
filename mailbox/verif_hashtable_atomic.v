@@ -2,6 +2,7 @@ Require Import veric.rmaps.
 Require Import progs.ghost.
 Require Import mailbox.general_atomics.
 Require Import progs.conclib.
+Require Import mailbox.maps.
 Require Import floyd.library.
 Require Import floyd.sublist.
 Require Import mailbox.hashtable_atomic.
@@ -70,6 +71,7 @@ Proof.
   constructor; simpl; intros.
   - intro; auto.
   - intros ???[|][|]; subst; auto.
+  - eauto.
   - auto.
   - auto.
 Defined.
@@ -84,11 +86,6 @@ Definition wf_table T := forall k i, k <> 0 -> fst (Znth i T (0, 0)) = k -> look
 Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   ghost (Some H) g * fold_right sepcon emp (map (fun i => hashtable_entry T lg entries i) (upto (Z.to_nat size))).
-
-(* up *)
-Definition map_upd (H : Z -> option Z) k v k' := if eq_dec k' k then Some v else H k'.
-
-Definition empty_map (k : Z) : option Z := None.
 
 Program Definition set_item_spec := DECLARE _set_item atomic_spec
   (ConstType (Z * Z * val * share * list (val * val) * val * list val)) empty_map
@@ -294,17 +291,6 @@ Qed.
 
 Opaque upto.
 
-Lemma ghost_snap_forget : forall (v : Z) g, view_shift (ghost_snap v g) (ghost_snap 0 g).
-Proof.
-  intros; apply ghost_update.
-  intros ? (c' & ?).
-  destruct c as (s, m); destruct s.
-  - exists c'; simpl in *; split; [|tauto].
-    destruct (fst c'); tauto.
-  - exists (Some 0, m); simpl in *; split; auto; split; auto.
-    destruct m; auto.
-Qed.
-
 Arguments size : simpl never.
 
 Lemma forget_ghosts : forall (keys : list Z) lg, Zlength keys = Zlength lg ->
@@ -315,7 +301,9 @@ Proof.
   - symmetry in H; apply Zlength_nil_inv in H; subst; reflexivity.
   - destruct lg; [apply Zlength_nil_inv in H; discriminate|].
     rewrite !Zlength_cons in *; simpl.
-    apply view_shift_sepcon; [apply ghost_snap_forget|].
+    apply view_shift_sepcon; [apply ghost_snap_forget; auto|].
+    { intros; simpl in *.
+      exists v'; tauto. }
     apply IHkeys; omega.
 Qed.
 
@@ -350,7 +338,7 @@ Proof.
   rewrite Z.add_0_r in Hjth; replace (Zlength T) with size in Hjth; rewrite Hjth.
   destruct (Znth ((j + hash k) mod size) entries (Vundef, Vundef)); Intros.
   rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_snap (Znth _ _ _) _)).
-  rewrite <- !sepcon_assoc, snap_master_join; Intros; apply prop_right; simpl.
+  rewrite <- !sepcon_assoc, snap_master_join1; Intros; apply prop_right; simpl.
   eapply Forall_Znth with (d := 0) in Hfail.
   rewrite Znth_sublist, Z.add_0_r, Znth_rebase with (i0 := j) in Hfail; auto; try omega.
   replace (Zlength keys) with size in Hfail; intuition.
@@ -475,7 +463,7 @@ Proof.
         rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
         rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
         rewrite 4sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply snap_master_update; eauto. }
+        { apply snap_master_update1; eauto. }
         apply derives_view_shift.
         Exists HT.
         unfold hashtable; Exists T.
@@ -558,7 +546,7 @@ Proof.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
           rewrite 5sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply snap_master_update with (v' := if eq_dec ki 0 then k else ki).
+          { apply snap_master_update1 with (v' := if eq_dec ki 0 then k else ki).
             if_tac; auto. }
           apply derives_view_shift.
           assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size; apply hash_range).
@@ -628,9 +616,9 @@ Proof.
             view_shift_intros.
             rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
             rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-            rewrite snap_master_join, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
-            rewrite <- (prop_true_andp _ (ghost _ _) Hk1).
-            rewrite <- (@snap_master_join _ _ _ zero_order).
+            rewrite snap_master_join1, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
+            rewrite <- (prop_true_andp _ (ghost_master _ _) Hk1).
+            rewrite <- (@snap_master_join1 _ _ _ zero_order).
             destruct Hk1; [contradiction | subst].
             apply derives_view_shift.
             Exists HT.
@@ -693,9 +681,9 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-          rewrite snap_master_join, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
-          rewrite <- (prop_true_andp _ (ghost _ _) Hk1).
-          rewrite <- (@snap_master_join _ _ _ zero_order).
+          rewrite snap_master_join1, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
+          rewrite <- (prop_true_andp _ (ghost_master _ _) Hk1).
+          rewrite <- (@snap_master_join1 _ _ _ zero_order).
           destruct Hk1; [contradiction | subst].
           apply derives_view_shift.
           Exists Tsh HT T; rewrite HHi; entailer!.
@@ -869,7 +857,7 @@ Proof.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
           rewrite 5sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply snap_master_update; eauto. }
+          { apply snap_master_update1; eauto. }
           apply derives_view_shift.
           Exists HT.
           unfold hashtable; Exists T.
@@ -909,9 +897,9 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-          rewrite snap_master_join, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
-          rewrite <- (prop_true_andp _ (ghost _ _) Hk1).
-          rewrite <- (@snap_master_join _ _ _ zero_order).
+          rewrite snap_master_join1, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
+          rewrite <- (prop_true_andp _ (ghost_master _ _) Hk1).
+          rewrite <- (@snap_master_join1 _ _ _ zero_order).
           destruct Hk1; [contradiction | subst].
           apply derives_view_shift.
           Exists Tsh vi HT T; rewrite HHi; entailer!.
@@ -1092,7 +1080,7 @@ Proof.
         rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
         rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
         rewrite 4sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply snap_master_update; eauto. }
+        { apply snap_master_update1; eauto. }
         apply derives_view_shift.
         Exists HT.
         unfold hashtable; Exists T.
@@ -1175,7 +1163,7 @@ Proof.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
           rewrite 5sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply snap_master_update with (v' := if eq_dec ki 0 then k else ki).
+          { apply snap_master_update1 with (v' := if eq_dec ki 0 then k else ki).
             if_tac; auto. }
           apply derives_view_shift.
           assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size; apply hash_range).
@@ -1245,9 +1233,9 @@ Proof.
             view_shift_intros.
             rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
             rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-            rewrite snap_master_join, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
-            rewrite <- (prop_true_andp _ (ghost _ _) Hk1).
-            rewrite <- (@snap_master_join _ _ _ zero_order).
+            rewrite snap_master_join1, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
+            rewrite <- (prop_true_andp _ (ghost_master _ _) Hk1).
+            rewrite <- (@snap_master_join1 _ _ _ zero_order).
             destruct Hk1; [contradiction | subst].
             apply derives_view_shift.
             Exists HT.
@@ -1311,9 +1299,9 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
           rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-          rewrite snap_master_join, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
-          rewrite <- (prop_true_andp _ (ghost _ _) Hk1).
-          rewrite <- (@snap_master_join _ _ _ zero_order).
+          rewrite snap_master_join1, !sepcon_andp_prop'; apply view_shift_prop; intro Hk1.
+          rewrite <- (prop_true_andp _ (ghost_master _ _) Hk1).
+          rewrite <- (@snap_master_join1 _ _ _ zero_order).
           destruct Hk1; [contradiction | subst].
           apply derives_view_shift.
           Exists Tsh vi HT T; rewrite HHi; entailer!.
@@ -1412,8 +1400,8 @@ Proof.
     PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength entries = i)
     LOCAL (gvar _m_entries p)
     SEP (@data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) p;
-         fold_right sepcon emp (map (fun '(pk, pv) =>
-           malloc_token Tsh (sizeof tint) pk * malloc_token Tsh (sizeof tint) pv) entries);
+         fold_right sepcon emp (map (fun x =>
+           malloc_token Tsh (sizeof tint) (fst x) * malloc_token Tsh (sizeof tint) (snd x)) entries);
          EX lg : list val, !!(Zlength lg = i) && fold_right sepcon emp (map (ghost_snap 0) lg) *
            fold_right sepcon emp (map (fun j =>
            hashtable_entry (repeat (0, 0) (Z.to_nat size)) lg entries j) (upto (Z.to_nat i))))).
@@ -1425,19 +1413,13 @@ Proof.
     rewrite data_at__eq; unfold default_val; simpl.
     rewrite repeat_list_repeat, Z.sub_0_r; auto.
   - Intros lg.
-    eapply ghost_alloc with (g := (Some 0, Some 0)).
-    { exists (None, None); exists (Some 0, Some 0); simpl; auto. }
+    eapply ghost_alloc with (g := (Tsh, 0)); auto with init.
     Intros gk.
-    erewrite (add_andp (ghost _ _)), andp_comm, <- snap_master_join; [|entailer!].
-    forward_call (sizeof tint).
-    { simpl; computable. }
-    Intro pk; rewrite malloc_compat; auto; Intros.
-    rewrite memory_block_data_at_; auto.
+    apply make_snap.
+    forward_malloc tint pk.
+    rewrite sepcon_map; Intros.
     repeat forward.
-    forward_call (sizeof tint).
-    { simpl; computable. }
-    Intro pv; rewrite malloc_compat; auto; Intros.
-    rewrite memory_block_data_at_; auto.
+    forward_malloc tint pv.
     repeat forward.
     assert (0 <= i < Zlength (x ++ repeat (Vundef, Vundef) (Z.to_nat (size - i)))).
     { rewrite Zlength_app, Zlength_repeat, Z2Nat.id; omega. }
@@ -1450,13 +1432,12 @@ Proof.
     rewrite Znth_repeat, !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
     { split; [setoid_rewrite (proj2_sig has_size); auto|].
       rewrite Forall_app; repeat constructor; auto. }
-    rewrite upd_init, <- app_assoc by (auto; omega); cancel.
+    rewrite upd_init, <- app_assoc by (auto; omega); unfold ghost_master; cancel.
+    rewrite <- sepcon_map; cancel.
     apply sepcon_list_derives; rewrite !Zlength_map, !Zlength_upto; auto.
     rewrite <- Zlength_correct; intros.
     erewrite !Znth_map, !Znth_upto by (rewrite ?Zlength_upto, <- Zlength_correct; auto; omega).
     unfold hashtable_entry; rewrite !app_Znth1 by omega; auto.
-    { exists 2; auto. }
-    { exists 2; auto. }
   - Intros entries lg.
     rewrite Zminus_diag, app_nil_r.
     eapply (@ghost_alloc _ _ exclusive_PCM (Some (fun _ => None))).
@@ -1470,6 +1451,8 @@ Proof.
       rewrite Znth_repeat in Hj; simpl in Hj; subst; contradiction.
     + split; [discriminate|].
       intros (Hin & ?); apply repeat_spec in Hin; inv Hin; contradiction.
+    + unfold empty_map; cancel.
+      erewrite map_ext; eauto; intros (?, ?); auto.
 Qed.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
@@ -1489,7 +1472,7 @@ Proof.
   unfold f_lock_inv.
   eapply derives_precise' with (Q := (EX g : option (share * hist) * option hist, ghost g gh) *
     data_at_ _ _ _ * invariant (hashtable_inv gh g lg entries) *
-    fold_right sepcon emp (map (fun p => EX g : option Z * option Z, ghost g p) lg) *
+    fold_right sepcon emp (map (fun p => EX g : share * Z, ghost g p) lg) *
     data_at_ sh _ _ * data_at_ _ _ _ * data_at_ _ _ _).
   - Intros b1 b2 b3 h.
     repeat (apply sepcon_derives; try apply data_at_data_at_).
@@ -1499,7 +1482,7 @@ Proof.
     + apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
       erewrite !Znth_map with (d' := Vundef) by auto.
       unfold ghost_snap.
-      Exists (Some 0, @None Z); auto.
+      Exists (Share.bot, 0); auto.
   - repeat (apply precise_sepcon; auto).
     + apply ex_ghost_precise.
     + apply invariant_precise.
@@ -1595,7 +1578,7 @@ Proof.
     match goal with |- semax _ (PROP () (LOCALx (?a :: ?b :: temp _total _ :: ?Q) (SEPx ?R))) _ _ =>
       forward_if (PROP () (LOCALx (a :: b :: temp _total (vint (Zlength (filter id (x ++ [s])))) :: Q)
                  (SEPx R))) end.
-    + forward.
+    + Intros; forward.
       subst; rewrite filter_app, Zlength_app; entailer!.
     + forward.
       subst; rewrite filter_app, Zlength_app; entailer!.
@@ -1893,12 +1876,12 @@ Proof.
   forward.
   forward_call m_entries.
   { fast_cancel. }
-  Intros x; destruct x as ((entries, g), lg); simpl in *.
+  Intros x; destruct x as ((entries, g), lg).
   apply ghost_alloc with (g0 := (Some (Tsh, [] : hist), Some ([] : hist))); auto with init.
   Intro gh.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 5 1; apply make_inv with (Q := hashtable_inv gh g lg entries).
-  { unfold hashtable_inv; Exists empty_map (@nil hashtable_hist_el); entailer!. }
+  { unfold hashtable_inv; Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
   destruct (split_readable_share Tsh) as (sh1 & sh2 & ? & ? & ?); auto.
@@ -1912,7 +1895,7 @@ Proof.
     SEP (@data_at CompSpecs Ews (tarray tentry size) entries m_entries;
          data_at_ Tsh (tarray tint size) values; data_at_ Tsh (tarray tint size) keys;
          invariant (hashtable_inv gh g lg entries); ghost_hist Tsh ([] : hist) gh;
-         fold_right sepcon emp (map (fun '(pk, pv) => malloc_token Tsh 4 pk * malloc_token Tsh 4 pv)
+         fold_right sepcon emp (map (fun x => malloc_token Tsh 4 (fst x) * malloc_token Tsh 4 (snd x))
            entries); fold_right sepcon emp (map (ghost_snap 0) lg);
          EX res : list val, !!(Zlength res = i) &&
            data_at Ews (tarray (tptr tint) 3) (res ++ repeat Vundef (Z.to_nat (3 - i))) resp *
@@ -1924,25 +1907,17 @@ Proof.
            fold_right sepcon emp (map (malloc_token Tsh (sizeof (Tstruct _lock_t noattr))) locks) *
            fold_right sepcon emp (map (fun j => lock_inv Tsh (Znth j locks Vundef)
              (f_lock j (Znth j locks Vundef) (Znth j res Vundef))) (upto (Z.to_nat i))))).
-  { Exists (@nil val) (@nil val); rewrite !data_at__eq; entailer!. }
+  { Exists (@nil val) (@nil val); rewrite !data_at__eq; entailer!.
+    erewrite map_ext; eauto; intros (?, ?); auto. }
   { (* first loop *)
     Intros res locks.
-    forward_call (sizeof (Tstruct _lock_t noattr)).
-    { simpl; computable. }
-    Intro l.
-    rewrite malloc_compat by (auto; exists 2; auto); Intros.
-    rewrite memory_block_data_at_ by auto.
+    forward_malloc (Tstruct _lock_t noattr) l.
+    rewrite sepcon_map; Intros.
     forward.
-    forward_call (sizeof tint).
-    { simpl; computable. }
-    Intro r.
-    rewrite malloc_compat by (auto; exists 2; auto); Intros.
-    rewrite memory_block_data_at_ by auto.
+    forward_malloc tint r.
     forward.
     focus_SEP 3.
     forward_call (l, Tsh, f_lock i l r).
-    { entailer!.
-      destruct l; try contradiction; auto. }
     { rewrite !sepcon_assoc; apply sepcon_derives; [apply lock_struct | cancel_frame]. }
     Exists (res ++ [r]) (locks ++ [l]); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
     rewrite lock_inv_isptr, data_at__isptr; Intros.
@@ -1959,7 +1934,7 @@ Proof.
     replace (Zlength locks) with (Zlength res); rewrite Zminus_diag, !Znth_0_cons.
     destruct r; try contradiction.
     destruct l; try contradiction.
-    cancel.
+    rewrite sepcon_map; cancel.
     apply sepcon_list_derives; rewrite !Zlength_map, !Zlength_upto, <- Zlength_correct.
     { rewrite Z2Nat.id; auto; omega. }
     intros.
@@ -1977,7 +1952,7 @@ Proof.
          data_at_ Tsh (tarray tint size) values; data_at_ Tsh (tarray tint size) keys;
          invariant (hashtable_inv gh g lg entries);
          EX sh' : _, !!(sepalg_list.list_join sh0' (sublist i 3 shs') sh') && ghost_hist sh' ([] : hist) gh;
-         fold_right sepcon emp (map (fun '(pk, pv) => malloc_token Tsh 4 pk * malloc_token Tsh 4 pv)
+         fold_right sepcon emp (map (fun x => malloc_token Tsh 4 (fst x) * malloc_token Tsh 4 (snd x))
            entries); fold_right sepcon emp (map (ghost_snap 0) lg);
          data_at sh (tarray (tptr tint) 3) res resp;
          fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i 3 res));
@@ -1988,11 +1963,9 @@ Proof.
            (f_lock j (Znth j locks Vundef) (Znth j res Vundef))) (upto 3)))).
   { rewrite !sublist_same by auto; Exists Ews Tsh; entailer!. }
   { (* second loop *)
-    forward_call (sizeof tint).
-    { simpl; computable. }
-    Intros t sh'.
-    rewrite malloc_compat by (auto; exists 2; auto); Intros.
-    rewrite memory_block_data_at_ by auto.
+    forward_malloc tint t.
+    Intros sh'.
+    rewrite sepcon_map; Intros.
     forward.
     simpl in *; assert (3 <= Zlength shs) by omega.
     match goal with H : sepalg_list.list_join sh0 _ _ |- _ => rewrite sublist_next with (d := Ews) in H by auto;
@@ -2070,7 +2043,7 @@ Proof.
       { intro; subst; contradiction unreadable_bot.
         eapply join_readable1, readable_share_list_join; eauto. } }
     go_lower.
-    Exists sh3 sh3'; entailer!.
+    Exists sh3 sh3'; rewrite sepcon_map; entailer!.
     rewrite replace_nth_sepcon; apply sepcon_list_derives; rewrite upd_Znth_Zlength; rewrite !Zlength_map;
       auto.
     intros j ?; destruct (eq_dec j i).
@@ -2096,7 +2069,7 @@ Proof.
          invariant (hashtable_inv gh g lg entries);
          EX sh' : share, !!(readable_share sh' /\ sepalg_list.list_join sh' (sublist i 3 shs') Tsh) &&
            let h := map fst (snd x) in ghost_hist sh' (concat h) gh;
-         fold_right sepcon emp (map (fun '(pk, pv) => malloc_token Tsh 4 pk * malloc_token Tsh 4 pv)
+         fold_right sepcon emp (map (fun x => malloc_token Tsh 4 (fst x) * malloc_token Tsh 4 (snd x))
            entries); fold_right sepcon emp (map (ghost_snap 0) lg);
          data_at_ Tsh (tarray tint size) values; data_at_ Tsh (tarray tint size) keys;
          data_at (fst x) (tarray (tptr tint) 3) res resp;
@@ -2110,7 +2083,7 @@ Proof.
   { (* third loop *)
     destruct x as (sh3, lr); Intros sh3'; simpl in *.
     erewrite sublist_next with (l := upto 3), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; omega); simpl.
-    rewrite lock_inv_isptr; Intros.
+    rewrite lock_inv_isptr, sepcon_map; Intros.
     forward.
     forward_call (Znth i locks Vundef, sh1, f_lock i (Znth i locks Vundef) (Znth i res Vundef)).
     forward_call (Znth i locks Vundef, Tsh, sh2,
@@ -2155,23 +2128,23 @@ Proof.
       inversion H as [|??? w1 ? Hj1]; subst end.
     match goal with H : sepalg_list.list_join sh3' _ _ |- _ => rewrite sublist_next with (d := Tsh) in H by (auto; omega);
       inversion H as [|??? w1' ? Hj1']; subst end.
-    gather_SEP 15 2.
+    gather_SEP 16 2.
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks locksp).
     { go_lower.
       rewrite <- lock_struct_array.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join; eauto. }
-    gather_SEP 13 3.
+    gather_SEP 14 3.
     replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res resp).
     { go_lower.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join; eauto. }
     gather_SEP 5 6; rewrite <- invariant_duplicable.
-    gather_SEP 8 9; rewrite ghost_snaps_join.
+    gather_SEP 9 10; rewrite ghost_snaps_join.
     gather_SEP 7 4; erewrite ghost_hist_join; eauto.
     gather_SEP 6 5; erewrite data_at_share_join by eauto.
     forward.
-    go_lower; Exists (w1, lr ++ [(hi, [b1; b2; b3])]) w1'; entailer!.
+    go_lower; Exists (w1, lr ++ [(hi, [b1; b2; b3])]) w1'; rewrite sepcon_map; entailer!.
     rewrite map_app, concat_app, filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
       repeat (split; auto).
     - eapply join_readable1; eauto.

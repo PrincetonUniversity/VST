@@ -51,7 +51,7 @@ Definition ___i64_utod : ident := 20%positive.
 Definition ___i64_utof : ident := 22%positive.
 Definition _d : ident := 67%positive.
 Definition _data : ident := 2%positive.
-Definition _exit : ident := 53%positive.
+Definition _exit : ident := 52%positive.
 Definition _i : ident := 62%positive.
 Definition _in : ident := 66%positive.
 Definition _j : ident := 70%positive.
@@ -59,7 +59,7 @@ Definition _l : ident := 63%positive.
 Definition _load_acq : ident := 54%positive.
 Definition _main : ident := 73%positive.
 Definition _make_node : ident := 69%positive.
-Definition _malloc : ident := 52%positive.
+Definition _malloc : ident := 53%positive.
 Definition _n : ident := 56%positive.
 Definition _node : ident := 3%positive.
 Definition _out : ident := 59%positive.
@@ -247,8 +247,8 @@ Definition f_make_node := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_n, (tptr (Tstruct _node noattr))) :: (_i, tint) ::
-               (_t'3, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
+  fn_temps := ((_n, (tptr (Tstruct _node noattr))) :: (_p, (tptr tint)) ::
+               (_i, tint) :: (_t'3, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
                (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
@@ -263,43 +263,57 @@ Definition f_make_node := {|
       (Scall (Some _t'2)
         (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
                                cc_default)) ((Esizeof tint tuint) :: nil))
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
-            (Tstruct _node noattr)) _version (tptr tint))
-        (Etempvar _t'2 (tptr tvoid))))
+      (Sset _p (Etempvar _t'2 (tptr tvoid))))
     (Ssequence
-      (Sset _i (Econst_int (Int.repr 0) tint))
-      (Sloop
+      (Sassign (Ederef (Etempvar _p (tptr tint)) tint)
+        (Econst_int (Int.repr 0) tint))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
+              (Tstruct _node noattr)) _version (tptr tint))
+          (Etempvar _p (tptr tint)))
         (Ssequence
-          (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                         (Econst_int (Int.repr 8) tint) tint)
-            Sskip
-            Sbreak)
           (Ssequence
-            (Scall (Some _t'3)
-              (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
-                                     cc_default))
-              ((Esizeof tint tuint) :: nil))
-            (Sassign
-              (Ederef
-                (Ebinop Oadd
-                  (Efield
-                    (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
-                      (Tstruct _node noattr)) _data (tarray (tptr tint) 8))
-                  (Etempvar _i tint) (tptr (tptr tint))) (tptr tint))
-              (Etempvar _t'3 (tptr tvoid)))))
-        (Sset _i
-          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-            tint))))))
+            (Sset _i (Econst_int (Int.repr 0) tint))
+            (Sloop
+              (Ssequence
+                (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                               (Econst_int (Int.repr 8) tint) tint)
+                  Sskip
+                  Sbreak)
+                (Ssequence
+                  (Ssequence
+                    (Scall (Some _t'3)
+                      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil)
+                                             (tptr tvoid) cc_default))
+                      ((Esizeof tint tuint) :: nil))
+                    (Sset _p (Etempvar _t'3 (tptr tvoid))))
+                  (Ssequence
+                    (Sassign (Ederef (Etempvar _p (tptr tint)) tint)
+                      (Econst_int (Int.repr 0) tint))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd
+                          (Efield
+                            (Ederef
+                              (Etempvar _n (tptr (Tstruct _node noattr)))
+                              (Tstruct _node noattr)) _data
+                            (tarray (tptr tint) 8)) (Etempvar _i tint)
+                          (tptr (tptr tint))) (tptr tint))
+                      (Etempvar _p (tptr tint))))))
+              (Sset _i
+                (Ebinop Oadd (Etempvar _i tint)
+                  (Econst_int (Int.repr 1) tint) tint))))
+          (Sreturn (Some (Etempvar _n (tptr (Tstruct _node noattr))))))))))
 |}.
 
 Definition f_writer := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_n, (tptr (Tstruct _node noattr))) :: nil);
+  fn_params := ((_n, (tptr tvoid)) :: nil);
   fn_vars := ((_data, (tarray tint 8)) :: nil);
-  fn_temps := ((_i, tint) :: (_j, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_j, tint) :: (_v, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sassign
@@ -368,18 +382,19 @@ Definition f_writer := {|
                                                tint)
                                   Sskip
                                   Sbreak)
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _data (tarray tint 8))
-                                      (Econst_int (Int.repr 8) tint)
-                                      (tptr tint)) tint)
-                                  (Ebinop Oadd
+                                (Ssequence
+                                  (Sset _v
                                     (Ederef
                                       (Ebinop Oadd
                                         (Evar _data (tarray tint 8))
-                                        (Econst_int (Int.repr 8) tint)
-                                        (tptr tint)) tint)
-                                    (Econst_int (Int.repr 1) tint) tint)))
+                                        (Etempvar _j tint) (tptr tint)) tint))
+                                  (Sassign
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _data (tarray tint 8))
+                                        (Etempvar _j tint) (tptr tint)) tint)
+                                    (Ebinop Oadd (Etempvar _v tint)
+                                      (Econst_int (Int.repr 1) tint) tint))))
                               (Sset _j
                                 (Ebinop Oadd (Etempvar _j tint)
                                   (Econst_int (Int.repr 1) tint) tint))))
@@ -389,19 +404,18 @@ Definition f_writer := {|
                                              (tptr (Tstruct _node noattr))
                                              (Tcons (tptr tint) Tnil)) tvoid
                                            cc_default))
-                            ((Etempvar _n (tptr (Tstruct _node noattr))) ::
+                            ((Etempvar _n (tptr tvoid)) ::
                              (Evar _data (tarray tint 8)) :: nil))))
                       (Sset _i
                         (Ebinop Oadd (Etempvar _i tint)
                           (Econst_int (Int.repr 1) tint) tint))))
-                  (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint)
-                                   (tptr tvoid)))))))))))))
+                  (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))))))
 |}.
 
 Definition f_reader := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_n, (tptr (Tstruct _node noattr))) :: nil);
+  fn_params := ((_n, (tptr tvoid)) :: nil);
   fn_vars := ((_data, (tarray tint 8)) :: nil);
   fn_temps := nil;
   fn_body :=
@@ -410,9 +424,8 @@ Definition f_reader := {|
     (Evar _read (Tfunction
                   (Tcons (tptr (Tstruct _node noattr))
                     (Tcons (tptr tint) Tnil)) tvoid cc_default))
-    ((Etempvar _n (tptr (Tstruct _node noattr))) ::
-     (Evar _data (tarray tint 8)) :: nil))
-  (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
+    ((Etempvar _n (tptr tvoid)) :: (Evar _data (tarray tint 8)) :: nil))
+  (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -649,12 +662,12 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_exit,
    Gfun(External (EF_external "exit"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons tint Tnil) tvoid cc_default)) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_load_acq,
    Gfun(External (EF_external "load_acq"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -670,7 +683,7 @@ prog_defs :=
  nil);
 prog_public :=
 (_reader :: _writer :: _make_node :: _write :: _read :: _surely_malloc ::
- _store_rel :: _load_acq :: _exit :: _malloc :: ___builtin_debug ::
+ _store_rel :: _load_acq :: _malloc :: _exit :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
