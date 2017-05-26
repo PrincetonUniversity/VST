@@ -946,7 +946,7 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
                          (cenv: composite_env) :
             @CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
-             (fun ge => CS.(initial_core) (Build_genv ge cenv))
+             (fun n ge => CS.(initial_core) n (Build_genv ge cenv))
              CS.(at_external)
              CS.(after_external)
              CS.(halted)
@@ -958,8 +958,8 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
 Require Import sepcomp.step_lemmas.
 
  Lemma sim_dry_safeN:
-  forall dryspec (prog: Clight.program) b q m,
-  initial_core Clight_new.cl_core_sem
+  forall dryspec (prog: Clight.program) b q m h,
+  initial_core Clight_new.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
           (Vptr b Int.zero) nil = Some q ->
   (forall n, 
@@ -968,7 +968,7 @@ Require Import sepcomp.step_lemmas.
    (prog_comp_env prog)) dryspec 
    (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m) ->
   exists q', 
-  initial_core Clight_core.cl_core_sem
+  initial_core Clight_core.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
           (Vptr b Int.zero) nil = Some q' /\
   (forall n, 

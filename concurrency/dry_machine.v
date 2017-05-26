@@ -718,7 +718,7 @@ Module Concur.
 
      Definition init_mach (pmap : option RES.res) (genv:G)
                 (v:val)(args:list val):option thread_pool :=
-       match initial_core Sem genv v args with
+       match initial_core Sem 0 genv v args with
        | Some c =>
          match pmap with
          | Some pmap => Some (initial_machine pmap.1 c)

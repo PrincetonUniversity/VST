@@ -794,7 +794,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Proof.
     intros.
     unfold init_mach.
-    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg);
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) 0 the_ge f arg);
       reflexivity.
   Qed.
 
@@ -806,7 +806,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Proof.
     intros.
     unfold init_mach in Hinit.
-    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) 0 the_ge f arg); try discriminate.
     destruct pmap; try discriminate.
     unfold initial_machine in Hinit.
     inversion Hinit.
