@@ -275,7 +275,7 @@ make_func_ptr _foo_reset.
 eapply semax_pre; [apply prove_foo_mtable; reflexivity | ].
 (* TODO:  If the funspec does not have a (LOCAL (temp ret_temp x)) in the postcondition,
      then forward_call just freezes. *)
-fwd_call mtable.
+forward_call mtable.
 Intros p.
 (* drop_LOCALs [_foo_methods].  This is permitted if we don't intend to create any more foo objects *)
 

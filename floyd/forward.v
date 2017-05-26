@@ -607,6 +607,29 @@ Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B 
    evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
      change Post with (PROPx A B); subst A B | idtac] end.
 
+
+Lemma PROP_LOCAL_SEP_ext :
+  forall P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) = PROPx P' (LOCALx Q' (SEPx R')).
+Proof.
+intros; subst; auto.
+Qed.
+
+
+Ltac match_postcondition := 
+cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+tryif apply exp_congr
+ then (intros ?vret;
+          (* apply equal_f; *)
+          apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+          (reflexivity || fail "The funspec of the function has a POSTcondition
+that is ill-formed.  The LOCALS part of the postcondition
+should be (temp ret_temp ...), but it is not"))
+ else fail "The funspec of the function should have a POSTcondition that starts
+with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
+
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
 eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
@@ -614,12 +637,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
  |apply Logic.I
- | cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
+ | match_postcondition
  | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
@@ -633,12 +651,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  [ check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
- | cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
+ | match_postcondition
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
@@ -654,12 +667,7 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  [ check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
- | cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
+ | match_postcondition
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
@@ -672,12 +680,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
- | cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
+ | match_postcondition
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
@@ -688,11 +691,15 @@ eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
- | cbv beta iota zeta; unfold_post; extensionality rho;
+ | cbv beta iota zeta; unfold_post; (* extensionality rho; *)
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
-    repeat rewrite exp_unfold;
-    first [reflexivity | extensionality; simpl; reflexivity | give_EX_warning]
+    (* apply equal_f; *)
+    apply exp_congr; intros ?vret;
+    apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+    (reflexivity || fail "The funspec of the function has a POSTcondition
+that is ill-formed.  The LOCALS part of the postcondition
+should be empty, but it is not")
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].

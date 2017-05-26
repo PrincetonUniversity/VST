@@ -19,8 +19,10 @@ Definition cc_of_fundef (fd: fundef) : calling_convention :=
  | External _ _ _ c => c
  end.
 
+Inductive NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library : Type := .
+
 Definition vacuous_funspec (fd: fundef): funspec :=
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) (rmaps.ConstType unit) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) (rmaps.ConstType NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
