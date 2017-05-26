@@ -253,7 +253,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m1:= restrPermMap (DMS.DryMachine.compat_th Hcmpt cnti).1).
-        destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint64 m1 b (Int.intval ofs) (Vlong Int64.zero)) as [m'|] eqn:Hstore'.
         Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
@@ -366,7 +366,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*Check if can acquire*)
         pose (load_one_dec:=
-                Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one)).
+                Mem.load Mint64 m1 b (Int.intval ofs) = Some (Vlong Int64.one)).
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
 
         (*ACQFAIL*)
@@ -434,7 +434,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m2:= restrPermMap Hlt).
-        destruct (Mem.store Mint32 m2 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint64 m2 b (Int.intval ofs) (Vlong Int64.zero)) as [m'|] eqn:Hstore'.
         Focus 2. {
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
@@ -522,7 +522,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*Most be acquired*)
         pose (load_one_dec:=
-                Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero)).
+                Mem.load Mint64 m0 b (Int.intval ofs) = Some (Vlong Int64.zero)).
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
         Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
@@ -569,7 +569,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m1:= restrPermMap Hlt).
-        destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint64 m1 b (Int.intval ofs) (Vlong Int64.one)) as [m'|] eqn:Hstore'.
         Focus 2. {
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
