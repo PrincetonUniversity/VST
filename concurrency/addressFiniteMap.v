@@ -489,7 +489,7 @@ Qed.
 
 Lemma A2PMap_found A m b ofs ofs' o :
   AMap.find (elt:=A) (b, ofs) m = Some o ->
-  (ofs <= ofs' < ofs + 8)%Z ->
+  (ofs <= ofs' < ofs + 4)%Z ->
   (A2PMap m) !! b ofs' = Some Writable.
 Proof.
   unfold AMap.find, A2PMap, AMap.elements, AMap.Raw.elements.

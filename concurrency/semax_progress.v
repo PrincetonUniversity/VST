@@ -66,8 +66,8 @@ Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
   (LKspec LKSIZE R sh (b, ofs)) phi0 ->
   (* typically given by lock_coherence: *)
   AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
-  load Mint64 (restrPermMap (mem_compatible_locks_ltwritable compat)) b ofs = Some v ->
-  load Mint64 (@juicyRestrict_locks _ m (mem_compat_thread_max_cohere compat cnti)) b ofs = Some v.
+  load Mint32 (restrPermMap (mem_compatible_locks_ltwritable compat)) b ofs = Some v ->
+  load Mint32 (@juicyRestrict_locks _ m (mem_compat_thread_max_cohere compat cnti)) b ofs = Some v.
 Proof.
   intros (phi1, j) lk found.
   unfold juicyRestrict_locks in *.
@@ -160,11 +160,11 @@ Lemma valid_access_restrPermMap m i tp Phi b ofs ophi
   (lock_coh : lock_coherence' tp Phi m compat)
   (cnti : containsThread tp i)
   (Efind : AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (lset tp) = Some ophi)
-  (align : (8 | snd (b, Int.unsigned ofs)))
+  (align : (4 | snd (b, Int.unsigned ofs)))
   (Hlt' : permMapLt
            (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
            (getMaxPerm m)) :
-  valid_access (restrPermMap Hlt') Mint64 b (Int.intval ofs) Writable.
+  valid_access (restrPermMap Hlt') Mint32 b (Int.intval ofs) Writable.
 Proof.
   split. 2:exact align.
   intros ofs' r.
@@ -653,10 +653,10 @@ Section Progress.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mint64 (restrPermMap Hlt') b (Int.intval ofs) (Vlong Int64.zero) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
-            destruct (Mem.valid_access_dec _ Mint64 b (Int.intval ofs) Writable) as [N|N].
+            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
             now eauto.
             exfalso.
             apply N.
@@ -870,10 +870,10 @@ Section Progress.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mint64 (restrPermMap Hlt') b (Int.intval ofs) (Vlong Int64.one) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
-            destruct (Mem.valid_access_dec _ Mint64 b (Int.intval ofs) Writable) as [N|N].
+            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
             now eauto.
             exfalso.
             apply N.
@@ -1082,7 +1082,7 @@ Section Progress.
           repeat f_equal; congruence.
         }
 
-        assert (Hm' : exists m', Mem.store Mint64 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vlong Int64.zero) = Some m'). {
+        assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
           unfold tlock in AT. 
           destruct AT as (AT1, AT2). 
@@ -1508,7 +1508,7 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * replace (initial_core SEM.Sem) with cl_initial_core. auto.
+          * replace (initial_core SEM.Sem _) with cl_initial_core. auto.
             unfold the_sem, SEM.Sem.
             rewrite SEM.CLN_msem.
             reflexivity.

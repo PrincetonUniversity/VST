@@ -974,7 +974,7 @@ Section Preservation.
       try congruence.
     {
       inv Htstep.
-      replace (initial_core SEM.Sem) with cl_initial_core in Hinitial
+      replace (initial_core SEM.Sem _) with cl_initial_core in Hinitial
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       rename m' into m.
       pose proof safety as safety'.
