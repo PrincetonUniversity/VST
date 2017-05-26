@@ -4365,8 +4365,8 @@ Here be dragons
               { destruct ineq.
                 move: H0. rewrite /LKSIZE_nat /LKSIZE.
                 simpl.
-                destruct (4 < indx.+1)%N eqn:NN; auto.
-                assert ((4 < indx.+1)%N) by
+                destruct (8 < indx.+1)%N eqn:NN; auto.
+                assert ((8 < indx.+1)%N) by
                 (rewrite NN; auto).
                 move: H0 => /ltP.
                 intros. xomega. }

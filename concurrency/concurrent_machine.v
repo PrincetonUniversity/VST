@@ -78,7 +78,7 @@ Module Type ConcurrentMachineSig.
   Import Events.
   Import SEM.
 
-  Notation thread_pool := ThreadPeool.t.
+  Notation thread_pool := ThreadPool.t.
   (** Memories*)
   Parameter richMem: Type.
   Parameter dryMem: richMem -> mem.
