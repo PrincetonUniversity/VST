@@ -33,14 +33,17 @@ Definition dryspec : ext_spec unit :=
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       initial_core cl_core_sem
+       initial_core cl_core_sem 
+           0 (*additional temporary argument - TODO (Santiago): FIXME*)
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
  (Vptr b Int.zero) nil = Some q /\
        forall n,
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule NullExtension.Espec CS _ _ _ _ H H0) as [b [q [[H1 H2] H3]]].
+ destruct (@semax_prog_rule NullExtension.Espec CS _ _ _ _ 
+     0 (*additional temporary argument - TODO (Santiago): FIXME*)
+     H H0) as [b [q [[H1 H2] H3]]].
  exists b, q.
  split3; auto.
  intro n.
@@ -82,7 +85,9 @@ Axiom module_sequential_safety : (*TODO*)
      forall x : ext_spec_type (@OK_spec spec) f,
      ext_spec_pre (@OK_spec spec) f x (Genv.genv_symb ge) tys args ora m ->
      exists q,
-       initial_core sem (Build_genv ge (prog_comp_env prog))
+       initial_core sem 
+         0 (*additional temporary argument - TODO (Santiago): FIXME*)
+         (Build_genv ge (prog_comp_env prog))
               (Vptr f_b Int.zero) args = Some q /\
        forall n, safeN (@Genv.genv_symb _ _) (coresem_extract_cenv sem (prog_comp_env prog))
 (upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.
