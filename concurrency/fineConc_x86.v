@@ -36,7 +36,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
   Lemma init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m ->
-      match initial_core X86SEM.Sem the_ge v args with
+      match initial_core X86SEM.Sem 0 the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
       end.

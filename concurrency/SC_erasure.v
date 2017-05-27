@@ -1564,11 +1564,11 @@ Module Type CoreErasure (SEM: Semantics).
       core_erasure c2 c2'.
 
   Parameter erasure_initial_core:
-    forall ge v arg v' arg' c
+    forall h ge v arg v' arg' c
       (Hv: val_erasure v v')
       (Harg: val_erasure arg arg')
-      (Hinit: initial_core Sem ge v [:: arg] = Some c),
-      initial_core Sem ge v' [:: arg'] = Some c.
+      (Hinit: initial_core Sem h ge v [:: arg] = Some c),
+      initial_core Sem h ge v' [:: arg'] = Some c.
 
   Parameter halted_erase:
     forall c c'
@@ -2235,7 +2235,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     simpl in *. unfold SC.init_machine, FineConc.init_machine in *.
     unfold init_mach, ErasedMachine.init_mach in *.
     simpl in *.
-    destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+    destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
     destruct init_perm; try discriminate.
     inv HinitSC. inv HinitF.
     unfold initial_machine, ErasedMachine.initial_machine.

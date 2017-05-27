@@ -72,7 +72,7 @@ COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
-  ageable.v sepalg.v psepalg.v age_sepalg.v age_to.v \
+  ageable.v sepalg.v psepalg.v age_sepalg.v \
   sepalg_generators.v functors.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
@@ -87,7 +87,7 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
+  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v #age_to.v
 
 SEPCOMP_FILES = \
   Address.v \
