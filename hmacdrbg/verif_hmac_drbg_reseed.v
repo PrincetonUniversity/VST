@@ -133,7 +133,7 @@ Proof.
   }
 
   (* get_entropy(seed, entropy_len ) *)
-  thaw FR3. freeze [1;2;3;4;6;7] FR4.
+  thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
   { split. split; try omega. rewrite int_max_unsigned_eq. omega.
     apply writable_share_top.

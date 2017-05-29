@@ -186,14 +186,14 @@ Definition drbg_reseed_spec_abs :=
   then (!!(rv = Vint (Int.neg (Int.repr 5))) &&
        (da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          AREP kv I ctx * Stream s))
-  else (EX F:_, 
-       !!(F = mbedtls_HMAC256_DRBG_reseed_function s I (contents_with_add additional add_len contents) /\
-          return_value_relate_result F rv)
-        && AREP kv (match F with ENTROPY.error _ _ => I | 
+  else (let F := mbedtls_HMAC256_DRBG_reseed_function s I (contents_with_add additional add_len contents)
+        in !!(return_value_relate_result F rv)
+           && AREP kv ((*match F with ENTROPY.error _ _ => I | 
                   ENTROPY.success (V, K, rc, _, pr) _ => HMAC256DRBGabs K V rc (hmac256drbgabs_entropy_len I) pr
-                                (hmac256drbgabs_reseed_interval I) end) ctx *
-         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
-         Stream (get_stream_result F))).
+                                (hmac256drbgabs_reseed_interval I) end*)
+                     (hmac256drbgabs_reseed I s (contents_with_add additional add_len contents))) ctx *
+              da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+              Stream (get_stream_result F))).
 
 Definition generate_absPOST ret_value contents additional add_len output out_len ctx I kv s :=
 if out_len >? 1024
@@ -207,14 +207,14 @@ else
        (data_at_ Tsh (tarray tuchar out_len) output *
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          AREP kv I ctx * Stream s))
-  else let g := (mbedtls_HMAC256_DRBG_generate_function s I out_len (contents_with_add additional add_len contents))
-       in (!!(return_value_relate_result g ret_value)) &&
-          (match g with
+  else let F := (mbedtls_HMAC256_DRBG_generate_function s I out_len (contents_with_add additional add_len contents))
+       in (!!(return_value_relate_result F ret_value)) &&
+          (match F with
             | ENTROPY.error _ _ => (data_at_ Tsh (tarray tuchar out_len) output)
             | ENTROPY.success (bytes, _) _ => (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output)
           end *
           da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
-          Stream (get_stream_result g) *
+          Stream (get_stream_result F) *
           AREP kv (hmac256drbgabs_generate I s out_len (contents_with_add additional add_len contents)) ctx).
 
 Definition hmac_drbg_generate_abs_spec :=
