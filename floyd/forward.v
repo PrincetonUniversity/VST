@@ -2788,7 +2788,7 @@ Ltac check_precondition :=
     lazymatch R with context [sepcon _ _] =>
         fail "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
-or else hide the * by making a Definition"
+or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
