@@ -258,6 +258,11 @@ Module THE_DRY_MACHINE_SOURCE.
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
+
+
+
+
+        
         inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
           | [ H: SCH.schedPeek ?Y = Some _ ,
@@ -282,6 +287,8 @@ Module THE_DRY_MACHINE_SOURCE.
         try solve[ exfalso; eapply no_thread_halted; eassumption];
         try solve[ exfalso; apply Htid; assumption].
 
+        
+         
         rewrite AtExt in Hat_external; inversion Hat_external; subst.
         unfold m1 in Hstore'.
         replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance.

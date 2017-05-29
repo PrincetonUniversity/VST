@@ -165,11 +165,11 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Qed.
 
   Lemma erasure_initial_core:
-    forall ge v arg v' arg' c
+    forall h ge v arg v' arg' c
       (Hv: val_erasure v v')
       (Harg: val_erasure arg arg')
-      (Hinit: initial_core Sem ge v [:: arg] = Some c),
-      initial_core Sem ge v' [:: arg'] = Some c.
+      (Hinit: initial_core Sem h ge v [:: arg] = Some c),
+      initial_core Sem h ge v' [:: arg'] = Some c.
   Proof.
     intros.
     unfold initial_core in *; simpl in *.
