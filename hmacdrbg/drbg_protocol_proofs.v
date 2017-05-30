@@ -590,7 +590,7 @@ Proof.
     remember (ENTROPY.get_bytes (Z.to_nat entropy_len) s) as  GE.
     destruct GE.
     + inv ENT. simpl in H1; discriminate.
-    + thaw FR5. unfold get_entropy, hmac256drbgstate_md_info_pointer.
+    + thaw FR5. unfold GetEntropy_PostSep. unfold get_entropy, hmac256drbgstate_md_info_pointer.
       rewrite <- HeqGE; simpl.
       Transparent hmac256drbgabs_reseed.
       unfold hmac256drbgabs_reseed.
@@ -641,7 +641,7 @@ Proof.
   clear ENT.
 
   rename l into entropy_bytes.
-  thaw FR5. thaw FR4.
+  thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
 (*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   eapply semax_pre_post.
@@ -656,8 +656,10 @@ Proof.
   solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ]. 
   intros. unfold POSTCONDITION, abbreviate. old_go_lower.
   destruct ek; trivial. (* [normalize | normalize | normalize | ].*)
-  unfold reseedPOST; destruct vl; trivial. simpl. normalize. simpl. Intros.
-  Exists x v. rewrite <- Heqcontents' in *.  
+  unfold reseedPOST; destruct vl; trivial. simpl. Intros.
+  apply andp_right. apply prop_right;  trivial.
+  apply sepcon_derives; [ normalize; simpl; Intros | apply derives_refl].
+  Exists v. rewrite <- Heqcontents' in *.  
 (*  Transparent hmac256drbgabs_reseed.
   unfold hmac256drbgabs_reseed.
   Opaque hmac256drbgabs_reseed.*)
