@@ -52,6 +52,8 @@ Proof.
   destruct (m3 v1); auto.
 Qed.
 
+Definition compatible (m1 m2 : A -> option B) := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
+
 Instance fmap_PCM : PCM (A -> option B) := { join a b c :=
   forall v1 v2, c v1 = Some v2 <-> a v1 = Some v2 \/ b v1 = Some v2 }.
 Proof.
@@ -75,17 +77,25 @@ Proof.
       * destruct H; auto; discriminate.
 Defined.
 
-Lemma map_join_spec : forall m1 m2 m3, join m1 m2 m3 -> m3 = map_add m1 m2.
+Lemma map_join_spec : forall m1 m2 m3, join m1 m2 m3 <-> compatible m1 m2 /\ m3 = map_add m1 m2.
 Proof.
-  simpl; intros.
-  extensionality x; unfold map_add.
-  destruct (m1 x) eqn: Hm1.
-  - rewrite H; auto.
-  - destruct (m2 x) eqn: Hm2.
-    + rewrite H; auto.
-    + destruct (m3 x) eqn: Hm3; auto.
+  simpl; split; intros.
+  - split.
+    + repeat intro.
+      assert (m3 k = Some v1) as Hk by (rewrite H; auto).
+      replace (m3 k) with (Some v2) in Hk by (symmetry; rewrite H; auto).
+      inv Hk; auto.
+    + extensionality x; unfold map_add.
+      destruct (m1 x) eqn: Hm1; [rewrite H; auto|].
+      destruct (m2 x) eqn: Hm2; [rewrite H; auto|].
+      destruct (m3 x) eqn: Hm3; auto.
       rewrite H in Hm3; destruct Hm3 as [Hm3 | Hm3]; rewrite Hm3 in *; discriminate.
+  - destruct H as [Hcompat]; subst; unfold map_add.
+    destruct (m1 v1) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
 Qed.
+
+Lemma map_snap_join : forall m1 m2 p,
+  ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
 
 Instance fmap_order : PCM_order map_incl.
 Proof.
@@ -119,6 +129,35 @@ Proof.
   - tauto.
 Qed.
 
+Lemma map_join_incl_compat : forall (m1 m2 m' m'' : A -> option B)
+  (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''), exists m, join m1 m' m /\ map_incl m m''.
+Proof.
+  intros; apply join_comm in Hjoin.
+  pose proof (map_join_spec _ _ _ Hjoin); subst.
+  do 2 eexists; [|apply map_add_incl_compat; eauto].
+  repeat intro.
+  specialize (Hjoin v1).
+  unfold map_add in *.
+  destruct (m' v1) eqn: Hv1.
+  - split; auto; intros [|]; auto.
+    specialize (Hincl _ _ H).
+    rewrite Hjoin; auto.
+  - split; auto; intros [|]; auto; discriminate.
+Qed.
+
+Lemma map_add_empty : forall (m : A -> option B), map_add m empty_map = m.
+Proof.
+  intros; extensionality; unfold map_add, empty_map.
+  destruct (m x); auto.
+Qed.
+
+Lemma map_add_assoc : forall {A B} (m1 m2 m3 : A -> option B),
+  map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
+Proof.
+  intros; extensionality; unfold map_add.
+  destruct (m1 x); auto.
+Qed.
+
 End Maps.
 
 Section ListMaps.
@@ -132,6 +171,30 @@ Lemma map_Znth_single : forall i (k : A) (v : list B) d,
 Proof.
   intros; unfold map_Znth, singleton; extensionality.
   if_tac; auto.
+Qed.
+
+Lemma map_Znth_add : forall (m1 m2 : A -> option (list B)) i d,
+  map_Znth i (map_add m1 m2) d = map_add (map_Znth i m1 d) (map_Znth i m2 d).
+Proof.
+  intros; unfold map_add, map_Znth; extensionality.
+  destruct (m1 x); auto.
+Qed.
+
+Lemma map_Znth_eq : forall (L : A -> option (list B)) k vs d (Hlength : forall vs', L k = Some vs' -> Zlength vs' = Zlength vs)
+  (Hnz : vs <> []) (Hall : forall i, 0 <= i < Zlength vs -> map_Znth i L d k = Some (Znth i vs d)),
+  L k = Some vs.
+Proof.
+  intros.
+  destruct (L k) eqn: Hk.
+  specialize (Hlength _ eq_refl).
+  apply f_equal, list_Znth_eq' with (d0 := d); auto.
+  rewrite Hlength; intros j Hj; specialize (Hall _ Hj).
+  unfold map_Znth in Hall; rewrite Hk in Hall; inv Hall; auto.
+  { lapply (Hall 0).
+    unfold map_Znth; rewrite Hk; discriminate.
+    { pose proof (Zlength_nonneg vs).
+      destruct (eq_dec (Zlength vs) 0); [|omega].
+      apply Zlength_nil_inv in e; subst; contradiction. } }
 Qed.
 
 End ListMaps.

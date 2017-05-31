@@ -7,7 +7,7 @@ Require Import mailbox.general_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 
-(* Invariants are probably unsound under RA. How can we prove linearizability of RA programs, then? *)
+(* Invariants are unsound under RA. But maybe if it's just on writes... *)
 
 Definition gsh1 := fst (Share.split Tsh).
 Definition gsh2 := snd (Share.split Tsh).
@@ -152,21 +152,27 @@ Proof.
   intros; apply make_protocol_R.
 Qed.
 
-Lemma protocol_R_W : forall l g s s' T,
-  view_shift (protocol_W l g s ord T * protocol_R l g s' ord T) (!!(ord s' s) && protocol_W l g s ord T).
+Lemma protocol_R_absorb : forall sh l g s s' T, sh <> Share.bot ->
+  view_shift (protocol_piece sh l g s ord T * protocol_R l g s' ord T) (!!(ord s' s) && protocol_piece sh l g s ord T).
 Proof.
-  intros; unfold protocol_W, protocol_R, protocol_piece.
+  intros; unfold protocol_R, protocol_piece.
   rewrite <- sepcon_assoc, (sepcon_comm _ (invariant _)), <- sepcon_assoc, <- general_atomics.invariant_duplicable.
   rewrite <- sepcon_andp_prop.
   rewrite sepcon_assoc, !(sepcon_comm (invariant _)); apply invariant_view_shift.
   unfold protocol_inv.
   rewrite !(later_exp' _ 0); view_shift_intro v.
   rewrite !(later_exp' _ s); view_shift_intro s0.
-  rewrite (sepcon_comm _ (ghost _ _)); setoid_rewrite snap_master_join.
+  rewrite (sepcon_comm _ (ghost _ _)); setoid_rewrite snap_master_join; auto.
   apply derives_view_shift; Exists v; entailer!.
   apply sepcon_derives; auto.
   apply later_derives; Exists s0; entailer!.
-  { intro X; contradiction unreadable_bot; rewrite <- X; auto. }
+Qed.
+
+Corollary protocol_R_W : forall l g s s' T,
+  view_shift (protocol_W l g s ord T * protocol_R l g s' ord T) (!!(ord s' s) && protocol_W l g s ord T).
+Proof.
+  intros; apply protocol_R_absorb.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
 Qed.
 
 Lemma protocol_R_join : forall l g s1 s2 s T, join s1 s2 s ->
@@ -308,8 +314,9 @@ Proof.
   unfold SEPx, protocol_R; simpl; rewrite !approx_sepcon, protocol_piece_super_non_expansive, !approx_idem; auto.
 Qed.
 
-Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * val))
-  (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0))) (PredType (DependentType 0))) Mpred) Mpred.
+Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+  (ConstType (val * Z * val)) (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0))) (PredType (DependentType 0)))
+  Mpred) (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) Mpred) Mpred.
 
 (* single_writer version - multi-writer version uses protocol_R and requires that for all s',
    ord s s' -> ord s' s''. *)
@@ -317,37 +324,54 @@ Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
    protocol invariant. *)
 (* Hypothesis: in the single-writer case, it's sound to allow the writer to interact with invariants. *)
 Program Definition store_rel_spec := TYPE SR_type
-  WITH l : val, v : Z, g : val, s : _, s'' : _, st_ord : _ -> _ -> Prop, T : _ -> Z -> mpred, P : mpred, Q : mpred
+  WITH l : val, v : Z, g : val, s : _, s'' : _, st_ord : _ -> _ -> Prop, T : _ -> Z -> mpred,
+       P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q : mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
-   PROP (repable_signed v; forall v0, repable_signed v0 ->
-     view_shift (P * protocol_W l g s st_ord T * T s v0)%logic (T s'' v * Q); st_ord s s'')
+   PROP (repable_signed v;
+         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+                    (protocol_W l g s st_ord T * P');
+         forall v0, repable_signed v0 ->
+           view_shift (T s v0 * protocol_W l g s st_ord T * P')%logic
+           (T s'' v * fold_right sepcon emp (map (fun p => |>II p) lI) * Q)%logic; st_ord s s'')
    LOCAL (temp 1%positive l; temp 2%positive (vint v))
-   SEP (protocol_W l g s st_ord T; P)
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tvoid ]
    PROP ()
    LOCAL ()
-   SEP (protocol_R l g s'' st_ord T; Q).
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q).
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx; simpl; rewrite !approx_andp; f_equal.
-  - rewrite !prop_and, !approx_andp; f_equal; f_equal.
-    rewrite !prop_forall, !(approx_allp _ _ _ 0); f_equal; extensionality v'.
-    rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
-    rewrite view_shift_super_non_expansive.
-    setoid_rewrite view_shift_super_non_expansive at 2.
-    unfold protocol_W; rewrite !approx_sepcon, protocol_piece_super_non_expansive, !approx_idem; auto.
+  - rewrite !prop_and, !approx_andp; f_equal; f_equal; [|f_equal].
+    + rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
+        erewrite !map_map, map_ext; eauto.
+        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+      * unfold protocol_W; rewrite !approx_sepcon, approx_idem, protocol_piece_super_non_expansive; auto.
+    + rewrite !prop_forall, !(approx_allp _ _ _ 0); f_equal; extensionality v'.
+      rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
+      rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2.
+      unfold protocol_W; rewrite !sepcon_assoc, !approx_sepcon, !approx_sepcon_list', protocol_piece_super_non_expansive, !approx_idem.
+      erewrite !map_map, map_ext; eauto.
+      intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
   - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
-    unfold SEPx, protocol_W; simpl; rewrite !approx_sepcon, protocol_piece_super_non_expansive, approx_idem; auto.
+    unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
+    intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx; simpl; rewrite !approx_andp; apply f_equal.
-  unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
-  unfold SEPx, protocol_R; simpl; rewrite !approx_sepcon, protocol_piece_super_non_expansive, approx_idem; auto.
+  destruct x as (((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
 Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z * val))
