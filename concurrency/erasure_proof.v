@@ -1656,7 +1656,7 @@ Module Parching <: ErasureSig.
         symmetry. apply mtch_perm2.
         apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
         assumption.
-      +  
+      +  admit.
       + reflexivity.
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.

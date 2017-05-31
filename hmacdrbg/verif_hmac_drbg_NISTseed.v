@@ -471,7 +471,7 @@ Proof.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv.
-  forward.
+  freeze [0] FR1. forward. thaw FR1.
   deadvars!.
   forward_if (
      PROP (v=0)
@@ -800,7 +800,7 @@ Proof.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
   Intros v. rename H into Hv.
-  forward.
+  freeze [0] FR1. forward. thaw FR1.
 
   forward_if (
      PROP (v=0)
