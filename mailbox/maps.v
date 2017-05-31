@@ -134,6 +134,30 @@ Proof.
   if_tac; auto.
 Qed.
 
+Lemma map_Znth_add : forall (m1 m2 : A -> option (list B)) i d,
+  map_Znth i (map_add m1 m2) d = map_add (map_Znth i m1 d) (map_Znth i m2 d).
+Proof.
+  intros; unfold map_add, map_Znth; extensionality.
+  destruct (m1 x); auto.
+Qed.
+
+Lemma map_Znth_eq : forall (L : A -> option (list B)) k vs d (Hlength : forall vs', L k = Some vs' -> Zlength vs' = Zlength vs)
+  (Hnz : vs <> []) (Hall : forall i, 0 <= i < Zlength vs -> map_Znth i L d k = Some (Znth i vs d)),
+  L k = Some vs.
+Proof.
+  intros.
+  destruct (L k) eqn: Hk.
+  specialize (Hlength _ eq_refl).
+  apply f_equal, list_Znth_eq' with (d0 := d); auto.
+  rewrite Hlength; intros j Hj; specialize (Hall _ Hj).
+  unfold map_Znth in Hall; rewrite Hk in Hall; inv Hall; auto.
+  { lapply (Hall 0).
+    unfold map_Znth; rewrite Hk; discriminate.
+    { pose proof (Zlength_nonneg vs).
+      destruct (eq_dec (Zlength vs) 0); [|omega].
+      apply Zlength_nil_inv in e; subst; contradiction. } }
+Qed.
+
 End ListMaps.
 
 Section Logs.
