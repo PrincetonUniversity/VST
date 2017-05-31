@@ -140,6 +140,14 @@ Axiom ghost_inj : forall p g1 g2 r1 r2 r
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r),
   r1 = r2 /\ g1 = g2.
 
+Lemma ghost_join' : forall g1 g2 p, ghost g1 p * ghost g2 p |-- EX g : A, !!(join g1 g2 g) && ghost g p.
+Proof.
+  intros.
+  assert_PROP (joins g1 g2) as Hjoin by (apply ghost_conflict).
+  destruct Hjoin as (g & ?); Exists g; entailer!.
+  erewrite ghost_join; eauto.
+Qed.
+
 Lemma ex_ghost_precise : forall p, precise (EX g : A, ghost g p).
 Proof.
   intros ???? (? & ?) (? & ?) ??.
