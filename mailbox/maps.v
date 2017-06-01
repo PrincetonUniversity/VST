@@ -54,6 +54,18 @@ Qed.
 
 Definition compatible (m1 m2 : A -> option B) := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
 
+Instance compatible_comm : Symmetric compatible.
+Proof.
+  repeat intro.
+  symmetry; eauto.
+Qed.
+
+Lemma map_add_comm : forall m1 m2, compatible m1 m2 -> map_add m1 m2 = map_add m2 m1.
+Proof.
+  intros; extensionality x; unfold map_add.
+  destruct (m1 x) eqn: Hm1, (m2 x) eqn: Hm2; eauto.
+Qed.
+
 Instance fmap_PCM : PCM (A -> option B) := { join a b c :=
   forall v1 v2, c v1 = Some v2 <-> a v1 = Some v2 \/ b v1 = Some v2 }.
 Proof.
@@ -94,9 +106,6 @@ Proof.
     destruct (m1 v1) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
 Qed.
 
-Lemma map_snap_join : forall m1 m2 p,
-  ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
-
 Instance fmap_order : PCM_order map_incl.
 Proof.
   constructor.
@@ -111,6 +120,17 @@ Proof.
   - split; repeat intro; specialize (H v1 v2); rewrite H; auto.
   - split; auto; intros [|]; auto.
 Defined.
+
+Lemma map_snap_join : forall m1 m2 p,
+  ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
+Proof.
+  intros; rewrite ghost_snap_join'.
+  apply mpred_ext.
+  - Intros m.
+    rewrite map_join_spec in H; destruct H; subst; entailer!.
+  - Intros; Exists (map_add m1 m2).
+    rewrite map_join_spec; entailer!.
+Qed.
 
 Lemma map_upd_list_app : forall l1 l2 (m : A -> option B),
   map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
@@ -129,20 +149,20 @@ Proof.
   - tauto.
 Qed.
 
+Lemma compatible_incl : forall m1 m2 m (Hcompat : compatible m2 m) (Hincl : map_incl m1 m2), compatible m1 m.
+Proof.
+  repeat intro; eauto.
+Qed.
+
 Lemma map_join_incl_compat : forall (m1 m2 m' m'' : A -> option B)
   (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''), exists m, join m1 m' m /\ map_incl m m''.
 Proof.
   intros; apply join_comm in Hjoin.
-  pose proof (map_join_spec _ _ _ Hjoin); subst.
+  rewrite map_join_spec in Hjoin; destruct Hjoin as [Hjoin]; subst.
   do 2 eexists; [|apply map_add_incl_compat; eauto].
-  repeat intro.
-  specialize (Hjoin v1).
-  unfold map_add in *.
-  destruct (m' v1) eqn: Hv1.
-  - split; auto; intros [|]; auto.
-    specialize (Hincl _ _ H).
-    rewrite Hjoin; auto.
-  - split; auto; intros [|]; auto; discriminate.
+  symmetry in Hjoin; eapply compatible_incl in Hjoin; eauto.
+  rewrite map_join_spec; split; auto.
+  rewrite <- map_add_comm; auto.
 Qed.
 
 Lemma map_add_empty : forall (m : A -> option B), map_add m empty_map = m.
@@ -151,11 +171,24 @@ Proof.
   destruct (m x); auto.
 Qed.
 
-Lemma map_add_assoc : forall {A B} (m1 m2 m3 : A -> option B),
+Lemma map_add_assoc : forall (m1 m2 m3 : A -> option B),
   map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
 Proof.
   intros; extensionality; unfold map_add.
   destruct (m1 x); auto.
+Qed.
+
+Lemma map_incl_add : forall (m1 m2 : A -> option B), map_incl m1 (map_add m1 m2).
+Proof.
+  repeat intro; unfold map_add.
+  rewrite H; auto.
+Qed.
+
+Lemma map_upd_incl : forall (m1 m2 : A -> option B) k v, map_incl m1 m2 ->
+  m2 k = Some v -> map_incl (map_upd m1 k v) m2.
+Proof.
+  unfold map_upd; repeat intro.
+  destruct (eq_dec v1 k); [congruence | auto].
 Qed.
 
 End Maps.
@@ -195,6 +228,21 @@ Proof.
     { pose proof (Zlength_nonneg vs).
       destruct (eq_dec (Zlength vs) 0); [|omega].
       apply Zlength_nil_inv in e; subst; contradiction. } }
+Qed.
+
+Lemma map_Znth_upd : forall (m : A -> option (list B)) k v i d,
+  map_Znth i (map_upd m k v) d = map_upd (map_Znth i m d) k (Znth i v d).
+Proof.
+  intros; unfold map_Znth, map_upd; extensionality.
+  if_tac; auto.
+Qed.
+
+Lemma map_incl_Znth : forall (m1 m2 : A -> option (list B)) i d, map_incl m1 m2 ->
+  map_incl (map_Znth i m1 d) (map_Znth i m2 d).
+Proof.
+  unfold map_Znth; repeat intro.
+  destruct (m1 v1) eqn: Hm1; [|discriminate].
+  rewrite (H _ _ Hm1); auto.
 Qed.
 
 End ListMaps.
@@ -282,3 +330,11 @@ Proof.
 Qed.
 
 End Logs.
+
+Lemma map_Znth_log_latest : forall {B} m k (v : list B) i d, log_latest m k v ->
+  log_latest (map_Znth i m d) k (Znth i v d).
+Proof.
+  unfold log_latest, map_Znth; intros.
+  destruct H as [-> H]; split; auto.
+  intros; rewrite H; auto.
+Qed.

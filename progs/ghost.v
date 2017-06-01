@@ -140,12 +140,15 @@ Axiom ghost_inj : forall p g1 g2 r1 r2 r
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r),
   r1 = r2 /\ g1 = g2.
 
-Lemma ghost_join' : forall g1 g2 p, ghost g1 p * ghost g2 p |-- EX g : A, !!(join g1 g2 g) && ghost g p.
+Lemma ghost_join' : forall g1 g2 p, ghost g1 p * ghost g2 p = EX g : A, !!(join g1 g2 g) && ghost g p.
 Proof.
   intros.
-  assert_PROP (joins g1 g2) as Hjoin by (apply ghost_conflict).
-  destruct Hjoin as (g & ?); Exists g; entailer!.
-  erewrite ghost_join; eauto.
+  apply mpred_ext.
+  - assert_PROP (joins g1 g2) as Hjoin by (apply ghost_conflict).
+    destruct Hjoin as (g & ?); Exists g; entailer!.
+    erewrite ghost_join; eauto.
+  - Intros g.
+    erewrite ghost_join; eauto.
 Qed.
 
 Lemma ex_ghost_precise : forall p, precise (EX g : A, ghost g p).
@@ -284,6 +287,24 @@ Lemma ghost_snap_join : forall v1 v2 p v, join v1 v2 v ->
 Proof.
   intros; apply ghost_join; simpl.
   rewrite !eq_dec_refl; auto.
+Qed.
+
+Lemma ghost_snap_conflict : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p |-- !!(joins v1 v2).
+Proof.
+  intros; eapply derives_trans; [apply ghost_conflict|].
+  apply prop_left; intros ((?, a) & ? & Hj); simpl in Hj.
+  rewrite !eq_dec_refl in Hj.
+  apply prop_right; exists a; auto.
+Qed.
+
+Lemma ghost_snap_join' : forall v1 v2 p,
+  ghost_snap v1 p * ghost_snap v2 p = EX v : _, !!(join v1 v2 v) && ghost_snap v p.
+Proof.
+  intros; apply mpred_ext.
+  - assert_PROP (joins v1 v2) as H by apply ghost_snap_conflict.
+    destruct H as [v]; Exists v; entailer!.
+    erewrite ghost_snap_join; eauto.
+  - Intros v; erewrite ghost_snap_join; eauto.
 Qed.
 
 Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
@@ -553,7 +574,7 @@ Proof.
   - rewrite Z.max_l; auto.
 Defined.
 
-Lemma ghost_snap_join' : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Z.max v1 v2) p.
+Lemma ghost_snap_join_Z : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Z.max v1 v2) p.
 Proof.
   intros; apply ghost_snap_join; simpl; auto.
 Qed.
