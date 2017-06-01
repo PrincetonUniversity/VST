@@ -67,7 +67,7 @@ Qed.
 
 End ListHead.
 
-Module LsegRecursive.
+Module LsegRecursiveLoopFree.
 
 Fixpoint lseg (sh: share) (contents: list int) (x z: val) : mpred :=
   match contents with
@@ -76,7 +76,7 @@ Fixpoint lseg (sh: share) (contents: list int) (x z: val) : mpred :=
                field_at sh t_struct_list [StructField _head] (Vint h) x *
                field_at sh t_struct_list [StructField _tail] y x *
                lseg sh hs y z
- | nil => !! (x = z /\ is_pointer_or_null x) && emp
+ | nil => !! (x = z) && emp
  end.
 
 Arguments lseg sh contents x z : simpl never.
@@ -138,7 +138,58 @@ Proof.
     apply IHs1.
 Qed.
 
-End LsegRecursive.
+End LsegRecursiveLoopFree.
+
+Module LsegRecursiveMaybeLoop.
+
+Fixpoint lseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  match contents with
+  | h::hs => EX y:val,
+               field_at sh t_struct_list [StructField _head] (Vint h) x *
+               field_at sh t_struct_list [StructField _tail] y x *
+               lseg sh hs y z
+ | nil => !! (x = z) && emp
+ end.
+
+Arguments lseg sh contents x z : simpl never.
+
+Lemma singleton_lseg: forall sh (a: int) (x y: val),
+  field_at sh t_struct_list [StructField _head] (Vint a) x *
+  field_at sh t_struct_list [StructField _tail] y x |--
+  lseg sh [a] x y.
+Proof.
+  intros.
+  unfold lseg.
+  Exists y.
+  entailer!.
+Qed.
+
+Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
+  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
+Proof.
+  intros.
+  revert x; induction s1; intros; simpl.
+  + unfold lseg at 2; entailer!.
+  + unfold lseg at 2 3; fold lseg.
+    Intros y'; Exists y'.
+    entailer.
+    sep_apply (IHs1 y').
+    cancel.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  revert x; induction s1; intros; simpl.
+  + unfold lseg at 1. entailer!.
+  + unfold lseg; fold lseg.
+    Intros x'; Exists x'.
+    entailer!.
+    apply IHs1.
+Qed.
+
+End LsegRecursiveMaybeLoop.
 
 Module LsegWandFrame.
 
