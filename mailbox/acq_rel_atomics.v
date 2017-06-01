@@ -331,7 +331,7 @@ Program Definition store_rel_spec := TYPE SR_type
          view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
                     (protocol_W l g s st_ord T * P');
          forall v0, repable_signed v0 ->
-           view_shift (T s v0 * protocol_W l g s st_ord T * P')%logic
+           view_shift (T s v0 * protocol_W l g s'' st_ord T * P')%logic
            (T s'' v * fold_right sepcon emp (map (fun p => |>II p) lI) * Q)%logic; st_ord s s'')
    LOCAL (temp 1%positive l; temp 2%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
