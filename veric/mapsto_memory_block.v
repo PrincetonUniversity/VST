@@ -656,6 +656,65 @@ Proof.
     apply nonlock_permission_bytes_share_join; auto.
 Qed.
 
+Lemma mapsto_share_join_Waux:
+ forall sh1 sh2 sh t p v1 v2,
+   join sh1 sh2 sh ->
+   writable_share sh1 ->
+   tc_val' t v2 ->
+   mapsto sh1 t p v1 * mapsto sh2 t p v2 = mapsto sh t p v1.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct (type_is_volatile t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  pose proof writable_readable H0.
+  destruct (readable_share_dec sh1); [clear H2 | tauto].
+  destruct (readable_share_dec sh2).
+  + exfalso.
+    apply (join_writable_readable H); auto.
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
+    rewrite distrib_orp_sepcon.
+    rename H0 into WRITABLE, H1 into TC_VAL.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop;
+    pose proof (@andp_prop_ext (pred rmap) _);
+    (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
+    - rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * apply tc_val_tc_val' in H0; tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
+    - rewrite exp_sepcon2.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
+      rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * subst; pose proof tc_val'_Vundef t. tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
+Qed.
+
+Lemma mapsto_share_join_W:
+ forall sh1 sh2 sh t p v1,
+   join sh1 sh2 sh ->
+   writable_share sh1 ->
+   mapsto sh1 t p v1 * (EX v2: val, mapsto sh2 t p v2) = mapsto sh t p v1.
+Proof.
+  intros.
+  rewrite exp_sepcon2.
+  apply pred_ext.
+  + apply exp_left; intros v2.
+    pose proof (@add_andp mpred _ _ _ (@mapsto_tc_val' sh2 t p v2)).
+    simpl in H1; rewrite H1; clear H1.
+    rewrite andp_comm, sepcon_andp_prop2.
+    apply prop_andp_left; intros.
+    erewrite mapsto_share_join_Waux by eauto.
+    auto.
+  + apply (exp_right Vundef).
+    erewrite mapsto_share_join_Waux; eauto.
+    intro.
+    congruence.
+Qed.
+
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
 Proof. unfold mapsto_; intros.
   unfold mapsto.
