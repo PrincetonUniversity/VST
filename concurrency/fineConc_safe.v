@@ -52,7 +52,7 @@ Module Type FineConcInitial (SEM : Semantics)
   Parameter init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m ->
-      match initial_core SEM.Sem the_ge v args with
+      match initial_core SEM.Sem 0 the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
       end.
@@ -93,7 +93,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     intros.
     intros i cnti.
     unfold init_mach in H0.
-    destruct (initial_core SEM.Sem the_ge v args) eqn:?, init_perm; try discriminate.
+    destruct (initial_core SEM.Sem 0 the_ge v args) eqn:?, init_perm; try discriminate.
     inversion H0; subst.
     simpl.
     specialize (init_core_wd v ARGS H). rewrite Heqo; trivial.
@@ -121,7 +121,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     unfold init_perm in *.
     destruct init_mem; try discriminate.
     eexists; reflexivity.
-    destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+    destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
   Qed.
 
   (** [init_mach] and [init_mem] are related by [mem_compatible]*)
@@ -166,7 +166,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     intros.
     pose proof (mem_obs_eq_id (init_mem_wd H)) as Hobs_eq_id.
     unfold init_mach in H0.
-    destruct (initial_core SEM.Sem the_ge f arg), init_perm eqn:Hinit_perm;
+    destruct (initial_core SEM.Sem 0 the_ge f arg), init_perm eqn:Hinit_perm;
       try discriminate.
     inversion H0; subst.
     unfold init_perm in Hinit_perm.
@@ -319,7 +319,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     - unfold init_mach in *.
       unfold init_perm in Hinit.
       rewrite H1 in Hinit.
-      destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+      destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
       inversion Hinit; subst.
       split.
       + intros.
@@ -338,7 +338,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     - intros.
       unfold init_mach, init_perm in Hinit.
       rewrite H1 in Hinit.
-      destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+      destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
       inversion Hinit; subst.
       unfold lockRes, initial_machine in *. simpl.
       rewrite threadPool.find_empty in H.

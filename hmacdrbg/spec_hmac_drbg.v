@@ -598,6 +598,13 @@ Definition hmac_drbg_seed_buf_spec :=
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
                         end).
 
+Definition GetEntropy_PostSep sh len s buf :=
+  match ENTROPY.get_bytes (Z.to_nat len) s with
+            | ENTROPY.error _ _ => memory_block sh len buf
+            | ENTROPY.success bytes _ =>
+              data_at sh (tarray tuchar len) (map Vint (map Int.repr (bytes))) buf
+                 end.
+
 Definition get_entropy_spec :=
   DECLARE _get_entropy
    WITH
@@ -622,11 +629,13 @@ Definition get_entropy_spec :=
        LOCAL (temp ret_temp ret_value)
        SEP (
          Stream (get_stream_result (get_entropy 0 len len false s));
-         (match ENTROPY.get_bytes (Z.to_nat len) s with
+         GetEntropy_PostSep sh len s buf
+         (*Unfolded definition is not permitted here any longer, as of approx May29th
+           (match ENTROPY.get_bytes (Z.to_nat len) s with
             | ENTROPY.error _ _ => memory_block sh len buf
             | ENTROPY.success bytes _ =>
               data_at sh (tarray tuchar len) (map Vint (map Int.repr (bytes))) buf
-                 end)
+                 end)*)
        ).
 
 Definition size_of_HMACDRBGCTX:Z:= sizeof (Tstruct _mbedtls_hmac_drbg_context noattr).

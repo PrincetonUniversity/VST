@@ -12,7 +12,14 @@ Proof.
   destruct p; try contradiction; reflexivity.
 Qed.
 
-Axiom Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
+Lemma Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
+Proof.
+  intros.
+  exists (Share.comp sh).
+  split.
+  + apply Share.comp2.
+  + apply Share.comp1.
+Qed.
 
 Axiom data_at_share_join': forall {cs : compspecs} sh1 sh2 sh t v1 v2 p,
   readable_share sh2 ->
@@ -124,9 +131,9 @@ Definition append1_spec := append_spec _append1.
 Definition Gprog : funspecs :=
   ltac:(with_library prog [ append1_spec ]).
 
-Module ProofByNoWand.
+Module ProofByNoWandBad.
 
-Import LsegRecursive.
+Import LsegRecursiveLoopFree.
 
 Lemma body_append1: semax_body Vprog Gprog f_append1 append1_spec.
 Proof.
@@ -182,7 +189,65 @@ Proof.
    auto.
 Qed.
 
-End ProofByNoWand.
+End ProofByNoWandBad.
+
+Module ProofByNoWandGood.
+
+Import LsegRecursiveMaybeLoop.
+
+Lemma body_append1: semax_body Vprog Gprog f_append1 append1_spec.
+Proof.
+  start_function.
+  forward_if. (* if (x == NULL) *)
+  * rewrite (listrep_null _ _ x) by auto. normalize.
+    forward. (* return; *)
+    Exists y.
+    entailer!.
+  * forward. (* t = x; *)
+    rewrite (listrep_nonnull _ _ x) by auto.
+    Intros v s1' u.
+    forward. (* u = t -> tail; *)
+    forward_while
+      ( EX s1a: list int, EX b: int, EX s1c: list int, EX t: val, EX u: val,
+            PROP (s1 = s1a ++ b :: s1c)
+            LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
+            SEP (lseg sh s1a x t;
+                 field_at sh t_struct_list [StructField _head] (Vint b) t;
+                 field_at sh t_struct_list [StructField _tail] u t;
+                 listrep sh s1c u;
+                 listrep sh s2 y))%assert.
++ (* current assertion implies loop invariant *)
+   Exists (@nil int) v s1' x u.
+   subst s1. entailer!. unfold lseg; entailer!.
++ (* loop test is safe to execute *)
+   entailer!.
++ (* loop body preserves invariant *)
+  clear v H0.
+  rewrite (listrep_nonnull _ _ u0) by auto.
+  Intros c s1d z.
+  forward. (* t = u; *)
+   forward. (* u = t -> tail; *)
+   Exists ((s1a ++ b :: nil),c,s1d,u0,z). unfold fst, snd.
+   simpl app.
+   entailer!.
+     1: apply (app_assoc s1a [b] (c :: s1d)).
+   sep_apply (singleton_lseg sh b t u0).
+   apply lseg_lseg.
++ (* after the loop *)
+   clear v s1' H0.
+   forward. (* t -> tail = y; *)
+   forward. (* return x; *)
+   Exists x.
+   rewrite (listrep_null _ s1c) by auto.
+   entailer!.
+   simpl app.
+   sep_apply (singleton_lseg sh b t y).
+   sep_apply (lseg_lseg sh s1a [b] x t y) using (simpl app).
+   sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
+   auto.
+Qed.
+
+End ProofByNoWandGood.
 
 Module ProofByWandFrame1.
 

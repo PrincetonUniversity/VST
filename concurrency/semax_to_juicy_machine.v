@@ -306,7 +306,7 @@ Section Safety.
   Definition spr :=
     semax_prog_rule
       (Concurrent_Espec unit CS ext_link) V G prog
-      (proj1_sig init_mem) all_safe (proj2_sig init_mem).
+      (proj1_sig init_mem) 0 all_safe (proj2_sig init_mem).
 
   Definition initial_corestate : corestate := projT1 (projT2 spr).
 

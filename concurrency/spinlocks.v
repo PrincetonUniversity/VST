@@ -748,10 +748,8 @@ Module SpinLocks (SEM: Semantics)
             pf_cleanup.
             split.
             intros Hvalid.
-            apply Mem.store_valid_access_3 in Hstore.
-            destruct Hstore as [Hrange _].
-            specialize (Hrange _ Hintv).
-            unfold Mem.perm in Hrange.
+            specialize (Hfreeable _ Hintv).
+            unfold Mem.perm in Hfreeable.
             erewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid)#1) by eauto.
             unfold permission_at. now eauto.
             left. rewrite gLockSetRes gssThreadRes.
@@ -775,8 +773,8 @@ Module SpinLocks (SEM: Semantics)
             destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
             erewrite nat_of_Z_eq in Hneq_perms
               by (simpl in *; now ssromega).
-            assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
-            simpl in *.  ssromega.
+            assert ((0 <= ofs' - Int.intval ofs < lksize.LKSIZE)%Z)
+              by (simpl in *; unfold lksize.LKSIZE; ssromega).
             replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
             (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
               by (zify;
@@ -790,23 +788,20 @@ Module SpinLocks (SEM: Semantics)
         destruct ev0; inv Htstep.
         + intros ofs' Hintv.
           pf_cleanup.
-          split. intros. apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
+          split. intros. 
+          specialize (Haccess _ Hintv).
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
           rewrite gLockSetRes gssThreadRes.
           clear Hwritable Hstep.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hrange _].
-          specialize (Hrange ofs' Hintv).
-          unfold Mem.perm in Hrange.
+          specialize (Haccess ofs' Hintv).
+          unfold Mem.perm in Haccess.
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).2 b ofs') as Heq.
           unfold permission_at in Heq.
-          rewrite Heq in Hrange.
+          rewrite Heq in Haccess.
           specialize (Hangel2 b ofs').
           eapply permjoin_readable_iff in Hangel2.
-          pose proof (Hangel2.1 Hrange) as Hperm.
+          pose proof (Hangel2.1 Haccess) as Hperm.
           destruct Hperm as [Hperm | Hperm].
           simpl in Hperm.
           left. now auto.
@@ -818,34 +813,28 @@ Module SpinLocks (SEM: Semantics)
         + intros ofs' Hintv.
           pf_cleanup.
           split. intros.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
+          specialize (Haccess _ Hintv).
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
           rewrite gLockSetRes gssThreadRes.
           clear Hwritable Hstep.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hrange _].
-          specialize (Hrange ofs' Hintv).
-          unfold Mem.perm in Hrange.
+          specialize (Haccess ofs' Hintv).
+          unfold Mem.perm in Haccess.
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).2 b ofs') as Heq.
           unfold permission_at in Heq.
-          rewrite Heq in Hrange.
+          rewrite Heq in Haccess.
           specialize (Hangel2 b ofs').
           eapply permjoin_readable_iff in Hangel2.
-          pose proof (Hangel2.2 (or_intror Hrange)) as Hperm.
+          pose proof (Hangel2.2 (or_intror Haccess)) as Hperm.
           left; now auto.
         + intros ofs' Hintv.
           pf_cleanup.
-          apply Mem.store_valid_access_3 in Hstore.
-          destruct Hstore as [Hrange _].
-          specialize (Hrange _ Hintv).
+          specialize (Hfreeable _ Hintv).
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).1 b ofs') as Heq.
           unfold permission_at in Heq.
-          unfold Mem.perm in Hrange.
-          rewrite po_oo in Hrange.
-          rewrite Heq in Hrange.
+          unfold Mem.perm in Hfreeable.
+          rewrite po_oo in Hfreeable.
+          rewrite Heq in Hfreeable.
           split.
           intros.
           left.
@@ -876,8 +865,8 @@ Module SpinLocks (SEM: Semantics)
           destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
           erewrite nat_of_Z_eq in Hneq_perms
             by (simpl in *; now ssromega).
-          assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
-          simpl in *.  ssromega.
+          assert ((0 <= ofs' - Int.intval ofs < lksize.LKSIZE)%Z)
+            by (simpl in *; unfold lksize.LKSIZE; ssromega).
           replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
           (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
             by (zify;
@@ -890,10 +879,8 @@ Module SpinLocks (SEM: Semantics)
             by exfalso.
         + intros ofs' Hintv.
           pf_cleanup.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
-          rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid cnt').2).
+          specialize (Haccess _ Hintv).
+          rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
         + destruct l; simpl in H9; inv H9.
     Qed.

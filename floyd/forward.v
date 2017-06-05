@@ -615,7 +615,7 @@ Proof.
 intros; subst; auto.
 Qed.
 
-
+(*
 Ltac match_postcondition := 
 cbv beta iota zeta; unfold_post; (* extensionality rho; *)
    repeat rewrite exp_uncurry;
@@ -628,7 +628,15 @@ tryif apply exp_congr
 that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
  else fail "The funspec of the function should have a POSTcondition that starts
-with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
+with an existential, that is,  EX _:_, PROP...LOCAL...SEP".*)
+
+Ltac match_postcondition := 
+cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ].
 
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
@@ -2788,7 +2796,7 @@ Ltac check_precondition :=
     lazymatch R with context [sepcon _ _] =>
         fail "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
-or else hide the * by making a Definition"
+or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"

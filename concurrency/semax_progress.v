@@ -530,7 +530,6 @@ Section Progress.
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
-
             (* factoring proofs out before the inversion/eapply *)
             pose proof LKSPEC as LKSPEC'.
             specialize (LKSPEC (b, Int.unsigned ofs)).
@@ -589,7 +588,7 @@ Section Progress.
               unfold Int.unsigned in *.
               rewr (getThreadR cnti @ (b, Int.intval ofs)).
               reflexivity.
-
+              
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
@@ -1085,9 +1084,10 @@ Section Progress.
 
         assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
-          unfold tlock in AT.
-          destruct AT as (AT1, AT2).
-          destruct AT2 as [A B]. clear A. (* it is 4 = 4 *)
+          unfold tlock in AT. 
+          destruct AT as (AT1, AT2). 
+          destruct AT2 as [A B].
+          clear A. (* it is 4 = 4 *)
           simpl in B. unfold mapsto_memory_block.at_offset in B.
           simpl in B. unfold nested_field_lemmas.nested_field_offset in B.
           simpl in B. unfold nested_field_lemmas.nested_field_type in B.
@@ -1115,7 +1115,8 @@ Section Progress.
           simpl (m_phi _).
           destruct B as [phi0a [phi0b [? [? ?]]]].
           destruct (join_assoc H Join) as [f [? ?]].
-          exists phi0a, f; split; auto.
+          exists phi0a, f; repeat split; auto.
+          
         }
         destruct Hm' as (m', Hm').
 
@@ -1507,7 +1508,7 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * replace (initial_core SEM.Sem) with cl_initial_core. auto.
+          * replace (initial_core SEM.Sem _) with cl_initial_core. auto.
             unfold the_sem, SEM.Sem.
             rewrite SEM.CLN_msem.
             reflexivity.

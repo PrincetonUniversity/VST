@@ -65,9 +65,6 @@ Definition set m k v := option_map (fun i => upd_Znth i m (k, v)) (lookup m k).
 Definition get m k := match lookup m k with Some i => let '(k', v') := Znth i m (0, 0) in
   if eq_dec k' 0 then None else Some v' | None => None end.
 
-Definition map_incl (m m' : list (Z * Z)) := forall k v i, k <> 0 -> Znth i m (0, 0) = (k, v) ->
-  Znth i m' (0, 0) = (k, v).
-
 Lemma rebase_0 : forall {A} (m : list A) i d, 0 <= i < Zlength m -> Znth 0 (rebase m i) d = Znth i m d.
 Proof.
   intros; unfold rebase.

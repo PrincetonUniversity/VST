@@ -72,7 +72,7 @@ COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
-  ageable.v sepalg.v psepalg.v age_sepalg.v age_to.v \
+  ageable.v sepalg.v psepalg.v age_sepalg.v \
   sepalg_generators.v functors.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
@@ -87,7 +87,7 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
+  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v #age_to.v
 
 SEPCOMP_FILES = \
   Address.v \
@@ -334,13 +334,14 @@ HMACDRBG_FILES = \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
-  hmacdrbg_test_noPredRes_noReseed.v \
+  hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
   verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
-  verif_hmac_drbg_reseed_common.v verif_hmac_drbg_generate_common.v \
+  verif_hmac_drbg_reseed_common.v verif_hmac_drbg_WF.v \
+  verif_hmac_drbg_generate_common.v \
   verif_hmac_drbg_seed_common.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
-  drbg_protocol_specs.v drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
+  drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -518,12 +519,13 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 	sh util/make_version
 
 _CoqProject: Makefile
-	echo $(COQFLAGS) | sed 's/ -/\n-/g' >_CoqProject
+	echo $(COQFLAGS) >_CoqProject
 
 .loadpath: Makefile _CoqProject
 	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
+
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:

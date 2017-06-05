@@ -37,23 +37,30 @@ void write(node *n, int *in){
 
 node *make_node(){
   node *n = surely_malloc(sizeof(node));
-  n->version = surely_malloc(sizeof(int));
-  for(int i = 0; i < 8; i++)
-    n->data[i] = surely_malloc(sizeof(int));
+  int *p = surely_malloc(sizeof(int));
+  *p = 0;
+  n->version = p;
+  for(int i = 0; i < 8; i++){
+    p = surely_malloc(sizeof(int));
+    *p = 0;
+    n->data[i] = p;
+  }
+  return n;
 }
 
-void *writer(node *n){
+void *writer(void *n){
   int data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   for(int i = 0; i < 3; i++){
     for(int j = 0; j < 8; j++){
-      data[8]++;
+      int v = data[j];
+      data[j] = v + 1;
     }
     write(n, data);
   }
   return NULL;
 }
 
-void *reader(node *n){
+void *reader(void *n){
   int data[8];
   read(n, data);
   return NULL;

@@ -1030,7 +1030,7 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hcode_eq Hval_eq].
       inversion Hval_eq; subst.
       (* After external for cf*)
-      assert (Hvalid_val: match (Some (Vlong Int64.zero)) with
+      assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val fi v1
                           | None => True
                           end)
@@ -2009,7 +2009,7 @@ Module SimProofs (SEM: Semantics)
       destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? ?]; subst.
-      assert (Hvalid_val: match (Some (Vlong Int64.zero)) with
+      assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
                           end)
@@ -2054,7 +2054,7 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd
+      assert (HinitF := core_inj_init (TID.tid2nat j) Harg_obs_list Hvf Hfg Hge_wd
                                       Hge_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
@@ -2399,7 +2399,7 @@ Module SimProofs (SEM: Semantics)
       destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? ?]; subst.
-      assert (Hvalid_val: match (Some (Vlong Int64.zero)) with
+      assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
                           end)
@@ -2448,7 +2448,7 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd
+      assert (HinitF := core_inj_init (TID.tid2nat j)Harg_obs_list Hvf Hfg Hge_wd
                                       Hge_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
@@ -5008,7 +5008,7 @@ into mcj' with an extension of the id injection (fij). *)
                  permMapsDisjoint (getThreadR pfi).1 pmap)
       (Hmem_wd: valid_mem m)
       (Htp_wd: tp_wd (id_ren m) tp)
-      (Hstore: Mem.store Mint64 (restrPermMap Hlt) b ofs v = Some m'),
+      (Hstore: Mem.store Mint32 (restrPermMap Hlt) b ofs v = Some m'),
       (ctl_inj (id_ren m) (getThreadC pfi) (getThreadC pfi')) /\
       (mem_obs_eq (id_ren m) (restrPermMap (Hcomp i pfi).1) (restrPermMap ((Hcomp' i pfi').1))) /\
       (Mem.nextblock m = Mem.nextblock m').
@@ -5069,7 +5069,7 @@ into mcj' with an extension of the id injection (fij). *)
       simpl.
       destruct (Pos.eq_dec b b2).
       - subst.
-        destruct (Intv.In_dec ofs0 (ofs, ofs + size_chunk Mint64)%Z).
+        destruct (Intv.In_dec ofs0 (ofs, ofs + size_chunk Mint32)%Z).
         + exfalso.
           apply Mem.store_valid_access_3 in Hstore.
           destruct Hstore as [Hstore _].
@@ -5709,9 +5709,9 @@ relation*)
       (Hf: f bl1 = Some bl2)
       (Hobs_eq: mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
       (Hobs_eq': strong_mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF'))
-      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mc) # bl1)
+      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mc) # bl1)
                                                (Mem.mem_contents mc))
-      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mf) # bl2)
+      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mf) # bl2)
                                                 (Mem.mem_contents mf))
       (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
       (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b)
@@ -5792,7 +5792,7 @@ relation*)
         erewrite! Mem.setN_outside by (left; auto);
           by assumption.
         destruct (Z_lt_ge_dec
-                    ofs0 (ofsl + (size_chunk Mint64)))
+                    ofs0 (ofsl + (size_chunk Mint32)))
           as [Hofs_lt | Hofs_ge'].
 
         apply setN_obs_eq with (access := fun q => q = ofs0);
@@ -5814,9 +5814,9 @@ relation*)
       (Hlt2F: permMapLt rmap2F (getMaxPerm mf))
       (Hf: f bl1 = Some bl2)
       (Hobs_eq2: mem_obs_eq f (restrPermMap Hlt2) (restrPermMap Hlt2F))
-      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mc) # bl1)
+      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mc) # bl1)
                                                (Mem.mem_contents mc))
-      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint64 (Vlong v)) ofsl (Mem.mem_contents mf) # bl2)
+      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mf) # bl2)
                                                 (Mem.mem_contents mf))
       (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
       (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b)
@@ -5895,7 +5895,7 @@ relation*)
          erewrite! Mem.setN_outside by (left; auto);
            by assumption.
          destruct (Z_lt_ge_dec
-                     ofs0 (ofsl + (size_chunk Mint64)))
+                     ofs0 (ofsl + (size_chunk Mint32)))
            as [Hofs_lt | Hofs_ge'].
 
          apply setN_obs_eq with (access := fun q => q = ofs0);
@@ -7271,14 +7271,14 @@ relation*)
         subst m0 m1.
         (** and prove that loading from that block in mf gives us the
         same value as in mc, i.e. unlocked*)
-        assert (HloadF: Mem.load Mint64 mf0 b2 (Int.intval ofs) = Some (Vlong Int64.one)).
+        assert (HloadF: Mem.load Mint32 mf0 b2 (Int.intval ofs) = Some (Vint Int.one)).
         { subst mf0.
           destruct (load_val_obs _ _ _ Hload Hfb Hinjective ((strong_obs_eq (obs_eq_locks Htsim))))
             as [v2 [Hloadf Hobs_eq]].
           inversion Hobs_eq; subst.
             by auto.
         }
-        assert (Hval_obs: val_obs (fp i pfc) (Vlong Int64.zero) (Vlong Int64.zero))
+        assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
           by constructor.
         (** we then compute the [access_map] used to perform the store*)
         remember (setPermBlock (Some Writable) b2 (Int.intval ofs) (getThreadR pff).2 lksize.LKSIZE_nat)
@@ -7382,7 +7382,17 @@ relation*)
           erewrite computeMap_projection_1 by eauto.
           reflexivity.
         }
-
+        (** and that the thread has sufficient access permissions to the lock*)
+        assert(HaccessF : Mem.range_perm (restrPermMap (HmemCompF i pff)#2) b2 (Int.intval ofs)
+                                         (Int.intval ofs + lksize.LKSIZE) Cur Readable).
+        { destruct Htsim.
+          intros ofs' Hrange.
+          destruct obs_eq_locks0 as [_ [Hperm_eq _]].
+          unfold Mem.range_perm, permission_at, Mem.perm in *.
+          erewrite Hperm_eq;
+            by eauto.
+        }
+          
         (** and finally build the final fine-grained state*)
         pose (empty_map, empty_map) as emptyRes.
         remember (updLockSet tpf' (b2, Int.intval ofs) (projectMap (fp i pfc) emptyRes.1, projectMap (fp i pfc) emptyRes.2))
@@ -7710,11 +7720,11 @@ relation*)
               apply Mem.load_valid_access in Hload.
               destruct Hload as [Hload _].
               intros.
-              specialize (Hload ofs' H).
-              unfold Mem.perm in Hload.
+              specialize (Haccess ofs' H).
+              unfold Mem.perm in Haccess.
               pose proof (restrPermMap_Cur (HmemCompC i pfc).2 b ofs') as Hperm_at.
               unfold permission_at in Hperm_at.
-              rewrite Hperm_at in Hload.
+              rewrite Hperm_at in Haccess.
               assumption.
               eapply tp_wd_domain;
                 by eauto using id_ren_domain.
@@ -7761,7 +7771,7 @@ relation*)
             rewrite gLockSetCode.
             rewrite gsoThreadCode;
               by auto.
-            clear - Hmem_obs_eq2j HstoreF HinvF Htid HloadF.
+            clear - Hmem_obs_eq2j HstoreF HinvF Htid HloadF HaccessF.
             assert (HeqRes: getThreadR pff0 = getThreadR pffj)
               by (rewrite gLockSetRes;
                    rewrite gsoThreadRes; auto).
@@ -7777,17 +7787,16 @@ relation*)
             left.
             apply setPermBlock_coherent; eauto.
             intros ofs' Hrange Hcontra.
-            destruct HloadF as [Hperm _].
-            specialize (Hperm ofs' Hrange).
-            unfold Mem.perm in Hperm.
+            specialize (HaccessF ofs' Hrange).
+            unfold Mem.perm in HaccessF.
             specialize (H b2 ofs').
             pose proof (restrPermMap_Cur (HmemCompF i pff).2 b2 ofs') as Heq.
             unfold permission_at in Heq.
-            rewrite Heq in Hperm.
+            rewrite Heq in HaccessF.
             destruct ((getThreadR pffj).1 # b2 ofs') as [p1|]; simpl in Hcontra;
               [| assumption];
               inversion Hcontra; subst;
-              destruct ((getThreadR pff).2 # b2 ofs') as [p2|]; simpl in Hperm;
+              destruct ((getThreadR pff).2 # b2 ofs') as [p2|]; simpl in HaccessF;
                 now auto.
             erewrite restrPermMap_irr' with (Hlt := Hlt)
                                               (Hlt' := ((mem_compf Hsim) tid pffj).1); eauto.
@@ -7861,7 +7870,7 @@ relation*)
             (** **** We now apply [mem_obs_eq_disjoint_lock]*)
             eapply mem_obs_eq_disjoint_lock
             with (ofsl := Int.intval ofs) (bl1 := b)
-                                          (bl2 := b2) (sz := size_chunk Mint64); eauto.
+                                          (bl2 := b2) (sz := size_chunk Mint32); eauto.
             (** valid blocks of [mcj] are the same [m2']*)
             intros. unfold Mem.valid_block in *.
             destruct Hnextblock' as [[p [Hnextj Hnext2]] | [Hnextj Hnext2]];
@@ -7902,9 +7911,9 @@ relation*)
             erewrite! setN_inside
               by (simpl; eauto).
             (* by (rewrite length_inj_bytes encode_int_length; simpl in Hrange; auto). *)
-            destruct ((List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (encode_val Mint64 (Vlong Int64.zero)) Undef)).
+            destruct ((List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (encode_val Mint32 (Vint Int.zero)) Undef)).
             apply inj_bytes_type in i0.
-            destruct (List.nth (Z.to_nat (ofs0 - Int.intval ofs)) (encode_val Mint64 (Vlong Int64.zero)) Undef);
+            destruct (List.nth (Z.to_nat (ofs0 - Int.intval ofs)) (encode_val Mint32 (Vint Int.zero)) Undef);
             now constructor.
             rewrite e. now constructor.
             eapply Mem.store_valid_block_1; eauto.
@@ -8158,14 +8167,14 @@ relation*)
       subst m1 m0.
       (** and prove that loading from that block in mf gives us the
         same value as in mc, i.e. unlocked*)
-      assert (HloadF: Mem.load Mint64 mf0 b2 (Int.intval ofs) = Some (Vlong Int64.zero)).
+      assert (HloadF: Mem.load Mint32 mf0 b2 (Int.intval ofs) = Some (Vint Int.zero)).
       { subst mf0.
         destruct (load_val_obs _ _ _ Hload Hfb Hinjective ((strong_obs_eq (obs_eq_locks Htsim))))
           as [v2 [Hloadf Hobs_eq]].
         inversion Hobs_eq; subst.
           by auto.
       }
-      assert (Hval_obs: val_obs (fp i pfc) (Vlong Int64.one) (Vlong Int64.one))
+      assert (Hval_obs: val_obs (fp i pfc) (Vint Int.one) (Vint Int.one))
         by constructor.
       (** we then compute the [access_map] used to perform the store*)
       remember (setPermBlock (Some Writable) b2 (Int.intval ofs) (getThreadR pff).2 lksize.LKSIZE_nat)
@@ -8298,6 +8307,17 @@ relation*)
           assumption.
       }
 
+      (** and that the thread has sufficient access permissions to the lock*)
+      assert(HaccessF : Mem.range_perm (restrPermMap (HmemCompF i pff)#2) b2 (Int.intval ofs)
+                                       (Int.intval ofs + lksize.LKSIZE) Cur Readable).
+      { destruct Htsim.
+        intros ofs' Hrange.
+        destruct obs_eq_locks0 as [_ [Hperm_eq _]].
+        unfold Mem.range_perm, permission_at, Mem.perm in *.
+        erewrite Hperm_eq;
+          by eauto.
+      }
+      
       (** and finally build the final fine-grained state*)
       remember (updLockSet tpf' (b2, Int.intval ofs) virtueLPF)
         as tpf'' eqn:Htpf'';
@@ -8657,17 +8677,17 @@ relation*)
               apply Mem.load_valid_access in Hload.
               destruct Hload as [Hload _].
               intros.
-              specialize (Hload ofs' H).
-              unfold Mem.perm in Hload.
+              specialize (Haccess ofs' H).
+              unfold Mem.perm in Haccess.
               intros Hcontra.
               pose proof (restrPermMap_Cur (HmemCompC i pfc).2 b ofs') as Hperm_at.
               unfold permission_at in Hperm_at.
-              rewrite Hperm_at in Hload.
+              rewrite Hperm_at in Haccess.
               specialize (Hcoh b ofs').
               destruct ((getThreadR pfcj).1 # b ofs') as [p1|];
                 destruct ((getThreadR pfc).2 # b ofs') as [p2|];
-                simpl in Hcontra, Hload; auto;
-                  inversion Hcontra; inversion Hload; subst;
+                simpl in Hcontra, Haccess; auto;
+                  inversion Hcontra; inversion Haccess; subst;
                     simpl in Hcoh;
                     now auto.
               eapply tp_wd_domain;
@@ -8715,7 +8735,7 @@ relation*)
             rewrite gLockSetCode.
             rewrite gsoThreadCode;
               by auto.
-            clear - Hmem_obs_eq2j HstoreF HinvF Htid HloadF.
+            clear - Hmem_obs_eq2j HstoreF HinvF Htid HloadF HaccessF.
             assert (HeqRes: getThreadR pff0 = getThreadR pffj)
               by (rewrite gLockSetRes;
                    rewrite gsoThreadRes; auto).
@@ -8731,17 +8751,16 @@ relation*)
             left.
             apply setPermBlock_coherent; eauto.
             intros ofs' Hrange Hcontra.
-            destruct HloadF as [Hperm _].
-            specialize (Hperm ofs' Hrange).
-            unfold Mem.perm in Hperm.
+            specialize (HaccessF ofs' Hrange).
+            unfold Mem.perm in HaccessF.
             specialize (H b2 ofs').
             pose proof (restrPermMap_Cur (HmemCompF i pff).2 b2 ofs') as Heq.
             unfold permission_at in Heq.
-            rewrite Heq in Hperm.
+            rewrite Heq in HaccessF.
             destruct ((getThreadR pffj).1 # b2 ofs') as [p1|]; simpl in Hcontra;
               [| assumption];
               inversion Hcontra; subst;
-              destruct ((getThreadR pff).2 # b2 ofs') as [p2|]; simpl in Hperm;
+              destruct ((getThreadR pff).2 # b2 ofs') as [p2|]; simpl in HaccessF;
                 now auto.
             erewrite restrPermMap_irr' with (Hlt := Hlt)
                                               (Hlt' := ((mem_compf Hsim) tid pffj).1); eauto.
@@ -8815,7 +8834,7 @@ relation*)
             (** **** We now apply [mem_obs_eq_disjoint_lock]*)
             eapply mem_obs_eq_disjoint_lock
             with (ofsl := Int.intval ofs) (bl1 := b)
-                                          (bl2 := b2) (sz := size_chunk Mint64); eauto.
+                                          (bl2 := b2) (sz := size_chunk Mint32); eauto.
             (** valid blocks of [mcj] are the same [m2']*)
             intros. unfold Mem.valid_block in *.
             destruct Hnextblock' as [[p [Hnextj Hnext2]] | [Hnextj Hnext2]];
@@ -8856,9 +8875,9 @@ relation*)
             rewrite! Maps.PMap.gss.
             erewrite! setN_inside
               by (rewrite length_inj_bytes encode_int_length; simpl in Hrange; auto).
-            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.one))) Undef).
+            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.one))) Undef).
             apply inj_bytes_type in i0.
-            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.one))) Undef); try by exfalso.
+            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.one))) Undef); try by exfalso.
             now constructor.
             rewrite e. now constructor.
             eapply Mem.store_valid_block_1; eauto.
@@ -9709,7 +9728,7 @@ relation*)
 
       (** consider [mf] with the permissions of thread i on FineConc*)
       remember (restrPermMap (HmemCompF _ pff).1) as mf1 eqn:Hrestrict_pmapF.
-      assert (Hval_obs: val_obs (fp i pfc) (Vlong Int64.zero) (Vlong Int64.zero))
+      assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
         by constructor.
       (** [m1] and [mf1] are related by [mem_obs_eq] and storing related by
       [val_obs] values gives us related memories*)
@@ -9753,6 +9772,16 @@ relation*)
           [exfalso; auto | reflexivity].
       }
 
+      (** and that the thread has sufficient access permissions to the lock*)
+      assert(HaccessF : Mem.range_perm (restrPermMap (HmemCompF i pff)#1) b2 (Int.intval ofs)
+                                       (Int.intval ofs + lksize.LKSIZE) Cur Writable).
+      { destruct Hmem_obs_eq_data as [ _ [Hperm_eq _]].
+        intros ofs' Hrange.
+        unfold Mem.range_perm, permission_at, Mem.perm in *.
+        erewrite Hperm_eq;
+          by eauto.
+      }
+      
       (** To compute the new state of the FineConc machine, we first update the thread*)
       remember (updThread pff (Kresume cf Vundef) (pmap_tidF', pmap_tidF2')) as tpf' eqn:Htpf'.
       (** And then update the [lockRes] with empty resources on that address. *)
@@ -9778,7 +9807,7 @@ relation*)
       (** The updated state of FineCond and the new memory are related by [mem_compatible]*)
       assert (HmemCompF'': mem_compatible tpf'' mf').
       { subst.
-        clear - HmemCompF HmaxF' Hf Hmem_obs_eq_data Hvalidb2 HstoreF.
+        clear - HmemCompF HmaxF' Hf Hvalidb2 HstoreF.
         constructor.
         - intros.
           rewrite gLockSetRes.
@@ -9879,7 +9908,7 @@ relation*)
         assert (pffj: containsThread tpf j)
           by auto.
         specialize (HsimWeak _ pfcj pffj).
-        clear - Hvb Hvb' HvbF HstoreF Hstore HsimWeak Hsim Hfb Hdata_perm Hlock_perm Hmem_obs_eq_data.
+        clear - Hvb Hvb' HvbF HstoreF Hstore HsimWeak Hsim Hfb Hdata_perm Hlock_perm.
 
         assert (Hlt1': permMapLt (getThreadR pfcj).1 (getMaxPerm mc'))
           by (intros b0 ofs0;
@@ -10069,17 +10098,41 @@ relation*)
 
           eapply Mem.store_mem_contents in Hstore.
           eapply Mem.store_mem_contents in HstoreF.
+          assert (Hmem_obs_eq_data_old := Hmem_obs_eq_data).
           eapply mem_obs_eq_store with (Hlt2 := Hlt1') (Hlt2F := Hlt1F') in Hmem_obs_eq_data; eauto.
           eapply setPermBlock_obs_eq; eauto.
           intros ofs0 Hrange.
           rewrite Hstore HstoreF. simpl.
           rewrite! Maps.PMap.gss.
-          erewrite! setN_inside by eauto.
-          destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef).
-          apply inj_bytes_type in i0.
-          destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef); try by exfalso.
-          now constructor.
-          rewrite e. now constructor.
+          destruct (Intv.In_dec ofs0 (Int.intval ofs, (Int.intval ofs) + (Z.of_nat 4)))%Z.
+          { erewrite! setN_inside by eauto.
+            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef).
+            apply inj_bytes_type in i1.
+            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef); try by exfalso.
+            now constructor.
+            rewrite e. now constructor.
+          }
+          { erewrite! Mem.setN_outside.
+            destruct Hmem_obs_eq_data_old as [_ [_ Hval_obs_eq]].
+            specialize (Hval_obs_eq _ _ ofs0 Hfb).
+            simpl in Hval_obs_eq.
+            eapply Hval_obs_eq.
+            unfold Mem.range_perm, Mem.perm in *.
+            replace (Z.of_nat lksize.LKSIZE_nat) with lksize.LKSIZE in Hrange
+              by (unfold lksize.LKSIZE, lksize.LKSIZE_nat; reflexivity).
+            specialize (Hfreeable ofs0 Hrange).
+            erewrite po_oo in *.
+            eapply po_trans; eauto.
+            simpl; now constructor.
+            rewrite length_inj_bytes encode_int_length.
+            eapply Intv.range_notin in n; simpl in n;
+              eauto.
+            simpl. omega.
+            rewrite length_inj_bytes encode_int_length.
+            eapply Intv.range_notin in n; simpl in n;
+              eauto.
+            simpl. omega.
+          }
           (** [mem_obs_eq] for locks*)
           assert (Hlt2: permMapLt (setPermBlock (Some Writable) b
                                                 (Int.intval ofs) (getThreadR pfc)#2 lksize.LKSIZE_nat) (getMaxPerm mc'))
@@ -10124,13 +10177,35 @@ relation*)
           rewrite Hstore HstoreF.
           simpl.
           rewrite! Maps.PMap.gss.
-          erewrite! setN_inside by eauto.
-          destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef).
-          apply inj_bytes_type in i0.
-          destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef); try by exfalso.
-          now constructor.
-          rewrite e. now constructor.
-
+          destruct (Intv.In_dec ofs0 (Int.intval ofs, (Int.intval ofs) + (Z.of_nat 4)))%Z.
+          { erewrite! setN_inside by eauto.
+            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef).
+            apply inj_bytes_type in i1.
+            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef); try by exfalso.
+            now constructor.
+            rewrite e. now constructor.
+          }
+          { erewrite! Mem.setN_outside.
+            destruct Hmem_obs_eq_data as [_ [_ Hval_obs_eq]].
+            specialize (Hval_obs_eq _ _ ofs0 Hfb).
+            simpl in Hval_obs_eq.
+            eapply Hval_obs_eq.
+            unfold Mem.range_perm, Mem.perm in *.
+            replace (Z.of_nat lksize.LKSIZE_nat) with lksize.LKSIZE in Hrange
+              by (unfold lksize.LKSIZE, lksize.LKSIZE_nat; reflexivity).
+            specialize (Hfreeable ofs0 Hrange).
+            erewrite po_oo in *.
+            eapply po_trans; eauto.
+            simpl; now constructor.
+            rewrite length_inj_bytes encode_int_length.
+            eapply Intv.range_notin in n; simpl in n;
+              eauto.
+            simpl. omega.
+            rewrite length_inj_bytes encode_int_length.
+            eapply Intv.range_notin in n; simpl in n;
+              eauto.
+            simpl. omega.
+          }
           (** rest of strong sim*)
           split; first by congruence.
           split; first by congruence.
@@ -10340,7 +10415,7 @@ relation*)
             (** **** We now apply [mem_obs_eq_disjoint_lock]*)
             eapply mem_obs_eq_disjoint_lock
             with (ofsl := Int.intval ofs) (bl1 := b)
-                                          (bl2 := b2) (sz := size_chunk Mint64); eauto.
+                                          (bl2 := b2) (sz := size_chunk Mint32); eauto.
             (** valid blocks of [mcj] are the same [m2']*)
             intros. unfold Mem.valid_block in *.
             destruct Hnextblock' as [[p [Hnextj Hnext2]] | [Hnextj Hnext2]];
@@ -10382,9 +10457,9 @@ relation*)
             rewrite! Maps.PMap.gss.
             erewrite! setN_inside
               by (rewrite length_inj_bytes encode_int_length; simpl in Hrange; auto).
-            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef).
+            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef).
             apply inj_bytes_type in i0.
-            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 8 (Int64.unsigned Int64.zero))) Undef); try by exfalso.
+            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef); try by exfalso.
             now constructor.
             rewrite e. now constructor.
             eapply Mem.store_valid_block_1; eauto.
@@ -10577,7 +10652,7 @@ relation*)
         rewrite gsoThreadLPool in Hres.
         eapply HunmappedRes; eauto.
       - (** Proof of invariant preservation for fine-grained machine*)
-        clear - HinvF HstoreF HinvC' Hlock_if Hf.
+        clear - HinvF HstoreF HinvC' Hlock_if Hf HaccessF.
         Opaque getThreadR.
         eapply updLock_inv;
           try (intros; simpl; split; intros ? ?; rewrite empty_map_spec; simpl; eauto);
@@ -10585,13 +10660,12 @@ relation*)
           try (now apply perm_coh_empty_1).
         eapply invariant_mklock; eauto.
         apply Mem.store_valid_access_3 in HstoreF.
-        destruct HstoreF as [Hperm _].
         intros ofs' Hrange.
         pose proof (restrPermMap_Cur (HmemCompF i pff).1 b2 ofs') as Heq.
         unfold permission_at in Heq.
-        unfold Mem.range_perm, Mem.perm in Hperm.
-        specialize (Hperm ofs' Hrange).
-        rewrite Heq in Hperm.
+        unfold Mem.range_perm, Mem.perm in HaccessF.
+        specialize (HaccessF ofs' Hrange).
+        rewrite Heq in HaccessF.
         now assumption.
         rewrite gsoThreadLPool in H0.
         pose proof ((invariant_not_freeable HinvF b0 ofs0).2 _ _ H0).
@@ -11216,7 +11290,7 @@ relation*)
       remember (restrPermMap (HmemCompF _ pff).2) as mf1 eqn:Hrestrict_pmapF.
       (** and prove that loading from that block in mf gives us the
         same value as in mc, i.e. unlocked*)
-      assert (HloadF: Mem.load Mint64 mf1 b2 (Int.intval ofs) = Some (Vlong Int64.zero)).
+      assert (HloadF: Mem.load Mint32 mf1 b2 (Int.intval ofs) = Some (Vint Int.zero)).
       { destruct (load_val_obs _ _ _ Hload Hf Hinjective (strong_obs_eq (obs_eq_locks Htsim)))
           as [v2 [Hloadf Hobs_eq]].
         inversion Hobs_eq; subst.
@@ -11229,6 +11303,12 @@ relation*)
       subst.
       econstructor 5; simpl; eauto.
       econstructor 6; eauto.
+      destruct Htsim.
+      destruct obs_eq_locks0 as [_ [Hperm_eq ?]].
+      unfold Mem.range_perm, Mem.perm, permission_at in *.
+      intros.
+      erewrite Hperm_eq;
+        now eauto.
       (** Proof that the new coarse and fine state are in simulation*)
       eapply sim_reduce; eauto.
     }

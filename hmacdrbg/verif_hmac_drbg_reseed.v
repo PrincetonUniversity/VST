@@ -133,7 +133,7 @@ Proof.
   }
 
   (* get_entropy(seed, entropy_len ) *)
-  thaw FR3. freeze [1;2;3;4;6;7] FR4.
+  thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
   { split. split; try omega. rewrite int_max_unsigned_eq. omega.
     apply writable_share_top.
@@ -187,7 +187,7 @@ Proof.
     remember (ENTROPY.get_bytes (Z.to_nat entropy_len) s) as  GE.
     destruct GE.
     + inv ENT. simpl in H1; discriminate.
-    + thaw FR5. unfold get_entropy.
+    + thaw FR5. unfold GetEntropy_PostSep, get_entropy.
       Transparent  hmac256drbgabs_reseed. unfold hmac256drbgabs_reseed. Opaque hmac256drbgabs_reseed. 
       rewrite <- HeqGE; simpl.
       remember (mbedtls_HMAC256_DRBG_reseed_function s
@@ -235,7 +235,7 @@ Proof.
   clear ENT.
 
   rename l into entropy_bytes.
-  thaw FR5. thaw FR4.
+  thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
   eapply reseed_REST with (s0:=s0)(contents':=contents'); trivial.
 idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
 Time Qed. (*May23th, Coq8.6:12secs

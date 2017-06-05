@@ -426,6 +426,16 @@ intros.
 apply  mapsto_memory_block.mapsto_share_join; auto.
 Qed.
 
+Lemma mapsto_share_join_W:
+ forall sh1 sh2 sh t p v1,
+   sepalg.join sh1 sh2 sh ->
+   writable_share sh1 ->
+   mapsto sh1 t p v1 * (EX v2: val, mapsto sh2 t p v2) = mapsto sh t p v1.
+Proof.
+intros.
+apply  mapsto_memory_block.mapsto_share_join_W; auto.
+Qed.
+
 Lemma memory_block_share_join:
   forall sh1 sh2 sh n p,
    sepalg.join sh1 sh2 sh ->

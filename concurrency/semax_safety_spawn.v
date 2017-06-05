@@ -299,7 +299,7 @@ Proof.
   unfold filter_genv in *.
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun _y b A P' Q' NEP' NEQ' semaxprog as HEP.
+       id_fun _y b A P' Q' NEP' NEQ' 0 semaxprog as HEP.
 
   subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
@@ -340,7 +340,7 @@ Proof.
   spec HEP PreA.
   destruct HEP as (q_new & Initcore & Safety).
 
-  change (initial_core (juicy_core_sem cl_core_sem)) with cl_initial_core in Initcore.
+  change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
 
   apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
@@ -371,7 +371,7 @@ Proof.
     { unfold SEM.Sem in *.
       rewrite SEM.CLN_msem.
       apply atex. }
-    { replace (initial_core SEM.Sem) with cl_initial_core
+    { replace (initial_core SEM.Sem _) with cl_initial_core
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       unfold code in *.
       rewrite <-Initcore.
