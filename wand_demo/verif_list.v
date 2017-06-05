@@ -21,11 +21,6 @@ Proof.
   + apply Share.comp1.
 Qed.
 
-Axiom data_at_share_join': forall {cs : compspecs} sh1 sh2 sh t v1 v2 p,
-  readable_share sh2 ->
-  sepalg.join sh1 sh2 sh ->
-  data_at sh1 t v1 p * data_at sh2 t v2 p = data_at sh t v2 p.
-
 Module VerifHeadSwitch.
 
 Import ListHead.
@@ -446,7 +441,8 @@ Proof.
   cancel.
   apply allp_right; intros v.
   apply wand_sepcon_adjoint.
-  rewrite (data_at_share_join' _ _ Tsh t _ _ p); auto.
+  rewrite sepcon_comm.
+  apply (data_at_share_join_W _ _ Tsh t _ _ p); auto.
 Qed.
 
 Lemma body_append2: semax_body Vprog Gprog f_append2 append2_spec.
