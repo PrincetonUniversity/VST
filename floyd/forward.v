@@ -615,21 +615,20 @@ Proof.
 intros; subst; auto.
 Qed.
 
-(*
 Ltac match_postcondition := 
-cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+cbv beta iota zeta; unfold_post;  extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
 tryif apply exp_congr
  then (intros ?vret;
-          (* apply equal_f; *)
+          apply equal_f; 
           apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
  else fail "The funspec of the function should have a POSTcondition that starts
-with an existential, that is,  EX _:_, PROP...LOCAL...SEP".*)
-
+with an existential, that is,  EX _:_, PROP...LOCAL...SEP".
+(*
 Ltac match_postcondition := 
 cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
@@ -637,7 +636,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ].
-
+*)
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
 eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 

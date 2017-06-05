@@ -872,16 +872,6 @@ Transparent field_type field_offset.
     apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (fst it) (co_members (get_co id)))) (fun it => reptype (field_type (fst it) (co_members (get_co id))))); auto.
 Qed.
 
-Lemma data_at_rec_share_join_W:
-  forall sh1 sh2 sh t v1 b ofs,
-    sepalg.join sh1 sh2 sh ->
-    writable_share sh1 ->
-   data_at_rec sh1 t v1 (Vptr b ofs) * (EX v2: reptype t, data_at_rec sh2 t v2 (Vptr b ofs)) = data_at_rec sh t v1 (Vptr b ofs).
-Proof.
-  intros.
-  apply pred_ext.
-Abort.
-
 Lemma nonreadable_memory_block_data_at_rec:
   forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)

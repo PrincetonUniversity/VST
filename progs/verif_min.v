@@ -100,11 +100,7 @@ start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-revert POSTCONDITION;
- replace (hd 0 al) with (Znth 0 al 0) by (destruct al; reflexivity);
- intro POSTCONDITION.
 forward.  (* min = a[0]; *)
-autorewrite with sublist.
 forward_for_simple_bound n
   (EX i:Z,
     PROP()
@@ -114,7 +110,7 @@ forward_for_simple_bound n
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
  entailer!.
-*
+* (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al 0))
      by (apply Forall_Znth; auto; omega).
@@ -130,14 +126,17 @@ forward_for_simple_bound n
  forward_if.
  +
  forward. (* min = j; *)
- entailer!. rewrite Z.min_r; auto; omega.
+ entailer!.
+ rewrite Z.min_r; auto; omega.
  +
  forward. (* skip; *)
- entailer!. rewrite Z.min_l; auto; omega.
-*
+ entailer!.
+ rewrite Z.min_l; auto; omega.
+* (* After the loop *)
  forward. (* return *)
  entailer!.
- autorewrite with sublist. auto.
+ autorewrite with sublist.
+ destruct al; simpl; auto.
 Qed.
 
 (* Demonstration of the same theorem, but using
@@ -225,7 +224,6 @@ assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
 forward.  (* min = a[0]; *)
-autorewrite with sublist.
 forward_for_simple_bound n
   (EX i:Z, EX j:Z,
     PROP(
@@ -247,7 +245,6 @@ Intros.
 forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al 0))
    by (apply Forall_Znth; auto; omega).
-autorewrite with sublist in *.
 assert (repable_signed x)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 forward_if.
@@ -267,8 +264,8 @@ forward_if.
  + (* Else clause *)
  forward. (* skip; *)
  Exists x.
- autorewrite with sublist.
  entailer!.
+ rewrite Z.max_r by omega.
  split.
  destruct (zlt 1 i).
  rewrite Z.max_r in H3 by omega.
