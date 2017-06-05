@@ -332,7 +332,7 @@ HMACDRBG_FILES = \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
-  spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
+  spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
   verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
