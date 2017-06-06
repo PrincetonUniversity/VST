@@ -58,83 +58,68 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
            temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 16) x;
          CoreInSEP data (nonce, c, k)))
-  
-  (Ssequence
-    (Sset _i (Econst_int (Int.repr 0) tint))
-    (Sloop
-      (Ssequence
-        (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                       (Econst_int (Int.repr 4) tint) tint)
-          Sskip
-          Sbreak)
+
+  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+     (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 4) tint) tint)
+     (Ssequence
         (Ssequence
-          (Ssequence
-            (Scall (Some _t'1)
-              (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
-                            cc_default))
-              ((Ebinop Oadd (Etempvar _c (tptr tuchar))
+           (Scall (Some _t'1)
+              (Evar _ld32
+                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+              [Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                   (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar _t'1 tuint)))
-          (Ssequence
-            (Sassign
+                    (Etempvar _i tint) tint) (tptr tuchar)])
+           (Sassign
               (Ederef
-                (Ebinop Oadd (Evar _x (tarray tuint 16))
-                  (Ebinop Omul (Econst_int (Int.repr 5) tint)
-                    (Etempvar _i tint) tint) (tptr tuint)) tuint)
-              (Etempvar _aux tuint))
-            (Ssequence
-              (Ssequence
-                (Scall (Some _t'2)
-                  (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
-                                cc_default))
-                  ((Ebinop Oadd (Etempvar _k (tptr tuchar))
-                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                       (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar _t'2 tuint)))
-              (Ssequence
-                (Sassign
-                  (Ederef
+                 (Ebinop Oadd (Evar _x (tarray tuint 16))
+                    (Ebinop Omul (Econst_int (Int.repr 5) tint)
+                       (Etempvar _i tint) tint) (tptr tuint)) tuint)
+              (Etempvar _t'1 tuint)))
+        (Ssequence
+           (Ssequence
+              (Scall (Some _t'2)
+                 (Evar _ld32
+                    (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                 [Ebinop Oadd (Etempvar _k (tptr tuchar))
+                    (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                       (Etempvar _i tint) tint) (tptr tuchar)])
+              (Sassign
+                 (Ederef
                     (Ebinop Oadd (Evar _x (tarray tuint 16))
-                      (Ebinop Oadd (Econst_int (Int.repr 1) tint)
-                        (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                  (Etempvar _aux tuint))
-                (Ssequence
-                  (Ssequence
-                    (Scall (Some _t'3)
-                      (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
-                                    cc_default))
-                      ((Ebinop Oadd (Etempvar _in (tptr tuchar))
-                         (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                           (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar _t'3 tuint)))
-                  (Ssequence
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Evar _x (tarray tuint 16))
+                       (Ebinop Oadd (Econst_int (Int.repr 1) tint)
+                          (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                 (Etempvar _t'2 tuint)))
+           (Ssequence
+              (Ssequence
+                 (Scall (Some _t'3)
+                    (Evar _ld32
+                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                    [Ebinop Oadd (Etempvar _in (tptr tuchar))
+                       (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                          (Etempvar _i tint) tint) (tptr tuchar)])
+                 (Sassign
+                    (Ederef
+                       (Ebinop Oadd (Evar _x (tarray tuint 16))
                           (Ebinop Oadd (Econst_int (Int.repr 6) tint)
-                            (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                      (Etempvar _aux tuint))
-                    (Ssequence
-                      (Ssequence
-                        (Scall (Some _t'4)
-                          (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
-                                        tuint cc_default))
-                          ((Ebinop Oadd
-                             (Ebinop Oadd (Etempvar _k (tptr tuchar))
-                               (Econst_int (Int.repr 16) tint) (tptr tuchar))
-                             (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                               (Etempvar _i tint) tint) (tptr tuchar)) ::
-                           nil))
-                        (Sset _aux (Etempvar _t'4 tuint)))
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _x (tarray tuint 16))
-                            (Ebinop Oadd (Econst_int (Int.repr 11) tint)
-                              (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                        (Etempvar _aux tuint))))))))))
-      (Sset _i
-        (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
+                             (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                    (Etempvar _t'3 tuint)))
+              (Ssequence
+                 (Scall (Some _t'4)
+                    (Evar _ld32
+                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                    [Ebinop Oadd
+                       (Ebinop Oadd (Etempvar _k (tptr tuchar))
+                          (Econst_int (Int.repr 16) tint) (tptr tuchar))
+                       (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                          (Etempvar _i tint) tint) (tptr tuchar)])
+                 (Sassign
+                    (Ederef
+                       (Ebinop Oadd (Evar _x (tarray tuint 16))
+                          (Ebinop Oadd (Econst_int (Int.repr 11) tint)
+                             (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                    (Etempvar _t'4 tuint))))))
+     (Sset _i
+        (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)))
   (normal_ret_assert (
 PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;
@@ -194,10 +179,10 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time forward_call (offset_val (4 * i) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
   (*{ goal automatically discharged versus 4.2 }*)
 
-  thaw FR3.
+  thaw FR3. 
   apply semax_pre with (P':=
   (PROP  ()
-   LOCAL  ( temp _aux (Vint (littleendian (Select16Q C i)));
+   LOCAL  ( temp _t'1 (Vint (littleendian (Select16Q C i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -261,7 +246,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   thaw  FR6.
   apply semax_pre with (P':=
   (PROP  ()
-   LOCAL  (temp _aux (Vint (littleendian (Select16Q Key1 i)));
+   LOCAL  (temp _t'2 (Vint (littleendian (Select16Q Key1 i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -312,7 +297,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  (
-   temp _aux (Vint (littleendian (Select16Q Nonce i)));
+   temp _t'3 (Vint (littleendian (Select16Q Nonce i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -363,8 +348,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
   thaw FR11.
   apply semax_pre with (P':=
   (PROP  ()
-   LOCAL  (
-   temp _aux (Vint (littleendian (Select16Q Key2 i)));
+   LOCAL  ( 
+   temp _t'4 (Vint (littleendian (Select16Q Key2 i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
