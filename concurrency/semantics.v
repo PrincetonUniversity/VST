@@ -27,3 +27,20 @@ Module Type Resources.
   Parameter res : Type.
   Parameter lock_info : Type.
 End Resources.
+
+(** *The record version*)
+Record Semantics_rec:=
+  {
+  semF: Type;
+  semV: Type;
+  semG: Type;
+  semC: Type;
+  semSem: @EvSem semG semC;
+  getEnv : semG -> Genv.t semF semV
+  }.
+
+Record Resources_rec:=
+  {
+    recres: Type;
+    reclock_info : Type
+    }.

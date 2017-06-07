@@ -154,7 +154,8 @@ CONCUR_FILES= \
 	lifting.v lifting_safety.v \
 linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  coinductive_safety.v CoreSemantics_sum.v
+  coinductive_safety.v CoreSemantics_sum.v \
+  concurrent_machine_rec.v HybridMachine.v
 
 #  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
