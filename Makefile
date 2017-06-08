@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox concurrency
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -526,7 +526,6 @@ _CoqProject: Makefile
 	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
-
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:
@@ -535,7 +534,7 @@ dep:
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
-	-@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
+	$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
