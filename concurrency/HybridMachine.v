@@ -609,7 +609,7 @@ Section HybridMachine.
 
      Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
 
-     Definition initial_machine pmap c :=
+     Definition initial_machine ge c :=
        threadPool.mk
          Resources
          Sem
