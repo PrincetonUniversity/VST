@@ -34,6 +34,8 @@ Require Import veric.Clightnew_coop.
 
 Require Import concurrency.HybridMachineSig.
 
+Require Import concurrency.CoreSemantics_sum.
+
 
 
 Section HybridMachine.
@@ -52,9 +54,13 @@ Section HybridMachine.
 
 
   (** *The Hybrid Semantics Build*)
-  Definition Sem: Semantics_rec.
-    apply (@Build_Semantics_rec fundef type genv corestate CLN_evsem (fun g => genv_genv g)).
-  Defined.
+  Variables hb: option nat.
+  Variables Sems Semt: Semantics_rec.
+  
+  Definition Sem: Semantics_rec:= CoreSem_Sum hb Sems Semt.
+  (* Definition Sem: Semantics_rec.
+    apply (@Build_Semantics_rec (*fundef type*) genv corestate CLN_evsem (*fun g => genv_genv g*)).
+  Defined.*)
 
   Notation C:= (semC Sem).
   Notation G:= (semG Sem).
@@ -655,9 +661,10 @@ Section HybridMachine.
         (@threadHalted j tp cnt) ->
         (@threadHalted j tp' cnt') .
   Proof.
-    intros; inversion H; inversion H0; subst.
+    intros.
+    inversion H; inversion H0; subst.
     destruct (NatTID.eq_tid_dec i j).
-    - subst j. simpl in Hcorestep.
+    - subst j.
       eapply ev_step_ax1 in Hcorestep.
       eapply corestep_not_halted in Hcorestep.
       replace cnt1 with cnt in Hcode0 by apply cnt_irr.
@@ -789,7 +796,7 @@ Section HybridMachine.
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
 
-  Inductive start_thread' (hb:nat) genv: forall {tid0} {ms:machine_state},
+  Inductive start_thread' genv: forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | StartThread: forall tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
@@ -1115,10 +1122,7 @@ Section HybridMachine.
   (* MachineSemantics
    * initial_schedule 
    *)
-  Definition HybridMachine (hb:nat): HybridMachine_rec Resources Sem ThreadPool:=
+  Definition HybridMachine: HybridMachine_rec Resources Sem ThreadPool:=
      (Build_HybridMachine_rec _ _ _ MachineCoreSemantics new_MachineSemantics hybrid_initial_schedule).
     
 End HybridMachine.
-
-
-Print HybridMachine.

@@ -16,11 +16,11 @@ Require Import concurrency.scheduler.
 Require Import Coq.Program.Program.
 
 Module Type Semantics.
-  Parameter F V : Type.
+  (*Parameter F V : Type. *)
   Parameter G: Type.
   Parameter C: Type.
   Parameter Sem: @EvSem G C.
-  Parameter getEnv : G -> Genv.t F V.
+  (* Parameter getEnv : G -> Genv.t F V. *)
 End Semantics.
 
 Module Type Resources.
@@ -31,12 +31,12 @@ End Resources.
 (** *The record version*)
 Record Semantics_rec:=
   {
-  semF: Type;
-  semV: Type;
+  (* semF: Type ;
+  semV: Type; *)
   semG: Type;
   semC: Type;
   semSem: @EvSem semG semC;
-  getEnv : semG -> Genv.t semF semV
+   (* getEnv : semG -> Genv.t semF semV *)
   }.
 
 Record Resources_rec:=

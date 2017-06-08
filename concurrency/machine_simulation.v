@@ -36,10 +36,6 @@ Variable init_inv : meminj -> G1 -> list val -> M1 -> G2 -> list val -> M2 -> Pr
 
 Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> M1 -> G2 -> val -> M2 -> Prop.
 
-(*Variable tid: Type.
-Variable runing_thread1 : C1 -> option tid.
-Variable runing_thread2 : C2 -> option tid.*)
-
 Record Machine_sim  :=
 { core_data : Type
 ; match_state : core_data -> (*SM_Injection*)meminj -> C1 -> M1 -> C2 -> M2 -> Prop
