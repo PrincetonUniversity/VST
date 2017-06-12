@@ -615,14 +615,15 @@ match op with
                                                                                          reterr)
                     | Cop.shift_case_ll _ =>  tc_andp (tc_llt a2 Int64.iwordsize) (tc_bool (is_long_type ty)
                                                                                          reterr)
-                    (* NEED TO HANDLE OTHER SHIFT CASES *)
-                    | _ => tc_FF deferr
+                    | Cop.shift_default => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
                    match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
-                    (* NEED TO HANDLE OTHER BIN CASES *)
-                    | _ => tc_FF deferr
+                    | Cop.bin_case_l _ =>tc_bool (is_long_type ty) reterr
+                    | Cop.bin_case_f => tc_FF deferr
+                    | Cop.bin_case_s => tc_FF deferr
+                    | Cop.bin_default => tc_FF deferr
                    end
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
                    match Cop.classify_cmp (typeof a1) (typeof a2) with

@@ -850,18 +850,19 @@ Proof.
     ((denote_tc_assert
            match classify_binarith' (typeof e1) (typeof e2) with
            | bin_case_i _ => tc_bool (is_int32_type t) (op_result_type (Ebinop op e1 e2 t))
+           | bin_case_l _ => tc_bool (is_long_type t) (op_result_type (Ebinop op e1 e2 t))
            | _ => tc_FF (arg_type (Ebinop op e1 e2 t))
            end rho) m)
   in IBR
   by (rewrite den_isBinOpR; destruct OP as [| [ | ]]; subst; auto).
   destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
-  apply tc_bool_e in IBR.
-  simpl in IBR; unfold_lift in IBR.
-  solve_tc_val TV1;
-  solve_tc_val TV2;
-  rewrite <- H0, <- H2 in H;
-  try solve [inv H].
   + (* bin_case_i *)
+    apply tc_bool_e in IBR.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
       try solve [inv H1 | inv H3].
     destruct OP as [| [|]]; subst; auto;
@@ -870,7 +871,37 @@ Proof.
     rewrite classify_binarith_eq, H;
     simpl;
     destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
-  (* TODO: Other bin cases to be added *)
+  + (* bin_case_l *)
+    apply tc_bool_e in IBR.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
+    - destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3].
+      destruct OP as [| [|]]; subst; auto;
+      simpl;
+      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      rewrite classify_binarith_eq, H;
+      simpl;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
+    - destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3].
+      destruct OP as [| [|]]; subst; auto;
+      simpl;
+      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      rewrite classify_binarith_eq, H;
+      simpl;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
+    - destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3].
+      destruct OP as [| [|]]; subst; auto;
+      simpl;
+      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      rewrite classify_binarith_eq, H;
+      simpl;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
 Qed.
 
 Lemma denote_tc_test_eq_Vint_l: forall m i v,

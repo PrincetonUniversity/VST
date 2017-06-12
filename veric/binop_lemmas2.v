@@ -727,7 +727,10 @@ match op with
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
                    match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
-                    | _ => tc_FF deferr
+                    | Cop.bin_case_l _ =>tc_bool (is_long_type ty) reterr
+                    | Cop.bin_case_f => tc_FF deferr
+                    | Cop.bin_case_s => tc_FF deferr
+                    | Cop.bin_default => tc_FF deferr
                    end
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
                    match classify_cmp' (typeof a1) (typeof a2) with
