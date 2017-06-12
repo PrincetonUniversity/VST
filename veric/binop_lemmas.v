@@ -123,6 +123,14 @@ intros.
 hnf in H. destruct (Int.ltu i j); auto; contradiction.
 Qed.
 
+Lemma denote_tc_lgt_e:
+  forall m i j, app_pred (denote_tc_lgt j (Vlong i)) m ->
+        Int64.ltu i j = true.
+Proof.
+intros.
+hnf in H. destruct (Int64.ltu i j); auto; contradiction.
+Qed.
+
 Lemma denote_tc_iszero_long_e:
  forall m i,
   app_pred (denote_tc_iszero (Vlong i)) m ->
@@ -734,19 +742,28 @@ Proof.
            | shift_case_ii _ =>
                tc_andp' (tc_ilt' e2 Int.iwordsize)
                  (tc_bool (is_int32_type t) (op_result_type (Ebinop op e1 e2 t)))
+           | shift_case_il _ =>
+               tc_andp' (tc_llt' e2 (Int64.repr 32))
+                 (tc_bool (is_int32_type t) (op_result_type (Ebinop op e1 e2 t)))
+           | shift_case_li _ =>
+               tc_andp' (tc_ilt' e2 Int64.iwordsize')
+                 (tc_bool (is_long_type t) (op_result_type (Ebinop op e1 e2 t)))
+           | shift_case_ll _ =>
+               tc_andp' (tc_llt' e2 Int64.iwordsize)
+                 (tc_bool (is_long_type t) (op_result_type (Ebinop op e1 e2 t)))
            | _ => tc_FF (arg_type (Ebinop op e1 e2 t))
            end rho) m)
   in IBR
   by (rewrite den_isBinOpR; destruct OP; subst; auto).
   destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
-  destruct IBR as [?IBR ?IBR].
-  apply tc_bool_e in IBR0.
-  simpl in IBR; unfold_lift in IBR.
-  solve_tc_val TV1;
-  solve_tc_val TV2;
-  rewrite <- H0, <- H2 in H;
-  try solve [inv H].
   + (* shift_ii *)
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
       try solve [inv H1 | inv H3].
     destruct OP; subst; auto;
@@ -758,7 +775,63 @@ Proof.
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
     - rewrite (denote_tc_igt_e m) by assumption;
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-  (* TODO: Other shift cases to be added *)
+  + (* shift_ll *)
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_shift;
+    rewrite classify_shift_eq, H;
+    simpl.
+    - rewrite (denote_tc_lgt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - rewrite (denote_tc_lgt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+  + (* shift_il *)
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_shift;
+    rewrite classify_shift_eq, H;
+    simpl.
+    - rewrite (denote_tc_lgt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - rewrite (denote_tc_lgt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+  + (* shift_li *)
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H].
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_shift;
+    rewrite classify_shift_eq, H;
+    simpl.
+    - rewrite (denote_tc_igt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - rewrite (denote_tc_igt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
 Qed.
 
 Lemma typecheck_Obin_sound:
