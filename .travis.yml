@@ -17,6 +17,13 @@ env:
   - NJOBS=4
   # system is == 4.02.3
   - COMPILER="system"
+branches:
+  only:
+  - master
+notifications:
+  email:
+    recipients:
+    - wmansky@cs.princeton.edu
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
