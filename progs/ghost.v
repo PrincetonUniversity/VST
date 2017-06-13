@@ -232,6 +232,13 @@ Proof.
   intros; apply ord_join; reflexivity.
 Qed.
 
+Lemma join_compat : forall v1 v2 v' v'', join v2 v' v'' -> ord v1 v2 -> exists v0, join v1 v' v0 /\ ord v0 v''.
+Proof.
+  intros.
+  destruct (join_ord _ _ _ H).
+  apply ord_lub; auto; etransitivity; eauto.
+Qed.
+
 (* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
    an authoritative writer and an up-to-date invariant. *)
 (* Does this generalize both ghost_var and master-snapshot? *)
@@ -352,16 +359,14 @@ Proof.
     apply derives_view_shift; entailer!.
 Qed.
 
-Lemma ghost_snap_forget : forall v1 v2 p
-  (Hcompat : forall v' v'', join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
-  ord v1 v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
+Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
 Proof.
   intros; apply ghost_update.
   intros (shc, c) [(shx, x) [? Hj]]; simpl in *.
   rewrite eq_dec_refl in Hj.
   assert (shx = shc) by (eapply sepalg.join_eq; eauto); subst.
   unfold share in Hj; destruct (eq_dec shc Share.bot); subst.
-  - destruct (Hcompat _ _ Hj) as [x' []].
+  - destruct (join_compat _ _ _ _ Hj H) as [x' []].
     exists (Share.bot, x'); simpl.
     rewrite !eq_dec_refl; auto.
   - destruct Hj; subst.
@@ -371,9 +376,7 @@ Proof.
     etransitivity; eauto.
 Qed.
 
-Lemma ghost_snap_choose : forall v1 v2 p
-  (Hcompat : forall v2 v' v'', ord v1 v2 -> join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
-  view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
+Lemma ghost_snap_choose : forall v1 v2 p, view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
 Proof.
   intros.
   eapply view_shift_assert.
@@ -589,22 +592,6 @@ Lemma snap_master_update' : forall (v1 v2 : Z) p v', v2 <= v' ->
   view_shift (ghost_snap v1 p * ghost_master v2 p) (ghost_snap v' p * ghost_master v' p).
 Proof.
   intros; apply snap_master_update1; auto.
-Qed.
-
-Lemma ghost_snap_le : forall v1 v2 p, v1 <= v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
-Proof.
-  intros; apply ghost_snap_forget; auto; simpl; intros; subst.
-  do 2 eexists; eauto.
-  apply Z.max_le_compat_r; auto.
-Qed.
-
-Lemma ghost_snap_choose' : forall (v1 v2 : Z) p,
-  view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
-Proof.
-  intros.
-  apply ghost_snap_choose; simpl; intros; subst.
-  do 2 eexists; eauto.
-  apply Z.max_le_compat_r; auto.
 Qed.
 
 End PVar.
