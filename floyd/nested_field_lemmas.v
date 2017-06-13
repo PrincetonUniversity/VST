@@ -1438,13 +1438,13 @@ Proof.
   destruct H; tauto.
 Qed.
 
-Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (nested_field_offset t gfs) p.
+(*Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof.
   intros.
   unfold field_address.
   rewrite if_true by auto.
   auto.
-Qed.
+Qed.*)
 
 Lemma legal_nested_field_shrink: forall t_root gfsB gfsA,
   legal_nested_field t_root (gfsB ++ gfsA) ->
