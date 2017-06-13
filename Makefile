@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox concurrency
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -154,7 +154,8 @@ CONCUR_FILES= \
 	lifting.v lifting_safety.v \
 linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  coinductive_safety.v CoreSemantics_sum.v
+  coinductive_safety.v CoreSemantics_sum.v \
+  concurrent_machine_rec.v HybridMachine.v
 
 #  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
@@ -332,7 +333,7 @@ HMACDRBG_FILES = \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
-  spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
+  spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
   verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
@@ -525,7 +526,6 @@ _CoqProject: Makefile
 	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
-
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:

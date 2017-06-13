@@ -29,6 +29,18 @@ Qed.
 
 Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
 
+Lemma gsh1_not_bot : gsh1 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+
+Lemma gsh2_not_bot : gsh2 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+
+Hint Resolve gsh1_not_bot gsh2_not_bot.
+
 Section atomics.
 
 Context {CS : compspecs}.

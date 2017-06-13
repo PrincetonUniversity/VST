@@ -28,18 +28,17 @@ Delta
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 16) y;
-         data_at Tsh (tarray tuint 16) xInit x))
-  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+         data_at Tsh (tarray tuint 16) xInit x))(Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
-        (Sset _aux
+        (Sset _t'34
            (Ederef
               (Ebinop Oadd (Evar _x (tarray tuint 16)) (Etempvar _i tint)
                  (tptr tuint)) tuint))
         (Sassign
            (Ederef
               (Ebinop Oadd (Evar _y (tarray tuint 16)) (Etempvar _i tint)
-                 (tptr tuint)) tuint) (Etempvar _aux tuint)))
+                 (tptr tuint)) tuint) (Etempvar _t'34 tuint)))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)))
   (normal_ret_assert

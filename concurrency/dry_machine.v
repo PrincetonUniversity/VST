@@ -33,7 +33,7 @@ Require Import concurrency.bounded_maps.
 Require Import concurrency.threadPool.
 
 Module LocksAndResources.
-  (** Dry resources are a permission map for non-lock locations and one for lock
+  (** Dry resources are one permission map for non-lock locations and another for lock
   locations*)
   Definition res := (access_map * access_map)%type.
   Definition lock_info := (access_map * access_map)%type.

@@ -1,6 +1,4 @@
 #include "tweetnacl.h"
-#include <stddef.h> //included so that we have NULL
-
 #define FOR(i,n) for (i = 0;i < n;++i)
 #define sv static void
 
@@ -28,42 +26,17 @@ static u32 L32(u32 x,int c) { return (x << c) | ((x&0xffffffff) >> (32 - c)); }
 
 static u32 ld32(const u8 *x)
 {
-  u32 aux;
   u32 u = x[3];
-
-  //u = (u<<8)|x[2];
-  aux = x[2];
-  u = u<<8 | aux;
-
-  //u = (u<<8)|x[1];
-  aux = x[1];
-  u = u<<8 | aux;
-
-  //return (u<<8)|x[0];
-  aux = x[0];
-  return (u<<8 | aux);
+  u = (u<<8)|x[2];
+  u = (u<<8)|x[1];
+  return (u<<8)|x[0];
 }
-/*
+
 static u64 dl64(const u8 *x)
 {
-  u64 i,u=0;
-  //FOR(i,8) u=(u<<8)|x[i];
-  FOR(i,8) {
-    u8 xi = x[i];
-    u=(u<<8)|xi;
-  }
-  return u;
-}
-*/
-static u64 dl64(const u8 *x)
-{
-  int i;
-  u64 u=0;
-  //FOR(i,8) u=(u<<8)|x[i];
-  FOR(i,8) {
-    u8 xi = x[i];
-    u=(u<<8)|xi;
-  }
+  //u64 i,u=0; Original code
+  int i; u64 u=0; //VerifiableC (for now)
+  FOR(i,8) u=(u<<8)|x[i];
   return u;
 }
 
@@ -73,29 +46,16 @@ sv st32(u8 *x,u32 u)
   FOR(i,4) { x[i] = u; u >>= 8; }
 }
 
-/*sv ts64(u8 *x,u64 u)
-{
-  int i;
-  for (i = 7;i >= 0;--i) { x[i] = u; u >>= 8; }
-  }
-*/
-
 sv ts64(u8 *x,u64 u)
 {
   int i;
-  //for (i = 7;i >= 0;--i) { x[i] = u; u >>= 8; }
-  FOR (i,8) { x[7-i] = u; u >>= 8; }
+  for (i = 7;i >= 0;--i) { x[i] = u; u >>= 8; }
 }
 
 static int vn(const u8 *x,const u8 *y,int n)
 {
   u32 i,d = 0;
-  //FOR(i,n) d |= x[i]^y[i];
-  FOR (i,n) {
-    u8 xi = x[i];
-    u8 yi = y[i];
-    d |= xi^yi;
-  }
+  FOR(i,n) d |= x[i]^y[i];
   return (1 & ((d - 1) >> 8)) - 1;
 }
 
@@ -113,119 +73,40 @@ sv core(u8 *out,const u8 *in,const u8 *k,const u8 *c,int h)
 {
   u32 w[16],x[16],y[16],t[4];
   int i,j,m;
-  u32 aux, aux1;
-  u8  *u8_aux;
-  int index;
 
   FOR(i,4) {
-    //x[5*i] = ld32(c+4*i);
-    aux = ld32(c+4*i); x[5*i] = aux;
-
-    //x[1+i] = ld32(k+4*i);
-    aux = ld32(k+4*i); x[1+i] = aux;
-
-    //x[6+i] = ld32(in+4*i);
-    aux = ld32(in+4*i); x[6+i] = aux;
-
-    //x[11+i] = ld32(k+16+4*i);
-    aux = ld32(k+16+4*i); x[11+i] = aux;
+    x[5*i] = ld32(c+4*i);
+    x[1+i] = ld32(k+4*i);
+    x[6+i] = ld32(in+4*i);
+    x[11+i] = ld32(k+16+4*i);
   }
 
-  //FOR(i,16) y[i] = x[i];
-  FOR(i,16) { aux = x[i]; y[i] = aux; }
-
+  FOR(i,16) y[i] = x[i];
 
   FOR(i,20) {
     FOR(j,4) {
-      FOR(m,4) { index = (5*j+4*m)%16;
-                 aux = x[index];
-                 t[m] = aux;
-               }
-
-      //t[1] ^= L32(t[0]+t[3], 7);
-      { aux = t[0];
-        aux1 = t[3];
-        aux = aux + aux1;
-        aux = L32(aux, 7);
-        aux1 = t[1];
-        aux1 ^= aux;
-        t[1] = aux1; }
-
-      //t[2] ^= L32(t[1]+t[0], 9);
-      { aux = t[1];
-        aux1 = t[0];
-        aux = aux + aux1;
-        aux = L32(aux, 9);
-        aux1 = t[2];
-        aux1 ^= aux;
-        t[2] = aux1; }
-
-      //t[3] ^= L32(t[2]+t[1],13);
-      { aux = t[2];
-        aux1 = t[1];
-        aux = aux + aux1;
-        aux = L32(aux, 13);
-        aux1 = t[3];
-        aux1 ^= aux;
-        t[3] = aux1; }
-
-      //t[0] ^= L32(t[3]+t[2],18);
-      { aux = t[3];
-        aux1 = t[2];
-        aux = aux + aux1;
-        aux = L32(aux, 18);
-        aux1 = t[0];
-        aux1 ^= aux;
-        t[0] = aux1; }
-
-      FOR(m,4) {
-         aux = t[m];
-	 aux1 = 4*j+(j+m)%4;
-         w[aux1] = aux;
-      }
+      FOR(m,4) t[m] = x[(5*j+4*m)%16];
+      t[1] ^= L32(t[0]+t[3], 7);
+      t[2] ^= L32(t[1]+t[0], 9);
+      t[3] ^= L32(t[2]+t[1],13);
+      t[0] ^= L32(t[3]+t[2],18);
+      FOR(m,4) w[4*j+(j+m)%4] = t[m];
     }
-    //FOR(m,16) x[m] = w[m];
-    FOR(m,16) { aux = w[m]; x[m] = aux; }
+    FOR(m,16) x[m] = w[m];
   }
 
   if (h) {
-    //FOR(i,16) x[i] += y[i];
-    FOR(i,16) { aux = y[i]; aux1 = x[i]; x[i] = aux + aux1; }
-
+    FOR(i,16) x[i] += y[i];
     FOR(i,4) {
-    //  x[5*i] -= ld32(c+4*i);
-      u8_aux = c+4*i;
-      aux = ld32(u8_aux);
-      aux1 = x[5*i];
-      x[5*i] = aux1 - aux;
-
-    //  x[6+i] -= ld32(in+4*i);
-      u8_aux = in+4*i;
-      aux = ld32(u8_aux);
-      aux1 = x[6+i];
-      x[6+i] = aux1 - aux;
+      x[5*i] -= ld32(c+4*i);
+      x[6+i] -= ld32(in+4*i);
     }
-
     FOR(i,4) {
-      //st32(out+4*i,x[5*i]);
-      aux = x[5*i];
-      u8_aux = out+4*i;
-      st32(u8_aux, aux);
-
-      //st32(out+16+4*i,x[6+i]);
-      aux = x[6+i];
-      u8_aux = out+16+4*i;
-      st32(u8_aux, aux);
+      st32(out+4*i,x[5*i]);
+      st32(out+16+4*i,x[6+i]);
     }
   } else
-    //FOR(i,16) st32(out + 4 * i,x[i] + y[i]);
-    FOR(i, 16) {
-      aux = x[i];
-      aux1 = y[i];
-      aux += aux1;
-      u8_aux = out + 4 * i;
-      st32(u8_aux, aux);
-    }
+    FOR(i,16) st32(out + 4 * i,x[i] + y[i]);
 }
 
 int crypto_core_salsa20(u8 *out,const u8 *in,const u8 *k,const u8 *c)
@@ -246,26 +127,15 @@ int crypto_stream_salsa20_xor(u8 *c,const u8 *m,u64 b,const u8 *n,const u8 *k)
 {
   u8 z[16],x[64];
   u32 u,i;
-  u8 loop1aux, loop2left, loop2right, loop3left, loop3right, temp;
-
   if (!b) return 0;
   FOR(i,16) z[i] = 0;
-
-  //FOR(i,8) z[i] = n[i];
-  FOR(i,8) { loop1aux = n[i]; z[i] = loop1aux; }
-
+  FOR(i,8) z[i] = n[i];
   while (b >= 64) {
     crypto_core_salsa20(x,z,k,sigma);
-    //FOR(i,64) c[i] = (m?m[i]:0) ^ x[i];
-    FOR(i,64) { loop2left = (m!=NULL)?m[i]:0;
-                loop2right = x[i];
-                c[i] = loop2left ^ loop2right;
-    }
+    FOR(i,64) c[i] = (m?m[i]:0) ^ x[i];
     u = 1;
     for (i = 8;i < 16;++i) {
-      //u += (u32) z[i];
-      temp = z[i];
-      u += (u32) temp;
+      u += (u32) z[i];
       z[i] = u;
       u >>= 8;
     }
@@ -275,11 +145,7 @@ int crypto_stream_salsa20_xor(u8 *c,const u8 *m,u64 b,const u8 *n,const u8 *k)
   }
   if (b) {
     crypto_core_salsa20(x,z,k,sigma);
-    //FOR(i,b) c[i] = (m?m[i]:0) ^ x[i];
-    FOR(i,b) { loop3left = (m!=NULL)?m[i]:0;
-               loop3right = x[i];
-               c[i] = loop3left ^ loop3right;
-    }
+    FOR(i,b) c[i] = (m?m[i]:0) ^ x[i];
   }
   return 0;
 }
@@ -305,13 +171,9 @@ int crypto_stream_xor(u8 *c,const u8 *m,u64 d,const u8 *n,const u8 *k)
 
 sv add1305(u32 *h,const u32 *c)
 {
-  u32 aux1305;
   u32 j,u = 0;
   FOR(j,17) {
-    //u += h[j] + c[j];
-    aux1305 = h[j];
-    u += aux1305 + c[j];
-
+    u += h[j] + c[j];
     h[j] = u & 255;
     u >>= 8;
   }
