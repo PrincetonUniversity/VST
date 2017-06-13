@@ -1,0 +1,28 @@
+dist: trusty
+sudo: required
+language: ocaml
+cache:
+  apt: true
+  directories:
+  - $HOME/.opam
+addons:
+  apt:
+    packages:
+    - opam
+env:
+  global:
+  - NJOBS=4
+  # system is == 4.02.3
+  - COMPILER="system"
+
+install:
+- "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
+- eval $(opam config env)
+- opam config var root
+- opam install -j ${NJOBS} -y coq=8.6 ${EXTRA_OPAM}
+- opam list
+
+script:
+- echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
+- make -j ${NJOBS}
+- echo -en 'travis_fold:end:VST.build\\r'
