@@ -161,7 +161,16 @@ Section HybridMachine.
              (forall laddr' rmap',
                  lockRes tp laddr' = Some rmap' ->
                  permMapCoherence rmap'.1 rmap.2);
-         lockRes_valid: lr_valid (lockRes_ _ tp) (*well-formed locks*)
+         lockRes_valid: lr_valid (lockRes_ _ tp) (*well-formed locks*);
+         correct_type_source: forall i (cnti: containsThread_ _ tp i) X,
+             getThreadC cnti = Krun X ->
+             lt_op i hb ->
+             exists c, X = SState _ _ c;
+         correct_type_target: forall i (cnti: containsThread_ _ tp i) X,
+             getThreadC cnti = Krun X ->
+             ~(lt_op i hb) ->
+             exists c, X = TState _ _ c
+         
        }.
      Definition invariant := invariant'.
 
@@ -609,7 +618,7 @@ Section HybridMachine.
 
      Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
 
-     Definition initial_machine ge c :=
+     Definition initial_machine pmap c :=
        threadPool.mk
          Resources
          Sem
