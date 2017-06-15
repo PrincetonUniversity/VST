@@ -95,6 +95,25 @@ Fixpoint core_ord_list (ls1 ls2: list (option core_data)): Prop:=
     | _, _ => False
     end.
 
+Inductive condition : Prop :=
+  running | blocked | resuming | initializing .
+
+Definition get_condition {cT} (c:@ctl cT):=
+match c with
+| Krun _ => running
+| Kblocked _ => blocked
+| Kresume _ _ => resuming
+| Kinit _ _ =>  initializing
+end.
+
+Definition get_state_inside {cT} (c:@ctl cT):=
+match c with
+| Krun c => Some c
+| Kblocked c => Some c
+| Kresume c _ => Some c
+| Kinit _ _ =>  None
+end.
+
 (*This will probably need reworking*)
 Record concur_match
            (data: list (option core_data)) (j:meminj) (cstate1: C1) (m1: mem) (cstate2: C2) (m2: mem):=
@@ -131,35 +150,104 @@ Record concur_match
         nth i data None = Some d -> 
         thread_match d j code1 (restrPermMap (memcompat1 i cnti1).1) code2 (restrPermMap (memcompat2 i cnti2).1)
     ; correct_type_source1:
-        forall (i:nat) (cnti1: containsThread cstate1 i) c x,
+        forall (i:nat) (cnti1: containsThread cstate1 i) c,
           lt_op i hb1 ->
-          getThreadC cnti1 = Krun c \/
-          getThreadC cnti1 = Kblocked c \/
-          getThreadC cnti1 = Kresume c x ->
+          get_state_inside (getThreadC cnti1) = Some c ->
           exists c', c = SState _ _ c' 
     ; correct_type_target1:
-        forall (i:nat) (cnti1: containsThread cstate1 i) c x,
+        forall (i:nat) (cnti1: containsThread cstate1 i) c,
           ~ lt_op i hb1 ->
-          getThreadC cnti1 = Krun c \/
-          getThreadC cnti1 = Kblocked c \/
-          getThreadC cnti1 = Kresume c x ->
+          get_state_inside (getThreadC cnti1) = Some c ->
           exists c', c = TState _ _ c' 
     ; correct_type_source2:
-        forall (i:nat) (cnti1: containsThread cstate1 i) c x,
+        forall (i:nat) (cnti2: containsThread cstate2 i) c,
           lt_op i hb2 ->
-          getThreadC cnti1 = Krun c \/
-          getThreadC cnti1 = Kblocked c \/
-          getThreadC cnti1 = Kresume c x ->
+          get_state_inside (getThreadC cnti2) = Some c ->
           exists c', c = SState _ _ c' 
     ; correct_type_target2:
-        forall (i:nat) (cnti1: containsThread cstate1 i) c x,
+        forall (i:nat) (cnti2: containsThread cstate2 i) c,
           ~ lt_op i hb2 ->
-          getThreadC cnti1 = Krun c \/
-          getThreadC cnti1 = Kblocked c \/
-          getThreadC cnti1 = Kresume c x ->
-          exists c', c = TState _ _ c' 
-        
+          get_state_inside (getThreadC cnti2) = Some c ->
+          exists c', c = TState _ _ c'
+    ; same_condition:
+        forall (i:nat)
+          (cnti2: containsThread cstate2 i)
+          (cnti1: containsThread cstate1 i),
+          get_condition (getThreadC cnti1) =
+          get_condition (getThreadC cnti2)
   } .
+
+Lemma contains12:
+  forall data j cstate1 m1 cstate2 m2,
+  concur_match data j cstate1 m1 cstate2 m2 ->
+  forall (i:nat) (cnti1: containsThread cstate1 i),
+    containsThread cstate2 i.
+Proof.
+  unfold containsThread.
+  intros ? ? ? ? ? ? H. destruct H.
+  rewrite same_length0; auto.
+Qed.
+
+Lemma contains21:
+  forall data j cstate1 m1 cstate2 m2,
+  concur_match data j cstate1 m1 cstate2 m2 ->
+  forall (i:nat) (cnti1: containsThread cstate2 i),
+    containsThread cstate1 i.
+Proof.
+  unfold containsThread.
+  intros ? ? ? ? ? ? H. destruct H.
+  rewrite same_length0; auto.
+Qed.
+
+Lemma Krun_correct_type_source1:
+  forall data j cstate1 m1 cstate2 m2
+  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
+  forall (i:nat) (cnti1: containsThread cstate1 i) c,
+    lt_op i hb1 ->
+    getThreadC cnti1 = Krun c ->
+    exists c', c = SState _ _ c'.
+Proof.
+  intros.
+  eapply correct_type_source1; eauto.
+  erewrite H0; reflexivity.
+Qed.
+Lemma Krun_correct_type_target1:
+  forall data j cstate1 m1 cstate2 m2
+  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
+  forall (i:nat) (cnti1: containsThread cstate1 i) c,
+    ~ lt_op i hb1 ->
+    getThreadC cnti1 = Krun c ->
+    exists c', c = TState _ _ c'.
+Proof.
+  intros.
+  eapply correct_type_target1; eauto.
+  erewrite H0; reflexivity.
+Qed.
+Lemma Krun_correct_type_source2:
+  forall data j cstate1 m1 cstate2 m2
+  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
+  forall (i:nat) (cnti2: containsThread cstate2 i) c,
+    lt_op i hb2 ->
+    getThreadC cnti2 = Krun c ->
+    exists c', c = SState _ _ c'.
+Proof.
+  intros.
+  eapply correct_type_source2; eauto.
+  erewrite H0; reflexivity.
+Qed.
+
+Lemma Krun_correct_type_target2:
+  forall data j cstate1 m1 cstate2 m2
+  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
+  forall (i:nat) (cnti2: containsThread cstate2 i) c,
+    ~ lt_op i hb2 ->
+    getThreadC cnti2 = Krun c ->
+    exists c', c = TState _ _ c'.
+Proof.
+  intros.
+  eapply correct_type_target2; eauto.
+  erewrite H0; reflexivity.
+Qed.
   
   Record HybridMachine_simulation main:=
     { genv_inv : ge_inv ge ge
