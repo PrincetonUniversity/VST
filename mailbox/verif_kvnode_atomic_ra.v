@@ -1,7 +1,7 @@
 Require Import veric.rmaps.
 Require Import progs.ghost.
 Require Import mailbox.general_atomics.
-Require Import mailbox.acq_rel_atomics.
+Require Import mailbox.acq_rel_SW.
 Require Import progs.conclib.
 Require Import mailbox.maps.
 Require Import floyd.library.
@@ -392,16 +392,6 @@ Proof.
     apply derives_view_shift; entailer!.
 Qed.
 
-(* up *)
-(* simple load_acq with read assertion *)
-Definition load_acq_witness {state} l (s : state) st_ord T P Q := (l, s, st_ord, T, protocol_R l s st_ord T * P,
-  fun _ : Z => FF, @nil Z, P, fun s' (v' : Z) => protocol_R l s' st_ord T * Q s' v').
-
-(* simple load_acq with write assertion *)
-Definition load_acq_W_witness {state} l (s : state) st_ord T P Q := (l, s, st_ord, T, protocol_W l s st_ord T * P,
-  fun _ : Z => FF, @nil Z, protocol_W l s st_ord T * P,
-  fun s' (v' : Z) => !!(s' = s) && protocol_W l s st_ord T * Q s' v').
-
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_atomic_function.
@@ -491,10 +481,6 @@ Proof.
     { split; simpl; intros; rewrite !emp_sepcon; [reflexivity|].
       rewrite data_T_eq.
       view_shift_intro ver; view_shift_intros.
-      
-Axiom protocol_later : forall {state} sh l (s : state) ord Tread Tfull,
-  protocol_piece sh l s ord (|>Tread, |>Tfull) |-- |>protocol_piece sh l s ord (Tread, Tfull).
-
       rewrite sepcon_comm, <- sepcon_assoc.
       etransitivity; [apply view_shift_sepcon1, view_shift_sepcon;
         apply derives_view_shift; [apply now_later | apply protocol_later]|].
@@ -606,10 +592,6 @@ Axiom protocol_later : forall {state} sh l (s : state) ord Tread Tfull,
       rewrite In_upto in *; erewrite Znth_map, Znth_upto; rewrite ?Zlength_upto; auto; omega.
 Admitted.
 
-(* simple store_rel recovering write assertion *)
-Definition store_rel_witness {state} l (v : Z) (s s'' : state) st_ord T P Q := (l, v, s, s'', st_ord, T,
-  protocol_W l s st_ord T * P, fun _ : Z => FF, @nil Z, P, protocol_W l s'' st_ord T * Q).
-
 (* Is there any use to allowing RA atomics to interact with invariants if they can't take or leave protocol
    assertions? Possibly. *)
 (* Since the public view of the data structure has no data content (it's just the ghost state), there's no need
@@ -681,10 +663,6 @@ Proof.
       rewrite sepcon_comm; etransitivity; [apply view_shift_sepcon1, make_protocol_R|].
       apply derives_view_shift; Exists (v0 + 2).
       rewrite <- Z.add_sub_assoc; simpl; unfold protocol_W; entailer!.
-
-Axiom protocol_delay : forall {state} sh l (s : state) ord Tread Tfull,
-  protocol_piece sh l s ord (Tread, Tfull) |-- protocol_piece sh l s ord (|>Tread, |>Tfull).
-
       eapply derives_trans; [apply sepcon_derives, derives_refl; apply protocol_delay|].
       simpl; unfold protocol_R; cancel.
       admit. (* as above *) }
@@ -740,16 +718,6 @@ Axiom protocol_delay : forall {state} sh l (s : state) ord Tread Tfull,
     Exists tt L.
     rewrite Zlength_map in *; entailer!.
 Admitted.
-
-(* up *)
-Lemma list_duplicate : forall Q lP, duplicable Q ->
-  view_shift (fold_right sepcon emp lP * Q) (fold_right sepcon emp (map (sepcon Q) lP) * Q).
-Proof.
-  induction lP; simpl; intros; [reflexivity|].
-  rewrite sepcon_assoc; etransitivity; [apply view_shift_sepcon2, IHlP; auto|].
-  rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon2, H|].
-  apply derives_view_shift; cancel.
-Qed.
 
 Lemma body_make_node : semax_body Vprog Gprog f_make_node make_node_spec.
 Proof.
