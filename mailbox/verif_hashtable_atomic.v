@@ -83,6 +83,8 @@ Definition hashtable_entry T lg entries i :=
 
 Definition wf_table T := forall k i, k <> 0 -> fst (Znth i T (0, 0)) = k -> lookup T k = Some i.
 
+Existing Instance exclusive_PCM.
+
 Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   ghost (Some H) g * fold_right sepcon emp (map (fun i => hashtable_entry T lg entries i) (upto (Z.to_nat size))).
@@ -302,8 +304,6 @@ Proof.
   - destruct lg; [apply Zlength_nil_inv in H; discriminate|].
     rewrite !Zlength_cons in *; simpl.
     apply view_shift_sepcon; [apply ghost_snap_forget; auto|].
-    { intros; simpl in *.
-      exists v'; tauto. }
     apply IHkeys; omega.
 Qed.
 
@@ -697,7 +697,6 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _(ghost (Some HT) g)), !sepcon_assoc.
           etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-(* Note: we should probably make sure that we can't use two different kinds of join at the same type. *)
           { apply (@ghost_update _ _ exclusive_PCM _ (Some (map_upd HT k v))).
             intros ? (? & [[]|[]]); [subst | discriminate].
             eexists; simpl; eauto. }
@@ -1882,6 +1881,17 @@ Proof.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 5 1; apply make_inv with (Q := hashtable_inv gh g lg entries).
   { unfold hashtable_inv; Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
+  { unfold hashtable_inv.
+    apply exp_objective; intro.
+    apply sepcon_objective.
+    - unfold hashtable.
+      apply exp_objective; intro T.
+      apply sepcon_objective; [auto with objective | apply sepcon_list_objective].
+      rewrite Forall_forall; unfold hashtable_entry; intro.
+      rewrite in_map_iff; intros (i & ? & ?); subst.
+      destruct (Znth i entries (Vundef, Vundef)), (Znth i T (0, 0)).
+      unfold ghost_master; auto with objective.
+    - unfold ghost_ref; auto with objective. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
   destruct (split_readable_share Tsh) as (sh1 & sh2 & ? & ? & ?); auto.

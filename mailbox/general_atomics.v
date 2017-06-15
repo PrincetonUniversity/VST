@@ -39,7 +39,7 @@ Context {CS : compspecs}.
 Parameter objective : mpred -> Prop.
 Axiom emp_objective : objective emp.
 Axiom data_at_objective : forall sh t v p, readable_share sh -> objective (data_at sh t v p).
-Axiom ghost_objective : forall {A} (g : A) p, objective (ghost g p).
+Axiom ghost_objective : forall {A} {P : PCM A} (g : A) p, objective (ghost g p).
 Axiom prop_objective : forall P, objective (!!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
 Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
@@ -50,8 +50,6 @@ Proof.
   - apply emp_objective.
   - inv H; apply sepcon_objective; auto.
 Qed.
-Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
-  sepcon_objective sepcon_list_objective.
 
 Axiom new_inv : forall P, objective P -> view_shift (|>P) (invariant P).
 
@@ -99,8 +97,14 @@ Proof.
   apply derives_view_shift; cancel.
 Qed.
 
-Axiom invariant_duplicable : forall P, duplicable (invariant P).
-Hint Resolve invariant_duplicable : dup.
+(* Should all duplicables be of this form? *)
+Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
+
+Lemma invariant_duplicable' : forall P, duplicable (invariant P).
+Proof.
+  repeat intro; rewrite <- invariant_duplicable in *; auto.
+Qed.
+Hint Resolve invariant_duplicable' : dup.
 
 Lemma ghost_snap_duplicable : forall `{_ : PCM_order} (s : A) p, duplicable (ghost_snap s p).
 Proof.
@@ -321,7 +325,7 @@ Section atomicity.
 Definition view_shift_iff P Q := view_shift P Q /\ view_shift Q P.
 
 (* Do we need this, or the timeless view shift in atomic_shift, for soundness? *)
-Axiom ghost_timeless : forall {A} (g : A) p, view_shift (|>ghost g p) (ghost g p).
+Axiom ghost_timeless : forall {A} {P : PCM A} (g : A) p, view_shift (|>ghost g p) (ghost g p).
 
 Definition atomic_shift {A B} P (a R : A -> mpred) E (b Q : A -> B -> mpred) :=
   view_shift (|>P) P /\
@@ -507,3 +511,6 @@ Ltac start_atomic_function :=
  abbreviate_semax; simpl.
 
 Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_duplicable prop_duplicable : dup.
+
+Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
+  sepcon_objective sepcon_list_objective : objective.

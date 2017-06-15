@@ -11,10 +11,6 @@ Section Ghost.
 
 Context {CS : compspecs}.
 
-Section PCM.
-
-Context `{M : PCM}.
-
 (* This is an overapproximation of IRIS's concept of view shift. *)
 Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
   semax D (PROPx P (LOCALx Q (SEPx (B :: R)))) C P' ->
@@ -119,12 +115,17 @@ Qed.
 
 End ViewShift.
 
+(* General PCM-based ghost state *)
+
+Parameter ghost : forall {A} {P : PCM A} (g : A) (p : val), mpred.
+
+Section PCM.
+
+Context `{M : PCM}.
+
 Definition joins a b := exists c, join a b c.
 
 Definition update a b := forall c, joins a c -> joins b c.
-
-(* General PCM-based ghost state *)
-Parameter ghost : forall (g : A) (p : val), mpred.
 
 (* subject to change *)
 (* We need to make sure we can't allocate invalid ghost state (which would immediately entail False). *)
@@ -241,7 +242,7 @@ Qed.
 
 (* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
    an authoritative writer and an up-to-date invariant. *)
-(* Does this generalize both ghost_var and master-snapshot? *)
+(* This generalizes both ghost_var and master-snapshot. *)
 
 Global Instance snap_PCM : PCM (share * A) :=
   { join a b c := sepalg.join (fst a) (fst b) (fst c) /\
@@ -387,6 +388,35 @@ Proof.
   apply ghost_snap_forget; eauto.
 Qed.
 
+Lemma master_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
+  ghost (sh1, v) p * ghost (sh2, v) p = ghost (sh, v) p.
+Proof.
+  intros; apply ghost_join; simpl; split; auto.
+  if_tac; if_tac; try split; auto; try apply ord_refl; apply join_refl.
+Qed.
+
+Lemma master_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  ghost (sh1, v1) p * ghost (sh2, v2) p |-- !!(v1 = v2).
+Proof.
+  intros.
+  eapply derives_trans; [apply ghost_conflict|].
+  apply prop_left; intros ((?, ?) & Hj); simpl in Hj.
+  destruct (eq_dec sh1 Share.bot); [subst; contradiction unreadable_bot|].
+  destruct (eq_dec sh2 Share.bot); [subst; contradiction unreadable_bot|].
+  destruct Hj as [? []]; subst; apply prop_right; auto.
+Qed.
+
+Lemma master_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  ghost (sh1, v1) p * ghost (sh2, v2) p = !!(v1 = v2) && ghost (sh, v2) p.
+Proof.
+  intros; apply mpred_ext.
+  - assert_PROP (v1 = v2) by (apply master_inj; auto).
+    subst; erewrite master_share_join; eauto; entailer!.
+  - Intros; subst.
+    erewrite master_share_join; eauto.
+Qed.
+
 (* useful when we only want to deal with full masters *)
 Definition ghost_master (a : A) p := ghost (Tsh, a) p.
 
@@ -429,30 +459,20 @@ Definition ghost_var (sh : share) (v : A) p := ghost (sh, v) p.
 Lemma ghost_var_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   ghost_var sh1 v p * ghost_var sh2 v p = ghost_var sh v p.
 Proof.
-  intros; apply ghost_join; simpl; split; auto.
-  if_tac; if_tac; auto.
+  apply master_share_join.
 Qed.
 
 Lemma ghost_var_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   ghost_var sh1 v1 p * ghost_var sh2 v2 p |-- !!(v1 = v2).
 Proof.
-  intros.
-  eapply derives_trans; [apply ghost_conflict|].
-  apply prop_left; intros ((?, ?) & Hj); simpl in Hj.
-  destruct (eq_dec sh1 Share.bot); [subst; contradiction unreadable_bot|].
-  destruct (eq_dec sh2 Share.bot); [subst; contradiction unreadable_bot|].
-  destruct Hj as [? []]; subst; apply prop_right; auto.
+  apply master_inj.
 Qed.
 
 Lemma ghost_var_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->
   ghost_var sh1 v1 p * ghost_var sh2 v2 p = !!(v1 = v2) && ghost_var sh v2 p.
 Proof.
-  intros; apply mpred_ext.
-  - assert_PROP (v1 = v2) by (apply ghost_var_inj; auto).
-    subst; erewrite ghost_var_share_join; eauto; entailer!.
-  - Intros; subst.
-    erewrite ghost_var_share_join; eauto.
+  apply master_share_join'.
 Qed.
 
 Lemma ghost_var_update : forall v p v', view_shift (ghost_var Tsh v p) (ghost_var Tsh v' p).
@@ -462,8 +482,8 @@ Qed.
 
 Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
 Proof.
-  intros; eapply derives_precise, ex_ghost_precise.
-  intros ? (x & ?); exists (sh, x); eauto.
+  intros; apply derives_precise' with (EX g : share * A, ghost g p), ex_ghost_precise.
+  Intro v; Exists (sh, v); auto.
 Qed.
 
 Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).

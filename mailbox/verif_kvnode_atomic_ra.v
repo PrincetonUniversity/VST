@@ -1,7 +1,6 @@
 Require Import veric.rmaps.
 Require Import progs.ghost.
-Require Import mailbox.general_atomics.
-Require Import mailbox.acq_rel_SW.
+From mailbox Require Import general_atomics acq_rel_atomics acq_rel_SW.
 Require Import progs.conclib.
 Require Import mailbox.maps.
 Require Import floyd.library.
@@ -49,6 +48,11 @@ Qed.
 (* This is a bit messy to allow the mutually recursive protocol interpretations. *)
 Definition data_T' version version_T s (v : Z) := EX ver : Z, !!(Z.even ver = true /\ log_latest s ver v) &&
   protocol_R version (ver - 1) Z.le (version_T, version_T).
+
+Existing Instance max_PCM.
+Existing Instance max_order.
+Existing Instance fmap_PCM.
+Existing Instance fmap_order.
 
 Definition version_T_fun version locs g : (Z * Z -> mpred) -> (Z * Z -> mpred) :=
   fun R '(s, v) => !!(v = s) && EX L : _,
@@ -110,18 +114,6 @@ Lemma data_T_eq version locs g s v : data_T version locs g s v =
   EX ver : Z, !!(Z.even ver = true /\ log_latest s ver v) &&
     protocol_R version (ver - 1) Z.le (|>version_T version locs g, |>version_T version locs g).
 Proof. auto. Qed.
-
-(* up *)
-Global Instance dup_protocol {state} (T : state -> Z -> mpred) (Ht : forall s v, duplicable (T s v)) :
-  protocol T T.
-Proof.
-  split; auto.
-Qed.
-
-Existing Instance max_PCM.
-Existing Instance max_order.
-Existing Instance fmap_PCM.
-Existing Instance fmap_order.
 
 Lemma data_T_duplicable : forall version locs g s v, duplicable (data_T version locs g s v).
 Proof.
@@ -199,6 +191,9 @@ Proof.
   intros ?? w; decompose [prod] w; auto.
 Qed.
 
+(* Because the "actual state" of the structure is divided between the writer and the invariant, a writer can
+   make arbitrary updates to the ghost state and the data (without calling write). However, the protocols and the
+   PCM constrain the nature of those updates to the sort of changes we'd expect anyway. *)
 Program Definition write_spec := DECLARE _write atomic_spec
   (ConstType (val * val * share * share * val * list val * list Z * val * (Z -> option (list Z)) * Z))
   (@empty_map Z (list Z)) [(_n, tptr tnode); (_in, tptr tint)] tvoid
@@ -685,7 +680,7 @@ Proof.
       + rewrite <- !sepcon_assoc, 2sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
         view_shift_intro L1.
         rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ _)), <- !sepcon_assoc.
-        rewrite (sepcon_comm (ghost _ _)); setoid_rewrite ghost_var_share_join'; eauto.
+        erewrite (sepcon_comm (ghost _ _)), master_share_join' by eauto.
         apply derives_view_shift; entailer!.
       + intros; simpl.
         rewrite !sepcon_assoc, (sepcon_comm (version_T _ _ _ (v0 + 2) _)).
@@ -707,12 +702,11 @@ Proof.
         { apply view_shift_sepcon1; etransitivity.
           * apply master_update with (v' := map_upd L (v0 + 2) vals); auto.
           * apply make_snap. }
-        fold (ghost_var Tsh (map_upd L (v0 + 2) vals) g).
-        erewrite <- ghost_var_share_join by eauto.
+        erewrite <- master_share_join by eauto.
         apply derives_view_shift; Exists (map_upd L (v0 + 2) vals).
         rewrite Zlength_map in *; rewrite sepcon_map.
         rewrite Z.even_add; replace (Z.even v0) with true; simpl.
-        unfold ghost_var, node_state; entailer!.
+        unfold node_state, protocol_W; entailer!.
         split; eauto. }
     forward.
     Exists tt L.
@@ -768,11 +762,10 @@ Proof.
       simpl; apply protocol_delay. }
     gather_SEP 2 1; apply protocol_R_absorb; auto; Intros.
     forward.
-    fold (ghost_var Tsh (singleton 0 (repeat 0 (Z.to_nat size))) g);
-      erewrite <- ghost_var_share_join by eauto.
+    erewrite <- master_share_join by eauto.
     unfold node_state.
     rewrite <- size_def in *.
-    Exists n p ld g; unfold protocol_W, ghost_var, share; simpl; entailer!.
+    Exists n p ld g; unfold protocol_W, share; simpl; entailer!.
     setoid_rewrite (list_Znth_eq Vundef ld) at 3.
     rewrite map_map, <- ZtoNat_Zlength; replace (Zlength ld) with size.
     erewrite map_ext_in; eauto; intros; simpl.
@@ -928,13 +921,6 @@ Proof.
     { transitivity (map_Znth i L 0); [|destruct (Z.even v); auto; subst; reflexivity].
       apply map_incl_Znth; auto. }
 Qed.*)
-
-(* up *)
-Lemma map_add_single : forall {A B} {A_eq : EqDec A} (m : A -> option B) k v,
-  map_add (singleton k v) m = map_upd m k v.
-Proof.
-  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
-Qed.
 
 Lemma node_state_upd : forall L v v' vs' version locs g (Hv' : v <= v') (Hvs' : Zlength vs' = size)
   (Hcompat : v' = v -> L v' = Some vs'),

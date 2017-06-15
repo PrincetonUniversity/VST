@@ -6,7 +6,9 @@ Section Maps.
 
 Context {A B : Type} {A_eq : EqDec A}.
 
-Definition map_upd (H : A -> option B) k v k' := if eq_dec k' k then Some v else H k'.
+Implicit Types (k : A) (v : B) (m : A -> option B).
+
+Definition map_upd m k v k' := if eq_dec k' k then Some v else m k'.
 
 Lemma map_upd_triv : forall m k v, m k = Some v -> map_upd m k v = m.
 Proof.
@@ -14,19 +16,19 @@ Proof.
   if_tac; subst; auto.
 Qed.
 
-Fixpoint map_upd_list (m : A -> option B) l :=
+Fixpoint map_upd_list m l :=
   match l with
   | [] => m
   | (k, v) :: rest => map_upd_list (map_upd m k v) rest
   end.
 
-Definition map_add (m1 m2 : A -> option B) v := match m1 v with Some v' => Some v' | None => m2 v end.
+Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
-Definition empty_map (k : A) : option B := None.
+Definition empty_map k : option B := None.
 
-Definition singleton v1 (v2 : B) (v : A) := if eq_dec v v1 then Some v2 else None.
+Definition singleton k v k1 := if eq_dec k1 k then Some v else None.
 
-Definition map_incl (a b : A -> option B) := forall v1 v2, a v1 = Some v2 -> b v1 = Some v2.
+Definition map_incl m1 m2 := forall k v, m1 k = Some v -> m2 k = Some v.
 
 Global Instance map_incl_refl : Reflexive map_incl.
 Proof.
@@ -49,10 +51,10 @@ Qed.
 Lemma map_add_incl_compat : forall m1 m2 m3, map_incl m1 m2 -> map_incl (map_add m3 m1) (map_add m3 m2).
 Proof.
   unfold map_add; repeat intro.
-  destruct (m3 v1); auto.
+  destruct (m3 k); auto.
 Qed.
 
-Definition compatible (m1 m2 : A -> option B) := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
+Definition compatible m1 m2 := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
 
 Instance compatible_comm : Symmetric compatible.
 Proof.
@@ -66,25 +68,25 @@ Proof.
   destruct (m1 x) eqn: Hm1, (m2 x) eqn: Hm2; eauto.
 Qed.
 
-Instance fmap_PCM : PCM (A -> option B) := { join a b c :=
-  forall v1 v2, c v1 = Some v2 <-> a v1 = Some v2 \/ b v1 = Some v2 }.
+Instance fmap_PCM : PCM (A -> option B) :=
+  { join a b c := forall k v, c k = Some v <-> a k = Some v \/ b k = Some v }.
 Proof.
   - intros.
     rewrite Hjoin; tauto.
   - intros.
-    exists (fun v => match b v with Some v' => Some v' | None => d v end).
-    assert (forall v v1 v2, b v = Some v1 -> d v = Some v2 -> v1 = v2) as Hbd.
+    exists (fun k => match b k with Some v' => Some v' | None => d k end).
+    assert (forall k v1 v2, b k = Some v1 -> d k = Some v2 -> v1 = v2) as Hbd.
     { intros ??? Hb Hd.
-      specialize (Hjoin1 v v1).
+      specialize (Hjoin1 k v1).
       destruct Hjoin1 as (_ & Hc); lapply Hc; auto; intro Hc'.
-      generalize (Hjoin2 v v1); intros (_ & He); lapply He; auto; intro He1.
-      specialize (Hjoin2 v v2); destruct Hjoin2 as (_ & Hjoin2); lapply Hjoin2; auto; intro He2.
+      generalize (Hjoin2 k v1); intros (_ & He); lapply He; auto; intro He1.
+      specialize (Hjoin2 k v2); destruct Hjoin2 as (_ & Hjoin2); lapply Hjoin2; auto; intro He2.
       rewrite He1 in He2; inv He2; auto. }
-    split; intros; specialize (Hjoin1 v1 v2); specialize (Hjoin2 v1 v2).
-    + destruct (b v1) eqn: Hb; split; auto; intros [|]; auto; try discriminate.
+    split; intros; specialize (Hjoin1 k v); specialize (Hjoin2 k v).
+    + destruct (b k) eqn: Hb; split; auto; intros [|]; auto; try discriminate.
       exploit Hbd; eauto.
     + rewrite Hjoin2, Hjoin1.
-      destruct (b v1) eqn: Hb; split; auto; intros [|]; auto.
+      destruct (b k) eqn: Hb; split; auto; intros [|]; auto.
       * specialize (Hbd _ _ _ Hb H); subst; auto.
       * destruct H; auto; discriminate.
 Defined.
@@ -103,7 +105,7 @@ Proof.
       destruct (m3 x) eqn: Hm3; auto.
       rewrite H in Hm3; destruct Hm3 as [Hm3 | Hm3]; rewrite Hm3 in *; discriminate.
   - destruct H as [Hcompat]; subst; unfold map_add.
-    destruct (m1 v1) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
+    destruct (m1 k) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
 Qed.
 
 Instance fmap_order : PCM_order map_incl.
@@ -112,12 +114,12 @@ Proof.
   - apply map_incl_refl.
   - apply map_incl_trans.
   - intros ??? Ha Hb; exists (map_add a b); split; simpl.
-    + intros; unfold map_add; destruct (a v1) eqn: Hv1; split; auto; intros [|]; auto; try discriminate.
-      specialize (Ha _ _ Hv1); specialize (Hb _ _ H); rewrite Ha in Hb; auto.
+    + intros; unfold map_add; destruct (a k) eqn: Hk; split; auto; intros [|]; auto; try discriminate.
+      specialize (Ha _ _ Hk); specialize (Hb _ _ H); rewrite Ha in Hb; auto.
     + unfold map_add; intros ???.
-      destruct (a v1) eqn: Hv1; auto.
+      destruct (a k) eqn: Hk; auto.
       inv H; auto.
-  - split; repeat intro; specialize (H v1 v2); rewrite H; auto.
+  - split; repeat intro; specialize (H k v); rewrite H; auto.
   - split; auto; intros [|]; auto.
 Defined.
 
@@ -132,15 +134,13 @@ Proof.
     rewrite map_join_spec; entailer!.
 Qed.
 
-Lemma map_upd_list_app : forall l1 l2 (m : A -> option B),
-  map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
+Lemma map_upd_list_app : forall l1 l2 m, map_upd_list m (l1 ++ l2) = map_upd_list (map_upd_list m l1) l2.
 Proof.
   induction l1; auto; simpl; intros.
   destruct a; auto.
 Qed.
 
-Lemma map_upd_list_out : forall l (m : A -> option B) k,
-  m k = None -> ~In k (map fst l) -> map_upd_list m l k = None.
+Lemma map_upd_list_out : forall l m k, m k = None -> ~In k (map fst l) -> map_upd_list m l k = None.
 Proof.
   induction l; auto; simpl; intros.
   destruct a; apply IHl.
@@ -154,8 +154,8 @@ Proof.
   repeat intro; eauto.
 Qed.
 
-Lemma map_join_incl_compat : forall (m1 m2 m' m'' : A -> option B)
-  (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''), exists m, join m1 m' m /\ map_incl m m''.
+Lemma map_join_incl_compat : forall m1 m2 m' m'' (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''),
+  exists m, join m1 m' m /\ map_incl m m''.
 Proof.
   intros; apply join_comm in Hjoin.
   rewrite map_join_spec in Hjoin; destruct Hjoin as [Hjoin]; subst.
@@ -165,30 +165,34 @@ Proof.
   rewrite <- map_add_comm; auto.
 Qed.
 
-Lemma map_add_empty : forall (m : A -> option B), map_add m empty_map = m.
+Lemma map_add_empty : forall m, map_add m empty_map = m.
 Proof.
   intros; extensionality; unfold map_add, empty_map.
   destruct (m x); auto.
 Qed.
 
-Lemma map_add_assoc : forall (m1 m2 m3 : A -> option B),
-  map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
+Lemma map_add_assoc : forall m1 m2 m3, map_add (map_add m1 m2) m3 = map_add m1 (map_add m2 m3).
 Proof.
   intros; extensionality; unfold map_add.
   destruct (m1 x); auto.
 Qed.
 
-Lemma map_incl_add : forall (m1 m2 : A -> option B), map_incl m1 (map_add m1 m2).
+Lemma map_incl_add : forall m1 m2, map_incl m1 (map_add m1 m2).
 Proof.
   repeat intro; unfold map_add.
   rewrite H; auto.
 Qed.
 
-Lemma map_upd_incl : forall (m1 m2 : A -> option B) k v, map_incl m1 m2 ->
+Lemma map_upd_incl : forall m1 m2 k v, map_incl m1 m2 ->
   m2 k = Some v -> map_incl (map_upd m1 k v) m2.
 Proof.
   unfold map_upd; repeat intro.
-  destruct (eq_dec v1 k); [congruence | auto].
+  destruct (eq_dec k0 k); [congruence | auto].
+Qed.
+
+Lemma map_add_single : forall m k v, map_add (singleton k v) m = map_upd m k v.
+Proof.
+  intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
 Qed.
 
 End Maps.
@@ -241,7 +245,7 @@ Lemma map_incl_Znth : forall (m1 m2 : A -> option (list B)) i d, map_incl m1 m2 
   map_incl (map_Znth i m1 d) (map_Znth i m2 d).
 Proof.
   unfold map_Znth; repeat intro.
-  destruct (m1 v1) eqn: Hm1; [|discriminate].
+  destruct (m1 k) eqn: Hm1; [|discriminate].
   rewrite (H _ _ Hm1); auto.
 Qed.
 
