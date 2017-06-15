@@ -19,6 +19,12 @@ Context {state : Type}.
 Class protocol {state : Type} (Iread Ifull : state -> Z -> mpred) :=
   { full_read s v : view_shift (Ifull s v) (Ifull s v * Iread s v); read_dup s v : duplicable (Iread s v) }.
 
+Global Instance dup_protocol {state} (T : state -> Z -> mpred) (Ht : forall s v, duplicable (T s v)) :
+  protocol T T.
+Proof.
+  split; auto.
+Qed.
+
 Parameter protocol_A : val -> state -> (state -> state -> Prop) ->
   ((state -> Z -> mpred) * (state -> Z -> mpred)) -> mpred.
 
@@ -197,24 +203,24 @@ Proof.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
-Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
-  (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0)))
+Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+  (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0)))) Mpred)
-  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) Mpred) Mpred) (PredType (DependentType 0)))
-  (PredType (DependentType 0)).
+  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) Mpred) (ArrowType (DependentType 0) Mpred))
+  (PredType (DependentType 0))) (PredType (DependentType 0)).
 
 Program Definition CAS_RA_spec := TYPE CRA_type
-  WITH l : val, c : Z, v : Z, s : _, s'' : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
-       P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q' : mpred, R' : _ -> Z -> mpred, Q : _ -> Z -> mpred
+  WITH l : val, c : Z, v : Z, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
+       P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q' : _ -> mpred, R' : _ -> Z -> mpred, Q : _ -> Z -> mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v;
          view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
                     (protocol_A l s st_ord T * P');
          forall s', st_ord s s' ->
-           view_shift (P' * snd T s' c) (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q');
+           view_shift (P' * snd T s' c) (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q' s'');
          forall s' v', repable_signed v' -> v' <> c -> st_ord s' s -> view_shift (P' * fst T s' v') (R' s' v');
          forall s' v', repable_signed v' -> st_ord s s' ->
-           view_shift (protocol_A l s' st_ord T * (if eq_dec v' c then Q' else R' s' v'))
+           view_shift (protocol_A l s' st_ord T * (if eq_dec v' c then Q' s' else R' s' v'))
                       (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s' v'))
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
@@ -226,7 +232,7 @@ Program Definition CAS_RA_spec := TYPE CRA_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((((((?, ?), ?), s), ?), ?), (?, ?)), ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((((((?, ?), ?), s), ?), (?, ?)), ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx; simpl; rewrite !approx_andp; f_equal.
   - rewrite !prop_and, !approx_andp; do 2 apply f_equal; f_equal; [|f_equal; [|f_equal]].
     + rewrite view_shift_super_non_expansive.
@@ -268,7 +274,7 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality v'.
   rewrite !approx_exp; apply f_equal; extensionality s'.
   unfold PROPx; simpl; rewrite !approx_andp; f_equal.
@@ -281,10 +287,12 @@ Qed.
 End atomics.
 
 (* Witnesses for common use cases *)
-(* simple load_acq *)
 Definition load_acq_witness {state} l (s : state) st_ord T P Q := (l, s, st_ord, T, protocol_A l s st_ord T * P,
   fun _ : Z => FF, @nil Z, P, fun s' (v' : Z) => protocol_A l s' st_ord T * Q s' v').
 
-(* simple store_rel *)
 Definition store_rel_witness {state} l (v : Z) (s s'' : state) st_ord T P Q := (l, v, s, s'', st_ord, T,
   protocol_A l s st_ord T * P, fun _ : Z => FF, @nil Z, P, protocol_A l s'' st_ord T * Q).
+
+Definition CAS_RA_witness {state} l (c v : Z) (s s'' : state) st_ord T P Q R := (l, c, v, s, s'', st_ord, T,
+  protocol_A l s st_ord T * P, fun _ : Z => FF, @nil Z, P, Q, R,
+  fun s' v' => protocol_A l s' st_ord T * (if eq_dec v' c then Q else R s' v')).

@@ -19,9 +19,9 @@ Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition load_SC_spec := DECLARE _load_SC load_SC_spec.
-Definition store_SC_spec := DECLARE _store_SC store_SC_spec.
-Definition CAS_SC_spec := DECLARE _CAS_SC CAS_SC_spec.
+Definition load_acq_spec := DECLARE _load_acq load_acq_spec.
+Definition store_rel_spec := DECLARE _store_rel store_rel_spec.
+Definition CAS_RA_spec := DECLARE _CAS_RA CAS_RA_spec.
 
 Definition surely_malloc_spec :=
  DECLARE _surely_malloc
@@ -67,9 +67,11 @@ Proof.
     exists e; destruct Hjoin1 as [[|][|]], Hjoin2 as [[|][|]]; subst; auto.
 Defined.
 
-Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
+Definition zero_ord a b := a = 0 \/ a = b.
+
+Instance zero_order : PCM_order zero_ord.
 Proof.
-  constructor; simpl; intros.
+  unfold zero_ord; constructor; simpl; intros.
   - intro; auto.
   - intros ???[|][|]; subst; auto.
   - eauto.
@@ -77,31 +79,109 @@ Proof.
   - auto.
 Defined.
 
-Definition hashtable_entry T lg entries i :=
+Definition id_T (s v : Z) := !!(s = v) && emp.
+
+Instance id_prot : protocol id_T id_T.
+Proof.
+  apply dup_protocol; intros.
+  unfold id_T; auto with dup.
+Qed.
+
+Notation k_state l s := (protocol_A l s zero_ord (id_T, id_T)).
+
+(* In order to be able to write to the value, we need to have every non-zero value be a final state. *)
+Instance nonzero_PCM : PCM Z := { join a b c := c = 0 -> a = 0 /\ b = 0 }.
+Proof.
+  - intros; tauto.
+  - intros.
+    exists e; tauto.
+Defined.
+
+Definition nonzero_ord a b := b = 0 -> a = 0.
+
+Instance nonzero_order : PCM_order nonzero_ord.
+Proof.
+  unfold nonzero_ord; constructor; simpl; intros.
+  - intro; auto.
+  - intros; auto.
+  - exists c; auto.
+  - tauto.
+  - tauto.
+Defined.
+
+Notation v_state l s := (protocol_A l s nonzero_ord (id_T, id_T)).
+
+Definition hashtable_entry T entries i :=
   let '(pk, pv) := Znth i entries (Vundef, Vundef) in let '(ki, vi) := Znth i T (0, 0) in
-  !!(repable_signed ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) && ghost_master ki (Znth i lg Vundef) *
-  data_at Tsh tint (vint ki) pk * data_at Tsh tint (vint vi) pv.
+  k_state pk ki * v_state pv vi.
 
 Definition wf_table T := forall k i, k <> 0 -> fst (Znth i T (0, 0)) = k -> lookup T k = Some i.
 
-Definition hashtable H g lg entries := EX T : list (Z * Z),
+(* The hashtable PCM and order constrain the possible updates: values may be added and updated, but existing
+   keys are never removed. *)
+Instance hashtable_PCM : PCM (Z -> option Z) :=
+  { join a b c := forall k, (c k = a k \/ c k = b k) /\ (c k = None -> a k = None /\ b k = None) }.
+Proof.
+  - intros.
+    specialize (Hjoin k); tauto.
+  - intros.
+    exists (fun k => if eq_dec (e k) (d k) then d k else match b k with Some _ => b k | None => d k end).
+    split; intro.
+    + split; [if_tac; destruct (b k); auto|].
+      destruct (Hjoin2 k) as (? & Hnone).
+      destruct (eq_dec _ _) as [e1 | n1].
+      * split; auto.
+        destruct Hnone; [rewrite e1; auto|].
+        destruct (Hjoin1 k) as (? & ? & ?); auto.
+      * destruct (b k); [discriminate | auto].
+    + destruct (Hjoin2 k) as (He & Hnone).
+      split.
+      * if_tac; auto.
+        destruct He as [He|]; [|contradiction].
+        rewrite He; specialize (Hjoin1 k); destruct (b k); [tauto|].
+        destruct Hjoin1 as ([| ->] & Hnone'); auto.
+        destruct Hnone' as [->]; auto.
+      * intro He'; destruct (Hjoin2 k) as (? & ? & ->); auto.
+        destruct (Hjoin1 k) as (? & -> & Hb'); auto.
+        rewrite He'; auto.
+Defined.
+
+Definition hashtable_ord (H1 H2 : Z -> option Z) := forall k, H2 k = None -> H1 k = None.
+
+Instance hashtable_order : PCM_order hashtable_ord.
+Proof.
+  unfold hashtable_ord; constructor; simpl.
+  - intro; auto.
+  - intro; auto.
+  - intros ??? Ha Hb.
+    exists (map_add a b); unfold map_add; split; intro.
+    + destruct (a k); split; auto; discriminate.
+    + intro; rewrite Ha, Hb; auto.
+  - intros.
+    split; intros; apply H; auto.
+  - auto.
+Defined.
+
+Definition hashtable H g entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
-  ghost (Some H) g * fold_right sepcon emp (map (fun i => hashtable_entry T lg entries i) (upto (Z.to_nat size))).
+  ghost_snap H g * fold_right sepcon emp (map (fun i => hashtable_entry T entries i) (upto (Z.to_nat size))).
+
+Existing Instance exclusive_PCM.
 
 Program Definition set_item_spec := DECLARE _set_item atomic_spec
-  (ConstType (Z * Z * val * share * list (val * val) * val * list val)) empty_map
+  (ConstType (Z * Z * val * share * list (val * val) * val * (Z -> option Z))) empty_map
   [(_key, tint); (_value, tint)] tvoid
-  [fun _ '(k, v, p, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, v, p, sh, entries, g, lg) => temp _value (vint v);
-   fun _ '(k, v, p, sh, entries, g, lg) => gvar _m_entries p]
-  (fun _ '(k, v, p, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
-   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, v, p, sh, entries, g, lg) H => hashtable H g lg entries)
+  [fun _ '(k, v, p, sh, entries, g, H0) => temp _key (vint k);
+   fun _ '(k, v, p, sh, entries, g, H0) => temp _value (vint v);
+   fun _ '(k, v, p, sh, entries, g, H0) => gvar _m_entries p]
+  (fun _ '(k, v, p, sh, entries, g, H0) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
+   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries) &&
+   data_at sh (tarray tentry size) entries p * hashtable H0 g entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H => ghost_master H g)
   tt []
-  (fun _ '(k, v, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
-   fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, v, p, sh, entries, g, lg) H _ => hashtable (map_upd H k v) g lg entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H _ => @data_at CompSpecs sh (tarray tentry size) entries p *
+   hashtable (map_upd H k v) g entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H _ => ghost_master (map_upd H k v) g)
   _ _ _ _ _ _.
 Next Obligation.
 Proof.
@@ -128,21 +208,19 @@ Proof.
   intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
 Qed.
 
-(* Read the most recently written value. *)
 Program Definition get_item_spec := DECLARE _get_item atomic_spec
-  (ConstType (Z * val * share * list (val * val) * val * list val)) empty_map
+  (ConstType (Z * val * share * list (val * val) * val * (Z -> option Z))) empty_map
   [(_key, tint)] tint
-  [fun _ '(k, p, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, p, sh, entries, g, lg) => gvar _m_entries p]
-  (fun _ '(k, p, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ k <> 0 /\
-   Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, p, sh, entries, g, lg) H => hashtable H g lg entries)
+  [fun _ '(k, p, sh, entries, g, H0) => temp _key (vint k);
+   fun _ '(k, p, sh, entries, g, H0) => gvar _m_entries p]
+  (fun _ '(k, p, sh, entries, g, H0) => !!(readable_share sh /\ repable_signed k /\ k <> 0 /\
+   Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries) &&
+   data_at sh (tarray tentry size) entries p * hashtable H0 g entries)
+  (fun _ '(k, p, sh, entries, g, H0) H => ghost_master H g)
   0 [fun _ _ v => temp ret_temp (vint v)]
-  (fun _ '(k, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
-   fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, p, sh, entries, g, lg) H v => !!(if eq_dec v 0 then H k = None else H k = Some v) &&
-   hashtable H g lg entries)
+  (fun _ '(k, p, sh, entries, g, H0) H _ => data_at sh (tarray tentry size) entries p * hashtable H g entries)
+  (fun _ '(k, p, sh, entries, g, H0) H v => !!(if eq_dec v 0 then H k = None else H k = Some v) &&
+   ghost_master H g)
   _ _ _ _ _ _.
 Next Obligation.
 Proof.
@@ -170,20 +248,20 @@ Proof.
 Qed.
 
 Program Definition add_item_spec := DECLARE _add_item atomic_spec
-  (ConstType (Z * Z * val * share * list (val * val) * val * list val)) empty_map
+  (ConstType (Z * Z * val * share * list (val * val) * val * (Z -> option Z))) empty_map
   [(_key, tint); (_value, tint)] tint
-  [fun _ '(k, v, p, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, v, p, sh, entries, g, lg) => temp _value (vint v);
-   fun _ '(k, v, p, sh, entries, g, lg) => gvar _m_entries p]
-  (fun _ '(k, v, p, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
-   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, v, p, sh, entries, g, lg) H => hashtable H g lg entries)
+  [fun _ '(k, v, p, sh, entries, g, H0) => temp _key (vint k);
+   fun _ '(k, v, p, sh, entries, g, H0) => temp _value (vint v);
+   fun _ '(k, v, p, sh, entries, g, H0) => gvar _m_entries p]
+  (fun _ '(k, v, p, sh, entries, g, H0) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
+   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries) &&
+   data_at sh (tarray tentry size) entries p * hashtable H0 g entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H => ghost_master H g)
   true [fun _ _ b => temp ret_temp (Val.of_bool b)]
-  (fun _ '(k, v, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
-   fold_right sepcon emp (map (ghost_snap 0) lg))
-  (fun _ '(k, v, p, sh, entries, g, lg) H b => !!(H k = None <-> b = true) &&
-   hashtable (if b then map_upd H k v else H) g lg entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H b => data_at sh (tarray tentry size) entries p *
+   hashtable (if b then map_upd H k v else H) g entries)
+  (fun _ '(k, v, p, sh, entries, g, H0) H b => !!(H k = None <-> b = true) &&
+   ghost_master (if b then map_upd H k v else H) g)
   _ _ _ _ _ _.
 Next Obligation.
 Proof.
@@ -218,12 +296,12 @@ Definition init_table_spec :=
    LOCAL (gvar _m_entries p)
    SEP (data_at_ Ews (tarray tentry size) p)
   POST [ tvoid ]
-   EX entries : list (val * val), EX g : val, EX lg : list val,
-   PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
+   EX entries : list (val * val), EX g : val,
+   PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries)
    LOCAL ()
    SEP (data_at Ews (tarray tentry size) entries p; fold_right sepcon emp (map (fun '(pk, pv) =>
           malloc_token Tsh (sizeof tint) pk * malloc_token Tsh (sizeof tint) pv) entries);
-        fold_right sepcon emp (map (ghost_snap 0) lg); hashtable empty_map g lg entries).
+        ghost_master empty_map g; hashtable empty_map g entries).
 
 (* Can we use this to relate atomicity to linearizability? *)
 Inductive hashtable_hist_el :=
@@ -241,37 +319,37 @@ Fixpoint apply_hist H h :=
                         | Some _ => if r then None else apply_hist H h' end
   end.
 
-Definition hashtable_inv gh g lg entries := EX H : _, hashtable H g lg entries *
+Definition hashtable_inv gh g := EX H : _, ghost_master H g *
   EX hr : _, !!(apply_hist empty_map hr = Some H) && ghost_ref hr gh.
 
-Definition f_lock_inv sh gsh entries gh g lg p t locksp lockt resultsp res :=
+Definition f_lock_inv sh gsh entries gh g p t locksp lockt resultsp res :=
   EX b1 : bool, EX b2 : bool, EX b3 : bool, EX h : _,
     !!(add_events [] [HAdd 1 1 b1; HAdd 2 1 b2; HAdd 3 1 b3] h) && ghost_hist gsh h gh *
     data_at sh (tarray tentry size) entries p *
-    invariant (hashtable_inv gh g lg entries) * fold_right sepcon emp (map (ghost_snap 0) lg) *
+    invariant (hashtable_inv gh g) * (EX H' : _, hashtable H' g entries) *
     data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
     data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
     data_at Tsh tint (vint (Zlength (filter id [b1; b2; b3]))) res.
 
-Definition f_lock_pred tsh sh gsh entries gh g lg p t locksp lockt resultsp res :=
-  selflock (f_lock_inv sh gsh entries gh g lg p t locksp lockt resultsp res) tsh lockt.
+Definition f_lock_pred tsh sh gsh entries gh g p t locksp lockt resultsp res :=
+  selflock (f_lock_inv sh gsh entries gh g p t locksp lockt resultsp res) tsh lockt.
 
 Definition f_spec :=
  DECLARE _f
-  WITH tid : val, x : share * share * share * list (val * val) * val * val * list val * val * Z * val *
+  WITH tid : val, x : share * share * share * list (val * val) * val * val * val * Z * val *
                       val * val * val
   PRE [ _arg OF (tptr tvoid) ]
-   let '(sh, gsh, tsh, entries, gh, g, lg, p, t, locksp, lockt, resultsp, res) := x in
+   let '(sh, gsh, tsh, entries, gh, g, p, t, locksp, lockt, resultsp, res) := x in
    PROP (0 <= t < 3; isptr lockt; readable_share sh; readable_share tsh; gsh <> Share.bot;
-         Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
+         Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries)
    LOCAL (temp _arg tid; gvar _m_entries p; gvar _thread_locks locksp; gvar _results resultsp)
-   SEP (data_at sh (tarray tentry size) entries p; invariant (hashtable_inv gh g lg entries);
-        fold_right sepcon emp (map (ghost_snap 0) lg); ghost_hist gsh ([] : hist) gh;
+   SEP (data_at sh (tarray tentry size) entries p; invariant (hashtable_inv gh g);
+        hashtable empty_map g entries; ghost_hist gsh ([] : hist) gh;
         data_at Tsh tint (vint t) tid; malloc_token Tsh (sizeof tint) tid;
         data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp;
         data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp;
         data_at_ Tsh tint res;
-        lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh g lg p t locksp lockt resultsp res))
+        lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh g p t locksp lockt resultsp res))
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
 
 Definition main_spec :=
@@ -281,7 +359,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog [] u.
 
 Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
-  release2_spec; spawn_spec; surely_malloc_spec; load_SC_spec; store_SC_spec; CAS_SC_spec;
+  release2_spec; spawn_spec; surely_malloc_spec; load_acq_spec; store_rel_spec; CAS_RA_spec;
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; f_spec; main_spec]).
 
 Lemma body_integer_hash: semax_body Vprog Gprog f_integer_hash integer_hash_spec.
@@ -292,27 +370,10 @@ Qed.
 
 Opaque upto.
 
-Arguments size : simpl never.
-
-Lemma forget_ghosts : forall (keys : list Z) lg, Zlength keys = Zlength lg ->
-  view_shift (fold_right sepcon emp (map (fun '(k', p) => ghost_snap k' p) (combine keys lg)))
-             (fold_right sepcon emp (map (ghost_snap 0) lg)).
-Proof.
-  induction keys; intros.
-  - symmetry in H; apply Zlength_nil_inv in H; subst; reflexivity.
-  - destruct lg; [apply Zlength_nil_inv in H; discriminate|].
-    rewrite !Zlength_cons in *; simpl.
-    apply view_shift_sepcon; [apply ghost_snap_forget; auto|].
-    { intros; simpl in *.
-      exists v'; tauto. }
-    apply IHkeys; omega.
-Qed.
-
-Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= i < size)
-  (Hi1 : (i + hash k) mod size = i1 mod size) (HT : Zlength T = size) (Hlg : Zlength lg = size)
-  (Hkeys: Zlength keys = size)
+(*Lemma failed_entries : forall k i i1 keys T entries (Hk : k <> 0) (Hi : 0 <= i < size)
+  (Hi1 : (i + hash k) mod size = i1 mod size) (HT : Zlength T = size) (Hkeys: Zlength keys = size)
   (Hfail : Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k)))),
-  fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun i => hashtable_entry T lg entries i)
+  fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun i => hashtable_entry T entries i)
     (upto (Z.to_nat size))) emp) *
   fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun '(k', p) => ghost_snap k' p) (combine keys lg)) emp)
   |-- !! Forall (fun x => fst x <> 0 /\ fst x <> k) (sublist 0 i (rebase T (hash k))).
@@ -345,9 +406,9 @@ Proof.
   replace (Zlength keys) with size in Hfail; intuition.
   { rewrite Zlength_sublist; auto; try omega.
     rewrite Zlength_rebase; omega. }
-Qed.
+Qed.*)
 
-Corollary entries_lookup : forall k v i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= i < size)
+(*Corollary entries_lookup : forall k v i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= i < size)
   (Hi1 : (i + hash k) mod size = i1 mod size) (HT : Zlength T = size) (Hlg : Zlength lg = size)
   (Hkeys: Zlength keys = size)
   (Hfail : Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
@@ -365,7 +426,7 @@ Proof.
   { rewrite Zlength_rebase; auto; omega. }
   { rewrite Znth_rebase by (auto; omega).
     replace (Zlength T) with size; rewrite Hi1; destruct Hhit as [-> | ->]; auto. }
-Qed.
+Qed.*)
 
 Lemma wf_table_upd : forall T k v i (Hwf : wf_table T) (HT : Zlength T = size) (Hi : lookup T k = Some i)
   (Hk : k <> 0), wf_table (upd_Znth i T (k, v)).
@@ -388,30 +449,34 @@ Proof.
   intros; apply wf_table_upd; auto.
 Qed.
 
+Lemma hash_size : forall k, (k * 654435761) mod size = hash k mod size.
+Proof.
+  intro; simpl.
+  rewrite Zmod_mod; split; auto; omega.
+Qed.
+
+Arguments size : simpl never.
+Arguments hash : simpl never.
+
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_atomic_function.
-  destruct x as ((((((k, v), p), sh), entries), g), lg); Intros.
+  destruct x as ((((((k, v), p), sh), entries), g), H0); Intros.
   destruct H as (HP0 & HP & HQ).
   forward_call k.
-  eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX keys : list Z,
-    PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
-          Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k)));
-          Forall (fun z => z = 0) (sublist i size (rebase keys (hash k))))
+  pose proof size_pos.
+  eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX T : list (Z * Z),
+    PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength T = size;
+          Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase (map fst T) (hash k))))
     LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvar _m_entries p)
-    SEP (@data_at CompSpecs sh (tarray tentry size) entries p;
-         fold_right sepcon emp (map (fun '(k', p) => ghost_snap k' p) (combine keys lg));
+    SEP (@data_at CompSpecs sh (tarray tentry size) entries p; ghost_snap H0 g;
+         fold_right sepcon emp (map (fun i => hashtable_entry T entries i) (upto (Z.to_nat size)));
          fold_right sepcon emp (map (fun p0 => invariant (II p0)) lI); P)).
-  { pose proof size_pos; Exists 0 (k * 654435761)%Z (repeat 0 (Z.to_nat size)); entailer!.
-    { split; [rewrite Zmod_mod; split; auto; omega|].
-      split; [rewrite Zlength_repeat, Z2Nat.id; auto; omega|].
-      rewrite sublist_nil, sublist_same by (try omega; rewrite Zlength_rebase;
-        rewrite Zlength_repeat, Z2Nat.id; try auto; try omega; apply Z_mod_lt; auto).
-      split; [auto|].
-      apply Forall_rotate, Forall_repeat; auto. }
-    rewrite combine_const2, map_map by (rewrite Z2Nat.id; omega); entailer!. }
+  { unfold hashtable; Intros T.
+    Exists 0 (k * 654435761)%Z T; rewrite sublist_nil; entailer!.
+    apply hash_size. }
   eapply semax_loop.
-  - Intros i i1 keys; forward.
+  - Intros i i1 T; forward.
     forward.
     rewrite sub_repr, and_repr; simpl.
     rewrite Zland_two_p with (n := 14) by omega.
@@ -424,71 +489,34 @@ Proof.
     forward; rewrite Hpi.
     { entailer!. }
     rewrite map_map in HP, HQ.
-    assert (Zlength (combine keys lg) = size) as Hlg.
-    { rewrite Zlength_combine, Z.min_l; omega. }
-    assert (Zlength (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) = size).
-    { rewrite Zlength_map; auto.  }
-    rewrite extract_nth_sepcon with (i := i1 mod size) by omega.
-    erewrite Znth_map with (d' := (0, Vundef)), Znth_combine by omega.
-    assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
-    { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
-    match goal with H : Forall _ (sublist i _ _) |- _ => rewrite sublist_next with (d := 0) in H
-      by (rewrite ?Hrebase; auto; omega); inversion H as [|?? Hkeyi]; subst end.
-    rewrite Znth_rebase in Hkeyi by (replace (Zlength keys) with size; try omega; apply Z_mod_lt; omega).
-    replace (Zlength keys) with size in Hkeyi; setoid_rewrite <- H in Hkeyi; rewrite Hkeyi.
-    forward_call (pki, P * ghost_snap 0 (Znth (i1 mod size) lg Vundef), II, lI,
-      fun sh v => !!(sh = Tsh) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
-      forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T (0, 0) in
-      !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) && ghost_master ki (Znth (i1 mod size) lg Vundef) *
-      data_at Tsh tint (vint vi) pvi * ghost (Some H) g * fold_right sepcon emp (upd_Znth (i1 mod size)
-          (map (fun i => hashtable_entry T lg entries i) (upto (Z.to_nat size))) emp) *
-        R H * ghost_snap 0 (Znth (i1 mod size) lg Vundef),
-      fun v : Z => P * ghost_snap v (Znth (i1 mod size) lg Vundef)).
-    { split.
-      + rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
-        view_shift_intro HT.
-        apply derives_view_shift.
-        unfold hashtable; Intros T.
-        rewrite extract_nth_sepcon with (i := i1 mod size)
-          by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-        erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-        unfold hashtable_entry.
-        rewrite Hpi.
-        destruct (Znth (i1 mod size) T (0, 0)) as (ki, vi) eqn: HHi.
-        Intros; Exists Tsh ki HT T; rewrite HHi; entailer!.
-      + intros.
-        rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
-        view_shift_intro HT.
-        view_shift_intro T.
-        destruct (Znth (i1 mod size) T (0, 0)) as (ki, vi) eqn: HHi; view_shift_intros.
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
-        rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-        rewrite 4sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply snap_master_update1; eauto. }
-        apply derives_view_shift.
-        Exists HT.
-        unfold hashtable; Exists T.
-        rewrite extract_nth_sepcon with (i := i1 mod size)(l := map _ _)
-          by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-        erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-        unfold hashtable_entry.
-        rewrite Hpi, HHi; entailer!. }
-    Intros k1.
-    focus_SEP 2.
+    assert (0 <= i1 mod size < Zlength (upto (Z.to_nat size))).
+    { rewrite Zlength_upto, Z2Nat.id; auto; omega. }
+    rewrite extract_nth_sepcon with (i := i1 mod size) by (rewrite Zlength_map; auto).
+    erewrite Znth_map, Znth_upto by (auto; rewrite Zlength_upto in *; omega).
+    unfold hashtable_entry at 1.
+    assert (Zlength (rebase (map fst T) (hash k)) = size) as Hrebase.
+    { rewrite Zlength_rebase; rewrite Zlength_map; replace (Zlength T) with size; auto; apply hash_range. }
+    rewrite Hpi.
+    destruct (Znth (i1 mod size) T (0, 0)) as (ki, vi) eqn: HHi.
+    forward_call_dep [Z : Type] (load_acq_witness pki ki zero_ord (id_T, id_T) emp id_T).
+    { simpl; cancel. }
+    { split; simpl; intros; rewrite ?emp_sepcon, ?sepcon_emp; [reflexivity|].
+      rewrite sepcon_comm; reflexivity. }
+    unfold id_T at 3; Intros x; destruct x as (k1, ?); simpl in *; subst.
+    focus_SEP 1.
+    pose proof (hash_range k).
     match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
-      forward_if (PROP () (LOCALx Q (SEPx (ghost_snap k (Znth (i1 mod size) lg Vundef) :: R)))) end.
+      forward_if (PROP () (LOCALx Q (SEPx (k_state pki k :: R)))) end.
     + assert (forall k1, (k1 <> k /\ k1 <> 0) ->
-        (i1 mod size) mod size = (i + (k * 654435761) mod size) mod size /\
-        Zlength (upd_Znth (i1 mod size) keys k1) = size /\
+        Zlength (upd_Znth (i1 mod size) T (k1, vi)) = size /\
         Forall (fun z => z <> 0 /\ z <> k)
-          (sublist 0 (i + 1) (rebase (upd_Znth (i1 mod size) keys k1) (hash k))) /\
-        Forall (fun z => z = 0) (sublist (i + 1) size (rebase (upd_Znth (i1 mod size) keys k1) (hash k)))).
-      { split; [rewrite Zmod_mod; auto|].
-        split; [rewrite upd_Znth_Zlength; auto; omega|].
-        rewrite H; replace size with (Zlength keys);
-          rewrite !rebase_upd' by (try omega; replace (Zlength keys) with size; apply Z_mod_lt; omega).
-        rewrite sublist_upd_Znth_lr, sublist_upd_Znth_r by (try omega; setoid_rewrite Hrebase; omega).
-        split; [|replace (Zlength keys) with size; auto].
+          (sublist 0 (i + 1) (rebase (map fst (upd_Znth (i1 mod size) T (k1, vi))) (hash k)))).
+      { split; [rewrite upd_Znth_Zlength; auto; omega|].
+        rewrite <- upd_Znth_map.
+        replace (i1 mod size) with ((i + hash k) mod size);
+          replace size with (Zlength (map fst T)) by (rewrite Zlength_map; auto);
+          rewrite rebase_upd' by (rewrite Zlength_map; omega).
+        rewrite sublist_upd_Znth_lr by (try omega; setoid_rewrite Hrebase; omega).
         rewrite sublist_split with (mid := i), sublist_len_1 with (d := 0) by (try omega; setoid_rewrite Hrebase; omega).
         rewrite Z.sub_0_r, upd_Znth_app2, Forall_app; rewrite Zlength_sublist;
           rewrite ?Zlength_cons, ?Zlength_nil; try omega; try (setoid_rewrite Hrebase; omega).
@@ -502,89 +530,34 @@ Proof.
         unfold POSTCONDITION, abbreviate, overridePost.
         destruct (eq_dec EK_continue EK_normal); [discriminate|].
         unfold loop1_ret_assert.
-        instantiate (1 := EX i : Z, EX i1 : Z, EX keys : list Z,
-          PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
-            Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k)));
-            Forall (fun z => z = 0) (sublist (i + 1) size (rebase keys (hash k))))
+        instantiate (1 := EX i : Z, EX i1 : Z, EX T : list (Z * Z),
+          PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength T = size;
+            Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase (map fst T) (hash k))))
           LOCAL (temp _idx (vint i1); temp _key (vint k); temp _value (vint v); gvar _m_entries p)
-          SEP (@data_at CompSpecs sh (tarray tentry size) entries p;
-               fold_right sepcon emp (map (fun '(k', p) => ghost_snap k' p) (combine keys lg));
+          SEP (@data_at CompSpecs sh (tarray tentry size) entries p; ghost_snap H0 g;
+               fold_right sepcon emp (map (fun i => hashtable_entry T entries i) (upto (Z.to_nat size)));
                fold_right sepcon emp (map (fun p0 => invariant (II p0)) lI); P)).
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) keys k1); entailer!.
-        erewrite replace_nth_sepcon, combine_upd_Znth1, <- upd_Znth_map by omega; eauto. }
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) T (k1, vi)); rewrite Zmod_mod; entailer!.
+        erewrite replace_nth_sepcon, (list_Znth_eq' FF (upd_Znth _ _ _)); eauto; rewrite upd_Znth_Zlength;
+          rewrite !Zlength_map; auto; intros.
+        unfold hashtable_entry.
+        erewrite Znth_map, Znth_upto by (auto; rewrite Zlength_upto in *; omega).
+        destruct (eq_dec j (i1 mod size)).
+        * subst; rewrite Hpi, !upd_Znth_same by (rewrite ?Zlength_map; auto; omega); auto.
+        * rewrite upd_Znth_diff' by (rewrite ?Zlength_map; auto).
+          erewrite Znth_map, Znth_upto by (auto; rewrite Zlength_upto in *; omega).
+          destruct (Znth j entries (Vundef, Vundef)).
+          rewrite upd_Znth_diff' by (auto; omega); auto. }
       { forward.
         entailer!. }
       Intros; subst.
-      forward_call (pki, 0, k, P * ghost_snap 0 (Znth (i1 mod size) lg Vundef) *
-            fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) emp),
-        II, lI, fun sh v => !!(sh = Tsh) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
-          forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T (0, 0) in
-          !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
-          ghost_master ki (Znth (i1 mod size) lg Vundef) * data_at Tsh tint (vint vi) pvi *
-          ghost (Some H) g * fold_right sepcon emp (upd_Znth (i1 mod size)
-            (map (fun i => hashtable_entry T lg entries i) (upto (Z.to_nat size))) emp) *
-          R H * ghost_snap 0 (Znth (i1 mod size) lg Vundef) *
-          fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) emp),
-        fun v : Z => P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg Vundef) *
-          fold_right sepcon emp (upd_Znth (i1 mod size) (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) emp)).
-      { repeat (split; auto).
-        * rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
-          view_shift_intro HT.
-          apply derives_view_shift.
-          unfold hashtable; Intros T.
-          rewrite extract_nth_sepcon with (i := i1 mod size) by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-          erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-          unfold hashtable_entry.
-          rewrite Hpi.
-          destruct (Znth (i1 mod size) T (0, 0)) as (ki, vi) eqn: HHi.
-          Exists Tsh ki HT T; rewrite HHi; entailer!.
-        * intros.
-          rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
-          view_shift_intro HT; view_shift_intro T.
-          destruct (Znth (i1 mod size) T (0, 0)) as (ki, vi) eqn: HHi.
-          view_shift_intros.
-          assert (0 <= i1 mod size < Zlength T) by omega.
-          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)).
-          rewrite (sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc.
-          rewrite 5sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply snap_master_update1 with (v' := if eq_dec ki 0 then k else ki).
-            if_tac; auto. }
-          apply derives_view_shift.
-          assert (0 <= hash k < Zlength T) by (replace (Zlength T) with size; apply hash_range).
-          assert (0 <= i < Zlength (rebase T (hash k))) by (rewrite Zlength_rebase; auto; omega).
-          assert (fst (Znth i (rebase T (hash k)) (0, 0)) = ki).
-          { rewrite Znth_rebase by (auto; omega).
-            replace (Zlength T) with size; rewrite <- H, HHi; auto. }
-          assert_PROP ((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size)) as Hindex.
-          { rewrite prop_forall; apply allp_right; intro Hki.
-            pose proof (entries_lookup k vi i i1 keys lg T entries) as Hlookup.
-            sep_apply Hlookup; auto.
-            { rewrite HHi; destruct Hki; subst; auto. }
-            apply sepcon_derives_prop; auto. }
-          Exists HT.
-          unfold hashtable; Exists (upd_Znth (i1 mod size) T (if eq_dec ki 0 then k else ki, vi)).
-          rewrite extract_nth_sepcon with (i := i1 mod size)(l := map _ _)
-            by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-          erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-          unfold hashtable_entry.
-          rewrite Hpi, upd_Znth_same by omega; entailer!.
-          { split; [rewrite upd_Znth_Zlength; auto|].
-            split; [|if_tac; auto].
-            if_tac; [subst | erewrite upd_Znth_triv; eauto].
-            split; [apply wf_table_upd; auto|].
-            intros.
-            etransitivity; eauto; split; intros (Hin & ?); split; auto.
-            - eapply In_upd_Znth_old; auto; try omega.
-              rewrite HHi; intro X; inv X; tauto.
-            - apply In_upd_Znth in Hin; destruct Hin as [X|]; [inv X; tauto | auto]. }
-          apply sepcon_list_derives; rewrite !upd_Znth_Zlength;
-            rewrite !Zlength_map, !Zlength_upto, !Z2Nat.id; auto; try omega.
-          intros; destruct (eq_dec i0 (i1 mod size)).
-          { subst; rewrite !upd_Znth_same by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; auto; omega); auto. }
-          rewrite !upd_Znth_diff' by (rewrite ?Zlength_map, ?Zlength_upto, ?Z2Nat.id; auto; omega).
-          erewrite !Znth_map, !Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; auto; omega).
-          rewrite upd_Znth_diff'; auto. }
-      Intros k1.
+      forward_call_dep [Z : Type] (CAS_RA_witness pki 0 k 0 zero_ord (id_T, id_T) emp
+        (fun s => !!(s = k) && emp) id_T).
+      { simpl; cancel. }
+      { repeat (split; auto); intros; simpl; rewrite ?emp_sepcon, ?sepcon_emp; try reflexivity.
+        apply derives_view_shift; Exists k; unfold id_T, zero_ord; entailer!. }
+      unfold id_T at 3; Intros x; destruct x as (k1, ?); simpl in *.
+      (*!!*)
       focus_SEP 2.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg Vundef) :: R)))) end.
@@ -698,7 +671,6 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _(ghost (Some HT) g)), !sepcon_assoc.
           etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-(* Note: we should probably make sure that we can't use two different kinds of join at the same type. *)
           { apply (@ghost_update _ _ exclusive_PCM _ (Some (map_upd HT k v))).
             intros ? (? & [[]|[]]); [subst | discriminate].
             eexists; simpl; eauto. }

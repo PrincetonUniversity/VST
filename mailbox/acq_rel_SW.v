@@ -49,9 +49,6 @@ Section protocols.
 
 Context {state : Type}.
 
-Class protocol {state : Type} (Iread Ifull : state -> Z -> mpred) :=
-  { full_read s v : view_shift (Ifull s v) (Ifull s v * Iread s v); read_dup s v : duplicable (Iread s v) }.
-
 (* Iris-weak gives an encoding of protocol assertions in terms of invariants, ghost state, and views. This
    simpler one is unsound (because it is provably objective), but gives the right general feel.
 Definition protocol_inv (ord : state -> state -> Prop) T l g := EX v : Z, EX s : state,
