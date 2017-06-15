@@ -1,4 +1,5 @@
 Require Import veric.rmaps.
+Require Import veric.compcert_rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
 Require Import floyd.library.
@@ -7,8 +8,6 @@ Require Import floyd.sublist.
 Set Bullet Behavior "Strict Subproofs".
 
 Parameter invariant : mpred -> mpred.
-
-Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
 
 Axiom invariant_precise : forall P, precise (invariant P).
 
@@ -27,8 +26,8 @@ Proof.
   etransitivity; [|etransitivity; eauto]; apply derives_view_shift; cancel.
 Qed.
 
-Axiom invariant_super_non_expansive : forall n P, compcert_rmaps.RML.R.approx n (invariant P) =
-compcert_rmaps.RML.R.approx n (invariant (compcert_rmaps.RML.R.approx n P)).
+Axiom invariant_super_non_expansive : forall n P, approx n (invariant P) =
+approx n (invariant (approx n P)).
 
 Global Arguments view_shift {_} A%logic B%logic.
 
@@ -66,6 +65,76 @@ Proof.
   intros.
   etransitivity; [apply derives_view_shift | apply new_inv']; auto.
 Qed.
+
+Section dup.
+
+Definition duplicable P := view_shift P (P * P).
+
+Lemma emp_duplicable : duplicable emp.
+Proof.
+  repeat intro.
+  rewrite sepcon_emp in H; auto.
+Qed.
+Hint Resolve emp_duplicable : dup.
+
+Lemma sepcon_duplicable : forall P Q, duplicable P -> duplicable Q -> duplicable (P * Q).
+Proof.
+  intros; unfold duplicable.
+  rewrite <- sepcon_assoc, (sepcon_comm (_ * Q)), <- sepcon_assoc, sepcon_assoc.
+  apply view_shift_sepcon; auto.
+Qed.
+Hint Resolve sepcon_duplicable : dup.
+
+Lemma sepcon_list_duplicable : forall lP, Forall duplicable lP -> duplicable (fold_right sepcon emp lP).
+Proof.
+  induction 1; simpl; auto with dup.
+Qed.
+
+Lemma list_duplicate : forall Q lP, duplicable Q ->
+  view_shift (fold_right sepcon emp lP * Q) (fold_right sepcon emp (map (sepcon Q) lP) * Q).
+Proof.
+  induction lP; simpl; intros; [reflexivity|].
+  rewrite sepcon_assoc; etransitivity; [apply view_shift_sepcon2, IHlP; auto|].
+  rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon2, H|].
+  apply derives_view_shift; cancel.
+Qed.
+
+Axiom invariant_duplicable : forall P, duplicable (invariant P).
+Hint Resolve invariant_duplicable : dup.
+
+Lemma ghost_snap_duplicable : forall `{_ : PCM_order} (s : A) p, duplicable (ghost_snap s p).
+Proof.
+  intros; unfold duplicable.
+  erewrite ghost_snap_join; [reflexivity|].
+  apply ord_join; reflexivity.
+Qed.
+Hint Resolve ghost_snap_duplicable : dup.
+
+Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
+Proof.
+  intros.
+  apply view_shift_prop; intro.
+  etransitivity; eauto.
+  apply derives_view_shift; entailer!.
+Qed.
+Hint Resolve prop_duplicable : dup.
+
+Lemma exp_duplicable : forall {A} (P : A -> mpred), (forall x, duplicable (P x)) -> duplicable (exp P).
+Proof.
+  unfold duplicable; intros.
+  view_shift_intro x.
+  etransitivity; eauto.
+  apply derives_view_shift; Exists x x; auto.
+Qed.
+
+Lemma duplicable_super_non_expansive : forall n P,
+  approx n (!!duplicable P) = approx n (!!duplicable (approx n P)).
+Proof.
+  intros; unfold duplicable.
+  setoid_rewrite view_shift_super_non_expansive at 1; rewrite approx_sepcon; auto.
+Qed.
+
+End dup.
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
@@ -264,30 +333,22 @@ Definition atomic_spec_type A W T := ProdType (ProdType (ProdType (ProdType (Pro
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)).
 
 Definition super_non_expansive_a {A W} (a : forall ts : list Type, functors.MixVariantFunctor._functor
-  (dependent_type_functor_rec ts W) (predicates_hered.pred compcert_rmaps.RML.R.rmap) ->
-    A -> predicates_hered.pred compcert_rmaps.RML.R.rmap) :=
-  forall n ts w x, compcert_rmaps.RML.R.approx n (a ts w x) =
-  compcert_rmaps.RML.R.approx n (a ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) x).
+  (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A -> predicates_hered.pred rmap) :=
+  forall n ts w x, approx n (a ts w x) =
+  approx n (a ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x).
 
 Definition super_non_expansive_b {A B W} (b : forall ts : list Type, functors.MixVariantFunctor._functor
-  (dependent_type_functor_rec ts W) (predicates_hered.pred compcert_rmaps.RML.R.rmap) ->
-    A -> B -> predicates_hered.pred compcert_rmaps.RML.R.rmap) :=
-  forall n ts w x y, compcert_rmaps.RML.R.approx n (b ts w x y) =
-  compcert_rmaps.RML.R.approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) x y).
+  (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A -> B -> predicates_hered.pred rmap) :=
+  forall n ts w x y, approx n (b ts w x y) =
+  approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x y).
 
 Definition super_non_expansive_la {W} la := forall n ts w rho,
-  Forall (fun l => compcert_rmaps.RML.R.approx n (!! locald_denote (l ts w) rho) =
-    compcert_rmaps.RML.R.approx n (!! locald_denote (l ts
-           (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-              (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w)) rho)) la.
+  Forall (fun l => approx n (!! locald_denote (l ts w) rho) = approx n (!! locald_denote (l ts
+    (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w)) rho)) la.
 
 Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
-  Forall (fun l => compcert_rmaps.RML.R.approx n (!! locald_denote (l ts w v) rho) =
-    compcert_rmaps.RML.R.approx n (!! locald_denote (l ts
-           (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-              (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) v) rho)) lb.
+  Forall (fun l => approx n (!! locald_denote (l ts w v) rho) = approx n (!! locald_denote (l ts
+    (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) v) rho)) lb.
 
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
@@ -444,3 +505,5 @@ Ltac start_atomic_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax; simpl.
+
+Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_duplicable prop_duplicable : dup.
