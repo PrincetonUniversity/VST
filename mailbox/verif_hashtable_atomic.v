@@ -696,10 +696,8 @@ Proof.
           destruct (Znth (i1 mod size) T (0, 0)) eqn: HHi.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _(ghost (Some HT) g)), !sepcon_assoc.
-          etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply (@ghost_update _ _ exclusive_PCM _ (Some (map_upd HT k v))).
-            intros ? (? & [[]|[]]); [subst | discriminate].
-            eexists; simpl; eauto. }
+          etransitivity; [apply view_shift_sepcon1|].
+          { apply exclusive_update with (v' := map_upd HT k v). }
           apply derives_view_shift.
           unfold hashtable.
           Exists (upd_Znth (i1 mod size) T (k, v)).
@@ -1315,10 +1313,7 @@ Proof.
           view_shift_intros.
           rewrite <- !sepcon_assoc, (sepcon_comm _(ghost (Some HT) g)), !sepcon_assoc.
           etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-(* Note: we should probably make sure that we can't use two different kinds of join at the same type. *)
-          { apply (@ghost_update _ _ exclusive_PCM _ (Some (if eq_dec v0 0 then map_upd HT k v else HT))).
-            intros ? (? & [[]|[]]); [subst | discriminate].
-            eexists; simpl; eauto. }
+          { apply exclusive_update with (v' := if eq_dec v0 0 then map_upd HT k v else HT). }
           apply derives_view_shift.
           unfold hashtable.
           Exists (if eq_dec v0 0 then upd_Znth (i1 mod size) T (k, v) else T).

@@ -206,6 +206,12 @@ Proof.
   - intros ????? [(? & ?) | (? & ?)]; subst; eauto.
 Defined.
 
+Lemma exclusive_update : forall v v' p, view_shift (ghost (Some v) p) (ghost (Some v') p).
+Proof.
+  intros; apply ghost_update; intros ? (? & [[]|[]]); try discriminate; subst.
+  eexists; simpl; eauto.
+Qed.
+
 End Ops.
 
 Global Instance share_PCM : PCM share := { join := sepalg.join }.

@@ -2438,6 +2438,38 @@ Proof.
   apply Share.lub_bot.
 Qed.
 
+(* It's often useful to split Tsh in half. *)
+Definition gsh1 := fst (Share.split Tsh).
+Definition gsh2 := snd (Share.split Tsh).
+
+Lemma readable_gsh1 : readable_share gsh1.
+Proof.
+  apply slice.split_YES_ok1; auto.
+Qed.
+
+Lemma readable_gsh2 : readable_share gsh2.
+Proof.
+  apply slice.split_YES_ok2; auto.
+Qed.
+
+Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
+Proof.
+  apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
+Qed.
+
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+
+Lemma gsh1_not_bot : gsh1 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+
+Lemma gsh2_not_bot : gsh2 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+Hint Resolve gsh1_not_bot gsh2_not_bot.
+
 (*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
   data_at Tsh t v p * data_at sh t v' p |-- FF.
