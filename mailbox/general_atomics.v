@@ -36,14 +36,32 @@ Section atomics.
 
 Context {CS : compspecs}.
 
-Axiom new_inv : forall P, view_shift (|>P) (invariant P).
-
-Corollary new_inv' : forall P, view_shift P (invariant P).
+(* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
+Parameter objective : mpred -> Prop.
+Axiom emp_objective : objective emp.
+Axiom data_at_objective : forall sh t v p, readable_share sh -> objective (data_at sh t v p).
+Axiom ghost_objective : forall {A} (g : A) p, objective (ghost g p).
+Axiom prop_objective : forall P, objective (!!P).
+Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
+Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
+Axiom sepcon_objective : forall P Q, objective P -> objective Q -> objective (P * Q).
+Lemma sepcon_list_objective : forall P, Forall objective P -> objective (fold_right sepcon emp P).
 Proof.
-  intro; etransitivity; [apply derives_view_shift, now_later | apply new_inv].
+  induction P; simpl; intros.
+  - apply emp_objective.
+  - inv H; apply sepcon_objective; auto.
+Qed.
+Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
+  sepcon_objective sepcon_list_objective.
+
+Axiom new_inv : forall P, objective P -> view_shift (|>P) (invariant P).
+
+Corollary new_inv' : forall P, objective P -> view_shift P (invariant P).
+Proof.
+  intro; etransitivity; [apply derives_view_shift, now_later | apply new_inv; auto].
 Qed.
 
-Corollary make_inv : forall P Q, P |-- Q -> view_shift P (invariant Q).
+Corollary make_inv : forall P Q, P |-- Q -> objective Q -> view_shift P (invariant Q).
 Proof.
   intros.
   etransitivity; [apply derives_view_shift | apply new_inv']; auto.
