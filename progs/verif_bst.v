@@ -627,6 +627,103 @@ Proof.
     auto.
 Qed.
 
+Definition delete_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
+  EX b: val, EX t: tree val,
+  PROP()
+  LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+  SEP(treebox_rep t b;  (treebox_rep (delete x t) b -* treebox_rep (delete x t0) b0)).
+
+Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
+Proof.
+  start_function.
+  eapply semax_pre; [
+    | apply (semax_loop _ (delete_inv b t x) (delete_inv b t x) )].
+  * (* Precondition *)
+    unfold delete_inv.
+    Exists b t. entailer.
+    apply ramify_PPQQ.
+  * (* Loop body *)
+    unfold delete_inv.
+    Intros b1 t1.
+    forward. (* Sskip *)
+    unfold treebox_rep at 1. Intros p1.
+    forward. (* p = *t; *)
+    forward_if.
+    + (* then clause *)
+      subst p1.
+      assert_PROP (t1= (@E _)).
+        1: entailer!.
+      subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
+      forward. (* return; *)
+      unfold treebox_rep at 1.
+      apply modus_ponens_wand'.
+      Exists nullval.
+      simpl tree_rep.
+      entailer!.
+    + (* else clause *)
+      destruct t1.
+        { simpl tree_rep. normalize. }
+      simpl tree_rep.
+      Intros pa pb. clear H0.
+      forward. (* y=p->key; *)
+      forward_if; [ | forward_if ].
+      - (* Inner if, then clause: x<k *)
+        forward. (* t=&p->left *)
+        unfold delete_inv.
+        Exists (offset_val 8 p1) t1_1.
+        entailer!.
+        simpl_compb.
+        (* TODO: SIMPLY THIS LINE *)
+        replace (offset_val 8 p1)
+          with (field_address t_struct_tree [StructField _left] p1)
+          by (unfold field_address; simpl;
+              rewrite if_true by auto with field_compatible; auto).
+        apply RAMIF_PLAIN.trans'.
+        apply bst_left_entail; auto.
+      - (* Inner if, second branch:  k<x *)
+        forward. (* t=&p->right *)
+        unfold delete_inv.
+        Exists (offset_val 12 p1) t1_2.
+        entailer!.
+        simpl_compb; simpl_compb.
+        (* TODO: SIMPLY THIS LINE *)
+        replace (offset_val 12 p1)
+          with (field_address t_struct_tree [StructField _right] p1)
+          by (unfold field_address; simpl;
+              rewrite if_true by auto with field_compatible; auto).
+        apply RAMIF_PLAIN.trans'.
+        apply bst_right_entail; auto.
+      - (* Inner if, third branch: x=k *)
+        assert (x=k) by omega.
+        subst x.
+        unfold_data_at 2%nat.
+        gather_SEP 3 5.
+        replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
+        Focus 1. {
+          unfold treebox_rep; entailer!.
+          Exists pa.
+          rewrite field_at_data_at.
+          entailer!.
+        } Unfocus.
+        gather_SEP 4 5.
+        replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
+        Focus 1. {
+          unfold treebox_rep; entailer!.
+          Exists pb.
+          rewrite field_at_data_at.
+          entailer!.
+        } Unfocus.
+        forward_call (t1_1, k, v, t1_2, b1, p1).
+        forward. (* return *)
+        simpl_compb.
+        simpl_compb.
+        apply modus_ponens_wand'.
+        auto.
+  * (* After the loop *)
+    forward.
+    unfold loop2_ret_assert. apply andp_left2. normalize. 
+Qed.
+
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
