@@ -56,7 +56,7 @@ Qed.
 
 Definition compatible m1 m2 := forall k v1 v2, m1 k = Some v1 -> m2 k = Some v2 -> v1 = v2.
 
-Instance compatible_comm : Symmetric compatible.
+Global Instance compatible_comm : Symmetric compatible.
 Proof.
   repeat intro.
   symmetry; eauto.
@@ -195,7 +195,50 @@ Proof.
   intros; extensionality; unfold map_add, singleton, map_upd; if_tac; auto.
 Qed.
 
+Lemma compatible_add_assoc : forall m1 m2 m3, compatible m1 m2 ->
+  compatible (map_add m1 m2) m3 -> compatible m1 (map_add m2 m3).
+Proof.
+  unfold compatible, map_add; intros.
+  repeat match goal with H : forall _, _ |- _ => specialize (H k) end.
+  replace (m1 k) with (Some v1) in *.
+  destruct (m2 k); auto.
+Qed.
+
+Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3), compatible m1 m2.
+Proof.
+  intros; intros ??? Hk1 Hk2.
+  apply Hincl1 in Hk1; apply Hincl2 in Hk2.
+  rewrite Hk1 in Hk2; inv Hk2; auto.
+Qed.
+
+Lemma map_add_incl : forall m1 m2 m3, map_incl m1 m3 -> map_incl m2 m3 -> map_incl (map_add m1 m2) m3.
+Proof.
+  unfold map_add; intros.
+  intros ?? Hk.
+  destruct (m1 k) eqn: Hk1; auto.
+  inv Hk; auto.
+Qed.
+
+Lemma incl_compatible : forall m1 m2, map_incl m1 m2 -> compatible m1 m2.
+Proof.
+  intros; intros ??? Hk1 Hk2.
+  specialize (H _ _ Hk1); rewrite H in Hk2; inv Hk2; auto.
+Qed.
+
+Lemma map_add_redundant : forall m1 m2, map_incl m1 m2 -> map_add m1 m2 = m2.
+Proof.
+  intros; unfold map_add; extensionality k.
+  destruct (m1 k) eqn: Hk; auto; symmetry; auto.
+Qed.
+
+Lemma empty_map_incl : forall m, map_incl empty_map m.
+Proof.
+  repeat intro; discriminate.
+Qed.
+
 End Maps.
+
+Hint Resolve empty_map_incl.
 
 Section ListMaps.
 

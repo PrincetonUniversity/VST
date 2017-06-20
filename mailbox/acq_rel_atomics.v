@@ -203,6 +203,80 @@ Proof.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
+(*Definition SR_type' := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+  (ConstType (val * Z)) (DependentType 0)) (OrdType (DependentType 0)))
+  (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
+  Mpred) (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) (ArrowType (DependentType 0) Mpred))
+  (ArrowType (DependentType 0) Mpred).
+
+(* The GPS/iGPS store_rel rule is only really useful when we have a single writer, only write once
+   to a location, only really want to maintain an invariant, or otherwise aren't really doing anything
+   with write-write races. The final-state restriction is partially to ensure that the target state is
+   reachable, and partly to deal with the fact that the logic doesn't assume mo-coherence (which RA should
+   supply) and thus a write may be placed "before" a write that's already been observed. This more relaxed
+   rule can probably be proven from base Iris, but it would involve completely redoing the core GPS invariant. *)
+Program Definition store_rel_spec := TYPE SR_type'
+  WITH l : val, v : Z, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
+       P : mpred, II : Z -> mpred, lI : list Z, Q' : _ -> mpred, Q : _ -> mpred
+  PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
+   PROP (repable_signed v;
+         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+                    (protocol_A l s st_ord T * P');
+         forall s' v', repable_signed v' -> st_ord s s' ->
+         view_shift (P' * snd T s' v')
+                    (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q' s'')%logic;
+         forall s', st_ord s s' ->
+         view_shift (protocol_A l s' st_ord T * Q' s')
+                    (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s')%logic)
+   LOCAL (temp 1%positive l; temp 2%positive (vint v))
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
+  POST [ tvoid ]
+   EX s' : _,
+   PROP (st_ord s s')
+   LOCAL ()
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q s').
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((((((((?, ?), s), ?), (?, ?)), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx; simpl; rewrite !approx_andp; f_equal.
+  - rewrite !prop_and, !approx_andp; f_equal; f_equal; [|f_equal].
+    + rewrite !prop_forall, !(approx_allp _ _ _ s); apply f_equal; extensionality s'.
+      rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
+      rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
+        erewrite !map_map, map_ext; eauto.
+        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+      * rewrite !approx_sepcon, protocol_A_super_non_expansive; apply f_equal.
+        rewrite !approx_exp; apply f_equal; extensionality s''.
+        rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
+    + rewrite !prop_forall, !(approx_allp _ _ _ s); apply f_equal; extensionality s'.
+      rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
+      rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2.
+      do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
+        erewrite !map_map, map_ext; eauto.
+        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+  - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
+    unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
+    intros; simpl; rewrite invariant_super_non_expansive; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality s'.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
+Qed.*)
+
 Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0)))) Mpred)
@@ -218,7 +292,7 @@ Program Definition CAS_RA_spec := TYPE CRA_type
                     (protocol_A l s st_ord T * P');
          forall s', st_ord s s' ->
            view_shift (P' * snd T s' c) (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q' s'');
-         forall s' v', repable_signed v' -> v' <> c -> st_ord s' s -> view_shift (P' * fst T s' v') (R' s' v');
+         forall s' v', repable_signed v' -> v' <> c -> st_ord s s' -> view_shift (P' * fst T s' v') (R' s' v');
          forall s' v', repable_signed v' -> st_ord s s' ->
            view_shift (protocol_A l s' st_ord T * (if eq_dec v' c then Q' s' else R' s' v'))
                       (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s' v'))
@@ -290,9 +364,9 @@ End atomics.
 Definition load_acq_witness {state} l (s : state) st_ord T P Q := (l, s, st_ord, T, protocol_A l s st_ord T * P,
   fun _ : Z => FF, @nil Z, P, fun s' (v' : Z) => protocol_A l s' st_ord T * Q s' v').
 
-Definition store_rel_witness {state} l (v : Z) (s s'' : state) st_ord T P Q := (l, v, s, s'', st_ord, T,
-  protocol_A l s st_ord T * P, fun _ : Z => FF, @nil Z, P, protocol_A l s'' st_ord T * Q).
+Definition store_rel_witness {state} l (v : Z) (s : state) st_ord T P Q := (l, v, s, st_ord, T,
+  protocol_A l s st_ord T * P, fun _ : Z => FF, @nil Z, Q, fun s' => protocol_A l s' st_ord T * Q s').
 
-Definition CAS_RA_witness {state} l (c v : Z) (s s'' : state) st_ord T P Q R := (l, c, v, s, s'', st_ord, T,
+Definition CAS_RA_witness {state} l (c v : Z) (s : state) st_ord T P Q R := (l, c, v, s, st_ord, T,
   protocol_A l s st_ord T * P, fun _ : Z => FF, @nil Z, P, Q, R,
-  fun s' v' => protocol_A l s' st_ord T * (if eq_dec v' c then Q else R s' v')).
+  fun s' v' => protocol_A l s' st_ord T * (if eq_dec v' c then Q s' else R s' v')).
