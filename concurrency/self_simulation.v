@@ -13,10 +13,10 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.mem_lemmas.
 
 
-Require Import concurrency.Smallstep.
+Require Import Smallstep.
 Require Import concurrency.x86_context.
 Require Import concurrency.HybridMachine_simulation.
-Require Import concurrency.compiler_correct.
+(*Require Import concurrency.compiler_correct.*)
 Require Import concurrency.CoreSemantics_sum.
 
 
@@ -29,8 +29,8 @@ Require Import concurrency.CoreSemantics_sum.
 *)
 Section SelfSim.
 
-  Parameter G C: Type.
-  Parameter Sem: MemSem G C.
+  Variable G C: Type.
+  Variable Sem: MemSem G C.
 
   (*extension of a mem_injection*)
   Definition is_ext (f1:meminj)(nb1: positive)(f2:meminj)(nb2:positive) : Prop:=
@@ -40,8 +40,8 @@ Section SelfSim.
       (ofs = 0 /\ ~ Plt b1 nb1 /\  ~ Plt b2 nb2).
   
   (*The code is also injected*)
-  Parameter code_inject: C -> meminj -> C -> Prop.
-  Parameter code_inj_incr: forall c1 mu c2 mu',
+  Variable code_inject: C -> meminj -> C -> Prop.
+  Variable code_inj_incr: forall c1 mu c2 mu',
       code_inject c1 mu c2 ->
       inject_incr mu mu' ->
       code_inject c1 mu' c2.

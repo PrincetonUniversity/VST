@@ -152,11 +152,12 @@ CONCUR_FILES= \
   konig.v safety.v \
 	reestablish.v \
 	lifting_safety.v \
-linking_spec.v	\
+  linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v CoreSemantics_sum.v \
-  compiler_correct.v Smallstep.v\
-  concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v
+  self_simulation.v Smallstep.v\
+  concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v \
+  HybridMachine_simulation_proof.v
 
 #  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
