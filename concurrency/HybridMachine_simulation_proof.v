@@ -6,8 +6,6 @@ Require Import Values.
 Require Import Compiler.
 Require Import compcert.lib.Coqlib.
 
-Section Clight_Sem.
-
 Require Import msl.Coqlib2.
 
 Require veric.Clight_core. Import Clight_core.
@@ -27,14 +25,137 @@ Require Import concurrency.permissions.
 Set Bullet Behavior "Strict Subproofs".
 
 
-Section OneThredCompiled.
+
+Section Clight_Sem.
+  Variable p: program.
+  
+  Notation genv:=genv. (*from Clight_core*)
+  Notation state:=CC_core.
+  
+  Program Definition Clight_memSem: semantics.MemSem genv state:=
+    semantics.Build_MemSem _ _ cl_core_sem _.
+  Next Obligation.
+  Admitted.
+
+  Program Definition Clight_EvSem: event_semantics.EvSem:=
+    event_semantics.Build_EvSem _ _ Clight_memSem _ _ _ _ _.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+    
+  Definition Clight: Semantics_rec:=
+    Build_Semantics_rec
+      genv (*semG*)
+      state (*semC*)
+      Clight_EvSem (*semSem EvSem*).
+End Clight_Sem.
+
+Section HybridProofs.
+
+  Variable p: program.
+  Variable tp: ia32.Asm.program. 
+  Variable compiled: (simpl_transf_clight_program p = Errors.OK tp).
+
+  (*Lemma programs_match : simpl_match_prog p tp.
+  Proof. apply transf_clight_program_match; assumption. Qed.
+
+  Lemma program_forward_sim:
+    Smallstep.forward_simulation (semantics2 p) (Asm.semantics tp).
+  Proof. apply simpl_clight_semantic_preservation; apply programs_match; eauto. Qed. *)
+
+  Parameter Clight_step: Clight.genv -> CC_core * mem -> Events.trace -> CC_core * mem -> Prop.
+  Parameter Clight_init: CC_core * mem -> Prop.
+  Parameter Clight_final: CC_core * mem -> Integers.Int.int -> Prop.
+  Parameter Clight_genv: program -> Clight.genv.
+  Parameter Clight_symbolenv: Globalenvs.Senv.t.
+  Definition Clight_semantics2 (p: program) : semantics:=
+    @Semantics_gen
+      (CC_core * mem)
+      Clight.genv
+      Clight_step
+      Clight_init
+      Clight_final
+      (Clight_genv p)
+      Clight_symbolenv.
+  Definition Clight_get_mem (cs: (CC_core * mem)):= match cs with ( _ , m ) => m end.
+
+  Parameter Clight_code_inject: CC_core -> meminj -> CC_core -> Prop.
+  Lemma Clight_self_simulation: self_simulation _ _ (event_semantics.msem (semSem (Clight p))) Clight_code_inject.
+  Admitted.
+
+  Notation ASM_core:=X86Machines.ErasedMachine.ThreadPool.code.
+  Parameter Asm_step: X86SEM.G -> ASM_core * mem -> Events.trace -> ASM_core * mem -> Prop.
+  Parameter Asm_init: ASM_core * mem -> Prop.
+  Parameter Asm_final: ASM_core * mem -> Integers.Int.int -> Prop.
+  Parameter Asm_genv: ia32.Asm.program -> X86SEM.G.
+  Parameter Asm_symbolenv: Globalenvs.Senv.t.
+  Definition Asm_semantics (tp: ia32.Asm.program) : semantics:=
+    @Semantics_gen
+      (X86Machines.ErasedMachine.ThreadPool.code * mem)
+      X86SEM.G
+      Asm_step
+      Asm_init
+      Asm_final
+      (Asm_genv tp)
+      Asm_symbolenv.
+  Definition Asm_get_mem (cs: (X86Machines.ErasedMachine.ThreadPool.code  * mem)):= match cs with ( _ , m ) => m end.
+
+  Parameter Asm_code_inject: ASM_core -> meminj -> ASM_core -> Prop.
+  Lemma Asm_self_simulation: self_simulation _ _
+                                             (event_semantics.msem (semSem (X86SEM_rec)))
+                                             Asm_code_inject.
+  Admitted.
+
+  
+  Lemma program_forward_sim:
+    forward_injection (Clight_semantics2 p) (Asm_semantics tp) Clight_get_mem Asm_get_mem.
+  Proof. Admitted.
+
+  Definition Sems:= Clight p.
+  Definition Semt:= X86SEM_rec.  (*How do I pass p to this?*)
+
+
+Section OneThreadCompiled.
   Variable (hb': nat).
-  Definition hb1:= (Some hb').
-  Definition hb2:= (Some (S hb')).
+  Notation hb1:= (Some hb').
+  Notation hb2:= (Some (S hb')).
   Variable U: seq.seq nat.
 
-  Definition Resources : Resources_rec:=
-    Build_Resources_rec (access_map * access_map)%type (access_map * access_map)%type.
+  (* Definition Resources : Resources_rec:=
+    Build_Resources_rec (access_map * access_map)%type (access_map * access_map)%type. *)
+
+  
+  Notation C1:= (t_ (HybridMachine.ThreadPool hb1 Sems Semt)).
+  Notation C2:= (t_ (HybridMachine.ThreadPool hb2 Sems Semt)).
+  Notation G1:= (semG (HybridMachine.Sem hb1 Sems Semt)) .
+  Notation G2:= (semG (HybridMachine.Sem hb2 Sems Semt)).
+
+  (*The two following globals must be taken from the program...*)
+  (*and they are probaly the smae global??? *)
+  Variable genv: (semG Sems * semG Semt)%type.
+
+
+  (*What are these!!!*)
+  Variable (ge_inv: G1 -> G2 -> Prop).
+  Variable init_inv : meminj -> G1 -> list val -> mem -> G2 -> list val -> mem -> Prop.
+  Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> mem -> G2 -> val -> mem -> Prop.
+  
+  Section OneThreadCompiledProofs.
+  Definition match_source:= match_self (semC (Clight p)) Clight_code_inject.
+  Definition match_target:= match_self (semC (X86SEM_rec)) Asm_code_inject.
+  Definition make_state_source (c:semC Sems) (m:mem): state (Clight_semantics2 p):= (c, m).
+  Definition make_state_target (c:semC Semt) (m:mem): state (Asm_semantics tp):= (c,m).
+  Definition match_states {core_data: Type}
+             (compiler_match : core_data -> meminj -> state (Clight_semantics2 p)  -> state (Asm_semantics tp) -> Prop):=
+      fun i j c m c' m' => compiler_match i j (make_state_source c m) (make_state_target c' m').
+    
   
   
 Section OneThreadCompiledMatch.
@@ -52,12 +173,13 @@ Section OneThreadCompiledMatch.
 
   
   Variable ge:G.
-  Variable (ge_inv: G -> G -> Prop).
+  Variable (ge_inv': G -> G -> Prop).
+
+  (*
+  Variable init_inv' : meminj -> G -> list val -> mem -> G -> list val -> mem -> Prop.
+  Variable halt_inv' : (*SM_Injection*)meminj -> G -> val -> mem -> G -> val -> mem -> Prop.
+   *)
   
-  Variable init_inv : meminj -> G -> list val -> mem -> G -> list val -> mem -> Prop.
-
-  Variable halt_inv : (*SM_Injection*)meminj -> G -> val -> mem -> G -> val -> mem -> Prop.
-
   Variable core_data: Type.
   Variable core_ord : core_data -> core_data -> Prop.
   Variable core_ord_wf : well_founded core_ord.
@@ -256,58 +378,6 @@ Proof.
   rewrite same_length0; auto.
 Qed.
 
-(*
-Lemma Krun_correct_type_source1:
-  forall data j cstate1 m1 cstate2 m2
-  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
-  forall (i:nat) (cnti1: containsThread cstate1 i) c,
-    ~ lt_op i hb1 ->
-    getThreadC cnti1 = Krun c ->
-    exists c', c = SState _ _ c'.
-Proof.
-  intros.
-  eapply correct_type_source1; eauto.
-  erewrite H0; reflexivity.
-Qed.
-Lemma Krun_correct_type_target1:
-  forall data j cstate1 m1 cstate2 m2
-  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
-  forall (i:nat) (cnti1: containsThread cstate1 i) c,
-    lt_op i hb1 ->
-    getThreadC cnti1 = Krun c ->
-    exists c', c = TState _ _ c'.
-Proof.
-  intros.
-  eapply correct_type_target1; eauto.
-  erewrite H0; reflexivity.
-Qed.
-Lemma Krun_correct_type_source2:
-  forall data j cstate1 m1 cstate2 m2
-  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
-  forall (i:nat) (cnti2: containsThread cstate2 i) c,
-    ~ lt_op i hb2 ->
-    getThreadC cnti2 = Krun c ->
-    exists c', c = SState _ _ c'.
-Proof.
-  intros.
-  eapply correct_type_source2; eauto.
-  erewrite H0; reflexivity.
-Qed.
-
-Lemma Krun_correct_type_target2:
-  forall data j cstate1 m1 cstate2 m2
-  (cmatch:concur_match data j cstate1 m1 cstate2 m2),
-  forall (i:nat) (cnti2: containsThread cstate2 i) c,
-    lt_op i hb2 ->
-    getThreadC cnti2 = Krun c ->
-    exists c', c = TState _ _ c'.
-Proof.
-  intros.
-  eapply correct_type_target2; eauto.
-  erewrite H0; reflexivity.
-Qed.
-*)
-
 End OneThreadCompiledMatch.
 
 Arguments same_length_contains {Sems Semt ms1 ms2 }.
@@ -316,148 +386,6 @@ Arguments memcompat2 {Sems Semt core_data source_match target_match compiler_mat
 Arguments contains12 {Sems Semt core_data source_match target_match compiler_match data j cstate1 m1 cstate2 m2} _ {i}.
 Arguments contains21 {Sems Semt core_data source_match target_match compiler_match data j cstate1 m1 cstate2 m2} _ {i}.
 
-Section Clight_Sem.
-  Variable p: program.
-  
-  Notation genv:=genv. (*from Clight_core*)
-  Notation state:=CC_core.
-  
-  Program Definition Clight_memSem: semantics.MemSem genv state:=
-    semantics.Build_MemSem _ _ cl_core_sem _.
-  Next Obligation.
-  Admitted.
-
-  Program Definition Clight_EvSem: event_semantics.EvSem:=
-    event_semantics.Build_EvSem _ _ Clight_memSem _ _ _ _ _.
-  Next Obligation.
-  Admitted.
-  Next Obligation.
-  Admitted.
-  Next Obligation.
-  Admitted.
-  Next Obligation.
-  Admitted.
-  Next Obligation.
-  Admitted.
-    
-  Definition Clight: Semantics_rec:=
-    Build_Semantics_rec
-      genv (*semG*)
-      state (*semC*)
-      Clight_EvSem (*semSem EvSem*).
-End Clight_Sem.
-
-
-Section HybridStepProof.
-
-  Variable p: program.
-  Variable tp: ia32.Asm.program. 
-  Variable compiled: (simpl_transf_clight_program p = Errors.OK tp).
-
-  (*Lemma programs_match : simpl_match_prog p tp.
-  Proof. apply transf_clight_program_match; assumption. Qed.
-
-  Lemma program_forward_sim:
-    Smallstep.forward_simulation (semantics2 p) (Asm.semantics tp).
-  Proof. apply simpl_clight_semantic_preservation; apply programs_match; eauto. Qed. *)
-
-  Parameter Clight_step: Clight.genv -> CC_core * mem -> Events.trace -> CC_core * mem -> Prop.
-  Parameter Clight_init: CC_core * mem -> Prop.
-  Parameter Clight_final: CC_core * mem -> Integers.Int.int -> Prop.
-  Parameter Clight_genv: program -> Clight.genv.
-  Parameter Clight_symbolenv: Globalenvs.Senv.t.
-  Definition Clight_semantics2 (p: program) : semantics:=
-    @Semantics_gen
-      (CC_core * mem)
-      Clight.genv
-      Clight_step
-      Clight_init
-      Clight_final
-      (Clight_genv p)
-      Clight_symbolenv.
-  Definition Clight_get_mem (cs: (CC_core * mem)):= match cs with ( _ , m ) => m end.
-
-  Parameter Clight_code_inject: CC_core -> meminj -> CC_core -> Prop.
-  Lemma Clight_self_simulation: self_simulation _ _ (event_semantics.msem (semSem (Clight p))) Clight_code_inject.
-  Admitted.
-
-  Notation ASM_core:=X86Machines.ErasedMachine.ThreadPool.code.
-  Parameter Asm_step: X86SEM.G -> ASM_core * mem -> Events.trace -> ASM_core * mem -> Prop.
-  Parameter Asm_init: ASM_core * mem -> Prop.
-  Parameter Asm_final: ASM_core * mem -> Integers.Int.int -> Prop.
-  Parameter Asm_genv: ia32.Asm.program -> X86SEM.G.
-  Parameter Asm_symbolenv: Globalenvs.Senv.t.
-  Definition Asm_semantics (tp: ia32.Asm.program) : semantics:=
-    @Semantics_gen
-      (X86Machines.ErasedMachine.ThreadPool.code * mem)
-      X86SEM.G
-      Asm_step
-      Asm_init
-      Asm_final
-      (Asm_genv tp)
-      Asm_symbolenv.
-  Definition Asm_get_mem (cs: (X86Machines.ErasedMachine.ThreadPool.code  * mem)):= match cs with ( _ , m ) => m end.
-
-  Parameter Asm_code_inject: ASM_core -> meminj -> ASM_core -> Prop.
-  Lemma Asm_self_simulation: self_simulation _ _
-                                             (event_semantics.msem (semSem (X86SEM_rec)))
-                                             Asm_code_inject.
-  Admitted.
-
-  
-  Lemma program_forward_sim:
-    forward_injection (Clight_semantics2 p) (Asm_semantics tp) Clight_get_mem Asm_get_mem.
-  Proof. Admitted.
-
-  Definition Sems:= Clight p.
-  Definition Semt:= X86SEM_rec.  (*How do I pass p to this?*)
-
-  Notation C1:= (t_ (HybridMachine.ThreadPool hb1 Sems Semt)).
-  Notation C2:= (t_ (HybridMachine.ThreadPool hb2 Sems Semt)).
-  Notation G1:= (semG (HybridMachine.Sem hb1 Sems Semt)) .
-  Notation G2:= (semG (HybridMachine.Sem hb2 Sems Semt)).
-
-  (*The two following globals must be taken from the program...*)
-  (*and they are probaly the smae global??? *)
-  Variable genv: (semG Sems * semG Semt)%type.
-
-
-  (*What are these!!!*)
-  Variable (ge_inv: G1 -> G2 -> Prop).
-  Variable init_inv : meminj -> G1 -> list val -> mem -> G2 -> list val -> mem -> Prop.
-  Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> mem -> G2 -> val -> mem -> Prop.
-
-  (* Variable core_ord_wf : well_founded core_ord.
-  Variable thread_match : core_data -> (*SM_Injection*)meminj -> (semC Sems) -> mem -> (semC Semt) -> mem -> Prop. *)
-
-  Definition list_order {A:Type} (order: A -> A -> Prop): list A -> list A -> Prop.
-  Admitted.
-  Lemma list_order_wf: forall {A} ord, @well_founded A ord -> well_founded (list_order ord).
-  Admitted.
-
-  (*Definition list_match
-             {index}
-            (match_states : index -> meminj ->
-                            state (Clight_semantics2 p) * mem ->
-                            state (Asm_semantics tp) * mem -> Prop)
-    (match_source : meminj ->
-                            state (Clight_semantics2 p) -> mem ->
-                            state (Clight_semantics2 p) -> mem -> Prop)
-    (match_target : meminj ->
-                            state (Asm_semantics tp) -> mem ->
-                            state (Asm_semantics tp) -> mem -> Prop):
-    list index -> meminj -> semC Sems -> mem -> semC Semt -> mem -> Prop.
-  (*  |LIST_MATCH: forall lsi j  correct_type: *)
-  Admitted. *)
-
-  Definition match_source:= match_self (semC (Clight p)) Clight_code_inject.
-  Definition match_target:= match_self (semC (X86SEM_rec)) Asm_code_inject.
-  Definition make_state_source (c:semC Sems) (m:mem): state (Clight_semantics2 p):= (c, m).
-  Definition make_state_target (c:semC Semt) (m:mem): state (Asm_semantics tp):= (c,m).
-  Definition match_states {core_data: Type}
-             (compiler_match : core_data -> meminj -> state (Clight_semantics2 p)  -> state (Asm_semantics tp) -> Prop):=
-      fun i j c m c' m' => compiler_match i j (make_state_source c m) (make_state_target c' m').
-    
     
   Section HybridThreadDiagram.
     
@@ -492,7 +420,6 @@ Section HybridStepProof.
           (*This case it's all in target*)
           inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
-          unfold hb2 in *.
           simpl in Hcorestep.
           simpl in Hcode.
           eapply H0 in LT. instantiate (1 := Htid) in LT.
@@ -538,7 +465,6 @@ Section HybridStepProof.
           (* equal: one machine in source one in target!!*)
           inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
-          unfold hb1 in *.
           simpl in Hcorestep.
           assert (Hcode':= Hcode).
           simpl in Hcode.
@@ -648,7 +574,6 @@ Section HybridStepProof.
         (*This case it's all in source*)
          inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
-          unfold hb2 in *.
           simpl in Hcorestep.
           simpl in Hcode.
           eapply H0 in LT. instantiate (1 := Htid) in LT.
@@ -712,8 +637,8 @@ Section HybridStepProof.
         machine_semantics.machine_step (Sem1 Sems Semt hb1 U) genv U0 tr st1 m1 U' tr' st1' m1' ->
         forall (cd : core_data) (st2 : C2) (mu : meminj) (m2 : mem),
           concur_match cd mu st1 m1 st2 m2 ->
-          exists (st2' : C2) (m2' : mem) (cd' : core_data) (mu' : meminj),
-            concur_match cd mu st1 m1 st2 m2 /\
+          exists (st2' : C2) (m2' : mem) (cd' : core_data),
+            concur_match cd' mu st1' m1' st2' m2' /\
             machine_semantics.machine_step (Sem2 Sems Semt hb2 U) genv U0 tr st2 m2 U' tr' st2' m2'.
     Proof.
       intros.
@@ -744,14 +669,18 @@ Section HybridStepProof.
   (** *The one_compiled_thread_simulation*)
   Lemma one_compiled_thread_simulation:
     exists (core_data: Type), exists (core_ord : core_data -> core_data -> Prop),
-        exists thread_match, exists v:val,
-    HybridMachine_simulation Sems Semt hb1 hb2 U genv ge_inv init_inv halt_inv
-  core_data core_ord thread_match match_source match_target v.  
+        exists compiler_match, exists v:val,
+            HybridMachine_simulation
+              Sems Semt hb1 hb2 U genv ge_inv init_inv halt_inv
+              core_data core_ord
+              (concur_match _ _ core_data match_source
+                            match_target compiler_match)  v.
+  Proof.
   pose proof program_forward_sim as HH.
   inversion HH.
   exists (index).
   exists (order).
-  exists (fun ls mu c1 m1 c2 m2 => match_states ls mu (c1,m1) (c2,m2)).
+  exists (match_states match_states0).
   exists Vundef. (*THIS SHOULD DISAPEAR*)
   constructor.
   - (*ge_inv*)
@@ -779,5 +708,100 @@ Section HybridStepProof.
   - (*thread_running*)
     admit.
   Admitted.
-    
 
+End OneThreadCompiledProofs.
+
+End OneThreadCompiled.
+
+Section NThredCompiled.
+  Variable (hb': nat).
+  Notation hb0:= (Some 0%nat).
+  Notation hbn:= (Some hb').
+  Variable U: seq.seq nat.
+
+  Notation C0:= (t_ (HybridMachine.ThreadPool hb0 Sems Semt)).
+  Notation Cn:= (t_ (HybridMachine.ThreadPool hbn Sems Semt)).
+  Notation G0:= (semG (HybridMachine.Sem hb0 Sems Semt)) .
+  Notation Gn:= (semG (HybridMachine.Sem hbn Sems Semt)).
+
+  (*The two following globals must be taken from the program...*)
+  (*and they are probaly the smae global??? *)
+  Variable genv: (semG Sems * semG Semt)%type.
+  
+  (*What are these!!!*)
+  Variable (ge_inv: G0 -> Gn -> Prop).
+  Variable init_inv : meminj -> G0 -> list val -> mem -> Gn -> list val -> mem -> Prop.
+  Variable halt_inv : (*SM_Injection*)meminj -> G0 -> val -> mem -> Gn -> val -> mem -> Prop.
+
+  Variable source_match : (*SM_Injection*)meminj -> (semC Sems) -> mem -> (semC Sems) -> mem -> Prop.
+  Variable target_match : (*SM_Injection*)meminj -> (semC Semt) -> mem -> (semC Semt) -> mem -> Prop.
+  
+  Definition Nconcur_match':
+    (meminj -> semC Sems -> mem -> semC Sems -> mem -> Prop) ->
+    (meminj -> semC Semt -> mem -> semC Semt -> mem -> Prop) ->
+    forall (core_data: Type) (core_ord:core_data -> core_data -> Prop),
+    (core_data -> meminj -> semC Sems -> mem -> semC Semt -> mem -> Prop) ->
+    core_data -> meminj -> C0 -> mem -> Cn -> mem -> Prop.
+  Admitted. 
+
+  Notation Nconcur_match:=(Nconcur_match' match_source match_target).
+  
+  Lemma N_compiled_thread_simulation:
+    exists (core_data: Type), exists (core_ord : core_data -> core_data -> Prop),
+      exists compiler_match, exists v:val,
+          HybridMachine_simulation
+            Sems Semt hb0 hbn U genv ge_inv init_inv halt_inv
+            core_data core_ord 
+            (Nconcur_match core_data core_ord (match_states compiler_match))  v.  
+  Proof.
+  Admitted.
+  
+End NThredCompiled.
+
+
+Section AllThredCompiled.
+  Notation hb0:= (Some 0%nat).
+  Notation hball:= None.
+  Variable U: seq.seq nat.
+
+  Notation C0:= (t_ (HybridMachine.ThreadPool hb0 Sems Semt)).
+  Notation Cn:= (t_ (HybridMachine.ThreadPool hball Sems Semt)).
+  Notation G0:= (semG (HybridMachine.Sem hb0 Sems Semt)) .
+  Notation Gn:= (semG (HybridMachine.Sem hball Sems Semt)).
+
+  (*The two following globals must be taken from the program...*)
+  (*and they are probaly the smae global??? *)
+  Variable genv: (semG Sems * semG Semt)%type.
+  
+  (*What are these!!!*)
+  Variable (ge_inv: G0 -> Gn -> Prop).
+  Variable init_inv : meminj -> G0 -> list val -> mem -> Gn -> list val -> mem -> Prop.
+  Variable halt_inv : (*SM_Injection*)meminj -> G0 -> val -> mem -> Gn -> val -> mem -> Prop.
+
+  Variable source_match : (*SM_Injection*)meminj -> (semC Sems) -> mem -> (semC Sems) -> mem -> Prop.
+  Variable target_match : (*SM_Injection*)meminj -> (semC Semt) -> mem -> (semC Semt) -> mem -> Prop.
+  
+  Definition All_concur_match':
+    (meminj -> semC Sems -> mem -> semC Sems -> mem -> Prop) ->
+    (meminj -> semC Semt -> mem -> semC Semt -> mem -> Prop) ->
+    forall (core_data: Type) (core_ord:core_data -> core_data -> Prop),
+    (core_data -> meminj -> semC Sems -> mem -> semC Semt -> mem -> Prop) ->
+    core_data -> meminj -> C0 -> mem -> Cn -> mem -> Prop.
+  Admitted. 
+
+  Notation Nconcur_match:=(All_concur_match' match_source match_target).
+  
+  Lemma All_compiled_thread_simulation:
+    exists (core_data: Type), exists (core_ord : core_data -> core_data -> Prop),
+      exists compiler_match, exists v:val,
+          HybridMachine_simulation
+            Sems Semt hb0 hball U genv ge_inv init_inv halt_inv
+            core_data core_ord 
+            (Nconcur_match core_data core_ord (match_states compiler_match))  v.  
+  Proof.
+  Admitted.
+  
+End AllThredCompiled.
+
+
+End HybridProofs.

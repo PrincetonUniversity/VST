@@ -100,14 +100,14 @@ Section HybridSimulation.
               exists st2', exists m2', exists cd', exists mu',
                       concur_match cd' mu' st1' m1' st2' m2'
                       /\ (thread_step_plus Sem2 ge U st2 m2 st2' m2'
-               \/ (thread_step_star Sem2 ge U st2 m2 st2' m2' /\ core_ord cd cd'))
+               \/ (thread_step_star Sem2 ge U st2 m2 st2' m2' /\ core_ord cd' cd))
       ; machine_diagram :
           forall U tr st1 m1 U' tr' st1' m1',
             machine_semantics.machine_step Sem1 ge U tr st1 m1 U' tr' st1' m1' ->
             forall cd st2 mu m2,
               concur_match cd mu st1 m1 st2 m2 ->
-              exists st2', exists m2', exists cd', exists mu',
-                      concur_match cd' mu' st1' m1' st2' m2'
+              exists st2', exists m2', exists cd',
+                      concur_match cd' mu st1' m1' st2' m2'
                       /\ machine_semantics.machine_step Sem2 ge U tr st2 m2 U' tr' st2' m2'
       ; thread_halted :
           forall cd mu U c1 m1 c2 m2 v1,
