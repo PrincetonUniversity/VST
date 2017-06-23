@@ -165,6 +165,37 @@ Proof.
   intros ??; exists g; eauto.
 Qed.
 
+Lemma ghost_list_alloc : forall lg P g, Forall (fun g => exists g', joins g g') lg ->
+  view_shift P (EX lp : list val, !!(Zlength lp = Zlength lg) &&
+    fold_right sepcon emp (map (fun i => ghost (Znth i lg g) (Znth i lp Vundef)) (upto (Z.to_nat (Zlength lg)))) * P).
+Proof.
+  induction 1.
+  - apply derives_view_shift; Exists (@nil val); entailer!.
+  - etransitivity; eauto.
+    apply view_shift_exists; intro lp.
+    etransitivity; [apply ghost_alloc; eauto|].
+    apply derives_view_shift; Intros p.
+    Exists (p :: lp); rewrite !Zlength_cons, Z2Nat.inj_succ by apply Zlength_nonneg.
+    rewrite (upto_app 1), map_app, sepcon_app; simpl.
+    rewrite !Znth_0_cons; entailer!.
+    erewrite map_map, map_ext_in; eauto; intros; simpl.
+    rewrite In_upto in *; rewrite !Znth_pos_cons by omega.
+    rewrite Z.add_comm, Z.add_simpl_r; auto.
+Qed.
+
+Corollary ghost_list_alloc' : forall g i P, 0 <= i -> (exists g', joins g g') ->
+  view_shift P (EX lp : list val, !!(Zlength lp = i) &&
+    fold_right sepcon emp (map (fun i => ghost g (Znth i lp Vundef)) (upto (Z.to_nat i))) * P).
+Proof.
+  intros.
+  etransitivity; [apply ghost_list_alloc with (lg := repeat g (Z.to_nat i))|].
+  { apply Forall_repeat; auto. }
+  apply derives_view_shift; Intros lp; Exists lp.
+  rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto; entailer!.
+  erewrite map_ext_in; eauto; intros; simpl.
+  rewrite Znth_repeat; auto.
+Qed.
+
 End PCM.
 
 (* operations on PCMs *)

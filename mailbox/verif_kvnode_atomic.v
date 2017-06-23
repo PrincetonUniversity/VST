@@ -2,6 +2,7 @@ Require Import veric.rmaps.
 Require Import progs.ghost.
 Require Import mailbox.general_atomics.
 Require Import progs.conclib.
+Require Import mailbox.maps.
 Require Import floyd.library.
 Require Import floyd.sublist.
 Require Import mailbox.kvnode_atomic.
@@ -17,37 +18,6 @@ Definition store_SC_spec := DECLARE _store_SC store_SC_spec.
 Definition tnode := Tstruct _node noattr.
 
 Opaque upto.
-
-(* Store a map from known version numbers to values. *)
-Instance version_PCM : PCM (Z -> option Z) := { join a b c :=
-  forall v1 v2, c v1 = Some v2 <-> a v1 = Some v2 \/ b v1 = Some v2 }.
-Proof.
-  - intros.
-    rewrite Hjoin; tauto.
-  - intros.
-    exists (fun v => match b v with Some v' => Some v' | None => d v end).
-    assert (forall v v1 v2, b v = Some v1 -> d v = Some v2 -> v1 = v2) as Hbd.
-    { intros ??? Hb Hd.
-      specialize (Hjoin1 v v1).
-      destruct Hjoin1 as (_ & Hc); lapply Hc; auto; intro Hc'.
-      generalize (Hjoin2 v v1); intros (_ & He); lapply He; auto; intro He1.
-      specialize (Hjoin2 v v2); destruct Hjoin2 as (_ & Hjoin2); lapply Hjoin2; auto; intro He2.
-      rewrite He1 in He2; inv He2; auto. }
-    split; intros; specialize (Hjoin1 v1 v2); specialize (Hjoin2 v1 v2).
-    + destruct (b v1) eqn: Hb; split; auto; intros [|]; auto; try discriminate.
-      exploit Hbd; eauto.
-    + rewrite Hjoin2, Hjoin1.
-      destruct (b v1) eqn: Hb; split; auto; intros [|]; auto.
-      * specialize (Hbd _ _ _ Hb H); subst; auto.
-      * destruct H; auto; discriminate.
-Defined.
-
-Instance version_order : PCM_order (fun a b => forall v1 v2, a v1 = Some v2 -> b v1 = Some v2).
-Proof.
-  constructor; simpl; intros; eauto.
-  - split; intros; specialize (H v1 v2); rewrite H; auto.
-  - split; auto; intros [|]; auto.
-Defined.
 
 Definition gsh1 := fst (Share.split Tsh).
 Definition gsh2 := snd (Share.split Tsh).
@@ -76,8 +46,6 @@ Definition node_state v vs version locs g g' lg lg' := EX v' : Z, !!(repable_sig
   Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) &&
   ghost_master v' g * ghost_var gsh2 v' g' * data_at Tsh tint (vint v') version *
   fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))).
-
-Definition singleton (v1 v2 v : Z) := if eq_dec v v1 then Some v2 else None.
 
 Program Definition read_spec := DECLARE _read atomic_spec
   (ConstType (val * val * share * val * list val * val * val * list val * list val * Z * list Z)) (0, [])
