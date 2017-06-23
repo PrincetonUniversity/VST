@@ -30,6 +30,14 @@ Parameter protocol_A : val -> state -> (state -> state -> Prop) ->
 
 Context `{PCM_order state} (Tread Tfull : state -> Z -> mpred).
 
+Axiom ex_protocol_A_precise : forall l ord Tread Tfull, precise (EX s : _, protocol_A l s ord (Tread, Tfull))%logic.
+
+Corollary protocol_A_precise : forall l s ord Tread Tfull, precise (protocol_A l s ord (Tread, Tfull)).
+Proof.
+  intros; eapply derives_precise', ex_protocol_A_precise.
+  Exists s; eauto.
+Qed.
+
 Axiom protocol_A_nonexpansive : forall l s ord Tread1 Tfull1 Tread2 Tfull2,
   (ALL s : state, ALL v : Z, (Tread1 s v <=> Tread2 s v) && (Tfull1 s v <=> Tfull2 s v)) |--
   protocol_A l s ord (Tread1, Tfull1) <=> protocol_A l s ord (Tread2, Tfull2).
