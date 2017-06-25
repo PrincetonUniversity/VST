@@ -137,9 +137,9 @@ Lemma preservation_acquire
   (b : block)
   (ofs : int)
   (d_phi : rmap)
-  (psh : pshare)
   (phi' : rmap)
   (sh : Share.t)
+  (psh : shares.readable_share sh)
   (R : pred rmap)
   (Hthread : getThreadC i tp cnti = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
@@ -275,9 +275,9 @@ Proof.
       { subst loc.
         split; swap 1 2.
         - (* the rmap is unchanged (but we lose the SAT information) *)
-          cut ((4 | Int.intval ofs) /\  (Int.intval ofs + 4 <= Int.modulus)%Z /\
+          cut ((4 | Int.intval ofs) /\  (Int.intval ofs + LKSIZE <= Int.modulus)%Z /\
                exists R0, (lkat R0 (b, Int.intval ofs)) Phi).
-          { intros (align & bound & R0 & AP). repeat (split; auto).
+          { intros (align & bound & R0 & AP). repeat (split; auto).            
             exists R0. revert AP. apply age_to_ind, lkat_hered. }
           cleanup.
           rewrite His_unlocked in lock_coh.
@@ -390,15 +390,12 @@ Proof.
 
           destruct SPA as [bOUT | [<- ofsOUT]].
           + rewrite gsoLockSet_2; auto.
-            eapply lockSet_spec_2.
-            * hnf; simpl. eauto.
-            (* if LKSIZE>4
-                instantiate (1 := ofs').
-                lkomega. *)
+            apply lockSet_spec_2 with ofs'.
+            * hnf; simpl. eauto. clear - int0; simpl in *; omega.
             * cleanup. rewrite Eo. reflexivity.
           + rewrite gsoLockSet_1; auto.
-            * eapply lockSet_spec_2.
-              -- hnf; simpl. eauto. (* if LKSIZE>4 instantiate (1 := ofs'). lkomega. *)
+            * apply lockSet_spec_2 with ofs'.
+              -- hnf; simpl. eauto. clear - int0; simpl in *; omega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
               simpl in *.

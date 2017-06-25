@@ -88,15 +88,15 @@ Proof.
                destruct FC; simpl in *; omega.
                rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; right. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; right. left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. left; trivial.
             }
       clear FR1. clear FR.
@@ -111,9 +111,9 @@ Proof.
   abbreviate_semax.
   rename H into ASS1. rename H0 into ASS2. rename H1 into ASS3.
   rename H2 into ASS4. rename H3 into ASS5. rename H4 into ASS6.
-  forward.
+  forward.  
   forward_call (@nil Z, nullval, Z0, output, out_len, ctx, initial_state,
-                initial_state_abs, kv, info_contents, s).
+               I, kv, info_contents, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
     repeat (split; try assumption; try omega).
@@ -124,7 +124,7 @@ Qed.
 Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
-         hmac256drbgabs_reseed_interval I = 10000 /\
+         RI_range (hmac256drbgabs_reseed_interval I)  /\
          0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
          Forall isbyteZ (hmac256drbgabs_value I).
 
@@ -176,7 +176,7 @@ Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_random hmac_drbg_random_spec_simple.
 Proof.
   start_function.
-  abbreviate_semax.
+  abbreviate_semax. 
   destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
   destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
   forward.

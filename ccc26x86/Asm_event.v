@@ -1835,7 +1835,7 @@ induction 1; intros; try contradiction.
       eexists; econstructor; try eassumption.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
-(*+ (*builtin*)
+(* + (*builtin*)
   destruct ef; simpl in *; try solve [elim H4; trivial].
   - inv H7.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].

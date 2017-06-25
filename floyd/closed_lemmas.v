@@ -1453,6 +1453,17 @@ Proof.
 Qed.
 Hint Resolve closed_wrt_tc_ilt : closed.
 
+Lemma closed_wrt_tc_llt:
+  forall {cs: compspecs} S e n,
+    closed_wrt_vars S (eval_expr e) ->
+    closed_wrt_vars S (denote_tc_assert (tc_llt e n)).
+Proof.
+ intros; hnf; intros.
+ repeat rewrite binop_lemmas2.denote_tc_assert_llt'.
+ simpl. unfold_lift. f_equal. auto.
+Qed.
+Hint Resolve closed_wrt_tc_llt : closed.
+
 Lemma closed_wrt_tc_Zge:
   forall {cs: compspecs} S e n,
     closed_wrt_vars S (eval_expr e) ->

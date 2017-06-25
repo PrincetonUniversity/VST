@@ -1,57 +1,58 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
-Definition _A : ident := 126%positive.
-Definition _Ch : ident := 143%positive.
-Definition _D : ident := 55%positive.
-Definition _D2 : ident := 56%positive.
-Definition _I : ident := 59%positive.
-Definition _K : ident := 149%positive.
-Definition _L : ident := 164%positive.
-Definition _L32 : ident := 62%positive.
-Definition _M : ident := 128%positive.
-Definition _Maj : ident := 144%positive.
-Definition _R : ident := 142%positive.
-Definition _S : ident := 129%positive.
-Definition _Sigma0 : ident := 145%positive.
-Definition _Sigma1 : ident := 146%positive.
-Definition _X : ident := 57%positive.
-Definition _Y : ident := 58%positive.
-Definition _Z : ident := 127%positive.
-Definition __0 : ident := 50%positive.
-Definition __121665 : ident := 54%positive.
-Definition __9 : ident := 51%positive.
+Definition _A : ident := 116%positive.
+Definition _Ch : ident := 133%positive.
+Definition _D : ident := 58%positive.
+Definition _D2 : ident := 59%positive.
+Definition _I : ident := 62%positive.
+Definition _K : ident := 139%positive.
+Definition _L : ident := 154%positive.
+Definition _L32 : ident := 65%positive.
+Definition _M : ident := 118%positive.
+Definition _Maj : ident := 134%positive.
+Definition _R : ident := 132%positive.
+Definition _S : ident := 119%positive.
+Definition _Sigma0 : ident := 135%positive.
+Definition _Sigma1 : ident := 136%positive.
+Definition _X : ident := 60%positive.
+Definition _Y : ident := 61%positive.
+Definition _Z : ident := 117%positive.
+Definition __0 : ident := 53%positive.
+Definition __121665 : ident := 57%positive.
+Definition __9 : ident := 54%positive.
 Definition ___builtin_annot : ident := 3%positive.
 Definition ___builtin_annot_intval : ident := 4%positive.
-Definition ___builtin_bswap : ident := 27%positive.
-Definition ___builtin_bswap16 : ident := 29%positive.
-Definition ___builtin_bswap32 : ident := 28%positive.
-Definition ___builtin_clz : ident := 30%positive.
-Definition ___builtin_clzl : ident := 31%positive.
-Definition ___builtin_clzll : ident := 32%positive.
-Definition ___builtin_ctz : ident := 33%positive.
-Definition ___builtin_ctzl : ident := 34%positive.
-Definition ___builtin_ctzll : ident := 35%positive.
-Definition ___builtin_debug : ident := 48%positive.
+Definition ___builtin_bswap : ident := 29%positive.
+Definition ___builtin_bswap16 : ident := 32%positive.
+Definition ___builtin_bswap32 : ident := 31%positive.
+Definition ___builtin_bswap64 : ident := 30%positive.
+Definition ___builtin_clz : ident := 33%positive.
+Definition ___builtin_clzl : ident := 34%positive.
+Definition ___builtin_clzll : ident := 35%positive.
+Definition ___builtin_ctz : ident := 36%positive.
+Definition ___builtin_ctzl : ident := 37%positive.
+Definition ___builtin_ctzll : ident := 38%positive.
+Definition ___builtin_debug : ident := 51%positive.
 Definition ___builtin_fabs : ident := 1%positive.
-Definition ___builtin_fmadd : ident := 39%positive.
-Definition ___builtin_fmax : ident := 37%positive.
-Definition ___builtin_fmin : ident := 38%positive.
-Definition ___builtin_fmsub : ident := 40%positive.
-Definition ___builtin_fnmadd : ident := 41%positive.
-Definition ___builtin_fnmsub : ident := 42%positive.
-Definition ___builtin_fsqrt : ident := 36%positive.
+Definition ___builtin_fmadd : ident := 42%positive.
+Definition ___builtin_fmax : ident := 40%positive.
+Definition ___builtin_fmin : ident := 41%positive.
+Definition ___builtin_fmsub : ident := 43%positive.
+Definition ___builtin_fnmadd : ident := 44%positive.
+Definition ___builtin_fnmsub : ident := 45%positive.
+Definition ___builtin_fsqrt : ident := 39%positive.
 Definition ___builtin_membar : ident := 5%positive.
 Definition ___builtin_memcpy_aligned : ident := 2%positive.
-Definition ___builtin_nop : ident := 47%positive.
-Definition ___builtin_read16_reversed : ident := 43%positive.
-Definition ___builtin_read32_reversed : ident := 44%positive.
+Definition ___builtin_nop : ident := 50%positive.
+Definition ___builtin_read16_reversed : ident := 46%positive.
+Definition ___builtin_read32_reversed : ident := 47%positive.
 Definition ___builtin_va_arg : ident := 7%positive.
 Definition ___builtin_va_copy : ident := 8%positive.
 Definition ___builtin_va_end : ident := 9%positive.
 Definition ___builtin_va_start : ident := 6%positive.
-Definition ___builtin_write16_reversed : ident := 45%positive.
-Definition ___builtin_write32_reversed : ident := 46%positive.
+Definition ___builtin_write16_reversed : ident := 48%positive.
+Definition ___builtin_write32_reversed : ident := 49%positive.
 Definition ___compcert_va_composite : ident := 13%positive.
 Definition ___compcert_va_float64 : ident := 12%positive.
 Definition ___compcert_va_int32 : ident := 10%positive.
@@ -63,134 +64,147 @@ Definition ___i64_sdiv : ident := 20%positive.
 Definition ___i64_shl : ident := 24%positive.
 Definition ___i64_shr : ident := 25%positive.
 Definition ___i64_smod : ident := 22%positive.
+Definition ___i64_smulh : ident := 27%positive.
 Definition ___i64_stod : ident := 16%positive.
 Definition ___i64_stof : ident := 18%positive.
 Definition ___i64_udiv : ident := 21%positive.
 Definition ___i64_umod : ident := 23%positive.
+Definition ___i64_umulh : ident := 28%positive.
 Definition ___i64_utod : ident := 17%positive.
 Definition ___i64_utof : ident := 19%positive.
-Definition _a : ident := 115%positive.
-Definition _add : ident := 153%positive.
-Definition _add1305 : ident := 107%positive.
-Definition _aux : ident := 63%positive.
-Definition _aux1 : ident := 86%positive.
-Definition _aux1305 : ident := 106%positive.
-Definition _b : ident := 93%positive.
-Definition _c : ident := 61%positive.
-Definition _car25519 : ident := 118%positive.
-Definition _carry : ident := 165%positive.
-Definition _chk : ident := 171%positive.
-Definition _core : ident := 89%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 140%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 138%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 137%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 136%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 141%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 139%positive.
-Definition _crypto_core_hsalsa20_tweet : ident := 91%positive.
-Definition _crypto_core_salsa20_tweet : ident := 90%positive.
-Definition _crypto_hash_sha512_tweet : ident := 152%positive.
-Definition _crypto_hashblocks_sha512_tweet : ident := 150%positive.
-Definition _crypto_onetimeauth_poly1305_tweet : ident := 111%positive.
-Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 112%positive.
-Definition _crypto_scalarmult_curve25519_tweet : ident := 134%positive.
-Definition _crypto_scalarmult_curve25519_tweet_base : ident := 135%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 113%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 114%positive.
-Definition _crypto_sign_ed25519_tweet : ident := 170%positive.
-Definition _crypto_sign_ed25519_tweet_keypair : ident := 163%positive.
-Definition _crypto_sign_ed25519_tweet_open : ident := 179%positive.
-Definition _crypto_stream_salsa20_tweet : ident := 102%positive.
-Definition _crypto_stream_salsa20_tweet_xor : ident := 101%positive.
-Definition _crypto_stream_xsalsa20_tweet : ident := 104%positive.
-Definition _crypto_stream_xsalsa20_tweet_xor : ident := 105%positive.
+Definition _a : ident := 105%positive.
+Definition _add : ident := 143%positive.
+Definition _add1305 : ident := 97%positive.
+Definition _b : ident := 90%positive.
+Definition _c : ident := 64%positive.
+Definition _car25519 : ident := 108%positive.
+Definition _carry : ident := 155%positive.
+Definition _chk : ident := 161%positive.
+Definition _core : ident := 86%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 130%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 128%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 127%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 126%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 131%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 129%positive.
+Definition _crypto_core_hsalsa20_tweet : ident := 88%positive.
+Definition _crypto_core_salsa20_tweet : ident := 87%positive.
+Definition _crypto_hash_sha512_tweet : ident := 142%positive.
+Definition _crypto_hashblocks_sha512_tweet : ident := 140%positive.
+Definition _crypto_onetimeauth_poly1305_tweet : ident := 101%positive.
+Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 102%positive.
+Definition _crypto_scalarmult_curve25519_tweet : ident := 124%positive.
+Definition _crypto_scalarmult_curve25519_tweet_base : ident := 125%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 103%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 104%positive.
+Definition _crypto_sign_ed25519_tweet : ident := 160%positive.
+Definition _crypto_sign_ed25519_tweet_keypair : ident := 153%positive.
+Definition _crypto_sign_ed25519_tweet_open : ident := 169%positive.
+Definition _crypto_stream_salsa20_tweet : ident := 93%positive.
+Definition _crypto_stream_salsa20_tweet_xor : ident := 92%positive.
+Definition _crypto_stream_xsalsa20_tweet : ident := 95%positive.
+Definition _crypto_stream_xsalsa20_tweet_xor : ident := 96%positive.
 Definition _crypto_verify_16_tweet : ident := 76%positive.
 Definition _crypto_verify_32_tweet : ident := 77%positive.
-Definition _cswap : ident := 154%positive.
-Definition _d : ident := 73%positive.
-Definition _den : ident := 173%positive.
-Definition _den2 : ident := 174%positive.
-Definition _den4 : ident := 175%positive.
-Definition _den6 : ident := 176%positive.
-Definition _dl64 : ident := 68%positive.
-Definition _e : ident := 132%positive.
-Definition _f : ident := 133%positive.
-Definition _g : ident := 110%positive.
-Definition _gf0 : ident := 52%positive.
-Definition _gf1 : ident := 53%positive.
+Definition _cswap : ident := 144%positive.
+Definition _d : ident := 74%positive.
+Definition _den : ident := 163%positive.
+Definition _den2 : ident := 164%positive.
+Definition _den4 : ident := 165%positive.
+Definition _den6 : ident := 166%positive.
+Definition _dl64 : ident := 69%positive.
+Definition _e : ident := 122%positive.
+Definition _f : ident := 123%positive.
+Definition _g : ident := 100%positive.
+Definition _gf0 : ident := 55%positive.
+Definition _gf1 : ident := 56%positive.
 Definition _h : ident := 81%positive.
-Definition _i : ident := 66%positive.
+Definition _i : ident := 68%positive.
 Definition _in : ident := 79%positive.
-Definition _index : ident := 88%positive.
-Definition _inv25519 : ident := 130%positive.
-Definition _iv : ident := 151%positive.
+Definition _inv25519 : ident := 120%positive.
+Definition _iv : ident := 141%positive.
 Definition _j : ident := 84%positive.
 Definition _k : ident := 80%positive.
-Definition _ld32 : ident := 65%positive.
-Definition _loop1aux : ident := 95%positive.
-Definition _loop2left : ident := 96%positive.
-Definition _loop2right : ident := 97%positive.
-Definition _loop3left : ident := 98%positive.
-Definition _loop3right : ident := 99%positive.
+Definition _ld32 : ident := 67%positive.
 Definition _m : ident := 85%positive.
-Definition _main : ident := 180%positive.
-Definition _minusp : ident := 108%positive.
-Definition _mlen : ident := 178%positive.
-Definition _modL : ident := 166%positive.
-Definition _n : ident := 72%positive.
-Definition _neq25519 : ident := 123%positive.
-Definition _num : ident := 172%positive.
-Definition _o : ident := 117%positive.
+Definition _main : ident := 170%positive.
+Definition _minusp : ident := 98%positive.
+Definition _mlen : ident := 168%positive.
+Definition _modL : ident := 156%positive.
+Definition _n : ident := 73%positive.
+Definition _neq25519 : ident := 113%positive.
+Definition _num : ident := 162%positive.
+Definition _o : ident := 107%positive.
 Definition _out : ident := 78%positive.
-Definition _p : ident := 119%positive.
-Definition _pack : ident := 158%positive.
-Definition _pack25519 : ident := 122%positive.
-Definition _par25519 : ident := 124%positive.
-Definition _pk : ident := 161%positive.
-Definition _pow2523 : ident := 131%positive.
-Definition _q : ident := 120%positive.
-Definition _r : ident := 109%positive.
-Definition _randombytes : ident := 49%positive.
-Definition _reduce : ident := 167%positive.
-Definition _s : ident := 103%positive.
-Definition _scalarbase : ident := 160%positive.
-Definition _scalarmult : ident := 159%positive.
-Definition _sel25519 : ident := 121%positive.
-Definition _set25519 : ident := 116%positive.
-Definition _sigma : ident := 92%positive.
-Definition _sigma0 : ident := 147%positive.
-Definition _sigma1 : ident := 148%positive.
-Definition _sk : ident := 162%positive.
-Definition _sm : ident := 168%positive.
-Definition _smlen : ident := 169%positive.
-Definition _st32 : ident := 69%positive.
+Definition _p : ident := 109%positive.
+Definition _pack : ident := 148%positive.
+Definition _pack25519 : ident := 112%positive.
+Definition _par25519 : ident := 114%positive.
+Definition _pk : ident := 151%positive.
+Definition _pow2523 : ident := 121%positive.
+Definition _q : ident := 110%positive.
+Definition _r : ident := 99%positive.
+Definition _randombytes : ident := 52%positive.
+Definition _reduce : ident := 157%positive.
+Definition _s : ident := 94%positive.
+Definition _scalarbase : ident := 150%positive.
+Definition _scalarmult : ident := 149%positive.
+Definition _sel25519 : ident := 111%positive.
+Definition _set25519 : ident := 106%positive.
+Definition _sigma : ident := 89%positive.
+Definition _sigma0 : ident := 137%positive.
+Definition _sigma1 : ident := 138%positive.
+Definition _sk : ident := 152%positive.
+Definition _sm : ident := 158%positive.
+Definition _smlen : ident := 159%positive.
+Definition _st32 : ident := 70%positive.
 Definition _t : ident := 83%positive.
-Definition _temp : ident := 100%positive.
-Definition _ts64 : ident := 70%positive.
-Definition _tx : ident := 155%positive.
-Definition _ty : ident := 156%positive.
-Definition _u : ident := 64%positive.
-Definition _u8_aux : ident := 87%positive.
-Definition _unpack25519 : ident := 125%positive.
-Definition _unpackneg : ident := 177%positive.
+Definition _ts64 : ident := 71%positive.
+Definition _tx : ident := 145%positive.
+Definition _ty : ident := 146%positive.
+Definition _u : ident := 66%positive.
+Definition _unpack25519 : ident := 115%positive.
+Definition _unpackneg : ident := 167%positive.
 Definition _vn : ident := 75%positive.
 Definition _w : ident := 82%positive.
-Definition _x : ident := 60%positive.
-Definition _xi : ident := 67%positive.
-Definition _y : ident := 71%positive.
-Definition _yi : ident := 74%positive.
-Definition _z : ident := 94%positive.
-Definition _zi : ident := 157%positive.
-Definition _t'1 : ident := 181%positive.
-Definition _t'10 : ident := 190%positive.
-Definition _t'2 : ident := 182%positive.
-Definition _t'3 : ident := 183%positive.
-Definition _t'4 : ident := 184%positive.
-Definition _t'5 : ident := 185%positive.
-Definition _t'6 : ident := 186%positive.
-Definition _t'7 : ident := 187%positive.
-Definition _t'8 : ident := 188%positive.
-Definition _t'9 : ident := 189%positive.
+Definition _x : ident := 63%positive.
+Definition _y : ident := 72%positive.
+Definition _z : ident := 91%positive.
+Definition _zi : ident := 147%positive.
+Definition _t'1 : ident := 171%positive.
+Definition _t'10 : ident := 180%positive.
+Definition _t'11 : ident := 181%positive.
+Definition _t'12 : ident := 182%positive.
+Definition _t'13 : ident := 183%positive.
+Definition _t'14 : ident := 184%positive.
+Definition _t'15 : ident := 185%positive.
+Definition _t'16 : ident := 186%positive.
+Definition _t'17 : ident := 187%positive.
+Definition _t'18 : ident := 188%positive.
+Definition _t'19 : ident := 189%positive.
+Definition _t'2 : ident := 172%positive.
+Definition _t'20 : ident := 190%positive.
+Definition _t'21 : ident := 191%positive.
+Definition _t'22 : ident := 192%positive.
+Definition _t'23 : ident := 193%positive.
+Definition _t'24 : ident := 194%positive.
+Definition _t'25 : ident := 195%positive.
+Definition _t'26 : ident := 196%positive.
+Definition _t'27 : ident := 197%positive.
+Definition _t'28 : ident := 198%positive.
+Definition _t'29 : ident := 199%positive.
+Definition _t'3 : ident := 173%positive.
+Definition _t'30 : ident := 200%positive.
+Definition _t'31 : ident := 201%positive.
+Definition _t'32 : ident := 202%positive.
+Definition _t'33 : ident := 203%positive.
+Definition _t'34 : ident := 204%positive.
+Definition _t'4 : ident := 174%positive.
+Definition _t'5 : ident := 175%positive.
+Definition _t'6 : ident := 176%positive.
+Definition _t'7 : ident := 177%positive.
+Definition _t'8 : ident := 178%positive.
+Definition _t'9 : ident := 179%positive.
 
 Definition v__0 := {|
   gvar_info := (tarray tuchar 16);
@@ -359,7 +373,8 @@ Definition f_ld32 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_aux, tuint) :: (_u, tuint) :: nil);
+  fn_temps := ((_u, tuint) :: (_t'3, tuchar) :: (_t'2, tuchar) ::
+               (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _u
@@ -367,34 +382,34 @@ Definition f_ld32 := {|
       (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Econst_int (Int.repr 3) tint)
         (tptr tuchar)) tuchar))
   (Ssequence
-    (Sset _aux
-      (Ederef
-        (Ebinop Oadd (Etempvar _x (tptr tuchar))
-          (Econst_int (Int.repr 2) tint) (tptr tuchar)) tuchar))
     (Ssequence
+      (Sset _t'3
+        (Ederef
+          (Ebinop Oadd (Etempvar _x (tptr tuchar))
+            (Econst_int (Int.repr 2) tint) (tptr tuchar)) tuchar))
       (Sset _u
         (Ebinop Oor
           (Ebinop Oshl (Etempvar _u tuint) (Econst_int (Int.repr 8) tint)
-            tuint) (Etempvar _aux tuint) tuint))
+            tuint) (Etempvar _t'3 tuchar) tuint)))
+    (Ssequence
       (Ssequence
-        (Sset _aux
+        (Sset _t'2
           (Ederef
             (Ebinop Oadd (Etempvar _x (tptr tuchar))
               (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar))
-        (Ssequence
-          (Sset _u
-            (Ebinop Oor
-              (Ebinop Oshl (Etempvar _u tuint) (Econst_int (Int.repr 8) tint)
-                tuint) (Etempvar _aux tuint) tuint))
-          (Ssequence
-            (Sset _aux
-              (Ederef
-                (Ebinop Oadd (Etempvar _x (tptr tuchar))
-                  (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
-            (Sreturn (Some (Ebinop Oor
-                             (Ebinop Oshl (Etempvar _u tuint)
-                               (Econst_int (Int.repr 8) tint) tuint)
-                             (Etempvar _aux tuint) tuint)))))))))
+        (Sset _u
+          (Ebinop Oor
+            (Ebinop Oshl (Etempvar _u tuint) (Econst_int (Int.repr 8) tint)
+              tuint) (Etempvar _t'2 tuchar) tuint)))
+      (Ssequence
+        (Sset _t'1
+          (Ederef
+            (Ebinop Oadd (Etempvar _x (tptr tuchar))
+              (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
+        (Sreturn (Some (Ebinop Oor
+                         (Ebinop Oshl (Etempvar _u tuint)
+                           (Econst_int (Int.repr 8) tint) tuint)
+                         (Etempvar _t'1 tuchar) tuint)))))))
 |}.
 
 Definition f_dl64 := {|
@@ -402,7 +417,7 @@ Definition f_dl64 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_u, tulong) :: (_xi, tuchar) :: nil);
+  fn_temps := ((_i, tint) :: (_u, tulong) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _u (Ecast (Econst_int (Int.repr 0) tint) tulong))
@@ -416,16 +431,15 @@ Definition f_dl64 := {|
             Sskip
             Sbreak)
           (Ssequence
-            (Sset _xi
-              (Ecast
-                (Ederef
-                  (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tint)
-                    (tptr tuchar)) tuchar) tuchar))
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tint)
+                  (tptr tuchar)) tuchar))
             (Sset _u
               (Ebinop Oor
                 (Ebinop Oshl (Etempvar _u tulong)
                   (Econst_int (Int.repr 8) tint) tulong)
-                (Etempvar _xi tuchar) tulong))))
+                (Etempvar _t'1 tuchar) tulong))))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))
@@ -467,24 +481,23 @@ Definition f_ts64 := {|
   fn_temps := ((_i, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sset _i (Econst_int (Int.repr 7) tint))
   (Sloop
     (Ssequence
-      (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                     (Econst_int (Int.repr 8) tint) tint)
+      (Sifthenelse (Ebinop Oge (Etempvar _i tint)
+                     (Econst_int (Int.repr 0) tint) tint)
         Sskip
         Sbreak)
       (Ssequence
         (Sassign
           (Ederef
-            (Ebinop Oadd (Etempvar _x (tptr tuchar))
-              (Ebinop Osub (Econst_int (Int.repr 7) tint) (Etempvar _i tint)
-                tint) (tptr tuchar)) tuchar) (Etempvar _u tulong))
+            (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tint)
+              (tptr tuchar)) tuchar) (Etempvar _u tulong))
         (Sset _u
           (Ebinop Oshr (Etempvar _u tulong) (Econst_int (Int.repr 8) tint)
             tulong))))
     (Sset _i
-      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
+      (Ebinop Osub (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
 
 Definition f_vn := {|
@@ -493,8 +506,8 @@ Definition f_vn := {|
   fn_params := ((_x, (tptr tuchar)) :: (_y, (tptr tuchar)) :: (_n, tint) ::
                 nil);
   fn_vars := nil;
-  fn_temps := ((_i, tuint) :: (_d, tuint) :: (_xi, tuchar) ::
-               (_yi, tuchar) :: nil);
+  fn_temps := ((_i, tuint) :: (_d, tuint) :: (_t'2, tuchar) ::
+               (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _d (Econst_int (Int.repr 0) tint))
@@ -508,20 +521,18 @@ Definition f_vn := {|
             Sskip
             Sbreak)
           (Ssequence
-            (Sset _xi
-              (Ecast
-                (Ederef
-                  (Ebinop Oadd (Etempvar _x (tptr tuchar))
-                    (Etempvar _i tuint) (tptr tuchar)) tuchar) tuchar))
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tuint)
+                  (tptr tuchar)) tuchar))
             (Ssequence
-              (Sset _yi
-                (Ecast
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _y (tptr tuchar))
-                      (Etempvar _i tuint) (tptr tuchar)) tuchar) tuchar))
+              (Sset _t'2
+                (Ederef
+                  (Ebinop Oadd (Etempvar _y (tptr tuchar))
+                    (Etempvar _i tuint) (tptr tuchar)) tuchar))
               (Sset _d
                 (Ebinop Oor (Etempvar _d tuint)
-                  (Ebinop Oxor (Etempvar _xi tuchar) (Etempvar _yi tuchar)
+                  (Ebinop Oxor (Etempvar _t'1 tuchar) (Etempvar _t'2 tuchar)
                     tint) tuint)))))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
@@ -577,12 +588,18 @@ Definition f_core := {|
                 nil);
   fn_vars := ((_w, (tarray tuint 16)) :: (_x, (tarray tuint 16)) ::
               (_y, (tarray tuint 16)) :: (_t, (tarray tuint 4)) :: nil);
-  fn_temps := ((_i, tint) :: (_j, tint) :: (_m, tint) :: (_aux, tuint) ::
-               (_aux1, tuint) :: (_u8_aux, (tptr tuchar)) ::
-               (_index, tint) :: (_t'10, tuint) :: (_t'9, tuint) ::
-               (_t'8, tuint) :: (_t'7, tuint) :: (_t'6, tuint) ::
-               (_t'5, tuint) :: (_t'4, tuint) :: (_t'3, tuint) ::
-               (_t'2, tuint) :: (_t'1, tuint) :: nil);
+  fn_temps := ((_i, tint) :: (_j, tint) :: (_m, tint) :: (_t'10, tuint) ::
+               (_t'9, tuint) :: (_t'8, tuint) :: (_t'7, tuint) ::
+               (_t'6, tuint) :: (_t'5, tuint) :: (_t'4, tuint) ::
+               (_t'3, tuint) :: (_t'2, tuint) :: (_t'1, tuint) ::
+               (_t'34, tuint) :: (_t'33, tuint) :: (_t'32, tuint) ::
+               (_t'31, tuint) :: (_t'30, tuint) :: (_t'29, tuint) ::
+               (_t'28, tuint) :: (_t'27, tuint) :: (_t'26, tuint) ::
+               (_t'25, tuint) :: (_t'24, tuint) :: (_t'23, tuint) ::
+               (_t'22, tuint) :: (_t'21, tuint) :: (_t'20, tuint) ::
+               (_t'19, tuint) :: (_t'18, tuint) :: (_t'17, tuint) ::
+               (_t'16, tuint) :: (_t'15, tuint) :: (_t'14, tuint) ::
+               (_t'13, tuint) :: (_t'12, tuint) :: (_t'11, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -601,64 +618,55 @@ Definition f_core := {|
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar _t'1 tuint)))
-          (Ssequence
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _x (tarray tuint 16))
                   (Ebinop Omul (Econst_int (Int.repr 5) tint)
                     (Etempvar _i tint) tint) (tptr tuint)) tuint)
-              (Etempvar _aux tuint))
+              (Etempvar _t'1 tuint)))
+          (Ssequence
+            (Ssequence
+              (Scall (Some _t'2)
+                (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
+                              cc_default))
+                ((Ebinop Oadd (Etempvar _k (tptr tuchar))
+                   (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                     (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
+              (Sassign
+                (Ederef
+                  (Ebinop Oadd (Evar _x (tarray tuint 16))
+                    (Ebinop Oadd (Econst_int (Int.repr 1) tint)
+                      (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                (Etempvar _t'2 tuint)))
             (Ssequence
               (Ssequence
-                (Scall (Some _t'2)
+                (Scall (Some _t'3)
                   (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                 cc_default))
-                  ((Ebinop Oadd (Etempvar _k (tptr tuchar))
+                  ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar _t'2 tuint)))
-              (Ssequence
                 (Sassign
                   (Ederef
                     (Ebinop Oadd (Evar _x (tarray tuint 16))
-                      (Ebinop Oadd (Econst_int (Int.repr 1) tint)
+                      (Ebinop Oadd (Econst_int (Int.repr 6) tint)
                         (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                  (Etempvar _aux tuint))
-                (Ssequence
-                  (Ssequence
-                    (Scall (Some _t'3)
-                      (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
-                                    cc_default))
-                      ((Ebinop Oadd (Etempvar _in (tptr tuchar))
-                         (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                           (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar _t'3 tuint)))
-                  (Ssequence
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Evar _x (tarray tuint 16))
-                          (Ebinop Oadd (Econst_int (Int.repr 6) tint)
-                            (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                      (Etempvar _aux tuint))
-                    (Ssequence
-                      (Ssequence
-                        (Scall (Some _t'4)
-                          (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
-                                        tuint cc_default))
-                          ((Ebinop Oadd
-                             (Ebinop Oadd (Etempvar _k (tptr tuchar))
-                               (Econst_int (Int.repr 16) tint) (tptr tuchar))
-                             (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                               (Etempvar _i tint) tint) (tptr tuchar)) ::
-                           nil))
-                        (Sset _aux (Etempvar _t'4 tuint)))
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _x (tarray tuint 16))
-                            (Ebinop Oadd (Econst_int (Int.repr 11) tint)
-                              (Etempvar _i tint) tint) (tptr tuint)) tuint)
-                        (Etempvar _aux tuint))))))))))
+                  (Etempvar _t'3 tuint)))
+              (Ssequence
+                (Scall (Some _t'4)
+                  (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
+                                cc_default))
+                  ((Ebinop Oadd
+                     (Ebinop Oadd (Etempvar _k (tptr tuchar))
+                       (Econst_int (Int.repr 16) tint) (tptr tuchar))
+                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                       (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
+                (Sassign
+                  (Ederef
+                    (Ebinop Oadd (Evar _x (tarray tuint 16))
+                      (Ebinop Oadd (Econst_int (Int.repr 11) tint)
+                        (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                  (Etempvar _t'4 tuint)))))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
@@ -671,14 +679,14 @@ Definition f_core := {|
             Sskip
             Sbreak)
           (Ssequence
-            (Sset _aux
+            (Sset _t'34
               (Ederef
                 (Ebinop Oadd (Evar _x (tarray tuint 16)) (Etempvar _i tint)
                   (tptr tuint)) tuint))
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _y (tarray tuint 16)) (Etempvar _i tint)
-                  (tptr tuint)) tuint) (Etempvar _aux tuint))))
+                  (tptr tuint)) tuint) (Etempvar _t'34 tuint))))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))
@@ -711,212 +719,168 @@ Definition f_core := {|
                               Sskip
                               Sbreak)
                             (Ssequence
-                              (Sset _index
-                                (Ebinop Omod
-                                  (Ebinop Oadd
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 5) tint)
-                                      (Etempvar _j tint) tint)
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 4) tint)
-                                      (Etempvar _m tint) tint) tint)
-                                  (Econst_int (Int.repr 16) tint) tint))
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Etempvar _index tint) (tptr tuint))
-                                    tuint))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Etempvar _m tint) (tptr tuint)) tuint)
-                                  (Etempvar _aux tuint)))))
+                              (Sset _t'33
+                                (Ederef
+                                  (Ebinop Oadd (Evar _x (tarray tuint 16))
+                                    (Ebinop Omod
+                                      (Ebinop Oadd
+                                        (Ebinop Omul
+                                          (Econst_int (Int.repr 5) tint)
+                                          (Etempvar _j tint) tint)
+                                        (Ebinop Omul
+                                          (Econst_int (Int.repr 4) tint)
+                                          (Etempvar _m tint) tint) tint)
+                                      (Econst_int (Int.repr 16) tint) tint)
+                                    (tptr tuint)) tuint))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                    (Etempvar _m tint) (tptr tuint)) tuint)
+                                (Etempvar _t'33 tuint))))
                           (Sset _m
                             (Ebinop Oadd (Etempvar _m tint)
                               (Econst_int (Int.repr 1) tint) tint))))
                       (Ssequence
                         (Ssequence
-                          (Sset _aux
-                            (Ederef
-                              (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                (Econst_int (Int.repr 0) tint) (tptr tuint))
-                              tuint))
                           (Ssequence
-                            (Sset _aux1
+                            (Sset _t'31
                               (Ederef
                                 (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                  (Econst_int (Int.repr 3) tint)
+                                  (Econst_int (Int.repr 0) tint)
                                   (tptr tuint)) tuint))
                             (Ssequence
-                              (Sset _aux
-                                (Ebinop Oadd (Etempvar _aux tuint)
-                                  (Etempvar _aux1 tuint) tuint))
-                              (Ssequence
-                                (Ssequence
-                                  (Scall (Some _t'5)
-                                    (Evar _L32 (Tfunction
-                                                 (Tcons tuint
-                                                   (Tcons tint Tnil)) tuint
-                                                 cc_default))
-                                    ((Etempvar _aux tuint) ::
-                                     (Econst_int (Int.repr 7) tint) :: nil))
-                                  (Sset _aux (Etempvar _t'5 tuint)))
-                                (Ssequence
-                                  (Sset _aux1
-                                    (Ederef
-                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                        (Econst_int (Int.repr 1) tint)
-                                        (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _aux1
-                                      (Ebinop Oxor (Etempvar _aux1 tuint)
-                                        (Etempvar _aux tuint) tuint))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Evar _t (tarray tuint 4))
-                                          (Econst_int (Int.repr 1) tint)
-                                          (tptr tuint)) tuint)
-                                      (Etempvar _aux1 tuint))))))))
-                        (Ssequence
+                              (Sset _t'32
+                                (Ederef
+                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                    (Econst_int (Int.repr 3) tint)
+                                    (tptr tuint)) tuint))
+                              (Scall (Some _t'5)
+                                (Evar _L32 (Tfunction
+                                             (Tcons tuint (Tcons tint Tnil))
+                                             tuint cc_default))
+                                ((Ebinop Oadd (Etempvar _t'31 tuint)
+                                   (Etempvar _t'32 tuint) tuint) ::
+                                 (Econst_int (Int.repr 7) tint) :: nil))))
                           (Ssequence
-                            (Sset _aux
+                            (Sset _t'30
                               (Ederef
                                 (Ebinop Oadd (Evar _t (tarray tuint 4))
                                   (Econst_int (Int.repr 1) tint)
                                   (tptr tuint)) tuint))
+                            (Sassign
+                              (Ederef
+                                (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                  (Econst_int (Int.repr 1) tint)
+                                  (tptr tuint)) tuint)
+                              (Ebinop Oxor (Etempvar _t'30 tuint)
+                                (Etempvar _t'5 tuint) tuint))))
+                        (Ssequence
+                          (Ssequence
                             (Ssequence
-                              (Sset _aux1
+                              (Sset _t'28
                                 (Ederef
                                   (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                    (Econst_int (Int.repr 0) tint)
+                                    (Econst_int (Int.repr 1) tint)
                                     (tptr tuint)) tuint))
                               (Ssequence
-                                (Sset _aux
-                                  (Ebinop Oadd (Etempvar _aux tuint)
-                                    (Etempvar _aux1 tuint) tuint))
+                                (Sset _t'29
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Econst_int (Int.repr 0) tint)
+                                      (tptr tuint)) tuint))
+                                (Scall (Some _t'6)
+                                  (Evar _L32 (Tfunction
+                                               (Tcons tuint
+                                                 (Tcons tint Tnil)) tuint
+                                               cc_default))
+                                  ((Ebinop Oadd (Etempvar _t'28 tuint)
+                                     (Etempvar _t'29 tuint) tuint) ::
+                                   (Econst_int (Int.repr 9) tint) :: nil))))
+                            (Ssequence
+                              (Sset _t'27
+                                (Ederef
+                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                    (Econst_int (Int.repr 2) tint)
+                                    (tptr tuint)) tuint))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                    (Econst_int (Int.repr 2) tint)
+                                    (tptr tuint)) tuint)
+                                (Ebinop Oxor (Etempvar _t'27 tuint)
+                                  (Etempvar _t'6 tuint) tuint))))
+                          (Ssequence
+                            (Ssequence
+                              (Ssequence
+                                (Sset _t'25
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Econst_int (Int.repr 2) tint)
+                                      (tptr tuint)) tuint))
                                 (Ssequence
+                                  (Sset _t'26
+                                    (Ederef
+                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                        (Econst_int (Int.repr 1) tint)
+                                        (tptr tuint)) tuint))
+                                  (Scall (Some _t'7)
+                                    (Evar _L32 (Tfunction
+                                                 (Tcons tuint
+                                                   (Tcons tint Tnil)) tuint
+                                                 cc_default))
+                                    ((Ebinop Oadd (Etempvar _t'25 tuint)
+                                       (Etempvar _t'26 tuint) tuint) ::
+                                     (Econst_int (Int.repr 13) tint) :: nil))))
+                              (Ssequence
+                                (Sset _t'24
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Econst_int (Int.repr 3) tint)
+                                      (tptr tuint)) tuint))
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Econst_int (Int.repr 3) tint)
+                                      (tptr tuint)) tuint)
+                                  (Ebinop Oxor (Etempvar _t'24 tuint)
+                                    (Etempvar _t'7 tuint) tuint))))
+                            (Ssequence
+                              (Ssequence
+                                (Ssequence
+                                  (Sset _t'22
+                                    (Ederef
+                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                        (Econst_int (Int.repr 3) tint)
+                                        (tptr tuint)) tuint))
                                   (Ssequence
-                                    (Scall (Some _t'6)
-                                      (Evar _L32 (Tfunction
-                                                   (Tcons tuint
-                                                     (Tcons tint Tnil)) tuint
-                                                   cc_default))
-                                      ((Etempvar _aux tuint) ::
-                                       (Econst_int (Int.repr 9) tint) :: nil))
-                                    (Sset _aux (Etempvar _t'6 tuint)))
-                                  (Ssequence
-                                    (Sset _aux1
+                                    (Sset _t'23
                                       (Ederef
                                         (Ebinop Oadd
                                           (Evar _t (tarray tuint 4))
                                           (Econst_int (Int.repr 2) tint)
                                           (tptr tuint)) tuint))
-                                    (Ssequence
-                                      (Sset _aux1
-                                        (Ebinop Oxor (Etempvar _aux1 tuint)
-                                          (Etempvar _aux tuint) tuint))
-                                      (Sassign
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Evar _t (tarray tuint 4))
-                                            (Econst_int (Int.repr 2) tint)
-                                            (tptr tuint)) tuint)
-                                        (Etempvar _aux1 tuint))))))))
-                          (Ssequence
-                            (Ssequence
-                              (Sset _aux
-                                (Ederef
-                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                    (Econst_int (Int.repr 2) tint)
-                                    (tptr tuint)) tuint))
-                              (Ssequence
-                                (Sset _aux1
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint)) tuint))
+                                    (Scall (Some _t'8)
+                                      (Evar _L32 (Tfunction
+                                                   (Tcons tuint
+                                                     (Tcons tint Tnil)) tuint
+                                                   cc_default))
+                                      ((Ebinop Oadd (Etempvar _t'22 tuint)
+                                         (Etempvar _t'23 tuint) tuint) ::
+                                       (Econst_int (Int.repr 18) tint) ::
+                                       nil))))
                                 (Ssequence
-                                  (Sset _aux
-                                    (Ebinop Oadd (Etempvar _aux tuint)
-                                      (Etempvar _aux1 tuint) tuint))
-                                  (Ssequence
-                                    (Ssequence
-                                      (Scall (Some _t'7)
-                                        (Evar _L32 (Tfunction
-                                                     (Tcons tuint
-                                                       (Tcons tint Tnil))
-                                                     tuint cc_default))
-                                        ((Etempvar _aux tuint) ::
-                                         (Econst_int (Int.repr 13) tint) ::
-                                         nil))
-                                      (Sset _aux (Etempvar _t'7 tuint)))
-                                    (Ssequence
-                                      (Sset _aux1
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Evar _t (tarray tuint 4))
-                                            (Econst_int (Int.repr 3) tint)
-                                            (tptr tuint)) tuint))
-                                      (Ssequence
-                                        (Sset _aux1
-                                          (Ebinop Oxor (Etempvar _aux1 tuint)
-                                            (Etempvar _aux tuint) tuint))
-                                        (Sassign
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _t (tarray tuint 4))
-                                              (Econst_int (Int.repr 3) tint)
-                                              (tptr tuint)) tuint)
-                                          (Etempvar _aux1 tuint))))))))
-                            (Ssequence
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Econst_int (Int.repr 3) tint)
-                                      (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _aux1
+                                  (Sset _t'21
                                     (Ederef
                                       (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                        (Econst_int (Int.repr 2) tint)
+                                        (Econst_int (Int.repr 0) tint)
                                         (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _aux
-                                      (Ebinop Oadd (Etempvar _aux tuint)
-                                        (Etempvar _aux1 tuint) tuint))
-                                    (Ssequence
-                                      (Ssequence
-                                        (Scall (Some _t'8)
-                                          (Evar _L32 (Tfunction
-                                                       (Tcons tuint
-                                                         (Tcons tint Tnil))
-                                                       tuint cc_default))
-                                          ((Etempvar _aux tuint) ::
-                                           (Econst_int (Int.repr 18) tint) ::
-                                           nil))
-                                        (Sset _aux (Etempvar _t'8 tuint)))
-                                      (Ssequence
-                                        (Sset _aux1
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _t (tarray tuint 4))
-                                              (Econst_int (Int.repr 0) tint)
-                                              (tptr tuint)) tuint))
-                                        (Ssequence
-                                          (Sset _aux1
-                                            (Ebinop Oxor
-                                              (Etempvar _aux1 tuint)
-                                              (Etempvar _aux tuint) tuint))
-                                          (Sassign
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Evar _t (tarray tuint 4))
-                                                (Econst_int (Int.repr 0) tint)
-                                                (tptr tuint)) tuint)
-                                            (Etempvar _aux1 tuint))))))))
+                                  (Sassign
+                                    (Ederef
+                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                        (Econst_int (Int.repr 0) tint)
+                                        (tptr tuint)) tuint)
+                                    (Ebinop Oxor (Etempvar _t'21 tuint)
+                                      (Etempvar _t'8 tuint) tuint))))
                               (Ssequence
                                 (Sset _m (Econst_int (Int.repr 0) tint))
                                 (Sloop
@@ -928,30 +892,27 @@ Definition f_core := {|
                                       Sskip
                                       Sbreak)
                                     (Ssequence
-                                      (Sset _aux
+                                      (Sset _t'20
                                         (Ederef
                                           (Ebinop Oadd
                                             (Evar _t (tarray tuint 4))
                                             (Etempvar _m tint) (tptr tuint))
                                           tuint))
-                                      (Ssequence
-                                        (Sset _aux1
+                                      (Sassign
+                                        (Ederef
                                           (Ebinop Oadd
-                                            (Ebinop Omul
-                                              (Econst_int (Int.repr 4) tint)
-                                              (Etempvar _j tint) tint)
-                                            (Ebinop Omod
-                                              (Ebinop Oadd (Etempvar _j tint)
-                                                (Etempvar _m tint) tint)
-                                              (Econst_int (Int.repr 4) tint)
-                                              tint) tint))
-                                        (Sassign
-                                          (Ederef
+                                            (Evar _w (tarray tuint 16))
                                             (Ebinop Oadd
-                                              (Evar _w (tarray tuint 16))
-                                              (Etempvar _aux1 tuint)
-                                              (tptr tuint)) tuint)
-                                          (Etempvar _aux tuint)))))
+                                              (Ebinop Omul
+                                                (Econst_int (Int.repr 4) tint)
+                                                (Etempvar _j tint) tint)
+                                              (Ebinop Omod
+                                                (Ebinop Oadd
+                                                  (Etempvar _j tint)
+                                                  (Etempvar _m tint) tint)
+                                                (Econst_int (Int.repr 4) tint)
+                                                tint) tint) (tptr tuint))
+                                          tuint) (Etempvar _t'20 tuint))))
                                   (Sset _m
                                     (Ebinop Oadd (Etempvar _m tint)
                                       (Econst_int (Int.repr 1) tint) tint))))))))))
@@ -967,7 +928,7 @@ Definition f_core := {|
                       Sskip
                       Sbreak)
                     (Ssequence
-                      (Sset _aux
+                      (Sset _t'19
                         (Ederef
                           (Ebinop Oadd (Evar _w (tarray tuint 16))
                             (Etempvar _m tint) (tptr tuint)) tuint))
@@ -975,7 +936,7 @@ Definition f_core := {|
                         (Ederef
                           (Ebinop Oadd (Evar _x (tarray tuint 16))
                             (Etempvar _m tint) (tptr tuint)) tuint)
-                        (Etempvar _aux tuint))))
+                        (Etempvar _t'19 tuint))))
                   (Sset _m
                     (Ebinop Oadd (Etempvar _m tint)
                       (Econst_int (Int.repr 1) tint) tint))))))
@@ -993,21 +954,21 @@ Definition f_core := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sset _aux
+                  (Sset _t'17
                     (Ederef
-                      (Ebinop Oadd (Evar _y (tarray tuint 16))
+                      (Ebinop Oadd (Evar _x (tarray tuint 16))
                         (Etempvar _i tint) (tptr tuint)) tuint))
                   (Ssequence
-                    (Sset _aux1
+                    (Sset _t'18
                       (Ederef
-                        (Ebinop Oadd (Evar _x (tarray tuint 16))
+                        (Ebinop Oadd (Evar _y (tarray tuint 16))
                           (Etempvar _i tint) (tptr tuint)) tuint))
                     (Sassign
                       (Ederef
                         (Ebinop Oadd (Evar _x (tarray tuint 16))
                           (Etempvar _i tint) (tptr tuint)) tuint)
-                      (Ebinop Oadd (Etempvar _aux tuint)
-                        (Etempvar _aux1 tuint) tuint)))))
+                      (Ebinop Oadd (Etempvar _t'17 tuint)
+                        (Etempvar _t'18 tuint) tuint)))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tint)
                   (Econst_int (Int.repr 1) tint) tint))))
@@ -1021,62 +982,46 @@ Definition f_core := {|
                     Sskip
                     Sbreak)
                   (Ssequence
-                    (Sset _u8_aux
-                      (Ebinop Oadd (Etempvar _c (tptr tuchar))
-                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                          (Etempvar _i tint) tint) (tptr tuchar)))
                     (Ssequence
+                      (Scall (Some _t'9)
+                        (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
+                                      tuint cc_default))
+                        ((Ebinop Oadd (Etempvar _c (tptr tuchar))
+                           (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                             (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
                       (Ssequence
-                        (Scall (Some _t'9)
-                          (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
-                                        tuint cc_default))
-                          ((Etempvar _u8_aux (tptr tuchar)) :: nil))
-                        (Sset _aux (Etempvar _t'9 tuint)))
-                      (Ssequence
-                        (Sset _aux1
+                        (Sset _t'16
                           (Ederef
                             (Ebinop Oadd (Evar _x (tarray tuint 16))
                               (Ebinop Omul (Econst_int (Int.repr 5) tint)
                                 (Etempvar _i tint) tint) (tptr tuint)) tuint))
-                        (Ssequence
-                          (Sassign
-                            (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                (Ebinop Omul (Econst_int (Int.repr 5) tint)
-                                  (Etempvar _i tint) tint) (tptr tuint))
-                              tuint)
-                            (Ebinop Osub (Etempvar _aux1 tuint)
-                              (Etempvar _aux tuint) tuint))
-                          (Ssequence
-                            (Sset _u8_aux
-                              (Ebinop Oadd (Etempvar _in (tptr tuchar))
-                                (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                                  (Etempvar _i tint) tint) (tptr tuchar)))
-                            (Ssequence
-                              (Ssequence
-                                (Scall (Some _t'10)
-                                  (Evar _ld32 (Tfunction
-                                                (Tcons (tptr tuchar) Tnil)
-                                                tuint cc_default))
-                                  ((Etempvar _u8_aux (tptr tuchar)) :: nil))
-                                (Sset _aux (Etempvar _t'10 tuint)))
-                              (Ssequence
-                                (Sset _aux1
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 6) tint)
-                                        (Etempvar _i tint) tint)
-                                      (tptr tuint)) tuint))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 6) tint)
-                                        (Etempvar _i tint) tint)
-                                      (tptr tuint)) tuint)
-                                  (Ebinop Osub (Etempvar _aux1 tuint)
-                                    (Etempvar _aux tuint) tuint))))))))))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuint 16))
+                              (Ebinop Omul (Econst_int (Int.repr 5) tint)
+                                (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                          (Ebinop Osub (Etempvar _t'16 tuint)
+                            (Etempvar _t'9 tuint) tuint))))
+                    (Ssequence
+                      (Scall (Some _t'10)
+                        (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
+                                      tuint cc_default))
+                        ((Ebinop Oadd (Etempvar _in (tptr tuchar))
+                           (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                             (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
+                      (Ssequence
+                        (Sset _t'15
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuint 16))
+                              (Ebinop Oadd (Econst_int (Int.repr 6) tint)
+                                (Etempvar _i tint) tint) (tptr tuint)) tuint))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuint 16))
+                              (Ebinop Oadd (Econst_int (Int.repr 6) tint)
+                                (Etempvar _i tint) tint) (tptr tuint)) tuint)
+                          (Ebinop Osub (Etempvar _t'15 tuint)
+                            (Etempvar _t'10 tuint) tuint))))))
                 (Sset _i
                   (Ebinop Oadd (Etempvar _i tint)
                     (Econst_int (Int.repr 1) tint) tint))))
@@ -1089,46 +1034,36 @@ Definition f_core := {|
                     Sskip
                     Sbreak)
                   (Ssequence
-                    (Sset _aux
-                      (Ederef
-                        (Ebinop Oadd (Evar _x (tarray tuint 16))
-                          (Ebinop Omul (Econst_int (Int.repr 5) tint)
-                            (Etempvar _i tint) tint) (tptr tuint)) tuint))
                     (Ssequence
-                      (Sset _u8_aux
-                        (Ebinop Oadd (Etempvar _out (tptr tuchar))
-                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                            (Etempvar _i tint) tint) (tptr tuchar)))
-                      (Ssequence
-                        (Scall None
-                          (Evar _st32 (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons tuint Tnil)) tvoid
-                                        cc_default))
-                          ((Etempvar _u8_aux (tptr tuchar)) ::
-                           (Etempvar _aux tuint) :: nil))
-                        (Ssequence
-                          (Sset _aux
-                            (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                (Ebinop Oadd (Econst_int (Int.repr 6) tint)
-                                  (Etempvar _i tint) tint) (tptr tuint))
-                              tuint))
-                          (Ssequence
-                            (Sset _u8_aux
-                              (Ebinop Oadd
-                                (Ebinop Oadd (Etempvar _out (tptr tuchar))
-                                  (Econst_int (Int.repr 16) tint)
-                                  (tptr tuchar))
-                                (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                                  (Etempvar _i tint) tint) (tptr tuchar)))
-                            (Scall None
-                              (Evar _st32 (Tfunction
-                                            (Tcons (tptr tuchar)
-                                              (Tcons tuint Tnil)) tvoid
-                                            cc_default))
-                              ((Etempvar _u8_aux (tptr tuchar)) ::
-                               (Etempvar _aux tuint) :: nil))))))))
+                      (Sset _t'14
+                        (Ederef
+                          (Ebinop Oadd (Evar _x (tarray tuint 16))
+                            (Ebinop Omul (Econst_int (Int.repr 5) tint)
+                              (Etempvar _i tint) tint) (tptr tuint)) tuint))
+                      (Scall None
+                        (Evar _st32 (Tfunction
+                                      (Tcons (tptr tuchar)
+                                        (Tcons tuint Tnil)) tvoid cc_default))
+                        ((Ebinop Oadd (Etempvar _out (tptr tuchar))
+                           (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                             (Etempvar _i tint) tint) (tptr tuchar)) ::
+                         (Etempvar _t'14 tuint) :: nil)))
+                    (Ssequence
+                      (Sset _t'13
+                        (Ederef
+                          (Ebinop Oadd (Evar _x (tarray tuint 16))
+                            (Ebinop Oadd (Econst_int (Int.repr 6) tint)
+                              (Etempvar _i tint) tint) (tptr tuint)) tuint))
+                      (Scall None
+                        (Evar _st32 (Tfunction
+                                      (Tcons (tptr tuchar)
+                                        (Tcons tuint Tnil)) tvoid cc_default))
+                        ((Ebinop Oadd
+                           (Ebinop Oadd (Etempvar _out (tptr tuchar))
+                             (Econst_int (Int.repr 16) tint) (tptr tuchar))
+                           (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                             (Etempvar _i tint) tint) (tptr tuchar)) ::
+                         (Etempvar _t'13 tuint) :: nil)))))
                 (Sset _i
                   (Ebinop Oadd (Etempvar _i tint)
                     (Econst_int (Int.repr 1) tint) tint))))))
@@ -1141,30 +1076,24 @@ Definition f_core := {|
                 Sskip
                 Sbreak)
               (Ssequence
-                (Sset _aux
+                (Sset _t'11
                   (Ederef
                     (Ebinop Oadd (Evar _x (tarray tuint 16))
                       (Etempvar _i tint) (tptr tuint)) tuint))
                 (Ssequence
-                  (Sset _aux1
+                  (Sset _t'12
                     (Ederef
                       (Ebinop Oadd (Evar _y (tarray tuint 16))
                         (Etempvar _i tint) (tptr tuint)) tuint))
-                  (Ssequence
-                    (Sset _aux
-                      (Ebinop Oadd (Etempvar _aux tuint)
-                        (Etempvar _aux1 tuint) tuint))
-                    (Ssequence
-                      (Sset _u8_aux
-                        (Ebinop Oadd (Etempvar _out (tptr tuchar))
-                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                            (Etempvar _i tint) tint) (tptr tuchar)))
-                      (Scall None
-                        (Evar _st32 (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons tuint Tnil)) tvoid cc_default))
-                        ((Etempvar _u8_aux (tptr tuchar)) ::
-                         (Etempvar _aux tuint) :: nil)))))))
+                  (Scall None
+                    (Evar _st32 (Tfunction
+                                  (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                                  tvoid cc_default))
+                    ((Ebinop Oadd (Etempvar _out (tptr tuchar))
+                       (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                         (Etempvar _i tint) tint) (tptr tuchar)) ::
+                     (Ebinop Oadd (Etempvar _t'11 tuint)
+                       (Etempvar _t'12 tuint) tuint) :: nil)))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))))))
@@ -1234,10 +1163,9 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
   fn_params := ((_c, (tptr tuchar)) :: (_m, (tptr tuchar)) :: (_b, tulong) ::
                 (_n, (tptr tuchar)) :: (_k, (tptr tuchar)) :: nil);
   fn_vars := ((_z, (tarray tuchar 16)) :: (_x, (tarray tuchar 64)) :: nil);
-  fn_temps := ((_u, tuint) :: (_i, tuint) :: (_loop1aux, tuchar) ::
-               (_loop2left, tuchar) :: (_loop2right, tuchar) ::
-               (_loop3left, tuchar) :: (_loop3right, tuchar) ::
-               (_temp, tuchar) :: (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_u, tuint) :: (_i, tuint) :: (_t'2, tint) :: (_t'1, tint) ::
+               (_t'8, tuchar) :: (_t'7, tuchar) :: (_t'6, tuchar) ::
+               (_t'5, tuchar) :: (_t'4, tuchar) :: (_t'3, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Eunop Onotbool (Etempvar _b tulong) tint)
@@ -1269,16 +1197,15 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
               Sskip
               Sbreak)
             (Ssequence
-              (Sset _loop1aux
-                (Ecast
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _n (tptr tuchar))
-                      (Etempvar _i tuint) (tptr tuchar)) tuchar) tuchar))
+              (Sset _t'8
+                (Ederef
+                  (Ebinop Oadd (Etempvar _n (tptr tuchar))
+                    (Etempvar _i tuint) (tptr tuchar)) tuchar))
               (Sassign
                 (Ederef
                   (Ebinop Oadd (Evar _z (tarray tuchar 16))
                     (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                (Etempvar _loop1aux tuchar))))
+                (Etempvar _t'8 tuchar))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
               tuint))))
@@ -1308,32 +1235,26 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
                       Sskip
                       Sbreak)
                     (Ssequence
-                      (Ssequence
-                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
-                                       (Ecast (Econst_int (Int.repr 0) tint)
-                                         (tptr tvoid)) tint)
-                          (Sset _t'1
-                            (Ecast
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                              tint))
-                          (Sset _t'1
-                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
-                        (Sset _loop2left (Ecast (Etempvar _t'1 tint) tuchar)))
-                      (Ssequence
-                        (Sset _loop2right
-                          (Ecast
+                      (Sifthenelse (Etempvar _m (tptr tuchar))
+                        (Ssequence
+                          (Sset _t'7
                             (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                            tuchar))
+                              (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                                (Etempvar _i tuint) (tptr tuchar)) tuchar))
+                          (Sset _t'1 (Ecast (Etempvar _t'7 tuchar) tint)))
+                        (Sset _t'1
+                          (Ecast (Econst_int (Int.repr 0) tint) tint)))
+                      (Ssequence
+                        (Sset _t'6
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuchar 64))
+                              (Etempvar _i tuint) (tptr tuchar)) tuchar))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Etempvar _c (tptr tuchar))
                               (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                          (Ebinop Oxor (Etempvar _loop2left tuchar)
-                            (Etempvar _loop2right tuchar) tint)))))
+                          (Ebinop Oxor (Etempvar _t'1 tint)
+                            (Etempvar _t'6 tuchar) tint)))))
                   (Sset _i
                     (Ebinop Oadd (Etempvar _i tuint)
                       (Econst_int (Int.repr 1) tint) tuint))))
@@ -1349,25 +1270,23 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
                           Sskip
                           Sbreak)
                         (Ssequence
-                          (Sset _temp
-                            (Ecast
+                          (Ssequence
+                            (Sset _t'5
+                              (Ederef
+                                (Ebinop Oadd (Evar _z (tarray tuchar 16))
+                                  (Etempvar _i tuint) (tptr tuchar)) tuchar))
+                            (Sset _u
+                              (Ebinop Oadd (Etempvar _u tuint)
+                                (Ecast (Etempvar _t'5 tuchar) tuint) tuint)))
+                          (Ssequence
+                            (Sassign
                               (Ederef
                                 (Ebinop Oadd (Evar _z (tarray tuchar 16))
                                   (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                              tuchar))
-                          (Ssequence
+                              (Etempvar _u tuint))
                             (Sset _u
-                              (Ebinop Oadd (Etempvar _u tuint)
-                                (Ecast (Etempvar _temp tuchar) tuint) tuint))
-                            (Ssequence
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd (Evar _z (tarray tuchar 16))
-                                    (Etempvar _i tuint) (tptr tuchar))
-                                  tuchar) (Etempvar _u tuint))
-                              (Sset _u
-                                (Ebinop Oshr (Etempvar _u tuint)
-                                  (Econst_int (Int.repr 8) tint) tuint))))))
+                              (Ebinop Oshr (Etempvar _u tuint)
+                                (Econst_int (Int.repr 8) tint) tuint)))))
                       (Sset _i
                         (Ebinop Oadd (Etempvar _i tuint)
                           (Econst_int (Int.repr 1) tint) tuint))))
@@ -1408,32 +1327,26 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
                       Sskip
                       Sbreak)
                     (Ssequence
-                      (Ssequence
-                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
-                                       (Ecast (Econst_int (Int.repr 0) tint)
-                                         (tptr tvoid)) tint)
-                          (Sset _t'2
-                            (Ecast
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                              tint))
-                          (Sset _t'2
-                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
-                        (Sset _loop3left (Ecast (Etempvar _t'2 tint) tuchar)))
-                      (Ssequence
-                        (Sset _loop3right
-                          (Ecast
+                      (Sifthenelse (Etempvar _m (tptr tuchar))
+                        (Ssequence
+                          (Sset _t'4
                             (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                            tuchar))
+                              (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                                (Etempvar _i tuint) (tptr tuchar)) tuchar))
+                          (Sset _t'2 (Ecast (Etempvar _t'4 tuchar) tint)))
+                        (Sset _t'2
+                          (Ecast (Econst_int (Int.repr 0) tint) tint)))
+                      (Ssequence
+                        (Sset _t'3
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuchar 64))
+                              (Etempvar _i tuint) (tptr tuchar)) tuchar))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Etempvar _c (tptr tuchar))
                               (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                          (Ebinop Oxor (Etempvar _loop3left tuchar)
-                            (Etempvar _loop3right tuchar) tint)))))
+                          (Ebinop Oxor (Etempvar _t'2 tint)
+                            (Etempvar _t'3 tuchar) tint)))))
                   (Sset _i
                     (Ebinop Oadd (Etempvar _i tuint)
                       (Econst_int (Int.repr 1) tint) tuint)))))
@@ -1539,7 +1452,8 @@ Definition f_add1305 := {|
   fn_callconv := cc_default;
   fn_params := ((_h, (tptr tuint)) :: (_c, (tptr tuint)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_aux1305, tuint) :: (_j, tuint) :: (_u, tuint) :: nil);
+  fn_temps := ((_j, tuint) :: (_u, tuint) :: (_t'2, tuint) ::
+               (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _u (Econst_int (Int.repr 0) tint))
@@ -1552,27 +1466,30 @@ Definition f_add1305 := {|
           Sskip
           Sbreak)
         (Ssequence
-          (Sset _aux1305
-            (Ederef
-              (Ebinop Oadd (Etempvar _h (tptr tuint)) (Etempvar _j tuint)
-                (tptr tuint)) tuint))
           (Ssequence
-            (Sset _u
-              (Ebinop Oadd (Etempvar _u tuint)
-                (Ebinop Oadd (Etempvar _aux1305 tuint)
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _c (tptr tuint))
-                      (Etempvar _j tuint) (tptr tuint)) tuint) tuint) tuint))
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Etempvar _h (tptr tuint)) (Etempvar _j tuint)
+                  (tptr tuint)) tuint))
             (Ssequence
-              (Sassign
+              (Sset _t'2
                 (Ederef
-                  (Ebinop Oadd (Etempvar _h (tptr tuint)) (Etempvar _j tuint)
-                    (tptr tuint)) tuint)
-                (Ebinop Oand (Etempvar _u tuint)
-                  (Econst_int (Int.repr 255) tint) tuint))
+                  (Ebinop Oadd (Etempvar _c (tptr tuint)) (Etempvar _j tuint)
+                    (tptr tuint)) tuint))
               (Sset _u
-                (Ebinop Oshr (Etempvar _u tuint)
-                  (Econst_int (Int.repr 8) tint) tuint))))))
+                (Ebinop Oadd (Etempvar _u tuint)
+                  (Ebinop Oadd (Etempvar _t'1 tuint) (Etempvar _t'2 tuint)
+                    tuint) tuint))))
+          (Ssequence
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _h (tptr tuint)) (Etempvar _j tuint)
+                  (tptr tuint)) tuint)
+              (Ebinop Oand (Etempvar _u tuint)
+                (Econst_int (Int.repr 255) tint) tuint))
+            (Sset _u
+              (Ebinop Oshr (Etempvar _u tuint) (Econst_int (Int.repr 8) tint)
+                tuint)))))
       (Sset _j
         (Ebinop Oadd (Etempvar _j tuint) (Econst_int (Int.repr 1) tint)
           tuint)))))
@@ -1602,7 +1519,16 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
               (_h, (tarray tuint 17)) :: (_c, (tarray tuint 17)) ::
               (_g, (tarray tuint 17)) :: nil);
   fn_temps := ((_s, tuint) :: (_i, tuint) :: (_j, tuint) :: (_u, tuint) ::
-               (_t'3, tuint) :: (_t'2, tint) :: (_t'1, tuint) :: nil);
+               (_t'3, tuint) :: (_t'2, tint) :: (_t'1, tuint) ::
+               (_t'28, tuchar) :: (_t'27, tuint) :: (_t'26, tuint) ::
+               (_t'25, tuint) :: (_t'24, tuint) :: (_t'23, tuint) ::
+               (_t'22, tuint) :: (_t'21, tuint) :: (_t'20, tuchar) ::
+               (_t'19, tuint) :: (_t'18, tuint) :: (_t'17, tuint) ::
+               (_t'16, tuint) :: (_t'15, tuint) :: (_t'14, tuint) ::
+               (_t'13, tuint) :: (_t'12, tuint) :: (_t'11, tuint) ::
+               (_t'10, tuint) :: (_t'9, tuint) :: (_t'8, tuint) ::
+               (_t'7, tuint) :: (_t'6, tuint) :: (_t'5, tuchar) ::
+               (_t'4, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -1636,86 +1562,104 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                          (Econst_int (Int.repr 16) tint) tint)
             Sskip
             Sbreak)
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Evar _r (tarray tuint 17)) (Etempvar _j tuint)
-                (tptr tuint)) tuint)
-            (Ederef
-              (Ebinop Oadd (Etempvar _k (tptr tuchar)) (Etempvar _j tuint)
-                (tptr tuchar)) tuchar)))
+          (Ssequence
+            (Sset _t'28
+              (Ederef
+                (Ebinop Oadd (Etempvar _k (tptr tuchar)) (Etempvar _j tuint)
+                  (tptr tuchar)) tuchar))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Evar _r (tarray tuint 17)) (Etempvar _j tuint)
+                  (tptr tuint)) tuint) (Etempvar _t'28 tuchar))))
         (Sset _j
           (Ebinop Oadd (Etempvar _j tuint) (Econst_int (Int.repr 1) tint)
             tuint))))
     (Ssequence
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Evar _r (tarray tuint 17))
-            (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint)
-        (Ebinop Oand
+      (Ssequence
+        (Sset _t'27
           (Ederef
             (Ebinop Oadd (Evar _r (tarray tuint 17))
-              (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint)
-          (Econst_int (Int.repr 15) tint) tuint))
-      (Ssequence
+              (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint))
         (Sassign
           (Ederef
             (Ebinop Oadd (Evar _r (tarray tuint 17))
-              (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint)
-          (Ebinop Oand
+              (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint)
+          (Ebinop Oand (Etempvar _t'27 tuint) (Econst_int (Int.repr 15) tint)
+            tuint)))
+      (Ssequence
+        (Ssequence
+          (Sset _t'26
             (Ederef
               (Ebinop Oadd (Evar _r (tarray tuint 17))
-                (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint)
-            (Econst_int (Int.repr 252) tint) tuint))
-        (Ssequence
+                (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint))
           (Sassign
             (Ederef
               (Ebinop Oadd (Evar _r (tarray tuint 17))
-                (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint)
-            (Ebinop Oand
+                (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint)
+            (Ebinop Oand (Etempvar _t'26 tuint)
+              (Econst_int (Int.repr 252) tint) tuint)))
+        (Ssequence
+          (Ssequence
+            (Sset _t'25
               (Ederef
                 (Ebinop Oadd (Evar _r (tarray tuint 17))
-                  (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint)
-              (Econst_int (Int.repr 15) tint) tuint))
-          (Ssequence
+                  (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint))
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _r (tarray tuint 17))
-                  (Econst_int (Int.repr 8) tint) (tptr tuint)) tuint)
-              (Ebinop Oand
+                  (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint)
+              (Ebinop Oand (Etempvar _t'25 tuint)
+                (Econst_int (Int.repr 15) tint) tuint)))
+          (Ssequence
+            (Ssequence
+              (Sset _t'24
                 (Ederef
                   (Ebinop Oadd (Evar _r (tarray tuint 17))
-                    (Econst_int (Int.repr 8) tint) (tptr tuint)) tuint)
-                (Econst_int (Int.repr 252) tint) tuint))
-            (Ssequence
+                    (Econst_int (Int.repr 8) tint) (tptr tuint)) tuint))
               (Sassign
                 (Ederef
                   (Ebinop Oadd (Evar _r (tarray tuint 17))
-                    (Econst_int (Int.repr 11) tint) (tptr tuint)) tuint)
-                (Ebinop Oand
+                    (Econst_int (Int.repr 8) tint) (tptr tuint)) tuint)
+                (Ebinop Oand (Etempvar _t'24 tuint)
+                  (Econst_int (Int.repr 252) tint) tuint)))
+            (Ssequence
+              (Ssequence
+                (Sset _t'23
                   (Ederef
                     (Ebinop Oadd (Evar _r (tarray tuint 17))
-                      (Econst_int (Int.repr 11) tint) (tptr tuint)) tuint)
-                  (Econst_int (Int.repr 15) tint) tuint))
-              (Ssequence
+                      (Econst_int (Int.repr 11) tint) (tptr tuint)) tuint))
                 (Sassign
                   (Ederef
                     (Ebinop Oadd (Evar _r (tarray tuint 17))
-                      (Econst_int (Int.repr 12) tint) (tptr tuint)) tuint)
-                  (Ebinop Oand
+                      (Econst_int (Int.repr 11) tint) (tptr tuint)) tuint)
+                  (Ebinop Oand (Etempvar _t'23 tuint)
+                    (Econst_int (Int.repr 15) tint) tuint)))
+              (Ssequence
+                (Ssequence
+                  (Sset _t'22
                     (Ederef
                       (Ebinop Oadd (Evar _r (tarray tuint 17))
-                        (Econst_int (Int.repr 12) tint) (tptr tuint)) tuint)
-                    (Econst_int (Int.repr 252) tint) tuint))
-                (Ssequence
+                        (Econst_int (Int.repr 12) tint) (tptr tuint)) tuint))
                   (Sassign
                     (Ederef
                       (Ebinop Oadd (Evar _r (tarray tuint 17))
-                        (Econst_int (Int.repr 15) tint) (tptr tuint)) tuint)
-                    (Ebinop Oand
+                        (Econst_int (Int.repr 12) tint) (tptr tuint)) tuint)
+                    (Ebinop Oand (Etempvar _t'22 tuint)
+                      (Econst_int (Int.repr 252) tint) tuint)))
+                (Ssequence
+                  (Ssequence
+                    (Sset _t'21
                       (Ederef
                         (Ebinop Oadd (Evar _r (tarray tuint 17))
                           (Econst_int (Int.repr 15) tint) (tptr tuint))
-                        tuint) (Econst_int (Int.repr 15) tint) tuint))
+                        tuint))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _r (tarray tuint 17))
+                          (Econst_int (Int.repr 15) tint) (tptr tuint))
+                        tuint)
+                      (Ebinop Oand (Etempvar _t'21 tuint)
+                        (Econst_int (Int.repr 15) tint) tuint)))
                   (Ssequence
                     (Swhile
                       (Ebinop Ogt (Etempvar _n tulong)
@@ -1757,15 +1701,19 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                   (Sifthenelse (Etempvar _t'2 tint)
                                     Sskip
                                     Sbreak))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _c (tarray tuint 17))
-                                      (Etempvar _j tuint) (tptr tuint))
-                                    tuint)
-                                  (Ederef
-                                    (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                                      (Etempvar _j tuint) (tptr tuchar))
-                                    tuchar)))
+                                (Ssequence
+                                  (Sset _t'20
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Etempvar _m (tptr tuchar))
+                                        (Etempvar _j tuint) (tptr tuchar))
+                                      tuchar))
+                                  (Sassign
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _c (tarray tuint 17))
+                                        (Etempvar _j tuint) (tptr tuint))
+                                      tuint) (Etempvar _t'20 tuchar))))
                               (Sset _j
                                 (Ebinop Oadd (Etempvar _j tuint)
                                   (Econst_int (Int.repr 1) tint) tuint))))
@@ -1828,8 +1776,8 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                                    (Etempvar _j tuint)
                                                                    (Etempvar _i tuint)
                                                                    tint)
-                                                      (Sset _t'3
-                                                        (Ecast
+                                                      (Ssequence
+                                                        (Sset _t'19
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Evar _r (tarray tuint 17))
@@ -1838,47 +1786,60 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                                 (Etempvar _j tuint)
                                                                 tuint)
                                                               (tptr tuint))
-                                                            tuint) tuint))
-                                                      (Sset _t'3
-                                                        (Ecast
-                                                          (Ebinop Omul
-                                                            (Econst_int (Int.repr 320) tint)
-                                                            (Ederef
-                                                              (Ebinop Oadd
-                                                                (Evar _r (tarray tuint 17))
-                                                                (Ebinop Osub
-                                                                  (Ebinop Oadd
-                                                                    (Etempvar _i tuint)
-                                                                    (Econst_int (Int.repr 17) tint)
-                                                                    tuint)
-                                                                  (Etempvar _j tuint)
+                                                            tuint))
+                                                        (Sset _t'3
+                                                          (Ecast
+                                                            (Etempvar _t'19 tuint)
+                                                            tuint)))
+                                                      (Ssequence
+                                                        (Sset _t'18
+                                                          (Ederef
+                                                            (Ebinop Oadd
+                                                              (Evar _r (tarray tuint 17))
+                                                              (Ebinop Osub
+                                                                (Ebinop Oadd
+                                                                  (Etempvar _i tuint)
+                                                                  (Econst_int (Int.repr 17) tint)
                                                                   tuint)
-                                                                (tptr tuint))
-                                                              tuint) tuint)
-                                                          tuint)))
-                                                    (Sassign
-                                                      (Ederef
-                                                        (Ebinop Oadd
-                                                          (Evar _x (tarray tuint 17))
-                                                          (Etempvar _i tuint)
-                                                          (tptr tuint))
-                                                        tuint)
-                                                      (Ebinop Oadd
+                                                                (Etempvar _j tuint)
+                                                                tuint)
+                                                              (tptr tuint))
+                                                            tuint))
+                                                        (Sset _t'3
+                                                          (Ecast
+                                                            (Ebinop Omul
+                                                              (Econst_int (Int.repr 320) tint)
+                                                              (Etempvar _t'18 tuint)
+                                                              tuint) tuint))))
+                                                    (Ssequence
+                                                      (Sset _t'16
                                                         (Ederef
                                                           (Ebinop Oadd
                                                             (Evar _x (tarray tuint 17))
                                                             (Etempvar _i tuint)
                                                             (tptr tuint))
-                                                          tuint)
-                                                        (Ebinop Omul
+                                                          tuint))
+                                                      (Ssequence
+                                                        (Sset _t'17
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Evar _h (tarray tuint 17))
                                                               (Etempvar _j tuint)
                                                               (tptr tuint))
+                                                            tuint))
+                                                        (Sassign
+                                                          (Ederef
+                                                            (Ebinop Oadd
+                                                              (Evar _x (tarray tuint 17))
+                                                              (Etempvar _i tuint)
+                                                              (tptr tuint))
                                                             tuint)
-                                                          (Etempvar _t'3 tuint)
-                                                          tuint) tuint))))
+                                                          (Ebinop Oadd
+                                                            (Etempvar _t'16 tuint)
+                                                            (Ebinop Omul
+                                                              (Etempvar _t'17 tuint)
+                                                              (Etempvar _t'3 tuint)
+                                                              tuint) tuint))))))
                                                 (Sset _j
                                                   (Ebinop Oadd
                                                     (Etempvar _j tuint)
@@ -1900,17 +1861,20 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                            tint)
                                               Sskip
                                               Sbreak)
-                                            (Sassign
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Evar _h (tarray tuint 17))
-                                                  (Etempvar _i tuint)
-                                                  (tptr tuint)) tuint)
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Evar _x (tarray tuint 17))
-                                                  (Etempvar _i tuint)
-                                                  (tptr tuint)) tuint)))
+                                            (Ssequence
+                                              (Sset _t'15
+                                                (Ederef
+                                                  (Ebinop Oadd
+                                                    (Evar _x (tarray tuint 17))
+                                                    (Etempvar _i tuint)
+                                                    (tptr tuint)) tuint))
+                                              (Sassign
+                                                (Ederef
+                                                  (Ebinop Oadd
+                                                    (Evar _h (tarray tuint 17))
+                                                    (Etempvar _i tuint)
+                                                    (tptr tuint)) tuint)
+                                                (Etempvar _t'15 tuint))))
                                           (Sset _i
                                             (Ebinop Oadd (Etempvar _i tuint)
                                               (Econst_int (Int.repr 1) tint)
@@ -1931,15 +1895,19 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                   Sskip
                                                   Sbreak)
                                                 (Ssequence
-                                                  (Sset _u
-                                                    (Ebinop Oadd
-                                                      (Etempvar _u tuint)
+                                                  (Ssequence
+                                                    (Sset _t'14
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Evar _h (tarray tuint 17))
                                                           (Etempvar _j tuint)
                                                           (tptr tuint))
-                                                        tuint) tuint))
+                                                        tuint))
+                                                    (Sset _u
+                                                      (Ebinop Oadd
+                                                        (Etempvar _u tuint)
+                                                        (Etempvar _t'14 tuint)
+                                                        tuint)))
                                                   (Ssequence
                                                     (Sassign
                                                       (Ederef
@@ -1963,15 +1931,18 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                   (Econst_int (Int.repr 1) tint)
                                                   tuint))))
                                           (Ssequence
-                                            (Sset _u
-                                              (Ebinop Oadd
-                                                (Etempvar _u tuint)
+                                            (Ssequence
+                                              (Sset _t'13
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Evar _h (tarray tuint 17))
                                                     (Econst_int (Int.repr 16) tint)
-                                                    (tptr tuint)) tuint)
-                                                tuint))
+                                                    (tptr tuint)) tuint))
+                                              (Sset _u
+                                                (Ebinop Oadd
+                                                  (Etempvar _u tuint)
+                                                  (Etempvar _t'13 tuint)
+                                                  tuint)))
                                             (Ssequence
                                               (Sassign
                                                 (Ederef
@@ -1997,7 +1968,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                       (Econst_int (Int.repr 0) tint))
                                                     (Sloop
                                                       (Ssequence
-                                                        (Sifthenelse
+                                                        (Sifthenelse 
                                                           (Ebinop Olt
                                                             (Etempvar _j tuint)
                                                             (Econst_int (Int.repr 16) tint)
@@ -2005,15 +1976,19 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                           Sskip
                                                           Sbreak)
                                                         (Ssequence
-                                                          (Sset _u
-                                                            (Ebinop Oadd
-                                                              (Etempvar _u tuint)
+                                                          (Ssequence
+                                                            (Sset _t'12
                                                               (Ederef
                                                                 (Ebinop Oadd
                                                                   (Evar _h (tarray tuint 17))
                                                                   (Etempvar _j tuint)
                                                                   (tptr tuint))
-                                                                tuint) tuint))
+                                                                tuint))
+                                                            (Sset _u
+                                                              (Ebinop Oadd
+                                                                (Etempvar _u tuint)
+                                                                (Etempvar _t'12 tuint)
+                                                                tuint)))
                                                           (Ssequence
                                                             (Sassign
                                                               (Ederef
@@ -2037,15 +2012,19 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                           (Econst_int (Int.repr 1) tint)
                                                           tuint))))
                                                   (Ssequence
-                                                    (Sset _u
-                                                      (Ebinop Oadd
-                                                        (Etempvar _u tuint)
+                                                    (Ssequence
+                                                      (Sset _t'11
                                                         (Ederef
                                                           (Ebinop Oadd
                                                             (Evar _h (tarray tuint 17))
                                                             (Econst_int (Int.repr 16) tint)
                                                             (tptr tuint))
-                                                          tuint) tuint))
+                                                          tuint))
+                                                      (Sset _u
+                                                        (Ebinop Oadd
+                                                          (Etempvar _u tuint)
+                                                          (Etempvar _t'11 tuint)
+                                                          tuint)))
                                                     (Sassign
                                                       (Ederef
                                                         (Ebinop Oadd
@@ -2064,13 +2043,16 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                            tint)
                               Sskip
                               Sbreak)
-                            (Sassign
-                              (Ederef
-                                (Ebinop Oadd (Evar _g (tarray tuint 17))
-                                  (Etempvar _j tuint) (tptr tuint)) tuint)
-                              (Ederef
-                                (Ebinop Oadd (Evar _h (tarray tuint 17))
-                                  (Etempvar _j tuint) (tptr tuint)) tuint)))
+                            (Ssequence
+                              (Sset _t'10
+                                (Ederef
+                                  (Ebinop Oadd (Evar _h (tarray tuint 17))
+                                    (Etempvar _j tuint) (tptr tuint)) tuint))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _g (tarray tuint 17))
+                                    (Etempvar _j tuint) (tptr tuint)) tuint)
+                                (Etempvar _t'10 tuint))))
                           (Sset _j
                             (Ebinop Oadd (Etempvar _j tuint)
                               (Econst_int (Int.repr 1) tint) tuint))))
@@ -2083,14 +2065,17 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                           ((Evar _h (tarray tuint 17)) ::
                            (Evar _minusp (tarray tuint 17)) :: nil))
                         (Ssequence
-                          (Sset _s
-                            (Eunop Oneg
-                              (Ebinop Oshr
-                                (Ederef
-                                  (Ebinop Oadd (Evar _h (tarray tuint 17))
-                                    (Econst_int (Int.repr 16) tint)
-                                    (tptr tuint)) tuint)
-                                (Econst_int (Int.repr 7) tint) tuint) tuint))
+                          (Ssequence
+                            (Sset _t'9
+                              (Ederef
+                                (Ebinop Oadd (Evar _h (tarray tuint 17))
+                                  (Econst_int (Int.repr 16) tint)
+                                  (tptr tuint)) tuint))
+                            (Sset _s
+                              (Eunop Oneg
+                                (Ebinop Oshr (Etempvar _t'9 tuint)
+                                  (Econst_int (Int.repr 7) tint) tuint)
+                                tuint)))
                           (Ssequence
                             (Ssequence
                               (Sset _j (Econst_int (Int.repr 0) tint))
@@ -2102,31 +2087,39 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                  tint)
                                     Sskip
                                     Sbreak)
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Evar _h (tarray tuint 17))
-                                        (Etempvar _j tuint) (tptr tuint))
-                                      tuint)
-                                    (Ebinop Oxor
+                                  (Ssequence
+                                    (Sset _t'6
                                       (Ederef
                                         (Ebinop Oadd
                                           (Evar _h (tarray tuint 17))
                                           (Etempvar _j tuint) (tptr tuint))
-                                        tuint)
-                                      (Ebinop Oand (Etempvar _s tuint)
-                                        (Ebinop Oxor
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _g (tarray tuint 17))
-                                              (Etempvar _j tuint)
-                                              (tptr tuint)) tuint)
+                                        tuint))
+                                    (Ssequence
+                                      (Sset _t'7
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _g (tarray tuint 17))
+                                            (Etempvar _j tuint) (tptr tuint))
+                                          tuint))
+                                      (Ssequence
+                                        (Sset _t'8
                                           (Ederef
                                             (Ebinop Oadd
                                               (Evar _h (tarray tuint 17))
                                               (Etempvar _j tuint)
-                                              (tptr tuint)) tuint) tuint)
-                                        tuint) tuint)))
+                                              (tptr tuint)) tuint))
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _h (tarray tuint 17))
+                                              (Etempvar _j tuint)
+                                              (tptr tuint)) tuint)
+                                          (Ebinop Oxor (Etempvar _t'6 tuint)
+                                            (Ebinop Oand (Etempvar _s tuint)
+                                              (Ebinop Oxor
+                                                (Etempvar _t'7 tuint)
+                                                (Etempvar _t'8 tuint) tuint)
+                                              tuint) tuint))))))
                                 (Sset _j
                                   (Ebinop Oadd (Etempvar _j tuint)
                                     (Econst_int (Int.repr 1) tint) tuint))))
@@ -2141,18 +2134,20 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                    tint)
                                       Sskip
                                       Sbreak)
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Evar _c (tarray tuint 17))
-                                          (Etempvar _j tuint) (tptr tuint))
-                                        tuint)
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _k (tptr tuchar))
-                                          (Ebinop Oadd (Etempvar _j tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint) (tptr tuchar)) tuchar)))
+                                    (Ssequence
+                                      (Sset _t'5
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Etempvar _k (tptr tuchar))
+                                            (Ebinop Oadd (Etempvar _j tuint)
+                                              (Econst_int (Int.repr 16) tint)
+                                              tuint) (tptr tuchar)) tuchar))
+                                      (Sassign
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _c (tarray tuint 17))
+                                            (Etempvar _j tuint) (tptr tuint))
+                                          tuint) (Etempvar _t'5 tuchar))))
                                   (Sset _j
                                     (Ebinop Oadd (Etempvar _j tuint)
                                       (Econst_int (Int.repr 1) tint) tuint))))
@@ -2184,17 +2179,20 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                          tint)
                                             Sskip
                                             Sbreak)
-                                          (Sassign
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Etempvar _out (tptr tuchar))
-                                                (Etempvar _j tuint)
-                                                (tptr tuchar)) tuchar)
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Evar _h (tarray tuint 17))
-                                                (Etempvar _j tuint)
-                                                (tptr tuint)) tuint)))
+                                          (Ssequence
+                                            (Sset _t'4
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Evar _h (tarray tuint 17))
+                                                  (Etempvar _j tuint)
+                                                  (tptr tuint)) tuint))
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _out (tptr tuchar))
+                                                  (Etempvar _j tuint)
+                                                  (tptr tuchar)) tuchar)
+                                              (Etempvar _t'4 tuint))))
                                         (Sset _j
                                           (Ebinop Oadd (Etempvar _j tuint)
                                             (Econst_int (Int.repr 1) tint)
@@ -2377,33 +2375,7 @@ Definition f_set25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_r, (tptr tlong)) :: (_a, (tptr tlong)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Sset _i (Econst_int (Int.repr 0) tint))
-  (Sloop
-    (Ssequence
-      (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                     (Econst_int (Int.repr 16) tint) tint)
-        Sskip
-        Sbreak)
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Etempvar _r (tptr tlong)) (Etempvar _i tint)
-            (tptr tlong)) tlong)
-        (Ederef
-          (Ebinop Oadd (Etempvar _a (tptr tlong)) (Etempvar _i tint)
-            (tptr tlong)) tlong)))
-    (Sset _i
-      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
-|}.
-
-Definition f_car25519 := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_o, (tptr tlong)) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_c, tlong) :: nil);
+  fn_temps := ((_i, tint) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -2414,33 +2386,68 @@ Definition f_car25519 := {|
         Sskip
         Sbreak)
       (Ssequence
+        (Sset _t'1
+          (Ederef
+            (Ebinop Oadd (Etempvar _a (tptr tlong)) (Etempvar _i tint)
+              (tptr tlong)) tlong))
         (Sassign
           (Ederef
-            (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong)
-          (Ebinop Oadd
+            (Ebinop Oadd (Etempvar _r (tptr tlong)) (Etempvar _i tint)
+              (tptr tlong)) tlong) (Etempvar _t'1 tlong))))
+    (Sset _i
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
+|}.
+
+Definition f_car25519 := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_o, (tptr tlong)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: (_c, tlong) :: (_t'4, tlong) :: (_t'3, tlong) ::
+               (_t'2, tlong) :: (_t'1, tlong) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sloop
+    (Ssequence
+      (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                     (Econst_int (Int.repr 16) tint) tint)
+        Sskip
+        Sbreak)
+      (Ssequence
+        (Ssequence
+          (Sset _t'4
+            (Ederef
+              (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong))
+          (Sassign
             (Ederef
               (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
                 (tptr tlong)) tlong)
-            (Ebinop Oshl (Econst_long (Int64.repr 1) tlong)
-              (Econst_int (Int.repr 16) tint) tlong) tlong))
+            (Ebinop Oadd (Etempvar _t'4 tlong)
+              (Ebinop Oshl (Econst_long (Int64.repr 1) tlong)
+                (Econst_int (Int.repr 16) tint) tlong) tlong)))
         (Ssequence
-          (Sset _c
-            (Ebinop Oshr
+          (Ssequence
+            (Sset _t'3
               (Ederef
                 (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-                  (tptr tlong)) tlong) (Econst_int (Int.repr 16) tint) tlong))
+                  (tptr tlong)) tlong))
+            (Sset _c
+              (Ebinop Oshr (Etempvar _t'3 tlong)
+                (Econst_int (Int.repr 16) tint) tlong)))
           (Ssequence
-            (Sassign
-              (Ederef
-                (Ebinop Oadd (Etempvar _o (tptr tlong))
-                  (Ebinop Omul
-                    (Ebinop Oadd (Etempvar _i tint)
-                      (Econst_int (Int.repr 1) tint) tint)
-                    (Ebinop Olt (Etempvar _i tint)
-                      (Econst_int (Int.repr 15) tint) tint) tint)
-                  (tptr tlong)) tlong)
-              (Ebinop Oadd
+            (Ssequence
+              (Sset _t'2
+                (Ederef
+                  (Ebinop Oadd (Etempvar _o (tptr tlong))
+                    (Ebinop Omul
+                      (Ebinop Oadd (Etempvar _i tint)
+                        (Econst_int (Int.repr 1) tint) tint)
+                      (Ebinop Olt (Etempvar _i tint)
+                        (Econst_int (Int.repr 15) tint) tint) tint)
+                    (tptr tlong)) tlong))
+              (Sassign
                 (Ederef
                   (Ebinop Oadd (Etempvar _o (tptr tlong))
                     (Ebinop Omul
@@ -2449,26 +2456,29 @@ Definition f_car25519 := {|
                       (Ebinop Olt (Etempvar _i tint)
                         (Econst_int (Int.repr 15) tint) tint) tint)
                     (tptr tlong)) tlong)
-                (Ebinop Oadd
-                  (Ebinop Osub (Etempvar _c tlong)
-                    (Econst_int (Int.repr 1) tint) tlong)
-                  (Ebinop Omul
-                    (Ebinop Omul (Econst_int (Int.repr 37) tint)
-                      (Ebinop Osub (Etempvar _c tlong)
-                        (Econst_int (Int.repr 1) tint) tlong) tlong)
-                    (Ebinop Oeq (Etempvar _i tint)
-                      (Econst_int (Int.repr 15) tint) tint) tlong) tlong)
-                tlong))
-            (Sassign
-              (Ederef
-                (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-                  (tptr tlong)) tlong)
-              (Ebinop Osub
+                (Ebinop Oadd (Etempvar _t'2 tlong)
+                  (Ebinop Oadd
+                    (Ebinop Osub (Etempvar _c tlong)
+                      (Econst_int (Int.repr 1) tint) tlong)
+                    (Ebinop Omul
+                      (Ebinop Omul (Econst_int (Int.repr 37) tint)
+                        (Ebinop Osub (Etempvar _c tlong)
+                          (Econst_int (Int.repr 1) tint) tlong) tlong)
+                      (Ebinop Oeq (Etempvar _i tint)
+                        (Econst_int (Int.repr 15) tint) tint) tlong) tlong)
+                  tlong)))
+            (Ssequence
+              (Sset _t'1
+                (Ederef
+                  (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
+                    (tptr tlong)) tlong))
+              (Sassign
                 (Ederef
                   (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
                     (tptr tlong)) tlong)
-                (Ebinop Oshl (Etempvar _c tlong)
-                  (Econst_int (Int.repr 16) tint) tlong) tlong))))))
+                (Ebinop Osub (Etempvar _t'1 tlong)
+                  (Ebinop Oshl (Etempvar _c tlong)
+                    (Econst_int (Int.repr 16) tint) tlong) tlong)))))))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
@@ -2479,7 +2489,8 @@ Definition f_sel25519 := {|
   fn_params := ((_p, (tptr tlong)) :: (_q, (tptr tlong)) :: (_b, tint) ::
                 nil);
   fn_vars := nil;
-  fn_temps := ((_t, tlong) :: (_i, tlong) :: (_c, tlong) :: nil);
+  fn_temps := ((_t, tlong) :: (_i, tlong) :: (_c, tlong) :: (_t'4, tlong) ::
+               (_t'3, tlong) :: (_t'2, tlong) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _c
@@ -2496,32 +2507,41 @@ Definition f_sel25519 := {|
           Sskip
           Sbreak)
         (Ssequence
-          (Sset _t
-            (Ebinop Oand (Etempvar _c tlong)
-              (Ebinop Oxor
+          (Ssequence
+            (Sset _t'3
+              (Ederef
+                (Ebinop Oadd (Etempvar _p (tptr tlong)) (Etempvar _i tlong)
+                  (tptr tlong)) tlong))
+            (Ssequence
+              (Sset _t'4
+                (Ederef
+                  (Ebinop Oadd (Etempvar _q (tptr tlong)) (Etempvar _i tlong)
+                    (tptr tlong)) tlong))
+              (Sset _t
+                (Ebinop Oand (Etempvar _c tlong)
+                  (Ebinop Oxor (Etempvar _t'3 tlong) (Etempvar _t'4 tlong)
+                    tlong) tlong))))
+          (Ssequence
+            (Ssequence
+              (Sset _t'2
+                (Ederef
+                  (Ebinop Oadd (Etempvar _p (tptr tlong)) (Etempvar _i tlong)
+                    (tptr tlong)) tlong))
+              (Sassign
                 (Ederef
                   (Ebinop Oadd (Etempvar _p (tptr tlong)) (Etempvar _i tlong)
                     (tptr tlong)) tlong)
+                (Ebinop Oxor (Etempvar _t'2 tlong) (Etempvar _t tlong) tlong)))
+            (Ssequence
+              (Sset _t'1
                 (Ederef
                   (Ebinop Oadd (Etempvar _q (tptr tlong)) (Etempvar _i tlong)
-                    (tptr tlong)) tlong) tlong) tlong))
-          (Ssequence
-            (Sassign
-              (Ederef
-                (Ebinop Oadd (Etempvar _p (tptr tlong)) (Etempvar _i tlong)
-                  (tptr tlong)) tlong)
-              (Ebinop Oxor
-                (Ederef
-                  (Ebinop Oadd (Etempvar _p (tptr tlong)) (Etempvar _i tlong)
-                    (tptr tlong)) tlong) (Etempvar _t tlong) tlong))
-            (Sassign
-              (Ederef
-                (Ebinop Oadd (Etempvar _q (tptr tlong)) (Etempvar _i tlong)
-                  (tptr tlong)) tlong)
-              (Ebinop Oxor
+                    (tptr tlong)) tlong))
+              (Sassign
                 (Ederef
                   (Ebinop Oadd (Etempvar _q (tptr tlong)) (Etempvar _i tlong)
-                    (tptr tlong)) tlong) (Etempvar _t tlong) tlong)))))
+                    (tptr tlong)) tlong)
+                (Ebinop Oxor (Etempvar _t'1 tlong) (Etempvar _t tlong) tlong))))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
           tlong)))))
@@ -2532,7 +2552,11 @@ Definition f_pack25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_o, (tptr tuchar)) :: (_n, (tptr tlong)) :: nil);
   fn_vars := ((_m, (tarray tlong 16)) :: (_t, (tarray tlong 16)) :: nil);
-  fn_temps := ((_i, tint) :: (_j, tint) :: (_b, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_j, tint) :: (_b, tint) :: (_t'11, tlong) ::
+               (_t'10, tlong) :: (_t'9, tlong) :: (_t'8, tlong) ::
+               (_t'7, tlong) :: (_t'6, tlong) :: (_t'5, tlong) ::
+               (_t'4, tlong) :: (_t'3, tlong) :: (_t'2, tlong) ::
+               (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -2543,13 +2567,15 @@ Definition f_pack25519 := {|
                        (Econst_int (Int.repr 16) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _t (tarray tlong 16)) (Etempvar _i tint)
-              (tptr tlong)) tlong)
-          (Ederef
-            (Ebinop Oadd (Etempvar _n (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong)))
+        (Ssequence
+          (Sset _t'11
+            (Ederef
+              (Ebinop Oadd (Etempvar _n (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _t (tarray tlong 16)) (Etempvar _i tint)
+                (tptr tlong)) tlong) (Etempvar _t'11 tlong))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
@@ -2575,15 +2601,17 @@ Definition f_pack25519 := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Evar _m (tarray tlong 16))
-                        (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong)
-                    (Ebinop Osub
+                  (Ssequence
+                    (Sset _t'10
                       (Ederef
                         (Ebinop Oadd (Evar _t (tarray tlong 16))
+                          (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _m (tarray tlong 16))
                           (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong)
-                      (Econst_int (Int.repr 65517) tint) tlong))
+                      (Ebinop Osub (Etempvar _t'10 tlong)
+                        (Econst_int (Int.repr 65517) tint) tlong)))
                   (Ssequence
                     (Ssequence
                       (Sset _i (Econst_int (Int.repr 1) tint))
@@ -2595,87 +2623,101 @@ Definition f_pack25519 := {|
                             Sskip
                             Sbreak)
                           (Ssequence
-                            (Sassign
-                              (Ederef
-                                (Ebinop Oadd (Evar _m (tarray tlong 16))
-                                  (Etempvar _i tint) (tptr tlong)) tlong)
-                              (Ebinop Osub
-                                (Ebinop Osub
+                            (Ssequence
+                              (Sset _t'8
+                                (Ederef
+                                  (Ebinop Oadd (Evar _t (tarray tlong 16))
+                                    (Etempvar _i tint) (tptr tlong)) tlong))
+                              (Ssequence
+                                (Sset _t'9
                                   (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tlong 16))
+                                    (Ebinop Oadd (Evar _m (tarray tlong 16))
+                                      (Ebinop Osub (Etempvar _i tint)
+                                        (Econst_int (Int.repr 1) tint) tint)
+                                      (tptr tlong)) tlong))
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _m (tarray tlong 16))
                                       (Etempvar _i tint) (tptr tlong)) tlong)
-                                  (Econst_int (Int.repr 65535) tint) tlong)
-                                (Ebinop Oand
-                                  (Ebinop Oshr
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Evar _m (tarray tlong 16))
-                                        (Ebinop Osub (Etempvar _i tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint) (tptr tlong)) tlong)
-                                    (Econst_int (Int.repr 16) tint) tlong)
-                                  (Econst_int (Int.repr 1) tint) tlong)
-                                tlong))
-                            (Sassign
-                              (Ederef
-                                (Ebinop Oadd (Evar _m (tarray tlong 16))
-                                  (Ebinop Osub (Etempvar _i tint)
-                                    (Econst_int (Int.repr 1) tint) tint)
-                                  (tptr tlong)) tlong)
-                              (Ebinop Oand
+                                  (Ebinop Osub
+                                    (Ebinop Osub (Etempvar _t'8 tlong)
+                                      (Econst_int (Int.repr 65535) tint)
+                                      tlong)
+                                    (Ebinop Oand
+                                      (Ebinop Oshr (Etempvar _t'9 tlong)
+                                        (Econst_int (Int.repr 16) tint)
+                                        tlong) (Econst_int (Int.repr 1) tint)
+                                      tlong) tlong))))
+                            (Ssequence
+                              (Sset _t'7
+                                (Ederef
+                                  (Ebinop Oadd (Evar _m (tarray tlong 16))
+                                    (Ebinop Osub (Etempvar _i tint)
+                                      (Econst_int (Int.repr 1) tint) tint)
+                                    (tptr tlong)) tlong))
+                              (Sassign
                                 (Ederef
                                   (Ebinop Oadd (Evar _m (tarray tlong 16))
                                     (Ebinop Osub (Etempvar _i tint)
                                       (Econst_int (Int.repr 1) tint) tint)
                                     (tptr tlong)) tlong)
-                                (Econst_int (Int.repr 65535) tint) tlong))))
+                                (Ebinop Oand (Etempvar _t'7 tlong)
+                                  (Econst_int (Int.repr 65535) tint) tlong)))))
                         (Sset _i
                           (Ebinop Oadd (Etempvar _i tint)
                             (Econst_int (Int.repr 1) tint) tint))))
                     (Ssequence
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _m (tarray tlong 16))
-                            (Econst_int (Int.repr 15) tint) (tptr tlong))
-                          tlong)
-                        (Ebinop Osub
-                          (Ebinop Osub
-                            (Ederef
-                              (Ebinop Oadd (Evar _t (tarray tlong 16))
-                                (Econst_int (Int.repr 15) tint) (tptr tlong))
-                              tlong) (Econst_int (Int.repr 32767) tint)
-                            tlong)
-                          (Ebinop Oand
-                            (Ebinop Oshr
-                              (Ederef
-                                (Ebinop Oadd (Evar _m (tarray tlong 16))
-                                  (Econst_int (Int.repr 14) tint)
-                                  (tptr tlong)) tlong)
-                              (Econst_int (Int.repr 16) tint) tlong)
-                            (Econst_int (Int.repr 1) tint) tlong) tlong))
                       (Ssequence
-                        (Sset _b
-                          (Ecast
-                            (Ebinop Oand
-                              (Ebinop Oshr
-                                (Ederef
-                                  (Ebinop Oadd (Evar _m (tarray tlong 16))
-                                    (Econst_int (Int.repr 15) tint)
-                                    (tptr tlong)) tlong)
-                                (Econst_int (Int.repr 16) tint) tlong)
-                              (Econst_int (Int.repr 1) tint) tlong) tint))
+                        (Sset _t'5
+                          (Ederef
+                            (Ebinop Oadd (Evar _t (tarray tlong 16))
+                              (Econst_int (Int.repr 15) tint) (tptr tlong))
+                            tlong))
                         (Ssequence
-                          (Sassign
+                          (Sset _t'6
                             (Ederef
                               (Ebinop Oadd (Evar _m (tarray tlong 16))
                                 (Econst_int (Int.repr 14) tint) (tptr tlong))
+                              tlong))
+                          (Sassign
+                            (Ederef
+                              (Ebinop Oadd (Evar _m (tarray tlong 16))
+                                (Econst_int (Int.repr 15) tint) (tptr tlong))
                               tlong)
-                            (Ebinop Oand
+                            (Ebinop Osub
+                              (Ebinop Osub (Etempvar _t'5 tlong)
+                                (Econst_int (Int.repr 32767) tint) tlong)
+                              (Ebinop Oand
+                                (Ebinop Oshr (Etempvar _t'6 tlong)
+                                  (Econst_int (Int.repr 16) tint) tlong)
+                                (Econst_int (Int.repr 1) tint) tlong) tlong))))
+                      (Ssequence
+                        (Ssequence
+                          (Sset _t'4
+                            (Ederef
+                              (Ebinop Oadd (Evar _m (tarray tlong 16))
+                                (Econst_int (Int.repr 15) tint) (tptr tlong))
+                              tlong))
+                          (Sset _b
+                            (Ecast
+                              (Ebinop Oand
+                                (Ebinop Oshr (Etempvar _t'4 tlong)
+                                  (Econst_int (Int.repr 16) tint) tlong)
+                                (Econst_int (Int.repr 1) tint) tlong) tint)))
+                        (Ssequence
+                          (Ssequence
+                            (Sset _t'3
+                              (Ederef
+                                (Ebinop Oadd (Evar _m (tarray tlong 16))
+                                  (Econst_int (Int.repr 14) tint)
+                                  (tptr tlong)) tlong))
+                            (Sassign
                               (Ederef
                                 (Ebinop Oadd (Evar _m (tarray tlong 16))
                                   (Econst_int (Int.repr 14) tint)
                                   (tptr tlong)) tlong)
-                              (Econst_int (Int.repr 65535) tint) tlong))
+                              (Ebinop Oand (Etempvar _t'3 tlong)
+                                (Econst_int (Int.repr 65535) tint) tlong)))
                           (Scall None
                             (Evar _sel25519 (Tfunction
                                               (Tcons (tptr tlong)
@@ -2698,29 +2740,33 @@ Definition f_pack25519 := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _o (tptr tuchar))
-                        (Ebinop Omul (Econst_int (Int.repr 2) tint)
-                          (Etempvar _i tint) tint) (tptr tuchar)) tuchar)
-                    (Ebinop Oand
+                  (Ssequence
+                    (Sset _t'2
                       (Ederef
                         (Ebinop Oadd (Evar _t (tarray tlong 16))
-                          (Etempvar _i tint) (tptr tlong)) tlong)
-                      (Econst_int (Int.repr 255) tint) tlong))
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _o (tptr tuchar))
-                        (Ebinop Oadd
+                          (Etempvar _i tint) (tptr tlong)) tlong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _o (tptr tuchar))
                           (Ebinop Omul (Econst_int (Int.repr 2) tint)
-                            (Etempvar _i tint) tint)
-                          (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
-                      tuchar)
-                    (Ebinop Oshr
+                            (Etempvar _i tint) tint) (tptr tuchar)) tuchar)
+                      (Ebinop Oand (Etempvar _t'2 tlong)
+                        (Econst_int (Int.repr 255) tint) tlong)))
+                  (Ssequence
+                    (Sset _t'1
                       (Ederef
                         (Ebinop Oadd (Evar _t (tarray tlong 16))
-                          (Etempvar _i tint) (tptr tlong)) tlong)
-                      (Econst_int (Int.repr 8) tint) tlong))))
+                          (Etempvar _i tint) (tptr tlong)) tlong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _o (tptr tuchar))
+                          (Ebinop Oadd
+                            (Ebinop Omul (Econst_int (Int.repr 2) tint)
+                              (Etempvar _i tint) tint)
+                            (Econst_int (Int.repr 1) tint) tint)
+                          (tptr tuchar)) tuchar)
+                      (Ebinop Oshr (Etempvar _t'1 tlong)
+                        (Econst_int (Int.repr 8) tint) tlong)))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tint)
                   (Econst_int (Int.repr 1) tint) tint)))))))))
@@ -2760,7 +2806,7 @@ Definition f_par25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_a, (tptr tlong)) :: nil);
   fn_vars := ((_d, (tarray tuchar 32)) :: nil);
-  fn_temps := nil;
+  fn_temps := ((_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -2768,11 +2814,13 @@ Definition f_par25519 := {|
                        (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil)) tvoid
                        cc_default))
     ((Evar _d (tarray tuchar 32)) :: (Etempvar _a (tptr tlong)) :: nil))
-  (Sreturn (Some (Ebinop Oand
-                   (Ederef
-                     (Ebinop Oadd (Evar _d (tarray tuchar 32))
-                       (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-                   (Econst_int (Int.repr 1) tint) tint))))
+  (Ssequence
+    (Sset _t'1
+      (Ederef
+        (Ebinop Oadd (Evar _d (tarray tuchar 32))
+          (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
+    (Sreturn (Some (Ebinop Oand (Etempvar _t'1 tuchar)
+                     (Econst_int (Int.repr 1) tint) tint)))))
 |}.
 
 Definition f_unpack25519 := {|
@@ -2780,7 +2828,8 @@ Definition f_unpack25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_o, (tptr tlong)) :: (_n, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_t'3, tuchar) :: (_t'2, tuchar) ::
+               (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -2791,35 +2840,40 @@ Definition f_unpack25519 := {|
                        (Econst_int (Int.repr 16) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong)
-          (Ebinop Oadd
+        (Ssequence
+          (Sset _t'2
             (Ederef
               (Ebinop Oadd (Etempvar _n (tptr tuchar))
                 (Ebinop Omul (Econst_int (Int.repr 2) tint)
-                  (Etempvar _i tint) tint) (tptr tuchar)) tuchar)
-            (Ebinop Oshl
-              (Ecast
-                (Ederef
-                  (Ebinop Oadd (Etempvar _n (tptr tuchar))
-                    (Ebinop Oadd
-                      (Ebinop Omul (Econst_int (Int.repr 2) tint)
-                        (Etempvar _i tint) tint)
-                      (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
-                  tuchar) tlong) (Econst_int (Int.repr 8) tint) tlong) tlong)))
+                  (Etempvar _i tint) tint) (tptr tuchar)) tuchar))
+          (Ssequence
+            (Sset _t'3
+              (Ederef
+                (Ebinop Oadd (Etempvar _n (tptr tuchar))
+                  (Ebinop Oadd
+                    (Ebinop Omul (Econst_int (Int.repr 2) tint)
+                      (Etempvar _i tint) tint) (Econst_int (Int.repr 1) tint)
+                    tint) (tptr tuchar)) tuchar))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
+                  (tptr tlong)) tlong)
+              (Ebinop Oadd (Etempvar _t'2 tuchar)
+                (Ebinop Oshl (Ecast (Etempvar _t'3 tuchar) tlong)
+                  (Econst_int (Int.repr 8) tint) tlong) tlong)))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
-  (Sassign
-    (Ederef
-      (Ebinop Oadd (Etempvar _o (tptr tlong)) (Econst_int (Int.repr 15) tint)
-        (tptr tlong)) tlong)
-    (Ebinop Oand
+  (Ssequence
+    (Sset _t'1
+      (Ederef
+        (Ebinop Oadd (Etempvar _o (tptr tlong))
+          (Econst_int (Int.repr 15) tint) (tptr tlong)) tlong))
+    (Sassign
       (Ederef
         (Ebinop Oadd (Etempvar _o (tptr tlong))
           (Econst_int (Int.repr 15) tint) (tptr tlong)) tlong)
-      (Econst_int (Int.repr 32767) tint) tlong)))
+      (Ebinop Oand (Etempvar _t'1 tlong) (Econst_int (Int.repr 32767) tint)
+        tlong))))
 |}.
 
 Definition f_A := {|
@@ -2828,7 +2882,7 @@ Definition f_A := {|
   fn_params := ((_o, (tptr tlong)) :: (_a, (tptr tlong)) ::
                 (_b, (tptr tlong)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_t'2, tlong) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -2838,17 +2892,21 @@ Definition f_A := {|
                      (Econst_int (Int.repr 16) tint) tint)
         Sskip
         Sbreak)
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-            (tptr tlong)) tlong)
-        (Ebinop Oadd
+      (Ssequence
+        (Sset _t'1
           (Ederef
             (Ebinop Oadd (Etempvar _a (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong)
-          (Ederef
-            (Ebinop Oadd (Etempvar _b (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong) tlong)))
+              (tptr tlong)) tlong))
+        (Ssequence
+          (Sset _t'2
+            (Ederef
+              (Ebinop Oadd (Etempvar _b (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong)
+            (Ebinop Oadd (Etempvar _t'1 tlong) (Etempvar _t'2 tlong) tlong)))))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
@@ -2859,7 +2917,7 @@ Definition f_Z := {|
   fn_params := ((_o, (tptr tlong)) :: (_a, (tptr tlong)) ::
                 (_b, (tptr tlong)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_t'2, tlong) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -2869,17 +2927,21 @@ Definition f_Z := {|
                      (Econst_int (Int.repr 16) tint) tint)
         Sskip
         Sbreak)
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
-            (tptr tlong)) tlong)
-        (Ebinop Osub
+      (Ssequence
+        (Sset _t'1
           (Ederef
             (Ebinop Oadd (Etempvar _a (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong)
-          (Ederef
-            (Ebinop Oadd (Etempvar _b (tptr tlong)) (Etempvar _i tint)
-              (tptr tlong)) tlong) tlong)))
+              (tptr tlong)) tlong))
+        (Ssequence
+          (Sset _t'2
+            (Ederef
+              (Ebinop Oadd (Etempvar _b (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tint)
+                (tptr tlong)) tlong)
+            (Ebinop Osub (Etempvar _t'1 tlong) (Etempvar _t'2 tlong) tlong)))))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
@@ -2890,7 +2952,9 @@ Definition f_M := {|
   fn_params := ((_o, (tptr tlong)) :: (_a, (tptr tlong)) ::
                 (_b, (tptr tlong)) :: nil);
   fn_vars := ((_t, (tarray tlong 31)) :: nil);
-  fn_temps := ((_i, tlong) :: (_j, tlong) :: nil);
+  fn_temps := ((_i, tlong) :: (_j, tlong) :: (_t'6, tlong) ::
+               (_t'5, tlong) :: (_t'4, tlong) :: (_t'3, tlong) ::
+               (_t'2, tlong) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -2925,24 +2989,30 @@ Definition f_M := {|
                                (Econst_int (Int.repr 16) tint) tint)
                   Sskip
                   Sbreak)
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Evar _t (tarray tlong 31))
-                      (Ebinop Oadd (Etempvar _i tlong) (Etempvar _j tlong)
-                        tlong) (tptr tlong)) tlong)
-                  (Ebinop Oadd
+                (Ssequence
+                  (Sset _t'4
                     (Ederef
                       (Ebinop Oadd (Evar _t (tarray tlong 31))
                         (Ebinop Oadd (Etempvar _i tlong) (Etempvar _j tlong)
-                          tlong) (tptr tlong)) tlong)
-                    (Ebinop Omul
+                          tlong) (tptr tlong)) tlong))
+                  (Ssequence
+                    (Sset _t'5
                       (Ederef
                         (Ebinop Oadd (Etempvar _a (tptr tlong))
-                          (Etempvar _i tlong) (tptr tlong)) tlong)
-                      (Ederef
-                        (Ebinop Oadd (Etempvar _b (tptr tlong))
-                          (Etempvar _j tlong) (tptr tlong)) tlong) tlong)
-                    tlong)))
+                          (Etempvar _i tlong) (tptr tlong)) tlong))
+                    (Ssequence
+                      (Sset _t'6
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _b (tptr tlong))
+                            (Etempvar _j tlong) (tptr tlong)) tlong))
+                      (Sassign
+                        (Ederef
+                          (Ebinop Oadd (Evar _t (tarray tlong 31))
+                            (Ebinop Oadd (Etempvar _i tlong)
+                              (Etempvar _j tlong) tlong) (tptr tlong)) tlong)
+                        (Ebinop Oadd (Etempvar _t'4 tlong)
+                          (Ebinop Omul (Etempvar _t'5 tlong)
+                            (Etempvar _t'6 tlong) tlong) tlong))))))
               (Sset _j
                 (Ebinop Oadd (Etempvar _j tlong)
                   (Econst_int (Int.repr 1) tint) tlong)))))
@@ -2958,20 +3028,25 @@ Definition f_M := {|
                            (Econst_int (Int.repr 15) tint) tint)
               Sskip
               Sbreak)
-            (Sassign
-              (Ederef
-                (Ebinop Oadd (Evar _t (tarray tlong 31)) (Etempvar _i tlong)
-                  (tptr tlong)) tlong)
-              (Ebinop Oadd
+            (Ssequence
+              (Sset _t'2
                 (Ederef
                   (Ebinop Oadd (Evar _t (tarray tlong 31))
-                    (Etempvar _i tlong) (tptr tlong)) tlong)
-                (Ebinop Omul (Econst_int (Int.repr 38) tint)
+                    (Etempvar _i tlong) (tptr tlong)) tlong))
+              (Ssequence
+                (Sset _t'3
                   (Ederef
                     (Ebinop Oadd (Evar _t (tarray tlong 31))
                       (Ebinop Oadd (Etempvar _i tlong)
                         (Econst_int (Int.repr 16) tint) tlong) (tptr tlong))
-                    tlong) tlong) tlong)))
+                    tlong))
+                (Sassign
+                  (Ederef
+                    (Ebinop Oadd (Evar _t (tarray tlong 31))
+                      (Etempvar _i tlong) (tptr tlong)) tlong)
+                  (Ebinop Oadd (Etempvar _t'2 tlong)
+                    (Ebinop Omul (Econst_int (Int.repr 38) tint)
+                      (Etempvar _t'3 tlong) tlong) tlong)))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
               tlong))))
@@ -2984,13 +3059,16 @@ Definition f_M := {|
                              (Econst_int (Int.repr 16) tint) tint)
                 Sskip
                 Sbreak)
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _i tlong)
-                    (tptr tlong)) tlong)
-                (Ederef
-                  (Ebinop Oadd (Evar _t (tarray tlong 31))
-                    (Etempvar _i tlong) (tptr tlong)) tlong)))
+              (Ssequence
+                (Sset _t'1
+                  (Ederef
+                    (Ebinop Oadd (Evar _t (tarray tlong 31))
+                      (Etempvar _i tlong) (tptr tlong)) tlong))
+                (Sassign
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _o (tptr tlong))
+                      (Etempvar _i tlong) (tptr tlong)) tlong)
+                  (Etempvar _t'1 tlong))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
                 tlong))))
@@ -3026,7 +3104,8 @@ Definition f_inv25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_o, (tptr tlong)) :: (_i, (tptr tlong)) :: nil);
   fn_vars := ((_c, (tarray tlong 16)) :: nil);
-  fn_temps := ((_a, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_a, tint) :: (_t'1, tint) :: (_t'3, tlong) ::
+               (_t'2, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -3037,13 +3116,15 @@ Definition f_inv25519 := {|
                        (Econst_int (Int.repr 16) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
-              (tptr tlong)) tlong)
-          (Ederef
-            (Ebinop Oadd (Etempvar _i (tptr tlong)) (Etempvar _a tint)
-              (tptr tlong)) tlong)))
+        (Ssequence
+          (Sset _t'3
+            (Ederef
+              (Ebinop Oadd (Etempvar _i (tptr tlong)) (Etempvar _a tint)
+                (tptr tlong)) tlong))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
+                (tptr tlong)) tlong) (Etempvar _t'3 tlong))))
       (Sset _a
         (Ebinop Oadd (Etempvar _a tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
@@ -3091,13 +3172,15 @@ Definition f_inv25519 := {|
                          (Econst_int (Int.repr 16) tint) tint)
             Sskip
             Sbreak)
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _a tint)
-                (tptr tlong)) tlong)
-            (Ederef
-              (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
-                (tptr tlong)) tlong)))
+          (Ssequence
+            (Sset _t'2
+              (Ederef
+                (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
+                  (tptr tlong)) tlong))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _a tint)
+                  (tptr tlong)) tlong) (Etempvar _t'2 tlong))))
         (Sset _a
           (Ebinop Oadd (Etempvar _a tint) (Econst_int (Int.repr 1) tint)
             tint))))))
@@ -3108,7 +3191,7 @@ Definition f_pow2523 := {|
   fn_callconv := cc_default;
   fn_params := ((_o, (tptr tlong)) :: (_i, (tptr tlong)) :: nil);
   fn_vars := ((_c, (tarray tlong 16)) :: nil);
-  fn_temps := ((_a, tint) :: nil);
+  fn_temps := ((_a, tint) :: (_t'2, tlong) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -3119,13 +3202,15 @@ Definition f_pow2523 := {|
                        (Econst_int (Int.repr 16) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
-              (tptr tlong)) tlong)
-          (Ederef
-            (Ebinop Oadd (Etempvar _i (tptr tlong)) (Etempvar _a tint)
-              (tptr tlong)) tlong)))
+        (Ssequence
+          (Sset _t'2
+            (Ederef
+              (Ebinop Oadd (Etempvar _i (tptr tlong)) (Etempvar _a tint)
+                (tptr tlong)) tlong))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
+                (tptr tlong)) tlong) (Etempvar _t'2 tlong))))
       (Sset _a
         (Ebinop Oadd (Etempvar _a tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
@@ -3166,13 +3251,15 @@ Definition f_pow2523 := {|
                          (Econst_int (Int.repr 16) tint) tint)
             Sskip
             Sbreak)
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _a tint)
-                (tptr tlong)) tlong)
-            (Ederef
-              (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
-                (tptr tlong)) tlong)))
+          (Ssequence
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Evar _c (tarray tlong 16)) (Etempvar _a tint)
+                  (tptr tlong)) tlong))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _o (tptr tlong)) (Etempvar _a tint)
+                  (tptr tlong)) tlong) (Etempvar _t'1 tlong))))
         (Sset _a
           (Ebinop Oadd (Etempvar _a tint) (Econst_int (Int.repr 1) tint)
             tint))))))
@@ -3188,7 +3275,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
               (_c, (tarray tlong 16)) :: (_d, (tarray tlong 16)) ::
               (_e, (tarray tlong 16)) :: (_f, (tarray tlong 16)) :: nil);
   fn_temps := ((_r, tlong) :: (_i, tlong) :: (_t'3, tlong) ::
-               (_t'2, tlong) :: (_t'1, tlong) :: nil);
+               (_t'2, tlong) :: (_t'1, tlong) :: (_t'12, tuchar) ::
+               (_t'11, tuchar) :: (_t'10, tuchar) :: (_t'9, tlong) ::
+               (_t'8, tuchar) :: (_t'7, tlong) :: (_t'6, tlong) ::
+               (_t'5, tlong) :: (_t'4, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -3199,38 +3289,44 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                        (Econst_int (Int.repr 31) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _z (tarray tuchar 32)) (Etempvar _i tlong)
-              (tptr tuchar)) tuchar)
-          (Ederef
-            (Ebinop Oadd (Etempvar _n (tptr tuchar)) (Etempvar _i tlong)
-              (tptr tuchar)) tuchar)))
+        (Ssequence
+          (Sset _t'12
+            (Ederef
+              (Ebinop Oadd (Etempvar _n (tptr tuchar)) (Etempvar _i tlong)
+                (tptr tuchar)) tuchar))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _z (tarray tuchar 32)) (Etempvar _i tlong)
+                (tptr tuchar)) tuchar) (Etempvar _t'12 tuchar))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
           tlong))))
   (Ssequence
-    (Sassign
-      (Ederef
-        (Ebinop Oadd (Evar _z (tarray tuchar 32))
-          (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-      (Ebinop Oor
-        (Ebinop Oand
-          (Ederef
-            (Ebinop Oadd (Etempvar _n (tptr tuchar))
-              (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-          (Econst_int (Int.repr 127) tint) tint)
-        (Econst_int (Int.repr 64) tint) tint))
     (Ssequence
+      (Sset _t'11
+        (Ederef
+          (Ebinop Oadd (Etempvar _n (tptr tuchar))
+            (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
       (Sassign
         (Ederef
           (Ebinop Oadd (Evar _z (tarray tuchar 32))
-            (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-        (Ebinop Oand
+            (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
+        (Ebinop Oor
+          (Ebinop Oand (Etempvar _t'11 tuchar)
+            (Econst_int (Int.repr 127) tint) tint)
+          (Econst_int (Int.repr 64) tint) tint)))
+    (Ssequence
+      (Ssequence
+        (Sset _t'10
+          (Ederef
+            (Ebinop Oadd (Evar _z (tarray tuchar 32))
+              (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
+        (Sassign
           (Ederef
             (Ebinop Oadd (Evar _z (tarray tuchar 32))
               (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-          (Econst_int (Int.repr 248) tint) tint))
+          (Ebinop Oand (Etempvar _t'10 tuchar)
+            (Econst_int (Int.repr 248) tint) tint)))
       (Ssequence
         (Scall None
           (Evar _unpack25519 (Tfunction
@@ -3248,13 +3344,16 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Evar _b (tarray tlong 16))
-                        (Etempvar _i tlong) (tptr tlong)) tlong)
-                    (Ederef
-                      (Ebinop Oadd (Evar _x (tarray tlong 80))
-                        (Etempvar _i tlong) (tptr tlong)) tlong))
+                  (Ssequence
+                    (Sset _t'9
+                      (Ederef
+                        (Ebinop Oadd (Evar _x (tarray tlong 80))
+                          (Etempvar _i tlong) (tptr tlong)) tlong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _b (tarray tlong 16))
+                          (Etempvar _i tlong) (tptr tlong)) tlong)
+                      (Etempvar _t'9 tlong)))
                   (Ssequence
                     (Ssequence
                       (Ssequence
@@ -3304,18 +3403,20 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                       Sskip
                       Sbreak)
                     (Ssequence
-                      (Sset _r
-                        (Ecast
-                          (Ebinop Oand
-                            (Ebinop Oshr
-                              (Ederef
-                                (Ebinop Oadd (Evar _z (tarray tuchar 32))
-                                  (Ebinop Oshr (Etempvar _i tlong)
-                                    (Econst_int (Int.repr 3) tint) tlong)
-                                  (tptr tuchar)) tuchar)
-                              (Ebinop Oand (Etempvar _i tlong)
-                                (Econst_int (Int.repr 7) tint) tlong) tint)
-                            (Econst_int (Int.repr 1) tint) tint) tlong))
+                      (Ssequence
+                        (Sset _t'8
+                          (Ederef
+                            (Ebinop Oadd (Evar _z (tarray tuchar 32))
+                              (Ebinop Oshr (Etempvar _i tlong)
+                                (Econst_int (Int.repr 3) tint) tlong)
+                              (tptr tuchar)) tuchar))
+                        (Sset _r
+                          (Ecast
+                            (Ebinop Oand
+                              (Ebinop Oshr (Etempvar _t'8 tuchar)
+                                (Ebinop Oand (Etempvar _i tlong)
+                                  (Econst_int (Int.repr 7) tint) tlong) tint)
+                              (Econst_int (Int.repr 1) tint) tint) tlong)))
                       (Ssequence
                         (Scall None
                           (Evar _sel25519 (Tfunction
@@ -3525,7 +3626,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                            nil))
                                                         (Ssequence
                                                           (Scall None
-                                                            (Evar _M
+                                                            (Evar _M 
                                                             (Tfunction
                                                               (Tcons
                                                                 (tptr tlong)
@@ -3542,7 +3643,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                              nil))
                                                           (Ssequence
                                                             (Scall None
-                                                              (Evar _M
+                                                              (Evar _M 
                                                               (Tfunction
                                                                 (Tcons
                                                                   (tptr tlong)
@@ -3559,7 +3660,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                nil))
                                                             (Ssequence
                                                               (Scall None
-                                                                (Evar _S
+                                                                (Evar _S 
                                                                 (Tfunction
                                                                   (Tcons
                                                                     (tptr tlong)
@@ -3573,7 +3674,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                  nil))
                                                               (Ssequence
                                                                 (Scall None
-                                                                  (Evar _sel25519
+                                                                  (Evar _sel25519 
                                                                   (Tfunction
                                                                     (Tcons
                                                                     (tptr tlong)
@@ -3589,7 +3690,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                    (Etempvar _r tlong) ::
                                                                    nil))
                                                                 (Scall None
-                                                                  (Evar _sel25519
+                                                                  (Evar _sel25519 
                                                                   (Tfunction
                                                                     (Tcons
                                                                     (tptr tlong)
@@ -3617,44 +3718,54 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Sassign
-                          (Ederef
-                            (Ebinop Oadd (Evar _x (tarray tlong 80))
-                              (Ebinop Oadd (Etempvar _i tlong)
-                                (Econst_int (Int.repr 16) tint) tlong)
-                              (tptr tlong)) tlong)
-                          (Ederef
-                            (Ebinop Oadd (Evar _a (tarray tlong 16))
-                              (Etempvar _i tlong) (tptr tlong)) tlong))
                         (Ssequence
+                          (Sset _t'7
+                            (Ederef
+                              (Ebinop Oadd (Evar _a (tarray tlong 16))
+                                (Etempvar _i tlong) (tptr tlong)) tlong))
                           (Sassign
                             (Ederef
                               (Ebinop Oadd (Evar _x (tarray tlong 80))
                                 (Ebinop Oadd (Etempvar _i tlong)
-                                  (Econst_int (Int.repr 32) tint) tlong)
-                                (tptr tlong)) tlong)
-                            (Ederef
-                              (Ebinop Oadd (Evar _c (tarray tlong 16))
-                                (Etempvar _i tlong) (tptr tlong)) tlong))
+                                  (Econst_int (Int.repr 16) tint) tlong)
+                                (tptr tlong)) tlong) (Etempvar _t'7 tlong)))
+                        (Ssequence
                           (Ssequence
-                            (Sassign
+                            (Sset _t'6
                               (Ederef
-                                (Ebinop Oadd (Evar _x (tarray tlong 80))
-                                  (Ebinop Oadd (Etempvar _i tlong)
-                                    (Econst_int (Int.repr 48) tint) tlong)
-                                  (tptr tlong)) tlong)
-                              (Ederef
-                                (Ebinop Oadd (Evar _b (tarray tlong 16))
+                                (Ebinop Oadd (Evar _c (tarray tlong 16))
                                   (Etempvar _i tlong) (tptr tlong)) tlong))
                             (Sassign
                               (Ederef
                                 (Ebinop Oadd (Evar _x (tarray tlong 80))
                                   (Ebinop Oadd (Etempvar _i tlong)
-                                    (Econst_int (Int.repr 64) tint) tlong)
-                                  (tptr tlong)) tlong)
-                              (Ederef
-                                (Ebinop Oadd (Evar _d (tarray tlong 16))
-                                  (Etempvar _i tlong) (tptr tlong)) tlong))))))
+                                    (Econst_int (Int.repr 32) tint) tlong)
+                                  (tptr tlong)) tlong) (Etempvar _t'6 tlong)))
+                          (Ssequence
+                            (Ssequence
+                              (Sset _t'5
+                                (Ederef
+                                  (Ebinop Oadd (Evar _b (tarray tlong 16))
+                                    (Etempvar _i tlong) (tptr tlong)) tlong))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _x (tarray tlong 80))
+                                    (Ebinop Oadd (Etempvar _i tlong)
+                                      (Econst_int (Int.repr 48) tint) tlong)
+                                    (tptr tlong)) tlong)
+                                (Etempvar _t'5 tlong)))
+                            (Ssequence
+                              (Sset _t'4
+                                (Ederef
+                                  (Ebinop Oadd (Evar _d (tarray tlong 16))
+                                    (Etempvar _i tlong) (tptr tlong)) tlong))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _x (tarray tlong 80))
+                                    (Ebinop Oadd (Etempvar _i tlong)
+                                      (Econst_int (Int.repr 64) tint) tlong)
+                                    (tptr tlong)) tlong)
+                                (Etempvar _t'4 tlong)))))))
                     (Sset _i
                       (Ebinop Oadd (Etempvar _i tlong)
                         (Econst_int (Int.repr 1) tint) tlong))))
@@ -4143,7 +4254,14 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
   fn_temps := ((_t, tulong) :: (_i, tint) :: (_j, tint) :: (_t'9, tulong) ::
                (_t'8, tulong) :: (_t'7, tulong) :: (_t'6, tulong) ::
                (_t'5, tulong) :: (_t'4, tulong) :: (_t'3, tulong) ::
-               (_t'2, tulong) :: (_t'1, tulong) :: nil);
+               (_t'2, tulong) :: (_t'1, tulong) :: (_t'31, tulong) ::
+               (_t'30, tulong) :: (_t'29, tulong) :: (_t'28, tulong) ::
+               (_t'27, tulong) :: (_t'26, tulong) :: (_t'25, tulong) ::
+               (_t'24, tulong) :: (_t'23, tulong) :: (_t'22, tulong) ::
+               (_t'21, tulong) :: (_t'20, tulong) :: (_t'19, tulong) ::
+               (_t'18, tulong) :: (_t'17, tulong) :: (_t'16, tulong) ::
+               (_t'15, tulong) :: (_t'14, tulong) :: (_t'13, tulong) ::
+               (_t'12, tulong) :: (_t'11, tulong) :: (_t'10, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -4219,90 +4337,126 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                        (Econst_int (Int.repr 8) tint) tint)
                           Sskip
                           Sbreak)
-                        (Sassign
-                          (Ederef
-                            (Ebinop Oadd (Evar _b (tarray tulong 8))
-                              (Etempvar _j tint) (tptr tulong)) tulong)
-                          (Ederef
-                            (Ebinop Oadd (Evar _a (tarray tulong 8))
-                              (Etempvar _j tint) (tptr tulong)) tulong)))
+                        (Ssequence
+                          (Sset _t'31
+                            (Ederef
+                              (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                (Etempvar _j tint) (tptr tulong)) tulong))
+                          (Sassign
+                            (Ederef
+                              (Ebinop Oadd (Evar _b (tarray tulong 8))
+                                (Etempvar _j tint) (tptr tulong)) tulong)
+                            (Etempvar _t'31 tulong))))
                       (Sset _j
                         (Ebinop Oadd (Etempvar _j tint)
                           (Econst_int (Int.repr 1) tint) tint))))
                   (Ssequence
                     (Ssequence
                       (Ssequence
-                        (Scall (Some _t'4)
-                          (Evar _Sigma1 (Tfunction (Tcons tulong Tnil) tulong
-                                          cc_default))
-                          ((Ederef
-                             (Ebinop Oadd (Evar _a (tarray tulong 8))
-                               (Econst_int (Int.repr 4) tint) (tptr tulong))
-                             tulong) :: nil))
-                        (Scall (Some _t'5)
-                          (Evar _Ch (Tfunction
-                                      (Tcons tulong
-                                        (Tcons tulong (Tcons tulong Tnil)))
-                                      tulong cc_default))
-                          ((Ederef
-                             (Ebinop Oadd (Evar _a (tarray tulong 8))
-                               (Econst_int (Int.repr 4) tint) (tptr tulong))
-                             tulong) ::
-                           (Ederef
-                             (Ebinop Oadd (Evar _a (tarray tulong 8))
-                               (Econst_int (Int.repr 5) tint) (tptr tulong))
-                             tulong) ::
-                           (Ederef
-                             (Ebinop Oadd (Evar _a (tarray tulong 8))
-                               (Econst_int (Int.repr 6) tint) (tptr tulong))
-                             tulong) :: nil)))
-                      (Sset _t
-                        (Ebinop Oadd
-                          (Ebinop Oadd
-                            (Ebinop Oadd
-                              (Ebinop Oadd
+                        (Ssequence
+                          (Sset _t'30
+                            (Ederef
+                              (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                (Econst_int (Int.repr 4) tint) (tptr tulong))
+                              tulong))
+                          (Scall (Some _t'4)
+                            (Evar _Sigma1 (Tfunction (Tcons tulong Tnil)
+                                            tulong cc_default))
+                            ((Etempvar _t'30 tulong) :: nil)))
+                        (Ssequence
+                          (Sset _t'27
+                            (Ederef
+                              (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                (Econst_int (Int.repr 4) tint) (tptr tulong))
+                              tulong))
+                          (Ssequence
+                            (Sset _t'28
+                              (Ederef
+                                (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                  (Econst_int (Int.repr 5) tint)
+                                  (tptr tulong)) tulong))
+                            (Ssequence
+                              (Sset _t'29
                                 (Ederef
                                   (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                    (Econst_int (Int.repr 7) tint)
-                                    (tptr tulong)) tulong)
-                                (Etempvar _t'4 tulong) tulong)
-                              (Etempvar _t'5 tulong) tulong)
+                                    (Econst_int (Int.repr 6) tint)
+                                    (tptr tulong)) tulong))
+                              (Scall (Some _t'5)
+                                (Evar _Ch (Tfunction
+                                            (Tcons tulong
+                                              (Tcons tulong
+                                                (Tcons tulong Tnil))) tulong
+                                            cc_default))
+                                ((Etempvar _t'27 tulong) ::
+                                 (Etempvar _t'28 tulong) ::
+                                 (Etempvar _t'29 tulong) :: nil))))))
+                      (Ssequence
+                        (Sset _t'24
+                          (Ederef
+                            (Ebinop Oadd (Evar _a (tarray tulong 8))
+                              (Econst_int (Int.repr 7) tint) (tptr tulong))
+                            tulong))
+                        (Ssequence
+                          (Sset _t'25
                             (Ederef
                               (Ebinop Oadd (Evar _K (tarray tulong 80))
-                                (Etempvar _i tint) (tptr tulong)) tulong)
-                            tulong)
-                          (Ederef
-                            (Ebinop Oadd (Evar _w (tarray tulong 16))
-                              (Ebinop Omod (Etempvar _i tint)
-                                (Econst_int (Int.repr 16) tint) tint)
-                              (tptr tulong)) tulong) tulong)))
+                                (Etempvar _i tint) (tptr tulong)) tulong))
+                          (Ssequence
+                            (Sset _t'26
+                              (Ederef
+                                (Ebinop Oadd (Evar _w (tarray tulong 16))
+                                  (Ebinop Omod (Etempvar _i tint)
+                                    (Econst_int (Int.repr 16) tint) tint)
+                                  (tptr tulong)) tulong))
+                            (Sset _t
+                              (Ebinop Oadd
+                                (Ebinop Oadd
+                                  (Ebinop Oadd
+                                    (Ebinop Oadd (Etempvar _t'24 tulong)
+                                      (Etempvar _t'4 tulong) tulong)
+                                    (Etempvar _t'5 tulong) tulong)
+                                  (Etempvar _t'25 tulong) tulong)
+                                (Etempvar _t'26 tulong) tulong))))))
                     (Ssequence
                       (Ssequence
                         (Ssequence
-                          (Scall (Some _t'6)
-                            (Evar _Sigma0 (Tfunction (Tcons tulong Tnil)
-                                            tulong cc_default))
-                            ((Ederef
-                               (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                 (Econst_int (Int.repr 0) tint)
-                                 (tptr tulong)) tulong) :: nil))
-                          (Scall (Some _t'7)
-                            (Evar _Maj (Tfunction
-                                         (Tcons tulong
-                                           (Tcons tulong (Tcons tulong Tnil)))
-                                         tulong cc_default))
-                            ((Ederef
-                               (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                 (Econst_int (Int.repr 0) tint)
-                                 (tptr tulong)) tulong) ::
-                             (Ederef
-                               (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                 (Econst_int (Int.repr 1) tint)
-                                 (tptr tulong)) tulong) ::
-                             (Ederef
-                               (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                 (Econst_int (Int.repr 2) tint)
-                                 (tptr tulong)) tulong) :: nil)))
+                          (Ssequence
+                            (Sset _t'23
+                              (Ederef
+                                (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                  (Econst_int (Int.repr 0) tint)
+                                  (tptr tulong)) tulong))
+                            (Scall (Some _t'6)
+                              (Evar _Sigma0 (Tfunction (Tcons tulong Tnil)
+                                              tulong cc_default))
+                              ((Etempvar _t'23 tulong) :: nil)))
+                          (Ssequence
+                            (Sset _t'20
+                              (Ederef
+                                (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                  (Econst_int (Int.repr 0) tint)
+                                  (tptr tulong)) tulong))
+                            (Ssequence
+                              (Sset _t'21
+                                (Ederef
+                                  (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                    (Econst_int (Int.repr 1) tint)
+                                    (tptr tulong)) tulong))
+                              (Ssequence
+                                (Sset _t'22
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _a (tarray tulong 8))
+                                      (Econst_int (Int.repr 2) tint)
+                                      (tptr tulong)) tulong))
+                                (Scall (Some _t'7)
+                                  (Evar _Maj (Tfunction
+                                               (Tcons tulong
+                                                 (Tcons tulong
+                                                   (Tcons tulong Tnil)))
+                                               tulong cc_default))
+                                  ((Etempvar _t'20 tulong) ::
+                                   (Etempvar _t'21 tulong) ::
+                                   (Etempvar _t'22 tulong) :: nil))))))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _b (tarray tulong 8))
@@ -4313,16 +4467,19 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                               (Etempvar _t'6 tulong) tulong)
                             (Etempvar _t'7 tulong) tulong)))
                       (Ssequence
-                        (Sassign
-                          (Ederef
-                            (Ebinop Oadd (Evar _b (tarray tulong 8))
-                              (Econst_int (Int.repr 3) tint) (tptr tulong))
-                            tulong)
-                          (Ebinop Oadd
+                        (Ssequence
+                          (Sset _t'19
                             (Ederef
                               (Ebinop Oadd (Evar _b (tarray tulong 8))
                                 (Econst_int (Int.repr 3) tint) (tptr tulong))
-                              tulong) (Etempvar _t tulong) tulong))
+                              tulong))
+                          (Sassign
+                            (Ederef
+                              (Ebinop Oadd (Evar _b (tarray tulong 8))
+                                (Econst_int (Int.repr 3) tint) (tptr tulong))
+                              tulong)
+                            (Ebinop Oadd (Etempvar _t'19 tulong)
+                              (Etempvar _t tulong) tulong)))
                         (Ssequence
                           (Ssequence
                             (Sset _j (Econst_int (Int.repr 0) tint))
@@ -4333,19 +4490,24 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                                tint)
                                   Sskip
                                   Sbreak)
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _a (tarray tulong 8))
-                                      (Ebinop Omod
-                                        (Ebinop Oadd (Etempvar _j tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint)
-                                        (Econst_int (Int.repr 8) tint) tint)
-                                      (tptr tulong)) tulong)
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _b (tarray tulong 8))
-                                      (Etempvar _j tint) (tptr tulong))
-                                    tulong)))
+                                (Ssequence
+                                  (Sset _t'18
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _b (tarray tulong 8))
+                                        (Etempvar _j tint) (tptr tulong))
+                                      tulong))
+                                  (Sassign
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _a (tarray tulong 8))
+                                        (Ebinop Omod
+                                          (Ebinop Oadd (Etempvar _j tint)
+                                            (Econst_int (Int.repr 1) tint)
+                                            tint)
+                                          (Econst_int (Int.repr 8) tint)
+                                          tint) (tptr tulong)) tulong)
+                                    (Etempvar _t'18 tulong))))
                               (Sset _j
                                 (Ebinop Oadd (Etempvar _j tint)
                                   (Econst_int (Int.repr 1) tint) tint))))
@@ -4366,63 +4528,74 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                     Sbreak)
                                   (Ssequence
                                     (Ssequence
-                                      (Scall (Some _t'8)
-                                        (Evar _sigma0 (Tfunction
-                                                        (Tcons tulong Tnil)
-                                                        tulong cc_default))
-                                        ((Ederef
-                                           (Ebinop Oadd
-                                             (Evar _w (tarray tulong 16))
-                                             (Ebinop Omod
-                                               (Ebinop Oadd
-                                                 (Etempvar _j tint)
-                                                 (Econst_int (Int.repr 1) tint)
-                                                 tint)
-                                               (Econst_int (Int.repr 16) tint)
-                                               tint) (tptr tulong)) tulong) ::
-                                         nil))
-                                      (Scall (Some _t'9)
-                                        (Evar _sigma1 (Tfunction
-                                                        (Tcons tulong Tnil)
-                                                        tulong cc_default))
-                                        ((Ederef
-                                           (Ebinop Oadd
-                                             (Evar _w (tarray tulong 16))
-                                             (Ebinop Omod
-                                               (Ebinop Oadd
-                                                 (Etempvar _j tint)
-                                                 (Econst_int (Int.repr 14) tint)
-                                                 tint)
-                                               (Econst_int (Int.repr 16) tint)
-                                               tint) (tptr tulong)) tulong) ::
-                                         nil)))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Evar _w (tarray tulong 16))
-                                          (Etempvar _j tint) (tptr tulong))
-                                        tulong)
-                                      (Ebinop Oadd
+                                      (Ssequence
+                                        (Sset _t'17
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _w (tarray tulong 16))
+                                              (Ebinop Omod
+                                                (Ebinop Oadd
+                                                  (Etempvar _j tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tint) (tptr tulong)) tulong))
+                                        (Scall (Some _t'8)
+                                          (Evar _sigma0 (Tfunction
+                                                          (Tcons tulong Tnil)
+                                                          tulong cc_default))
+                                          ((Etempvar _t'17 tulong) :: nil)))
+                                      (Ssequence
+                                        (Sset _t'16
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _w (tarray tulong 16))
+                                              (Ebinop Omod
+                                                (Ebinop Oadd
+                                                  (Etempvar _j tint)
+                                                  (Econst_int (Int.repr 14) tint)
+                                                  tint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tint) (tptr tulong)) tulong))
+                                        (Scall (Some _t'9)
+                                          (Evar _sigma1 (Tfunction
+                                                          (Tcons tulong Tnil)
+                                                          tulong cc_default))
+                                          ((Etempvar _t'16 tulong) :: nil))))
+                                    (Ssequence
+                                      (Sset _t'14
                                         (Ederef
                                           (Ebinop Oadd
                                             (Evar _w (tarray tulong 16))
                                             (Etempvar _j tint) (tptr tulong))
-                                          tulong)
-                                        (Ebinop Oadd
+                                          tulong))
+                                      (Ssequence
+                                        (Sset _t'15
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _w (tarray tulong 16))
+                                              (Ebinop Omod
+                                                (Ebinop Oadd
+                                                  (Etempvar _j tint)
+                                                  (Econst_int (Int.repr 9) tint)
+                                                  tint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tint) (tptr tulong)) tulong))
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _w (tarray tulong 16))
+                                              (Etempvar _j tint)
+                                              (tptr tulong)) tulong)
                                           (Ebinop Oadd
-                                            (Ederef
+                                            (Etempvar _t'14 tulong)
+                                            (Ebinop Oadd
                                               (Ebinop Oadd
-                                                (Evar _w (tarray tulong 16))
-                                                (Ebinop Omod
-                                                  (Ebinop Oadd
-                                                    (Etempvar _j tint)
-                                                    (Econst_int (Int.repr 9) tint)
-                                                    tint)
-                                                  (Econst_int (Int.repr 16) tint)
-                                                  tint) (tptr tulong))
-                                              tulong) (Etempvar _t'8 tulong)
-                                            tulong) (Etempvar _t'9 tulong)
-                                          tulong) tulong))))
+                                                (Etempvar _t'15 tulong)
+                                                (Etempvar _t'8 tulong)
+                                                tulong)
+                                              (Etempvar _t'9 tulong) tulong)
+                                            tulong))))))
                                 (Sset _j
                                   (Ebinop Oadd (Etempvar _j tint)
                                     (Econst_int (Int.repr 1) tint) tint))))
@@ -4440,24 +4613,32 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                     Sskip
                     Sbreak)
                   (Ssequence
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Evar _a (tarray tulong 8))
-                          (Etempvar _i tint) (tptr tulong)) tulong)
-                      (Ebinop Oadd
+                    (Ssequence
+                      (Sset _t'12
                         (Ederef
                           (Ebinop Oadd (Evar _a (tarray tulong 8))
-                            (Etempvar _i tint) (tptr tulong)) tulong)
+                            (Etempvar _i tint) (tptr tulong)) tulong))
+                      (Ssequence
+                        (Sset _t'13
+                          (Ederef
+                            (Ebinop Oadd (Evar _z (tarray tulong 8))
+                              (Etempvar _i tint) (tptr tulong)) tulong))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Evar _a (tarray tulong 8))
+                              (Etempvar _i tint) (tptr tulong)) tulong)
+                          (Ebinop Oadd (Etempvar _t'12 tulong)
+                            (Etempvar _t'13 tulong) tulong))))
+                    (Ssequence
+                      (Sset _t'11
+                        (Ederef
+                          (Ebinop Oadd (Evar _a (tarray tulong 8))
+                            (Etempvar _i tint) (tptr tulong)) tulong))
+                      (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _z (tarray tulong 8))
-                            (Etempvar _i tint) (tptr tulong)) tulong) tulong))
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Evar _z (tarray tulong 8))
-                          (Etempvar _i tint) (tptr tulong)) tulong)
-                      (Ederef
-                        (Ebinop Oadd (Evar _a (tarray tulong 8))
-                          (Etempvar _i tint) (tptr tulong)) tulong))))
+                            (Etempvar _i tint) (tptr tulong)) tulong)
+                        (Etempvar _t'11 tulong)))))
                 (Sset _i
                   (Ebinop Oadd (Etempvar _i tint)
                     (Econst_int (Int.repr 1) tint) tint))))
@@ -4477,16 +4658,19 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                            (Econst_int (Int.repr 8) tint) tint)
               Sskip
               Sbreak)
-            (Scall None
-              (Evar _ts64 (Tfunction
-                            (Tcons (tptr tuchar) (Tcons tulong Tnil)) tvoid
-                            cc_default))
-              ((Ebinop Oadd (Etempvar _x (tptr tuchar))
-                 (Ebinop Omul (Econst_int (Int.repr 8) tint)
-                   (Etempvar _i tint) tint) (tptr tuchar)) ::
-               (Ederef
-                 (Ebinop Oadd (Evar _z (tarray tulong 8)) (Etempvar _i tint)
-                   (tptr tulong)) tulong) :: nil)))
+            (Ssequence
+              (Sset _t'10
+                (Ederef
+                  (Ebinop Oadd (Evar _z (tarray tulong 8)) (Etempvar _i tint)
+                    (tptr tulong)) tulong))
+              (Scall None
+                (Evar _ts64 (Tfunction
+                              (Tcons (tptr tuchar) (Tcons tulong Tnil)) tvoid
+                              cc_default))
+                ((Ebinop Oadd (Etempvar _x (tptr tuchar))
+                   (Ebinop Omul (Econst_int (Int.repr 8) tint)
+                     (Etempvar _i tint) tint) (tptr tuchar)) ::
+                 (Etempvar _t'10 tulong) :: nil))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
               tint))))
@@ -4537,7 +4721,8 @@ Definition f_crypto_hash_sha512_tweet := {|
   fn_params := ((_out, (tptr tuchar)) :: (_m, (tptr tuchar)) ::
                 (_n, tulong) :: nil);
   fn_vars := ((_h, (tarray tuchar 64)) :: (_x, (tarray tuchar 256)) :: nil);
-  fn_temps := ((_i, tulong) :: (_b, tulong) :: nil);
+  fn_temps := ((_i, tulong) :: (_b, tulong) :: (_t'3, tuchar) ::
+               (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _b (Etempvar _n tulong))
@@ -4550,13 +4735,16 @@ Definition f_crypto_hash_sha512_tweet := {|
                          (Econst_int (Int.repr 64) tint) tint)
             Sskip
             Sbreak)
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Evar _h (tarray tuchar 64)) (Etempvar _i tulong)
-                (tptr tuchar)) tuchar)
-            (Ederef
-              (Ebinop Oadd (Evar _iv (tarray tuchar 64)) (Etempvar _i tulong)
-                (tptr tuchar)) tuchar)))
+          (Ssequence
+            (Sset _t'3
+              (Ederef
+                (Ebinop Oadd (Evar _iv (tarray tuchar 64))
+                  (Etempvar _i tulong) (tptr tuchar)) tuchar))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Evar _h (tarray tuchar 64))
+                  (Etempvar _i tulong) (tptr tuchar)) tuchar)
+              (Etempvar _t'3 tuchar))))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tulong) (Econst_int (Int.repr 1) tint)
             tulong))))
@@ -4607,13 +4795,16 @@ Definition f_crypto_hash_sha512_tweet := {|
                                      (Etempvar _n tulong) tint)
                         Sskip
                         Sbreak)
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _x (tarray tuchar 256))
-                            (Etempvar _i tulong) (tptr tuchar)) tuchar)
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                            (Etempvar _i tulong) (tptr tuchar)) tuchar)))
+                      (Ssequence
+                        (Sset _t'2
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                              (Etempvar _i tulong) (tptr tuchar)) tuchar))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Evar _x (tarray tuchar 256))
+                              (Etempvar _i tulong) (tptr tuchar)) tuchar)
+                          (Etempvar _t'2 tuchar))))
                     (Sset _i
                       (Ebinop Oadd (Etempvar _i tulong)
                         (Econst_int (Int.repr 1) tint) tulong))))
@@ -4679,17 +4870,19 @@ Definition f_crypto_hash_sha512_tweet := {|
                                                  tint)
                                     Sskip
                                     Sbreak)
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _out (tptr tuchar))
-                                        (Etempvar _i tulong) (tptr tuchar))
-                                      tuchar)
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Evar _h (tarray tuchar 64))
-                                        (Etempvar _i tulong) (tptr tuchar))
-                                      tuchar)))
+                                  (Ssequence
+                                    (Sset _t'1
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Evar _h (tarray tuchar 64))
+                                          (Etempvar _i tulong) (tptr tuchar))
+                                        tuchar))
+                                    (Sassign
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Etempvar _out (tptr tuchar))
+                                          (Etempvar _i tulong) (tptr tuchar))
+                                        tuchar) (Etempvar _t'1 tuchar))))
                                 (Sset _i
                                   (Ebinop Oadd (Etempvar _i tulong)
                                     (Econst_int (Int.repr 1) tint) tulong))))
@@ -4973,7 +5166,7 @@ Definition f_pack := {|
   fn_params := ((_r, (tptr tuchar)) :: (_p, (tptr (tarray tlong 16))) :: nil);
   fn_vars := ((_tx, (tarray tlong 16)) :: (_ty, (tarray tlong 16)) ::
               (_zi, (tarray tlong 16)) :: nil);
-  fn_temps := ((_t'1, tuchar) :: nil);
+  fn_temps := ((_t'1, tuchar) :: (_t'2, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -5018,16 +5211,18 @@ Definition f_pack := {|
             (Evar _par25519 (Tfunction (Tcons (tptr tlong) Tnil) tuchar
                               cc_default))
             ((Evar _tx (tarray tlong 16)) :: nil))
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _r (tptr tuchar))
-                (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-            (Ebinop Oxor
+          (Ssequence
+            (Sset _t'2
+              (Ederef
+                (Ebinop Oadd (Etempvar _r (tptr tuchar))
+                  (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
+            (Sassign
               (Ederef
                 (Ebinop Oadd (Etempvar _r (tptr tuchar))
                   (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-              (Ebinop Oshl (Etempvar _t'1 tuchar)
-                (Econst_int (Int.repr 7) tint) tint) tint)))))))
+              (Ebinop Oxor (Etempvar _t'2 tuchar)
+                (Ebinop Oshl (Etempvar _t'1 tuchar)
+                  (Econst_int (Int.repr 7) tint) tint) tint))))))))
 |}.
 
 Definition f_scalarmult := {|
@@ -5036,7 +5231,7 @@ Definition f_scalarmult := {|
   fn_params := ((_p, (tptr (tarray tlong 16))) ::
                 (_q, (tptr (tarray tlong 16))) :: (_s, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_b, tuchar) :: nil);
+  fn_temps := ((_i, tint) :: (_b, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -5082,18 +5277,20 @@ Definition f_scalarmult := {|
                 Sskip
                 Sbreak)
               (Ssequence
-                (Sset _b
-                  (Ecast
-                    (Ebinop Oand
-                      (Ebinop Oshr
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _s (tptr tuchar))
-                            (Ebinop Odiv (Etempvar _i tint)
-                              (Econst_int (Int.repr 8) tint) tint)
-                            (tptr tuchar)) tuchar)
-                        (Ebinop Oand (Etempvar _i tint)
-                          (Econst_int (Int.repr 7) tint) tint) tint)
-                      (Econst_int (Int.repr 1) tint) tint) tuchar))
+                (Ssequence
+                  (Sset _t'1
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _s (tptr tuchar))
+                        (Ebinop Odiv (Etempvar _i tint)
+                          (Econst_int (Int.repr 8) tint) tint) (tptr tuchar))
+                      tuchar))
+                  (Sset _b
+                    (Ecast
+                      (Ebinop Oand
+                        (Ebinop Oshr (Etempvar _t'1 tuchar)
+                          (Ebinop Oand (Etempvar _i tint)
+                            (Econst_int (Int.repr 7) tint) tint) tint)
+                        (Econst_int (Int.repr 1) tint) tint) tuchar)))
                 (Ssequence
                   (Scall None
                     (Evar _cswap (Tfunction
@@ -5195,7 +5392,8 @@ Definition f_crypto_sign_ed25519_tweet_keypair := {|
   fn_params := ((_pk, (tptr tuchar)) :: (_sk, (tptr tuchar)) :: nil);
   fn_vars := ((_d, (tarray tuchar 64)) ::
               (_p, (tarray (tarray tlong 16) 4)) :: nil);
-  fn_temps := ((_i, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_t'4, tuchar) :: (_t'3, tuchar) ::
+               (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -5212,35 +5410,41 @@ Definition f_crypto_sign_ed25519_tweet_keypair := {|
       ((Evar _d (tarray tuchar 64)) :: (Etempvar _sk (tptr tuchar)) ::
        (Econst_int (Int.repr 32) tint) :: nil))
     (Ssequence
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Evar _d (tarray tuchar 64))
-            (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-        (Ebinop Oand
+      (Ssequence
+        (Sset _t'4
           (Ederef
             (Ebinop Oadd (Evar _d (tarray tuchar 64))
-              (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-          (Econst_int (Int.repr 248) tint) tint))
-      (Ssequence
+              (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
         (Sassign
           (Ederef
             (Ebinop Oadd (Evar _d (tarray tuchar 64))
-              (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-          (Ebinop Oand
+              (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
+          (Ebinop Oand (Etempvar _t'4 tuchar)
+            (Econst_int (Int.repr 248) tint) tint)))
+      (Ssequence
+        (Ssequence
+          (Sset _t'3
             (Ederef
               (Ebinop Oadd (Evar _d (tarray tuchar 64))
-                (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-            (Econst_int (Int.repr 127) tint) tint))
-        (Ssequence
+                (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
           (Sassign
             (Ederef
               (Ebinop Oadd (Evar _d (tarray tuchar 64))
                 (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-            (Ebinop Oor
+            (Ebinop Oand (Etempvar _t'3 tuchar)
+              (Econst_int (Int.repr 127) tint) tint)))
+        (Ssequence
+          (Ssequence
+            (Sset _t'2
+              (Ederef
+                (Ebinop Oadd (Evar _d (tarray tuchar 64))
+                  (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
+            (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _d (tarray tuchar 64))
                   (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-              (Econst_int (Int.repr 64) tint) tint))
+              (Ebinop Oor (Etempvar _t'2 tuchar)
+                (Econst_int (Int.repr 64) tint) tint)))
           (Ssequence
             (Scall None
               (Evar _scalarbase (Tfunction
@@ -5266,14 +5470,17 @@ Definition f_crypto_sign_ed25519_tweet_keypair := {|
                                      (Econst_int (Int.repr 32) tint) tint)
                         Sskip
                         Sbreak)
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _sk (tptr tuchar))
-                            (Ebinop Oadd (Econst_int (Int.repr 32) tint)
-                              (Etempvar _i tint) tint) (tptr tuchar)) tuchar)
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _pk (tptr tuchar))
-                            (Etempvar _i tint) (tptr tuchar)) tuchar)))
+                      (Ssequence
+                        (Sset _t'1
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _pk (tptr tuchar))
+                              (Etempvar _i tint) (tptr tuchar)) tuchar))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _sk (tptr tuchar))
+                              (Ebinop Oadd (Econst_int (Int.repr 32) tint)
+                                (Etempvar _i tint) tint) (tptr tuchar))
+                            tuchar) (Etempvar _t'1 tuchar))))
                     (Sset _i
                       (Ebinop Oadd (Etempvar _i tint)
                         (Econst_int (Int.repr 1) tint) tint))))
@@ -5308,7 +5515,13 @@ Definition f_modL := {|
   fn_callconv := cc_default;
   fn_params := ((_r, (tptr tuchar)) :: (_x, (tptr tlong)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_carry, tlong) :: (_i, tlong) :: (_j, tlong) :: nil);
+  fn_temps := ((_carry, tlong) :: (_i, tlong) :: (_j, tlong) ::
+               (_t'16, tulong) :: (_t'15, tlong) :: (_t'14, tlong) ::
+               (_t'13, tlong) :: (_t'12, tlong) :: (_t'11, tlong) ::
+               (_t'10, tulong) :: (_t'9, tlong) :: (_t'8, tlong) ::
+               (_t'7, tlong) :: (_t'6, tlong) :: (_t'5, tulong) ::
+               (_t'4, tlong) :: (_t'3, tlong) :: (_t'2, tlong) ::
+               (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -5335,60 +5548,74 @@ Definition f_modL := {|
                     Sskip
                     Sbreak)
                   (Ssequence
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Etempvar _x (tptr tlong))
-                          (Etempvar _j tlong) (tptr tlong)) tlong)
-                      (Ebinop Oadd
+                    (Ssequence
+                      (Sset _t'14
                         (Ederef
                           (Ebinop Oadd (Etempvar _x (tptr tlong))
-                            (Etempvar _j tlong) (tptr tlong)) tlong)
-                        (Ebinop Osub (Etempvar _carry tlong)
-                          (Ebinop Omul
-                            (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _x (tptr tlong))
-                                  (Etempvar _i tlong) (tptr tlong)) tlong)
-                              tlong)
+                            (Etempvar _j tlong) (tptr tlong)) tlong))
+                      (Ssequence
+                        (Sset _t'15
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _x (tptr tlong))
+                              (Etempvar _i tlong) (tptr tlong)) tlong))
+                        (Ssequence
+                          (Sset _t'16
                             (Ederef
                               (Ebinop Oadd (Evar _L (tarray tulong 32))
                                 (Ebinop Osub (Etempvar _j tlong)
                                   (Ebinop Osub (Etempvar _i tlong)
                                     (Econst_int (Int.repr 32) tint) tlong)
-                                  tlong) (tptr tulong)) tulong) tulong)
-                          tulong) tulong))
-                    (Ssequence
-                      (Sset _carry
-                        (Ebinop Oshr
-                          (Ebinop Oadd
+                                  tlong) (tptr tulong)) tulong))
+                          (Sassign
                             (Ederef
                               (Ebinop Oadd (Etempvar _x (tptr tlong))
                                 (Etempvar _j tlong) (tptr tlong)) tlong)
-                            (Econst_int (Int.repr 128) tint) tlong)
-                          (Econst_int (Int.repr 8) tint) tlong))
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _x (tptr tlong))
-                            (Etempvar _j tlong) (tptr tlong)) tlong)
-                        (Ebinop Osub
+                            (Ebinop Oadd (Etempvar _t'14 tlong)
+                              (Ebinop Osub (Etempvar _carry tlong)
+                                (Ebinop Omul
+                                  (Ebinop Omul
+                                    (Econst_int (Int.repr 16) tint)
+                                    (Etempvar _t'15 tlong) tlong)
+                                  (Etempvar _t'16 tulong) tulong) tulong)
+                              tulong)))))
+                    (Ssequence
+                      (Ssequence
+                        (Sset _t'13
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _x (tptr tlong))
+                              (Etempvar _j tlong) (tptr tlong)) tlong))
+                        (Sset _carry
+                          (Ebinop Oshr
+                            (Ebinop Oadd (Etempvar _t'13 tlong)
+                              (Econst_int (Int.repr 128) tint) tlong)
+                            (Econst_int (Int.repr 8) tint) tlong)))
+                      (Ssequence
+                        (Sset _t'12
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _x (tptr tlong))
+                              (Etempvar _j tlong) (tptr tlong)) tlong))
+                        (Sassign
                           (Ederef
                             (Ebinop Oadd (Etempvar _x (tptr tlong))
                               (Etempvar _j tlong) (tptr tlong)) tlong)
-                          (Ebinop Oshl (Etempvar _carry tlong)
-                            (Econst_int (Int.repr 8) tint) tlong) tlong)))))
+                          (Ebinop Osub (Etempvar _t'12 tlong)
+                            (Ebinop Oshl (Etempvar _carry tlong)
+                              (Econst_int (Int.repr 8) tint) tlong) tlong))))))
                 (Sset _j
                   (Ebinop Oadd (Etempvar _j tlong)
                     (Econst_int (Int.repr 1) tint) tlong))))
             (Ssequence
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Etempvar _x (tptr tlong)) (Etempvar _j tlong)
-                    (tptr tlong)) tlong)
-                (Ebinop Oadd
+              (Ssequence
+                (Sset _t'11
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _x (tptr tlong))
+                      (Etempvar _j tlong) (tptr tlong)) tlong))
+                (Sassign
                   (Ederef
                     (Ebinop Oadd (Etempvar _x (tptr tlong))
                       (Etempvar _j tlong) (tptr tlong)) tlong)
-                  (Etempvar _carry tlong) tlong))
+                  (Ebinop Oadd (Etempvar _t'11 tlong) (Etempvar _carry tlong)
+                    tlong)))
               (Sassign
                 (Ederef
                   (Ebinop Oadd (Etempvar _x (tptr tlong)) (Etempvar _i tlong)
@@ -5408,41 +5635,51 @@ Definition f_modL := {|
               Sskip
               Sbreak)
             (Ssequence
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Etempvar _x (tptr tlong)) (Etempvar _j tlong)
-                    (tptr tlong)) tlong)
-                (Ebinop Oadd
+              (Ssequence
+                (Sset _t'8
                   (Ederef
                     (Ebinop Oadd (Etempvar _x (tptr tlong))
-                      (Etempvar _j tlong) (tptr tlong)) tlong)
-                  (Ebinop Osub (Etempvar _carry tlong)
-                    (Ebinop Omul
-                      (Ebinop Oshr
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _x (tptr tlong))
-                            (Econst_int (Int.repr 31) tint) (tptr tlong))
-                          tlong) (Econst_int (Int.repr 4) tint) tlong)
+                      (Etempvar _j tlong) (tptr tlong)) tlong))
+                (Ssequence
+                  (Sset _t'9
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _x (tptr tlong))
+                        (Econst_int (Int.repr 31) tint) (tptr tlong)) tlong))
+                  (Ssequence
+                    (Sset _t'10
                       (Ederef
                         (Ebinop Oadd (Evar _L (tarray tulong 32))
-                          (Etempvar _j tlong) (tptr tulong)) tulong) tulong)
-                    tulong) tulong))
+                          (Etempvar _j tlong) (tptr tulong)) tulong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _x (tptr tlong))
+                          (Etempvar _j tlong) (tptr tlong)) tlong)
+                      (Ebinop Oadd (Etempvar _t'8 tlong)
+                        (Ebinop Osub (Etempvar _carry tlong)
+                          (Ebinop Omul
+                            (Ebinop Oshr (Etempvar _t'9 tlong)
+                              (Econst_int (Int.repr 4) tint) tlong)
+                            (Etempvar _t'10 tulong) tulong) tulong) tulong)))))
               (Ssequence
-                (Sset _carry
-                  (Ebinop Oshr
+                (Ssequence
+                  (Sset _t'7
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _x (tptr tlong))
+                        (Etempvar _j tlong) (tptr tlong)) tlong))
+                  (Sset _carry
+                    (Ebinop Oshr (Etempvar _t'7 tlong)
+                      (Econst_int (Int.repr 8) tint) tlong)))
+                (Ssequence
+                  (Sset _t'6
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _x (tptr tlong))
+                        (Etempvar _j tlong) (tptr tlong)) tlong))
+                  (Sassign
                     (Ederef
                       (Ebinop Oadd (Etempvar _x (tptr tlong))
                         (Etempvar _j tlong) (tptr tlong)) tlong)
-                    (Econst_int (Int.repr 8) tint) tlong))
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _x (tptr tlong))
-                      (Etempvar _j tlong) (tptr tlong)) tlong)
-                  (Ebinop Oand
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _x (tptr tlong))
-                        (Etempvar _j tlong) (tptr tlong)) tlong)
-                    (Econst_int (Int.repr 255) tint) tlong)))))
+                    (Ebinop Oand (Etempvar _t'6 tlong)
+                      (Econst_int (Int.repr 255) tint) tlong))))))
           (Sset _j
             (Ebinop Oadd (Etempvar _j tlong) (Econst_int (Int.repr 1) tint)
               tlong))))
@@ -5455,19 +5692,23 @@ Definition f_modL := {|
                              (Econst_int (Int.repr 32) tint) tint)
                 Sskip
                 Sbreak)
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Etempvar _x (tptr tlong)) (Etempvar _j tlong)
-                    (tptr tlong)) tlong)
-                (Ebinop Osub
+              (Ssequence
+                (Sset _t'4
                   (Ederef
                     (Ebinop Oadd (Etempvar _x (tptr tlong))
-                      (Etempvar _j tlong) (tptr tlong)) tlong)
-                  (Ebinop Omul (Etempvar _carry tlong)
+                      (Etempvar _j tlong) (tptr tlong)) tlong))
+                (Ssequence
+                  (Sset _t'5
                     (Ederef
                       (Ebinop Oadd (Evar _L (tarray tulong 32))
-                        (Etempvar _j tlong) (tptr tulong)) tulong) tulong)
-                  tulong)))
+                        (Etempvar _j tlong) (tptr tulong)) tulong))
+                  (Sassign
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _x (tptr tlong))
+                        (Etempvar _j tlong) (tptr tlong)) tlong)
+                    (Ebinop Osub (Etempvar _t'4 tlong)
+                      (Ebinop Omul (Etempvar _carry tlong)
+                        (Etempvar _t'5 tulong) tulong) tulong)))))
             (Sset _j
               (Ebinop Oadd (Etempvar _j tlong) (Econst_int (Int.repr 1) tint)
                 tlong))))
@@ -5480,32 +5721,38 @@ Definition f_modL := {|
                 Sskip
                 Sbreak)
               (Ssequence
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _x (tptr tlong))
-                      (Ebinop Oadd (Etempvar _i tlong)
-                        (Econst_int (Int.repr 1) tint) tlong) (tptr tlong))
-                    tlong)
-                  (Ebinop Oadd
+                (Ssequence
+                  (Sset _t'2
                     (Ederef
                       (Ebinop Oadd (Etempvar _x (tptr tlong))
                         (Ebinop Oadd (Etempvar _i tlong)
                           (Econst_int (Int.repr 1) tint) tlong) (tptr tlong))
-                      tlong)
-                    (Ebinop Oshr
+                      tlong))
+                  (Ssequence
+                    (Sset _t'3
                       (Ederef
                         (Ebinop Oadd (Etempvar _x (tptr tlong))
-                          (Etempvar _i tlong) (tptr tlong)) tlong)
-                      (Econst_int (Int.repr 8) tint) tlong) tlong))
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _r (tptr tuchar))
-                      (Etempvar _i tlong) (tptr tuchar)) tuchar)
-                  (Ebinop Oand
+                          (Etempvar _i tlong) (tptr tlong)) tlong))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _x (tptr tlong))
+                          (Ebinop Oadd (Etempvar _i tlong)
+                            (Econst_int (Int.repr 1) tint) tlong)
+                          (tptr tlong)) tlong)
+                      (Ebinop Oadd (Etempvar _t'2 tlong)
+                        (Ebinop Oshr (Etempvar _t'3 tlong)
+                          (Econst_int (Int.repr 8) tint) tlong) tlong))))
+                (Ssequence
+                  (Sset _t'1
                     (Ederef
                       (Ebinop Oadd (Etempvar _x (tptr tlong))
-                        (Etempvar _i tlong) (tptr tlong)) tlong)
-                    (Econst_int (Int.repr 255) tint) tlong))))
+                        (Etempvar _i tlong) (tptr tlong)) tlong))
+                  (Sassign
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _r (tptr tuchar))
+                        (Etempvar _i tlong) (tptr tuchar)) tuchar)
+                    (Ebinop Oand (Etempvar _t'1 tlong)
+                      (Econst_int (Int.repr 255) tint) tlong)))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
                 tlong))))))))
@@ -5516,7 +5763,7 @@ Definition f_reduce := {|
   fn_callconv := cc_default;
   fn_params := ((_r, (tptr tuchar)) :: nil);
   fn_vars := ((_x, (tarray tlong 64)) :: nil);
-  fn_temps := ((_i, tlong) :: nil);
+  fn_temps := ((_i, tlong) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -5527,14 +5774,15 @@ Definition f_reduce := {|
                        (Econst_int (Int.repr 64) tint) tint)
           Sskip
           Sbreak)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _x (tarray tlong 64)) (Etempvar _i tlong)
-              (tptr tlong)) tlong)
-          (Ecast
+        (Ssequence
+          (Sset _t'1
             (Ederef
               (Ebinop Oadd (Etempvar _r (tptr tuchar)) (Etempvar _i tlong)
-                (tptr tuchar)) tuchar) tulong)))
+                (tptr tuchar)) tuchar))
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _x (tarray tlong 64)) (Etempvar _i tlong)
+                (tptr tlong)) tlong) (Ecast (Etempvar _t'1 tuchar) tulong))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
           tlong))))
@@ -5569,7 +5817,10 @@ Definition f_crypto_sign_ed25519_tweet := {|
   fn_vars := ((_d, (tarray tuchar 64)) :: (_h, (tarray tuchar 64)) ::
               (_r, (tarray tuchar 64)) :: (_x, (tarray tlong 64)) ::
               (_p, (tarray (tarray tlong 16) 4)) :: nil);
-  fn_temps := ((_i, tlong) :: (_j, tlong) :: nil);
+  fn_temps := ((_i, tlong) :: (_j, tlong) :: (_t'10, tuchar) ::
+               (_t'9, tuchar) :: (_t'8, tuchar) :: (_t'7, tuchar) ::
+               (_t'6, tuchar) :: (_t'5, tuchar) :: (_t'4, tuchar) ::
+               (_t'3, tuchar) :: (_t'2, tuchar) :: (_t'1, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -5581,35 +5832,41 @@ Definition f_crypto_sign_ed25519_tweet := {|
     ((Evar _d (tarray tuchar 64)) :: (Etempvar _sk (tptr tuchar)) ::
      (Econst_int (Int.repr 32) tint) :: nil))
   (Ssequence
-    (Sassign
-      (Ederef
-        (Ebinop Oadd (Evar _d (tarray tuchar 64))
-          (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-      (Ebinop Oand
+    (Ssequence
+      (Sset _t'10
         (Ederef
           (Ebinop Oadd (Evar _d (tarray tuchar 64))
-            (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
-        (Econst_int (Int.repr 248) tint) tint))
-    (Ssequence
+            (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
       (Sassign
         (Ederef
           (Ebinop Oadd (Evar _d (tarray tuchar 64))
-            (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-        (Ebinop Oand
+            (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
+        (Ebinop Oand (Etempvar _t'10 tuchar) (Econst_int (Int.repr 248) tint)
+          tint)))
+    (Ssequence
+      (Ssequence
+        (Sset _t'9
           (Ederef
             (Ebinop Oadd (Evar _d (tarray tuchar 64))
-              (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-          (Econst_int (Int.repr 127) tint) tint))
-      (Ssequence
+              (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
         (Sassign
           (Ederef
             (Ebinop Oadd (Evar _d (tarray tuchar 64))
               (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-          (Ebinop Oor
+          (Ebinop Oand (Etempvar _t'9 tuchar)
+            (Econst_int (Int.repr 127) tint) tint)))
+      (Ssequence
+        (Ssequence
+          (Sset _t'8
+            (Ederef
+              (Ebinop Oadd (Evar _d (tarray tuchar 64))
+                (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar))
+          (Sassign
             (Ederef
               (Ebinop Oadd (Evar _d (tarray tuchar 64))
                 (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-            (Econst_int (Int.repr 64) tint) tint))
+            (Ebinop Oor (Etempvar _t'8 tuchar)
+              (Econst_int (Int.repr 64) tint) tint)))
         (Ssequence
           (Sassign (Ederef (Etempvar _smlen (tptr tulong)) tulong)
             (Ebinop Oadd (Etempvar _n tulong) (Econst_int (Int.repr 64) tint)
@@ -5623,14 +5880,17 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                  (Etempvar _n tulong) tint)
                     Sskip
                     Sbreak)
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _sm (tptr tuchar))
-                        (Ebinop Oadd (Econst_int (Int.repr 64) tint)
-                          (Etempvar _i tlong) tlong) (tptr tuchar)) tuchar)
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                        (Etempvar _i tlong) (tptr tuchar)) tuchar)))
+                  (Ssequence
+                    (Sset _t'7
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                          (Etempvar _i tlong) (tptr tuchar)) tuchar))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _sm (tptr tuchar))
+                          (Ebinop Oadd (Econst_int (Int.repr 64) tint)
+                            (Etempvar _i tlong) tlong) (tptr tuchar)) tuchar)
+                      (Etempvar _t'7 tuchar))))
                 (Sset _i
                   (Ebinop Oadd (Etempvar _i tlong)
                     (Econst_int (Int.repr 1) tint) tlong))))
@@ -5643,15 +5903,19 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                    (Econst_int (Int.repr 32) tint) tint)
                       Sskip
                       Sbreak)
-                    (Sassign
-                      (Ederef
-                        (Ebinop Oadd (Etempvar _sm (tptr tuchar))
-                          (Ebinop Oadd (Econst_int (Int.repr 32) tint)
-                            (Etempvar _i tlong) tlong) (tptr tuchar)) tuchar)
-                      (Ederef
-                        (Ebinop Oadd (Evar _d (tarray tuchar 64))
-                          (Ebinop Oadd (Econst_int (Int.repr 32) tint)
-                            (Etempvar _i tlong) tlong) (tptr tuchar)) tuchar)))
+                    (Ssequence
+                      (Sset _t'6
+                        (Ederef
+                          (Ebinop Oadd (Evar _d (tarray tuchar 64))
+                            (Ebinop Oadd (Econst_int (Int.repr 32) tint)
+                              (Etempvar _i tlong) tlong) (tptr tuchar))
+                          tuchar))
+                      (Sassign
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _sm (tptr tuchar))
+                            (Ebinop Oadd (Econst_int (Int.repr 32) tint)
+                              (Etempvar _i tlong) tlong) (tptr tuchar))
+                          tuchar) (Etempvar _t'6 tuchar))))
                   (Sset _i
                     (Ebinop Oadd (Etempvar _i tlong)
                       (Econst_int (Int.repr 1) tint) tlong))))
@@ -5699,17 +5963,20 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                              tint)
                                 Sskip
                                 Sbreak)
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd (Etempvar _sm (tptr tuchar))
-                                    (Ebinop Oadd (Etempvar _i tlong)
-                                      (Econst_int (Int.repr 32) tint) tlong)
-                                    (tptr tuchar)) tuchar)
-                                (Ederef
-                                  (Ebinop Oadd (Etempvar _sk (tptr tuchar))
-                                    (Ebinop Oadd (Etempvar _i tlong)
-                                      (Econst_int (Int.repr 32) tint) tlong)
-                                    (tptr tuchar)) tuchar)))
+                              (Ssequence
+                                (Sset _t'5
+                                  (Ederef
+                                    (Ebinop Oadd (Etempvar _sk (tptr tuchar))
+                                      (Ebinop Oadd (Etempvar _i tlong)
+                                        (Econst_int (Int.repr 32) tint)
+                                        tlong) (tptr tuchar)) tuchar))
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Etempvar _sm (tptr tuchar))
+                                      (Ebinop Oadd (Etempvar _i tlong)
+                                        (Econst_int (Int.repr 32) tint)
+                                        tlong) (tptr tuchar)) tuchar)
+                                  (Etempvar _t'5 tuchar))))
                             (Sset _i
                               (Ebinop Oadd (Etempvar _i tlong)
                                 (Econst_int (Int.repr 1) tint) tlong))))
@@ -5772,18 +6039,21 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                                      tint)
                                         Sskip
                                         Sbreak)
-                                      (Sassign
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Evar _x (tarray tlong 64))
-                                            (Etempvar _i tlong) (tptr tlong))
-                                          tlong)
-                                        (Ecast
+                                      (Ssequence
+                                        (Sset _t'4
                                           (Ederef
                                             (Ebinop Oadd
                                               (Evar _r (tarray tuchar 64))
                                               (Etempvar _i tlong)
-                                              (tptr tuchar)) tuchar) tulong)))
+                                              (tptr tuchar)) tuchar))
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _x (tarray tlong 64))
+                                              (Etempvar _i tlong)
+                                              (tptr tlong)) tlong)
+                                          (Ecast (Etempvar _t'4 tuchar)
+                                            tulong))))
                                     (Sset _i
                                       (Ebinop Oadd (Etempvar _i tlong)
                                         (Econst_int (Int.repr 1) tint) tlong))))
@@ -5813,16 +6083,8 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                                              tint)
                                                 Sskip
                                                 Sbreak)
-                                              (Sassign
-                                                (Ederef
-                                                  (Ebinop Oadd
-                                                    (Evar _x (tarray tlong 64))
-                                                    (Ebinop Oadd
-                                                      (Etempvar _i tlong)
-                                                      (Etempvar _j tlong)
-                                                      tlong) (tptr tlong))
-                                                  tlong)
-                                                (Ebinop Oadd
+                                              (Ssequence
+                                                (Sset _t'1
                                                   (Ederef
                                                     (Ebinop Oadd
                                                       (Evar _x (tarray tlong 64))
@@ -5830,22 +6092,41 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                                         (Etempvar _i tlong)
                                                         (Etempvar _j tlong)
                                                         tlong) (tptr tlong))
-                                                    tlong)
-                                                  (Ebinop Omul
+                                                    tlong))
+                                                (Ssequence
+                                                  (Sset _t'2
                                                     (Ederef
                                                       (Ebinop Oadd
                                                         (Evar _h (tarray tuchar 64))
                                                         (Etempvar _i tlong)
                                                         (tptr tuchar))
-                                                      tuchar)
-                                                    (Ecast
+                                                      tuchar))
+                                                  (Ssequence
+                                                    (Sset _t'3
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Evar _d (tarray tuchar 64))
                                                           (Etempvar _j tlong)
                                                           (tptr tuchar))
-                                                        tuchar) tulong)
-                                                    tulong) tulong)))
+                                                        tuchar))
+                                                    (Sassign
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Evar _x (tarray tlong 64))
+                                                          (Ebinop Oadd
+                                                            (Etempvar _i tlong)
+                                                            (Etempvar _j tlong)
+                                                            tlong)
+                                                          (tptr tlong))
+                                                        tlong)
+                                                      (Ebinop Oadd
+                                                        (Etempvar _t'1 tlong)
+                                                        (Ebinop Omul
+                                                          (Etempvar _t'2 tuchar)
+                                                          (Ecast
+                                                            (Etempvar _t'3 tuchar)
+                                                            tulong) tulong)
+                                                        tulong))))))
                                             (Sset _j
                                               (Ebinop Oadd
                                                 (Etempvar _j tlong)
@@ -5878,7 +6159,8 @@ Definition f_unpackneg := {|
               (_num, (tarray tlong 16)) :: (_den, (tarray tlong 16)) ::
               (_den2, (tarray tlong 16)) :: (_den4, (tarray tlong 16)) ::
               (_den6, (tarray tlong 16)) :: nil);
-  fn_temps := ((_t'3, tuchar) :: (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_t'3, tuchar) :: (_t'2, tint) :: (_t'1, tint) ::
+               (_t'4, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -6157,43 +6439,47 @@ Definition f_unpackneg := {|
                                                        (tptr (tarray tlong 16)))
                                                      (tarray tlong 16)) ::
                                                    nil))
-                                                (Sifthenelse (Ebinop Oeq
-                                                               (Etempvar _t'3 tuchar)
-                                                               (Ebinop Oshr
-                                                                 (Ederef
-                                                                   (Ebinop Oadd
-                                                                    (Etempvar _p (tptr tuchar))
-                                                                    (Econst_int (Int.repr 31) tint)
-                                                                    (tptr tuchar))
-                                                                   tuchar)
-                                                                 (Econst_int (Int.repr 7) tint)
-                                                                 tint) tint)
-                                                  (Scall None
-                                                    (Evar _Z (Tfunction
-                                                               (Tcons
-                                                                 (tptr tlong)
+                                                (Ssequence
+                                                  (Sset _t'4
+                                                    (Ederef
+                                                      (Ebinop Oadd
+                                                        (Etempvar _p (tptr tuchar))
+                                                        (Econst_int (Int.repr 31) tint)
+                                                        (tptr tuchar))
+                                                      tuchar))
+                                                  (Sifthenelse (Ebinop Oeq
+                                                                 (Etempvar _t'3 tuchar)
+                                                                 (Ebinop Oshr
+                                                                   (Etempvar _t'4 tuchar)
+                                                                   (Econst_int (Int.repr 7) tint)
+                                                                   tint)
+                                                                 tint)
+                                                    (Scall None
+                                                      (Evar _Z (Tfunction
                                                                  (Tcons
                                                                    (tptr tlong)
                                                                    (Tcons
                                                                     (tptr tlong)
+                                                                    (Tcons
+                                                                    (tptr tlong)
                                                                     Tnil)))
-                                                               tvoid
-                                                               cc_default))
-                                                    ((Ederef
-                                                       (Ebinop Oadd
-                                                         (Etempvar _r (tptr (tarray tlong 16)))
-                                                         (Econst_int (Int.repr 0) tint)
-                                                         (tptr (tarray tlong 16)))
-                                                       (tarray tlong 16)) ::
-                                                     (Evar _gf0 (tarray tlong 16)) ::
-                                                     (Ederef
-                                                       (Ebinop Oadd
-                                                         (Etempvar _r (tptr (tarray tlong 16)))
-                                                         (Econst_int (Int.repr 0) tint)
-                                                         (tptr (tarray tlong 16)))
-                                                       (tarray tlong 16)) ::
-                                                     nil))
-                                                  Sskip))
+                                                                 tvoid
+                                                                 cc_default))
+                                                      ((Ederef
+                                                         (Ebinop Oadd
+                                                           (Etempvar _r (tptr (tarray tlong 16)))
+                                                           (Econst_int (Int.repr 0) tint)
+                                                           (tptr (tarray tlong 16)))
+                                                         (tarray tlong 16)) ::
+                                                       (Evar _gf0 (tarray tlong 16)) ::
+                                                       (Ederef
+                                                         (Ebinop Oadd
+                                                           (Etempvar _r (tptr (tarray tlong 16)))
+                                                           (Econst_int (Int.repr 0) tint)
+                                                           (tptr (tarray tlong 16)))
+                                                         (tarray tlong 16)) ::
+                                                       nil))
+                                                    Sskip)))
                                               (Ssequence
                                                 (Scall None
                                                   (Evar _M (Tfunction
@@ -6237,7 +6523,8 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
   fn_vars := ((_t, (tarray tuchar 32)) :: (_h, (tarray tuchar 64)) ::
               (_p, (tarray (tarray tlong 16) 4)) ::
               (_q, (tarray (tarray tlong 16) 4)) :: nil);
-  fn_temps := ((_i, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_t'2, tint) :: (_t'1, tint) ::
+               (_t'5, tuchar) :: (_t'4, tuchar) :: (_t'3, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sassign (Ederef (Etempvar _mlen (tptr tulong)) tulong)
@@ -6267,13 +6554,16 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                              (Etempvar _n tulong) tint)
                 Sskip
                 Sbreak)
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Etempvar _m (tptr tuchar)) (Etempvar _i tint)
-                    (tptr tuchar)) tuchar)
-                (Ederef
-                  (Ebinop Oadd (Etempvar _sm (tptr tuchar))
-                    (Etempvar _i tint) (tptr tuchar)) tuchar)))
+              (Ssequence
+                (Sset _t'5
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _sm (tptr tuchar))
+                      (Etempvar _i tint) (tptr tuchar)) tuchar))
+                (Sassign
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                      (Etempvar _i tint) (tptr tuchar)) tuchar)
+                  (Etempvar _t'5 tuchar))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))
@@ -6286,15 +6576,17 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                                (Econst_int (Int.repr 32) tint) tint)
                   Sskip
                   Sbreak)
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                      (Ebinop Oadd (Etempvar _i tint)
-                        (Econst_int (Int.repr 32) tint) tint) (tptr tuchar))
-                    tuchar)
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _pk (tptr tuchar))
-                      (Etempvar _i tint) (tptr tuchar)) tuchar)))
+                (Ssequence
+                  (Sset _t'4
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _pk (tptr tuchar))
+                        (Etempvar _i tint) (tptr tuchar)) tuchar))
+                  (Sassign
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                        (Ebinop Oadd (Etempvar _i tint)
+                          (Econst_int (Int.repr 32) tint) tint)
+                        (tptr tuchar)) tuchar) (Etempvar _t'4 tuchar))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tint)
                   (Econst_int (Int.repr 1) tint) tint))))
@@ -6398,18 +6690,20 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                                                  (Etempvar _n tulong) tint)
                                     Sskip
                                     Sbreak)
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _m (tptr tuchar))
-                                        (Etempvar _i tint) (tptr tuchar))
-                                      tuchar)
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _sm (tptr tuchar))
-                                        (Ebinop Oadd (Etempvar _i tint)
-                                          (Econst_int (Int.repr 64) tint)
-                                          tint) (tptr tuchar)) tuchar)))
+                                  (Ssequence
+                                    (Sset _t'3
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Etempvar _sm (tptr tuchar))
+                                          (Ebinop Oadd (Etempvar _i tint)
+                                            (Econst_int (Int.repr 64) tint)
+                                            tint) (tptr tuchar)) tuchar))
+                                    (Sassign
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Etempvar _m (tptr tuchar))
+                                          (Etempvar _i tint) (tptr tuchar))
+                                        tuchar) (Etempvar _t'3 tuchar))))
                                 (Sset _i
                                   (Ebinop Oadd (Etempvar _i tint)
                                     (Econst_int (Int.repr 1) tint) tint))))
@@ -6547,10 +6841,24 @@ prog_defs :=
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
+ (___i64_smulh,
+   Gfun(External (EF_runtime "__i64_smulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
+ (___i64_umulh,
+   Gfun(External (EF_runtime "__i64_umulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_bswap64,
+   Gfun(External (EF_builtin "__builtin_bswap64"
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tlong)
+                     cc_default)) (Tcons tulong Tnil) tulong cc_default)) ::
  (___builtin_bswap32,
    Gfun(External (EF_builtin "__builtin_bswap32"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -6741,14 +7049,14 @@ prog_public :=
  ___builtin_fmax :: ___builtin_fsqrt :: ___builtin_ctzll ::
  ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
  ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
- ___builtin_bswap :: ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod ::
- ___i64_smod :: ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof ::
- ___i64_utod :: ___i64_stod :: ___i64_dtou :: ___i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+ ___builtin_bswap64 :: ___builtin_bswap :: ___i64_umulh :: ___i64_smulh ::
+ ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
+ ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;

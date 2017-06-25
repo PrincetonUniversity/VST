@@ -4,6 +4,7 @@ Require Import compcert.lib.Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Lists.List.
+Require Import Coq.Sorting.Permutation.
 Require Import msl.Coqlib2.
 
 Lemma power_nat_one_divede_other: forall n m : nat,
@@ -369,3 +370,19 @@ Proof.
   intros.
   destruct a; [left | right]; congruence.
 Qed.
+
+Lemma Permutation_concat: forall {A} (P Q: list (list A)),
+  Permutation P Q ->
+  Permutation (concat P) (concat Q).
+Proof.
+  intros.
+  induction H.
+  + apply Permutation_refl.
+  + simpl.
+    apply Permutation_app_head; auto.
+  + simpl.
+    rewrite !app_assoc.
+    apply Permutation_app_tail.
+    apply Permutation_app_comm.
+  + eapply Permutation_trans; eauto.
+Qed.    

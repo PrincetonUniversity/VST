@@ -33,7 +33,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
        (Sset id e1)
        (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id v2 :: remove_localdef id Q)
+           (LOCALx (temp id v2 :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.
@@ -76,7 +76,7 @@ Proof.
         intros; apply prop_derives.
         intros; split; [congruence |].
         intro; clear H3; subst; revert H2. apply tc_val_Vundef.
-      * apply remove_localdef_PROP.
+      * apply remove_localdef_temp_PROP.
   + eapply derives_trans; [eapply derives_trans; [| apply H1] | clear H1].
     - apply andp_derives; auto.
       rewrite <- insert_prop.
@@ -100,7 +100,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
        (Sset id (Ecast e1 t1))
        (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef id Q)
+           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
@@ -142,7 +142,7 @@ Proof.
         unfold force_val1 in *.
         intros; split; [congruence |].
         intro; clear H3; revert H2; rewrite H4. apply tc_val_Vundef.
-      * apply remove_localdef_PROP.
+      * apply remove_localdef_temp_PROP.
   + eapply derives_trans; [eapply derives_trans; [| apply H1] | clear H1].
     - apply andp_derives; auto.
       rewrite <- insert_prop.
@@ -228,7 +228,7 @@ Lemma semax_load_nth_ram :
       (Sset id e1)
       (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id v :: remove_localdef id Q)
+           (LOCALx (temp id v :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.
@@ -264,7 +264,7 @@ Lemma semax_cast_load_nth_ram :
      (Sset id (Ecast e1 t2))
      (normal_ret_assert
          (PROPx P
-           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef id Q)
+           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.

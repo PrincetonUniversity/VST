@@ -16,8 +16,8 @@ Opaque fcore_result.
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
-start_function.
-Time forward. (*8.8*)
+start_function. 
+Time forward. (*8.8*)  
 Time entailer!. (*0.8*)
 assert (W: Int.zwordsize = 32). reflexivity.
 assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
@@ -166,7 +166,7 @@ destruct B as (((b0, b1), b2), b3).
 destruct C as (((c0, c1), c2), c3).
 unfold QuadByte2ValList; simpl. 
 forward. simpl. rewrite Int.signed_repr.
-2: rewrite int_min_signed_eq, int_max_signed_eq; omega.
+2: rewrite int_min_signed_eq, int_max_signed_eq; omega. 
 
 forward_for_simple_bound 8 (EX i:Z, 
   (PROP  ()
@@ -176,10 +176,16 @@ forward_for_simple_bound 8 (EX i:Z,
             [b0;b1;b2;b3;c0;c1;c2;c3]))) x))).
 1: solve [ entailer! ]. 
 { rename H into I.
+  assert (HH: Znth i
+                 [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2; Byte.unsigned b3; 
+                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 0 
+          = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3] Byte.zero)).
+  solve [ erewrite <- (Znth_map' Byte.unsigned) with (d:= Z.zero); [ reflexivity | apply I ] ].
   forward. 
-  + entailer!.
-    apply zero_ext_range'. change Int.zwordsize with 32; omega.
-  + forward. entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
+  + entailer!. rewrite HH. 
+    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
+  + simpl; rewrite HH. forward.
+    entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
     rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
@@ -187,13 +193,6 @@ forward_for_simple_bound 8 (EX i:Z,
     simpl.
     unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
     2: unfold Int64.max_unsigned; simpl; omega.
-    replace (Znth i
-                 [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2; Byte.unsigned b3; 
-                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 0) 
-       with (Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3] Byte.zero)).
-    2: erewrite <- (Znth_map' Byte.unsigned) with (d:= Z.zero); [ reflexivity | apply I ].
-    rewrite zero_ext_inrange.
-    2: rewrite Int.unsigned_repr; [ apply Byte.unsigned_range_2 | apply Byte_unsigned_range_32 ].
     rewrite Int.unsigned_repr. 2: apply Byte_unsigned_range_32.
     rewrite Int64.unsigned_repr. 2: apply Byte_unsigned_range_64.
     change (two_p 8) with 256. 
@@ -221,7 +220,7 @@ forward_for_simple_bound 8 (EX i:Z,
     rewrite (Int64.unsigned_repr q).
     2: unfold Int64.max_unsigned; simpl; omega.
     rewrite Int64.unsigned_repr; trivial.
-    unfold Int64.max_unsigned; simpl; omega. }
+    unfold Int64.max_unsigned; simpl; omega. } 
 forward. apply prop_right.
 clear H H0. 
 unfold bendian. simpl. 
@@ -266,7 +265,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   unfold upd_Znth.
   autorewrite with sublist.
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
-  if_tac. 2: solve [contradiction].
+  rewrite if_true; trivial.
   replace (4 - (1 + i)) with (4-i-1) by omega.
   rewrite isptr_offset_val_zero; trivial. clear H.
   apply data_at_ext. rewrite Zplus_comm.
@@ -608,9 +607,9 @@ assert (XX: typeof e1 = tuchar) by reflexivity.
 set (TC:=tc_expr Delta (Ecast e2 tuchar)). cbv in TC. simpl in TC.
 Eval compute in (tc_expr Delta (Ecast e2 tuchar)).
   Time forward. apply andp_right. apply andp_right. solve [entailer!]. entailer. 
-        admit. (*!! typecheck_error (invalid_cast_result tuchar tuchar)*)
+        myadmit. (*!! typecheck_error (invalid_cast_result tuchar tuchar)*)
         solve [entailer!]. 
-  Time forward. entailer. admit. (*another tc_error*)  
+  Time forward. entailer. myadmit. (*another tc_error*)  
   rewrite Z.add_comm, Z2Nat.inj_add; try omega.
   Time entailer!. (*1.5*)
   unfold upd_Znth. clear H.
@@ -799,8 +798,8 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
     + } 
     rewrite two_p_correct. rewrite Z.pow_pos_fold in B1. omega.
     unfold Int64.max_unsigned; simpl; omega.
-    rewrite Int64.shru_div_two_p.  UNSB_I64.  <- two_power_nat_two_p. omega. apply B1; apply  Pos.le_refl. cbv. omega. admit.  admit.  admit.  admit.  admit.
-    admit.  admit.  admit.  admit.  admit. }
+    rewrite Int64.shru_div_two_p.  UNSB_I64.  <- two_power_nat_two_p. omega. apply B1; apply  Pos.le_refl. cbv. omega. myadmit.  myadmit.  myadmit.  myadmit.  myadmit.
+    myadmit.  myadmit.  myadmit.  myadmit.  myadmit. }
   destruct (zeq i 6).
   { subst; simpl in *. unfold Znth; simpl.
     rewrite ! shru_shru. 
@@ -823,8 +822,8 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
 
  intros.
     replace (Z.pow_pos 2 48 * Z.pow_pos 2 8)%Z with (Z.pow_pos 2 56) in H by reflexivity.
-    rewrite H.  reflexivity. admit.  admit.  admit.  admit.  admit.
-    admit.  admit.  admit.  admit.  admit. }
+    rewrite H.  reflexivity. myadmit.  myadmit.  myadmit.  myadmit.  myadmit.
+    myadmit.  myadmit.  myadmit.  myadmit.  myadmit. }
       
     unfold Int64.shru.  simpl. ! Int64.add_unsigned. (Int64.unsigned_repr 8).
     
@@ -929,7 +928,7 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
            apply Z.div_lt_upper_bound. cbv; trivial. simpl. omega. } 
            eapply Z.le_trans; eauto. rewrite I64MU. simpl. clear. cbv. omega. 
            unfold omega.  simpl. omega.  Zdiv_interval_2.
-  destruct (zeq i 0); subst; simpl. rewrite Byte.unsigned_repr. admit.
+  destruct (zeq i 0); subst; simpl. rewrite Byte.unsigned_repr. myadmit.
   + f_equal. rewrite iter64. 2: rewrite Z2Nat.id; omega.
     unfold iter64Shr8'. rewrite Z2Nat.id; try omega.  
     unfold Int64.mul. rewrite 2 Int64.unsigned_repr.
@@ -955,7 +954,7 @@ replace (Z.pow_pos 2 8 * Z.pow_pos 2 48)%Z with (Z.pow_pos 2 56) in H0.
        specialize (Zmult_le_compat_l 1 (2 ^ (8 * i)) Int64.max_unsigned).
        rewrite Z.mul_1_r. intros Y; apply Y. omega. unfold Int64.max_unsigned; simpl; omega. }   
     rewrite Int64.unsigned_repr; trivial.  
-    rewrite zero_ext_inrange. f_equal. admit.
+    rewrite zero_ext_inrange. f_equal. myadmit.
     rewrite Int.unsigned_repr. replace (two_p 8 - 1) with 255 by reflexivity.
   replace (1 + (7 - i)) with (8-i) by omega. replace (i + (8 - i)) with 8 by omega.
   destruct (zeq i 0).
@@ -1039,7 +1038,7 @@ forward_for (EX z:_,
    LOCAL (temp _i (Vint (Int.repr z)); temp _x x; 
           temp _u (Vlong u))
    SEP (data_at Tsh (tarray tuchar 8) (Data z) x))). 
-{ Exists 7. entailer!. admit. (*Data 7 = list_repeat 8 Vundef*) }
+{ Exists 7. entailer!. myadmit. (*Data 7 = list_repeat 8 Vundef*) }
 
 eapply semax_for with (A:=Z)(v:= fun a => Val.of_bool (negb (Int.lt (Int.repr a) (Int.repr 0)))).
  solve [ reflexivity].
@@ -1053,9 +1052,9 @@ eapply semax_for with (A:=Z)(v:= fun a => Val.of_bool (negb (Int.lt (Int.repr a)
  forward.
   { apply andp_right. 2: solve [entailer].
     apply andp_right. solve [entailer!].
-    entailer. admit. (*typecheck_error (invalid_cast_result tuchar tuchar)*) }
+    entailer. myadmit. (*typecheck_error (invalid_cast_result tuchar tuchar)*) }
 
-  forward. entailer. simpl. admit. (*typecheck_error
+  forward. entailer. simpl. myadmit. (*typecheck_error
          (arg_type
             (Ebinop Oshr (Etempvar _u tulong) (Econst_int (Int.repr 8) tint)
                tulong))*)

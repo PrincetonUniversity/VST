@@ -720,15 +720,13 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           destruct (Pos.eq_dec b b0); subst.
           destruct (Intv.In_dec ofs (Int.intval ofs0, (Int.intval ofs0) + lksize.LKSIZE)%Z).
           exfalso.
-          apply Mem.store_valid_access_3 in Hstore.
-          destruct Hstore as [Hrange _].
-          specialize (Hrange _ i0).
-          unfold Mem.perm in Hrange.
+          specialize (Hfreeable _ i0).
+          unfold Mem.perm in Hfreeable.
           specialize (Hthreads _ Htid).
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt i Htid).1) in Hthreads.
           unfold permission_at in Hthreads.
-          rewrite Hthreads.1 in Hrange.
-          simpl in Hrange; now auto.
+          rewrite Hthreads.1 in Hfreeable.
+          simpl in Hfreeable; now auto.
           eapply Intv.range_notin in n; try (simpl; unfold lksize.LKSIZE; omega).
           erewrite! setPermBlock_other_1 by eauto.
           now eauto.
@@ -931,7 +929,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           apply permjoin_readable_iff in Hangel2.
           destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
           left.
-          exists j, cntj.
+          exists j, Htid.
           rewrite gLockSetRes gssThreadRes.
           now eauto.
           right.
@@ -970,11 +968,11 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           pf_cleanup.
           destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
           left.
-          exists (latestThread tp), (contains_add_latest (updThread cntj (Kresume c Vundef) threadPerm') (Vptr b ofs) arg newThreadPerm).
+          exists (latestThread tp), (contains_add_latest (updThread Htid (Kresume c Vundef) threadPerm') (Vptr b ofs) arg newThreadPerm).
           erewrite gssAddRes by reflexivity.
           assumption.
           left.
-          exists j, (cntAdd (Vptr b ofs) arg newThreadPerm cntj).
+          exists j, (cntAdd (Vptr b ofs) arg newThreadPerm Htid).
           rewrite @gsoAddRes gssThreadRes.
           assumption.
         * left.
@@ -1004,7 +1002,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           pf_cleanup.
           rewrite gssThreadRes.
           rewrite <- Hlock_perm.
-          destruct (setPermBlock_or (Some Writable) b (Int.intval ofs) (lksize.LKSIZE_nat) (getThreadR cntj).2 addr.1 ofs0)
+          destruct (setPermBlock_or (Some Writable) b (Int.intval ofs) (lksize.LKSIZE_nat) (getThreadR Htid).2 addr.1 ofs0)
             as [Heq | Heq];
             rewrite Heq; simpl; auto using perm_order.
         * rewrite gsoThreadRes;
@@ -1774,14 +1772,14 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           destruct (Pos.eq_dec b b0).
           * subst.
             split; auto.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + 4)%Z); auto.
+            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             rewrite <- Hdata_perm in Hperm'.
             rewrite setPermBlock_other_1 in Hperm'.
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. now omega.
+            simpl. unfold lksize.LKSIZE. now omega.
           * exfalso.
             rewrite <- Hdata_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
@@ -2768,14 +2766,14 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           destruct (Pos.eq_dec b b0).
           * subst.
             split; auto.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + 4)%Z); auto.
+            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             rewrite <- Hlock_perm in Hperm'.
             rewrite setPermBlock_other_1 in Hperm'.
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. now omega.
+            simpl. unfold lksize.LKSIZE. now omega.
           * exfalso.
             rewrite <- Hlock_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.

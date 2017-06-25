@@ -1,3 +1,4 @@
+Require Import Coq.Sorting.Permutation.
 Require Import floyd.base.
 Local Open Scope logic.
 
@@ -136,6 +137,54 @@ Notation " 'SEP' ( ) " := (SEPx nil) (at level 8).
 Notation " 'SEP' () " := (SEPx nil) (at level 8).
 
 Delimit Scope assert with assert.
+
+Lemma PROPx_Permutation: forall P Q,
+  Permutation P Q ->
+  PROPx P = PROPx Q.
+Proof.
+  intros.
+  unfold PROPx.
+  f_equal.
+  apply ND_prop_ext.
+  induction H.
+  + tauto.
+  + simpl; tauto.
+  + simpl; tauto.
+  + tauto.
+Qed.
+
+Lemma LOCALx_Permutation: forall P Q,
+  Permutation P Q ->
+  LOCALx P = LOCALx Q.
+Proof.
+  intros.
+  unfold LOCALx.
+  f_equal.
+  unfold local, lift1; unfold_lift.
+  extensionality rho.
+  apply ND_prop_ext.
+  induction H.
+  + tauto.
+  + simpl; tauto.
+  + simpl; tauto.
+  + tauto.
+Qed.
+
+Lemma SEPx_Permutation: forall P Q,
+  Permutation P Q ->
+  SEPx P = SEPx Q.
+Proof.
+  intros.
+  unfold SEPx.
+  extensionality rho.
+  induction H.
+  + auto.
+  + simpl; f_equal; auto.
+  + simpl.
+    rewrite <- !sepcon_assoc, (sepcon_comm x y).
+    auto.
+  + congruence.
+Qed.
 
 Lemma approx_sepcon: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n (P * Q) =

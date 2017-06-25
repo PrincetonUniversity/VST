@@ -35,12 +35,12 @@ Import CSL.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  forall V G prog m,
+  forall V G prog m h,
      @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem)
+       (semantics.initial_core (juicy_core_sem cl_core_sem) h
                     (globalenv prog) (Vptr b Int.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\

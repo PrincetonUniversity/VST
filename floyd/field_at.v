@@ -2236,6 +2236,32 @@ unfold data_at.
 apply nonreadable_field_at_eq; auto.
 Qed.
 
+Lemma field_at_share_join_W {cs: compspecs}:
+  forall sh1 sh2 sh t gfs v1 v2 p,
+    sepalg.join sh1 sh2 sh ->
+    writable_share sh1 ->
+    field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |-- field_at sh t gfs v1 p.
+Proof.
+  intros.
+  pose proof join_writable_readable H H0.
+  rewrite (add_andp _ _ (field_at_local_facts sh1 _ _ _ _)).
+  rewrite (add_andp _ _ (field_at_local_facts sh2 _ _ _ _)).
+  normalize.
+  rewrite (nonreadable_field_at_eq sh2 _ _ v2 v1) by (auto; tauto).
+  erewrite field_at_share_join by eauto.
+  auto.
+Qed.
+
+Lemma data_at_share_join_W {cs: compspecs}:
+  forall sh1 sh2 sh t v1 v2 p,
+    sepalg.join sh1 sh2 sh ->
+    writable_share sh1 ->
+    data_at sh1 t v1 p * data_at sh2 t v2 p |-- data_at sh t v1 p.
+Proof.
+  intros.
+  apply field_at_share_join_W; auto.
+Qed.
+
 Lemma value_fits_Tint_trivial {cs: compspecs} :
   forall s a  i, value_fits (Tint I32 s a) (Vint i).
 Proof.

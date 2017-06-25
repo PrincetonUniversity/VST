@@ -399,6 +399,7 @@ Inductive tc_assert :=
 | tc_test_eq': expr -> expr -> tc_assert
 | tc_test_order': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
+| tc_llt': expr -> int64 -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
@@ -504,6 +505,12 @@ Definition tc_ilt {CS: compspecs} (e: expr) (j: int) :=
     | _ => tc_ilt' e j
     end.
 
+Definition tc_llt {CS: compspecs} (e: expr) (j: int64) :=
+    match eval_expr e any_environ with
+    | Vlong i => if Int64.ltu i j then tc_TT else tc_llt' e j
+    | _ => tc_llt' e j
+    end.
+
 Definition isUnOpResultType {CS: compspecs} op a ty : tc_assert :=
 match op with
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with
@@ -602,14 +609,21 @@ match op with
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
                     | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int32_type ty)
                                                                                          reterr)
-                    (* NEED TO HANDLE OTHER SHIFT CASES *)
-                    | _ => tc_FF deferr
+                    | Cop.shift_case_il _ =>  tc_andp (tc_llt a2 (Int64.repr 32)) (tc_bool (is_int32_type ty)
+                                                                                         reterr)
+                    | Cop.shift_case_li _ =>  tc_andp (tc_ilt a2 Int64.iwordsize') (tc_bool (is_long_type ty)
+                                                                                         reterr)
+                    | Cop.shift_case_ll _ =>  tc_andp (tc_llt a2 Int64.iwordsize) (tc_bool (is_long_type ty)
+                                                                                         reterr)
+                    | Cop.shift_default => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
                    match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
-                    (* NEED TO HANDLE OTHER BIN CASES *)
-                    | _ => tc_FF deferr
+                    | Cop.bin_case_l _ =>tc_bool (is_long_type ty) reterr
+                    | Cop.bin_case_f => tc_FF deferr
+                    | Cop.bin_case_s => tc_FF deferr
+                    | Cop.bin_default => tc_FF deferr
                    end
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
                    match Cop.classify_cmp (typeof a1) (typeof a2) with

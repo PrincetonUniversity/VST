@@ -804,8 +804,8 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Lemma initial_core_wd :
-    forall the_ge (f : memren) (vf arg : val) (c_new : state),
-      initial_core X86SEM.Sem the_ge vf [:: arg] = Some c_new ->
+    forall the_ge (f : memren) (vf arg : val) (c_new : state) h,
+      initial_core X86SEM.Sem h the_ge vf [:: arg] = Some c_new ->
       valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.
   Proof.
     intros.
@@ -979,15 +979,15 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Lemma core_inj_init :
-    forall vf vf' arg arg' c_new f fg the_ge
+    forall vf vf' arg arg' c_new f fg the_ge h
       (Harg: val_obs_list f arg arg')
       (Hvf: val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core X86SEM.Sem the_ge vf arg = Some c_new),
+      (Hinit: initial_core X86SEM.Sem h the_ge vf arg = Some c_new),
       exists c_new' : state,
-        initial_core X86SEM.Sem the_ge vf' arg' = Some c_new' /\
+        initial_core X86SEM.Sem h the_ge vf' arg' = Some c_new' /\
         core_inj f c_new c_new'.
   Proof.
     intros.

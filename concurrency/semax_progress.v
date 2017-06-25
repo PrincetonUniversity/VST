@@ -61,9 +61,9 @@ Set Bullet Behavior "Strict Subproofs".
 Import Mem.
 
 Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
-      (compat : mem_compatible tp m) b ofs v sh sh' R phi0 o :
+      (compat : mem_compatible tp m) b ofs v sh R phi0 o :
   join_sub phi0 (getThreadR cnti) ->
-  (LKspec LKSIZE R sh sh' (b, ofs)) phi0 ->
+  (LKspec LKSIZE R sh (b, ofs)) phi0 ->
   (* typically given by lock_coherence: *)
   AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
   load Mint32 (restrPermMap (mem_compatible_locks_ltwritable compat)) b ofs = Some v ->
@@ -132,27 +132,27 @@ Proof.
         rewr (getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
-        pose proof (not_nonunit_bot sh').
-        repeat if_tac; try constructor; try tauto.
-      * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
-        simpl.
-        unfold perm_of_sh.
-        repeat if_tac; try constructor;
-          edestruct juicy_mem_ops.Abs.pshare_sh_bot; eauto.
-    + destruct lk as (p & E0). rewrite E0 in j. inv j.
-      * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
-        simpl.
-        unfold perm_of_sh.
-        pose proof (not_nonunit_bot sh').
+        pose proof (readable_glb rsh3).
         repeat if_tac; try constructor; tauto.
       * unfold block in *.
         rewr (getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
-        repeat if_tac; try constructor;
-          edestruct juicy_mem_ops.Abs.pshare_sh_bot; eauto.
+        pose proof (readable_glb rsh3).
+        repeat if_tac; try constructor; tauto.
+    + destruct lk as (p & E0). rewrite E0 in j. inv j.
+      * unfold block in *.
+        rewr (getThreadR cnti @ (b, ofs')).
+        simpl.
+        unfold perm_of_sh.
+        pose proof (readable_glb rsh3).
+        repeat if_tac; try constructor; tauto.
+      * unfold block in *.
+        rewr (getThreadR cnti @ (b, ofs')).
+        simpl.
+        unfold perm_of_sh.
+        pose proof (readable_glb rsh3).
+        repeat if_tac; try constructor; tauto.
 Qed.
 
 Lemma valid_access_restrPermMap m i tp Phi b ofs ophi
@@ -175,18 +175,12 @@ Proof.
   simpl.
   pose proof compat.(loc_writable) as LW.
   spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
-  do 4 rewrite setPerm_spec.
-  if_tac [e|n3]; [constructor|].
-  if_tac [e|n2]; [constructor|].
-  if_tac [e|n1]; [constructor|].
-  if_tac [e|n0]; [constructor|].
+  rewrite !setPerm_spec.
+  repeat (if_tac; [constructor |]).
   exfalso.
   simpl in r.
   assert (A : forall z, (b, z) <> (b, ofs') -> z <> ofs') by congruence.
-  apply A in n0.
-  apply A in n1.
-  apply A in n2.
-  apply A in n3.
+  repeat match goal with H: (_,_)<>(_,_) |- _ => apply A in H end.
   omega.
 Qed.
 
@@ -207,18 +201,16 @@ Proof.
   pose proof compat.(loc_writable) as LW.
   spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
   rewrite RR.
-  do 4 rewrite setPerm_spec.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  if_tac [e|?]. injection e as <- <-. apply LW. split; simpl; unfold Int.unsigned in *; lkomega.
-  rewrite <-RR.
+  rewrite !setPerm_spec.
+ repeat (
+  if_tac; [match goal with H: (_,_) = (_,_) |-_ => inv H; apply LW; split; simpl; unfold Int.unsigned in *; lkomega end | ]).
+ rewrite <-RR.
   apply juice2Perm_locks_cohere, mem_compat_thread_max_cohere.
   eexists; eauto.
 Qed.
 
 Lemma isLK_rewrite r :
-  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  (forall (sh : Share.t) (rsh: readable_share sh) (z : Z) (P : preds), r <> YES sh rsh (LK z) P)
   <->
   ~ isLK r.
 Proof.
@@ -538,7 +530,6 @@ Section Progress.
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
-
             (* factoring proofs out before the inversion/eapply *)
             pose proof LKSPEC as LKSPEC'.
             specialize (LKSPEC (b, Int.unsigned ofs)).
@@ -562,7 +553,7 @@ Section Progress.
               simpl in lk.
               destruct lk as (psh' & rsh & EPhi).
               rewrite EPhi in Ewetv.
-              injection Ewetv as _ _ <-.
+              injection Ewetv as _ <-.
               reflexivity.
             }
 
@@ -597,7 +588,7 @@ Section Progress.
               unfold Int.unsigned in *.
               rewr (getThreadR cnti @ (b, Int.intval ofs)).
               reflexivity.
-
+              
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
@@ -630,7 +621,7 @@ Section Progress.
             simpl in lk.
             destruct lk as (psh' & rsh & EPhi).
             rewrite EPhi in Ewetv.
-            injection Ewetv as _ _ <-.
+            injection Ewetv as _ <-.
             reflexivity.
           }
 
@@ -828,7 +819,7 @@ Section Progress.
 
           assert (Ez : z = LKSIZE). {
             rewrite EPhi in Ewetv.
-            injection Ewetv as _ _ <-.
+            injection Ewetv as _ <-.
             reflexivity.
           }
 
@@ -1093,14 +1084,15 @@ Section Progress.
 
         assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
-          unfold tlock in AT.
-          destruct AT as (AT1, AT2).
-          destruct AT2 as [A B]. clear A. (* it is 4 = 4 *)
+          unfold tlock in AT. 
+          destruct AT as (AT1, AT2). 
+          destruct AT2 as [A B].
+          clear A. (* it is 4 = 4 *)
           simpl in B. unfold mapsto_memory_block.at_offset in B.
           simpl in B. unfold nested_field_lemmas.nested_field_offset in B.
           simpl in B. unfold nested_field_lemmas.nested_field_type in B.
           simpl in B. unfold reptype_lemmas.default_val in B.
-          simpl in B. unfold Znth in B.
+          simpl in B. unfold sublist.Znth in B.
           simpl in B. repeat rewrite Int.add_assoc in B.
           unfold data_at_rec_lemmas.data_at_rec in *.
           simpl in B.
@@ -1112,23 +1104,19 @@ Section Progress.
           unfold SeparationLogic.mapsto in *.
           simpl in B.
           destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
-          destruct B as [B|B]. now destruct B as [[]].
-          destruct B as [_ (v2', Hmaps)].
-          rewrite reptype_lemmas.int_add_repr_0_r in *.
-          apply mapsto_can_store with (v := v2') (rsh := (Share.unrel Share.Lsh shx)).
+          autorewrite with norm in B.
+          rewrite !FF_orp in B.
+          autorewrite with norm in B.
+          destruct B as [v1' B]. 
+          autorewrite with norm in B.
+          destruct B as [v2' B]. 
+          rewrite !TT_andp in B.
+          apply mapsto_can_store with (v := v2') (sh := shx); try assumption.
           simpl (m_phi _).
-          (* if array size > 4:
-          rewrite <-TT_sepcon_TT.
-          rewrite <-sepcon_assoc.
-          *)
-          exists phi0, phi1; split; auto. split; auto.
-          (* if array size > 4:
-          exists phi00, phi01; split; auto. split; auto.
-          *)
-          exact_eq Hmaps.
-          f_equal.
-          f_equal.
-          apply writable_share_right. assumption.
+          destruct B as [phi0a [phi0b [? [? ?]]]].
+          destruct (join_assoc H Join) as [f [? ?]].
+          exists phi0a, f; repeat split; auto.
+          
         }
         destruct Hm' as (m', Hm').
 
@@ -1159,17 +1147,8 @@ Section Progress.
                (Hcompatible := mem_compatible_forget compat)
                (R := Rx)
                (phi'0 := phi')
-        .
-
-        all: try match goal with |- invariant _ => now constructor end.
-        all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
-        all: try match goal with |- _ = updThread _ _ _ => reflexivity end.
-        all: try match goal with |- personal_mem _ = _ => reflexivity end.
-        - assumption.
-        - eassumption.
-        - reflexivity.
-        - assumption.
-        - assumption.
+        ; try eassumption; auto.
+        constructor.
       }
 
       { (* the case of freelock *)
@@ -1299,7 +1278,7 @@ Section Progress.
 
         destruct COPY as (phi0lockinv' & Hrmap00 & Hlkat).
 
-        assert (Hpos'' : (0 < 4)%Z) by omega.
+        assert (Hpos'' : (0 < LKSIZE)%Z) by (clear; unfold LKSIZE; omega). 
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
         destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
@@ -1529,7 +1508,7 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * replace (initial_core SEM.Sem) with cl_initial_core. auto.
+          * replace (initial_core SEM.Sem _) with cl_initial_core. auto.
             unfold the_sem, SEM.Sem.
             rewrite SEM.CLN_msem.
             reflexivity.
@@ -1538,6 +1517,6 @@ Section Progress.
     }
     (* end of Kinit *)
     Unshelve. eexists; eauto.
-  Qed. (* Theorem progress *)
+Qed. (* Theorem progress *)
 
 End Progress.

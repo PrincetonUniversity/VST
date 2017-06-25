@@ -27,6 +27,7 @@ Fixpoint msubst_denote_tc_assert {cs: compspecs} (T1: PTree.t val) (T2: PTree.t 
   | tc_test_eq' e1 e2 => denote_tc_test_eq (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
   | tc_test_order' e1 e2 => denote_tc_test_order (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
   | tc_ilt' e i => denote_tc_igt i (force_val (msubst_eval_expr T1 T2 e))
+  | tc_llt' e i => denote_tc_lgt i (force_val (msubst_eval_expr T1 T2 e))
   | tc_Zle e z => denote_tc_Zge z (force_val (msubst_eval_expr T1 T2 e))
   | tc_Zge e z => denote_tc_Zle z (force_val (msubst_eval_expr T1 T2 e))
   | tc_samebase e1 e2 => denote_tc_samebase (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
@@ -190,6 +191,21 @@ Proof.
       normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
       simpl denote_tc_Zge.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_Zle.
       unfold local, lift1; unfold_lift.
       intros rho.
       simpl.
@@ -389,6 +405,15 @@ Proof.
   if_tac; simpl; auto.
 Qed.
 
+Lemma legal_tc_init_tc_llt: forall {cs: compspecs} Delta e i,
+  legal_tc_init Delta (tc_llt e i).
+Proof.
+  intros.
+  unfold tc_llt.
+  destruct (eval_expr e any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
 Lemma legal_tc_init_binarithType: forall Delta t1 t2 t err err',
   legal_tc_init Delta (binarithType t1 t2 t err err').
 Proof.
@@ -411,6 +436,7 @@ Ltac solve_legal_tc_init :=
       | |- legal_tc_init _ (tc_test_order _ _) => apply legal_tc_init_tc_test_order
       | |- legal_tc_init _ (tc_nodivover _ _) => apply legal_tc_init_tc_nodivover
       | |- legal_tc_init _ (tc_ilt _ _) => apply legal_tc_init_tc_ilt
+      | |- legal_tc_init _ (tc_llt _ _) => apply legal_tc_init_tc_llt
       | |- legal_tc_init _ (binarithType _ _ _ _ _) => apply legal_tc_init_binarithType
       | |- _ => idtac
       end).

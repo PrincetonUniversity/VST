@@ -8,69 +8,8 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
+Require Import hmacdrbg.verif_hmac_drbg_update_common.
 
-Fixpoint HMAC_DRBG_update_round (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z) (round: nat): (list Z * list Z) :=
-  match round with
-    | O => (K, V)
-    | S round' =>
-      let (K, V) := HMAC_DRBG_update_round HMAC provided_data K V round' in
-      let K := HMAC (V ++ [Z.of_nat round'] ++ provided_data) K in
-      let V := HMAC V K in
-      (K, V)
-  end.
-
-Definition HMAC_DRBG_update_concrete (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z): (list Z * list Z) :=
-  let rounds := match provided_data with
-                  | [] => 1%nat
-                  | _ => 2%nat
-                end in
-  HMAC_DRBG_update_round HMAC provided_data K V rounds.
-
-Theorem HMAC_DRBG_update_concrete_correct:
-  forall HMAC provided_data K V, HMAC_DRBG_update HMAC provided_data K V = HMAC_DRBG_update_concrete HMAC provided_data K V.
-Proof.
-  intros.
-  destruct provided_data; reflexivity.
-Qed.
-
-Definition update_rounds (non_empty_additional: bool): Z :=
-  if non_empty_additional then 2 else 1.
-
-Lemma HMAC_DRBG_update_round_incremental:
-  forall key V initial_state_abs contents n,
-    (key, V) = HMAC_DRBG_update_round HMAC256 contents
-                           (hmac256drbgabs_key initial_state_abs)
-                           (hmac256drbgabs_value initial_state_abs) n ->
-    (HMAC256 (V ++ (Z.of_nat n) :: contents) key,
-     HMAC256 V (HMAC256 (V ++ (Z.of_nat n) :: contents) key)) =
-    HMAC_DRBG_update_round HMAC256 contents
-                           (hmac256drbgabs_key initial_state_abs)
-                           (hmac256drbgabs_value initial_state_abs) (n + 1).
-Proof.
-  intros.
-  rewrite plus_comm.
-  simpl.
-  rewrite <- H.
-  reflexivity.
-Qed.
-
-Lemma HMAC_DRBG_update_round_incremental_Z:
-  forall key V initial_state_abs contents i,
-    0 <= i ->
-    (key, V) = HMAC_DRBG_update_round HMAC256 contents
-                           (hmac256drbgabs_key initial_state_abs)
-                           (hmac256drbgabs_value initial_state_abs) (Z.to_nat i) ->
-    (HMAC256 (V ++ i :: contents) key,
-     HMAC256 V (HMAC256 (V ++ i :: contents) key)) =
-    HMAC_DRBG_update_round HMAC256 contents
-                           (hmac256drbgabs_key initial_state_abs)
-                           (hmac256drbgabs_value initial_state_abs) (Z.to_nat (i + 1)).
-Proof.
-  intros.
-  specialize (HMAC_DRBG_update_round_incremental _ _ _ _ _ H0); intros. clear H0.
-  rewrite (Z2Nat.id _ H) in H1.
-  rewrite Z2Nat.inj_add; try assumption; omega.
-Qed.
 (*Inlining this lemma reduces overall processing time of this file by 50%,
   as only a fraction of this lemma's Qed time is added to the final Qed of BDYupdate
 Lemma loopbody: forall (Espec : OracleKind)
@@ -937,66 +876,50 @@ Proof. intros.
     Time forward_call (V, HMAC256 (V ++ i::(if na then contents else [])) key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv). 
-    Time old_go_lower. (*24 secs, 1.45GB -> 1.55GB*)(*necessary due to existence of local () && in postcondition of for-rule!!!*)
-    idtac "previous timing was for old_go_lower (goal: 22secs)". 
-    Intros.
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv).
+    Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
+    idtac "previous timing was for go_lower (goal: 12secs)".
+    apply andp_right; [ apply prop_right; trivial | ].
+    apply andp_right; [ apply prop_right; split; [ omega | trivial] |].
+    apply andp_right; [ apply prop_right; repeat split; trivial |].
     Exists (HMAC256 (V ++ [i] ++ (if na then contents else [])) key).
-    apply andp_right. solve [apply prop_right; subst; repeat split; auto;omega].
 
     Exists (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)).
     Exists (HMAC256DRBGabs (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)
                            (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)) reseed_counter entropy_len prediction_resistance reseed_interval).
-    normalize. 
-    apply andp_right. apply prop_right. repeat split; eauto.
+    normalize.
+    apply andp_right.
+    { apply prop_right. repeat split; eauto.
       subst initial_key initial_value.
       apply HMAC_DRBG_update_round_incremental_Z; try eassumption. omega.
-      apply hmac_common_lemmas.HMAC_Zlength.
-    cancel.
-    thaw FR9. cancel.
+      apply hmac_common_lemmas.HMAC_Zlength. }
+    thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
     unfold hmac256drbgstate_md_FULL.
     unfold hmac256drbg_relate.
-    rewrite (*H1,*) hmac_common_lemmas.HMAC_Zlength. rewrite hmac_common_lemmas.HMAC_Zlength.
-    cancel.
-    unfold md_full. entailer!.
-    { apply hmac_common_lemmas.HMAC_Zlength. }
-    repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives. 2: apply derives_refl.
+    rewrite hmac_common_lemmas.HMAC_Zlength. rewrite hmac_common_lemmas.HMAC_Zlength.
+    
+    cancel; unfold md_full; entailer!.
+    solve [ apply hmac_common_lemmas.HMAC_Zlength ]. 
+    repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply derives_refl].
     unfold_data_at 3%nat.
     thaw OtherFields. cancel.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]);
     rewrite (field_at_data_at _ _ [StructField _V]).
     cancel.
-  }
+  } 
   Intros key value final_state_abs.
+  assert (UPD: hmac256drbgabs_hmac_drbg_update initial_state_abs (contents_with_add additional add_len contents) = final_state_abs).
+  { destruct initial_state_abs; destruct final_state_abs. destruct H7 as [? [? [? ?]]]; subst.  
+    clear - H1 H4. simpl in *.
+    apply update_char; trivial. }
+  clear H4 Heqna Heqrounds.
   (* return *)
   forward.
-
+ 
   (* prove function post condition *)
-  Exists K sep.
-  unfold hmac256drbgabs_hmac_drbg_update.
-  unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update.
-  destruct initial_state_abs.
-  rewrite HMAC_DRBG_update_concrete_correct.
-  Time entailer!. (* 2 *)
-
-  rename H4 into Hupdate_rounds.
-  rename H7 into Hmetadata.
-  destruct final_state_abs; unfold hmac256drbgabs_metadata_same in Hmetadata. clear FR2 FR1 FR0.
-  destruct Hmetadata as [Hreseed_counter [Hentropy_len [Hpr Hrseed_interval]]]; subst.
-  replace (HMAC_DRBG_update_concrete HMAC256 (*contents*) (contents_with_add additional add_len contents)  key V) with (key0, V0). apply derives_refl.
-
-  unfold hmac256drbgabs_key, hmac256drbgabs_value in Hupdate_rounds.
-  rewrite Hupdate_rounds in *. unfold HMAC_DRBG_update_concrete.
-  f_equal.
-  clear - H1 PNadditional. unfold contents_with_add.
-  destruct additional; simpl in PNadditional; try contradiction.
-  + subst i ; simpl; trivial.
-  + simpl. destruct (initial_world.EqDec_Z add_len 0); simpl; trivial.
-    destruct H1; try solve[omega].
-    subst add_len. destruct contents; simpl; trivial. elim n.
-idtac "Timing the Qed of hmacdrbg_update". apply Zlength_nil.
-Time Qed. (*Coq8.6: 34secs*)
+  Exists K sep; entailer!. 
+Time Qed. (*Coq8.6: 31secs*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.

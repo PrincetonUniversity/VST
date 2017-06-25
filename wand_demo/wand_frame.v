@@ -46,3 +46,4 @@ Proof.
   rewrite <- sepcon_assoc, (sepcon_comm _ P).
   apply sepcon_derives; [apply wand_frame_elim | auto].
 Qed.
+

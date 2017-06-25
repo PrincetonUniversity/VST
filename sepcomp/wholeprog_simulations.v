@@ -44,12 +44,12 @@ Record Wholeprog_sim :=
 ; core_ord_wf : well_founded core_ord
 ; genv_inv : ge_inv ge1 ge2
 ; core_initial :
-    forall j c1 vals1 m1 vals2 m2,
-    initial_core Sem1 ge1 main vals1 = Some c1 ->
+    forall j c1 vals1 m1 vals2 m2 n,
+    initial_core Sem1 n ge1 main vals1 = Some c1 ->
     init_inv j ge1 vals1 m1 ge2 vals2 m2 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
-      /\*) initial_core Sem2 ge2 main vals2 = Some c2
+      /\*) initial_core Sem2 n ge2 main vals2 = Some c2
       /\ match_state cd (*mu*)j c1 m1 c2 m2
 ; core_diagram :
     forall st1 m1 st1' m1',
@@ -289,10 +289,10 @@ eapply Wholeprog_sim.Build_Wholeprog_sim with
   eapply well_founded_sem_compose_ord_eq_eq. apply SIM12. apply SIM23. }
 { exists g2; split. apply genv_inv12. apply genv_inv23. }
 { (*Init*)
-  intros j13 c1 vals1 m1 vals3 m3 Init1 IInv13.
+  intros j13 c1 vals1 m1 vals3 m3 n Init1 IInv13.
   destruct IInv13 as [j12 [j23 [vals2 [m2 [Initial12 [Initial23 Hj]]]]]].
-  destruct (Init12 _ _ _ _ _ _ Init1 Initial12) as [cd12 [c2 [Init2 MS12]]].
-  destruct (Init23 _ _ _ _ _ _ Init2 Initial23) as [cd23 [c3 [Init3 MS23]]].
+  destruct (Init12 _ _ _ _ _ _ _ Init1 Initial12) as [cd12 [c2 [Init2 MS12]]].
+  destruct (Init23 _ _ _ _ _ _ _ Init2 Initial23) as [cd23 [c3 [Init3 MS23]]].
   exists ((cd12, Some c2), cd23), c3. split; trivial.
   exists c2, m2, j12, j23; auto. }
 { apply WP_corestep_trans. }

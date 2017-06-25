@@ -84,14 +84,14 @@ Module Type ErasureSig.
       (vals : list Values.val) (m : mem)
       (rmap: JuicyMachine.SIG.ThreadPool.RES.res)
       (pmap: DryMachine.SIG.ThreadPool.RES.res)
-      main genv,
+      main genv h,
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
       no_locks_perm rmap ->
-   initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
+   initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
-     initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil, ds) /\
+     initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil, ds) /\
      DMS.invariant ds /\
      match_st js ds.
 
@@ -184,12 +184,12 @@ Module ErasureFnctr (PC:ErasureSig).
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.
-    - intros until m2; intros H H0.
+    - intros until m2; intros h H H0.
       inversion H0; subst. clear - H4 H init_OK no_locks.
       destruct c1 as [[U0 tr0] js].
-      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ tr0 H).
+      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ tr0 h H).
       destruct HH. subst U0 tr0.
-      destruct (init_diagram j U js vals2 m2 rmap pmap main genv H4 init_OK no_locks H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      destruct (init_diagram j U js vals2 m2 rmap pmap main genv h H4 init_OK no_locks H) as [mu [dms [injeq [IC [DINV MS] ]]]].
       exists tt, (U,nil,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.

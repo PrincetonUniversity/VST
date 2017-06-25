@@ -87,6 +87,7 @@ Proof.
   intros C F.
   split.
   - intros ofs' r. eapply lset_range_perm; eauto.
+     unfold LKSIZE; simpl in r; omega. (* Andrew says: looks fishy *)
   - eapply lock_coherence_align; eauto.
 Qed.
 
@@ -335,14 +336,13 @@ Proof.
   eapply Mem.valid_access_implies with (p1 := Writable).
   2:destruct p; constructor || tauto.
   pose proof lset_range_perm.
-  do 6 autospec H.
-  split; auto.
-  (* (* necessary if we change LKSIZE to something bigger than 4: *)
-  intros loc range.
-  apply H.
-  unfold size_chunk in *.
-  unfold LKSIZE in *.
-  omega. *)
+  do 6 autospec H;
+  split; auto;
+  intros loc range;
+  apply H;
+  unfold size_chunk in *;
+  unfold LKSIZE in *;
+  omega.
 Qed.
 
 Lemma LockRes_age_content1 js n a :
@@ -676,7 +676,7 @@ Proof.
     spec E l.
     destruct (x @ l), (y @ l); split; intro; simpl in *; breakhyps.
     + spec E k0 p. destruct E as [_ E]. autospec E. discriminate.
-    + spec E k1 p1. destruct E as [_ E]. autospec E. discriminate.
+    + spec E k1 p0. destruct E as [_ E]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
@@ -847,3 +847,25 @@ Ltac lkomega :=
   unfold LKSIZE in *;
   unfold size_chunk in *;
   try omega.
+
+Lemma FF_orp:
+ forall A (ND: NatDed A) (P: A), seplog.orp seplog.FF P = P.
+Proof.
+intros.
+unfold seplog.FF.
+apply seplog.pred_ext.
+apply seplog.orp_left; auto.
+apply prop_left; intro; contradiction.
+apply seplog.orp_right2; auto.
+Qed.
+
+Lemma TT_andp:
+ forall A (ND: NatDed A) (P: A), seplog.andp seplog.TT P = P.
+Proof.
+intros.
+unfold seplog.TT.
+apply seplog.pred_ext.
+apply seplog.andp_left2; auto.
+apply seplog.andp_right; auto.
+apply prop_right; auto.
+Qed.

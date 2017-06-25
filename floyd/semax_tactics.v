@@ -58,19 +58,16 @@ match goal with
 | |- _ => intro S1; simpl in S1
 end.
 
-Ltac ensure_no_augment_funspecs :=
- match goal with
- | |- semax ?D _ _ _ =>
-  match D with context [func_tycontext _ _ ?Gprog] =>
-   let x := fresh "x" in pose (x := Gprog);
-   unfold Gprog in x;
-   match goal with
-   | x := augment_funspecs _ _ |- _ => fail 10 "Do not define Gprog with augment_funspecs,"
-                                      "use with_library instead; see the reference manual"
-   | |- _ => clear x
-   end
-  end
- end.
+Ltac ensure_no_augment_funspecs Gprog :=
+            let x := fresh "x" in
+            pose (x := Gprog); unfold Gprog in x;
+             match goal with
+             | x:=augment_funspecs _ _:_
+               |- _ =>
+                   fail 10 "Do not define Gprog with augment_funspecs,"
+                    "use with_library instead; see the reference manual"
+             | |- _ => clear x
+             end.
 
 Ltac check_ground_ptree t :=
 match t with
@@ -97,10 +94,9 @@ end.
 
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
-Ltac simplify_func_tycontext :=
-match goal with |- semax ?DD _ _ _ =>
+Ltac simplify_func_tycontext' DD :=
   match DD with context [(func_tycontext ?f ?V ?G)] =>
-   ensure_no_augment_funspecs;
+   ensure_no_augment_funspecs G;
     let D1 := fresh "D1" in let Delta := fresh "Delta" in
     pose (Delta := @abbreviate tycontext (func_tycontext f V G));
     change (func_tycontext f V G) with Delta;
@@ -114,7 +110,12 @@ match goal with |- semax ?DD _ _ _ =>
     subst DS1;
     cbv beta iota zeta delta - [abbreviate DS] in Delta;
     check_ground_Delta
-  end
+   end.
+
+Ltac simplify_func_tycontext :=
+match goal with
+ | |- semax ?DD _ _ _ => simplify_func_tycontext'  DD
+ | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
 end.
 
 (*

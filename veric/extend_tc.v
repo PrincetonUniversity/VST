@@ -299,6 +299,17 @@ simpl. unfold_lift.
 destruct (eval_expr e rho); try apply extend_prop.
 Qed.
 
+Lemma extend_tc_llt:
+ forall {CS: compspecs} e i rho,
+   boxy extendM (denote_tc_assert (tc_llt e i) rho).
+Proof.
+intros.
+rewrite denote_tc_assert_llt'.
+simpl. unfold_lift.
+destruct (eval_expr e rho); try apply extend_prop.
+Qed.
+
+(* TODO: improve efficiency. *)
 Lemma extend_tc_expr: forall {CS: compspecs} Delta e rho, boxy extendM (tc_expr Delta e rho)
  with extend_tc_lvalue: forall {CS: compspecs} Delta e rho, boxy extendM (tc_lvalue Delta e rho).
 Proof.
@@ -331,6 +342,7 @@ unfold tc_expr.
  try simple apply extend_tc_nodivover;
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
+ try simple apply extend_tc_llt;
  try simple apply extend_isCastResultType;
  try simple apply extend_tc_test_eq;
  try simple apply extend_tc_test_order;
@@ -362,6 +374,7 @@ unfold tc_expr.
  try simple apply extend_tc_nodivover;
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
+ try simple apply extend_tc_llt;
  try simple apply extend_isCastResultType;
  try simple apply extend_tc_test_eq;
  try simple apply extend_tc_test_order;

@@ -33,7 +33,7 @@ Require Import concurrency.bounded_maps.
 Require Import concurrency.threadPool.
 
 Module LocksAndResources.
-  (** Dry resources are a permission map for non-lock locations and one for lock
+  (** Dry resources are one permission map for non-lock locations and another for lock
   locations*)
   Definition res := (access_map * access_map)%type.
   Definition lock_info := (access_map * access_map)%type.
@@ -316,7 +316,9 @@ Module Concur.
              (Hat_external: at_external Sem c = Some (LOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations*)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
-             (** check if the thread has permission to acquire the lock and the lock is free*)
+             (** To acquire the lock the thread must have [Readable] permission on it*)
+             (Haccess: Mem.range_perm m0 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Readable)
+             (** check if the lock is free*)
              (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
@@ -358,6 +360,8 @@ Module Concur.
                             Some (UNLOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations *)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
+             (** To acquire the lock the thread must have [Readable] permission on it*)
+             (Haccess: Mem.range_perm m0 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Readable)
              (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
@@ -418,6 +422,8 @@ Module Concur.
              (Hat_external: at_external Sem c = Some (MKLOCK, Vptr b ofs::nil))
              (** install the thread's data permissions*)
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).1 = m1)
+             (** To create the lock the thread must have [Writable] permission on it*)
+             (Hfreeable: Mem.range_perm m1 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Writable)
              (** lock is created in acquired state*)
              (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (** The thread's data permissions are set to Nonempty*)
@@ -489,6 +495,8 @@ Module Concur.
            (Hat_external: at_external Sem c = Some (LOCK, Vptr b ofs::nil))
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
+           (** To acquire the lock the thread must have [Readable] permission on it*)
+           (Haccess: Mem.range_perm m1 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Readable)
            (** Lock is already acquired.*)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
            ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
@@ -718,7 +726,7 @@ Module Concur.
 
      Definition init_mach (pmap : option RES.res) (genv:G)
                 (v:val)(args:list val):option thread_pool :=
-       match initial_core Sem genv v args with
+       match initial_core Sem 0 genv v args with
        | Some c =>
          match pmap with
          | Some pmap => Some (initial_machine pmap.1 c)

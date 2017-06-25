@@ -2823,6 +2823,7 @@ as big as [m] *)
       assumption.
   Qed.
 
+  (*TODO: Generalize what is stored, chunk, value, etc.*)
   Lemma strong_mem_obs_eq_store:
     forall mc mf mc' mf' rmap rmapF bl1 bl2 ofsl f v
       (Hlt: permMapLt rmap (getMaxPerm mc))
@@ -3405,8 +3406,8 @@ Module Type CoreInjections (SEM: Semantics).
       core_wd f c'.
 
   Parameter initial_core_wd:
-    forall the_ge f vf arg c_new,
-      initial_core Sem the_ge vf [:: arg] = Some c_new ->
+    forall the_ge f vf arg c_new h,
+      initial_core Sem h the_ge vf [:: arg] = Some c_new ->
       valid_val f arg ->
       ge_wd f the_ge ->
       core_wd f c_new.
@@ -3453,15 +3454,15 @@ Module Type CoreInjections (SEM: Semantics).
       end.
 
   Parameter core_inj_init:
-    forall vf vf' arg arg' c_new f fg the_ge
+    forall vf vf' arg arg' c_new f fg the_ge h
       (Hf: val_obs_list f arg arg')
       (Hf': val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core Sem the_ge vf arg = Some c_new),
+      (Hinit: initial_core Sem h the_ge vf arg = Some c_new),
     exists c_new',
-      initial_core Sem the_ge vf' arg' = Some c_new' /\
+      initial_core Sem h the_ge vf' arg' = Some c_new' /\
       core_inj f c_new c_new'.
 
   Parameter core_inj_id: forall c f,

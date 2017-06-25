@@ -85,6 +85,12 @@ Definition denote_tc_igt i v : mpred :=
      | _ => FF
      end.
 
+Definition denote_tc_lgt l v : mpred :=
+     match v with
+     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
+     | _ => FF
+     end.
+
 Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
   match f with
     | Fappli_IEEE.B754_finite s m (Zpos e) _ =>
@@ -204,6 +210,7 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
   | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_llt' e i => `(denote_tc_lgt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)

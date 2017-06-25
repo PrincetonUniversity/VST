@@ -212,9 +212,12 @@ Section Safety.
     destruct state as ((m, ge) & [ | i sch] & tp). now t.
     simpl.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
-    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei; try solve [t' i cnti]; [].
-    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo. 2: now t' i cnti.
-    destruct (eq_dec ef ef'). subst ef'. 2: now t' i cnti.
+    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei;
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
+    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
+    destruct (eq_dec ef ef'); try subst ef';
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     (* destruct (EqDec_external_function ef ef'). subst ef'. 2: now t' i cnti. *)
     now left; repeat eexists; eauto.
   Qed.
@@ -303,7 +306,7 @@ Section Safety.
   Definition spr :=
     semax_prog_rule
       (Concurrent_Espec unit CS ext_link) V G prog
-      (proj1_sig init_mem) all_safe (proj2_sig init_mem).
+      (proj1_sig init_mem) 0 all_safe (proj2_sig init_mem).
 
   Definition initial_corestate : corestate := projT1 (projT2 spr).
 

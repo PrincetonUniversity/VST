@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox concurrency
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -72,7 +72,7 @@ COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
-  ageable.v sepalg.v psepalg.v age_sepalg.v age_to.v \
+  ageable.v sepalg.v psepalg.v age_sepalg.v \
   sepalg_generators.v functors.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
@@ -87,7 +87,7 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
+  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v #age_to.v
 
 SEPCOMP_FILES = \
   Address.v \
@@ -122,7 +122,8 @@ CONCUR_FILES= \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
   dry_machine_lemmas.v dry_machine_step_lemmas.v \
   Clight_bounds.v enums_equality.v\
-  ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
+  ClightSemantincsForMachines.v Clight_coreSemantincsForMachines.v \
+  JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
@@ -153,7 +154,8 @@ CONCUR_FILES= \
 	lifting.v lifting_safety.v \
 linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  coinductive_safety.v
+  coinductive_safety.v CoreSemantics_sum.v \
+  concurrent_machine_rec.v HybridMachine.v
 
 #  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
@@ -233,9 +235,9 @@ FLOYD_FILES= \
 #real_forward.v
 
 WAND_DEMO_FILES= \
-  wand_frame.v wandQ_frame.v \
+  wand_frame.v wandQ_frame.v wand_frame_tactic.v \
   list.v list_lemmas.v verif_list.v \
-  bst.v
+  bst.v verif_bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -244,7 +246,7 @@ CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v
 PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
-  insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
+  insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
@@ -291,7 +293,8 @@ FCF_FILES= \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
   DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_definitions_only.v map_swap.v
+  PRF_DRBG.v HMAC_DRBG_nonadaptive.v HMAC_DRBG_definitions_only.v \
+  map_swap.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -327,18 +330,20 @@ TWEETNACL_FILES = \
   verif_verify.v
 
 HMACDRBG_FILES = \
-  HMAC_DRBG_nonadaptive.v \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
-  spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
+  spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
-  hmacdrbg_test_noPredRes_noReseed.v \
-  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
+  hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
+  verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
+  verif_hmac_drbg_reseed_common.v verif_hmac_drbg_WF.v \
+  verif_hmac_drbg_generate_common.v \
+  verif_hmac_drbg_seed_common.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
-  verif_hmac_drbg_seed_common.v \
-  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
+  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
+  drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -351,7 +356,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -481,6 +486,8 @@ progs/sumarray2.v: progs/sumarray2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/object.v: progs/object.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/insertionsort.v: progs/insertionsort.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/float.v: progs/float.c
@@ -514,7 +521,7 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 	sh util/make_version
 
 _CoqProject: Makefile
-	echo $(COQFLAGS) | sed 's/ -/\n-/g' >_CoqProject
+	echo $(COQFLAGS) >_CoqProject
 
 .loadpath: Makefile _CoqProject
 	echo $(COQFLAGS) > .loadpath

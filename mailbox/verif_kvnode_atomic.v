@@ -225,7 +225,7 @@ Proof.
          EX v0 : Z, ghost_snap v0 g;
          fold_right sepcon emp (map (fun i => EX v0 : Z, ghost_snap v0 g *
            EX l : Z -> option Z, ghost_snap l (Znth i lg Vundef)) (upto 8));
-         fold_right sepcon emp (map (fun p : val => invariant (II p) p) lI); P)).
+         fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)).
   { Exists v0; entailer!.
     apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
     rewrite Zlength_upto in *.
@@ -235,7 +235,7 @@ Proof.
   Intro v1.
   repeat forward.
   rewrite map_map in HP, HQ.
-  forward_call (version, P * ghost_snap v1 g, lI, II,
+  forward_call (version, P * ghost_snap v1 g, II, lI,
     fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
       Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) && ghost_master v' g *
       ghost_var gsh2 v' g' * fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))) *
@@ -272,7 +272,7 @@ Proof.
   Intros.
   forward_for_simple_bound 8 (EX i : Z, EX vals : list Z, PROP (Zlength vals = i)
     LOCAL (temp _snap (vint v1); temp _ver version; temp _n n; temp _out out)
-    SEP (fold_right sepcon emp (map (fun p : val => invariant (II p) p) lI);
+    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI);
          P; ghost_snap v1 g; @data_at CompSpecs sh tnode (version, locs) n;
          data_at Tsh (tarray tint 8) (map (fun x => vint x) vals ++ repeat Vundef (Z.to_nat (8 - i))) out;
          EX vers : list (Z * Z), !!(Zlength vers = i /\
@@ -291,7 +291,7 @@ Proof.
     erewrite sublist_next with (i0 := i), Znth_upto by (rewrite ?Zlength_upto; auto; simpl; omega); simpl.
     Intros v' l'.
     forward_call (Znth i locs Vundef, P * ghost_snap v1 g * ghost_snap v' g * ghost_snap l' (Znth i lg Vundef),
-      lI, II,
+      II, lI,
       fun sh v => !!(sh = Tsh) && EX ver : Z, EX vs : _, EX ver' : Z, EX v'' : _, EX log : _,
         !!(repable_signed ver' /\ Z.even ver = true /\ Forall repable_signed vs /\ Zlength vs = Zlength locs /\
            Zlength lg = Zlength locs /\ (ver' = ver \/ ver' = ver + 1) /\
@@ -359,7 +359,7 @@ Proof.
     rewrite Z.bit0_odd, Zodd_even_bool in *; destruct (Z.even v1) eqn: Heven; try discriminate.
     forward_call (version, P * ghost_snap v1 g * fold_right sepcon emp (map (fun i =>
       ghost_snap (fst (Znth i vers (0, 0))) g *
-      ghost_snap (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)) (Znth i lg Vundef)) (upto 8)), lI, II,
+      ghost_snap (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)) (Znth i lg Vundef)) (upto 8)), II, lI,
       fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
         Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) &&
         ghost_master v' g * ghost_var gsh2 v' g' *
@@ -496,7 +496,7 @@ Proof.
   forward.
   rewrite map_map in HP, HQ.
   (* The ghost_var guarantees that no one else has changed the version. *)
-  forward_call (version, P * ghost_var gsh1 v0 g', lI, II,
+  forward_call (version, P * ghost_var gsh1 v0 g', II, lI,
     fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(repable_signed v' /\ Z.even v = true /\
       Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
       (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' * fold_right sepcon emp
@@ -519,7 +519,7 @@ Proof.
       Exists (v1, vs); unfold node_state; Exists v; entailer!. }
   Intros x; subst.
   assert (repable_signed (v0 + 1)) by admit. (* version stays in range *)
-  forward_call (version, v0 + 1, P * ghost_var gsh1 v0 g', lI, II,
+  forward_call (version, v0 + 1, P * ghost_var gsh1 v0 g', II, lI,
     fun sh => !!(sh = Tsh) && EX v : Z, EX vs : _, EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
       Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
       (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' *
@@ -557,7 +557,7 @@ Proof.
   rewrite <- seq_assoc.
   forward_for_simple_bound 8 (EX i : Z, PROP ( )
     LOCAL (temp _v (vint v0); temp _ver version; temp _n n; temp _in input)
-    SEP (fold_right sepcon emp (map (fun p : val => invariant (II p) p) lI); P;
+    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P;
     ghost_var gsh1 (v0 + 1) g'; @data_at CompSpecs sh tnode (version, locs) n;
     data_at Tsh (tarray tint 8) (map (fun x : Z => vint x) vals) input;
     fold_right sepcon emp (map (fun i => ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef))
@@ -574,7 +574,7 @@ Proof.
     erewrite sublist_next with (i0 := i), Znth_upto by (rewrite ?Zlength_upto; simpl; omega); simpl.
     rewrite Zlength_map in *.
     forward_call (Znth i locs Vundef, Znth i vals 0, P * ghost_var gsh1 (v0 + 1) g' *
-      ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef), lI, II,
+      ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef), II, lI,
       fun sh => !!(sh = Tsh) && EX ver : Z, EX vs : _, EX ver' : Z, EX v'' : _, EX log : _, EX d : Z,
         !!(repable_signed ver' /\ Z.even ver = true /\ Forall repable_signed vs /\ Zlength vs = Zlength locs /\
            Zlength lg = Zlength locs /\ (ver' = ver \/ ver' = ver + 1) /\
@@ -632,7 +632,7 @@ Proof.
   - rewrite !sublist_nil, !sublist_same by auto; simpl.
     assert (repable_signed (v0 + 2)) by admit. (* version stays in range *)
     forward_call (version, v0 + 2, P * ghost_var gsh1 (v0 + 1) g' * fold_right sepcon emp (map (fun i =>
-      ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8)), lI, II,
+      ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8)), II, lI,
       fun sh => !!(sh = Tsh) && EX v : Z, EX vs : _, EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
         Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
         (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' *
@@ -665,7 +665,6 @@ Proof.
         erewrite <- ghost_var_share_join by eauto.
         unfold node_state; subst.
         Exists (v0 + 2); rewrite Zlength_map in *.
-        Search Zlength length.
         replace (length locs) with (Z.to_nat 8) by (symmetry; rewrite <- Zlength_length; auto; computable).
         pose proof (clean_entries (v0 + 1) vs locs lg lg' vals) as Hclean.
         rewrite <- Z.add_assoc in Hclean; simpl in *.

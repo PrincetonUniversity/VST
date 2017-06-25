@@ -6,6 +6,11 @@ Require compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.cfrontend.Clight.
 
+(*To prove memsem*)
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.mem_lemmas.
+
 Inductive CC_core : Type :=
     CC_core_State : function ->
             statement -> cont -> env -> temp_env -> CC_core
@@ -147,10 +152,51 @@ Program Definition cl_core_sem :
   @CoreSemantics genv CC_core mem :=
   @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
-    cl_initial_core
+    (fun _ => cl_initial_core)
     cl_at_external
     cl_after_external
     cl_halted
     cl_step
     cl_corestep_not_at_external
     cl_corestep_not_halted _.
+
+
+(*Clight_core is also a memsem!*)
+Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
+      (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.
+Proof. intros.
+  induction M.
+  apply mem_step_refl.
+  eapply mem_step_trans.
+    eapply mem_step_alloc; eassumption. eassumption.
+Qed.
+
+Lemma bind_parameters_mem_step: forall cenv e m pars vargs m'
+      (M: bind_parameters cenv e m pars vargs m'), mem_step m m'.
+Proof. intros.
+  induction M.
+  apply mem_step_refl.
+  inv H0.
++ eapply mem_step_trans; try eassumption. simpl in H2.
+  eapply mem_step_store; eassumption.
++ eapply mem_step_trans; try eassumption.
+  eapply mem_step_storebytes; eassumption.
+Qed.
+Program Definition CLNC_memsem :
+  @MemSem genv (*(Genv.t fundef type)*) CC_core.
+apply Build_MemSem with (csem := cl_core_sem).
+  intros.
+  induction CS. simpl in H0.
+  Lemma CC_core_to_State_mem:
+    forall f STEP k e le m c m',
+    State f STEP k e le m = CC_core_to_CC_state c m' ->
+    m = m'.
+  Proof.
+    intros;
+      destruct c; inversion H; auto.
+  Qed.
+  inversion H0;
+    try do 2 match goal with
+    | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H
+             end; subst; try apply mem_step_refl; trivial.
+Admitted.

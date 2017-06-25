@@ -126,7 +126,7 @@ I : C -> mem -> Prop
     Forall (fun v => val_valid v m) args ->
     valid_genv ge m ->
     mem_wd m ->
-    initial_core csem ge v args = Some c ->
+    initial_core csem 0 ge v args = Some c ->
     I c m
 
 (* Coresteps preserve the invariant. *)

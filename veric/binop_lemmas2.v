@@ -152,6 +152,24 @@ extensionality rho.
  apply pred_ext; intuition.
 Qed.
 
+Lemma denote_tc_assert_llt':
+  forall {CS: compspecs} e j, denote_tc_assert (tc_llt e j) = denote_tc_assert (tc_llt' e j).
+Proof.
+  intros.
+extensionality rho.
+ unfold tc_llt; simpl.
+ unfold_lift.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto.
+ apply (eval_expr_any rho) in Heqv; try congruence.
+ rewrite Heqv; simpl.
+ destruct (Int64.ltu i j) eqn:?; simpl;
+ unfold_lift; simpl.
+ apply pred_ext; intuition.
+ unfold is_true. rewrite Heqv.
+ simpl. rewrite Heqb.
+ apply pred_ext; intuition.
+Qed.
+
 Lemma tc_val_void:
   forall v, tc_val Tvoid v <-> False.
 Proof.
@@ -472,7 +490,7 @@ Qed.
 Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
     @denote_tc_assert_orp' @denote_tc_assert_orp''
     @denote_tc_assert_iszero' @denote_tc_assert_nonzero'
-    @denote_tc_assert_nodivover' @denote_tc_assert_ilt'
+    @denote_tc_assert_nodivover' @denote_tc_assert_ilt' @denote_tc_assert_llt'
     @denote_tc_assert_test_eq' @denote_tc_assert_test_order'
      : dtca.
 
@@ -698,12 +716,21 @@ match op with
   | Cop.Oshl | Cop.Oshr => match classify_shift' (typeof a1) (typeof a2) with
                     | Cop.shift_case_ii _ =>  tc_andp' (tc_ilt' a2 Int.iwordsize) (tc_bool (is_int32_type ty)
                                                                                          reterr)
+                    | Cop.shift_case_il _ =>  tc_andp' (tc_llt' a2 (Int64.repr 32)) (tc_bool (is_int32_type ty)
+                                                                                         reterr)
+                    | Cop.shift_case_li _ =>  tc_andp' (tc_ilt' a2 Int64.iwordsize') (tc_bool (is_long_type ty)
+                                                                                         reterr)
+                    | Cop.shift_case_ll _ =>  tc_andp' (tc_llt' a2 Int64.iwordsize) (tc_bool (is_long_type ty)
+                                                                                         reterr)
                     | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
                    match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
-                    | _ => tc_FF deferr
+                    | Cop.bin_case_l _ =>tc_bool (is_long_type ty) reterr
+                    | Cop.bin_case_f => tc_FF deferr
+                    | Cop.bin_case_s => tc_FF deferr
+                    | Cop.bin_default => tc_FF deferr
                    end
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
                    match classify_cmp' (typeof a1) (typeof a2) with

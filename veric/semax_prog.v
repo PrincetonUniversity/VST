@@ -1058,12 +1058,12 @@ Proof.
 Qed.
 
 Lemma semax_prog_rule {CS: compspecs} :
-  forall V G prog m,
+  forall V G prog m h,
      @semax_prog CS prog V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem)
+       (semantics.initial_core (juicy_core_sem cl_core_sem) h
                     (globalenv prog) (Vptr b Int.zero) nil = Some q) *
        forall n,
          { jm |
@@ -1317,7 +1317,7 @@ Qed.
 
 (* note: because hypotheses changed several times, this proof has a lot of redundancy *)
 
-Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q NEP NEQ :
+Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q NEP NEQ h:
   @semax_prog CS prog V G ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   find_id id_fun G =
@@ -1340,7 +1340,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
 
   { q : corestate |
     semantics.initial_core
-      (juicy_core_sem cl_core_sem)
+      (juicy_core_sem cl_core_sem) h
       (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
 
     forall (jm : juicy_mem) ts a,

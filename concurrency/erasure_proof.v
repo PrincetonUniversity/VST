@@ -932,14 +932,14 @@ Module Parching <: ErasureSig.
 
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : Mem.mem) rmap pmap main genv,
+        (vals : list Values.val) (m : Mem.mem) rmap pmap main genv h,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
         no_locks_perm rmap ->
-        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
+        initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
+          initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil,ds) /\
           DryMachine.invariant ds /\
           match_st js ds.
     Proof.
@@ -952,7 +952,7 @@ Module Parching <: ErasureSig.
       simpl in H2.
       unfold JuicyMachine.init_machine in H2.
       unfold JSEM.init_mach in H2. simpl in H2.
-      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) genv main vals) eqn:C; try solve[inversion H2].
+      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) 0 genv main vals) eqn:C; try solve[inversion H2].
       inversion H2.
       exists (DryMachine.initial_machine pmap.1 c).
 
@@ -1549,10 +1549,10 @@ Module Parching <: ErasureSig.
 
       econstructor 1.
 
-      13: reflexivity.
-      13: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
-      6: eassumption.
-      8: eassumption.
+      14: reflexivity.
+      14: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+      7: eassumption.
+      9: eassumption.
       + (*boundedness*)
         split.
         *
@@ -1656,6 +1656,7 @@ Module Parching <: ErasureSig.
         symmetry. apply mtch_perm2.
         apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
         assumption.
+      +  admit.
       + reflexivity.
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.
@@ -2256,12 +2257,12 @@ Module Parching <: ErasureSig.
         destruct (DTP.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
       econstructor 2.
-      16: reflexivity.
-      15: instantiate (2:= (virtue1, virtue2));
+      17: reflexivity.
+      16: instantiate (2:= (virtue1, virtue2));
         unfold ds'; repeat f_equal; try reflexivity; try apply proof_irrelevance.
-      7: eassumption.
-      9: eassumption.
-      7: reflexivity.
+      8: eassumption.
+      10: eassumption.
+      8: reflexivity.
       + (*boundedness 1*)
         split.
         * eapply bounded_maps.sub_map_and_shape;
@@ -2480,6 +2481,7 @@ Module Parching <: ErasureSig.
         * eassumption.
         *  eapply JSEM.compatible_threadRes_sub.
            assumption.
+      + admit.
       + apply restrPermMap_ext.
         intros b0.
         extensionality ofs0.
@@ -2549,7 +2551,7 @@ Module Parching <: ErasureSig.
            -- unfold join_sub. exists phi'. eassumption.
            -- eapply JSEM.compatible_threadRes_sub.
               assumption.
-
+  
     }
 
 
@@ -3939,13 +3941,14 @@ Here be dragons
                                 intros b0 ofs0.
                                 apply pmap_spec2.
       - econstructor 4. (*The step *)
-        9: reflexivity.
-        9: reflexivity.
+        10: reflexivity.
+        10: reflexivity.
         + assumption.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
         (*      + eapply MTCH_compat; eassumption. *)
         + reflexivity.
+        + admit.
         + rewrite <- Hstore. f_equal.
           erewrite <- (MTCH_restrict_personal ).
           * reflexivity.
@@ -4365,8 +4368,8 @@ Here be dragons
               { destruct ineq.
                 move: H0. rewrite /LKSIZE_nat /LKSIZE.
                 simpl.
-                destruct (4 < indx.+1)%N eqn:NN; auto.
-                assert ((4 < indx.+1)%N) by
+                destruct (8 < indx.+1)%N eqn:NN; auto.
+                assert ((8 < indx.+1)%N) by
                 (rewrite NN; auto).
                 move: H0 => /ltP.
                 intros. xomega. }
@@ -4411,6 +4414,7 @@ Here be dragons
                 eassumption.
               + eassumption.
               + reflexivity.
+              + admit.
               + erewrite restrPermMap_ext.
                 eassumption.
                 intros b0.
@@ -4424,6 +4428,7 @@ Here be dragons
         }
 
         Grab Existential Variables.
+    Focus 4.
     { (*This is side condition [Hlt'] of acquire or relese *)
        intros b0 ofs0.
              move: (Hlt' b0 ofs0).
@@ -4451,7 +4456,8 @@ Here be dragons
                assumption.
                eapply JMS.compatible_threadRes_sub; eauto.
     }
-  Qed.
+
+  Admitted.
 
 
 
