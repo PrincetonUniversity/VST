@@ -29,8 +29,7 @@ Require Import concurrency.CoreSemantics_sum.
 *)
 Section SelfSim.
 
-  Variable G C: Type.
-  Variable Sem: MemSem G C.
+  Variable Sem: semantics.
 
   (*extension of a mem_injection*)
   Definition is_ext (f1:meminj)(nb1: positive)(f2:meminj)(nb2:positive) : Prop:=
@@ -40,11 +39,11 @@ Section SelfSim.
       (ofs = 0 /\ ~ Plt b1 nb1 /\  ~ Plt b2 nb2).
   
   (*The code is also injected*)
-  Variable code_inject: C -> meminj -> C -> Prop.
+  Variable code_inject: meminj -> state Sem -> state Sem -> Prop.
   Variable code_inj_incr: forall c1 mu c2 mu',
-      code_inject c1 mu c2 ->
+      code_inject mu c1 c2 ->
       inject_incr mu mu' ->
-      code_inject c1 mu' c2.
+      code_inject mu' c1 c2.
   
   (*The current permisions OF THIS THREAD are unchanged! *)
   (*This is slightly stronger than Mem.inject/mi_inj which allows
@@ -74,8 +73,8 @@ Section SelfSim.
   ofs_delta = ofs + delta. 
   
   (*TODO: fill in*)
-  Record match_self (f: meminj) (c1:C) (m1:mem) (c2:C) (m2:mem): Prop:=
-    { cinject: code_inject c1 f c2
+  Record match_self (f: meminj) (c1:state Sem) (m1:mem) (c2:state Sem) (m2:mem): Prop:=
+    { cinject: code_inject f c1 c2
     ; minject: Mem.inject f m1 m2            
     ; pinject: perm_inject f m1 m2
     ; pimage: perm_image f m1 m2
@@ -157,20 +156,25 @@ Section SelfSim.
       admit. (*Easy ... use lemmas to simplify same_visible*)
   Admitted.
 
-  Record self_simulation :Prop :=
-    { ssim_diagram: forall f c1 m1 c2 m2,
-        match_self f c1 m1 c2 m2 ->
-        forall g c1' m1',
-          corestep Sem g c1 m1 c1' m1' ->
-          exists c2' m2' f',
-          corestep Sem g c2 m2 c2' m2' /\
-          match_self f c1' m1' c2' m2' /\
-          is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2)        
-    }.
-
-  
-
 End SelfSim.
+
+ Record self_simulation (Sem:semantics)(get_mem: state Sem -> mem): Type :=
+    { code_inject: meminj -> state Sem -> state Sem -> Prop;
+      code_inject_mem: forall s1 f s2, code_inject f s1 s2 -> match_self Sem code_inject f s1 (get_mem s1) s2 (get_mem s2);
+      code_inj_incr: forall c1 mu c2 mu',
+          code_inject mu c1 c2 ->
+          inject_incr mu mu' ->
+          code_inject mu' c1 c2;
+      ssim_diagram: forall f t c1 c2,
+        code_inject f c1 c2 ->
+        forall g c1',
+          step Sem g c1 t c1' ->
+          exists c2' f' t',
+          step Sem g c2 t' c2' /\
+          code_inject f' c1' c2' /\
+          is_ext f (Mem.nextblock (get_mem c1)) f' (Mem.nextblock (get_mem c2)) /\
+          Events.inject_trace f' t t'
+    }.
 
   
         

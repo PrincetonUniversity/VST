@@ -1,5 +1,6 @@
 Require Import compcert.common.Memory.
 
+
 Require Import veric.compcert_rmaps.
 Require Import veric.juicy_mem.
 Require Import veric.res_predicates.
@@ -19,9 +20,10 @@ Require Import concurrency.permissions.
 
 (*Semantics*)
 Require Import veric.Clight_core.
+Require Import veric.Clightcore_coop.
 Require Import sepcomp.event_semantics.
 
-Module ClightSEM_core <: Semantics.
+Module ClightCoreSEM <: Semantics.
   Definition F: Type := fundef.
   Definition V: Type := type.
   Definition G := genv.
@@ -29,11 +31,17 @@ Module ClightSEM_core <: Semantics.
   Definition getEnv (g:G): Genv.t F V := genv_genv g.
   (* We might want to define this properly or
      factor the machines so we don't need events here. *)
-  Parameter CLNC_evsem : @EvSem G C.
-  Parameter CLNC_msem :
-    msem CLNC_evsem = CLNC_memsem.
-  Definition Sem := CLNC_evsem.
+  Parameter CLC_evsem : @EvSem G C.
+  Parameter CLC_msem :
+    msem CLC_evsem = CLC_memsem.
+  Definition Sem := CLC_evsem.
   Parameter step_decay: forall g c m tr c' m',
       event_semantics.ev_step (Sem) g c m tr c' m' ->
       decay m m'.
-End ClightSEM_core.
+End ClightCoreSEM.
+
+Definition ClightSEM_rec: Semantics_rec:=
+  {| semG:= ClightCoreSEM.G;
+     semC:= ClightCoreSEM.C;
+     semSem:= ClightCoreSEM.Sem
+  |}.

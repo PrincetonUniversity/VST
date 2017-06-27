@@ -276,7 +276,8 @@ Definition initCore (sg: signature) (ix: 'I_N) (v: val) (args: list val)
   : option (Core.t my_cores):=
   if @initial_core _ _ _
        (my_cores ix).(sem)
-       (my_cores ix).(Modsem.ge)
+                       0
+                       (my_cores ix).(Modsem.ge)
        v args
   is Some c then Some (Core.mk _ my_cores ix c sg)
   else None.
@@ -318,7 +319,7 @@ Proof.
 rewrite /popCore.
 move: (popCore_obligation_1 l); move: (popCore_obligation_2 l).
 case: (inContext l)=> pf1 pf2 //; case=> <-.
-have pf: wf_callStack (STACK.pop (CallStack.callStack l)).
+have pf: wf_callStack (STACK.pop (CallStack.callStack l)); eauto.
 { case: (andP (pf1 erefl))=> A B; apply/andP; split=> //.
   by apply: SeqStack.all_pop.
   by move: (pf2 erefl); clear pf1 pf2 A B; case: l=> /= ?; case; elim. }

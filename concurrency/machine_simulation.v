@@ -30,22 +30,23 @@ Context {G1 TID SCH TR C1 M1 G2 C2 M2 : Type}
 
 (main : val).
 
+(*
 Variable ge_inv : G1 -> G2 -> Prop.
 
 Variable init_inv : meminj -> G1 -> list val -> M1 -> G2 -> list val -> M2 -> Prop.
 
 Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> M1 -> G2 -> val -> M2 -> Prop.
+*)
 
-Record Machine_sim  :=
-{ core_data : Type
-; match_state : core_data -> (*SM_Injection*)meminj -> C1 -> M1 -> C2 -> M2 -> Prop
-; core_ord : core_data -> core_data -> Prop
-; core_ord_wf : well_founded core_ord
-; genv_inv : ge_inv ge1 ge2
+Record Machine_sim: Prop :=
+  { core_data : Type ;
+    match_state : core_data -> (*SM_Injection*)meminj -> C1 -> M1 -> C2 -> M2 -> Prop ;
+    core_ord : core_data -> core_data -> Prop;
+    
+ core_ord_wf : well_founded core_ord
 ; core_initial :
     forall j c1 vals1 m1 vals2 m2,
     initial_machine Sem1 ge1 main vals1 = Some c1 ->
-    init_inv j ge1 vals1 m1 ge2 vals2 m2 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
       /\*) initial_machine Sem2 ge2 main vals2 = Some c2
@@ -72,9 +73,8 @@ Record Machine_sim  :=
     forall cd mu U c1 m1 c2 m2 v1,
     match_state cd mu c1 m1 c2 m2 ->
     conc_halted Sem1 U c1 = Some v1 ->
-    exists j v2,
-       halt_inv j ge1 v1 m1 ge2 v2 m2
-       /\ conc_halted Sem2 U c2 = Some v2
+    exists v2,
+       conc_halted Sem2 U c2 = Some v2
 ; thread_running:
     forall cd mu c1 m1 c2 m2 ,
       match_state cd mu c1 m1 c2 m2 ->

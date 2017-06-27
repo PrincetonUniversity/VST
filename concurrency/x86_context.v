@@ -32,9 +32,8 @@ Definition X86SEM_rec: Semantics_rec:=
   {| semG:= X86SEM.G;
      semC:= X86SEM.C;
      semSem:= X86SEM.Sem
-    |}.
+  |}.
      
-
 
 (** The DryConc, FineConc and SC machines instantiated for X86*)
 Module X86Machines <: (MachinesSig with Module SEM := X86SEM).

@@ -10,31 +10,57 @@ Require Import concurrency.scheduler.
 
 Require Import concurrency.lifting.
 
-(* We lift to a whole-program simulation on the dry concurrency machine *)
-Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
-
 Require Import sepcomp.event_semantics.
 
 (** The X86 DryConc Machine*)
 Require Import concurrency.dry_context.
+Require Import concurrency.x86_context.
+
 
 (** The Clight DryConc Machine*)
-Require Import concurrency.DryMachineSource.
+Require Import concurrency.DryMachineSourceCore.
 
 Require Import concurrency.machine_simulation. Import machine_simulation.
 
 
-Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
-  Module lftng:= lifting SEMT Machine. Import lftng.
-  Module foo:= Machine.
-  Import THE_DRY_MACHINE_SOURCE.
-  Import THE_DRY_MACHINE_SOURCE.DMS.
+Require Import concurrency.HybridMachine_simulation_proof.
 
 
-  Definition match_st gT gS main psrc ptgt sch:=
-    Machine_sim.match_state
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
+Module lifting_safety.
+  Import DMS.
+  Import X86Machines.
+
+  Notation semS := (DMS.SEM.Sem).
+  Notation semT := (SEM.Sem).
+
+  (*These are variables spilling from lifting.v*)
+  Notation GS := (DMS.SEM.G).
+  Notation GT := (SEM.G).
+  Context (gT : GT)( gS : GS)
+          (p : Clight.program) (tp : Asm.program).
+  Hypothesis compiled : Compiler.simpl_transf_clight_program p = Errors.OK tp.
+  Context (source_match : Values.Val.meminj ->
+                          semC (Sems p) -> mem -> semC (Sems p) -> mem -> Prop)
+          (target_match : Values.Val.meminj -> semC Semt -> mem -> semC Semt -> mem -> Prop).
+
+  (*This is the real context*)
+  Context(main : Values.val) (psrc : option DMS.DryMachine.ThreadPool.RES.res)
+         (ptgt : option DryMachine.ThreadPool.RES.res) (sch : SC.Sch).
+  Definition the_simulation:=
+    lifting.concur_sim gT gS p tp compiled source_match target_match
+  main psrc ptgt sch. 
+
+  Definition core_ord: Type.
+  destruct the_simulation.
+    
+  
+  Definition match_st: forall n, 5 = n.
+    destruct the_simulation.
+    clear - match_state.
+      
+
+  :=
+  match_states the_simulation.
 
   Definition running_thread gT gS main psrc ptgt sch:=
     Machine_sim.thread_running
@@ -64,108 +90,20 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     Machine_sim.thread_halted
       _ _ _ _ _ _ _ _
       (concur_sim gT gS main psrc ptgt sch).
+   *)
 
-(*  THE_DRY_MACHINE_SOURCE.dmachine_state
-    Machine.DryConc.MachState
- *)
-  (* This axiom comes from the new simulation*)
-  (*Axiom blah: forall  Tg Sg main p U,
-    forall cd j Sm Tm Sds Tds,
-      (match_st Tg Sg main p U) cd j Sds Sm Tds Tm ->
-      forall sch,
-        DryConc.valid  (sch, snd (fst Sds), snd Sds) <->
-        Machine.DryConc.valid (sch, snd (fst Tds), snd Tds). *)
-
-      Axiom halted_trace: forall U tr tr' st,
-          DryConc.halted (U, tr, st) ->
-          DryConc.halted (U, tr', st).
-
-      Axiom halted_trace': forall U tr tr' st,
-          Machine.DryConc.halted (U, tr, st) ->
-          Machine.DryConc.halted (U, tr', st).
-
-      (*Axiom determinismN:
-        forall U p,
-        forall ge sch st2 m2 st2' m2',
-        forall n0 : nat,
-          machine_semantics_lemmas.thread_stepN
-            (Machine.DryConc.new_MachineSemantics U p) ge n0 sch st2 m2 st2' m2' ->
-          forall U'0 : mySchedule.schedule,
-            Machine.DryConc.valid (U'0, [::], st2) ->
-            machine_semantics_lemmas.thread_stepN
-              (Machine.DryConc.new_MachineSemantics U p) ge n0 U'0 st2 m2 st2' m2'.*)
-
-      (*Lemma stepN_safety:
-        forall U p ge st2' m2' n,
-        forall (condition : forall sch : mySchedule.schedule,
-              Machine.DryConc.valid (sch, [::], st2') ->
-              Machine.DryConc.explicit_safety ge sch st2' m2'),
-        forall (st2 : Machine.DryMachine.ThreadPool.t)
-          (m2 : mem) (sch : mySchedule.schedule),
-          machine_semantics_lemmas.thread_stepN
-            (Machine.DryConc.new_MachineSemantics U p) ge n sch st2 m2 st2' m2' ->
-          forall U' : mySchedule.schedule,
-            Machine.DryConc.valid (U', [::], st2) ->
-            Machine.DryConc.explicit_safety ge U' st2 m2 .
-      Proof.
-        (*Make this a separated lemma*)
-        induction n.
-        - intros ? ? ? ? stepN U' val.
-          inversion stepN; subst.
-          apply: (condition _ val).
-        - intros ? ? ? ? stepN U' val.
-          assert (DeterminismN: forall n,
-                     machine_semantics_lemmas.thread_stepN
-                       (Machine.DryConc.new_MachineSemantics U p) ge n sch st2
-                       m2 st2' m2' ->
-                     forall U', Machine.DryConc.valid (U', [::], st2) ->
-                           machine_semantics_lemmas.thread_stepN
-                             (Machine.DryConc.new_MachineSemantics U p) ge n U' st2
-                             m2 st2' m2'
-                 ).
-          apply: determinismN. (*This is true by determinism. *)
-          eapply DeterminismN in stepN; eauto.
-          inversion stepN.
-          move: H => /= [] m_ [] istep stepN'.
-          eapply Machine.DryConc.internal_safety; eauto.
-      Qed.
-
-      Lemma stepN_safety':
-        forall U p ge st2' m2' n,
-        forall (st2 : Machine.DryMachine.ThreadPool.t)
-          (m2 : mem) (sch : mySchedule.schedule),
-          machine_semantics_lemmas.thread_stepN
-            (Machine.DryConc.new_MachineSemantics U p) ge n sch st2 m2 st2' m2' ->
-        forall (condition : forall sch : mySchedule.schedule,
-              Machine.DryConc.valid (sch, [::], st2') ->
-              Machine.DryConc.explicit_safety ge sch st2' m2'),
-          forall U' : mySchedule.schedule,
-            Machine.DryConc.valid (U', [::], st2) ->
-            Machine.DryConc.explicit_safety ge U' st2 m2 .
-      Proof. intros. apply: stepN_safety; eauto. Qed.
-      *)
-
-
-      (*Lemma safety_equivalence_stutter' {core_data: Type} {core_ord}:
-       @well_founded core_data  core_ord ->
-       core_data ->
-       forall (ge : Machine.DryMachine.ThreadPool.SEM.G)
-         (U : mySchedule.schedule) (st : Machine.DryMachine.ThreadPool.t)
-         (m : mem),
-       (exists cd : core_data,
-           @Machine.DryConc.explicit_safety_stutter core_data core_ord ge cd U st m) ->
-       Machine.DryConc.explicit_safety ge U st m.
-      Proof. A dmitted.*)
-
-
-      Lemma safety_preservation'': forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm cd
-                                     (*HboundedS: DryConc.bounded_mem Sm*)
-                                     (*HboundedT: DryConc.bounded_mem Tm*)
-      (MATCH: exists j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm),
-      (forall sch, DryConc.new_valid ( tr, Sds, Sm) sch ->
-              DryConc.explicit_safety Sg sch Sds Sm) ->
-      (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
-              Machine.DryConc.stutter_stepN_safety ( core_ord:=core_ord  Tg Sg main psrc ptgt U) Tg cd sch Tds Tm).
+  
+  
+  Lemma safety_preservation'':
+        forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm cd
+          (*HboundedS: DryConc.bounded_mem Sm*)
+          (*HboundedT: DryConc.bounded_mem Tm*)
+          (*MATCH: exists j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm*),
+          (forall sch, DryConc.new_valid (tr, Sds, Sm) sch ->
+                  DryConc.explicit_safety Sg sch Sds Sm) ->
+          (forall sch, DryConc.valid (sch, tr, Tds) ->
+                  DryConc.stutter_stepN_safety
+                    (core_ord:=core_ord Tg Sg main psrc ptgt U) Tg cd sch Tds Tm).
   Proof.
     move => main psrc ptgt U Sg Tg.
     cofix CIH.

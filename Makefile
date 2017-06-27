@@ -122,8 +122,8 @@ CONCUR_FILES= \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
   dry_machine_lemmas.v dry_machine_step_lemmas.v \
   Clight_bounds.v enums_equality.v\
-  ClightSemantincsForMachines.v Clight_coreSemantincsForMachines.v \
-  JuicyMachineModule.v DryMachineSource.v \
+  ClightSemantincsForMachines.v ClightCoreSemantincsForMachines.v \
+  JuicyMachineModule.v DryMachineSource.v DryMachineSourceCore.v\
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
@@ -155,7 +155,7 @@ CONCUR_FILES= \
   linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v CoreSemantics_sum.v \
-  self_simulation.v Smallstep.v\
+  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v Smallstep.v\
   concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v \
   HybridMachine_simulation_proof.v
 
@@ -210,7 +210,7 @@ VERIC_FILES= \
   base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
-  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
+  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clightcore_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_switch.v semax_congruence.v \

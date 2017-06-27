@@ -164,11 +164,11 @@ Section HybridMachine.
          lockRes_valid: lr_valid (lockRes_ _ tp) (*well-formed locks*);
          correct_type_source: forall i (cnti: containsThread_ _ tp i) X,
              getThreadC cnti = Krun X ->
-             lt_op i hb ->
+             ~ lt_op i hb ->
              exists c, X = SState _ _ c;
          correct_type_target: forall i (cnti: containsThread_ _ tp i) X,
              getThreadC cnti = Krun X ->
-             ~(lt_op i hb) ->
+             (lt_op i hb) ->
              exists c, X = TState _ _ c
          
        }.
