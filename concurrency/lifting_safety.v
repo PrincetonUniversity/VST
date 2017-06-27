@@ -41,21 +41,21 @@ Module lifting_safety.
   Hypothesis compiled : Compiler.simpl_transf_clight_program p = Errors.OK tp.
 
   (*This is the real context*)
-  Context(main : Values.val) (psrc : option DMS.DryMachine.ThreadPool.RES.res)
+  Context (psrc : option DMS.DryMachine.ThreadPool.RES.res)
          (ptgt : option DryMachine.ThreadPool.RES.res) (sch : SC.Sch).
   Definition the_simulation:=
     lifting.concur_sim p tp compiled
-                       main psrc ptgt sch.
+                       Values.Vundef psrc ptgt sch.
   
   
   Lemma safety_preservation'':
-        forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm cd
+        forall Sg Tg tr Sds Sm Tds Tm cd
           (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
-          (forall sch, DryConc.new_valid (tr, Sds, Sm) sch ->
-                  DryConc.explicit_safety Sg sch Sds Sm) ->
+          (forall sch, DMS.DryConc.new_valid (tr, Sds, Sm) sch ->
+                  DMS.DryConc.explicit_safety Sg sch Sds Sm) ->
           (forall sch, DryConc.valid (sch, tr, Tds) ->
                   DryConc.stutter_stepN_safety
-                    (core_ord:=MSorder the_simulation) Tg cd sch Tds Tm).
+                    (core_ord:=MSorder Values.Vundef the_simulation) Tg cd sch Tds Tm).
   Proof.
     move => main psrc ptgt U Sg Tg.
     cofix CIH.
@@ -63,31 +63,33 @@ Module lifting_safety.
     assert (H':=H).
     specialize (H sch).
     move: MATCH => [] j MATCH.
-    assert (equivalid: forall  Tg Sg main psrc ptgt U,
+    assert (equivalid:
                forall cd j Sm Tm tr Sds Tds,
-                 (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm ->
+                 (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm ->
                  forall sch,
-                   DryConc.valid (sch, tr, Sds)  <->
-                   Machine.DryConc.valid (sch, tr, Tds) ).
-    { rewrite /DryConc.valid
+                   DMS.DryConc.valid (sch, tr, Sds)  <->
+                   DryConc.valid (sch, tr, Tds) ).
+    { rewrite /DMS.DryConc.valid
+              /DMS.DryConc.correct_schedule
+              /DMS.DryConc.unique_Krun
+              /mySchedule.schedPeek
+              /DryConc.valid
               /DryConc.correct_schedule
               /DryConc.unique_Krun
-              /THE_DRY_MACHINE_SOURCE.SCH.schedPeek
-              /Machine.DryConc.valid
-              /Machine.DryConc.correct_schedule
-              /Machine.DryConc.unique_Krun
               /mySchedule.schedPeek /=.
 
-      move => ? ? ? ? ? ? ? ? ? ? ? Sds' Tds' MATCH' sch0.
-      destruct (List.hd_error sch0); try solve[split; auto].
+      move => ? ? ? ? ? Sds' Tds' MATCH' sch.
+      destruct (List.hd_error sch); try solve[split; auto].
       split.
       - move => H1  j0 cntj0 q KRUN not_halted.
-
         (*eapply H1.*)
         (*pose (same_running Tg Sg main p U cd j Sds' Sm Tds' Tm).*)
-        pose ( machine_semantics.runing_thread (new_DMachineSem sch psrc)).
+        pose ( machine_semantics.runing_thread (new_DMachineSem sch None)).
         unfold new_DMachineSem  in P; simpl in P.
-        unfold DryConc.unique_Krun in P.
+        unfold DMS.DryConc.unique_Krun in P.
+        eapply P.
+        
+        
         eapply (same_running) in KRUN; eauto.
       - move => H1  j0 cntj0 q KRUN not_halted.
 

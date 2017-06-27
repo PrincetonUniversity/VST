@@ -249,7 +249,7 @@ Module lifting.
       Machine_sim
         (new_DMachineSem sch psrc)
         (DryConc.new_MachineSemantics sch ptgt)
-        (fst genv') (snd genv') main.
+        (fst genv') (snd genv') Values.Vundef.
     Proof.
       pose proof (All_compiled_thread_simulation p tp compiled sch).
       simpl in H.

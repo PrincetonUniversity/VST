@@ -16,11 +16,11 @@
 include Makefile.config
 
 -include CONFIGURE
-DIRS=lib common $(ARCH) backend cfrontend driver debug\
+DIRS=lib common $(ARCH) backend cfrontend ia32 driver debug\
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
   cparser cparser/validator
 
-RECDIRS=lib common $(ARCH) backend cfrontend driver flocq exportclight cparser
+RECDIRS=lib common $(ARCH) backend cfrontend ia32 driver flocq exportclight cparser
 
 COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) compcert.$(d))
 
@@ -58,7 +58,7 @@ VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
 # Parts common to the front-ends and the back-end (in common/)
 
 COMMON=Errors.v AST.v Linking.v \
-  Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
+  Events.v ExposedSmallstep.v Globalenvs.v Memdata.v Memtype.v Memory.v \
   Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Unityping.v \
   Separation.v
 
@@ -100,6 +100,9 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
   Cshmgen.v Cshmgenproof.v \
   Csharpminor.v Cminorgen.v Cminorgenproof.v
 
+# Asm backend (in ia32/)
+IA32=Asm.v
+
 # LR(1) parser validator
 
 PARSERVALIDATOR=Alphabet.v Interpreter_complete.v Interpreter.v \
@@ -116,7 +119,7 @@ DRIVER=Compopts.v Compiler.v Complements.v
 
 # All source files
 
-FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(IA32) $(DRIVER) $(FLOCQ) \
   $(PARSERVALIDATOR) $(PARSER)
 
 all:

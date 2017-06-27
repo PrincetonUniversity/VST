@@ -12,7 +12,7 @@ Require Import msl.Coqlib2.
 Require veric.Clight_core. Import Clight_core.
 
 Require Import Smallstep.
-Require Import ExposedSmallstep2 ExposedSmallstep.
+Require Import ExposedSmallstep.
 Require Import concurrency.x86_context.
 Require Import concurrency.HybridMachine.
 Require Import concurrency.HybridMachineSig.
