@@ -140,14 +140,6 @@ Proof.
   simpl; auto.
 Qed.
 
-Lemma cl_after_at_external_excl :
-  forall retv q q', cl_after_external retv q = Some q' -> cl_at_external q' = None.
-Proof.
-intros until q'; intros H.
-unfold cl_after_external in H.
-destruct q; inv H. destruct f; inv H1. reflexivity.
-Qed.
-
 Program Definition cl_core_sem :
   @CoreSemantics genv CC_core mem :=
   @Build_CoreSemantics _ _ _

@@ -1055,7 +1055,7 @@ inv H0.
  destruct H4 as [c' [? ?]].
  simpl in *.
  destruct c'; inv H2; inv H; try discriminate.
- 2: apply cl_after_at_external_excl in H1; inv H1.
+ 2: elimtype False; clear - H1; destruct ret; inv H1; destruct lid0; inv H0.
  eexists; split; [reflexivity|].
  destruct n'; [constructor|].
  constructor 2 with (c':=(CC'.CC_core_State f Sskip k' ve (CC.set_opttemp lid (Val.maketotal ret) te0)))(m':=m').
