@@ -391,7 +391,7 @@ Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_atomic_function.
   destruct x as ((((((k, v), p), sh), entries), g), lg); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
@@ -422,7 +422,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (Zlength (combine keys lg) = size) as Hlg.
     { rewrite Zlength_combine, Z.min_l; omega. }
     assert (Zlength (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) = size).
@@ -756,7 +755,7 @@ Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
   start_atomic_function.
   destruct x as (((((k, p), sh), entries), g), lg); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
@@ -787,7 +786,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (Zlength (combine keys lg) = size) as Hlg.
     { rewrite Zlength_combine, Z.min_l; omega. }
     assert (Zlength (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) = size).
@@ -1005,7 +1003,7 @@ Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
   start_atomic_function.
   destruct x as ((((((k, v), p), sh), entries), g), lg); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
@@ -1036,7 +1034,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (Zlength (combine keys lg) = size) as Hlg.
     { rewrite Zlength_combine, Z.min_l; omega. }
     assert (Zlength (map (fun '(k', p0) => ghost_snap k' p0) (combine keys lg)) = size).
@@ -1538,17 +1535,15 @@ Proof.
     forward_call (i + 1, 1, p, sh, entries, g, lg, ghost_hist gsh h gh,
       fun (_ : Z -> option Z) b => EX h' : _, !!(add_events h [HAdd (i + 1) 1 b] h') && ghost_hist gsh h' gh,
       fun H => ghost_hist gsh h gh * EX hr : _, !!(apply_hist empty_map hr = Some H) && ghost_ref hr gh,
-      fun p => if eq_dec p 0 then hashtable_inv gh g lg entries else FF, [0]).
-    { entailer!.
-      { split; [split|].
-        + pose proof (Int.min_signed_neg); omega.
-        + transitivity 4; [omega | computable].
-        + match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
-            eapply Forall_impl, H end; intros (?, ?); auto. }
-      rewrite eq_dec_refl; simpl; cancel. }
-    { split; [|split]; simpl; rewrite ?eq_dec_refl.
-      + apply ghost_timeless.
-      + admit. (* laters are still messed up *)
+      fun p : Z => hashtable_inv gh g lg entries, [0]).
+    { simpl; entailer!.
+      split; [split|].
+      + pose proof (Int.min_signed_neg); omega.
+      + transitivity 4; [omega | computable].
+      + match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
+          eapply Forall_impl, H end; intros (?, ?); auto. }
+    { split; simpl; rewrite sepcon_emp.
+      + unfold hashtable_inv; split; apply derives_view_shift; Intros HT; Exists HT; cancel.
       + intros HT b.
         view_shift_intro hr; view_shift_intros.
         rewrite sepcon_comm.
@@ -1559,7 +1554,6 @@ Proof.
         apply derives_view_shift.
         unfold hashtable_inv; Exists (h ++ [(length hr, HAdd (i + 1) 1 b)]); entailer!.
         { apply add_events_1, hist_incl_lt; auto. }
-        eapply derives_trans, now_later.
         Exists (if b then map_upd HT (Zlength x + 1) 1 else HT) (hr ++ [HAdd (Zlength x + 1) 1 b]);
           entailer!.
         rewrite apply_hist_app; replace (apply_hist empty_map hr) with (Some HT); simpl.
@@ -2166,9 +2160,7 @@ Proof.
     rewrite sublist_nil in H; inv H end.
   gather_SEP 2 1; apply invariant_view_shift with (Q := !!(exists l HT, hist_list (concat (map fst lr)) l /\
     apply_hist empty_map l = Some HT) && ghost_hist Tsh (concat (map fst lr)) gh).
-  { eapply view_shift_assert_later; [|intro X; rewrite prop_true_andp by (apply X); reflexivity].
-    eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
-    rewrite <- later_sepcon; apply later_derives.
+  { eapply view_shift_assert; [|intro X; rewrite prop_true_andp by (apply X); reflexivity].
     unfold hashtable_inv; Intros HT hr.
     rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_ref _ _)), <- sepcon_assoc,
       (sepcon_comm _ (ghost_hist _ _ _)).

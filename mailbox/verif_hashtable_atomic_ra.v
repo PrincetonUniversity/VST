@@ -778,7 +778,7 @@ Qed.
 Proof.
   start_atomic_function.
   destruct x as ((((((((k, v), p), sh), entries), g), lgk), lgv), T0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   pose proof size_pos.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX T : list (Z * (Z -> option Z)),
@@ -804,7 +804,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (0 <= i1 mod size < Zlength (upto (Z.to_nat size))).
     { rewrite Zlength_upto, Z2Nat.id; auto; omega. }
     unfold hashtable_A; rewrite extract_nth_sepcon with (i := i1 mod size) by (rewrite Zlength_map; auto).
@@ -1095,7 +1094,7 @@ Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
   start_atomic_function.
   destruct x as (((((((k, p), sh), entries), g), lgk), lgv), T0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   pose proof size_pos.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX T : list (Z * (Z -> option Z)),
@@ -1121,7 +1120,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (0 <= i1 mod size < Zlength (upto (Z.to_nat size))).
     { rewrite Zlength_upto, Z2Nat.id; auto; omega. }
     unfold hashtable_A; rewrite extract_nth_sepcon with (i := i1 mod size) by (rewrite Zlength_map; auto).
@@ -1263,7 +1261,7 @@ Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
   start_atomic_function.
   destruct x as ((((((((k, v), p), sh), entries), g), lgk), lgv), T0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward_call k.
   pose proof size_pos.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX T : list (Z * (Z -> option Z)),
@@ -1289,7 +1287,6 @@ Proof.
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi; destruct Hptr.
     forward; rewrite Hpi.
     { entailer!. }
-    rewrite map_map in HP, HQ.
     assert (0 <= i1 mod size < Zlength (upto (Z.to_nat size))).
     { rewrite Zlength_upto, Z2Nat.id; auto; omega. }
     unfold hashtable_A; rewrite extract_nth_sepcon with (i := i1 mod size) by (rewrite Zlength_map; auto).
@@ -1857,9 +1854,8 @@ Proof.
       + split; [|pose proof size_pos; rewrite Zlength_repeat, Z2Nat.id by omega; auto].
         match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
           eapply Forall_impl, H end; intros (?, ?); auto. }
-    { split; [|split]; simpl.
-      + apply ghost_timeless.
-      + admit. (* laters are still messed up *)
+    { split; simpl; rewrite sepcon_emp.
+      + unfold hashtable_inv; split; apply derives_view_shift; Intros HT; Exists HT; cancel.
       + intros HT b.
         view_shift_intro H'; view_shift_intro hr; view_shift_intros.
         rewrite sepcon_comm.
@@ -1870,7 +1866,6 @@ Proof.
         apply derives_view_shift.
         unfold hashtable_inv; Exists (h ++ [(length hr, HAdd (i + 1) 1 b)]); entailer!.
         { apply add_events_1, hist_incl_lt; auto. }
-        eapply derives_trans, now_later.
         Exists H' (hr ++ [HAdd (Zlength x + 1) 1 b]); entailer!.
         rewrite apply_hist_app; do 2 eexists; eauto; simpl.
         destruct b.
@@ -2497,9 +2492,7 @@ Proof.
     rewrite sublist_nil in H; inv H end.
   gather_SEP 2 1; apply invariant_view_shift with (Q := !!(exists l HT, hist_list (concat (map fst lr)) l /\
     apply_hist empty_map l HT) && ghost_hist Tsh (concat (map fst lr)) gh).
-  { eapply view_shift_assert_later; [|intro X; rewrite prop_true_andp by (apply X); reflexivity].
-    eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
-    rewrite <- later_sepcon; apply later_derives.
+  { eapply view_shift_assert; [|intro X; rewrite prop_true_andp by (apply X); reflexivity].
     unfold hashtable_inv; Intros HT hr.
     rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_ref _ _)), <- sepcon_assoc,
       (sepcon_comm _ (ghost_hist _ _ _)).

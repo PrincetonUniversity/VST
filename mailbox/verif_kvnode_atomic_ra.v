@@ -391,8 +391,7 @@ Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_atomic_function.
   destruct x as ((((((((n, out), sh), shi), version), locs), g), L0), v0); Intros.
-  destruct H as (HP0 & HP & HQ).
-  rewrite map_map in HP, HQ.
+  destruct H as (HP & HQ).
   assert (0 <= size) by (rewrite size_def; computable).
   unfold node_state; Intros.
   match goal with H : exists vs, _ |- _ => destruct H as [vs0 [? [HL0 ?]]] end.
@@ -530,7 +529,6 @@ Proof.
     match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (v2 <> v1) (LOCALx Q (SEPx R))) end.
     + subst.
-      rewrite <- (map_map II).
       assert (forall j, 0 <= j < size -> Znth j vers' 0 = v1) as Hvers.
       { intros; match goal with H : Forall _ vers' |- _ => apply Forall_Znth with (i := j)(d := 0) in H;
           [destruct H as [Heven] | omega] end.
@@ -548,9 +546,10 @@ Proof.
         * intros; unfold map_Znth in *; rewrite HL1; simpl.
           match goal with H : forall j, _ |- _ => apply f_equal, H; [omega|] end.
           rewrite Hvers, HL1 by omega; auto. }
+      rewrite <- (map_map II).
       gather_SEP 6 8 7; rewrite <- !sepcon_assoc; apply invariants_view_shift with
         (Q0 := ghost_snap (singleton v1 vals') g * EX L : _, Q L (v1, vals')).
-      { rewrite !map_map, !sepcon_assoc, (sepcon_comm P).
+      { rewrite !sepcon_assoc, (sepcon_comm P).
         etransitivity; [apply view_shift_sepcon2, HP|].
         view_shift_intro L2.
         etransitivity; [|apply derives_view_shift; Exists L2; apply derives_refl].
@@ -597,9 +596,8 @@ Lemma body_write : semax_body Vprog Gprog f_write write_spec.
 Proof.
   start_atomic_function.
   destruct x as (((((((((n, input), sh), shi), version), locs), vals), g), L), v0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct H as (HP & HQ).
   forward.
-  rewrite map_map in HP, HQ.
   unfold node_state; Intros.
   forward_call_dep [Z : Type] (load_acq_W_witness version v0 Z.le (version_T version locs g, version_T version locs g)
     emp (fun s v : Z => !!(v = s) && emp)).
@@ -829,13 +827,10 @@ Ltac lookup_spec_and_change_compspecs CS id ::=
           split; [pose proof Int.min_signed_neg; omega|].
           transitivity 3; [omega | computable]. }
         rewrite size_def, Zminus_diag, app_nil_r, map_repeat; simpl; cancel. }
-      { split; [|split].
-        * admit.
-        * simpl.
-          admit.
-        * intros _ _; simpl; rewrite !sepcon_emp.
-          apply derives_view_shift; eapply derives_trans, now_later.
-          Exists (map_upd x (v + 2 * i + 2) (repeat (i + 1) 8)); cancel. }
+      { split; simpl; rewrite <- ?exp_sepcon1, !sepcon_emp.
+        * split; reflexivity.
+        * intros _ _.
+          apply derives_view_shift; Exists (map_upd x (v + 2 * i + 2) (repeat (i + 1) 8)); cancel. }
       Exists (map_upd x (v + 2 * i + 2) (repeat (i + 1) 8)).
       rewrite Z2Nat.inj_add, upto_app, map_app, map_upd_list_app by omega.
       change (upto 1) with [0]; simpl map_upd_list.
@@ -884,8 +879,7 @@ Proof.
   name data _data.
   start_atomic_function.
   destruct x as (((((((((n, sh), version), locs), g), g'), lg), lg'), gh), gsh); Intros.
-  destruct H as (HP0 & HP & HQ).
-  rewrite map_map in HP, HQ.
+  destruct H as (HP & HQ).
   forward_call (n, data, sh, Tsh, version, locs, g, g', lg, lg', P,
     fun (_ : Z * list Z) '(v1, vs1) => Q tt (v1, vs1),
     fun s => EX hr : _, !!(apply_hist (0, repeat 0 (Z.to_nat size)) hr = Some s) && ghost_ref hr gh, II, lI).
@@ -895,7 +889,7 @@ Proof.
     * simpl.
       admit. (* laters are messy *)
     * intros (v0, vs0) (v1, vs1); simpl.
-      rewrite map_map; etransitivity; [|apply HQ]; simpl.
+      etransitivity; [|apply HQ]; simpl.
       (* This also fails: the history in the invariant may not have caught up with the value we read. *)
 Abort.*)
 
@@ -970,13 +964,10 @@ Proof.
     fun _ : Z -> option (list Z) => emp,
     fun _ : Z => EX L : Z -> option (list Z), ghost (gsh1, L) g, [0]).
   { rewrite <- size_def; simpl; entailer!. }
-  { split; [|split].
-    * admit.
-    * admit.
+  { split; simpl; rewrite <- ?exp_sepcon1, !sepcon_emp.
+    * split; reflexivity.
     * intros L' (v1, vs1); simpl.
-      view_shift_intro v'.
-      rewrite !sepcon_emp; apply derives_view_shift.
-      eapply derives_trans, now_later; Exists L'; entailer!. }
+      apply derives_view_shift; Exists L'; entailer!. }
   Intro X; destruct X as ((v', vs'), L'); simpl; Intros.
   forward.
   Exists data v' vs'; rewrite size_def; entailer!.
