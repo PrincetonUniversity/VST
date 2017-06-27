@@ -39,71 +39,23 @@ Module lifting_safety.
   Context (gT : GT)( gS : GS)
           (p : Clight.program) (tp : Asm.program).
   Hypothesis compiled : Compiler.simpl_transf_clight_program p = Errors.OK tp.
-  Context (source_match : Values.Val.meminj ->
-                          semC (Sems p) -> mem -> semC (Sems p) -> mem -> Prop)
-          (target_match : Values.Val.meminj -> semC Semt -> mem -> semC Semt -> mem -> Prop).
 
   (*This is the real context*)
   Context(main : Values.val) (psrc : option DMS.DryMachine.ThreadPool.RES.res)
          (ptgt : option DryMachine.ThreadPool.RES.res) (sch : SC.Sch).
   Definition the_simulation:=
-    lifting.concur_sim gT gS p tp compiled source_match target_match
-  main psrc ptgt sch. 
-
-  Definition core_ord: Type.
-  destruct the_simulation.
-    
-  
-  Definition match_st: forall n, 5 = n.
-    destruct the_simulation.
-    clear - match_state.
-      
-
-  :=
-  match_states the_simulation.
-
-  Definition running_thread gT gS main psrc ptgt sch:=
-    Machine_sim.thread_running
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-
-  Definition halt_axiom gT gS main psrc ptgt sch:=
-    Machine_sim.thread_halted
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-  Definition core_ord gT gS main psrc ptgt sch:=
-    Machine_sim.core_ord
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-  Definition core_ord_wf gT gS main psrc ptgt sch:=
-    Machine_sim.core_ord_wf
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-
-  Definition same_running gT gS main psrc ptgt sch:=
-    Machine_sim.thread_running
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-
-
-  Definition same_halted gT gS main psrc ptgt sch:=
-    Machine_sim.thread_halted
-      _ _ _ _ _ _ _ _
-      (concur_sim gT gS main psrc ptgt sch).
-   *)
-
+    lifting.concur_sim p tp compiled
+                       main psrc ptgt sch.
   
   
   Lemma safety_preservation'':
         forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm cd
-          (*HboundedS: DryConc.bounded_mem Sm*)
-          (*HboundedT: DryConc.bounded_mem Tm*)
-          (*MATCH: exists j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm*),
+          (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
           (forall sch, DryConc.new_valid (tr, Sds, Sm) sch ->
                   DryConc.explicit_safety Sg sch Sds Sm) ->
           (forall sch, DryConc.valid (sch, tr, Tds) ->
                   DryConc.stutter_stepN_safety
-                    (core_ord:=core_ord Tg Sg main psrc ptgt U) Tg cd sch Tds Tm).
+                    (core_ord:=MSorder the_simulation) Tg cd sch Tds Tm).
   Proof.
     move => main psrc ptgt U Sg Tg.
     cofix CIH.

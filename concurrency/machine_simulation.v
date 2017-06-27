@@ -18,7 +18,7 @@ Require Import sepcomp.mem_wd.
 Require Import concurrency.machine_semantics.
 Require Import concurrency.machine_semantics_lemmas.
 
-Module Machine_sim. Section Machine_sim.
+Section Machine_sim.
 
 Context {G1 TID SCH TR C1 M1 G2 C2 M2 : Type}
 
@@ -38,53 +38,55 @@ Variable init_inv : meminj -> G1 -> list val -> M1 -> G2 -> list val -> M2 -> Pr
 Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> M1 -> G2 -> val -> M2 -> Prop.
 *)
 
-Record Machine_sim: Prop :=
-  { core_data : Type ;
-    match_state : core_data -> (*SM_Injection*)meminj -> C1 -> M1 -> C2 -> M2 -> Prop ;
-    core_ord : core_data -> core_data -> Prop;
+Record Machine_sim: Type :=
+  { MSdata : Type ;
+    MSmatch_states : MSdata -> (*SM_Injection*)meminj -> C1 -> M1 -> C2 -> M2 -> Prop ;
+    MSorder : MSdata -> MSdata -> Prop;
     
- core_ord_wf : well_founded core_ord
+ MSord_wf : well_founded MSorder
 ; core_initial :
     forall j c1 vals1 m1 vals2 m2,
     initial_machine Sem1 ge1 main vals1 = Some c1 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
       /\*) initial_machine Sem2 ge2 main vals2 = Some c2
-      /\ match_state cd j c1 m1 c2 m2
+      /\ MSmatch_states cd j c1 m1 c2 m2
 ; thread_diagram :
     forall U st1 m1 st1' m1',
     thread_step Sem1 ge1 U st1 m1 st1' m1' ->
     forall cd st2 mu m2,
-    match_state cd mu st1 m1 st2 m2 ->
+    MSmatch_states cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
-    match_state cd' mu' st1' m1' st2' m2'
+    MSmatch_states cd' mu' st1' m1' st2' m2'
     /\ (thread_step_plus Sem2 ge2 U st2 m2 st2' m2'
-       \/ (thread_step_star Sem2 ge2 U st2 m2 st2' m2' /\ core_ord cd' cd))
+       \/ (thread_step_star Sem2 ge2 U st2 m2 st2' m2' /\ MSorder cd' cd))
 ; machine_diagram :
     forall U tr st1 m1 U' tr' st1' m1',
     machine_step Sem1 ge1 U tr st1 m1 U' tr' st1' m1' ->
     forall cd st2 mu m2,
-    match_state cd mu st1 m1 st2 m2 ->
+    MSmatch_states cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
-    match_state cd' mu' st1' m1' st2' m2'
+    MSmatch_states cd' mu' st1' m1' st2' m2'
     /\ machine_step Sem2 ge2 U tr st2 m2 U' tr' st2' m2'
 
 ; thread_halted :
     forall cd mu U c1 m1 c2 m2 v1,
-    match_state cd mu c1 m1 c2 m2 ->
+    MSmatch_states cd mu c1 m1 c2 m2 ->
     conc_halted Sem1 U c1 = Some v1 ->
     exists v2,
        conc_halted Sem2 U c2 = Some v2
 ; thread_running:
     forall cd mu c1 m1 c2 m2 ,
-      match_state cd mu c1 m1 c2 m2 ->
+      MSmatch_states cd mu c1 m1 c2 m2 ->
       forall i, runing_thread Sem1 c1 i <-> runing_thread Sem2 c2 i
       (* runing_thread Sem1 c1 = runing_thread Sem2 c2 *)
  }.
 
 End Machine_sim.
 
-End Machine_sim.
+Arguments MSdata {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSorder {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSmatch_states {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
 
 
 

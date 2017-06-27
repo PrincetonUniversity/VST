@@ -29,7 +29,7 @@ Require Import concurrency.DryMachineSourceCore.
 
 (** The new machine simulation*)
 Require Import concurrency.machine_semantics. Import machine_semantics.
-Require Import concurrency.machine_simulation. Import Machine_sim.
+Require Import concurrency.machine_simulation. 
 
 (** The hybrid simulation proof*)
 Require Import concurrency.CoreSemantics_sum.
@@ -252,13 +252,12 @@ Module lifting.
         (fst genv') (snd genv') main.
     Proof.
       pose proof (All_compiled_thread_simulation p tp compiled sch).
-      simpl in H. 
-      destruct H as ( v & HH).
-      inversion HH.
+      simpl in H.
+      inversion H.
       eapply Build_Machine_sim with
-          (core_data:= list (compiler_index p tp compiled))
-          (core_ord:= (list_order p tp compiled))
-          (match_state:= fun cd mu c1 m1 c2 m2 =>
+          (MSdata:= list (compiler_index p tp compiled))
+          (MSorder:= (list_order p tp compiled))
+          (MSmatch_states:= fun cd mu c1 m1 c2 m2 =>
            All_concur_match' p tp compiled sch
                      cd mu (source_state_make_hybrid c1) m1 (target_state_make_hybrid c2) m2)
       ; eauto.

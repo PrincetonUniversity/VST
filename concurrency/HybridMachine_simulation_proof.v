@@ -682,11 +682,10 @@ Section AllThredCompiled.
   Notation Nconcur_match:=(All_concur_match').
 
   Lemma All_compiled_thread_simulation:
-    exists v:val,
           HybridMachine_simulation
             Sems Semt hb0 hball U genv'
             (list compiler_index) (list_order) 
-            (Nconcur_match)  v.  
+            (Nconcur_match) Vundef.  
   Proof.
   Admitted.
   
