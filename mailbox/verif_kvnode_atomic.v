@@ -37,35 +37,38 @@ Proof.
   apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
 Qed.
 
-Definition node_entry v vs locs lg lg' i := EX v' : Z, EX log : Z -> option Z, EX d : Z,
-  !!(repable_signed d /\ (if Z.even v then v' = v /\ d = Znth i vs 0 else v' >= v - 1) /\ log v' = Some d /\
-     forall v2, v' < v2 -> log v2 = None) && ghost_master log (Znth i lg Vundef) *
-     ghost_var gsh2 (v', d) (Znth i lg' Vundef) * data_at Tsh tint (vint d) (Znth i locs Vundef).
+Existing Instances fmap_PCM fmap_order.
 
-Definition node_state v vs version locs g g' lg lg' := EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
+Definition node_entry v vs locs lg i := EX v' : Z, EX log : Z -> option Z, EX d : Z,
+  !!(repable_signed d /\ (if Z.even v then v' = v /\ d = Znth i vs 0 else v' >= v - 1) /\ log_latest log v' d) &&
+  ghost (gsh2, log) (Znth i lg Vundef) * data_at Tsh tint (vint d) (Znth i locs Vundef).
+
+Existing Instances max_PCM max_order.
+
+Definition node_state v vs version locs g lg := EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
   Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) &&
-  ghost_master v' g * ghost_var gsh2 v' g' * data_at Tsh tint (vint v') version *
-  fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))).
+  ghost (gsh2, v') g * data_at Tsh tint (vint v') version *
+  fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))).
 
 Program Definition read_spec := DECLARE _read atomic_spec
-  (ConstType (val * val * share * val * list val * val * val * list val * list val * Z * list Z)) (0, [])
+  (ConstType (val * val * share * val * list val * val * list val * Z * list Z)) (0, [])
   [(_n, tptr tnode); (_out, tptr tint)] tvoid
-  [fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) => temp _n n;
-   fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) => temp _out out]
-  (fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) => !!(readable_share sh /\ isptr version /\
+  [fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) => temp _n n;
+   fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) => temp _out out]
+  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) => !!(readable_share sh /\ isptr version /\
      Forall isptr locs /\ Zlength locs = 8) &&
    data_at sh tnode (version, locs) n * data_at_ Tsh (tarray tint 8) out *
    ghost_snap v0 g * fold_right sepcon emp (map (fun i => ghost_snap v0 g *
      ghost_snap (singleton v0 (Znth i vs0 0)) (Znth i lg Vundef)) (upto (Z.to_nat 8))))
-  (fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) '(v, vs) =>
-   node_state v vs version locs g g' lg lg')
+  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) =>
+   node_state v vs version locs g lg)
   tt []
-  (fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) '(v, vs) _ =>
+  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) _ =>
    data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vs) out *
    ghost_snap v g * fold_right sepcon emp (map (fun i => ghost_snap v g *
      ghost_snap (singleton v (Znth i vs 0)) (Znth i lg Vundef)) (upto (Z.to_nat 8))))
-  (fun _ '(n, out, sh, version, locs, g, g', lg, lg', v0, vs0) '(v, vs) _ => !!(Z.even v = true) &&
-   node_state v vs version locs g g' lg lg')
+  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) _ => !!(Z.even v = true) &&
+   node_state v vs version locs g lg)
   _ _ _ _ _ _.
 Next Obligation.
 Proof.
@@ -92,26 +95,27 @@ Proof.
   intros ?? w; decompose [prod] w; auto.
 Qed.
 
+Definition node_entry' v vs lg i := EX log : Z -> option Z,
+  !!(log_latest log v (Znth i vs 0)) && ghost (gsh1, log) (Znth i lg Vundef).
+
 (* For now, we guarantee only one writer by using a ghost variable as a write permission. *)
 Program Definition write_spec := DECLARE _write atomic_spec
-  (ConstType (val * val * share * val * list val * list Z * val * val * list val * list val * Z * list Z)) (0, [])
+  (ConstType (val * val * share * val * list val * list Z * val * list val * Z * list Z)) (0, [])
   [(_n, tptr tnode); (_in, tptr tint)] tvoid
-  [fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) => temp _n n;
-   fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) => temp _in input]
-  (fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) => !!(readable_share sh /\ isptr version /\
+  [fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => temp _n n;
+   fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => temp _in input]
+  (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => !!(readable_share sh /\ isptr version /\
      Forall isptr locs /\ Zlength locs = 8 /\ Forall repable_signed vals /\ Z.even v0 = true) &&
    data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input *
-   ghost_var gsh1 v0 g' * fold_right sepcon emp (map (fun i =>
-     ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef)) (upto (Z.to_nat 8))))
-  (fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) =>
-   node_state v vs version locs g g' lg lg')
+   ghost (gsh1, v0) g * fold_right sepcon emp (map (node_entry' v0 vs0 lg) (upto (Z.to_nat 8))))
+  (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) =>
+   node_state v vs version locs g lg)
   tt []
-  (fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) _ =>
+  (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) _ =>
    data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input *
-   ghost_var gsh1 (v0 + 2) g' * fold_right sepcon emp (map (fun i =>
-     ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto (Z.to_nat 8))))
-  (fun _ '(n, input, sh, version, locs, vals, g, g', lg, lg', v0, vs0) '(v, vs) _ =>
-   (* !!(v = v0 /\ vs = vs0) && *) node_state (v0 + 2) vals version locs g g' lg lg')
+   ghost (gsh1, v0 + 2) g * fold_right sepcon emp (map (node_entry' (v0 + 2) vals lg) (upto (Z.to_nat 8))))
+  (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) _ =>
+   (* !!(v = v0 /\ vs = vs0) && *) node_state (v0 + 2) vals version locs g lg)
   _ _ _ _ _ _.
 (* We can prove the stronger postcondition, but the writer doesn't really care what it overwrites. *)
 Next Obligation.
@@ -146,31 +150,14 @@ Proof.
   intros; apply Z.land_ones with (n := 1); omega.
 Qed.
 
-Lemma singleton_snap : forall (x y : Z -> option Z) p v1 v2, y v1 = Some v2 ->
-  view_shift (ghost_snap x p * ghost_master y p) (ghost_snap (singleton v1 v2) p * ghost_master y p).
+Lemma singleton_snap : forall (x y : Z -> option Z) sh p v1 v2, sh <> Share.bot -> y v1 = Some v2 ->
+  view_shift (ghost_snap x p * ghost (sh, y) p) (ghost_snap (singleton v1 v2) p * ghost (sh, y) p).
 Proof.
   intros.
-  rewrite !snap_master_join; view_shift_intros.
-  etransitivity.
-  - apply ghost_update with (g' := (Some (singleton v1 v2), Some y)).
-    intros (cs, cm) ((d, dm) & Hjoin & [[]|[]] & Hy); [simpl in *; subst | discriminate].
-    unfold lift_ord in *.
-    destruct cs, d; try contradiction.
-    + exists (Some (fun v => if eq_dec v v1 then Some v2 else o v), Some y); simpl.
-      split; [|split; auto].
-      * unfold singleton; split; [if_tac; auto|].
-        if_tac; intros [|]; auto; try discriminate.
-        subst; transitivity (y v1); auto.
-        apply Hy; rewrite Hjoin; auto.
-      * intros ?? Heq.
-        destruct (eq_dec _ _); [inv Heq; auto|].
-        apply Hy; rewrite Hjoin; auto.
-    + exists (Some (singleton v1 v2), Some y); simpl; split; auto; split; auto.
-      unfold singleton; intros ?? Heq.
-      destruct (eq_dec _ _); inv Heq; auto.
-  - apply derives_view_shift; entailer!.
-    unfold singleton; intros ?? Heq.
-    destruct (eq_dec _ _); inv Heq; auto.
+  rewrite !snap_master_join by auto; view_shift_intros.
+  apply derives_view_shift; entailer!.
+  unfold singleton; intros ?? Heq.
+  destruct (eq_dec _ _); inv Heq; auto.
 Qed.
 
 (* up *)
@@ -185,13 +172,13 @@ Qed.
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_atomic_function.
-  destruct x as ((((((((((n, out), sh), version), locs), g), g'), lg), lg'), v0), vs0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct x as ((((((((n, out), sh), version), locs), g), lg), v0), vs0); Intros.
+  destruct H as (HP & HQ).
   apply semax_pre with (P' := PROP ( )
     LOCAL (temp _n n; temp _out out)
     SEP (@data_at CompSpecs sh tnode (version, locs) n; data_at_ Tsh (tarray tint 8) out;
          EX v0 : Z, ghost_snap v0 g;
-         fold_right sepcon emp (map (fun i => EX v0 : Z, ghost_snap v0 g *
+         fold_right sepcon emp (map (fun i => (EX v0 : Z, ghost_snap v0 g) *
            EX l : Z -> option Z, ghost_snap l (Znth i lg Vundef)) (upto 8));
          fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)).
   { Exists v0; entailer!.
@@ -200,15 +187,13 @@ Proof.
     erewrite !Znth_map, !Znth_upto by (rewrite ?Zlength_upto; auto; omega).
     Exists v0 (singleton v0 (Znth i vs0 0)); auto. }
   eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
-  Intro v1.
+  rewrite sepcon_map; Intros v1.
   repeat forward.
-  rewrite map_map in HP, HQ.
   forward_call (version, P * ghost_snap v1 g, II, lI,
     fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
-      Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) && ghost_master v' g *
-      ghost_var gsh2 v' g' * fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))) *
-      R (v, vs) * ghost_snap v1 g,
-    fun v : Z => P * ghost_snap v g).
+      Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) && ghost (gsh2, v') g *
+      fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))) *
+      R (v, vs) * ghost_snap v1 g, fun v : Z => P * ghost_snap v g).
   { split.
     + intros.
       rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
@@ -219,10 +204,9 @@ Proof.
     + intros.
       rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
       view_shift_intro v2; view_shift_intro vs; view_shift_intros.
-      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), (sepcon_comm _ (ghost_snap _ _)).
-      rewrite <- !sepcon_assoc, 3sepcon_assoc.
-      etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-      { apply snap_master_update' with (v' := v); omega. }
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ _)), (sepcon_comm _ (ghost_snap _ _)).
+      rewrite <- !sepcon_assoc, snap_master_join by auto; view_shift_intros.
+      rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, make_snap|].
       apply derives_view_shift.
       Exists (v2, vs); unfold node_state; Exists v; entailer!. }
   clear v1; Intros v1.
@@ -248,10 +232,10 @@ Proof.
            fold_right sepcon emp (map (fun i => ghost_snap (fst (Znth i vers (0, 0))) g *
              ghost_snap (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)) (Znth i lg Vundef))
              (sublist 0 i (upto 8)));
-         fold_right sepcon emp (map (fun i => EX v2 : Z, ghost_snap v2 g *
+         fold_right sepcon emp (map (fun i => (EX v2 : Z, ghost_snap v2 g) *
            (EX l : Z -> option Z, ghost_snap l (Znth i lg Vundef))) (sublist i 8 (upto 8))))).
-  { Exists (@nil Z) (@nil (Z * Z)); entailer!. }
-  - Intros vers.
+  { Exists (@nil Z) (@nil (Z * Z)); rewrite !sepcon_map; entailer!. }
+  - Intros vers; rewrite !sepcon_map; Intros.
     forward.
     { entailer!.
       apply Forall_Znth; [omega|].
@@ -263,11 +247,9 @@ Proof.
       fun sh v => !!(sh = Tsh) && EX ver : Z, EX vs : _, EX ver' : Z, EX v'' : _, EX log : _,
         !!(repable_signed ver' /\ Z.even ver = true /\ Forall repable_signed vs /\ Zlength vs = Zlength locs /\
            Zlength lg = Zlength locs /\ (ver' = ver \/ ver' = ver + 1) /\
-           (if Z.even ver' then v'' = ver' /\ v = Znth i vs 0 else v'' >= ver' - 1) /\
-           log v'' = Some v /\ forall v2, v'' < v2 -> log v2 = None) && ghost_master ver' g *
-           ghost_var gsh2 ver' g' * data_at Tsh tint (vint ver') version *
-           ghost_master log (Znth i lg Vundef) * ghost_var gsh2 (v'', v) (Znth i lg' Vundef) *
-           fold_right sepcon emp (upd_Znth i (map (node_entry ver' vs locs lg lg') (upto (length locs))) emp) *
+           (if Z.even ver' then v'' = ver' /\ v = Znth i vs 0 else v'' >= ver' - 1) /\ log_latest log v'' v) &&
+           ghost (gsh2, ver') g * data_at Tsh tint (vint ver') version * ghost (gsh2, log) (Znth i lg Vundef) *
+           fold_right sepcon emp (upd_Znth i (map (node_entry ver' vs locs lg) (upto (length locs))) emp) *
         R (ver, vs) * ghost_snap v1 g * ghost_snap v' g * ghost_snap l' (Znth i lg Vundef),
       fun v : Z => P * EX vi : Z, EX v'' : Z, !!(v1 <= vi /\ if Z.even vi then v'' = vi else True) &&
         ghost_snap v1 g * ghost_snap vi g * ghost_snap (singleton v'' v) (Znth i lg Vundef)).
@@ -285,22 +267,22 @@ Proof.
         unfold node_entry; Intros v'' log d.
         Exists Tsh d v vs ver' v'' log; entailer!.
       + intros.
-        rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
+        rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
         view_shift_intro ver; view_shift_intro vs; view_shift_intro ver'; view_shift_intro v'';
           view_shift_intro log; view_shift_intros.
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ g)), (sepcon_comm _ (ghost_snap v' g)).
-        rewrite <- !sepcon_assoc, 8sepcon_assoc.
-        etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply snap_master_update' with (v'0 := ver'); omega. }
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ (Znth i lg Vundef))),
+        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ g)), (sepcon_comm _ (ghost_snap v' g)).
+        rewrite <- !sepcon_assoc, snap_master_join by auto.
+        view_shift_intros; rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, make_snap|].
+        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ (Znth i lg Vundef))),
           (sepcon_comm _ (ghost_snap _ (Znth i lg Vundef))).
-        rewrite <- !sepcon_assoc, 8sepcon_assoc.
-        etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply singleton_snap; eauto. }
+        rewrite <- !sepcon_assoc, 6sepcon_assoc.
+        etransitivity; [apply view_shift_sepcon1|].
+        { match goal with H : log_latest _ _ _ |- _ => destruct H end.
+          apply singleton_snap; eauto. }
         apply derives_view_shift.
         assert_PROP (v1 <= ver').
-        { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ g)), (sepcon_comm _ (ghost_snap v1 g)).
-          rewrite <- !sepcon_assoc, snap_master_join'; entailer!. }
+        { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ g)), (sepcon_comm _ (ghost_snap v1 g)).
+          rewrite <- !sepcon_assoc, snap_master_join by auto; entailer!. }
         Exists (ver, vs) ver' v''; unfold node_state; Exists ver'; entailer!.
         { if_tac; tauto. }
         rewrite extract_nth_sepcon with (i := Zlength x)(l := map _ _)
@@ -310,14 +292,14 @@ Proof.
       Intros vali vi v''.
       forward.
       Exists (x ++ [vali]) (vers ++ [(vi, v'')]); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil.
-      rewrite upd_init, map_app, <- app_assoc by (rewrite ?Zlength_map; omega); entailer!.
+      rewrite upd_init, map_app, <- app_assoc, !sepcon_map by (rewrite ?Zlength_map; omega); entailer!.
       { rewrite Forall_app; repeat constructor; auto. }
       rewrite sublist_split with (mid := Zlength x)(hi := Zlength x + 1) by (rewrite ?Zlength_upto; simpl; omega).
       erewrite sublist_len_1, Znth_upto by (rewrite ?Zlength_upto; simpl; omega).
-      rewrite map_app, sepcon_app; simpl.
+      rewrite !map_app, !sepcon_app; simpl.
       rewrite !app_Znth2 by omega.
       replace (Zlength vers) with (Zlength x); rewrite Zminus_diag, !Znth_0_cons; simpl; cancel.
-      apply sepcon_list_derives; rewrite !Zlength_map; auto.
+      rewrite <- !sepcon_map; apply sepcon_list_derives; rewrite !Zlength_map; auto.
       intros ? Hi; erewrite !Znth_map by auto.
       rewrite Zlength_sublist in Hi by (rewrite ?Zlength_upto; simpl; omega).
       rewrite !Znth_sublist, !Znth_upto by (simpl; omega).
@@ -330,9 +312,8 @@ Proof.
       ghost_snap (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)) (Znth i lg Vundef)) (upto 8)), II, lI,
       fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
         Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\ (v' = v \/ v' = v + 1)) &&
-        ghost_master v' g * ghost_var gsh2 v' g' *
-        fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))) * R (v, vs) *
-        ghost_snap v1 g * fold_right sepcon emp (map (fun i => ghost_snap (fst (Znth i vers (0, 0))) g *
+        ghost (gsh2, v') g * fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))) *
+        R (v, vs) * ghost_snap v1 g * fold_right sepcon emp (map (fun i => ghost_snap (fst (Znth i vers (0, 0))) g *
           ghost_snap (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)) (Znth i lg Vundef)) (upto 8)),
       fun v : Z => (if eq_dec v v1 then Q (v, vals) tt else P) *
         (!!(if eq_dec v v1 then Forall (fun '(vi, v') => vi = v1 /\ v' = v1) vers else True) &&
@@ -358,8 +339,8 @@ Proof.
             rewrite extract_nth_sepcon with (i := i)(l := map _ (upto 8))
               by (rewrite Zlength_map, Zlength_upto; simpl; omega).
             erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto; simpl; omega).
-            rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), (sepcon_comm _ (ghost_snap (fst _) g)).
-            rewrite <- !sepcon_assoc, snap_master_join'.
+            rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ g)), (sepcon_comm _ (ghost_snap (fst _) g)).
+            rewrite <- !sepcon_assoc, snap_master_join by auto.
             Intros; apply prop_right; destruct (Znth i vers (0, 0)); simpl in *.
             assert (z = ver) by omega; subst.
             destruct (Z.even ver); try discriminate; tauto. }
@@ -383,21 +364,20 @@ Proof.
             unfold node_entry; Intros v' log d.
             destruct (Z.even ver); try discriminate.
             destruct (Znth i vers (0, 0)); repeat match goal with H : _ = _ /\ _ = _ |- _ => destruct H end.
-            subst; rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ (Znth i lg Vundef))),
+            subst; rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ (Znth i lg Vundef))),
               (sepcon_comm _ (ghost_snap _ (Znth i lg Vundef))).
-            rewrite <- !sepcon_assoc, snap_master_join; simpl; Intros; apply prop_right.
+            rewrite <- !sepcon_assoc, snap_master_join by auto; simpl; Intros; apply prop_right.
             unfold singleton in *.
-            match goal with H : forall v2 _, _ -> _ |- _ => specialize (H ver); rewrite eq_dec_refl in H;
+            match goal with H : log_latest _ _ _ |- _ => destruct H end.
+            match goal with H : map_incl _ _ |- _ => specialize (H ver); simpl in H; rewrite eq_dec_refl in H;
               specialize (H _ eq_refl); rewrite H in *; congruence end. }
           subst; unfold node_state; Exists ver; entailer!.
         * rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
           view_shift_intro ver; view_shift_intro vs; view_shift_intros.
-          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), (sepcon_comm _ (ghost_snap _ _)).
-          rewrite <- !sepcon_assoc, 4sepcon_assoc.
-          etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-          { apply snap_master_update' with (v' := v); omega. }
-          apply derives_view_shift.
-          Exists (ver, vs); unfold node_state; Exists v; entailer!. }
+          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ _)), (sepcon_comm _ (ghost_snap _ _)).
+          rewrite <- !sepcon_assoc, snap_master_join by auto.
+          view_shift_intros; rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, make_snap|].
+          apply derives_view_shift; Exists (ver, vs); unfold node_state; Exists v; entailer!. }
     Intros v2.
     match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (v2 <> v1) (LOCALx Q (SEPx R))) end.
@@ -415,15 +395,15 @@ Proof.
       destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
       Intros; Exists v2; if_tac; [contradiction | entailer!].
-      apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
+      rewrite <- sepcon_map; apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
       erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
       Exists (fst (Znth i vers (0, 0))) (singleton (snd (Znth i vers (0, 0))) (Znth i vals 0)); auto.
 Qed.
 
 Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
 
-Lemma dirty_entry : forall v vs locs lg lg' i, Z.even v = true ->
-  node_entry v vs locs lg lg' i |-- node_entry (v + 1) vs locs lg lg' i.
+Lemma dirty_entry : forall v vs locs lg i, Z.even v = true ->
+  node_entry v vs locs lg i |-- node_entry (v + 1) vs locs lg i.
 Proof.
   intros; unfold node_entry.
   Intros v' log d.
@@ -432,23 +412,23 @@ Proof.
   rewrite Z.even_add, H; simpl; omega.
 Qed.
 
-Lemma clean_entry : forall v vs locs lg lg' i vs', Z.even v = false ->
-  ghost_var gsh1 (v + 1, Znth i vs' 0) (Znth i lg' Vundef) * node_entry v vs locs lg lg' i |--
-  ghost_var gsh1 (v + 1, Znth i vs' 0) (Znth i lg' Vundef) * node_entry (v + 1) vs' locs lg lg' i.
+Lemma clean_entry : forall v vs locs lg i vs', Z.even v = false ->
+  node_entry' (v + 1) vs' lg i * node_entry v vs locs lg i |--
+  node_entry' (v + 1) vs' lg i * node_entry (v + 1) vs' locs lg i.
 Proof.
-  intros; unfold node_entry.
-  Intros v' log d; Exists (v + 1) log d.
-  erewrite (sepcon_comm _ (ghost_var gsh2 _ _)), <- !sepcon_assoc, ghost_var_share_join' by eauto.
-  Intros; match goal with H : (_, _) = (_, _) |- _ => inv H end.
-  erewrite <- ghost_var_share_join by eauto; entailer!.
-  rewrite Z.even_add, H; simpl; auto.
+  intros; unfold node_entry, node_entry'.
+  Intros log' v' log d; Exists log' (v + 1) log d.
+  erewrite <- sepcon_assoc, master_share_join' by eauto.
+  erewrite <- master_share_join by eauto; entailer!.
+  exploit (log_latest_inj log v' d (v + 1)); eauto; intros (? & ?); subst.
+  rewrite Z.even_add, H in *; simpl; auto.
 Qed.
 
-Corollary clean_entries : forall v vs locs lg lg' vs', Z.even v = false ->
-  fold_right sepcon emp (map (fun i => ghost_var gsh1 (v + 1, Znth i vs' 0) (Znth i lg' Vundef)) (upto 8)) *
-  fold_right sepcon emp (map (node_entry v vs locs lg lg') (upto 8)) |--
-  fold_right sepcon emp (map (fun i => ghost_var gsh1 (v + 1, Znth i vs' 0) (Znth i lg' Vundef)) (upto 8)) *
-  fold_right sepcon emp (map (node_entry (v + 1) vs' locs lg lg') (upto 8)).
+Corollary clean_entries : forall v vs locs lg vs', Z.even v = false ->
+  fold_right sepcon emp (map (node_entry' (v + 1) vs' lg) (upto 8)) *
+  fold_right sepcon emp (map (node_entry v vs locs lg) (upto 8)) |--
+  fold_right sepcon emp (map (node_entry' (v + 1) vs' lg) (upto 8)) *
+  fold_right sepcon emp (map (node_entry (v + 1) vs' locs lg) (upto 8)).
 Proof.
   intros.
   rewrite <- !sepcon_map; apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
@@ -459,62 +439,55 @@ Qed.
 Lemma body_write : semax_body Vprog Gprog f_write write_spec.
 Proof.
   start_atomic_function.
-  destruct x as (((((((((((n, input), sh), version), locs), vals), g), g'), lg), lg'), v0), vs0); Intros.
-  destruct H as (HP0 & HP & HQ).
+  destruct x as (((((((((n, input), sh), version), locs), vals), g), lg), v0), vs0); Intros.
+  destruct H as (HP & HQ).
   forward.
-  rewrite map_map in HP, HQ.
-  (* The ghost_var guarantees that no one else has changed the version. *)
-  forward_call (version, P * ghost_var gsh1 v0 g', II, lI,
+  forward_call (version, P * ghost (gsh1, v0) g, II, lI,
     fun sh v' => !!(sh = Tsh) && EX v : Z, EX vs : _, !!(repable_signed v' /\ Z.even v = true /\
       Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
-      (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' * fold_right sepcon emp
-        (map (node_entry v' vs locs lg lg') (upto (length locs))) * R (v, vs) * ghost_var gsh1 v0 g',
-    fun v : Z => P * (!!(v = v0) && ghost_var gsh1 v0 g')).
+      (v' = v \/ v' = v + 1)) && ghost (gsh2, v') g * fold_right sepcon emp
+        (map (node_entry v' vs locs lg) (upto (length locs))) * R (v, vs) * ghost (gsh1, v0) g,
+    fun v : Z => P * (!!(v = v0) && ghost (gsh1, v0) g)).
   { split.
     + intros.
-      rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
+      rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
       apply derives_view_shift.
       Intro x; destruct x as (v, vs).
       unfold node_state; Intros v'.
       Exists Tsh v' v vs; entailer!.
     + intros.
-      rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
+      rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
       apply derives_view_shift; Intros v1 vs.
       assert_PROP (v0 = v).
-      { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)), (sepcon_comm _ (ghost_var gsh1 _ _)).
-        rewrite <- !sepcon_assoc, 3sepcon_assoc.
-        apply sepcon_derives_prop, ghost_var_inj; auto. }
+      { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh2, _) _)), (sepcon_comm _ (ghost (gsh1, _) _)).
+        erewrite <- !sepcon_assoc, master_share_join' by eauto; entailer!. }
       Exists (v1, vs); unfold node_state; Exists v; entailer!. }
   Intros x; subst.
   assert (repable_signed (v0 + 1)) by admit. (* version stays in range *)
-  forward_call (version, v0 + 1, P * ghost_var gsh1 v0 g', II, lI,
+  forward_call (version, v0 + 1, P * ghost (gsh1, v0) g, II, lI,
     fun sh => !!(sh = Tsh) && EX v : Z, EX vs : _, EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
       Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
-      (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' *
-      fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))) * R (v, vs) *
-      ghost_var gsh1 v0 g',
-    P * ghost_var gsh1 (v0 + 1) g').
+      (v' = v \/ v' = v + 1)) && ghost (gsh2, v') g *
+      fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))) * R (v, vs) *
+      ghost (gsh1, v0) g, P * ghost (gsh1, v0 + 1) g).
   { split; [auto | split].
     + intros.
-      rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
+      rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
       apply derives_view_shift.
       Intros x; destruct x as (v, vs).
       unfold node_state; Intro v'.
       Exists Tsh v vs v'; entailer!.
     + intros.
-      rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
+      rewrite <- sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
       view_shift_intro v; view_shift_intro vs; view_shift_intro v'; view_shift_intros.
-      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)), (sepcon_comm _ (ghost_var gsh1 _ _)).
-      erewrite <- !sepcon_assoc, ghost_var_share_join' by eauto; view_shift_intros.
-      rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-      { apply ghost_var_update with (v'0 := v0 + 1). }
-      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), !sepcon_assoc.
-      etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-      { apply (@master_update _ _ _ _ max_order _ (v0 + 1)); omega. }
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh2, _) _)), (sepcon_comm _ (ghost (gsh1, _) _)).
+      erewrite <- !sepcon_assoc, master_share_join' by eauto; view_shift_intros; subst v'.
+      rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1|].
+      { apply master_update with (v' := v0 + 1); omega. }
       apply derives_view_shift.
-      erewrite <- ghost_var_share_join by eauto.
+      erewrite <- master_share_join by eauto.
       Exists (v, vs); unfold node_state.
-      Exists (v' + 1); entailer!.
+      Exists (v0 + 1); entailer!.
       { match goal with H : _ \/ _ |- _ => destruct H; subst; auto end.
         rewrite Z.even_add in *; simpl in *.
         match goal with H : Z.even v = true |- _ => rewrite H in *; discriminate end. }
@@ -526,12 +499,10 @@ Proof.
   forward_for_simple_bound 8 (EX i : Z, PROP ( )
     LOCAL (temp _v (vint v0); temp _ver version; temp _n n; temp _in input)
     SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P;
-    ghost_var gsh1 (v0 + 1) g'; @data_at CompSpecs sh tnode (version, locs) n;
+    ghost (gsh1, v0 + 1) g; @data_at CompSpecs sh tnode (version, locs) n;
     data_at Tsh (tarray tint 8) (map (fun x : Z => vint x) vals) input;
-    fold_right sepcon emp (map (fun i => ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef))
-      (sublist 0 i (upto 8)));
-    fold_right sepcon emp (map (fun i => ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef))
-      (sublist i 8 (upto 8))))).
+    fold_right sepcon emp (map (node_entry' (v0 + 2) vals lg) (sublist 0 i (upto 8)));
+    fold_right sepcon emp (map (node_entry' v0 vs0 lg) (sublist i 8 (upto 8))))).
   { entailer!. }
   - (* loop body *)
     forward.
@@ -541,20 +512,18 @@ Proof.
     forward.
     erewrite sublist_next with (i0 := i), Znth_upto by (rewrite ?Zlength_upto; simpl; omega); simpl.
     rewrite Zlength_map in *.
-    forward_call (Znth i locs Vundef, Znth i vals 0, P * ghost_var gsh1 (v0 + 1) g' *
-      ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef), II, lI,
+    forward_call (Znth i locs Vundef, Znth i vals 0, P * ghost (gsh1, v0 + 1) g *
+      node_entry' v0 vs0 lg i, II, lI,
       fun sh => !!(sh = Tsh) && EX ver : Z, EX vs : _, EX ver' : Z, EX v'' : _, EX log : _, EX d : Z,
         !!(repable_signed ver' /\ Z.even ver = true /\ Forall repable_signed vs /\ Zlength vs = Zlength locs /\
            Zlength lg = Zlength locs /\ (ver' = ver \/ ver' = ver + 1) /\
-           (if Z.even ver' then v'' = ver' /\ d = Znth i vs 0 else v'' >= ver' - 1) /\ log v'' = Some d /\
-           forall v2, v'' < v2 -> log v2 = None) && ghost_master ver' g * ghost_var gsh2 ver' g' *
-        data_at Tsh tint (vint ver') version * ghost_master log (Znth i lg Vundef) *
-        ghost_var gsh2 (v'', d) (Znth i lg' Vundef) * fold_right sepcon emp
-          (upd_Znth i (map (node_entry ver' vs locs lg lg') (upto (length locs))) emp) *
-        R (ver, vs) * ghost_var gsh1 (v0 + 1) g' * ghost_var gsh1 (v0, Znth i vs0 0) (Znth i lg' Vundef),
-      P * ghost_var gsh1 (v0 + 1) g' * ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)).
+           (if Z.even ver' then v'' = ver' /\ d = Znth i vs 0 else v'' >= ver' - 1) /\ log_latest log v'' d) &&
+        ghost (gsh2, ver') g * data_at Tsh tint (vint ver') version * ghost (gsh2, log) (Znth i lg Vundef) *
+        fold_right sepcon emp (upd_Znth i (map (node_entry ver' vs locs lg) (upto (length locs))) emp) *
+        R (ver, vs) * ghost (gsh1, v0 + 1) g * node_entry' v0 vs0 lg i,
+      P * ghost (gsh1, v0 + 1) g * node_entry' (v0 + 2) vals lg i).
     { split; [apply Forall_Znth; auto; omega | split].
-      + rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
+      + rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
         apply derives_view_shift.
         Intro x; destruct x as (v, vs).
         unfold node_state; Intro v'.
@@ -564,54 +533,47 @@ Proof.
         unfold node_entry; Intros v'' log d.
         Exists Tsh v vs v' v'' log d; entailer!.
       + intros.
-        rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [|apply view_shift_sepcon; [apply HP | reflexivity]].
+        rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
         view_shift_intro ver; view_shift_intro vs; view_shift_intro ver'; view_shift_intro v'';
           view_shift_intro log; view_shift_intro d; view_shift_intros.
         apply view_shift_assert with (PP := v0 + 1 = ver').
-        { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ g')), (sepcon_comm _ (ghost_var gsh1 _ g')).
-          erewrite <- !sepcon_assoc, ghost_var_share_join' by eauto; entailer!. }
+        { rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh2, _) g)), (sepcon_comm _ (ghost (gsh1, _) g)).
+          erewrite <- !sepcon_assoc, master_share_join' by eauto; entailer!. }
         intro; subst.
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)), (sepcon_comm _ (ghost_var gsh1 _ _)).
-        erewrite <- !sepcon_assoc, ghost_var_share_join' by eauto; view_shift_intros.
-        match goal with H : _ = _ |- _ => inv H end.
-        rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply ghost_var_update with (v' := (v'' + 2, Znth i vals 0)). }
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), !sepcon_assoc.
-        etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply (master_update _ (fun v => if eq_dec v (v'' + 2) then Some (Znth i vals 0) else log v)).
-          intros; if_tac; auto; subst.
-          match goal with H : forall v2, _ |- _ => rewrite (H (v'' + 2)) in *; [discriminate | omega] end. }
-        apply derives_view_shift.
-        erewrite <- ghost_var_share_join by eauto.
+        unfold node_entry'; view_shift_intro log'; view_shift_intros.
+        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh2, _) (Znth _ _ _))).
+        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh1, _) (Znth _ _ _))).
+        erewrite <- !sepcon_assoc, master_share_join' by eauto; view_shift_intros; subst.
+        exploit (log_latest_inj log v'' d v0); eauto; intros (? & ?); subst.
+        destruct (log_latest_upd log v0 (Znth i vs0 0) (v0 + 2) (Znth i vals 0)); auto; try omega.
+        rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1|].
+        { apply master_update with (v' := map_upd log (v0 + 2) (Znth i vals 0)); auto. }
+        erewrite <- master_share_join by eauto; apply derives_view_shift.
         Exists (ver, vs); unfold node_state.
-        Exists (v'' + 1); rewrite extract_nth_sepcon with (i := i)(l := map _ _)
+        Exists (v0 + 1); rewrite extract_nth_sepcon with (i := i)(l := map _ _)
           by (rewrite Zlength_map, Zlength_upto, <- Zlength_correct; omega).
         erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, <- Zlength_correct; auto; omega).
-        unfold node_entry; Exists (v'' + 2)
-          (fun v => if eq_dec v (v'' + 2) then Some (Znth i vals 0) else log v) (Znth i vals 0); entailer!.
-        rewrite eq_dec_refl; split; [|split; [|split; auto]].
-        * apply Forall_Znth; auto; omega.
-        * rewrite Z.even_add; simpl.
-          replace (Z.even v'') with true; simpl; omega.
-        * intros; if_tac; [omega|].
-          match goal with H : forall v2, _ |- _ => apply H; omega end. }
+        unfold node_entry; Exists (map_upd log (v0 + 2) (Znth i vals 0)) (v0 + 2)
+          (map_upd log (v0 + 2) (Znth i vals 0)) (Znth i vals 0); entailer!.
+        split; [apply Forall_Znth; auto; omega|].
+        rewrite Z.even_add; simpl.
+        replace (Z.even v0) with true; simpl; omega. }
     erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1, Znth_upto, map_app, sepcon_app
       by (auto; rewrite ?Zlength_upto; simpl; omega); entailer!.
   - rewrite !sublist_nil, !sublist_same by auto; simpl.
     assert (repable_signed (v0 + 2)) by admit. (* version stays in range *)
-    forward_call (version, v0 + 2, P * ghost_var gsh1 (v0 + 1) g' * fold_right sepcon emp (map (fun i =>
-      ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8)), II, lI,
+    forward_call (version, v0 + 2, P * ghost (gsh1, v0 + 1) g * fold_right sepcon emp (map (
+      node_entry' (v0 + 2) vals lg) (upto 8)), II, lI,
       fun sh => !!(sh = Tsh) && EX v : Z, EX vs : _, EX v' : Z, !!(repable_signed v' /\ Z.even v = true /\
         Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs /\
-        (v' = v \/ v' = v + 1)) && ghost_master v' g * ghost_var gsh2 v' g' *
-        fold_right sepcon emp (map (node_entry v' vs locs lg lg') (upto (length locs))) * R (v, vs) *
-        ghost_var gsh1 (v0 + 1) g' * fold_right sepcon emp (map (fun i =>
-          ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8)),
-      EX v : Z, EX vs : list Z, Q (v, vs) tt * ghost_var gsh1 (v0 + 2) g' * fold_right sepcon emp (map (fun i =>
-        ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8))).
+        (v' = v \/ v' = v + 1)) && ghost (gsh2, v') g *
+        fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))) * R (v, vs) *
+        ghost (gsh1, v0 + 1) g * fold_right sepcon emp (map (node_entry' (v0 + 2) vals lg) (upto 8)),
+      EX v : Z, EX vs : list Z, Q (v, vs) tt * ghost (gsh1, v0 + 2) g * fold_right sepcon emp (map (
+        node_entry' (v0 + 2) vals lg) (upto 8))).
     { split; [auto | split].
       + intros.
-        rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply HP | reflexivity]|].
+        rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
         apply derives_view_shift.
         Intros x; destruct x as (v, vs).
         unfold node_state; Intro v'.
@@ -619,22 +581,16 @@ Proof.
       + intros.
         view_shift_intro v; view_shift_intro vs; view_shift_intro v'; view_shift_intros.
         etransitivity; [|etransitivity; [apply view_shift_sepcon with (Q' :=
-          ghost_var gsh1 (v0 + 2) g' * fold_right sepcon emp (map (fun i =>
-            ghost_var gsh1 (v0 + 2, Znth i vals 0) (Znth i lg' Vundef)) (upto 8)));
+          ghost (gsh1, v0 + 2) g * fold_right sepcon emp (map (node_entry' (v0 + 2) vals lg) (upto 8)));
           [apply (HQ (v, vs) tt) | reflexivity] | apply derives_view_shift; Exists v vs; entailer!]].
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var gsh2 _ _)), (sepcon_comm _ (ghost_var gsh1 _ _)).
-        erewrite <- !sepcon_assoc, ghost_var_share_join' by eauto; view_shift_intros.
-        rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply ghost_var_update with (v'0 := v0 + 2). }
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master _ _)), !sepcon_assoc.
-        etransitivity; [apply view_shift_sepcon; [|reflexivity]|].
-        { apply (@master_update _ _ _ _ max_order _ (v0 + 2)); omega. }
-        apply derives_view_shift.
-        erewrite <- ghost_var_share_join by eauto.
-        unfold node_state; subst.
+        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost (gsh2, _) _)), (sepcon_comm _ (ghost (gsh1, _) _)).
+        erewrite <- !sepcon_assoc, master_share_join' by eauto; view_shift_intros; subst.
+        rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1|].
+        { apply master_update with (v' := v0 + 2); omega. }
+        erewrite <- master_share_join by eauto; apply derives_view_shift; unfold node_state.
         Exists (v0 + 2); rewrite Zlength_map in *.
         replace (length locs) with (Z.to_nat 8) by (symmetry; rewrite <- Zlength_length; auto; computable).
-        pose proof (clean_entries (v0 + 1) vs locs lg lg' vals) as Hclean.
+        pose proof (clean_entries (v0 + 1) vs locs lg vals) as Hclean.
         rewrite <- Z.add_assoc in Hclean; simpl in *.
         sep_apply Hclean.
         { rewrite Z.even_add; replace (Z.even v0) with true; auto. }

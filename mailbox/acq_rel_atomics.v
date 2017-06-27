@@ -107,11 +107,11 @@ Program Definition load_acq_spec := TYPE LA_type
   WITH l : val, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
        P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q : _ -> Z -> mpred
   PRE [ 1%positive OF tptr tint ]
-   PROP (view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+   PROP (view_shift (fold_right sepcon emp (map II lI) * P)
                     (protocol_A l s st_ord T * P');
          forall s' v, st_ord s s' -> repable_signed v ->
            view_shift (fst T s' v * protocol_A l s' st_ord T * P')%logic
-           (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s' v))
+           (fold_right sepcon emp (map II lI) * Q s' v))
    LOCAL (temp 1%positive l)
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tint ]
@@ -129,7 +129,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_sepcon, approx_idem, protocol_A_super_non_expansive; auto.
     + rewrite !prop_forall, !(approx_allp _ _ _ s); f_equal; extensionality s'.
       rewrite !prop_forall, !(approx_allp _ _ _ 0); f_equal; extensionality v'.
@@ -139,7 +139,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2.
       rewrite !approx_sepcon, !approx_sepcon_list', protocol_A_super_non_expansive, !approx_idem.
       erewrite !map_map, map_ext; eauto.
-      intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+      intro; simpl; rewrite approx_idem; auto.
   - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
     unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
@@ -168,10 +168,10 @@ Program Definition store_rel_spec := TYPE SR_type
        P : mpred, II : Z -> mpred, lI : list Z, Q' : mpred, Q : mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v; forall s', st_ord s' s'';
-         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+         view_shift (fold_right sepcon emp (map II lI) * P)
                     (protocol_A l s st_ord T * snd T s'' v * Q')%logic;
          view_shift (protocol_A l s'' st_ord T * Q')
-                    (fold_right sepcon emp (map (fun p => |>II p) lI) * Q)%logic)
+                    (fold_right sepcon emp (map II lI) * Q)%logic)
    LOCAL (temp 1%positive l; temp 2%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tvoid ]
@@ -188,13 +188,13 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
     + rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2.
       rewrite !approx_sepcon, !approx_sepcon_list', protocol_A_super_non_expansive, !approx_idem.
       erewrite !map_map, map_ext; eauto.
-      intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+      intro; simpl; rewrite approx_idem; auto.
   - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
     unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
@@ -228,14 +228,14 @@ Program Definition store_rel_spec := TYPE SR_type'
        P : mpred, II : Z -> mpred, lI : list Z, Q' : _ -> mpred, Q : _ -> mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v;
-         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+         view_shift (fold_right sepcon emp (map II lI) * P)
                     (protocol_A l s st_ord T * P');
          forall s' v', repable_signed v' -> st_ord s s' ->
          view_shift (P' * snd T s' v')
                     (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q' s'')%logic;
          forall s', st_ord s s' ->
          view_shift (protocol_A l s' st_ord T * Q' s')
-                    (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s')%logic)
+                    (fold_right sepcon emp (map II lI) * Q s')%logic)
    LOCAL (temp 1%positive l; temp 2%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tvoid ]
@@ -255,7 +255,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_sepcon, protocol_A_super_non_expansive; apply f_equal.
         rewrite !approx_exp; apply f_equal; extensionality s''.
         rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
@@ -267,7 +267,7 @@ Proof.
       * rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
   - unfold LOCALx; simpl; rewrite !approx_andp; apply f_equal.
     unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
@@ -296,14 +296,14 @@ Program Definition CAS_RA_spec := TYPE CRA_type
        P : mpred, II : Z -> mpred, lI : list Z, P' : mpred, Q' : _ -> mpred, R' : _ -> Z -> mpred, Q : _ -> Z -> mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v;
-         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+         view_shift (fold_right sepcon emp (map II lI) * P)
                     (protocol_A l s st_ord T * P');
          forall s', st_ord s s' ->
            view_shift (P' * snd T s' c) (EX s'' : _, !!(st_ord s' s'') && snd T s'' v * Q' s'');
          forall s' v', repable_signed v' -> v' <> c -> st_ord s s' -> view_shift (P' * fst T s' v') (R' s' v');
          forall s' v', repable_signed v' -> st_ord s s' ->
            view_shift (protocol_A l s' st_ord T * (if eq_dec v' c then Q' s' else R' s' v'))
-                      (fold_right sepcon emp (map (fun p => |>II p) lI) * Q s' v'))
+                      (fold_right sepcon emp (map II lI) * Q s' v'))
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tint ]
@@ -321,7 +321,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
     + rewrite !prop_forall, !(approx_allp _ _ _ s); f_equal; extensionality s'.
       rewrite !prop_impl; setoid_rewrite approx_imp; do 2 apply f_equal.
@@ -347,7 +347,7 @@ Proof.
         if_tac; rewrite approx_idem; auto.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
   - unfold LOCALx; simpl; rewrite !approx_andp; f_equal.
     unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem, !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
