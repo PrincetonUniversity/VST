@@ -1131,6 +1131,23 @@ Proof.
   hnf; auto.
 Qed.
 
+Lemma headptr_offset_zero: forall v,
+  headptr (offset_val 0 v) <->
+  headptr v.
+Proof.
+  split; intros.
+  + destruct H as [b ?]; subst.
+    destruct v; try solve [inv H].
+    simpl in H.
+    remember (Int.add i (Int.repr 0)).
+    inversion H; subst.
+    rewrite Int.add_zero in H2; subst.
+    hnf; eauto.
+  + destruct H as [b ?]; subst.
+    exists b.
+    reflexivity.
+Qed.
+
 Lemma lower_one_lvar:
  forall t rho Delta P i v Q R S,
   ( headptr v -> lvar_denote i t v rho ->
