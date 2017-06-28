@@ -1108,18 +1108,6 @@ Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
 (*Hint Rewrite Vint_inj' : go_lower.*)
 
-Lemma lvar_align_compatible_tint:
-  forall {cs: compspecs} id t v rho, 
-    locald_denote (lvar id t v) rho ->
-    align_compatible tint v.
-Proof.
-intros.
-hnf in H.
-destruct (Map.get (ve_of rho) id) as [[? ?]|]; try contradiction.
-destruct H; subst.
-exists 0. normalize.
-Qed.
-
 (*** New go_lower stuff ****)
 
 
@@ -1172,80 +1160,6 @@ destruct p. destruct H1; subst.
 hnf; eauto.
 Qed.
 
-(*
-Lemma lower_one_lvar:
- forall {cs: compspecs} t rho Delta P i v Q R S,
-  (isptr v -> align_compatible tint v -> lvar_denote i t v rho ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *. unfold_lift.
-normalize.
-rewrite prop_true_andp in H by auto.
-apply H; auto.
-hnf in H1.
-destruct (Map.get (ve_of rho) i); try contradiction.
-destruct p. destruct H1; subst. apply I.
-eapply lvar_align_compatible_tint; eauto.
-Qed.
- *)
-
-Lemma gvar_size_compatible:
-  forall {cs: compspecs} i s rho t,
-    gvar_denote i s rho ->
-    sizeof t <= Int.modulus ->
-    size_compatible t s.
-Proof.
-intros.
-hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-Qed.
-
-Lemma gvar_align_compatible:
-  forall  {cs: compspecs} i s rho t,
-    gvar_denote i s rho ->
-    align_compatible t s.
-Proof.
-intros.
-hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-exists 0. reflexivity.
-Qed.
-
-Lemma sgvar_size_compatible:
-  forall {cs: compspecs} i s rho t,
-    sgvar_denote i s rho ->
-    sizeof t <= Int.modulus ->
-    size_compatible t s.
-Proof.
-intros.
-hnf in H.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-Qed.
-
-Lemma sgvar_align_compatible:
-  forall  {cs: compspecs} i s rho t,
-    sgvar_denote i s rho ->
-    align_compatible t s.
-Proof.
-intros.
-hnf in H.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-exists 0. reflexivity.
-Qed.
-
 Lemma finish_compute_le:  Lt = Gt -> False.
 Proof. congruence. Qed.
 
@@ -1291,55 +1205,6 @@ subst.
 hnf; eauto.
 Qed.
 
-(*
-Lemma lower_one_gvar:
- forall t {cs: compspecs} rho Delta P i v Q R S,
-  (glob_types Delta) ! i = Some t ->
-  sizeof t <= Int.modulus  ->
-  (isptr v -> gvar_denote i v rho ->
-     size_compatible t v -> align_compatible t v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *. unfold_lift.
-normalize.
-rewrite prop_true_andp in H1 by auto.
-apply H1; auto.
-hnf in H3; destruct (Map.get (ve_of rho) i) as [[? ?] |  ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
-subst. apply I.
-eapply gvar_size_compatible; eauto.
-eapply gvar_align_compatible; eauto.
-Qed.
-
-Lemma lower_one_sgvar:
- forall t {cs: compspecs}  rho Delta P i v Q R S,
-  (glob_types Delta) ! i = Some t ->
-  sizeof t <= Int.modulus  ->
-  (isptr v -> sgvar_denote i v rho ->
-     size_compatible t v -> align_compatible t v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *. unfold_lift.
-normalize.
-rewrite prop_true_andp in H1 by auto.
-apply H1; auto.
-hnf in H3.
-destruct (ge_of rho i); try contradiction.
-subst. apply I.
-eapply sgvar_size_compatible; eauto.
-eapply sgvar_align_compatible; eauto.
-Qed.
-*)
 Lemma lower_one_prop:
  forall  rho Delta P (P1: Prop) Q R S,
   (P1 ->
@@ -1420,11 +1285,6 @@ Ltac fold_types :=
 
 Ltac fold_types1 :=
   match goal with |- _ -> ?A =>
-  let a := fresh "H" in set (a:=A); fold_types; subst a
-  end.
-
-Ltac fold_types4 :=
-  match goal with |- _ -> _ -> _ -> _ -> ?A =>
   let a := fresh "H" in set (a:=A); fold_types; subst a
   end.
 
