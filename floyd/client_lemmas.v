@@ -1119,6 +1119,39 @@ intros.
 eapply lower_one_temp; eauto.
 Qed.
 
+Definition headptr (v: val): Prop :=
+  exists b,  v = Vptr b Int.zero.
+
+Lemma headptr_isptr: forall v,
+  headptr v -> isptr v.
+Proof.
+  intros.
+  destruct H as [b ?].
+  subst.
+  hnf; auto.
+Qed.
+
+Lemma lower_one_lvar:
+ forall t rho Delta P i v Q R S,
+  ( headptr v -> lvar_denote i t v rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H by auto.
+apply H; auto.
+hnf in H1.
+destruct (Map.get (ve_of rho) i); try contradiction.
+destruct p. destruct H1; subst.
+hnf; eauto.
+Qed.
+
+(*
 Lemma lower_one_lvar:
  forall {cs: compspecs} t rho Delta P i v Q R S,
   (isptr v -> align_compatible tint v -> lvar_denote i t v rho ->
@@ -1138,6 +1171,7 @@ destruct (Map.get (ve_of rho) i); try contradiction.
 destruct p. destruct H1; subst. apply I.
 eapply lvar_align_compatible_tint; eauto.
 Qed.
+ *)
 
 Lemma gvar_size_compatible:
   forall {cs: compspecs} i s rho t,
@@ -1195,6 +1229,49 @@ Lemma finish_compute_le:  Lt = Gt -> False.
 Proof. congruence. Qed.
 
 Lemma lower_one_gvar:
+ forall t rho Delta P i v Q R S,
+  (glob_types Delta) ! i = Some t ->
+  (headptr v -> gvar_denote i v rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H0 by auto.
+apply H0; auto.
+hnf in H2; destruct (Map.get (ve_of rho) i) as [[? ?] |  ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst.
+hnf; eauto.
+Qed.
+
+Lemma lower_one_sgvar:
+ forall t rho Delta P i v Q R S,
+  (glob_types Delta) ! i = Some t ->
+  (headptr v -> sgvar_denote i v rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H0 by auto.
+apply H0; auto.
+hnf in H2.
+destruct (ge_of rho i); try contradiction.
+subst.
+hnf; eauto.
+Qed.
+
+(*
+Lemma lower_one_gvar:
  forall t {cs: compspecs} rho Delta P i v Q R S,
   (glob_types Delta) ! i = Some t ->
   sizeof t <= Int.modulus  ->
@@ -1241,7 +1318,7 @@ subst. apply I.
 eapply sgvar_size_compatible; eauto.
 eapply sgvar_align_compatible; eauto.
 Qed.
-
+*)
 Lemma lower_one_prop:
  forall  rho Delta P (P1: Prop) Q R S,
   (P1 ->
@@ -1429,13 +1506,13 @@ first [simple apply quick_finish_lower
  | simple eapply lower_one_temp;
      [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
-     fold_types1; fancy_intro true; intros ?VALIGN ?LV
+     fold_types1; intros ?HP ?LV
  | simple eapply lower_one_gvar;
-     [try reflexivity; eauto  | compute; apply finish_compute_le
-     | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]
+     [try reflexivity; eauto
+     | fold_types1; intros ?HP ?GV]
  | simple eapply lower_one_sgvar;
-     [try reflexivity; eauto  | compute; apply finish_compute_le
-     | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]
+     [try reflexivity; eauto
+     | fold_types1; intros ?HP ?SGV]
  ];
  (simple apply finish_lower ||
  match goal with
