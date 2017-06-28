@@ -197,6 +197,35 @@ intros. apply typed_true_tint in H.
 contradict H. subst; reflexivity.
 Qed.
 
+Definition headptr (v: val): Prop :=
+  exists b,  v = Vptr b Int.zero.
+
+Lemma headptr_isptr: forall v,
+  headptr v -> isptr v.
+Proof.
+  intros.
+  destruct H as [b ?].
+  subst.
+  hnf; auto.
+Qed.
+
+Lemma headptr_offset_zero: forall v,
+  headptr (offset_val 0 v) <->
+  headptr v.
+Proof.
+  split; intros.
+  + destruct H as [b ?]; subst.
+    destruct v; try solve [inv H].
+    simpl in H.
+    remember (Int.add i (Int.repr 0)).
+    inversion H; subst.
+    rewrite Int.add_zero in H2; subst.
+    hnf; eauto.
+  + destruct H as [b ?]; subst.
+    exists b.
+    reflexivity.
+Qed.
+
 Ltac intro_redundant_prop :=
   (* do it in this complicated way because the proof will come out smaller *)
 match goal with |- ?P -> _ =>
@@ -220,6 +249,10 @@ Ltac fancy_intro aggressive :=
                              | is_var x; rewrite H
                              | is_var y; rewrite <- H
                              | idtac]
+ | headptr ?x => let Hx1 := fresh "HP" x in
+                 let Hx2 := fresh "P" x in
+                   rename H into Hx1;
+                   pose proof headptr_isptr _ Hx1 as Hx2
  | isptr ?x => let Hx := fresh "P" x in rename H into Hx
  | is_pointer_or_null ?x => let Hx := fresh "PN" x in rename H into Hx
  | typed_false _ _ =>
@@ -1119,38 +1152,9 @@ intros.
 eapply lower_one_temp; eauto.
 Qed.
 
-Definition headptr (v: val): Prop :=
-  exists b,  v = Vptr b Int.zero.
-
-Lemma headptr_isptr: forall v,
-  headptr v -> isptr v.
-Proof.
-  intros.
-  destruct H as [b ?].
-  subst.
-  hnf; auto.
-Qed.
-
-Lemma headptr_offset_zero: forall v,
-  headptr (offset_val 0 v) <->
-  headptr v.
-Proof.
-  split; intros.
-  + destruct H as [b ?]; subst.
-    destruct v; try solve [inv H].
-    simpl in H.
-    remember (Int.add i (Int.repr 0)).
-    inversion H; subst.
-    rewrite Int.add_zero in H2; subst.
-    hnf; eauto.
-  + destruct H as [b ?]; subst.
-    exists b.
-    reflexivity.
-Qed.
-
 Lemma lower_one_lvar:
  forall t rho Delta P i v Q R S,
-  ( headptr v -> lvar_denote i t v rho ->
+  (headptr v -> lvar_denote i t v rho ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S.
 Proof.
@@ -1523,13 +1527,13 @@ first [simple apply quick_finish_lower
  | simple eapply lower_one_temp;
      [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
-     fold_types1; intros ?HP ?LV
+     fold_types1; fancy_intro true; intros ?LV
  | simple eapply lower_one_gvar;
      [try reflexivity; eauto
-     | fold_types1; intros ?HP ?GV]
+     | fold_types1; fancy_intro true; intros ?GV]
  | simple eapply lower_one_sgvar;
      [try reflexivity; eauto
-     | fold_types1; intros ?HP ?SGV]
+     | fold_types1; fancy_intro true; intros ?SGV]
  ];
  (simple apply finish_lower ||
  match goal with
