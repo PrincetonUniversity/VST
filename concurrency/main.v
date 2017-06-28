@@ -43,7 +43,7 @@ Require Import concurrency.dry_machine_lemmas.
 
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_initial.
-(* Require Import concurrency.semax_to_juicy_machine. *)
+Require Import concurrency.semax_to_juicy_machine.
 
 (** ** Erasure Imports*)
 Require Import concurrency.erasure_signature.
@@ -77,7 +77,7 @@ Module MainSafety .
 
 
   (*Module lifting_this := lifting ErasureProof.SEM.*)
-  Module lifting_safety_this:= lifting_safety X86SEM X86Machines.
+  Module lifting_safety_this:= lifting_safety. (* X86SEM X86Machines. *)
   Import lifting_safety_this.
   (*Module lifting_this:= lifting X86SEM X86Machines. *)
   (*Lifting_this is imported as lftng. *)
@@ -117,9 +117,9 @@ Module MainSafety .
     Definition dry_initial_perm :=
       getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
 
-    Definition dry_initial_core:=
+    (*Definition dry_initial_core:=
       initial_core (juicy_core_sem cl_core_sem)
-                   (globalenv prog) (Vptr x Int.zero) nil.
+                   (globalenv genv) (Vptr x Int.zero) nil.*)
 
     Definition initial_cstate :=
       initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
@@ -156,7 +156,7 @@ Module MainSafety .
              unfold spr in *.
              remember
               (semax_prog_rule (Concurrent_Espec unit CS ext_link) V G
-                       prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
+                       prog (proj1_sig (init_mem prog init_mem_not_none)) 0 all_safe
                        (proj2_sig (init_mem prog init_mem_not_none))) as spr.
              unfold init_mem in *.
              rewrite <- Heqspr in Heqcm.
@@ -188,7 +188,7 @@ Module MainSafety .
                move=> rm l /( _ l).
                destruct (rm @ l); eauto.
                destruct k; eauto;
-               move=> /(_ t0 p z p0) [] A B; exfalso.
+               move=> /(_ sh r z p) [] A B; exfalso.
                - apply A; auto.
                - apply B; auto.
              Qed.
@@ -519,7 +519,7 @@ Module MainSafety .
                                  init_perm ge
                                  (Vptr x Int.zero) nil. *)
 
-    Definition compiled_machine_simulation:= lftng.concur_sim.
+    Definition compiled_machine_simulation:= lifting.concur_sim.
 
     Definition gTx86 := X86Context.the_ge.
     Parameter b: Values.block.

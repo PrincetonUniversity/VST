@@ -51,7 +51,7 @@ Record Machine_sim: Type :=
       (*as_inj mu = j*
       /\*) initial_machine Sem2 ge2 main vals2 = Some c2
       /\ MSmatch_states cd j c1 m1 c2 m2
-; thread_diagram :
+; MSthread_diagram :
     forall U st1 m1 st1' m1',
     thread_step Sem1 ge1 U st1 m1 st1' m1' ->
     forall cd st2 mu m2,
@@ -60,7 +60,7 @@ Record Machine_sim: Type :=
     MSmatch_states cd' mu' st1' m1' st2' m2'
     /\ (thread_step_plus Sem2 ge2 U st2 m2 st2' m2'
        \/ (thread_step_star Sem2 ge2 U st2 m2 st2' m2' /\ MSorder cd' cd))
-; machine_diagram :
+;MSmachine_diagram :
     forall U tr st1 m1 U' tr' st1' m1',
     machine_step Sem1 ge1 U tr st1 m1 U' tr' st1' m1' ->
     forall cd st2 mu m2,
@@ -69,13 +69,13 @@ Record Machine_sim: Type :=
     MSmatch_states cd' mu' st1' m1' st2' m2'
     /\ machine_step Sem2 ge2 U tr st2 m2 U' tr' st2' m2'
 
-; thread_halted :
+; MSthread_halted :
     forall cd mu U c1 m1 c2 m2 v1,
     MSmatch_states cd mu c1 m1 c2 m2 ->
     conc_halted Sem1 U c1 = Some v1 ->
     exists v2,
        conc_halted Sem2 U c2 = Some v2
-; thread_running:
+; MSthread_running:
     forall cd mu c1 m1 c2 m2 ,
       MSmatch_states cd mu c1 m1 c2 m2 ->
       forall i, runing_thread Sem1 c1 i <-> runing_thread Sem2 c2 i
@@ -87,6 +87,10 @@ End Machine_sim.
 Arguments MSdata {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
 Arguments MSorder {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
 Arguments MSmatch_states {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSthread_diagram {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSmachine_diagram {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSthread_halted {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
+Arguments MSthread_running {G1 TID SCH TR C1 M1 G2 C2 M2 Sem1 Sem2 ge1 ge2}.
 
 
 

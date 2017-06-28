@@ -245,7 +245,7 @@ Module lifting.
         
 
     (** *Proof the simulation between the Clight_core and Asm machines*)
-    Lemma concur_sim main psrc ptgt (sch : mySchedule.schedule) :
+    Lemma concur_sim psrc ptgt (sch : mySchedule.schedule) :
       Machine_sim
         (new_DMachineSem sch psrc)
         (DryConc.new_MachineSemantics sch ptgt)
