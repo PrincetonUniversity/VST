@@ -1938,7 +1938,7 @@ Definition localdef_tc (Delta: tycontext) (x: localdef): list Prop :=
   match x with
   | temp i v =>
       match (temp_types Delta) ! i with
-      | Some (t,true) => tc_val t v :: nil
+      | Some t => tc_val t v :: nil
       | _ => nil
       end
   | lvar _ _ v =>
@@ -1966,9 +1966,11 @@ Proof.
   intros [? ?].
   destruct x; simpl in H0; unfold_lift in H0.
   + subst; simpl.
-    destruct ((temp_types Delta) ! i) as [[? ?] |] eqn:?; simpl; auto.
-    destruct b; simpl; auto.
-    split; auto; eapply tc_eval_id_i; eauto.
+    destruct ((temp_types Delta) ! i) eqn:?; simpl; auto.
+    destruct H0; subst.
+    split; auto.
+    revert H1.
+    eapply tc_eval'_id_i; eauto.
   + simpl.
     assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
     unfold lvar_denote in H0.
