@@ -112,9 +112,9 @@ Qed.
                      main vals = Some (U, [::], ds) /\
         DMS.invariant ds /\ match_st js ds.
   Proof.
-    intros ? ? ? ? ? ? ? ? ? mtch_perms no_locks init.
-    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv h)
-    as [mu [ds [_ [dinit [dinv MTCH]]]]]; eauto.
+    intros ? ? ? ? ? ? ? ? mtch_perms no_locks init.
+    destruct (init_diagram (fun _ => None) U js vals Mem.empty rmap0 pmap main genv h)
+    as [ds [dinit [dinv MTCH]]]; eauto.
     unfold init_inj_ok; intros b b' ofs H. inversion H.
   Qed.
 

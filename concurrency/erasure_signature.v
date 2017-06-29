@@ -79,7 +79,9 @@ Module Type ErasureSig.
   Variable main: Values.val.*)
        Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
        Variable no_locks_perm: JuicyMachine.SIG.ThreadPool.RES.res ->  Prop.
-  Axiom init_diagram:
+
+
+Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
       (vals : list Values.val) (m : mem)
       (rmap: JuicyMachine.SIG.ThreadPool.RES.res)
@@ -89,8 +91,7 @@ Module Type ErasureSig.
       match_rmap_perm rmap pmap ->
       no_locks_perm rmap ->
    initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
-   exists (mu : SM_Injection) (ds : dstate),
-     as_inj mu = j /\
+   exists (ds : dstate),
      initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil, ds) /\
      DMS.invariant ds /\
      match_st js ds.
@@ -167,22 +168,24 @@ Module ErasureFnctr (PC:ErasureSig).
 
 
   Lemma core_ord_wf:  well_founded core_ord.
-      Proof. constructor; intros y H; inversion H. Qed.
-      Theorem erasure: forall U rmap pmap main genv,
-          PC.match_rmap_perm rmap pmap ->
-          PC.no_locks_perm rmap ->
-          Wholeprog_sim.Wholeprog_sim
-            (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
-            genv genv
-            main
-            ge_inv init_inv halt_inv.
+  Proof. constructor; intros y H; inversion H. Qed.
+
+  (*Wholeprog simulation depends on structured injections... temp-remove*)
+  (*Theorem erasure: forall U rmap pmap main genv,
+      PC.match_rmap_perm rmap pmap ->
+      PC.no_locks_perm rmap ->
+      Wholeprog_sim.Wholeprog_sim
+        (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
+        genv genv
+        main
+        ge_inv init_inv halt_inv.
   Proof. intros U rmap pmap main genv init_OK no_locks.
-    apply (Wholeprog_sim.Build_Wholeprog_sim
-             (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
-             genv genv
-             main
-             ge_inv init_inv halt_inv
-             core_data match_state core_ord core_ord_wf).
+         apply (Wholeprog_sim.Build_Wholeprog_sim
+                  (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
+                  genv genv
+                  main
+                  ge_inv init_inv halt_inv
+                  core_data match_state core_ord core_ord_wf).
     - reflexivity.
     - intros until m2; intros h H H0.
       inversion H0; subst. clear - H4 H init_OK no_locks.
@@ -208,7 +211,7 @@ Module ErasureFnctr (PC:ErasureSig).
       split; auto.
       constructor; reflexivity.
       rewrite <- H1; symmetry. (apply halted_diagram); reflexivity.
-  Qed.
+  Qed.*)
 
 End ErasureFnctr.
 
