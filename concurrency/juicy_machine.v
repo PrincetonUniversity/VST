@@ -1610,10 +1610,10 @@ Qed.
        corresponding to global variables, arguments
        and function specs. *)
 
-    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    (*Lemma onePos: (0<1)%coq_nat. auto. Qed.*)
     Definition initial_machine rmap c:=
       mk
-        (mkPos onePos)
+        (mkPos (le_n 1))
         (fun _ => (Krun c))
         (fun _ => rmap)
         (AMap.empty (option res)).

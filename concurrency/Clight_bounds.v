@@ -18,6 +18,8 @@ Require Import Coqlib.
 Require Import veric.Clight_new.
 Require Import veric.Clightnew_coop.
 
+Require Import Coq.Logic.FunctionalExtensionality.
+
 Lemma CLight_Deterministic: forall ge c m c1 m1 c2 m2,
     veric.Clight_new.cl_step ge c m c2 m2 ->
     veric.Clight_new.cl_step ge c m c1 m1 ->

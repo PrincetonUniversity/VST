@@ -28,6 +28,8 @@ Require Import concurrency.semantics.
 Require Import concurrency.dry_machine_lemmas.
 Import threadPool.
 
+Require Import Coq.Logic.FunctionalExtensionality.
+
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 (** This file holds various results about the dry machine*)

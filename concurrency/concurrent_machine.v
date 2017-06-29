@@ -511,6 +511,63 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                  (Hstep: MachStep ge st m (schedSkip (fst (fst st)),[::],tp') m')
                  (Hsafe: forall U'', csafe ge (U'',[::],tp') m' n),
       csafe ge st m (S n).
+  Lemma csafe_monotone:
+    forall n ge U tr tp m,
+    csafe ge (U, tr, tp) m (S n) ->
+    csafe ge (U, tr, tp) m (n) .
+  Proof.
+    induction n; [econstructor|].
+    intros.
+    inversion H; simpl in *; subst.
+    - econstructor 2; auto.
+    - econstructor 3; eauto.
+    - econstructor 4; eauto.
+  Qed.
+  
+  Lemma csafe_first_tid:
+            forall n ge U U' tp m,
+              csafe ge (U, nil, tp) m n ->
+              schedPeek U = schedPeek U' -> 
+              csafe ge (U', nil, tp) m n.
+          Proof.
+            induction n; subst.
+            - constructor 1.
+            - intros. inversion H; subst. 
+              + econstructor 2; eauto.
+                unfold halted in *; simpl in *.
+                destruct (schedPeek U); try solve [inversion H1].
+                rewrite <- H0; eauto.
+              + econstructor 3; eauto; simpl in *.
+                inversion Hstep; simpl in *; subst;
+                 try  match goal with
+                      | [ H: schedPeek ?U = Some _, H0: schedSkip U = U |- _ ] =>
+                        symmetry in H0;
+                          apply SCH.end_of_sch in H0;
+                          rewrite HschedN in HschedS; inversion HschedS
+                 end.
+                * econstructor 1; simpl; eauto.
+                  rewrite <- H0; eauto.
+                * econstructor 2; simpl; eauto.
+                  rewrite <- H0; eauto.
+                * econstructor 3; simpl; eauto.
+                  rewrite <- H0; eauto.
+              + econstructor 4; eauto; simpl in *.
+                inversion Hstep; simpl in *; subst;
+                  try match goal with
+                      | [ H: schedPeek ?U = Some _, H0: U  = schedSkip U |- _ ] =>
+                        rewrite <- H0 in H;
+                        apply SCH.end_of_sch in H0;
+                          rewrite H in H0; inversion H0
+                      end.
+                * econstructor 4; subst; simpl in *; subst; eauto.
+                  rewrite <- H0; eauto. 
+                * econstructor 5; subst; simpl in *; subst; eauto.
+                  rewrite <- H0; eauto. 
+                * econstructor 6; subst; simpl in *; subst; eauto.
+                  rewrite <- H0; eauto. 
+                * econstructor 7; subst; simpl in *; subst; eauto.
+                  rewrite <- H0; eauto. 
+          Qed.
 
   Section new_safety.
   (** *I create a new type of safety that satisfies (forall n, safeN) -> safe and is preserved by simulations. *)

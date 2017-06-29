@@ -937,8 +937,7 @@ Module Parching <: ErasureSig.
         match_rmap_perm rmap pmap ->
         no_locks_perm rmap ->
         initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
-        exists (mu : SM_Injection) (ds : dstate),
-          as_inj mu = j /\
+        exists (ds : dstate),
           initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil,ds) /\
           DryMachine.invariant ds /\
           match_st js ds.
@@ -946,7 +945,7 @@ Module Parching <: ErasureSig.
       intros.
 
       (* Build the structured injection*)
-      exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).
+      (* exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).*)
 
       (* Build the dry state *)
       simpl in H2.
@@ -956,10 +955,9 @@ Module Parching <: ErasureSig.
       inversion H2.
       exists (DryMachine.initial_machine pmap.1 c).
 
-      split; [|split;[|split]].
+      split; [|split].
 
       (*Proofs*)
-      - apply initial_SM_as_inj.
       - simpl.
         unfold DryMachine.init_machine.
         unfold DryMachine.init_mach.

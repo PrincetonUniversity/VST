@@ -96,18 +96,13 @@ SEPCOMP_FILES = \
   rg_lemmas.v \
   FiniteMaps.v \
   mem_lemmas.v mem_wd.v \
-  nucular_semantics.v \
   semantics.v semantics_lemmas.v \
   globalSep.v simulations.v \
-  simulations_lemmas.v \
-  structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   effect_properties.v \
   event_semantics.v \
-  full_composition.v \
   closed_safety.v compcert.v \
   val_casted.v \
-  reach.v \
   arguments.v \
   internal_diagram_trans.v \
   wholeprog_simulations.v \
@@ -119,13 +114,13 @@ CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
-  concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
+  concurrent_machine.v dry_context.v dry_machine.v \
   dry_machine_lemmas.v dry_machine_step_lemmas.v \
   Clight_bounds.v enums_equality.v\
   ClightSemantincsForMachines.v ClightCoreSemantincsForMachines.v \
   JuicyMachineModule.v DryMachineSource.v DryMachineSourceCore.v\
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
-  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
+  fineConc_safe.v juicy_machine.v \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
@@ -150,16 +145,12 @@ CONCUR_FILES= \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v \
   konig.v safety.v \
-	reestablish.v \
-	lifting_safety.v \
-  linking_spec.v	\
+  lifting_safety.v \
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v CoreSemantics_sum.v \
-  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v Smallstep.v\
+  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v\
   concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v \
   HybridMachine_simulation_proof.v
-
-#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
 PACO_FILES= \
   hpattern.v\
