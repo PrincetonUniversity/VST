@@ -1129,26 +1129,6 @@ Proof.
   auto.
 Qed.
 
-Lemma mapsto_data_at' {cs: compspecs} sh t v v' p :  (* not needed here *)
-  type_is_by_value t = true ->
-  type_is_volatile t = false ->
-  readable_share sh ->
-  field_compatible t nil p ->
-  (v <> Vundef -> tc_val t v) ->
-  JMeq v v' ->
-  mapsto sh t p v = data_at sh t v' p.
-Proof.
-  intros.
-  unfold data_at, field_at, at_offset, offset_val.
-  simpl.
-  rewrite prop_true_andp by auto.
-  rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H4; apply JMeq_eq in H4.
-  f_equal; auto.
-  destruct H2. destruct p; try contradiction.
-  rewrite int_add_repr_0_r. auto.
-Qed.
-
 Ltac process_idstar :=
   match goal with
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>

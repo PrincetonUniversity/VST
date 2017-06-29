@@ -2320,7 +2320,6 @@ Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   legal_cosu_type t = true ->
   complete_type cenv_cs t = true ->
   sizeof t < Int.modulus ->
-  (v <> Vundef -> tc_val t v) ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.
 Proof.
@@ -2330,10 +2329,75 @@ Proof.
   destruct p; inv H2.
   rewrite int_add_repr_0_r.
   rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H10; apply JMeq_eq in H10.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H9; apply JMeq_eq in H9.
   rewrite prop_true_andp; auto.
   f_equal. auto.
   repeat split; auto.
+Qed.
+
+Lemma mapsto_data_at' {cs: compspecs} sh t v v' p:
+  type_is_by_value t = true ->
+  type_is_volatile t = false ->
+  readable_share sh ->
+  field_compatible t nil p ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  unfold data_at, field_at, at_offset, offset_val.
+  simpl.
+  rewrite prop_true_andp by auto.
+  rewrite by_value_data_at_rec_nonvolatile by auto.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H3; apply JMeq_eq in H3.
+  f_equal; auto.
+  destruct H2. destruct p; try contradiction.
+  rewrite int_add_repr_0_r. auto.
+Qed.
+
+Lemma headptr_field_compatible {cs: compspecs}: forall t p,
+  headptr p ->
+  legal_alignas_type t = true ->
+  legal_cosu_type t = true ->
+  sizeof t < Int.modulus ->
+  complete_type cenv_cs t = true ->
+  field_compatible t nil p.
+Proof.
+  intros.
+  split; [| split; [| split; [| split; [| split; [| split; [| split]]]]]].
+  + apply headptr_isptr; auto.
+  + auto.
+  + auto.
+  + auto.
+  + auto.
+  + destruct H as [b ?]; subst.
+    simpl.
+    change (Int.unsigned Int.zero) with 0.
+    omega.
+  + destruct H as [b ?]; subst.
+    simpl.
+    change (Int.unsigned Int.zero) with 0.
+    apply Z.divide_0_r.
+  + simpl.
+    auto.
+Qed.
+
+Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
+  ((type_is_by_value t) && (local_legal_alignas_type cenv_cs t) && (negb (type_is_volatile t)) = true)%bool ->
+  readable_share sh ->
+  headptr p ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  rewrite !andb_true_iff in H.
+  destruct H as [[? ?] ?].
+  rewrite negb_true_iff in H4.
+  apply mapsto_data_at'; auto.
+  apply headptr_field_compatible; auto.
+  + destruct t; inv H; simpl; auto.
+  + destruct t; inv H; simpl; auto.
+  + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; reflexivity.
+  + destruct t; inv H; simpl; auto.
 Qed.
 
 Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
