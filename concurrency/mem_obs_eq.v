@@ -3388,17 +3388,17 @@ Module Type CoreInjections (SEM: Semantics).
       core_wd f' c.
 
   Parameter at_external_wd:
-    forall f c ef args,
+    forall ge m f c ef args,
       core_wd f c ->
-      at_external Sem c = Some (ef, args) ->
+      at_external Sem ge c m = Some (ef, args) ->
       valid_val_list f args.
 
   Parameter after_external_wd:
-    forall c c' f ef args ov,
-      at_external Sem c = Some (ef, args) ->
+    forall ge m c c' f ef args ov,
+      at_external Sem ge c m = Some (ef, args) ->
       core_wd f c ->
       valid_val_list f args ->
-      after_external Sem ov c = Some c' ->
+      after_external Sem ge ov c = Some c' ->
       match ov with
             | Some v => valid_val f v
             | None => True
@@ -3406,8 +3406,8 @@ Module Type CoreInjections (SEM: Semantics).
       core_wd f c'.
 
   Parameter initial_core_wd:
-    forall the_ge f vf arg c_new h,
-      initial_core Sem h the_ge vf [:: arg] = Some c_new ->
+    forall the_ge m f vf arg c_new om h,
+      initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
       valid_val f arg ->
       ge_wd f the_ge ->
       core_wd f c_new.
@@ -3416,8 +3416,8 @@ Module Type CoreInjections (SEM: Semantics).
   Parameter core_inj: memren -> C -> C -> Prop.
 
   Parameter core_inj_ext:
-    forall c c' f (Hinj: core_inj f c c'),
-      match at_external Sem c, at_external Sem c' with
+    forall ge m c c' f (Hinj: core_inj f c c'),
+      match at_external Sem ge c m, at_external Sem ge c' m with
       | Some (ef, vs), Some (ef', vs') =>
         ef = ef' /\ val_obs_list f vs vs'
       | None, None => True
@@ -3425,14 +3425,14 @@ Module Type CoreInjections (SEM: Semantics).
       end.
 
   Parameter core_inj_after_ext:
-    forall c cc c' ov1 f (Hinj: core_inj f c c'),
+    forall ge c cc c' ov1 f (Hinj: core_inj f c c'),
       match ov1 with
       | Some v1 => valid_val f v1
       | None => True
       end ->
-      after_external Sem ov1 c = Some cc ->
+      after_external Sem ge ov1 c = Some cc ->
       exists ov2 cc',
-        after_external Sem ov2 c' = Some cc' /\
+        after_external Sem ge ov2 c' = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
         | Some v1 => match ov2 with
@@ -3454,15 +3454,15 @@ Module Type CoreInjections (SEM: Semantics).
       end.
 
   Parameter core_inj_init:
-    forall vf vf' arg arg' c_new f fg the_ge h
+    forall vf vf' arg arg' c_new f fg the_ge m om h
       (Hf: val_obs_list f arg arg')
       (Hf': val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core Sem h the_ge vf arg = Some c_new),
-    exists c_new',
-      initial_core Sem h the_ge vf' arg' = Some c_new' /\
+      (Hinit: initial_core Sem h the_ge m vf arg = Some (c_new, om)),
+    exists c_new', exists om',
+      initial_core Sem h the_ge m vf' arg' = Some (c_new', om') /\
       core_inj f c_new c_new'.
 
   Parameter core_inj_id: forall c f,

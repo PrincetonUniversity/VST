@@ -173,7 +173,7 @@ Section HybridMachineSig.
 
   (*Parameter initial_machine: C -> thread_pool.*)
 
-  ; init_mach : option res  -> G -> val -> list val -> option thread_pool }.
+  ; init_mach : option res  -> G -> mem -> val -> list val -> option (thread_pool * option mem)}.
 
 End HybridMachineSig.
 
@@ -223,8 +223,8 @@ Section HybridMachine.
                         CoreSemantics G MachState mem
       ; ConcurMachineSemantics: schedule -> option res ->
                                 @ConcurSemantics G nat (seq.seq nat) event_trace t mem
-      ; initial_schedule: forall genv main vals U U' p c tr n,
-          initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
+      ; initial_schedule: forall genv m main vals U U' p c tr om n,
+          initial_core (MachineSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
           U' = U /\ tr = nil
     }.
 End HybridMachine.
@@ -292,62 +292,62 @@ Section HybridCoarseMachine.
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
 
-  Inductive start_thread' genv: forall {tid0} {ms:machine_state},
-      containsThread_ _  ms tid0 -> machine_state -> Prop:=
-  | StartThread: forall tid0 ms ms' c_new vf arg
+  Inductive start_thread' genv: forall (m: mem) {tid0} {ms:machine_state},
+      containsThread_ _  ms tid0 -> machine_state -> mem -> Prop:=
+  | StartThread: forall m tid0 ms ms' c_new vf arg m'
                     (ctn: containsThread_ _  ms tid0)
                     (Hcode: getThreadC_ _ ctn = Kinit vf arg)
                     (Hinitial: initial_core Sem tid0
-                                            genv vf (arg::nil) = Some c_new)
+                                            genv m vf (arg::nil) = Some (c_new, m'))
                     (Hinv: invariant ms)
                     (Hms': updThreadC_ _ ctn (Krun c_new)  = ms'),
-      start_thread' genv ctn ms'.
-  Definition start_thread genv: forall {tid0 ms}, 
-      containsThread_ _  ms tid0 -> machine_state -> Prop:=
+      start_thread' genv m ctn ms' (option_proj m m').
+  Definition start_thread genv: forall m {tid0 ms}, 
+      containsThread_ _  ms tid0 -> machine_state -> mem -> Prop:=
     @start_thread' genv.
-  Inductive resume_thread': forall {tid0} {ms:machine_state},
+  Inductive resume_thread' ge: forall (m: mem) {tid0} {ms:machine_state},
       containsThread_ _  ms tid0 -> machine_state -> Prop:=
-  | ResumeThread: forall tid0 ms ms' c c' X
+  | ResumeThread: forall m tid0 ms ms' c c' X
                     (ctn: containsThread_ _  ms tid0)
-                    (Hat_external: semantics.at_external Sem c = Some X)
-                    (Hafter_external: semantics.after_external Sem None c = Some c')
+                    (Hat_external: semantics.at_external Sem ge c m = Some X)
+                    (Hafter_external: semantics.after_external Sem ge None c = Some c')
                     (Hcode: getThreadC_ _ ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC_ _  ctn (Krun c')  = ms'),
-      resume_thread' ctn ms'.
-  Definition resume_thread: forall {tid0 ms},
+      resume_thread' ge m ctn ms'.
+  Definition resume_thread ge: forall m {tid0 ms},
       containsThread_ _  ms tid0 -> machine_state -> Prop:=
-    @resume_thread'.
+    @resume_thread' ge.
 
-  Inductive suspend_thread': forall {tid0} {ms:machine_state},
+  Inductive suspend_thread' ge: forall (m: mem) {tid0} {ms:machine_state},
       containsThread_ _  ms tid0 -> machine_state -> Prop:=
-  | SuspendThread: forall tid0 ms ms' c X
+  | SuspendThread: forall m tid0 ms ms' c X
                      (ctn: containsThread_ _  ms tid0)
                      (Hcode: getThreadC_ _ ctn = Krun c)
-                     (Hat_external: semantics.at_external Sem c = Some X)
+                     (Hat_external: semantics.at_external Sem ge c m = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC_ _  ctn (Kblocked c) = ms'),
-      suspend_thread' ctn ms'.
-  Definition suspend_thread : forall {tid0 ms},
+      suspend_thread' ge m ctn ms'.
+  Definition suspend_thread ge: forall m {tid0 ms},
       containsThread_ _  ms tid0 -> machine_state -> Prop:=
-    @suspend_thread'.
+    @suspend_thread' ge.
 
   Inductive machine_step {genv:G}:
     Sch -> event_trace -> machine_state -> mem -> Sch ->
     event_trace -> machine_state -> mem -> Prop :=
   | start_step:
-      forall tid U ms ms' m
+      forall tid U ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: start_thread genv Htid ms'),
-        machine_step U [::] ms m U [::] ms' m
+        (Htstep: start_thread genv m Htid ms' m'),
+        machine_step U [::] ms m U [::] ms' m'
   | resume_step:
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: resume_thread Htid ms'),
+        (Htstep: resume_thread genv m Htid ms'),
         machine_step U [::] ms m U [::] ms' m
   | thread_step:
       forall tid U ms ms' m m' ev
@@ -362,7 +362,7 @@ Section HybridCoarseMachine.
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep:suspend_thread Htid ms'),
+        (Htstep:suspend_thread genv m Htid ms'),
         machine_step U [::] ms m U' [::] ms' m
   | sync_step:
       forall tid U U' ms ms' m m' ev
@@ -409,18 +409,18 @@ Section HybridCoarseMachine.
   Inductive external_step  {genv:G}:
     Sch -> event_trace -> machine_state -> mem -> Sch ->
     event_trace -> machine_state -> mem -> Prop :=
-  | start_state': forall tid U ms ms' m
+  | start_state': forall tid U ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: start_thread genv Htid ms'),
-        external_step U [::] ms m U [::] ms' m
+        (Htstep: start_thread genv m Htid ms' m'),
+        external_step U [::] ms m U [::] ms' m'
   | resume_step':
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: resume_thread Htid ms'),
+        (Htstep: resume_thread genv m Htid ms'),
         external_step U [::] ms m U [::] ms' m
   | suspend_step':
       forall tid U U' ms ms' m
@@ -428,7 +428,7 @@ Section HybridCoarseMachine.
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread_ _  ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep:suspend_thread Htid ms'),
+        (Htstep:suspend_thread genv m Htid ms'),
         external_step U [::] ms m U' [::] ms' m
   | sync_step':
       forall tid U U' ms ms' m m' ev
@@ -463,14 +463,14 @@ Section HybridCoarseMachine.
   Proof.
     move=> ge U tr st m U' tr' st' m' ms.
     inversion ms;
-      first[ solve [ left; repeat split=>//; econstructor; eauto] |
-             solve[right; econstructor; eauto]].
+      try solve [ left; repeat split=>//; econstructor; eauto];
+      try solve[right; econstructor; eauto].
   Qed.
   Lemma step_equivalence2: forall ge U st m st' m',
       @internal_step ge U st m st' m' ->
       @machine_step ge U nil st m U nil st' m'.
   Proof. move=>  ge U st m st' m' istp.
-         by inversion istp; econstructor; eauto.
+         inversion istp; solve [econstructor; eauto].
   Qed.
    Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
       @external_step ge U tr st m U' tr' st' m' ->
@@ -493,10 +493,10 @@ Section HybridCoarseMachine.
     @machine_step G (fst (fst c)) (snd (fst c)) (snd c)  m
                   (fst (fst c')) (snd (fst c')) (snd c')  m'.
 
-  Definition at_external (st : MachState)
+  Definition at_external (ge: G) (st : MachState) (m: mem)
     : option (external_function * list val) := None.
 
-  Definition after_external (ov : option val) (st : MachState) :
+  Definition after_external (ge: G) (ov : option val) (st : MachState) :
     option (MachState) := None.
 
   (*not clear what the value of halted should be*)
@@ -513,12 +513,12 @@ Section HybridCoarseMachine.
       halted st ->*)
 
 
-  Definition init_machine (U:schedule) (r : option res) the_ge
+  Definition init_machine (U:schedule) (r : option res) the_ge (m: mem)
              (f : val) (args : list val)
-    : option MachState :=
-    match init_mach r the_ge f args with
+    : option (MachState * option mem) :=
+    match init_mach r the_ge m f args with
     | None => None
-    | Some c => Some (U, [::], c)
+    | Some (c, om) => Some ((U, [::], c), om)
     end.
 
   Program Definition MachineCoreSemantics (U:schedule) (r : option res):
@@ -536,13 +536,10 @@ Section HybridCoarseMachine.
   auto.
   Defined.
 
-  Definition init_machine' (r : option res) the_ge
+  Definition init_machine' (r : option res) the_ge m
              (f : val) (args : list val)
-    : option (machine_state) :=
-    match init_mach r the_ge f args with
-    | None => None
-    | Some c => Some (c)
-    end.
+    : option (machine_state * option mem) :=
+    init_mach r the_ge m f args.
 
   (*This is not used anymore:
    * find_thread
@@ -585,11 +582,11 @@ Section HybridCoarseMachine.
 
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
-  Lemma hybrid_initial_schedule: forall genv main vals U U' p c tr n,
-      initial_core (MachineCoreSemantics U p) n genv main vals = Some (U',tr,c) ->
+  Lemma hybrid_initial_schedule: forall genv m main vals U U' p c tr om n,
+      initial_core (MachineCoreSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
       U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
-        destruct (init_mach p genv main vals); try solve[inversion H].
+        destruct (init_mach p genv m main vals) as [[? ?]|]; try solve[inversion H].
         inversion H; subst; split; auto.
   Qed.
 

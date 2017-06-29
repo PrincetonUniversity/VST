@@ -165,7 +165,7 @@ Module Concur.
 
      Parameter threadHalted :
        forall tid0 (ms : t), containsThread ms tid0 -> Prop.
-     Parameter init_mach : option RES.res -> G -> val -> seq val -> option t.
+     Parameter init_mach : option RES.res -> G -> mem -> val -> seq val -> option (t * option mem).
 
 
 
@@ -313,7 +313,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem c = Some (LOCK, Vptr b ofs::nil))
+             (Hat_external: at_external Sem genv c m = Some (LOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations*)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
              (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -356,7 +356,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem c =
+             (Hat_external: at_external Sem genv c m =
                             Some (UNLOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations *)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
@@ -401,7 +401,7 @@ Module Concur.
            forall
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem c = Some (CREATE, Vptr b ofs::arg::nil))
+           (Hat_external: at_external Sem genv c m = Some (CREATE, Vptr b ofs::arg::nil))
            (** we do not need to enforce the almost empty predicate on thread
            spawn as long as it's considered a synchronizing operation *)
            (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)
@@ -419,7 +419,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem c = Some (MKLOCK, Vptr b ofs::nil))
+             (Hat_external: at_external Sem genv c m = Some (MKLOCK, Vptr b ofs::nil))
              (** install the thread's data permissions*)
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).1 = m1)
              (** To create the lock the thread must have [Writable] permission on it*)
@@ -457,7 +457,7 @@ Module Concur.
            forall
            (Hinv: invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem c = Some (FREE_LOCK, Vptr b ofs::nil))
+           (Hat_external: at_external Sem genv c m = Some (FREE_LOCK, Vptr b ofs::nil))
            (** If this address is a lock*)
            (His_lock: lockRes tp (b, (Int.intval ofs)) = Some rmap)
            (** And the lock is taken *)
@@ -492,7 +492,7 @@ Module Concur.
          forall  c b ofs m1
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem c = Some (LOCK, Vptr b ofs::nil))
+           (Hat_external: at_external Sem genv c m = Some (LOCK, Vptr b ofs::nil))
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -724,12 +724,12 @@ Module Concur.
          empty_lset.
 
 
-     Definition init_mach (pmap : option RES.res) (genv:G)
-                (v:val)(args:list val):option thread_pool :=
-       match initial_core Sem 0 genv v args with
-       | Some c =>
+     Definition init_mach (pmap : option RES.res) (genv:G) (m: mem)
+                (v:val)(args:list val):option (thread_pool * option mem) :=
+       match initial_core Sem 0 genv m v args with
+       | Some (c, m') =>
          match pmap with
-         | Some pmap => Some (initial_machine pmap.1 c)
+         | Some pmap => Some (initial_machine pmap.1 c, m')
          | None => None
          end
        | None => None

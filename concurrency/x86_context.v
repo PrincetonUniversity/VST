@@ -7,7 +7,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.memory_lemmas.
 Require Import concurrency.dry_context.
 Require Import concurrency.dry_machine_lemmas.
-Require Import ccc26x86.Asm_coop.
+Require Import concurrency.Asm_core.
 Require Import ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
