@@ -1063,11 +1063,11 @@ Lemma semax_prog_rule {CS: compspecs} :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
+           semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) jm (Vptr b Int.zero) nil = Some (q, None) /\
            (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
            no_locks (m_phi jm) /\
            matchfunspecs (globalenv prog) G (m_phi jm) /\
@@ -1096,14 +1096,10 @@ Proof.
   pose proof I.
   destruct EXx as [b [? ?]]; auto.
   exists b.
-  unfold semantics.initial_core. simpl (_ = Some _).
+(*  unfold semantics.initial_core. simpl (_ = Some _).
   unfold fundef in *; rewrite H7.
   rewrite if_true by auto.
-  (* unfold is_Internal in HInt. *)
-  (* rewrite H6 in HInt. *)
-  (* rewrite H7 in HInt. *)
-  (* destruct f as [func | ]; [ | exfalso; discriminate ]. *)
-  (* set (func' := func) at 1; destruct func' eqn:Ef. *)
+*)
   econstructor.
   repeat split; auto.
   intro n.
@@ -1112,6 +1108,12 @@ Proof.
   - simpl.
     rewrite inflate_initial_mem_level.
     unfold initial_core. rewrite level_make_rmap; auto.
+ -
+    unfold semantics.initial_core. simpl (_ = Some _).
+    unfold j_initial_core.  simpl (_ = Some _).
+    unfold fundef in *; rewrite H7.
+    rewrite if_true by auto.
+    reflexivity.
 
   - specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
 
@@ -1336,9 +1338,9 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
           (PTree.set id_arg arg (PTree.empty val))) in
 
   { q : corestate |
-    semantics.initial_core
+    (forall jm, semantics.initial_core
       (juicy_core_sem cl_core_sem) h
-      (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
+      (globalenv prog) jm (Vptr b Int.zero) (arg :: nil) = Some (q, None)) /\
 
     forall (jm : juicy_mem) ts a,
       app_pred (P ts a rho1) (m_phi jm) ->
@@ -1363,8 +1365,9 @@ Proof.
                       cc_default A P Q _ (necR_refl _)).
   spec Believe.
   { exists id_fun, NEP, NEQ. split; auto. exists b; split; auto. }
-  simpl (semantics.initial_core _). unfold cl_initial_core.
-  if_tac [_|?]. 2:tauto.
+  simpl (semantics.initial_core _). unfold j_initial_core.
+  simpl (semantics.initial_core _). 
+(*  if_tac [_|?]. 2:tauto. *)
 
   destruct (Genv.find_funct_ptr (globalenv prog) b) as [f|] eqn:Eb; swap 1 2.
   { exfalso.
@@ -1374,7 +1377,9 @@ Proof.
     if_tac [_|?] in H. rewrite Eb in H. auto. tauto.
     assert (b' = b) by congruence. subst b'. congruence.
   }
-  eexists. split; auto.
+
+  unfold cl_initial_core. rewrite if_true by auto. rewrite Eb.
+  eexists. split.  intro.  reflexivity. 
 
   intros jm ts a m_sat_Pa m_funassert.
 

@@ -168,8 +168,8 @@ Module Type ConcurrentMachine.
   Parameter MachineSemantics: schedule -> option RES.res ->
                               CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
-  Axiom initial_schedule: forall genv main vals U U' p c tr n,
-      initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
+  Axiom initial_schedule: forall genv m main vals U U' p c tr m' n,
+      initial_core (MachineSemantics U p) n genv m main vals = Some ((U',tr,c), m') ->
       U' = U /\ tr = nil.
 End ConcurrentMachine.
 

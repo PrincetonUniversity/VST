@@ -45,11 +45,11 @@ Record Wholeprog_sim :=
 ; genv_inv : ge_inv ge1 ge2
 ; core_initial :
     forall j c1 vals1 m1 vals2 m2 n,
-    initial_core Sem1 n ge1 main vals1 = Some c1 ->
+    initial_core Sem1 n ge1 m1 main vals1 = Some (c1, None) ->
     init_inv j ge1 vals1 m1 ge2 vals2 m2 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
-      /\*) initial_core Sem2 n ge2 main vals2 = Some c2
+      /\*) initial_core Sem2 n ge2 m2 main vals2 = Some (c2, None)
       /\ match_state cd (*mu*)j c1 m1 c2 m2
 ; core_diagram :
     forall st1 m1 st1' m1',

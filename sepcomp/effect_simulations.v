@@ -64,7 +64,7 @@ Record SM_simulation_inject :=
 
 ; core_initial :
     forall v vals1 c1 m1 j vals2 m2 DomS DomT,
-    initial_core Sem1 0 ge1 v vals1 = Some c1 ->
+    initial_core Sem1 0 ge1 m1 v vals1 = Some (c1, None) ->
     Mem.inject j m1 m2 ->
     Forall2 (val_inject j) vals1 vals2 ->
     meminj_preserves_globals ge1 j ->
@@ -81,7 +81,7 @@ Record SM_simulation_inject :=
     (forall b, DomT b = true -> Mem.valid_block m2 b) ->
 
     exists cd, exists c2,
-    initial_core Sem2 0 ge2 v vals2 = Some c2
+    initial_core Sem2 0 ge2 m2 v vals2 = Some (c2, None)
     /\ match_state cd
          (initial_SM DomS DomT
            (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
@@ -126,11 +126,11 @@ Record SM_simulation_inject :=
 ; core_at_external :
     forall cd mu c1 m1 c2 m2 e vals1,
     match_state cd mu c1 m1 c2 m2 ->
-    at_external Sem1 c1 = Some (e,vals1) ->
+    at_external Sem1 ge1 c1 m1 = Some (e,vals1) ->
     Mem.inject (as_inj mu) m1 m2
     /\ exists vals2,
        Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2
-       /\ at_external Sem2 c2 = Some (e,vals2)
+       /\ at_external Sem2 ge2 c2 m2 = Some (e,vals2)
 
     /\ forall
        (pubSrc' pubTgt' : block -> bool)
@@ -148,7 +148,7 @@ Record SM_simulation_inject :=
     forall cd mu st1 st2 m1 e vals1 m2 vals2 e'
       (MemInjMu: Mem.inject (as_inj mu) m1 m2)
       (MatchMu: match_state cd mu st1 m1 st2 m2)
-      (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+      (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
         (* We include the clause AtExtTgt to ensure that vals2 is
          uniquely determined. We have e=e' and ef_sig=ef_sig' by the
@@ -158,7 +158,7 @@ Record SM_simulation_inject :=
          functional in the case where the left value is Vundef. (And
          we need to keep ValInjMu since vals2 occurs in pubTgtHyp) *)
 
-      (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+      (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
       (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
       pubSrc'
@@ -210,8 +210,8 @@ Record SM_simulation_inject :=
          (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
 Require Import sepcomp.semantics_lemmas.

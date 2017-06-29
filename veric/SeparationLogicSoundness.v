@@ -40,10 +40,10 @@ Axiom semax_prog_rule :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
+       semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) jm (Vptr b Int.zero) nil = Some (q, None) /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
        no_locks (m_phi jm) /\
        matchfunspecs (globalenv prog) G (m_phi jm) /\
