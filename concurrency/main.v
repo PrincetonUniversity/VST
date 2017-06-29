@@ -528,8 +528,9 @@ Module MainSafety .
       Some (dry_initial_perm, empty_map).
     Parameter sch : X86Machines.SC.Sch.
 
+    (*
     Definition this_simulation:=
-      compiled_machine_simulation gTx86 (globalenv prog) main p X86Context.init_perm sch.
+      compiled_machine_simulation  prog gTx86 (globalenv prog) main p X86Context.init_perm sch.
 
       (*destruct this_simulation.*)
       (*assert (HH:= wholeprog_simulations.Wholeprog_sim.match_state
@@ -538,7 +539,7 @@ Module MainSafety .
       Definition compiler_match:=
         machine_simulation.Machine_sim.match_state
           _ _ _ _ _ _ _ _
-          this_simulation.
+          this_simulation.*)
 
       Definition initial_target_state :=
         initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
@@ -550,12 +551,13 @@ Module MainSafety .
                                  dry_initial_perm initial_corestate.*)
 
         (** *The comiler preserves safety*)
-      Definition core_init:=
+      (*Definition core_init:=
         machine_simulation.Machine_sim.core_initial
           _ _ _ _ _ _ _ _
-          this_simulation.
+          this_simulation. *)
 
-      Lemma compilation_safety_step:
+      (*
+       Lemma compilation_safety_step:
         forall p U Sg Tg Sds Sm Tds Tm cd j,
           (match_st Tg Sg main p X86Context.init_perm U cd j Sds Sm Tds Tm) ->
        (forall sch : ErasureProof.DryMachine.Sch,
@@ -563,11 +565,13 @@ Module MainSafety .
           (sch, [::], Sds) ->
         DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.safe_new_step
           Sg (sch, [::], Sds) Sm) ->
-       forall sch : foo.SC.Sch,
+       forall sch : DryMachineSourceCore.DMS.SC.Sch,
        X86Machines.DryConc.valid (sch, [::], Tds) ->
        X86Machines.DryConc.safe_new_step Tg (sch, [::], Tds) Tm.
-      Proof. intros. eapply safety_preservation; eauto. Qed.
+      Proof. intros. eapply safety_preservation; eauto. Qed.*)
 
+      Parameter GT: MainSafety.ErasureProof.SEM.G.
+      Parameter GT': lifting_safety_this.GT.
       Lemma compilation_safety_preservation_aux:
         forall j (c1 : ErasureProof.dstate)
           (vals2 : seq.seq val)
@@ -576,18 +580,18 @@ Module MainSafety .
          (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
             sch p) (globalenv prog) main nil =
        Some c1 ->
-       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
+       init_inv j (globalenv prog) nil initial_memory (*gTx86*) GT vals2 m2 ->
        exists
-       (c2 : foo.FineConc.machine_state),
+       (c2 : X86Machines.FineConc.machine_state),
          machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
+           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) (*gTx86*) GT' main
            vals2 = Some c2 /\
-         forall sch : foo.SC.Sch,
+         forall sch : DryMachineSourceCore.DMS.SC.Sch,
            X86Machines.DryConc.valid (sch, nil, c2) ->
            X86Machines.DryConc.safe_new_step gTx86 (sch, nil, c2) m2.
       Proof.
         move=> ? c1 vals2 ? /= INIT.
-        move: (INIT)=> /core_init HH /HH [] cd [] c2 [] AA MATCH.
+        move: (INIT). => HH /HH [] cd [] c2 [] AA MATCH.
         move: (MATCH)=> /compilation_safety_step BB.
         exists c2; split; [assumption|].
         intros sch; eapply compilation_safety_step; eauto.

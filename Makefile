@@ -93,20 +93,13 @@ SEPCOMP_FILES = \
   Address.v \
   step_lemmas.v \
   extspec.v \
-  rg_lemmas.v \
-  FiniteMaps.v \
-  mem_lemmas.v mem_wd.v \
+  mem_lemmas.v \
   semantics.v semantics_lemmas.v \
   globalSep.v simulations.v \
-  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
+  effect_semantics.v \
   effect_properties.v \
   event_semantics.v \
-  closed_safety.v compcert.v \
-  val_casted.v \
-  arguments.v \
-  internal_diagram_trans.v \
-  wholeprog_simulations.v \
-  wholeprog_lemmas.v
+  compcert.v \
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
