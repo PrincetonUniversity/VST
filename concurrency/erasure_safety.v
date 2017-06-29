@@ -101,13 +101,13 @@ Qed.
 
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
-      (vals : seq Values.val) (m : Memory.mem)
+      (vals : seq Values.val)
       (rmap0 : rmap) (pmap : access_map * access_map) main genv h,
       match_rmap_perm rmap0 pmap ->
       no_locks_perm rmap0 ->
       initial_core (JMachineSem U (Some rmap0)) h genv
          main vals = Some (U, [::], js) ->
-      exists (mu : SM_Injection) (ds : dstate),
+      exists (ds : dstate),
         initial_core (DMachineSem U (Some pmap)) h genv
                      main vals = Some (U, [::], ds) /\
         DMS.invariant ds /\ match_st js ds.
