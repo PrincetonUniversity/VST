@@ -11,8 +11,11 @@ Record t M TM := mk {
   ; step  : forall G C sem ge c m c' m',
             @corestep _ _ _ (F G C sem) ge c m c' m' =
            (@corestep _ _ _ sem ge c (E m) c' (E m') /\ P m m')
-  ; init : forall G C sem, initial_core (F G C sem) = initial_core sem
-  ; atext  : forall G C sem, at_external (F G C sem) = at_external sem
+  ; init : forall G C sem n ge m v vl q, 
+     initial_core (F G C sem) n ge m v vl = Some (q,None) <->
+     initial_core sem n ge (E m) v vl = Some (q, None)
+  ; atext  : forall G C sem g c m , 
+      at_external (F G C sem) g c m = at_external sem g c (E m)
   ; aftext : forall G C sem, after_external (F G C sem) = after_external sem
   ; halted : forall G C sem, halted (F G C sem) = halted sem
   }.
@@ -27,10 +30,19 @@ split; intros H.
 split; auto.
 destruct H; auto.
 Qed.
+Next Obligation.
+intuition.
+Qed.
 End IdFSem.
 
 Require Import veric.juicy_mem.
 Require Import veric.juicy_extspec.
+
+(*
+Definition special_init {G C} (csem: @CoreSemantics G C mem) : Prop :=
+  forall n ge m v args q m', 
+    semantics.initial_core csem n ge m v args = Some (q, m') -> m=m'.
+*)
 
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=
@@ -39,5 +51,15 @@ Program Definition t : FSem.t mem juicy_mem :=
        resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
        ageable.level jm = S (ageable.level jm'))
     _ _ _ _ _.
+Next Obligation.
+unfold j_initial_core.
+destruct (initial_core sem n ge (m_dry m) v vl) as [[? ?] | ] eqn:?;
+  [ | intuition congruence].
+destruct o. intuition congruence.
+split; intro.
+inversion H; clear H; subst.
+split; auto.
+congruence.
+Qed.
 End JuicyFSem.
 

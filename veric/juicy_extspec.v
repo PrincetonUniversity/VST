@@ -22,6 +22,18 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
+Definition j_initial_core {G C} (csem: @CoreSemantics G C mem)
+     (n: nat) (ge: G) (m: juicy_mem) (v: val) (args: list val) 
+     : option (C * option juicy_mem) :=
+ match semantics.initial_core csem n ge (m_dry m) v args with
+  | Some (q,None) => Some (q, None)  (* NOTE:  This works only if m'=m, which is the case for Clight *)
+  | _ => None
+ end.
+
+Definition j_at_external {G C} (csem: @CoreSemantics G C mem)
+   (ge: G)  (q: C) (jm: juicy_mem) : option (external_function * list val) :=
+ semantics.at_external csem ge q (m_dry jm).
+
 Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
@@ -33,7 +45,7 @@ Definition j_halted {G C} (csem: @CoreSemantics G C mem)
      halted csem c.
 
 Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
-  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
+  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem ge q (m_dry m) = None.
 Proof.
   intros.
   destruct H. eapply corestep_not_at_external; eauto.
@@ -46,11 +58,11 @@ Proof.
 Qed.
 
 Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
-  forall (q : C),
-  at_external csem q = None \/ j_halted csem q = None.
+  forall ge (q : C) m,
+  j_at_external csem ge q m= None \/ j_halted csem q = None.
 Proof.
- intros.
- destruct (at_external_halted_excl csem q); [left | right]; auto.
+ intros. unfold j_at_external, j_halted.
+ destruct (at_external_halted_excl csem ge q (m_dry m)); [left | right]; auto.
 Qed.
 
 Record jm_init_package: Type := {
@@ -70,9 +82,9 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
 Definition juicy_core_sem
   {G C} (csem: @CoreSemantics G C mem) :
    @CoreSemantics G C juicy_mem :=
-  @Build_CoreSemantics _ _ _
-    (semantics.initial_core csem)
-    (at_external csem)
+  @Build_CoreSemantics _ _ juicy_mem
+    (j_initial_core csem)
+    (j_at_external csem)
     (after_external csem)
     (j_halted csem)
     (jstep csem)
@@ -262,6 +274,9 @@ Proof.
    eapply IHN; try eassumption.
    apply age_level in H6; omega.
   + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
+    clear - H2 H1.
+    simpl in *.
+    unfold j_at_external in *. rewrite <- (age_jm_dry H2); auto.
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     - assert (level (m_phi jm) < level (m_phi jm0)).
