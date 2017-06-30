@@ -132,16 +132,24 @@ Definition cl_after_external  (ge: genv) (vret: option val) (rs: regset) : optio
  | _ => None
  end.
 
-Definition cl_step ge (q: regset) (m: mem) (q': regset) (m': mem) : Prop :=
-    cl_at_external ge q m = None /\ 
-     Asm.step ge (State q m) Events.E0 (State q' m').
+Inductive cl_step ge: regset -> mem -> regset -> mem -> Prop :=
+  | cl_step_internal:
+      forall b ofs f i rs m rs' m',
+      rs PC = Vptr b ofs ->
+      Genv.find_funct_ptr ge b = Some (Internal f) ->
+      find_instr (Int.unsigned ofs) f.(fn_code) = Some i ->
+      exec_instr ge f i rs m = Next rs' m' ->
+      cl_step ge rs m rs' m'.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', 
           cl_step ge q m q' m' -> cl_at_external ge q m = None.
 Proof.
   intros.
-  unfold cl_step in H. destruct H; auto.  
+  inv H.
+  unfold cl_at_external. rewrite H0. 
+  destruct (Int.eq_dec ofs Int.zero); auto.
+  unfold Asm.fundef. rewrite H1. auto.
 Qed.
 
 Lemma cl_corestep_not_halted :
@@ -185,14 +193,19 @@ Proof. intros.
   eapply mem_step_store; eassumption.
 Qed.
 
+Lemma goto_label_mem_same c0 l rs m rs' m': forall
+      (G: goto_label c0 l rs m = Next rs' m'), m=m'.
+Proof. intros.
+   unfold goto_label in G.
+   destruct (label_pos l 0 (fn_code c0)); inversion G; clear G; subst.
+   destruct (rs PC); inversion H0; clear H0; subst. auto.
+Qed.
+
 Lemma goto_label_mem_step c0 l rs m rs' m': forall
       (G: goto_label c0 l rs m = Next rs' m'),
       mem_step m m'.
 Proof. intros.
-   unfold goto_label in G.
-   destruct (label_pos l 0 (fn_code c0)); inversion G; clear G; subst.
-   destruct (rs PC); inversion H0; clear H0; subst.
-   apply mem_step_refl.
+  apply goto_label_mem_same in G. subst; apply mem_step_refl.
 Qed.
 
 Lemma exec_instr_mem_step ge c i rs m rs' m': forall
@@ -260,14 +273,7 @@ Proof. intros.
   inv CS; simpl in *; try apply mem_step_refl; try contradiction.
  inv H0.
  + eapply exec_instr_mem_step; try eassumption.
- +
-    admit.  (* builtins *)
- +
-    admit.
-(*+ eapply extcall_mem_step; eassumption. *)
-(*+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
-  destruct callee; simpl in *; solve [intros NN; trivial].*)
-Admitted.
+Qed.
 
 Lemma ple_exec_load:
     forall g ch m a rs rd rs' m'
@@ -281,7 +287,6 @@ Proof.
   split; auto.
   eapply ple_load in Heqo; eauto. rewrite Heqo. auto.
 Qed.
-
 
 Lemma ple_exec_store:
   forall g ch m a rs rs0 rsx rs' m' m1
@@ -305,19 +310,16 @@ Lemma asm_inc_perm: forall (g : genv) c m c' m'
 Proof.
 intros; inv CS; simpl in *; try contradiction.
 inv H0.
-+
-assert (cl_at_external g c m1 = None).
-unfold cl_at_external in *. rewrite H5 in *. rewrite H6 in *. auto. 
- destruct i; simpl in *; inv H8;
+ destruct i; simpl in *; inv H2;
      try solve [
-      exists m1; split; [split | ]; trivial; econstructor; try eassumption; reflexivity
-     | destruct (ple_exec_load _ _ _ _ _ _ _ _ _ PLE H2); subst m';
-        exists m1; split; [split | ]; simpl; auto; econstructor; eassumption
-     | destruct (ple_exec_store _ _ _ _ _ _ _ _ _ _ PLE H2) as [m1' [? ?]];
-        exists m1'; split; [split | ]; auto; econstructor; eassumption
-    |  exists m1; split; [split | ]; auto; [ econstructor; try eassumption; simpl | ];
-       repeat match type of H2 with match ?A with Some _ => _ | None => _ end = _ =>
-         destruct A; try now inv H2 end;
+      exists m1; split; trivial; econstructor; try eassumption; reflexivity
+     | destruct (ple_exec_load _ _ _ _ _ _ _ _ _ PLE H3); subst m';
+        exists m1; split;  simpl; auto; econstructor; eassumption
+     | destruct (ple_exec_store _ _ _ _ _ _ _ _ _ _ PLE H3) as [m1' [? ?]];
+        exists m1'; split; auto; econstructor; eassumption
+    |  exists m1; split; auto; [ econstructor; try eassumption; simpl | ];
+       repeat match type of H3 with match ?A with Some _ => _ | None => _ end = _ =>
+         destruct A; try now inv H3 end;
        eassumption
     ].
  - (* Pcmp_rr case fails! *)
@@ -330,7 +332,6 @@ Program Definition Asm_mem_sem : @MemSem genv regset.
 Proof.
 apply Build_MemSem with (csem := cl_core_sem).
   apply (asm_mem_step).
-(*  apply asm_inc_perm.*)
 Defined.
 
 Lemma exec_instr_forward g c i rs m rs' m': forall

@@ -95,7 +95,7 @@ Module Parching <: ErasureSig.
   Import THE_DRY_MACHINE_SOURCE.
   Import DMS.
 
-  (*UNCOMENT THE LINE BELLOW AFTER CHANGES ARE MADE (WHENEVER THE FILE COMPILES)*)
+  (*UNCOMMENT THE LINE BELOW AFTER CHANGES ARE MADE (WHENEVER THE FILE COMPILES)*)
   (*Module DSEM := DMS.SEM*)
   Module DMS := DryMachine.
   Module DryMachine <: ConcurrentMachine:= DMS.DryConc.
@@ -936,9 +936,9 @@ Module Parching <: ErasureSig.
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
         no_locks_perm rmap ->
-        initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
+        initial_core (JMachineSem U (Some rmap)) h genv m main vals = Some ((U, nil, js),None) ->
         exists (ds : dstate),
-          initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil,ds) /\
+          initial_core (DMachineSem U (Some pmap)) h genv m main vals = Some ((U, nil,ds),None) /\
           DryMachine.invariant ds /\
           match_st js ds.
     Proof.
@@ -951,8 +951,8 @@ Module Parching <: ErasureSig.
       simpl in H2.
       unfold JuicyMachine.init_machine in H2.
       unfold JSEM.init_mach in H2. simpl in H2.
-      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) 0 genv main vals) eqn:C; try solve[inversion H2].
-      inversion H2.
+      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) 0 genv m main vals) as [[? ?]|] eqn:C; try solve[inversion H2].
+      destruct o; inv H2.
       exists (DryMachine.initial_machine pmap.1 c).
 
       split; [|split].
@@ -4459,79 +4459,6 @@ Here be dragons
 
 
 
-
-  Lemma core_diagram':
-    forall (m : Mem.mem)  (U0 U U': schedule)
-      (ds : dstate) (js js': jstate) rmap pmap
-      (m' : Mem.mem) genv,
-      match_st js ds ->
-      DryMachine.invariant ds ->
-      corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
-      exists (ds' : dstate),
-        DryMachine.invariant ds' /\
-        match_st js' ds' /\
-        corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
-          intros m U0 U U' ds js js' rmap pmap m' genv MATCH dinv.
-          unfold JuicyMachine.MachineSemantics; simpl.
-          unfold JuicyMachine.MachStep; simpl.
-
-          intros STEP;
-            inversion STEP; subst.
-
-          (* start_step *)
-          { inversion Htstep; subst.
-            pose (ds':= (DTP.updThreadC (MTCH_cnt MATCH ctn) (Krun c_new))).
-            exists ds'. split; [|split].
-            - apply updThreadC_invariant. assumption.
-            - apply MTCH_updt; assumption.
-            - econstructor 1.
-              + eassumption.
-              + eapply MTCH_compat; eassumption.
-              + { econstructor.
-                  - eapply MTCH_getThreadC. eassumption. eassumption.
-                  - eassumption.
-                  - eassumption.
-                  - reflexivity.
-                }
-          }
-
-          (* resume_step *)
-          { inversion MATCH; subst.
-            inversion Htstep; subst.
-            exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
-            split;[|split].
-            (*Invariant*)
-            { apply updThreadC_invariant; assumption. }
-            (*Match *)
-            { (*This should be a lemma *)
-              apply MTCH_updt; assumption.
-            }
-            (*Step*)
-            { econstructor 2; try eassumption.
-              - simpl. eapply MTCH_compat; eassumption.
-              - simpl. econstructor; try eassumption.
-                + rewrite <- Hcode. symmetry. apply mtch_gtc.
-                + reflexivity.
-            }
-          }
-
-          (* core_step *)
-          {
-            inversion MATCH; subst.
-            inversion Htstep; subst.
-            assert (Htid':=mtch_cnt _ Htid).
-
-
-            exists (DTP.updThread Htid'
-                             (Krun c')
-                             (permissions.getCurPerm (m_dry jm'),
-              (DTP.getThreadR Htid').2
-              (*JSEM.juice2Perm_locks (m_phi jm') m *) )).
-            split ; [|split].
-            {
-              inversion Hcorestep.
-              eapply ev_step_ax2 in H; destruct H as [T H].
-              apply SEM.step_decay in H.
               Lemma step_decay_invariant:
                 forall tp  (m : Mem.mem) i
                      (Hi : DTP.containsThread tp i) c m1 m1' c'
@@ -4630,6 +4557,80 @@ Here be dragons
                       apply perm_coh_empty_1.
 
               Qed.
+
+  Lemma core_diagram':
+    forall (m : Mem.mem)  (U0 U U': schedule)
+      (ds : dstate) (js js': jstate) rmap pmap
+      (m' : Mem.mem) genv,
+      match_st js ds ->
+      DryMachine.invariant ds ->
+      corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
+      exists (ds' : dstate),
+        DryMachine.invariant ds' /\
+        match_st js' ds' /\
+        corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
+          intros m U0 U U' ds js js' rmap pmap m' genv MATCH dinv.
+          unfold JuicyMachine.MachineSemantics; simpl.
+          unfold JuicyMachine.MachStep; simpl.
+Proof.
+          intros STEP;
+            inversion STEP; subst.
+
+*         (* start_step *)
+          { inversion Htstep; subst.
+            pose (ds':= (DTP.updThreadC (MTCH_cnt MATCH ctn) (Krun c_new))).
+            exists ds'. split; [|split].
+            - apply updThreadC_invariant. assumption.
+            - apply MTCH_updt; assumption.
+            - eapply (DryMachine.start_step tid) with (Htid0 := @MTCH_cnt js tid ds MATCH Htid).
+              + assumption.
+              + eapply MTCH_compat; eassumption.
+              + { econstructor.
+                  - eapply MTCH_getThreadC. eassumption. eassumption.
+                  - eassumption.
+                  - eassumption.
+                  - reflexivity.
+                }
+          }
+
+*          (* resume_step *)
+          { inversion MATCH; subst.
+            inversion Htstep; subst.
+            exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
+            split;[|split].
+            (*Invariant*)
+            { apply updThreadC_invariant; assumption. }
+            (*Match *)
+            { (*This should be a lemma *)
+              apply MTCH_updt; assumption.
+            }
+            (*Step*)
+            { econstructor 2; try eassumption.
+              - simpl. eapply MTCH_compat; eassumption.
+              - simpl. econstructor; try eassumption.
+                + rewrite <- Hcode. symmetry. apply mtch_gtc.
+                + reflexivity.
+            }
+          }
+
+*          (* core_step *)
+          {
+            inversion MATCH; subst.
+            inversion Htstep; subst.
+            assert (Htid':=mtch_cnt _ Htid).
+
+
+            exists (DTP.updThread Htid'
+                             (Krun c')
+                             (permissions.getCurPerm (m_dry jm'),
+              (DTP.getThreadR Htid').2
+              (*JSEM.juice2Perm_locks (m_phi jm') m *) )).
+            split ; [|split].
+            {
+              inversion Hcorestep.
+              eapply ev_step_ax2 in H; destruct H as [T H].
+              apply SEM.step_decay in H.
+
   eapply step_decay_invariant
   with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); try eapply H; eauto.
 
@@ -4694,11 +4695,10 @@ Here be dragons
    inversion Hcorestep.
    eapply ev_step_ax2 in H.
    destruct H as [T evSTEP].
-
-   econstructor; simpl.
+    eapply DryMachine.thread_step; simpl.
    - eassumption.
    - econstructor; try eassumption.
-     Focus 3. reflexivity.
+      3: reflexivity.
      Focus 2. eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread).
      instantiate(1:=Hcmpt').
      apply MTCH_restrict_personal.
@@ -4706,7 +4706,7 @@ Here be dragons
 }
   }
 
-(* suspend_step *)
+* (* suspend_step *)
 inversion MATCH; subst.
   inversion Htstep; subst.
   exists (DTP.updThreadC (mtch_cnt _ ctn) (Kblocked c)).
@@ -4724,7 +4724,7 @@ inversion MATCH; subst.
       + reflexivity.
   }
 
-  (*Conc step*)
+*  (*Conc step*)
   {
     destruct (conc_step_diagram m m' U js js' ds tid genv ev MATCH dinv Htid Hcmpt HschedN Htstep)
       as [ds' [ev' [dinv' [MTCH' step']]]]; eauto.
@@ -4733,7 +4733,7 @@ inversion MATCH; subst.
     reflexivity.
   }
 
-  (* step_halted *)
+*  (* step_halted *)
   exists ds.
   split; [|split].
   { assumption. }
@@ -4747,7 +4747,7 @@ inversion MATCH; subst.
   }
 
 
-  (* schedfail *)
+*  (* schedfail *)
   { exists ds.
     split;[|split]; try eassumption.
     econstructor 7; try eassumption; try reflexivity.
@@ -4756,8 +4756,7 @@ inversion MATCH; subst.
 
   Grab Existential Variables.
   - simpl. apply mtch_cnt. assumption.
-          - assumption.
-          - simpl. eapply MTCH_cnt ; eauto.
+  - assumption.
   Qed.
 
   Lemma core_diagram:

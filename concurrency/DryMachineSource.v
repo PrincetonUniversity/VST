@@ -192,7 +192,7 @@ Module THE_DRY_MACHINE_SOURCE.
       pose (is_syncStep:= is_syncStep ge tr dm m i cnti c Hcmpt KRES).
 
       (*It most be at_external *)
-      destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem c) eqn:AtExt.
+      destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem ge c m) eqn:AtExt.
       Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
@@ -202,12 +202,8 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
-        match goal with
-        | [ H: at_external ?SEM ?c = None,
-               H' : at_external ?SEM ?c = Some _|- _ ] =>
-          rewrite H in H'; inversion H'
-             end. } Unfocus.
+          end; congruence.
+       } Unfocus.
 
       (*the arguments can't be empty*)
       destruct p as [FUN ARGS].
@@ -231,12 +227,12 @@ Module THE_DRY_MACHINE_SOURCE.
                     rewrite H in H'; inversion H'
                 end; subst);
         try (match goal with
-        | [ H: at_external ?SEM ?c = Some (FUN, ARGS),
-               H' : at_external ?SEM ?c = Some (_, ((Vptr ?b ?ofs):: ?ARGS')) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (FUN, ARGS),
+               H' : at_external ?SEM _ ?c _ = Some (_, ((Vptr ?b ?ofs):: ?ARGS')) |- _ ] =>
           exfalso; apply NHargs; exists b, ofs, ARGS';
           rewrite H in H'; inversion H'; auto; pose (2)
-        | [ H: at_external ?SEM ?c = _ ,
-               H' : at_external ?SEM ?c' =  _  |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = _ ,
+               H' : at_external ?SEM _ ?c' _ =  _  |- _ ] =>
           pose (NNNN:= c); pose (NNNNN:= c'); pose (3)
              end).
         - exfalso; eapply no_thread_halted; eassumption.
@@ -276,11 +272,11 @@ Module THE_DRY_MACHINE_SOURCE.
                     rewrite H in H'; inversion H'
                 end; subst);
         try (match goal with
-        | [ H: at_external ?SEM ?c = Some (_, _),
-               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+               H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
           try solve[ rewrite H in H'; inversion H']
-        | [ H: at_external ?SEM ?c = Some (?FUN, _),
-               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (?FUN, _),
+               H' : at_external ?SEM _ ?c _ = Some (?FUN', _ ) |- _ ] =>
           pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
              end);
         try solve[ exfalso; eapply no_thread_halted; eassumption];
@@ -326,11 +322,11 @@ Module THE_DRY_MACHINE_SOURCE.
                     rewrite H in H'; inversion H'
                 end; subst);
         try (match goal with
-        | [ H: at_external ?SEM ?c = Some (_, _),
-               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+               H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
           rewrite H in H'; inversion H'
-        | [ H: at_external ?SEM ?c = Some (?FUN, _),
-               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (?FUN, _),
+               H' : at_external ?SEM _ ?c _ = Some (?FUN', _ ) |- _ ] =>
           pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
              end);
         try solve[ exfalso; eapply no_thread_halted; eassumption];
@@ -394,11 +390,11 @@ Module THE_DRY_MACHINE_SOURCE.
                     rewrite H in H'; inversion H'
                 end; subst);
         try (match goal with
-        | [ H: at_external ?SEM ?c = Some (_, _),
-               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+               H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
           rewrite H in H'; inversion H'
-        | [ H: at_external ?SEM ?c = Some (?FUN, _),
-               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+        | [ H: at_external ?SEM _ ?c _ = Some (?FUN, _),
+               H' : at_external ?SEM _ ?c _ = Some (?FUN', _ ) |- _ ] =>
           pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
              end);
         try solve[ exfalso; eapply no_thread_halted; eassumption];
@@ -430,11 +426,12 @@ Module THE_DRY_MACHINE_SOURCE.
               rewrite H in H';  inversion H'; subst c
             end;
             try (match goal with
-                 | [ H: at_external ?SEM ?c = Some (_, _),
-                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                        H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                    rewrite H in H'; pose (NN:= H'); inversion H'
                  end; simpl in *; try subst).
-          - exfalso; apply NHlt. auto.
+          - exfalso; apply NHlt; auto.
+          - exfalso. subst. clear - AtExt  Hat_external. congruence.
           - rewrite Hone_zero in Hload; inversion Hload.
         } Unfocus.
 
@@ -450,10 +447,10 @@ Module THE_DRY_MACHINE_SOURCE.
             | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                    H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
               rewrite H in H'; inversion H'; subst c
-            end;
+            end; try congruence; simpl in *; subst;
             try (match goal with
-                 | [ H: at_external ?SEM ?c = Some (_, _),
-                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                        H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                    rewrite H in H'; inversion H'
                  end; simpl in *; try subst);
             try solve[rewrite Hone_zero in Hload; inversion Hload].
@@ -491,10 +488,10 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
+          end; try congruence;
           try (match goal with
-               | [ H: at_external ?SEM ?c = Some (_, _),
-                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+               | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                      H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                  rewrite H in H'; inversion H'
                end; simpl in *; try subst);
           try solve[rewrite Hone_zero in Hload; inversion Hload].
@@ -539,10 +536,10 @@ Module THE_DRY_MACHINE_SOURCE.
             | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                    H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
               rewrite H in H';  inversion H'; subst c
-            end;
+            end; try congruence;
             try (match goal with
-                 | [ H: at_external ?SEM ?c = Some (_, _),
-                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                        H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                    rewrite H in H'; pose (NN:= H'); inversion H'
                  end; simpl in *; try subst).
         - exfalso; apply Nload.
@@ -564,10 +561,10 @@ Module THE_DRY_MACHINE_SOURCE.
             | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                    H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
               rewrite H in H';  inversion H'; subst c
-            end;
+            end; try congruence;
             try (match goal with
-                 | [ H: at_external ?SEM ?c = Some (_, _),
-                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                        H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                    rewrite H in H'; pose (NN:= H'); inversion H'
                  end; simpl in *; try subst).
           - exfalso; apply NHlt. auto.
@@ -585,10 +582,10 @@ Module THE_DRY_MACHINE_SOURCE.
             | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                    H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
               rewrite H in H'; inversion H'; subst c
-            end;
+            end; try congruence;
             try (match goal with
-                 | [ H: at_external ?SEM ?c = Some (_, _),
-                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                        H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                    rewrite H in H'; inversion H'
                  end; simpl in *; try subst).
           - clear - Hstore Hstore'.
@@ -625,10 +622,10 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
+          end; try congruence;
           try (match goal with
-               | [ H: at_external ?SEM ?c = Some (_, _),
-                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+               | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                      H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                  rewrite H in H'; inversion H'
                end; simpl in *; try subst);
           try solve[rewrite Hone_zero in Hload; inversion Hload].
@@ -702,14 +699,16 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
-          try (match goal with
-               | [ H: at_external ?SEM ?c = Some (_, _),
-                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+          end; try congruence;
+(*          try (match goal with
+               | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                      H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                  rewrite H in H'; inversion H'
                end; simpl in *; try subst);
+*)
           try solve[rewrite Hone_zero in Hload; inversion Hload].
-        unfold tp'0, tp_upd0.
+        unfold tp'0, tp_upd0. subst.
+        rewrite AtExt in Hat_external. inv Hat_external.
         assert (H: bounded_maps.sub_map virtue1.1 (getMaxPerm x.2).2 /\
                     bounded_maps.sub_map virtue1.2 (getMaxPerm x.2).2).
         { auto. }
@@ -770,10 +769,10 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
+          end; subst;
           try (match goal with
-               | [ H: at_external ?SEM ?c = Some (_, _),
-                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+               | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                      H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                  rewrite H in H'; inversion H'
                end; simpl in *; try subst);
           try solve[rewrite Hone_zero in Hload; inversion Hload].
@@ -833,10 +832,10 @@ Module THE_DRY_MACHINE_SOURCE.
           | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
-          end;
+          end; try congruence;
           try (match goal with
-               | [ H: at_external ?SEM ?c = Some (_, _),
-                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+               | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                      H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                  rewrite H in H'; inversion H'
                end; simpl in *; try subst);
           try solve[rewrite Hone_zero in Hload; inversion Hload].
@@ -864,10 +863,10 @@ Module THE_DRY_MACHINE_SOURCE.
             | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
                    H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
               rewrite H in H'; inversion H'; subst c
-        end;
+        end; subst;
         try (match goal with
-             | [ H: at_external ?SEM ?c = Some (_, _),
-                    H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+             | [ H: at_external ?SEM _ ?c _ = Some (_, _),
+                    H' : at_external ?SEM _ ?c _ = Some (_, _ ) |- _ ] =>
                rewrite H in H'; inversion H'
              end; simpl in *; try subst);
       try (match goal with
@@ -1107,7 +1106,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
       { (*Kresume*)
         (*then it must be after external*)
-        destruct (after_external DMS.DryMachine.ThreadPool.SEM.Sem None c) eqn:AftEx.
+        destruct (after_external DMS.DryMachine.ThreadPool.SEM.Sem prog None c) eqn:AftEx.
         Focus 2. {
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
@@ -1166,7 +1165,7 @@ Module THE_DRY_MACHINE_SOURCE.
       { (*Kinit*)
 
         (*then it must be ready to start*)
-        destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem (SCH.TID.tid2nat i) prog v [:: v0]) eqn:Hinit.
+        destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem (SCH.TID.tid2nat i) prog m v [:: v0]) as [[? ?]|] eqn:Hinit.
         Focus 2. {
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
@@ -1194,7 +1193,7 @@ Module THE_DRY_MACHINE_SOURCE.
         exists 1%nat.
         exists (fun _ => (tr,
                   @DMS.DryMachine.ThreadPool.updThreadC i dm cnti (Krun c),
-                  m)).
+                  machine_semantics.option_proj m o)).
         move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
 

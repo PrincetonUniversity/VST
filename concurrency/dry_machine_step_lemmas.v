@@ -438,6 +438,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
   Module StepLemmas := StepLemmas SEM Machine.
   Import ThreadPoolWF StepLemmas CoreLanguage CoreLanguageDry SCH.
 
+  Lemma initial_core_nomem:
+   forall n ge m v args q m', initial_core Sem n ge m v args = Some (q,m') -> m'=None.
+  Proof.  
+  Admitted.  (* true of Clight *)
+
   Section InternalSteps.
     Variable the_ge : G.
 
@@ -496,8 +501,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         tp' = tp'' /\ m' = m''.
     Proof.
       intros.
-      destruct Hstep as [[? Htstep] | [[Htstep ?] | [Htstep ?]]],
-                        Hstep' as [[? Htstep'] | [[Htstep' ?] | [Htstep' ?]]]; subst;
+      destruct Hstep as [[? Htstep] | [[Htstep ?] | Htstep]],
+                        Hstep' as [[? Htstep'] | [[Htstep' ?] | Htstep']]; subst;
       inversion Htstep; inversion Htstep'; subst; pf_cleanup;
       try (rewrite Hcode in Hcode0; inversion Hcode0; subst);
       try apply ev_step_ax1 in Hcorestep0;
@@ -554,7 +559,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       inversion Hstep. destruct H.
       inversion H; subst.
       eapply corestep_containsThread; by eauto.
-      destruct H as [[Htstep _] | [Htstep _]];
+      destruct H as [[Htstep _] | Htstep];
         inversion Htstep; subst;
         [by eapply cntUpdateC | by eapply cntUpdateC].
     Qed.
@@ -582,7 +587,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcnt: containsThread tp' i),
         containsThread tp i.
     Proof.
-      intros. inversion Hstep as [[? Htstep] | [[Htstep _] | [Htstep _]]];
+      intros. inversion Hstep as [[? Htstep] | [[Htstep _] | Htstep]];
         inversion Htstep; subst;
         [eapply corestep_containsThread'; eauto
         |  by eapply cntUpdateC'; eauto
@@ -617,7 +622,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Corollary coarseResume_compatible :
       forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hresume: DryConc.resume_thread pf tp'),
+        (Hresume: DryConc.resume_thread the_ge m pf tp'),
         mem_compatible tp' m.
     Proof.
       intros.
@@ -628,15 +633,15 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
     (** [mem_compatible] is preserved by [start_thread]*)
     Corollary coarseStart_compatible :
-      forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
+      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hstart: DryConc.start_thread the_ge pf tp'),
-        mem_compatible tp' m.
+        (Hstart: DryConc.start_thread the_ge m pf tp' m'),
+        mem_compatible tp' m'.
     Proof.
       intros.
-      inversion Hstart; subst;
-      eapply updThreadC_compatible;
-        by eauto.
+      inversion Hstart; subst.
+      eapply updThreadC_compatible.
+      apply initial_core_nomem in Hinitial. subst. eauto.
     Qed.
 
     (** [mem_compatible] is preserved by [internal_step]*)
@@ -647,7 +652,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         mem_compatible tp' m'.
     Proof.
       intros.
-      destruct Hstep as [[? Hdry] | [[Hresume ?] | [Hstart ?]]];
+      destruct Hstep as [[? Hdry] | [[Hresume ?] | Hstart]];
         subst;
         [eapply dry_step_compatible
         | eapply coarseResume_compatible
@@ -706,7 +711,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hneq: i <> j),
         getThreadC pfj = getThreadC pfj'.
     Proof.
-      intros. destruct Hstep as [[? Hstep] | [[Hstep Heq] | [Hstep Heq]]];
+      intros. destruct Hstep as [[? Hstep] | [[Hstep Heq] | Hstep]];
         inversion Hstep; subst;
         [erewrite <- gsoThreadCode with (cntj' := pfj')
           by eauto
@@ -755,7 +760,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hneq: i <> j),
         getThreadR pfj = getThreadR pfj'.
     Proof.
-      intros. destruct Hstep as [[? Hstep] | [[Hstep Heq] | [Hstep Heq]]];
+      intros. destruct Hstep as [[? Hstep] | [[Hstep Heq] | Hstep]];
         inversion Hstep; subst;
         [erewrite <- @gsoThreadRes with (cntj' := pfj') |
          erewrite <- @gThreadCR with (cntj' := pfj')
@@ -858,7 +863,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (getThreadR cntj).2 = (getThreadR cntj').2.
     Proof.
       intros.
-      destruct Hstep as [[? Htstep] | [[Htstep ?] | [Htstep ?]]];
+      destruct Hstep as [[? Htstep] | [[Htstep ?] | Htstep]];
         inversion Htstep;
         subst; try (rewrite gThreadCR; reflexivity).
       destruct (i == j) eqn:Hij;
@@ -929,10 +934,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      inversion Hstep as [[? Htstep] | [[Htstep Heq] | [Htstep Heq]]]; subst; auto.
+      inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val;
         by eauto.
+      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
     Qed.
 
     Lemma internal_exec_disjoint_val :
@@ -1006,10 +1012,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      inversion Hstep as [[? Htstep] | [[Htstep Heq] | [Htstep Heq]]]; subst; auto.
+      inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply ev_step_ax1 in Hcorestep;
         eapply corestep_disjoint_locks;
           by eauto.
+      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
     Qed.
 
 
@@ -1074,9 +1081,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      inversion Hstep as [[? Htstep] | [[Htstep Heq] | [Htstep Heq]]]; subst; auto.
+      inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply ev_unchanged_on in Hcorestep;
         by eauto.
+      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
     Qed.
 
     (** Data resources of a thread that took an internal step are related by [decay]*)
@@ -1101,7 +1109,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
              erewrite getMaxPerm_correct;
                by unfold permission_at).
       unfold permission_at in *.
-      destruct Hstep as [[? Hcstep] | [[Hresume ?] | [Hstart ?]]]; subst.
+      destruct Hstep as [[? Hcstep] | [[Hresume ?] | Hstart]]; subst.
       - inversion Hcstep. subst.
         apply ev_step_ax1 in Hcorestep.
         eapply corestep_decay in Hcorestep.
@@ -1176,6 +1184,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           rewrite HpermMax.
           assert (H := restrPermMap_Max (proj1 (Hcomp i cnt)) b ofs).
           rewrite getMaxPerm_correct in H.
+          apply initial_core_nomem in Hinitial. subst.
           unfold permission_at in H;
             by rewrite H.
           rewrite HpermCur.
@@ -1203,10 +1212,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Mem.valid_block m' b.
     Proof.
       intros.
-      destruct Hstep as [[? Htstep] | [[_ ?] | [_ ?]]];
+      destruct Hstep as [[? Htstep] | [[_ ?] | ?]];
         [inversion Htstep; subst;
          eapply ev_step_validblock;
-           by eauto | by subst | by subst].
+           by eauto | by subst | subst].
+      inversion H. subst. apply initial_core_nomem in Hinitial. subst. assumption.
     Qed.
 
     Lemma internal_execution_valid :
@@ -1344,10 +1354,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      inversion Hstep as [[? Hcstep] | [[Hrstep Heq] | [Hsstep Heq]]]; subst; auto.
+      inversion Hstep as [[? Hcstep] | [[Hrstep Heq] | Hsstep]]; subst; auto.
       inversion Hcstep; subst; eapply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val_lockpool;
         by eauto.
+      inversion Hsstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
     Qed.
 
     Lemma internal_exec_disjoint_val_lockPool:
@@ -1421,7 +1432,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         internal_step cntj' Hcomp' (updThread cnti' c pmap) m'.
     Proof.
       intros.
-      inversion Hstep as [[? ?] | [[? ?] | [? ?]]].
+      inversion Hstep as [[? ?] | [[? ?] | ?]].
       - inversion H; subst.
         left.
         exists x.
@@ -1444,7 +1455,6 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - subst.
         inversion H; subst.
         do 2 right.
-        split; auto.
         econstructor; eauto.
         erewrite @gsoThreadCode with (cntj := cntj); eauto.
         pf_cleanup. auto.
@@ -1523,8 +1533,6 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           by rewrite add_updateC_comm.
       - destruct Hinit; subst.
         right; right.
-        split; auto.
-        inversion H; subst.
         econstructor; eauto.
         erewrite gsoAddCode; eauto.
           by rewrite add_updateC_comm.
@@ -1577,7 +1585,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         internal_step cntj' Hcomp' (remLockSet tp' (b,ofs)) m'.
     Proof.
       intros.
-      inversion Hstep as [[? ?] | [[? ?] | [? ?]]].
+      inversion Hstep as [[? ?] | [[? ?] | ?]].
       - inversion H; subst.
         left.
         exists x.
@@ -1600,7 +1608,6 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - subst.
         inversion H; subst.
         do 2 right.
-        split; auto.
         econstructor; eauto.
         rewrite gRemLockSetCode; auto.
         eapply remLock_inv; eauto.
@@ -1645,11 +1652,12 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Mem.nextblock m <= Mem.nextblock m')%positive.
     Proof.
       intros.
-      destruct Hstep as [[? H] | [[? ?] | [? ?]]]; subst.
+      destruct Hstep as [[? H] | [[? ?] | ?]]; subst.
       inversion H; subst.
       eapply ev_step_nextblock in Hcorestep;
         by rewrite restrPermMap_nextblock in Hcorestep.
       apply Pos.le_refl.
+      inversion H. subst. apply initial_core_nomem in Hinitial. subst.
       apply Pos.le_refl.
     Qed.
 
@@ -1698,7 +1706,7 @@ Module StepType (SEM : Semantics)
     match code with
     | Kinit _ _ => Internal
     | Krun c =>
-      match at_external Sem c with
+      match at_external Sem the_ge c Mem.empty with
       | None =>
         match halted Sem c with
         | Some _ => Halted
@@ -1743,6 +1751,11 @@ Module StepType (SEM : Semantics)
            end; try discriminate; try (exfalso; by auto).
 
 
+Lemma at_external_congr:
+ forall ge ge' m m' c, at_external Sem ge c m = at_external Sem ge' c m'.
+   (* Provable for Clight *)
+Admitted.
+
   Section StepType.
     Variable ge : G.
   Lemma internal_step_type :
@@ -1757,6 +1770,7 @@ Module StepType (SEM : Semantics)
     inversion Hcstep. subst. rewrite Hcode.
     apply ev_step_ax1 in Hcorestep.
     assert (H1:= corestep_not_at_external Sem _ _ _ _ _ Hcorestep).
+    rewrite (at_external_congr the_ge ge Mem.empty (restrPermMap (Hcomp i cnt)#1)).
     rewrite H1.
     assert (H2:= corestep_not_halted Sem _ _ _ _ _ Hcorestep);
       by rewrite H2.
@@ -1776,7 +1790,7 @@ Module StepType (SEM : Semantics)
       ~ (cnti' @ E).
   Proof.
     intros. intro Hcontra.
-    destruct Hinternal as [[? Htstep] | [[Htstep ?] | [Htstep ?]]]; subst;
+    destruct Hinternal as [[? Htstep] | [[Htstep ?] | Htstep]]; subst;
     inversion Htstep; subst;
     unfold getStepType in Hcontra;
     try rewrite gssThreadCode in Hcontra;
@@ -1854,6 +1868,11 @@ Module StepType (SEM : Semantics)
       eapply ev_step_ax1 in Hcorestep.
       eapply corestep_invariant;
         by (simpl; eauto).
+      rewrite (at_external_congr the_ge ge Mem.empty m') in Hinternal.
+     rewrite Hat_external in Hinternal. discriminate.
+     destruct (at_external Sem the_ge c Mem.empty) eqn:?; try discriminate Hinternal.
+     destruct (halted Sem c) eqn:?; try discriminate Hinternal.
+     inversion Hcant.
   Qed.
 
   Lemma fmachine_step_compatible:
@@ -1865,12 +1884,13 @@ Module StepType (SEM : Semantics)
   Proof.
     intros.
     absurd_internal Hstep;
+      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try (eapply updThreadC_compatible;
              by eauto).
     eapply mem_compatible_setMaxPerm.
-    eapply corestep_compatible;
-      by (simpl; eauto).
-    (* this holds trivially, we don't need to use corestep_compatible*)
+    eapply corestep_compatible; simpl; eauto.
+    destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal.
+    destruct (halted Sem c); inversion H0. inversion Hcant.
   Qed.
 
   Lemma gsoThreadC_fstepI:
@@ -1885,8 +1905,12 @@ Module StepType (SEM : Semantics)
   Proof.
     intros.
     absurd_internal Hstep;
+      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try (erewrite gsoThreadCC with (cntj' := pfj');
              by eauto);
+      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal;
+     destruct (halted Sem c); inversion H0; clear H0;
+      auto;
       erewrite gsoThreadCode with (cntj' := pfj');
         by eauto.
   Qed.
@@ -1900,8 +1924,12 @@ Module StepType (SEM : Semantics)
   Proof.
     intros.
     absurd_internal Hstep;
+      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try (erewrite gsoThreadCLock;
              by eauto);
+      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal;
+     destruct (halted Sem c); inversion H0; clear H0;
+     auto;
       erewrite gsoThreadLock;
         by eauto.
   Qed.
@@ -1915,9 +1943,13 @@ Module StepType (SEM : Semantics)
   Proof.
     intros.
     absurd_internal Hstep;
-      extensionality addr;
+      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
+     extensionality addr;
       try (by rewrite gsoThreadCLPool);
       try (by rewrite gsoThreadLPool).
+      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal.
+     destruct (halted Sem c); inversion H0; clear H0.
+     inversion Hcant. 
   Qed.
 
   Lemma fmachine_step_disjoint_val :
@@ -1938,6 +1970,7 @@ Module StepType (SEM : Semantics)
   Proof.
     intros.
     absurd_internal Hstep;
+      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try reflexivity;
     apply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val;
@@ -1951,15 +1984,15 @@ Module StepType (SEM : Semantics)
       Mem.valid_block mf' b.
   Proof.
     intros.
-    inversion Hstep; subst; auto.
-    inversion Htstep; subst.
+    inversion Hstep; clear Hstep; subst; auto.
+    inversion Htstep; clear Htstep; subst.
+    apply initial_core_nomem in Hinitial; subst om. simpl. auto.
     erewrite <- diluteMem_valid.
-    eapply CoreLanguage.ev_step_validblock; eauto.
     inversion Htstep; subst; eauto.
-    eapply Mem.store_valid_block_1; eauto.
-    eapply Mem.store_valid_block_1; eauto.
-    eapply Mem.store_valid_block_1; eauto.
-  Qed.
+    eapply CoreLanguage.ev_step_validblock; eauto.
+    simpl in *. inversion HschedN; clear HschedN; subst. clear HschedS.
+    admit. (* Check with Santiago about how to prove this *)
+ Admitted.
 
   End StepType.
 

@@ -70,6 +70,8 @@ Set Bullet Behavior "Strict Subproofs".
 
 Open Scope string_scope.
 
+Definition at_external_SEM_eq := ClightSemantincsForMachines.ClightSEM.at_external_SEM_eq.
+
 (* to make the proof faster, we avoid unfolding of those definitions *)
 Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
   ext_spec_stable juicy_mem_equiv (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
@@ -126,7 +128,7 @@ Lemma preservation_release
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
-  (wellformed : threads_wellformed tp)
+  (wellformed : threads_wellformed ge m tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (ci : code)
@@ -143,7 +145,7 @@ Lemma preservation_release
   (sh : Share.t)
   (rsh : shares.readable_share sh)
   (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external SEM.Sem c = Some (UNLOCK(* , ef_sig UNLOCK *), Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem ge c m = Some (UNLOCK(* , ef_sig UNLOCK *), Vptr b ofs :: nil))
   (His_locked : lockRes tp (b, Int.intval ofs) = SNone)
   (Hsat_lock_inv : R (age_by 1 d_phi))
   (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
@@ -481,19 +483,16 @@ Proof.
           clear -Hat_external step.
           apply corestep_not_at_external in step.
           rewrite jstep.JuicyFSem.t_obligation_3 in step.
-          set (u := at_external _) in Hat_external.
-          set (v := at_external _) in step.
+          set (u := at_external _ _ _ _) in Hat_external.
+          set (v := at_external _ _ _ _) in step.
           assert (u = v).
-          { unfold u, v. f_equal.
-            unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem.
-            reflexivity. }
+          { unfold u, v. rewrite at_external_SEM_eq. reflexivity. }
           congruence.
 
         - (* not halted *)
           exfalso.
           clear -Hat_external Ha.
-          assert (Ae : at_external SEM.Sem c <> None). congruence.
+          assert (Ae : at_external SEM.Sem ge c m <> None). congruence.
           eapply at_external_not_halted in Ae.
           unfold juicy_core_sem in *.
           unfold cl_core_sem in *.
@@ -515,11 +514,15 @@ Proof.
             { rewrite <-Ejuicy_sem in *.
               unfold juicy_sem in *.
               simpl in ae.
+              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              unfold j_at_external in ae. rewrite at_external_SEM_eq in ae.
               congruence. }
             assert (args = Vptr b ofs :: nil).
             { rewrite <-Ejuicy_sem in *.
               unfold juicy_sem in *.
               simpl in ae.
+              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              unfold j_at_external in ae. rewrite at_external_SEM_eq in ae.
               congruence. }
             subst e args; simpl.
             auto.
@@ -528,6 +531,8 @@ Proof.
             { rewrite <-Ejuicy_sem in *.
               unfold juicy_sem in *.
               simpl in ae.
+              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              unfold j_at_external in ae. rewrite at_external_SEM_eq in ae.
               congruence. }
             subst e.
             apply Logic.I.
@@ -567,6 +572,8 @@ Proof.
             { rewrite <-Ejuicy_sem in *.
               unfold juicy_sem in *.
               simpl in ae.
+              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              unfold j_at_external in ae. rewrite at_external_SEM_eq in ae.
               congruence. }
             subst e.
             revert x Pre Post.
@@ -602,6 +609,7 @@ Proof.
               revert Hat_external ae; clear.
               unfold SEM.Sem in *.
               rewrite SEM.CLN_msem. simpl.
+                   intros. unfold cl_at_external in *.
               congruence.
             }
             subst args.

@@ -553,6 +553,12 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     constructor; eauto.
   Qed.
 
+   Lemma initial_core_valid_block:
+   forall n ge m v args q m',
+      initial_core ThreadPool.SEM.Sem n ge m v args = Some (q, Some m') ->
+      forall b, Mem.valid_block m b -> Mem.valid_block m' b.
+   Admitted.
+
   Lemma fstep_deadLocation:
     forall U U' tr tp m tr' tp' m' b ofs
       (Hdead: deadLocation tp m b ofs)
@@ -566,6 +572,10 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     destruct U; inversion HschedN; subst; pf_cleanup;
       try (eapply updThreadC_deadLocation; eauto);
       auto 1.
+    - inv Hdead; constructor; auto.
+       destruct om; [ | assumption]. simpl.
+       clear - Hvalid Hinitial. 
+       eapply initial_core_valid_block; eauto.
     - apply app_inv_head in H5; subst.
       inversion Hdead.
       econstructor.
