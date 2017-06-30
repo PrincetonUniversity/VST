@@ -1634,7 +1634,8 @@ Proof.
              etransitivity; [|etransitivity; [apply view_shift_sepcon1, HQ | apply derives_view_shift;
                Exists H'; rewrite sepcon_assoc; eauto]].
              view_shift_intros; subst; apply derives_view_shift; entailer!.
-             { split; [contradiction | discriminate]. }
+             { split; [|discriminate].
+              split; [contradiction | discriminate]. }
              admit. }
       Intros x H'; destruct x as (v', lvi'); simpl in *.
       gather_SEP 3 2 5; rewrite <- !sepcon_assoc, replace_nth_sepcon.
@@ -1642,7 +1643,7 @@ Proof.
       forward.
       Exists (if eq_dec v' 0 then true else false, lvi') H' (upd_Znth (i1 mod size) T (k, lvi')); entailer!.
       split; [etransitivity; eauto; apply table_incl_upd; rewrite ?HTi; auto; try omega; etransitivity; eauto|].
-      exists (i1 mod size); split; [|split; [rewrite upd_Znth_same|]; auto; try omega; if_tac; [auto | discriminate]].
+      exists (i1 mod size); split; [|rewrite upd_Znth_same; auto; omega].
       apply lookup'_succeeds with (i := i); auto; [|rewrite upd_Znth_same; auto; omega].
       replace (i1 mod size) with ((i + hash k) mod size); replace size with (Zlength T).
       rewrite rebase_upd', sublist_upd_Znth_l by (rewrite ?Zlength_rebase; omega).
@@ -1903,10 +1904,13 @@ Proof.
         * split; [tauto|].
           do 2 eexists; eauto.
           unfold HT_upd; do 2 eexists; eauto.
+          match goal with H : _ <-> true = true |- _=> destruct H as (_ & Hc) end.
+          rewrite Hc; auto.
         * split; auto.
           match goal with H : _ <-> false = true |- _=> destruct H as (Hc & _) end.
           intro X; specialize (Hc X); discriminate. }
-    Intros r T h'; destruct r as (s, HT); simpl.
+    Intro y; destruct y as ((s, lv), HT); simpl.
+    Intros T h'.
     focus_SEP 1; apply hashtable_A_forget; auto.
     { rewrite Forall_forall_Znth with (d := (0, empty_map)); intros j ?.
       match goal with H : table_incl _ _ |- _ => specialize (H j); rewrite Znth_repeat' in H by (rewrite Z2Nat.id; omega); destruct H end.
@@ -1948,7 +1952,7 @@ Proof.
       cancel.
       subst Frame; instantiate (1 := []); simpl; rewrite sepcon_emp; apply lock_inv_later. }
     forward.
-Admitted.
+Qed.
 
 Lemma lock_struct : forall p, data_at_ Tsh (Tstruct _lock_t noattr) p |-- data_at_ Tsh tlock p.
 Proof.
