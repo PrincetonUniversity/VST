@@ -547,13 +547,6 @@ Proof.
   apply hashtable_entry_A_duplicable.
 Qed.
 
-(* up *)
-Lemma empty_map_incl : forall {A B} {A_eq : EqDec A} (m : A -> option B), map_incl empty_map m.
-Proof.
-  repeat intro; discriminate.
-Qed.
-Hint Resolve empty_map_incl.
-
 Lemma zero_ord_0 : forall z, zero_ord 0 z.
 Proof.
   unfold zero_ord; auto.
