@@ -84,10 +84,9 @@ Definition comm_loc lsh lock comm g g0 g1 g2 bufs sh gsh :=
 
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
-  WITH comm : val, lock : val, buf : val, reading : val, last_read : val,
-       gsh1 : share, gsh2 : share, sh1 : share, shs : list share
+  WITH comm : val, lock : val, buf : val, reading : val, last_read : val, sh1 : share, shs : list share
   PRE [ ]
-   PROP (sepalg.join gsh1 gsh2 Tsh; Zlength shs = N; sepalg_list.list_join sh1 shs Tsh)
+   PROP (Zlength shs = N; sepalg_list.list_join sh1 shs Tsh)
    LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
    SEP (data_at_ Ews (tarray (tptr tint) N) comm; data_at_ Ews (tarray (tptr tlock) N) lock;
         data_at_ Ews (tarray (tptr tbuffer) B) buf;
@@ -139,15 +138,14 @@ Definition latest_read (h : hist) v :=
   v <> Empty /\ exists n, In (n, AE v Empty) h /\
   Forall (fun x => let '(m, AE r w) := x in w = Empty -> r <> Empty -> m <= n)%nat h.
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => Q%assert end))
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
                x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
-                x20 at level 0, x21 at level 0,
              P at level 100, Q at level 100).
 
 (* last_read retains the last buffer read, while reading is reset to Empty. *)
@@ -155,10 +153,9 @@ Definition start_read_spec :=
  DECLARE _start_read
   WITH r : Z, reading : val, last_read : val, lock : val, comm : val, reads : list val, lasts : list val,
     locks : list val, comms : list val, bufs : list val, sh : share, sh1 : share, sh2 : share, b0 : Z,
-    g : val, g0 : val, g1 : val, g2 : val, gsh1 : share, gsh2 : share, h : hist
+    g : val, g0 : val, g1 : val, g2 : val, h : hist
   PRE [ _r OF tint ]
-   PROP (0 <= b0 < B; readable_share sh; readable_share sh1; readable_share sh2; readable_share gsh1; readable_share gsh2;
-         sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef); latest_read h (vint b0))
+   PROP (0 <= b0 < B; readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms Vundef); latest_read h (vint b0))
    LOCAL (temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
    SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
@@ -207,7 +204,7 @@ Definition initialize_writer_spec :=
 
 Definition start_write_spec :=
  DECLARE _start_write
-  WITH gsh1 : share, writing : val, last_given : val, last_taken : val, b0 : Z, lasts : list Z
+  WITH writing : val, last_given : val, last_taken : val, b0 : Z, lasts : list Z
   PRE [ ]
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts)
    LOCAL (gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
@@ -228,15 +225,15 @@ Fixpoint make_shares shs (lasts : list Z) i : list share :=
                  else hd Share.bot shs :: make_shares (tl shs) rest i
   end.
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 , x22 : t22 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21*t22)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => Q%assert end))
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
                x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
-                x20 at level 0, x21 at level 0, x22 at level 0,
+                x20 at level 0,
              P at level 100, Q at level 100).
 
 Definition finish_write_spec :=
@@ -244,12 +241,11 @@ Definition finish_write_spec :=
   WITH writing : val, last_given : val, last_taken : val, comm : val, lock : val,
     comms : list val, locks : list val, bufs : list val, b : Z, b0 : Z, lasts : list Z,
     sh1 : share, lsh : share, shs : list share, g : list val, g0 : list val, g1 : list val, g2 : list val,
-    gsh1 : share, gsh2 : share, h : list hist, sh0 : share
+    h : list hist, sh0 : share
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
          readable_share sh1; readable_share lsh; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
-         Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
+         sepalg_list.list_join sh0 shs Tsh; Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
    LOCAL (gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken; gvar _comm comm;
           gvar _lock lock)
    SEP (data_at Ews tint (vint b) writing; data_at Ews tint (vint b0) last_given;
@@ -286,12 +282,10 @@ Definition finish_write_spec :=
 Definition reader_spec :=
  DECLARE _reader
   WITH arg : val, x : Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                      share * share * share * val * val * val * val * share * share
+                      share * share * share * val * val * val * val
   PRE [ _arg OF tptr tvoid ]
-   let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2,
-         gsh1, gsh2) := x in
-   PROP (readable_share sh; readable_share sh1; readable_share sh2; readable_share gsh1; readable_share gsh2;
-         sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef))
+   let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2) := x in
+   PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms Vundef))
    LOCAL (temp _arg arg; gvar _reading reading; gvar _last_read last_read;
           gvar _lock lock; gvar _comm comm; gvar _bufs buf)
    SEP (data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
@@ -307,13 +301,11 @@ Definition reader_spec :=
 Definition writer_spec :=
  DECLARE _writer
   WITH arg : val, x : val * val * val * val * val * val * list val * list val * list val * share * share *
-                      share * list share * list val * list val * list val * list val * share * share
+                      share * list share * list val * list val * list val * list val
   PRE [ _arg OF tptr tvoid ]
-   let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2,
-         gsh1, gsh2) := x in
+   let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2) := x in
    PROP (Zlength shs = N; readable_share sh1; readable_share lsh; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
-         Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
+         sepalg_list.list_join sh0 shs Tsh; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
    LOCAL (temp _arg arg; gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken;
           gvar _lock lock; gvar _comm comm; gvar _bufs buf)
    SEP (data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
@@ -545,7 +537,7 @@ Proof.
     forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
     rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
-    erewrite <- !ghost_var_share_join with (sh0 := Tsh) by (apply SH).
+    erewrite <- !ghost_var_share_join with (sh0 := Tsh) by eauto.
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
       erewrite sublist_next in H; try omega; inversion H as [|????? Hj1 Hj2] end.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
@@ -1677,7 +1669,7 @@ Proof.
       apply ghost_var_update with (v' := vint b).
       rewrite <- flatten_sepcon_in_SEP, sepcon_comm, flatten_sepcon_in_SEP.
       apply ghost_var_update with (v' := if eq_dec b' (-1) then last_write (rev hx) else prev_taken (rev hx)).
-      rewrite <- !(ghost_var_share_join _ _ _ _ _ SH4).
+      rewrite <- !(ghost_var_share_join _ _ _ _ _ gsh1_gsh2_join).
       eapply semax_pre, Ha.
       go_lowerx.
       rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
@@ -1903,7 +1895,7 @@ Proof.
   Intros b0 h.
   forward.
   subst c l; subst; forward_call (r, reading, last_read, lock, comm, reads, lasts, locks, comms, bufs,
-    sh, sh1, sh2, b0, g, g0, g1, g2, gsh1, gsh2, h).
+    sh, sh1, sh2, b0, g, g0, g1, g2, h).
   { cancel. }
   { repeat (split; auto). }
   Intros x; destruct x as (((b, t), e), v); simpl in *.
@@ -1968,7 +1960,7 @@ Proof.
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
   forward.
-  forward_call (gsh1, writing, last_given, last_taken, b0, lasts).
+  forward_call (writing, last_given, last_taken, b0, lasts).
   { cancel. }
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
@@ -1997,7 +1989,7 @@ Proof.
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
     Exists Tsh v; entailer!. }
   forward_call (writing, last_given, last_taken, comm, lock, comms, locks, bufs, b, b0, lasts,
-    sh1, lsh, shs, g, g0, g1, g2, gsh1, gsh2, h, sh0).
+    sh1, lsh, shs, g, g0, g1, g2, h, sh0).
   { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   rewrite sepcon_map; Intros.
@@ -2017,10 +2009,9 @@ Proof.
   name writing _writing.
   name last_given _last_given.
   start_function.
-  exploit (split_readable_share Tsh); auto; intros (gsh1 & gsh2 & ? & ? & ?).
   exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
-  forward_call (comm, lock, buf, reading, last_read, gsh1, gsh2, sh0, shs).
+  forward_call (comm, lock, buf, reading, last_read, sh0, shs).
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N). (* entailer! loops here *)
   { go_lowerx; apply sepcon_derives_prop.
@@ -2038,24 +2029,23 @@ Proof.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
   (* It's a rather major flaw that we have to reiterate the precondition here. Could we figure it out instead? *)
   forward_spawn (val * val * val * val * val * val * list val * list val * list val *
-                 share * share * share * list share * list val * list val * list val * list val * share * share)%type
+                 share * share * share * list share * list val * list val * list val * list val)%type
     (writer_, vint 0, fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
-      share * list share * list val * list val * list val * list val * share * share) =>
+      share * list share * list val * list val * list val * list val) =>
       let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
-            g, g0, g1, g2, gsh1, gsh2) := x in
+            g, g0, g1, g2) := x in
       [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
        (_lock, lock); (_comm, comm); (_bufs, buf)],
     (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs,
-                       g, g0, g1, g2, gsh1, gsh2),
+                       g, g0, g1, g2),
     fun (x : (val * val * val * val * val * val * list val * list val * list val *
-              share * share * share * list share * list val * list val * list val * list val * share * share)%type)
+              share * share * share * list share * list val * list val * list val * list val)%type)
         (arg : val) =>
     let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
-          g, g0, g1, g2, gsh1, gsh2) := x in
+          g, g0, g1, g2) := x in
       fold_right sepcon emp [!!(fold_right and True [Zlength shs = N; readable_share sh1; readable_share lsh;
         Forall readable_share shs; sepalg_list.list_join sh0 shs Tsh;
-        readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Zlength g1 = N; Zlength g2 = N;
-        Forall isptr comms]) && emp;
+        Zlength g1 = N; Zlength g2 = N; Forall isptr comms]) && emp;
         data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
@@ -2091,7 +2081,7 @@ Proof.
     rewrite sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     unfold comm_loc; erewrite map_ext;
-      [|intro; erewrite <- AE_loc_join with (h1 := [])(h2 := []); try apply H1; auto; reflexivity].
+      [|intro; erewrite <- AE_loc_join with (h1 := [])(h2 := []); eauto; reflexivity].
     rewrite !sepcon_map.
     do 3 (erewrite <- (data_at_shares_join Ews); eauto).
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map with (d' := Vundef);
@@ -2161,22 +2151,21 @@ Proof.
       match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end] end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     forward_spawn (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                   share * share * share * val * val * val * val * share * share)%type
+                   share * share * share * val * val * val * val)%type
       (reader_, d, fun x : (Z * val * val * val * val * val * list val * list val * list val * list val *
-        list val * share * share * share * val * val * val * val * share * share) =>
+        list val * share * share * share * val * val * val * val) =>
         let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
-              g, g0, g1, g2, gsh1, gsh2) := x in
+              g, g0, g1, g2) := x in
         [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)],
       (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
                     Znth i shs1 Tsh, gsh2, Znth i shs Tsh, Znth i g Vundef, Znth i g0 Vundef, Znth i g1 Vundef,
-                    Znth i g2 Vundef, gsh1, gsh2),
+                    Znth i g2 Vundef),
       fun (x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                share * share * share * val * val * val * val * share * share)%type) (arg : val) =>
+                share * share * share * val * val * val * val)%type) (arg : val) =>
         let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
-              g, g0, g1, g2, gsh1, gsh2) := x in
+              g, g0, g1, g2) := x in
         fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1; 
-          readable_share sh2; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
-          isptr (Znth r comms Vundef)]) && emp;
+          readable_share sh2; isptr (Znth r comms Vundef)]) && emp;
           data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
           data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
           data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
