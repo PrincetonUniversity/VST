@@ -258,9 +258,11 @@ Qed.
 Lemma asm_mem_step : forall ge c m c' m' (CS: corestep cl_core_sem ge c m c' m'), mem_step m m'.
 Proof. intros.
   inv CS; simpl in *; try apply mem_step_refl; try contradiction.
-+ inv H0. eapply exec_instr_mem_step; try eassumption.
-    clear - H9 H10.
-    admit.
+ inv H0.
+ + eapply exec_instr_mem_step; try eassumption.
+ +
+    admit.  (* builtins *)
+ +
     admit.
 (*+ eapply extcall_mem_step; eassumption. *)
 (*+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
