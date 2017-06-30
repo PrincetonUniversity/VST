@@ -39,12 +39,10 @@ unfold data_at.
 entailer!.
 simpl.
 unfold field_at, data_at_rec, at_offset. simpl.
-repeat rewrite prop_true_andp by
- ((split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
-   try (eapply gvar_size_compatible; eauto; simpl; computable);
-   try (eapply gvar_align_compatible; eauto);
-   solve [compute; auto])
-  ).
+
+  assert (FC: field_compatible t_struct_foo [] s)
+    by (apply headptr_field_compatible; auto; compute; auto).
+  repeat (rewrite prop_true_andp by (auto with field_compatible)).
 fold noattr; fold tint; fold tfloat; fold tdouble.
 repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa

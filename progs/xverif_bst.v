@@ -1,5 +1,7 @@
 Require Import floyd.proofauto.
-Require Import progs.bst.
+Require Import wand_demo.wand_frame.
+Require Import wand_demo.wand_frame_tactic.
+Require Import wand_demo.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -18,14 +20,6 @@ Inductive tree : Type :=
 
 Definition empty_tree : tree := E.
 
-Fixpoint lookup (x: key) (t : tree) : V :=
-  match t with
-  | E => default
-  | T tl k v tr => if x <? k then lookup x tl
-                         else if k <? x then lookup x tr
-                         else v
-  end.
-
 Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
  match s with
  | E => T E x v E
@@ -33,6 +27,14 @@ Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
                         else if y <? x then T a y v' (insert x v b)
                         else T a x v b
  end.
+
+Fixpoint lookup (x: key) (t : tree) : V :=
+  match t with
+  | E => default
+  | T tl k v tr => if x <? k then lookup x tl
+                         else if k <? x then lookup x tr
+                         else v
+  end.
 
 Fixpoint pushdown_left (a: tree) (bc: tree) : tree :=
  match bc with
@@ -56,52 +58,34 @@ Arguments lookup {V} default x t.
 Arguments pushdown_left {V} a bc.
 Arguments delete {V} x s.
 
-Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
- match t with
- | E => !!(p=nullval) && emp
- | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-    EX pa:val, EX pb:val,
-    data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) p *
-    tree_rep a pa * tree_rep b pb
- end.
-
-Definition treebox_rep (t: tree val) (b: val) :=
- EX p: val, data_at Tsh (tptr t_struct_tree) p b * tree_rep t p.
-
-(* TODO: seems not useful *)
-Lemma treebox_rep_spec: forall (t: tree val) (b: val),
-  treebox_rep t b =
-  EX p: val, 
+Fixpoint treebox_rep (t: tree val) (p: val) :=
+  EX q: val,
+  data_at Tsh (tptr t_struct_tree) q p *
   match t with
-  | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
+  | E => !!(q=nullval) && emp
   | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-      data_at Tsh (tptr t_struct_tree) p b *
-      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
-      field_at Tsh t_struct_tree [StructField _value] v p *
-      treebox_rep l (field_address t_struct_tree [StructField _left] p) *
-      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) q *
+      field_at Tsh t_struct_tree [StructField _value] v q *
+      treebox_rep l (field_address t_struct_tree [StructField _left] q) *
+      treebox_rep r (field_address t_struct_tree [StructField _right] q)
   end.
+
+Definition tree_rep (t: tree val) (q: val) :=
+  match t with
+  | E => !!(q=nullval) && emp
+  | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) q *
+      field_at Tsh t_struct_tree [StructField _value] v q *
+      treebox_rep l (field_address t_struct_tree [StructField _left] q) *
+      treebox_rep r (field_address t_struct_tree [StructField _right] q)
+  end.
+
+Lemma treebox_rep_spec: forall t p,
+  treebox_rep t p = EX q: val, data_at Tsh (tptr t_struct_tree) q p * tree_rep t q.
 Proof.
   intros.
-  unfold treebox_rep at 1.
-  f_equal.
-  extensionality p.
-  destruct t; simpl.
-  + apply pred_ext; entailer!.
-  + unfold treebox_rep.
-    apply pred_ext; entailer!.
-    - Intros pa pb.
-      Exists pb pa.
-      unfold_data_at 1%nat.
-      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-      rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-      cancel.
-    - Intros pa pb.
-      Exists pb pa.
-      unfold_data_at 3%nat.
-      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-      rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-      cancel.
+  unfold tree_rep, treebox_rep.
+  destruct t; auto.
 Qed.
 
 Definition mallocN_spec :=
@@ -127,29 +111,18 @@ Definition freeN_spec :=
   POST [ tvoid ]
     PROP () LOCAL () SEP ().
 
-Definition treebox_new_spec :=
- DECLARE _treebox_new
-  WITH u : unit
-  PRE  [  ]
-       PROP() LOCAL() SEP ()
-  POST [ (tptr t_struct_tree) ]
-    EX v:val,
-    PROP()
-    LOCAL(temp ret_temp v)
-    SEP (data_at Tsh (tptr t_struct_tree) nullval v).
-
 Definition insert_spec :=
  DECLARE _insert
-  WITH b: val, x: Z, v: val, t: tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint,
+  WITH p0: val, x: Z, v: val, t0: tree val
+  PRE  [ _p OF (tptr (tptr t_struct_tree)), _x OF tint,
         _value OF (tptr Tvoid)   ]
     PROP( Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
-    SEP (treebox_rep t b)
+    LOCAL(temp _p p0; temp _x (Vint (Int.repr x)); temp _value v)
+    SEP (treebox_rep t0 p0)
   POST [ Tvoid ] 
     PROP()
     LOCAL()
-    SEP (treebox_rep (insert x v t) b).
+    SEP (treebox_rep (insert x v t0) p0).
 
 Definition lookup_spec :=
  DECLARE _lookup
@@ -162,7 +135,7 @@ Definition lookup_spec :=
     PROP()
     LOCAL(temp ret_temp (lookup nullval x t))
     SEP (treebox_rep t b).
-
+(*
 Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
@@ -211,33 +184,12 @@ Definition delete_spec :=
     PROP()
     LOCAL()
     SEP (treebox_rep (delete x t) b).
-
-Definition tree_free_spec :=
- DECLARE _tree_free
-  WITH t: tree val, p: val
-  PRE  [ _p OF (tptr t_struct_tree) ]
-       PROP() LOCAL(temp _p p) SEP (tree_rep t p)
-  POST [ Tvoid ]
-    PROP()
-    LOCAL()
-    SEP (emp).
-
-Definition treebox_free_spec :=
- DECLARE _treebox_free
-  WITH t: tree val, b: val
-  PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
-       PROP() LOCAL(temp _b b) SEP (treebox_rep t b)
-  POST [ Tvoid ]
-    PROP()
-    LOCAL()
-    SEP (emp).
-
+*)
 Definition Gprog : funspecs :=
     ltac:(with_library prog [
-    mallocN_spec; freeN_spec; treebox_new_spec;
-    tree_free_spec; treebox_free_spec;
-    insert_spec; lookup_spec;
-    turn_left_spec; pushdown_left_spec; delete_spec
+    mallocN_spec; freeN_spec;
+    insert_spec; lookup_spec(*;
+    turn_left_spec; pushdown_left_spec; delete_spec*)
   ]).
 
 Lemma tree_rep_saturate_local:
@@ -245,7 +197,7 @@ Lemma tree_rep_saturate_local:
 Proof.
 destruct t; simpl; intros.
 entailer!.
-Intros pa pb. entailer!.
+entailer!.
 Qed.
 
 Hint Resolve tree_rep_saturate_local: saturate_local.
@@ -255,6 +207,9 @@ Lemma tree_rep_valid_pointer:
 Proof.
 intros.
 destruct t; simpl; normalize; auto with valid_pointer.
+rewrite !sepcon_assoc.
+apply sepcon_valid_pointer1.
+apply field_at_valid_ptr0; auto. simpl;  computable.
 Qed.
 Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
@@ -263,18 +218,19 @@ Lemma treebox_rep_saturate_local:
 Proof.
 intros.
 unfold treebox_rep.
+destruct t;
 Intros p.
 entailer!.
+entailer!.
 Qed.
-
 Hint Resolve treebox_rep_saturate_local: saturate_local.
 
-Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
-  EX b: val, EX t: tree val,
+Definition insert_inv (p0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
+  EX p: val, EX t: tree val,
   PROP()
-  LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
-  SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
-
+  LOCAL(temp _p p; temp _x (Vint (Int.repr x));   temp _value v)
+  SEP(treebox_rep t p;  (treebox_rep (insert x v t) p -* treebox_rep (insert x v t0) p0)).
+(*
 Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
   P |-- P * (Q -* Q).
 Proof.
@@ -283,16 +239,15 @@ Proof.
   + rewrite sepcon_emp; auto.
   + rewrite emp_sepcon; auto.
 Qed.
-
+*)
 Lemma tree_rep_nullval: forall t,
   tree_rep t nullval |-- !! (t = E).
 Proof.
   intros.
   destruct t; [entailer! |].
   simpl tree_rep.
-  Intros pa pb. entailer!.
+  entailer!.
 Qed.
-
 Hint Resolve tree_rep_nullval: saturate_local.
 
 Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
@@ -305,12 +260,17 @@ Qed.
 Lemma treebox_rep_leaf: forall x p b (v: val),
   is_pointer_or_null v ->
   Int.min_signed <= x <= Int.max_signed ->
-  data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- treebox_rep (T E x v E) b.
+  field_at Tsh t_struct_tree [] (Vint (Int.repr x), (v, (nullval, nullval))) p *
+  field_at Tsh (tptr t_struct_tree) [] p b |-- treebox_rep (T E x v E) b.
 Proof.
   intros.
-  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
+  unfold treebox_rep, tree_rep. Exists p nullval nullval.
+  unfold_field_at 1%nat.
+  entailer!.
+  rewrite !field_at_data_at.
+  entailer!.
 Qed.
-
+(*
 Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
@@ -377,7 +337,7 @@ Proof.
   apply sepcon_derives; [| apply derives_refl].
   auto.
 Qed.
-
+*)
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
 Proof. intros; subst; auto. Qed.
 
@@ -386,60 +346,64 @@ Proof. intros; subst; auto. Qed.
 
 Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
                           | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+Opaque treebox_rep.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv b t x v) (insert_inv b t x v) )].
+    | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
   * (* Precondition *)
     unfold insert_inv.
-    Exists b t. entailer.
-    apply ramify_PPQQ.
+    Exists p0 t0.
+    entailer!.
+    cancel_wand.
   * (* Loop body *)
     unfold insert_inv.
-    Intros b1 t1.
+    Intros p t.
     forward. (* Sskip *)
-    unfold treebox_rep at 1. Intros p1.
-    forward. (* p = *t; *)
+    rewrite treebox_rep_spec at 1.
+    Intros q.
+    forward. (* q = * p; *)
     forward_if.
     + (* then clause *)
-      subst p1.
+      subst q.
       forward_call (sizeof t_struct_tree).
         1: simpl; repable_signed.
-      Intros p'.
+      Intros q.
       rewrite memory_block_data_at_ by auto.
-      forward. (* p->key=x; *)
+      forward. (* q->key=x; *)
       simpl.
-      forward. (* p->value=value; *)
-      forward. (* p->left=NULL; *)
-      forward. (* p->right=NULL; *)
-      assert_PROP (t1= (@E _)).
+      forward. (* q->value=value; *)
+      forward. (* q->left=NULL; *)
+      forward. (* q->right=NULL; *)
+      assert_PROP (t = (@E _)).
         1: entailer!.
-      subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
+      subst t. simpl tree_rep. rewrite !prop_true_andp by auto.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
-      forward. (* *t = p; *)
+      forward. (* * p = q; *)
       forward. (* return; *)
-      apply modus_ponens_wand'.
-      apply treebox_rep_leaf; auto.
+      fold (data_at Tsh t_struct_tree).
+      sep_apply (treebox_rep_leaf x q p v); auto.
+      apply_wand_frame_elim; cancel.
     + (* else clause *)
-      destruct t1.
+      destruct t.
         { simpl tree_rep. normalize. }
       simpl tree_rep.
-      Intros pa pb. clear H1.
-      forward. (* y=p->key; *)
+      Intros.
+      forward. (* y=q->key; *)
       forward_if; [ | forward_if ].
       - (* Inner if, then clause: x<k *)
-        forward. (* t=&p->left *)
+        forward. (* t=&q->left *)
         unfold insert_inv.
-        Exists (offset_val 8 p1) t1_1.
+        Exists (offset_val 8 q) t1.
         entailer!.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
+        replace (offset_val 8 q)
+          with (field_address t_struct_tree [StructField _left] q)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
+        apply_wand_frame_elim. cancel.
         apply RAMIF_PLAIN.trans'.
         apply bst_left_entail; auto.
       - (* Inner if, second branch:  k<x *)
@@ -625,153 +589,5 @@ Proof.
     apply andp_left2.
     unfold loop2_ret_assert. rewrite prop_true_andp by auto.
     auto.
-Qed.
-
-Definition delete_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
-  EX b: val, EX t: tree val,
-  PROP()
-  LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
-  SEP(treebox_rep t b;  (treebox_rep (delete x t) b -* treebox_rep (delete x t0) b0)).
-
-Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
-Proof.
-  start_function.
-  eapply semax_pre; [
-    | apply (semax_loop _ (delete_inv b t x) (delete_inv b t x) )].
-  * (* Precondition *)
-    unfold delete_inv.
-    Exists b t. entailer.
-    apply ramify_PPQQ.
-  * (* Loop body *)
-    unfold delete_inv.
-    Intros b1 t1.
-    forward. (* Sskip *)
-    unfold treebox_rep at 1. Intros p1.
-    forward. (* p = *t; *)
-    forward_if.
-    + (* then clause *)
-      subst p1.
-      assert_PROP (t1= (@E _)).
-        1: entailer!.
-      subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
-      forward. (* return; *)
-      unfold treebox_rep at 1.
-      apply modus_ponens_wand'.
-      Exists nullval.
-      simpl tree_rep.
-      entailer!.
-    + (* else clause *)
-      destruct t1.
-        { simpl tree_rep. normalize. }
-      simpl tree_rep.
-      Intros pa pb. clear H0.
-      forward. (* y=p->key; *)
-      forward_if; [ | forward_if ].
-      - (* Inner if, then clause: x<k *)
-        forward. (* t=&p->left *)
-        unfold delete_inv.
-        Exists (offset_val 8 p1) t1_1.
-        entailer!.
-        simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply bst_left_entail; auto.
-      - (* Inner if, second branch:  k<x *)
-        forward. (* t=&p->right *)
-        unfold delete_inv.
-        Exists (offset_val 12 p1) t1_2.
-        entailer!.
-        simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 12 p1)
-          with (field_address t_struct_tree [StructField _right] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply bst_right_entail; auto.
-      - (* Inner if, third branch: x=k *)
-        assert (x=k) by omega.
-        subst x.
-        unfold_data_at 2%nat.
-        gather_SEP 3 5.
-        replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
-        Focus 1. {
-          unfold treebox_rep; entailer!.
-          Exists pa.
-          rewrite field_at_data_at.
-          entailer!.
-        } Unfocus.
-        gather_SEP 4 5.
-        replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
-        Focus 1. {
-          unfold treebox_rep; entailer!.
-          Exists pb.
-          rewrite field_at_data_at.
-          entailer!.
-        } Unfocus.
-        forward_call (t1_1, k, v, t1_2, b1, p1).
-        forward. (* return *)
-        simpl_compb.
-        simpl_compb.
-        apply modus_ponens_wand'.
-        auto.
-  * (* After the loop *)
-    forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize. 
-Qed.
-
-Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
-Proof.
-  start_function.
-  forward_call (sizeof (tptr t_struct_tree)).
-  simpl sizeof; computable.
-  Intros p.
-  rewrite memory_block_data_at_ by auto.
-  forward.
-  forward.
-  Exists p. entailer!.
-Qed.
-
-Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
-Proof.
-  start_function.
-  forward_if (PROP()LOCAL()SEP()).
-  + destruct t; simpl tree_rep.
-      1: Intros. contradiction.
-    Intros pa pb.
-    forward.
-    forward.
-    forward_call (p, sizeof t_struct_tree).
-    Focus 1. {
-      entailer!.
-      rewrite memory_block_data_at_ by auto.
-      cancel.
-    } Unfocus.
-    forward_call (t1,pa).
-    forward_call (t2,pb).
-    entailer!.
-  + forward.
-    subst.
-    entailer!.
-    simpl; normalize.
-  + forward.
-Qed.
-
-Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
-Proof.
-  start_function.
-  unfold treebox_rep.
-  Intros p.
-  forward.
-  forward_call (t,p).
-  forward_call (b, sizeof (tptr t_struct_tree)).
-  entailer!.
-  rewrite memory_block_data_at_ by auto.
-  cancel.
-  forward.
 Qed.
 

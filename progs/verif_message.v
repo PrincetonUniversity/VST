@@ -175,11 +175,12 @@ assert_PROP (
   field_compatible t_struct_message [StructField _deserialize] ipm /\
   field_compatible t_struct_message [StructField _serialize] ipm /\ 
 field_compatible t_struct_message [StructField _bufsize] ipm).
-entailer!.
-split3; auto;
-solve [
-split3; auto; [split3; auto]; [ split3; [ simpl; computable | auto | ]];
-  split; auto; [ split; [apply I | ]]; simpl; clear; compute; auto].
+Focus 1. {
+  entailer!.
+  assert (field_compatible t_struct_message [] ipm).
+  apply headptr_field_compatible; auto; compute; auto.
+  split3; auto with field_compatible.
+} Unfocus.
 destruct H as [? [? ?]].
 eapply semax_pre with
   (PROP ( )
@@ -217,7 +218,9 @@ with (memory_block Tsh (mf_size intpair_message) buf).
 
 assert_PROP (align_compatible tint buf).
   entailer!.
-
+  destruct HPbuf; subst; simpl.
+  apply Z.divide_0_r.
+  
 forward_call ((Vint (Int.repr 1), Vint (Int.repr 2)), p, buf, Tsh, Tsh).
   repeat split; auto.
 Intros rest.

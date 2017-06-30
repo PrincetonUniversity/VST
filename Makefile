@@ -236,7 +236,7 @@ FLOYD_FILES= \
 WAND_DEMO_FILES= \
   wand_frame.v wandQ_frame.v wand_frame_tactic.v \
   list.v list_lemmas.v verif_list.v \
-  bst.v
+  bst.v verif_bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
