@@ -1,5 +1,7 @@
 Require Import Coq.omega.Omega.
 Require Import Clight.
+Require Import Events.
+Require Import Globalenvs.
 Require Import Memory.
 Require Import Values.
 Require Import Coqlib.
@@ -14,8 +16,11 @@ Require Import sepcomp.mem_lemmas.
 
 
 Require Import Smallstep.
-Require Import concurrency.x86_context.
-Require Import concurrency.HybridMachine_simulation.
+(*To include once Asm has been repaired:
+  Require Import concurrency.x86_context.
+  Require Import concurrency.HybridMachine_simulation.*)
+
+
 (*Require Import concurrency.compiler_correct.*)
 Require Import concurrency.CoreSemantics_sum.
 
@@ -31,11 +36,11 @@ Section SelfSim.
 
   Variable Sem: semantics.
 
-  (*extension of a mem_injection*)
+  (*extension of a mem_injection (slightly stengthens the old inject_separated - LENB: not sure you need the stronger prop*)
   Definition is_ext (f1:meminj)(nb1: positive)(f2:meminj)(nb2:positive) : Prop:=
     forall b1 b2 ofs,
       f2 b1 = Some (b2, ofs) ->
-      f1 b1 = Some (b2, ofs) /\
+      f1 b1 = None -> 
       (ofs = 0 /\ ~ Plt b1 nb1 /\  ~ Plt b2 nb2).
   
   (*The code is also injected*)
@@ -72,10 +77,18 @@ Section SelfSim.
       Mem.perm m1 b1 ofs Cur Nonempty /\
   ofs_delta = ofs + delta. 
   
-  (*TODO: fill in*)
+  (*Redundant?
   Record match_self (f: meminj) (c1:state Sem) (m1:mem) (c2:state Sem) (m2:mem): Prop:=
     { cinject: code_inject f c1 c2
     ; minject: Mem.inject f m1 m2            
+    ; pinject: perm_inject f m1 m2
+    ; pimage: perm_image f m1 m2
+    ; ppreimage: perm_preimage f m1 m2
+    }.*)
+
+  Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
+    { (*cinject: code_inject f c1 c2
+    ;*) minject: Mem.inject f m1 m2            
     ; pinject: perm_inject f m1 m2
     ; pimage: perm_image f m1 m2
     ; ppreimage: perm_preimage f m1 m2
@@ -99,17 +112,16 @@ Section SelfSim.
       }.
             
   Lemma match_source_forward:
-    forall mu c1 m1 c2 m2,
-      match_self mu c1 m1 c2 m2 ->
+    forall mu (*c1*) m1 (*c2*) m2,
+      match_mem mu (*c1*) m1 (*c2*) m2 ->
       forall mu' m1' m2',
         inject_incr mu mu' ->
         Mem.inject mu' m1' m2' ->
         same_visible m1 m1' ->
         same_visible m2 m2' ->
-        match_self mu' c1 m1' c2 m2'.
+        match_mem mu' (*c1*) m1' (*c2*) m2'.
   Proof.
     intros. constructor.
-    - eapply code_inj_incr; eauto. eapply H.
     - assumption.
     - unfold perm_inject; intros.
       inversion H.
@@ -157,17 +169,16 @@ Section SelfSim.
   Admitted.
 
 End SelfSim.
-
  Record self_simulation (Sem:semantics)(get_mem: state Sem -> mem): Type :=
     { code_inject: meminj -> state Sem -> state Sem -> Prop;
-      code_inject_mem: forall s1 f s2, code_inject f s1 s2 -> match_self Sem code_inject f s1 (get_mem s1) s2 (get_mem s2);
+      code_inject_mem: forall s1 f s2, code_inject f s1 s2 -> match_mem (*Sem code_inject*) f (*s1*) (get_mem s1) (*s2*) (get_mem s2);
       code_inj_incr: forall c1 mu c2 mu',
           code_inject mu c1 c2 ->
-          inject_incr mu mu' ->
+          inject_incr mu mu' -> is_ext mu (Mem.nextblock (get_mem c1)) mu' (Mem.nextblock (get_mem c2)) ->
           code_inject mu' c1 c2;
       ssim_diagram: forall f t c1 c2,
         code_inject f c1 c2 ->
-        forall g c1',
+        forall (g: genvtype Sem) c1', (*symbols_inject f (Genv.to_senv g) (Genv.to_senv g) -> (*meminj_preserves_globals g f -> is type-incorrect*)*)
           step Sem g c1 t c1' ->
           exists c2' f' t',
           step Sem g c2 t' c2' /\
