@@ -918,10 +918,10 @@ Section Preservation.
 
   Ltac jmstep_inv :=
     match goal with
-    | H : JuicyMachine.start_thread _ _ _  |- _ => inversion H
-    | H : JuicyMachine.resume_thread _ _   |- _ => inversion H
+    | H : JuicyMachine.start_thread _ _ _ _ _  |- _ => inversion H
+    | H : JuicyMachine.resume_thread _ _ _ _   |- _ => inversion H
     | H : threadStep _ _ _ _ _ _           |- _ => inversion H
-    | H : JuicyMachine.suspend_thread _ _  |- _ => inversion H
+    | H : JuicyMachine.suspend_thread _ _ _ _ |- _ => inversion H
     | H : syncStep _ _ _ _ _ _ _           |- _ => inversion H
     | H : threadHalted _                   |- _ => inversion H
     | H : JuicyMachine.schedfail _         |- _ => inversion H
@@ -958,7 +958,7 @@ Section Preservation.
   (sparse : @lock_sparsity LocksAndResources.lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
-  (wellformed : threads_wellformed tp)
+  (wellformed : threads_wellformed ge m tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
   (cnti : containsThread tp i)
@@ -972,32 +972,23 @@ Section Preservation.
     inversion jmstep; subst; try inversion HschedN; subst tid;
       unfold containsThread, is_true in *;
       try congruence.
-    {
-      inv Htstep.
-      replace (initial_core SEM.Sem _) with cl_initial_core in Hinitial
+ *
+   inv Htstep. 
+   replace (initial_core SEM.Sem _) with cl_initial_core in Hinitial
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
-      rename m' into m.
-      pose proof safety as safety'.
-      spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
-      destruct safety as (c_new_ & E_c_new & safety).
-      substwith ctn Htid.
-      substwith Htid cnti.
-      rewrite Eci in Hcode. injection Hcode as -> -> .
-      rewrite Hinitial in E_c_new. injection E_c_new as <-.
-      (*
-      rewrite Ev1 in Hinitial.
-      if_tac in Hinitial. 2:tauto.
-      rewrite Find in Hinitial.
-      injection Hinitial as <-.
-       *)
-
+   pose proof safety as safety'.
+   spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
+   destruct safety as (c_new_ & E_c_new & safety).
+   substwith ctn Htid.
+   substwith Htid cnti.
+   rewrite Eci in Hcode; inv Hcode.
+   rewrite Hinitial in E_c_new; inv E_c_new.
       right.
 
       unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
       2:assumption.
       2:assumption.
       2:assumption.
-
       - split.
         + (* is trivial, but the rmap needs to change in the juicy
           machine (not almost empty anymore, and even almost empty would
@@ -1034,11 +1025,11 @@ Section Preservation.
           spec safety' j cntj tt.
           simpl.
           destruct (getThreadC j tp cntj) eqn: Ej.
-          * exact_eq safety'. f_equal. unfold jm_. simpl. unfold getThreadR. f_equal.
+          ** exact_eq safety'. f_equal. unfold jm_. simpl. unfold getThreadR. f_equal.
             f_equal. apply proof_irr.
-          * apply safety'.
-          * apply safety'.
-          * apply safety'.
+          ** apply safety'.
+          ** apply safety'.
+          ** apply safety'.
       - intros j cntj.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         spec wellformed j cntj. auto.
@@ -1046,14 +1037,30 @@ Section Preservation.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         + injection 1 as <-. eauto.
         + intros Ej. spec unique more j cntj q Ej. auto.
-    }
-
-    all: jmstep_inv.
-    all: try substwith ctn Htid.
-    all: try substwith cnti Htid.
-    all: try substwith cnt Htid.
-    all: try congruence.
-  Qed. (* Lemma preservation_Kinit *)
+*
+  inv Htstep. 
+      rename m' into m.
+      pose proof safety as safety'.
+      spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
+      destruct safety as (c_new_ & E_c_new & safety).
+      substwith ctn Htid.
+      substwith Htid cnti. congruence.
+*
+  jmstep_inv. substwith cnti Htid. congruence.
+*
+  inv Htstep. 
+      rename m' into m.
+      pose proof safety as safety'.
+      spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
+      destruct safety as (c_new_ & E_c_new & safety).
+      substwith ctn Htid.
+      substwith Htid cnti. congruence.
+*
+  jmstep_inv; substwith cnti Htid; congruence.
+*
+  jmstep_inv; try substwith ctn Htid; try substwith cnti Htid;
+    try substwith cnt Htid; congruence.
+Qed. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
   Kblocked at release and acquire, but preservation does not hold for
@@ -1137,7 +1144,7 @@ Section Preservation.
           pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m'' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : at_external _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
           exists c', m''. split; [ apply step | ].
           revert step safety safe; clear.
@@ -1164,10 +1171,14 @@ Section Preservation.
           try congruence.
 
         - (* not in Kinit *)
-          jmstep_inv. getThread_inv. congruence.
+         
+          inv Htstep. 
+          replace (initial_core SEM.Sem _) with cl_initial_core in Hinitial
+            by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
+          getThread_inv. congruence.
 
         - (* not in Kresume *)
-          jmstep_inv. getThread_inv. congruence.
+          inv Htstep. getThread_inv. congruence.
 
         - (* here is the important part, the corestep *)
           jmstep_inv.
@@ -1200,11 +1211,16 @@ Section Preservation.
               repeat f_equal; apply proof_irr.
 
         - (* not at external *)
-          jmstep_inv. getThread_inv.
+          inv Htstep. getThread_inv.
           injection H as <-.
-          erewrite corestep_not_at_external in Hat_external. discriminate.
+          evar (mx: Memory.mem).
+          assert (H: at_external SEM.Sem ge (State ve te k) mx = Some X). {
+            rewrite at_external_SEM_eq in Hat_external.
+            rewrite at_external_SEM_eq. subst mx; eassumption.
+          }
+          erewrite corestep_not_at_external in H. discriminate.
           unfold SEM.Sem in *.
-          rewrite SEM.CLN_msem.
+          rewrite SEM.CLN_msem. subst mx.
           eapply stepi.
 
         - (* not in Kblocked *)
@@ -1352,7 +1368,7 @@ Section Preservation.
         - (* not halted *)
           jmstep_inv. getThread_inv.
           injection H as <-.
-          erewrite at_external_not_halted in Hcant. discriminate.
+          rewrite (at_external_not_halted _ _ _ _ ge _ m') in Hcant. discriminate.
           unfold SEM.Sem in *.
           rewrite SEM.CLN_msem.
           simpl.

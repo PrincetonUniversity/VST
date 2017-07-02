@@ -38,6 +38,8 @@ Module ClightSEM <: Semantics.
   Parameter step_decay: forall g c m tr c' m',
       event_semantics.ev_step (Sem) g c m tr c' m' ->
       decay m m'.
+  Parameter initial_core_nomem: forall n ge m v vl q om,
+      initial_core Sem n ge m v vl = Some (q, om) -> om=None.       
   Parameter at_external_SEM_eq:
      forall ge c m, at_external Sem ge c m =
       match c with
