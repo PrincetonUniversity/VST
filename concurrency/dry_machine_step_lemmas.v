@@ -442,6 +442,9 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
    forall n ge m v args q m', initial_core Sem n ge m v args = Some (q,m') -> m'=None.
   Proof.  
   Admitted.  (* true of Clight *)
+  Lemma initial_core_mem_congr: forall n ge m m' v vl,
+      initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
+  Admitted.  (* true of Clight *)
 
   Section InternalSteps.
     Variable the_ge : G.

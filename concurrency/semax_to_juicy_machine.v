@@ -214,7 +214,7 @@ Section Safety.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
     destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
-    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
+    destruct (cl_at_external ge c m) as [(ef', args) | ] eqn:Eo;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     destruct (eq_dec ef ef'); try subst ef';
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].

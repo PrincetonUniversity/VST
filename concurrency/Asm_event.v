@@ -20,7 +20,7 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
 Require Import sepcomp.val_casted.
 Require Import ccc26x86.BuiltinEffects.
-Require Import ccc26x86.load_frame.
+Require Import concurrency.load_frame.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.Asm_core.
 
@@ -30,13 +30,13 @@ Notation SP := ESP (only parsing).
 
 Notation "a # b" := (a b) (at level 1, only parsing).
 Notation "a # b <- c" := (Pregmap.set b c a) (at level 1, b at next level).
+*)
 
 Inductive load_frame: Type :=
 | mk_load_frame:
     forall (sp: block)           (**r pointer to argument frame *)
            (retty: option typ),  (**r return type *)
     load_frame.
-*)
 
 Section ASM_EV.
 (*Variable hf : I64Helpers.helper_functions.*)
