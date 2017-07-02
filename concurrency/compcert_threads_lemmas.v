@@ -1262,6 +1262,12 @@ Module SimProofs (SEM: Semantics)
         assumption.
       + erewrite gsoThreadRes with (cntj := pffj) by eauto.
         assumption.
+
+  rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
+    rewrite Hat_external in Hinternal. discriminate.
+
+  rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
+    rewrite Hat_external in Hinternal. discriminate.
   Qed.
 
   Lemma cmachine_step_invariant:
@@ -1402,6 +1408,7 @@ Module SimProofs (SEM: Semantics)
       pf_cleanup.
       rewrite Hcode in Hinternal.
       simpl in Hinternal.
+      rewrite (at_external_congr the_ge the_ge Mem.empty m') in Hinternal.
       rewrite Hat_external in Hinternal;
         by discriminate.
       inversion Htstep;
@@ -1413,7 +1420,7 @@ Module SimProofs (SEM: Semantics)
       pf_cleanup.
       rewrite Hcode in Hinternal. simpl in Hinternal.
       destruct (halted SEM.Sem c) eqn:Hhalt; try (by exfalso).
-      destruct (at_external SEM.Sem c);
+      destruct (at_external SEM.Sem the_ge c Mem.empty);
         by discriminate.
         by exfalso.
   Qed.
@@ -1775,7 +1782,7 @@ Module SimProofs (SEM: Semantics)
                eauto).
         specialize (Htsimj pfcj' Hcompcj').
         assert (Hcodomain := (codomain_valid (weak_obs_eq
-                                                (obs_eq_data Htsimj)))).
+                                                (obs_eq_data Htsimj)))). {
         specialize (Hcodomain _ _ Hfj).
         erewrite restrPermMap_valid in Hcodomain.
         clear - Hownedj Hcodomain Hjk HstepF_empty Hinternal HmemCompF.
@@ -1798,6 +1805,9 @@ Module SimProofs (SEM: Semantics)
         erewrite gssThreadRes.
         rewrite getCurPerm_correct;
           by auto.
+        destruct (halted SEM.Sem c); [ | inversion Hcant].
+        destruct (at_external SEM.Sem the_ge c Mem.empty); discriminate.
+        }
         (** case k is another thread*)
         erewrite <- gsoThreadR_fstep with (pfj := pffk);
           by eauto.
@@ -1838,6 +1848,8 @@ Module SimProofs (SEM: Semantics)
                 by rewrite HpermRes1.
             }
             absurd_internal HstepF_empty; auto.
+            apply initial_core_nomem in Hinitial. subst om; simpl.
+            assumption.
             apply ev_step_ax1 in Hcorestep.
             erewrite <- corestep_disjoint_val_lockpool with (m := mf) (m' := m');
               by (simpl; eauto).
@@ -1858,6 +1870,8 @@ Module SimProofs (SEM: Semantics)
                 by rewrite HpermRes2.
             }
             absurd_internal HstepF_empty; auto.
+            apply initial_core_nomem in Hinitial. subst om; simpl.
+            assumption.
             apply ev_step_ax1 in Hcorestep.
             erewrite <- corestep_disjoint_val_lockpool with (m := mf) (m' := m');
               by (simpl; eauto).
@@ -1895,7 +1909,7 @@ Module SimProofs (SEM: Semantics)
       (Hsuspend: cnt @ S)
       (Hstep: cmachine_step (i :: U, [::], tpc) mc (U', [::], tpc') mc'),
       U = U' /\ mc = mc' /\ mem_compatible tpc mc /\
-      DryConc.suspend_thread cnt tpc'.
+      DryConc.suspend_thread the_ge mc cnt tpc'.
   Proof.
     intros.
     inversion Hstep; simpl in *; subst; inversion HschedN; subst;
@@ -1915,13 +1929,18 @@ Module SimProofs (SEM: Semantics)
               destruct (halted SEM.Sem c); discriminate |
              rewrite Hcontra in Hcant; by auto]
         end.
-    destruct (at_external SEM.Sem c) eqn:Hat_external.
+    destruct (at_external SEM.Sem the_ge c Mem.empty) eqn:Hat_external.
     apply ev_step_ax1 in Hcorestep.
     apply corestep_not_at_external in Hcorestep.
+    rewrite (at_external_congr the_ge the_ge _ Mem.empty) in Hcorestep.
     rewrite Hcorestep in Hat_external;
       by discriminate.
     destruct (halted SEM.Sem c); by discriminate.
       split; by auto.
+    destruct (at_external SEM.Sem the_ge c Mem.empty) eqn:?; try discriminate.
+    destruct (at_external_halted_excl SEM.Sem the_ge c Mem.empty); try congruence.
+    rewrite H in Hcant; discriminate.
+    destruct (halted SEM.Sem c); discriminate.
   Qed.
 
   Lemma mem_obs_eq_step:
@@ -1963,7 +1982,7 @@ Module SimProofs (SEM: Semantics)
        forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
   Proof.
     intros.
-    inversion Hstep as [[? Hcstep] | [[Hresume ?] | [Hstart ?]]].
+    inversion Hstep as [[? Hcstep] | [[Hresume ?] | Hstart]].
     - inversion Hcstep; subst.
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
@@ -2032,7 +2051,7 @@ Module SimProofs (SEM: Semantics)
       }
       do 2 erewrite restrPermMap_nextblock in Hid;
         by eauto.
-    - (* Case internal step is a resume or start step*)
+    - {(* Case internal step is a resume step*)
       subst m2.
       inversion Hresume; subst.
       pf_cleanup.
@@ -2041,10 +2060,10 @@ Module SimProofs (SEM: Semantics)
       destruct (getThreadC pf1j') as [ | |c1'|] eqn:Hcode'; try by exfalso.
       destruct Hcode_eq as [Hcode_eq Hval_eq].
       inversion Hval_eq; subst.
-      assert (Hat_external_spec := core_inj_ext Hcode_eq).
+      assert (Hat_external_spec := core_inj_ext the_ge m1 Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
       destruct X as [? vs].
-      destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
+      destruct (at_external SEM.Sem the_ge c1' m1) as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? ?]; subst.
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
@@ -2053,7 +2072,7 @@ Module SimProofs (SEM: Semantics)
                           end)
         by (by simpl).
       assert (Hafter_external' :=
-                core_inj_after_ext None
+                core_inj_after_ext the_ge None
                                    Hcode_eq Hvalid_val Hafter_external).
       destruct Hafter_external' as [ov2 [c2' [Hafter_external'
                                                 [Hcore_inj' Hval_obs]]]].
@@ -2061,30 +2080,36 @@ Module SimProofs (SEM: Semantics)
       inversion Hval_obs; subst.
       exists (updThreadC pf1j' (Krun c2')), m1', f.
       assert (Hinternal':
-                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1')
-        by ( clear - Hat_external' Hafter_external' Hcode' Hinv;
-             right; left; split; econstructor; eauto).
-      split;
+                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1'). {
+          clear - Hat_external' Hafter_external' Hcode' Hinv.
+          right; left; split; econstructor; eauto.
+          rewrite (at_external_congr _ the_ge _ m1). eassumption.
+     }
+      {split;
         first by assumption.
-      split; first by auto.
-      split; first by congruence.
-      split; first by auto.
-      split; first by
+       split; first by auto.
+       split; first by congruence.
+       split; first by auto.
+       split; first by
           (intros; by exfalso).
-      split; try by eauto.
-      assert (pf2j := containsThread_internal_step Hstep pf1j).
-      assert (pf2j' := containsThread_internal_step Hinternal' pf1j').
-      assert (Hcomp2 := internal_step_compatible Hstep).
-      assert (Hcomp2' := internal_step_compatible Hinternal').
-      exists pf2j, pf2j', Hcomp2, Hcomp2'.
-      constructor; first by do 2 rewrite gssThreadCC.
-      (** since permission maps and memories do not change by these steps, [mem_obs_eq] is reestabhlised easily*)
-      erewrite restrPermMap_irr' with (Hlt' := fst (Hcomp1 j pf1j)) by (rewrite gThreadCR; eauto).
-      erewrite restrPermMap_irr' with (Hlt' := fst (Hcomp1' j pf1j')) by (rewrite gThreadCR; eauto);
+       split; try by eauto.
+       assert (pf2j := containsThread_internal_step Hstep pf1j).
+       assert (pf2j' := containsThread_internal_step Hinternal' pf1j').
+       assert (Hcomp2 := internal_step_compatible Hstep).
+       assert (Hcomp2' := internal_step_compatible Hinternal').
+       exists pf2j, pf2j', Hcomp2, Hcomp2'.
+       constructor; first by do 2 rewrite gssThreadCC.
+       (** since permission maps and memories do not change by these steps, [mem_obs_eq] is reestabhlised easily*)
+       erewrite restrPermMap_irr' with (Hlt' := fst (Hcomp1 j pf1j)) by (rewrite gThreadCR; eauto).
+       erewrite restrPermMap_irr' with (Hlt' := fst (Hcomp1' j pf1j')) by (rewrite gThreadCR; eauto);
         by eauto.
+      }
+     }
     - (*case it's a start step*)
-      subst m2.
+      (*subst m2.*) 
       inversion Hstart; subst.
+      assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om.
+      (*simpl machine_semantics.option_proj in *. *)
       pf_cleanup.
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
@@ -2092,14 +2117,20 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init (TID.tid2nat j) Harg_obs_list Hvf Hfg Hge_wd
+      assert (HinitF := core_inj_init m1 (TID.tid2nat j) Harg_obs_list Hvf Hfg Hge_wd
                                       Hge_incr Hinitial).
-      destruct HinitF as [c_newF [HinitialF Hcode_eq]].
+      destruct HinitF as [c_newF [om [HinitialF Hcode_eq]]].
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
       assert (Hinternal':
-                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c_newF)) m1')
-        by ( clear - Hcode' Hinv HinitialF;
-             right; right; split; econstructor; eauto).
+                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c_newF)) m1'). {
+         {clear - Hcode' Hinv HinitialF.
+          assert (om=None) by (apply initial_core_nomem in HinitialF; auto); subst om.
+          right; right. 
+          change m1' with (machine_semantics.option_proj m1' None) at 2.
+          econstructor; eauto.
+          rewrite (initial_core_mem_congr _ _ _ m1). auto.
+         }
+      }
       split;
         first by assumption.
       split; first by auto.
@@ -2322,7 +2353,7 @@ Module SimProofs (SEM: Semantics)
        forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
   Proof.
     intros.
-    inversion Hstep as [[? Hcstep] | [[Hresume ?] | [Hstart ?]]].
+    inversion Hstep as [[? Hcstep] | [[Hresume ?] | Hstart]].
     - inversion Hcstep; subst.
       inversion Hsim as [Hcode_eq Hmem_obs_eq Hmem_obs_locks].
       rewrite Hcode in Hcode_eq.
@@ -2431,10 +2462,10 @@ Module SimProofs (SEM: Semantics)
       destruct (getThreadC pf1j') as [ | |c1'|] eqn:Hcode'; try by exfalso.
       destruct Hcode_eq as [Hcode_eq Hval_eq].
       inversion Hval_eq; subst.
-      assert (Hat_external_spec := core_inj_ext Hcode_eq).
+      assert (Hat_external_spec := core_inj_ext the_ge m1 Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
       destruct X as [? vs].
-      destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
+      destruct (at_external SEM.Sem the_ge c1' m1) as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? ?]; subst.
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
@@ -2443,7 +2474,7 @@ Module SimProofs (SEM: Semantics)
                           end)
         by (by simpl).
       assert (Hafter_external' :=
-                core_inj_after_ext None
+                core_inj_after_ext the_ge None
                                    Hcode_eq Hvalid_val Hafter_external).
       destruct Hafter_external' as [ov2 [c2' [Hafter_external'
                                                 [Hcore_inj' Hval_obs]]]].
@@ -2451,9 +2482,13 @@ Module SimProofs (SEM: Semantics)
       inversion Hval_obs; subst.
       exists (updThreadC pf1j' (Krun c2')), m1', f.
       assert (Hinternal':
-                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1')
-        by ( clear - Hat_external' Hafter_external' Hcode' Hinv;
-             right; left; split; econstructor; eauto).
+                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c2')) m1'). {
+         { clear - Hat_external' Hafter_external' Hcode' Hinv.
+             right; left; econstructor; eauto.
+             econstructor; eauto.
+             rewrite (at_external_congr _ the_ge _ m1). eauto.
+         }
+      }
       split;
         first by assumption.
       split; first by auto.
@@ -2476,7 +2511,7 @@ Module SimProofs (SEM: Semantics)
       erewrite restrPermMap_irr' with (Hlt' := snd (Hcomp1' j pf1j')) by (rewrite gThreadCR; eauto);
         by eauto.
     - (*case it's a start step*)
-      subst m2.
+      (* subst m2. *)
       inversion Hsim as [Hcode_eq Hmem_obs_eq].
       inversion Hstart; subst.
       pf_cleanup.
@@ -2486,14 +2521,20 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init (TID.tid2nat j)Harg_obs_list Hvf Hfg Hge_wd
+      assert (HinitF := core_inj_init m1 (TID.tid2nat j)Harg_obs_list Hvf Hfg Hge_wd
                                       Hge_incr Hinitial).
-      destruct HinitF as [c_newF [HinitialF Hcode_eq]].
+      destruct HinitF as [c_newF [mx [HinitialF Hcode_eq]]].
+      assert (mx=None) by (apply initial_core_nomem in HinitialF; auto); subst mx.
+      assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om.
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
       assert (Hinternal':
-                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c_newF)) m1')
-        by ( clear - Hcode' Hinv HinitialF;
-             right; right; split; econstructor; eauto).
+                internal_step pf1j' Hcomp1' (updThreadC pf1j' (Krun c_newF)) m1'). {
+            clear - Hcode' Hinv HinitialF;
+            right; right.
+          change m1' with (machine_semantics.option_proj m1' None) at 2.
+          econstructor; eauto.
+          rewrite (initial_core_mem_congr _ _ _ m1). auto.
+      }
       split;
         first by assumption.
       split; first by auto.
@@ -2686,7 +2727,7 @@ Module SimProofs (SEM: Semantics)
       (Hstep: cmachine_step (buildSched [:: i], [::], tpc) mc (empty, [::], tpc') mc')
       (Hsuspend: pfc @ S),
     exists tpf',
-      FineConc.suspend_thread pff tpf' /\
+      FineConc.suspend_thread the_ge mf pff tpf' /\
       forall (Hcompc': mem_compatible tpc' mc') (Hcompf' : mem_compatible tpf' mf)
         (pfc': containsThread tpc' i) (pff': containsThread tpf' i),
         strong_tsim fi pfc' pff' Hcompc' Hcompf'.
@@ -2696,6 +2737,7 @@ Module SimProofs (SEM: Semantics)
     try (inversion Htstep || inversion Hhalted); subst; pf_cleanup;
     unfold getStepType in Hsuspend;
     try rewrite Hcode in Hsuspend; simpl in Hsuspend;
+    try rewrite (at_external_congr _ the_ge _ mc') in Hsuspend;
     try match goal with
         | [H: match ?Expr with _ => _ end = _, H2: ?Expr = _ |- _] =>
           rewrite H2 in H
@@ -2704,7 +2746,7 @@ Module SimProofs (SEM: Semantics)
         | [H: ~ containsThread _ _, H2: containsThread _ _ |- _] =>
           exfalso; by auto
         | [H: is_true (isSome (@halted _ _ _ _ _))  |- _] =>
-          destruct (at_external_halted_excl SEM.Sem c) as [Hnot_ext | Hcontra];
+          destruct (at_external_halted_excl SEM.Sem the_ge c mc') as [Hnot_ext | Hcontra];
             [rewrite Hnot_ext in Hsuspend;
               destruct (halted SEM.Sem c); discriminate |
              rewrite Hcontra in Hcant; by auto]
@@ -2714,14 +2756,14 @@ Module SimProofs (SEM: Semantics)
     simpl in Hcode_eq.
     destruct (getThreadC pff) as [c'| | |] eqn:Hcode';
       try by exfalso.
-    assert (Hat_external_spec := core_inj_ext Hcode_eq).
+    assert (Hat_external_spec := core_inj_ext the_ge mc' Hcode_eq).
     rewrite Hat_external in Hat_external_spec.
     destruct X as [? ?].
-    destruct (at_external SEM.Sem c') as [[? ?]|] eqn:Hat_external';
+    destruct (at_external SEM.Sem the_ge c' mc') as [[? ?]|] eqn:Hat_external';
       try by exfalso.
     destruct Hat_external_spec as [? ?]; subst.
     exists (updThreadC pff (Kblocked c')).
-    split; first by (econstructor; eauto).
+    split. econstructor; eauto. rewrite (at_external_congr _ the_ge _ mc'); eauto.
     intros.
     constructor;
       first by do 2 rewrite gssThreadCC.
@@ -2758,7 +2800,7 @@ Module SimProofs (SEM: Semantics)
       (Hge_wd: ge_wd fg the_ge)
       (Hcomp: mem_compatible tp m)
       (Hcomp'': mem_compatible tp'' m')
-      (Hsuspend: DryConc.suspend_thread pfi' tp'')
+      (Hsuspend: DryConc.suspend_thread the_ge m pfi' tp'')
       (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       strong_tsim (id_ren m) pfj pfj'' Hcomp Hcomp''.
   Proof.
@@ -2889,7 +2931,7 @@ Module SimProofs (SEM: Semantics)
       by (eapply cmachine_step_invariant; eauto).
     (** A suspend step pops the schedule and does not touch the memory *)
     assert (Heq : mc' = mc'' /\ mem_compatible tpc' mc' /\
-                  DryConc.suspend_thread pfc' tpc'')
+                  DryConc.suspend_thread the_ge mc' pfc' tpc'')
       by (eapply suspend_step_inverse; eauto).
     destruct Heq as [? [Hcomp' HsuspendC]]; subst mc'.
     assert (memCompC'': mem_compatible tpc'' mc'')
@@ -3177,8 +3219,14 @@ into mcj' with an extension of the id injection (fij). *)
           (** The original <tpc, mc> strongly injects into <tpc'',mc''> where
                <tpc, mc> -->i <tpc', mc'> -->iS <tpc'',mc'>  with the id map*)
           assert (Hsim_c_ci: strong_tsim (id_ren mc)
-                                         pfcj pfcj'' HmemCompC memCompC'')
-            by (eapply strong_tsim_id with (f := id_ren mc) (pfi' := pfc'); eauto).
+                                         pfcj pfcj'' HmemCompC memCompC''). {
+             eapply strong_tsim_id with (f := id_ren mc) (pfi' := pfc'); eauto.
+             clear - HsuspendC.
+             inversion HsuspendC. 
+             rewrite (proof_irr ctn pfc') in Hcode Hms'. clear ctn.
+             econstructor; try eassumption.
+             rewrite (at_external_congr _ the_ge _ mc''). eauto.
+         }
           assert (pffj: containsThread tpf j)
             by (eapply suspendF_containsThread; eauto).
           assert (Htsimj := (simStrong Hsim) j pfcj pffj).
@@ -7354,9 +7402,9 @@ relation*)
         destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
           try by exfalso.
         (** And now we can prove that cf is also at external *)
-        assert (Hat_external_spec := core_inj_ext Hcore_inj).
+        assert (Hat_external_spec := core_inj_ext the_ge mc Hcore_inj).
         rewrite Hat_external in Hat_external_spec.
-        destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+        destruct (at_external SEM.Sem the_ge cf mc) as [[? vsf]|] eqn:Hat_externalF;
           try by exfalso.
         (** and moreover that it's the same external and their
             arguments are related by the injection*)
@@ -7445,8 +7493,10 @@ relation*)
         intros U.
         assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf'
                                      (acquire (b2, Int.intval ofs)
-                                              (Some (virtueF))))
-          by (eapply step_acquire with (b0:=b2); eauto).
+                                              (Some (virtueF)))). {
+            eapply step_acquire with (b0:=b2); eauto.
+            rewrite (at_external_congr _ the_ge _ mc); eauto.
+        }
         econstructor; simpl;
           by eauto.
         (** Proof that the new coarse and fine state are in simulation*)
@@ -8249,9 +8299,9 @@ relation*)
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (** And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext the_ge mc Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mc) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (** and moreover that it's the same external and their
             arguments are related by the injection*)
@@ -8369,8 +8419,10 @@ relation*)
       intros U.
       assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf'
                                    (release (b2, Int.intval ofs)
-                                            (Some virtueLPF)))
-        by (eapply step_release with (b0:=b2); eauto).
+                                            (Some virtueLPF))). {
+          eapply step_release with (b0:=b2); eauto.
+          rewrite (at_external_congr _ the_ge _ mc); eauto.
+      }
       econstructor; simpl;
         by eauto.
       (* Proof that the new coarse and fine state are in simulation*)
@@ -9191,9 +9243,9 @@ relation*)
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (** And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext the_ge mc' Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mc') as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (** and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -9265,8 +9317,10 @@ relation*)
       (** proof that the fine grained machine can step*)
       intros U.
       assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf' mf
-                                   (spawn (b2,Int.intval ofs) (Some (getThreadR pff, virtue1F)) (Some virtue2F)))
-        by (eapply step_create; eauto).
+                                   (spawn (b2,Int.intval ofs) (Some (getThreadR pff, virtue1F)) (Some virtue2F))). {
+         eapply step_create; eauto.
+         rewrite (at_external_congr _ the_ge _ mc'); eauto.
+      }
       econstructor; simpl;
         by eauto.
       (** Proof that the new coarse and fine state are in simulation*)
@@ -9782,9 +9836,9 @@ relation*)
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (** And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext the_ge mc Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mc) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (** and moreover that it's the same external and their
         arguments are related by the renaming [fp i pfc]*)
@@ -9830,8 +9884,10 @@ relation*)
       split.
       (** proof that the FineConc machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs)))
-        by (eapply step_mklock with (b0:=b2); subst pmap_tidF' pmap_tidF2'; eauto; reflexivity).
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs))). {
+         eapply step_mklock with (b0:=b2); subst pmap_tidF' pmap_tidF2'; eauto; try reflexivity.
+         rewrite (at_external_congr _ the_ge _ mc); eauto.
+      }
       econstructor; simpl;
         by eauto.
 
@@ -10797,9 +10853,9 @@ relation*)
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (** And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext the_ge mc Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mc) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (** and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -10859,10 +10915,12 @@ relation*)
       split.
       (** proof that the FineConc machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf (freelock (b2, Int.intval ofs))).
-      eapply step_freelock with (b0 := b2); simpl; eauto.
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf (freelock (b2, Int.intval ofs))). {
+        eapply step_freelock with (b0 := b2); simpl; eauto.
+        rewrite (at_external_congr _ the_ge _ mc); eauto.
       simpl; eauto.
       simpl; eauto.
+      }
       econstructor; simpl;
         by eauto.
       (** Proof that the new DryConc and FineConc states are in simulation*)
@@ -11314,9 +11372,9 @@ relation*)
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (** And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext the_ge mc Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mc) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (** and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -11342,6 +11400,7 @@ relation*)
       subst.
       econstructor 5; simpl; eauto.
       econstructor 6; eauto.
+      rewrite (at_external_congr _ the_ge _ mc); eauto.
       destruct Htsim.
       destruct obs_eq_locks0 as [_ [Hperm_eq ?]].
       unfold Mem.range_perm, Mem.perm, permission_at in *.
