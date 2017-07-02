@@ -99,21 +99,23 @@ Qed.
     eapply erasure_safety'; eauto.
   Qed.
 
+  (*there is something weird about this theorem.*)
+  (*The injection is trivial... but it shouldn't*)
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
-      (vals : seq Values.val)
+      (vals : seq Values.val) m
       (rmap0 : rmap) (pmap : access_map * access_map) main genv h,
       match_rmap_perm rmap0 pmap ->
       no_locks_perm rmap0 ->
       initial_core (JMachineSem U (Some rmap0)) h genv
-         main vals = Some (U, [::], js) ->
+         m main vals = Some ((U, [::], js), None)  ->
       exists (ds : dstate),
         initial_core (DMachineSem U (Some pmap)) h genv
-                     main vals = Some (U, [::], ds) /\
+                     m main vals = Some ((U, [::], ds), None) /\
         DMS.invariant ds /\ match_st js ds.
   Proof.
-    intros ? ? ? ? ? ? ? ? mtch_perms no_locks init.
-    destruct (init_diagram (fun _ => None) U js vals Mem.empty rmap0 pmap main genv h)
+    intros ? ? ? ? ? ? ? ? ? mtch_perms no_locks init.
+    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv h)
     as [ds [dinit [dinv MTCH]]]; eauto.
     unfold init_inj_ok; intros b b' ofs H. inversion H.
   Qed.

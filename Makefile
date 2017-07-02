@@ -116,7 +116,7 @@ CONCUR_FILES= \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v juicy_machine.v \
   lksize.v \
-  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
+  mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
   scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
@@ -140,10 +140,12 @@ CONCUR_FILES= \
   konig.v safety.v \
   lifting_safety.v \
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
+  concursim_safety.v \
   coinductive_safety.v CoreSemantics_sum.v \
   self_simulation.v Clight_self_simulation.v Asm_self_simulation.v\
   concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v \
-  HybridMachine_simulation_proof.v
+  HybridMachine_simulation_proof.v \
+  Clight_safety.v main_safety.v main.v  
 
 PACO_FILES= \
   hpattern.v\
