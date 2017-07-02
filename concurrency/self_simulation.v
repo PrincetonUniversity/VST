@@ -89,9 +89,12 @@ Section SelfSim.
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
     { (*cinject: code_inject f c1 c2
     ;*) minject: Mem.inject f m1 m2            
-    ; pinject: perm_inject f m1 m2
-    ; pimage: perm_image f m1 m2
-    ; ppreimage: perm_preimage f m1 m2
+    ; pinject: perm_inject f m1 m2 (*f b1 = Some (b2, delta) -> forall ofs p, 
+                                     Mem.perm m1 b1 ofs Cur p <-> Mem.perm m2 b2 (ofs + delta) Cur p*)
+    ; pimage: perm_image f m1 m2 (* Mem.perm m1 b1 ofs Cur Nonempty -> exists b2, d, f b1 = Some (b2, d)*)
+    ; ppreimage: perm_preimage f m1 m2 (*Mem.perm m2 b2 ofs_delta Cur Nonempty -> exists b1 d ofs,
+                                         f b1 = Some (b2, d) /\
+                                         Mem.perm m1 b1 ofs Cur Nonempty /\ ofs_delta = ofs + d*)
     }.
 
   Record same_visible (m1 m2: mem):=
