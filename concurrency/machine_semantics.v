@@ -36,8 +36,11 @@ Require Import sepcomp.mem_lemmas.
    the behavior of programs. *)
 (** -2 a state cannot both step and be halted, and *)
 
+Definition option_proj {A: Type} (default: A) (x: option A) :=
+ match x with Some y => y | None => default end.
+
 Record ConcurSemantics {G TID SCH TR C M: Type} : Type :=
-  { initial_machine : G -> val -> list val -> option C
+  { initial_machine : G -> M -> val -> list val -> option (C * option M) 
     ; conc_halted : SCH -> C -> option val
     ; thread_step : G -> SCH -> C -> M -> C -> M -> Prop
     ; machine_step : G -> SCH -> TR -> C -> M -> SCH -> TR -> C -> M -> Prop

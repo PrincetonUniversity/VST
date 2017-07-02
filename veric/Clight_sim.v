@@ -16,7 +16,7 @@ Section GE.
 Variable ge : genv.
 
 Definition CCstep s1 s2 := 
-  Clight_core.cl_at_external (fst (CC'.CC_state_to_CC_core s1)) = None /\
+  Clight_core.cl_at_external ge (fst (CC'.CC_state_to_CC_core s1)) (snd (CC'.CC_state_to_CC_core s1)) = None /\
   Clight.step ge (Clight.function_entry2 ge) s1 Events.E0 s2.
 
 Fixpoint strip_skip' (k: CC.cont) : CC.cont :=
@@ -947,21 +947,21 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
             @CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
              (fun n ge => CS.(initial_core) n (Build_genv ge cenv))
-             CS.(at_external)
-             CS.(after_external)
+             (fun ge => CS.(at_external) (Build_genv ge cenv))
+             (fun ge => CS.(after_external)  (Build_genv ge cenv))
              CS.(halted)
             (fun ge => CS.(corestep) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_at_external) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
-            CS.(at_external_halted_excl).
+            (fun ge => CS.(at_external_halted_excl)  (Build_genv ge cenv) ).
 
 Require Import sepcomp.step_lemmas.
 
  Lemma sim_dry_safeN:
   forall dryspec (prog: Clight.program) b q m h,
   initial_core Clight_new.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Int.zero) nil = Some q ->
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
+          (Vptr b Int.zero) nil = Some (q, None) ->
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_new.cl_core_sem 
@@ -970,7 +970,7 @@ Require Import sepcomp.step_lemmas.
   exists q', 
   initial_core Clight_core.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Int.zero) nil = Some q' /\
+          m (Vptr b Int.zero) nil = Some (q', None) /\
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_core.cl_core_sem 

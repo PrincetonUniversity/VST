@@ -24,7 +24,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.mem_obs_eq.
 Require Import concurrency.memory_lemmas.
-Require Import ccc26x86.Asm ccc26x86.Asm_coop.
+Require Import compcert.ia32.Asm concurrency.Asm_core.
 Require Import concurrency.x86_context.
 
 Import ValObsEq Renamings event_semantics.

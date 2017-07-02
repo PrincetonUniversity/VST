@@ -122,12 +122,12 @@ I : C -> mem -> Prop
    valid arguments, a valid global environment, and a valid initial
    memory. *)
 ; wmd_initial :
-    forall ge m v args c,
+    forall ge m v args c m',
     Forall (fun v => val_valid v m) args ->
     valid_genv ge m ->
     mem_wd m ->
-    initial_core csem 0 ge v args = Some c ->
-    I c m
+    initial_core csem 0 ge m v args = Some (c, m') ->
+    I c (match m' with Some mx => mx | None => m end)
 
 (* Coresteps preserve the invariant. *)
 ; wmd_corestep :
@@ -142,16 +142,16 @@ I : C -> mem -> Prop
 ; wmd_at_external :
     forall (ge : Genv.t F V) c m ef args,
     I c m ->
-    at_external csem c = Some (ef,args) ->
+    at_external csem ge c m = Some (ef,args) ->
     Forall (fun v => val_valid v m) args /\ mem_wd m
 
 (* It's possible to reestablish the invariant when external calls return,
    assuming that we're passed a valid return memory in the fwd relation
    w/r/t m, and we're passed a valid return value. *)
 ; wmd_after_external :
-    forall c m ov c' m',
+    forall (ge : Genv.t F V) c m ov c' m',
     I c m ->
-    after_external csem ov c = Some c' ->
+    after_external csem ge ov c = Some c' ->
     oval_valid ov m' ->
     mem_forward m m' ->
     mem_wd m' ->

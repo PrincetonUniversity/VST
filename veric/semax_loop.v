@@ -262,7 +262,7 @@ Qed.
 Ltac inv_safe H :=
   inv H;
   try solve[match goal with
-    | H : semantics.at_external _ _ = _ |- _ =>
+    | H : semantics.at_external _ _ _ _ = _ |- _ =>
       simpl in H; congruence
     | H : semantics.halted _ _ = _ |- _ =>
       simpl in H; unfold cl_halted in H; congruence
@@ -472,24 +472,28 @@ eapply guard_safe_adj; try apply H; try reflexivity. clear H.
 intros.
 destruct n; simpl in *. constructor.
 inv_safe H.
-destruct (corestep_preservation_lemma Espec psi
+ {
+  destruct (corestep_preservation_lemma Espec psi
           (Kseq Sskip :: k) k ora ve te m n (Kseq s) nil c' m')
-  as [c2 [m2 [? ?]]]; simpl; auto.
-{ intros. apply control_suffix_safe; simpl; auto.
-clear.
-intro; intros.
-eapply convergent_controls_safe; try apply H0; simpl; auto.
-intros.
-destruct H1 as [H1 [H1a H1b]]; split3; auto.
-inv H1; auto. }
-{ clear.
-hnf; intros.
-eapply convergent_controls_safe; try apply H0; simpl; auto.
-clear; intros.
-destruct H as [H1 [H1a H1b]]; split3; auto.
-solve[inv H1; auto]. }
-{ destruct H1 as (?&?&?). econstructor; eauto. inv H. auto. }
-econstructor; eauto.
+    as [c2 [m2 [? ?]]]; simpl; auto.
+  { intros. apply control_suffix_safe; simpl; auto.
+    clear.
+    intro; intros.
+    eapply convergent_controls_safe; try apply H0; simpl; auto.
+    intros.
+    destruct H1 as [H1 [H1a H1b]]; split3; auto.
+    inv H1; auto. }
+  { clear.
+     hnf; intros.
+     eapply convergent_controls_safe; try apply H0; simpl; auto.
+     clear; intros.
+     destruct H as [H1 [H1a H1b]]; split3; auto.
+     solve[inv H1; auto]. }
+   { destruct H1 as (?&?&?). econstructor; eauto. inv H. auto. }
+   {econstructor; eauto. }
+}
+
+
 Qed.
 
 Lemma semax_skip_seq {CS: compspecs}:

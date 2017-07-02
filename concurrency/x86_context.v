@@ -7,8 +7,8 @@ Require Import concurrency.permissions.
 Require Import concurrency.memory_lemmas.
 Require Import concurrency.dry_context.
 Require Import concurrency.dry_machine_lemmas.
-Require Import ccc26x86.Asm_coop.
-Require Import ccc26x86.Asm_event.
+Require Import concurrency.Asm_core.
+Require Import concurrency.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.
@@ -23,7 +23,7 @@ Module X86SEM <: Semantics.
   Definition F := Asm.fundef.
   Definition V := unit.
   Definition G := Asm.genv.
-  Definition C := state.
+  Definition C := Asm.regset.
   Definition Sem := Asm_EvSem.
   Definition getEnv (g: G) := g.
 End X86SEM.
@@ -80,7 +80,7 @@ End X86Context.
 
 Module X86SEMAxioms <: SemanticsAxioms X86SEM.
 
-  Import Asm Asm_coop event_semantics semantics_lemmas
+  Import Asm Asm_core event_semantics semantics_lemmas
          X86SEM Memory.
 
   Lemma corestep_det: corestep_fun Sem.
@@ -93,8 +93,9 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       | H: ?A, H': ?A |- _ => clear H'
       end;
     try congruence; try now (split; auto).
-    pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
+(*    pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
     subst args0; auto.
+*)
   Qed.
 
   Lemma mem_step_decay:

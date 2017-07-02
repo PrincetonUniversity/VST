@@ -46,17 +46,18 @@ Record Machine_sim: Type :=
     
  MSord_wf : well_founded MSorder
 ; core_initial :
-    forall c1 vals1 m1 vals2 m2 j,
-      initial_machine Sem1 ge1 main vals1 = Some c1 ->
+    forall j c1 vals1 m1 m1' vals2 m2 m2',
+    initial_machine Sem1 ge1 m1 main vals1 = Some (c1, m1') ->
       Mem.inject j m1 m2 ->
       Forall2 (val_inject j) vals1 vals2 ->
       (*
       meminj_preserves_globals ge1 j ->
       globalfunction_ptr_inject ge1 j ->*)
       smthng_about_globals ge1 j ->
-      exists cd c2,
-        initial_machine Sem2 ge2 main vals2 = Some c2
-        /\ MSmatch_states cd j c1 m1 c2 m2
+    exists (*mu*) cd c2,
+      (*as_inj mu = j*
+      /\*) initial_machine Sem2 ge2 m2 main vals2 = Some (c2, m2')
+      /\ MSmatch_states cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2')
 ; MSthread_diagram :
     forall U st1 m1 st1' m1',
     thread_step Sem1 ge1 U st1 m1 st1' m1' ->

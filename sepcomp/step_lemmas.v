@@ -33,7 +33,7 @@ Section safety.
       safeN_ (S n) z c m
   | safeN_external:
       forall n z c m e args x,
-      at_external Hcore c = Some (e,args) ->
+      at_external Hcore ge c m = Some (e,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
@@ -42,7 +42,7 @@ Section safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           after_external Hcore ret c = Some c' /\
+           after_external Hcore ge ret c = Some c' /\
            safeN_ n' z' c' m') ->
       safeN_ (S n) z c m
   | safeN_halted:
@@ -150,9 +150,9 @@ Section safety.
 
   Lemma convergent_controls_safe :
     forall m q1 q2,
-      (at_external Hcore q1 = at_external Hcore q2) ->
-      (forall ret q', after_external Hcore ret q1 = Some q' ->
-                      after_external Hcore ret q2 = Some q') ->
+      (at_external Hcore ge q1 m = at_external Hcore ge q2 m) ->
+      (forall ret q', after_external Hcore ge ret q1 = Some q' ->
+                      after_external Hcore ge ret q2 = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
       (forall q' m', corestep Hcore ge q1 m q' m' ->
                      corestep Hcore ge q2 m q' m') ->

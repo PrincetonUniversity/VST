@@ -289,7 +289,7 @@ Section Progress.
           pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : at_external _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
           exists c', m'. split; [ apply step | ].
           revert step safety safe; clear.
@@ -566,7 +566,7 @@ Section Progress.
 
             assert (Ecall: EF_external name sg = LOCK) by congruence.
 
-            assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+            assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
               unfold SEM.Sem in *.
@@ -634,7 +634,7 @@ Section Progress.
 
           assert (Ecall: EF_external name sg = LOCK) by congruence.
 
-          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+          assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
             unfold SEM.Sem in *.
@@ -833,7 +833,7 @@ Section Progress.
 
           assert (Ecall: EF_external name sg = UNLOCK) by congruence.
 
-          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+          assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
             unfold SEM.Sem in *.
@@ -1074,7 +1074,7 @@ Section Progress.
 
         assert (Ecall: EF_external name sg = MKLOCK) by congruence.
 
-        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+        assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
           unfold SEM.Sem in *.
@@ -1225,7 +1225,7 @@ Section Progress.
 
         assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
 
-        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+        assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (FREE_LOCK, Vptr b ofs :: nil)). {
           simpl.
           unfold SEM.Sem in *.
@@ -1508,7 +1508,7 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * replace (initial_core SEM.Sem _) with cl_initial_core. auto.
+          * replace (initial_core SEM.Sem _) with cl_initial_core. eauto.
             unfold the_sem, SEM.Sem.
             rewrite SEM.CLN_msem.
             reflexivity.

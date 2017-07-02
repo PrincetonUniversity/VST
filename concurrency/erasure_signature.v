@@ -90,9 +90,9 @@ Axiom init_diagram:
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
       no_locks_perm rmap ->
-   initial_core (JMachineSem U (Some rmap)) h genv main vals = Some (U, nil, js) ->
+   initial_core (JMachineSem U (Some rmap)) h genv m main vals = Some ((U, nil, js),None) ->
    exists (ds : dstate),
-     initial_core (DMachineSem U (Some pmap)) h genv main vals = Some (U, nil, ds) /\
+     initial_core (DMachineSem U (Some pmap)) h genv m main vals = Some ((U, nil, ds),None) /\
      DMS.invariant ds /\
      match_st js ds.
 

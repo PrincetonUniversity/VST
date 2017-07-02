@@ -104,6 +104,7 @@ SEPCOMP_FILES = \
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
 CONCUR_FILES= \
+  Asm_core.v Asm_event.v load_frame.v \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
@@ -117,7 +118,6 @@ CONCUR_FILES= \
   lksize.v \
   mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
-  rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \

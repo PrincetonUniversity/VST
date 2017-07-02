@@ -294,12 +294,12 @@ Module SimProofs (SEM: Semantics)
     intros. unfold ctl_inj in Hinj.
     destruct c; destruct c'; try (by exfalso);
     unfold ctlType in *;
-    try assert (Hat_ext := core_inj_ext Hinj);
+    try assert (Hat_ext := @core_inj_ext the_ge Mem.empty _ _ _ Hinj);
     try assert (Hhalted := core_inj_halted Hinj); auto.
-    destruct (at_external SEM.Sem c) as [[? ?]|]; simpl in *;
-    destruct (at_external SEM.Sem c0) as [[? ?]|]; simpl in *; auto;
+    destruct (at_external SEM.Sem the_ge c Mem.empty) as [[? ?]|]; simpl in *;
+    destruct (at_external SEM.Sem the_ge c0 Mem.empty) as [[? ?]|]; simpl in *; auto;
     try (by exfalso).
-    destruct (halted SEM.Sem c), (halted SEM.Sem c0); by tauto.
+    destruct (halted SEM.Sem c), (halted SEM.Sem c0); try tauto.
   Qed.
 
   Lemma stepType_inj:
@@ -337,7 +337,7 @@ Module SimProofs (SEM: Semantics)
     unfold getStepType in Hinternal.
     destruct (getThreadC pff) eqn:Hget; simpl in *;
     try discriminate.
-    destruct (at_external SEM.Sem c), (halted SEM.Sem c) eqn:?; try discriminate.
+    destruct (at_external SEM.Sem the_ge c Mem.empty), (halted SEM.Sem c) eqn:?; try discriminate.
     exists tr.
     split.
     intros.
@@ -379,9 +379,9 @@ Module SimProofs (SEM: Semantics)
           tp' = tp'' /\ m' = m'' /\ i :: U = U').
   Proof.
     intros. split.
-    destruct Hstep_internal as [[? Hcore] | [[Hresume ?] | [Hstart ?]]]; subst;
+    destruct Hstep_internal as [[? Hcore] | [[Hresume ?] | Hstart]]; subst;
     autounfold.
-    econstructor; simpl; eauto.
+    eapply DryConc.thread_step. reflexivity. apply Hcore.
     econstructor 2; simpl; eauto.
     econstructor 1; simpl; eauto.
     intros tp'' m'' U' Hstep.
@@ -394,12 +394,13 @@ Module SimProofs (SEM: Semantics)
       try inversion Htstep;
       try (inversion Hhalted); subst;
       unfold getThreadC in *; pf_cleanup;
+      try rewrite (at_external_congr the_ge the_ge m'' Mem.empty) in Hat_external;
       repeat match goal with
              | [H1: context[match ?Expr with | _ => _ end],
                     H2: ?Expr = _ |- _] =>
                rewrite H2 in H1
              end; try discriminate.
-      destruct (at_external_halted_excl SEM.Sem c) as [Hnot_ext | Hcontra].
+      destruct (at_external_halted_excl SEM.Sem the_ge c Mem.empty) as [Hnot_ext | Hcontra].
       rewrite Hnot_ext in Hstep_internal; try discriminate.
       destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
       rewrite Hcontra in Hcant;
@@ -470,7 +471,7 @@ Module SimProofs (SEM: Semantics)
   Proof.
     intros.
     absurd_internal Hstep.
-    exists Hcmpt. split; auto.
+   exists Hcmpt. split; auto.
     do 2 right;
       by auto.
     exists Hcmpt. split; auto.
@@ -478,6 +479,9 @@ Module SimProofs (SEM: Semantics)
       by auto.
     exists Hcmpt. split; auto.
     left; eauto.
+    rewrite (at_external_congr the_ge the_ge Mem.empty m') in isInternal; rewrite Hat_external in isInternal. discriminate.
+    destruct (at_external SEM.Sem the_ge c Mem.empty) eqn:?; try discriminate.
+    destruct (halted SEM.Sem c); try discriminate.
   Qed.
 
   (** Starting from a well-defined state, an internal execution
@@ -498,7 +502,7 @@ Module SimProofs (SEM: Semantics)
       (forall f' : memren, domain_memren f' m' -> tp_wd f' tp').
   Proof.
     intros.
-    inversion Hstep as [[? Htstep] | [[Htstep ?] | [Htstep ?]]].
+    inversion Hstep as [[? Htstep] | [[Htstep ?] | Htstep]].
     - inversion Htstep; subst.
       erewrite restrPermMap_mem_valid with (Hlt := fst (Hcomp i cnti)) in Hmem_wd.
       eapply ev_step_ax1 in Hcorestep.
@@ -546,7 +550,7 @@ Module SimProofs (SEM: Semantics)
       destruct X as [? ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
-      assert (Hargs:= at_external_wd Hcore_wd Hat_external).
+      assert (Hargs:= at_external_wd the_ge m' Hcore_wd Hat_external).
       eapply after_external_wd; eauto.
       eapply core_wd_incr; eauto.
       eapply valid_val_list_incr;
@@ -556,12 +560,16 @@ Module SimProofs (SEM: Semantics)
         specialize (Htp_wd _ cntj).
         eapply ctl_wd_incr;
           by eauto.
-    - subst; split; auto.
+    - assert (m'=m). {
+         inversion Htstep. apply initial_core_nomem in Hinitial. subst. reflexivity.
+       } subst m'.
+      subst; split; auto.
       inversion Htstep; subst.
       split.
-      exists f.
+      exists f. rewrite H4.
       split; unfold ren_domain_incr;
         by auto.
+     rewrite H4.
       intros f'' Hdomain''.
       intros j cntj'.
       assert (cntj: containsThread tp j)
@@ -641,8 +649,8 @@ Module SimProofs (SEM: Semantics)
   Qed.
 
   Lemma suspend_tp_wd:
-    forall tpc tpc' (f : memren) i (pfc : containsThread tpc i)
-      (Hsuspend: DryConc.suspend_thread pfc tpc')
+    forall m tpc tpc' (f : memren) i (pfc : containsThread tpc i)
+      (Hsuspend: DryConc.suspend_thread the_ge m pfc tpc')
       (Htp_wd: tp_wd f tpc),
       tp_wd f tpc'.
   Proof.
@@ -1036,17 +1044,18 @@ Module SimProofs (SEM: Semantics)
                           end)
         by (by simpl).
       assert (Hafter_externalF :=
-                core_inj_after_ext None Hcode_eq
+                core_inj_after_ext the_ge None Hcode_eq
                                    Hvalid_val Hafter_external).
       destruct Hafter_externalF as [ov2 [cf' [Hafter_externalF [Hcode_eq' Hval_obs]]]].
       destruct ov2 as [v2 |]; try by exfalso.
       inversion Hval_obs; subst.
       (* cf is at external*)
-      assert (Hat_externalF_spec := core_inj_ext Hcode_eq).
+      assert (Hat_externalF_spec := core_inj_ext the_ge mc' Hcode_eq).
       rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
+      rewrite (at_external_congr the_ge the_ge mc' mf) in Hat_externalF_spec.
       destruct X as [ef val].
-      destruct (at_external SEM.Sem cf) as [[ef' val']|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem the_ge cf mf) as [[ef' val']|] eqn:Hat_externalF;
         try by exfalso.
       destruct Hat_externalF_spec as [?  Harg_obs]; subst.
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
@@ -1054,7 +1063,8 @@ Module SimProofs (SEM: Semantics)
       split.
       { (* The fine-grained machine steps *)
         intros. eapply FineConc.resume_step with (Htid := pff); simpl; eauto.
-        eapply FineConc.ResumeThread with (c := cf);
+        eapply FineConc.ResumeThread with (c := cf); try eassumption.
+
           by eauto.
       }
       { split; first by auto.
@@ -1078,7 +1088,7 @@ Module SimProofs (SEM: Semantics)
         split; [ | split]; intros; by congruence.
       }
     }
-    { destruct Hstart as [Hstart Heq]; subst.
+    { (*destruct Hstart as [Hstart Heq]; subst. *)
       inversion Hstart; subst; clear Hstart; pf_cleanup.
       destruct Hstrong_sim as [Hcode_eq memObsEq].
       rewrite Hcode in Hcode_eq.
@@ -1088,15 +1098,19 @@ Module SimProofs (SEM: Semantics)
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init (dry_machine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
-      destruct HinitF as [c_newF [HinitialF Hcode_eq]].
+      assert (HinitF := core_inj_init mc (dry_machine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
+      destruct HinitF as [c_newF [m' [HinitialF Hcode_eq]]].
+      assert (m'=None) by (apply initial_core_nomem in HinitialF; auto); subst m'.
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
       exists tpf', mf, fi, tr.
+      assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om.
       split.
       { (* The fine-grained machine steps *)
         intros. eapply FineConc.start_step with (Htid := pff); simpl; eauto.
+        change mf with (machine_semantics.option_proj mf None) at 2.
         eapply FineConc.StartThread with (c_new := c_newF);
-          by eauto.
+          try eauto.
+       clear - HinitialF.  admit.  (*  Clight oblivious to memory *)
       }
       { split; first by auto.
         split; first by auto.
@@ -1119,7 +1133,30 @@ Module SimProofs (SEM: Semantics)
         split; [|split]; intros; by congruence.
       }
     }
-  Qed.
+ Admitted.
+
+  Global Ltac absurd_internal Hstep :=
+    inversion Hstep; try inversion Htstep; subst; simpl in *;
+    try match goal with
+        | [H: Some _ = Some _ |- _] => inversion H; subst
+        end; pf_cleanup;
+    repeat match goal with
+           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
+             unfold getStepType in Hint;
+               rewrite H in Hint; simpl in Hint
+           | [H1: match ?Expr with _ => _ end = _,
+                  H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H: threadHalted _ |- _] =>
+             inversion H; clear H; subst; simpl in *; pf_cleanup;
+             unfold  ThreadPool.SEM.Sem in *
+           | [H1: is_true (isSome (halted ?Sem ?C)),
+                  H2: match at_external _ ?g _ ?m with _ => _ end = _ |- _] =>
+             destruct (at_external_halted_excl Sem ge C m) as [Hext | Hcontra];
+               [rewrite Hext in H2;
+                 destruct (halted Sem C) eqn:Hh;
+                 [discriminate | by exfalso] |
+                rewrite Hcontra in H1; by exfalso]
+           end; try discriminate; try (exfalso; by auto).
 
   Lemma weak_tsim_fstep:
     forall tpc tpf tpf' mc mf mf' i j f U tr tr'
@@ -1142,6 +1179,7 @@ Module SimProofs (SEM: Semantics)
       as [Hdomain_invalid Hdomain_valid Hcodomain_valid Hinjective Hperm_obs_weak_data].
     pose proof (perm_obs_weak Hweak_locks) as Hperm_obs_weak_lock.
     absurd_internal Hstep;
+    try (assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om);
       do 2 constructor; auto.
     (* Case of start step*)
     intros b1 b2 ofs Hf.
@@ -2807,6 +2845,7 @@ Module SimProofs (SEM: Semantics)
       rewrite Hcode in Hpop. simpl in Hpop.
       apply ev_step_ax1 in Hcorestep.
       apply corestep_not_at_external in Hcorestep.
+     rewrite (at_external_congr the_ge the_ge Mem.empty (restrPermMap (Hcmpt i cnti)#1)) in Hpop.
       rewrite Hcorestep in Hpop.
       destruct (halted SEM.Sem c);
         destruct Hpop;

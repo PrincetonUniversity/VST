@@ -205,11 +205,14 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-    [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
-    | subst | now inversion bad ].
+    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+  apply corestep_not_at_external in bad. elimtype False; subst; clear - bad atex.
+   simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
+  2: inversion bad.
   subst.
-  simpl in at_ex. assert (args0 = args) by congruence; subst args0.
+  simpl in at_ex.
+  unfold cl_at_external in atex, at_ex.
+  assert (args0 = args) by congruence; subst args0.
   assert (e = CREATE) by congruence; subst e.
   hnf in x.
   revert x Pre SafePost.
@@ -339,8 +342,10 @@ Proof.
 
   spec HEP PreA.
   destruct HEP as (q_new & Initcore & Safety).
-
+(*  specialize (Initcore (jm_ cnti compat)). 
+clear - Initcore.
   change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
+*)
 
   apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
@@ -374,8 +379,12 @@ Proof.
     { replace (initial_core SEM.Sem _) with cl_initial_core
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       unfold code in *.
-      rewrite <-Initcore.
-      reflexivity. }
+      instantiate (1:=None).
+      specialize (Initcore (jm_ cnti compat)); clear - Initcore.
+      simpl in Initcore. unfold j_initial_core in Initcore. 
+      destruct (initial_core cl_core_sem 0 (globalenv prog)
+               (m_dry (jm_ cnti compat)) (Vptr f_b Int.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
+     apply Heqo. }
   }
   (* "progress" part finished. *)
 
@@ -433,7 +442,15 @@ Proof.
       subst j.
       REWR.
       rewrite gssAddCode. 2:reflexivity.
-      exists q_new. split; auto.
+      exists q_new.
+      split.
+      specialize (Initcore (jm_ cnti compat)); clear - Initcore.
+      clear - Initcore.
+      simpl in Initcore. unfold j_initial_core in Initcore. 
+      destruct (initial_core cl_core_sem 0 (globalenv prog)
+               (m_dry (jm_ cnti compat)) (Vptr f_b Int.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
+     apply Heqo.
+
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
       spec Safety jm ts.
       intros Ejm.
@@ -561,7 +578,8 @@ Proof.
     intros j cntj.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
     + subst j. REWR. rewrite gssAddCode. 2:reflexivity. constructor.
-    + subst j. REWR. REWR. REWR. rewrite atex. split; auto; congruence.
+    + subst j. REWR. REWR. REWR.
+       unfold cl_at_external; simpl. split; congruence.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
       REWR. REWR. REWR. apply wellformed.

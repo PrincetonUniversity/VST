@@ -1184,7 +1184,7 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (*Hpersonal_perm:
@@ -1217,7 +1217,7 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (UNLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (* Hpersonal_perm:
@@ -1248,13 +1248,14 @@ Qed.
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs (* P Q *),
+        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs om (* P Q *),
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (CREATE, vf::arg::nil))
-            (Hinitial: initial_core the_sem 0 genv vf (arg::nil) = Some c_new)
+            (Hinitial: initial_core the_sem 0 genv m vf (arg::nil) = Some (c_new, om)) (* FIXME:
+                    This line should not be necessary, says Andrew to Santiago, June 29, 2017 *)
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
@@ -1270,7 +1271,7 @@ Qed.
             phi' m'
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (*Hright_juice:  m = m_dry jm*)
@@ -1295,7 +1296,7 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (FREE_LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_juice: getThreadR cnt0 = phi)
@@ -1314,7 +1315,7 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem c =
+            (Hat_external: at_external the_sem genv c m =
                            Some (LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
@@ -1618,14 +1619,14 @@ Qed.
         (fun _ => rmap)
         (AMap.empty (option res)).
 
-    Definition init_mach rmap (genv:G)(v:val)(args:list val) : option thread_pool:=
-      match initial_core the_sem 0 genv v args with
-      | Some c =>
+    Definition init_mach rmap (genv:G) (m: mem) (v:val)(args:list val) : option (thread_pool * option mem):=
+      match initial_core the_sem 0 genv m v args with
+      | Some (c, None) =>
         match rmap with
-        | Some rmap => Some (initial_machine rmap c)
+        | Some rmap => Some (initial_machine rmap c, None)
         | None => None
         end
-      | None => None
+      | _ => None
       end.
 
 
@@ -1996,4 +1997,3 @@ Declare Module SEM:Semantics.
 
 End Concur.
 
-(*Erase everything below*)

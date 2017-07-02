@@ -911,10 +911,11 @@ Qed.
 
 Set Printing Implicit.
 
-Lemma at_external_not_halted (G C M : Type) (csem : semantics.CoreSemantics G C M) (q : C) :
-  semantics.at_external csem q <> None -> semantics.halted csem q = None.
+Lemma at_external_not_halted (G C M : Type) (csem : semantics.CoreSemantics G C M)
+    (ge: G) (q : C) (m: M):
+  semantics.at_external csem ge q m <> None -> semantics.halted csem q = None.
 Proof.
-  destruct (@semantics.at_external_halted_excl G C _ csem q); tauto.
+  destruct (@semantics.at_external_halted_excl G C _ csem ge q m); tauto.
 Qed.
 
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=

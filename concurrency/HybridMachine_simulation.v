@@ -33,7 +33,7 @@ Require Import concurrency.concurrent_machine_rec.
 Require Import veric.res_predicates.
 Require Import veric.Clight_new.
 Require Import veric.Clightnew_coop.
-Require Import ccc26x86.Asm_coop.
+Require Import Asm_core.
 Require Import ccc26x86.Asm_event.
 
 Require Import concurrency.HybridMachineSig.
