@@ -19,12 +19,11 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Integers.
-
 Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.mem_obs_eq.
 Require Import concurrency.memory_lemmas.
-Require Import compcert.ia32.Asm concurrency.Asm_core.
+Require Import compcert.ia32.Asm concurrency.Asm_core concurrency.Asm_event.
 Require Import concurrency.x86_context.
 
 Import ValObsEq Renamings event_semantics.
@@ -47,12 +46,13 @@ Module X86WD.
     Definition core_wd (c : state) : Prop :=
       match c with
       | State rs loader =>
-        regset_wd rs /\
-        loader_wd loader
+        regset_wd rs (* /\
+        loader_wd loader 
       | Asm_CallstateIn vf args _ _ =>
         f vf /\ valid_val_list f args
       | Asm_CallstateOut ef vals rs loader =>
         valid_val_list f vals /\ regset_wd rs /\ loader_wd loader
+*)
       end.
 
     Definition ge_wd (the_ge: genv) : Prop :=
@@ -354,7 +354,8 @@ Module X86Inj <: CoreInjections X86SEM.
       f b = Some b' /\ ty = ty'
     end.
 
-  Definition core_inj f c c' :=
+  Definition core_inj f c c' := regset_ren f c c'.
+(*
     match c, c' with
     | State rs loader, State rs' loader' =>
       regset_ren f rs rs' /\ loader_ren f loader loader'
@@ -366,6 +367,7 @@ Module X86Inj <: CoreInjections X86SEM.
       /\ regset_ren f rs rs' /\ loader_ren f loader loader'
     | _, _ => False
     end.
+*)
 
   Import ValueWD MemoryWD Genv.
   Include X86WD.
@@ -718,16 +720,18 @@ Module X86Inj <: CoreInjections X86SEM.
            | [|- valid_val_list _ _] =>
              eapply valid_val_list_domain with (f := f); eauto
            end.
-    destruct (H0 f0), (H1 f0);
+(*    destruct (H0 f0), (H1 f0);
       by eauto.
+*)
   Qed.
 
   Lemma at_external_wd :
-    forall (f : memren) c
+    forall ge (f : memren) c
       (ef : external_function)
       (args : seq val),
-      core_wd f c ->
-      at_external X86SEM.Sem c = Some (ef, args) -> valid_val_list f args.
+      regset_wd f c ->
+      at_external X86SEM.Sem ge c  = Some (ef, args) -> 
+      valid_val_list f args.
   Proof.
     intros.
     unfold core_wd in H.
