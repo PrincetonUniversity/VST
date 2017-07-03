@@ -145,27 +145,35 @@ Section SelfSim.
   - eapply code_inj_incr; eauto; apply MATCH. 
   - inv MATCH. 
     split; trivial. 
-      * unfold perm_inject; intros.
+    * unfold perm_inject; intros.
       split; intros. 
       + eapply INJ; eauto. 
       + assert (NE: Mem.perm m2' b2 (ofs+delta) Cur Nonempty).
           eapply Mem.perm_implies; eauto. constructor.
         assert (NE':= NE).
-        inv matchmem0.
+        inv matchmem0. 
         eapply same_visible21 in NE'; eauto.
         destruct NE' as [SAME_PERM SAME_CONTENT].
         apply SAME_PERM in H0.
         apply SAME_PERM in NE.
-        eapply pinject0 in H0.
-        
-        eapply same_visible12 with (m2:=m1') in H0; eauto.
-        ++ admit. (*by trans *)
-        
-        ++ eapply ppreimage0 in NE.
-          destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
-          assert (HH':= HH1).
-          eapply INCR in HH'.
-          admit. (*With some none overlapping this should follow*)
+        exploit ppreimage0. apply NE.  intros [x [d [z [MY [P X]]]]].
+        specialize (INCR _ _ _ MY).
+(*          destruct (eq_block x b1); subst. rewrite H in INCR; inv INCR. assert (ofs=z) by omega.  subst z. trivial.
+          exploit Mem.mi_no_overlap. apply INJ. apply n. eassumption. eassumption. destruct VIS1. eapply VIS1.*)
+          admit. (*(*With some none overlapping this should follow*)
+         _ _ _ _ NE).
+(*        eapply pinject0 in H0. unfold perm_preimage in ppreimage0. _ _  Print match_mem.
+Print Mem.inject'.
+        **        *)
+          eapply same_visible12 with (m2:=m1') in H0; eauto.
+          eapply Mem.perm_implies; eauto. constructor.
+        ** eapply ppreimage0 in NE.
+            destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
+            assert (HH':= HH1).
+            eapply INCR in HH'.
+          destruct (eq_block x b1); subst. rewrite H in HH'; inv HH'. trivial.
+          exploit Mem.mi_no_overlap. apply INJ. apply n. eassumption. eassumption. destruct VIS1. eapply VIS1.
+          admit. (*With some none overlapping this should follow*)*)
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b1 ofs PERM. destruct matchmem0. apply VIS1 in PERM. 
       ++ apply pimage0 in PERM. destruct PERM as [? [? HH]]; apply INCR in HH.
