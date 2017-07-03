@@ -190,6 +190,7 @@ Print Mem.inject'.
 
 End SelfSim.
 Arguments match_self {core}.
+
 Section SelfSimulation.
 
   Variable Sem: semantics.
@@ -216,8 +217,8 @@ Section SelfSimulation.
           Events.inject_trace f' t t'
     }. 
 
-End SelfSimulation.        
-
+End SelfSimulation.
+Arguments code_inject {Sem core memcore_to_state}.
   
   
   

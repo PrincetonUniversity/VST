@@ -93,10 +93,13 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       | H: ?A, H': ?A |- _ => clear H'
       end;
     try congruence; try now (split; auto).
-(*    pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
-    subst args0; auto.
-*)
-  Qed.
+   assert (vargs0=vargs) by (eapply Events.eval_builtin_args_determ; eauto).
+   subst vargs0; clear H10.
+   assert (t0=t) by (eapply builtin_event_determ; eauto). subst t0. clear H11.
+   destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H7 H13).
+  specialize (H0 (eq_refl _)). destruct H0; subst m'' vres0.
+  auto.
+Qed.
 
   Lemma mem_step_decay:
     forall m m',
