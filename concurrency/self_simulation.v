@@ -90,23 +90,28 @@ Section SelfSim.
       Mem.perm m1 b1 ofs Cur Nonempty /\
   ofs_delta = ofs + delta. 
   
-
+(*
   Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
     { cinject: code_inject f c1 c2
     ; minject: Mem.inject f m1 m2            
     ; pinject: perm_inject f m1 m2
     ; pimage: perm_image f m1 m2
     ; ppreimage: perm_preimage f m1 m2
-    }.
+    }.*)
 
-  (*
+  
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
     { minject: Mem.inject f m1 m2            
     ; pinject: perm_inject f m1 m2
     ; pimage: perm_image f m1 m2
     ; ppreimage: perm_preimage f m1 m2
     }.
-   *)
+   
+  Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
+    { cinject: code_inject f c1 c2
+    ; matchmem: match_mem f m1 m2 
+    }.
+
   
   Record same_visible (m1 m2: mem):=
     { same_visible12:
@@ -135,34 +140,18 @@ Section SelfSim.
         same_visible m2 m2' ->
         match_self mu' c1 m1' c2 m2'.
   Proof.
-    intros ? ? ? ? ? MATCH ? ? ? INCR INJ VIS1 VIS2.
-    constructor.
-    - eapply code_inj_incr; eauto; apply MATCH. 
-    - assumption.
-    - unfold perm_inject; intros.
-      inversion MATCH.
-      simpl; split; intros.
-      + assert (NE: Mem.perm m1' b1 ofs Cur Nonempty)
-          by admit. (*easy by transitivity that doenst' exists*)
+  intros ? ? ? ? ? MATCH ? ? ? INCR INJ VIS1 VIS2.
+  constructor.
+  - eapply code_inj_incr; eauto; apply MATCH. 
+  - inv MATCH. 
+    split; trivial. 
+      * unfold perm_inject; intros.
+      split; intros. 
+      + eapply INJ; eauto. 
+      + assert (NE: Mem.perm m2' b2 (ofs+delta) Cur Nonempty).
+          eapply Mem.perm_implies; eauto. constructor.
         assert (NE':= NE).
-        eapply same_visible21 in NE'; eauto.
-        destruct NE' as [SAME_PERM SAME_CONTENT].
-        apply SAME_PERM in H0.
-        apply SAME_PERM in NE.
-        eapply MATCH in H0.
-
-        eapply same_visible12 with (m2:=m2') in H0; eauto.
-        admit. (*by trans *)
-        
-        eapply pimage0 in NE.
-        destruct NE as [? [? HH]].
-        assert (HH':= HH).
-        eapply INCR in HH'.
-        rewrite HH' in H. inversion H; subst.
-        assumption.
-      + assert (NE: Mem.perm m2' b2 (ofs+delta) Cur Nonempty)
-          by admit. (*easy by transitivity that doenst' exists*)
-        assert (NE':= NE).
+        inv matchmem0.
         eapply same_visible21 in NE'; eauto.
         destruct NE' as [SAME_PERM SAME_CONTENT].
         apply SAME_PERM in H0.
@@ -170,18 +159,25 @@ Section SelfSim.
         eapply pinject0 in H0.
         
         eapply same_visible12 with (m2:=m1') in H0; eauto.
-        admit. (*by trans *)
+        ++ admit. (*by trans *)
         
-        eapply ppreimage0 in NE.
-        destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
-        assert (HH':= HH1).
-        eapply INCR in HH'.
-        admit. (*With some none overlapping this should follow*)
-    - (*pre_image*)
-      intros b1 ofs PERM.
-      admit. (*Easy ... use lemmas to simplify same_visible*)
-    - intros b2 ofs_delta PERM.
-      admit. (*Easy ... use lemmas to simplify same_visible*)
+        ++ eapply ppreimage0 in NE.
+          destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
+          assert (HH':= HH1).
+          eapply INCR in HH'.
+          admit. (*With some none overlapping this should follow*)
+    * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
+      intros b1 ofs PERM. destruct matchmem0. apply VIS1 in PERM. 
+      ++ apply pimage0 in PERM. destruct PERM as [? [? HH]]; apply INCR in HH.
+        eexists; eexists; eauto. 
+      ++ admit. (*??*)
+    * (*Pre_image*) (*Easy ... use lemmas to simplify same_visible*)
+      intros b2 ofs_delta PERM. destruct matchmem0. apply VIS2 in PERM. 
+      ++ apply ppreimage0 in PERM. destruct PERM as [b [d [z [HH [P X]]]]]; apply INCR in HH.
+        destruct VIS1 as [A _]. destruct (A _ _ P) as [AA _]. apply AA in P. 
+        exists b, d, z; eauto.
+      ++ apply VIS2; trivial.   
+        admit. (*??*)
   Admitted.
 
 End SelfSim.
@@ -206,7 +202,7 @@ Section SelfSimulation.
         forall (g: genvtype Sem) c1' m1',
           step Sem g (memcore_to_state c1 m1)  t (memcore_to_state c1' m1') ->
           exists c2' f' t' m2',
-          step Sem g (memcore_to_state c2 m2)  t (memcore_to_state c2' m2')  /\
+          step Sem g (memcore_to_state c2 m2)  t' (memcore_to_state c2' m2')  /\
           match_self code_inject f' c1' m1' c2' m2' /\
           is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\
           Events.inject_trace f' t t'
