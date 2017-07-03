@@ -70,13 +70,24 @@ Section OneThreadCompiled.
   Section OneThreadCompiledProofs.
 
     (* we extract match_source from the self_simulation of Clight*)
-    Definition code_inject_source:= code_inject _ _ (Clight_self_simulation p).
+    Definition code_inject_source:=
+      self_simulation.code_inject _ _ (Clight_self_simulation p).
 
     (* we extract match_target from the self_simulation of Asm*)
-    Definition code_inject_target:= code_inject _  _ (Asm_self_simulation tp).
-
-    Parameter make_state_Clight: CC_core -> mem -> Clight.state.
-    Parameter make_state_Asm: X86Machines.ErasedMachine.ThreadPool.code -> mem -> ia32.Asm.state.
+    Definition code_inject_target:=
+      self_simulation.code_inject _  _ (Asm_self_simulation tp).
+    Definition make_state_Clight: CC_core -> mem -> Clight.state:=
+      CC_core_to_CC_state.
+    Definition get_state_Clight c:=
+      fst (CC_state_to_CC_core c).
+    Definition make_state_Asm
+              (reg: X86Machines.ErasedMachine.ThreadPool.code)
+              (m: mem): ia32.Asm.state:=
+      ia32.Asm.State reg m.
+    Definition get_state_Asm (st:Asm.state): X86Machines.ErasedMachine.ThreadPool.code:=
+      match st with
+        Asm.State reg _ => reg
+      end.
 
     
     Definition compiler_simulation: fsim_properties_inj ( Clight.semantics2 p) (ia32.Asm.semantics tp)
@@ -110,7 +121,7 @@ Section OneThreadCompiledMatch.
   Notation Sem2:=(ConcurMachineSemantics _ _ _ HM2 U None) .
 
   Inductive condition: Set :=
-    running | blocked | resuming | initializing .
+    running | blocked | resuming | initializing.
 
   Definition get_condition {cT} (c:@ctl cT):=
     match c with
@@ -150,19 +161,19 @@ Section OneThreadCompiledMatch.
         j (Krun (SState _ _ code1)) m1
         (Krun (SState _ _ code2)) m2
   | SThread_Blocked: forall j code1 m1 code2 m2 ls1 ls2 f f',
-      semantics.at_external (CoreSem Sems) code1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Sems) code2 = Some (f',ls2) ->
+      semantics.at_external (CoreSem Sems) genvS code1 m1 = Some (f,ls1) ->
+      semantics.at_external (CoreSem Sems) genvS code2 m2 = Some (f',ls2) ->
       Val.inject_list j ls1 ls2 ->
       source_match j code1 m1 code2 m2 ->
       match_thread_source  j (Kblocked (SState _ _ code1)) m1
                           (Kblocked (SState _ _ code2)) m2
   | SThread_Resume: forall j code1 m1 code2 m2 ls1 ls2 f f' v v' code1' code2',
       (*Do I need to keep this two? Probanly not*)
-    semantics.at_external (CoreSem Sems) code1 = Some (f,ls1) ->
-    semantics.at_external (CoreSem Sems) code2 = Some (f',ls2) ->
+    semantics.at_external (CoreSem Sems) genvS code1 m1 = Some (f,ls1) ->
+    semantics.at_external (CoreSem Sems) genvS code2 m2 = Some (f',ls2) ->
     Val.inject_list j ls1 ls2 ->
-    semantics.after_external (CoreSem Sems) None code1 = Some code1' ->
-    semantics.after_external (CoreSem Sems) None code2 = Some code2' ->
+    semantics.after_external (CoreSem Sems) genvS None code1 = Some code1' ->
+    semantics.after_external (CoreSem Sems) genvS None code2 = Some code2' ->
     source_match j code1' m2 code2' m2 ->
     match_thread_source j (Kresume (SState _ _ code1) v) m1
                         (Kresume (SState _ _ code2) v') m2
@@ -179,19 +190,19 @@ Section OneThreadCompiledMatch.
       match_thread_target  j (Krun (TState _ _ code1)) m1
                           (Krun (TState _ _ code2)) m2
   | TThread_Blocked: forall j code1 m1 code2 m2 ls1 ls2 f f',
-      semantics.at_external (CoreSem Semt) code1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Semt) code2 = Some (f',ls2) ->
+      semantics.at_external (CoreSem Semt) genvT code1 m1 = Some (f,ls1) ->
+      semantics.at_external (CoreSem Semt) genvT code2 m2 = Some (f',ls2) ->
       Val.inject_list j ls1 ls2 ->
       target_match j code1 m1 code2 m2 ->
       match_thread_target j (Kblocked (TState _ _ code1)) m1
                           (Kblocked (TState _ _ code2)) m2
   | TThread_Resume: forall j code1 m1 code2 m2 ls1 ls2 f f' v v' code1' code2',
       (*Do I need to keep this two? Probanly not*)
-      semantics.at_external (CoreSem Semt) code1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Semt) code2 = Some (f',ls2) ->
+      semantics.at_external (CoreSem Semt) genvT code1 m1 = Some (f,ls1) ->
+      semantics.at_external (CoreSem Semt) genvT code2 m2 = Some (f',ls2) ->
       Val.inject_list j ls1 ls2 ->
-      semantics.after_external (CoreSem Semt) None code1 = Some code1' ->
-      semantics.after_external (CoreSem Semt) None code2 = Some code2' ->
+      semantics.after_external (CoreSem Semt) genvT None code1 = Some code1' ->
+      semantics.after_external (CoreSem Semt) genvT None code2 = Some code2' ->
       target_match j code1' m2 code2' m2 ->
       match_thread_target j (Kresume (TState _ _ code1) v) m1
                           (Kresume (TState _ _ code2) v') m2
@@ -212,19 +223,19 @@ Section OneThreadCompiledMatch.
       match_thread_compiled cd j (Krun (SState _ _ code1)) m1
                             (Krun (TState _ _ code2)) m2
   | CThread_Blocked: forall cd j code1 m1 code2 m2 ls1 ls2 f f',
-      semantics.at_external (CoreSem Sems) code1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Semt) code2 = Some (f',ls2) ->
+      semantics.at_external (CoreSem Sems) genvS code1 m1  = Some (f,ls1) ->
+      semantics.at_external (CoreSem Semt) genvT code2 m2 = Some (f',ls2) ->
       Val.inject_list j ls1 ls2 ->
       match_compiled_states cd j code1 m1 code2 m2 ->
       match_thread_compiled  cd j (Kblocked (SState _ _ code1)) m1
                             (Kblocked (TState _ _ code2)) m2
   | CThread_Resume: forall cd j code1 m1 code2 m2 ls1 ls2 f f' v v' code1' code2',
       (*Do I need to keep this two? Probanly not*)
-      semantics.at_external (CoreSem Sems) code1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Semt) code2 = Some (f',ls2) ->
+      semantics.at_external (CoreSem Sems) genvS code1 m1 = Some (f,ls1) ->
+      semantics.at_external (CoreSem Semt) genvT code2 m2 = Some (f',ls2) ->
       Val.inject_list j ls1 ls2 ->
-      semantics.after_external (CoreSem Sems) None code1 = Some code1' ->
-      semantics.after_external (CoreSem Semt) None code2 = Some code2' ->
+      semantics.after_external (CoreSem Sems) genvS None code1 = Some code1' ->
+      semantics.after_external (CoreSem Semt) genvT None code2 = Some code2' ->
       match_compiled_states cd j code1' m1 code2' m2 ->
       match_thread_compiled cd j (Kresume (SState _ _ code1) v) m1
                             (Kresume (TState _ _ code2) v') m2
@@ -270,7 +281,7 @@ Section OneThreadCompiledMatch.
 Lemma contains12:
   forall {data j cstate1 m1 cstate2 m2},
   concur_match data j cstate1 m1 cstate2 m2 ->
-  forall {i:nat} {cnti1: containsThread cstate1 i},
+  forall {i:nat} (cnti1: containsThread cstate1 i),
     containsThread cstate2 i.
 Proof.
   unfold containsThread.
@@ -281,7 +292,7 @@ Qed.
 Lemma contains21:
   forall {data j cstate1 m1 cstate2 m2},
   concur_match data j cstate1 m1 cstate2 m2 ->
-  forall {i:nat} {cnti1: containsThread cstate2 i},
+  forall {i:nat} (cnti1: containsThread cstate2 i),
     containsThread cstate1 i.
 Proof.
   unfold containsThread.
@@ -296,19 +307,9 @@ Arguments memcompat1 {cd j cstate1 m1 cstate2 m2}.
 Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
     
   Section HybridThreadDiagram.
-
-    (*
-    Variable core_data : Type.
-    Variable order : core_data -> core_data -> Prop.
-    Variable compiler_match : core_data -> meminj -> state (Clight_semantics2 p)  -> state (Asm_semantics tp) -> Prop.
-    Variable props : fsim_properties_inj (Clight_semantics2 p) (Asm_semantics tp)
-                                         Clight_get_mem Asm_get_mem order compiler_match.
-    Notation match_states:=(match_states compiler_match).
-    Notation concur_match:=(@concur_match Sems Semt core_data match_source match_target match_states).
-     *)
-
-    (*
-    Lemma hybrid_thread_diagramc:
+    Notation the_simulation := compiler_simulation.
+    
+    Lemma hybrid_thread_diagram:
       forall (U0 : list nat) (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
         machine_semantics.thread_step (HCSem Sems Semt hb1 U) genv U0 st1 m1 st1' m1' ->
         forall cd (st2 : C2) (mu : meminj) (m2 : mem),
@@ -343,15 +344,25 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           
           (*Use the source self_simulations*)
           inversion Hcorestep; subst.
-          eapply Asm_self_simulation in H5; eauto.
-          2: replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
-          simpl in H5; destruct H5 as [c2' [m2' [f' [STEP [SMATCH EXT]]]]].
-       
+          eapply (ssim_diagram) in H5; eauto; simpl in H5.
+          Focus 2.
+          {
+          replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
+          clear - H4.
+          unfold make_state_Asm.
+          inversion H4; eapply Asm.exec_step_internal; eauto.
+          } Unfocus.
+          
+          simpl in H5.
+          destruct H5 as [c2' [f' [t' [STEP [SMATCH [EXT TINJ]]]]]].
+         
+
         exists (@updThread_ _ _ _ _ st2 Htid'
-                       (Krun (TState CC_core X86Machines.ErasedMachine.ThreadPool.code  c2'))
-                      (permissions.getCurPerm m2',
+                       (Krun (TState CC_core X86Machines.ErasedMachine.ThreadPool.code
+                                     (get_state_Asm c2')))
+                      (permissions.getCurPerm (Asm.get_mem c2'),
                        snd (getThreadR Htid'))).
-        exists m2'.
+        exists (Asm.get_mem c2').
         exists cd. (*This should be updated with the new value!*)
         exists f'; simpl.
         
@@ -362,16 +373,28 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
         (*Prove the machine step*)
         left.
         eapply machine_semantics_lemmas.thread_step_plus_one.
-        econstructor; simpl; auto.
+        econstructor; simpl; eauto.
         econstructor; eauto.
-        admit. (*going to need to add this to the match relation *)
-
-        instantiate (3 := (memcompat2 H0)).
-        simpl; econstructor; eauto.
-        simpl. eauto.
-        admit. (*something about the semantics*)
-
-        simpl; repeat f_equal. apply proof_irr. apply proof_irr.
+        * admit. (*Invariant: going to need to add this to the match relation *)
+        * econstructor; simpl. 
+          instantiate (3 := (memcompat2 H0)).
+          inversion TINJ; subst.
+          (* assert (semantics.corestep
+                    (semantics.csem Asm_core.Asm_mem_sem)
+                    genvT
+                    code2
+                    (restrPermMap
+       (proj1
+          ((memcompat2 H0) tid
+             (same_length_contains tid (same_length cd mu st1 m1 st2 m2 H0) Htid))))
+                    (get_state_Asm c2')
+                    (Asm.get_mem c2') ).
+          { simpl.
+            inversion STEP; subst.
+            econstructor; simpl; eauto. *)
+          (*Have the step STEP, but have to show it's an internal step!*)
+          admit.
+        * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
 
         
         + (* tid = hb' *)
@@ -384,109 +407,16 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           eapply H0 in EQ. instantiate (1 := Htid) in EQ.
           rewrite Hcode in EQ.
           assert (Htid':= contains12 H0 Htid).
-          inv EQ. 
-
-          inv Hcorestep.
-          destruct H4 as [NotAtExt step].
-
-        
-          assert (TOPROVE: forall ge c m t c' m',
-                     Clight.step ge (function_entry2 ge) (CC_core_to_CC_state c m) t (CC_core_to_CC_state c' m') ->
-                     Smallstep.step
-                       (Clight_semantics2 p)
-                       ge (c, m) t (c',m')) by admit.
-          apply TOPROVE in step.
+          inv EQ.
+          destruct H6 as (st1_ & st2_ & f1 & f2 & f3 & INJsrc & INJcomp & INJtgt & compose).
+          (*Have to apply a self simulation, then the compiler simulation
+            and then a self simulation again. *)
+          admit.
           
-          assert (TOPROVE2: fst genv = ((globalenv (Clight_semantics2 p)))) by admit.
-          simpl in TOPROVE2.
-          rewrite TOPROVE2 in step.
-
-          eapply props in step.
-          Focus 2.
-          unfold match_states, make_state_source, make_state_target in H5; simpl in H5. 
-          replace (Hcmpt tid Htid) with ((memcompat1 H0) tid Htid) by apply proof_irr.
-          eauto.
-
-          destruct step as [i[[s2' m2'] [mu' [t' [STEP' [MATCH [INCR INJTRACE]]]]]]].
-          
-          exists (@updThread_ _ _ _ _ st2 Htid'
-                       (Krun (TState CC_core X86Machines.ErasedMachine.ThreadPool.code  s2'))
-                      (permissions.getCurPerm m2',
-                       snd (getThreadR Htid'))).
-          exists m2'.
-          exists i. (*This should be updated with the new value!*)
-          exists mu'.
-          split.
-
-          
-          { (*THE match relation*)
-            clear STEP'.
-
-          (*
-          econstructor.
-          - simpl. apply H0.
-          - intros.
-            destruct (NPeano.Nat.eq_dec tid i0).
-            + subst i0.
-              admit. (*wrong type of states*)
-            + erewrite gsoThreadCode in H1; auto.
-              simpl in cnti2.
-              unfold updThread_ in H3.
-              erewrite gsoThreadCode in H3; auto.
-              simpl.
-              unfold HybridMachine.compat_th.
-              Parameter same_visible:
-                mem -> mem -> Prop.
-              destruct H0.
-              eapply match_source_forward.
-              * eapply Clight.
-              * admit. 
-              * admit. (*this should come from concur_match... missing right now*)  
-              * admit. (*again... from concur_match*)
-              * admit.
-              * admit. (*again... from concur_match*)
-              * admit. (*again... from concur_match*)
-
-          - intros.
-            destruct (NPeano.Nat.eq_dec tid i0).
-            + subst i0.
-              admit. (*wrong type of states*)
-            + erewrite gsoThreadCode in H1; auto.
-              simpl in cnti2.
-              unfold updThread_ in H3.
-              erewrite gsoThreadCode in H3; auto.
-              simpl.
-              unfold HybridMachine.compat_th.
-              destruct H0.
-              eapply match_source_forward.
-              * eapply X86SEM_rec.
-              * admit. 
-              * admit. (*this should come from concur_match... missing right now*)  
-              * admit. (*again... from concur_match*)
-              * admit.
-              * admit. (*again... from concur_match*)
-              * admit. (*again... from concur_match*)
-          - intros.
-            destruct (NPeano.Nat.eq_dec tid i0).
-            + subst tid.
-              admit. (*Follows directly from MATCH and the correct update to the list of data*)
-            + admit. (*wrong type of states*)
-          - admit.
-          - admit.
-          - admit.
-          - admit.
-          - admit.*)
-            admit. 
-          }
-        
-        { (*THE MACHINE STEP.*)
-          admit. (*This should be standard.*)
-        }
-        
        + (*hb' < tid*)
-        (*This case it's all in source*)
+         (*This case it's all in source*)
          inversion Htstep. subst tp' m' ev0.
-          eapply event_semantics.ev_step_ax1 in Hcorestep.
+         eapply event_semantics.ev_step_ax1 in Hcorestep.
           simpl in Hcorestep.
           simpl in Hcode.
           eapply H0 in LT. instantiate (1 := Htid) in LT.
@@ -497,16 +427,28 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           
           (*Use the source self_simulations*)
           inversion Hcorestep; subst.
-          eapply Clight_self_simulation in H5; eauto.
-          2: replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
-          simpl in H5; destruct H5 as [c2' [m2' [f' [STEP [SMATCH EXT]]]]].
-       
-          exists (@updThread_ _ _ _ _ st2 Htid'
-                         (Krun (SState CC_core X86Machines.ErasedMachine.ThreadPool.code  c2'))
-                      (permissions.getCurPerm m2',
+          eapply (ssim_diagram) in H5; eauto; simpl in H5.
+          Focus 2.
+          {
+          replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
+          clear - H4.
+          unfold make_state_Clight.
+          unfold ClightCoreSEM.Sem in H4; rewrite ClightCoreSEM.CLC_msem in H4;
+            simpl in H4.
+          destruct H4; eauto.
+          } Unfocus.
+          
+          simpl in H5.
+          destruct H5 as [c2' [f' [t' [STEP [SMATCH [EXT TINJ]]]]]].
+         
+
+        exists (@updThread_ _ _ _ _ st2 Htid'
+                       (Krun (SState CC_core X86Machines.ErasedMachine.ThreadPool.code
+                                     (get_state_Clight c2')))
+                      (permissions.getCurPerm (Clight.get_mem c2'),
                        snd (getThreadR Htid'))).
-        exists m2'.
-        exists cd. 
+        exists (Clight.get_mem c2').
+        exists cd. (*This should be updated with the new value!*)
         exists f'; simpl.
         
         split.
@@ -516,21 +458,16 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
         (*Prove the machine step*)
         left.
         eapply machine_semantics_lemmas.thread_step_plus_one.
-        econstructor; simpl; auto.
+        econstructor; simpl; eauto.
         econstructor; eauto.
-        admit. (*going to need to add this to the match relation *)
-
-        instantiate (3 := (memcompat2 H0)).
-        simpl; econstructor; eauto.
-        simpl. eauto.
-        admit. (*something about the semantics*)
-
-        simpl; repeat f_equal. apply proof_irr. apply proof_irr.
-
-        Unshelve.
-        eauto.
-        eauto.
-    Admitted. *)
+        * admit. (*Invariant: going to need to add this to the match relation *)
+        * econstructor; simpl. 
+          instantiate (3 := (memcompat2 H0)).
+          inversion TINJ; subst.
+          (*Have the step STEP, but have to show it's an internal step!*)
+          admit.
+        * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
+    Admitted.
     
   End HybridThreadDiagram.
 
@@ -572,14 +509,11 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
   End MachineThreadDiagram.
 
   (** *The one_compiled_thread_simulation*)
-
-  (*Fake genv while we fix Asm*)
-  Parameter genv':(semG Sems * semG Semt)%type.
     
   Lemma one_compiled_thread_simulation:
     exists v:val,
             HybridMachine_simulation
-              Sems Semt hb1 hb2 U genv'
+              Sems Semt hb1 hb2 U genv
               _ compiler_order
               (concur_match)  v.
   Proof.
@@ -600,8 +534,13 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
     unfold HybridMachine.init_mach in INIT.  *)
     admit.
   - (*thread_diagram*)
+    intros.
+    eapply hybrid_thread_diagram; eauto.
+  - exact the_simulation.
     admit.
-    (* eapply hybrid_thread_diagramc; eauto. *)
+
+
+  (* eapply hybrid_thread_diagramc; eauto. *)
     
   - (*machine_diagram*)
     (* eapply machine_thread_diagram; eauto. *)

@@ -27,14 +27,13 @@ Require Import concurrency.safety.
 
 Require Import concurrency.coinductive_safety.
 
-
 Require Import concurrency.concurrent_machine_rec.
 
-Require Import veric.res_predicates.
+Require Import veric.res_predicates. (*
 Require Import veric.Clight_new.
 Require Import veric.Clightnew_coop.
-Require Import ccc26x86.Asm_coop.
-Require Import ccc26x86.Asm_event.
+Require Import concurrency.Asm_core.
+Require Import ccc26x86.Asm_event. *)
 
 Require Import concurrency.HybridMachineSig.
 Require Import concurrency.HybridMachine.
@@ -46,7 +45,7 @@ Require Import compcert.common.Smallstep.
 Require Import concurrency.machine_semantics_lemmas.
 
 
-Set Bullet Behavior "Strict Subproofs".
+Set Bullet Behavior "Strict Subproofs".  
 
 Section HybridSimulation.
 
@@ -75,12 +74,13 @@ Section HybridSimulation.
          main:=
     { Hybfsim_order_wf: well_founded core_ord
       ; core_initial :
-          forall j c1 vals1 m1 vals2 m2,
-            machine_semantics.initial_machine Sem1 ge main vals1 = Some c1 ->
-            exists cd c2,
-              machine_semantics.initial_machine Sem2 ge main vals2 = Some c2
-           /\ concur_match cd j c1 m1 c2 m2
-      ; thread_diagram :
+          forall j c1 vals1 m1 vals2 m2 m1',
+            machine_semantics.initial_machine Sem1 ge m1 main vals1 = Some (c1,m1') ->
+            Mem.inject j m1 m2 ->
+            Forall2 (val_inject j) vals1 vals2 ->
+            exists cd c2 m2',
+              machine_semantics.initial_machine Sem2 ge m2 main vals2 = Some (c2,m2')
+              /\ concur_match cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2')      ; thread_diagram :
           forall U st1 m1 st1' m1',
             machine_semantics.thread_step Sem1 ge U st1 m1 st1' m1' ->
             forall (cd:core_data) st2 mu m2,

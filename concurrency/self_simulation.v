@@ -1,5 +1,7 @@
 Require Import Coq.omega.Omega.
 Require Import Clight.
+Require Import Events.
+Require Import Globalenvs.
 Require Import Memory.
 Require Import Values.
 Require Import Coqlib.
@@ -14,8 +16,11 @@ Require Import sepcomp.mem_lemmas.
 
 
 Require Import Smallstep.
-Require Import concurrency.x86_context.
-Require Import concurrency.HybridMachine_simulation.
+(*To include once Asm has been repaired:
+  Require Import concurrency.x86_context.
+  Require Import concurrency.HybridMachine_simulation.*)
+
+
 (*Require Import concurrency.compiler_correct.*)
 Require Import concurrency.CoreSemantics_sum.
 
@@ -26,20 +31,33 @@ Require Import concurrency.CoreSemantics_sum.
     one to one (same values and permissions).
   - Equivalent executions: the executions have equivalent memories and
     none visible locations are unchanged (in the execution).  
-*)
+ *)
+
+Set Bullet Behavior "Strict Subproofs".
+
 Section SelfSim.
 
   Variable Sem: semantics.
-
-  (*extension of a mem_injection*)
+  
+  (*Separate state and memory*)
+  Variable core: Type.
+  Variable state_to_memcore: state Sem -> (core * Mem.mem).
+  Variable memcore_to_state: core -> Mem.mem -> state Sem.
+  Hypothesis state_to_memcore_correct:
+    forall c m, state_to_memcore (memcore_to_state c m) = (c,m).
+  Hypothesis memcore_to_state_correct: forall s c m,
+   state_to_memcore  s = (c,m) -> s = memcore_to_state c m.
+  
+  
+  (*extension of a mem_injection (slightly stengthens the old inject_separated - LENB: not sure you need the stronger prop*)
   Definition is_ext (f1:meminj)(nb1: positive)(f2:meminj)(nb2:positive) : Prop:=
     forall b1 b2 ofs,
       f2 b1 = Some (b2, ofs) ->
-      f1 b1 = Some (b2, ofs) /\
+      f1 b1 = None -> 
       (ofs = 0 /\ ~ Plt b1 nb1 /\  ~ Plt b2 nb2).
   
   (*The code is also injected*)
-  Variable code_inject: meminj -> state Sem -> state Sem -> Prop.
+  Variable code_inject: meminj -> core -> core -> Prop.
   Variable code_inj_incr: forall c1 mu c2 mu',
       code_inject mu c1 c2 ->
       inject_incr mu mu' ->
@@ -72,8 +90,8 @@ Section SelfSim.
       Mem.perm m1 b1 ofs Cur Nonempty /\
   ofs_delta = ofs + delta. 
   
-  (*TODO: fill in*)
-  Record match_self (f: meminj) (c1:state Sem) (m1:mem) (c2:state Sem) (m2:mem): Prop:=
+
+  Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
     { cinject: code_inject f c1 c2
     ; minject: Mem.inject f m1 m2            
     ; pinject: perm_inject f m1 m2
@@ -81,6 +99,15 @@ Section SelfSim.
     ; ppreimage: perm_preimage f m1 m2
     }.
 
+  (*
+  Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
+    { minject: Mem.inject f m1 m2            
+    ; pinject: perm_inject f m1 m2
+    ; pimage: perm_image f m1 m2
+    ; ppreimage: perm_preimage f m1 m2
+    }.
+   *)
+  
   Record same_visible (m1 m2: mem):=
     { same_visible12:
         forall b ofs,
@@ -108,46 +135,47 @@ Section SelfSim.
         same_visible m2 m2' ->
         match_self mu' c1 m1' c2 m2'.
   Proof.
-    intros. constructor.
-    - eapply code_inj_incr; eauto. eapply H.
+    intros ? ? ? ? ? MATCH ? ? ? INCR INJ VIS1 VIS2.
+    constructor.
+    - eapply code_inj_incr; eauto; apply MATCH. 
     - assumption.
     - unfold perm_inject; intros.
-      inversion H.
+      inversion MATCH.
       simpl; split; intros.
       + assert (NE: Mem.perm m1' b1 ofs Cur Nonempty)
           by admit. (*easy by transitivity that doenst' exists*)
         assert (NE':= NE).
         eapply same_visible21 in NE'; eauto.
         destruct NE' as [SAME_PERM SAME_CONTENT].
-        apply SAME_PERM in H5.
+        apply SAME_PERM in H0.
         apply SAME_PERM in NE.
-        eapply H in H5.
+        eapply MATCH in H0.
 
-        eapply same_visible12 with (m2:=m2') in H5; eauto.
+        eapply same_visible12 with (m2:=m2') in H0; eauto.
         admit. (*by trans *)
         
         eapply pimage0 in NE.
         destruct NE as [? [? HH]].
         assert (HH':= HH).
-        eapply H0 in HH'.
-        rewrite HH' in H4; inversion H4; subst.
+        eapply INCR in HH'.
+        rewrite HH' in H. inversion H; subst.
         assumption.
       + assert (NE: Mem.perm m2' b2 (ofs+delta) Cur Nonempty)
           by admit. (*easy by transitivity that doenst' exists*)
         assert (NE':= NE).
         eapply same_visible21 in NE'; eauto.
         destruct NE' as [SAME_PERM SAME_CONTENT].
-        apply SAME_PERM in H5.
+        apply SAME_PERM in H0.
         apply SAME_PERM in NE.
-        eapply pinject0 in H5.
+        eapply pinject0 in H0.
         
-        eapply same_visible12 with (m2:=m1') in H5; eauto.
+        eapply same_visible12 with (m2:=m1') in H0; eauto.
         admit. (*by trans *)
         
         eapply ppreimage0 in NE.
         destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
         assert (HH':= HH1).
-        eapply H0 in HH'.
+        eapply INCR in HH'.
         admit. (*With some none overlapping this should follow*)
     - (*pre_image*)
       intros b1 ofs PERM.
@@ -157,27 +185,34 @@ Section SelfSim.
   Admitted.
 
 End SelfSim.
+Arguments match_self {core}.
+Section SelfSimulation.
 
- Record self_simulation (Sem:semantics)(get_mem: state Sem -> mem): Type :=
-    { code_inject: meminj -> state Sem -> state Sem -> Prop;
-      code_inject_mem: forall s1 f s2, code_inject f s1 s2 -> match_self Sem code_inject f s1 (get_mem s1) s2 (get_mem s2);
+  Variable Sem: semantics.
+  Variable core: Type.
+  Variable state_to_memcore: state Sem -> (core * Mem.mem).
+  Variable memcore_to_state: core -> Mem.mem -> state Sem.
+  Notation get_core s:= (fst (state_to_memcore s)). 
+  Notation get_mem s:= (snd (state_to_memcore s)). 
+  
+ Record self_simulation: Type :=
+    { code_inject: meminj -> core -> core -> Prop;
       code_inj_incr: forall c1 mu c2 mu',
           code_inject mu c1 c2 ->
           inject_incr mu mu' ->
           code_inject mu' c1 c2;
-      ssim_diagram: forall f t c1 c2,
-        code_inject f c1 c2 ->
-        forall g c1',
-          step Sem g c1 t c1' ->
-          exists c2' f' t',
-          step Sem g c2 t' c2' /\
-          code_inject f' c1' c2' /\
-          is_ext f (Mem.nextblock (get_mem c1)) f' (Mem.nextblock (get_mem c2)) /\
+      ssim_diagram: forall f t c1 m1 c2 m2,
+        match_self code_inject f c1 m1 c2 m2 ->
+        forall (g: genvtype Sem) c1' m1',
+          step Sem g (memcore_to_state c1 m1)  t (memcore_to_state c1' m1') ->
+          exists c2' f' t' m2',
+          step Sem g (memcore_to_state c2 m2)  t (memcore_to_state c2' m2')  /\
+          match_self code_inject f' c1' m1' c2' m2' /\
+          is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\
           Events.inject_trace f' t t'
-    }.
+    }. 
 
-  
-        
+End SelfSimulation.        
 
   
   
