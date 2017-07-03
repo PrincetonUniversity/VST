@@ -398,6 +398,25 @@ Proof.
     apply derives_refl.
 Qed.
 
+Lemma exp_uncurry:
+  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
+   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
+Proof.
+intros.
+apply pred_ext.
+apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
+apply derives_refl.
+apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
+apply derives_refl.
+Qed.
+
+Lemma exp_trivial {A}{NA: NatDed A}:
+  forall {T: Type} (any: T) (P: A), exp (fun x:T => P) = P.
+Proof.
+ intros. apply pred_ext. apply exp_left; auto.
+ apply exp_right with any; auto.
+Qed.
+
 Lemma allp_andp: forall {A B: Type} `{NatDed A} (P Q: B -> A), allp (P && Q) = allp P && allp Q.
 Proof.
   intros.
@@ -419,6 +438,10 @@ Lemma ND_prop_ext {A}{ND: NatDed A}: forall P Q, (P <-> Q) -> !! P = !! Q.
 Proof.
   intros.
   apply pred_ext; apply prop_derives; tauto.
+Qed.
+
+Lemma prop_True_right {A}{NA: NatDed A}: forall P:A, P |-- !! True.
+Proof. intros; apply prop_right; auto.
 Qed.
 
 Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
@@ -476,6 +499,24 @@ Proof.
   intros.
   eapply CCC_exp_prod2.
   apply sepcon_wand_CCC.
+Qed.
+
+Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:
+  forall T (P: T ->  A) Q, sepcon (allp P) Q |-- allp (fun x => sepcon (P x) Q).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
+Qed.
+
+Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:
+  forall T P (Q: T ->  A), sepcon P (allp Q) |-- allp (fun x => sepcon P (Q x)).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
 Qed.
 
 Lemma exp_andp2  {A}{NA: NatDed A}:
@@ -603,6 +644,20 @@ Proof with norm.
 intros.
 apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
+Qed.
+
+Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
+  forall (Q: A),  P -> (!! P && Q = Q).
+Proof.
+intros.
+apply pred_ext. apply andp_left2, derives_refl.
+apply andp_right. apply prop_right; auto. apply derives_refl.
+Qed.
+
+Lemma TT_andp_right {A}{NA: NatDed A}:
+ forall P Q, TT |-- P -> TT |-- Q -> TT |-- P && Q.
+Proof.
+  intros. apply andp_right; auto.
 Qed.
 
 Ltac immediate := (assumption || reflexivity).

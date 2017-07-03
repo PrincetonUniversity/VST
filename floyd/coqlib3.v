@@ -386,3 +386,10 @@ Proof.
     apply Permutation_app_comm.
   + eapply Permutation_trans; eauto.
 Qed.    
+
+Lemma proj_sumbool_is_false:
+  forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
+Proof.
+intros. destruct a; auto; contradiction.
+Qed.
+
