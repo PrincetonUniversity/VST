@@ -8,14 +8,6 @@ Arguments sem_cmp c !t1 !t2 / v1 v2.
 
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
-Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
-  forall (Q: A),  P -> (!! P && Q = Q).
-Proof with norm.
-intros.
-apply pred_ext. apply andp_left2...
-apply andp_right... apply prop_right...
-Qed.
-
 Ltac norm_rewrite := autorewrite with norm.
  (* New version: rewrite_strat (topdown hints norm).
      But this will have to wait for a future version of Coq
@@ -643,17 +635,6 @@ Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
-
-Lemma TT_andp_right {A}{NA: NatDed A}:
- forall P Q, TT |-- P -> TT |-- Q -> TT |-- P && Q.
-Proof.
-  intros. apply andp_right; auto.
-Qed.
-
-Lemma TT_prop_right {A}{NA: NatDed A}:
-  forall P: Prop , P -> TT |-- prop P.
-Proof. intros. apply prop_right. auto.
-Qed.
 
 Lemma overridePost_normal_right:
   forall P Q R,
@@ -2453,10 +2434,6 @@ eapply derives_trans; [ | eassumption].
 apply andp_right; auto.
 Qed.
 
-
-Lemma prop_True_right {A}{NA: NatDed A}: forall P:A, P |-- !! True.
-Proof. intros; apply prop_right; auto.
-Qed.
 
 Ltac already_saturated :=
 (match goal with |- ?P |-- ?Q =>

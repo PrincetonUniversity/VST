@@ -1,12 +1,6 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
-Lemma proj_sumbool_is_false:
-  forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
-Proof.
-intros. destruct a; auto; contradiction.
-Qed.
-
 Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
 Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
@@ -20,18 +14,6 @@ intros.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
      inv H; simpl; try apply @TT_right;
     simpl; if_tac; apply @TT_right.
-Qed.
-
-Lemma exp_uncurry:
-  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
-   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
-Proof.
-intros.
-apply pred_ext.
-apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
-apply derives_refl.
-apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
-apply derives_refl.
 Qed.
 
 Lemma isptr_offset_val':
@@ -1109,13 +1091,6 @@ match goal with
           ].
 *)
 
-Lemma exp_trivial {A}{NA: NatDed A}:
-  forall {T: Type} (any: T) (P: A), exp (fun x:T => P) = P.
-Proof.
- intros. apply pred_ext. apply exp_left; auto.
- apply exp_right with any; auto.
-Qed.
-
 Hint Rewrite @exp_trivial : norm.
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.
@@ -1575,25 +1550,6 @@ Lemma force_signed_int_e:
   forall i, force_signed_int (Vint i) = Int.signed i.
 Proof. reflexivity. Qed.
 Hint Rewrite force_signed_int_e : norm.
-
-Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:
-  forall T (P: T ->  A) Q, sepcon (allp P) Q |-- allp (fun x => sepcon (P x) Q).
-Proof.
-intros.
-apply allp_right; intro x.
-apply sepcon_derives; auto.
-apply allp_left with x. auto.
-Qed.
-
-Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:
-  forall T P (Q: T ->  A), sepcon P (allp Q) |-- allp (fun x => sepcon P (Q x)).
-Proof.
-intros.
-apply allp_right; intro x.
-apply sepcon_derives; auto.
-apply allp_left with x. auto.
-Qed.
-
 
 Lemma wand_refl_cancel_right:
   forall {A}{ND: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}
