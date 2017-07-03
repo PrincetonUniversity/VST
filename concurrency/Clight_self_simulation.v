@@ -27,7 +27,7 @@ Set Bullet Behavior "Strict Subproofs".
       state_to_memcore  s = (c,m) -> s = memcore_to_state c m:=
     CC_core_CC_state_2.
 
-  
+(*Agree that this doesn't hold - Santiago*)  
 (*
 Lemma match_mem_inject_incr m m' j j' (I:inject_incr j j') (M: match_mem j m m'): match_mem j' m m'.
 Proof. 
@@ -804,14 +804,16 @@ exploit alloc_variables_inject; eauto.
 Qed.
 
 Definition Clight_self_simulation (p: program) :
-    self_simulation (Clight.semantics2 p) Clight.get_mem.
+    self_simulation (Clight.semantics2 p) _ memcore_to_state.
 Proof. 
-eapply Build_self_simulation with (code_inject := code_inject); intros.
+  eapply Build_self_simulation with (code_inject := code_inject); intros.
+  { admit. }
+  (*
 { constructor.
   + destruct s1; destruct s2; inv H; simpl; apply H1.
   + destruct s1; destruct s2; inv H; simpl; apply H1.
   + destruct s1; destruct s2; inv H; simpl; apply H1.
-  + destruct s1; destruct s2; inv H; simpl; apply H1. }
+  + destruct s1; destruct s2; inv H; simpl; apply H1. }*)
 { destruct c1; destruct c2; inv H; simpl.
   + destruct H3 as [? [? [? [? INJ]]]].  
     split; [trivial | split]. trivial. (* eapply stmt_inject_incr; eauto.*)
