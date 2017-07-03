@@ -67,12 +67,20 @@ Section SelfSim.
   (*This is slightly stronger than Mem.inject/mi_inj which allows
     permissions to grow (on compilation). *)
   (*also it could be restricted to take only the Cur permissions*)
-  Definition perm_inject (f:meminj)(m1:mem)(m2:mem): Prop:=
+  (*NEVERMIND... BOTH FOLLOW from Mem.inject!*)
+  Definition perm_inject1 (f:meminj)(m1:mem)(m2:mem): Prop:=
     forall b1 b2 delta,
       f b1 = Some (b2, delta) ->
       forall ofs p,
-        Mem.perm m1 b1 (ofs ) Cur p  <->
+        Mem.perm m1 b1 (ofs ) Cur p  ->
         Mem.perm m2 b2 (ofs + delta) Cur p.
+  
+  Definition perm_inject2 (f:meminj)(m1:mem)(m2:mem): Prop:=
+    forall b1 b2 delta,
+      f b1 = Some (b2, delta) ->
+      forall ofs p,
+        Mem.perm m2 b2 (ofs + delta) Cur p ->
+        Mem.perm m1 b1 (ofs ) Cur p \/ ~ Mem.perm m1 b1 ofs Cur Nonempty.
 
   (* The injection maps all visible locations*)
   Definition perm_image (f:meminj)(m1:mem)(m2:mem): Prop:=
@@ -101,8 +109,7 @@ Section SelfSim.
 
   
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
-    { minject: Mem.inject f m1 m2            
-    ; pinject: perm_inject f m1 m2
+    { minject: Mem.inject f m1 m2 
     ; pimage: perm_image f m1 m2
     ; ppreimage: perm_preimage f m1 m2
     }.
@@ -144,49 +151,27 @@ Section SelfSim.
   constructor.
   - eapply code_inj_incr; eauto; apply MATCH. 
   - inv MATCH. 
-    split; trivial. 
-    * unfold perm_inject; intros.
-      split; intros. 
-      + eapply INJ; eauto. 
-      + assert (NE: Mem.perm m2' b2 (ofs+delta) Cur Nonempty).
-          eapply Mem.perm_implies; eauto. constructor.
-        assert (NE':= NE).
-        inv matchmem0. 
-        eapply same_visible21 in NE'; eauto.
-        destruct NE' as [SAME_PERM SAME_CONTENT].
-        apply SAME_PERM in H0.
-        apply SAME_PERM in NE.
-        exploit ppreimage0. apply NE.  intros [x [d [z [MY [P X]]]]].
-        specialize (INCR _ _ _ MY).
-(*          destruct (eq_block x b1); subst. rewrite H in INCR; inv INCR. assert (ofs=z) by omega.  subst z. trivial.
-          exploit Mem.mi_no_overlap. apply INJ. apply n. eassumption. eassumption. destruct VIS1. eapply VIS1.*)
-          admit. (*(*With some none overlapping this should follow*)
-         _ _ _ _ NE).
-(*        eapply pinject0 in H0. unfold perm_preimage in ppreimage0. _ _  Print match_mem.
-Print Mem.inject'.
-        **        *)
-          eapply same_visible12 with (m2:=m1') in H0; eauto.
-          eapply Mem.perm_implies; eauto. constructor.
-        ** eapply ppreimage0 in NE.
-            destruct NE as [? [? [? [HH1 [HH2 HH3]]]]].
-            assert (HH':= HH1).
-            eapply INCR in HH'.
-          destruct (eq_block x b1); subst. rewrite H in HH'; inv HH'. trivial.
-          exploit Mem.mi_no_overlap. apply INJ. apply n. eassumption. eassumption. destruct VIS1. eapply VIS1.
-          admit. (*With some none overlapping this should follow*)*)
+
+    split; trivial.
+
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
-      intros b1 ofs PERM. destruct matchmem0. apply VIS1 in PERM. 
-      ++ apply pimage0 in PERM. destruct PERM as [? [? HH]]; apply INCR in HH.
-        eexists; eexists; eauto. 
-      ++ admit. (*??*)
+      intros b1 ofs PERM.
+      assert (PERM':= PERM).
+      eapply same_visible21 in PERM; eauto.
+      eapply PERM in PERM'. 
+      destruct matchmem0. eapply pimage0 in PERM'.
+      destruct PERM' as (? & ? & ?).
+      do 2 eexists; eapply INCR; eauto.
     * (*Pre_image*) (*Easy ... use lemmas to simplify same_visible*)
-      intros b2 ofs_delta PERM. destruct matchmem0. apply VIS2 in PERM. 
-      ++ apply ppreimage0 in PERM. destruct PERM as [b [d [z [HH [P X]]]]]; apply INCR in HH.
-        destruct VIS1 as [A _]. destruct (A _ _ P) as [AA _]. apply AA in P. 
-        exists b, d, z; eauto.
-      ++ apply VIS2; trivial.   
-        admit. (*??*)
-  Admitted.
+      intros b2 ofs_delta PERM.
+      assert (PERM':= PERM).
+      eapply same_visible21 in PERM; eauto.
+      eapply PERM in PERM'. 
+      destruct matchmem0. eapply ppreimage0 in PERM'.
+      destruct PERM' as (? & ? & ? & ? & ? & ?).
+      do 3 eexists; repeat split; try eapply INCR; eauto.
+      eapply VIS1; eauto.
+  Qed.
 
 End SelfSim.
 Arguments match_self {core}.
