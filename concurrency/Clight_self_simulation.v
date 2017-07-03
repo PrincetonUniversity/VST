@@ -27,6 +27,12 @@ Set Bullet Behavior "Strict Subproofs".
       state_to_memcore  s = (c,m) -> s = memcore_to_state c m:=
     CC_core_CC_state_2.
 
+Lemma is_ext_seperated j j' m m' (E:is_ext j (Mem.nextblock m) j' (Mem.nextblock m')):
+  inject_separated j j' m m'.
+Proof. 
+  red; intros. destruct (E _ _ _ H0 H) as [? [? ?]]; split; trivial.
+Qed.
+
 (*Agree that this doesn't hold - Santiago*)  
 (*
 Lemma match_mem_inject_incr m m' j j' (I:inject_incr j j') (M: match_mem j m m'): match_mem j' m m'.
@@ -803,43 +809,242 @@ exploit alloc_variables_inject; eauto.
   eauto.
 Qed.
 
+Lemma alloc_variables_inject_match_mem g: forall vars j e m e1 m1 (A:alloc_variables g e m vars e1 m1)
+       e' (E:env_inject j e e') m' (M: match_mem j m m'),
+       exists j' e1' m1', alloc_variables g e' m' vars e1' m1' /\ env_inject j' e1 e1' /\ 
+                          match_mem j' m1 m1' /\ inject_incr j j' /\ inject_separated j j' m m'.
+ Proof.
+ induction vars; simpl; intros; inv A.
+ + exists j, e', m'; split. constructor. split; trivial. split; trivial.
+   split. apply inject_incr_refl. red; intros; congruence. 
+ + destruct M. exploit Mem.alloc_parallel_inject; eauto. instantiate (1:=0); omega. instantiate (1:=Ctypes.sizeof ty); apply Z.le_refl.
+   intros [j' [m2' [b1' [ALLOC' [MINJ [INC [HJ' SEP]]]]]]].
+   exploit (IHvars j' _ _ _ _ H6). 
+   - instantiate (1:=(PTree.set id (b1', ty) e')).
+     red; intros. rewrite 2 PTree.gsspec.
+     destruct (peq x id); subst. split; trivial. eapply env_inject_incr; eassumption.
+   - split.
+     * eassumption.
+     * red; intros. specialize (SEP b0).
+       destruct (eq_block b0 b1); subst.
+       ++ clear SEP; rewrite H in HJ'; inv HJ'. 
+          split; intros.
+          -- apply (Mem.perm_alloc_inv _ _ _ _ _ H3) in H0.
+             destruct (eq_block b1 b1).
+             ** eapply Mem.perm_implies. eapply Mem.perm_alloc_2. eauto. omega. constructor.
+             ** elim n; trivial. 
+          -- apply (Mem.perm_alloc_inv _ _ _ _ _ ALLOC') in H0.
+             destruct (eq_block b1' b1').
+             ** eapply Mem.perm_implies. eapply Mem.perm_alloc_2. eauto. omega. constructor.
+             ** elim n; trivial.
+      ++ rewrite (SEP n) in *. red in pinject. destruct (pinject _ _ _ H ofs p). 
+         split; intros. 
+         -- eapply MINJ; eauto.
+         -- eapply Mem.perm_alloc_1. eassumption. apply H1. eapply Mem.perm_alloc_4. eassumption. eassumption.
+            intros N; subst. exploit Mem.valid_block_inject_2. apply H. apply minject. intros V.
+            apply Mem.fresh_block_alloc in ALLOC'. contradiction.
+      * red; intros. exploit Mem.perm_alloc_inv. apply H3. apply H.
+        destruct (eq_block b0 b1); subst; intros. eexists; eexists; eassumption.
+        apply pimage in H0. 
+        rewrite (SEP _ n); trivial.
+      * red; intros. exploit Mem.perm_alloc_inv. apply ALLOC'. apply H.
+        destruct (eq_block b2 b1'); subst; intros.
+        -- exists b1, 0, ofs_delta. split; trivial.
+           split. eapply Mem.perm_implies. eapply Mem.perm_alloc_2; eassumption. constructor. omega.
+        -- clear H. destruct (ppreimage b2 _ H0) as [bb [dd [ofs [Jbb [Perm X]]]]]; subst.
+           apply (Mem.perm_alloc_1 _ _ _ _ _ H3) in Perm. exists bb, dd, ofs.
+           rewrite SEP; auto. 
+           intros N; subst. exploit Mem.valid_block_inject_1. apply Jbb. apply minject. intros V.
+            apply Mem.fresh_block_alloc in H3. contradiction. 
+   -  intros [jj' [e1' [m1' [AL' [E' [M' [INC' SEP']]]]]]].
+      exists jj', e1', m1'; split. 
+      * econstructor; eauto.
+      * split; trivial. split; trivial.
+        split. eapply inject_incr_trans; eauto.
+        red; intros. specialize (SEP b0).
+        destruct (eq_block b0 b1); subst.
+        ++ clear SEP. specialize (INC' _ _ _ HJ'). rewrite INC' in H0; inv H0.
+           split; eapply Mem.fresh_block_alloc; eauto.
+        ++ rewrite <- (SEP n) in *; clear SEP n.
+           destruct (SEP' _ _ _ H H0).
+           split; intros N. apply H1. eapply Mem.valid_block_alloc; eassumption.
+           apply H2. eapply Mem.valid_block_alloc; eassumption.
+ Qed.
+
+Lemma function_entry2_inject_match_mem g f j args m e te m1 (FE: function_entry2 g f args m e te m1)
+       args' (ARGS: Forall2 (Val.inject j) args args') m' (M: match_mem j m m'):
+       exists j' e' te' m1', function_entry2 g f args' m' e' te' m1' /\ 
+                             env_inject j' e e' /\ tenv_inject j' te te' /\ match_mem j' m1 m1' /\
+                             inject_incr j j' /\ inject_separated j j' m m'.
+ Proof. inv FE. 
+ exploit alloc_variables_inject_match_mem; eauto.
+ + instantiate (1:= empty_env). red; intros. unfold empty_env; rewrite PTree.gempty; trivial.
+ + intros [j' [e1' [m1' [AL' [E' [M' [INC' SEP]]]]]]].
+   exploit bind_parameter_temps_inject; eauto. apply create_undefs_inject.
+   intros [te' [BP' TE']].
+   exists j', e1', te', m1'; split.
+   constructor; eassumption.
+   split; trivial. 
+   split. eapply tenv_inject_incr; eauto.
+   split; eauto.
+ Qed.
+ 
+ Lemma env_inject_blocks_of_env g j e e' (E: env_inject j e e'):
+   forall b lo hi, In (b, lo, hi) (blocks_of_env g e) ->
+   exists b' d, In (b', lo+d, hi+d) (blocks_of_env g e') /\ j b = Some(b',d).
+ Proof. apply (env_blocks_inject g) in E.
+ remember (blocks_of_env g e) as l; clear Heql.
+ remember (blocks_of_env g e') as l'; clear Heql'.
+ induction E; simpl; intros; try contradiction.
+ destruct H0; subst.
+ + destruct y as [[bb loo] hii]. red in H. destruct H as [d [D [LO HI]]]. subst.
+   exists bb, d; split; trivial. left; trivial.
+ + destruct (IHE _ _ _ H0) as [bb [d [D J]]].
+   exists bb, d; split; trivial. right; trivial.
+ Qed. 
+ 
+ Lemma env_inject_blocks_of_env_rev g j e e' (E: env_inject j e e'):
+   forall b' lo' hi', In (b', lo', hi') (blocks_of_env g e') ->
+   exists b d, In (b, lo'-d, hi'-d) (blocks_of_env g e) /\ j b = Some(b',d).
+ Proof. apply (env_blocks_inject g) in E.
+ remember (blocks_of_env g e) as l; clear Heql.
+ remember (blocks_of_env g e') as l'; clear Heql'.
+ induction E; simpl; intros; try contradiction.
+ destruct H0; subst.
+ + destruct x as [[bb loo] hii]. red in H. destruct H as [d [D [LO HI]]]. subst.
+   exists bb, d; split. left; f_equal; [ f_equal | omega]. omega. trivial.
+ + destruct (IHE _ _ _ H0) as [bb [d [D J]]].
+   exists bb, d; split; trivial. right; trivial.
+ Qed.  
+ 
+ Lemma perm_freelist_A b ofs k p:
+   forall (l : list (block * Z * Z)) m m' (FL: Mem.free_list m l = Some m')
+           (P:Mem.perm m' b ofs k p),
+   Mem.perm m b ofs k p /\ (forall bb lo hi, In (bb,lo,hi) l -> bb<>b \/ ofs<lo \/ hi<=ofs).
+ Proof.
+ induction l; simpl; intros.
+ + inv FL. split; auto.
+ + destruct a as ((b',lo),hi).
+   remember (Mem.free m b' lo hi) as q; symmetry in Heqq; destruct q; try discriminate.
+   destruct (IHl _ _ FL P) as [Q1 Q2]; clear IHl. 
+   split. eapply Mem.perm_free_3; eauto.
+   intros. destruct H; [inv H | apply (Q2 _ _ _ H); trivial].
+   destruct (eq_block bb b); subst; [right | left; trivial].
+   destruct (zlt ofs lo0); [ left; trivial | right].
+   destruct (zle hi0 ofs); [ trivial | exfalso].
+   apply ( Mem.perm_free_2 _ _ _ _ _ Heqq ofs k p). omega. trivial.
+ Qed. 
+ 
+ Lemma perm_freelist_B b ofs k p:
+   forall (l : list (block * Z * Z)) m m' (FL: Mem.free_list m l = Some m')
+          (HH: forall bb lo hi, In (bb,lo,hi) l -> bb<>b \/ ofs<lo \/ hi<=ofs)
+          (P:Mem.perm m b ofs k p),
+   Mem.perm m' b ofs k p.
+ Proof.
+ induction l; simpl; intros.
+ + inv FL; trivial.
+ + destruct a as ((b',lo),hi).
+   remember (Mem.free m b' lo hi) as q; symmetry in Heqq; destruct q; try discriminate.
+   apply (IHl _ _ FL); clear FL.
+   - intros. apply HH. right; trivial.
+   - eapply Mem.perm_free_1; eauto. destruct (HH b' lo hi). left; trivial. left; eauto. right; trivial.
+ Qed. 
+ 
+ Lemma perm_inject_freelist g j e e' (E: env_inject j e e') m m'
+       (MINJ: Mem.inject j m m')
+       mm (FL: Mem.free_list m (blocks_of_env g e) = Some mm)
+       mm' (FL': Mem.free_list m' (blocks_of_env g e') = Some mm')
+       (MMINJ: Mem.inject j mm mm') (PI: perm_inject j m m'): perm_inject j mm mm'.
+ Proof. red; intros.
+   destruct (PI _ _ _ H ofs p); split; intros.
+ + eapply Mem.perm_inject; eassumption.
+ + exploit perm_freelist_A. apply FL'. eauto. intros [P0 Q]. 
+   eapply perm_freelist_B; eauto.
+   intros b lo hi B. exploit env_inject_blocks_of_env; eauto.
+   intros [b' [d [B' Fb]]]. specialize (Q _ _ _ B').
+   destruct (eq_block b b1); subst. 
+   - rewrite H in Fb; inv Fb. destruct Q as [Q | Q]. elim Q; trivial. right; omega.
+   - left; trivial. 
+ Qed.
+ 
+ Lemma perm_preimage_freelist g j e e' (E: env_inject j e e')
+       m m' (ppreimage : perm_preimage j m m')
+       mm (FL:  Mem.free_list m (blocks_of_env g e) = Some mm)
+       mm' (FL': Mem.free_list m' (blocks_of_env g e') = Some mm'):
+       perm_preimage j mm mm'.
+ Proof. red; intros.
+   exploit perm_freelist_A. 2: eassumption. eassumption. intros [P B].
+   destruct (ppreimage _ _ P) as [bb [dd [z [Fb [PP X]]]]]. 
+   exists bb, dd, z. split; trivial. split; trivial.
+   eapply perm_freelist_B; eauto. 
+   intros. exploit env_inject_blocks_of_env; eauto. 
+   intros [bbb [ddd [XX FF]]]. specialize (B _ _ _ XX). 
+   destruct (eq_block bbb b2); subst.
+   + destruct B as [BX | BX]. elim BX; trivial.
+     destruct (eq_block bb0 bb); subst. rewrite FF in Fb; inv Fb. right; omega. left; trivial.
+   + clear B. destruct (eq_block bb0 bb); subst.
+     rewrite FF in Fb; inv Fb. elim n; trivial. left; trivial.
+ Qed.
+ 
+ Lemma match_mem_freelist g j e e' (E: env_inject j e e')
+       m m' (M : match_mem j m m')
+       mm (FL: Mem.free_list m (blocks_of_env g e) = Some mm)
+       mm' (FL' : Mem.free_list m' (blocks_of_env g e') = Some mm')
+       (INJ' : Mem.inject j mm mm'):
+       match_mem j mm mm'.
+ Proof.
+   destruct M. split; trivial.
+ + eapply perm_inject_freelist. eassumption. apply minject. eassumption. eassumption. eassumption. eassumption.
+ + red; intros. exploit perm_freelist_A. 2: eassumption. eassumption. intros [P B].
+   eapply pimage; eauto.
+ + eapply perm_preimage_freelist; eauto.
+ Qed.
+
 Definition Clight_self_simulation (p: program) :
     self_simulation (Clight.semantics2 p) _ memcore_to_state.
 Proof. 
   eapply Build_self_simulation with (code_inject := code_inject); intros.
-  { admit. }
-  (*
-{ constructor.
-  + destruct s1; destruct s2; inv H; simpl; apply H1.
-  + destruct s1; destruct s2; inv H; simpl; apply H1.
-  + destruct s1; destruct s2; inv H; simpl; apply H1.
-  + destruct s1; destruct s2; inv H; simpl; apply H1. }*)
-{ destruct c1; destruct c2; inv H; simpl.
-  + destruct H3 as [? [? [? [? INJ]]]].  
-    split; [trivial | split]. trivial. (* eapply stmt_inject_incr; eauto.*)
-    split. eapply cont_inject_incr; eauto.
-    split. eapply env_inject_incr; eauto.
-    split. eapply tenv_inject_incr; eauto.
-    eapply match_mem_inject_incr; eauto.
-  + destruct H3 as [? [? ?]]. split; trivial.
-    split.
-      apply mem_lemmas.forall_inject_val_list_inject in H.
-      exploit val_inject_list_incr; eauto.
-      apply mem_lemmas.val_list_inject_forall_inject. 
-    split. eapply cont_inject_incr; eauto.
-    eapply match_mem_inject_incr; eauto.
-  + destruct H3; split. eapply val_inject_incr; eauto.
-    split. eapply cont_inject_incr; eauto.
-    eapply match_mem_inject_incr; eauto. }
-{ assert (SI: symbols_inject f (Genv.to_senv g) (Genv.to_senv g)). admit.
-
- induction H0; destruct c2; simpl in H; try contradiction.
-  + destruct H as [? [? [? [? [? ?]]]]]. destruct s; inv H4.
-    exploit eval_lvalue_inject; try eassumption. red; reflexivity. apply H8.      
+  { destruct c1; destruct c2; try contradiction; simpl in *. 
+    + destruct H as [? [? [? [? ?]]]]. split; trivial. 
+      split; trivial. 
+      split. eapply cont_inject_incr; eauto.
+      split. eapply env_inject_incr; eauto.
+      eapply tenv_inject_incr; eauto. 
+    + destruct H as [? [? ?]]. split; trivial. 
+      split. apply mem_lemmas.forall_inject_val_list_inject in H1.
+             exploit val_inject_list_incr; eauto.
+             apply mem_lemmas.val_list_inject_forall_inject. 
+      eapply cont_inject_incr; eauto.
+  + destruct H. 
+    split. eapply val_inject_incr; eauto. 
+    eapply cont_inject_incr; eauto. }
+{ assert (SI: symbols_inject f (Genv.to_senv g) (Genv.to_senv g)). admit. (*symbolsinject*)
+  destruct H. simpl in *. remember (memcore_to_state c1 m1) as st. 
+  remember (memcore_to_state c1' m1') as st'. remember (memcore_to_state c2 m2) as st2.
+  assert (exists st2' f' t', step2 g st2 t' st2' /\
+          let (c2',m2') := state_to_memcore st2' 
+          in match_self code_inject f' c1' m1' c2' m2' /\
+            is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\ inject_trace f' t t').
+  Focus 2. { destruct H as [st2' [f' [t' [STEP2 X]]]].
+             remember (state_to_memcore st2') as q; symmetry in Heqq; destruct q as [c2' m2'].
+             destruct X as [MC X].
+             exists c2', f', t', m2'. rewrite <- (memcore_to_state_correct _ _ _ Heqq). auto. }
+  Unfocus.
+  destruct matchmem.  (*
+  assert (exists st2' f' t', step2 g st2 t' st2' /\
+      exists c2' m2', memcore_to_state c2' m2' = st2' /\ 
+                       match_self code_inject f' c1' m1' c2' m2' /\
+                       is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\ inject_trace f' t t').
+ Focus 2. destruct H as [st2' [f' [t' [SETP2 [c2' [m2' [MC X]]]]]]]. exists c2', f', t', m2'. rewrite MC. eauto.*)
+ generalize dependent m2. generalize dependent m1'. generalize dependent m1.
+ generalize dependent c2. generalize dependent c1'. generalize dependent c1.
+  induction H0; simpl; intros; destruct c1; simpl in *; inv Heqst; destruct c1'; simpl in *; inv Heqst'; destruct c2; simpl in *; try contradiction.
+ + destruct cinject as [? [? [? [? ?]]]]; subst. inv H4.
+    exploit eval_lvalue_inject; try eassumption. reflexivity. 
     intros [b' [i' [EV_LV' Vinj]]].
-    exploit eval_expr_inject; try eassumption. reflexivity. apply H8. 
+    exploit eval_expr_inject; try eassumption. reflexivity. 
     intros [v2' [EV_EX' Vinj_V2]].
-    exploit Cop.sem_cast_inject; try eassumption. apply H8.
+    exploit Cop.sem_cast_inject; try eassumption.
     intros [v' [CAST' Inj_v]].
     (*rewrite (expr_inject_type_of _ _ _ H7) in CAST'; eauto.
     rewrite (expr_inject_type_of _ _ _ H) in CAST'; eauto.*)
@@ -852,30 +1057,33 @@ Proof.
       * split; trivial. split; trivial. split; trivial. split; trivial.
         split; trivial. admit. (*match_mem*)
       * split; [| constructor]. red; intros. congruence.*)
-  + destruct H as [? [SS [? [? [? ?]]]]]; subst. destruct s; try contradiction; inv SS. 
+  + destruct cinject as [? [SS [? [? ?]]]]; subst; inv SS.
     (*- rename e1 into a'. rename k0 into k'. rename e0 into e'. rename le0 into le'. rename m0 into m'.*)
-      exploit eval_expr_inject; try eassumption. reflexivity. apply H4. 
-      intros [v' [EV_EX' Vinj]].
+      exploit eval_expr_inject; try eassumption. reflexivity.
+      intros [v' [EV_EX' Vinj]]. unfold memcore_to_state; simpl. 
       eexists; exists f, E0; split.
       * econstructor. eassumption.
-      * simpl; split.
-        ++ intuition.
-           red; intros. rewrite 2 PTree.gsspec.
-           destruct (peq x i); subst. trivial. apply H3.
+      * simpl. split.
+        ++ constructor; trivial.  
+           red; intuition. red; intros. rewrite 2 PTree.gsspec.
+           destruct (peq x id); subst. trivial. apply H3.
+           split; trivial.
         ++ split; [| constructor]. red; intros; congruence.
-  + destruct H as [? [SS [? [? [? ?]]]]]; subst. destruct s; try contradiction; inv SS. 
+  + destruct cinject as [? [SS [? [? ?]]]]; subst; inv SS. 
     (*destruct optid.
     - destruct o. destruct SS as [? [? ?]]; try contradiction; subst.
       rename e1 into a'. rename k0 into k'. rename e0 into e'. rename le0 into le'.
       rename m0 into m'. rename l into al'.*)
-      exploit eval_expr_inject; try eassumption. reflexivity. apply H8.
+      exploit eval_expr_inject; try eassumption. reflexivity. 
       intros [vf' [EV_EX' VFinj]].
-      exploit eval_exprlist_inject; try eassumption. apply H8. instantiate (1:=l). apply exprlist_inject_refl.
+      exploit eval_exprlist_inject; try eassumption. apply exprlist_inject_refl.
       intros [vargs' [EV_ARGS' ArgsInj]].
       eexists; exists f, E0; split.
       * econstructor; eauto. admit. (*globenv*) 
       * simpl; split.
-        ++ intuition. destruct o; trivial.
+        ++ constructor; trivial.   
+           red; intuition. destruct optid; simpl; repeat split; trivial.
+           split; trivial.
         ++ split; [| constructor]. red; intros; congruence. (*
     - destruct o; destruct SS as [? [? ?]]; try contradiction; subst.
       rename e1 into a'. rename k into k'. rename e0 into e'. rename le0 into le'.
@@ -891,30 +1099,30 @@ Proof.
       * simpl; split.
         ++ intuition.
         ++ split; [| constructor]. red; intros; congruence.*)
-  + destruct H as [? [SS [? [? [? ?]]]]]; subst. inv SS.
+  + destruct cinject as [? [SS [? [? ?]]]]; subst. inv SS.
     (*destruct s; try contradiction. 
     destruct optid.
     - destruct o; destruct SS as [? [? [? ?]]]; try contradiction; subst.
       rename k0 into k'. rename e0 into e'. rename le0 into le'.
       rename m0 into mm'. rename l into al'.*)
-      exploit eval_exprlist_inject; try eassumption. apply H5. instantiate (1:=al). apply exprlist_inject_refl. 
+      exploit eval_exprlist_inject; try eassumption. apply exprlist_inject_refl. 
       intros [vargs' [EV_ARGS' ArgsInj]].
-      exploit external_call_mem_inject_gen'; eauto. apply H5. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
+      exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
       intros [f' [vres' [m2' [t' [EC' [ResInj [MInj' [Unch1 [UNCH2 [INC [SEP ITRACE]]]]]]]]]]].
       eexists; exists f', t'; split.
       * econstructor; eassumption.
       * simpl; split.
-        ++ intuition.
+        ++ constructor; trivial.   
+           red; intuition.
            eapply cont_inject_incr; eassumption.
            eapply env_inject_incr; eassumption.
            destruct optid.
            +++ red; intros. simpl.  rewrite 2 PTree.gsspec.
              destruct (peq x i); subst. trivial.
-             specialize (H4 x). destruct (le ! x); destruct (le0 ! x); try contradiction; trivial.
+             specialize (H4 x). destruct (t0 ! x); destruct (t1 ! x); try contradiction; trivial.
              -- eapply val_inject_incr; eauto.
-             (*-- admit. (*match_mem*)*)
            +++ eapply  tenv_inject_incr; eassumption.
-           +++ admit. (*match_mem*)
+           +++ admit. (*match_mem externalcall*)
         ++ split; trivial. red; intros.
            split. admit. (*ofs=0??*)
            eapply SEP; eauto. (* 
@@ -936,186 +1144,224 @@ Proof.
         ++ split; trivial. red; intros.
            split. admit. (*ofs=0??*)
            eapply SEP; eauto. *)
-  + destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
+  + destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
 (*    destruct s; try contradiction. destruct H.*)
     eexists; exists f, E0; split.
     - apply step_seq.
-    - split. simpl. intuition.
-      split; [| constructor]. simpl; red; intros; congruence. 
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    (*destruct s0; try contradiction.*) destruct k0; try contradiction. destruct H0.
+    - simpl; split.
+      * constructor; trivial.   
+           red; intuition. split; trivial. reflexivity. 
+           split; trivial.
+      * split; [| constructor]. simpl; red; intros; congruence. 
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS. 
+    destruct c0; simpl in H; try contradiction. destruct H. 
     eexists; exists f; eexists; split.
     econstructor.
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. destruct H0.
+    simpl; split.
+    * constructor; trivial.   
+      red; intuition.
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. destruct H.
     eexists; exists f; eexists; split.
     econstructor.
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. destruct H0.
+    simpl; split.
+    * constructor; trivial.   
+      red; intuition.
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. destruct H.
     eexists; exists f; eexists; split.
     econstructor.
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    exploit eval_expr_inject; try eassumption. reflexivity. apply H5. 
+    simpl; split.
+    * constructor; trivial.   
+      red; intuition.
+      split; trivial.
+    * split. red; intros. congruence.   
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    exploit eval_expr_inject; try eassumption. reflexivity. 
     intros [v1' [EV_EX' V1inj]].
-    exploit bool_val_inject; eauto. apply H5. intros.
+    exploit bool_val_inject; eauto. intros.
     eexists; exists f; eexists; split.
     econstructor; eauto. (* eassumption.
       rewrite <- (expr_inject_type_of _ _ _ H); eauto.*)
-    simpl. intuition.
-    destruct b; trivial.
-    red; intros. congruence.
-    red; intros. congruence.
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
+    simpl; split.
+    * constructor; trivial.   
+      red; intuition.
+      split; trivial.
+    * split. destruct b; trivial.
+        red; intros. congruence.
+        red; intros. congruence.
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
     eexists; exists f; eexists; split.
     econstructor. 
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H. 
-    destruct k0; try contradiction. destruct H1 as [? [? ?]]. inv H. inv H1. 
+    simpl; split.
+    * constructor; trivial.
+      red; intuition. simpl. repeat split; trivial.
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. 
+    destruct c; try contradiction. destruct H0 as [? [? ?]]. inv SS. 
     eexists; exists f; eexists; split.
     eapply step_skip_or_continue_loop1; trivial. 
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. destruct H0 as [? [? ?]]. inv H. inv H0. 
+    simpl; split.
+    * constructor; trivial.
+      red; intuition. repeat split; trivial. repeat split; trivial.
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. destruct H as [? [? ?]]. 
     eexists; exists f; eexists; split.
     eapply step_break_loop1. 
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. destruct H0 as [? [? ?]]. inv H; inv H0. 
+    simpl; split.
+    * constructor; trivial.
+      red; intuition.
+      split; trivial.
+    * split. red; intros. congruence.   
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. destruct H as [? [? ?]]. inv H; inv H2.
     eexists; exists f; eexists; split.
     eapply step_skip_loop2.
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. destruct H0 as [? [? ?]]. inv H; inv H0. 
+    simpl; split.
+    * constructor; trivial.
+      red; intuition. 
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. destruct H as [? [? ?]]. inv H; inv H2. 
     eexists; exists f; eexists; split.
     eapply step_break_loop2.
-    simpl. intuition.
-    red; intros. congruence. 
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    (*destruct s; try contradiction. destruct o; try contradiction. *)
-    exploit freelist_inject; eauto. apply H4. eapply env_blocks_inject; eassumption. 
-    intros [m1' [FL' INJ]].
+    simpl; split.
+    * constructor; trivial.
+      red; intuition.
+      split; trivial.
+    * split. red; intros. congruence. 
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    exploit freelist_inject; eauto. eapply env_blocks_inject; eassumption. 
+    intros [m2' [FL' INJ]].
     eexists; exists f; eexists; split.
     eapply step_return_0. eassumption.
-    simpl. split. split. constructor. split. eapply call_cont_inject; eauto. admit. (*match_mem*)
-    split; [| constructor]. red; intros; congruence. 
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    (*destruct s; try contradiction. destruct o; try contradiction.  *)
-    rename v' into u.
-    exploit eval_expr_inject; try eassumption. reflexivity. apply H6. 
+    simpl; split.
+    * constructor; trivial. split. constructor. eapply call_cont_inject; eauto. eapply match_mem_freelist; eauto.
+      split; trivial. 
+    * split; [| constructor]. red; intros; congruence. 
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    rename v0 into u.
+    exploit eval_expr_inject; try eassumption. reflexivity.
     intros [v' [EV_EX' Vinj]].
-    exploit Cop.sem_cast_inject; try eassumption. apply H6.
+    exploit Cop.sem_cast_inject; try eassumption. 
     intros [u' [CAST' Inj_u]].
-    exploit freelist_inject; eauto. apply H6. eapply env_blocks_inject; eassumption. 
-    intros [m1' [FL' INJ]].
+    exploit freelist_inject; eauto. eapply env_blocks_inject; eassumption. 
+    intros [m2' [FL' INJ]].
  (*   rewrite (expr_inject_type_of _ _ _ H) in CAST'.*)
     eexists; exists f; eexists; split.
     eapply step_return_1; eassumption.
-    simpl. split. split; trivial. split. eapply call_cont_inject; eauto. admit. (*match_mem*)
-    split; [| constructor]. red; intros; congruence. 
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    exploit freelist_inject; eauto. apply H5. eapply env_blocks_inject; eassumption. 
-    intros [m1' [FL' INJ]].
+    simpl; split.
+    * split; trivial. split; trivial. eapply call_cont_inject; eauto. eapply match_mem_freelist; eauto. 
+      split; trivial. 
+    * split; [| constructor]. red; intros; congruence. 
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    exploit freelist_inject; eauto. eapply env_blocks_inject; eassumption. 
+    intros [m2' [FL' INJ]].
     eexists; exists f; eexists; split. 
-    eapply (is_call_cont_inject _ _ _ H2) in H0.
+    eapply (is_call_cont_inject _ _ _ H1) in H.
     eapply step_skip_call; eauto.
-    simpl. split. split; trivial. split; trivial. admit. (*match_mem*)
+    simpl. split. split; trivial. split; trivial. eapply match_mem_freelist; eauto. 
+      split; trivial. 
     split; [| constructor]. red; intros; congruence. 
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    exploit eval_expr_inject; try eassumption. reflexivity. apply H5. 
+  + destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    exploit eval_expr_inject; try eassumption. reflexivity. 
     intros [v' [EV_EX' Vinj]].
     exploit sem_switch_arg_inject; eauto.
     (*rewrite (expr_inject_type_of _ _ _ H); intros. *)
     eexists; exists f; eexists; split.
     eapply step_switch; eauto. 
-    simpl. intuition. (* apply seq_of_lbldl_stmt_inject. simpl. admit. (*switch*)*)
-    red; intros; congruence.
-    constructor.
-  + simpl. destruct H as [X [? [H [? [? ?]]]]]; subst. inv H1.
-    destruct k0; try contradiction. (* destruct H0; subst. destruct s; try contradiction. *)
-    - eexists; exists f; eexists; split.
+    simpl; split.
+    * split. red; simpl; intuition. split; trivial. 
+    * split. red; intros; congruence.
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. (* destruct H0; subst. destruct s; try contradiction. *)
+    eexists; exists f; eexists; split.
       eapply step_skip_break_switch; trivial.
-      simpl. intuition.
-      red; intros; congruence.
+    simpl; split.
+    * split. split; intuition. split; trivial.
+    * split. red; intros; congruence.
       constructor.
-      red; intros; congruence.
-      constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
-    destruct k0; try contradiction. 
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
+    destruct c0; try contradiction. 
     eexists; exists f; eexists; split.
     apply step_continue_switch. 
-    simpl. intuition.
-    red; intros; congruence.
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
+    simpl; split.
+    * split. split; intuition. split; trivial.
+    * split. red; intros; congruence.
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
     eexists; exists f; eexists; split.
     apply step_label.
-    simpl. intuition.
-    red; intros; congruence.
-    constructor.
-  + simpl. destruct H as [X [H [? [? [? ?]]]]]; subst. inv H.
+    simpl; split. 
+    * split. split; intuition. split; trivial.
+    * split. red; intros; congruence.
+      constructor.
+  + simpl. destruct cinject as [X [SS [? [? ?]]]]; subst. inv SS.
     exploit find_label_inject. apply call_cont_inject. eassumption. 
-    instantiate (2:=lbl). instantiate (1:=fn_body f1). rewrite H0.
+    instantiate (2:=lbl). instantiate (1:=fn_body f1). rewrite H.
     intros [kk1 [FL CI]].
     eexists; exists f; eexists; split.
     eapply step_goto; eauto. 
-    simpl. intuition. 
-    red; intros; congruence.
-    constructor.
-  + simpl. destruct H as [? [? [? ?]]]; subst.
-    exploit function_entry2_inject; eauto. apply H3.
-    intros [j' [e' [te' [m1' [FE' [EI [TI [MI [INC SEP]]]]]]]]].
+    simpl; split.
+    * split. split; intuition. split; trivial.
+    * split. red; intros; congruence.
+      constructor.
+  + simpl. destruct cinject as [? [? ?]]; subst.
+    exploit function_entry2_inject_match_mem; eauto. split; eauto. 
+    intros [j' [e' [te' [m2' [FE' [EI [TI [MI [INC SEP]]]]]]]]].
     eexists; exists j'; eexists; split. 
     eapply step_internal_function. eassumption.
-    simpl. intuition.
-    eapply cont_inject_incr; eauto.
-    admit. (*matchMem*)
-    red; intros. destruct (SEP _ _ _ H4 H). split. admit. (*ofs=0*) split; auto.
-    constructor. 
-  + simpl. destruct H as [? [? [? ?]]]; subst.
-      exploit external_call_mem_inject_gen'; eauto. apply H3. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
+    simpl; split.
+    * split; trivial. split; intuition.
+      eapply cont_inject_incr; eauto. 
+    * split. red; intros. destruct (SEP _ _ _ H3 H0). split. admit. (*ofs=0*) split; auto.
+      constructor. 
+  + simpl. destruct cinject as [? [? ?]]; subst.
+      exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
       intros [f' [vres' [m2' [t' [EC' [ResInj [MInj' [Unch1 [UNCH2 [INC [SEP ITRACE]]]]]]]]]]].
       eexists; exists f', t'; split. 
       eapply step_external_function. eauto. 
-      simpl. intuition. eapply cont_inject_incr; eauto.
-      admit. (*match_mem*)
-      red; intros. destruct (SEP _ _ _ H4 H). split. admit. (*d=0*) split; eauto.
-  + simpl. destruct H as [X [H ?]]; subst.
-    destruct k0; try contradiction. destruct H as [? [? [? [? ?]]]]; subst.
+      simpl; split.
+      * split. split; intuition. eapply cont_inject_incr; eauto.
+        admit. (*match_mem* externalcall*)
+      * split. red; intros. destruct (SEP _ _ _ H3 H0). split. admit. (*d=0*) split; eauto.
+        trivial.
+  + simpl. destruct cinject as [X SS]; subst.
+    destruct c0; try contradiction. destruct SS as [? [? [? [? ?]]]]; subst.
     destruct optid; destruct o; try contradiction; subst.
-    - eexists; exists f, E0; split. 
+    { eexists; exists f, E0; split. 
       eapply step_returnstate.  
-      simpl. intuition.
-      * red; intros. rewrite 2 PTree.gsspec.
-        destruct (peq x i0); subst. trivial.
-        specialize (H3 x). destruct (le ! x); destruct (t ! x); try contradiction; trivial.
-      * red; intros; congruence.
-      * constructor.
-    - eexists; exists f, E0; split. 
+      simpl; split.
+      * split. split; intuition.
+          red; intros. rewrite 2 PTree.gsspec.
+          destruct (peq x i0); subst. trivial. apply H2.
+        split; trivial.
+      * split. red; intros; congruence.
+        constructor. }
+    { eexists; exists f, E0; split. 
       eapply step_returnstate.  
-      simpl. intuition.
-      * red; intros; congruence.
-      * constructor.
+      simpl; split.
+      * split. split; intuition. split; trivial.
+      * split. red; intros; congruence.
+        constructor.
 Admitted.
     
     

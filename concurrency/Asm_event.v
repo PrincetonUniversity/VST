@@ -205,6 +205,8 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
   | _ => Some [Free nil]
   end.
 
+(*
+
 Lemma store_stack_ev_elim m sp ty ofs v m' (SS: store_stack m sp ty ofs v = Some m'):
   exists b z, sp =Vptr b z /\
   ev_elim m [Write b (Int.unsigned (Int.add z ofs)) (encode_val (chunk_of_type ty) v)] m'.
@@ -695,48 +697,7 @@ Proof.
   constructor; trivial.
 Qed.
 
-Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
-  BE_malloc: forall m n m'' b m'
-         (ALLOC: Mem.alloc m (-4) (Int.unsigned n) = (m'', b))
-         (ALGN : (align_chunk Mint32 | (-4)))
-         (ST: Mem.storebytes m'' b (-4) (encode_val Mint32 (Vint n)) = Some m'),
-         builtin_event EF_malloc m [Vint n]
-               [Alloc b (-4) (Int.unsigned n); Write b (-4) (encode_val Mint32 (Vint n))]
-| BE_free: forall m b lo bytes sz m'
-        (POS: Int.unsigned sz > 0)
-        (LB : Mem.loadbytes m b (Int.unsigned lo - 4) (size_chunk Mint32) = Some bytes)
-        (FR: Mem.free m b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) = Some m')
-        (ALGN : (align_chunk Mint32 | Int.unsigned lo - 4))
-        (SZ : Vint sz = decode_val Mint32 bytes),
-        builtin_event EF_free m [Vptr b lo]
-              [Read b (Int.unsigned lo - 4) (size_chunk Mint32) bytes;
-               Free [(b,Int.unsigned lo - 4, Int.unsigned lo + Int.unsigned sz)]]
-| BE_memcpy: forall m al bsrc bdst sz bytes osrc odst m'
-        (AL: al = 1 \/ al = 2 \/ al = 4 \/ al = 8)
-        (POS : sz >= 0)
-        (DIV : (al | sz))
-        (OSRC : sz > 0 -> (al | Int.unsigned osrc))
-        (ODST: sz > 0 -> (al | Int.unsigned odst))
-        (RNG: bsrc <> bdst \/
-                Int.unsigned osrc = Int.unsigned odst \/
-                Int.unsigned osrc + sz <= Int.unsigned odst \/ Int.unsigned odst + sz <= Int.unsigned osrc)
-        (LB: Mem.loadbytes m bsrc (Int.unsigned osrc) sz = Some bytes)
-        (ST: Mem.storebytes m bdst (Int.unsigned odst) bytes = Some m'),
-        builtin_event (EF_memcpy sz al) m [Vptr bdst odst; Vptr bsrc osrc]
-              [Read bsrc (Int.unsigned osrc) sz bytes;
-               Write bdst (Int.unsigned odst) bytes]
-| BE_EFexternal: forall name sg m vargs,
-        I64Helpers.is_I64_helperS name sg ->
-         builtin_event (EF_external name sg) m vargs []
-| BE_EFbuiltin: forall name sg m vargs, is_I64_builtinS name sg ->
-         builtin_event (EF_builtin name sg) m vargs [].
-
-Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
-inv BE1; inv BE2; simpl in *; trivial.
-+ rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
-+ rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0; inv SZ0. trivial.
-+ rewrite LB0 in LB; inv LB; trivial.
-Qed.
+*)
 
 Definition option_list_to_list {A} (x: option (list A)) : list A :=
  match x with Some al => al | None => nil end.
@@ -750,32 +711,19 @@ Inductive asm_ev_step ge: regset -> mem -> list mem_event -> regset -> mem -> Pr
       exec_instr ge f i rs m = Next rs' m' ->
       drf_instr ge (fn_code f) i rs m = T ->
       asm_ev_step ge rs m (option_list_to_list T) rs' m'
-  | exec_step_builtin T1 T2:
-      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
+  | exec_step_builtin:
       forall b ofs f ef args res rs m vargs t vres rs' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
       eval_builtin_args ge rs (rs ESP) m args vargs ->
-      ~ observableEF (*hf*) ef ->
-      external_call ef ge vargs m t vres m' ->
+      builtin_event ef m vargs t ->
+      ev_elim m t m' ->
+      external_call ef ge vargs m nil vres m' ->
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      eval_builtin_args_ev _ ge rs (rs ESP) m args vargs T1 ->
-      builtin_event ef m vargs T2 ->
-      asm_ev_step ge rs m (T1++T2) rs' m'
-  | exec_step_external T1 T2:
-      False ->
-      forall b ef args res rs m t rs' m',
-      rs PC = Vptr b Int.zero ->
-      Genv.find_funct_ptr ge b = Some (External ef) ->
-      extcall_arguments rs m (ef_sig ef) args ->
-      external_call ef ge args m t res m' ->
-      rs' = (set_pair (loc_external_result (ef_sig ef)) res rs) #PC <- (rs RA) ->
-      extcall_arguments_ev rs m (ef_sig ef) args T1 ->
-      builtin_event  ef m args T2 ->
-      asm_ev_step ge rs m (T1++T2) rs' m'.
+      asm_ev_step ge rs m t rs' m'.
 
 Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*):
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), 
@@ -783,25 +731,44 @@ Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*):
 Proof.
  induction 1; try contradiction.
  econstructor; eauto.
+ econstructor 2; eauto.
 Qed.
 
 Lemma asm_ev_ax2 g: forall c m c' m' (CS:corestep (Asm_mem_sem (*hf*)) g c m c' m'),
    exists T, asm_ev_step g c m T c' m'.
 Proof. induction 1; try contradiction.
+*
  econstructor; eauto. econstructor; eauto.
+*
+  econstructor. econstructor 2; eauto.
 Qed.
 
 Lemma asm_ev_fun g: forall c m T' c' m' T'' c'' m''
     (Estep': asm_ev_step g c m T' c' m') (Estep'': asm_ev_step g c m T'' c'' m''), T' = T''.
 Proof. intros.
-inv Estep'; inv Estep''; trivial; try contradiction.
-congruence.
+inv Estep'; inv Estep''; trivial; try contradiction; try congruence.
+rewrite H in H3; symmetry in H3; inv H3.
+rewrite H0 in H4; symmetry in H4; inv H4.
+rewrite H1 in H5; inv H5.
+inv H2.
+rewrite H in H6; symmetry in H6; inv H6.
+rewrite H0 in H7; symmetry in H7; inv H7.
+rewrite H1 in H8; inv H8.
+inv H9.
+rewrite H in H6; symmetry in H6; inv H6.
+rewrite H0 in H7; symmetry in H7; inv H7.
+rewrite H1 in H8; inv H8.
+pose proof (eval_builtin_args_determ H2 H9). subst vargs0.
+clear - H3 H10.
+eapply builtin_event_determ; eauto.
 Qed.
 
-Lemma asm_ev_elim g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
+Lemma asm_ev_elim g: forall c m T c' m' 
+     (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
 Proof.
 intros.
 inv Estep; try contradiction.
+*
 clear - H2.
 destruct i; inv H2;
   try solve [simpl; eexists; split; eauto];
@@ -858,8 +825,11 @@ apply goto_label_mem_same in H0; subst; eexists; split; eauto.
     econstructor. trivial.
     econstructor. split. simpl. rewrite H2; trivial.
     econstructor.
+*
+ auto.
 Qed.
 
+(*
 Lemma store_args_rec_transfer stk m2 mm': forall args tys m1 n
  (STARGS: store_args_rec m1 stk n args tys = Some m2) TT
  (STARGSEV: store_args_ev_rec stk n args tys = Some TT) x
@@ -930,6 +900,26 @@ Proof.
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
     erewrite Mem.storebytes_store; eassumption.
+Qed.
+*)
+
+Lemma ev_elim_determ:
+   forall t m m1 m2, ev_elim m t m1 -> ev_elim m t m2 -> m1=m2.
+Proof.
+ induction t; intros.
+ inv H; inv H0. auto.
+ simpl in *.
+ destruct a.
+ destruct H as [m1' [? ?]].
+ destruct H0 as [m2' [? ?]].
+ assert (m1'=m2') by congruence. subst m2'. eauto.
+ destruct H, H0. eauto.
+ destruct H as [m1' [? ?]].
+ destruct H0 as [m2' [? ?]].
+ assert (m1'=m2') by congruence. subst m2'. eauto.
+ destruct H as [m1' [? ?]].
+ destruct H0 as [m2' [? ?]].
+ assert (m1'=m2') by congruence. subst m2'. eauto.
 Qed.
 
 Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
@@ -1368,7 +1358,11 @@ destruct i; inv H2; try solve [split;
       eexists; econstructor; try eassumption.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
-Qed.
+-
+ split; auto.
+ intros.
+ admit.   (* difficulty here... *)
+Admitted.
 
 Program Definition Asm_EvSem : @EvSem genv regset.
 Proof.
