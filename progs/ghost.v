@@ -259,6 +259,40 @@ Class PCM_order `{P : PCM} (ord : A -> A -> Prop) := { ord_refl :> RelationClass
   ord_lub : forall a b c, ord a c -> ord b c -> exists c', join a b c' /\ ord c' c;
   join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
 
+Class lub_ord {A} (ord : A -> A -> Prop) := { lub_ord_refl :> RelationClasses.Reflexive ord;
+  lub_ord_trans :> RelationClasses.Transitive ord;
+  has_lub : forall a b c, ord a c -> ord b c -> exists c', ord a c' /\ ord b c' /\
+    forall d, ord a d -> ord b d -> ord c' d }.
+
+Global Instance ord_PCM `{lub_ord} : PCM A := { join a b c := ord a c /\ ord b c /\
+  forall c', ord a c' -> ord b c' -> ord c c' }.
+Proof.
+  - intros ??? (? & ? & ?); eauto.
+  - intros ????? (? & ? & Hc) (? & ? & He).
+    destruct (has_lub b d e) as (c' & ? & ? & Hlub); try solve [etransitivity; eauto].
+    exists c'; repeat split; auto.
+    + etransitivity; eauto.
+    + apply Hlub; auto; transitivity c; auto.
+    + intros.
+      apply He.
+      * apply Hc; auto; etransitivity; eauto.
+      * etransitivity; eauto.
+Defined.
+
+Global Instance ord_PCM_ord `{lub_ord} : PCM_order ord.
+Proof.
+  constructor.
+  - apply lub_ord_refl.
+  - apply lub_ord_trans.
+  - intros ??? Ha Hb.
+    destruct (has_lub _ _ _ Ha Hb) as (c' & ? & ? & ?).
+    exists c'; simpl; eauto.
+  - simpl; intros; tauto.
+  - intros; simpl.
+    repeat split; auto.
+    reflexivity.
+Defined.
+
 (* Instances of ghost state *)
 Section Snapshot.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
@@ -278,7 +312,6 @@ Proof.
   apply ord_lub; auto; etransitivity; eauto.
 Qed.
 
-(* Given this observation, we could change the construction of PCM_order. *)
 Lemma join_ord_eq : forall a b, ord a b <-> exists c, join a c b.
 Proof.
   split.
