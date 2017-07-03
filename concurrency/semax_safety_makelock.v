@@ -113,11 +113,14 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-    [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
-    | subst | now inversion bad ].
+    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+  apply corestep_not_at_external in bad. elimtype False; subst; clear - bad atex.
+   simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
+  2: inversion bad.
   subst.
-  simpl in at_ex. assert (args0 = args) by congruence; subst args0.
+  simpl in at_ex.
+  unfold cl_at_external in atex, at_ex.
+  assert (args0 = args) by congruence; subst args0.
   assert (e = MKLOCK) by congruence; subst e.
   hnf in x.
   revert x Pre SafePost.

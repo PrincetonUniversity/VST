@@ -85,7 +85,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_acquire :
        forall (tp' : thread_pool) c m' b ofs
          (Hcode: getThreadC cnt0 = Kblocked c)
-         (Hat_external: at_external Sem c =
+         (Hat_external: at_external Sem genv c m =
                         Some (LOCK, Vptr b ofs::nil))
          (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
@@ -95,7 +95,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_release :
        forall (tp':thread_pool) c m' b ofs
          (Hcode: getThreadC cnt0 = Kblocked c)
-         (Hat_external: at_external Sem c =
+         (Hat_external: at_external Sem genv c m =
                         Some (UNLOCK, Vptr b ofs::nil))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
@@ -104,7 +104,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_create :
        forall (tp_upd tp':thread_pool) c b ofs arg
          (Hcode: getThreadC cnt0 = Kblocked c)
-         (Hat_external: at_external Sem c =
+         (Hat_external: at_external Sem genv c m =
                         Some (CREATE, Vptr b ofs::arg::nil))
          (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
          (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
@@ -113,7 +113,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_mklock :
        forall  (tp': thread_pool) c m' b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external Sem c =
+          (Hat_external: at_external Sem genv c m =
                          Some (MKLOCK, Vptr b ofs::nil))
           (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
@@ -122,7 +122,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_freelock :
        forall (tp' tp'': thread_pool) c b ofs
          (Hcode: getThreadC cnt0 = Kblocked c)
-         (Hat_external: at_external Sem c =
+         (Hat_external: at_external Sem genv c m =
                         Some (FREE_LOCK, Vptr b ofs::nil))
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
          ext_step genv cnt0 Hcompat  tp' m (freelock (b,Int.intval ofs))
@@ -130,7 +130,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    | step_acqfail :
        forall  c b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external Sem c =
+          (Hat_external: at_external Sem genv c m =
                          Some (LOCK, Vptr b ofs::nil))
           (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
          ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
@@ -375,11 +375,11 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
        (fun _ => tt)
        empty_lset.
 
-   Definition init_mach (_ : option unit) (genv:G)
-              (v:val)(args:list val):option thread_pool :=
-     match initial_core Sem 0 genv v args with
-     | Some c =>
-       Some (initial_machine c)
+   Definition init_mach (_ : option unit) (ge:G) (m: mem)
+              (v:val)(args:list val):option (thread_pool * option mem) :=
+     match initial_core Sem 0 ge m v args with
+     | Some (c, m') =>
+       Some (initial_machine c, m')
      | None => None
      end.
 

@@ -44,18 +44,18 @@ Require Import sepcomp.mem_lemmas.
 (** -3 a state cannot both be halted and blocked on an external call. *)
 
 Record CoreSemantics {G C M : Type} : Type :=
-  { initial_core : nat -> G -> val -> list val -> option C
-  ; at_external : C -> option (external_function * list val)
-  ; after_external : option val -> C -> option C
+  { initial_core : nat -> G -> M -> val -> list val -> option (C* option M)
+  ; at_external : G -> C -> M -> option (external_function * list val)
+  ; after_external : G -> option val -> C -> option C
   ; halted : C -> option val
   ; corestep : G -> C -> M -> C -> M -> Prop
 
   ; corestep_not_at_external:
-      forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+      forall ge m q m' q', corestep ge q m q' m' -> at_external ge q m = None
   ; corestep_not_halted:
       forall ge m q m' q', corestep ge q m q' m' -> halted q = None
   ; at_external_halted_excl:
-      forall q, at_external q = None \/ halted q = None }.
+      forall ge q m, at_external ge q m = None \/ halted q = None }.
 
 Arguments CoreSemantics : clear implicits.
 

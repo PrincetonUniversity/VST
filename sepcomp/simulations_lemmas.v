@@ -68,7 +68,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true).
 
    Hypothesis inj_initial_cores: forall v vals1 c1 m1 j vals2 m2 DomS DomT,
-          initial_core Sem1 0 ge1 v vals1 = Some c1 ->
+          initial_core Sem1 0 ge1 m1 v vals1 = Some (c1, None) ->
           Mem.inject j m1 m2 ->
           Forall2 (val_inject j) vals1 vals2 ->
           meminj_preserves_globals ge1 j ->
@@ -86,7 +86,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
          (forall b, DomT b = true -> Mem.valid_block m2 b) ->
 
        exists c2,
-            initial_core Sem2 0 ge2 v vals2 = Some c2 /\
+            initial_core Sem2 0 ge2 m2 v vals2 = Some (c2, None) /\
             match_states c1 (initial_SM DomS
                                        DomT
                                        (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
@@ -106,12 +106,12 @@ Section Eff_INJ_SIMU_DIAGRAMS.
   Hypothesis inj_at_external :
       forall mu c1 m1 c2 m2 e vals1,
         match_states c1 mu c1 m1 c2 m2 ->
-        at_external Sem1 c1 = Some (e,vals1) ->
+        at_external Sem1 ge1 c1 m1 = Some (e,vals1) ->
         Mem.inject (as_inj mu) m1 m2
         /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2
         /\ exists vals2,
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
-            at_external Sem2 c2 = Some (e,vals2)
+            at_external Sem2 ge2 c2 m2 = Some (e,vals2)
     /\ forall
        (pubSrc' pubTgt' : block -> bool)
        (pubSrcHyp : pubSrc' =
@@ -132,9 +132,9 @@ Hypothesis order_wf: well_founded order.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -174,8 +174,8 @@ Hypothesis order_wf: well_founded order.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :
@@ -266,9 +266,9 @@ Hypothesis order_wf: well_founded order.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -309,8 +309,8 @@ Hypothesis order_wf: well_founded order.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :
@@ -398,9 +398,9 @@ Section EFF_INJ_SIMULATION_STAR.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -440,8 +440,8 @@ Section EFF_INJ_SIMULATION_STAR.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :
@@ -482,7 +482,6 @@ Proof.
   exists c2'. exists m2'. exists mu'.
   split; try assumption.
   split; try assumption.
-  (*split. eapply globalsep_domain_eq. eassumption.*)
   split; try assumption.
   split; try assumption.
   exists U2. intuition.
@@ -497,9 +496,9 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -540,8 +539,8 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :
@@ -596,9 +595,9 @@ Section EFF_INJ_SIMULATION_PLUS.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -637,8 +636,8 @@ Section EFF_INJ_SIMULATION_PLUS.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :
@@ -682,9 +681,9 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
       forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
+        (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
+        (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
@@ -725,8 +724,8 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
        exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
 
   Hypothesis inj_effcore_diagram :

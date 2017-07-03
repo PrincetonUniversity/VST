@@ -1,5 +1,4 @@
 Require Import sepcomp.semantics.
-Require Import sepcomp.simulations.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
@@ -87,7 +86,7 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
+Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : option (CC_core * option mem) :=
   match v with
     Vptr b i =>
     if Int.eq_dec i Int.zero then
@@ -101,19 +100,20 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
                                                        (params_of_fundef f))))
                      (Kseq (Sloop Sskip Sskip) Kstop)
              empty_env
-             (temp_bindings 1%positive (v::args)))
+             (temp_bindings 1%positive (v::args)),
+             None)
       | _ => None end
     else None
   | _ => None
   end.
 
-Definition cl_at_external (c: CC_core) : option (external_function * list val) :=
+Definition cl_at_external (ge: genv) (c: CC_core) (m: mem) : option (external_function * list val) :=
   match c with
   | CC_core_Callstate (External ef _ _ _) args _ => Some (ef, args)
   | _ => None
 end.
 
-Definition cl_after_external (vret: option val) (c: CC_core) : option CC_core :=
+Definition cl_after_external (ge: genv) (vret: option val) (c: CC_core) : option CC_core :=
    match c with
    | CC_core_Callstate (External ef _ _ _) _ k => 
         Some (CC_core_Returnstate (match vret with Some v => v | _ => Vundef end) k)
@@ -121,13 +121,13 @@ Definition cl_after_external (vret: option val) (c: CC_core) : option CC_core :=
    end.
 
 Definition cl_step ge (q: CC_core) (m: mem) (q': CC_core) (m': mem) : Prop :=
-    cl_at_external q = None /\ 
+    cl_at_external ge q m = None /\ 
      Clight.step ge (Clight.function_entry2 ge)
       (CC_core_to_CC_state q m) Events.E0 (CC_core_to_CC_state q' m').
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', 
-          cl_step ge q m q' m' -> cl_at_external q = None.
+          cl_step ge q m q' m' -> cl_at_external ge q m = None.
 Proof.
   intros.
   unfold cl_step in H. destruct H; auto.  

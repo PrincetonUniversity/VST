@@ -26,7 +26,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.SC_erasure.
 Require Import concurrency.x86_context.
-Require Import ccc26x86.Asm ccc26x86.Asm_coop.
+Require Import compcert.ia32.Asm concurrency.Asm_core.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
