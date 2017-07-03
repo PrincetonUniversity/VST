@@ -20,9 +20,11 @@ Require Import concurrency.HybridMachine_simulation.
 (*Require Import concurrency.compiler_correct.*)
 Require Import concurrency.CoreSemantics_sum.
 Require Import concurrency.self_simulation.
+
+(*
 Require Import concurrency.Clight_self_simulation.
 Require Import concurrency.Asm_self_simulation.
-
+*)
 
 Require Import concurrency.permissions.
 
@@ -70,12 +72,24 @@ Section OneThreadCompiled.
   Section OneThreadCompiledProofs.
 
     (* we extract match_source from the self_simulation of Clight*)
+
+    Parameter Clight_core_inject: meminj -> CC_core -> CC_core -> Prop.
+    Parameter Clight_self_simulation:
+      self_simulation (Clight.semantics2 p) _ CC_core_to_CC_state.
     Definition code_inject_source:=
-      self_simulation.code_inject _ _ (Clight_self_simulation p).
+      match_self (code_inject Clight_self_simulation).
+    Parameter Asm_core_inject: meminj -> Asm.regset -> Asm.regset -> Prop.
+    Parameter Asm_self_simulation:
+      self_simulation (Asm_semantics tp) _ (Asm.State).  
+    Definition code_inject_target:=
+      match_self (code_inject Asm_self_simulation).
+    
+    (* Definition code_inject_source:=
+      self_simulation.code_inject _ _ (Clight_self_simulation p). *)
 
     (* we extract match_target from the self_simulation of Asm*)
-    Definition code_inject_target:=
-      self_simulation.code_inject _  _ (Asm_self_simulation tp).
+    (*Definition code_inject_target:=
+      self_simulation.code_inject _  _ (Asm_self_simulation tp).*)
     Definition make_state_Clight: CC_core -> mem -> Clight.state:=
       CC_core_to_CC_state.
     Definition get_state_Clight c:=
@@ -100,17 +114,15 @@ Section OneThreadCompiled.
     
     Definition match_compiled_states :=
       fun i f c1 m1 c2 m2 =>
-        exists st1 st2 f1 f12 f2,
-          code_inject_source f1 (make_state_Clight c1 m1) st1 /\
-          compiler_match i f12 st1 st2 /\
-          code_inject_target f2 (make_state_Asm c2 m2) st2 /\
+        exists c1' m1' c2' m2' f1 f12 f2,
+          code_inject_source f1 c1 m1 c1' m1' /\
+          compiler_match i f12 (make_state_Clight c1' m1') (make_state_Asm c2' m2') /\
+          code_inject_target f2 c2 m2 c2' m2' /\
           f = compose_meminj f1 (compose_meminj f12 f2).
-    Definition source_match f st1 m1 st2 m2 :=
-      code_inject_source f (make_state_Clight st1 m1)
-                         (make_state_Clight st2 m2).
-    Definition target_match f st1 m1 st2 m2 :=
-      code_inject_target f (make_state_Asm st1 m1)
-                         (make_state_Asm st2 m2).
+    Notation source_match f st1 m1 st2 m2 :=
+      (code_inject_source f st1 m1 st2 m2).
+    Notation target_match f st1 m1 st2 m2 :=
+      (code_inject_target f st1 m1 st2 m2).
           
 Section OneThreadCompiledMatch.
 
@@ -354,22 +366,40 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           } Unfocus.
           
           simpl in H5.
-          destruct H5 as [c2' [f' [t' [STEP [SMATCH [EXT TINJ]]]]]].
+          destruct H5 as [c2' [f' [t' [m2' [STEP [SMATCH [EXT TINJ]]]]]]].
          
 
         exists (@updThread_ _ _ _ _ st2 Htid'
                        (Krun (TState CC_core X86Machines.ErasedMachine.ThreadPool.code
-                                     (get_state_Asm c2')))
-                      (permissions.getCurPerm (Asm.get_mem c2'),
+                                     c2'))
+                      (permissions.getCurPerm m2',
                        snd (getThreadR Htid'))).
-        exists (Asm.get_mem c2').
+        exists m2'.
         exists cd. (*This should be updated with the new value!*)
         exists f'; simpl.
         
         split.
-        (*Reestablish the match*)
-        admit.
+          * (*Reestablish the match*)
+            Lemma concur_stable_step:
+              forall  cd f (c1:C1) m1 c2 m2 f' c1' m1' c2' m2' tid,
+              forall (Htid1: containsThread c1 tid)
+                (Htid2: containsThread c2 tid)
+                (Hcmpt1: HybridMachine.mem_compatible hb1 Sems Semt c1 m1)
+                (Hcmpt2: HybridMachine.mem_compatible hb2 Sems Semt c2 m2),
+                concur_match cd f c1 m1 c2 m2 ->
+                is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) ->
+                semantics.mem_step (restrPermMap (Hcmpt1 _ Htid1)#1) m1' ->
+                semantics.mem_step (restrPermMap (Hcmpt2 _ Htid2)#1) m2' ->
+                
+                concur_match cd f'
+                             (updThread Htid1  c1' (getCurPerm m1', (getThreadR Htid1)#2))  m1'
+                             (updThread Htid2 c2' (getCurPerm m2', (getThreadR Htid2)#2)) m2'.
+            Admitted.
         
+            eapply concur_stable_step; eauto.
+            
+
+            
         (*Prove the machine step*)
         left.
         eapply machine_semantics_lemmas.thread_step_plus_one.
@@ -439,15 +469,15 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           } Unfocus.
           
           simpl in H5.
-          destruct H5 as [c2' [f' [t' [STEP [SMATCH [EXT TINJ]]]]]].
+          destruct H5 as [c2' [f' [t' [m2' [STEP [SMATCH [EXT TINJ]]]]]]].
          
 
         exists (@updThread_ _ _ _ _ st2 Htid'
                        (Krun (SState CC_core X86Machines.ErasedMachine.ThreadPool.code
-                                     (get_state_Clight c2')))
-                      (permissions.getCurPerm (Clight.get_mem c2'),
+                                     c2'))
+                      (permissions.getCurPerm m2',
                        snd (getThreadR Htid'))).
-        exists (Clight.get_mem c2').
+        exists m2'.
         exists cd. (*This should be updated with the new value!*)
         exists f'; simpl.
         
@@ -536,12 +566,6 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
   - (*thread_diagram*)
     intros.
     eapply hybrid_thread_diagram; eauto.
-  - exact the_simulation.
-    admit.
-
-
-  (* eapply hybrid_thread_diagramc; eauto. *)
-    
   - (*machine_diagram*)
     (* eapply machine_thread_diagram; eauto. *)
     admit.
@@ -584,7 +608,7 @@ Section NThredCompiled.
   Lemma N_compiled_thread_simulation:
     forall n,
           HybridMachine_simulation
-            Sems Semt hb0 (hb n) U genv'
+            Sems Semt hb0 (hb n) U genv
             (list compiler_index) list_order 
             (Nconcur_match n)  v.  
   Proof.
@@ -622,7 +646,7 @@ Section AllThredCompiled.
 
   Lemma All_compiled_thread_simulation:
           HybridMachine_simulation
-            Sems Semt hb0 hball U genv'
+            Sems Semt hb0 hball U genv
             (list compiler_index) (list_order) 
             (Nconcur_match) Vundef.  
   Proof.
