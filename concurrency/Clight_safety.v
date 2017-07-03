@@ -71,9 +71,10 @@ Section Clight_safety.
              b,
           genv_genv g = Genv.globalenv (Ctypes.program_of_program prog) ->
           b =  projT1 ((spr CS V G ext_link prog all_safe init_mem_not_none)) ->
-          r = Some (juicy_mem.m_phi (initial_jm CS V G ext_link prog all_safe init_mem_not_none n)) ->
-          CoreInitial u r 0 g (Vptr b Integers.Int.zero) nil =
-                             Some (u, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n).
+          r = Some (juicy_mem.m_phi (initial_jm CS V G ext_link prog all_safe init_mem_not_none  n)) ->
+          CoreInitial u r 0 g
+                      (juicy_mem.m_dry (initial_jm CS V G ext_link prog all_safe init_mem_not_none  n)) (Vptr b Integers.Int.zero) nil =
+          Some (u, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n, None).
         intros.
         unfold CoreInitial; simpl.
         unfold init_machine, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.init_mach.
@@ -82,32 +83,34 @@ Section Clight_safety.
         unfold JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.Sem.
         rewrite JuicyMachineModule.THE_JUICY_MACHINE.SEM.CLN_msem.
         simpl.
-        Lemma BLAHH:
+
+        
+        Lemma initial_equivalence_trivial:
           forall CS V G ext_link prog all_safe init_mem_not_none n,
             JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine
               (juicy_mem.m_phi
-                 (initial_jm CS V G ext_link prog all_safe
-                             init_mem_not_none n))
+                 (initial_jm CS V G ext_link prog all_safe init_mem_not_none n))
               (initial_corestate CS V G ext_link prog all_safe
                                  init_mem_not_none) =
             initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n.
         Proof.
           intros; simpl.
-          unfold initial_machine_state, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine.
+          unfold initial_machine_state, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine; simpl.
           f_equal.
         Qed.
-        rewrite <- BLAHH.
-        subst r; simpl.  
-        rewrite H.
+        
+        rewrite <- initial_equivalence_trivial.
+        subst r; simpl.
+        rewrite H; simpl.
+        destruct spr as (b' & c' & e & SPR); simpl in *.
+        subst b'.
+        
         f_equal.
         f_equal; simpl.
         f_equal; simpl.
         
 
         unfold initial_corestate.
-        subst b.
-        
-        
         destruct spr as (b' & q & [e INIT'] & f'); simpl in *.
         simpl in INIT'.
         rewrite <- H in *.
