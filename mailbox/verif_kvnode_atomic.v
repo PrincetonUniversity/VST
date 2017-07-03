@@ -50,6 +50,7 @@ Definition node_state v vs version locs g lg := EX v' : Z, !!(repable_signed v' 
   ghost (gsh2, v') g * data_at Tsh tint (vint v') version *
   fold_right sepcon emp (map (node_entry v' vs locs lg) (upto (length locs))).
 
+(* remove snaps here *)
 Program Definition read_spec := DECLARE _read atomic_spec
   (ConstType (val * val * share * val * list val * val * list val * Z * list Z)) (0, [])
   [(_n, tptr tnode); (_out, tptr tint)] tvoid
@@ -60,7 +61,7 @@ Program Definition read_spec := DECLARE _read atomic_spec
    data_at sh tnode (version, locs) n * data_at_ Tsh (tarray tint 8) out *
    ghost_snap v0 g * fold_right sepcon emp (map (fun i => ghost_snap v0 g *
      ghost_snap (singleton v0 (Znth i vs0 0)) (Znth i lg Vundef)) (upto (Z.to_nat 8))))
-  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) =>
+  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) v =>
    node_state v vs version locs g lg)
   tt []
   (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) _ =>

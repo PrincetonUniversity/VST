@@ -1,5 +1,6 @@
-(* This probably doesn't belong in progs. Talk to Santiago about where it should go. *)
 Require Import progs.conclib.
+
+(* Axiomatization of view shifts, PCMs, and ghost state *)
 
 Class PCM (A : Type) :=
   { join : A -> A -> A -> Prop;
@@ -275,6 +276,16 @@ Proof.
   intros.
   destruct (join_ord _ _ _ H).
   apply ord_lub; auto; etransitivity; eauto.
+Qed.
+
+(* Given this observation, we could change the construction of PCM_order. *)
+Lemma join_ord_eq : forall a b, ord a b <-> exists c, join a c b.
+Proof.
+  split.
+  - intros; exists b.
+    apply ord_join in H.
+    apply join_comm; auto.
+  - intros (? & H); apply join_ord in H; tauto.
 Qed.
 
 (* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
