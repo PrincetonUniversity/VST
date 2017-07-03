@@ -150,10 +150,8 @@ Section SelfSim.
   intros ? ? ? ? ? MATCH ? ? ? INCR INJ VIS1 VIS2.
   constructor.
   - eapply code_inj_incr; eauto; apply MATCH. 
-  - inv MATCH. 
-
+  - inv MATCH.
     split; trivial.
-
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b1 ofs PERM.
       assert (PERM':= PERM).
