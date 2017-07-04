@@ -8,7 +8,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine. Import Concur.
 Require Import concurrency.scheduler.
 
-Require Import concurrency.lifting.
+(* Require Import concurrency.lifting. *)
 
 Require Import sepcomp.event_semantics.
 
@@ -23,16 +23,15 @@ Require Import concurrency.DryMachineSourceCore.
 Require Import concurrency.machine_simulation. Import machine_simulation.
 
 
-Require Import concurrency.HybridMachine_simulation_proof.
+(*Require Import concurrency.HybridMachine_simulation_proof.*)
 
 Set Bullet Behavior "Strict Subproofs".
 
-Module concure_simulation_safety.
-  Declare Module SMachine: MachinesSig.
-  Declare Module TMachine: MachinesSig.
+Module concure_simulation_safety (SMachine TMachine: MachinesSig).
   Module SDryConc:= SMachine.DryConc.
   Module TDryConc:= TMachine.DryConc.
 
+  Section Simulation2Safety.
   Variable Gs Gt: Type.
   Variable ges: SMachine.DryMachine.ThreadPool.SEM.G.
   Variable get: TMachine.DryMachine.ThreadPool.SEM.G.
@@ -74,8 +73,8 @@ Module concure_simulation_safety.
               TMachine.DryConc.unique_Krun,
               mySchedule.schedPeek; simpl; eauto.
 
-      intros ? ? ? ? tr0 Sds' Tds' MATCH' sch.
-      destruct (List.hd_error sch); try solve[split; auto].
+      intros ? ? ? ? tr0 Sds' Tds' MATCH' sch'.
+      destruct (List.hd_error sch'); try solve[split; auto].
       split.
       - intros H1 j0' cntj0' q KRUN not_halted.
         eapply the_simulation in KRUN; eauto.
@@ -132,9 +131,9 @@ Module concure_simulation_safety.
             Proof.
               move=> Tg n.
               induction n; simpl.
-              - move=>  sch Tds Tm st2' m2' U p HH; inversion HH; subst.
+              - move=>  sch' Tds Tm st2' m2' U p HH; inversion HH; subst.
                 constructor 1; auto.
-              - move=>  sch Tds Tm st2' m2' U p [] c2 [] m2 [] step PAST.
+              - move=>  sch' Tds Tm st2' m2' U p [] c2 [] m2 [] step PAST.
                 econstructor 2; eauto.
                 simpl. auto.
             Qed.
@@ -199,7 +198,7 @@ Module concure_simulation_safety.
       (forall sch, TMachine.DryConc.valid (sch, tr, Tds) ->
               TMachine.DryConc.explicit_safety get sch Tds Tm).
   Proof.
-    move=> tr Sds Sm Tds Tm  cd [] j MATCH HH sch VAL.
+    move=> tr Sds Sm Tds Tm  cd [] j MATCH HH sch' VAL.
     apply @coinductive_safety.safety_stutter_stepN_equiv
     with (core_ord:=MSorder Values.Vundef the_simulation); auto.
     + eapply MSord_wf; eauto.
@@ -232,7 +231,7 @@ Module concure_simulation_safety.
      forall (c1 : SMachine.DryMachine.ThreadPool.t) (vals1 : seq Values.val) 
          (m1 : mem) (vals2 : seq Values.val) (m2 : mem) (j : Values.Val.meminj),
        machine_semantics.initial_machine (SDryConc.new_MachineSemantics sch psrc) ges
-         Values.Vundef vals1 = Some c1 ->
+         m1 Values.Vundef vals1 = Some (c1, None) ->
        Mem.inject j m1 m2 ->
        List.Forall2 (val_inject j) vals1 vals2 ->
        smthng_about_globals ges j ->
@@ -240,7 +239,7 @@ Module concure_simulation_safety.
                SMachine.DryConc.safe_new_step ges (sch, nil, c1) m1) ->
        exists (c2 : TMachine.DryMachine.ThreadPool.t),
          machine_semantics.initial_machine (TDryConc.new_MachineSemantics sch ptgt) get
-                                           Values.Vundef vals2 = Some c2 /\
+                                           m2 Values.Vundef vals2 = Some (c2, None) /\
          (forall sch, TMachine.DryConc.valid (sch, nil, c2) ->
               TMachine.DryConc.safe_new_step get (sch, nil, c2) m2).
   Proof.
@@ -250,5 +249,6 @@ Module concure_simulation_safety.
     eexists; split; eauto.
     eapply safety_preservation; eauto.
   Qed.
+  End Simulation2Safety.
     
 End concure_simulation_safety.
