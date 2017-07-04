@@ -3388,60 +3388,83 @@ Module Type CoreInjections (SEM: Semantics).
       core_wd f' c.
 
   Parameter at_external_wd:
-    forall ge m f c ef args,
+    forall ge m (f : memren) c
+      (ef : external_function)
+      (args : seq val),
+      valid_mem m ->
+      domain_memren f m ->
       core_wd f c ->
-      at_external Sem ge c m = Some (ef, args) ->
+      at_external Sem ge c m = Some (ef, args) -> 
       valid_val_list f args.
 
   Parameter after_external_wd:
-    forall ge m c c' f ef args ov,
-      at_external Sem ge c m = Some (ef, args) ->
-      core_wd f c ->
-      valid_val_list f args ->
-      after_external Sem ge ov c = Some c' ->
-      match ov with
+    forall ge m (c c' : C) (f : memren) (ef : external_function)
+      (args : seq val) (ov : option val)
+      (Hat_external: at_external Sem ge c m = Some (ef, args))
+      (Hcore_wd: core_wd f c)
+      (Hvalid_list: valid_val_list f args)
+      (Hafter_external: after_external Sem ge ov c = Some c')
+      (Hov: match ov with
             | Some v => valid_val f v
             | None => True
-            end ->
+            end),
       core_wd f c'.
 
   Parameter initial_core_wd:
-    forall the_ge m f vf arg c_new om h,
+    forall the_ge m (f : memren) (vf arg : val) (c_new : C) om h,
+      valid_mem m ->
+      domain_memren f m ->
       initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
-      valid_val f arg ->
-      ge_wd f the_ge ->
-      core_wd f c_new.
+      valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.
 
   (** Renamings on cores *)
   Parameter core_inj: memren -> C -> C -> Prop.
 
   Parameter core_inj_ext:
-    forall ge m c c' f (Hinj: core_inj f c c'),
-      match at_external Sem ge c m, at_external Sem ge c' m with
-      | Some (ef, vs), Some (ef', vs') =>
-        ef = ef' /\ val_obs_list f vs vs'
-      | None, None => True
-      | _, _ => False
+    forall ge m c c' (f : memren),
+      ge_wd f ge ->
+      valid_mem m ->
+      domain_memren f m ->
+      core_inj f c c' ->
+      match at_external Sem ge c m with
+      | Some (ef, vs) =>
+        match at_external Sem ge c' m with
+        | Some (ef', vs') =>
+          ef = ef'/\ val_obs_list f vs vs'
+        | None => False
+        end
+      | None =>
+        match at_external Sem ge c' m with
+        | Some _ => False
+        | None => True
+        end
       end.
 
   Parameter core_inj_after_ext:
-    forall ge c cc c' ov1 f (Hinj: core_inj f c c'),
+    (* This is not quite right.  Instead of letting ov1 freely float Some/None,
+        it should be determined by the return type of the signature for the
+        external function *)
+    forall ge c cc c' (ov1 : option val)
+      (f : memren),
+      ge_wd f ge ->
+      core_inj f c c' ->
       match ov1 with
       | Some v1 => valid_val f v1
       | None => True
       end ->
       after_external Sem ge ov1 c = Some cc ->
-      exists ov2 cc',
+      exists (ov2 : option val) (cc' : C),
         after_external Sem ge ov2 c' = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
-        | Some v1 => match ov2 with
-                    | Some v2 => val_obs f v1 v2
-                    | _ => False
-                    end
+        | Some v1 =>
+          match ov2 with
+          | Some v2 => val_obs f v1 v2
+          | None => False
+          end
         | None => match ov2 with
+                 | Some _ => False
                  | None => True
-                 | _ => False
                  end
         end.
 
@@ -3454,16 +3477,16 @@ Module Type CoreInjections (SEM: Semantics).
       end.
 
   Parameter core_inj_init:
-    forall vf vf' arg arg' c_new f fg the_ge m om h
-      (Hf: val_obs_list f arg arg')
-      (Hf': val_obs f vf vf')
+    forall m m' vf vf' arg arg' c_new om f fg the_ge h
+      (Harg: val_obs_list f arg arg')
+      (Hvf: val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
       (Hinit: initial_core Sem h the_ge m vf arg = Some (c_new, om)),
-    exists c_new', exists om',
-      initial_core Sem h the_ge m vf' arg' = Some (c_new', om') /\
-      core_inj f c_new c_new'.
+      exists c_new' : C, exists om': option mem, 
+        initial_core Sem h the_ge m' vf' arg' = Some (c_new', om') /\
+        core_inj f c_new c_new'.
 
   Parameter core_inj_id: forall c f,
       core_wd f c ->
