@@ -346,6 +346,7 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           (*This case it's all in target*)
           inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
+          assert (MSTEP:= semantics.corestep_mem _ _ _ _ _ _ Hcorestep). 
           simpl in Hcorestep.
           simpl in Hcode.
           eapply H0 in LT. instantiate (1 := Htid) in LT.
@@ -359,10 +360,13 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           eapply (ssim_diagram) in H5; eauto; simpl in H5.
           Focus 2.
           {
-          replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
-          clear - H4.
-          unfold make_state_Asm.
-          inversion H4; eapply Asm.exec_step_internal; eauto.
+            replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
+            clear - H4.
+            
+            unfold make_state_Asm.
+            inversion H4;
+              try solve[eapply Asm.exec_step_internal; eauto];
+              try solve[eapply Asm.exec_step_builtin; eauto].
           } Unfocus.
           
           simpl in H5.
@@ -380,7 +384,7 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
         
         split.
           * (*Reestablish the match*)
-            Lemma concur_stable_step:
+            Lemma concur_stable_thread_step_target:
               forall  cd f (c1:C1) m1 c2 m2 f' c1' m1' c2' m2' tid,
               forall (Htid1: containsThread c1 tid)
                 (Htid2: containsThread c2 tid)
@@ -390,47 +394,33 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
                 is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) ->
                 semantics.mem_step (restrPermMap (Hcmpt1 _ Htid1)#1) m1' ->
                 semantics.mem_step (restrPermMap (Hcmpt2 _ Htid2)#1) m2' ->
-                
+                match_self (code_inject Asm_self_simulation) f' c1' m1' c2' m2' ->
                 concur_match cd f'
-                             (updThread Htid1  c1' (getCurPerm m1', (getThreadR Htid1)#2))  m1'
-                             (updThread Htid2 c2' (getCurPerm m2', (getThreadR Htid2)#2)) m2'.
+                             (updThread Htid1  (Krun (TState _ _ c1')) (getCurPerm m1', (getThreadR Htid1)#2))  m1'
+                             (updThread Htid2 (Krun (TState _ _ c2')) (getCurPerm m2', (getThreadR Htid2)#2)) m2'.
             Admitted.
-        
-            eapply concur_stable_step; eauto.
+            eapply concur_stable_thread_step_target; eauto.
+            -- admit. (*Follows from mem_sem and the step proven in the follwoing goal*)
             
-
-            
-        (*Prove the machine step*)
-        left.
-        eapply machine_semantics_lemmas.thread_step_plus_one.
-        econstructor; simpl; eauto.
-        econstructor; eauto.
-        * admit. (*Invariant: going to need to add this to the match relation *)
-        * econstructor; simpl. 
-          instantiate (3 := (memcompat2 H0)).
-          inversion TINJ; subst.
-          (* assert (semantics.corestep
-                    (semantics.csem Asm_core.Asm_mem_sem)
-                    genvT
-                    code2
-                    (restrPermMap
-       (proj1
-          ((memcompat2 H0) tid
-             (same_length_contains tid (same_length cd mu st1 m1 st2 m2 H0) Htid))))
-                    (get_state_Asm c2')
-                    (Asm.get_mem c2') ).
-          { simpl.
-            inversion STEP; subst.
-            econstructor; simpl; eauto. *)
-          (*Have the step STEP, but have to show it's an internal step!*)
-          admit.
-        * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
+          (*Prove the machine step*)
+          * left.
+            eapply machine_semantics_lemmas.thread_step_plus_one.
+            econstructor; simpl; eauto.
+            econstructor; eauto.
+        -- admit. (*Invariant: going to need to add this to the match relation *)
+        -- inversion TINJ; subst.
+           econstructor; simpl. 
+           instantiate (3 := (memcompat2 H0)).
+           (*Have the step STEP, but have to show it's an internal step!*)
+           admit.
+        -- simpl; repeat f_equal. apply proof_irr. apply proof_irr.
 
         
         + (* tid = hb' *)
           (* equal: one machine in source one in target!!*)
           inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
+          assert (MSTEP:= semantics.corestep_mem _ _ _ _ _ _ Hcorestep). 
           simpl in Hcorestep.
           assert (Hcode':= Hcode).
           simpl in Hcode.
@@ -438,23 +428,26 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           rewrite Hcode in EQ.
           assert (Htid':= contains12 H0 Htid).
           inv EQ.
-          destruct H6 as (st1_ & st2_ & f1 & f2 & f3 & INJsrc & INJcomp & INJtgt & compose).
+          destruct H6 as (st1_ & m1_ & st2_ & m2_ &
+                          f1 & f2 & f3 &
+                          INJsrc & INJcomp & INJtgt &
+                          compose).
           (*Have to apply a self simulation, then the compiler simulation
             and then a self simulation again. *)
-          admit.
+          admit. (*TODO: Make this a Lemma compiled_thread_diagram*)
           
        + (*hb' < tid*)
          (*This case it's all in source*)
          inversion Htstep. subst tp' m' ev0.
          eapply event_semantics.ev_step_ax1 in Hcorestep.
-          simpl in Hcorestep.
-          simpl in Hcode.
-          eapply H0 in LT. instantiate (1 := Htid) in LT.
-          rewrite Hcode in LT.
-          assert (Htid':= contains12 H0 Htid).
-          inv LT. 
-          
-          
+         assert (MSTEP:= semantics.corestep_mem _ _ _ _ _ _ Hcorestep).
+         simpl in Hcorestep.
+         simpl in Hcode.
+         eapply H0 in LT. instantiate (1 := Htid) in LT.
+         rewrite Hcode in LT.
+         assert (Htid':= contains12 H0 Htid).
+         inv LT. 
+         
           (*Use the source self_simulations*)
           inversion Hcorestep; subst.
           eapply (ssim_diagram) in H5; eauto; simpl in H5.
@@ -471,7 +464,6 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
           simpl in H5.
           destruct H5 as [c2' [f' [t' [m2' [STEP [SMATCH [EXT TINJ]]]]]]].
          
-
         exists (@updThread_ _ _ _ _ st2 Htid'
                        (Krun (SState CC_core X86Machines.ErasedMachine.ThreadPool.code
                                      c2'))
@@ -483,20 +475,37 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
         
         split.
         (*Reestablish the match*)
-        admit.
+        Lemma concur_stable_thread_step_source:
+              forall  cd f (c1:C1) m1 c2 m2 f' c1' m1' c2' m2' tid,
+              forall (Htid1: containsThread c1 tid)
+                (Htid2: containsThread c2 tid)
+                (Hcmpt1: HybridMachine.mem_compatible hb1 Sems Semt c1 m1)
+                (Hcmpt2: HybridMachine.mem_compatible hb2 Sems Semt c2 m2),
+                concur_match cd f c1 m1 c2 m2 ->
+                is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) ->
+                semantics.mem_step (restrPermMap (Hcmpt1 _ Htid1)#1) m1' ->
+                semantics.mem_step (restrPermMap (Hcmpt2 _ Htid2)#1) m2' ->
+                match_self (code_inject Clight_self_simulation) f' c1' m1' c2' m2' ->
+                concur_match cd f'
+                             (updThread Htid1  (Krun (SState _ _ c1')) (getCurPerm m1', (getThreadR Htid1)#2))  m1'
+                             (updThread Htid2 (Krun (SState _ _ c2')) (getCurPerm m2', (getThreadR Htid2)#2)) m2'.
+            Admitted.
+        eapply concur_stable_thread_step_source; eauto.
+        
+         -- admit. (*Follows from mem_sem and the step proven in the follwoing goal*)
         
         (*Prove the machine step*)
-        left.
+        -- left.
         eapply machine_semantics_lemmas.thread_step_plus_one.
         econstructor; simpl; eauto.
         econstructor; eauto.
-        * admit. (*Invariant: going to need to add this to the match relation *)
-        * econstructor; simpl. 
-          instantiate (3 := (memcompat2 H0)).
-          inversion TINJ; subst.
-          (*Have the step STEP, but have to show it's an internal step!*)
-          admit.
-        * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
+         * admit. (*Invariant: going to need to add this to the match relation *)
+         * econstructor; simpl. 
+           instantiate (3 := (memcompat2 H0)).
+           inversion TINJ; subst.
+           (*Have the step STEP, but have to show it's an internal step!*)
+           admit.
+         * simpl; repeat f_equal. apply proof_irr. apply proof_irr.
     Admitted.
     
   End HybridThreadDiagram.
