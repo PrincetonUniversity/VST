@@ -1099,6 +1099,22 @@ Proof.
     left. congruence.
 Admitted. (*all admits are about storebytes nil*) 
 
+Axiom external_call_match_mem_inject:
+  forall (ef : AST.external_function) (ge1 ge2 : Senv.t)
+         (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
+         (f : block -> option (block * Z)) (m1' : mem) (vargs' : list val),
+       symbols_inject f ge1 ge2 ->
+       external_call ef ge1 vargs m1 t vres m2 ->
+       match_mem f m1 m1' ->
+       Val.inject_list f vargs vargs' ->
+       exists (f' : meminj) (vres' : val) (m2' : mem) (t' : trace),
+         external_call ef ge2 vargs' m1' t' vres' m2' /\
+         Val.inject f' vres vres' /\
+         match_mem f' m2 m2' /\
+         Mem.unchanged_on (loc_unmapped f) m1 m2 /\
+         Mem.unchanged_on (loc_out_of_reach f m1) m1' m2' /\
+         inject_incr f f' /\
+         inject_separated f f' m1 m1' /\ inject_trace f' t t'.
 
 Definition Clight_self_simulation (p: program) :
     self_simulation (Clight.semantics2 p) _ memcore_to_state.
@@ -1131,10 +1147,10 @@ Proof.
              exists c2', f', t', m2'. rewrite <- (memcore_to_state_correct _ _ _ Heqq). auto. }
   Unfocus.
   destruct matchmem.  
- generalize dependent m2. generalize dependent m1'. generalize dependent m1.
- generalize dependent c2. generalize dependent c1'. generalize dependent c1.
+  generalize dependent m2. generalize dependent m1'. generalize dependent m1.
+  generalize dependent c2. generalize dependent c1'. generalize dependent c1.
   induction H0; simpl; intros; destruct c1; simpl in Heqst; inv Heqst; destruct c1'; simpl in Heqst'; inv Heqst'; destruct c2; simpl in *; try contradiction.
- + destruct cinject as [? [? [? [? ?]]]]; subst. inv H4.
+  + destruct cinject as [? [? [? [? ?]]]]; subst. inv H4.
     exploit eval_lvalue_inject; try eassumption. reflexivity. 
     intros [b' [i' [EV_LV' Vinj]]].
     exploit eval_expr_inject; try eassumption. reflexivity. 
@@ -1160,31 +1176,25 @@ Proof.
            destruct (peq x id); subst. trivial. apply H3.
            split; trivial.
         ++ split; [| constructor]. red; intros; congruence.
-  + destruct cinject as [? [SS [? [? ?]]]]; subst; inv SS. 
-    (*destruct optid.
-    - destruct o. destruct SS as [? [? ?]]; try contradiction; subst.
-      rename e1 into a'. rename k0 into k'. rename e0 into e'. rename le0 into le'.
-      rename m0 into m'. rename l into al'.*)
+  + destruct cinject as [? [SS [? [? ?]]]]; subst; inv SS.
       exploit eval_expr_inject; try eassumption. reflexivity. 
       intros [vf' [EV_EX' VFinj]].
       exploit eval_exprlist_inject; try eassumption. apply exprlist_inject_refl.
       intros [vargs' [EV_ARGS' ArgsInj]].
       eexists; exists f, E0; split.
-      * econstructor; eauto. admit. (*globenv*) 
+      * econstructor; eauto. red in SI.  admit. (*globenv*) 
       * simpl; split.
         ++ constructor; trivial.   
            red; intuition. destruct optid; simpl; repeat split; trivial.
            split; trivial.
         ++ split; [| constructor]. red; intros; congruence. 
-  + destruct cinject as [? [SS [? [? ?]]]]; subst. inv SS.
-    (*destruct s; try contradiction. 
-    destruct optid.
-    - destruct o; destruct SS as [? [? [? ?]]]; try contradiction; subst.
-      rename k0 into k'. rename e0 into e'. rename le0 into le'.
-      rename m0 into mm'. rename l into al'.*)
+  + (*Sbuiltin*)
+      destruct cinject as [? [SS [? [? ?]]]]; subst. inv SS.
       exploit eval_exprlist_inject; try eassumption. apply exprlist_inject_refl. 
       intros [vargs' [EV_ARGS' ArgsInj]].
-      exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
+
+      (*exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.*)
+      exploit external_call_match_mem_inject; eauto. split; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
       intros [f' [vres' [m2' [t' [EC' [ResInj [MInj' [Unch1 [UNCH2 [INC [SEP ITRACE]]]]]]]]]]].
       eexists; exists f', t'; split.
       * econstructor; eassumption.
@@ -1199,7 +1209,6 @@ Proof.
              specialize (H4 x). destruct (t0 ! x); destruct (t1 ! x); try contradiction; trivial.
              -- eapply val_inject_incr; eauto.
            +++ eapply  tenv_inject_incr; eassumption.
-           +++ admit. (*match_mem externalcall*)
         ++ split; trivial. red; intros.
            split. admit. (*ofs=0 in  externalcall??*)
            eapply SEP; eauto. 
@@ -1389,14 +1398,15 @@ Proof.
       eapply cont_inject_incr; eauto. 
     * split; trivial. 
       constructor. 
-  + simpl. destruct cinject as [? [? ?]]; subst.
-      exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
+  + destruct cinject as [? [? ?]]; subst.
+      (*exploit external_call_mem_inject_gen'; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.*)
+      exploit external_call_match_mem_inject; eauto. split; eauto. eapply mem_lemmas.forall_inject_val_list_inject; eassumption.
       intros [f' [vres' [m2' [t' [EC' [ResInj [MInj' [Unch1 [UNCH2 [INC [SEP ITRACE]]]]]]]]]]].
       eexists; exists f', t'; split. 
       eapply step_external_function. eauto. 
       simpl; split.
       * split. split; intuition. eapply cont_inject_incr; eauto.
-        admit. (*match_mem* externalcall*)
+        trivial.
       * split. red; intros. destruct (SEP _ _ _ H3 H0). split. admit. (*d=0 in externalcall*) split; eauto.
         trivial.
   + simpl. destruct cinject as [X SS]; subst.
