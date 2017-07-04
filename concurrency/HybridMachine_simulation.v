@@ -80,7 +80,8 @@ Section HybridSimulation.
             Forall2 (val_inject j) vals1 vals2 ->
             exists cd c2 m2',
               machine_semantics.initial_machine Sem2 ge m2 main vals2 = Some (c2,m2')
-              /\ concur_match cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2')      ; thread_diagram :
+              /\ concur_match cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2')
+      ; thread_diagram :
           forall U st1 m1 st1' m1',
             machine_semantics.thread_step Sem1 ge U st1 m1 st1' m1' ->
             forall (cd:core_data) st2 mu m2,
