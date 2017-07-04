@@ -64,6 +64,20 @@ Section Clight_safety.
     Import JuicyMachineModule.THE_JUICY_MACHINE.SCH.
 
 
+        Lemma initial_equivalence_trivial:
+          forall CS V G ext_link prog all_safe init_mem_not_none n,
+            JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine
+              (juicy_mem.m_phi
+                 (initial_jm CS V G ext_link prog all_safe init_mem_not_none n))
+              (initial_corestate CS V G ext_link prog all_safe
+                                 init_mem_not_none) =
+            initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n.
+        Proof.
+          intros; simpl.
+          unfold initial_machine_state, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine; simpl.
+          f_equal.
+        Qed.
+        
     (*this is showing the similarity between JM's initial machine and CoreSemantics initial machine*)
     Definition CoreInitial U r := (semantics.initial_core (MachineSemantics U r)).
     Lemma initial_equivalence: forall u r n
@@ -83,60 +97,42 @@ Section Clight_safety.
         unfold JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.Sem.
         rewrite JuicyMachineModule.THE_JUICY_MACHINE.SEM.CLN_msem.
         simpl.
-
-        
-        Lemma initial_equivalence_trivial:
-          forall CS V G ext_link prog all_safe init_mem_not_none n,
-            JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine
-              (juicy_mem.m_phi
-                 (initial_jm CS V G ext_link prog all_safe init_mem_not_none n))
-              (initial_corestate CS V G ext_link prog all_safe
-                                 init_mem_not_none) =
-            initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n.
-        Proof.
-          intros; simpl.
-          unfold initial_machine_state, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine; simpl.
-          f_equal.
-        Qed.
         
         rewrite <- initial_equivalence_trivial.
         subst r; simpl.
-        rewrite H; simpl.
+        unfold initial_corestate.
         destruct spr as (b' & c' & e & SPR); simpl in *.
         subst b'.
-        
-        f_equal.
-        f_equal; simpl.
-        f_equal; simpl.
-        
-
-        unfold initial_corestate.
-        destruct spr as (b' & q & [e INIT'] & f'); simpl in *.
-        simpl in INIT'.
+        specialize (SPR n). destruct SPR as [jm [? [? [? _]]]].
+        unfold juicy_extspec.j_initial_core in H2.
+        unfold semantics.initial_core in H2. simpl in H2.
         rewrite <- H in *.
-        destruct (Genv.find_funct_ptr g b') eqn:find_f; inversion INIT'.
-        f_equal.
-    Qed.
-
+        destruct (Genv.find_funct_ptr g b) eqn:?H; [ | congruence].
+        inversion H3; clear H3; subst.
+        f_equal. f_equal. f_equal. f_equal. congruence.
+   Qed.
     
     Lemma initial_equivalence': forall U n
-             (g:JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G)
-             ,
+             (g:JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G),
           genv_genv g = Genv.globalenv (Ctypes.program_of_program prog) ->
           (semantics.initial_core (MachineSemantics U (Some (juicy_mem.m_phi (initial_jm CS V G ext_link prog all_safe init_mem_not_none n)))))
-            0 g
+            0 g (proj1_sig (init_mem prog init_mem_not_none))
             (Vptr (projT1 ((spr CS V G ext_link prog all_safe init_mem_not_none))) Integers.Int.zero) nil =
-                             Some (U, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n).
+                  Some ((U, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n), None).
+    Proof.
         intros.
-        eapply initial_equivalence; eauto.
+        erewrite <- initial_equivalence; eauto.
+        unfold CoreInitial. f_equal.
+        unfold init_jmem.
+        clear.
+        destruct spr; simpl. destruct s. destruct p. simpl. destruct s. simpl. destruct a. rewrite H. auto.
     Qed.
-
     
     Lemma CoreInitial_juicy_safety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_st,
-        (semantics.initial_core (MachineSemantics U (init_rmap n))) 0 init_genv init_point nil =
-        Some (U, nil, init_st) /\
+        (semantics.initial_core (MachineSemantics U (init_rmap n))) 0 init_genv (proj1_sig (init_mem prog init_mem_not_none)) init_point nil =
+        Some ((U, nil, init_st), None) /\
        forall U',
        csafe (globalenv prog) (U', nil, init_st)
          (proj1_sig (init_mem prog init_mem_not_none)) n.
@@ -155,8 +151,8 @@ Section Clight_safety.
     Lemma Initial_dry_csafety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall U' ,
        csafe (globalenv prog) (U', init_tr, init_st)
          (proj1_sig (init_mem prog init_mem_not_none)) n.
@@ -165,46 +161,49 @@ Section Clight_safety.
       pose proof (CoreInitial_juicy_safety U n).
       destruct H as (init_jmach & INIT_ok & CSAFE).
       eapply ErasureSafety.initial_safety in INIT_ok; eauto.
-      - destruct INIT_ok as (ds & INIT_ok & INV & MATCH); eauto.
-        do 3 eexists; split; eauto.
+      - destruct INIT_ok as (ds & INIT_ok & INV & MATCH).
+         exists U, nil, ds.
+         split.
+         rewrite <- INIT_ok. f_equal.
+         clear.
+         unfold init_jmem. destruct spr; simpl. destruct s; simpl. destruct p; simpl. destruct (s n); simpl.
+         destruct a; simpl. auto.
         intros U'.
         eapply ErasureSafety.erasure_safety; eauto; simpl.
         econstructor; eauto.
       - simpl; unfold ErasureSafety.ErasureProof.match_rmap_perm; intros.
         split; auto; simpl.
         rewrite getCurPerm_correct.
-        admit.
+        admit. (* quite true *)
       - unfold ErasureSafety.ErasureProof.no_locks_perm.
-        unfold initial_jm.
-        destruct spr as (b' & q & [e INIT'] & jm); simpl in *.
-        destruct (jm n) as (jm' & HH); simpl.
-        admit.
-    Admitted.
+         intros.
+         admit. (* quite true *)
+ Admitted.
 
 
     Lemma dry_initial_state_equality:
     forall (U : semax_invariant.schedule) (n1 n2 : nat),
-      (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n1)), empty_map)))) 0 init_genv init_point nil =
-      (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n2)), empty_map)))) 0 init_genv init_point nil.
+      (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n1)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n1)) init_point nil =
+      (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n2)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n2)) init_point nil.
     Proof.
       intros; simpl.
+      replace (juicy_mem.m_dry (init_jmem n2)) with (juicy_mem.m_dry (init_jmem n1))
+       by (unfold init_jmem; simpl;
+            destruct spr as (b' & q & Hge & jm ); simpl in *;
+            destruct (jm n1) as [? [? ?]], (jm n2) as [? [? ?]]; simpl; congruence).
       unfold init_machine, DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.init_mach.
       match goal with
-      | [  |- context[semantics.initial_core ?a ?b ?c ?d ?e] ] =>
-        destruct (semantics.initial_core a b c d e)
-      end; f_equal; f_equal; simpl.
+      | [  |- context[semantics.initial_core ?a ?b ?c ?d ?e ?f] ] =>
+        destruct (semantics.initial_core a b c d e f)
+      end; f_equal; f_equal; simpl. destruct p.
       f_equal; f_equal.
-      unfold initial_jm.
-      destruct spr as (b' & q & [e INIT'] & jm); simpl in *.
-      destruct (jm n1) as [? [H1 ?]]; destruct (jm n2)  as [? [H2 ?]]; simpl.
-      rewrite H1, H2; auto.
     Qed.
     
     Lemma Initial_dry_Csafety_stronger:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall U' n',
        csafe (globalenv prog) (U', init_tr, init_st)
          (proj1_sig (init_mem prog init_mem_not_none)) n'.
@@ -339,27 +338,29 @@ Section Ksafety_Clight.
     Qed.
 
     Lemma init_schedule:
-      forall U pmap n g p t init_mach,
-        (semantics.initial_core (MachineSemantics U pmap) n g p t) = Some init_mach ->
+      forall U pmap n g m p t init_mach om,
+        (semantics.initial_core (MachineSemantics U pmap) n g m p t) = Some (init_mach, om) ->
         fst (fst init_mach) = U.
     Proof. intros. simpl in H. unfold init_machine,init_mach in H.
-           destruct (semantics.initial_core ErasureSafety.ErasureProof.JMS.the_sem 0 g p);
+           destruct (semantics.initial_core ErasureSafety.ErasureProof.JMS.the_sem 0 g m p)
+             as [[? ?] | ];
              inversion H.
            destruct pmap; inversion H; auto.
     Qed.
     Lemma init_trace:
-      forall U pmap n g p t init_mach,
-        (semantics.initial_core (MachineSemantics U pmap) n g p t) = Some init_mach ->
+      forall U pmap n g m p t init_mach om,
+        (semantics.initial_core (MachineSemantics U pmap) n g m p t) = Some (init_mach, om) ->
         snd (fst init_mach) = nil.
     Proof. intros. simpl in H. unfold init_machine,init_mach in H.
-           destruct (semantics.initial_core ErasureSafety.ErasureProof.JMS.the_sem 0 g p);
+           destruct (semantics.initial_core ErasureSafety.ErasureProof.JMS.the_sem 0 g m p)
+               as [[? ?]|];
              inversion H.
            destruct pmap; inversion H; auto.
     Qed.
 
     Lemma init_schedule_all:
-      forall U pmap n g p t init_mach,
-        (semantics.initial_core (MachineSemantics U pmap) n g p t) = Some init_mach ->
+      forall U pmap n g m p t init_mach om,
+        (semantics.initial_core (MachineSemantics U pmap) n g m p t) = Some (init_mach, om) ->
         forall U'',
         correct_schedule (U'', snd (fst init_mach), snd init_mach) ->
        schedPeek U'' = Some 1  \/ schedPeek U'' = None .
@@ -368,8 +369,8 @@ Section Ksafety_Clight.
     Lemma Initial_dry_ksafety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall n' U',
        ksafe_new_step (globalenv prog) (U', init_tr, init_st)
          (proj1_sig (init_mem prog init_mem_not_none)) n'.
@@ -380,9 +381,9 @@ Section Ksafety_Clight.
       do 3 eexists; split; eauto.
       
       
-      pose proof (init_schedule _ _ _ _ _ _ _ INIT_ok).
+      pose proof (init_schedule _ _ _ _ _ _ _ _ _ INIT_ok).
 
-      pose proof (init_trace _ _ _ _ _ _ _ INIT_ok).
+      pose proof (init_trace _ _ _ _ _ _ _ _ _ INIT_ok).
         simpl in *.
         subst.
         induction n'; try solve[constructor].
@@ -404,16 +405,15 @@ Section Ksafety_Clight.
             intros j ? ? ? ?.
             unfold ThreadPool.containsThread in cnti; simpl in cnti.
             unfold init_machine,init_mach in INIT_ok.
-            match goal with
-            | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e] |- _ ] =>
-              destruct (semantics.initial_core a b c d e)
-            end; inversion INIT_ok; subst.
+               match goal with
+               | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e ?f ] |- _ ] =>
+                 destruct (semantics.initial_core a b c d e f) as [[? ?]| ]
+               end; inversion INIT_ok; subst.
             simpl in cnti.
             clear - cnti.
             destruct (TID.eq_tid_dec 0 j); auto.
             destruct j; try contradiction n; auto.
-            simpl in cnti.
-            compute in cnti; inversion cnti.
+            inversion cnti.
         +  econstructor.
            * eapply step_with_halt.
              unfold mk_ostate, mk_nstate; simpl.
@@ -424,16 +424,16 @@ Section Ksafety_Clight.
              -- unfold ThreadPool.containsThread; intros.
              unfold init_machine,init_mach in INIT_ok;
                match goal with
-               | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e] |- _ ] =>
-                 destruct (semantics.initial_core a b c d e)
+               | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e ?f ] |- _ ] =>
+                 destruct (semantics.initial_core a b c d e f) as [[? ?]| ]
                end; inversion INIT_ok; subst.
              simpl. intros HH.
              destruct t; try omega.
             inversion HH.
              -- unfold init_machine,init_mach in INIT_ok;
                match goal with
-               | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e] |- _ ] =>
-                 destruct (semantics.initial_core a b c d e) eqn:HH
+               | [ H: context[semantics.initial_core ?a ?b ?c ?d ?e ?f ] |- _ ] =>
+                 destruct (semantics.initial_core a b c d e f) as [[? ?]| ]
                end; inversion INIT_ok; subst.
                 eapply 
                   (DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0 (getCurPerm (juicy_mem.m_dry (init_jmem n))) c).
@@ -443,8 +443,8 @@ Section Ksafety_Clight.
     Lemma Initial_dry_ksafety_valid:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall n' U',
           new_valid  (mk_nstate (U', init_tr, init_st)
                                 (proj1_sig (init_mem prog init_mem_not_none))) U' ->
@@ -455,8 +455,8 @@ Section Ksafety_Clight.
       pose proof (Initial_dry_Csafety_stronger U n).
       destruct H as [init_U [init_tr [init_st [INIT_ok SAFE] ]]].
       do 3 eexists; split; eauto.
-      pose proof (init_schedule _ _ _ _ _ _ _ INIT_ok);
-      pose proof (init_trace _ _ _ _ _ _ _ INIT_ok);
+      pose proof (init_schedule _ _ _ _ _ _ _ _ _ INIT_ok);
+      pose proof (init_trace _ _ _ _ _ _ _ _ _ INIT_ok);
         simpl in *;
         subst.
       pose proof Clight_csafe2ksafe.
@@ -513,8 +513,8 @@ Section safety_Clight.
   Lemma Initial_bounded_dry_safety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall U',
           new_valid_bound (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
        safe_new_step_bound (globalenv prog) (U', init_tr, init_st)
@@ -523,8 +523,8 @@ Section safety_Clight.
     intros.
     destruct (Initial_dry_ksafety U n) as (INIT_U & INIT_tr & INIT_st & INIT_ok & SAFE).
     do 3 eexists; split; eauto.
-    pose proof (init_schedule _ _ _ _ _ _ _ INIT_ok);
-      pose proof (init_trace _ _ _ _ _ _ _ INIT_ok);
+    pose proof (init_schedule _ _ _ _ _ _ _ _ _ INIT_ok);
+      pose proof (init_trace _ _ _ _ _ _ _ _ _ INIT_ok);
       simpl in *; subst.
     unfold safe_new_step.
     intros.
@@ -547,6 +547,9 @@ Section safety_Clight.
     Proof.
       intros.
       inversion H; eauto; simpl in *; subst; eauto.
+      -  (* initial *)
+         inversion Htstep. subst. apply ClightSemantincsForMachines.ClightSEM.initial_core_nomem in Hinitial; subst om.
+         simpl. auto.
       - (*thread step *)
         clear - H0 Htstep .
         inversion Htstep; subst.
@@ -563,9 +566,10 @@ Section safety_Clight.
         simpl in HH.
         eapply Clight_bounds.CLight_step_mem_bound in HH; eauto.
         eapply Clight_bounds.bounded_getMaxPerm in H0; eauto.
-      - inversion Htstep; eauto; simpl in *; subst; auto;
+      - (* sync step *)
+        inversion Htstep; eauto; simpl in *; subst; auto;
         eapply Clight_bounds.store_bounded; try eapply Hstore;
-        eapply Clight_bounds.bounded_getMaxPerm; eauto.
+        eapply Clight_bounds.bounded_getMaxPerm; eauto.      
     Qed.
 
     Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
@@ -651,8 +655,8 @@ Section safety_Clight.
     Lemma Initial_dry_safety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_U init_tr init_st,
-        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv init_point nil =
-        Some (init_U, init_tr, init_st) /\
+        (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some ((init_U, init_tr, init_st), None) /\
         forall U',
           new_valid (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
        safe_new_step_bound (globalenv prog) (U', init_tr, init_st)
@@ -671,8 +675,8 @@ Section safety_Clight.
   Lemma Initial_dry_safety_concur:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_st,
-        (machine_semantics.initial_machine (new_MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) init_genv init_point nil =
-        Some (init_st) /\
+        (machine_semantics.initial_machine (new_MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
+        Some (init_st, None) /\
         forall U',
           new_valid (mk_nstate (U', nil, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
        safe_new_step_bound (globalenv prog) (U', nil, init_st)
@@ -685,8 +689,8 @@ Section safety_Clight.
     - simpl; unfold init_machine'; simpl.
       simpl in INIT_ok. unfold init_machine in INIT_ok.
       match goal with
-      | [ H: context[init_mach ?a ?b ?c ?d] |- _ ] =>
-        destruct (init_mach a b c d) eqn:HH;
+      | [ H: context[init_mach ?a ?b ?c ?d ?e] |- _ ] =>
+        destruct (init_mach a b c d e) as [[? ?]|] eqn:HH;
           inversion INIT_ok; subst; eauto
       end.
     - eapply init_trace in INIT_ok.
