@@ -43,6 +43,8 @@ Module X86Machines <: (MachinesSig with Module SEM := X86SEM).
   Module ErasedMachine := ErasedMachineShell X86SEM.
 
   Module DryConc := CoarseMachine mySchedule DryMachine.
+  Notation new_DMachineSem:= DryConc.new_MachineSemantics.
+  
   Module FineConc := FineMachine mySchedule DryMachine.
   Module SC := FineMachine mySchedule ErasedMachine.
 
