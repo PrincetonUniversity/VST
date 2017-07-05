@@ -375,6 +375,26 @@ FILES = \
  $(HMACDRBG_Files:%=hmacdrbg/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
+CLEANFILES = \
+ $(MSL_FILES:%=msl/.%o.aux) \
+ $(SEPCOMP_FILES:%=sepcomp/.%o.aux) \
+ $(VERIC_FILES:%=veric/.%o.aux) \
+ $(FLOYD_FILES:%=floyd/.%o.aux) \
+ $(PROGS_FILES:%=progs/.%o.aux) \
+ $(WAND_DEMO_FILES:%=wand_demo/.%o.aux) \
+ $(SHA_FILES:%=sha/.%o.aux) \
+ $(HMAC_FILES:%=sha/.%o.aux) \
+ $(FCF_FILES:%=fcf/.%o.aux) \
+ $(HMACFCF_FILES:%=hmacfcf/.%o.aux) \
+ $(HMACEQUIV_FILES:%=sha/.%o.aux) \
+ $(CCC26x86_FILES:%=ccc26x86/.%o.aux) \
+ $(TWEETNACL_FILES:%=tweetnacl20140427/.%o.aux) \
+ $(CONCUR_FILES:%=concurrency/.%o.aux) \
+ $(HMACDRBG_Files:%=hmacdrbg/.%o.aux)
+# $(DRBG_FILES:%=verifiedDrbg/spec/%)
+
+
+
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
 # from progs/verif_reverse.v
@@ -541,7 +561,7 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) $(CLEANFILES) version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
