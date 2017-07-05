@@ -59,15 +59,6 @@ Fixpoint make_hybrid_trace (tr: SC.event_trace): list HybridMachineSig.machine_e
     exact (make_hybrid_event a).
 Defined.
 
-(* Initial simulation *)
-(*This lemma is under construction*)
-(*Lemma Hcore_initial :
-    forall j c1 vals1 m1 m1' vals2 m2 m2' main,
-    initial_machine Sem1 ge1 m1 main vals1 = Some (c1, m1') ->
-    exists cd c2,
-      HybridMachine.initial_machine hb Hybrid_Sems Hybrid_Semt main vals2 = Some (c2, m2')
-      /\ MSmatch_states cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2').*)
-
 Require Import Coqlib.
 Require Import msl.Axioms.
 
@@ -144,11 +135,24 @@ Proof. inv Hinv.
     admit. (*mixup between languages?*)
 Admitted.  
 
+Lemma hybridtrace_nil: make_hybrid_trace nil = @nil HybridMachineSig.machine_event.
+Proof. reflexivity. Qed. 
+
+(* Initial simulation *)
+(*This lemma is under construction*)
+(*Lemma Hcore_initial :
+    forall j c1 vals1 m1 m1' vals2 m2 m2' main,
+    initial_machine Sem1 ge1 m1 main vals1 = Some (c1, m1') ->
+    exists cd c2,
+      HybridMachine.initial_machine hb Hybrid_Sems Hybrid_Semt main vals2 = Some (c2, m2')
+      /\ MSmatch_states cd j c1 (option_proj m1 m1') c2 (option_proj m2 m2').*)
+
+
 (* Thread step 1to1 simulation*)
 Lemma thread_step_diagram:
     forall U0 gs gt st1 m st1' m' U r,
-    machine_semantics.thread_step (new_DMachineSem U0 r) gs U st1 m st1' m' ->
-    machine_semantics.thread_step (Hybrid_new_machine U0 r) (gs,gt) U
+    thread_step (new_DMachineSem U0 r) gs U st1 m st1' m' ->
+    thread_step (Hybrid_new_machine U0 r) (gs,gt) U
                                   ( make_hybrid_thread_pool st1) m
                                   (make_hybrid_thread_pool st1') m'.
 Proof.
@@ -179,9 +183,6 @@ Proof.
       (@fintype.Ordinal (pos.n num_threads) tid Htid)) as q.
   destruct q; try reflexivity.
 Qed.
-
-Lemma hybridtrace_nil: make_hybrid_trace nil = @nil HybridMachineSig.machine_event.
-Proof. reflexivity. Qed. 
 
 (* Machine step 1to1 simulation*)
 (* Note the traces should be nil...*)
@@ -382,10 +383,11 @@ Proof.
   assert (X: SCH.schedPeek U = schedPeek U) by reflexivity.
   rewrite X; trivial.
 Qed.
+
 Require Import Nat.
-Lemma same_thread_running U0 r c i:
-      machine_semantics.runing_thread (new_DMachineSem U0 r) c i <->
-      machine_semantics.runing_thread (Hybrid_new_machine U0 r) ( make_hybrid_thread_pool c) i.
+Lemma same_thread_running U r c i:
+      runing_thread (new_DMachineSem U r) c i <->
+      runing_thread (Hybrid_new_machine U r) (make_hybrid_thread_pool c) i.
 Proof. 
   unfold new_DMachineSem, Hybrid_new_machine; simpl.
   unfold DryConc.unique_Krun, unique_Krun; simpl.
