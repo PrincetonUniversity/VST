@@ -654,7 +654,7 @@ split. destruct sz; reflexivity.
   eapply derives_trans; [| apply (id2pred_star_ZnthV_Tint Delta); auto].
  2: rewrite <- H5; auto.
 Opaque sizeof.
-  old_go_lower.
+  go_lowerx.
 Transparent sizeof.
   normalize.
  rename H8 into H19.
@@ -676,13 +676,15 @@ Transparent sizeof.
     unfold Int.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     omega.
-  } 
- hnf in H19. 
- destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
- rewrite H9 in H19; subst s.
- rewrite prop_true_andp; auto.
- rewrite H8 in *.
- split3; auto.
+  }
+  apply andp_right; auto.
+  apply prop_right.
+  hnf in H3;
+  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+  destruct ((ge_of rho) i); try contradiction.
+  subst s.
+  rewrite H8 in *.
+  split3; auto.
 Qed.
 
 Lemma process_globvar:
