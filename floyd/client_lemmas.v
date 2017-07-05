@@ -189,35 +189,6 @@ intros. apply typed_true_tint in H.
 contradict H. subst; reflexivity.
 Qed.
 
-Definition headptr (v: val): Prop :=
-  exists b,  v = Vptr b Int.zero.
-
-Lemma headptr_isptr: forall v,
-  headptr v -> isptr v.
-Proof.
-  intros.
-  destruct H as [b ?].
-  subst.
-  hnf; auto.
-Qed.
-
-Lemma headptr_offset_zero: forall v,
-  headptr (offset_val 0 v) <->
-  headptr v.
-Proof.
-  split; intros.
-  + destruct H as [b ?]; subst.
-    destruct v; try solve [inv H].
-    simpl in H.
-    remember (Int.add i (Int.repr 0)).
-    inversion H; subst.
-    rewrite Int.add_zero in H2; subst.
-    hnf; eauto.
-  + destruct H as [b ?]; subst.
-    exists b.
-    reflexivity.
-Qed.
-
 Ltac intro_redundant_prop :=
   (* do it in this complicated way because the proof will come out smaller *)
 match goal with |- ?P -> _ =>

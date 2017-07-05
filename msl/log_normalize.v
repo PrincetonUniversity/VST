@@ -8,6 +8,13 @@ Local Open Scope logic.
 
 Hint Resolve @derives_refl.
 
+Ltac solve_andp' :=
+  first [ apply derives_refl
+        | apply andp_left1; solve_andp'
+        | apply andp_left2; solve_andp'].
+
+Ltac solve_andp := repeat apply andp_right; solve_andp'.
+
 Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
 Proof. intros; apply prop_right; auto.
 Qed.
@@ -206,6 +213,19 @@ Proof.
  apply exp_left; intro b; destruct b.
  apply orp_right1; apply derives_refl.
  apply orp_right2; apply derives_refl.
+Qed.
+
+Lemma exp_prop: forall {B} {ND: NatDed B} A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply exp_left; intros x.
+    apply prop_left; intros.
+    apply prop_right; exists x; auto.
+  + apply prop_left; intros.
+    destruct H as [x ?].
+    apply (exp_right x).
+    apply prop_right; auto.
 Qed.
 
 Lemma modus_ponens {A}{ND: NatDed A}: forall P Q: A, derives (andp P (imp P Q)) Q.
@@ -588,6 +608,17 @@ Proof.
  destruct x; auto.
 Qed.
 
+Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
+ forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+Proof.
+intros.
+apply derives_trans with (|> (A && B)).
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+apply later_derives; assumption.
+Qed.
+
 Lemma andp_dup {A}{ND: NatDed A}: forall P: A, P && P = P.
 Proof. intros. apply pred_ext.
 apply andp_left1; apply derives_refl.
@@ -682,6 +713,11 @@ rewrite sepcon_emp...
 apply sepcon_derives...
 Qed.
 Hint Resolve @sepcon_TT.
+
+Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
+   forall (P: A), P |-- (TT * P).
+Proof. intros. rewrite sepcon_comm; apply sepcon_TT.
+Qed.
 
 Lemma imp_extract_exp_left {B A: Type} {NA: NatDed A}:
     forall    (p : B -> A) (q: A),

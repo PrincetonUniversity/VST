@@ -1,28 +1,8 @@
-Require Import Coq.Sorting.Permutation.
+Require Export Coq.Sorting.Permutation.
 Require Import floyd.base.
+Require Import floyd.seplog_tactics.
+
 Local Open Scope logic.
-
-Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
-Proof.
-intros.
-apply derives_trans with (|> (A && B)).
-rewrite later_andp.
-apply andp_derives; auto.
-apply now_later.
-apply later_derives; assumption.
-Qed.
-
-(* is this lemma useful? *)
-Lemma exp_prop: forall A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
-Proof.
-  intros.
-  apply pred_ext; normalize; intros.
-  + apply prop_right; exists x; auto.
-  + destruct H as [x ?].
-    apply (exp_right x).
-    normalize.
-Qed.
 
 (*
 
@@ -1799,86 +1779,18 @@ apply pred_ext; apply andp_derives; auto;
 Qed.
 Hint Rewrite split_first_PROP using not_conj_notation : norm1.
 
-Require Import Coq.Sorting.Permutation.
-
 Lemma perm_derives:
   forall Delta P Q R P' Q' R',
     Permutation P P' ->
     Permutation Q Q' ->
     Permutation R R' ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P' (LOCALx Q' (SEPx R')).
-Proof.
-intros.
-apply andp_left2.
-apply andp_derives.
-apply prop_derives.
-clear - H.
-induction H; simpl; intuition.
-apply andp_derives.
-clear- H0.
-intro rho.
-unfold local,lift1.
-apply prop_derives.
-induction H0; simpl; intuition.
-destruct H; split; auto.
-destruct H as [? [? ?]]. split3; auto.
-clear- H1.
-unfold SEPx.
-intro rho; simpl.
-induction H1; intuition.
-unfold fold_right_sepcon; fold fold_right_sepcon. apply sepcon_derives; auto.
-unfold fold_right_sepcon; fold fold_right_sepcon.
-rewrite <- sepcon_assoc.
-rewrite (sepcon_comm y).
-rewrite sepcon_assoc; auto.
-eapply derives_trans; eassumption.
-Qed.
-
-Lemma perm_search:
-  forall {A} (a b: A) r s t,
-     Permutation (a::t) s ->
-     Permutation (b::t) r ->
-     Permutation (a::r) (b::s).
-Proof.
-intros.
-eapply perm_trans.
-apply perm_skip.
-apply Permutation_sym.
-apply H0.
-eapply perm_trans.
-apply perm_swap.
-apply perm_skip.
-apply H.
-Qed.
-
-
-Lemma Permutation_app_comm_trans:
- forall (A: Type) (a b c : list A),
-   Permutation (b++a) c ->
-   Permutation (a++b) c.
-Proof.
-intros.
-eapply Permutation_trans.
-apply Permutation_app_comm.
-auto.
-Qed.
-
-Ltac solve_perm :=
-    (* solves goals of the form (R ++ ?i = S)
-          where R and S are lists, and ?i is a unification variable *)
-  try match goal with
-       | |-  Permutation (?A ++ ?B) _ =>
-            is_evar A; first [is_evar B; fail 1| idtac];
-            apply Permutation_app_comm_trans
-       end;
-  repeat first [ apply Permutation_refl
-       | apply perm_skip
-       | eapply perm_search
-       ].
-
-Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
-eexists.
-solve_perm.
+Proof.  
+  intros.
+  erewrite PROPx_Permutation by eauto.
+  erewrite LOCALx_Permutation by eauto.
+  erewrite SEPx_Permutation by eauto.
+  apply andp_left2; auto.
 Qed.
 
 Lemma semax_frame_perm:
