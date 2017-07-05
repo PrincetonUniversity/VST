@@ -299,7 +299,7 @@ Auxilliary Lemmas
 Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize.
 Qed.
 
@@ -308,7 +308,7 @@ Lemma remove_PROP_LOCAL_left':
      PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize. apply H.
 Qed.
 
