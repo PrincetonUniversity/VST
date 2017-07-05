@@ -32,7 +32,7 @@ Definition make_hybrid_thread_pool (tp:thread_pool): t_ Hybrid_Thread_pool_conte
   econstructor; eauto.
   intros.
   eapply pool in X; destruct X;
-    [eapply Krun|eapply Kblocked| eapply Kresume | eapply Kinit]; auto;
+    [eapply Krun|eapply Kblocked| eapply Kresume | eapply (Kinit v v0)]; auto;
   apply TState; auto.
 Defined.
 
@@ -197,7 +197,7 @@ Proof. intros. unfold machine_step. unfold Hybrid_new_machine. simpl. inv H; sim
   - apply HschedN.
   - apply mem_compatible_preserved; trivial.
   - red; simpl. apply (StartThread  hb Sems Semt (gs, gt) m tid) with (c_new:=TState _ _ c_new)(vf:=vf)(arg:=arg); simpl.
-    * unfold getThreadC. destruct st1; simpl in *. rewrite Hcode. admit. (*BUG? double use of arg looks odd here!*)
+    * unfold getThreadC. destruct st1; simpl in *. rewrite Hcode. trivial. 
     * unfold initial_core_sum; simpl. unfold state_sum_optionmt. 
       unfold semantics.initial_core in Hinitial. admit. (* simpl in *. apply Hinitial. why do we seem to be in Asm?*)
     * apply invariant_preserved; trivial.
@@ -298,7 +298,7 @@ Proof. intros. unfold machine_step. unfold Hybrid_new_machine. simpl. inv H; sim
       destruct w. 
       ++ destruct (@eqtype.eq_op (fintype.ordinal_eqType (pos.n num_threads)) o
             (@fintype.Ordinal (pos.n num_threads) tid Htid)); try reflexivity.
-      ++ admit. (*BUG??*) }
+      ++ trivial. }
   { (*makelock*) 
     eapply sync_step' with (tid:=tid)(Htid:=containsthread_preserved_inv _ _ Htid)(Hcmpt:=mem_compatible_preserved _ _ Hcmpt).
     - apply HschedN.
@@ -384,6 +384,36 @@ Proof.
 Qed.
 
 Require Import Nat.
+Lemma ThreadHalted c j (cnti : @containsThread Resources (Sem hb Sems Semt) (make_hybrid_thread_pool c) j)
+      (N : @threadHalted j c (containsthread_preserved j c cnti)):
+@HybridMachine.threadHalted hb Sems Semt j (make_hybrid_thread_pool c) cnti.
+Proof. inv N.
+econstructor.
++ unfold getThreadC_; simpl. clear Hcant. 
+  unfold getThreadC. unfold ThreadPool.getThreadC in Hcode. simpl in *.
+  destruct c; simpl in *. unfold containsThread in cnti. simpl in *.
+  unfold ThreadPool.containsThread in cnt. simpl in *.
+  assert (P: pool (@fintype.Ordinal (pos.n num_threads) j cnti) = pool (@fintype.Ordinal (pos.n num_threads) j cnt)).
+     clear. replace cnt with cnti. trivial. apply proof_irr. 
+  rewrite P, Hcode. reflexivity.
++ apply Hcant.
+Qed.
+
+Lemma ThreadHalted_inv c j (cnti : @containsThread Resources (Sem hb Sems Semt) (make_hybrid_thread_pool c) j)
+      (N :@HybridMachine.threadHalted hb Sems Semt j (make_hybrid_thread_pool c) cnti):
+  @threadHalted j c (containsthread_preserved j c cnti).
+Proof. inv N.
+ unfold getThreadC_ in *; simpl. destruct c; simpl in *. 
+ remember (pool (fintype.Ordinal (n:=pos.n num_threads) (m:=j) cnt)) as w.
+ destruct w; try discriminate. inv Hcode.
+econstructor.
++ unfold ThreadPool.getThreadC. simpl in *.
+  assert (P: pool (@fintype.Ordinal (pos.n num_threads) j cnti) = pool (@fintype.Ordinal (pos.n num_threads) j cnt)).
+     clear. replace cnt with cnti. trivial. apply proof_irr. 
+  rewrite P,  <- Heqw. reflexivity. 
++ apply Hcant.
+Qed.
+
 Lemma same_thread_running U r c i:
       runing_thread (new_DMachineSem U r) c i <->
       runing_thread (Hybrid_new_machine U r) ( make_hybrid_thread_pool c) i.
@@ -391,33 +421,11 @@ Proof.
   unfold new_DMachineSem, Hybrid_new_machine; simpl.
   unfold DryConc.unique_Krun, unique_Krun; simpl.
   split; intros.
-+ destruct c; simpl in *. unfold containsThread in cnti; simpl in cnti. unfold ThreadPool.containsThread in H; simpl in H. 
++ specialize (ThreadHalted _ _ cnti); intros.
+  destruct c; simpl in *. unfold containsThread in cnti; simpl in cnti. unfold ThreadPool.containsThread in H; simpl in H. 
   remember (pool (fintype.Ordinal (n:=pos.n num_threads) (m:=j) cnti) ) as w.
   destruct w; inv H0; symmetry in Heqw. exploit (H j cnti c Heqw); clear H.
-  - intros N. elim H1; clear H1. unfold threadHalted in N.
-    red. econstructor.
-    * unfold getThreadC_; simpl. rewrite Heqw. reflexivity.
-    * simpl. admit. (*What's going on here?inversion N. Error: Cannot solve a unification problem. (* Locate threadHalted'. SearchAbout  concurrency.DryMachineSourceCore.DMS.DryMachine.threadHalted'.*)
-      eapply threadHalted'_ind. 2: apply N. intros.
-      unfold ThreadPool.getThreadC, ThreadPool.pool in Hcode; simpl in *. destruct tp; simpl in *. rewrite Heqw. reflexivity.
-      unfold is_true in *. unfold ThreadPool.SEM.Sem in Hcant. apply Hcant. unfold SEM.CLC_evsem. simpl in *.  apply Hcant. red in N. unfold SEM.CLC_evsem. destruct ClightCoreSemantincsForMachines.ClightCoreSEM.CLC_evsem; simpl in *. unfold is_true in *; simpl in *. 
-      destruct cnti. unfold threadHalted' in N. inv N.  apply cnti.   destruct cnti.  remember (t_, containsThread_, getThreadC_, getThreadR_, _, lockSet_, lockRes_,
-    addThread_, updThreadC_, updThreadR_, updThread_, updLockSet_,
-    remLockSet_, latestThread_, lr_valid_, _, _, _, _, _, _, _, _, _, _, _,
-    _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
-    _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
-    _, _). destruct t.  remember (ThreadPool hb Sems Semt).  in Hcode. destruct st1'; simpl in *. rewrite Hcode; trivial.
-    * apply Hcant red. eapply @HybridMachine.threadHalted'. Print threadHalted'.
-    econstructor; simpl. rewrite Heqw. reflexivity. simpl.
-clear - N. inversion N.
-    eapply threadHalted'_ind; eauto. intros.
- inversion N. , threadHalted' in N. destruct N.  unfold HybridMachine.threadHalted; simpl.
-    econstructor. 
-     Print HybridMachine.threadHalted'. ; simpl.   simpl in *. try discriminate.
-Print injection_full.
-  , ThreadPool.num_threads in H. simpl in cnti. specialize (H j cnti).
-  unfold 
-*)
+  - eauto. 
   - destruct (SCH.TID.eq_tid_dec i j); subst.
     destruct (Nat.eq_dec j j); trivial; try omega. destruct (Nat.eq_dec i j); trivial; try omega.
 + destruct (SCH.TID.eq_tid_dec i j); subst; simpl. reflexivity. admit. (*BUG ?*) 
