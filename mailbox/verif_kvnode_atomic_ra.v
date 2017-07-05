@@ -361,15 +361,6 @@ Proof.
     + etransitivity; eauto; apply Zle_max_l.
 Qed.
 
-Lemma protocol_R_single : forall version locs l log g v v', log v = Some v' ->
-  view_shift (protocol_R l log map_incl (data_T version locs g, data_T version locs g))
-             (protocol_R l (singleton v v') map_incl (data_T version locs g, data_T version locs g)).
-Proof.
-  intros; apply protocol_R_forget.
-  unfold singleton; intros ??; if_tac; [|discriminate].
-  intro X; inv X; auto.
-Qed.
-
 Lemma node_state_snap : forall sh L v version locs g,
   view_shift (node_state sh L v version locs g)
              (node_state sh L v version locs g * node_state Share.bot L v version locs g).
@@ -546,70 +537,87 @@ Proof.
     rewrite !app_Znth1 by omega; auto.
   - Intros vals' vers'; rewrite <- size_def in *.
     rewrite Zminus_diag, app_nil_r, sublist_nil, sublist_same by (rewrite ?Zlength_upto, ?Z2Nat.id; auto).
-    forward_call_dep [Z : Type] (load_acq_witness version (list_max v1 (map (fun x => x - 1) vers')) Z.le
-      (version_T version locs g, version_T version locs g) emp (fun s v : Z => !!(v = s) && emp)).
-    { simpl; cancel. }
-    { simpl; split; intros; rewrite ?emp_sepcon, ?sepcon_emp; [reflexivity|].
-      rewrite version_T_eq; apply derives_view_shift; entailer!.
-      (* Iris assumes that anything duplicable has empty footprint, and anyway doesn't care about throwing away
-         resources. Should we make that assumption, or adjust the load rule? *)
-      admit. }
+    forward_call_dep [Z : Type] (version, list_max v1 (map (fun x => x - 1) vers'), Z.le,
+      (version_T version locs g, version_T version locs g), P *
+        protocol_R version (list_max v1 (map (fun x : Z => x - 1) vers')) Z.le (version_T version locs g, version_T version locs g) *
+        ghost_snap (map_add (map_add L0 L') L1) g, II, lI,
+      ghost_snap (map_add (map_add L0 L') L1) g * EX L : _, ghost (gsh1, L) g * R L,
+      fun s v => !!(v = s) && protocol_R version v Z.le (version_T version locs g, version_T version locs g) *
+        (if eq_dec v v1 then EX L : _, Q L (v1, vals') * (!!(L v = Some vals' /\
+           forall j, 0 <= j < size -> Znth j vers' 0 = v1) && ghost_snap (map_upd L0 v vals') g)
+         else P * ghost_snap (map_add (map_add L0 L') L1) g)).
+    { split; intros.
+      + rewrite <- !sepcon_assoc, sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
+        apply derives_view_shift; cancel.
+      + simpl; rewrite version_T_eq.
+        view_shift_intro L; view_shift_intro L2; view_shift_intros; subst.
+        rewrite prop_true_andp by auto.
+        rewrite (sepcon_comm _ (protocol_R _ _ _ _)), (sepcon_comm (fold_right _ _ (map II lI))), !sepcon_assoc.
+        apply view_shift_sepcon2.
+        if_tac.
+        * subst.
+          rewrite (sepcon_comm _ (fold_right _ _ _)).
+          etransitivity; [|etransitivity; [apply view_shift_sepcon1, HQ |
+            apply derives_view_shift; Exists L; rewrite sepcon_assoc; eauto]]; simpl.
+          assert (forall j, 0 <= j < size -> Znth j vers' 0 = v1) as Hvers.
+          { intros; match goal with H : Forall _ vers' |- _ => apply Forall_Znth with (i := j)(d := 0) in H;
+              [destruct H as [Heven] | omega] end.
+            destruct (list_max_spec (map (fun x => x - 1) vers') v1) as [_ Hmax].
+            rewrite Forall_map in Hmax.
+            apply Forall_Znth with (i := j)(d := 0) in Hmax; [simpl in Hmax | omega].
+            destruct (eq_dec (Znth j vers' 0) v1); subst; auto.
+            assert (Znth j vers' 0 = v1 + 1) as Heq by omega.
+            rewrite Heq, Z.even_add in Heven; replace (Z.even v1) with true in Heven; discriminate. }
+          match goal with H : exists vs, _  /\ log_latest L1 _ _ |- _ => destruct H as [? [? [HL1]]] end.
+          assert (L1 v1 = Some vals') as Hvals'.
+          { eapply map_Znth_eq.
+            * intro; rewrite HL1; intro X; inv X; omega.
+            * intro; subst; rewrite size_def in *; discriminate.
+            * intros; unfold map_Znth in *; rewrite HL1; simpl.
+              match goal with H : forall j, _ |- _ => apply f_equal, H; [omega|] end.
+              rewrite Hvers, HL1 by omega; auto. }
+          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost _ _)).
+          rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)).
+          rewrite <- sepcon_assoc, snap_master_join by auto; view_shift_intros.
+          match goal with H : map_incl _ L |- _ => exploit (H v1 vals') end.
+          { rewrite map_add_comm by auto.
+            unfold map_add; rewrite Hvals'; auto. }
+          assert (map_incl L0 L) by (etransitivity; eauto; etransitivity; apply map_incl_add).
+          intro; rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)).
+          rewrite <- sepcon_assoc, snap_master_join by auto; view_shift_intros.
+          rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, make_snap|].
+          rewrite sepcon_assoc; etransitivity; [apply view_shift_sepcon1,
+            ghost_snap_forget with (v2 := map_upd L0 v1 vals'), map_upd_incl; auto|].
+          apply derives_view_shift; unfold share; entailer!.
+          (* Iris assumes that anything duplicable has empty footprint, and anyway doesn't care about throwing away
+             resources. Should we make that assumption? We could just pass the protocol assertions instead and merge them. *)
+          admit.
+        * rewrite (sepcon_comm (P * _)), <- !sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
+          apply derives_view_shift; Exists L; entailer!.
+          admit. }
     Intros x; destruct x as (v2', v2); simpl in *; subst.
     match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (v2 <> v1) (LOCALx Q (SEPx R))) end.
-    + subst.
-      assert (forall j, 0 <= j < size -> Znth j vers' 0 = v1) as Hvers.
-      { intros; match goal with H : Forall _ vers' |- _ => apply Forall_Znth with (i := j)(d := 0) in H;
-          [destruct H as [Heven] | omega] end.
-        destruct (list_max_spec (map (fun x => x - 1) vers') v1) as [_ Hmax].
-        rewrite Forall_map in Hmax.
-        apply Forall_Znth with (i := j)(d := 0) in Hmax; [simpl in Hmax | omega].
-        destruct (eq_dec (Znth j vers' 0) v1); subst; auto.
-        assert (Znth j vers' 0 = v1 + 1) as Heq by omega.
-        rewrite Heq, Z.even_add in Heven; replace (Z.even v1) with true in Heven; discriminate. }
-      match goal with H : exists vs, _ |- _ => destruct H as [? [? [HL1]]] end.
-      assert (L1 v1 = Some vals') as Hvals'.
-      { eapply map_Znth_eq.
-        * intro; rewrite HL1; intro X; inv X; omega.
-        * intro; subst; rewrite size_def in *; discriminate.
-        * intros; unfold map_Znth in *; rewrite HL1; simpl.
-          match goal with H : forall j, _ |- _ => apply f_equal, H; [omega|] end.
-          rewrite Hvers, HL1 by omega; auto. }
-      rewrite <- (map_map II).
-      gather_SEP 6 8 7; rewrite <- !sepcon_assoc; apply invariants_view_shift with
-        (Q0 := ghost_snap (map_upd L0 v1 vals') g * EX L : _, Q L (v1, vals')).
-      { rewrite !sepcon_assoc, (sepcon_comm P).
-        etransitivity; [apply view_shift_sepcon2, HP|].
-        view_shift_intro L2.
-        etransitivity; [|apply derives_view_shift; Exists L2; apply derives_refl].
-        rewrite (sepcon_comm (Q _ _)).
-        etransitivity; [|apply view_shift_sepcon2, HQ]; simpl.
-        rewrite <- sepcon_assoc, snap_master_join by auto.
-        view_shift_intros; etransitivity; [apply view_shift_sepcon1, make_snap|].
-        match goal with H : map_incl _ L2 |- _ => exploit (H v1 vals') end.
-        { rewrite map_add_comm by auto.
-          unfold map_add; rewrite Hvals'; auto. }
-        assert (map_incl L0 L2) by (etransitivity; eauto; etransitivity; apply map_incl_add).
-        rewrite sepcon_assoc; etransitivity;
-          [apply view_shift_sepcon1, ghost_snap_forget with (v2 := map_upd L0 v1 vals'), map_upd_incl; auto|].
-        apply derives_view_shift; entailer!. }
+    + subst; rewrite eq_dec_refl.
       Intros L2.
       forward.
-      rewrite map_map; Exists (v1, vals') L2; unfold node_state, protocol_R, ghost_snap, share; entailer!.
+      Exists (v1, vals') L2; unfold node_state, protocol_R, ghost_snap, share; entailer!.
       { exists vals'; split; auto.
         split.
         * unfold map_upd; rewrite eq_dec_refl; auto.
         * intros; unfold map_upd; if_tac; [omega|].
           assert (v0 < v') by omega; auto. }
       erewrite map_ext_in; eauto; intros; simpl.
-      rewrite map_Znth_upd, Hvers; auto.
+      rewrite map_Znth_upd; replace v1 with (Znth a vers' 0); auto.
       rewrite In_upto, Z2Nat.id in *; auto.
     + forward.
       entailer!.
     + intros; unfold overridePost.
       destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
-      Intros; go_lower; Exists v2 (map (fun i => map_upd (map_Znth i L0 0) (Znth i vers' 0) (Znth i vals' 0))
+      Intros; go_lower.
+      if_tac; [contradiction|].
+      Exists v2 (map (fun i => map_upd (map_Znth i L0 0) (Znth i vers' 0) (Znth i vals' 0))
         (upto (Z.to_nat size))) (map_add L' L1); rewrite map_add_assoc; entailer!.
       { destruct (list_max_spec (map (fun x => x - 1) vers') v1); split; [omega|].
         intros.
