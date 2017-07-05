@@ -1,4 +1,5 @@
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrfun.
+Require Import compcert.common.AST.
 Require Import Coq.omega.Omega.
 Require Import Clight.
 Require Import Memory.
@@ -14,6 +15,7 @@ Require veric.Clight_core. Import Clight_core.
 Require Import Smallstep.
 Require Import ExposedSmallstep.
 Require Import concurrency.x86_context.
+Require Import concurrency.concurrent_machine.
 Require Import concurrency.HybridMachine.
 Require Import concurrency.HybridMachineSig.
 Require Import concurrency.HybridMachine_simulation.
@@ -31,6 +33,9 @@ Require Import concurrency.permissions.
 Require Import concurrency.ClightCoreSemantincsForMachines.
 
 Set Bullet Behavior "Strict Subproofs".
+
+(** *These are all the possible external calls:*)
+
 
 Section HybridProofs.
 
@@ -118,7 +123,7 @@ Section OneThreadCompiled.
           code_inject_source f1 c1 m1 c1' m1' /\
           compiler_match i f12 (make_state_Clight c1' m1') (make_state_Asm c2' m2') /\
           code_inject_target f2 c2 m2 c2' m2' /\
-          f = compose_meminj f1 (compose_meminj f12 f2).
+          inject_incr (compose_meminj f1 (compose_meminj f12 f2)) f.
     Notation source_match f st1 m1 st2 m2 :=
       (code_inject_source f st1 m1 st2 m2).
     Notation target_match f st1 m1 st2 m2 :=
@@ -512,36 +517,137 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
 
   Section MachineThreadDiagram.
     
-    (*Lemma machine_thread_diagram:
-      forall (U0 : list nat) (tr : list HybridMachineSig.machine_event) (st1 : C1) (m1 : mem) 
-        (U' : list nat) (tr' : list HybridMachineSig.machine_event) (st1' : C1) (m1' : mem),
-        machine_semantics.machine_step (HCSem Sems Semt hb1 U) genv U0 tr st1 m1 U' tr' st1' m1' ->
-        forall (cd : core_data) (st2 : C2) (mu : meminj) (m2 : mem),
-          concur_match cd mu st1 m1 st2 m2 ->
-          exists (st2' : C2) (m2' : mem) (cd' : core_data),
-            concur_match cd' mu st1' m1' st2' m2' /\
-            machine_semantics.machine_step (HCSem Sems Semt hb2 U) genv U0 tr st2 m2 U' tr' st2' m2'.
+    Lemma machine_thread_diagram:
+      forall (U0 : seq.seq nat) (tr : seq.seq machine_event) (st1 : C1) 
+    (m1 : mem) (U' : seq.seq nat) (tr' : seq.seq machine_event) (st1' : C1) 
+    (m1' : mem),
+  machine_semantics.machine_step (HCSem Sems Semt hb1 U) genv U0 tr st1 m1 U' tr' st1' m1' ->
+  forall (cd : Injindex compiler_simulation) (st2 : C2) (mu : meminj) (m2 : mem),
+  concur_match cd mu st1 m1 st2 m2 ->
+  exists (st2' : C2) (m2' : mem) (cd' : Injindex compiler_simulation),
+    concur_match cd' mu st1' m1' st2' m2' /\
+    machine_semantics.machine_step (HCSem Sems Semt hb2 U) genv U0 tr st2 m2 U' tr' st2' m2'.
     Proof.
       intros.
-      destruct U0; simpl in H.
-      + inv H;
+      destruct U0 as [|i U0]; simpl in H.
+      - inv H;
           match goal with
           | [ H: HybridMachine.schedPeek nil = Some _  |- _ ] => inv H
           end.
-      + simpl in H; inv H. (*Case by case of all the sync_calls*)
-        * (*start*)
+      - simpl in H; inv H. (*Case by case of all the sync_calls*)
+        + (*start*)
           inv Htstep.
           simpl in Hinitial.
           admit. (*REVIEW*)
-        * (*resume*)
+        + (*resume*)
+          (*This should follow almost directly from the match!*)
           admit.
-        * (*suspend*)
+        + (*suspend*)
+          intros.
+          inv Htstep.
+          assert (ctn':=contains12 H0 ctn).
+          simpl in Hcode. 
+          (*proof identical for all cases*)
+          destruct (Compare_dec.lt_eq_lt_dec (tid) hb') as [[HH | HH] | HH ];
+            (*In all cases discard non-running threads*)
+            eapply H0 in HH; instantiate (1:= ctn) in HH;
+              inv HH;  rewrite Hcode in H; inv H.
+          (*then instantitates the same thing*)
+          * exists (updThreadC_ (ThreadPool hb2 Sems Semt) ctn' (Kblocked (TState ClightCoreSEM.C Asm.regset code2))), m2, cd; split.
+            admit. (*reestablish the match (should be easy*)
+            econstructor; eauto.
+            admit. (* Add this to the match*)
+            econstructor; eauto.
+            admit. (* should follow from the simulations *)
+            admit. (* Add this to the match? *)
+          * exists (updThreadC_ (ThreadPool hb2 Sems Semt) ctn' (Kblocked (TState ClightCoreSEM.C Asm.regset code2))), m2, cd; split.
+            admit. (*reestablish the match (should be easy*)
+            econstructor; eauto.
+            admit. (* Add this to the match*)
+            econstructor; eauto.
+            admit. (* should follow from the simulations *)
+            admit. (* Add this to the match? *)
+          * exists (updThreadC_ (ThreadPool hb2 Sems Semt) ctn' (Kblocked (SState ClightCoreSEM.C Asm.regset code2))), m2, cd; split.
+            admit. (*reestablish the match (should be easy*)
+            econstructor; eauto.
+            admit. (* Add this to the match*)
+            econstructor; eauto.
+            admit. (* should follow from the simulations *)
+            admit. (* Add this to the match? *)
+        + (*sync*)
+          inv Htstep.
+          inv HschedN.
+          (*LOCK*)
+         Lemma Lock_HybridStep_simulation:
+           forall (U0 : seq.seq nat)
+             (st1 : t Resources (Sem hb1 Sems Semt))
+             (m1 m1' : mem)
+  (cd : Injindex compiler_simulation)
+  (st2 : t Resources (Sem hb2 Sems Semt))
+  (mu : meminj)
+  (m2 : mem)
+  (H0 : concur_match cd mu st1 m1 st2 m2)
+  (tid : nat)
+  (Htid : containsThread st1 tid)
+  (Hcmpt : HybridMachine.mem_compatible hb1 Sems Semt st1 m1)
+  (c : state_sum ClightCoreSEM.C X86Machines.ErasedMachine.ThreadPool.code)
+  (b : block)
+  (ofs : Integers.Int.int)
+  (pmap : access_map * access_map)
+  (virtueThread : delta_map * delta_map),
+  let newThreadPerm := (computeMap (getThreadR Htid)#1 virtueThread#1,
+                   computeMap (getThreadR Htid)#2 virtueThread#2) : 
+               access_map * access_map in
+  forall (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Integers.Int.intval ofs)
+              (getThreadR_ (ThreadPool hb1 Sems Semt) Htid)#2 LKSIZE_nat) 
+           (getMaxPerm m1))
+  (Hbounded : bounded_maps.sub_map virtueThread#1
+               (PTree.map1 (fun f : Z -> perm_kind -> option permission => f^~ Max)
+                  (Mem.mem_access m1)#2) /\
+             bounded_maps.sub_map virtueThread#2
+               (PTree.map1 (fun f : Z -> perm_kind -> option permission => f^~ Max)
+                  (Mem.mem_access m1)#2))
+  (Hinv : HybridMachine.invariant hb1 Sems Semt st1)
+  (Hcode : getThreadC Htid = Kblocked c)
+  (Hat_external : at_external_sum ClightCoreSEM.G X86SEM.G ClightCoreSEM.C
+                   X86Machines.ErasedMachine.ThreadPool.code mem
+                   (semantics.at_external
+                      (semantics.csem (event_semantics.msem ClightCoreSEM.Sem)))
+                   Asm_core.cl_at_external genv c m1 = Some (LOCK, [:: Vptr b ofs]))
+  (Hload : Mem.load Mint32 (restrPermMap (proj2 (Hcmpt tid Htid))) b (Integers.Int.intval ofs) =
+          Some (Vint Integers.Int.one))
+  (Haccess : Mem.range_perm (restrPermMap (proj2 (Hcmpt tid Htid))) b 
+              (Integers.Int.intval ofs) (Integers.Int.intval ofs + LKSIZE) Cur Readable)
+  (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Integers.Int.intval ofs)
+             (Vint Integers.Int.zero) = Some m1')
+  (HisLock : lockRes st1 (b, Integers.Int.intval ofs) = Some pmap)
+  (Hangel1 : permMapJoin pmap#1 (getThreadR Htid)#1
+              (computeMap (getThreadR Htid)#1 virtueThread#1))
+  (Hangel2 : permMapJoin pmap#2 (getThreadR Htid)#2
+              (computeMap (getThreadR Htid)#2 virtueThread#2)),
+  exists
+    (st2' : t Resources (Sem hb2 Sems Semt)) (m2' : mem) (cd' : Injindex compiler_simulation),
+    concur_match cd' mu
+      (updLockSet (updThread Htid (Kresume c Vundef) newThreadPerm)
+         (b, Integers.Int.intval ofs) (empty_map, empty_map)) m1' st2' m2' /\
+    HybridMachine.external_step hb2 Sems Semt genv (tid :: U0) [::] st2 m2 U0 [::] st2' m2'.
+         Proof.
+           intros.
+           (*Steps*)
+           (*Prove the comcert external_call step*)
+           (*Use the simulation to propagate it down.*)
+           (*Use the machine step in the target machine, *)
+           (* From the Comcert step, get the match*)
+
+           
+           
+         Admitted.
+         eapply Lock_HybridStep_simulation; eauto.
+         admit.
+        + (*haltd*)
           admit.
-        * (*sync*)
-          admit.
-        * (*haltd*)
-          admit.
-        * (*schedfail'*)
+        + (*schedfail'*)
           admit.
     Admitted. *)
     

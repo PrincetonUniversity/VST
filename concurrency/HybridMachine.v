@@ -919,7 +919,7 @@ Section HybridMachine.
         (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
         internal_step U ms m ms' m'.
 
-  Inductive external_step  {genv:G}:
+  Inductive external_step  (genv:G):
     Sch -> event_trace -> machine_state -> mem -> Sch ->
     event_trace -> machine_state -> mem -> Prop :=
   | start_state': forall tid U ms ms' m m'
@@ -927,14 +927,14 @@ Section HybridMachine.
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: start_thread genv m Htid ms' m'),
-        external_step U [::] ms m U [::] ms' m'
+        external_step genv U [::] ms m U [::] ms' m'
   | resume_step':
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: resume_thread genv m Htid ms'),
-        external_step U [::] ms m U [::] ms' m
+        external_step genv U [::] ms m U [::] ms' m
   | suspend_step':
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -942,7 +942,7 @@ Section HybridMachine.
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep:suspend_thread genv m Htid ms'),
-        external_step U [::] ms m U' [::] ms' m
+        external_step genv U [::] ms m U' [::] ms' m
   | sync_step':
       forall tid U U' ms ms' m m' ev
         (HschedN: schedPeek U = Some tid)
@@ -950,7 +950,7 @@ Section HybridMachine.
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
-        external_step U [::] ms m  U' [::] ms' m'
+        external_step genv U [::] ms m  U' [::] ms' m'
   | halted_step':
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
@@ -959,14 +959,14 @@ Section HybridMachine.
         (Hcmpt: mem_compatible ms m)
         (Hinv: invariant ms)
         (Hhalted: threadHalted Htid),
-        external_step U [::] ms m  U' [::] ms m
+        external_step genv U [::] ms m  U' [::] ms m
   | schedfail':
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
         (Htid: ~ containsThread ms tid)
         (Hinv: invariant ms)
         (HschedS: schedSkip U = U'),        (*Schedule Forward*)
-        external_step U [::] ms m U' [::] ms m.
+        external_step genv U [::] ms m U' [::] ms m.
   (*Symmetry*)
   (* These steps are basically the same: *)
   Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',

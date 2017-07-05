@@ -500,6 +500,19 @@ Definition get_mem (s:state):=
   | Returnstate _ _ m => m
   end.
 
+Definition ext_call (s:state):=
+match s with
+  | Callstate (External ef _ _ _) args _ _ => Some (ef, args)
+  | _ => None
+end.
+
+Definition cl_after_external (ge: genv) (vret: option val) (c: state) m' : option state :=
+   match c with
+   | Callstate (External ef _ _ _) _ k m => 
+        Some (Returnstate (match vret with Some v => v | _ => Vundef end) k m')
+   | _ => None
+   end.
+
 (** Find the statement and manufacture the continuation
   corresponding to a label *)
 
