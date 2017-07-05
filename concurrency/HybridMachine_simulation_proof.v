@@ -634,8 +634,56 @@ Arguments memcompat2 {cd j cstate1 m1 cstate2 m2}.
     HybridMachine.external_step hb2 Sems Semt genv (tid :: U0) [::] st2 m2 U0 [::] st2' m2'.
          Proof.
            intros.
-           (*Steps*)
-           (*Prove the comcert external_call step*)
+           (*Steps:*)
+           (*Case analysis over the type of the threads *)
+           
+           destruct (Compare_dec.lt_eq_lt_dec (tid) hb') as [[LT | EQ] | LT ].
+           Focus 3.
+           - (*tid > hb' Both threads on source*) 
+             (*Prove the comcert external_call step for thread i*)
+             eapply H0 in LT. instantiate (1:= Htid) in LT; inv LT;
+                                (rewrite Hcode in H; inversion H).
+             move Hat_external at bottom.
+             unfold at_external_sum,sum_func in Hat_external; simpl in Hat_external.
+             rewrite <- H6 in Hat_external.
+             rewrite ClightCoreSEM.CLC_msem in Hat_external.
+             simpl in Hat_external; unfold cl_at_external in Hat_external.
+             destruct (code1) eqn:cPC; try solve[inv Hat_external].
+             destruct (f0) eqn:func_kind; try solve[inv Hat_external].
+             inversion Hat_external; subst e l; clear Hat_external.
+             assert (
+                 exists events m2',
+                 step (semantics2 p) genvS
+                      (Callstate (Ctypes.External LOCK t t0 c1) ls1 c0
+                       (restrPermMap
+                          ((memcompat2 H0) tid
+                          (same_length_contains tid (same_length cd mu st1 m1 st2 m2 H0) Htid))#1))
+                      events (Returnstate Vundef c0  m2')
+             ).
+             do 2 eexists; econstructor.
+             simpl.
+             
+
+             (*tid < hb' Noth threads on taret*) 
+             (*Prove the comcert external_call step for thread i*)
+             eapply H0 in LT. instantiate (1:= Htid) in LT; inv LT;
+                                (rewrite Hcode in H; inversion H).
+             simpl in H2;
+               unfold Asm_core.cl_at_external in H2.
+             destruct (code1 Asm.PC) eqn:cPC; try solve[inv H2].
+             if_tac in H2; try solve[inv H2].
+             destruct (Genv.find_funct_ptr genvT b0)
+             
+             
+             assert (
+                 step (semantics2 p) genvT
+                      (CC_core_to_CC_state c
+                       (restrPermMap
+                          ((memcompat2 H0) tid
+                          (same_length_contains tid (same_length cd mu st1 m1 st2 m2 H0) Htid))#1))
+                    t (CC_core_to_CC_state c2' m2')
+             ).
+           assert (external_Step: ).
            (*Use the simulation to propagate it down.*)
            (*Use the machine step in the target machine, *)
            (* From the Comcert step, get the match*)
