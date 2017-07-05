@@ -217,12 +217,12 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v \
+   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
    library.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    sublist.v smt_test.v extract_smt.v \
-   client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
+   client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \

@@ -467,3 +467,89 @@ Ltac cancel_wand :=
     end
   end.
 
+Ltac norm_rewrite := autorewrite with norm.
+ (* New version: rewrite_strat (topdown hints norm).
+     But this will have to wait for a future version of Coq
+    in which rewrite_strat discharges side conditions.
+    According to Matthieu Sozeau, in the Coq trunk as of June 5, 2013,
+    rewrite_strat is documented AND discharges side conditions.
+    It might be about twice as fast, or 1.7 times as fast, as the old autorewrite.
+    And then, maybe use "bottomup" instead of "topdown", see if that's better.
+
+   To test whether your version of Coq works, use this:
+Lemma L : forall n, n=n -> n + 1 = S n.
+Proof. intros. rewrite <- plus_n_Sm ,<- plus_n_O. reflexivity.
+Qed.
+Hint Rewrite L using reflexivity : test888.
+Goal forall n, S n = n + 1.
+intros.
+rewrite_strat (topdown hints test888).
+match goal with |- S n = S n => reflexivity end.
+(* should be no extra (n=n) goal here *)
+Qed.
+ *)
+
+Ltac normalize1 :=
+         match goal with
+            | |- context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
+                      change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
+            | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
+                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F)
+                     with (@later B C X5 (D F))
+            | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D)
+                                                         (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
+                   change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
+                      with (@sepcon C D H (J L) (K L))
+            | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with norm)
+            | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with norm)
+            | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with norm)
+            | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with norm)
+            | |-  derives ?A   ?B => match A with
+                   | FF => apply FF_left
+                   | !! _ => apply derives_extract_prop0
+                   | exp (fun y => _) => apply imp_extract_exp_left; (intro y || intro)
+                   | !! _ && _ => apply derives_extract_prop
+                   | _ && !! _ => apply derives_extract_prop'
+                   | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
+                   | context [ ?Q && (!! ?P && ?R)] =>
+                                  match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end
+                 (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
+                    preserves the name of the "y" variable *)
+                   | context [andp (exp (fun y => _)) _] =>
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [andp _ (exp (fun y => _))] =>
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [sepcon (exp (fun y => _)) _] =>
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [sepcon _ (exp (fun y => _))] =>
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
+                                apply imp_extract_exp_left; intro y
+                   | _ => simple apply TT_prop_right
+                   | _ => simple apply TT_right
+                   | _ => apply derives_refl
+                   end
+              | |- _ => solve [auto]
+              | |- _ |-- !! (?x = ?y) && _ =>
+                            (rewrite (prop_true_andp' (x=y))
+                                            by (unfold y; reflexivity); unfold y in *; clear y) ||
+                            (rewrite (prop_true_andp' (x=y))
+                                            by (unfold x; reflexivity); unfold x in *; clear x)
+              |  |- ?ZZ -> ?YY => match type of ZZ with
+                                               | Prop => fancy_intros true || fail 1
+                                               | _ => intros _
+                                              end
+              | |- ~ _ => fancy_intro true
+              | |- _ => progress (norm_rewrite) (*; auto with typeclass_instances *)
+              | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
+              end.
+
+Ltac normalize :=
+   autorewrite with gather_prop;
+   repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
+              || simple apply derives_extract_prop
+              || simple apply derives_extract_prop');
+              fancy_intros true);
+   repeat normalize1; try contradiction.

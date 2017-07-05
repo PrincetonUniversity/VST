@@ -392,6 +392,8 @@ Lemma proj_sumbool_is_false:
 Proof.
 intros. destruct a; auto; contradiction.
 Qed.
+Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
+Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
 Lemma perm_search:
   forall {A} (a b: A) r s t,
