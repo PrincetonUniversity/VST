@@ -836,6 +836,48 @@ Qed.
     intro. apply I.
 Admitted.
 
+  Lemma get_extcall_arg_ren f s rs m l v
+      (A: get_extcall_arg s rs m l = Some v )
+      (M:valid_mem m)
+      (D: domain_memren f m) (E:MemObsEq.strong_mem_obs_eq f m m)
+      rs' (R: regset_ren f rs rs'):
+      exists v', get_extcall_arg s rs' m l = Some v' /\ val_obs f v v'.
+  Proof. destruct l; simpl in A. 
+  + inv A; simpl. eexists; split. reflexivity. apply R.
+  + admit. (* exploit loadv_wd. apply M.  apply D. apply A. intros vv_v.
+    apply val_obsC_correct in vv_v.
+    eexists; split; [| eassumption].
+    simpl. exploit (@MemObsEq.loadv_val_obs m m f).
+      apply A.
+      apply val_obs_add. constructor. apply R.
+      apply (@MemObsEq.injective f m m). admit.
+      trivial.
+   intros [v' [LD OBS]]. exists v'; split; trivial.  intros. red. red in D. red in M. Print val_obs. econstructor. simpl. Admitted.*)
+  Admitted.
+
+  Lemma get_extcall_args_ren f s m rs rs' (R: regset_ren f rs rs')
+      (M:valid_mem m) (D: domain_memren f m) (E:MemObsEq.strong_mem_obs_eq f m m): 
+   forall l vs
+    (A: get_extcall_arguments s rs m l = Some vs),
+    exists vs', get_extcall_arguments s rs' m l = Some vs' /\ val_obs_list f vs vs'.
+  Proof.
+   induction l; simpl; intros. eexists; split. apply A. inv A. constructor.
+   destruct a. remember (get_extcall_arg s rs m r) as q. destruct q; try discriminate.
+         remember (get_extcall_arguments s rs m l) as p; destruct p; try discriminate.
+         symmetry in Heqq; inv A. destruct (IHl l0) as [vals' [Vals' ObVals']]; trivial. rewrite Vals'.
+         exploit get_extcall_arg_ren. apply Heqq. trivial. eauto. eauto. eauto.
+         intros [v' [V' OBS]]. rewrite V'. eexists; split. reflexivity. constructor; trivial.
+    remember (get_extcall_arg s rs m rhi) as q. destruct q; try discriminate.
+      remember (get_extcall_arg s rs m rlo) as p; destruct p; try discriminate.
+        remember (get_extcall_arguments s rs m l) as w; destruct w; try discriminate. 
+         symmetry in Heqq; symmetry in Heqp; inv A.
+         destruct (IHl l0) as [vals' [Vals' ObVals']]; trivial. rewrite Vals'.
+         exploit get_extcall_arg_ren. apply Heqq. trivial. eauto. eauto. eauto.
+         intros [v' [V' OBS]]. rewrite V'.
+         exploit get_extcall_arg_ren. apply Heqp. trivial. eauto. eauto. eauto.
+         intros [v'' [V'' OBS']]. rewrite V''. eexists; split. reflexivity. constructor; trivial. apply val_obs_longofwords; trivial.
+   Qed. 
+
   Lemma core_inj_ext :
     forall ge m c c' (f : memren),
       ge_wd f ge ->
@@ -859,11 +901,11 @@ Admitted.
     intros ge m c c' f ? ? ? Hinj.
     simpl.
     unfold core_inj in Hinj.
-    specialize (Hinj PC).
-    hnf in Hinj.
+    assert (Hpc:=Hinj PC).
+    hnf in Hpc.
     unfold cl_at_external.
     unfold Pregmap.get in *.
-    destruct (c PC) eqn:?H; auto; inv Hinj; auto.
+    destruct (c PC) eqn:?H; auto; inv Hpc; auto.
     destruct (Int.eq_dec i Int.zero); auto. subst i.
     assert (find_funct_ptr ge b = find_funct_ptr ge b2). {
 (*
@@ -878,11 +920,21 @@ Admitted.
     rewrite <- H3.
     destruct (find_funct_ptr ge b) eqn:?H; auto.
     destruct f0; auto. destruct e; auto.
-    clear - H0 H1.
+    clear - H0 H1 Hinj.
     simpl.
     unfold ia32.Conventions1.loc_arguments.
     induction (sig_args sg); simpl.
-    split; auto. constructor.
+    split; auto. constructor. red in H1. unfold memren in f.
+    remember (get_extcall_arguments backend.Locations.Outgoing c m
+            (ia32.Conventions1.loc_arguments_rec l 0)) as q.
+    destruct q.
+    exploit get_extcall_args_ren. apply Hinj. apply H0. red; apply H1. admit. symmetry in Heqq; eassumption.
+    intros [args' [ARGS' Obsargs]]. rename l0 into args. rewrite ARGS' in IHl.
+    destruct a; simpl in *. (*
+    remember (get_extcall_arguments backend.Locations.Outgoing c' m
+            (ia32.Conventions1.loc_arguments_rec l 0)) as q'.
+    destruct q; destruct q'; trivial; try contradiction.
+    + destruct a. admit.  *)
     admit.  (* seems provable enough *)
 (*    eapply decode_longs_val_obs_list; eauto. *)
 Admitted.
@@ -985,6 +1037,65 @@ Admitted.
     simpl. auto.
   Qed.
 
+ Definition memren_addEntry (f:memren) b0 b1:memren :=
+  fun b => if eq_block b b0 then Some b1 else f b.
+
+ Lemma memren_addEntry_incr f b0 b1: ren_domain_incr f (memren_addEntry f b0 b1).
+ Proof. red; intros. unfold memren_addEntry. destruct (eq_block b b0); subst; simpl; trivial. Qed.
+
+ Lemma memren_addEntry_separated f b1 b2 m1 m2 (V1: ~ Mem.valid_block m1 b1) (V2: ~ Mem.valid_block m2 b2):
+    ren_separated f (memren_addEntry f b1 b2) m1 m2.
+ Proof. intros b b' B M. unfold memren_addEntry in M.
+   destruct (eq_block b b1); subst; simpl in *. inv M. split; trivial.
+   congruence. 
+  Qed.
+
+  Lemma store_arguments_valid_blocks: forall tys args v m m2
+        (ST: store_arguments tys args v m = Some m2),
+        forall b, Mem.valid_block m b <-> Mem.valid_block m2 b.
+  Proof. induction tys; destruct args; simpl; intros.
+   + inv ST. split; trivial.
+   + inv ST.
+   + destruct a; inv ST.
+   + destruct a.
+     - remember (Mem.storev (chunk_of_type Tint) m v0 v) as q; symmetry in Heqq; destruct q; try discriminate.
+       apply IHtys with (b:=b) in ST. specialize (storev_valid_block_1 _ _ _ _ _ Heqq).
+       specialize (storev_valid_block_2 _ _ _ _ _ Heqq). intros. split; intros.
+       apply ST. apply H0; trivial. apply H. apply ST; trivial.
+     - remember (Mem.storev (chunk_of_type Tfloat) m v0 v) as q; symmetry in Heqq; destruct q; try discriminate.
+       apply IHtys with (b:=b) in ST. specialize (storev_valid_block_1 _ _ _ _ _ Heqq).
+       specialize (storev_valid_block_2 _ _ _ _ _ Heqq). intros. split; intros.
+       apply ST. apply H0; trivial. apply H. apply ST; trivial.
+     - inv ST. 
+     - remember (Mem.storev (chunk_of_type Tsingle) m v0 v) as q; symmetry in Heqq; destruct q; try discriminate.
+       apply IHtys with (b:=b) in ST. specialize (storev_valid_block_1 _ _ _ _ _ Heqq).
+       specialize (storev_valid_block_2 _ _ _ _ _ Heqq). intros. split; intros.
+       apply ST. apply H0; trivial. apply H. apply ST; trivial.
+     - remember (Mem.storev (chunk_of_type Tany32) m v0 v) as q; symmetry in Heqq; destruct q; try discriminate.
+       apply IHtys with (b:=b) in ST. specialize (storev_valid_block_1 _ _ _ _ _ Heqq).
+       specialize (storev_valid_block_2 _ _ _ _ _ Heqq). intros. split; intros.
+       apply ST. apply H0; trivial. apply H. apply ST; trivial.
+     - remember (Mem.storev (chunk_of_type Tany64) m v0 v) as q; symmetry in Heqq; destruct q; try discriminate.
+       apply IHtys with (b:=b) in ST. specialize (storev_valid_block_1 _ _ _ _ _ Heqq).
+       specialize (storev_valid_block_2 _ _ _ _ _ Heqq). intros. split; intros.
+       apply ST. apply H0; trivial. apply H. apply ST; trivial.
+  Qed.
+
+  Lemma store_args_inj f: forall l arg arg' (Harg : val_obs_list f arg arg') m m' mm
+    (Hf : forall b b' : block, f b = Some b' -> Mem.valid_block m b)
+    b b' 
+    (P : forall ofs k, 0 <= ofs < ia32.Conventions1.size_arguments_rec l 0 ->
+         Mem.perm m b ofs k Freeable)
+    (P' : forall ofs k, 0 <= ofs < ia32.Conventions1.size_arguments_rec l 0 ->
+         Mem.perm m' b' ofs k Freeable)
+    (Hguard : store_arguments l arg (Vptr b Int.zero) m = Some mm),
+     exists mm' : mem, store_arguments l arg' (Vptr b' Int.zero) m' = Some mm'.
+  Proof. induction l; intros; simpl.
+  (*BUG 1: need (length)relationship between args and l*) 
+  Admitted.
+
+
+(*BUG3: I believe we need to allo f to evolve to f', with rendomain_incr (or ren_incr?), ren_seaprated, et etc, as indicated in the NEW lines*)
   Lemma core_inj_init :
     forall m m' vf vf' arg arg' c_new om f fg the_ge h
       (Harg: val_obs_list f arg arg')
@@ -992,10 +1103,16 @@ Admitted.
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core X86SEM.Sem h the_ge m vf arg = Some (c_new, om)),
+      (Hinit: initial_core X86SEM.Sem h the_ge m vf arg = Some (c_new, om))
+
+(*NEW*)  (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),    exists mm, om = Some mm /\
+
       exists c_new' : regset, exists om': option mem, 
+
+        (*new*) exists f', exists mm', ren_domain_incr f f' /\ ren_separated f f' mm mm'/\ om'=Some mm' /\
+
         initial_core X86SEM.Sem h the_ge m' vf' arg' = Some (c_new', om') /\
-        core_inj f c_new c_new'.
+        core_inj (*f*)f' c_new c_new'.
   Proof.
     intros.
     simpl in *.
@@ -1017,27 +1134,46 @@ Admitted.
       apply Hincr in Hfg'. rewrite H2 in Hfg'; by inversion Hfg'.
         by exfalso.
     } subst b2.
-    rewrite Hget.
+    rewrite Hget. 
     destruct (Mem.alloc m 0 (ia32.Conventions1.size_arguments (funsig f0))) eqn:?H.
     destruct (Mem.alloc m' 0 (ia32.Conventions1.size_arguments (funsig f0))) eqn:?H.
     match goal with
     | [H: context[match ?Expr with _ => _ end] |- _] =>
       destruct Expr eqn:Hguard
     end; try discriminate.
-    assert (exists m3, store_arguments (sig_args (funsig f0)) arg' (Vptr b1 Int.zero)
-      m' = Some m3) by admit.
-    destruct H1 as [m3 H1]; rewrite H1.
-    eexists. exists (Some m3).
-    split. reflexivity.
     inv Hinit.
+    (*BUG1: Hence need (legnth) relationship between  arg/args and (ia32.Conventions1.size_arguments (funsig f0))
+      here.*)
+    (*BUG2: I bet it's wrong that hypothesis H allocates a stackblock b0 yielding m0 but 
+            then hypothesis Hguard store the aguments into b0 in memory m rather than m0.
+             This seems to be a bug in definition initial_core of X86SEM.Sem*)
+    assert (exists m3, store_arguments (sig_args (funsig f0)) arg' (Vptr b1 Int.zero)
+      m' = Some m3). 
+    { specialize (Mem.perm_alloc_2 _ _ _ _ _ H); intros P.
+      specialize (Mem.perm_alloc_2 _ _ _ _ _ H0); intros P'.
+      unfold ia32.Conventions1.size_arguments in *.
+      remember (sig_args (funsig f0)) as l. 
+      clear - Hf Harg Hguard P P'. admit. (*eapply store_args_inj. eassumption. eassumption. eassumption. clear Heq *)
+    }
+    destruct H1 as [m3 H1]; rewrite H1. 
+    exists m2; split; trivial. eexists. exists (Some m3), (memren_addEntry f b0 b1), m3.
+    split. apply memren_addEntry_incr.
+    split. specialize (store_arguments_valid_blocks _ _ _ _  H1). 
+           specialize (store_arguments_valid_blocks _ _ _ _  Hguard). intros.
+           apply memren_addEntry_separated; intros N.
+           apply H3 in N. eapply Mem.fresh_block_alloc. apply H. eauto.
+           apply H4 in N. eapply Mem.fresh_block_alloc. apply H0. eauto.
+    split. trivial. 
+    split. reflexivity.
     unfold core_inj.
     apply regset_ren_set.
     apply regset_ren_set.
     apply regset_ren_set.
     apply regset_ren_init. constructor.
-    constructor; auto.
-    constructor; auto.
-    admit.
+    constructor. unfold memren_addEntry; simpl. destruct (eq_block b b0); subst; simpl.
+      apply Hf in H2. elim (Mem.fresh_block_alloc _ _ _ _ _ H H2).
+      trivial.
+    constructor. unfold memren_addEntry; simpl. destruct (eq_block b0 b0); subst; simpl; trivial. congruence.
     constructor.
 Admitted.
 
