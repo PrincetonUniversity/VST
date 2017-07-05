@@ -1,6 +1,5 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
@@ -1688,7 +1687,7 @@ Ltac normalize :=
  try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
  match goal with
  | |- semax _ _ _ _ =>
-  floyd.client_lemmas.normalize;
+  floyd.seplog_tactics.normalize;
   repeat
   (first [ simpl_tc_expr
          | simple apply semax_extract_PROP; fancy_intros true
@@ -1696,7 +1695,7 @@ Ltac normalize :=
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
   | |- _  =>
-    floyd.client_lemmas.normalize
+    floyd.seplog_tactics.normalize
   end.
 
 Ltac renormalize :=

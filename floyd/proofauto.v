@@ -1,7 +1,6 @@
-Require Export floyd.base.
+Require Export floyd.base2.
 Require Export floyd.sublist.
 Require Export floyd.client_lemmas.
-Require Export floyd.assert_lemmas.
 Require Export floyd.closed_lemmas.
 Require Export floyd.compare_lemmas.
 Require Export floyd.semax_tactics.

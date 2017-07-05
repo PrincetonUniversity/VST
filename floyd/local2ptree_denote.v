@@ -1,8 +1,5 @@
-Require Import floyd.base.
-Require Import floyd.canon.
-Require Import floyd.assert_lemmas.
-Require Import floyd.seplog_tactics.
-Require Import floyd.typecheck_lemmas.
+Require Import floyd.base2.
+Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 

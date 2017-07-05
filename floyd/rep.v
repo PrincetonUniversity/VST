@@ -1,5 +1,5 @@
 Add LoadPath "..".
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
 Require Import floyd.call_lemmas.
 Require Import veric.ghost.

@@ -1,6 +1,5 @@
 Require Export Coq.Sorting.Permutation.
-Require Import floyd.base.
-Require Import floyd.seplog_tactics.
+Require Import floyd.base2.
 
 Local Open Scope logic.
 
@@ -412,8 +411,7 @@ Lemma insert_local': forall (Q1: localdef) P Q R,
 Proof.
 intros. extensionality rho.
 unfold PROPx, LOCALx, local; super_unfold_lift. simpl.
-apply pred_ext; autorewrite with gather_prop; normalize;
-decompose [and] H; clear H.
+apply pred_ext; autorewrite with gather_prop; normalize.
 repeat apply andp_right; auto.
 apply prop_right; repeat split; auto.
 apply andp_right; auto.
@@ -609,8 +607,6 @@ Proof.
 intros.
 induction Q1; simpl; auto.
 apply prop_ext; intuition.
-normalize.
-apply Coq.Init.Logic.I.
 unfold_lift in IHQ1. unfold_lift.
 rewrite IHQ1.
 clear; apply prop_ext; intuition.
@@ -627,7 +623,7 @@ f_equal; auto.
 Qed.
 
 Lemma grab_indexes_SEP :
-  forall (ns: list Z) xs,   SEPx xs = SEPx (grab_indexes ns xs).
+  forall (ns: list Z) xs, SEPx xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
 unfold SEPx; extensionality rho.
@@ -829,10 +825,8 @@ unfold PROPx, LOCALx, local, lift1, SEPx.
 rewrite fold_right_sepcon_app.
 simpl. normalize.
 f_equal.
-rewrite <- andp_assoc.
-f_equal.
 rewrite map_app. rewrite fold_right_and_app.
-apply pred_ext; normalize. destruct H; normalize.
+apply pred_ext; normalize.
 Qed.
 
 Lemma semax_frame1:
@@ -955,13 +949,16 @@ Proof.
 intros.
 eapply derives_trans; [ | eapply derives_trans].
 2: apply sepcon_derives; [ apply H | apply (derives_refl  (fun _ => (fold_right sepcon emp R2)))].
-clear H.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
@@ -1153,7 +1150,8 @@ simpl in *; unfold_lift; unfold_lift in H.
 normalize.
 rewrite !prop_true_andp in H by auto.
 rewrite sepcon_emp in H.
-
+apply andp_right; auto.
+apply prop_right; auto.
 revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
@@ -1172,8 +1170,9 @@ unfold local, lift1 in *.
 simpl in *; unfold_lift; unfold_lift in H.
 normalize.
 rewrite !prop_true_andp in H by auto.
-clear - H.
 rewrite sepcon_emp in H.
+apply andp_right; auto.
+apply prop_right; auto.
 revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
@@ -1206,8 +1205,7 @@ intros.
 apply semax_pre_simple with (PROPx P QR); auto.
 clear.
 intro rho; unfold PROPx in *; simpl. normalize.
-destruct H; normalize.
- autorewrite with norm1 norm2; normalize.
+autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma semax_extract_PROP:
@@ -1218,8 +1216,9 @@ Proof.
 intros.
 apply semax_pre_simple with (!!PP && PROPx P QR).
 intro rho; unfold PROPx in *; simpl; normalize.
-destruct H0; normalize.
 autorewrite with norm1 norm2; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 apply semax_extract_prop.
 auto.
 Qed.
@@ -1274,8 +1273,10 @@ Proof.
  unfold_lift.
  simpl.
  apply pred_ext; normalize.
- destruct H0. repeat rewrite prop_true_andp by auto; auto.
- destruct H.  repeat rewrite prop_true_andp by auto; auto.
+apply andp_right; auto.
+apply prop_right; auto.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Ltac extract_prop_from_LOCAL :=
@@ -1327,6 +1328,8 @@ apply andp_left2.
 unfold normal_ret_assert.
 normalize. autorewrite with norm1 norm2; normalize.
 apply exp_right with x; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Ltac repeat_extract_exists_pre :=
@@ -1446,8 +1449,6 @@ apply pred_ext; normalize.
 * match goal with |- _ |-- !! ?PP && _ => replace PP with P1
    by (apply prop_ext; intuition)
   end.
-  rewrite (prop_true_andp _ _ H1).
- clear H1 Q H0 P.
   clear - H.
   revert R H; induction n; destruct R; simpl; intros.
   apply andp_right; auto.
@@ -1459,7 +1460,7 @@ apply pred_ext; normalize.
   rewrite <- sepcon_andp_prop.
   apply sepcon_derives; auto.
 *
-  destruct H0; repeat rewrite prop_true_andp by auto.
+  rewrite prop_true_andp by auto.
  clear - H H0.
   revert R H; induction n; destruct R; simpl; intros; auto.
   subst m. rewrite prop_true_andp; auto.
@@ -1877,7 +1878,11 @@ Proof.
   simpl.
   apply pred_ext.
   + normalize.
+    apply andp_right; auto.
+    apply prop_right; auto.
   + normalize.
+    apply andp_right; auto.
+    apply prop_right; auto.
 Qed.
 
 Lemma semax_frame': forall {Espec: OracleKind}{CS: compspecs},

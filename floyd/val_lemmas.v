@@ -701,7 +701,7 @@ Lemma typed_false_of_bool:
 Proof.
 unfold typed_false; simpl.
 unfold strict_bool_val, Val.of_bool; simpl.
-destruct x; simpl;  intuition congruence.
+destruct x; simpl; intros; [inversion H | auto].
 Qed.
 
 Lemma typed_true_of_bool:
@@ -709,7 +709,7 @@ Lemma typed_true_of_bool:
 Proof.
 unfold typed_true; simpl.
 unfold strict_bool_val, Val.of_bool; simpl.
-destruct x; simpl;  intuition congruence.
+destruct x; simpl; intros; [auto | inversion H].
 Qed.
 
 Lemma typed_false_tint:

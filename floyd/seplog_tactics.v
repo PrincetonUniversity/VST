@@ -1,4 +1,5 @@
 Require Import floyd.base.
+Require Import floyd.val_lemmas.
 Local Open Scope logic.
 
 Hint Rewrite <- prop_and : gather_prop.

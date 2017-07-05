@@ -1,6 +1,4 @@
-Require Import Coq.Sorting.Permutation.
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
+Require Import floyd.base2.
 Require Export floyd.canon.
 Local Open Scope logic.
 

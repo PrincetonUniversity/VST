@@ -1,4 +1,4 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.semax_tactics.
 Import ListNotations.
 

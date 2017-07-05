@@ -4,9 +4,8 @@
    This reduces makefile-based recompilation
    when changing things in (e.g.) forward.v
 *)
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
