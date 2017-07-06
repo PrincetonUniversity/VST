@@ -1,4 +1,5 @@
 Require Import veric.rmaps.
+Require Import veric.compcert_rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
 Require Import floyd.library.
@@ -8,16 +9,18 @@ Set Bullet Behavior "Strict Subproofs".
 
 Parameter invariant : mpred -> mpred.
 
-Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
-
 Axiom invariant_precise : forall P, precise (invariant P).
 
+(* In Iris, invariants are named and impredicative, and so the rules are full of laters. If we forgo
+   impredicative invariants, we can drop the laters. The contents of an invariant can still be impredicative
+   using HORec or the like. *)
+
 (* I think this is sound, and follows from Iris's rules... *)
-Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * |>R) (Q * |>R) ->
+Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (Q * R) ->
   view_shift (P * invariant R) (Q * invariant R).
 
 Lemma invariants_view_shift : forall {CS : compspecs} lR P Q,
-  view_shift (P * fold_right sepcon emp (map later lR)) (Q * fold_right sepcon emp (map later lR)) ->
+  view_shift (P * fold_right sepcon emp lR) (Q * fold_right sepcon emp lR) ->
   view_shift (P * fold_right sepcon emp (map invariant lR)) (Q * fold_right sepcon emp (map invariant lR)).
 Proof.
   induction lR; auto; simpl; intros.
@@ -27,8 +30,8 @@ Proof.
   etransitivity; [|etransitivity; eauto]; apply derives_view_shift; cancel.
 Qed.
 
-Axiom invariant_super_non_expansive : forall n P, compcert_rmaps.RML.R.approx n (invariant P) =
-compcert_rmaps.RML.R.approx n (invariant (compcert_rmaps.RML.R.approx n P)).
+Axiom invariant_super_non_expansive : forall n P, approx n (invariant P) =
+approx n (invariant (approx n P)).
 
 Global Arguments view_shift {_} A%logic B%logic.
 
@@ -40,7 +43,7 @@ Context {CS : compspecs}.
 Parameter objective : mpred -> Prop.
 Axiom emp_objective : objective emp.
 Axiom data_at_objective : forall sh t v p, readable_share sh -> objective (data_at sh t v p).
-Axiom ghost_objective : forall {A} (g : A) p, objective (ghost g p).
+Axiom ghost_objective : forall {A} {P : PCM A} (g : A) p, objective (ghost g p).
 Axiom prop_objective : forall P, objective (!!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
 Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
@@ -51,21 +54,90 @@ Proof.
   - apply emp_objective.
   - inv H; apply sepcon_objective; auto.
 Qed.
-Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
-  sepcon_objective sepcon_list_objective.
 
-Axiom new_inv : forall P, objective P -> view_shift (|>P) (invariant P).
-
-Corollary new_inv' : forall P, objective P -> view_shift P (invariant P).
-Proof.
-  intro; etransitivity; [apply derives_view_shift, now_later | apply new_inv; auto].
-Qed.
+Axiom new_inv : forall P, objective P -> view_shift P (invariant P).
 
 Corollary make_inv : forall P Q, P |-- Q -> objective Q -> view_shift P (invariant Q).
 Proof.
   intros.
-  etransitivity; [apply derives_view_shift | apply new_inv']; auto.
+  etransitivity; [apply derives_view_shift | apply new_inv]; auto.
 Qed.
+
+Section dup.
+
+Definition duplicable P := view_shift P (P * P).
+
+Lemma emp_duplicable : duplicable emp.
+Proof.
+  repeat intro.
+  rewrite sepcon_emp in H; auto.
+Qed.
+Hint Resolve emp_duplicable : dup.
+
+Lemma sepcon_duplicable : forall P Q, duplicable P -> duplicable Q -> duplicable (P * Q).
+Proof.
+  intros; unfold duplicable.
+  rewrite <- sepcon_assoc, (sepcon_comm (_ * Q)), <- sepcon_assoc, sepcon_assoc.
+  apply view_shift_sepcon; auto.
+Qed.
+Hint Resolve sepcon_duplicable : dup.
+
+Lemma sepcon_list_duplicable : forall lP, Forall duplicable lP -> duplicable (fold_right sepcon emp lP).
+Proof.
+  induction 1; simpl; auto with dup.
+Qed.
+
+Lemma list_duplicate : forall Q lP, duplicable Q ->
+  view_shift (fold_right sepcon emp lP * Q) (fold_right sepcon emp (map (sepcon Q) lP) * Q).
+Proof.
+  induction lP; simpl; intros; [reflexivity|].
+  rewrite sepcon_assoc; etransitivity; [apply view_shift_sepcon2, IHlP; auto|].
+  rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon2, H|].
+  apply derives_view_shift; cancel.
+Qed.
+
+(* Should all duplicables be of this form? *)
+Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
+
+Lemma invariant_duplicable' : forall P, duplicable (invariant P).
+Proof.
+  repeat intro; rewrite <- invariant_duplicable in *; auto.
+Qed.
+Hint Resolve invariant_duplicable' : dup.
+
+Lemma ghost_snap_duplicable : forall `{_ : PCM_order} (s : A) p, duplicable (ghost_snap s p).
+Proof.
+  intros; unfold duplicable.
+  erewrite ghost_snap_join; [reflexivity|].
+  apply ord_join; reflexivity.
+Qed.
+Hint Resolve ghost_snap_duplicable : dup.
+
+Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
+Proof.
+  intros.
+  apply view_shift_prop; intro.
+  etransitivity; eauto.
+  apply derives_view_shift; entailer!.
+Qed.
+Hint Resolve prop_duplicable : dup.
+
+Lemma exp_duplicable : forall {A} (P : A -> mpred), (forall x, duplicable (P x)) -> duplicable (exp P).
+Proof.
+  unfold duplicable; intros.
+  view_shift_intro x.
+  etransitivity; eauto.
+  apply derives_view_shift; Exists x x; auto.
+Qed.
+
+Lemma duplicable_super_non_expansive : forall n P,
+  approx n (!!duplicable P) = approx n (!!duplicable (approx n P)).
+Proof.
+  intros; unfold duplicable.
+  setoid_rewrite view_shift_super_non_expansive at 1; rewrite approx_sepcon; auto.
+Qed.
+
+End dup.
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
@@ -81,11 +153,11 @@ Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstTyp
 Program Definition load_SC_spec := TYPE AL_type
   WITH p : val, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred, Q : Z -> mpred
   PRE [ 1%positive OF tptr tint ]
-   PROP (view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+   PROP (view_shift (fold_right sepcon emp (map II lI) * P)
            (EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
               data_at sh tint (vint v) p * P' sh v);
          forall sh v, view_shift (!!(readable_share sh /\ repable_signed v) &&
-           data_at sh tint (vint v) p * P' sh v) (fold_right sepcon emp (map (fun p => |>II p) lI) * Q v))
+           data_at sh tint (vint v) p * P' sh v) (fold_right sepcon emp (map II lI) * Q v))
    LOCAL (temp 1%positive p)
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tint ]
@@ -104,7 +176,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
         rewrite !approx_exp; apply f_equal; extensionality v.
         rewrite !approx_sepcon, approx_idem; auto.
@@ -115,7 +187,7 @@ Proof.
       * rewrite !approx_sepcon, approx_idem; auto.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
   - rewrite !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
@@ -139,10 +211,10 @@ Program Definition store_SC_spec := TYPE AS_type
   WITH p : val, v : Z, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> mpred, Q : mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v;
-         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+         view_shift (fold_right sepcon emp (map II lI) * P)
            (EX sh : share, !!(writable_share sh) && data_at_ sh tint p * P' sh);
          forall sh, view_shift (!!(writable_share sh) && data_at sh tint (vint v) p * P' sh)
-           (fold_right sepcon emp (map (fun p => |>II p) lI) * Q))
+           (fold_right sepcon emp (map II lI) * Q))
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tvoid ]
@@ -160,7 +232,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
         rewrite !approx_sepcon, approx_idem; auto.
     + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
@@ -169,7 +241,7 @@ Proof.
       * rewrite !approx_sepcon, approx_idem; auto.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
   - rewrite !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
@@ -194,12 +266,12 @@ Program Definition CAS_SC_spec := TYPE ACAS_type
        Q : Z -> mpred
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v;
-         view_shift (fold_right sepcon emp (map (fun p => |>II p) lI) * P)
+         view_shift (fold_right sepcon emp (map II lI) * P)
            (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
               data_at sh tint (vint v0) p * P' sh v0);
          forall sh v0, view_shift (!!(writable_share sh /\ repable_signed v0) &&
            data_at sh tint (vint (if eq_dec v0 c then v else v0)) p * P' sh v0)
-           (fold_right sepcon emp (map (fun p => |>II p) lI) * Q v0))
+           (fold_right sepcon emp (map II lI) * Q v0))
    LOCAL (temp 1%positive p; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
   POST [ tint ]
@@ -218,7 +290,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
         rewrite !approx_exp; apply f_equal; extensionality v0.
         rewrite !approx_sepcon, approx_idem; auto.
@@ -229,7 +301,7 @@ Proof.
       * rewrite !approx_sepcon, approx_idem; auto.
       * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+        intro; simpl; rewrite approx_idem; auto.
   - rewrite !approx_sepcon_list'.
     erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
@@ -251,43 +323,31 @@ Section atomicity.
 (* The logical atomicity of Iris, with TaDa's private part. *)
 Definition view_shift_iff P Q := view_shift P Q /\ view_shift Q P.
 
-(* Do we need this, or the timeless view shift in atomic_shift, for soundness? *)
-Axiom ghost_timeless : forall {A} (g : A) p, view_shift (|>ghost g p) (ghost g p).
-
 Definition atomic_shift {A B} P (a R : A -> mpred) E (b Q : A -> B -> mpred) :=
-  view_shift (|>P) P /\
-  view_shift_iff (fold_right sepcon emp (map later E) * P) (EX x : A, a x * R x) /\
-  forall x v, view_shift (b x v * R x) (fold_right sepcon emp (map later E) * Q x v).
+  view_shift_iff (fold_right sepcon emp E * P) (EX x : A, a x * R x) /\
+  forall x v, view_shift (b x v * R x) (fold_right sepcon emp E * Q x v).
 
 Definition atomic_spec_type A W T := ProdType (ProdType (ProdType (ProdType (ProdType W Mpred)
   ((ArrowType (ConstType A) (ArrowType (ConstType T) Mpred)))) (ArrowType (ConstType A) Mpred))
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)).
 
 Definition super_non_expansive_a {A W} (a : forall ts : list Type, functors.MixVariantFunctor._functor
-  (dependent_type_functor_rec ts W) (predicates_hered.pred compcert_rmaps.RML.R.rmap) ->
-    A -> predicates_hered.pred compcert_rmaps.RML.R.rmap) :=
-  forall n ts w x, compcert_rmaps.RML.R.approx n (a ts w x) =
-  compcert_rmaps.RML.R.approx n (a ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) x).
+  (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A -> predicates_hered.pred rmap) :=
+  forall n ts w x, approx n (a ts w x) =
+  approx n (a ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x).
 
 Definition super_non_expansive_b {A B W} (b : forall ts : list Type, functors.MixVariantFunctor._functor
-  (dependent_type_functor_rec ts W) (predicates_hered.pred compcert_rmaps.RML.R.rmap) ->
-    A -> B -> predicates_hered.pred compcert_rmaps.RML.R.rmap) :=
-  forall n ts w x y, compcert_rmaps.RML.R.approx n (b ts w x y) =
-  compcert_rmaps.RML.R.approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) x y).
+  (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A -> B -> predicates_hered.pred rmap) :=
+  forall n ts w x y, approx n (b ts w x y) =
+  approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x y).
 
 Definition super_non_expansive_la {W} la := forall n ts w rho,
-  Forall (fun l => compcert_rmaps.RML.R.approx n (!! locald_denote (l ts w) rho) =
-    compcert_rmaps.RML.R.approx n (!! locald_denote (l ts
-           (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-              (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w)) rho)) la.
+  Forall (fun l => approx n (!! locald_denote (l ts w) rho) = approx n (!! locald_denote (l ts
+    (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w)) rho)) la.
 
 Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
-  Forall (fun l => compcert_rmaps.RML.R.approx n (!! locald_denote (l ts w v) rho) =
-    compcert_rmaps.RML.R.approx n (!! locald_denote (l ts
-           (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W)
-              (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) w) v) rho)) lb.
+  Forall (fun l => approx n (!! locald_denote (l ts w v) rho) = approx n (!! locald_denote (l ts
+    (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) v) rho)) lb.
 
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
@@ -313,10 +373,7 @@ Proof.
     (map (fun l ts x => let '(x, P, Q, R, II, lI) := x in l ts x) la) [fun _ => _]);
     repeat constructor; hnf; intros; try destruct x as (((((x, P), Q), R), II), lI); auto; simpl.
   - unfold atomic_shift.
-    rewrite !prop_and, !approx_andp; f_equal; [|f_equal].
-    + rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2.
-      rewrite approx_idem, (nonexpansive_super_non_expansive later) by (apply later_nonexpansive); auto.
+    rewrite !prop_and, !approx_andp; f_equal.
     + rewrite sepcon_comm, (sepcon_comm _ (_ _ P)).
       unfold view_shift_iff.
       rewrite !prop_and, !approx_andp; f_equal; rewrite view_shift_super_non_expansive;
@@ -325,14 +382,14 @@ Proof.
         setoid_rewrite (approx_sepcon_list _ (_ _ P :: _)); [|discriminate]; simpl.
         rewrite approx_idem; do 2 apply f_equal; f_equal.
         { erewrite !map_map, map_ext; eauto.
-          intros; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto. }
+          intros; simpl; rewrite approx_idem; auto. }
         rewrite !approx_exp; apply f_equal; extensionality; rewrite !approx_sepcon, !approx_idem, Ha; auto.
       * setoid_rewrite (approx_sepcon_list _ (P :: _)); [|discriminate].
         setoid_rewrite (approx_sepcon_list _ (_ _ P :: _)); [|discriminate]; simpl.
         rewrite approx_idem; do 2 apply f_equal; f_equal.
         rewrite !approx_exp; apply f_equal; extensionality; rewrite !approx_sepcon, !approx_idem, Ha; auto.
         { erewrite !map_map, map_ext; eauto.
-          intros; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto. }
+          intros; simpl; rewrite approx_idem; auto. }
     + rewrite !prop_forall, !approx_allp by auto.
       apply f_equal; extensionality.
       rewrite !prop_forall, !approx_allp by auto.
@@ -341,7 +398,7 @@ Proof.
       setoid_rewrite view_shift_super_non_expansive at 2.
       rewrite !approx_sepcon, !approx_sepcon_list'.
       erewrite !approx_idem, Hb, !map_map, map_ext; eauto.
-      intros; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
+      intros; simpl; rewrite approx_idem; auto.
   - rewrite Forall_forall; intros ? Hin.
     rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
     intros ?? (((((x, P), Q), R), ?), ?) ?.
@@ -444,3 +501,8 @@ Ltac start_atomic_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax; simpl.
+
+Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_duplicable prop_duplicable : dup.
+
+Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
+  sepcon_objective sepcon_list_objective : objective.

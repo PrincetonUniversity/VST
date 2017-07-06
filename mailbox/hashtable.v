@@ -265,6 +265,15 @@ Proof.
     rewrite Zplus_mod_idemp_l, Z.sub_simpl_r, Zmod_small in H by omega; contradiction H; auto.
 Qed.
 
+Lemma Zlength_set : forall m k v m', set m k v = Some m' -> Zlength m = size ->
+  Zlength m' = size.
+Proof.
+  unfold set; intros.
+  destruct (lookup m k) eqn: Hlookup; inv H.
+  rewrite upd_Znth_Zlength; auto.
+  eapply lookup_range; eauto.
+Qed.
+
 Lemma get_set_same : forall m k v m', set m k v = Some m' -> Zlength m = size -> k <> 0 ->
   get m' k = Some v.
 Proof.

@@ -1,6 +1,5 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_eval.
