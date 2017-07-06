@@ -1105,15 +1105,15 @@ Admitted.
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
       (Hinit: initial_core X86SEM.Sem h the_ge m vf arg = Some (c_new, om))
-
-(*NEW*)  (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),    exists mm, om = Some mm /\
-
-      exists c_new' : regset, exists om': option mem, 
-
-        (*new*) exists f', exists mm', ren_domain_incr f f' /\ ren_separated f f' m m'/\ om'=Some mm' /\
-
-        initial_core X86SEM.Sem h the_ge m' vf' arg' = Some (c_new', om') /\
-        core_inj (*f*)f' c_new c_new'.
+      (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),
+      exists c_new' : regset, exists om': option mem,
+      initial_core X86SEM.Sem h the_ge m' vf' arg' = Some (c_new', om') /\
+      exists f', 
+        core_inj f' c_new c_new' /\
+      match om with
+      | None => f'=f /\ om' = None
+      | Some mm => exists mm', ren_domain_incr f f' /\ ren_separated f f' m m'/\ om'=Some mm' 
+      end.
   Proof.
     intros.
     simpl in *.
@@ -1148,35 +1148,60 @@ Admitted.
     (*BUG2: I bet it's wrong that hypothesis H allocates a stackblock b0 yielding m0 but 
             then hypothesis Hguard store the aguments into b0 in memory m rather than m0.
              This seems to be a bug in definition initial_core of X86SEM.Sem*)
+    pose (f' := memren_addEntry f b0 b1).
+    assert (Hf': forall b b' : block, f' b = Some b' -> Mem.valid_block m0 b). {
+     subst f'. clear - Hf H.
+     intros.
+     unfold memren_addEntry in H0.
+      destruct (eq_block b b0); subst; simpl in *. inv H0. 
+      apply Mem.valid_new_block in H; auto.
+      eapply Mem.valid_block_alloc; eauto.
+    }
     assert (exists m3, store_arguments (sig_args (funsig f0)) arg' (Vptr b1 Int.zero)
       m1 = Some m3). 
     { specialize (Mem.perm_alloc_2 _ _ _ _ _ H); intros P.
       specialize (Mem.perm_alloc_2 _ _ _ _ _ H0); intros P'.
       unfold ia32.Conventions1.size_arguments in *.
       remember (sig_args (funsig f0)) as l. 
-      clear - Hf Harg Hguard P P'. admit. (*eapply store_args_inj. eassumption. eassumption. eassumption. clear Heq *)
+      apply Mem.fresh_block_alloc in H.
+      clear - Hf Hf' Harg Hguard P P' H.
+      eapply (@store_args_inj f'); try apply Hguard; try eassumption.
+      subst f'; clear - Hf Hf' Harg H.
+      induction Harg; try constructor; auto.
+      clear - H Hf Hf' H0.
+      inv H0; constructor; auto.
+      unfold memren_addEntry in *.
+      specialize (Hf' b2 b1).
+      specialize (Hf _ _ H1).
+      destruct (eq_block b2 b0); auto. subst. simpl in *. contradiction.
     }
-    destruct H1 as [m3 H1]; rewrite H1. 
-    exists m2; split; trivial. eexists. exists (Some m3), (memren_addEntry f b0 b1), m3.
-    split. apply memren_addEntry_incr.
-    split. specialize (store_arguments_valid_blocks _ _ _ _  H1). 
-           specialize (store_arguments_valid_blocks _ _ _ _  Hguard). intros.
-           apply memren_addEntry_separated; intros N.
-           eapply Mem.fresh_block_alloc. apply H. eauto.
-           eapply Mem.fresh_block_alloc. apply H0. eauto.
-    split. trivial. 
-    split. reflexivity.
+    destruct H1 as [m3 H1]; rewrite H1.
+    eexists. exists (Some m3). split; [reflexivity |].
+    exists f'.
+    subst f'.
+    split.
     unfold core_inj.
     apply regset_ren_set.
     apply regset_ren_set.
     apply regset_ren_set.
     apply regset_ren_init. constructor.
-    constructor. unfold memren_addEntry; simpl. destruct (eq_block b b0); subst; simpl.
+    constructor;auto.
+    unfold memren_addEntry; simpl. destruct (eq_block b b0); subst; simpl.
       apply Hf in H2. elim (Mem.fresh_block_alloc _ _ _ _ _ H H2).
       trivial.
-    constructor. unfold memren_addEntry; simpl. destruct (eq_block b0 b0); subst; simpl; trivial. congruence.
     constructor.
-Admitted.
+    unfold memren_addEntry; simpl. destruct (eq_block b0 b0); subst; simpl; trivial. congruence.
+    constructor.
+    exists m3.
+    split.
+    apply memren_addEntry_incr.
+    split. specialize (store_arguments_valid_blocks _ _ _ _  H1). 
+           specialize (store_arguments_valid_blocks _ _ _ _  Hguard). intros.
+           apply memren_addEntry_separated; intros N.
+           eapply Mem.fresh_block_alloc. apply H. eauto.
+           eapply Mem.fresh_block_alloc. apply H0. eauto.
+    auto.
+Qed.
 
   Lemma core_inj_id :
     forall c (f : memren),

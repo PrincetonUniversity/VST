@@ -288,28 +288,37 @@ Module SimProofs (SEM: Semantics)
 
   Lemma ctlType_inj :
     forall c c' (f: memren)
+      (Hge_wd: ge_wd f the_ge)
       (Hinj: ctl_inj f c c'),
       ctlType c = ctlType c'.
   Proof.
     intros. unfold ctl_inj in Hinj.
     destruct c; destruct c'; try (by exfalso);
-    unfold ctlType in *;
-    try assert (Hat_ext := @core_inj_ext the_ge Mem.empty _ _ _ Hinj);
-    try assert (Hhalted := core_inj_halted Hinj); auto.
+    unfold ctlType in *; auto.
+    assert  (VME: valid_mem Mem.empty). {
+      hnf; intros.
+      hnf in H. simpl Mem.nextblock in H. destruct b; inversion H.
+   }
+    assert (DME: domain_memren f Mem.empty). {
+      admit. (* False *)
+   }
+    assert (Hat_ext := @core_inj_ext the_ge Mem.empty _ _ _ Hge_wd VME DME Hinj).
+    assert (Hhalted := core_inj_halted Hinj); auto.
     destruct (at_external SEM.Sem the_ge c Mem.empty) as [[? ?]|]; simpl in *;
     destruct (at_external SEM.Sem the_ge c0 Mem.empty) as [[? ?]|]; simpl in *; auto;
     try (by exfalso).
     destruct (halted SEM.Sem c), (halted SEM.Sem c0); try tauto.
-  Qed.
+Admitted.
 
   Lemma stepType_inj:
-    forall tpc tpf i (pffi:containsThread tpf i) (pfci: containsThread tpc i) f,
+    forall tpc tpf i (pffi:containsThread tpf i) (pfci: containsThread tpc i) f      
+      (Hge_wd: ge_wd f the_ge),
       ctl_inj f (getThreadC pfci) (getThreadC pffi) ->
       getStepType pfci = getStepType pffi.
   Proof.
     intros.
     eapply ctlType_inj;
-      by eauto.
+      try eauto.
   Qed.
 
   Lemma sim_reduce:
@@ -550,7 +559,7 @@ Module SimProofs (SEM: Semantics)
       destruct X as [? ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
-      assert (Hargs:= at_external_wd the_ge m' Hcore_wd Hat_external).
+      assert (Hargs:= at_external_wd the_ge Hmem_wd Hdomain Hcore_wd Hat_external).
       eapply after_external_wd; eauto.
       eapply core_wd_incr; eauto.
       eapply valid_val_list_incr;
@@ -581,7 +590,9 @@ Module SimProofs (SEM: Semantics)
       rewrite gssThreadCC.
       pf_cleanup.
       simpl.
-      eapply initial_core_wd; eauto.
+      eapply initial_core_wd; try apply Hinitial; eauto.
+      admit.
+      admit.
       specialize (Htp_wd _ ctn).
       rewrite Hcode in Htp_wd.
       simpl in Htp_wd.
@@ -595,7 +606,7 @@ Module SimProofs (SEM: Semantics)
       specialize (Htp_wd _ cntj).
       eapply ctl_wd_incr;
         by eauto.
-  Qed.
+  Admitted.
 
   Lemma internal_execution_wd:
     forall tp m tp' m' i xs f fg

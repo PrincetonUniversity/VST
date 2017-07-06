@@ -3483,10 +3483,16 @@ Module Type CoreInjections (SEM: Semantics).
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core Sem h the_ge m vf arg = Some (c_new, om)),
-      exists c_new' : C, exists om': option mem, 
-        initial_core Sem h the_ge m' vf' arg' = Some (c_new', om') /\
-        core_inj f c_new c_new'.
+      (Hinit: initial_core Sem h the_ge m vf arg = Some (c_new, om))
+      (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),
+      exists c_new' : C, exists om': option mem,
+      initial_core Sem h the_ge m' vf' arg' = Some (c_new', om') /\
+      exists f', 
+        core_inj f' c_new c_new' /\
+      match om with
+      | None => f'=f /\ om' = None
+      | Some mm => exists mm', ren_domain_incr f f' /\ ren_separated f f' m m'/\ om'=Some mm' 
+      end.
 
   Parameter core_inj_id: forall c f,
       core_wd f c ->
