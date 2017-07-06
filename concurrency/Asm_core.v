@@ -129,7 +129,7 @@ Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : optio
     | Some f =>
        let fsig := funsig f in
        let (m', stk) := Mem.alloc m 0 (Conventions1.size_arguments fsig) in
-       match store_arguments fsig.(sig_args) args (Vptr stk Int.zero) m with
+       match store_arguments fsig.(sig_args) args (Vptr stk Int.zero) m' with
         | Some m'' => 
            Some ( (Pregmap.init Vundef)
                       # PC <- v

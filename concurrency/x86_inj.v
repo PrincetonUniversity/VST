@@ -805,6 +805,7 @@ Qed.
     apply Hcore_wd.
 Qed.
 
+(*LENB: I think we can fill the hole in this proof if we again allow f to evolve to some f' with incr and sep properties*)
   Lemma initial_core_wd :
     forall the_ge m (f : memren) (vf arg : val) (c_new : regset) om h,
       valid_mem m ->
@@ -819,7 +820,7 @@ Qed.
     destruct (Int.eq_dec i Int.zero); try discriminate.
     destruct (find_funct_ptr the_ge b) eqn:?H; try discriminate.
     destruct (Mem.alloc m 0 (ia32.Conventions1.size_arguments (funsig f0))) eqn:?H.
-    destruct (store_arguments (sig_args (funsig f0)) [:: arg] (Vptr b0 Int.zero) m); inv H5.
+    destruct (store_arguments (sig_args (funsig f0)) [:: arg] (Vptr b0 Int.zero) m0); inv H5.
     apply regset_wd_set; auto.
     hnf; auto.
     apply regset_wd_set; auto.
@@ -1091,11 +1092,11 @@ Admitted.
     (Hguard : store_arguments l arg (Vptr b Int.zero) m = Some mm),
      exists mm' : mem, store_arguments l arg' (Vptr b' Int.zero) m' = Some mm'.
   Proof. induction l; intros; simpl.
-  (*BUG 1: need (length)relationship between args and l*) 
+  (*LENB: need (length)relationship between args and l*) 
   Admitted.
 
 
-(*BUG3: I believe we need to allo f to evolve to f', with rendomain_incr (or ren_incr?), ren_seaprated, et etc, as indicated in the NEW lines*)
+(*LENB: I believe we need to allo f to evolve to f', with rendomain_incr (or ren_incr?), ren_seaprated, et etc, as indicated in the NEW lines*)
   Lemma core_inj_init :
     forall m m' vf vf' arg arg' c_new om f fg the_ge h
       (Harg: val_obs_list f arg arg')
@@ -1109,7 +1110,7 @@ Admitted.
 
       exists c_new' : regset, exists om': option mem, 
 
-        (*new*) exists f', exists mm', ren_domain_incr f f' /\ ren_separated f f' mm mm'/\ om'=Some mm' /\
+        (*new*) exists f', exists mm', ren_domain_incr f f' /\ ren_separated f f' m m'/\ om'=Some mm' /\
 
         initial_core X86SEM.Sem h the_ge m' vf' arg' = Some (c_new', om') /\
         core_inj (*f*)f' c_new c_new'.
@@ -1142,13 +1143,13 @@ Admitted.
       destruct Expr eqn:Hguard
     end; try discriminate.
     inv Hinit.
-    (*BUG1: Hence need (legnth) relationship between  arg/args and (ia32.Conventions1.size_arguments (funsig f0))
+    (*LENB: Hence need (length) relationship between  arg/args and (ia32.Conventions1.size_arguments (funsig f0))
       here.*)
     (*BUG2: I bet it's wrong that hypothesis H allocates a stackblock b0 yielding m0 but 
             then hypothesis Hguard store the aguments into b0 in memory m rather than m0.
              This seems to be a bug in definition initial_core of X86SEM.Sem*)
     assert (exists m3, store_arguments (sig_args (funsig f0)) arg' (Vptr b1 Int.zero)
-      m' = Some m3). 
+      m1 = Some m3). 
     { specialize (Mem.perm_alloc_2 _ _ _ _ _ H); intros P.
       specialize (Mem.perm_alloc_2 _ _ _ _ _ H0); intros P'.
       unfold ia32.Conventions1.size_arguments in *.
@@ -1161,8 +1162,8 @@ Admitted.
     split. specialize (store_arguments_valid_blocks _ _ _ _  H1). 
            specialize (store_arguments_valid_blocks _ _ _ _  Hguard). intros.
            apply memren_addEntry_separated; intros N.
-           apply H3 in N. eapply Mem.fresh_block_alloc. apply H. eauto.
-           apply H4 in N. eapply Mem.fresh_block_alloc. apply H0. eauto.
+           eapply Mem.fresh_block_alloc. apply H. eauto.
+           eapply Mem.fresh_block_alloc. apply H0. eauto.
     split. trivial. 
     split. reflexivity.
     unfold core_inj.
