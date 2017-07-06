@@ -1,3 +1,7 @@
+
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Integers.
+
 Require Import compcert.common.Values.
 
 Require Import concurrency.machine_simulation.
@@ -48,8 +52,6 @@ Require Import concurrency.concursim_safety.
   gs gt sch psrc ptgt new2core_simulation).
   Qed.
 
-  Require Import compcert.common.Globalenvs.
-  Require Import compcert.lib.Integers.
     Lemma Initial_dry_safety_concur:
       forall (prog : Clight.program  )
         (U : SCH.schedule) (n : nat) (b: block) init_m,

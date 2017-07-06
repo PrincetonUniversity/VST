@@ -671,7 +671,7 @@ Section safety_Clight.
     unfold mk_nstate; simpl.
     eapply bounded_initial_mem.
   Qed.
-
+  
   Lemma Initial_dry_safety_concur:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_st,
