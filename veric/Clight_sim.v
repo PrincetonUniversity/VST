@@ -957,6 +957,26 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
 
 Require Import sepcomp.step_lemmas.
 
+ Lemma sim_initial_new:
+  forall (prog: Clight.program) b q m h,
+  initial_core Clight_new.cl_core_sem h
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
+          (Vptr b Int.zero) nil = Some (q, None) ->
+  exists q',
+  initial_core Clight_core.cl_core_sem h
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
+          (Vptr b Int.zero) nil = Some (q', None) /\
+    match_states q q'.
+Proof.
+ intros.
+ eexists.
+ simpl in *.
+ rewrite if_true in H|-* by auto.
+ match type of H with  match ?A with Some _ => _ | None => _ end = _ => destruct A eqn:?H end; inv H.
+ split.
+ f_equal. f_equal.
+Admitted.
+
  Lemma sim_dry_safeN:
   forall dryspec (prog: Clight.program) b q m h,
   initial_core Clight_new.cl_core_sem h
@@ -1077,4 +1097,5 @@ destruct ret, lid; inv H6; apply H4.
 *
  inv H1.
 Qed.
+
 

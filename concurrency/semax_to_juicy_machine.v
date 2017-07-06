@@ -159,16 +159,28 @@ Qed.
 
 (*+ Final instantiation *)
 
+Record CSL_proof := {
+  CSL_prog : Clight.program;
+  CSL_CS: compspecs;
+  CSL_V : varspecs; 
+  CSL_G : funspecs;
+  CSL_ext_link : string -> ident;
+  CSL_ext_link_inj : forall s1 s2, CSL_ext_link s1 = CSL_ext_link s2 -> s1 = s2;
+  CSL_all_safe : semax_prog.semax_prog (Concurrent_Espec unit CSL_CS CSL_ext_link)
+                             CSL_prog CSL_V CSL_G;
+  CSL_init_mem_not_none : Genv.init_mem CSL_prog <> None;
+}.
+
 Section Safety.
-  Variables
-    (CS : compspecs)
-    (V : varspecs)
-    (G : funspecs)
-    (ext_link : string -> ident)
-    (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-    (prog : Clight.program)
-    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
-    (init_mem_not_none : Genv.init_mem prog <> None).
+  Variable CPROOF: CSL_proof.
+  Definition CS :=   CPROOF.(CSL_CS).
+  Definition V :=   CPROOF.(CSL_V).
+  Definition G :=   CPROOF.(CSL_G).
+  Definition ext_link :=   CPROOF.(CSL_ext_link).
+  Definition ext_link_inj :=   CPROOF.(CSL_ext_link_inj).
+  Definition prog :=   CPROOF.(CSL_prog).
+  Definition all_safe :=   CPROOF.(CSL_all_safe).
+  Definition init_mem_not_none :=   CPROOF.(CSL_init_mem_not_none).
 
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
 
@@ -235,6 +247,7 @@ Section Safety.
     destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnotmakelock].
     {
       apply safety_induction_makelock; eauto.
+      - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
@@ -244,6 +257,7 @@ Section Safety.
     destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
     {
       apply safety_induction_freelock; eauto.
+      - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
@@ -253,6 +267,7 @@ Section Safety.
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
       apply safety_induction_spawn; eauto.
+      - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
@@ -261,6 +276,7 @@ Section Safety.
     destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
+    apply ext_link_inj.
   Qed.
 
   Lemma inv_step Gamma n state :
@@ -356,7 +372,7 @@ Section Safety.
   Proof.
     intros sch r n thisfunction.
     pose proof initial_invariant CS V G ext_link prog as INIT.
-    repeat (specialize (INIT ltac:(assumption))).
+    specialize (INIT all_safe init_mem_not_none n sch).
     match type of INIT with
       _ _ ?a n ?b =>
       assert (init : inv a n b) by (hnf; eauto)
@@ -365,8 +381,11 @@ Section Safety.
     clear INIT; revert init.
     unfold initial_state, initial_machine_state.
     unfold initial_corestate, initial_jm, spr, init_mem.
-    match goal with |- context[(sch, ?tp)] => generalize tp end.
+    match goal with |- context[(sch, nil, ?tp)] => set (t0:= tp) end.
+    match goal with |- context[(sch, ?tp)] => change tp with t0 end.
+    clearbody t0. revert t0.
     match goal with |- context[(proj1_sig ?m)] => generalize (proj1_sig m) end.
+
     (* here we decorelate the CoreSemantics parameters from the
     initial state parameters *)
     generalize sch at 2.

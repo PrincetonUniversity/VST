@@ -105,6 +105,7 @@ SEPCOMP_FILES = \
 
 CONCUR_FILES= \
   Asm_core.v Asm_event.v load_frame.v I64Helpers.v BuiltinEffects.v \
+  Clight_new2core.v \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \

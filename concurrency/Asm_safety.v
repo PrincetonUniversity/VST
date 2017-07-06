@@ -9,6 +9,10 @@ Require Import concurrency.permissions.
 Require Import concurrency.x86_context.
 Require Import concurrency.concursim_safety.
 
+Require Import concurrency.Clight_new2core.
+Require Import concurrency.semax_to_juicy_machine.
+
+Check safety_initial_state.
 
 Import X86Machines.
 
@@ -19,7 +23,7 @@ Variable sch: DryConc.Sch.
 
 Lemma Initial_Asm_safety:
   forall (prog : program  )
-    (U : DryConc.Sch) (n : nat) (b: block) init_m,
+    (U : DryConc.Sch) (b: block) init_m,
     let ge:= Genv.globalenv prog in
     Genv.init_mem prog = Some init_m ->
     exists init_st,
@@ -33,6 +37,7 @@ Lemma Initial_Asm_safety:
         DryConc.safe_new_step ge (U', nil, init_st)
                                                 init_m.
 Proof.
+  intros.
 Admitted.
   
 

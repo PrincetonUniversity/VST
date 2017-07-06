@@ -34,44 +34,44 @@ Require Import Coq.Logic.Classical_Prop.
 
 (*The following variables represent a program satisfying some CSL*)
 Section Clight_safety.
+  Variable CPROOF: CSL_proof.
+  Definition CS :=   CPROOF.(CSL_CS).
+  Definition V :=   CPROOF.(CSL_V).
+  Definition G :=   CPROOF.(CSL_G).
+  Definition ext_link :=   CPROOF.(CSL_ext_link).
+  Definition ext_link_inj :=   CPROOF.(CSL_ext_link_inj).
+  Definition prog :=   CPROOF.(CSL_prog).
+  Definition all_safe :=   CPROOF.(CSL_all_safe).
+  Definition init_mem_not_none :=   CPROOF.(CSL_init_mem_not_none).
+
     Variables
-      (CS : compspecs)
-      (V : varspecs)
-      (G : funspecs)
-      (ext_link : string -> ident)
-      (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-      (prog : Ctypes.program _)
-      (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
-      (init_mem_not_none : Genv.init_mem (Ctypes.program_of_program prog) <> None)
       (x: block)
       (block: (Genv.find_symbol (globalenv prog) (prog_main (Ctypes.program_of_program prog)) = Some x)).
 
-    Notation init_jmem n:= (initial_jm CS V G ext_link prog all_safe init_mem_not_none n).
+    Notation init_jmem n:= (initial_jm CPROOF n).
     Notation init_rmap n:=(Some (juicy_mem.m_phi (init_jmem n) )).
     Notation init_genv:=(globalenv prog).
-    Notation init_point:=(Vptr (projT1 ((spr CS V G ext_link prog all_safe init_mem_not_none))) Integers.Int.zero).
+    Notation init_point:=(Vptr (projT1 ((spr CPROOF))) Integers.Int.zero).
 
 
     Section Csafety_Clight.
     (** The initial Juicy Machine *)
-    Definition js_initial n := initial_machine_state CS V G ext_link prog all_safe
-                                                     init_mem_not_none n.
+    Definition js_initial n := initial_machine_state CPROOF n.
 
     Definition Juicy_safety:=
-      safety_initial_state CS V G ext_link ext_link_inj prog all_safe init_mem_not_none.
+      safety_initial_state CPROOF.
 
     Import JuicyMachineModule.THE_JUICY_MACHINE.JuicyMachine.
     Import JuicyMachineModule.THE_JUICY_MACHINE.SCH.
 
 
         Lemma initial_equivalence_trivial:
-          forall CS V G ext_link prog all_safe init_mem_not_none n,
+          forall CPROOF n,
             JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine
               (juicy_mem.m_phi
-                 (initial_jm CS V G ext_link prog all_safe init_mem_not_none n))
-              (initial_corestate CS V G ext_link prog all_safe
-                                 init_mem_not_none) =
-            initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n.
+                 (initial_jm CPROOF n))
+              (initial_corestate CPROOF) =
+            initial_machine_state CPROOF n.
         Proof.
           intros; simpl.
           unfold initial_machine_state, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.initial_machine; simpl.
@@ -84,11 +84,11 @@ Section Clight_safety.
              (g:JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G)
              b,
           genv_genv g = Genv.globalenv (Ctypes.program_of_program prog) ->
-          b =  projT1 ((spr CS V G ext_link prog all_safe init_mem_not_none)) ->
-          r = Some (juicy_mem.m_phi (initial_jm CS V G ext_link prog all_safe init_mem_not_none  n)) ->
+          b =  projT1 ((spr CPROOF)) ->
+          r = Some (juicy_mem.m_phi (initial_jm CPROOF  n)) ->
           CoreInitial u r 0 g
-                      (juicy_mem.m_dry (initial_jm CS V G ext_link prog all_safe init_mem_not_none  n)) (Vptr b Integers.Int.zero) nil =
-          Some (u, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n, None).
+                      (juicy_mem.m_dry (initial_jm CPROOF  n)) (Vptr b Integers.Int.zero) nil =
+          Some (u, nil, initial_machine_state CPROOF n, None).
         intros.
         unfold CoreInitial; simpl.
         unfold init_machine, JuicyMachineModule.THE_JUICY_MACHINE.JSEM.init_mach.
@@ -101,7 +101,9 @@ Section Clight_safety.
         rewrite <- initial_equivalence_trivial.
         subst r; simpl.
         unfold initial_corestate.
+        unfold prog in *.
         destruct spr as (b' & c' & e & SPR); simpl in *.
+        change semax_to_juicy_machine.prog with CSL_prog in *.
         subst b'.
         specialize (SPR n). destruct SPR as [jm [? [? [? _]]]].
         unfold juicy_extspec.j_initial_core in H2.
@@ -115,10 +117,10 @@ Section Clight_safety.
     Lemma initial_equivalence': forall U n
              (g:JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G),
           genv_genv g = Genv.globalenv (Ctypes.program_of_program prog) ->
-          (semantics.initial_core (MachineSemantics U (Some (juicy_mem.m_phi (initial_jm CS V G ext_link prog all_safe init_mem_not_none n)))))
-            0 g (proj1_sig (init_mem prog init_mem_not_none))
-            (Vptr (projT1 ((spr CS V G ext_link prog all_safe init_mem_not_none))) Integers.Int.zero) nil =
-                  Some ((U, nil, initial_machine_state CS V G ext_link prog all_safe init_mem_not_none n), None).
+          (semantics.initial_core (MachineSemantics U (Some (juicy_mem.m_phi (initial_jm CPROOF n)))))
+            0 g (proj1_sig (init_mem CPROOF))
+            (Vptr (projT1 ((spr CPROOF))) Integers.Int.zero) nil =
+                  Some ((U, nil, initial_machine_state CPROOF n), None).
     Proof.
         intros.
         erewrite <- initial_equivalence; eauto.
@@ -127,24 +129,21 @@ Section Clight_safety.
         clear.
         destruct spr; simpl. destruct s. destruct p. simpl. destruct s. simpl. destruct a. rewrite H. auto.
     Qed.
-    
+
     Lemma CoreInitial_juicy_safety:
       forall (U : semax_invariant.schedule) (n : nat),
       exists init_st,
-        (semantics.initial_core (MachineSemantics U (init_rmap n))) 0 init_genv (proj1_sig (init_mem prog init_mem_not_none)) init_point nil =
+        (semantics.initial_core (MachineSemantics U (init_rmap n))) 
+                0 init_genv (proj1_sig (init_mem CPROOF)) init_point nil =
         Some ((U, nil, init_st), None) /\
        forall U',
        csafe (globalenv prog) (U', nil, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)) n.
+         (proj1_sig (init_mem CPROOF)) n.
     Proof.
       eexists; split.
       rewrite initial_equivalence'; eauto.
       intros U'; eapply Juicy_safety.
     Qed.
-
-
-    Check ErasureSafety.initial_safety.
-
 
     (** *Safety for Clight_new*)
     Import DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.
@@ -155,7 +154,7 @@ Section Clight_safety.
         Some ((init_U, init_tr, init_st), None) /\
         forall U' ,
        csafe (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)) n.
+         (proj1_sig (init_mem CPROOF)) n.
     Proof.
       intros U n.
       pose proof (CoreInitial_juicy_safety U n).
@@ -206,7 +205,7 @@ Section Clight_safety.
         Some ((init_U, init_tr, init_st), None) /\
         forall U' n',
        csafe (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)) n'.
+         (proj1_sig (init_mem CPROOF)) n'.
     Proof.
       intros U n.
       pose proof (Initial_dry_csafety U n) as [init_U [ init_tr [init_st [HH ?]]]].
@@ -373,7 +372,7 @@ Section Ksafety_Clight.
         Some ((init_U, init_tr, init_st), None) /\
         forall n' U',
        ksafe_new_step (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)) n'.
+         (proj1_sig (init_mem CPROOF)) n'.
     Proof.
       intros.
       pose proof (Initial_dry_Csafety_stronger U n).
@@ -418,7 +417,7 @@ Section Ksafety_Clight.
            * eapply step_with_halt.
              unfold mk_ostate, mk_nstate; simpl.
              instantiate (4:=U').
-             instantiate (2:= (nil, init_st,  (proj1_sig (init_mem prog init_mem_not_none))));
+             instantiate (2:= (nil, init_st,  (proj1_sig (init_mem CPROOF))));
                simpl.
              eapply schedfail; simpl; eauto.
              -- unfold ThreadPool.containsThread; intros.
@@ -447,9 +446,9 @@ Section Ksafety_Clight.
         Some ((init_U, init_tr, init_st), None) /\
         forall n' U',
           new_valid  (mk_nstate (U', init_tr, init_st)
-                                (proj1_sig (init_mem prog init_mem_not_none))) U' ->
+                                (proj1_sig (init_mem CPROOF))) U' ->
        ksafe_new_step (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)) n'.
+         (proj1_sig (init_mem CPROOF)) n'.
     Proof.
       intros.
       pose proof (Initial_dry_Csafety_stronger U n).
@@ -516,9 +515,9 @@ Section safety_Clight.
         (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
         Some ((init_U, init_tr, init_st), None) /\
         forall U',
-          new_valid_bound (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
+          new_valid_bound (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem CPROOF))) U' ->
        safe_new_step_bound (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)).
+         (proj1_sig (init_mem CPROOF)).
   Proof.
     intros.
     destruct (Initial_dry_ksafety U n) as (INIT_U & INIT_tr & INIT_st & INIT_ok & SAFE).
@@ -623,12 +622,13 @@ Section safety_Clight.
                  rewrite PTree.gleaf in HH; inversion HH.
         Qed.
     Lemma bounded_initial_mem:
-      bounded_mem (proj1_sig (init_mem prog init_mem_not_none)).
+      bounded_mem (proj1_sig (init_mem CPROOF)).
       unfold bounded_mem, bounded_maps.bounded_map, init_mem, init_m.
-      destruct (Genv.init_mem (Ctypes.program_of_program prog)) eqn:HH;
-          [ |exfalso; apply init_mem_not_none; auto].
-      generalize HH; eauto; clear HH.
-      pose (K:= (prog_defs (Ctypes.program_of_program prog))).
+      destruct CPROOF; simpl in *.
+      destruct (Genv.init_mem (Ctypes.program_of_program CSL_prog)) eqn:HH;
+          [ | congruence].
+      generalize HH; eauto; clear HH. simpl.
+      pose (K:= (prog_defs (Ctypes.program_of_program CSL_prog))).
       pose (m':= Mem.empty).
       unfold Genv.init_mem.
       assert ( bounded_mem m').
@@ -642,12 +642,12 @@ Section safety_Clight.
         subst; eauto.
         
       - intros M BM; simpl.
-        destruct (Genv.alloc_global (Genv.globalenv (Ctypes.program_of_program prog)) M a) eqn: AA;
+        destruct (Genv.alloc_global (Genv.globalenv (Ctypes.program_of_program CSL_prog)) M a) eqn: AA;
             try solve[intros HH; inversion HH].
           intros HH.
           pose (@Clight_bounds.alloc_global_bounded
                   _ _
-                  (Genv.globalenv (Ctypes.program_of_program prog))
+                  (Genv.globalenv (Ctypes.program_of_program CSL_prog))
                M m0 a).
           eapply b in BM; eauto.
     Qed.
@@ -658,9 +658,9 @@ Section safety_Clight.
         (semantics.initial_core (MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) 0 init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
         Some ((init_U, init_tr, init_st), None) /\
         forall U',
-          new_valid (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
+          new_valid (mk_nstate (U', init_tr, init_st) (proj1_sig (init_mem CPROOF))) U' ->
        safe_new_step_bound (globalenv prog) (U', init_tr, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)).
+         (proj1_sig (init_mem CPROOF)).
   Proof.
     intros.
     destruct (Initial_bounded_dry_safety U n) as
@@ -678,9 +678,9 @@ Section safety_Clight.
         (machine_semantics.initial_machine (new_MachineSemantics U (Some ( getCurPerm (juicy_mem.m_dry (init_jmem n)), empty_map)))) init_genv (juicy_mem.m_dry (init_jmem n)) init_point nil =
         Some (init_st, None) /\
         forall U',
-          new_valid (mk_nstate (U', nil, init_st) (proj1_sig (init_mem prog init_mem_not_none))) U' ->
+          new_valid (mk_nstate (U', nil, init_st) (proj1_sig (init_mem CPROOF))) U' ->
        safe_new_step_bound (globalenv prog) (U', nil, init_st)
-         (proj1_sig (init_mem prog init_mem_not_none)).
+         (proj1_sig (init_mem CPROOF)).
   Proof.
     intros.
     destruct (Initial_dry_safety U n) as

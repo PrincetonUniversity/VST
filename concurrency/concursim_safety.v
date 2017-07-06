@@ -38,20 +38,21 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
   Variable sch: DMS.SC.Sch.
   Variable psrc: option SMachine.DryMachine.ThreadPool.RES.res.
   Variable ptgt: option TMachine.DryMachine.ThreadPool.RES.res.
+  Variable start_block : Values.val.
   Hypothesis the_simulation:
     Machine_sim
       (SDryConc.new_MachineSemantics sch psrc)
       (TDryConc.new_MachineSemantics sch ptgt)
-      ges get Values.Vundef.
+      ges get start_block.
 
   Lemma safety_preservation'':
         forall  tr Sds Sm Tds Tm cd
-          (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
+          (MATCH: exists j, (MSmatch_states start_block the_simulation) cd j Sds Sm Tds Tm),
           (forall sch, SMachine.DryConc.new_valid (tr, Sds, Sm) sch ->
                   SMachine.DryConc.explicit_safety ges sch Sds Sm) ->
           (forall sch, TMachine.DryConc.valid (sch, tr, Tds) ->
                   TMachine.DryConc.stutter_stepN_safety
-                    (core_ord:=MSorder Values.Vundef the_simulation) get cd sch Tds Tm).
+                    (core_ord:=MSorder start_block the_simulation) get cd sch Tds Tm).
   Proof.
     cofix CIH.
     intros.
@@ -60,7 +61,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
     move: MATCH => [] j MATCH.
     assert (equivalid:
                forall cd j Sm Tm tr Sds Tds,
-                 (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm ->
+                 (MSmatch_states start_block the_simulation) cd j Sds Sm Tds Tm ->
                  forall sch,
                    SMachine.DryConc.valid (sch, tr, Sds)  <->
                    TMachine.DryConc.valid (sch, tr, Tds) ).
@@ -104,7 +105,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
 
     - (*Internal StepN case*)
       { simpl in H2. simpl in *; subst.
-        assert (my_core_diagram:= MSthread_diagram Values.Vundef the_simulation).
+        assert (my_core_diagram:= MSthread_diagram start_block the_simulation).
         simpl in my_core_diagram.
         intros MATCH.
         destruct y'.
@@ -174,7 +175,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
  }
       }
     - 
-      assert (my_machine_diagram:= MSmachine_diagram Values.Vundef the_simulation).
+      assert (my_machine_diagram:= MSmachine_diagram start_block the_simulation).
       simpl in my_machine_diagram.
         intros MATCH.
         eapply my_machine_diagram with (st1':= fst y')(m1':=snd y') in MATCH; eauto.
@@ -192,7 +193,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
 
     Lemma safety_preservation':
       forall tr Sds Sm Tds Tm cd
-        (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
+        (MATCH: exists j, (MSmatch_states start_block the_simulation) cd j Sds Sm Tds Tm),
       (forall sch, SMachine.DryConc.valid (sch, tr, Sds) ->
               SMachine.DryConc.explicit_safety ges sch Sds Sm) ->
       (forall sch, TMachine.DryConc.valid (sch, tr, Tds) ->
@@ -200,7 +201,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
   Proof.
     move=> tr Sds Sm Tds Tm  cd [] j MATCH HH sch' VAL.
     apply @coinductive_safety.safety_stutter_stepN_equiv
-    with (core_ord:=MSorder Values.Vundef the_simulation); auto.
+    with (core_ord:=MSorder start_block the_simulation); auto.
     + eapply MSord_wf; eauto.
     + exists cd.
       apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists j; assumption.
@@ -209,7 +210,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
 
   Lemma safety_preservation:
     forall Sds Sm Tds Tm cd j
-      (MATCH: (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
+      (MATCH: (MSmatch_states start_block the_simulation) cd j Sds Sm Tds Tm),
       (forall sch, SMachine.DryConc.valid (sch, nil, Sds) ->
               SMachine.DryConc.safe_new_step ges (sch, nil, Sds) Sm) ->
       (forall sch, TMachine.DryConc.valid (sch, nil, Tds) ->
@@ -231,7 +232,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
      forall (c1 : SMachine.DryMachine.ThreadPool.t) (vals1 : seq Values.val) 
          (m1 : mem) (vals2 : seq Values.val) (m2 : mem) (j : Values.Val.meminj),
        machine_semantics.initial_machine (SDryConc.new_MachineSemantics sch psrc) ges
-         m1 Values.Vundef vals1 = Some (c1, None) ->
+         m1 start_block vals1 = Some (c1, None) ->
        Mem.inject j m1 m2 ->
        List.Forall2 (val_inject j) vals1 vals2 ->
        smthng_about_globals ges j ->
@@ -239,7 +240,7 @@ Module concure_simulation_safety (SMachine TMachine: MachinesSig).
                SMachine.DryConc.safe_new_step ges (sch, nil, c1) m1) ->
        exists (c2 : TMachine.DryMachine.ThreadPool.t),
          machine_semantics.initial_machine (TDryConc.new_MachineSemantics sch ptgt) get
-                                           m2 Values.Vundef vals2 = Some (c2, None) /\
+                                           m2 start_block vals2 = Some (c2, None) /\
          (forall sch, TMachine.DryConc.valid (sch, nil, c2) ->
               TMachine.DryConc.safe_new_step get (sch, nil, c2) m2).
   Proof.
