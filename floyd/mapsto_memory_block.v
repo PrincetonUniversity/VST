@@ -439,7 +439,8 @@ Proof.
   normalize.
   f_equal.
   extensionality rho.
-  unfold_for_go_lower. simpl.
+  unfold LOCALx, SEPx, local, lift1; simpl.
+  unfold_lift. simpl.
   fold locald_denote.
   forget (fold_right
      (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)

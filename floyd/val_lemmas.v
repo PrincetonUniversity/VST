@@ -798,3 +798,18 @@ Ltac fancy_intros aggressive :=
   | |- (?A /\ ?B) -> ?C => apply (@and_ind A B C) (* For some reason "apply and_ind" doesn't work the same *)
   | |- _ -> _ => fancy_intro aggressive
   end.
+
+Ltac fold_types :=
+ fold noattr tuint tint tschar tuchar;
+ repeat match goal with
+ | |- context [Tpointer ?t noattr] =>
+      change (Tpointer t noattr) with (tptr t)
+ | |- context [Tarray ?t ?n noattr] =>
+      change (Tarray t n noattr) with (tarray t n)
+ end.
+
+Ltac fold_types1 :=
+  match goal with |- _ -> ?A =>
+  let a := fresh "H" in set (a:=A); fold_types; subst a
+  end.
+

@@ -1,5 +1,6 @@
 Require Import floyd.base2.
 Require Import floyd.client_lemmas.
+Require Import floyd.go_lower.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at floyd.nested_field_lemmas.

@@ -121,3 +121,7 @@ Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
  | b::r => b * fold_right_sepcon r
  end.
 
+Inductive LLRR : Type :=
+  | LLLL : LLRR
+  | RRRR : LLRR.
+

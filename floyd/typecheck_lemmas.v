@@ -1,5 +1,7 @@
 Require Import floyd.base.
 
+Local Open Scope logic.
+
 Lemma denote_tc_assert_andp:
   forall {CS: compspecs} (a b : tc_assert) (rho : environ),
   denote_tc_assert (tc_andp a b) rho =
@@ -50,4 +52,57 @@ Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
 Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e.
 Proof. intros; unfold tc_andp; reflexivity. Qed.
 Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
+
+Definition tc_LR_strong {cs: compspecs} Delta e lr :=
+  match lr with
+  | LLLL => tc_lvalue Delta e
+  | RRRR => tc_expr Delta e
+  end.
+
+Definition tc_LR {cs: compspecs} Delta e lr :=
+  match e with
+  | Ederef e0 t =>
+     match lr with
+     | LLLL => denote_tc_assert
+                 (tc_andp
+                   (typecheck_expr Delta e0)
+                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+     | RRRR => denote_tc_assert
+                match access_mode t with
+                | By_reference =>
+                   (tc_andp
+                      (typecheck_expr Delta e0)
+                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+                | _ => tc_FF (deref_byvalue t)
+                end
+    end
+  | _ => tc_LR_strong Delta e lr
+  end.
+
+Definition eval_LR {cs: compspecs} e lr :=
+  match lr with
+  | LLLL => eval_lvalue e
+  | RRRR => eval_expr e
+  end.
+
+Lemma tc_LR_tc_LR_strong: forall {cs: compspecs} Delta e lr rho,
+  tc_LR Delta e lr rho && !! isptr (eval_LR e lr rho) |-- tc_LR_strong Delta e lr rho.
+Proof.
+  intros.
+  unfold tc_LR, tc_LR_strong.
+  destruct e; try solve [apply andp_left1; auto].
+  unfold tc_lvalue, tc_expr.
+  destruct lr; simpl.
+  + rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+  + destruct (access_mode t); try solve [apply andp_left1; auto].
+    rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+Qed.
 

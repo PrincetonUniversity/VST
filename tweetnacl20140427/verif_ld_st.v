@@ -185,7 +185,6 @@ forward_for_simple_bound 8 (EX i:Z,
   + entailer!. rewrite HH. 
     rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
   + simpl; rewrite HH. forward.
-    entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
     rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).

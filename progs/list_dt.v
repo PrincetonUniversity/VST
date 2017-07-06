@@ -934,7 +934,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-old_go_lower; entailer.
+go_lowerx; entailer.
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.
@@ -1511,7 +1511,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls sh r y v2 :: R)))).
-old_go_lower; entailer.  (* Intros h r y should work here, but doesn't. *)
+go_lowerx; entailer.  (* Intros h r y should work here, but doesn't. *)
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.
@@ -2173,7 +2173,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-old_go_lower; entailer.
+go_lowerx; entailer.
 Exists h r y.
 rewrite <- ?sepcon_assoc.
 normalize.

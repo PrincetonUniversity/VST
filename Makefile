@@ -218,7 +218,7 @@ VERIC_FILES= \
 
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
-   base2.v \
+   base2.v go_lower.v \
    library.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
