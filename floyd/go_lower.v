@@ -234,7 +234,7 @@ apply prop_right; auto.
 Qed.
 
 Definition rho_marker := tt.
-
+(*
 Ltac go_lower :=
 clear_Delta_specs;
 intros;
@@ -304,7 +304,7 @@ end
 try match goal with u := rho_marker |- _ => clear u end;
 clear_Delta;
 try clear dependent rho.
-
+*)
 Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
@@ -591,7 +591,7 @@ Ltac unfold_localdef_name QQ Q :=
     unfold_localdef_name QQ Qt
   end.
 
-Ltac unfold_canon_canon :=
+Ltac clean_LOCAL_canon_canon :=
   match goal with
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- PROPx _ (LOCALx _ (SEPx _)) =>
     apply go_lower_localdef_canon_canon
@@ -661,4 +661,93 @@ Proof.
   auto.
 Qed.
 
-Print Ltac prove_local2ptree.
+Lemma go_lower_localdef_canon_tc_exprlist {cs: compspecs} : forall Delta Ppre Qpre Rpre ts es T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_exprlist Delta T1 T2 ts es) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_exprlist Delta ts es.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_exprlist_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
+Lemma go_lower_localdef_canon_tc_expropt {cs: compspecs} : forall Delta Ppre Qpre Rpre e t T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_expropt Delta T1 T2 e t) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expropt Delta e t.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_expropt_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
+Ltac clean_LOCAL_canon_tc :=
+  match goal with
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expr _ _ =>
+    apply go_lower_localdef_canon_tc_expr
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_lvalue _ _ =>
+    apply go_lower_localdef_canon_tc_lvalue
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_exprlist _ _ _ =>
+    apply go_lower_localdef_canon_tc_exprlist
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expropt _ _ _ =>
+    apply go_lower_localdef_canon_tc_expropt
+  end;
+         (let tl := fresh "tl" in
+         let QQ := fresh "Q" in
+         let PPr := fresh "Pr" in
+         match goal with
+         | |- context [?Pr ++ localdefs_tc ?Delta ?Q] =>
+                set (tl := Pr ++ localdefs_tc Delta Q);
+                set (PPr := Pr) in tl;
+                set (QQ := Q) in tl;
+                unfold Delta, abbreviate in tl;
+                cbv [localdefs_tc localdef_tc temp_types tc_val concat map app Pos.eqb PTree.get] in tl;
+                unfold_localdef_name QQ Q;
+                subst PPr QQ;
+                cbv beta iota zeta in tl;
+                subst tl
+         end).
+
+Ltac go_lower :=
+clear_Delta_specs;
+intros;
+match goal with
+ | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+       apply ENTAIL_normal_ret_assert; fancy_intros true
+ | |- local _ && _ |-- _ => idtac
+ | |- ENTAIL _, _ |-- _ => idtac
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end;
+first [clean_LOCAL_canon_canon | clean_LOCAL_canon_tc];
+repeat (simple apply derives_extract_PROP; fancy_intro true);
+let rho := fresh "rho" in
+intro rho;
+try match goal with
+| |- ?LHS |--  ?S rho =>
+       unify (S rho) (S any_environ);
+       let u := fresh "u" in pose (u := rho_marker);
+   let x := fresh "x" in set (x:=LHS);
+   unfold_for_go_lower; simpl; subst x;
+   rewrite ?(prop_true_andp True) by auto
+end;
+try simple apply quick_finish_lower;
+ (simple apply finish_lower ||
+ match goal with
+ | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
+ | |- _ => fail 1 "PROP part of precondition is not a concrete list"
+ end);
+unfold_for_go_lower;
+simpl; rewrite ?sepcon_emp;
+try match goal with u := rho_marker |- _ => clear u end;
+clear_Delta;
+try clear dependent rho.
