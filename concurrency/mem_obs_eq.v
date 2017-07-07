@@ -3410,12 +3410,23 @@ Module Type CoreInjections (SEM: Semantics).
             end),
       core_wd f c'.
 
+(*LENB: modified to account for the fact that a stack block is allocated. Cf the similarly modified 
+  core_inj_init later in this file
   Parameter initial_core_wd:
     forall the_ge m (f : memren) (vf arg : val) (c_new : C) om h,
       valid_mem m ->
       domain_memren f m ->
       initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
-      valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.
+      valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.*)
+
+ Parameter initial_core_wd :
+    forall the_ge m (f : memren) (vf arg : val) (c_new:C) om h,
+      valid_mem m ->
+      domain_memren f m ->
+      initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
+      valid_val f arg -> ge_wd f the_ge -> 
+     exists f', core_wd f' c_new /\ ren_domain_incr f f' /\ 
+        (forall b1 b2, f b1 = None -> f' b1 = Some b2 -> ~Mem.valid_block m b1).
 
   (** Renamings on cores *)
   Parameter core_inj: memren -> C -> C -> Prop.

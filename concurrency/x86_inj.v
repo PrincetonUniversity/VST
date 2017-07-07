@@ -28,6 +28,20 @@ Require Import concurrency.x86_context.
 
 Import ValObsEq Renamings event_semantics.
 
+ Definition memren_addEntry (f:memren) b0 b1:memren :=
+  fun b => if eq_block b b0 then Some b1 else f b.
+
+ Lemma memren_addEntry_incr f b0 b1: ren_domain_incr f (memren_addEntry f b0 b1).
+ Proof. red; intros. unfold memren_addEntry. destruct (eq_block b b0); subst; simpl; trivial. Qed.
+
+ Lemma memren_addEntry_separated f b1 b2 m1 m2 (V1: ~ Mem.valid_block m1 b1) (V2: ~ Mem.valid_block m2 b2):
+    ren_separated f (memren_addEntry f b1 b2) m1 m2.
+ Proof. intros b b' B M. unfold memren_addEntry in M.
+   destruct (eq_block b b1); subst; simpl in *. inv M. split; trivial.
+   congruence. 
+  Qed.
+
+
 (** ** Well defined X86 cores *)
 Module X86WD.
   Import MemoryWD Genv ValueWD.
@@ -805,13 +819,14 @@ Qed.
     apply Hcore_wd.
 Qed.
 
-(*LENB: I think we can fill the hole in this proof if we again allow f to evolve to some f' with incr and sep properties*)
-  Lemma initial_core_wd :
+ Lemma initial_core_wd :
     forall the_ge m (f : memren) (vf arg : val) (c_new : regset) om h,
       valid_mem m ->
       domain_memren f m ->
       initial_core X86SEM.Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
-      valid_val f arg -> ge_wd f the_ge -> regset_wd f c_new.
+      valid_val f arg -> ge_wd f the_ge -> 
+     exists f', regset_wd f' c_new /\ ren_domain_incr f f'  /\ 
+        (forall b1 b2, f b1 = None -> f' b1 = Some b2 -> ~Mem.valid_block m b1).
   Proof.
     intros.
     simpl in *.
@@ -821,21 +836,26 @@ Qed.
     destruct (find_funct_ptr the_ge b) eqn:?H; try discriminate.
     destruct (Mem.alloc m 0 (ia32.Conventions1.size_arguments (funsig f0))) eqn:?H.
     destruct (store_arguments (sig_args (funsig f0)) [:: arg] (Vptr b0 Int.zero) m0); inv H5.
-    apply regset_wd_set; auto.
-    hnf; auto.
-    apply regset_wd_set; auto.
-    admit.  (* not true! *)
-    apply regset_wd_set; auto.
-    destruct H3.
-    unfold find_funct_ptr in H1. unfold find_def in H1.
-    specialize (H3 b).
-    destruct ( Maps.PTree.get b (genv_defs the_ge)); inv H1.
-    destruct g; inv H7. simpl in H3.
-    specialize (H3 (eq_refl true)).
-    destruct (f b) eqn:?H; inv H3. 
-    exists b1; auto.
-    intro. apply I.
-Admitted.
+    exists (memren_addEntry f b0 b0); unfold memren_addEntry, proj_sumbool; split. 
+      apply regset_wd_set; auto.
+      hnf; auto.
+      apply regset_wd_set; auto.
+      red. remember (eq_block b0 b0) as q; destruct q; subst. eexists; reflexivity. elim n; trivial. 
+      apply regset_wd_set; auto.
+      destruct H3.
+      unfold find_funct_ptr in H1. unfold find_def in H1.
+      specialize (H3 b).
+      destruct ( Maps.PTree.get b (genv_defs the_ge)); inv H1.
+      destruct g; inv H7. simpl in H3.
+      specialize (H3 (eq_refl true)).
+      destruct (f b) eqn:?H; inv H3. simpl. 
+      exists b1; auto. remember (eq_block b b0) as q; destruct q; subst; trivial.
+        elim (Mem.fresh_block_alloc _ _ _ _ _ H4). apply H0. red; rewrite H1. simpl; trivial.
+      intro. apply I.
+    split; red; intros. remember (eq_block b1 b0) as q; destruct q; subst; trivial.
+    remember (eq_block b1 b0) as q; destruct q; subst; trivial; try congruence.
+    inv H6. elim (Mem.fresh_block_alloc _ _ _ _ _ H4); trivial. 
+  Qed.
 
   Lemma get_extcall_arg_ren f s rs m l v
       (A: get_extcall_arg s rs m l = Some v )
@@ -1038,19 +1058,6 @@ Admitted.
     simpl. auto.
   Qed.
 
- Definition memren_addEntry (f:memren) b0 b1:memren :=
-  fun b => if eq_block b b0 then Some b1 else f b.
-
- Lemma memren_addEntry_incr f b0 b1: ren_domain_incr f (memren_addEntry f b0 b1).
- Proof. red; intros. unfold memren_addEntry. destruct (eq_block b b0); subst; simpl; trivial. Qed.
-
- Lemma memren_addEntry_separated f b1 b2 m1 m2 (V1: ~ Mem.valid_block m1 b1) (V2: ~ Mem.valid_block m2 b2):
-    ren_separated f (memren_addEntry f b1 b2) m1 m2.
- Proof. intros b b' B M. unfold memren_addEntry in M.
-   destruct (eq_block b b1); subst; simpl in *. inv M. split; trivial.
-   congruence. 
-  Qed.
-
   Lemma store_arguments_valid_blocks: forall tys args v m m2
         (ST: store_arguments tys args v m = Some m2),
         forall b, Mem.valid_block m b <-> Mem.valid_block m2 b.
@@ -1095,9 +1102,7 @@ Admitted.
   (*LENB: need (length)relationship between args and l*) 
   Admitted.
 
-
-(*LENB: I believe we need to allo f to evolve to f', with rendomain_incr (or ren_incr?), ren_seaprated, et etc, as indicated in the NEW lines*)
-  Lemma core_inj_init :
+  Lemma core_inj_init:
     forall m m' vf vf' arg arg' c_new om f fg the_ge h
       (Harg: val_obs_list f arg arg')
       (Hvf: val_obs f vf vf')
@@ -1106,7 +1111,7 @@ Admitted.
       (Hincr: ren_incr fg f)
       (Hinit: initial_core X86SEM.Sem h the_ge m vf arg = Some (c_new, om))
       (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),
-      exists c_new' : regset, exists om': option mem,
+      exists c_new', exists om': option mem,
       initial_core X86SEM.Sem h the_ge m' vf' arg' = Some (c_new', om') /\
       exists f', 
         core_inj f' c_new c_new' /\
@@ -1114,8 +1119,7 @@ Admitted.
       | None => f'=f /\ om' = None
       | Some mm => exists mm', ren_domain_incr f f' /\ ren_separated f f' m m'/\ om'=Some mm' 
       end.
-  Proof.
-    intros.
+ Proof. intros.
     simpl in *.
     unfold cl_initial_core in *.
     destruct vf; try discriminate.
@@ -1145,9 +1149,6 @@ Admitted.
     inv Hinit.
     (*LENB: Hence need (length) relationship between  arg/args and (ia32.Conventions1.size_arguments (funsig f0))
       here.*)
-    (*BUG2: I bet it's wrong that hypothesis H allocates a stackblock b0 yielding m0 but 
-            then hypothesis Hguard store the aguments into b0 in memory m rather than m0.
-             This seems to be a bug in definition initial_core of X86SEM.Sem*)
     pose (f' := memren_addEntry f b0 b1).
     assert (Hf': forall b b' : block, f' b = Some b' -> Mem.valid_block m0 b). {
      subst f'. clear - Hf H.
@@ -2629,9 +2630,3 @@ Qed.
 Admitted.
  
 End X86Inj.
-
-
-
-
-
-
