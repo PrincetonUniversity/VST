@@ -1,5 +1,7 @@
 Require Import floyd.base2.
 Require Import floyd.client_lemmas.
+Require Import floyd.local2ptree_denote.
+Require Import floyd.local2ptree_typecheck.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
@@ -441,7 +443,7 @@ Proof.
     apply andp_derives; auto.
 Qed.
 
-Lemma go_lower_localdef_one_step_canon_both: forall Delta Ppre l Qpre Rpre Ppost Qpost Rpost,
+Lemma go_lower_localdef_one_step_canon_canon: forall Delta Ppre l Qpre Rpre Ppost Qpost Rpost,
   local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta l) (LOCALx Qpre (SEPx Rpre)) |--
     PROPx (Ppost ++ extractp_localdef l Qpost) (LOCALx (remove_localdef l Qpost) (SEPx Rpost)) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx (l :: Qpre) (SEPx Rpre)) |--
@@ -555,7 +557,7 @@ Proof.
     eapply derives_trans; [exact H | auto].
 Qed.
 
-Lemma go_lower_localdef_canon_both: forall Delta Ppre Qpre Rpre Ppost Qpost Rpost,
+Lemma go_lower_localdef_canon_canon: forall Delta Ppre Qpre Rpre Ppost Qpost Rpost,
   local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |--
     PROPx (Ppost ++ extractp_localdefs Qpre Qpost) (LOCALx (remove_localdefs Qpre Qpost) (SEPx Rpost)) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |--
@@ -565,7 +567,7 @@ Proof.
   revert Ppre Ppost Qpost H; induction Qpre; intros.
   + cbv [remove_localdefs extractp_localdefs localdefs_tc re_localdefs fold_left concat rev map] in H.
     rewrite !app_nil_r in H; auto.
-  + apply go_lower_localdef_one_step_canon_both.
+  + apply go_lower_localdef_one_step_canon_canon.
     apply IHQpre.
     rewrite <- !app_assoc.
     eapply derives_trans; [exact H |].
@@ -589,10 +591,11 @@ Ltac unfold_localdef_name QQ Q :=
     unfold_localdef_name QQ Qt
   end.
 
-Ltac symbolic_go_lower :=
+Ltac unfold_canon_canon :=
   match goal with
-  | |- _ |-- PROPx _ (LOCALx _ (SEPx _)) =>
-         apply go_lower_localdef_canon_both;
+  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- PROPx _ (LOCALx _ (SEPx _)) =>
+    apply go_lower_localdef_canon_canon
+  end;
          (let el := fresh "el" in
          let rl := fresh "rl" in
          let PP := fresh "P" in
@@ -626,6 +629,36 @@ Ltac symbolic_go_lower :=
                 subst PPr QQ;
                 cbv beta iota zeta in tl;
                 subst tl
-         end)
-  | |- _ |-- _ => idtac
-  end.
+         end).
+
+Lemma go_lower_localdef_canon_tc_expr {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_expr Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta e.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_expr_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
+Lemma go_lower_localdef_canon_tc_lvalue {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_lvalue Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_lvalue Delta e.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_lvalue_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
+Print Ltac prove_local2ptree.

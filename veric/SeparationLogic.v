@@ -694,6 +694,7 @@ Definition tc_temp_id  (id: ident)  (ty: type) {CS: compspecs} (Delta: tycontext
                        (e:expr): environ -> mpred :=
       denote_tc_assert (typecheck_temp_id id ty Delta e).
 
+(* TODO: remove this kind of definitions. *)
 Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  match (temp_types Delta) ! id with
  | Some t => Some t
