@@ -1599,3 +1599,4 @@ Lemma field_compatible_nullval2:
 Proof.
  intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
 Qed.
+

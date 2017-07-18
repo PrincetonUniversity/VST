@@ -1877,14 +1877,6 @@ Ltac forward_setx :=
 
 (* BEGIN new semax_load and semax_store tactics *************************)
 
-(* does not simplify array indices, because that might be too expensive *)
-Ltac simpl_compute_legal_nested_field :=
-  repeat match goal with
-  | |- context [ compute_legal_nested_field ?T ?L ] =>
-    let r := eval hnf in (compute_legal_nested_field T L) in
-    change (compute_legal_nested_field T L) with r
-  end.
-
 Ltac solve_legal_nested_field_in_entailment :=
    match goal with
    | |- _ |-- !! legal_nested_field ?t_root ?gfs =>

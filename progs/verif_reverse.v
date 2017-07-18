@@ -242,7 +242,7 @@ Proof.
   rewrite !prop_true_andp by auto.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] x)
-    by (apply headptr_field_compatible; auto; compute; auto).
+    by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace x with (offset_val 0 x) by normalize.
   subst a.

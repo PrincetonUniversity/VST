@@ -416,9 +416,13 @@ endif
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
 COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
-ifeq ("$(filter $(COQVERSION),$(COQV))","")
- $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ifeq ($(IGNORECOQVERSION),true)
+else
+ ifeq ("$(filter $(COQVERSION),$(COQV))","")
+  $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ endif
 endif
+
 
 
 #  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
