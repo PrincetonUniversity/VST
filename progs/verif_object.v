@@ -111,20 +111,6 @@ entailer!.
 omega.
 Qed.
 
-
-Lemma split_func_ptr': 
- forall fs p, func_ptr' fs p = func_ptr' fs p * func_ptr' fs p.
-Proof.
-intros.
-unfold func_ptr'.
-pose proof (corable_func_ptr fs p).
-rewrite  corable_andp_sepcon1 by auto.
-rewrite emp_sepcon.
-rewrite <- andp_assoc.
-f_equal.
-apply pred_ext. apply andp_right; auto. apply andp_left2; auto.
-Qed.
-
 Lemma split_object_methods:
   forall instance m, 
     object_methods instance m |-- object_methods instance m * object_methods instance m.
@@ -151,9 +137,6 @@ Proof.
 unfold make_foo_spec.
 start_function.
 forward_call (sizeof (Tstruct _foo_object noattr)).
-(* TODO:  If the user omits "Import floyd.library", then the error message
-    at forward call gives a hard-to-understand error message 
-    about witness types. *)
 simpl. computable.
 Intros p.
   forward_if
@@ -204,37 +187,6 @@ hnf in H7|-*. destruct p; auto; simpl in H7|-*; omega.
 hnf in H8|-*. destruct p; auto; simpl in H8|-*; omega.
 Qed.
 
-Lemma headptr_isptr: forall p, headptr p -> isptr p.
-Proof.
-intros. destruct H; subst. apply I.
-Qed.
-Hint Resolve headptr_isptr.   (* This lemma and hint not needed here, but should be standard in Floyd *)
-
-Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
-   legal_alignas_type t = true ->
-   legal_cosu_type t = true ->
-   complete_type cenv_cs t = true ->
-   sizeof t < Int.modulus ->
-   legal_nested_field t path ->
-   headptr p ->
-   field_compatible t path p.
-Proof.
- intros.
- destruct H4 as [b ?]; subst p.
- repeat split; auto.
- simpl. change (Int.unsigned Int.zero) with 0. omega.
- apply Z.divide_0_r.
-Qed.
-
-Ltac headptr_field_compatible :=
-  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
-  apply headptr_field_compatible; 
-   [ reflexivity | reflexivity | reflexivity | simpl; computable| | apply H];
-    apply compute_legal_nested_field_spec';
-    simpl_compute_legal_nested_field;
-    repeat apply Forall_cons; try apply Forall_nil
-  end.
-
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
@@ -251,10 +203,21 @@ replace_SEP 0 (object_methods foo_invariant mtable). {
   Exists Ews reset twiddle.
   entailer!.
   unfold_data_at 1%nat.
+  assert (field_compatible (Tstruct _methods noattr) [StructField _reset] mtable).
+  apply headptr_field_compatible.
+
+  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
+  apply headptr_field_compatible; 
+   [ reflexivity | reflexivity | reflexivity | simpl; computable| | apply H];
+    apply compute_legal_nested_field_spec';
+    simpl_compute_legal_nested_field;
+    repeat apply Forall_cons; try apply Forall_nil
+  end.
+
   assert (field_compatible (Tstruct _methods noattr) [StructField _reset] mtable)
-     by headptr_field_compatible.
+      by auto with field_compatible.
   assert (field_compatible (Tstruct _methods noattr) [StructField _twiddle] mtable)
-     by headptr_field_compatible.
+      by auto with field_compatible.
   rewrite <- mapsto_field_at with (v:=reset); auto.
   rewrite <- mapsto_field_at with (v:=twiddle); auto.
   rewrite !field_compatible_field_address by auto.

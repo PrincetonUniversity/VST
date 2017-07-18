@@ -175,12 +175,7 @@ assert_PROP (
   field_compatible t_struct_message [StructField _deserialize] ipm /\
   field_compatible t_struct_message [StructField _serialize] ipm /\ 
 field_compatible t_struct_message [StructField _bufsize] ipm).
-Focus 1. {
   entailer!.
-  assert (field_compatible t_struct_message [] ipm).
-  apply headptr_field_compatible; auto; compute; auto.
-  split3; auto with field_compatible.
-} Unfocus.
 destruct H as [? [? ?]].
 eapply semax_pre with
   (PROP ( )
