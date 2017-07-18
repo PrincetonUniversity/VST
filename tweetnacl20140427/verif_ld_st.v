@@ -156,8 +156,6 @@ Proof. destruct (Byte.unsigned_range_2 b).
   unfold Byte.max_unsigned in H0; simpl in H0; omega.
 Qed. 
 
-Axiom myadmit: False.
-
 Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_dl64 dl64_spec.
 Proof.
@@ -185,7 +183,6 @@ forward_for_simple_bound 8 (EX i:Z,
   + entailer!. rewrite HH. 
     rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
   + simpl; rewrite HH. forward.
-    entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
     rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
