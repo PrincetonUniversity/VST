@@ -20,6 +20,7 @@ env:
 branches:
   only:
   - master
+  - improve-dep
 notifications:
   email:
     recipients:
