@@ -73,7 +73,7 @@ Definition make_foo_spec :=
     PROP () LOCAL (gvar _foo_methods mtable) 
     SEP (object_methods foo_invariant mtable)
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p) 
+    EX p: val, PROP () LOCAL (temp ret_temp p)
      SEP (object_mpred nil p; object_methods foo_invariant mtable).
 
 Definition main_spec :=
@@ -91,38 +91,21 @@ unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
 simpl.
 Intros.
-forward.
-forward.
+forward.  (* self->data=0; *)
+forward.  (* return; *)
 Qed.
 
 Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
 Proof.
 unfold foo_twiddle_spec, foo_invariant, twiddle_spec.
 start_function.
-simpl.
 Intros.
-forward.
-forward.
-forward.
+forward.  (* d = self->data; *)
+forward.  (* self -> data = d+2*i; *)
+forward.  (* return d+i; *)
 Exists (2 * fold_right Z.add 0 history + i).
+rewrite Z.mul_add_distr_l, Z.add_comm.
 entailer!.
-replace (2 * (i + fold_right Z.add 0 history))%Z with (2* fold_right Z.add 0 history + 2 * i).
-entailer!.
-omega.
-Qed.
-
-
-Lemma split_func_ptr': 
- forall fs p, func_ptr' fs p = func_ptr' fs p * func_ptr' fs p.
-Proof.
-intros.
-unfold func_ptr'.
-pose proof (corable_func_ptr fs p).
-rewrite  corable_andp_sepcon1 by auto.
-rewrite emp_sepcon.
-rewrite <- andp_assoc.
-f_equal.
-apply pred_ext. apply andp_right; auto. apply andp_left2; auto.
 Qed.
 
 Lemma split_object_methods:
@@ -151,19 +134,16 @@ Proof.
 unfold make_foo_spec.
 start_function.
 forward_call (sizeof (Tstruct _foo_object noattr)).
-(* TODO:  If the user omits "Import floyd.library", then the error message
-    at forward call gives a hard-to-understand error message 
-    about witness types. *)
-simpl. computable.
+   simpl; computable.
 Intros p.
-  forward_if
+forward_if
   (PROP ( )
    LOCAL (temp _p p; gvar _foo_methods mtable)
    SEP (malloc_token Tsh (sizeof (Tstruct _foo_object noattr)) p;
           memory_block Tsh (sizeof (Tstruct _foo_object noattr)) p;
           object_methods foo_invariant mtable)).
-change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
 *
+change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
 if_tac; entailer.
 *
 forward_call tt.
@@ -171,24 +151,21 @@ contradiction.
 *
 rewrite if_false by (intro; subst; inv H).
 Intros.
-forward.
+forward.  (*  /*skip*/;  *)
 entailer!.
 *
 assert_PROP (field_compatible (Tstruct _foo_object noattr) [] p).
-entailer!.
-rewrite memory_block_data_at_; auto.
-unfold data_at_.
-unfold field_at_.
-simpl.
-unfold default_val; simpl.
-forward.
-forward.
-forward.
+  entailer!.
+rewrite memory_block_data_at_ by auto.
+unfold data_at_, field_at_, default_val; simpl.
+forward. (* p->mtable = &foo_methods; *)
+forward. (* p->data = 0; *)
+forward. (* return (struct object * ) p; *)
 Exists p.
 unfold object_mpred.
 Exists foo_invariant mtable.
 sep_apply (split_object_methods foo_invariant mtable).
-unfold foo_invariant.
+unfold foo_invariant at 4.
 entailer!.
 simpl.
 unfold_field_at 1%nat.
@@ -198,127 +175,99 @@ simpl.
 apply derives_refl'.
 f_equal.
 rewrite !field_compatible_field_address; auto with field_compatible.
-destruct H as [? [? [? [? [? [? [? ?]]]]]]].
+clear - H.
+destruct H as [? [? [? [? [? [SZ [AL ?]]]]]]].
 repeat split; auto.
-hnf in H7|-*. destruct p; auto; simpl in H7|-*; omega.
-hnf in H8|-*. destruct p; auto; simpl in H8|-*; omega.
-Qed.
-
-Lemma prove_foo_mtable: 
-  forall Delta twiddle reset mtable, 
-  Delta = func_tycontext f_main Vprog Gprog ->
-ENTAIL Delta,
-PROP ( )
-LOCAL (gvar _foo_twiddle twiddle; gvar _foo_reset reset;
-gvar _foo_methods mtable)
-SEP (func_ptr' (reset_spec foo_invariant) reset;
-      func_ptr' (twiddle_spec foo_invariant) twiddle;
-     mapsto Ews
-       (Tpointer
-          (Tfunction
-             (Tcons (Tpointer (Tstruct 1%positive noattr) noattr)
-                (Tcons (Tint I32 Signed noattr) Tnil))
-             (Tint I32 Signed noattr) cc_default) noattr)
-       (offset_val 4 mtable) (offset_val 0 twiddle);
-mapsto Ews
-  (Tpointer
-     (Tfunction (Tcons (Tpointer (Tstruct 1%positive noattr) noattr) Tnil)
-        Tvoid cc_default) noattr) (offset_val 0 mtable) (offset_val 0 reset))
-|-- PROP ( )
-    LOCAL (gvar _foo_methods mtable)  SEP (object_methods foo_invariant mtable).
-Proof.
-intros.
-unfold object_methods.
-Exists Ews reset twiddle.
-unfold_data_at 1%nat.
-subst.
-
-simplify_func_tycontext.
-assert_PROP (field_compatible (Tstruct _methods noattr) [StructField _reset] mtable). {
-  entailer!.
-  split3; auto.
-  split3; auto.
-  split3; auto.
-  simpl; computable.
-  repeat split; auto.
-  left; auto.
-}
-assert_PROP (field_compatible (Tstruct _methods noattr) [StructField _twiddle] mtable). {
-  entailer!.
-  split3; auto.
-  split3; auto.
-  split3; auto.
-  simpl; computable.
-  repeat split; auto.
-  right; left; auto.
-}
-entailer!.
-rewrite sepcon_comm.
-apply sepcon_derives.
-rewrite <- mapsto_field_at with (v:=reset); auto.
-rewrite field_compatible_field_address by auto.
-simpl.
-rewrite isptr_offset_val_zero; auto.
-rewrite <- mapsto_field_at with (v:=twiddle); auto.
-rewrite field_compatible_field_address by auto.
-simpl.
-apply derives_refl.
+hnf in SZ|-*. destruct p; auto; simpl in SZ|-*; omega.
+hnf in AL|-*. destruct p; auto; simpl in AL|-*; omega.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 rename gvar2 into twiddle; rename gvar1 into reset; rename gvar0 into mtable.
-fold noattr. fold cc_default.
+fold noattr cc_default.
+
+(* 1. Prove that [mtable] is a proper method-table for foo-objects *)
 make_func_ptr _foo_twiddle.
 make_func_ptr _foo_reset.
-eapply semax_pre; [apply prove_foo_mtable; reflexivity | ].
-(* TODO:  If the funspec does not have a (LOCAL (temp ret_temp x)) in the postcondition,
-     then forward_call just freezes. *)
-forward_call mtable.
-Intros p.
-(* drop_LOCALs [_foo_methods].  This is permitted if we don't intend to create any more foo objects *)
+gather_SEP 0 1 2 3.
+replace_SEP 0 (object_methods foo_invariant mtable). {
+  entailer!.
+  unfold object_methods.
+  Exists Ews reset twiddle.
+  entailer!.
+  unfold_data_at 1%nat.
+  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible.
+  rewrite <- mapsto_field_at with (v:=twiddle) by auto with field_compatible.
+  rewrite !field_compatible_field_address by auto with field_compatible.
+  rewrite !isptr_offset_val_zero by auto.
+  rewrite sepcon_comm.
+  apply derives_refl.
+}
+drop_LOCALs [_foo_twiddle; _foo_reset].
+clear reset twiddle.
+(* Finished proving that [mtable] is a proper [object_methods] for foo *)
 
-(* first method-call *)
+(* 2. Build an instance of class [foo], called [p] *)
+forward_call (* p = make_foo(); *)
+        mtable.
+Intros p.
+
+(* 3. We can do these next 3 lines because we won't create any more foo objects *)
+drop_LOCALs [_foo_methods].
+forget (object_methods foo_invariant mtable) as MT. 
+clear mtable.
+
+(* 4. first method-call *)
 unfold object_mpred.
 Intros instance mtable0.
-forward.
+forward. (*  mtable = p->mtable; *)
 unfold object_methods at 1.
 Intros sh r0 t0.
-forward.
-forward_call (p, @nil Z).
+forward. (* p_reset = mtable->reset; *)
+forward_call (* p_reset(p); *)
+      (p, @nil Z).
+(* Finish the method-call by regathering the object p back together *)
 gather_SEP 1 2 3.
-replace_SEP 0 (object_methods instance mtable0).
-unfold object_methods.
-entailer!. Exists sh r0 t0. entailer!.
+replace_SEP 0 (object_methods instance mtable0). {
+  unfold object_methods.
+  entailer!. Exists sh r0 t0. entailer!.
+}
 gather_SEP 0 1 2.
-replace_SEP 0 (object_mpred nil p).
-unfold object_mpred; entailer!. Exists instance mtable0; entailer!.
+replace_SEP 0 (object_mpred nil p). {
+  unfold object_mpred; entailer!.
+ Exists instance mtable0; entailer!.
+}
 drop_LOCALs [_p_reset; _mtable]. clear sh H r0 t0 mtable0 instance.
 
-(* second method-call *)
+(* 5. second method-call *)
 unfold object_mpred.
 Intros instance mtable0.
-forward.
+forward.  (* mtable = p->mtable; *)
 unfold object_methods at 1.
 Intros sh r0 t0.
-forward.
-forward_call (p, 3, @nil Z).
-computable.
+forward.   (* p_twiddle = mtable->twiddle; *)
+forward_call (* i = p_twiddle(p,3); *)
+      (p, 3, @nil Z).
+  computable.
 Intros i.
+simpl in H0.
+(* Finish the method-call by regathering the object p back together *)
 gather_SEP 1 2 3.
-replace_SEP 0 (object_methods instance mtable0).
-unfold object_methods.
-entailer!. Exists sh r0 t0. entailer!.
+replace_SEP 0 (object_methods instance mtable0). {
+  unfold object_methods.
+  entailer!. Exists sh r0 t0. entailer!.
+}
 gather_SEP 0 1 2.
-replace_SEP 0 (object_mpred [3] p).
-unfold object_mpred; entailer!. Exists instance mtable0; entailer!.
+replace_SEP 0 (object_mpred [3] p). {
+  unfold object_mpred; entailer!. Exists instance mtable0; entailer!.
+}
 drop_LOCALs [_p_twiddle; _mtable]. clear sh H r0 t0 mtable0 instance.
 
-(* return *)
-forward.
+(* 6. return *)
+forward.  (* return i; *)
 Qed.
-
 
 
 

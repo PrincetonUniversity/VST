@@ -34,5 +34,5 @@ install:
 
 script:
 - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-- make -j ${NJOBS} progs
+- make -j ${NJOBS} IGNORECOQVERSION=true progs
 - echo -en 'travis_fold:end:VST.build\\r'

@@ -20,6 +20,19 @@ apply andp_left1. apply func_ptr_isptr.
 Qed.
 Hint Resolve func_ptr'_isptr: saturate_local.
 
+Lemma split_func_ptr': 
+ forall fs p, func_ptr' fs p = func_ptr' fs p * func_ptr' fs p.
+Proof.
+intros.
+unfold func_ptr'.
+pose proof (corable_func_ptr fs p).
+rewrite  corable_andp_sepcon1 by auto.
+rewrite emp_sepcon.
+rewrite <- andp_assoc.
+f_equal.
+apply pred_ext. apply andp_right; auto. apply andp_left2; auto.
+Qed.
+
 Lemma approx_func_ptr': forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Proof.

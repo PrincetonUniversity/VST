@@ -2353,7 +2353,25 @@ Proof.
   rewrite int_add_repr_0_r. auto.
 Qed.
 
-Lemma headptr_field_compatible {cs: compspecs}: forall t p,
+Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
+   headptr p ->
+   legal_alignas_type t = true ->
+   legal_cosu_type t = true ->
+   complete_type cenv_cs t = true ->
+   sizeof t < Int.modulus ->
+   legal_nested_field t path ->
+   field_compatible t path p.
+Proof.
+ intros.
+ destruct H as [b ?]; subst p.
+ repeat split; auto.
+ simpl. change (Int.unsigned Int.zero) with 0. omega.
+ apply Z.divide_0_r.
+Qed.
+
+
+(*
+Lemma headptr_field_compatible' {cs: compspecs}: forall t p,
   headptr p ->
   legal_alignas_type t = true ->
   legal_cosu_type t = true ->
@@ -2379,6 +2397,7 @@ Proof.
   + simpl.
     auto.
 Qed.
+*)
 
 Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
   ((type_is_by_value t) && (local_legal_alignas_type cenv_cs t) && (negb (type_is_volatile t)) = true)%bool ->
@@ -2396,6 +2415,7 @@ Proof.
   + destruct t; inv H; simpl; auto.
   + destruct t; inv H; simpl; auto.
   + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; reflexivity.
+  + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; simpl; computable.
   + destruct t; inv H; simpl; auto.
 Qed.
 
@@ -2423,3 +2443,22 @@ Proof. intros; subst. trivial. Qed.
 
 Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p = @data_at cs sh t v' q.
 Proof. intros; subst. trivial. Qed.
+
+(* does not simplify array indices, because that might be too expensive *)
+Ltac simpl_compute_legal_nested_field :=
+  repeat match goal with
+  | |- context [ compute_legal_nested_field ?T ?L ] =>
+    let r := eval hnf in (compute_legal_nested_field T L) in
+    change (compute_legal_nested_field T L) with r
+  end.
+
+Ltac headptr_field_compatible :=
+  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
+  apply headptr_field_compatible; 
+   [ apply H | reflexivity | reflexivity | reflexivity | simpl; computable| ];
+    apply compute_legal_nested_field_spec';
+    simpl_compute_legal_nested_field;
+    repeat apply Forall_cons; try apply Forall_nil
+  end.
+
+Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
