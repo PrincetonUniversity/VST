@@ -40,6 +40,45 @@ Proof.
   apply sepcon_derives; auto.
 Qed.
 
+Lemma semax_load_nth_ram_field_at :
+  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre
+    t_id t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
+    typeof e1 = nested_field_type t_root gfs ->
+    typeof_temp Delta id = Some t_id ->
+    is_neutral_cast (nested_field_type t_root gfs) t_id = true ->
+    type_is_volatile (nested_field_type t_root gfs) = false ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
+    nth_error R n = Some Pre ->
+    readable_share sh ->
+    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    JMeq v_reptype v_val ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      (tc_lvalue Delta e1) && local (`(tc_val (nested_field_type t_root gfs) v_val)) ->
+    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      (Sset id e1)
+      (normal_ret_assert
+         (PROPx P
+           (LOCALx (temp id v_val :: remove_localdef_temp id Q)
+             (SEPx R)))).
+Proof.
+  intros.
+  pose proof is_neutral_cast_by_value _ _ H1.
+  eapply semax_load_nth_ram.
+  1: eassumption.
+  1: eassumption.
+  1: rewrite H; assumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  2: eassumption.
+  eapply self_ramify_trans; [exact H6 |].
+  eapply RAMIF_PLAIN.weak_ramif_spec.
+  apply mapsto_field_at_ramify; auto.
+  eapply JMeq_sym; exact H7.
+Qed.
+
+(* TODO: delete it *)
 Lemma semax_max_path_field_load_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e1: expr) Pre
@@ -105,6 +144,7 @@ Proof.
     rewrite H11; solve_andp.
 Qed.
 
+(* TODO: delete it *)
 Lemma semax_max_path_field_load_nth_ram':
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e: expr) Pre
@@ -148,6 +188,7 @@ Proof.
     apply mapsto_field_at_ramify; try rewrite <- H1; eauto.
 Qed.
 
+(* TODO: delete it *)
 Lemma semax_max_path_field_load_nth_ram'':
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e1: expr) Pre
@@ -222,6 +263,45 @@ Proof.
       rewrite EqT. solve_andp.
 Qed.
 
+Lemma semax_cast_load_nth_ram_field_at :
+  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre
+    t_to t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
+    typeof e1 = nested_field_type t_root gfs ->
+    type_is_by_value (nested_field_type t_root gfs) = true ->
+    type_is_volatile (nested_field_type t_root gfs) = false ->
+    typeof_temp Delta id = Some t_to ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
+    nth_error R n = Some Pre ->
+    classify_cast (nested_field_type t_root gfs) t_to <> cast_case_p2bool ->
+    readable_share sh ->
+    Pre |-- field_at sh t_root gfs v_reptype p * TT ->
+    JMeq v_reptype v_val ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+     (tc_lvalue Delta e1) && local (`(tc_val t_to (eval_cast (nested_field_type t_root gfs) t_to v_val))) ->
+    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+     (Sset id (Ecast e1 t_to))
+     (normal_ret_assert
+         (PROPx P
+           (LOCALx (temp id (eval_cast (nested_field_type t_root gfs) t_to v_val) :: remove_localdef_temp id Q)
+             (SEPx R)))).
+Proof.
+  intros.
+  eapply semax_cast_load_nth_ram.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  2: eassumption.
+  eapply self_ramify_trans; [exact H7 |].
+  eapply RAMIF_PLAIN.weak_ramif_spec.
+  apply mapsto_field_at_ramify; auto.
+  eapply JMeq_sym; exact H8.
+Qed.
+
+(* TODO: delete it *)
 Lemma semax_max_path_field_cast_load_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e1: expr) Pre
@@ -303,6 +383,42 @@ Proof.
   autorewrite with subst norm1 norm2 in H; normalize in H; normalize.
 Qed.
 
+Lemma semax_store_nth_ram_field_at:
+  forall {Espec: OracleKind} {cs: compspecs} n Delta sh P Q R e1 e2 Pre Post
+    t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
+    typeof e1 = nested_field_type t_root gfs ->
+    type_is_by_value (nested_field_type t_root gfs) = true ->
+    type_is_volatile (nested_field_type t_root gfs) = false ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq v_val) (eval_expr (Ecast e2 (nested_field_type t_root gfs)))) ->
+    JMeq v_val v_reptype ->
+    nth_error R n = Some Pre ->
+    writable_share sh ->
+    Pre |-- field_at_ sh t_root gfs p * (field_at sh t_root gfs v_reptype p -* Post) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+     (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ->
+    semax Delta
+     (|> PROPx P (LOCALx Q (SEPx R)))
+     (Sassign e1 e2)
+     (normal_ret_assert
+        (PROPx P (LOCALx Q (SEPx (replace_nth n R Post))))).
+Proof.
+  intros.
+  eapply semax_store_nth_ram.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  2: eassumption.
+  eapply RAMIF_PLAIN.trans; [exact H7 |].
+  apply mapsto_field_at_ramify; auto.
+  apply JMeq_sym; apply by_value_default_val; auto.
+Qed.
+
+(* TODO: delete it *)
 Lemma semax_max_path_field_store_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh P Q R (e1 e2 : expr) Pre Post
@@ -368,6 +484,7 @@ Proof.
     rewrite H10; solve_andp.
 Qed.
 
+(* TODO: delete it *)
 Lemma semax_partial_path_field_store_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh P Q R (e1 e2 : expr) Pre Post
@@ -444,6 +561,7 @@ Proof.
       rewrite EqT; solve_andp.
 Qed.
 
+(* TODO: delete it *)
 Lemma semax_no_path_field_store_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh P Q R (e1 e2 : expr) Pre Post
