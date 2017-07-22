@@ -1010,6 +1010,34 @@ Ltac do_compute_expr Delta P Q R e v H :=
      reflexivity]
   )).
 
+(* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
+Ltac solve_msubst_eval :=
+     match goal with
+     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
+     end;
+     match goal with
+     | |- Some ?E = Some _ => let E' := eval hnf in E in
+       match E' with
+       | (match ?E'' with
+         | Some _ => _
+         | None => Vundef
+         end)
+         => change E with (force_val E'')
+       | (match ?E'' with
+         | Vundef => Vundef
+         | Vint _ => Vundef
+         | Vlong _ => Vundef
+         | Vfloat _ => Vundef
+         | Vsingle _ => Vundef
+         | Vptr _ _ => Vptr _ (Int.add _ (Int.repr ?ofs))
+         end)
+         => change E with (offset_val ofs E'')
+       | _ => change E with E'
+       end
+     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
+                                         NotSome "to an expression of the form (Some _)"
+     end.
+
 Ltac ignore x := idtac.
 
 (*start tactics for forward_while unfolding *)
@@ -1860,9 +1888,19 @@ Ltac quick_typecheck3 :=
 
 Ltac forward_setx :=
   ensure_normal_ret_assert;
-    hoist_later_in_pre;
+  hoist_later_in_pre;
  match goal with
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+        eapply semax_PTree_set;
+        [ reflexivity
+        | reflexivity
+        | reflexivity
+        | solve_msubst_eval; reflexivity
+        | first [ quick_typecheck3
+                | pre_entailer; try solve [entailer!]]
+        ]
+(*                
+        
      let v := fresh "v" in evar (v : val);
      let HRE := fresh "H" in
      do_compute_expr Delta P Q R e v HRE;
@@ -1873,6 +1911,7 @@ Ltac forward_setx :=
       | first [quick_typecheck3
             | pre_entailer; clear HRE; subst v; try solve [entailer!]]
       ]
+*)
  end.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
