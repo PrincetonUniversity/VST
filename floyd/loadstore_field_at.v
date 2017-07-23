@@ -240,7 +240,7 @@ Proof.
   + exact EqT.
   + exact TId.
   + exact Cast.
-  + rewrite field_address_app by assumption.
+  + rewrite field_address_app.
     rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; try eassumption].
     - solve_andp.
@@ -537,7 +537,7 @@ Proof.
   }
   eapply semax_store_nth_ram with (p := (field_address t_root (gfsB ++ gfsA) a)).
   + exact EqT.
-  + rewrite field_address_app by assumption.
+  + rewrite field_address_app.
     rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; try eassumption].
     - solve_andp.
