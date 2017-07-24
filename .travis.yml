@@ -22,7 +22,9 @@ env:
   # system is == 4.02.3
   - COMPILER="system"
   matrix:
-  - TARGET="floyd"
+  - TARGET="progs"
+  - TARGET="hmacdrbg"
+  - TARGET="mailbox"
 branches:
   only:
   - master
