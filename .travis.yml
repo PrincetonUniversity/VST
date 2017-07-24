@@ -5,6 +5,10 @@ cache:
   apt: true
   directories:
   - $HOME/.opam
+  - compcert
+  - msl
+  - veric
+  - floyd
 addons:
   apt:
     sources:
@@ -31,11 +35,6 @@ notifications:
     - wmansky@cs.princeton.edu
 git:
   depth: 3
-cache:
-  directories:
-  - msl
-  - veric
-  - floyd
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
