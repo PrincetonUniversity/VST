@@ -13,13 +13,14 @@ addons:
     - opam
     - aspcud
 env:
-  - TARGET="progs"
-  - TARGET="hmacdrbg"
-  - TARGET="mailbox"
   global:
   - NJOBS=4
   # system is == 4.02.3
   - COMPILER="system"
+  matrix:
+  - TARGET="progs"
+  - TARGET="hmacdrbg"
+  - TARGET="mailbox"
 branches:
   only:
   - master
