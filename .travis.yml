@@ -23,7 +23,9 @@ env:
   # system is == 4.02.3
   - COMPILER="system"
   matrix:
-  - TARGET="progs/verif_bst.vo"
+  - TARGET="progs"
+  - TARGET="hmacdrbg"
+  - TARGET="mailbox"
 branches:
   only:
   - master
