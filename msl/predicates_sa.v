@@ -76,7 +76,7 @@ Definition precise {A}  {JA: Join A}{PA: Perm_alg A}  (P: pred A) : Prop :=
 Definition precise2  {A} {JA: Join A}{PA: Perm_alg A}  (P: pred A) : Prop :=
      forall Q R, P * (Q && R) = (P * Q) && (P * R).
 
-Lemma precise_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+Lemma precise_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
      precise =
                  fun P : pred A => forall Q R, P * (Q && R) = (P * Q) && (P * R).
 Proof.
