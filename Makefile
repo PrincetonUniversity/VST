@@ -217,11 +217,13 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v library.v proofauto.v computable_theorems.v \
+   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
+   base2.v go_lower.v \
+   library.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    sublist.v smt_test.v extract_smt.v \
-   client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
+   client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
@@ -253,7 +255,8 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
-  verif_sumarray2.v verif_switch.v verif_message.v 
+  verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
+  funcptr.v verif_funcptr.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -335,7 +338,7 @@ HMACDRBG_FILES = \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
-  hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
+  drbg_protocol_specs.v \
   verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
   verif_hmac_drbg_reseed_common.v verif_hmac_drbg_WF.v \
   verif_hmac_drbg_generate_common.v \
@@ -355,7 +358,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -416,9 +419,13 @@ endif
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
 COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
-ifeq ("$(filter $(COQVERSION),$(COQV))","")
- $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ifeq ($(IGNORECOQVERSION),true)
+else
+ ifeq ("$(filter $(COQVERSION),$(COQV))","")
+  $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ endif
 endif
+
 
 
 #  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
@@ -534,6 +541,12 @@ progs/field_loadstore.v: progs/field_loadstore.c
 progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/append.v: progs/append.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/switch.v: progs/switch.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/object.v: progs/object.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/funcptr.v: progs/funcptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 

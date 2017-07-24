@@ -23,6 +23,7 @@ env:
 branches:
   only:
   - master
+  - improve-dep
 notifications:
   email:
     recipients:
@@ -44,5 +45,5 @@ install:
 
 script:
 - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-- make -j ${NJOBS} ${TARGET}
+- make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
 - echo -en 'travis_fold:end:VST.build\\r'

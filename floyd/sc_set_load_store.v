@@ -1,5 +1,4 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
@@ -638,34 +637,34 @@ The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
 
-(* TODO: This was broken because semax_SC_field_load's specification is changed. *)
-(*
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
-    forall Delta id P T1 T2 R (e2: Clight.expr) t v,
+    forall Delta id P Q R T1 T2 (e2: expr) t v,
+      local2ptree Q = (T1, T2, nil, nil) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       msubst_eval_expr T1 T2 e2 = Some v ->
-      (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_expr Delta e2) ->
-      semax Delta (|> (assertD P (localD T1 T2) R))
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
-            (assertD P (localD (PTree.set id v T1) T2) R)).
+            (PROPx P
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
+                (SEPx R)))).
 Proof.
   intros.
-  unfold assertD, localD in *.
-  eapply semax_post'.
-  Focus 2. {
-    eapply semax_SC_set; eauto.
-    instantiate (1 := v).
-    apply andp_left2.
-    apply msubst_eval_expr_eq, H1.
-  } Unfocus.
-  normalize.
-  apply SC_remove_subst.
+  eapply semax_SC_set.
+  1: eassumption.
+  1: eassumption.
+  2: eassumption.
+  apply andp_left2.
+  erewrite local2ptree_soundness by eassumption.
+  apply msubst_eval_expr_eq; auto.
 Qed.
 
+(* TODO: This was broken because semax_SC_field_load's specification is changed. *)
+(*
 Lemma semax_PTree_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P T1 T2 R Rn (e1: expr)

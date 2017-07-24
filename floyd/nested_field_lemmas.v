@@ -1,5 +1,4 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
 Require Import floyd.fieldlist.
 Require Import floyd.type_induction.
@@ -1599,3 +1598,4 @@ Lemma field_compatible_nullval2:
 Proof.
  intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
 Qed.
+

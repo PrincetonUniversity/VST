@@ -1,6 +1,5 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
@@ -275,8 +274,8 @@ match goal with
 | |- semax _ (PROPx _ (LOCALx (`(typed_true _) ?A :: _) _)) _ _ =>
  (eapply typed_true_binop_int;
    [reflexivity | reflexivity | reflexivity
-   | try solve [go_lower; apply prop_right; auto ]
-   | try solve [go_lower; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
    | ])
  ||
   (let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
@@ -288,8 +287,8 @@ match goal with
 | |- semax _ (PROPx _ (LOCALx (`(typed_false _) ?A :: _) _)) _ _ =>
  (eapply typed_false_binop_int;
    [reflexivity | reflexivity | reflexivity
-   | try solve [go_lower; apply prop_right; auto ]
-   | try solve [go_lower; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
    | ])
  ||
   let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;

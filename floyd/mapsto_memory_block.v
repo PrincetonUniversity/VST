@@ -1,5 +1,4 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_pred_lemmas.
 
@@ -300,7 +299,7 @@ Auxilliary Lemmas
 Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize.
 Qed.
 
@@ -309,7 +308,7 @@ Lemma remove_PROP_LOCAL_left':
      PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
-  go_lower0.
+  go_lowerx.
   normalize. apply H.
 Qed.
 
@@ -440,7 +439,8 @@ Proof.
   normalize.
   f_equal.
   extensionality rho.
-  unfold_for_go_lower. simpl.
+  unfold LOCALx, SEPx, local, lift1; simpl.
+  unfold_lift. simpl.
   fold locald_denote.
   forget (fold_right
      (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)

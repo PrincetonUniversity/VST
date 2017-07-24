@@ -1,6 +1,6 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
+Require Import floyd.go_lower.
 Require Import floyd.closed_lemmas.
 Require Import floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
@@ -1010,6 +1010,34 @@ Ltac do_compute_expr Delta P Q R e v H :=
      reflexivity]
   )).
 
+(* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
+Ltac solve_msubst_eval :=
+     match goal with
+     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
+     end;
+     match goal with
+     | |- Some ?E = Some _ => let E' := eval hnf in E in
+       match E' with
+       | (match ?E'' with
+         | Some _ => _
+         | None => Vundef
+         end)
+         => change E with (force_val E'')
+       | (match ?E'' with
+         | Vundef => Vundef
+         | Vint _ => Vundef
+         | Vlong _ => Vundef
+         | Vfloat _ => Vundef
+         | Vsingle _ => Vundef
+         | Vptr _ _ => Vptr _ (Int.add _ (Int.repr ?ofs))
+         end)
+         => change E with (offset_val ofs E'')
+       | _ => change E with E'
+       end
+     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
+                                         NotSome "to an expression of the form (Some _)"
+     end.
+
 Ltac ignore x := idtac.
 
 (*start tactics for forward_while unfolding *)
@@ -1688,7 +1716,7 @@ Ltac normalize :=
  try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
  match goal with
  | |- semax _ _ _ _ =>
-  floyd.client_lemmas.normalize;
+  floyd.seplog_tactics.normalize;
   repeat
   (first [ simpl_tc_expr
          | simple apply semax_extract_PROP; fancy_intros true
@@ -1696,7 +1724,7 @@ Ltac normalize :=
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
   | |- _  =>
-    floyd.client_lemmas.normalize
+    floyd.seplog_tactics.normalize
   end.
 
 Ltac renormalize :=
@@ -1860,9 +1888,19 @@ Ltac quick_typecheck3 :=
 
 Ltac forward_setx :=
   ensure_normal_ret_assert;
-    hoist_later_in_pre;
+  hoist_later_in_pre;
  match goal with
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+        eapply semax_PTree_set;
+        [ reflexivity
+        | reflexivity
+        | reflexivity
+        | solve_msubst_eval; reflexivity
+        | first [ quick_typecheck3
+                | pre_entailer; try solve [entailer!]]
+        ]
+(*                
+        
      let v := fresh "v" in evar (v : val);
      let HRE := fresh "H" in
      do_compute_expr Delta P Q R e v HRE;
@@ -1873,17 +1911,10 @@ Ltac forward_setx :=
       | first [quick_typecheck3
             | pre_entailer; clear HRE; subst v; try solve [entailer!]]
       ]
+*)
  end.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
-
-(* does not simplify array indices, because that might be too expensive *)
-Ltac simpl_compute_legal_nested_field :=
-  repeat match goal with
-  | |- context [ compute_legal_nested_field ?T ?L ] =>
-    let r := eval hnf in (compute_legal_nested_field T L) in
-    change (compute_legal_nested_field T L) with r
-  end.
 
 Ltac solve_legal_nested_field_in_entailment :=
    match goal with

@@ -1,5 +1,7 @@
 #include <stddef.h>
 
+/* This program, and its verification, are described in Chapter 29
+   of _Program Logics for Certified Compilers_, by Appel et al., 2014 */
 
 struct message {
   int bufsize;

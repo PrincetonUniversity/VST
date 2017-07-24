@@ -1,7 +1,6 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.canon.
 Require Import floyd.entailer.
-Require Import floyd.assert_lemmas.
 Require Import Coq.Lists.List.
 Export ListNotations.
 Require Import floyd.client_lemmas.
@@ -48,7 +47,7 @@ Proof.
 intros. subst.
 eapply semax_pre_post. 3: eassumption. 2: intros; apply andp_left2; auto.
 apply andp_left2.
-old_go_lower; entailer!.  clear.
+go_lowerx; entailer!.  clear.
 generalize dependent R.
 induction n; destruct R; simpl; cancel. apply Freezer.FRZ1.
 Qed.
@@ -101,7 +100,7 @@ Lemma freeze_SEP':
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros. subst.
-eapply semax_pre_post. 3: eassumption. 2: intros; old_go_lower; entailer.
+eapply semax_pre_post. 3: eassumption. 2: intros; go_lowerx; entailer.
 apply andp_left2. unfold PROPx. normalize.
 unfold LOCALx. apply derives_refl'.
 f_equal. unfold SEPx. rewrite FRZL_ax. clear - H.

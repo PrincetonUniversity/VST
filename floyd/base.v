@@ -12,81 +12,6 @@ Local Open Scope logic.
 
 Arguments alignof_two_p {env} t.
 
-Hint Rewrite <- prop_and : gather_prop.
-
-Lemma gather_prop_left {A}{NA: NatDed A}:
-  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
-Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
-Qed.
-
-Lemma gather_prop_right {A}{NA: NatDed A}:
-  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
-Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
-Qed.
-Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
-
-Definition not_a_prop {A} (P: A) := True.
-
-Ltac not_a_prop := match goal with
-  | |- not_a_prop  (prop _) => fail 1
-  | |- _ => apply Coq.Init.Logic.I
-end.
-
-Lemma flip_prop {A}{NA: NatDed A}: forall P Q,
-      not_a_prop P -> (P&& !! Q = !! Q && P).
-Proof. intros. apply andp_comm. Qed.
-
-Hint Rewrite @flip_prop using not_a_prop : gather_prop.
-
-Lemma gather_prop3 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_comm. rewrite andp_assoc.
-        rewrite (andp_comm Q); auto.
-Qed.
-
-Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
-
-
-Lemma gather_prop4 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. auto.
-Qed.
-Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
-
-Lemma gather_prop5 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
-  f_equal; apply andp_comm.
-Qed.
-Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
-
-Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
-
-(*Hint Rewrite <- sepcon_assoc : gather_prop.*)
-
-Lemma go_lower_lem1:
-  forall (P1 P: Prop) (QR PQR: mpred),
-      (P1 -> prop P && QR |-- PQR) ->
-      (prop (P1 /\ P ) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- apply H; auto.
-Qed.
-
-Lemma go_lower_lem1':
-  forall (P1 P2 P: Prop) (QR PQR: mpred),
-      (prop (P1 /\ (P2 /\ P)) && QR |-- PQR) ->
-      (prop ((P1 /\ P2) /\ P ) && QR |-- PQR).
-Proof.
- intros.
- eapply derives_trans;  [ | apply H].
- apply andp_derives; auto.
- apply prop_derives; intuition.
-Qed.
-
 Lemma co_alignof_pos: forall co, (co_alignof co > 0)%Z.
 Proof.
   intros.
@@ -190,48 +115,13 @@ Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1
   destruct (ident_eq i i0), (type_eq t t0); [left | right | right | right]; congruence.
 Defined.
 
-Lemma denote_tc_assert_andp:
-  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
-  denote_tc_assert (tc_andp a b) rho =
-  andp (denote_tc_assert a rho)
-    (denote_tc_assert b rho).
-Proof.
-intros.
-apply expr2.denote_tc_assert_andp.
-Qed.
-
-Lemma denote_tc_assert_orp:
-  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
-  denote_tc_assert (tc_orp a b) rho =
-  orp (denote_tc_assert a rho)
-    (denote_tc_assert b rho).
-Proof.
-intros.
-apply binop_lemmas2.denote_tc_assert_orp.
-Qed.
-
-Lemma denote_tc_assert_bool:
-  forall {CS: compspecs} b c rho, denote_tc_assert (tc_bool b c) rho =
-               prop (b=true).
-Proof.
-intros.
-unfold tc_bool.
-destruct b.
-apply pred_ext; normalize.
-apply pred_ext.  apply @FF_left.
-normalize. inv H.
-Qed.
-
 Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
  match l with
  | nil => emp
  | b::r => b * fold_right_sepcon r
  end.
 
-Ltac solve_andp' :=
-  first [ apply derives_refl
-        | apply andp_left1; solve_andp'
-        | apply andp_left2; solve_andp'].
-
-Ltac solve_andp := repeat apply andp_right; solve_andp'.
+Inductive LLRR : Type :=
+  | LLLL : LLRR
+  | RRRR : LLRR.
 
