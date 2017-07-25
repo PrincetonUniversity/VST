@@ -535,7 +535,7 @@ eapply join_comm; eauto.
 auto.
 exists w; exists w; split; auto.
 change (identity w) in H.
-rewrite identity_unit_equiv in H; auto.
+apply identity_unit' in H; auto.
 Qed.
 
 Lemma subp_derives' {A}{agA: ageable A}:

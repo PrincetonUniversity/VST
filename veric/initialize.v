@@ -1681,7 +1681,7 @@ destruct (make_rmap _ H1 (level w))  as [w2' [? ?]]; clear H1.
  intro loc; apply (resource_at_join _ _ _ loc) in H0. rewrite H3,H5.
  destruct H. destruct (H1 loc).
  if_tac. apply H8 in H0. rewrite H0.
- if_tac.  apply H6 in H9. apply identity_unit_equiv in H9. apply unit_core in H9.
+ if_tac.  apply H6 in H9. apply identity_core in H9.
  rewrite <- H9 at 2. apply core_unit.
  rewrite H7 by auto. apply core_unit.
  spec H7. contradict H8; apply split_identity in H0; auto. rewrite <- H7.

@@ -790,6 +790,27 @@ Inductive free_list_juicy_mem:
                           free_list_juicy_mem jm2 bl jm' ->
                           free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
 
+Lemma juicy_free_lemma':
+  forall {j b lo hi m' m1 F}
+    (H: Mem.free (m_dry j) b lo hi = Some m')
+    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
+    VALspec_range (hi-lo) Share.top (b,lo) m1 ->
+    join_sub m1 (m_phi j) ->
+    join m1 (m_phi (free_juicy_mem _ _ _ _ _ H (juicy_free_aux_lemma _ _ _ _ _ VR))) (m_phi j).
+Proof.
+  intros.
+  destruct H1.
+  apply juicy_free_lemma; auto.
+  { eapply join_core; eauto. }
+  intros.
+  apply (resource_at_join _ _ _ l) in H1; rewrite H2 in H1.
+  inv H1.
+  - do 4 eexists; eauto.
+    eexists; eauto.
+  - do 4 eexists; eauto.
+    eexists; eauto.
+Qed.
+
 Lemma free_list_juicy_mem_i:
   forall jm bl m' F,
    free_list (m_dry jm) bl = Some m' ->
@@ -807,14 +828,11 @@ intros jm bl; revert jm; induction bl; intros.
  destruct (free_list_free _ _ _ _ _ _ H) as [m2 [? ?]].
  generalize H0; intro H0'.
  destruct H0 as [phi1 [phi2 [? [? H6]]]].
- assert (H10:= @juicy_free_lemma jm b lo hi m2 phi1 _ H1 H0' H3).
- spec H10. apply join_core in H0; auto.
- spec H10. intros. apply (resource_at_join _ _ _ l) in H0.
-     rewrite H4 in H0. inv H0. exists sh3,rsh3,pp; split3; auto. eexists; eauto. eexists; eauto.
-     exists rsh3, pp; split3; auto. eexists; eauto.
+ assert (H10:= @juicy_free_lemma' jm b lo hi m2 phi1 _ H1 H0' H3).
+ spec H10. eexists; eauto.
  match type of H10 with join _ (m_phi ?A) _ => set (jm2:=A) in H10 end.
- pose proof (join_canc (join_comm H0) (join_comm H10)). subst phi2.  clear H10.
- specialize (IHbl  jm2 m' F H2 H6).
+ assert ((freeable_blocks bl * F)%pred (m_phi jm2)) as Hm2 by admit.
+ specialize (IHbl  jm2 m' F H2 Hm2).
  destruct IHbl as [jm' [? [? ?]]].
  exists jm'; split3; auto.
  apply (FLJM_cons jm b lo hi bl jm2 jm' H1
@@ -822,7 +840,7 @@ intros jm bl; revert jm; induction bl; intros.
  rewrite <- H7.
  unfold jm2.
  symmetry; apply free_juicy_mem_level.
-Qed.
+Admitted.
 
 
 Lemma free_juicy_mem_ext:
@@ -849,28 +867,18 @@ Proof.
  generalize H2; intro H2'.
  destruct H2 as [phi1 [phi2 [? [? ?]]]].
  apply IHfree_list_juicy_mem.
- replace (m_phi jm2) with phi2; auto.
- pose proof  (@juicy_free_lemma jm b lo hi _ phi1 _ H H2').
+(* replace (m_phi jm2) with phi2; auto.
+ pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ H H2').
  specialize (H5 H3).
- spec H5. apply (join_core H2).
- spec H5. {
-  intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
-  exists Share.top, readable_share_top, NoneP.
-  split; auto. apply top_correct'.
-  rewrite H3 in H6; inversion H6; clear H6. subst k pp sh.
-  apply (resource_at_join _ _ _ l) in H2. rewrite H3 in H2.
-  rewrite (proof_irr x readable_share_top) in *; clear x.
-  rewrite preds_fmap_NoneP in H2.
-  inv H2; apply YES_ext;  apply (join_sub_share_top sh3); (econstructor; apply RJ).
-  do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
- }
+ spec H5. eexists; eauto.
  match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
  pose proof (join_canc (join_comm H5) (join_comm H2)).
  subst phi2. clear H5.
  rewrite <- H0. subst jm3.
  f_equal.
  apply free_juicy_mem_ext;  auto.
-Qed.
+Qed.*)
+Admitted.
 
 Lemma xelements_app:
  forall A (rho: PTree.t A) i al bl,
@@ -1186,23 +1194,12 @@ Proof.
     clear - H3 H7. destruct H7.
   rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
   pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
-  destruct H7 as [phi3 H7].
-  assert (phi3 = m_phi jm3).
-  Focus 1. {
-    apply join_comm in H7.
-    eapply join_canc. apply H7.
-    apply join_comm.
-    apply (@juicy_free_lemma _ _ _ _ _ phi1 _ H8).
-    rewrite Z.sub_0_r; auto.
-    apply join_comm in H7. apply join_core in H7; auto.
-    intros.
-    apply (resource_at_join _ _ _ l) in H7.
-    rewrite H9 in H7.
-    clear - H7.
-    inv H7. do 3 eexists; split3; eauto. eexists; eauto.
-    do 3 eexists; split3; eauto. eexists; eauto.
-  } Unfocus.
-  subst phi3.
+  clear H7.
+  assert (join phi1 (m_phi jm3) (m_phi jm)) as H7.
+  { apply juicy_free_lemma'.
+    * rewrite Z.sub_0_r; auto.
+    * eapply join_sub_trans; eauto.
+      eexists; eauto. }
   assert (join_sub phi2 (m_phi jm3)).
   Focus 1. {
     destruct H as [phix H].
@@ -1249,7 +1246,7 @@ Proof.
     exists m4.
     rewrite HGG.
     rewrite H8. auto.
-Qed.
+Admitted.
 
 Lemma necR_m_dry':
   forall jm jm', m_dry jm = m_dry jm' ->
