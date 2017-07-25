@@ -197,20 +197,19 @@ Proof.
   eapply H; eauto.
 Qed.
 
-Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
+Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
   (emp * P = P)%pred.
 Proof.
   intros; apply pred_ext; hnf; intros.
   destruct H as [x [y [? [? ?]]]].
   simpl in H0.
   replace a with y; auto.
-  destruct (join_ex_units a) as [u ?].
-  exists u; exists a. split; auto. split; auto.
-  simpl.
-  eapply unit_identity; eauto.
+  destruct (join_ex_identities a) as [u [Hu [? Hj]]].
+  exists u; exists a. split; auto.
+  specialize (Hu _ _ Hj); subst; auto.
 Qed.
 
-Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}  : forall (P:pred A),
+Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}  : forall (P:pred A),
   (P * emp = P)%pred.
 Proof.
   intros.
@@ -612,13 +611,13 @@ Proof.
 intros; intro; intros; eauto.
 Qed.
 
-Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}: precise emp.
+Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: precise emp.
 Proof.
-intros.
-rewrite precise_eq.
-intros.
-repeat rewrite emp_sepcon.
-auto.
+repeat intro.
+eapply join_sub_same_identity with (a := w1)(c := w); auto.
+apply identity_unit'; auto.
+eapply join_sub_unit_for; eauto.
+apply identity_unit'; auto.
 Qed.
 
 Definition superprecise {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P: pred A) :=
@@ -704,7 +703,7 @@ Qed.
 
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
 
-Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
       forall P, ewand emp P = P.
 Proof.
 intros.
@@ -713,10 +712,10 @@ destruct H as [w1 [w2 [? [? ?]]]].
 replace w with w2; auto.
 eapply join_eq; eauto.
 eapply identity_unit; eauto.
-destruct (join_ex_units w) as [e ?].
+destruct (join_ex_identities w) as [e [He [? Hj]]].
 exists e; exists w.
-split; auto. split; auto.
-simpl; eapply unit_identity; eauto.
+split; auto.
+specialize (He _ _ Hj); subst; auto.
 Qed.
 
 

@@ -111,7 +111,6 @@ Module Type STRAT_MODEL.
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
   Axiom pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Axiom sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
-  Axiom ca_rj : forall PRED, @Canc_alg _ (res_join PRED).
   Axiom da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Axiom paf_res : @pafunctor f_res res_join.
 
@@ -140,7 +139,6 @@ Module Type STRAT_MODEL.
 
   Parameter Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
   Parameter Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
-  Parameter Canc_pre_rmap: forall (A: Type), Canc_alg (f_pre_rmap A).
   Parameter Disj_pre_rmap: forall (A: Type), Disj_alg (f_pre_rmap A).
   Parameter paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap.
 
@@ -270,12 +268,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
             intros. inversion H; auto.
   Defined.
 
-  Instance ca_rj : forall PRED, @Canc_alg _ (res_join PRED).
-  Proof. repeat intro. inv H; inv H0; auto;
-    repeat match goal with H: join ?A ?B ?C, H': join ?D ?B ?C |- _ => pose proof (join_canc H H'); subst D end;
-    repeat proof_irr; auto; try contradiction.
-  Qed.
-
   Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Proof.  repeat intro.
     inv H; 
@@ -401,9 +393,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Definition Sep_pre_rmap (A: Type): Sep_alg (pre_rmap A) :=
     Sep_prop _ _ (Perm_fun address _ _ _) _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
 
-  Definition Canc_pre_rmap (A: Type): Canc_alg (pre_rmap A) :=
-    @Canc_prop _ _ _ (Canc_fun address _ _ _).
-
   Definition Disj_pre_rmap (A: Type): Disj_alg (pre_rmap A) :=
     @Disj_prop _ _ _ (Disj_fun address _ _ _).
 
@@ -419,7 +408,6 @@ Module Type RMAPS.
   Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
   Axiom Perm_rmap: Perm_alg rmap. Existing Instance Perm_rmap.
   Axiom Sep_rmap: Sep_alg rmap. Existing Instance Sep_rmap.
-  Axiom Canc_rmap: Canc_alg rmap.  Existing Instance Canc_rmap.
   Axiom Disj_rmap: Disj_alg rmap.  Existing Instance Disj_rmap.
   Axiom ag_rmap: ageable rmap.  Existing Instance ag_rmap.
   Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
@@ -460,7 +448,6 @@ Module Type RMAPS.
   Instance Join_resource: Join resource := res_join.
   Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
   Axiom Sep_resource: Sep_alg resource. Existing Instance Sep_resource.
-  Axiom Canc_resource: Canc_alg resource. Existing Instance Canc_resource.
   Axiom Disj_resource: Disj_alg resource. Existing Instance Disj_resource.
 
   Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
@@ -554,7 +541,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     Instance Join_F: forall A, Join (F A) := _.
     Definition Perm_F : forall A, Perm_alg (F A) := Perm_pre_rmap.
     Definition Sep_F := Sep_pre_rmap.
-    Definition Canc_F := Canc_pre_rmap.
     Definition Disj_F := Disj_pre_rmap.
     Definition paf_F := paf_pre_rmap.
   End TyFSA.
@@ -567,7 +553,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Instance Join_rmap: Join rmap := KSa.Join_knot.
   Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
   Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
-  Instance Canc_rmap : Canc_alg rmap:= KSa.Canc_knot.
   Instance Disj_rmap : Disj_alg rmap:= KSa.Disj_knot.
   Instance ag_rmap : ageable rmap := K.ageable_knot.
   Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
@@ -709,12 +694,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   intro. destruct t; constructor; try apply join_unit1; auto.
   intros. inversion H; auto.
   Defined.
-
-  Instance Canc_resource: Canc_alg resource.
-  Proof. repeat intro. inv H; inv H0; auto;
-    repeat match goal with H: join ?A ?B ?C, H': join ?D ?B ?C |- _ => pose proof (join_canc H H'); subst D end;
-    repeat proof_irr; auto; try contradiction.
-  Qed.
 
   Instance Disj_resource: Disj_alg resource.
   Proof.
@@ -1104,13 +1083,22 @@ Qed.
    rewrite K.knot_level. destruct (K.unsquash x); simpl. auto.
   Qed.
 
-  Lemma unevolve_identity_rmap :
+(*  Lemma unevolve_identity_rmap :
    (* REMARK:  This may not be needed for anything, so for now it's removed
      from the Module Type *)
     forall w w':rmap, necR w w' -> identity w' -> identity w.
   Proof.
     intros.
     induction H; eauto.
+    repeat intro.
+    eapply age1_join in H1; eauto.
+    destruct H1 as (? & ? & ? & ? & ?).
+    apply H0 in H1; subst.
+    Search age join.
+    Check age_join.
+    Search age.
+    Search age core.
+    Search identity.
     rewrite identity_unit_equiv in H0.
     rewrite identity_unit_equiv.
     red in H0. red.
@@ -1134,7 +1122,7 @@ Qed.
     inv H1; auto.
     inv H1. constructor; auto.
     constructor.
-  Qed.
+  Qed.*)
 
 End Rmaps.
 Local Close Scope nat_scope.

@@ -446,7 +446,7 @@ apply pred_ext; intro w; simpl.
    destruct (readable_share_dec sh1); [ | contradiction].
    destruct (readable_share_dec sh2); [ | contradiction].
    constructor; auto.
-   apply identity_unit_equiv in H0. apply H0.
+   apply identity_unit' in H0. apply H0.
   }
   econstructor; econstructor; split; [apply H1|].
   split.
@@ -532,7 +532,7 @@ unfold slice_resource.
 destruct (readable_share_dec sh1); [ | contradiction].
 destruct (readable_share_dec sh2); [ | contradiction].
 constructor. auto.
-do 3 red in H2. apply identity_unit_equiv in H2. apply H2; auto.
+do 3 red in H2. apply identity_unit' in H2. apply H2; auto.
 +
 exists bl; repeat split; auto.
 intro loc; spec H2 loc; unfold jam in *;  hnf in H2|-*; if_tac; auto.
@@ -802,7 +802,7 @@ Proof.
         rewrite H in H5.
         apply H3 in H5.
         tauto.
-      * apply identity_unit_equiv in H5.
+      * apply identity_unit' in H5.
         exact H5.
     - intros l.
       rewrite H0, H7, H6.
@@ -995,8 +995,8 @@ apply pred_ext.
   destruct (readable_share_dec sh1).
   constructor; auto.
   constructor; auto.
-  do 3 red in H0. 
-  apply identity_unit_equiv in H0. apply H0.
+  do 3 red in H0.
+  apply identity_unit' in H0. apply H0.
  +
    intro loc; hnf. simpl. rewrite H2.
   clear dependent w1. clear dependent w2.

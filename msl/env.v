@@ -816,7 +816,7 @@ apply unit_identity with (pshare_sh sh2); apply join_comm; auto.
 destruct H4 as [? [? ?]]; simpl snd in *; subst.
 generalize (join_canc (join_comm j) (join_comm H)); intro; subst.
 destruct (dec_share_identity (lifted_obj (fst a2))).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (lifted_obj (fst a2))).
+contradiction (@nonunit_nonidentity _ _ _ _ (lifted_obj (fst a2))).
 destruct (fst a2); simpl; auto.
 destruct a2; simpl in *. destruct p; simpl in *.
 constructor; simpl; auto.
@@ -826,7 +826,7 @@ inv H.
 apply bot_identity in j.
 subst.
 destruct (dec_share_identity (pshare_sh sh2)).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (pshare_sh sh2)).
+contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
 f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.

@@ -544,9 +544,8 @@ Proof.
       * auto.
       * specialize (H4 l).
         rewrite if_false in H4 by firstorder.
-        apply identity_unit_equiv in H4.
-        pose proof unit_core H4.
-        rewrite <- H10; auto.
+        rewrite identity_core by auto.
+        apply core_duplicable.
     - intros l.
       specialize (H4 l).
       if_tac.
@@ -1014,7 +1013,7 @@ apply join_unit1; auto.
 if_tac.
 contradiction H2. unfold adr_add in H3; destruct l; destruct l0; simpl in H3. inv H3.
 split; auto. omega.
-do 3 red in H1. apply identity_unit_equiv in H1. auto.
+do 3 red in H1. apply identity_unit' in H1. auto.
 *
 destruct H1 as [phi1 [phi2 [? ?]]].
 destruct (join_ex_identities w) as [e [? ?]].
@@ -1477,15 +1476,12 @@ hnf in H, H0. if_tac in H.
   f_equal.
   inv H0; inv H; congruence.
 + do 3 red in H,H0.
-  destruct H1.
-  destruct H2.
-  apply (resource_at_join _ _ _ l0) in H1.
-  apply (resource_at_join _ _ _ l0) in H2.
-  assert (x0 @ l0 = x @ l0).
-  apply H in H1.
-  apply H0 in H2.
-  congruence.
-  rewrite H4 in *. eapply join_canc; eauto.
+  apply (resource_at_join_sub _ _ l0) in H1.
+  eapply join_sub_same_identity; eauto.
+  * apply identity_unit'; auto.
+  * apply (resource_at_join_sub _ _ l0) in H2.
+    eapply join_sub_unit_for; eauto.
+    apply identity_unit'; auto.
 Qed.
 
 Lemma nonlock_permission_bytes_precise: forall sh p n,
@@ -1510,15 +1506,12 @@ Proof.
     repeat f_equal; try apply proof_irr; try congruence;
     try contradiction.
   + do 3 red in H,H0.
-    destruct H1.
-    destruct H2.
-    apply (resource_at_join _ _ _ l) in H1.
-    apply (resource_at_join _ _ _ l) in H2.
-    assert (x0 @ l = x @ l).
-    apply H in H1.
-    apply H0 in H2.
-    congruence.
-    rewrite H4 in *. eapply join_canc; eauto.
+    apply (resource_at_join_sub _ _ l) in H1.
+    eapply join_sub_same_identity; eauto.
+    * apply identity_unit'; auto.
+    * apply (resource_at_join_sub _ _ l) in H2.
+      eapply join_sub_unit_for; eauto.
+      apply identity_unit'; auto.
 Qed.
 
 Lemma address_mapsto_precise: forall ch v sh l, precise (address_mapsto ch v sh l).
@@ -1548,30 +1541,24 @@ destruct (eq_dec l l0); subst; if_tac in H.
   destruct H1; destruct H2.
   f_equal.
   rewrite Hlevel; auto.
-+ destruct H1.
-  destruct H2.
-  apply (resource_at_join _ _ _ l0) in H1.
-  apply (resource_at_join _ _ _ l0) in H2.
-  assert (x0 @ l0 = x @ l0).
-  apply H in H1.
-  apply H0 in H2.
-  congruence.
-  rewrite H4 in *. eapply join_canc; eauto.
++ apply (resource_at_join_sub _ _ l0) in H1.
+  eapply join_sub_same_identity; eauto.
+  * apply identity_unit'; auto.
+  * apply (resource_at_join_sub _ _ l0) in H2.
+    eapply join_sub_unit_for; eauto.
+    apply identity_unit'; auto.
 + destruct H as [p ?].
   destruct H0 as [p' ?].
   unfold yesat_raw in *.
   generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
   generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
   f_equal. auto with extensionality.
-+ destruct H1.
-  destruct H2.
-  apply (resource_at_join _ _ _ l0) in H1.
-  apply (resource_at_join _ _ _ l0) in H2.
-  assert (x0 @ l0 = x @ l0).
-  apply H in H1.
-  apply H0 in H2.
-  congruence.
-  rewrite H4 in *. eapply join_canc; eauto.
++ apply (resource_at_join_sub _ _ l0) in H1.
+  eapply join_sub_same_identity; eauto.
+  * apply identity_unit'; auto.
+  * apply (resource_at_join_sub _ _ l0) in H2.
+    eapply join_sub_unit_for; eauto.
+    apply identity_unit'; auto.
 Qed.
 
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=

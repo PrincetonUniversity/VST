@@ -50,10 +50,10 @@ Lemma identity_NO:
 Proof.
   destruct r; auto; intros.
  * left.
-  apply identity_unit_equiv in H. inv H.
-  apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
-  f_equal. apply proof_irr.
- * apply identity_unit_equiv in H. inv H.
+   apply identity_unit' in H. inv H.
+   apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
+   f_equal. apply proof_irr.
+ * apply identity_unit' in H. inv H.
    apply unit_identity in RJ. apply identity_share_bot in RJ. subst.
    contradiction bot_unreadable.
  * right. exists k. exists p. trivial.
@@ -391,15 +391,11 @@ Lemma all_resource_at_identity:
   forall w, (forall l, identity (w@l)) ->
          identity w.
 Proof.
-  intros.
-  rewrite identity_unit_equiv.
-  apply join_unsquash.
-  split. split; auto.
-  revert H. unfold resource_at.
-  case_eq (unsquash w); simpl; intros.
-  intro a. spec H0 a.
-  rewrite identity_unit_equiv in H0.
-  trivial.
+  repeat intro.
+  apply rmap_ext.
+  { apply join_level in H0; tauto. }
+  intro l; specialize (H l).
+  apply (resource_at_join _ _ _ l), H in H0; auto.
 Qed.
 
   Lemma ageN_squash : forall d n rm, le d n ->
@@ -479,7 +475,7 @@ Lemma YES_not_identity:
   forall sh rsh k Q, ~ identity (YES sh rsh k Q).
 Proof.
 intros. intro.
-rewrite identity_unit_equiv in H.
+apply identity_unit' in H.
 unfold unit_for in H.
 inv H.
 apply share_self_join_bot in RJ; subst.
@@ -648,7 +644,7 @@ Lemma resource_at_empty: forall phi,
      forall l, (phi @ l = NO Share.bot bot_unreadable \/ exists k, exists pds, phi @ l = PURE k pds).
 Proof.
   intros.
-  rewrite identity_unit_equiv in H.
+  apply identity_unit' in H.
   unfold unit_for in H.
   generalize (resource_at_join _ _ _ l H); intro.
   remember (phi @ l) as r.
@@ -864,7 +860,7 @@ Lemma empty_NO: forall r, identity r -> r = NO Share.bot bot_unreadable \/ exist
 Proof.
 intros.
 destruct r; auto.
-left. f_equal. apply identity_unit_equiv in H. inv H.
+left. f_equal. apply identity_unit' in H. inv H.
   apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
  f_equal. apply proof_irr.
 unfold identity in H.
@@ -1661,12 +1657,18 @@ Lemma identity_resource: forall r: resource, identity r <->
     match r with YES _ _ _ _ => False | NO sh rsh => identity sh | PURE _ _ => True end.
 Proof.
  intros. destruct r.
- split; intro; apply identity_unit_equiv in H;  apply identity_unit_equiv.
- inv H; auto. constructor; auto.
- intuition.
- specialize (H (NO Share.bot bot_unreadable) (YES sh r k p)).
- spec H. constructor. apply join_unit2; auto. inv H.
- intuition. intros  ? ? ?. inv H0. auto.
+ - split; intro.
+   + apply identity_unit' in H. inv H; auto. apply identity_unit_equiv; auto.
+   + repeat intro.
+     inv H0.
+     * apply H in RJ; subst.
+       f_equal; apply proof_irr.
+     * apply H in RJ; subst.
+       f_equal; apply proof_irr.
+ - intuition.
+   specialize (H (NO Share.bot bot_unreadable) (YES sh r k p)).
+   spec H. constructor. apply join_unit2; auto. inv H.
+ - intuition. intros  ? ? ?. inv H0. auto.
 Qed.
 
 Lemma resource_at_core_identity:  forall m i, identity (core m @ i).
@@ -1703,10 +1705,15 @@ Lemma PURE_inj: forall T x x' y y', PURE x (SomeP T y) = PURE x' (SomeP T y') ->
 Lemma core_resource_at: forall w i, core (w @ i) = core w @ i.
 Proof.
  intros.
- generalize (core_unit w); intros.
- apply (resource_at_join _ _ _ i) in H.
- generalize (core_unit (w @ i)); unfold unit_for; intros.
- eapply join_canc; eauto.
+ replace (core w @ i) with (core (core w @ i)).
+ pose proof (core_unit (w @ i)) as H1.
+ pose proof (core_unit w) as H2.
+ apply (resource_at_join _ _ _ i) in H2.
+ unfold unit_for in *.
+ rewrite <- core_idem.
+ destruct (join_assoc (join_comm H1) (join_comm H2)) as [? [? ?]].
+ eapply join_core2; eauto.
+ symmetry; apply identity_core, resource_at_core_identity.
 Qed.
 
 Lemma resource_at_identity: forall (m: rmap) (loc: AV.address),
@@ -1753,22 +1760,21 @@ Lemma core_not_YES: forall {w loc rsh sh k pp},
    core w @ loc = YES rsh sh k pp -> False.
 Proof.
 intros.
-rewrite <- core_resource_at in H.
-destruct (w @ loc); [rewrite core_NO in H | rewrite core_YES in H | rewrite core_PURE in H]; inv H.
+pose proof (core_duplicable w) as Hj.
+apply (resource_at_join _ _ _ loc) in Hj; rewrite H in Hj.
+inv Hj.
+eapply readable_nonidentity; eauto.
+eapply unit_identity; eauto.
 Qed.
 
 Lemma resource_at_empty2:
  forall phi: rmap, (forall l, identity (phi @ l)) -> identity phi.
 Proof.
-intros.
-assert (phi = core phi).
+repeat intro.
 apply rmap_ext.
-rewrite level_core. auto.
-intro l; specialize (H l).
-apply identity_unit_equiv in H; apply unit_core in H.
-rewrite core_resource_at in *; auto.
-rewrite H0.
-apply core_identity.
+{ eapply join_level; eauto. }
+intro l.
+apply (resource_at_join _ _ _ l), H in H0; auto.
 Qed.
 
 Lemma resource_fmap_core:
