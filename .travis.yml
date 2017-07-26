@@ -22,10 +22,6 @@ env:
   - NJOBS=4
   # system is == 4.02.3
   - COMPILER="system"
-  matrix:
-  - TARGET="progs"
-  - TARGET="hmacdrbg"
-  - TARGET="mailbox"
 branches:
   only:
   - master
@@ -52,5 +48,9 @@ script:
 jobs:
   include:
   - stage: all tests
-  - script:
+    env:
+    - TARGET="progs"
+    - TARGET="hmacdrbg"
+    - TARGET="mailbox"
+    script:
     - make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
