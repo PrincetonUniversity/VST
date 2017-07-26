@@ -379,6 +379,60 @@ Proof.
   tauto.
 Qed.
 
+Lemma nested_field_ramif_load: forall sh t gfs0 gfs1 (v_reptype: reptype (nested_field_type t gfs0)) (v_val: val) p,
+  field_compatible t (gfs1 ++ gfs0) p ->
+  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) v_val ->
+  exists v_reptype',
+    JMeq v_reptype' v_val /\
+    field_at sh t gfs0 v_reptype p |--
+      field_at sh t (gfs1 ++ gfs0) v_reptype' p * TT.
+Proof.
+  intros.
+  generalize (JMeq_refl (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype)).
+  set (v0 := proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) at 2.
+  clearbody v0.
+  revert v0.
+  pattern (reptype (nested_field_type (nested_field_type t gfs0) gfs1)) at 1 3.
+  rewrite nested_field_type_nested_field_type at 1.
+  intros; exists v0.
+  split.
+  1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
+  eapply derives_trans; [apply nested_field_ramif; eassumption |].
+  apply sepcon_derives; auto.
+Qed.
+
+Lemma nested_field_ramif_store: forall sh t gfs0 gfs1 (v_reptype: reptype (nested_field_type t gfs0)) (v0_reptype: reptype (nested_field_type (nested_field_type t gfs0) gfs1)) (v_val: val) p,
+  field_compatible t (gfs1 ++ gfs0) p ->
+  JMeq v0_reptype v_val ->
+  exists v0_reptype',
+    JMeq v0_reptype' v_val /\
+    field_at sh t gfs0 v_reptype p |--
+      field_at_ sh t (gfs1 ++ gfs0) p *
+       (field_at sh t (gfs1 ++ gfs0) v0_reptype' p -*
+          field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v_reptype v0_reptype) p).
+Proof.
+  intros.
+  generalize (JMeq_refl (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype)).
+  set (v0 := proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) at 2.
+  clearbody v0.
+  generalize (JMeq_refl v0_reptype).
+  set (v0_reptype' := v0_reptype) at 2.
+  clearbody v0_reptype'.
+  revert v0 v0_reptype'.
+  pattern (reptype (nested_field_type (nested_field_type t gfs0) gfs1)) at 1 2 4 6.
+  rewrite nested_field_type_nested_field_type at 1.
+  intros; exists v0_reptype'.
+  split.
+  1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
+  eapply derives_trans; [apply nested_field_ramif; eassumption |].
+  apply sepcon_derives.
+  1: apply field_at_field_at_.
+  eapply allp_left.
+  eapply allp_left.
+  rewrite prop_imp; [apply derives_refl |].
+  auto.
+Qed.
+
 End NESTED_RAMIF.
 
 Lemma semax_extract_later_prop' {cs: compspecs}:
