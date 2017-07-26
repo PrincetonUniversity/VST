@@ -1535,6 +1535,16 @@ Proof.
     { assumption. }
 Qed.
 
+Lemma field_address_app_rewrite: forall t_root t' gfsA gfsB a,
+  nested_field_type t_root gfsA = t' ->
+  field_address t_root (gfsB ++ gfsA) a =
+  field_address t' gfsB (field_address t_root gfsA a).
+Proof.
+  intros.
+  subst.
+  apply field_address_app.
+Qed.
+
 End COMPOSITE_ENV.
 (*
 Arguments nested_field_offset2 {cs} t gfs /.

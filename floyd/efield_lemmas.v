@@ -10,6 +10,10 @@ Inductive efield : Type :=
   | eStructField: forall i: ident, efield
   | eUnionField: forall i: ident, efield.
 
+Section CENV.
+
+Context {cs: compspecs}.
+
 Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   match efs, tts with
   | nil, _ => e
@@ -22,27 +26,10 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
     end
   end.
 
-Fixpoint compute_nested_efield e : expr * list efield * list type :=
-  match e with
-  | Efield e' id t =>
-    match compute_nested_efield e', typeof e' with
-    | (e'', efs, tts), Tstruct _ _ => (e'', eStructField id :: efs, t :: tts)
-    | (e'', efs, tts), Tunion _ _ => (e'', eUnionField id :: efs, t :: tts)
-    | _, _ => (e, nil, nil)
-    end
-  | Ederef (Ebinop Oadd e' ei (Tpointer t a)) t' =>
-    match compute_nested_efield e', typeof e', eqb_type t t', eqb_attr a noattr with
-    | (e'', efs, tts), Tarray _ _ _, true, true => (e'', eArraySubsc ei :: efs, t :: tts)
-    | (e'', efs, tts), Tpointer _ _, true, true => (e', eArraySubsc ei :: nil, t :: nil)
-    | _, _, _, _ => (e, nil, nil)
-    end
-  | _ => (e, nil, nil)
-  end.
-
 Definition compute_lr e (efs: list efield) :=
   match typeof e, length efs with
   | Tpointer _ _, S _ => RRRR
-  | Tarray _ _ _, _ => RRRR
+  | Tarray _ _ _, _ => LLLL (* This line can be either L or R *)
   | _, _ => LLLL
   end.
 
@@ -60,68 +47,18 @@ Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : e
   | _, _ => FF
   end.
 
-Fixpoint tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred :=
+Fixpoint typecheck_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : tc_assert :=
   match efs with
-  | nil => TT
+  | nil => tc_TT
   | eArraySubsc ei :: efs' =>
-    tc_expr Delta ei && tc_efield Delta efs'
+    tc_andp (typecheck_expr Delta ei) (typecheck_efield Delta efs')
   | eStructField i :: efs' =>
-    tc_efield Delta efs'
+    typecheck_efield Delta efs'
   | eUnionField i :: efs' =>
-    tc_efield Delta efs'
+    typecheck_efield Delta efs'
   end.
 
-Lemma compute_nested_efield_aux: forall e t,
-  match compute_nested_efield e with
-  | (e', gfs, tts) => nested_efield e' gfs tts = e
-  end /\
-  match compute_nested_efield (Ederef e t) with
-  | (e', gfs, tts) => nested_efield e' gfs tts = Ederef e t
-  end.
-Proof.
-  intros.
-  revert t.
-  induction e; intros; split; try reflexivity.
-  + destruct (IHe t).
-    exact H0.
-  + clear IHe2.
-    destruct (IHe1 t) as [? _]; clear IHe1.
-    simpl; destruct b, t; try reflexivity.
-    destruct (compute_nested_efield e1) as ((?, ?), ?); try reflexivity.
-    destruct (typeof e1); try reflexivity.
-    - destruct (eqb_type t t0) eqn:?H; try reflexivity.
-      apply eqb_type_spec in H0.
-      destruct (eqb_attr a noattr) eqn:?H; try reflexivity.
-      apply eqb_attr_spec in H1.
-      subst.
-      reflexivity.
-    - destruct (eqb_type t t0) eqn:?H; try reflexivity.
-      apply eqb_type_spec in H0.
-      destruct (eqb_attr a noattr) eqn:?H; try reflexivity.
-      apply eqb_attr_spec in H1.
-      subst.
-      reflexivity.
-  + destruct (IHe t) as [? _]; clear IHe.
-    simpl.
-    destruct (compute_nested_efield e) as ((?, ?), ?); try reflexivity.
-    destruct (typeof e); try reflexivity.
-    - simpl. rewrite <- H. reflexivity.
-    - simpl. rewrite <- H. reflexivity.
-Qed.
-
-Lemma compute_nested_efield_lemma: forall e,
-  match compute_nested_efield e with
-  | (e', gfs, tts) => nested_efield e' gfs tts = e
-  end.
-Proof.
-  intros.
-  destruct (compute_nested_efield_aux e Tvoid).
-  auto.
-Qed.
-
-Section CENV.
-
-Context {cs: compspecs}.
+Definition tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred := denote_tc_assert (typecheck_efield Delta efs).
 
 (* Null Empty Path situation *)
 Definition type_almost_match e t lr:=
@@ -161,6 +98,28 @@ Proof.
   simpl in H.
   rewrite andb_true_iff in H.
   tauto.
+Qed.
+
+Lemma tc_efield_ind: forall {cs: compspecs} (Delta: tycontext) (efs: list efield),
+  tc_efield Delta efs =
+  match efs with
+  | nil => TT
+  | eArraySubsc ei :: efs' =>
+    tc_expr Delta ei && tc_efield Delta efs'
+  | eStructField i :: efs' =>
+    tc_efield Delta efs'
+  | eUnionField i :: efs' =>
+    tc_efield Delta efs'
+  end.
+Proof.
+  intros.
+  destruct efs; auto.
+  destruct e; auto.
+  unfold tc_efield.
+  simpl typecheck_efield.
+  extensionality rho.
+  rewrite denote_tc_assert_andp.
+  auto.
 Qed.
 
 Lemma typeof_nested_efield': forall rho t_root e ef efs gf gfs t tts,
@@ -459,7 +418,8 @@ Proof.
   (spec IHefs; [auto |]);
   (apply lvalue_LR_of_type;
    [apply andp_left2; apply typeof_nested_efield'; auto | assumption |]).
-  + destruct H.
+  + rewrite tc_efield_ind.
+    destruct H.
     unfold tc_lvalue.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
     unfold local, lift1; unfold_lift.
@@ -491,7 +451,8 @@ Proof.
     - apply andp_left1; auto.
     - apply andp_left2; auto.
     - rewrite <- H12; auto.
-  + destruct H.
+  + rewrite tc_efield_ind.
+    destruct H.
     simpl.
     unfold local, lift1; unfold_lift.
     normalize.
@@ -507,7 +468,8 @@ Proof.
     rewrite H4; simpl.
     simpl in H8; rewrite <- H8.
     reflexivity.
-  + destruct H.
+  + rewrite tc_efield_ind.
+    destruct H.
     simpl.
     unfold local, lift1; unfold_lift.
     normalize.
@@ -565,6 +527,89 @@ Proof.
   destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
   unfold LR_of_type in H0.
   destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
+Qed.
+
+Definition compute_nested_efield {cs: compspecs}: expr -> expr * list efield * list type * LLRR :=
+  fix compute_nested_efield e :=
+  match e with
+  | Efield e' id t =>
+    match typeof e' with
+    | Tstruct id_str _ =>
+      if eqb_type (field_type id (co_members (get_co id_str))) t
+      then match compute_nested_efield e' with
+           | (e'', efs, tts, lr) => (e'', eStructField id :: efs, t :: tts, lr)
+           end
+      else (e, nil, nil, LLLL)
+    | Tunion id_uni _ =>
+      if eqb_type (field_type id (co_members (get_co id_uni))) t
+      then match compute_nested_efield e' with
+           | (e'', efs, tts, lr) => (e'', eUnionField id :: efs, t :: tts, lr)
+           end
+      else (e, nil, nil, LLLL)
+    | _ => (e, nil, nil, LLLL)
+    end
+  | Ederef (Ebinop Oadd e' ei (Tpointer t a)) t' =>
+    match typeof e', eqb_type t t', eqb_attr a noattr with
+    | Tarray _ _ _, true, true =>
+      match compute_nested_efield e' with
+      | (e'', efs, tts, lr) => (e'', eArraySubsc ei :: efs, t :: tts, lr)
+      end
+    | Tpointer _ _, true, true => (e', eArraySubsc ei :: nil, t :: nil, RRRR)
+    | _, _, _ => (e, nil, nil, LLLL)
+    end
+  | _ => (e, nil, nil, LLLL)
+  end.
+
+Inductive compute_root_type: forall (t_from_e: type) (lr: LLRR) (t_root: type), Prop :=
+  | compute_root_type_lvalue: forall t, compute_root_type t LLLL t
+  | compute_root_type_expr: forall t a1 n a2, compute_root_type (Tpointer t a1) RRRR (Tarray t n a2).
+
+Lemma compute_nested_efield_aux: forall e t,
+  match compute_nested_efield e with
+  | (e', gfs, tts) => nested_efield e' gfs tts = e
+  end /\
+  match compute_nested_efield (Ederef e t) with
+  | (e', gfs, tts) => nested_efield e' gfs tts = Ederef e t
+  end.
+Proof.
+  intros.
+  revert t.
+  induction e; intros; split; try reflexivity.
+  + destruct (IHe t).
+    exact H0.
+  + clear IHe2.
+    destruct (IHe1 t) as [? _]; clear IHe1.
+    simpl; destruct b, t; try reflexivity.
+    destruct (compute_nested_efield e1) as ((?, ?), ?); try reflexivity.
+    destruct (typeof e1); try reflexivity.
+    - destruct (eqb_type t t0) eqn:?H; try reflexivity.
+      apply eqb_type_spec in H0.
+      destruct (eqb_attr a noattr) eqn:?H; try reflexivity.
+      apply eqb_attr_spec in H1.
+      subst.
+      reflexivity.
+    - destruct (eqb_type t t0) eqn:?H; try reflexivity.
+      apply eqb_type_spec in H0.
+      destruct (eqb_attr a noattr) eqn:?H; try reflexivity.
+      apply eqb_attr_spec in H1.
+      subst.
+      reflexivity.
+  + destruct (IHe t) as [? _]; clear IHe.
+    simpl.
+    destruct (compute_nested_efield e) as ((?, ?), ?); try reflexivity.
+    destruct (typeof e); try reflexivity.
+    - simpl. rewrite <- H. reflexivity.
+    - simpl. rewrite <- H. reflexivity.
+Qed.
+
+Lemma compute_nested_efield_lemma: forall e,
+  match compute_nested_efield e with
+  | (e', gfs, tts) => nested_efield e' gfs tts = e
+  end.
+Proof.
+  intros.
+  destruct (compute_nested_efield_aux e Tvoid).
+  auto.
 Qed.
 
 End CENV.
