@@ -44,13 +44,12 @@ install:
 - opam install -j ${NJOBS} -y coq=8.6 ${EXTRA_OPAM}
 - opam list
 
+script:
+- echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
+- make -j ${NJOBS} IGNORECOQVERSION=true
+- echo -en 'travis_fold:end:VST.build\\r'
+
 jobs:
   include:
-  - stage: prepare cache
-    script:
-    - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-    - make -j ${NJOBS} IGNORECOQVERSION=true
-    - echo -en 'travis_fold:end:VST.build\\r'
-
-script:
-  - make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
+  - stage: all tests
+    make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
