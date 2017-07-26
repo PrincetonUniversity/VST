@@ -52,4 +52,4 @@ script:
 jobs:
   include:
   - stage: all tests
-    make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
+    - make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
