@@ -51,6 +51,6 @@ jobs:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
     - make -j ${NJOBS} IGNORECOQVERSION=true
     - echo -en 'travis_fold:end:VST.build\\r'
-  - stage: test
-    script:
-    - make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
+
+script:
+  - make -j ${NJOBS} IGNORECOQVERSION=true ${TARGET}
