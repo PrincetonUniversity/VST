@@ -50,4 +50,4 @@ jobs:
   - stage: test
     script: make -j ${NJOBS} IGNORECOQVERSION=true progs
   - script: make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
-  - script: make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+  - script: travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
