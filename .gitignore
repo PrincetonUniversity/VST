@@ -13,6 +13,7 @@
 # Emacs saves
 *~
 # Executables and configuration
+CONFIGURE
 compcert/ccomp
 compcert/ccomp.byte
 compcert/ccomp.prof
