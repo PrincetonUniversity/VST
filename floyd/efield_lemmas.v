@@ -566,10 +566,10 @@ Inductive compute_root_type: forall (t_from_e: type) (lr: LLRR) (t_root: type), 
 
 Lemma compute_nested_efield_aux: forall e t,
   match compute_nested_efield e with
-  | (e', gfs, tts) => nested_efield e' gfs tts = e
+  | (e', gfs, tts, lr) => nested_efield e' gfs tts = e
   end /\
   match compute_nested_efield (Ederef e t) with
-  | (e', gfs, tts) => nested_efield e' gfs tts = Ederef e t
+  | (e', gfs, tts, lr) => nested_efield e' gfs tts = Ederef e t
   end.
 Proof.
   intros.
@@ -580,7 +580,7 @@ Proof.
   + clear IHe2.
     destruct (IHe1 t) as [? _]; clear IHe1.
     simpl; destruct b, t; try reflexivity.
-    destruct (compute_nested_efield e1) as ((?, ?), ?); try reflexivity.
+    destruct (compute_nested_efield e1) as (((?, ?), ?), ?); try reflexivity.
     destruct (typeof e1); try reflexivity.
     - destruct (eqb_type t t0) eqn:?H; try reflexivity.
       apply eqb_type_spec in H0.
@@ -596,15 +596,15 @@ Proof.
       reflexivity.
   + destruct (IHe t) as [? _]; clear IHe.
     simpl.
-    destruct (compute_nested_efield e) as ((?, ?), ?); try reflexivity.
+    destruct (compute_nested_efield e) as (((?, ?), ?), ?); try reflexivity.
     destruct (typeof e); try reflexivity.
-    - simpl. rewrite <- H. reflexivity.
-    - simpl. rewrite <- H. reflexivity.
+    - if_tac; auto. simpl. rewrite <- H. reflexivity.
+    - if_tac; auto. simpl. rewrite <- H. reflexivity.
 Qed.
 
 Lemma compute_nested_efield_lemma: forall e,
   match compute_nested_efield e with
-  | (e', gfs, tts) => nested_efield e' gfs tts = e
+  | (e', gfs, tts, lr) => nested_efield e' gfs tts = e
   end.
 Proof.
   intros.

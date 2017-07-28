@@ -714,6 +714,7 @@ Proof.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
+(*
 Lemma semax_PTree_field_load:
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
@@ -721,7 +722,7 @@ Lemma semax_PTree_field_load:
       (t t_root: type) (gfs0 gfs1 gfs: list gfield) 
       (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       local2ptree Q = (T1, T2, nil, nil) ->
-      compute_nested_efield e = (e_root, efs, tts) ->
+      compute_nested_efield e = (e_root, efs, tts, lr) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
       msubst_eval_LR T1 T2 e1 lr = Some p_from_e ->
@@ -750,6 +751,7 @@ Lemma semax_PTree_field_load:
             (PROPx P
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
+ *)
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*

@@ -1941,9 +1941,9 @@ Ltac construct_nested_efield e e1 efs tts :=
   let pp := fresh "pp" in
     pose (compute_nested_efield e) as pp;
     simpl in pp;
-    pose (fst (fst pp)) as e1;
-    pose (snd (fst pp)) as efs;
-    pose (snd pp) as tts;
+    pose (fst (fst (fst pp))) as e1;
+    pose (snd (fst (fst pp))) as efs;
+    pose (snd (fst pp)) as tts;
     simpl in e1, efs, tts;
     change e with (nested_efield e1 efs tts);
     clear pp.
