@@ -33,6 +33,25 @@ Definition compute_lr e (efs: list efield) :=
   | _, _ => LLLL
   end.
 
+Inductive array_subsc_denote {cs: compspecs}: expr -> Z -> environ -> Prop :=
+  | array_subsc_denote_intro:
+      forall e i rho, Vint (Int.repr i) = eval_expr e rho -> array_subsc_denote e i rho.
+
+Inductive efield_denote {cs: compspecs}: list efield -> list gfield -> environ -> Prop :=
+  | efield_denote_nil: forall rho, efield_denote nil nil rho
+  | efield_denote_ArraySubsc: forall ei efs i gfs rho,
+      is_int_type (typeof ei) = true ->
+      array_subsc_denote ei i rho ->
+      efield_denote efs gfs rho ->
+      efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs) rho
+  | efield_denote_StructField: forall i efs gfs rho,
+      efield_denote efs gfs rho ->
+      efield_denote (eStructField i :: efs) (StructField i :: gfs) rho
+  | efield_denote_UnionField: forall i efs gfs rho,
+      efield_denote efs gfs rho ->
+      efield_denote (eUnionField i :: efs) (UnionField i :: gfs) rho.
+
+(* (* TODO: delete this original version *)
 Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : environ -> mpred :=
   match efs, gfs with
   | nil, nil => TT
@@ -46,6 +65,7 @@ Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : e
     !! (i = i0) && efield_denote efs' gfs'
   | _, _ => FF
   end.
+*)
 
 Fixpoint typecheck_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : tc_assert :=
   match efs with
@@ -124,33 +144,33 @@ Qed.
 
 Lemma typeof_nested_efield': forall rho t_root e ef efs gf gfs t tts,
   legal_nested_efield_rec t_root (gf :: gfs) (t :: tts) = true ->
-  efield_denote (ef :: efs) (gf :: gfs) rho |--
-    !! (nested_field_type t_root (gf :: gfs) =
-        typeof (nested_efield e (ef :: efs) (t :: tts))).
+  efield_denote (ef :: efs) (gf :: gfs) rho ->
+  nested_field_type t_root (gf :: gfs) = typeof (nested_efield e (ef :: efs) (t :: tts)).
 Proof.
   intros.
   simpl in H.
   rewrite andb_true_iff in H; destruct H.
-  apply eqb_type_true in H0; subst.
-  destruct ef; apply prop_right; reflexivity.
+  apply eqb_type_true in H1; subst.
+  destruct ef; reflexivity.
 Qed.
 
-Lemma typeof_nested_efield: forall t_root e efs gfs tts lr,
+Lemma typeof_nested_efield: forall rho t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
-  efield_denote efs gfs |--
-    !! (nested_field_type t_root gfs = typeof (nested_efield e efs tts)).
+  efield_denote efs gfs rho ->
+  nested_field_type t_root gfs = typeof (nested_efield e efs tts).
 Proof.
   intros.
   unfold legal_nested_efield in H.
   rewrite andb_true_iff in H.
-  intro rho; simpl.
   destruct H.
-  destruct gfs, efs, tts;
-  try solve [inversion H0 | simpl; normalize | destruct e0; simpl; normalize].
+  inversion H0; subst; destruct tts;
+  try solve [inversion H1 | simpl; auto | destruct e0; simpl; auto].
   + destruct lr; try discriminate.
     apply eqb_type_true in H; subst.
-    apply prop_right; reflexivity.
-  + apply typeof_nested_efield'; auto.
+    reflexivity.
+  + eapply typeof_nested_efield'; eauto.
+  + eapply typeof_nested_efield'; eauto.
+  + eapply typeof_nested_efield'; eauto.
 Qed.
 
 Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
@@ -214,13 +234,16 @@ Qed.
 Lemma weakened_legal_nested_efield_spec: forall t_root e gfs efs tts rho,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-  efield_denote efs gfs rho
-       |-- !!(typeconv (nested_field_type t_root gfs) =
-              typeconv (typeof (nested_efield e efs tts))).
+  efield_denote efs gfs rho ->
+  typeconv (nested_field_type t_root gfs) = typeconv (typeof (nested_efield e efs tts)).
 Proof.
   intros.
-  destruct gfs as [| [| |]], efs as [| [| |]], tts; try solve [inv H];
-  try solve [simpl; normalize];
+  f_equal.
+  eapply typeof_nested_efield; eauto.
+  unfold legal_nested_efield.
+  rewr
+  inversion H1; subst; destruct tts; try solve [inv H];
+  try solve [simpl; auto].
   try solve [rewrite (add_andp _ _ (typeof_nested_efield' _ t_root e _ _ _ _ _ _ H));
              apply andp_left2; normalize; f_equal; auto].
 
