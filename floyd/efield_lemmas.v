@@ -321,30 +321,39 @@ Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
 Proof.
   intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?
          LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
-  destruct (array_op_facts _ _ _ _ _ _ _ _ _ _ t0 _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
+  destruct (array_op_facts _ _ _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
+  pose proof field_address_isptr _ _ _ FIELD_COMPATIBLE as ISPTR.
   rewrite tc_efield_ind; simpl.
   rewrite andp_comm, andp_assoc.
   eapply derives_trans; [apply andp_derives; [apply derives_refl | rewrite andp_comm; exact IH] | ].
   rewrite (add_andp _ _ (typecheck_expr_sound _ _ _ TC_ENVIRON)).
   unfold_lift.
   normalize.
-  apply andp_right; [apply prop_right | apply andp_left2].
+  apply andp_right1; [apply prop_right | normalize].
   + inversion H0; subst.
     rewrite <- H3.
     unfold force_val2, force_val.
     unfold sem_add.
     rewrite CLASSIFY_ADD.
     rewrite sem_add_pi_ptr.
-Locate  field_address_isptr.
-    2: simpl in H2; rewrite <- H2; eapply field_address_isptr. by auto.
-    unfold gfield_offset; rewrite NESTED_FIELD_TYPE.
+    2: simpl in H2; rewrite <- H2; auto.
+    unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
   + unfold tc_lvalue.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
-    erewrite isBinOpResultType_add_ptr.
-
-    destruct (typeof ei); try solve [inv H]; simpl.
-Abort.
+    rewrite ISBINOP.
+    normalize.
+    rewrite !denote_tc_assert_andp.
+    repeat apply andp_right.
+    - apply prop_right.
+      simpl in H2; rewrite <- H2; auto.
+    - solve_andp.
+    - solve_andp.
+    - apply prop_right.
+      simpl; unfold_lift.
+      rewrite <- H3.
+      normalize.
+Qed.
 
 Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
 Proof.
@@ -361,8 +370,8 @@ Qed.
 
 Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   legal_nested_efield_rec t_root gfs tts = true ->
-  legal_nested_field t_root (gfs DOT i0) ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
+  in_members i0 (co_members (get_co i)) ->
   nested_field_type t_root gfs = Tstruct i a ->
   efield_denote efs gfs rho ->
   tc_lvalue Delta (nested_efield e efs tts) rho =
@@ -371,24 +380,55 @@ Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
       offset_val (field_offset cenv_cs i0 (co_members (get_co i))).
 Proof.
   intros.
-  pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H1 H3).
+  pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H3).
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
-  destruct H0.
-  rewrite H2 in H4; simpl in H4.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.
   unfold field_offset, fieldlist.field_offset.
   unfold get_co in *.
-  destruct (cenv_cs ! i1); [| inv H4].
+  destruct (cenv_cs ! i1); [| inv H1].
   destruct (Ctypes.field_offset cenv_cs i0 (co_members c)) eqn:?H.
   + split; auto.
     rewrite denote_tc_assert_andp; simpl.
     apply add_andp, prop_right; auto.
   + exfalso.
     pose proof in_members_Ctypes_offset i0 (co_members c) e0; auto.
+Qed.
+
+Lemma struct_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
+  legal_nested_efield_rec t_root gfs tts = true ->
+  type_almost_match e t_root (LR_of_type t_root) = true ->
+  in_members i (co_members (get_co i0)) ->
+  nested_field_type t_root gfs = Tstruct i0 a ->
+  tc_environ Delta rho ->
+  efield_denote efs gfs rho ->
+  field_compatible t_root gfs p ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  |-- !! (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho) =
+          eval_LR (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) &&
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho &&
+  tc_efield Delta (eStructField i :: efs) rho
+  |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (StructField i))
+            (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho)) =
+          eval_lvalue (nested_efield e (eStructField i :: efs) (t :: tts)) rho) &&
+      tc_lvalue Delta (nested_efield e (eStructField i :: efs) (t :: tts)) rho.
+Proof.
+  intros ? ? ? ? ? ? ? ? ? ? ? ?
+         LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  destruct (struct_op_facts Delta _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
+  rewrite tc_efield_ind; simpl.
+  eapply derives_trans; [exact IH | ].
+  unfold_lift.
+  normalize.
+  apply andp_right1; [apply prop_right | normalize].
+  + rewrite EVAL, H0, NESTED_FIELD_TYPE.
+    reflexivity.
+  + simpl in TC; rewrite <- TC.
+    auto.
 Qed.
 
 Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
@@ -484,60 +524,8 @@ Proof.
   destruct FIELD_COMPATIBLE as [? FIELD_COMPATIBLE];
   rewrite offset_val_nested_field_offset_ind by auto;
   rewrite <- field_compatible_field_address in IHEFIELD_DENOTE |- * by auto.
-  + (* Array Case *)
-    .
-    rewrite tc_efield_ind.
-    unfold tc_lvalue.
-    Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
-    unfold local, lift1; unfold_lift.
-    normalize.
-    pose proof array_op_facts _ rho _ _ efs _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE as [? ?].
-    rewrite !denote_tc_assert_andp.
-    rewrite H3.
-    simpl tc_LR_strong in IHEFIELD_DENOTE.
-    rewrite !andp_assoc, (andp_comm (tc_expr Delta ei rho)), <- !andp_assoc.
-    eapply derives_trans; [apply andp_derives; [exact IHEFIELD_DENOTE | apply derives_refl] |].
-    normalize.
-    unfold denote_tc_assert at 1 4, denote_tc_isptr; simpl.
-    unfold local, lift1, force_val2; unfold_lift.
-    assert (offset_val (nested_field_offset t_root (gfs SUB i))
-            (eval_LR e (LR_of_type t_root) rho) =
-            force_val
-               (sem_add (typeof (nested_efield e efs tts))
-                  (typeof ei) (eval_expr (nested_efield e efs tts) rho)
-                  (eval_expr ei rho)));
-     [| repeat apply andp_right; try apply prop_right; auto].
-    - rewrite offset_val_nested_field_offset_ind by auto.
-      simpl; unfold sem_add.
-      unfold local, lift1; unfold_lift.
-      rewrite H2.
-      simpl in H4; rewrite <- H4.
-      Check sem_add_pi_ptr.
-      unfold force_val. simpl. rewrite sem_add_pi_ptr by auto.
-      f_equal.
-      rewrite H4.
-      reflexivity.
-    - simpl in H11; rewrite <- H11; auto.
-    - apply andp_left1; auto.
-    - apply andp_left2; auto.
-    - rewrite <- H12; auto.
-  + rewrite tc_efield_ind.
-    destruct H.
-    simpl.
-    unfold local, lift1; unfold_lift.
-    normalize.
-    erewrite struct_op_facts with (Delta := Delta) (t := t) by eauto.
-    normalize.
-    rewrite <- !andp_assoc.
-    eapply derives_trans; [apply andp_derives; [apply IHefs | apply derives_refl] |]; normalize.
-    simpl.
-    eapply derives_trans; [apply modus_ponens |].
-    apply andp_right; [apply prop_right | auto].
-    rewrite H7.
-    rewrite offset_val_nested_field_offset_ind by auto.
-    rewrite H4; simpl.
-    simpl in H8; rewrite <- H8.
-    reflexivity.
+  + eapply array_ind_step; eauto.
+  + eapply struct_ind_step; eauto.
   + rewrite tc_efield_ind.
     destruct H.
     simpl.
