@@ -433,8 +433,8 @@ Qed.
 
 Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   legal_nested_efield_rec t_root gfs tts = true ->
-  legal_nested_field t_root (gfs UDOT i0) ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
+  in_members i0 (co_members (get_co i)) ->
   nested_field_type t_root gfs = Tunion i a ->
   efield_denote efs gfs rho ->
   tc_lvalue Delta (nested_efield e efs tts) rho =
@@ -442,20 +442,51 @@ Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   eval_field (typeof (nested_efield e efs tts)) i0 = offset_val 0.
 Proof.
   intros.
-  pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H1 H3).
+  pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H3).
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
-  destruct H0.
-  rewrite H2 in H4; simpl in H4.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.
   unfold get_co in *.
-  destruct (cenv_cs ! i1); [| inv H4].
+  destruct (cenv_cs ! i1); [| inv H1].
   split; [| normalize; auto].
   rewrite denote_tc_assert_andp; simpl.
   apply add_andp, prop_right; auto.
+Qed.
+
+Lemma union_ind_step: forall Delta t_root e gfs efs tts i a i0 t rho p,
+  legal_nested_efield_rec t_root gfs tts = true ->
+  type_almost_match e t_root (LR_of_type t_root) = true ->
+  in_members i (co_members (get_co i0)) ->
+  nested_field_type t_root gfs = Tunion i0 a ->
+  tc_environ Delta rho ->
+  efield_denote efs gfs rho ->
+  field_compatible t_root gfs p ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  |-- !! (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho) =
+          eval_LR (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho) &&
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tstruct i0 a)) rho ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho &&
+  tc_efield Delta (eUnionField i :: efs) rho
+  |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (UnionField i))
+            (field_address t_root gfs (eval_LR e (LR_of_type t_root) rho)) =
+          eval_lvalue (nested_efield e (eUnionField i :: efs) (t :: tts)) rho) &&
+      tc_lvalue Delta (nested_efield e (eUnionField i :: efs) (t :: tts)) rho.
+Proof.
+  intros ? ? ? ? ? ? ? ? ? ? ? ?
+         LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  destruct (union_op_facts Delta _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE EFIELD_DENOTE) as [TC EVAL].
+  rewrite tc_efield_ind; simpl.
+  eapply derives_trans; [exact IH | ].
+  unfold_lift.
+  normalize.
+  apply andp_right1; [apply prop_right | normalize].
+  + rewrite EVAL, H0, NESTED_FIELD_TYPE.
+    reflexivity.
+  + simpl in TC; rewrite <- TC.
+    auto.
 Qed.
 
 Definition lvalue_LR_of_type: forall Delta rho P p t e,
@@ -526,23 +557,7 @@ Proof.
   rewrite <- field_compatible_field_address in IHEFIELD_DENOTE |- * by auto.
   + eapply array_ind_step; eauto.
   + eapply struct_ind_step; eauto.
-  + rewrite tc_efield_ind.
-    destruct H.
-    simpl.
-    unfold local, lift1; unfold_lift.
-    normalize.
-    erewrite union_op_facts with (Delta := Delta) (t := t) by eauto.
-    normalize.
-    rewrite <- !andp_assoc.
-    eapply derives_trans; [apply andp_derives; [apply IHefs | apply derives_refl] |]; normalize.
-    simpl.
-    eapply derives_trans; [apply modus_ponens |].
-    apply andp_right; [apply prop_right | auto].
-    rewrite H7.
-    rewrite offset_val_nested_field_offset_ind by auto.
-    rewrite H4; simpl.
-    simpl in H8; rewrite <- H8.
-    reflexivity.
+  + eapply union_ind_step; eauto.
 Qed.
 
 Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
@@ -554,7 +569,7 @@ Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
   tc_LR Delta e lr &&
   local (tc_environ Delta) &&
   tc_efield Delta efs &&
-  efield_denote efs gfs |--
+  local (efield_denote efs gfs) |--
   local (`(eq (field_address t_root gfs p)) (eval_lvalue (nested_efield e efs tts))).
 Proof.
   intros.
@@ -575,7 +590,7 @@ Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
   tc_LR Delta e lr &&
   local (tc_environ Delta) &&
   tc_efield Delta efs &&
-  efield_denote efs gfs |--
+  local (efield_denote efs gfs) |--
   tc_lvalue Delta (nested_efield e efs tts).
 Proof.
   intros.
