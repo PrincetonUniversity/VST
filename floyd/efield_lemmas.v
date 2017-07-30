@@ -300,6 +300,52 @@ Proof.
     exact H3.
 Qed.
 
+Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
+  legal_nested_efield_rec t_root gfs tts = true ->
+  type_almost_match e t_root (LR_of_type t_root) = true ->
+  is_int_type (typeof ei) = true ->
+  array_subsc_denote ei i rho ->
+  nested_field_type t_root gfs = Tarray t0 n a ->
+  tc_environ Delta rho ->
+  efield_denote efs gfs rho ->
+  field_compatible t_root gfs p ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  |-- !! (field_address t_root gfs p = eval_LR (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) &&
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho &&
+  tc_efield Delta (eArraySubsc ei :: efs) rho
+  |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (ArraySubsc i))
+          (field_address t_root gfs p) =
+          eval_lvalue (nested_efield e (eArraySubsc ei :: efs) (t :: tts)) rho) &&
+          tc_lvalue Delta (nested_efield e (eArraySubsc ei :: efs) (t :: tts)) rho.
+Proof.
+  intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?
+         LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  destruct (array_op_facts _ _ _ _ _ _ _ _ _ _ t0 _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
+  rewrite tc_efield_ind; simpl.
+  rewrite andp_comm, andp_assoc.
+  eapply derives_trans; [apply andp_derives; [apply derives_refl | rewrite andp_comm; exact IH] | ].
+  rewrite (add_andp _ _ (typecheck_expr_sound _ _ _ TC_ENVIRON)).
+  unfold_lift.
+  normalize.
+  apply andp_right; [apply prop_right | apply andp_left2].
+  + inversion H0; subst.
+    rewrite <- H3.
+    unfold force_val2, force_val.
+    unfold sem_add.
+    rewrite CLASSIFY_ADD.
+    rewrite sem_add_pi_ptr.
+Locate  field_address_isptr.
+    2: simpl in H2; rewrite <- H2; eapply field_address_isptr. by auto.
+    unfold gfield_offset; rewrite NESTED_FIELD_TYPE.
+    reflexivity.
+  + unfold tc_lvalue.
+    Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
+    erewrite isBinOpResultType_add_ptr.
+
+    destruct (typeof ei); try solve [inv H]; simpl.
+Abort.
+
 Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
 Proof.
   intros.
@@ -405,6 +451,7 @@ Lemma eval_lvalue_nested_efield_aux: forall Delta t_root e efs gfs tts p,
    (eval_LR (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)))) &&
   tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)).
 Proof.
+  (* Prepare *)
   intros Delta t_root e efs gfs tts p FIELD_COMPATIBLE LEGAL_NESTED_EFIELD.
   unfold local, lift1; simpl; intro rho.
   unfold_lift.
@@ -420,6 +467,8 @@ Proof.
   pose proof legal_nested_efield_weaken _ _ _ _ LEGAL_NESTED_EFIELD as [LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH].
   rewrite field_compatible_field_address by auto.
   clear LEGAL_NESTED_EFIELD.
+
+  (* Induction *)
   revert tts LEGAL_NESTED_EFIELD_REC; induction EFIELD_DENOTE; intros;
   destruct tts; try solve [inversion LEGAL_NESTED_EFIELD_REC];
   [normalize | | |];
@@ -430,35 +479,41 @@ Proof.
   pose proof (proj1 (proj1 (andb_true_iff _ _) LEGAL_NESTED_EFIELD_REC_CONS) : legal_nested_efield_rec t_root gfs tts = true) as LEGAL_NESTED_EFIELD_REC;
   (spec IHEFIELD_DENOTE; [tauto |]);
   (spec IHEFIELD_DENOTE; [auto |]);
-  (apply lvalue_LR_of_type; [eapply typeof_nested_efield'; eauto; econstructor; eauto | eassumption |]).
-  + destruct FIELD_COMPATIBLE as [? FIELD_COMPATIBLE].
+  specialize (IHEFIELD_DENOTE tts LEGAL_NESTED_EFIELD_REC);
+  (apply lvalue_LR_of_type; [eapply typeof_nested_efield'; eauto; econstructor; eauto | eassumption |]);
+  destruct FIELD_COMPATIBLE as [? FIELD_COMPATIBLE];
+  rewrite offset_val_nested_field_offset_ind by auto;
+  rewrite <- field_compatible_field_address in IHEFIELD_DENOTE |- * by auto.
+  + (* Array Case *)
+    .
     rewrite tc_efield_ind.
     unfold tc_lvalue.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
     unfold local, lift1; unfold_lift.
     normalize.
-    pose proof array_op_facts _ rho _ _ efs _ _ _ _ _ t0 _ LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE as [? ?].
-    
-    erewrite array_op_facts with (t0 := t) by eauto; normalize.
-    rewrite !andp_assoc, (andp_comm (tc_expr Delta i rho)), <- !andp_assoc.
-    eapply derives_trans; [apply andp_derives; [exact IHefs | apply derives_refl] |].
+    pose proof array_op_facts _ rho _ _ efs _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE as [? ?].
+    rewrite !denote_tc_assert_andp.
+    rewrite H3.
+    simpl tc_LR_strong in IHEFIELD_DENOTE.
+    rewrite !andp_assoc, (andp_comm (tc_expr Delta ei rho)), <- !andp_assoc.
+    eapply derives_trans; [apply andp_derives; [exact IHEFIELD_DENOTE | apply derives_refl] |].
     normalize.
-    rewrite !denote_tc_assert_andp, H10.
     unfold denote_tc_assert at 1 4, denote_tc_isptr; simpl.
     unfold local, lift1, force_val2; unfold_lift.
-    assert (offset_val (nested_field_offset t_root (gfs SUB i0))
+    assert (offset_val (nested_field_offset t_root (gfs SUB i))
             (eval_LR e (LR_of_type t_root) rho) =
             force_val
                (sem_add (typeof (nested_efield e efs tts))
-                  (typeof i) (eval_expr (nested_efield e efs tts) rho)
-                  (eval_expr i rho)));
+                  (typeof ei) (eval_expr (nested_efield e efs tts) rho)
+                  (eval_expr ei rho)));
      [| repeat apply andp_right; try apply prop_right; auto].
     - rewrite offset_val_nested_field_offset_ind by auto.
       simpl; unfold sem_add.
       unfold local, lift1; unfold_lift.
-      rewrite H9.
-      simpl in H11; rewrite <- H11, <- H7.
-      unfold force_val; rewrite sem_add_pi_ptr by auto.
+      rewrite H2.
+      simpl in H4; rewrite <- H4.
+      Check sem_add_pi_ptr.
+      unfold force_val. simpl. rewrite sem_add_pi_ptr by auto.
       f_equal.
       rewrite H4.
       reflexivity.

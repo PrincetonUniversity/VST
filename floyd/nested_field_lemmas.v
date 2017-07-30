@@ -591,19 +591,21 @@ Definition field_address0 t gfs p :=
   else Vundef.
 
 Lemma field_address_isptr:
-  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
+  forall t path c, field_compatible t path c -> isptr (field_address t path c).
 Proof.
   intros.
   unfold field_address. rewrite if_true by auto.
+  destruct H as [? _].
   normalize.
 Qed.
 
 Lemma field_address0_isptr:
-  forall t path c, isptr c -> field_compatible0 t path c -> isptr (field_address0 t path c).
+  forall t path c, field_compatible0 t path c -> isptr (field_address0 t path c).
 Proof.
- intros.
- unfold field_address0. rewrite if_true by auto.
- normalize.
+  intros.
+  unfold field_address0. rewrite if_true by auto.
+  destruct H as [? _].
+  normalize.
 Qed.
 
 Lemma field_address_clarify:
@@ -611,7 +613,7 @@ Lemma field_address_clarify:
    is_pointer_or_null (field_address t path c) ->
    field_address t path c = offset_val (nested_field_offset t path) c.
 Proof.
- intros. unfold field_address in *.
+  intros. unfold field_address in *.
   if_tac; try contradiction.
   auto.
 Qed.
