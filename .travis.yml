@@ -5,6 +5,11 @@ cache:
   apt: true
   directories:
   - $HOME/.opam
+  - compcert
+  - sepcomp
+  - msl
+  - veric
+  - floyd
 addons:
   apt:
     sources:
@@ -25,6 +30,8 @@ notifications:
   email:
     recipients:
     - wmansky@cs.princeton.edu
+git:
+  depth: 3
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
@@ -33,7 +40,14 @@ install:
 - opam install -j ${NJOBS} -y coq=8.6 ${EXTRA_OPAM}
 - opam list
 
-script:
-- echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-- make -j ${NJOBS} IGNORECOQVERSION=true progs
-- echo -en 'travis_fold:end:VST.build\\r'
+jobs:
+  include:
+  - stage: setup
+    script:
+    - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
+    - make -j ${NJOBS} IGNORECOQVERSION=true
+    - echo -en 'travis_fold:end:VST.build\\r'
+  - stage: test
+    script: make -j ${NJOBS} IGNORECOQVERSION=true progs
+  - script: make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
+  - script: travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
