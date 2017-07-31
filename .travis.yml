@@ -5,11 +5,11 @@ cache:
   apt: true
   directories:
   - $HOME/.opam
-  - compcert
-  - sepcomp
-  - msl
-  - veric
-  - floyd
+  - build/compcert
+  - build/sepcomp
+  - build/msl
+  - build/veric
+  - build/floyd
 addons:
   apt:
     sources:
@@ -43,13 +43,28 @@ install:
 jobs:
   include:
   - stage: setup
-    after_install:
-    - travis cache -df
     script:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-    - make -j ${NJOBS} IGNORECOQVERSION=true
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true
     - echo -en 'travis_fold:end:VST.build\\r'
   - stage: test
-    script: make -j ${NJOBS} IGNORECOQVERSION=true progs
+    script:
+    - echo 'Building progs...' && echo -en 'travis_fold:start:progs.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true progs
+    - echo -en 'travis_fold:end:progs.build\\r'
   - script: make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
-  - script: travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+    - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
+    - echo -en 'travis_fold:end:hmacdrbg.build\\r'
+  - script:
+    - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+    - echo -en 'travis_fold:end:mailbox.build\\r'
