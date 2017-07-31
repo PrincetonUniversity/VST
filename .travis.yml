@@ -33,9 +33,6 @@ notifications:
 git:
   depth: 3
 
-before_install:
-- travis cache -df
-
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
 - eval $(opam config env)
@@ -46,6 +43,8 @@ install:
 jobs:
   include:
   - stage: setup
+    after_install:
+    - travis cache -df
     script:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
     - make -j ${NJOBS} IGNORECOQVERSION=true
