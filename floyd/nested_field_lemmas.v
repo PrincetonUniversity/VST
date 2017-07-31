@@ -1409,26 +1409,25 @@ Proof.
     rewrite E; destruct H; auto.
 Qed.
 
+Lemma field_compatible_app_inv': forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  legal_nested_field (nested_field_type t_root gfsA) gfsB ->
+  field_compatible t_root (gfsB ++ gfsA) a.
+Proof.
+  unfold field_compatible.
+  intros.
+  pose proof legal_nested_field_app_inv t_root gfsA gfsB.
+  tauto.
+Qed.
+
 Lemma field_compatible_app_inv: forall gfsB t_root gfsA a,
   field_compatible t_root gfsA a ->
   field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) ->
   field_compatible t_root (gfsB ++ gfsA) a.
 Proof.
-  intro gfsB. induction gfsB; intros.
-  - auto.
-  - rewrite <- app_comm_cons.
-    apply field_compatible_cons in H0.
-    apply field_compatible_cons.
-    rewrite nested_field_type_nested_field_type in H0.
-    destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
-    try solve [exfalso; assumption];
-    destruct a; try solve [exfalso; assumption].
-    + destruct H0.
-      split; auto.
-    + destruct H0.
-      split; auto.
-    + destruct H0.
-      split; auto.
+  intros.
+  apply field_compatible_app_inv'; auto.
+  destruct H0; tauto.
 Qed.
 
 Lemma field_address_app: forall t_root gfsA gfsB a,
@@ -1463,16 +1462,6 @@ Proof.
     { eapply field_compatible_legal_nested_field. eassumption. }
     { eapply field_compatible_app. assumption. }
     { assumption. }
-Qed.
-
-Lemma field_address_app_rewrite: forall t_root t' gfsA gfsB a,
-  nested_field_type t_root gfsA = t' ->
-  field_address t_root (gfsB ++ gfsA) a =
-  field_address t' gfsB (field_address t_root gfsA a).
-Proof.
-  intros.
-  subst.
-  apply field_address_app.
 Qed.
 
 End COMPOSITE_ENV.

@@ -19,122 +19,6 @@ Require Import floyd.local2ptree_eval.
 
 Local Open Scope logic.
 
-Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
-  match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
-  end.
-
-Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
-  msubst_eval_LR T1 T2 e lr = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_LR e lr)).
-Proof.
-  intros.
-  destruct lr.
-  + apply msubst_eval_lvalue_eq; auto.
-  + apply msubst_eval_expr_eq; auto.
-Qed.
-
-Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc): list efield -> list gfield -> Prop :=
-| msubst_efield_denote_nil: msubst_efield_denote T1 T2 nil nil
-| msubst_efield_denote_cons_array: forall ei i i' efs gfs,
-    is_int_type (typeof ei) = true ->
-    msubst_eval_expr T1 T2 ei = Some (Vint i) ->
-    Int.eqm (Int.unsigned i) i' ->
-    msubst_efield_denote T1 T2 efs gfs ->
-    msubst_efield_denote T1 T2 (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
-| msubst_efield_denote_cons_struct: forall i efs gfs,
-    msubst_efield_denote T1 T2 efs gfs ->
-    msubst_efield_denote T1 T2 (eStructField i :: efs) (StructField i :: gfs)
-| msubst_efield_denote_cons_union: forall i efs gfs,
-    msubst_efield_denote T1 T2 efs gfs ->
-    msubst_efield_denote T1 T2 (eUnionField i :: efs) (UnionField i :: gfs).
-
-Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 Q R efs gfs,
-  msubst_efield_denote T1 T2 efs gfs ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- local (efield_denote efs gfs).
-Proof.
-  intros ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
-  induction MSUBST_EFIELD_DENOTE.
-  + intro rho; apply prop_right; constructor.
-  + eapply (msubst_eval_expr_eq P _ _ Q R) in H0.
-    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
-    clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite andp_assoc; apply andp_left2.
-    unfold local, lift1; unfold_lift; intro rho; simpl.
-    normalize.
-    constructor; auto.
-    constructor.
-    rewrite <- H2; symmetry.
-    f_equal.
-    rewrite <- (Int.repr_unsigned i).
-    apply Int.eqm_samerepr; auto.
-  + eapply derives_trans; [eassumption |].
-    unfold local, lift1; unfold_lift; intro rho; simpl.
-    normalize.
-    constructor; auto.
-  + eapply derives_trans; [eassumption |].
-    unfold local, lift1; unfold_lift; intro rho; simpl.
-    normalize.
-    constructor; auto.
-Qed.
-
-(*
-Fixpoint msubst_efield_denote {cs: compspecs} T1 T2 (efs: list efield) : option (list gfield) :=
-  match efs with
-  | nil => Some nil
-  | eArraySubsc ei :: efs' =>
-    match typeof ei, msubst_eval_expr T1 T2 ei with
-    | Tint _ _ _, Some (Vint i) =>
-      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote T1 T2 efs')
-    | _, _ => None
-    end
-  | eStructField i :: efs' =>
-    option_map (cons (StructField i)) (msubst_efield_denote T1 T2 efs')
-  | eUnionField i :: efs' =>
-    option_map (cons (UnionField i)) (msubst_efield_denote T1 T2 efs')
-  end.
-
-Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 R efs gfs,
-  msubst_efield_denote T1 T2 efs = Some gfs ->
-  assertD P (localD T1 T2) R |-- local (efield_denote efs gfs).
-Proof.
-  intros.
-  revert gfs H; induction efs; intros.
-  + simpl in H.
-    inv H.
-    unfold local, lift1; unfold_lift; intros rho.
-    apply prop_right.
-    constructor.
-  + destruct a;
-    simpl in H.
-    - destruct (typeof i) eqn:?; try solve [inversion H].
-      destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
-      destruct v; try solve [inversion H].
-      apply msubst_eval_expr_eq with (P0 := P) (Q := nil) (R0 := R) in H0.
-      destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H.
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      unfold assertD, localD.
-      rewrite (add_andp _ _ H0).
-      apply andp_derives; [| auto].
-      rewrite Int.repr_unsigned.
-      apply andp_left2.
-      apply andp_right; auto.
-      intros x; apply prop_True_right.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H.
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H.
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-Qed.
-*)
 Section SEMAX_SC.
 
 Context {cs: compspecs}.
@@ -748,6 +632,110 @@ The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
 
+Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
+  match lr with
+  | LLLL => msubst_eval_lvalue T1 T2 e
+  | RRRR => msubst_eval_expr T1 T2 e
+  end.
+
+Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_LR e lr)).
+Proof.
+  intros.
+  destruct lr.
+  + apply msubst_eval_lvalue_eq; auto.
+  + apply msubst_eval_expr_eq; auto.
+Qed.
+
+Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc): list efield -> list gfield -> Prop :=
+| msubst_efield_denote_nil: msubst_efield_denote T1 T2 nil nil
+| msubst_efield_denote_cons_array: forall ei i i' efs gfs,
+    is_int_type (typeof ei) = true ->
+    msubst_eval_expr T1 T2 ei = Some (Vint i) ->
+    Int.eqm (Int.unsigned i) i' ->
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
+| msubst_efield_denote_cons_struct: forall i efs gfs,
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eStructField i :: efs) (StructField i :: gfs)
+| msubst_efield_denote_cons_union: forall i efs gfs,
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eUnionField i :: efs) (UnionField i :: gfs).
+
+Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 Q R efs gfs,
+  msubst_efield_denote T1 T2 efs gfs ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- local (efield_denote efs gfs).
+Proof.
+  intros ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
+  induction MSUBST_EFIELD_DENOTE.
+  + intro rho; apply prop_right; constructor.
+  + eapply (msubst_eval_expr_eq P _ _ Q R) in H0.
+    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    clear H0 IHMSUBST_EFIELD_DENOTE.
+    rewrite andp_assoc; apply andp_left2.
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+    constructor.
+    rewrite <- H2; symmetry.
+    f_equal.
+    rewrite <- (Int.repr_unsigned i).
+    apply Int.eqm_samerepr; auto.
+  + eapply derives_trans; [eassumption |].
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+  + eapply derives_trans; [eassumption |].
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+Qed.
+
+Inductive field_address_gen: type * list gfield * val -> type * list gfield * val -> Prop :=
+| field_address_gen_nil: forall t1 t2 gfs p tgp,
+    nested_field_type t2 gfs = t1 ->
+    field_address_gen (t2, gfs, p) tgp ->
+    field_address_gen (t1, nil, (field_address t2 gfs p)) tgp
+| field_address_gen_app: forall t1 t2 gfs1 gfs2 p tgp,
+    nested_field_type t2 gfs2 = t1 ->
+    field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
+    field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
+| field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
+(* This order is the order that "constructor" tries to construct field_address_gen. *)
+
+Lemma field_address_gen_fact: forall t1 gfs1 p1 t2 gfs2 p2,
+  field_address_gen (t1, gfs1, p1) (t2, gfs2, p2) ->
+  field_address t1 gfs1 p1 = field_address t2 gfs2 p2 /\
+  nested_field_type t1 gfs1 = nested_field_type t2 gfs2 /\
+  (field_compatible t2 gfs2 p2 -> field_compatible t1 gfs1 p1).
+Proof.
+  intros.
+  remember (t1, gfs1, p1) eqn:?H ; remember (t2, gfs2, p2) eqn:?H.
+  revert t1 gfs1 p1 t2 gfs2 p2 H0 H1; induction H; intros.
+  + subst.
+    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
+    inv H1.
+    destruct IHfield_address_gen as [? [? ?]].
+    rewrite <- field_address_app.
+    simpl.
+    rewrite nested_field_type_ind.
+    split; [| split]; auto; intros.
+    apply field_compatible_app; auto.
+  + subst.
+    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
+    inv H1.
+    destruct IHfield_address_gen as [? [? ?]].
+    rewrite <- field_address_app.
+    rewrite nested_field_type_nested_field_type.
+    split; [| split]; auto; intros.
+    apply field_compatible_app; auto.
+  + subst.
+    inv H1.
+    auto.
+Qed.
+
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
     forall Delta id P Q R T1 T2 (e2: expr) t v,
@@ -774,46 +762,6 @@ Proof.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
-Inductive field_address_gen: type * list gfield * val -> type * list gfield * val -> Prop :=
-| field_address_gen_nil: forall t1 t2 gfs p tgp,
-    nested_field_type t2 gfs = t1 ->
-    field_address_gen (t2, gfs, p) tgp ->
-    field_address_gen (t1, nil, (field_address t2 gfs p)) tgp
-| field_address_gen_app: forall t1 t2 gfs1 gfs2 p tgp,
-    nested_field_type t2 gfs2 = t1 ->
-    field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
-    field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
-| field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
-(* This order is the order that "constructor" tries to construct field_address_gen. *)
-
-Lemma field_address_gen_fact: forall t1 gfs1 p1 t2 gfs2 p2,
-  field_address_gen (t1, gfs1, p1) (t2, gfs2, p2) ->
-  field_address t1 gfs1 p1 = field_address t2 gfs2 p2 /\
-  nested_field_type t1 gfs1 = nested_field_type t2 gfs2.
-Proof.
-  intros.
-  remember (t1, gfs1, p1) eqn:?H ; remember (t2, gfs2, p2) eqn:?H.
-  revert t1 gfs1 p1 t2 gfs2 p2 H0 H1; induction H; intros.
-  + subst.
-    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
-    inv H1.
-    destruct IHfield_address_gen.
-    rewrite <- field_address_app.
-    simpl.
-    rewrite nested_field_type_ind.
-    auto.
-  + subst.
-    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
-    inv H1.
-    destruct IHfield_address_gen.
-    rewrite <- field_address_app.
-    rewrite nested_field_type_nested_field_type.
-    auto.
-  + subst.
-    inv H1.
-    auto.
-Qed.
-
 Lemma semax_PTree_field_load:
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e: expr) t
@@ -829,12 +777,13 @@ Lemma semax_PTree_field_load:
       msubst_eval_LR T1 T2 e_root lr = Some p_from_e ->
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
-      field_address t_root_from_e gfs_from_e p_from_e = field_address t_root gfs p ->
-      typeof e = nested_field_type t_root gfs ->
+      field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
       gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        !! (legal_nested_field (nested_field_type t_root gfs0) gfs) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e_root lr) &&
         local `(tc_val (typeof e) v) &&
@@ -852,11 +801,15 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_EQ TYPE_EQ GFS NTH SH JMEQ TC.
+         FIELD_ADD_GEN GFS NTH SH JMEQ LEGAL_NESTED_FIELD TC.
   pose proof compute_nested_efield_lemma e as NESTED_EFIELD.
   rewrite COMPUTE_NESTED_EFIELD in NESTED_EFIELD.
   rewrite <- NESTED_EFIELD.
+  apply field_address_gen_fact in FIELD_ADD_GEN.
+  destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMP]].
   eapply semax_SC_field_load_to_use.
+Abort.
+(*
   1: rewrite NESTED_EFIELD; eassumption.
   1: eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
@@ -867,8 +820,8 @@ Proof.
   2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [| eapply eval_lvalue_nested_efield].
-Abort.
-  
+*)
+
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*
 Lemma semax_PTree_load:
