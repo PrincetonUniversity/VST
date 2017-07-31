@@ -2077,7 +2077,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
     match goal with
     | efs := nil |- _ =>
       instantiate (1 := nil);
-      apply prop_right, I
+      intros rho; apply prop_right; constructor
     | efs := ?ef :: ?efs' |- _ =>
       let efs0 := fresh "efs" in
       let gfs0 := fresh "gfs" in
@@ -2119,7 +2119,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           end;
 
           let HB := fresh "H" in
-          assert (match typeof ei with | Tint _ _ _ => True | _ => False end) as HB by (simpl; auto);
+          assert (is_int_type (typeof ei) = true) as HB by reflexivity;
 
           apply (efield_denote_cons_array _ _ _ _ _ H0 HA HB)
 
