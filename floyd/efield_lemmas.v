@@ -29,7 +29,7 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
 Definition compute_lr e (efs: list efield) :=
   match typeof e, length efs with
   | Tpointer _ _, S _ => RRRR
-  | Tarray _ _ _, _ => LLLL (* This line can be either L or R *)
+  | Tarray _ _ _, _ => RRRR (* This line can be either L or R, but R is consistent with LR_of_type *)
   | _, _ => LLLL
   end.
 
@@ -50,22 +50,6 @@ Inductive efield_denote {cs: compspecs}: list efield -> list gfield -> environ -
   | efield_denote_UnionField: forall i efs gfs rho,
       efield_denote efs gfs rho ->
       efield_denote (eUnionField i :: efs) (UnionField i :: gfs) rho.
-
-(* (* TODO: delete this original version *)
-Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : environ -> mpred :=
-  match efs, gfs with
-  | nil, nil => TT
-  | eArraySubsc ei :: efs', ArraySubsc i :: gfs' =>
-    local (`(eq (Vint (Int.repr i))) (eval_expr ei)) &&
-    !! (match typeof ei with | Tint _ _ _ => True | _ => False end) &&
-    efield_denote efs' gfs'
-  | eStructField i :: efs', StructField i0 :: gfs' =>
-    !! (i = i0) && efield_denote efs' gfs'
-  | eUnionField i :: efs', UnionField i0 :: gfs' =>
-    !! (i = i0) && efield_denote efs' gfs'
-  | _, _ => FF
-  end.
-*)
 
 Fixpoint typecheck_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : tc_assert :=
   match efs with
