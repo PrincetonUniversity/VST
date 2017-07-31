@@ -774,6 +774,46 @@ Proof.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
+Inductive field_address_gen: type * list gfield * val -> type * list gfield * val -> Prop :=
+| field_address_gen_nil: forall t1 t2 gfs p tgp,
+    nested_field_type t2 gfs = t1 ->
+    field_address_gen (t2, gfs, p) tgp ->
+    field_address_gen (t1, nil, (field_address t2 gfs p)) tgp
+| field_address_gen_app: forall t1 t2 gfs1 gfs2 p tgp,
+    nested_field_type t2 gfs2 = t1 ->
+    field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
+    field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
+| field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
+(* This order is the order that "constructor" tries to construct field_address_gen. *)
+
+Lemma field_address_gen_fact: forall t1 gfs1 p1 t2 gfs2 p2,
+  field_address_gen (t1, gfs1, p1) (t2, gfs2, p2) ->
+  field_address t1 gfs1 p1 = field_address t2 gfs2 p2 /\
+  nested_field_type t1 gfs1 = nested_field_type t2 gfs2.
+Proof.
+  intros.
+  remember (t1, gfs1, p1) eqn:?H ; remember (t2, gfs2, p2) eqn:?H.
+  revert t1 gfs1 p1 t2 gfs2 p2 H0 H1; induction H; intros.
+  + subst.
+    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
+    inv H1.
+    destruct IHfield_address_gen.
+    rewrite <- field_address_app.
+    simpl.
+    rewrite nested_field_type_ind.
+    auto.
+  + subst.
+    specialize (IHfield_address_gen _ _ _ _ _ _ eq_refl eq_refl).
+    inv H1.
+    destruct IHfield_address_gen.
+    rewrite <- field_address_app.
+    rewrite nested_field_type_nested_field_type.
+    auto.
+  + subst.
+    inv H1.
+    auto.
+Qed.
+
 Lemma semax_PTree_field_load:
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e: expr) t
