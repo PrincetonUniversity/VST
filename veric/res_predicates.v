@@ -644,7 +644,7 @@ repeat proof_irr. auto.
 inv H3. inv H0.
 Qed.
 
-Lemma nonunit_join: forall A {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} (x y z: A),
+Lemma nonunit_join: forall A {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A} (x y z: A),
   nonunit x -> join x y z -> nonunit z.
 Proof.
 intros.
@@ -1745,7 +1745,7 @@ Proof.
   clear - x1 H1; simpl in H1.
   inv H1.
   clear - x1 RJ.
-  generalize (join_self RJ); intro. subst sh3.
+  generalize (join_self' RJ); intro. subst sh3.
   apply readable_nonidentity in x1.
   apply x1. apply identity_unit_equiv. apply RJ.
 Qed.
@@ -1792,10 +1792,8 @@ Lemma share_joins_self: forall sh: share, joins sh sh -> nonunit sh -> False.
 Proof.
   intros.
   destruct H as [sh' ?].
-  pose proof join_self H.
-  subst.
-  apply H0 in H.
-  auto.
+  apply nonunit_nonidentity in H0; contradiction H0.
+  eapply join_self; eauto.
 Qed.
 
 Lemma nonlock_permission_bytes_overlap:

@@ -45,16 +45,8 @@ Proof.
   inv H; auto.
 Qed.
 
-Lemma GHOST_identity: forall m, identity m -> identity (GHOST m).
-Proof.
-  repeat intro.
-  inv H0.
-  apply H in RJ; subst; auto.
-Qed.
-
 Lemma identity_NO:
-  forall r, identity  r -> r = NO Share.bot bot_unreadable \/ (exists k, exists pds, r = PURE k pds) \/
-    exists m, r = GHOST m /\ identity m.
+  forall r, identity  r -> r = NO Share.bot bot_unreadable \/ exists k, exists pds, r = PURE k pds.
 Proof.
   destruct r; auto; intros.
  * left.
@@ -64,13 +56,7 @@ Proof.
  * apply identity_unit' in H. inv H.
    apply unit_identity in RJ. apply identity_share_bot in RJ. subst.
    contradiction bot_unreadable.
- * right; left. exists k. exists p. trivial.
- * right; right.
-   do 2 eexists; eauto.
-   repeat intro.
-   spec H (GHOST a) (GHOST b); spec H.
-   constructor; auto.
-   inv H; auto.
+ * right. exists k. exists p. trivial.
 Qed.
 
 Lemma age1_resource_at_identity:
@@ -87,10 +73,9 @@ Proof.
   rewrite unsquash_squash.
   simpl.
   destruct r. simpl in *.
-  unfold compose; simpl. destruct H1 as [H1 | [[k [pds H1]] | [m [H1 Hm]]]]; rewrite H1; simpl; auto.
+  unfold compose; simpl. destruct H1 as [H1 | [k [pds H1]]]; rewrite H1; simpl; auto.
   apply NO_identity.
   apply PURE_identity.
-  apply GHOST_identity; auto.
  (* BACKWARD DIRECTION *)
   generalize (identity_NO _ H0); clear H0; intro.
   unfold resource_at in *. simpl in H.
@@ -101,11 +86,9 @@ Proof.
   unfold compose in H1; simpl in H1.
   unfold resource_fmap in H1.
   destruct (x loc).
-  destruct H1. inv H0;   apply NO_identity. destruct H0 as [[? [? H0]] | [? [H0 ?]]]; inv H0.
-  destruct H1 as [H1 | [[k' [pds' H1]] | [? [H1 ?]]]]; inv H1.
+  destruct H1. inv H0;   apply NO_identity. destruct H0 as [? [? H0]]; inv H0.
+  destruct H1 as [H1 | [k' [pds' H1]]]; inv H1.
   apply PURE_identity.
-  destruct H1 as [H1 | [[? [? H1]] | [? [H1 ?]]]]; inv H1.
-  apply GHOST_identity; auto.
 Qed.
 
 Lemma necR_resource_at_identity:
@@ -291,10 +274,8 @@ Proof.
    constructor.
    constructor. simpl.
    apply join_readable_part; auto. simpl. constructor; auto.
-   *
+   *    
    inv H3; constructor; auto.
-   *
-   inv H3; constructor.
   }
  destruct H4 as [phig [? ?]].
  exists phif; exists phig.
@@ -645,18 +626,6 @@ Proof.
   apply (necR_resource_at _ _ _ _ H H1).
 Qed.
 
-Lemma necR_GHOST:
-  forall phi phi' loc m,
-        necR phi phi' ->
-         phi @ loc = GHOST m ->
-         phi' @ loc = GHOST m.
-Proof.
-  intros.
-  generalize (eq_sym (resource_at_approx phi loc));
-  pattern (phi @ loc) at 2; rewrite H0; intro.
-  apply (necR_resource_at _ _ _ _ H H1).
-Qed.
-
 Lemma necR_NO:
    forall phi phi' l sh nsh, necR phi phi' -> 
    (phi@l = NO sh nsh <-> phi'@l = NO sh nsh).
@@ -665,19 +634,17 @@ Proof.
   apply necR_NOx; auto.
   intros.
   case_eq (phi @ l); intros; auto.
-  generalize (necR_NOx _ _ l _ _ H H1); intro. congruence.
+   generalize (necR_NOx _ _ l _ _ H H1); intro. congruence.
   generalize (necR_YES _ _ _ _ _ _ _ H H1); congruence.
   generalize (necR_PURE _ _ _ _ _ H H1); congruence.
-  generalize (necR_GHOST _ _ _ _ H H1); congruence.
 Qed.
 
 Lemma resource_at_empty: forall phi, 
-     identity phi ->
-     forall l, (phi @ l = NO Share.bot bot_unreadable \/ (exists k, exists pds, phi @ l = PURE k pds) \/
-       exists m, phi @ l = GHOST m /\ identity m).
+     identity phi -> 
+     forall l, (phi @ l = NO Share.bot bot_unreadable \/ exists k, exists pds, phi @ l = PURE k pds).
 Proof.
   intros.
-  rewrite identity_unit_equiv in H.
+  apply identity_unit' in H.
   unfold unit_for in H.
   generalize (resource_at_join _ _ _ l H); intro.
   remember (phi @ l) as r.
@@ -688,9 +655,6 @@ Proof.
   clear - r RJ.
   apply share_self_join_bot in RJ. subst.
   contradiction (bot_unreadable r).
-  right; right.
-  do 2 eexists; eauto.
-  apply identity_unit_equiv; auto.
 Qed.
 Arguments resource_at_empty [phi] _ _.
 
@@ -767,8 +731,11 @@ split; intros [pp ?].
   destruct n; inv H1.
   rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
   unfold compose in H0.
-  revert H0; destruct (x loc); simpl; intros; inv H0.
+  revert H0; destruct (x loc); simpl; intros; auto.
+  inv H0.
+  inv H0.
   econstructor; proof_irr; eauto.
+  inv H0.
 Qed.
 
 Lemma necR_PURE':
@@ -794,7 +761,11 @@ split; intros [pp ?].
   destruct n; inv H1.
   rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
   unfold compose in H0.
-  revert H0; destruct (x loc); simpl; intros; inv H0.
+  revert H0; destruct (x loc); simpl; intros; auto.
+  inv H0.
+  inv H0.
+  econstructor; eauto.
+  inv H0.
   eauto.
 Qed.
 
@@ -830,7 +801,6 @@ Proof.
   destruct p.
   rewrite (necR_YES phi phi' loc _ _ _ _ H H0); auto.
   rewrite (necR_PURE phi phi' loc _ _ H H0); auto.
-  rewrite (necR_GHOST phi phi' loc _ H H0); auto.
 Qed.
 
 
@@ -886,8 +856,7 @@ Proof.
   constructor 1; auto.
 Qed.
 
-Lemma empty_NO: forall r, identity r -> r = NO Share.bot bot_unreadable \/ (exists k, exists pds, r = PURE k pds)
-  \/ exists m, r = GHOST m /\ identity m.
+Lemma empty_NO: forall r, identity r -> r = NO Share.bot bot_unreadable \/ exists k, exists pds, r = PURE k pds.
 Proof.
 intros.
 destruct r; auto.
@@ -900,13 +869,7 @@ spec H.
 apply res_join_NO2.
 auto.
 inv H.
-right; left. exists k. exists p. trivial.
-right; right.
-do 2 eexists; eauto.
-repeat intro.
-spec H (GHOST a) (GHOST b); spec H.
-constructor; auto.
-inv H; auto.
+right. exists k. exists p. trivial.
 Qed.
 
 Lemma level_age_fash:
@@ -969,7 +932,6 @@ assert (AV.valid (res_option oo (fun loc => proj1_sig (H0 loc)))). {
  rewrite (join_readable_part_eq r nsh2 rsh3 RJ); constructor.
  constructor. apply join_readable_part; auto. split; reflexivity.
  inv j; constructor.
- inv j; constructor.
 }
 destruct (make_rmap _ H1 (level phi1)) as [phi' [? ?]].
 clear H1.
@@ -994,7 +956,6 @@ inv H1.
 simpl; f_equal.
 pose proof (resource_at_approx phi1 loc). rewrite H0 in H1. simpl in H1.
 injection H1; intros; auto.
-inv H1; auto.
 (*  End of make_rmap proof *)
 exists phi'.
 apply resource_at_join2; auto.
@@ -1017,7 +978,7 @@ Proof.
 Qed.
 
 Definition no_preds (r: resource) :=
-   match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP | GHOST _ => True end.
+   match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP end.
 
 Lemma remake_rmap:
   forall (f: AV.address -> resource),
@@ -1187,23 +1148,23 @@ repeat match goal with
          eapply join_unreadable_shares in H; eauto; solve [contradiction]] | ])
 end.
 
-(*Lemma Cross_resource: Cross_alg resource.
+Lemma Cross_resource: Cross_alg resource.
 Proof.
 intro; intros.
-destruct a as [ra | ra sa ka pa | ka pa | ma].
-destruct b as [rb | rb sb kb pb | kb pb |]; try solve [elimtype False; inv H].
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct a as [ra | ra sa ka pa | ka pa ].
+destruct b as [rb | rb sb kb pb | kb pb ]; try solve [elimtype False; inv H].
+destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac,NO ad Had, NO bc Hbc, NO bd Hbd); 
   repeat split; simpl; auto; constructor; auto.
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
@@ -1211,7 +1172,7 @@ readable_unreadable_join_prover.
 exists (NO ac Hac, NO ad Had, NO bc Hbc, YES bd Hbd kb pb); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1222,17 +1183,17 @@ destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc H
 readable_unreadable_join_prover.
 exists (NO ac Hac, NO ad Had, YES bc Hbc kb pb, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct b as [rb | rb sb kb pb | kb pb |]; try solve [elimtype False; inv H].
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+destruct b as [rb | rb sb kb pb | kb pb ]; try solve [elimtype False; inv H].
+destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1243,16 +1204,16 @@ destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc H
 readable_unreadable_join_prover.
 exists (YES ac Hac kc pc, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1287,19 +1248,13 @@ exists (YES ac Hac ka pa, YES ad Had ka pa,
 exists (PURE ka pa, PURE ka pa, PURE ka pa, PURE ka pa).
 inv H. inv H0.
 repeat split; constructor; auto.
-
-destruct b as [| | | mb]; try solve [elimtype False; inv H].
-destruct z as [| | | mz]; try solve [elimtype False; inv H].
-destruct c as [| | | mc]; try solve [elimtype False; inv H0].
-destruct d as [| | | md]; try solve [elimtype False; inv H0].
-(* relies on cross-split for ghost state *)
-Qed.*)
+Qed.
 
 Definition res_retain (r: resource) : Share.t :=
  match r with
   | NO sh _ => retainer_part sh
   | YES sh _ _ _ => retainer_part sh
-  | PURE _ _ | GHOST _ => Share.bot
+  | PURE _ _ => Share.bot
  end.
 
 Lemma fixup_trace_readable:
@@ -1329,8 +1284,7 @@ Definition fixup_trace (retain: AV.address -> Share.t)
             | Some(sh,k), PURE _ pp =>
                YES _ (fixup_trace_readable (retain x) sh) k pp
             | Some (sh,k), YES _ _ _ pp => YES _ (fixup_trace_readable (retain x) sh) k pp
-            | Some (sh, k), NO _ _ | Some (sh, k), GHOST _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
-            | None, GHOST m => GHOST (core m)
+            | Some (sh, k), NO _ _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
             | None, _ => NO _ (@retainer_part_nonreadable (retain x))
             end.
 
@@ -1390,7 +1344,6 @@ Proof.
  rewrite H in H0. symmetry in H0.
   simpl in H0. simpl.
    f_equal. injection H0; auto.
- auto.
  case_eq (f @ l); intros; auto.
  generalize (resource_at_approx f l); intro.
  rewrite H in H0. symmetry in H0.
@@ -1618,9 +1571,6 @@ rewrite Share.glb_commute. rewrite Share.glb_bot.
 rewrite Share.lub_commute, Share.lub_bot.
 rewrite <- Share.glb_assoc. rewrite Share.glb_idem.
 apply join_unit1; auto.
- +
-inv H; simpl.
-admit. (* What should fixup_trace do with a ghost? *)
 *
 destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
 unfold retainer_part in *.

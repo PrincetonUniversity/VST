@@ -70,31 +70,9 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   | ArrowType T1 T2 => dtfr T1 -> dtfr T2
   end.
 
-(*Module Type PCM.
-  Parameter M : Type.
-  Parameter pcm_op : M -> M -> M -> Prop.
-  Axiom pcm_op_comm : forall a b c (Hjoin : pcm_op a b c), pcm_op b a c.
-  Axiom pcm_op_assoc : forall a b c d e (Hjoin1 : pcm_op a b c) (Hjoin2 : pcm_op c d e),
-                 exists c', pcm_op b d c' /\ pcm_op a c' e.
-  Axiom pcm_op_eq : forall a b c c' (Hc : pcm_op a b c) (Hc' : pcm_op a b c'), c = c'.
-End PCM.*)
-
-(* Would we want to just use Sep_alg here, since rmaps with PCMs included must form a Sep_alg? *)
-
-Module Type PCM.
-  Parameter M : Type.
-  Parameter J_M : Join M.
-  Parameter Perm_M: Perm_alg M.
-  Parameter Sep_M: Sep_alg M.
-  Parameter Disj_M : Disj_alg M.
-End PCM.
-
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
   Import AV.
-
-  Declare Module GP : PCM.
-  Import GP.
 
   Definition preds: functor :=
     fsig (fun T: TypeTree =>
@@ -103,15 +81,13 @@ Module Type STRAT_MODEL.
   Inductive res (PRED : Type) : Type :=
     | NO':  forall sh: Share.t, ~(readable_share sh) -> res PRED
     | YES': forall sh: Share.t, readable_share sh -> kind -> preds PRED -> res PRED
-    | PURE': kind -> preds PRED -> res PRED
-    | GHOST': M -> res PRED.
+    | PURE': kind -> preds PRED -> res PRED.
 
   Definition res_fmap (A B:Type) (f:A->B) (g:B->A)(x:res A) : res B :=
     match x with
       | NO' rsh nsh => NO' B rsh nsh
       | YES' sh rsh k pds => YES' B sh rsh k (fmap preds f g pds)
       | PURE' k pds => PURE' B k (fmap preds f g pds)
-      | GHOST' m => GHOST' B m
     end.
   Axiom ff_res : functorFacts res res_fmap.
   Definition f_res : functor := Functor ff_res.
@@ -132,10 +108,7 @@ Module Type STRAT_MODEL.
     | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p,
                               join sh1 sh2 sh3 ->
               res_join PRED (YES' PRED sh1 rsh1 k p) (YES' PRED sh2 rsh2 k p) (YES' PRED sh3 rsh3 k p)
-    | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p)
-    | res_join_GHOST : forall m1 m2 m,
-                               join m1 m2 m ->
-                               res_join PRED (GHOST' PRED m1) (GHOST' PRED m2) (GHOST' PRED m).
+    | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
   Axiom pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Axiom sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
   Axiom da_rj : forall PRED, @Disj_alg _ (res_join PRED).
@@ -146,7 +119,6 @@ Module Type STRAT_MODEL.
       | NO' _ _ => None
       | YES' sh rsh k _ => Some (readable_part rsh,k)
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
-      | GHOST' _ => None (*??*)
     end.
 
   Definition valid' A (w: address -> res A) : Prop :=
@@ -172,12 +144,9 @@ Module Type STRAT_MODEL.
 
 End STRAT_MODEL.
 
-Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' with Module GP:=GP'.
+Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Module AV := AV'.
   Import AV.
-
-  Module GP := GP'.
-  Import GP.
 
   Definition preds: functor :=
     fsig (fun T: TypeTree =>
@@ -186,15 +155,13 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
   Inductive res (PRED : Type) : Type :=
     | NO':  forall sh: Share.t, ~(readable_share sh) -> res PRED
     | YES': forall sh: Share.t, readable_share sh -> kind -> preds PRED -> res PRED
-    | PURE': kind -> preds PRED -> res PRED
-    | GHOST': M -> res PRED.
+    | PURE': kind -> preds PRED -> res PRED.
 
   Definition res_fmap (A B:Type) (f:A->B) (g:B->A)(x:res A) : res B :=
     match x with
       | NO' rsh nsh => NO' B rsh nsh
       | YES' sh rsh k pds => YES' B sh rsh k (fmap preds f g pds)
       | PURE' k pds => PURE' B k (fmap preds f g pds)
-      | GHOST' m => GHOST' B m
     end.
 
   Lemma ff_res : functorFacts res res_fmap.
@@ -222,10 +189,7 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
     | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p,
                               join sh1 sh2 sh3 ->
               res_join PRED (YES' PRED sh1 rsh1 k p) (YES' PRED sh2 rsh2 k p) (YES' PRED sh3 rsh3 k p)
-    | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p)
-    | res_join_GHOST : forall m1 m2 m,
-                               join m1 m2 m ->
-                               res_join PRED (GHOST' PRED m1) (GHOST' PRED m2) (GHOST' PRED m).
+    | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
 
   Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
 
@@ -237,43 +201,43 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
       repeat proof_irr; auto.
 *     (* saf_assoc *)
       intros a b c d e H1 H2.
-      destruct d as [rd | rd sd kd pd | kd pd | md].
-      destruct a as [ra | | |]; try solve [elimtype False; inv H1].
-      destruct b as [rb| | |]; try solve [elimtype False; inv H1].
+      destruct d as [rd | rd sd kd pd | kd pd].
+      destruct a as [ra | | ]; try solve [elimtype False; inv H1].
+      destruct b as [rb| | ]; try solve [elimtype False; inv H1].
       assert (join ra rb rd) by (inv H1; auto).
-      destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe |]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO' _ rf (join_unreadable_shares H3 n1 n2)); split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe | me]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable2 H3 sc) kc pc).
       inv H2. split; constructor; auto.
-      destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe |]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
-      destruct b as [ | rb sb kb pb | |]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct b as [ | rb sb kb pb | ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kd pd).  inv H1; inv H2; split; constructor; auto.
-      destruct b as [ rb | rb sb kb pb | |]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO' _ rf (join_unreadable_shares H3 n0 n)).  inv H1; inv H2; split; constructor; auto.
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe |]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct b as [ rb | rb sb kb pb | |]; try solve [elimtype False; inv H1].
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable2 H3 sc) kc pc).  inv H1; inv H2; split; constructor; auto.
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.
@@ -281,14 +245,6 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.
       exists (PURE' _ kd pd). inv H1; inv H2; split; constructor.
-      destruct a as [| | | ma]; try solve [elimtype False; inv H1].
-      destruct b as [| | | mb]; try solve [elimtype False; inv H1].
-      destruct c as [| | | mc]; try solve [elimtype False; inv H2].
-      destruct e as [| | | me]; try solve [elimtype False; inv H2].
-      assert (H: join ma mb md) by (inv H1; auto).
-      assert (H0: join md mc me) by (inv H2; auto).
-      destruct (join_assoc H H0) as [mf []].
-      exists (GHOST' _ mf); split; constructor; auto.
 
 *      (* saf_com *)
       intros a b c H; inv H; econstructor;  apply join_comm; auto.
@@ -307,17 +263,15 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
              with (fun x => match x 
                              with NO' _ _ => NO' _ Share.bot bot_unreadable
                                | YES' _ _ _ _ => NO' _ Share.bot bot_unreadable
-                               | PURE' k pds => PURE' _ k pds
-                               | GHOST' m => GHOST' _ (core m) end).
-            intro. destruct t; constructor; try apply join_unit1; auto. apply core_unit.
+                               | PURE' k pds => PURE' _ k pds end).
+            intro. destruct t; constructor; try apply join_unit1; auto.
             intros. inversion H; auto.
-            eapply f_equal, join_core; eauto.
   Defined.
 
   Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Proof.  repeat intro.
     inv H0; inv H;
-      repeat match goal with H: join ?A ?A ?B |- _ => 
+    repeat match goal with H: join ?A ?A ?B |- _ => 
               apply join_self in H; specialize (H _ _ H1); subst end;
     repeat proof_irr; auto.
     contradiction.
@@ -328,36 +282,30 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
   (* This is a little painful because of the way res_join is defined, but
       whatever... *)
    inv H; simpl; constructor; trivial.
-   destruct z as [ rz | rz sz kz pz | kz pz | mz].
-   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' |]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py |]; try solve [elimtype False; inv H].
-   exists (NO' _ rx' n0); exists (NO' _ ry n1); inv H; split; constructor; tauto.
-   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' |]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py |]; try solve [elimtype False; inv H].
+   destruct z as [ rz | rz sz kz pz | kz pz ].
+   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   exists (NO' _ rx' n0); exists (NO' _ ry n1); inv H; split; constructor; tauto.    
+   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
    exists (NO' _ rx' n); exists (YES' _ ry sy kz pz); inv H; split; constructor; auto. simpl in *; f_equal; auto.
-   destruct y as [ ry | ry sy ky py | ky py |]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
    exists (YES' _ rx' sx' kx' pz); exists (NO' _ ry n); inv H; split; constructor; auto.
    exists (YES' _ rx' sx' kx' pz); exists (YES' _ ry sy ky pz); inv H; split; constructor; auto; simpl; f_equal; auto.
    exists (PURE' _ kz pz); exists (PURE' _ kz pz); simpl in *; inv H; split; [constructor | tauto].
-   destruct x' as [| | | mx']; try solve [elimtype False; inv H].
-   destruct y as [| | | my]; try solve [elimtype False; inv H].
-   exists (GHOST' _ mx'), (GHOST' _ my); inv H; split; constructor; auto.
 
-   destruct x as [ rx | rx sx kx px | kx px | mx]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py |]; try solve [elimtype False; inv H].
-   destruct z' as [ rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+   destruct x as [ rx | rx sx kx px | kx px ]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
    exists (NO' _ ry n0); exists (NO' _ rz n1); inv H; split; constructor; auto.
-   destruct z' as [ rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
    exists (YES' _ ry sy ky py); exists (YES' _ rz sz ky py); inv H; split; constructor; auto.
-   destruct y as [ ry | ry sy ky py | ky py |]; try solve [elimtype False; inv H].
-   destruct z' as [ rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
    exists (NO' _ ry n); exists (YES' _ rz sz kx px); inv H; split; constructor; auto.
-   destruct z' as [ rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
    exists (YES' _ ry sy kx px); exists (YES' _ rz sz kx px); inv H; split; constructor; auto. simpl; f_equal; auto.
    exists (PURE' _ kx px); exists (PURE' _ kx px); inv H; split; constructor; auto.
-   destruct y as [| | | my]; try solve [elimtype False; inv H].
-   destruct z' as [| | | mz]; try solve [elimtype False; inv H].
-   exists (GHOST' _ my), (GHOST' _ mz); inv H; split; constructor; auto.
   Qed.
 
   Definition res_option (PRED : Type) (r: res PRED) : option (rshare * kind):=
@@ -365,7 +313,6 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
       | NO' _ _ => None
       | YES' sh rsh k _ => Some (readable_part rsh,k)
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
-      | GHOST' _ => None
     end.
 
   Definition valid' A (w: address -> res A) : Prop :=
@@ -458,9 +405,6 @@ Module Type RMAPS.
   Declare Module AV:ADR_VAL.
   Import AV.
 
-  Declare Module GP:PCM.
-  Import GP.
-
   Parameter rmap : Type.
   Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
   Axiom Perm_rmap: Perm_alg rmap. Existing Instance Perm_rmap.
@@ -478,15 +422,13 @@ Module Type RMAPS.
   Inductive resource : Type :=
     | NO: forall sh: Share.t, ~(readable_share sh) -> resource
     | YES: forall sh: Share.t, readable_share sh -> kind -> preds -> resource
-    | PURE: kind -> preds -> resource
-    | GHOST: M -> resource.
+    | PURE: kind -> preds -> resource.
 
   Definition res_option (r:resource) : option (rshare * kind) :=
     match r with
       | NO _ _ => None
       | YES sh rsh k _ => Some (readable_part rsh,k)
       | PURE k _ => None
-      | GHOST _ => None
     end.
 
   Inductive res_join : resource -> resource -> resource -> Prop :=
@@ -502,10 +444,7 @@ Module Type RMAPS.
    | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p)
-   | res_join_GHOST : forall m1 m2 m3
-                 (RJ: join m1 m2 m3),
-                 res_join (GHOST m1) (GHOST m2) (GHOST m3).
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
 
   Instance Join_resource: Join resource := res_join.
   Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
@@ -525,7 +464,6 @@ Module Type RMAPS.
     | NO sh nsh => NO sh nsh
     | YES sh rsh k p => YES sh rsh k (preds_fmap f g p)
     | PURE k p => PURE k (preds_fmap f g p)
-    | GHOST m => GHOST m
     end.
   Axiom resource_fmap_id : resource_fmap (id _) (id _) = id resource.
   Axiom resource_fmap_comp : forall f1 f2 g1 g2,
@@ -586,14 +524,11 @@ Module Type RMAPS.
 
 End RMAPS.
 
-Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:=GP'.
+Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Module AV:=AV'.
   Import AV.
 
-  Module GP:=GP'.
-  Import GP.
-
-  Module SM := StratModel(AV)(GP).
+  Module SM := StratModel(AV).
   Import SM.
 
   Module TyF. (* <: TY_FUNCTOR_PROP. *)
@@ -632,15 +567,13 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
   Inductive resource : Type :=
     | NO: forall sh: Share.t, ~ readable_share sh -> resource
     | YES: forall sh: Share.t, readable_share sh -> kind -> preds -> resource
-    | PURE: kind -> preds -> resource
-    | GHOST: M -> resource.
+    | PURE: kind -> preds -> resource.
 
   Definition resource2res (r: resource): res (pred rmap) :=
     match r with
       | NO sh nsh => NO' (pred rmap) sh nsh
       | YES sh rsh k (SomeP A l) => YES' (pred rmap) sh rsh k (existT _ A l)
       | PURE k (SomeP A l) => PURE' (pred rmap) k (existT _ A l)
-      | GHOST m => GHOST' _ m
     end.
 
   Definition res2resource (r: res (pred rmap)) : resource :=
@@ -648,11 +581,10 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
       | NO' sh nsh => NO sh nsh
       | YES' sh rsh k (existT A l) => YES sh rsh k (SomeP A l)
       | PURE' k (existT A l) => PURE k (SomeP A l)
-      | GHOST' m => GHOST m
     end.
 
   Lemma res2resource2res: forall x, resource2res (res2resource x) = x.
-  Proof. unfold resource2res, res2resource; destruct x as [? | ? ? ? [? ?] | ? [? ?] |]; auto. Qed.
+  Proof. unfold resource2res, res2resource; destruct x as [? | ? ? ? [? ?] | ? [? ?]]; auto. Qed.
 
   Lemma resource2res2resource: forall x, res2resource (resource2res x) = x.
   Proof. unfold resource2res, res2resource; destruct x; try destruct p0; try destruct p; auto. Qed.
@@ -662,7 +594,6 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
       | NO _ _ => None
       | YES sh rsh k _ => Some (readable_part rsh,k)
       | PURE k _ => None
-      | GHOST _ => None
     end.
 
   Lemma res_option_rewrite: res_option = SM.res_option (pred rmap) oo resource2res.
@@ -687,10 +618,7 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
    | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p)
-   | res_join_GHOST : forall m1 m2 m3
-                 (RJ: join m1 m2 m3),
-                 res_join (GHOST m1) (GHOST m2) (GHOST m3).
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
 
   Instance Join_resource: Join resource := res_join.
   Instance Perm_resource: Perm_alg resource.
@@ -701,43 +629,43 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
       repeat proof_irr; auto.
   * (* saf_assoc *)
       intros a b c d e H1 H2.
-      destruct d as [rd | rd sd kd pd | kd pd | md].
-      destruct a as [ra | | |]; try solve [elimtype False; inv H1].
-      destruct b as [rb| | |]; try solve [elimtype False; inv H1].
+      destruct d as [rd | rd sd kd pd | kd pd].
+      destruct a as [ra | | ]; try solve [elimtype False; inv H1].
+      destruct b as [rb| | ]; try solve [elimtype False; inv H1].
       assert (join ra rb rd) by (inv H1; auto).
-      destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe|]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO rf (join_unreadable_shares H3 n1 n2)); split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe|]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable2 H3 sc) kc pc).
       inv H2. split; constructor; auto.
-      destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe|]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
-      destruct b as [ | rb sb kb pb | |]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct b as [ | rb sb kb pb | ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kd pd).  inv H1; inv H2; split; constructor; auto.
-      destruct b as [ rb | rb sb kb pb | |]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO rf (join_unreadable_shares H3 n0 n)).  inv H1; inv H2; split; constructor; auto.
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe|]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct b as [ rb | rb sb kb pb | |]; try solve [elimtype False; inv H1].
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable2 H3 sc) kc pc).  inv H1; inv H2; split; constructor; auto.
-      destruct a as [ra | ra sa ka pa | ka pa |]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.
@@ -745,14 +673,6 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.
       exists (PURE kd pd). inv H1; inv H2; split; constructor.
-      destruct a as [| | | ma]; try solve [elimtype False; inv H1].
-      destruct b as [| | | mb]; try solve [elimtype False; inv H1].
-      destruct c as [| | | mc]; try solve [elimtype False; inv H2].
-      destruct e as [| | | me]; try solve [elimtype False; inv H2].
-      assert (H: join ma mb md) by (inv H1; auto).
-      assert (H0 : join md mc me) by (inv H2; auto).
-      destruct (join_assoc H H0) as [mf []].
-      exists (GHOST mf); split; constructor; auto.
 
 *      (* saf_com *)
       intros a b c H; inv H; econstructor;  apply join_comm; auto.
@@ -771,17 +691,16 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
     with (fun x => match x 
                    with NO _ _ => NO Share.bot bot_unreadable
                       | YES _ _ _ _ => NO Share.bot bot_unreadable
-                      | PURE k pds => PURE k pds
-                      | GHOST m => GHOST (core m) end).
-  intro. destruct t; constructor; try apply join_unit1; auto. apply core_unit.
-  intros. inversion H; auto. eapply f_equal, join_core; eauto.
+                      | PURE k pds => PURE k pds end).
+  intro. destruct t; constructor; try apply join_unit1; auto.
+  intros. inversion H; auto.
   Defined.
 
   Instance Disj_resource: Disj_alg resource.
   Proof.
     repeat intro.
     inv H0; inv H;
-      repeat match goal with H: join ?A ?A ?B |- _ => 
+    repeat match goal with H: join ?A ?A ?B |- _ => 
               apply join_self in H; specialize (H _ _ RJ); subst end;
     repeat proof_irr; auto.
     contradiction.
@@ -826,7 +745,6 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
      rewrite <- Share.distrib1. rewrite H0. auto.
      constructor. reflexivity. reflexivity.
      constructor.
-     constructor.
   Qed.
 
   Definition rmap' := sig valid.
@@ -857,7 +775,6 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
     | NO sh nsh => NO sh nsh
     | YES sh rsh k p => YES sh rsh k (preds_fmap f g p)
     | PURE k p => PURE k (preds_fmap f g p)
-    | GHOST m => GHOST m
     end.
 
   Lemma valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo m).
@@ -972,7 +889,6 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
     unfold age, age1 in H. simpl in H. simpl in *.
     eapply pred_hereditary; eauto.
  Qed.
-
   Program Definition p2p' (p:K.predicate) : (pred rmap) :=
     fun (v:rmap) => p v.
   Next Obligation.
@@ -1105,7 +1021,6 @@ Qed.
     constructor; auto.
     destruct p; simpl in *.
     constructor; auto.
-    constructor; auto.
 
     destruct H; simpl in *; split; simpl; auto.
     destruct f as [f ?].
@@ -1118,9 +1033,9 @@ Qed.
     forget (f l) as a; forget (f0 l) as b; forget (f1 l) as c.
     clear - H0.
     unfold res2resource in *. unfold res_fmap in *.
-    destruct a as [ra | ra sha ka pa| ka pa | ma]; try destruct pa as [? ?p];
-    destruct b as [rb | rb shb kb pb|kb pb | mb]; try destruct pb as [? ?p];
-    destruct c as [rc | rc shc kc pc|kc pc | mc]; try destruct pc as [? ?p];
+    destruct a as [ra | ra sha ka pa| ka pa]; try destruct pa as [? ?p];
+    destruct b as [rb | rb shb kb pb|kb pb]; try destruct pb as [? ?p];
+    destruct c as [rc | rc shc kc pc|kc pc]; try destruct pc as [? ?p];
     inv H0.
     + constructor; auto.
     + apply inj_pair2 in H8. subst p0. constructor; auto.
@@ -1129,7 +1044,6 @@ Qed.
       constructor; auto.
     + subst ; apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
       constructor; auto.
-    + constructor; auto.
 Qed.
 
   Definition rmap_age1 (k:rmap) : option rmap :=
@@ -1170,6 +1084,7 @@ Qed.
    rewrite K.knot_level. destruct (K.unsquash x); simpl. auto.
   Qed.
 
+
   Lemma unevolve_identity_rmap :
    (* REMARK:  This may not be needed for anything, so for now it's removed
      from the Module Type *)
@@ -1200,9 +1115,7 @@ Qed.
     inv H1; auto.
     inv H1. constructor; auto.
     constructor.
-    auto.
   Qed.
 
 End Rmaps.
 Local Close Scope nat_scope.
-
