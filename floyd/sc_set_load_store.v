@@ -774,44 +774,39 @@ Proof.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
-(*
 Lemma semax_PTree_field_load:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
-      T1 T2 e_root (efs: list efield) (tts: list type)
-      (t t_root: type) (gfs0 gfs1 gfs: list gfield) 
-      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
+    forall n Delta sh id P Q R (e: expr) t
+      T1 T2 e_root (efs: list efield) (tts: list type) lr
+      t_root_from_e gfs_from_e p_from_e
+      (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
+      (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, nil) ->
       compute_nested_efield e = (e_root, efs, tts, lr) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
-      msubst_eval_LR T1 T2 e1 lr = Some p_from_e ->
-      msubst_efield_denote T1 T2 efs = Some gfs_from_e ->
-
-      
-      LR_of_type t_root = lr ->
       type_is_volatile (typeof e) = false ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
+      msubst_eval_LR T1 T2 e_root lr = Some p_from_e ->
+      msubst_efield_denote T1 T2 efs gfs_from_e ->
+      compute_root_type (typeof e_root) lr t_root_from_e ->
+      field_address t_root_from_e gfs_from_e p_from_e = field_address t_root gfs p ->
       gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_LR Delta e1 lr) &&
-        local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
+         (tc_LR Delta e_root lr) &&
+        local `(tc_val (typeof e) v) &&
          (tc_efield Delta efs) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
-        (Sset id (nested_efield e1 efs tts))
+        (Sset id e)
           (normal_ret_assert
             (PROPx P
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
- *)
+Proof.
+  intros.
+  
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*
