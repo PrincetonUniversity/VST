@@ -36,6 +36,50 @@ Proof.
   + apply msubst_eval_expr_eq; auto.
 Qed.
 
+Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc): list efield -> list gfield -> Prop :=
+| msubst_efield_denote_nil: msubst_efield_denote T1 T2 nil nil
+| msubst_efield_denote_cons_array: forall ei i i' efs gfs,
+    is_int_type (typeof ei) = true ->
+    msubst_eval_expr T1 T2 ei = Some (Vint i) ->
+    Int.eqm (Int.unsigned i) i' ->
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
+| msubst_efield_denote_cons_struct: forall i efs gfs,
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eStructField i :: efs) (StructField i :: gfs)
+| msubst_efield_denote_cons_union: forall i efs gfs,
+    msubst_efield_denote T1 T2 efs gfs ->
+    msubst_efield_denote T1 T2 (eUnionField i :: efs) (UnionField i :: gfs).
+
+Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 Q R efs gfs,
+  msubst_efield_denote T1 T2 efs gfs ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- local (efield_denote efs gfs).
+Proof.
+  intros ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
+  induction MSUBST_EFIELD_DENOTE.
+  + intro rho; apply prop_right; constructor.
+  + eapply (msubst_eval_expr_eq P _ _ Q R) in H0.
+    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    clear H0 IHMSUBST_EFIELD_DENOTE.
+    rewrite andp_assoc; apply andp_left2.
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+    constructor.
+    rewrite <- H2; symmetry.
+    f_equal.
+    rewrite <- (Int.repr_unsigned i).
+    apply Int.eqm_samerepr; auto.
+  + eapply derives_trans; [eassumption |].
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+  + eapply derives_trans; [eassumption |].
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    constructor; auto.
+Qed.
+
 (*
 Fixpoint msubst_efield_denote {cs: compspecs} T1 T2 (efs: list efield) : option (list gfield) :=
   match efs with
