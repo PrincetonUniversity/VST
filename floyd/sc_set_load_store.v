@@ -790,6 +790,7 @@ Lemma semax_PTree_field_load:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address t_root_from_e gfs_from_e p_from_e = field_address t_root gfs p ->
+      typeof e = nested_field_type t_root gfs ->
       gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
@@ -805,9 +806,29 @@ Lemma semax_PTree_field_load:
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros.
+  intros ? ? ? ? ? ? ? ? ? ?
+         ? ? ? ? ? ?
+         ? ? ?
+         ? ? ? ? ?
+         ? ?
+         LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
+         FIELD_ADD_EQ TYPE_EQ GFS NTH SH JMEQ TC.
+  pose proof compute_nested_efield_lemma e as NESTED_EFIELD.
+  rewrite COMPUTE_NESTED_EFIELD in NESTED_EFIELD.
+  rewrite <- NESTED_EFIELD.
+  eapply semax_SC_field_load_to_use.
+  1: rewrite NESTED_EFIELD; eassumption.
+  1: eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  2: eassumption.
+  2: eassumption.
+  2: eassumption.
+  2: eassumption.
+  + rewrite <- FIELD_ADD_EQ.
+    eapply derives_trans; [| eapply eval_lvalue_nested_efield].
+Abort.
   
-
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*
 Lemma semax_PTree_load:
