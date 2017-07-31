@@ -36,6 +36,7 @@ Proof.
   + apply msubst_eval_expr_eq; auto.
 Qed.
 
+(*
 Fixpoint msubst_efield_denote {cs: compspecs} T1 T2 (efs: list efield) : option (list gfield) :=
   match efs with
   | nil => Some nil
@@ -53,19 +54,17 @@ Fixpoint msubst_efield_denote {cs: compspecs} T1 T2 (efs: list efield) : option 
 
 Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 R efs gfs,
   msubst_efield_denote T1 T2 efs = Some gfs ->
-  assertD P (localD T1 T2) R |-- efield_denote efs gfs.
+  assertD P (localD T1 T2) R |-- local (efield_denote efs gfs).
 Proof.
   intros.
   revert gfs H; induction efs; intros.
   + simpl in H.
-    inversion H.
+    inv H.
+    unfold local, lift1; unfold_lift; intros rho.
     apply prop_right.
-    auto.
-Opaque andp.
+    constructor.
   + destruct a;
-    simpl in H;
-    simpl efield_denote.
-Transparent andp.
+    simpl in H.
     - destruct (typeof i) eqn:?; try solve [inversion H].
       destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
       destruct v; try solve [inversion H].
@@ -91,7 +90,7 @@ Transparent andp.
       apply andp_derives; [| auto].
       simpl; intros; normalize.
 Qed.
-
+*)
 Section SEMAX_SC.
 
 Context {cs: compspecs}.
@@ -216,7 +215,7 @@ Lemma semax_SC_field_load:
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
+        local (efield_denote efs gfs) ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
@@ -233,10 +232,13 @@ Lemma semax_SC_field_load:
 Proof.
   intros until 7; pose proof I; intros.
   eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
-  eapply semax_extract_later_prop';
-   [eapply derives_trans; [exact H9 | eapply typeof_nested_efield; eauto] | intro].
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs). {
+    eapply derives_trans; [exact H9 |].
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    symmetry; eapply typeof_nested_efield; eauto.
+  }
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v)
-    by (apply valinject_JMeq; apply is_neutral_cast_by_value with t; rewrite H13; auto).
+    by (apply valinject_JMeq; apply is_neutral_cast_by_value with t; rewrite <- H13; auto).
   eapply semax_max_path_field_load_nth_ram.
   1: eassumption.
   1: eassumption.
@@ -327,7 +329,7 @@ Lemma semax_SC_field_load'':
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfsB ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (efield_denote efs gfsB) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfsA a) ->
       nth_error R n = Some (field_at sh t_root gfs0 v' a) ->
       readable_share sh ->
@@ -351,11 +353,15 @@ Proof.
   intros until 0. intros TypeOf Cast Volatile Ugly Edenote Nice GetR Rsh Split Dig Tc Lnf EqLr Lnef.
   eapply semax_extract_later_prop'; [exact Lnf | clear Lnf; intro Lnf].
   eapply semax_extract_later_prop'; [exact Nice | clear Nice; intro Nice]. subst p.
-  eapply semax_extract_later_prop';
-   [eapply derives_trans; [exact Edenote | eapply typeof_nested_efield; eauto] | intro EqT].
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
+    rewrite <- nested_field_type_nested_field_type.
+    eapply derives_trans; [exact Edenote |].
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    symmetry; eapply typeof_nested_efield; eauto.
+  }
   assert (JMeq (valinject (nested_field_type t_root (gfsB ++ gfsA)) v) v) as JM. {
     apply valinject_JMeq. apply is_neutral_cast_by_value with t.
-    rewrite <- nested_field_type_nested_field_type. rewrite EqT. assumption.
+    rewrite <- EqT. assumption.
   }
   eapply semax_max_path_field_load_nth_ram''.
   1: eassumption.
@@ -419,7 +425,7 @@ Lemma semax_SC_field_cast_load:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
+        local (efield_denote efs gfs) ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
@@ -436,10 +442,13 @@ Lemma semax_SC_field_cast_load:
 Proof.
   intros until 2. intro H6. intros.
   eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
-  eapply semax_extract_later_prop';
-   [eapply derives_trans; [exact H9 | eapply typeof_nested_efield; eauto] | intro].
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs). {
+    eapply derives_trans; [exact H9 |].
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    symmetry; eapply typeof_nested_efield; eauto.
+  }
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v)
-    by (apply valinject_JMeq; rewrite H13; auto).
+    by (apply valinject_JMeq; rewrite <- H13; auto).
   eapply semax_max_path_field_cast_load_nth_ram.
   1: eassumption.
   1: eassumption.
@@ -479,7 +488,7 @@ Lemma semax_SC_field_store:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq v0) (eval_expr (Ecast e2 t))) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
+        local (efield_denote efs gfs) ->
       writable_share sh ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -502,8 +511,11 @@ Proof.
   erewrite field_at_data_equal by (symmetry; apply H11).
   clear H11 v_new.
   eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
-  eapply semax_extract_later_prop';
-   [eapply derives_trans; [exact H9 | eapply typeof_nested_efield; eauto] | intro].
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs). {
+    eapply derives_trans; [exact H9 |].
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    symmetry; eapply typeof_nested_efield; eauto.
+  }
   eapply semax_max_path_field_store_nth_ram.
   1: eassumption.
   1: eassumption.
@@ -511,7 +523,7 @@ Proof.
   1: eassumption.
   1: eassumption.
   1: apply @JMeq_sym.
-     apply valinject_JMeq; rewrite H; auto.
+     apply valinject_JMeq; rewrite <- H; auto.
   1: eassumption.
   2: eassumption.
   2: eassumption.
@@ -531,10 +543,10 @@ Proof.
   apply (allp_left _ (valinject (nested_field_type t_root (gfs1 ++ gfs0)) v0)).
   apply (allp_left _ (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) v0)).
   rewrite prop_imp; [apply derives_refl |].
-  eapply JMeq_trans; [apply valinject_JMeq; rewrite <- H3, H; auto |].
+  eapply JMeq_trans; [apply valinject_JMeq; rewrite <- H3, <- H; auto |].
   apply @JMeq_sym, valinject_JMeq.
   rewrite nested_field_type_nested_field_type.
-  rewrite <- H3, H; auto.
+  rewrite <- H3, <- H; auto.
 Qed.
 
 Lemma semax_SC_field_store_without_nested_efield:
@@ -620,7 +632,7 @@ Lemma semax_SC_field_store_with_nested_field_partial:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfsA a) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfsB ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (efield_denote efs gfsB) ->
       writable_share sh ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -643,8 +655,12 @@ Proof.
   intros TypeOf ByVal LRo Volatile EqGfs GetR Ugly Nice EvalRhs Edenote Wsh DEq Tc Lnf Lnef.
   eapply semax_extract_later_prop'; [exact Lnf | clear Lnf; intro Lnf].
   eapply semax_extract_later_prop'; [exact Nice | clear Nice; intro Nice]. subst p.
-  eapply semax_extract_later_prop'; 
-   [eapply derives_trans; [exact Edenote | eapply typeof_nested_efield; eauto] | intro EqT].
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
+    rewrite <- nested_field_type_nested_field_type.
+    eapply derives_trans; [exact Edenote |].
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    symmetry; eapply typeof_nested_efield; eauto.
+  }
   erewrite field_at_data_equal by (symmetry; apply DEq).
   clear DEq v_new.
   subst t.
@@ -654,7 +670,7 @@ Proof.
   1: eassumption.
   1: eassumption.
   1: apply @JMeq_sym.
-     apply valinject_JMeq. rewrite <- nested_field_type_nested_field_type. rewrite EqT. exact ByVal.
+     apply valinject_JMeq. rewrite <- EqT. exact ByVal.
   1: eassumption.
   2: eassumption.
   2: eassumption.
@@ -675,7 +691,7 @@ Proof.
   apply (allp_left _ (valinject (nested_field_type t_root (gfs1 ++ gfs0)) v0)).
   apply (allp_left _ (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) v0)).
   rewrite prop_imp; [apply derives_refl |].
-  rewrite <- EqT, nested_field_type_nested_field_type, EqGfs in ByVal.
+  rewrite EqT, EqGfs in ByVal.
   eapply JMeq_trans; [apply valinject_JMeq; exact ByVal |].
   apply @JMeq_sym, valinject_JMeq.
   rewrite nested_field_type_nested_field_type. exact ByVal.

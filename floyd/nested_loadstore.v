@@ -455,28 +455,6 @@ Proof.
     auto.
 Qed.
 
-Lemma corable_efield_denote {cs: compspecs}: forall efs gfs rho, corable (efield_denote efs gfs rho).
-Proof.
-  intros.
-  revert gfs; induction efs; destruct gfs; simpl; intros.
-  + apply corable_prop.
-  + apply corable_prop.
-  + destruct a; apply corable_prop.
-  + destruct a, g; try apply corable_prop.
-    - unfold local, lift1.
-      unfold_lift.
-      repeat apply corable_andp.
-      apply corable_prop.
-      apply corable_prop.
-      apply IHefs.
-    - apply corable_andp.
-      apply corable_prop.
-      apply IHefs.
-    - apply corable_andp.
-      apply corable_prop.
-      apply IHefs.
-Qed.
-
 Lemma insert_corable_sep: forall R1 P Q R,
   corable R1 ->
   `R1 && PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1 && emp :: R))).

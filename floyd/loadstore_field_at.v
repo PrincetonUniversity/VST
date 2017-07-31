@@ -98,7 +98,7 @@ Lemma semax_max_path_field_load_nth_ram:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
-        efield_denote efs gfs &&
+        local (efield_denote efs gfs) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id (nested_efield e1 efs tts))
@@ -112,9 +112,9 @@ Proof.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
-    normalize.
-    apply prop_right; symmetry; auto.
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    apply prop_right.
+    symmetry; eapply typeof_nested_efield; eauto.
   } Unfocus.
   rewrite H11 in H10.
   assert_PROP (field_compatible t_root gfs p).
@@ -208,7 +208,7 @@ Lemma semax_max_path_field_load_nth_ram'':
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
-        efield_denote efs gfsB &&
+        local (efield_denote efs gfsB) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id (nested_efield e1 efs tts))
@@ -222,9 +222,9 @@ Proof.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
     rewrite <- nested_field_type_nested_field_type.
     eapply derives_trans; [exact Tc |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ Lnf)).
-    normalize.
-    apply prop_right; symmetry; auto.
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    apply prop_right.
+    symmetry; eapply typeof_nested_efield; eauto.
   }
   rewrite EqT in ByVal.
   assert_PROP (field_compatible t_root (gfsB ++ gfsA) a) as Fc. {
@@ -322,7 +322,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
-        efield_denote efs gfs &&
+        local (efield_denote efs gfs) &&
         local `(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v)) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
@@ -335,9 +335,9 @@ Proof.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
-    normalize.
-    apply prop_right; symmetry; auto.
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    apply prop_right.
+    symmetry; eapply typeof_nested_efield; eauto.
   } Unfocus.
   rewrite H10 in H0.
   assert_PROP (field_compatible t_root gfs p).
@@ -440,7 +440,7 @@ Lemma semax_max_path_field_store_nth_ram:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
-        efield_denote efs gfs &&
+        local (efield_denote efs gfs) &&
         (tc_expr Delta (Ecast e2 (typeof (nested_efield e1 efs tts)))) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign (nested_efield e1 efs tts) e2)
@@ -454,9 +454,9 @@ Proof.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H3)).
-    normalize.
-    apply prop_right; symmetry; auto.
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    apply prop_right.
+    symmetry; eapply typeof_nested_efield; eauto.
   } Unfocus.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
@@ -505,7 +505,7 @@ Lemma semax_partial_path_field_store_nth_ram:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) && 
         (tc_efield Delta efs) &&
-        efield_denote efs gfsB &&
+        local (efield_denote efs gfsB) &&
         (tc_expr Delta (Ecast e2 (typeof (nested_efield e1 efs tts)))) ->
       legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -520,9 +520,9 @@ Proof.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
     rewrite <- nested_field_type_nested_field_type.
     eapply derives_trans; [exact Tc |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ Lnef)).
-    normalize.
-    apply prop_right; symmetry; auto.
+    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+    apply prop_right.
+    symmetry; eapply typeof_nested_efield; eauto.
   }
   rewrite EqT in ByVal.
   assert_PROP (field_compatible t_root (gfsB ++ gfsA) a) as Fc. {
