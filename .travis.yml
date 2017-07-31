@@ -46,25 +46,25 @@ jobs:
     script:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
     - mkdir -p build
-    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; make -j ${NJOBS} IGNORECOQVERSION=true
     - echo -en 'travis_fold:end:VST.build\\r'
   - stage: test
     script:
     - echo 'Building progs...' && echo -en 'travis_fold:start:progs.build\\r'
     - mkdir -p build
-    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; make -j ${NJOBS} IGNORECOQVERSION=true progs
     - echo -en 'travis_fold:end:progs.build\\r'
   - script:
     - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
     - mkdir -p build
-    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
     - echo -en 'travis_fold:end:hmacdrbg.build\\r'
   - script:
     - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
     - mkdir -p build
-    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
