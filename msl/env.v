@@ -114,7 +114,7 @@ Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
 Defined.
 
 Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). Existing Instance Canc_env.
-Parameter Disj_env: forall {DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
+Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
 Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
 
 
@@ -317,7 +317,7 @@ Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Canc_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Disj_env {DA: Disj_alg A}: @Disj_alg env Join_env.
+Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Disj_fpm; auto with typeclass_instances.
 Qed.
 

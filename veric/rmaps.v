@@ -316,10 +316,11 @@ Module StratModel (AV' : ADR_VAL) (GP' : PCM) : STRAT_MODEL with Module AV:=AV' 
 
   Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Proof.  repeat intro.
-    inv H; 
-    repeat match goal with H: join ?A ?A ?B |- _ => 
-              apply join_self in H; subst B end;
+    inv H0; inv H;
+      repeat match goal with H: join ?A ?A ?B |- _ => 
+              apply join_self in H; specialize (H _ _ H1); subst end;
     repeat proof_irr; auto.
+    contradiction.
   Qed.
 
   Definition paf_res : @pafunctor f_res res_join.
@@ -778,11 +779,12 @@ Module Rmaps (AV':ADR_VAL) (GP':PCM) : RMAPS with Module AV:=AV' with Module GP:
 
   Instance Disj_resource: Disj_alg resource.
   Proof.
-    repeat intro. 
-    inv H; 
-    repeat match goal with H: join ?A ?A ?B |- _ => 
-              apply join_self in H; subst B end;
+    repeat intro.
+    inv H0; inv H;
+      repeat match goal with H: join ?A ?A ?B |- _ => 
+              apply join_self in H; specialize (H _ _ RJ); subst end;
     repeat proof_irr; auto.
+    contradiction.
   Qed.
 
   Lemma same_valid : forall f1 f2, (forall x, f1 x = f2 x) -> AV.valid f1 -> AV.valid f2.
@@ -1168,22 +1170,13 @@ Qed.
    rewrite K.knot_level. destruct (K.unsquash x); simpl. auto.
   Qed.
 
-(*  Lemma unevolve_identity_rmap :
+  Lemma unevolve_identity_rmap :
    (* REMARK:  This may not be needed for anything, so for now it's removed
      from the Module Type *)
     forall w w':rmap, necR w w' -> identity w' -> identity w.
   Proof.
     intros.
     induction H; eauto.
-    repeat intro.
-    eapply age1_join in H1; eauto.
-    destruct H1 as (? & ? & ? & ? & ?).
-    apply H0 in H1; subst.
-    Search age join.
-    Check age_join.
-    Search age.
-    Search age core.
-    Search identity.
     rewrite identity_unit_equiv in H0.
     rewrite identity_unit_equiv.
     red in H0. red.
@@ -1207,7 +1200,8 @@ Qed.
     inv H1; auto.
     inv H1. constructor; auto.
     constructor.
-  Qed.*)
+    auto.
+  Qed.
 
 End Rmaps.
 Local Close Scope nat_scope.

@@ -745,11 +745,7 @@ destruct (CrA _ _ _ _ _ H2 H3) as [[[[w24 w25] w34] w35] [? [? [? ?]]]].
 assert (identity w24).
   destruct (join_assoc (join_comm H9) H4) as [f [? ?]].
   destruct (join_assoc (join_comm H6) (join_comm H11)) as [g [? ?]].
-  generalize (join_self H13); intro.
-  subst g.
-  generalize (join_canc H14 (join_comm H11)); intro.
-  subst w25.
-  eapply unit_identity; eauto.
+  eapply join_self; eauto.
 assert (w34=w4). eapply join_eq; [eapply identity_unit; eauto | auto ].
 subst w34.
 assert (w25 = w2). eapply join_eq; [eapply identity_unit; eauto | auto ].
@@ -790,7 +786,7 @@ Focus 2. destruct H0 as [X HX]. exists X.
 exists be.
 destruct (join_assoc (join_comm myH1) H_x) as [y [myH5 myH6]].
 destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [z [myH7 myH8]].
-assert (ad=z) by apply (join_self myH7). subst ad.
+assert (ad=z) by apply (join_self' myH7). subst ad.
 assert (d=bd) by apply(join_canc (join_comm myH5) myH8).  subst d.
 assert (bd=y) by apply(join_eq myH3 myH5).  subst bd.
 assert (ae=a) by apply(join_canc  myH6 H_x).  subst ae.
@@ -857,7 +853,7 @@ subst w4.
 destruct (CrA _ _ _ _ _ H0 H2) as [[[[a b] c] d] [? [? [? ?]]]].
 destruct (join_assoc H5 H) as [f [? ?]].
 destruct (join_assoc H7 (join_comm H8)) as [g [? ?]].
-generalize (join_self H10); intro.
+generalize (join_self' H10); intro.
 subst g.
 assert (identity d).
 eapply unit_identity; eauto.

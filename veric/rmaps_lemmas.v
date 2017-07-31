@@ -672,13 +672,14 @@ Proof.
 Qed.
 
 Lemma resource_at_empty: forall phi, 
-     identity phi -> 
+     identity phi ->
      forall l, (phi @ l = NO Share.bot bot_unreadable \/ (exists k, exists pds, phi @ l = PURE k pds) \/
        exists m, phi @ l = GHOST m /\ identity m).
 Proof.
   intros.
-  assert (join phi phi phi) as Hj by (apply identity_unit'; auto).
-  generalize (resource_at_join _ _ _ l Hj); intro.
+  rewrite identity_unit_equiv in H.
+  unfold unit_for in H.
+  generalize (resource_at_join _ _ _ l H); intro.
   remember (phi @ l) as r.
   destruct r; inv H0; eauto.
   left. clear - RJ.
@@ -689,8 +690,7 @@ Proof.
   contradiction (bot_unreadable r).
   right; right.
   do 2 eexists; eauto.
-  repeat intro.
-  admit. (* Without eq_dec on addresses, we can't construct the function that's a at l and core phi elsewhere. *)
+  apply identity_unit_equiv; auto.
 Qed.
 Arguments resource_at_empty [phi] _ _.
 
@@ -830,6 +830,7 @@ Proof.
   destruct p.
   rewrite (necR_YES phi phi' loc _ _ _ _ H H0); auto.
   rewrite (necR_PURE phi phi' loc _ _ H H0); auto.
+  rewrite (necR_GHOST phi phi' loc _ H H0); auto.
 Qed.
 
 
@@ -1016,7 +1017,7 @@ Proof.
 Qed.
 
 Definition no_preds (r: resource) :=
-   match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP end.
+   match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP | GHOST _ => True end.
 
 Lemma remake_rmap:
   forall (f: AV.address -> resource),
@@ -1186,7 +1187,7 @@ repeat match goal with
          eapply join_unreadable_shares in H; eauto; solve [contradiction]] | ])
 end.
 
-Lemma Cross_resource: Cross_alg resource.
+(*Lemma Cross_resource: Cross_alg resource.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa | ma].
@@ -1292,13 +1293,13 @@ destruct z as [| | | mz]; try solve [elimtype False; inv H].
 destruct c as [| | | mc]; try solve [elimtype False; inv H0].
 destruct d as [| | | md]; try solve [elimtype False; inv H0].
 (* relies on cross-split for ghost state *)
-Qed.
+Qed.*)
 
 Definition res_retain (r: resource) : Share.t :=
  match r with
   | NO sh _ => retainer_part sh
   | YES sh _ _ _ => retainer_part sh
-  | PURE _ _ => Share.bot
+  | PURE _ _ | GHOST _ => Share.bot
  end.
 
 Lemma fixup_trace_readable:
@@ -1328,7 +1329,8 @@ Definition fixup_trace (retain: AV.address -> Share.t)
             | Some(sh,k), PURE _ pp =>
                YES _ (fixup_trace_readable (retain x) sh) k pp
             | Some (sh,k), YES _ _ _ pp => YES _ (fixup_trace_readable (retain x) sh) k pp
-            | Some (sh, k), NO _ _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
+            | Some (sh, k), NO _ _ | Some (sh, k), GHOST _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
+            | None, GHOST m => GHOST (core m)
             | None, _ => NO _ (@retainer_part_nonreadable (retain x))
             end.
 
@@ -1388,6 +1390,7 @@ Proof.
  rewrite H in H0. symmetry in H0.
   simpl in H0. simpl.
    f_equal. injection H0; auto.
+ auto.
  case_eq (f @ l); intros; auto.
  generalize (resource_at_approx f l); intro.
  rewrite H in H0. symmetry in H0.
@@ -1615,6 +1618,9 @@ rewrite Share.glb_commute. rewrite Share.glb_bot.
 rewrite Share.lub_commute, Share.lub_bot.
 rewrite <- Share.glb_assoc. rewrite Share.glb_idem.
 apply join_unit1; auto.
+ +
+inv H; simpl.
+admit. (* What should fixup_trace do with a ghost? *)
 *
 destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
 unfold retainer_part in *.

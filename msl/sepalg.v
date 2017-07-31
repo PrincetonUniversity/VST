@@ -150,6 +150,13 @@ Class Disj_alg  (t: Type) {J: Join t} :=
    join_self: forall {a b}, join a a b -> identity a.
 Arguments Disj_alg _ [J].
 
+Lemma join_self' {A}{J: Join A}{DA: Disj_alg A} :
+  forall {a b}, join a a b -> a = b.
+Proof.
+ intros.
+ eapply join_self; eauto.
+Qed.
+
 Lemma   unit_identity {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A} :
         forall {e} b, unit_for e b -> identity e.
 Proof.
