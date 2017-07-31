@@ -56,7 +56,7 @@ jobs:
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
     - cd build; make -j ${NJOBS} IGNORECOQVERSION=true progs
     - echo -en 'travis_fold:end:progs.build\\r'
-  - script: make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
+  - script:
     - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do cp -rf $i build; done
