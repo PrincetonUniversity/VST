@@ -17,6 +17,8 @@ env:
   - NJOBS=4
   # system is == 4.02.3
   - COMPILER="system"
+# include $HOME/.local/bin for `aws`
+  - PATH=$HOME/.local/bin:$PATH
 branches:
   only:
   - master
@@ -27,6 +29,12 @@ notifications:
     - wmansky@cs.princeton.edu
 git:
   depth: 3
+
+before_install:
+  # set up awscli packages
+  - pip install --user awscli
+  - mkdir -p ~/shared
+  - aws s3 sync s3://travis-build-stages-shared-storage-test/shared ~/shared
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
@@ -42,7 +50,30 @@ jobs:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
     - make -j ${NJOBS} IGNORECOQVERSION=true
     - echo -en 'travis_fold:end:VST.build\\r'
+    - cp -r compcert ~/shared/compcert
+    - cp -r sepcomp ~/shared/sepcomp
+    - cp -r msl ~/shared/msl
+    - cp -r veric ~/shared/veric
+    - cp -r floyd ~/shared/floyd
   - stage: test
-    script: make -j ${NJOBS} IGNORECOQVERSION=true progs
-  - script: make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
-  - script: travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+    script:
+    - cp -r ~/shared/compcert compcert
+    - cp -r ~/shared/sepcomp sepcomp
+    - cp -r ~/shared/msl msl
+    - cp -r ~/shared/veric veric
+    - cp -r ~/shared/floyd floyd
+    - make -j ${NJOBS} IGNORECOQVERSION=true progs
+  - script:
+    - cp -r ~/shared/compcert compcert
+    - cp -r ~/shared/sepcomp sepcomp
+    - cp -r ~/shared/msl msl
+    - cp -r ~/shared/veric veric
+    - cp -r ~/shared/floyd floyd
+    - make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
+  - script:
+    - cp -r ~/shared/compcert compcert
+    - cp -r ~/shared/sepcomp sepcomp
+    - cp -r ~/shared/msl msl
+    - cp -r ~/shared/veric veric
+    - cp -r ~/shared/floyd floyd
+    - travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
