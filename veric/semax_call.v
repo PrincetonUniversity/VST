@@ -1246,7 +1246,7 @@ Proof.
     exists m4.
     rewrite HGG.
     rewrite H8. auto.
-Admitted.
+Qed.
 
 Lemma necR_m_dry':
   forall jm jm', m_dry jm = m_dry jm' ->

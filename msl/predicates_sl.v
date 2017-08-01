@@ -767,30 +767,23 @@ Qed.
 Definition wk_split {A} {JA: Join A} :=
       forall a b c d e : A, join a b c -> join d e c -> joins a d -> join_sub d b.
 
-Lemma crosssplit_wkSplit {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma crosssplit_wkSplit {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
     wk_split.
 Proof.
-unfold wk_split.
-pose proof I; pose proof I. intros.
-destruct (CrA _ _ _ _ _ H1 H2) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]]. clear H0.
-destruct H3 as [x H_x].
-assert (exists X, join ad X be).
-Focus 2. destruct H0 as [X HX]. exists X.
+unfold wk_split; intros.
+destruct (CrA _ _ _ _ _ H H0) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]].
+destruct H1 as [x H_x].
+assert (exists X, join ad X be) as [X HX].
+Focus 2. exists X.
                destruct (join_assoc (join_comm HX) (join_comm myH2)) as [y [myH5 myH6]].
                assert (y=d) by apply (join_eq myH5 myH3).  subst y.
                apply (join_comm myH6).
-assert (exists X, join a X e).
-Focus 2. destruct H0 as [X HX]. exists X.
-               destruct (join_assoc (join_comm myH1) HX) as [y [myH5 myH6]].
-               assert (y=be) by apply (join_canc (join_comm myH6) (join_comm  myH4)).  subst y. assumption.
-exists be.
 destruct (join_assoc (join_comm myH1) H_x) as [y [myH5 myH6]].
-destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [z [myH7 myH8]].
-assert (ad=z) by apply (join_self' myH7). subst ad.
-assert (d=bd) by apply(join_canc (join_comm myH5) myH8).  subst d.
-assert (bd=y) by apply(join_eq myH3 myH5).  subst bd.
-assert (ae=a) by apply(join_canc  myH6 H_x).  subst ae.
-assumption.
+destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [? [Had ?]].
+apply join_self in Had.
+pose proof (Had _ _ myH1); subst.
+destruct (join_assoc (join_comm myH1) myH4) as [? [Hbe ?]].
+specialize (Had _ _ Hbe); subst; eauto.
 Qed.
 
 Lemma wk_pry_apart {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
