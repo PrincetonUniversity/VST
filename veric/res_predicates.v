@@ -24,7 +24,7 @@ replace (res_option oo resource_at ephi) with
 apply CompCert_AV.valid_empty.
 extensionality l.
 unfold compose; simpl.
-destruct (resource_at_empty H l) as [?|[? [? ?]]]; rewrite H0; simpl; auto.
+destruct (resource_at_empty H l) as [?|[[? [? ?]] | [? []]]]; rewrite H0; simpl; auto.
 Qed.
 
 Program Definition kind_at (k: kind) (l: address) : pred rmap :=
@@ -267,21 +267,21 @@ Definition resource_share (r: resource) : option share :=
  match r with
  | YES sh _ _ _ => Some sh
  | NO sh _ => Some sh
- | PURE _ _ => None
+ | PURE _ _ | GHOST _ => None
  end.
 
 Definition nonlock (r: resource) : Prop :=
  match r with
  | YES _ _ k _ => isVAL k \/ isFUN k
  | NO _ _ => True
- | PURE _ _ => False
+ | PURE _ _ | GHOST _ => False
  end.
 
 Lemma age1_nonlock: forall phi phi' l,
   age1 phi = Some phi' -> (nonlock (phi @ l) <-> nonlock (phi' @ l)).
 Proof.
   intros.
-  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
+  destruct (phi @ l) as [rsh | rsh sh k P | |] eqn:?H.
   + pose proof (age1_NO phi phi' l rsh n H).
     rewrite H1 in H0.
     rewrite H0.
@@ -296,6 +296,11 @@ Proof.
     destruct H1 as [? _].
     spec H1; [eauto |].
     destruct H1 as [P' ?].
+    rewrite H1.
+    reflexivity.
+  + pose proof (age1_GHOST phi phi' l m H).
+    destruct H1 as [? _].
+    spec H1; [eauto |].
     rewrite H1.
     reflexivity.
 Qed.
@@ -304,7 +309,7 @@ Lemma age1_resource_share: forall phi phi' l,
   age1 phi = Some phi' -> (resource_share (phi @ l) = resource_share (phi' @ l)).
 Proof.
   intros.
-  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
+  destruct (phi @ l) as [rsh | rsh sh k P | |] eqn:?H.
   + pose proof (age1_NO phi phi' l rsh n H).
     rewrite H1 in H0.
     rewrite H0.
@@ -319,6 +324,11 @@ Proof.
     destruct H1 as [? _].
     spec H1; [eauto |].
     destruct H1 as [P' ?].
+    rewrite H1.
+    reflexivity.
+  + pose proof (age1_GHOST phi phi' l m H).
+    destruct H1 as [? _].
+    spec H1; [eauto |].
     rewrite H1.
     reflexivity.
 Qed.
@@ -384,6 +394,8 @@ Program Definition nonlockat (l: AV.address): pred rmap :=
       rewrite H1; assumption.
     + eapply necR_PURE in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
+    + eapply necR_GHOST in H1; [ | constructor; eassumption].
+      rewrite H1; assumption.
  Qed.
 
 Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
@@ -396,6 +408,7 @@ Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
       rewrite H1; assumption.
     + eapply necR_YES in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
+    + inv H0.
     + inv H0.
  Qed.
 
@@ -411,7 +424,7 @@ Proof.
   apply pred_ext; unfold derives; intros; simpl in *.
   + apply all_resource_at_identity.
     exact H.
-  + intros. apply compcert_rmaps.RML.resource_at_identity.
+  + intros. apply resource_at_identity.
     exact H.
 Qed.
 
@@ -468,7 +481,7 @@ Implicit Arguments jam_vacuous.
 *)
 Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
   (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
-  {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
+  {w' | level w' = level w /\ resource_at w' =
        (fun l => if P_DEC l then w @ l else core (w @ l))}.
 Proof.
   intros.
@@ -479,10 +492,10 @@ Proof.
     specialize (H l sh k).
     if_tac in H0.
     - auto.
-    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE in H0; inv H0.
+    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE, ?core_GHOST in H0; inv H0.
   + intros.
     if_tac; [left; eauto |].
-    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
+    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE, ?core_GHOST; simpl; auto.
     left.
     exists w; split; auto.
 Qed.
@@ -634,14 +647,14 @@ assert (level phi1 = level phi3) by  (apply join_level in H1; intuition).
 rewrite H2 in *; clear H2.
 generalize (resource_at_join _ _ _ l H1); clear H1.
 revert H H0.
-case_eq (phi1 @ l); intros.
+case_eq (phi1 @ l); intros; try discriminate.
 inv H0.
-revert H1 H2; case_eq (phi2 @ l); intros.
+revert H1 H2; case_eq (phi2 @ l); intros; try discriminate.
+inv H1.
 inv H2.
-inv H3. inv H0. inv H2.
-pose proof (join_eq HR RJ). subst sh6. clear RJ.
+inv H0.
+pose proof (join_eq HR RJ). subst sh5. clear RJ.
 repeat proof_irr. auto.
-inv H3. inv H0.
 Qed.
 
 Lemma nonunit_join: forall A {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A} (x y z: A),
@@ -985,8 +998,7 @@ destruct H0.
 unfold yesat_raw in H0.
 rewrite H0.  simpl; auto.
 do 3 red in H0. apply identity_resource in H0.
-revert H0; case_eq (w @ (b,ofs)); intros; try contradiction; auto.
-simpl. auto.
+revert H0; case_eq (w @ (b,ofs)); intros; try contradiction; simpl; auto.
 if_tac. simpl; auto.
 destruct H0 as [d [? ?]]. specialize (H2 (b,ofs)). rewrite jam_false in H2; auto.
 do 3 red in H2. apply identity_resource in H2; destruct (w @ (b,ofs)); try contradiction; simpl; auto.
@@ -1002,8 +1014,7 @@ destruct H0.
 unfold yesat_raw in H0.
 rewrite H0; simpl; auto.
 do 3 red in H0. apply identity_resource in H0.
-revert H0; case_eq (w @ (b,ofs)); intros; try contradiction; auto.
-simpl; auto.
+revert H0; case_eq (w @ (b,ofs)); intros; try contradiction; simpl; auto.
 *
 unfold f,g; clear f g.
 destruct H0 as [b [? ?]]. specialize (H1 l0).  hnf in H1.
@@ -1896,3 +1907,11 @@ Qed.
 
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
+
+Program Definition address_ghost (m : GP.M) : spec :=
+  fun sh l => exist _ (fun phi => phi @ l = GHOST m) _.
+Next Obligation.
+  simpl; repeat intro.
+  eapply necR_GHOST in H0; eauto.
+  constructor; auto.
+Qed.

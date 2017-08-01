@@ -251,6 +251,7 @@ Proof.
   rewrite core_NO; apply prop_ext; split; intro Hx; inv Hx.
   rewrite core_YES; apply prop_ext; split; intro Hx; inv Hx.
   rewrite core_PURE; rewrite level_core; auto.
+  rewrite core_GHOST; apply prop_ext; split; intro Hx; inv Hx.
 Qed.
 
 Lemma corable_func_at: forall f l, corable (func_at f l).

@@ -87,7 +87,7 @@ rewrite glob_specs_update_tycon; auto.
 subst rho'.
 hnf in Hsafe.
 change R.rmap with rmap in *.
-replace (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm) - 1)%nat with (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm'))%nat by omega.
+replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_phi jm'))%nat by omega.
 apply Hsafe; auto.
 Qed.
 
@@ -1332,7 +1332,7 @@ Qed.
 
 Lemma res_option_core: forall r, res_option (core r) = None.
 Proof.
- destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto.
+ destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto. rewrite core_GHOST; auto.
 Qed.
 
 Lemma writable_lub_retainer_Rsh: 
@@ -1381,7 +1381,7 @@ symmetry. if_tac.
 unfold resource_fmap. rewrite preds_fmap_NoneP.
 reflexivity.
 generalize (resource_at_approx (m_phi jm) loc);
-destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
+destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; try reflexivity.
 auto.
 
 unfold f in H5; clear f.
@@ -1423,6 +1423,8 @@ rewrite H8.
 constructor.
 apply join_unit1; auto.
 rewrite core_PURE; constructor.
+rewrite core_GHOST; constructor.
+apply core_unit.
 
 unfold address_mapsto in *.
 exists (encode_val ch v').

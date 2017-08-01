@@ -302,7 +302,7 @@ Proof.
           else core (w @ loc)))).
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; auto.
       } Unfocus.
       destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
@@ -315,7 +315,7 @@ Proof.
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
         case_eq (w @ (b',z')); intros;
-         [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+         [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; auto.
       } Unfocus.
       destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
@@ -1138,7 +1138,7 @@ Proof.
      exact (conj H0 H1).
  } Unfocus.
   f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1175,7 +1175,7 @@ Proof.
      exact H1.
  } Unfocus.
  f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.

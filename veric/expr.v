@@ -1268,6 +1268,9 @@ Next Obligation.
 split; intros; congruence.
 Qed.
 Next Obligation.
+split; intros; congruence.
+Qed.
+Next Obligation.
 hnf; simpl; intros.
 destruct (a@(b,Int.unsigned ofs + d)) eqn:?; try contradiction.
 rewrite (necR_NO a a') in Heqr.

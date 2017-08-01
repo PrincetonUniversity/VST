@@ -75,6 +75,7 @@ Definition split_resource r :=
                (YES (fst (Share.split sh)) (split_YES_ok1 _ rsh) k pp , 
                 YES (snd (Share.split sh)) (split_YES_ok2 _ rsh) k pp)
              | PURE k pp => (PURE k pp, PURE k pp)
+             | GHOST m => (GHOST (core m), GHOST m)
              | NO sh nsh => (NO (fst (Share.split sh)) (split_NO_ok1 _ nsh),
                              NO (snd (Share.split sh)) (split_NO_ok2 _ nsh))
   end.
@@ -176,6 +177,7 @@ Lemma split_resource_join: forall r, join (fst (split_resource r)) (snd (split_r
 Proof.
 intro.
 destruct r; simpl; constructor; auto; try (apply split_join; apply surjective_pairing).
+apply core_unit.
 Qed.
 
 Lemma split_rmap_join:
@@ -223,6 +225,7 @@ Definition slice_resource (sh: share) (r: resource) : resource :=
     | right n => NO sh n
     end
    | PURE k pp => PURE k pp
+   | GHOST m => GHOST m
   end.
 
 Lemma slice_resource_valid:
@@ -234,7 +237,6 @@ intros ? ? ? ? H_id.
 unfold slice_resource.
 pose proof rmap_valid phi as H_valid.
 unfold compose in H_valid.
-change compcert_rmaps.R.res_option with res_option in H_valid.
 intro; intros.
 destruct (P_DEC (b, ofs)).
 + specialize (H_valid b ofs); cbv beta in H_valid.
@@ -266,7 +268,7 @@ Qed.
 
 Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
   (forall l : AV.address, ~ P l -> identity (w @ l)) ->
-  {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
+  {w' | level w' = level w /\ resource_at w' =
        (fun l => if P_DEC l then slice_resource sh (w @ l) else w @ l)}.
 Proof.
   intros.
@@ -325,6 +327,7 @@ rewrite H7.
 f_equal. apply proof_irr.
 apply join_level in H1; intuition.
 congruence.
+congruence.
 (* noat case *)
 generalize (resource_at_join _ _ _ l' H1); intro.
 apply split_identity in H3; auto.
@@ -338,7 +341,7 @@ Proof.
  assert (sh = retainer_part Share.bot).
    unfold retainer_part. rewrite Share.glb_bot.
    apply identity_NO in H.
-   destruct H. inv H. auto. destruct H as [? [? ?]]. inv H.
+   destruct H as [|[|]]. inv H. auto. destruct H as [? [? ?]]. inv H. destruct H as [? []]. inv H.
    subst; f_equal. apply proof_irr.
    apply YES_not_identity in H. contradiction.
 Qed.
@@ -589,6 +592,7 @@ Definition share_oblivious (P: pred rmap) :=
                  | NO _ _, NO _ _ => True
                  | YES _ sh1 k1 p1 , YES _ sh2 k2 p2 => k1=k2 /\ p1=p2
                  | PURE k1 p1, PURE k2 p2 => k1=k2 /\ p1=p2
+                 | GHOST _, GHOST _ => True
                  | _ , _ => False
                  end) ->
      P w' -> P w.
@@ -628,6 +632,7 @@ inversion2 H9 H13.
 do 3 red in H4. rewrite H11 in H4.
 contradiction (YES_not_identity _ _ _ _ H4).
 rewrite H11 in H10; inv H10.
+rewrite H11 in H10; inv H10.
 destruct (w1 @ l0); inv H10; auto.
 inv H10; auto.
 destruct H3 as [[w1 [w2 [? [? ?]]]] ?].
@@ -652,6 +657,7 @@ destruct H5 as [? [? [? ?]]].
 congruence.
 do 3 red in H5. rewrite H10 in H5. 
 contradiction (YES_not_identity _ _ _ _ H5).
+rewrite H10 in H9; inv H9.
 rewrite H10 in H9; inv H9.
 inv H9; auto.
 inv H9; auto.
@@ -753,6 +759,8 @@ Proof.
   contradiction (join_unreadable_shares H n n0).
 *
   constructor.
+*
+  discriminate.
 Qed.
 
 Definition resource_share_split (p q r: address -> pred rmap): Prop :=
@@ -986,7 +994,6 @@ apply pred_ext.
   split3.
  +
    eapply resource_at_join2; try omega.
-   change compcert_rmaps.R.resource_at with resource_at in *.
   intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
   specialize (H0 loc). hnf in H0.  
   if_tac in H0. destruct H0 as [rsh' H0]. proof_irr. rewrite H0.
@@ -1131,6 +1138,7 @@ Proof.
       eapply join_eq; eauto.
     - inv H1. inv H0. apply YES_ext. eapply join_eq; eauto.
     - inv H1.
+    - inv H1.
 Qed.
 
 Lemma is_resource_pred_YES_LK lock_size l (R: pred rmap) sh:
@@ -1181,5 +1189,3 @@ Proof.
     - exists (join_readable1 H rsh1). subst. inv H0. apply YES_ext.
       eapply join_eq; eauto.
 Qed.
-
-

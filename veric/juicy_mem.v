@@ -34,14 +34,14 @@ Definition res_retain' (r: resource) : Share.t :=
  match r with
   | NO sh _ => sh
   | YES sh _ _ _ => Share.glb Share.Lsh sh
-  | PURE _ _ => Share.top
+  | PURE _ _ | GHOST _ => Share.top
  end.
 
 Definition perm_of_res (r: resource) :=
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
  | NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
- | PURE _ _ => Some Nonempty
+ | PURE _ _ | GHOST _ => Some Nonempty
  | YES sh rsh (VAL _) _ => perm_of_sh sh
  | YES sh rsh _ _ => Some Nonempty
  end.
@@ -65,7 +65,7 @@ Definition perm_of_res_lock_explicit
       else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
              if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => None
-    | compcert_rmaps.RML.R.PURE _ _ => None
+    | compcert_rmaps.RML.R.PURE _ _ | GHOST _ => None
     end.
       
   Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.
@@ -76,7 +76,7 @@ Definition perm_of_res' (r: resource) :=
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
  | NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
- | PURE _ _ => Some Nonempty
+ | PURE _ _ | GHOST _ => Some Nonempty
  | YES sh _ _ _ => perm_of_sh sh
  end.
 
@@ -104,7 +104,7 @@ Definition perm_of_res_explicit
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _) _ => Some Nonempty
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.CT _) _ => Some Nonempty
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => Some Nonempty
-           | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
+           | compcert_rmaps.RML.R.PURE _ _ | GHOST _ => Some Nonempty
         end.
       
 Functional Scheme perm_of_res_expl_ind := Induction for perm_of_res_explicit Sort Prop.
@@ -181,13 +181,14 @@ Proof.
     if_tac. destruct k; constructor.
     rewrite if_false by auto. destruct k; constructor.
   - constructor.
+  - constructor.
 Qed.
 
 Lemma perm_of_res_op2:
   forall r,
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
-  destruct r; simpl.
+  destruct r; simpl; auto.
   - if_tac; constructor.
   - destruct k; try solve [destruct (perm_of_sh sh); constructor].
    +
@@ -216,10 +217,8 @@ Proof.
     unfold readable_share. rewrite glb_twice; auto.
     contradict H. unfold writable_share in *. eapply join_sub_trans; eauto.
     apply leq_join_sub. apply Share.glb_lower2.
- -
-  auto.
 Qed.
-    
+
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).
 
@@ -304,7 +303,7 @@ Qed.
 Lemma nreadable_inv: forall phi loc, ~readable loc phi 
   -> (exists sh, exists nsh, phi @ loc = NO sh nsh)
    \/ (exists sh, exists rsh, exists k, exists pp, phi @ loc = YES sh rsh k pp /\ ~isVAL k)
-   \/ (exists k, exists pp, phi @ loc = PURE k pp).
+   \/ (exists k, exists pp, phi @ loc = PURE k pp) \/ (exists m, phi @ loc = GHOST m).
 Proof.
 intros.
 simpl in H.
@@ -388,6 +387,7 @@ Next Obligation.  (* contents_cohere *)
  rewrite H0 in H2. inv H2.
  destruct (JMcontents sh0 r v loc _ H1). subst; split; auto.
  rewrite (necR_PURE _ _ _ _ _ H H1) in H0. inv H0.
+ erewrite necR_GHOST in H0 by eauto; inv H0.
 Qed.
 Next Obligation. (* access_cohere *)
  assert (necR (m_phi j) phi')
@@ -397,6 +397,7 @@ Next Obligation. (* access_cohere *)
  apply (necR_NO _ _ loc _ _ H) in H0. rewrite H0; auto.
  rewrite (necR_YES _ _ _ _ _ _ _ H H0); auto.
  rewrite (necR_PURE _ _ _ _ _ H H0); auto.
+ erewrite necR_GHOST; eauto.
 Qed.
 Next Obligation. (* max_access_cohere *)
  assert (necR (m_phi j) phi')
@@ -406,6 +407,7 @@ Next Obligation. (* max_access_cohere *)
  apply (necR_NO _ _ loc _ _ H) in H0. rewrite H0; auto.
  rewrite (necR_YES _ _ _ _ _ _ _ H H0); auto.
  rewrite (necR_PURE _ _ _ _ _ H H0); auto.
+ erewrite necR_GHOST; eauto.
 Qed.
 Next Obligation. (* alloc_cohere *)
  assert (necR (m_phi j) phi')
@@ -518,6 +520,7 @@ assert (access_cohere m phi).
   apply (necR_NO _ _ loc _ _ NEC) in H1. rewrite H1 in H0; auto.
   apply (necR_YES _ _ _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
   apply (necR_PURE _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
+  apply (necR_GHOST _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
 assert (max_access_cohere m phi).
   hnf; intros.
   generalize (JMmax_access loc); intros.
@@ -525,6 +528,7 @@ assert (max_access_cohere m phi).
   apply (necR_NO _ _ _ _ _ NEC) in H2; rewrite H2 in H1; auto.
   rewrite (necR_YES _ _ _ _ _ _ _ NEC H2) in H1; auto.
   rewrite (necR_PURE _ _ _ _ _ NEC H2) in H1; auto.
+  rewrite (necR_GHOST _ _ _ _ NEC H2) in H1; auto.
 assert (alloc_cohere m phi).
   hnf; intros.
   generalize (JMalloc loc H2); intros.
@@ -532,6 +536,7 @@ assert (alloc_cohere m phi).
   apply (necR_NO _ _ _ _ _ NEC) in H4; rewrite H4 in H3; auto.
   rewrite (necR_YES _ _ _ _ _ _ _ NEC H4) in H3; inv H3.
   rewrite (necR_PURE _ _ _ _ _ NEC H4) in H3; inv H3.
+  rewrite (necR_GHOST _ _ _ _ NEC H4) in H3; inv H3.
 exists (mkJuicyMem m phi H H0 H1 H2).
 apply age1_juicy_mem_unpack''; simpl; auto.
 Qed.
@@ -664,7 +669,7 @@ Definition inflate_initial_mem' (w: rmap) (loc: address) :=
            | Some Writable => YES Ews (writable_readable writable_Ews) (VAL (contents_at m loc)) NoneP
            | Some Readable => YES Ers readable_Ers (VAL (contents_at m loc)) NoneP
            | Some Nonempty => 
-                         match w @ loc with PURE _ _ => w @ loc | _ => NO _ nonreadable_extern_retainer end
+                         match w @ loc with PURE _ _ | GHOST _ => w @ loc | _ => NO _ nonreadable_extern_retainer end
            | None =>  NO Share.bot bot_unreadable
          end.
 
@@ -755,6 +760,8 @@ destruct (phi @ (b, ofs - z)); simpl in *; auto; try discriminate.
 (* NO *)
 destruct (access_at m (b, ofs)); simpl; auto. destruct p0; simpl; auto.
 
+destruct (access_at m (b, ofs)); simpl; auto. destruct p; simpl; auto.
+
 (* YES *)
 intro.
 case_eq (phi @ l); simpl; intros; auto.
@@ -763,6 +770,8 @@ right; destruct p; simpl; auto.
 left; exists phi; split; auto.
 right; destruct  (access_at m l Cur); simpl; auto.
 destruct p0; simpl; auto.
+right; destruct  (access_at m l Cur); simpl; auto.
+destruct p; simpl; auto.
 Defined.
 
 Lemma approx_map_idem: forall n (lp: preds),
@@ -878,7 +887,7 @@ Variables (m: mem) (w: rmap).
 Definition initial_rmap_ok := 
    forall loc, ((fst loc >= nextblock m)%positive -> core w @ loc = NO Share.bot bot_unreadable) /\
                    (match w @ loc with 
-                    | PURE _ _ => (fst loc < nextblock m)%positive /\ 
+                    | PURE _ _ | GHOST _ => (fst loc < nextblock m)%positive /\ 
                                            access_at m loc Cur = Some Nonempty /\  
                                             max_access_at m loc = Some Nonempty 
                     | _ => True end).
@@ -1064,6 +1073,7 @@ revert H; case_eq (access_at m loc Cur); intros.
  destruct (lev @ loc).
  simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
  simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
+ reflexivity.
  reflexivity.
  rewrite if_true; auto.
 * (* max_access_cohere *)
@@ -1510,6 +1520,7 @@ destruct (phi @ (b0,ofs)).
 rewrite core_NO; simpl; auto.
 rewrite core_YES; simpl; auto.
 rewrite core_PURE; simpl; auto.
+rewrite core_GHOST; simpl; auto.
 Qed.
 
 Lemma mod_after_alloc'_ok : forall phi lo hi b,
@@ -1955,10 +1966,11 @@ Lemma perm_of_res_age x y loc :
   age x y -> perm_of_res (x @ loc) = perm_of_res (y @ loc).
 Proof.
   intros A.
-  destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
+  destruct (x @ loc) as [sh | rsh sh k p | k p | m] eqn:E.
   - destruct (age1_NO x y loc sh n A) as [[]_]; eauto.
   - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
   - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
+  - destruct (age1_GHOST x y loc m) as [[]_]; eauto.
 Qed.
 
 Lemma contents_cohere_age m : hereditary age (contents_cohere m).
@@ -1986,7 +1998,7 @@ Lemma max_access_cohere_age m : hereditary age (max_access_cohere m).
 Proof.
   intros x y E C.
   intros addr; specialize (C addr).
-  destruct (y @ addr) as [sh | sh p k pp | k p] eqn:AT.
+  destruct (y @ addr) as [sh | sh p k pp | k p | g] eqn:AT.
   - eapply (age1_NO x) in AT; auto.
     rewrite AT in C; auto.
   - destruct (age1_YES'_2 E AT) as [P Ex].
@@ -1994,6 +2006,8 @@ Proof.
     auto.
   - destruct (age1_PURE_2 E AT) as [P Ex].
     rewrite Ex in C; auto.
+  - eapply age1_GHOST in AT; eauto.
+    rewrite AT in C; auto.
 Qed.
 
 Lemma alloc_cohere_age m : hereditary age (alloc_cohere m).
@@ -2064,13 +2078,15 @@ Lemma max_access_cohere_unage m : hereditary unage (max_access_cohere m).
 Proof.
   intros x y E C.
   intros addr; specialize (C addr).
-  destruct (x @ addr) as [sh | sh p k pp | k p] eqn:AT.
+  destruct (x @ addr) as [sh | sh p k pp | k p | g] eqn:AT.
   - eapply (age1_NO y) in AT; auto.
     rewrite AT; auto.
   - destruct (@age1_YES'_2 y x addr sh p k pp E AT) as [P ->].
     auto.
   - destruct (age1_PURE_2 E AT) as [P Ex].
     rewrite Ex; auto.
+  - eapply age1_GHOST in AT; eauto.
+    rewrite AT; auto.
 Qed.
 
 Lemma alloc_cohere_unage m : hereditary unage (alloc_cohere m).

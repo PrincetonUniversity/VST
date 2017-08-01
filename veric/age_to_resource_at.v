@@ -78,8 +78,6 @@ Proof.
   destruct D as [D | D]; swap 1 2.
   - rewrite age_to_ge; auto.
     rewrite <-resource_at_approx.
-    change compcert_rmaps.R.resource_fmap with resource_fmap.
-    change compcert_rmaps.R.approx with approx.
     match goal with
       |- _ = ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) => transitivity (map (f1 oo g1) (g2 oo f2) r)
     end; swap 1 2.

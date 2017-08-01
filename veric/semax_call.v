@@ -123,8 +123,6 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-      change compcert_rmaps.R.rmap with rmap in *.
       omega.
     } Unfocus.
     split; intros m'' ? ?.
@@ -154,8 +152,6 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-      change compcert_rmaps.R.rmap with rmap in *.
       omega.
     } Unfocus.
     split; intros m'' ? ?.
@@ -316,6 +312,7 @@ destruct (w' @ (loc,0)).
  rewrite core_NO in H4; inv H4.
  rewrite core_YES in H4; inv H4.
  rewrite core_PURE in H4; inv H4. rewrite level_core; reflexivity.
+ rewrite core_GHOST in H4; inv H4.
 
 intros loc fs w2 Hw2 H6.
 specialize (H2 loc fs _ (necR_refl _)).
@@ -325,14 +322,14 @@ destruct fs; simpl in *.
 destruct H6 as [pp H6].
  rewrite <- resource_at_approx.
 case_eq (w @ (loc,0)); intros.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
+assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_NO; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2;
  rewrite core_PURE in H2; inv H2.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
+assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_YES; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
@@ -342,25 +339,34 @@ rewrite <- core_resource_at in H2; rewrite H6 in H2;
 pose proof (resource_at_approx w (loc,0)).
 pattern (w @ (loc,0)) at 1 in H0; rewrite H in H0.
 symmetry in H0.
-assert (core (w @ (loc,0)) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w)) (compcert_rmaps.R.approx (level w))
+assert (core (w @ (loc,0)) = core (resource_fmap (approx (level w)) (approx (level w))
        (PURE k p))) by (f_equal; auto).
 rewrite core_resource_at in H1.
 assert (core w @ (loc,0) =
-        compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w)))
+        resource_fmap (approx (level (core w))) (approx (level (core w)))
          (PURE k p)).
  rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
 pose proof (necR_resource_at _ _ _ _ CORE H2).
- assert (w' @ (loc,0) = compcert_rmaps.R.resource_fmap
-       (compcert_rmaps.R.approx (level w')) (compcert_rmaps.R.approx (level w')) (PURE k p)).
+ assert (w' @ (loc,0) = resource_fmap
+       (approx (level w')) (approx (level w')) (PURE k p)).
  rewrite <- core_resource_at in H3. rewrite level_core in H3.
  destruct (w' @ (loc,0)).
   rewrite core_NO in H3; inv H3.
   rewrite core_YES in H3; inv H3.
   rewrite core_PURE in H3; inv H3.
  reflexivity.
+  rewrite core_GHOST in H3; inv H3.
  pose proof (necR_resource_at _ _ _ _ Hw2 H4).
  inversion2 H6 H5.
  exists p. reflexivity.
+assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (GHOST (core m))).
+ rewrite <- core_resource_at.
+simpl; erewrite <- core_GHOST; f_equal; eassumption.
+pose proof (necR_resource_at _ _ _ _ CORE H0).
+pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
+rewrite <- core_resource_at in H2; rewrite H6 in H2;
+ rewrite core_PURE in H2; inv H2.
+ 
 destruct H2 as [id [? ?]].
 exists id. split; auto.
 Qed.
@@ -867,16 +873,12 @@ Proof.
  generalize H2; intro H2'.
  destruct H2 as [phi1 [phi2 [? [? ?]]]].
  apply IHfree_list_juicy_mem.
-(* replace (m_phi jm2) with phi2; auto.
- pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ H H2').
- specialize (H5 H3).
+ pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ H H2' H3).
  spec H5. eexists; eauto.
  match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
- pose proof (join_canc (join_comm H5) (join_comm H2)).
- subst phi2. clear H5.
- rewrite <- H0. subst jm3.
- f_equal.
- apply free_juicy_mem_ext;  auto.
+ replace jm2 with jm3 by (subst jm3; rewrite <- H0; apply free_juicy_mem_ext; auto).
+(* replace (m_phi jm3) with phi2; auto.
+ apply (join_canc (join_comm H5) (join_comm H2)).
 Qed.*)
 Admitted.
 
@@ -1333,6 +1335,9 @@ Proof.
  destruct (m_phi jm @ l) eqn:?; auto.
  if_tac; rewrite !core_NO; auto.
  if_tac. rewrite core_YES, core_NO; auto. rewrite !core_YES; auto.
+ if_tac; auto.
+ destruct l; destruct H1; subst. specialize (H0 z).
+ spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
  if_tac; auto.
  destruct l; destruct H1; subst. specialize (H0 z).
  spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
@@ -1806,6 +1811,7 @@ f_equal.
 pose proof (resource_at_approx (m_phi jm') (b,0)).
 rewrite H7 in H; simpl in H.
 injection H; intro. symmetry in H8. apply H8.
+eapply necR_GHOST in Heqr; try apply H5. inversion2 H6 Heqr.
 }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.
@@ -1895,6 +1901,8 @@ Proof.
     - rewrite level_make_rmap.
       symmetry.
       eapply necR_PURE. constructor 1. eapply age_jm_phi. eassumption.  auto.
+    - symmetry.
+      eapply necR_GHOST. constructor 1. eapply age_jm_phi. eassumption.  auto.
   + rewrite <- (age_jm_dry H); assumption.
 Qed.
 
@@ -2043,7 +2051,7 @@ destruct (allocate (m_phi jm)
 *
  hnf; intros. unfold compose.
  if_tac. apply I. destruct (m_phi jm @ (b,ofs)); simpl. rewrite core_NO; apply I.
- rewrite core_YES; apply I. rewrite core_PURE; apply I.
+ rewrite core_YES; apply I. rewrite core_PURE; apply I. rewrite core_GHOST; apply I.
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
   repeat rewrite core_resource_at.
