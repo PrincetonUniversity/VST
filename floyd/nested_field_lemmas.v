@@ -591,19 +591,21 @@ Definition field_address0 t gfs p :=
   else Vundef.
 
 Lemma field_address_isptr:
-  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
+  forall t path c, field_compatible t path c -> isptr (field_address t path c).
 Proof.
   intros.
   unfold field_address. rewrite if_true by auto.
+  destruct H as [? _].
   normalize.
 Qed.
 
 Lemma field_address0_isptr:
-  forall t path c, isptr c -> field_compatible0 t path c -> isptr (field_address0 t path c).
+  forall t path c, field_compatible0 t path c -> isptr (field_address0 t path c).
 Proof.
- intros.
- unfold field_address0. rewrite if_true by auto.
- normalize.
+  intros.
+  unfold field_address0. rewrite if_true by auto.
+  destruct H as [? _].
+  normalize.
 Qed.
 
 Lemma field_address_clarify:
@@ -611,7 +613,7 @@ Lemma field_address_clarify:
    is_pointer_or_null (field_address t path c) ->
    field_address t path c = offset_val (nested_field_offset t path) c.
 Proof.
- intros. unfold field_address in *.
+  intros. unfold field_address in *.
   if_tac; try contradiction.
   auto.
 Qed.
@@ -1479,22 +1481,70 @@ Proof.
     rewrite E; destruct H; auto.
 Qed.
 
+Lemma field_compatible_app_inv: forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) ->
+  field_compatible t_root (gfsB ++ gfsA) a.
+Proof.
+  intro gfsB. induction gfsB; intros.
+  - auto.
+  - rewrite <- app_comm_cons.
+    apply field_compatible_cons in H0.
+    apply field_compatible_cons.
+    rewrite nested_field_type_nested_field_type in H0.
+    destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
+    try solve [exfalso; assumption];
+    destruct a; try solve [exfalso; assumption].
+    + destruct H0.
+      split; auto.
+    + destruct H0.
+      split; auto.
+    + destruct H0.
+      split; auto.
+Qed.
+
 Lemma field_address_app: forall t_root gfsA gfsB a,
-  field_compatible t_root (gfsB ++ gfsA) a ->
   field_address t_root (gfsB ++ gfsA) a =
   field_address (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
 Proof.
   intros.
-  rewrite field_compatible_field_address.
-  rewrite field_compatible_field_address.
-  rewrite nested_field_offset_app.
-  rewrite field_compatible_field_address.
-  rewrite offset_offset_val.
-  reflexivity.
-  { eapply field_compatible_shrink. eassumption. }
-  { eapply field_compatible_legal_nested_field. eassumption. }
-  { eapply field_compatible_app. assumption. }
-  { assumption. }
+  assert (
+    ~ field_compatible t_root gfsA a /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
+    ~ field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
+    field_compatible t_root (gfsB ++ gfsA) a).
+  Focus 1. {
+    pose proof field_compatible_app_inv gfsB t_root gfsA a.
+    tauto.
+  } Unfocus.
+  destruct H as [[? ?] | [[? ?] | ?]].
+  + unfold field_address.
+    rewrite if_false by auto.
+    destruct (field_compatible_dec t_root gfsA a); [tauto |].
+    if_tac; reflexivity.
+  + unfold field_address.
+    rewrite if_false by auto.
+    rewrite if_false by auto.
+    reflexivity.
+  + rewrite field_compatible_field_address.
+    rewrite field_compatible_field_address.
+    rewrite nested_field_offset_app.
+    rewrite field_compatible_field_address.
+    rewrite offset_offset_val.
+    reflexivity.
+    { eapply field_compatible_shrink. eassumption. }
+    { eapply field_compatible_legal_nested_field. eassumption. }
+    { eapply field_compatible_app. assumption. }
+    { assumption. }
+Qed.
+
+Lemma field_address_app_rewrite: forall t_root t' gfsA gfsB a,
+  nested_field_type t_root gfsA = t' ->
+  field_address t_root (gfsB ++ gfsA) a =
+  field_address t' gfsB (field_address t_root gfsA a).
+Proof.
+  intros.
+  subst.
+  apply field_address_app.
 Qed.
 
 End COMPOSITE_ENV.

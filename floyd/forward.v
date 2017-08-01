@@ -1941,45 +1941,45 @@ Ltac construct_nested_efield e e1 efs tts :=
   let pp := fresh "pp" in
     pose (compute_nested_efield e) as pp;
     simpl in pp;
-    pose (fst (fst pp)) as e1;
-    pose (snd (fst pp)) as efs;
-    pose (snd pp) as tts;
+    pose (fst (fst (fst pp))) as e1;
+    pose (snd (fst (fst pp))) as efs;
+    pose (snd (fst pp)) as tts;
     simpl in e1, efs, tts;
     change e with (nested_efield e1 efs tts);
     clear pp.
 
 Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
-  P |-- efield_denote efs gfs ->
+  P |-- local (efield_denote efs gfs) ->
   P |-- local (`(eq (Vint (Int.repr i))) (eval_expr ei)) ->
-  match typeof ei with
-  | Tint _ _ _ => True
-  | _ => False
-  end ->
-  P |-- efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs).
+  is_int_type (typeof ei) = true ->
+  P |-- local (efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs)).
 Proof.
   intros.
-  simpl efield_denote.
-  intro rho. simpl.
-  repeat apply andp_right; auto.
-  apply prop_right, H1.
+  rewrite (add_andp _ _ H), (add_andp _ _ H0), andp_assoc.
+  apply andp_left2.
+  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  constructor; auto.
+  constructor; auto.
 Qed.
 
 Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,
-  P |-- efield_denote efs gfs ->
-  P |-- efield_denote (eStructField i :: efs) (StructField i :: gfs).
+  P |-- local (efield_denote efs gfs) ->
+  P |-- local (efield_denote (eStructField i :: efs) (StructField i :: gfs)).
 Proof.
   intros.
   eapply derives_trans; [exact H |].
-  simpl; intros; normalize.
+  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  constructor; auto.
 Qed.
 
 Lemma efield_denote_cons_union: forall {cs: compspecs} P efs gfs i,
-  P |-- efield_denote efs gfs ->
-  P |-- efield_denote (eUnionField i :: efs) (UnionField i :: gfs).
+  P |-- local (efield_denote efs gfs) ->
+  P |-- local (efield_denote (eUnionField i :: efs) (UnionField i :: gfs)).
 Proof.
   intros.
   eapply derives_trans; [exact H |].
-  simpl; intros; normalize.
+  intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
+  constructor; auto.
 Qed.
 
 Ltac unify_var_or_evar name val :=
@@ -2071,13 +2071,13 @@ Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfs) as H;
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (efield_denote efs gfs)) as H;
   [
     unfold efs, gfs;
     match goal with
     | efs := nil |- _ =>
       instantiate (1 := nil);
-      apply prop_right, I
+      intros rho; apply prop_right; constructor
     | efs := ?ef :: ?efs' |- _ =>
       let efs0 := fresh "efs" in
       let gfs0 := fresh "gfs" in
@@ -2119,7 +2119,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           end;
 
           let HB := fresh "H" in
-          assert (match typeof ei with | Tint _ _ _ => True | _ => False end) as HB by (simpl; auto);
+          assert (is_int_type (typeof ei) = true) as HB by reflexivity;
 
           apply (efield_denote_cons_array _ _ _ _ _ H0 HA HB)
 
