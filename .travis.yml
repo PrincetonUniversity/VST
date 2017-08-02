@@ -25,7 +25,7 @@ env:
 branches:
   only:
   - master
-  - improve-dep
+  - more-integrated-loadstore
 notifications:
   email:
     recipients:

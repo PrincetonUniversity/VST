@@ -783,7 +783,7 @@ Lemma semax_PTree_field_load:
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs) ->
+        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e_root lr) &&
         local `(tc_val (typeof e) v) &&
@@ -818,6 +818,22 @@ Proof.
     rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
   } Unfocus.
   destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
+  assert_PROP (field_compatible t_root gfs0 p).
+  Focus 1. {
+    rewrite <- (corable_sepcon_TT (prop _)) by auto.
+    eapply nth_error_SEP_sepcon_TT'; [| eassumption].
+    apply andp_left2.
+    apply andp_left2.
+    apply andp_left2.
+    rewrite field_at_compatible'.
+    go_lowerx.
+    normalize.
+  } Unfocus.
+  rename H2 into FIELD_COMPATIBLE.
+  assert_PROP (legal_nested_field (nested_field_type t_root gfs0) gfs1); auto.
+  clear LEGAL_NESTED_FIELD; rename H2 into LEGAL_NESTED_FIELD.
+  eapply field_compatible_app_inv' in FIELD_COMPATIBLE; [| exact LEGAL_NESTED_FIELD].
+  rewrite <- GFS in FIELD_COMPATIBLE.
   rewrite <- NESTED_EFIELD.
   apply field_address_gen_fact in FIELD_ADD_GEN.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMP]].
@@ -832,6 +848,7 @@ Proof.
   2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [| eapply eval_lvalue_nested_efield]; eauto.
+    2: rewrite TYPEOF; auto.
 Abort.
 (*
 *)
