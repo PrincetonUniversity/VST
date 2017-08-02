@@ -808,8 +808,8 @@ Proof.
   apply field_address_gen_fact in FIELD_ADD_GEN.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMP]].
   eapply semax_SC_field_load_to_use.
-Abort.
-(*
+  SearchAbout nested_efield typeof nested_field_type.
+  Check typeof_nested_efield.
   1: rewrite NESTED_EFIELD; eassumption.
   1: eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
@@ -820,6 +820,8 @@ Abort.
   2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [| eapply eval_lvalue_nested_efield].
+Abort.
+(*
 *)
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
