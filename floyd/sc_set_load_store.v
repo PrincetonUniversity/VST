@@ -802,24 +802,36 @@ Proof.
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
          FIELD_ADD_GEN GFS NTH SH JMEQ LEGAL_NESTED_FIELD TC.
-  pose proof compute_nested_efield_lemma e as NESTED_EFIELD.
-  rewrite COMPUTE_NESTED_EFIELD in NESTED_EFIELD.
+  pose proof is_neutral_cast_by_value _ _ H0 as BY_VALUE.
+  assert_PROP (nested_efield e_root efs tts = e /\
+               LR_of_type t_root_from_e = lr /\
+               legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
+               nested_field_type t_root_from_e gfs_from_e = typeof e).
+  Focus 1. {
+    erewrite (local2ptree_soundness P Q R) by eauto.
+    simpl app.
+    apply (msubst_efield_denote_equiv P _ _ nil R)  in EVAL_EFIELD.
+    eapply derives_trans; [apply andp_left2, EVAL_EFIELD |].
+    intro rho; simpl; unfold local, lift1; unfold_lift.
+    apply prop_derives; intros.
+    pose proof compute_nested_efield_lemma _ rho BY_VALUE.
+    rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
+  } Unfocus.
+  destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
   rewrite <- NESTED_EFIELD.
   apply field_address_gen_fact in FIELD_ADD_GEN.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMP]].
   eapply semax_SC_field_load_to_use.
-  SearchAbout nested_efield typeof nested_field_type.
-  Check typeof_nested_efield.
-  1: rewrite NESTED_EFIELD; eassumption.
+  1: rewrite NESTED_EFIELD, <- TYPEOF, TYPE_EQ; reflexivity.
   1: eassumption.
-  1: rewrite <- TYPE_EQ; eassumption.
-  1: rewrite <- TYPE_EQ; eassumption.
+  1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
+  1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
   2: eassumption.
   2: eassumption.
   2: eassumption.
   2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
-    eapply derives_trans; [| eapply eval_lvalue_nested_efield].
+    eapply derives_trans; [| eapply eval_lvalue_nested_efield]; eauto.
 Abort.
 (*
 *)
@@ -992,3 +1004,4 @@ Definition upd_val t_root gfs v v0 :=
    upd_reptype t_root gfs v (valinject (nested_field_type t_root gfs) v0).
 
 End SEMAX_SC.
+

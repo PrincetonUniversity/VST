@@ -65,6 +65,7 @@ Definition type_almost_match e t lr:=
   | _, _, _ => false
   end.
 
+(* TODO: remove almost_match' and use "type_is_by_value" in proof for assistent. *)
 (* Empty Path situation *)
 Definition type_almost_match' e t lr:=
   match typeof e, t, lr with
@@ -646,15 +647,19 @@ Lemma compute_nested_efield_trivial: forall e rho lr_default,
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = e /\
       LR_of_type t_root = lr /\
+      type_almost_match e_root t_root lr = true /\
       legal_nested_efield_rec t_root gfs tts = true /\
       nested_field_type t_root gfs = typeof e.
 Proof.
   intros.
   subst.
   unfold LR_possible in H3.
-  destruct (typeof e); inv H3; inv H4; inv H5; cbv; auto.
+  unfold type_almost_match.
+  Opaque eqb_type.
+  destruct (typeof e); inv H3; inv H4; inv H5; simpl;
+  try rewrite eqb_type_spec; auto.
   + inv H0.
-  + destruct e; inv H0.
+  + inv H0.
 Qed.
 
 Lemma compute_nested_efield_aux: forall e rho lr_default,
@@ -666,6 +671,7 @@ Lemma compute_nested_efield_aux: forall e rho lr_default,
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = e /\
       LR_of_type t_root = lr /\
+      type_almost_match e_root t_root lr = true /\
       legal_nested_efield_rec t_root gfs tts = true /\
       nested_field_type t_root gfs = typeof e
   end) /\
@@ -678,6 +684,7 @@ Lemma compute_nested_efield_aux: forall e rho lr_default,
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = Ederef e t /\
       LR_of_type t_root = lr /\
+      type_almost_match e_root t_root lr = true /\
       legal_nested_efield_rec t_root gfs tts = true /\
       nested_field_type t_root gfs = typeof (Ederef e t)
   end).
@@ -699,10 +706,11 @@ Proof.
       intros.
       inv H1; inv H2.
       inv H9.
-      rewrite H in H4; inv H4.
+      unfold type_almost_match.
+      rewrite H in H4 |- *; inv H4.
       simpl.
       change (nested_field_type (Tarray t0 n a2) (SUB i)) with t0.
-      rewrite eqb_type_spec.
+      rewrite !eqb_type_spec.
       auto.
     - subst.
       destruct (IHe1 RRRR) as [IH _]; spec IH; [unfold LR_possible; rewrite H; auto |].
@@ -711,9 +719,9 @@ Proof.
       intros.
       inv H2.
       specialize (IH _ _ H1 H9).
-      destruct IH as [IH1 [IH2 [IH3 IH4]]].
+      destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
-      rewrite IH1, IH3, nested_field_type_ind, IH4.
+      rewrite IH1, IH4, nested_field_type_ind, IH5.
       simpl.
       rewrite eqb_type_spec.
       auto.
@@ -728,9 +736,9 @@ Proof.
       intros.
       revert H0; inv H3; intros.
       specialize (IH _ _ H2 H7).
-      destruct IH as [IH1 [IH2 [IH3 IH4]]].
+      destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
-      rewrite IH1, IH3, nested_field_type_ind, IH4.
+      rewrite IH1, IH4, nested_field_type_ind, IH5.
       simpl.
       rewrite eqb_type_spec.
       auto.
@@ -741,22 +749,47 @@ Proof.
       intros.
       revert H0; inv H3; intros.
       specialize (IH _ _ H2 H7).
-      destruct IH as [IH1 [IH2 [IH3 IH4]]].
+      destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
-      rewrite IH1, IH3, nested_field_type_ind, IH4.
+      rewrite IH1, IH4, nested_field_type_ind, IH5.
       simpl.
       rewrite eqb_type_spec.
       auto.
 Qed.
 
-Lemma compute_nested_efield_lemma: forall e,
+Lemma compute_nested_efield_lemma: forall e rho,
+  type_is_by_value (typeof e) = true ->
   match compute_nested_efield e with
-  | (e', gfs, tts, lr) => nested_efield e' gfs tts = e
+  | (e_root, efs, tts, lr) =>
+    forall t_root gfs,
+      compute_root_type (typeof e_root) lr t_root ->
+      efield_denote efs gfs rho ->
+      nested_efield e_root efs tts = e /\
+      LR_of_type t_root = lr /\
+      legal_nested_efield t_root e_root gfs tts lr = true /\
+      nested_field_type t_root gfs = typeof e
   end.
 Proof.
   intros.
-  destruct (compute_nested_efield_aux e Tvoid).
-  auto.
+  destruct (compute_nested_efield_aux e rho LLLL) as [? _].
+  unfold compute_nested_efield.
+  destruct (compute_nested_efield_rec e LLLL) as (((?, ?), ?), ?).
+  
+  intros.
+  spec H0; [unfold LR_possible; destruct (typeof e); inv H; auto |].
+  specialize (H0 _ _ H1 H2).
+  destruct H0 as [? [? [? [? ?]]]].
+  split; [| split; [| split]]; auto.
+  unfold legal_nested_efield.
+  rewrite H5.
+  rewrite H4.
+  destruct gfs; auto.
+  unfold type_almost_match', type_almost_match in *.
+  destruct l1, t_root; try rewrite H4; auto.
+  destruct l0; [| inv H5].
+  inv H2.
+  rewrite <- H6 in H.
+  inv H.
 Qed.
 
 End CENV.
