@@ -818,6 +818,7 @@ Proof.
     rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
   } Unfocus.
   destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
+  rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
   Focus 1. {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
@@ -836,7 +837,25 @@ Proof.
   rewrite <- GFS in FIELD_COMPATIBLE.
   rewrite <- NESTED_EFIELD.
   apply field_address_gen_fact in FIELD_ADD_GEN.
-  destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMP]].
+  destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
+  specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
+  pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
+  apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
+  Focus 2. {
+    rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
+    rewrite (add_andp _ _ TC).
+    rewrite LR.
+    apply andp_right; [| solve_andp].
+    apply andp_right; [| solve_andp].
+    apply andp_right; [| solve_andp].
+    apply andp_left1.
+    erewrite (local2ptree_soundness P Q R) by eauto.
+    apply andp_left2.
+    simpl app.
+    apply andp_right.
+    + apply (msubst_efield_denote_equiv P _ _ nil R) in EVAL_EFIELD; auto.
+    + apply (msubst_eval_LR_eq P _ _ nil R) in EVAL_ROOT; auto.
+  } Unfocus.
   eapply semax_SC_field_load_to_use.
   1: rewrite NESTED_EFIELD, <- TYPEOF, TYPE_EQ; reflexivity.
   1: eassumption.
@@ -847,9 +866,13 @@ Proof.
   2: eassumption.
   2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
-    eapply derives_trans; [| eapply eval_lvalue_nested_efield]; eauto.
-    2: rewrite TYPEOF; auto.
-Abort.
+    eapply derives_trans; [exact DERIVES | solve_andp].
+  + apply andp_right.
+    - eapply derives_trans; [exact DERIVES | solve_andp].
+    - rewrite <- TYPE_EQ, TYPEOF.
+      rewrite (add_andp _ _ TC); solve_andp.
+Qed.
+
 (*
 *)
 

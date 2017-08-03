@@ -539,6 +539,28 @@ Proof.
   + eapply union_ind_step; eauto.
 Qed.
 
+Lemma nested_efield_facts: forall Delta t_root e efs gfs tts lr p,
+  field_compatible t_root gfs p ->
+  LR_of_type t_root = lr ->
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type t_root gfs) = true ->
+  local (`(eq p) (eval_LR e (LR_of_type t_root))) &&
+  tc_LR Delta e (LR_of_type t_root) &&
+  local (tc_environ Delta) &&
+  tc_efield Delta efs &&
+  local (efield_denote efs gfs) |--
+  local (`(eq (field_address t_root gfs p))
+   (eval_lvalue (nested_efield e efs tts))) &&
+  tc_lvalue Delta (nested_efield e efs tts).
+Proof.
+  intros.
+  subst lr.
+  eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
+  unfold LR_of_type in H0.
+  destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
+Qed.
+  
 Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
   field_compatible t_root gfs p ->
   LR_of_type t_root = lr ->
