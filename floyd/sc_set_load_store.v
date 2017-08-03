@@ -632,23 +632,6 @@ The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
 
-Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
-  match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
-  end.
-
-Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
-  msubst_eval_LR T1 T2 e lr = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_LR e lr)).
-Proof.
-  intros.
-  destruct lr.
-  + apply msubst_eval_lvalue_eq; auto.
-  + apply msubst_eval_expr_eq; auto.
-Qed.
-
 Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc): list efield -> list gfield -> Prop :=
 | msubst_efield_denote_nil: msubst_efield_denote T1 T2 nil nil
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
@@ -664,7 +647,7 @@ Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t va
     msubst_efield_denote T1 T2 efs gfs ->
     msubst_efield_denote T1 T2 (eUnionField i :: efs) (UnionField i :: gfs).
 
-Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 Q R efs gfs,
+Lemma msubst_efield_denote_eq: forall {cs: compspecs} P T1 T2 Q R efs gfs,
   msubst_efield_denote T1 T2 efs gfs ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- local (efield_denote efs gfs).
 Proof.
@@ -693,6 +676,36 @@ Proof.
     constructor; auto.
 Qed.
 
+Ltac solve_Int_eqm :=
+  solve
+  [ autorewrite with norm;
+    match goal with
+    | |- _ = Vint ?V =>
+      match V with
+      | Int.repr _ => idtac
+      | Int.sub _ _ => unfold Int.sub at 1
+      | Int.add _ _ => unfold Int.add at 1
+      | Int.mul _ _ => unfold Int.mul at 1
+      | Int.and _ _ => unfold Int.and at 1
+      | Int.or _ _ => unfold Int.or at 1
+      end
+    end;
+    apply Int.eqm_unsigned_repr
+  ].
+
+Ltac solve_msubst_efield_denote :=
+  solve 
+  [ repeat first
+    [ eapply msubst_efield_denote_cons_array;
+      [ reflexivity
+      | solve_msubst_eval_expr
+      | solve_Int_eqm
+      | ]
+    | apply msubst_efield_denote_cons_struct
+    | apply msubst_efield_denote_cons_union
+    | apply msubst_efield_denote_nil
+    ]
+  ].
 Inductive field_address_gen: type * list gfield * val -> type * list gfield * val -> Prop :=
 | field_address_gen_nil: forall t1 t2 gfs p tgp,
     nested_field_type t2 gfs = t1 ->
@@ -762,7 +775,7 @@ Proof.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
-Lemma semax_PTree_field_load:
+Lemma semax_PTree_field_load_no_hint:
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e: expr) t
       T1 T2 e_root (efs: list efield) (tts: list type) lr
@@ -810,7 +823,7 @@ Proof.
   Focus 1. {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
-    apply (msubst_efield_denote_equiv P _ _ nil R)  in EVAL_EFIELD.
+    apply (msubst_efield_denote_eq P _ _ nil R)  in EVAL_EFIELD.
     eapply derives_trans; [apply andp_left2, EVAL_EFIELD |].
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
@@ -853,7 +866,7 @@ Proof.
     apply andp_left2.
     simpl app.
     apply andp_right.
-    + apply (msubst_efield_denote_equiv P _ _ nil R) in EVAL_EFIELD; auto.
+    + apply (msubst_efield_denote_eq P _ _ nil R) in EVAL_EFIELD; auto.
     + apply (msubst_eval_LR_eq P _ _ nil R) in EVAL_ROOT; auto.
   } Unfocus.
   eapply semax_SC_field_load_to_use.
@@ -873,8 +886,75 @@ Proof.
       rewrite (add_andp _ _ TC); solve_andp.
 Qed.
 
-(*
-*)
+Lemma semax_PTree_field_load_with_hint:
+  forall {Espec: OracleKind},
+    forall n Delta sh id P Q R (e: expr) t
+      T1 T2 p_from_e
+      (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
+      (v_val : val) (v_reptype : reptype (nested_field_type t_root gfs0)),
+      local2ptree Q = (T1, T2, nil, nil) ->
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof e) t = true ->
+      type_is_volatile (typeof e) = false ->
+      msubst_eval_lvalue T1 T2 e = Some p_from_e ->
+      p_from_e = field_address t_root gfs p ->
+      typeof e = nested_field_type t_root gfs ->
+      nth_error R n = Some (field_at sh t_root gfs0 v_reptype p) ->
+      gfs = gfs1 ++ gfs0 ->
+      readable_share sh ->
+      JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e) && local (`(tc_val (typeof e) v_val)) ->
+      @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+        (Sset id e)
+        (normal_ret_assert
+          (PROPx P
+            (LOCALx (temp id v_val :: remove_localdef_temp id Q)
+              (SEPx R)))).
+Proof.
+  intros ? ? ? ? ? ? ? ? ?
+         ? ? ? ?
+         ? ? ? ? ?
+         ? ?
+         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH GFS SH JMEQ TC.
+  eapply semax_SC_field_load_to_use.
+  1: eassumption.
+  1: eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  2: eassumption.
+  2: eassumption.
+  2: eassumption.
+  2: eassumption.
+  2: rewrite <- TYPE_EQ; eassumption.
+  rewrite <- FIELD_ADD.
+  erewrite (local2ptree_soundness P Q R) by eassumption.
+  simpl app.
+  apply andp_left2. apply msubst_eval_lvalue_eq; auto.
+Qed.
+
+Ltac load_tac_with_hint :=
+  eapply semax_PTree_field_load_with_hint;
+  [ prove_local2ptree
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | eassumption
+  | reflexivity
+  | idtac | .. ].
+
+Ltac load_tac_no_hint :=
+  eapply semax_PTree_field_load_no_hint;
+  [ prove_local2ptree
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | idtac | .. ].
+  
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*

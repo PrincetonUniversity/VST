@@ -1937,14 +1937,15 @@ Ltac solve_legal_nested_field_in_entailment :=
   try solve [normalize; apply prop_right; auto; omega]
   ].
 
-Ltac construct_nested_efield e e1 efs tts :=
+Ltac construct_nested_efield e e1 efs tts lr :=
   let pp := fresh "pp" in
     pose (compute_nested_efield e) as pp;
     simpl in pp;
     pose (fst (fst (fst pp))) as e1;
     pose (snd (fst (fst pp))) as efs;
     pose (snd (fst pp)) as tts;
-    simpl in e1, efs, tts;
+    pose (snd pp) as lr;
+    simpl in e1, efs, tts, lr;
     change e with (nested_efield e1 efs tts);
     clear pp.
 
@@ -2323,11 +2324,8 @@ Ltac load_tac :=
     let e1 := fresh "e" in
     let efs := fresh "efs" in
     let tts := fresh "tts" in
-      construct_nested_efield e e1 efs tts;
-
     let lr := fresh "lr" in
-      pose (compute_lr e1 efs) as lr;
-      vm_compute in lr;
+      construct_nested_efield e e1 efs tts lr;
 
     let HLE := fresh "H" in
     let p := fresh "p" in evar (p: val);
@@ -2394,10 +2392,8 @@ Ltac load_tac :=
     | let e_root := fresh "e_root" in
       let efs := fresh "efs" in
       let tts := fresh "tts" in
-      construct_nested_efield e_full e_root efs tts;
       let lr := fresh "lr" in
-      pose (compute_lr e_root efs) as lr;
-      cbv in lr;
+      construct_nested_efield e_full e_root efs tts lr;
       let p_root := fresh "p_root" in evar (p_root: val);
       let Hroot := fresh "Hroot" in
       match goal with
@@ -2475,10 +2471,8 @@ Ltac store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP
   let e_root := fresh "e_root" in
   let efs := fresh "efs" in
   let tts := fresh "tts" in
-  construct_nested_efield e_full e_root efs tts;
   let lr := fresh "lr" in
-  pose (compute_lr e_root efs) as lr;
-  cbv in lr;
+  construct_nested_efield e_full e_root efs tts lr;
   let p_root := fresh "p_root" in evar (p_root: val);
   let Hroot := fresh "Hroot" in
   match goal with
