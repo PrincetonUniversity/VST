@@ -625,6 +625,7 @@ Proof.
   rewrite nested_field_type_nested_field_type. exact ByVal.
 Qed.
 
+End SEMAX_SC.
 
 (************************************************
 
@@ -676,11 +677,17 @@ Proof.
     constructor; auto.
 Qed.
 
-Ltac solve_Int_eqm :=
+Ltac solve_Int_eqm_unsigned :=
   solve
-  [ autorewrite with norm;
+  [ match goal with
+    | |- Int.eqm (Int.unsigned ?V) _ =>
+      let v := fresh "v" in
+      set (v := V);
+      autorewrite with norm in v;
+      subst v
+    end;
     match goal with
-    | |- _ = Vint ?V =>
+    | |- Int.eqm (Int.unsigned ?V) _ =>
       match V with
       | Int.repr _ => idtac
       | Int.sub _ _ => unfold Int.sub at 1
@@ -699,14 +706,15 @@ Ltac solve_msubst_efield_denote :=
     [ eapply msubst_efield_denote_cons_array;
       [ reflexivity
       | solve_msubst_eval_expr
-      | solve_Int_eqm
+      | solve_Int_eqm_unsigned
       | ]
     | apply msubst_efield_denote_cons_struct
     | apply msubst_efield_denote_cons_union
     | apply msubst_efield_denote_nil
     ]
   ].
-Inductive field_address_gen: type * list gfield * val -> type * list gfield * val -> Prop :=
+
+Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * list gfield * val -> Prop :=
 | field_address_gen_nil: forall t1 t2 gfs p tgp,
     nested_field_type t2 gfs = t1 ->
     field_address_gen (t2, gfs, p) tgp ->
@@ -718,7 +726,7 @@ Inductive field_address_gen: type * list gfield * val -> type * list gfield * va
 | field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
 (* This order is the order that "constructor" tries to construct field_address_gen. *)
 
-Lemma field_address_gen_fact: forall t1 gfs1 p1 t2 gfs2 p2,
+Lemma field_address_gen_fact: forall {cs: compspecs} t1 gfs1 p1 t2 gfs2 p2,
   field_address_gen (t1, gfs1, p1) (t2, gfs2, p2) ->
   field_address t1 gfs1 p1 = field_address t2 gfs2 p2 /\
   nested_field_type t1 gfs1 = nested_field_type t2 gfs2 /\
@@ -748,6 +756,13 @@ Proof.
     inv H1.
     auto.
 Qed.
+
+Ltac solve_field_address_gen :=
+  solve [repeat constructor].
+
+Section SEMAX_PTREE.
+
+Context {cs: compspecs}.
 
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
@@ -791,8 +806,8 @@ Lemma semax_PTree_field_load_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
+      gfs = gfs1 ++ gfs0 ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -814,7 +829,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_GEN GFS NTH SH JMEQ LEGAL_NESTED_FIELD TC.
+         FIELD_ADD_GEN NTH GFS SH JMEQ LEGAL_NESTED_FIELD TC.
   pose proof is_neutral_cast_by_value _ _ H0 as BY_VALUE.
   assert_PROP (nested_efield e_root efs tts = e /\
                LR_of_type t_root_from_e = lr /\
@@ -932,29 +947,6 @@ Proof.
   simpl app.
   apply andp_left2. apply msubst_eval_lvalue_eq; auto.
 Qed.
-
-Ltac load_tac_with_hint :=
-  eapply semax_PTree_field_load_with_hint;
-  [ prove_local2ptree
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | solve_msubst_eval_lvalue
-  | eassumption
-  | reflexivity
-  | idtac | .. ].
-
-Ltac load_tac_no_hint :=
-  eapply semax_PTree_field_load_no_hint;
-  [ prove_local2ptree
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
-  | econstructor
-  | idtac | .. ].
-  
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*
@@ -1123,5 +1115,28 @@ Definition proj_val t_root gfs v :=
 Definition upd_val t_root gfs v v0 :=
    upd_reptype t_root gfs v (valinject (nested_field_type t_root gfs) v0).
 
-End SEMAX_SC.
+End SEMAX_PTREE.
 
+Ltac load_tac_with_hint :=
+  eapply semax_PTree_field_load_with_hint;
+  [ prove_local2ptree
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | eassumption
+  | reflexivity
+  | idtac | .. ].
+
+Ltac load_tac_no_hint :=
+  eapply semax_PTree_field_load_no_hint;
+  [ prove_local2ptree
+  | reflexivity (* compute_nested_efield *)
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
+  | idtac .. ].
