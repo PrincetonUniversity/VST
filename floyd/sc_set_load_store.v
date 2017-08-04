@@ -1224,25 +1224,30 @@ Ltac default_entailer_for_load_tac :=
 
 Ltac entailer_for_load_tac := default_entailer_for_load_tac.
 
-Ltac load_tac_with_hint :=
+Ltac load_tac_with_hint LOCAL2PTREE :=  
   eapply semax_PTree_field_load_with_hint;
-  [ prove_local2ptree
+  [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | eassumption
-  | reflexivity
-  | search_field_at_in_SEP
-  | auto (* readable share *)
-  | solve_load_rule_evaluation
-  | solve_legal_nested_field_in_entailment
+  | eassumption (* This line can fail. If it does not, the following should not fail. *)
+  | (reflexivity || fail 1000 "unexpected failure in load_tac_with_hint."
+                              "The hint does not type match")
+  | (search_field_at_in_SEP || fail 1000 "unexpected failure in load_tac_with_hint."
+                                         "Required field_at does not exists in SEP")
+  | (solve [auto] || fail 1000 "unexpected failure in load_tac_with_hint."
+                               "Cannot prove readable_share")
+  | (solve_load_rule_evaluation || fail 1000 "unexpected failure in load_tac_with_hint."
+                                             "unexpected failure in solve_load_rule_evaluation")
+  | (solve_legal_nested_field_in_entailment || fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment")
   | entailer_for_load_tac
-  | idtac .. ].
+  ].
 
-Ltac load_tac_no_hint :=
+Ltac load_tac_no_hint LOCAL2PTREE :=
   eapply semax_PTree_field_load_no_hint;
-  [ prove_local2ptree
+  [ exact LOCAL2PTREE
   | reflexivity (* compute_nested_efield *)
   | reflexivity
   | reflexivity
@@ -1252,8 +1257,20 @@ Ltac load_tac_no_hint :=
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP
-  | auto (* readable share *)
+  | solve [auto] (* readable share *)
   | solve_load_rule_evaluation
   | solve_legal_nested_field_in_entailment
   | entailer_for_load_tac
-  | idtac .. ].
+  ].
+
+Ltac load_tac :=
+  match goal with
+  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+    let T1 := fresh "T1" in evar (T1: PTree.t val);
+    let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
+    let LOCAL2PTREE := fresh "LOCAL2PTREE" in
+    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
+    [subst T1 T2; prove_local2ptree |];
+    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE]
+  end.
+
