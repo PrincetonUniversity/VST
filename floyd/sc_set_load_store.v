@@ -1200,6 +1200,30 @@ subst sh; auto (* readable_share *)
 | fail 1000 "unexpected failure in load_tac_with_full_path_hint" ].
                                                                   *)
 
+Lemma quick_derives_right:
+  forall P Q : environ -> mpred,
+   TT |-- Q -> P |-- Q.
+Proof.
+intros. eapply derives_trans; try eassumption; auto.
+Qed.
+
+Ltac quick_typecheck3 :=
+ clear;
+ repeat match goal with
+ | H := _ |- _ => clear H
+ | H : _ |- _ => clear H
+ end;
+ apply quick_derives_right; clear; go_lowerx; intros;
+ clear; repeat apply andp_right; auto; fail.
+
+Ltac default_entailer_for_load_tac :=
+  repeat match goal with H := _ |- _ => clear H end;
+  try quick_typecheck3;
+  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+  try solve [entailer!].
+
+Ltac entailer_for_load_tac := default_entailer_for_load_tac.
+
 Ltac load_tac_with_hint :=
   eapply semax_PTree_field_load_with_hint;
   [ prove_local2ptree
@@ -1212,7 +1236,9 @@ Ltac load_tac_with_hint :=
   | search_field_at_in_SEP
   | auto (* readable share *)
   | solve_load_rule_evaluation
-  | idtac | .. ].
+  | solve_legal_nested_field_in_entailment
+  | entailer_for_load_tac
+  | idtac .. ].
 
 Ltac load_tac_no_hint :=
   eapply semax_PTree_field_load_no_hint;
@@ -1228,4 +1254,6 @@ Ltac load_tac_no_hint :=
   | search_field_at_in_SEP
   | auto (* readable share *)
   | solve_load_rule_evaluation
+  | solve_legal_nested_field_in_entailment
+  | entailer_for_load_tac
   | idtac .. ].

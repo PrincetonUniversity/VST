@@ -1102,30 +1102,6 @@ unfold_pre_local_andp;
 repeat intro_ex_local_semax;
 try rewrite insert_local.
 
-Lemma quick_typecheck1:
- forall (P B: environ -> mpred),
-    P |-- B ->
-   P |-- local (`True) && B.
-Proof.
-intros; apply andp_right; auto.
- intro rho; apply TT_right.
-Qed.
-
-Lemma quick_typecheck2:
- forall (P A: environ -> mpred),
-    P |-- A ->
-   P |-- A && local (`True).
-Proof.
-intros; apply andp_right; auto.
- intro rho; apply TT_right.
-Qed.
-
-Ltac quick_typecheck :=
-     first [ apply quick_typecheck1; try apply local_True_right
-            | apply quick_typecheck2
-            | apply local_True_right
-            | idtac ].
-
 Ltac do_compute_expr_helper Delta Q v :=
    try assumption;
    apply andp_left2;
@@ -1870,22 +1846,6 @@ Ltac pre_entailer :=
   | H := @abbreviate ret_assert _ |- _ => clear H
   end.
 
-Lemma quick_derives_right:
-  forall P Q : environ -> mpred,
-   TT |-- Q -> P |-- Q.
-Proof.
-intros. eapply derives_trans; try eassumption; auto.
-Qed.
-
-Ltac quick_typecheck3 :=
- clear;
- repeat match goal with
- | H := _ |- _ => clear H
- | H : _ |- _ => clear H
- end;
- apply quick_derives_right; clear; go_lowerx; intros;
- clear; repeat apply andp_right; auto; fail.
-
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
@@ -1915,27 +1875,6 @@ Ltac forward_setx :=
  end.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
-
-Ltac solve_legal_nested_field_in_entailment :=
-   match goal with
-   | |- _ |-- !! legal_nested_field ?t_root ?gfs =>
-     try unfold t_root;
-     try unfold gfs;
-     try match gfs with
-     | (?gfs1 ++ ?gfs0) => try unfold gfs1; try unfold gfs0
-     end
-  end;
-  first
-  [ apply prop_right; apply compute_legal_nested_field_spec';
-    simpl_compute_legal_nested_field;
-    repeat constructor; omega
-  |
-  apply compute_legal_nested_field_spec;
-  simpl_compute_legal_nested_field;
-  repeat constructor;
-  try solve [apply prop_right; auto; omega];
-  try solve [normalize; apply prop_right; auto; omega]
-  ].
 
 Ltac construct_nested_efield e e1 efs tts lr :=
   let pp := fresh "pp" in
@@ -2146,14 +2085,6 @@ Ltac solve_store_rule_evaluation :=
   end.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
-
-Ltac default_entailer_for_load_tac :=
-  repeat match goal with H := _ |- _ => clear H end;
-  try quick_typecheck3;
-  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
-  try solve [entailer!].
-
-Ltac entailer_for_load_tac := default_entailer_for_load_tac.
 
 Ltac default_entailer_for_store_tac := try solve [entailer!].
 
