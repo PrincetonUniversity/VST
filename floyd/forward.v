@@ -2185,6 +2185,8 @@ Ltac load_tac_without_hint Delta P Q R gfs e_root efs tts p_root sh t_SEP
 Ltac load_tac :=
  ensure_normal_ret_assert;
  hoist_later_in_pre;
+ first [cast_load_tac | sc_set_load_store.load_tac].
+(*
  match goal with
 | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
  (* Super canonical cast load *)
@@ -2291,7 +2293,7 @@ Ltac load_tac :=
       subst p_full; clear Hfull
     ]
 end.
-
+*)
 Ltac simpl_proj_reptype :=
 progress
 match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
