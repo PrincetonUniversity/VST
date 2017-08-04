@@ -684,12 +684,40 @@ The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
 
+Inductive Int_eqm_unsigned: int -> Z -> Prop :=
+| Int_eqm_unsigned_repr: forall z, Int_eqm_unsigned (Int.repr z) z.
+
+Lemma Int_eqm_unsigned_spec: forall i z,
+  Int_eqm_unsigned i z -> Int.eqm (Int.unsigned i) z.
+Proof.
+  intros.
+  inv H.
+  apply Int.eqm_sym, Int.eqm_unsigned_repr.
+Qed.
+
+Ltac solve_Int_eqm_unsigned :=
+  solve
+  [ autorewrite with norm;
+    match goal with
+    | |- Int_eqm_unsigned ?V _ =>
+      match V with
+      | Int.repr _ => idtac
+      | Int.sub _ _ => unfold Int.sub at 1
+      | Int.add _ _ => unfold Int.add at 1
+      | Int.mul _ _ => unfold Int.mul at 1
+      | Int.and _ _ => unfold Int.and at 1
+      | Int.or _ _ => unfold Int.or at 1
+      end
+    end;
+    apply Int_eqm_unsigned_repr
+  ].
+
 Inductive msubst_efield_denote {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc): list efield -> list gfield -> Prop :=
 | msubst_efield_denote_nil: msubst_efield_denote T1 T2 nil nil
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
     is_int_type (typeof ei) = true ->
     msubst_eval_expr T1 T2 ei = Some (Vint i) ->
-    Int.eqm (Int.unsigned i) i' ->
+    Int_eqm_unsigned i i' ->
     msubst_efield_denote T1 T2 efs gfs ->
     msubst_efield_denote T1 T2 (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
 | msubst_efield_denote_cons_struct: forall i efs gfs,
@@ -714,6 +742,7 @@ Proof.
     normalize.
     constructor; auto.
     constructor.
+    apply Int_eqm_unsigned_spec in H1.
     rewrite <- H2; symmetry.
     f_equal.
     rewrite <- (Int.repr_unsigned i).
@@ -727,35 +756,6 @@ Proof.
     normalize.
     constructor; auto.
 Qed.
-
-Lemma Int_eqm_unsigned_repr: forall i, Int.eqm (Int.unsigned (Int.repr i)) i.
-Proof.
-  intros.
-  apply Int.eqm_sym, Int.eqm_unsigned_repr.
-Qed.  
-
-Ltac solve_Int_eqm_unsigned :=
-  solve
-  [ match goal with
-    | |- Int.eqm (Int.unsigned ?V) _ =>
-      let v := fresh "v" in
-      set (v := V);
-      autorewrite with norm in v;
-      subst v
-    end;
-    match goal with
-    | |- Int.eqm (Int.unsigned ?V) _ =>
-      match V with
-      | Int.repr _ => idtac
-      | Int.sub _ _ => unfold Int.sub at 1
-      | Int.add _ _ => unfold Int.add at 1
-      | Int.mul _ _ => unfold Int.mul at 1
-      | Int.and _ _ => unfold Int.and at 1
-      | Int.or _ _ => unfold Int.or at 1
-      end
-    end;
-    apply Int_eqm_unsigned_repr
-  ].
 
 Ltac solve_msubst_efield_denote :=
   solve 
@@ -780,8 +780,11 @@ Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * 
     nested_field_type t2 gfs2 = t1 ->
     field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
     field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
+| field_address_gen_assu: forall t gfs p1 p2 tgp,
+    p1 = p2 ->
+    field_address_gen (t, gfs, p2) tgp ->
+    field_address_gen (t, gfs, p1) tgp    
 | field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
-(* This order is the order that "constructor" tries to construct field_address_gen. *)
 
 Lemma field_address_gen_fact: forall {cs: compspecs} t1 gfs1 p1 t2 gfs2 p2,
   field_address_gen (t1, gfs1, p1) (t2, gfs2, p2) ->
@@ -812,10 +815,21 @@ Proof.
   + subst.
     inv H1.
     auto.
+  + subst.
+    inv H1.
+    auto.
 Qed.
 
 Ltac solve_field_address_gen :=
-  solve [repeat constructor].
+  solve [
+    repeat
+      first
+      [ simple apply field_address_gen_nil; [reflexivity |]
+      | simple apply field_address_gen_app; [reflexivity |]
+      | simple eapply field_address_gen_assu; [eassumption |]
+      | simple apply field_address_gen_refl
+      ]
+  ].
 
 Section SEMAX_PTREE.
 
@@ -1338,8 +1352,6 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
                                                          "Cannot prove readable_share")
   | (solve_load_rule_evaluation             || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "unexpected failure in solve_load_rule_evaluation")
-  | (solve_legal_nested_field_in_entailment || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in solve_legal_nested_field_in_entailment")
   | entailer_for_load_tac
   ].
 
@@ -1357,7 +1369,8 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | search_field_at_in_SEP
   | solve [auto] (* readable share *)
   | solve_load_rule_evaluation
-  | solve_legal_nested_field_in_entailment
+  | (solve_legal_nested_field_in_entailment || fail 1000 "unexpected failure in load_tac_no_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment")
   | entailer_for_load_tac
   ].
 
@@ -1373,7 +1386,7 @@ Ltac load_tac :=
   end.
 
 Ltac cast_load_tac_with_hint LOCAL2PTREE :=  
-  eapply semax_PTree_field_load_with_hint;
+  eapply semax_PTree_field_cast_load_with_hint;
   [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
@@ -1389,13 +1402,11 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
                                                          "Cannot prove readable_share")
   | (solve_load_rule_evaluation             || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "unexpected failure in solve_load_rule_evaluation")
-  | (solve_legal_nested_field_in_entailment || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in solve_legal_nested_field_in_entailment")
   | entailer_for_load_tac
   ].
 
 Ltac cast_load_tac_no_hint LOCAL2PTREE :=
-  eapply semax_PTree_field_load_no_hint;
+  eapply semax_PTree_field_cast_load_no_hint;
   [ exact LOCAL2PTREE
   | reflexivity (* compute_nested_efield *)
   | reflexivity
@@ -1424,3 +1435,6 @@ Ltac cast_load_tac :=
     first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE]
   end.
 
+(* TODO: delete asserted and posed things in entailer goal *)
+(* TODO: error message *)
+(* TODO: hint message *)
