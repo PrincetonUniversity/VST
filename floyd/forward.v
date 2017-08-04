@@ -1983,55 +1983,6 @@ Proof.
   constructor; auto.
 Qed.
 
-Ltac unify_var_or_evar name val :=
-  let E := fresh "E" in assert (name = val) as E by (subst name; reflexivity); clear E.
-
-Ltac sc_try_instantiate P Q R R0 gfs a sh t_root gfs0 v n i H SH GFS TY V A :=
-  let E := fresh "E" in
-  assert (R0 = (field_at sh t_root gfs0 v a)) as E;
-  [ unify_var_or_evar gfs0 GFS;
-    unify_var_or_evar t_root TY;
-    unify_var_or_evar sh SH;
-    unify_var_or_evar v V;
-    unify_var_or_evar a A;
-    unfold sh, t_root, gfs0, v, a;
-    unfold data_at_;
-    unfold data_at;
-    unify GFS (skipn (length gfs - length GFS) gfs);
-    simpl skipn; subst gfs;
-    try unfold field_at_;
-    generalize V;
-    intro;
-    solve [ rewrite <- ?field_at_offset_zero; reflexivity ]
-  | pose i as n;
-    assert (nth_error R n = Some R0) as H by reflexivity;
-    clear E ].
-
-Ltac sc_new_instantiate P Q R Rnow gfs p sh t_root gfs0 v n i H :=
-  match Rnow with
-  | ?R0 :: ?Rnow' =>
-    match R0 with
-    | data_at ?SH ?TY ?V ?A => 
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY V A
-    | data_at_ ?SH ?TY ?A => 
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY
-      (default_val (nested_field_type TY nil)) A
-    | field_at ?SH ?TY ?GFS ?V ?A =>
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY V A
-    | field_at_ ?SH ?TY ?GFS ?A =>
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY
-      (default_val (nested_field_type TY GFS)) A
-    | _ => sc_new_instantiate P Q R Rnow' gfs p sh t_root gfs0 v n (S i) H
-    end
-  end.
-
-(* simplifies a list expression into [e1; e2; ...] form without simplifying its elements *)
-Ltac eval_list l :=
-  let l' := eval hnf in l in lazymatch l' with
-  | ?h :: ?tl => let tl' := eval_list tl in constr:(h :: tl')
-  | (@nil ?T) => constr:(@nil T)
-  end.
-
 (* Given gfs, gfs0, and a name for gfs1, instantiate gfs1 s.t. (gfs = gfs1 ++ gfs0).
    Called suffix because these paths are reversed lists. *)
 Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
@@ -2048,27 +1999,12 @@ Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
   let gfs0' := (eval_list gfs0) in change gfs0' in (value of gfs0);
   change gfs with (gfs1 ++ gfs0) in *.
 
-(* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
-   Useful for all loads from int arrays.
-   Makes entailer and other tactics more successful. *)
-Ltac default_canon_load_result Hresult :=
-  repeat (
-    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-          | rewrite Znth_map with (d' := Vundef) in Hresult
-          | rewrite Znth_map with (d' := 0) in Hresult ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
-  ).
-
-Ltac canon_load_result Hresult := default_canon_load_result Hresult.
-
 Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   let result := fresh "result" in evar (result: val);
   assert (Hresult: JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v) result);
   subst result;
   [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
-  | canon_load_result Hresult ].
+  | ].
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);

@@ -16,6 +16,7 @@ Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_eval.
+Require Import floyd.simpl_reptype.
 
 Local Open Scope logic.
 
@@ -677,6 +678,12 @@ Proof.
     constructor; auto.
 Qed.
 
+Lemma Int_eqm_unsigned_repr: forall i, Int.eqm (Int.unsigned (Int.repr i)) i.
+Proof.
+  intros.
+  apply Int.eqm_sym, Int.eqm_unsigned_repr.
+Qed.  
+
 Ltac solve_Int_eqm_unsigned :=
   solve
   [ match goal with
@@ -697,7 +704,7 @@ Ltac solve_Int_eqm_unsigned :=
       | Int.or _ _ => unfold Int.or at 1
       end
     end;
-    apply Int.eqm_unsigned_repr
+    apply Int_eqm_unsigned_repr
   ].
 
 Ltac solve_msubst_efield_denote :=
@@ -806,7 +813,7 @@ Lemma semax_PTree_field_load_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
+      nth_error R n = Some (field_at sh t_root gfs0 v' p) /\
       gfs = gfs1 ++ gfs0 ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
@@ -829,7 +836,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_GEN NTH GFS SH JMEQ LEGAL_NESTED_FIELD TC.
+         FIELD_ADD_GEN [NTH GFS] SH JMEQ LEGAL_NESTED_FIELD TC.
   pose proof is_neutral_cast_by_value _ _ H0 as BY_VALUE.
   assert_PROP (nested_efield e_root efs tts = e /\
                LR_of_type t_root_from_e = lr /\
@@ -914,7 +921,7 @@ Lemma semax_PTree_field_load_with_hint:
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
-      nth_error R n = Some (field_at sh t_root gfs0 v_reptype p) ->
+      nth_error R n = Some (field_at sh t_root gfs0 v_reptype p) /\
       gfs = gfs1 ++ gfs0 ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
@@ -931,7 +938,7 @@ Proof.
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH GFS SH JMEQ TC.
+         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ [NTH GFS] SH JMEQ TC.
   eapply semax_SC_field_load_to_use.
   1: eassumption.
   1: eassumption.
@@ -1117,6 +1124,82 @@ Definition upd_val t_root gfs v v0 :=
 
 End SEMAX_PTREE.
 
+Ltac unify_var_or_evar name val :=
+  let E := fresh "E" in assert (name = val) as E by (try subst name; reflexivity); clear E.
+
+Ltac sc_try_instantiate P Q R R0 gfs a sh t_root gfs0 v n i H SH GFS TY V A :=
+  let E := fresh "E" in
+  assert (R0 = (field_at sh t_root gfs0 v a)) as E;
+  [ unify_var_or_evar gfs0 GFS;
+    unify_var_or_evar t_root TY;
+    unify_var_or_evar sh SH;
+    unify_var_or_evar v V;
+    unify_var_or_evar a A;
+    try unfold sh, t_root, gfs0, v, a;
+    unfold data_at_;
+    unfold data_at;
+    unify GFS (skipn (length gfs - length GFS) gfs);
+    simpl skipn; try subst gfs;
+    try unfold field_at_;
+    generalize V;
+    intro;
+    solve [ rewrite <- ?field_at_offset_zero; reflexivity ] (* TODO: this line may be problematic. Because the left side of E may be not same to R0 now (although equal) *)
+  | (pose i as n || unify_var_or_evar i n);
+    assert (nth_error R n = Some R0) as H by reflexivity;
+    clear E ].
+
+Ltac sc_new_instantiate P Q R Rnow gfs p sh t_root gfs0 v n i H :=
+  match Rnow with
+  | ?R0 :: ?Rnow' =>
+    match R0 with
+    | data_at ?SH ?TY ?V ?A => 
+      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY V A
+    | data_at_ ?SH ?TY ?A => 
+      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY
+      (default_val (nested_field_type TY nil)) A
+    | field_at ?SH ?TY ?GFS ?V ?A =>
+      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY V A
+    | field_at_ ?SH ?TY ?GFS ?A =>
+      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY
+      (default_val (nested_field_type TY GFS)) A
+    | _ => sc_new_instantiate P Q R Rnow' gfs p sh t_root gfs0 v n (S i) H
+    end
+  end.
+
+(* simplifies a list expression into [e1; e2; ...] form without simplifying its elements *)
+Ltac eval_list l :=
+  let l' := eval hnf in l in lazymatch l' with
+  | ?h :: ?tl => let tl' := eval_list tl in constr:(h :: tl')
+  | (@nil ?T) => constr:(@nil T)
+  end.
+
+Ltac prove_gfs_suffix gfs gfs0 gfs1 :=
+  let len := fresh "len" in
+  let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
+  unify_var_or_evar gfs1 gfs1';
+  reflexivity.
+
+Ltac search_field_at_in_SEP :=
+match goal with
+| |- nth_error ?R ?n = Some (field_at ?sh ?t_root ?gfs0 ?v ?p) /\
+     ?gfs = ?gfs1 ++ ?gfs0 =>
+  let H := fresh "H" in
+  sc_new_instantiate (@nil Prop) (@nil localdef) R R
+                     gfs p sh t_root gfs0 v n 0%nat H;
+  split; [exact H | prove_gfs_suffix gfs gfs0 gfs1]
+end.
+
+(*
+subst sh; auto (* readable_share *)
+    | subst gfs0 gfs1 gfs t_SEP v n p_full sh;
+      clear HNice Hnth Hresult Hfull;
+      entailer_for_load_tac
+    | solve_legal_nested_field_in_entailment;
+      subst gfs0 gfs1 gfs t_SEP v n p_full sh;
+      clear HNice Hnth Hresult Hfull ]
+| fail 1000 "unexpected failure in load_tac_with_full_path_hint" ].
+                                                                  *)
+
 Ltac load_tac_with_hint :=
   eapply semax_PTree_field_load_with_hint;
   [ prove_local2ptree
@@ -1126,6 +1209,9 @@ Ltac load_tac_with_hint :=
   | solve_msubst_eval_lvalue
   | eassumption
   | reflexivity
+  | search_field_at_in_SEP
+  | auto (* readable share *)
+  | solve_load_rule_evaluation
   | idtac | .. ].
 
 Ltac load_tac_no_hint :=
@@ -1139,4 +1225,7 @@ Ltac load_tac_no_hint :=
   | solve_msubst_efield_denote
   | econstructor
   | solve_field_address_gen
+  | search_field_at_in_SEP
+  | auto (* readable share *)
+  | solve_load_rule_evaluation
   | idtac .. ].
