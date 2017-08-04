@@ -171,11 +171,6 @@ Ltac solve_load_rule_evaluation :=
     | A := _ |- _ => clear A 
     end;
     match goal with
-    | |- JMeq (@proj_reptype _ _ ?name_of_gfs ?name_of_v) _ =>
-      try subst name_of_gfs;
-      try subst name_of_v
-    end;
-    match goal with
     | |- JMeq (@proj_reptype _ _ ?gfs _) _ =>
       remember_indexes gfs
     end;
