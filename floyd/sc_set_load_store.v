@@ -1348,11 +1348,12 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
-  | (solve [auto]                           || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Cannot prove readable_share")
-  | (solve_load_rule_evaluation             || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in solve_load_rule_evaluation")
-  | entailer_for_load_tac
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac load_tac_no_hint LOCAL2PTREE :=
@@ -1366,12 +1367,16 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | solve_msubst_efield_denote
   | econstructor
   | solve_field_address_gen
-  | search_field_at_in_SEP
-  | solve [auto] (* readable share *)
-  | solve_load_rule_evaluation
-  | (solve_legal_nested_field_in_entailment || fail 1000 "unexpected failure in load_tac_no_hint."
-                                                         "unexpected failure in solve_legal_nested_field_in_entailment")
-  | entailer_for_load_tac
+  | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
+  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "Cannot prove readable_share")
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [solve_legal_nested_field_in_entailment
+                                             | fail 1000 "unexpected failure in load_tac_no_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac load_tac :=
@@ -1382,7 +1387,8 @@ Ltac load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE]
+    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE];
+    clear T1 T2 LOCAL2PTREE
   end.
 
 Ltac cast_load_tac_with_hint LOCAL2PTREE :=  
@@ -1398,11 +1404,12 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
-  | (solve [auto]                           || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Cannot prove readable_share")
-  | (solve_load_rule_evaluation             || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in solve_load_rule_evaluation")
-  | entailer_for_load_tac
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac cast_load_tac_no_hint LOCAL2PTREE :=
@@ -1417,11 +1424,16 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | solve_msubst_efield_denote
   | econstructor
   | solve_field_address_gen
-  | search_field_at_in_SEP
-  | solve [auto] (* readable share *)
-  | solve_load_rule_evaluation
-  | solve_legal_nested_field_in_entailment
-  | entailer_for_load_tac
+  | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
+  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "Cannot prove readable_share")
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [solve_legal_nested_field_in_entailment
+                                             | fail 1000 "unexpected failure in load_tac_no_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac cast_load_tac :=
@@ -1432,9 +1444,8 @@ Ltac cast_load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE]
+    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE];
+    clear T1 T2 LOCAL2PTREE
   end.
 
-(* TODO: delete asserted and posed things in entailer goal *)
-(* TODO: error message *)
 (* TODO: hint message *)
