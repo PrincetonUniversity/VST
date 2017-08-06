@@ -1,5 +1,6 @@
 Require Import floyd.base2.
 Require Import floyd.client_lemmas.
+Require Import floyd.efield_lemmas.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_typecheck.
 Local Open Scope logic.
@@ -9,7 +10,8 @@ Ltac unfold_for_go_lower :=
                        eval_exprlist eval_expr eval_lvalue cast_expropt
                        sem_cast eval_binop eval_unop force_val1 force_val2
                       tc_expropt tc_expr tc_exprlist tc_lvalue tc_LR tc_LR_strong
-                      typecheck_expr typecheck_exprlist typecheck_lvalue
+                      msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
+                      typecheck_expr typecheck_exprlist typecheck_lvalue typecheck_LR typecheck_LR_strong typecheck_efield
                       function_body_ret_assert frame_ret_assert
                       make_args' bind_ret get_result1 retval
                        classify_cast
@@ -661,6 +663,36 @@ Proof.
   auto.
 Qed.
 
+Lemma go_lower_localdef_canon_tc_LR {cs: compspecs} : forall Delta Ppre Qpre Rpre e lr T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_LR Delta T1 T2 e lr) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_LR Delta e lr.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_LR_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
+Lemma go_lower_localdef_canon_tc_efield {cs: compspecs} : forall Delta Ppre Qpre Rpre efs T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_efield Delta T1 T2 efs) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_efield Delta efs.
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  simpl app.
+  apply msubst_tc_efield_sound.
+  change Ppre with (nil ++ Ppre).
+  erewrite <- local2ptree_soundness by eassumption.  
+  apply go_lower_localdef_canon_left.
+  auto.
+Qed.
+
 Lemma go_lower_localdef_canon_tc_exprlist {cs: compspecs} : forall Delta Ppre Qpre Rpre ts es T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
   local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_exprlist Delta T1 T2 ts es) ->
@@ -691,17 +723,46 @@ Proof.
   auto.
 Qed.
 
-Ltac clean_LOCAL_canon_tc :=
-  match goal with
-  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expr _ _ =>
-    apply go_lower_localdef_canon_tc_expr
-  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_lvalue _ _ =>
-    apply go_lower_localdef_canon_tc_lvalue
-  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_exprlist _ _ _ =>
-    apply go_lower_localdef_canon_tc_exprlist
-  | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- tc_expropt _ _ _ =>
-    apply go_lower_localdef_canon_tc_expropt
-  end;
+Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc): (environ -> mpred) -> mpred -> Prop :=
+| clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 (local `P) (!! P)
+| clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 (!! P) (!! P)
+| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 (tc_lvalue Delta e) (msubst_tc_lvalue Delta T1 T2 e)
+| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 (tc_expr Delta e) (msubst_tc_expr Delta T1 T2 e)
+| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 (tc_LR Delta e lr) (msubst_tc_LR Delta T1 T2 e lr)
+| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 (tc_efield Delta efs) (msubst_tc_efield Delta T1 T2 efs)
+| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 ts es)
+| clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 e t)
+| clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 P1 Q1 -> clean_LOCAL_right Delta T1 T2 P2 Q2 -> clean_LOCAL_right Delta T1 T2 (P1 && P2) (Q1 && Q2).
+
+Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R S S',
+  local2ptree Q = (T1, T2, nil, nil) ->
+  clean_LOCAL_right Delta T1 T2 S S' ->
+  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta Q) (LOCALx nil (SEPx R)) |-- ` S' ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  induction H0.
+  + apply go_lower_localdef_canon_left, H1.
+  + apply go_lower_localdef_canon_left, H1.
+  + eapply go_lower_localdef_canon_tc_lvalue; eauto.
+  + eapply go_lower_localdef_canon_tc_expr; eauto.
+  + eapply go_lower_localdef_canon_tc_LR; eauto.
+  + eapply go_lower_localdef_canon_tc_efield; eauto.
+  + eapply go_lower_localdef_canon_tc_exprlist; eauto.
+  + eapply go_lower_localdef_canon_tc_expropt; eauto.
+  + apply andp_right.
+    - apply IHclean_LOCAL_right1.
+      apply (derives_trans _ _ _ H1).
+      unfold_lift; intros rho.
+      apply andp_left1; auto.
+    - apply IHclean_LOCAL_right2.
+      apply (derives_trans _ _ _ H1).
+      unfold_lift; intros rho.
+      apply andp_left2; auto.
+Qed.
+
+Ltac clean_LOCAL_canon_mix :=
+  eapply clean_LOCAL_right_spec; [prove_local2ptree | solve [repeat constructor] |];
          (let tl := fresh "tl" in
          let QQ := fresh "Q" in
          let PPr := fresh "Pr" in
@@ -728,7 +789,7 @@ match goal with
  | |- ENTAIL _, _ |-- _ => idtac
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
-first [clean_LOCAL_canon_canon | clean_LOCAL_canon_tc];
+first [clean_LOCAL_canon_canon | clean_LOCAL_canon_mix];
 repeat (simple apply derives_extract_PROP; fancy_intro true);
 let rho := fresh "rho" in
 intro rho;
@@ -740,7 +801,9 @@ try match goal with
    unfold_for_go_lower; simpl; subst x;
    rewrite ?(prop_true_andp True) by auto
 end;
-try simple apply quick_finish_lower;
+first
+[ simple apply quick_finish_lower
+|          
  (simple apply finish_lower ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
@@ -750,4 +813,4 @@ unfold_for_go_lower;
 simpl; rewrite ?sepcon_emp;
 try match goal with u := rho_marker |- _ => clear u end;
 clear_Delta;
-try clear dependent rho.
+try clear dependent rho].
