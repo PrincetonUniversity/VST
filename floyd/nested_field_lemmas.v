@@ -1088,96 +1088,9 @@ Qed.
 
 (************************************************
 
-nested_field_offset_app
+nested_field app
 
 ************************************************)
-
-(*
-Lemma nested_field_rec_app: forall t gfs0 gfs1 t0 t1 ofs0 ofs1,
-  nested_field_rec t gfs0 = Some (ofs0, t0) ->
-  nested_field_rec t0 gfs1 = Some (ofs1, t1) ->
-  nested_field_rec t (gfs1 ++ gfs0) = Some (ofs0 + ofs1, t1).
-Proof.
-  intros.
-  revert ofs1 t1 H0.
-  induction gfs1; intros.
-  + simpl in *.
-    inversion H0.
-    subst.
-    rewrite H.
-    rewrite Z.add_0_r.
-    reflexivity.
-  + solve_nested_field_rec_cons_eq_Some H0.
-    - (* Tarray *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      f_equal.
-      f_equal.
-      omega.
-    - (* Tstruct *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      rewrite CO, H2.
-      destruct_in_members i (co_members co); [| tauto].
-      f_equal.
-      f_equal.
-      omega.
-    - (* Tunion *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      rewrite CO, H2.
-      destruct_in_members i (co_members co); [| tauto].
-      reflexivity.
-Qed.
-
-Lemma nested_field_rec_app_rev: forall t gfs0 gfs1 t0 t1 ofs0 ofs1,
-  nested_field_rec t gfs0 = Some (ofs0, t0) ->
-  nested_field_rec t (gfs1 ++ gfs0) = Some (ofs0 + ofs1, t1) ->
-  nested_field_rec t0 gfs1 = Some (ofs1, t1).
-Proof.
-  intros.
-  revert ofs1 t1 H0.
-  induction gfs1; intros.
-  + simpl in *.
-    rewrite H in H0.
-    inversion H0.
-    f_equal. f_equal. omega.
-  + simpl app in H0.
-    solve_nested_field_rec_cons_eq_Some H0;
-    apply nested_field_rec_cons_eq_Some_lemma.
-    - (* Tarray *)
-      specialize (IHgfs1 (ofs - ofs0) (Tarray t2 z a0)).
-      replace (ofs0 + (ofs - ofs0)) with ofs in IHgfs1 by omega.
-      rewrite (IHgfs1 eq_refl).
-      split; [f_equal; f_equal; omega | auto].
-    - (* Tstruct *)
-      specialize (IHgfs1 (ofs - ofs0) (Tstruct id a0)).
-      replace (ofs0 + (ofs - ofs0)) with ofs in IHgfs1 by omega.
-      rewrite (IHgfs1 eq_refl).
-      rewrite CO.
-      repeat split; auto.
-      omega.
-    - (* Tunion *)
-      specialize (IHgfs1 ofs1 (Tunion id a0)).
-      subst ofs.
-      rewrite (IHgfs1 eq_refl).
-      rewrite CO.
-      auto.
-Qed.
-*)
-Lemma legal_nested_field_app: forall t gfs0 gfs1,
-  legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field t gfs0.
-Proof.
-  intros.
-  induction gfs1.
-  + simpl in *; auto.
-  + simpl app in H.
-    simpl in H.
-    tauto.
-Qed.
 
 Lemma nested_field_type_nested_field_type: forall t gfs0 gfs1,
   nested_field_type (nested_field_type t gfs0) gfs1 = nested_field_type t (gfs1 ++ gfs0).
@@ -1193,7 +1106,18 @@ Proof.
     reflexivity.
 Defined.
 
-Lemma legal_nested_field_app': forall t gfs0 gfs1,
+Lemma legal_nested_field_shrink: forall t gfs0 gfs1,
+  legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field t gfs0.
+Proof.
+  intros.
+  induction gfs1.
+  + simpl in *; auto.
+  + simpl app in H.
+    simpl in H.
+    tauto.
+Qed.
+
+Lemma legal_nested_field_app: forall t gfs0 gfs1,
   legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field (nested_field_type t gfs0) gfs1.
 Proof.
   intros.
@@ -1203,6 +1127,19 @@ Proof.
     specialize (IHgfs1 (proj1 H)).
     simpl.
     rewrite nested_field_type_nested_field_type.
+    tauto.
+Qed.
+
+Lemma legal_nested_field_app_inv: forall t gfs0 gfs1,
+  legal_nested_field t gfs0 ->
+  legal_nested_field (nested_field_type t gfs0) gfs1 ->
+  legal_nested_field t (gfs1 ++ gfs0).
+Proof.
+  intros.
+  induction gfs1.
+  + exact H.
+  + simpl in *.
+    rewrite <- nested_field_type_nested_field_type.
     tauto.
 Qed.
 
@@ -1219,7 +1156,7 @@ Proof.
   + simpl app in *.
     specialize (IHgfs1 (proj1 H)).
     rewrite nested_field_offset_ind with (gfs := a :: gfs1 ++ gfs0) by auto.
-    rewrite nested_field_offset_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app'; auto).
+    rewrite nested_field_offset_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app; auto).
     rewrite nested_field_type_nested_field_type.
     omega.
 Qed.
@@ -1447,15 +1384,6 @@ Proof.
   auto.
 Qed.
 
-Lemma legal_nested_field_shrink: forall t_root gfsB gfsA,
-  legal_nested_field t_root (gfsB ++ gfsA) ->
-  legal_nested_field t_root gfsA.
-Proof.
-  intros. induction gfsB.
-  - rewrite app_nil_l in H. assumption.
-  - apply IHgfsB. clear IHgfsB. simpl in H. destruct H. assumption.
-Qed.
-
 Lemma field_compatible_shrink: forall t_root gfsB gfsA a,
   field_compatible t_root (gfsB ++ gfsA) a ->
   field_compatible t_root gfsA a.
@@ -1481,26 +1409,25 @@ Proof.
     rewrite E; destruct H; auto.
 Qed.
 
+Lemma field_compatible_app_inv': forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  legal_nested_field (nested_field_type t_root gfsA) gfsB ->
+  field_compatible t_root (gfsB ++ gfsA) a.
+Proof.
+  unfold field_compatible.
+  intros.
+  pose proof legal_nested_field_app_inv t_root gfsA gfsB.
+  tauto.
+Qed.
+
 Lemma field_compatible_app_inv: forall gfsB t_root gfsA a,
   field_compatible t_root gfsA a ->
   field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) ->
   field_compatible t_root (gfsB ++ gfsA) a.
 Proof.
-  intro gfsB. induction gfsB; intros.
-  - auto.
-  - rewrite <- app_comm_cons.
-    apply field_compatible_cons in H0.
-    apply field_compatible_cons.
-    rewrite nested_field_type_nested_field_type in H0.
-    destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
-    try solve [exfalso; assumption];
-    destruct a; try solve [exfalso; assumption].
-    + destruct H0.
-      split; auto.
-    + destruct H0.
-      split; auto.
-    + destruct H0.
-      split; auto.
+  intros.
+  apply field_compatible_app_inv'; auto.
+  destruct H0; tauto.
 Qed.
 
 Lemma field_address_app: forall t_root gfsA gfsB a,
@@ -1535,16 +1462,6 @@ Proof.
     { eapply field_compatible_legal_nested_field. eassumption. }
     { eapply field_compatible_app. assumption. }
     { assumption. }
-Qed.
-
-Lemma field_address_app_rewrite: forall t_root t' gfsA gfsB a,
-  nested_field_type t_root gfsA = t' ->
-  field_address t_root (gfsB ++ gfsA) a =
-  field_address t' gfsB (field_address t_root gfsA a).
-Proof.
-  intros.
-  subst.
-  apply field_address_app.
 Qed.
 
 End COMPOSITE_ENV.

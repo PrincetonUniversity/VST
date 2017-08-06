@@ -1,4 +1,5 @@
 Require Import floyd.base2.
+
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
@@ -362,23 +363,6 @@ Proof.
       apply JMeq_refl.
 Qed.
 
-Lemma nested_field_ramif': forall sh t gfs0 gfs1 v v0 p,
-  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
-  legal_nested_field t (gfs1 ++ gfs0) ->
-  field_at sh t gfs0 v p |--
-    field_at sh t (gfs1 ++ gfs0) v0 p *
-    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
-      (field_at sh t (gfs1 ++ gfs0) v0' p -*
-         field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
-Proof.
-  intros.
-  rewrite field_at_compatible'.
-  normalize.
-  eapply nested_field_ramif; eauto.
-  unfold field_compatible in *.
-  tauto.
-Qed.
-
 Lemma nested_field_ramif_load: forall sh t gfs0 gfs1 (v_reptype: reptype (nested_field_type t gfs0)) (v_val: val) p,
   field_compatible t (gfs1 ++ gfs0) p ->
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) v_val ->
@@ -431,6 +415,41 @@ Proof.
   eapply allp_left.
   rewrite prop_imp; [apply derives_refl |].
   auto.
+Qed.
+
+Lemma nested_field_ramif': forall sh t gfs0 gfs1 v v0 p,
+  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
+  legal_nested_field t (gfs1 ++ gfs0) ->
+  field_at sh t gfs0 v p |--
+    field_at sh t (gfs1 ++ gfs0) v0 p *
+    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
+      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+         field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
+Proof.
+  intros.
+  rewrite field_at_compatible'.
+  normalize.
+  eapply nested_field_ramif; eauto.
+  unfold field_compatible in *.
+  tauto.
+Qed.
+
+Lemma nested_field_ramif'': forall sh t gfs0 gfs1 v v0 p,
+  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
+  legal_nested_field (nested_field_type t gfs0) gfs1 ->
+  field_at sh t gfs0 v p |--
+    field_at sh t (gfs1 ++ gfs0) v0 p *
+    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
+      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+         field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
+Proof.
+  intros.
+  rewrite field_at_compatible'.
+  normalize.
+  eapply nested_field_ramif; eauto.
+  pose proof legal_nested_field_app_inv t gfs0 gfs1.
+  unfold field_compatible in *.
+  tauto.
 Qed.
 
 End NESTED_RAMIF.

@@ -2452,6 +2452,27 @@ Ltac simpl_compute_legal_nested_field :=
     change (compute_legal_nested_field T L) with r
   end.
 
+Ltac solve_legal_nested_field_in_entailment :=
+   match goal with
+   | |- _ |-- !! legal_nested_field ?t_root ?gfs =>
+     try unfold t_root;
+     try unfold gfs;
+     try match gfs with
+     | (?gfs1 ++ ?gfs0) => try unfold gfs1; try unfold gfs0
+     end
+  end;
+  first
+  [ apply prop_right; apply compute_legal_nested_field_spec';
+    simpl_compute_legal_nested_field;
+    repeat constructor; omega
+  |
+  apply compute_legal_nested_field_spec;
+  simpl_compute_legal_nested_field;
+  repeat constructor;
+  try solve [apply prop_right; auto; omega];
+  try solve [normalize; apply prop_right; auto; omega]
+  ].
+
 Ltac headptr_field_compatible :=
   match goal with H: headptr ?P |- field_compatible _ _ ?P =>
   apply headptr_field_compatible; 
