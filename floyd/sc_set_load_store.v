@@ -831,6 +831,35 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
+Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e
+  t gfs p,
+  local2ptree Q = (T1, T2, nil, nil) ->
+  compute_nested_efield e = (e_root, efs, tts, lr) ->
+  msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
+  msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
+  p_full_from_e = field_address t gfs p /\
+  p_root_from_e = field_address t gfs p /\
+  False ->
+  goal.
+Proof.
+  intros.
+  destruct H3 as [? [? ?]].
+  inv H5.
+Qed.
+
+Ltac hint_msg LOCAL2PTREE e :=
+  eapply (hint_msg_lemma e);
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | solve_msubst_eval_LR
+  | ];
+  match goal with
+  | |- ?eq1 /\ ?eq2 /\ False =>
+          fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
+                    "or if this does not hold, prove an equality of the form" eq2
+  end.
+
 Section SEMAX_PTREE.
 
 Context {cs: compspecs}.
@@ -1387,7 +1416,7 @@ Ltac load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE];
+    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
@@ -1444,8 +1473,7 @@ Ltac cast_load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE];
+    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
-(* TODO: hint message *)
