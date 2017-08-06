@@ -1,6 +1,7 @@
 Require Import floyd.base2.
 Require Import floyd.client_lemmas.
 Require Import floyd.closed_lemmas.
+Require Import floyd.efield_lemmas.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_eval.
 
@@ -40,6 +41,12 @@ Definition msubst_tc_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 
 Definition msubst_tc_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) :=
   msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)).
+
+Definition msubst_tc_LR {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) (lr: LLRR) :=
+  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_LR Delta e lr)).
+
+Definition msubst_tc_efield {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (efs: list efield) := 
+  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_efield Delta efs)).
 
 Definition msubst_tc_exprlist {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (ts: list type) (es: list expr) :=
   msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_exprlist Delta ts es)).
@@ -469,6 +476,36 @@ Proof.
       solve_legal_tc_init.
 Qed.  
 
+Lemma typecheck_LR_strong_legal_tc_init: forall {cs: compspecs} Delta e lr,
+  legal_tc_init Delta (typecheck_LR_strong Delta e lr).
+Proof.
+  intros.
+  destruct lr.
+  + apply typecheck_lvalue_legal_tc_init.
+  + apply typecheck_expr_legal_tc_init.
+Qed.
+
+Lemma typecheck_LR_legal_tc_init: forall {cs: compspecs} Delta e lr,
+  legal_tc_init Delta (typecheck_LR Delta e lr).
+Proof.
+  intros.
+  pose proof (fun e => typecheck_LR_strong_legal_tc_init Delta e lr).
+  pose proof typecheck_lvalue_legal_tc_init Delta.
+  pose proof typecheck_expr_legal_tc_init Delta.
+  unfold typecheck_LR.
+  solve_legal_tc_init.
+Qed.
+
+Lemma typecheck_efield_legal_tc_init: forall {cs: compspecs} Delta efs,
+  legal_tc_init Delta (typecheck_efield Delta efs).
+Proof.
+  intros.
+  induction efs; simpl; auto.
+  solve_legal_tc_init.
+  subst a.
+  apply typecheck_expr_legal_tc_init.
+Qed.
+  
 Lemma typecheck_exprlist_legal_tc_init: forall {cs: compspecs} Delta ts es,
   legal_tc_init Delta (typecheck_exprlist Delta ts es).
 Proof.
@@ -503,6 +540,32 @@ Proof.
   unfold msubst_tc_expr in H.
   apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
+  apply andp_right; [apply derives_refl | exact H].
+Qed.
+
+Lemma msubst_tc_LR_sound: forall {cs: compspecs} Delta P T1 T2 Q R e lr,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    ` (msubst_tc_LR Delta T1 T2 e lr) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_LR Delta e lr.
+Proof.
+  intros.
+  unfold msubst_tc_LR in H.
+  apply msubst_denote_tc_assert_sound in H.
+  eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_LR_legal_tc_init].
+  apply andp_right; [apply derives_refl | exact H].
+Qed.
+
+Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 Q R efs,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    ` (msubst_tc_efield Delta T1 T2 efs) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_efield Delta efs.
+Proof.
+  intros.
+  unfold msubst_tc_efield in H.
+  apply msubst_denote_tc_assert_sound in H.
+  eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_efield_legal_tc_init].
   apply andp_right; [apply derives_refl | exact H].
 Qed.
 

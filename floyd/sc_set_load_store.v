@@ -16,6 +16,7 @@ Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_eval.
+Require Import floyd.local2ptree_typecheck.
 Require Import floyd.simpl_reptype.
 
 Local Open Scope logic.
@@ -1369,6 +1370,22 @@ Ltac quick_typecheck3 :=
  end;
  apply quick_derives_right; clear; go_lowerx; intros;
  clear; repeat apply andp_right; auto; fail.
+
+Ltac quick_typecheck4 :=
+  match goal with
+  | |- ENTAIL _, PROPx ?P (LOCALx ?Q (SEPx ?R)) |-- _ =>
+    let H := fresh "H" in
+    pose proof @eq_refl _ (local2ptree Q) as H;
+    unfold local2ptree at 2 in H; simpl in H;
+    rewrite (local2ptree_soundness _ _ _ _ _ _ _ H)
+  end;
+  match goal with
+  | |- ENTAIL _, _ |-- tc_expr _ _ =>
+         apply msubst_tc_expr_sound
+  | |- ENTAIL _, _ |-- tc_lvalue _ _ =>
+         apply msubst_tc_lvalue_sound
+  end;
+  quick_typecheck3.
 
 Ltac default_entailer_for_load_tac :=
   repeat match goal with H := _ |- _ => clear H end;

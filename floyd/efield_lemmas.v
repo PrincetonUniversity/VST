@@ -322,7 +322,7 @@ Proof.
     rewrite ISBINOP.
     normalize.
     rewrite !denote_tc_assert_andp.
-    repeat apply andp_right.
+    simpl. repeat apply andp_right.
     - apply prop_right.
       simpl in H2; rewrite <- H2; auto.
     - solve_andp.

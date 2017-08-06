@@ -53,31 +53,33 @@ Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e.
 Proof. intros; unfold tc_andp; reflexivity. Qed.
 Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
 
-Definition tc_LR_strong {cs: compspecs} Delta e lr :=
+Definition typecheck_LR_strong {cs: compspecs} Delta e lr: tc_assert :=
   match lr with
-  | LLLL => tc_lvalue Delta e
-  | RRRR => tc_expr Delta e
+  | LLLL => typecheck_lvalue Delta e
+  | RRRR => typecheck_expr Delta e
   end.
-
-Definition tc_LR {cs: compspecs} Delta e lr :=
+  
+Definition typecheck_LR {cs: compspecs} Delta e lr: tc_assert :=
   match e with
   | Ederef e0 t =>
      match lr with
-     | LLLL => denote_tc_assert
-                 (tc_andp
-                   (typecheck_expr Delta e0)
-                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-     | RRRR => denote_tc_assert
-                match access_mode t with
-                | By_reference =>
-                   (tc_andp
-                      (typecheck_expr Delta e0)
-                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-                | _ => tc_FF (deref_byvalue t)
-                end
+     | LLLL => tc_andp
+                 (typecheck_expr Delta e0)
+                 (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+     | RRRR => match access_mode t with
+               | By_reference =>
+                   tc_andp
+                     (typecheck_expr Delta e0)
+                     (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+               | _ => tc_FF (deref_byvalue t)
+               end
     end
-  | _ => tc_LR_strong Delta e lr
+  | _ => typecheck_LR_strong Delta e lr
   end.
+
+Definition tc_LR_strong {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR_strong Delta e lr).
+
+Definition tc_LR {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR Delta e lr).
 
 Definition eval_LR {cs: compspecs} e lr :=
   match lr with
