@@ -154,6 +154,13 @@ Proof.
   repeat intro; eauto.
 Qed.
 
+Lemma compatible_k : forall m1 m2 (Hcompat : compatible m1 m2) k v, m2 k = Some v -> map_add m1 m2 k = Some v.
+Proof.
+  unfold compatible; intros.
+  unfold map_add.
+  destruct (m1 k) eqn: Hk; eauto.
+Qed.
+
 Lemma map_join_incl_compat : forall m1 m2 m' m'' (Hincl : map_incl m1 m2) (Hjoin : join m2 m' m''),
   exists m, join m1 m' m /\ map_incl m m''.
 Proof.

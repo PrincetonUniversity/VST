@@ -3987,15 +3987,68 @@ DECLARE _exit
 Parameter func_ptr : funspec -> val ->mpred.
 Definition func_ptr' f v := func_ptr f v && emp.
 \end{lstlisting}
-\lstinline{func_ptr $\phi$ v} $\qquad$ means that value $v$
-is a pointer to a function with specification $\phi$.\newline
-\lstinline{func_ptr' $\phi$ v} is a form more suitable to
+\lstinline{func_ptr $\phi$ v} $\qquad$ means that $v$
+is a pointer to a function with funspec $\phi$.\newline
+\lstinline{func_ptr' $\phi$ v} $\qquad$ is a form more suitable to
 be a conjunct of a \lstinline{SEP} clause.
 
 Verifiable C's program logic is powerful enough to reason expressively
-about function pointers (see PLCC Chapters 24 and 29).  However,
-the Floyd proof-automation system does not have much support
-for proving such programs at present.
+about function pointers (see PLCC Chapters 24 and 29).  Object-oriented
+programming with function pointers is illustrated, in two different
+styles, by the programs \file{progs/message.c} and \file{progs/object.c},
+and their verifications,
+\file{progs/verif\_message.c} and \file{progs/verif\_object.c}.
+
+In this chapter, we illustrate using the much simpler program,
+\file{progs/funcptr.c}.
+\begin{lstlisting}
+int myfunc (int i) { return i+1; }
+void *a[] = {myfunc};
+int main (void) {
+  int ($$*f)(int);
+  int j;
+  f = &myfunc;
+  j = f(3);
+  return j;
+}
+\end{lstlisting}
+The verification, in \file{progs/verif\_funcptr.v}, defines
+\begin{lstlisting}
+Definition myfunc_spec := DECLARE _myfunc myspec.
+\end{lstlisting}
+where \lstinline{myspec} is 
+a Definition for a \lstinline{WITH...PRE...POST} specification.
+
+Near the beginning of \lstinline{Lemma body_main},
+notice that we have \linebreak
+\lstinline{LOCAL (gvar _myfunc p)} in the precondition.
+That \lstinline{gvar} is needed by 
+the tactic \lstinline{make_func_ptr _myfunc},
+which adds \lstinline{func_ptr' myspec p} to the SEP clause.
+It ``knows'' to use \lstinline{myspec} because it looks
+up \lstinline{_myfunc} in
+\lstinline{Delta} (which, in turn, is derived from \lstinline{Gprog}).
+
+Now, \lstinline{forward} through the assigment \lstinline{f=myfunc}
+works as you might expect, adding the LOCAL clause
+\lstinline{temp _f p}.
+
+To call a function-variable, such as this program's \lstinline{j=f(3);}
+just use \lstinline{forward_call} as usual.  However, in such a case,
+\lstinline{forward_call} will find its funspec in a
+\lstinline{func_ptr'} SEP-clause, rather than as a global entry
+in \lstinline{Delta} as for ordinary function calls.
+
+Note:  Unfortunately, in order to get the \lstinline{gvar _myfunc} into the
+precondition of \lstinline{main}, 
+there must be some initialized global variable that refers to
+\lstinline{myfunc}.  That's the purpose of the (otherwise useless)
+array \lstinline{a} in this program.
+And suppose you wanted to do \lstinline{make_func_ptr} in
+some function \emph{other} than \lstinline{main}.  Then you'd
+need to add this \lstinline{gvar} to the LOCAL clause of that
+function's precondition, and pass it down from main.
+Both of these infelicities ought to be remedied in a future release.
 
 
 \ychapter{Axioms of separation logic}{(see PLCC \autoref{ch:logic})}

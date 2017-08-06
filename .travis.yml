@@ -5,6 +5,11 @@ cache:
   apt: true
   directories:
   - $HOME/.opam
+  - build/compcert
+  - build/sepcomp
+  - build/msl
+  - build/veric
+  - build/floyd
 addons:
   apt:
     sources:
@@ -20,10 +25,13 @@ env:
 branches:
   only:
   - master
+  - more-integrated-loadstore
 notifications:
   email:
     recipients:
     - wmansky@cs.princeton.edu
+git:
+  depth: 3
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
@@ -32,7 +40,31 @@ install:
 - opam install -j ${NJOBS} -y coq=8.6 ${EXTRA_OPAM}
 - opam list
 
-script:
-- echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
-- make -j ${NJOBS} progs
-- echo -en 'travis_fold:end:VST.build\\r'
+jobs:
+  include:
+  - stage: setup
+    script:
+    - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true
+    - echo -en 'travis_fold:end:VST.build\\r'
+  - stage: test
+    script:
+    - echo 'Building progs...' && echo -en 'travis_fold:start:progs.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true progs
+    - echo -en 'travis_fold:end:progs.build\\r'
+  - script:
+    - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
+    - echo -en 'travis_fold:end:hmacdrbg.build\\r'
+  - script:
+    - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+    - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+    - echo -en 'travis_fold:end:mailbox.build\\r'

@@ -156,8 +156,6 @@ Proof. destruct (Byte.unsigned_range_2 b).
   unfold Byte.max_unsigned in H0; simpl in H0; omega.
 Qed. 
 
-Axiom myadmit: False.
-
 Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_dl64 dl64_spec.
 Proof.

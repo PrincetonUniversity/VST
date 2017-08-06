@@ -7,13 +7,16 @@ Require Import mailbox.mailbox.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* standard VST prelude *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+(* import funspecs from concurrency library *)
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
+(* utility function specs *)
 Definition surely_malloc_spec :=
  DECLARE _surely_malloc
    WITH n:Z
@@ -45,6 +48,7 @@ Definition tbuffer := Tstruct _buffer noattr.
 
 Definition Empty := vint (-1).
 
+(* operations on histories *)
 Fixpoint find_read h d :=
   match h with
   | [] => (d, [])
@@ -64,11 +68,9 @@ Definition prev_taken h := fst (find_read (snd (find_write h (vint 0))) (vint 1)
 
 Definition last_write h := fst (find_write h (vint 0)).
 
+(* This is the invariant for the location buffers comm[N]. *)
 (* The ghost variables are the last value read, the last value written, and the last value read before
    the last write (i.e., last_taken). The first is updated by the reader, the rest by the writer. *)
-
-(* We can't use tokens because we need to consistently get the same share for each reader
-   (so that the communication invariant is precise). *)
 Definition comm_R bufs sh gsh g0 g1 g2 h v := EX b : Z, EX b1 : Z, EX b2 : Z,
   !!(v = vint b /\ -1 <= b < B /\
      Forall (fun a => match a with AE v1 v2 =>
@@ -82,6 +84,7 @@ Definition comm_R bufs sh gsh g0 g1 g2 h v := EX b : Z, EX b1 : Z, EX b2 : Z,
 Definition comm_loc lsh lock comm g g0 g1 g2 bufs sh gsh :=
   AE_loc lsh lock comm g (vint 0) (comm_R bufs sh gsh g0 g1 g2).
 
+(* messaging system function specs *)
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
   WITH comm : val, lock : val, buf : val, reading : val, last_read : val, sh1 : share, shs : list share
@@ -218,6 +221,7 @@ Definition start_write_spec :=
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken).
 (* And b is not in use by any reader. This follows from the property on lasts. *)
 
+(* make_shares returns the elements of shs for which the corresponding element of lasts is not i. *)
 Fixpoint make_shares shs (lasts : list Z) i : list share :=
   match lasts with
   | [] => []
@@ -279,6 +283,7 @@ Definition finish_write_spec :=
           !!(if eq_dec i b then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts' i) sh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B)))).
 
+(* client function specs *)
 Definition reader_spec :=
  DECLARE _reader
   WITH arg : val, x : Z * val * val * val * val * val * list val * list val * list val * list val * list val *
@@ -328,6 +333,7 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
+(* Create the environment containing all function specs. *)
 Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_spec; spawn_spec;
   surely_malloc_spec; memset_spec; atomic_exchange_spec; initialize_channels_spec; initialize_reader_spec;
   start_read_spec; finish_read_spec; initialize_writer_spec; start_write_spec; finish_write_spec;
@@ -335,7 +341,8 @@ Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_s
 
 Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
   repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
-(*Ltac entailer_for_return ::= go_lower; entailer'.*)
+
+(* Now we prove that each function satisfies its specification. *)
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -723,7 +730,6 @@ Proof.
   forward.
   set (c := Znth r comms Vundef).
   set (l := Znth r locks Vundef).
-(*   (* Do P and Q need all the arguments? *) *)
   forward_call (sh2, c, g, l, vint 0, Empty, h,
     fun h b => !!(b = Empty /\ latest_read h (vint b0)) &&
       (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) g0,
@@ -996,11 +1002,11 @@ Proof.
       discriminate. }
     Intros.
     forward.
+    { unfold B, N in *; apply prop_right; omega. }
     { entailer!.
       subst available; apply Forall_Znth; [rewrite Zlength_map, Zlength_upto; unfold B, N in *; simpl; omega|].
       rewrite Forall_forall; intros ? Hin.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
-    { unfold B, N in *; apply prop_right; omega. }
     forward_if (PROP (Znth i available (vint 0) = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) lvar0; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
@@ -1152,6 +1158,7 @@ Proof.
     rewrite !Znth_pos_cons, !Z.add_simpl_r; auto; omega.
 Qed.
 
+(* The complement of make_shares. *)
 Fixpoint make_shares_inv shs (lasts : list Z) i {struct lasts} : list share :=
   match lasts with
   | [] => []
@@ -1289,6 +1296,8 @@ Proof.
   apply mapsto_value_cohere; auto.
 Qed.
 
+(* The relationship between the last_taken array and the shares held by the writer is
+   preserved by the action of the loop body. *)
 Lemma upd_write_shares : forall bufs b b0 lasts shs sh0 (Hb : 0 <= b < B) (Hb0 : 0 <= b0 < B)
   (Hlasts : Forall (fun x : Z => 0 <= x < B) lasts) (Hshs : Zlength shs = N)
   (Hread : Forall readable_share shs) (Hsh0 : sepalg_list.list_join sh0 shs Tsh)
@@ -1863,8 +1872,8 @@ Proof.
       * destruct (eq_dec a b0); reflexivity.
 Qed.
 
-Ltac entailer_for_load_tac ::= go_lower; entailer'.
-Ltac entailer_for_store_tac ::= go_lower; entailer'.
+Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
+Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
@@ -2013,7 +2022,7 @@ Proof.
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (comm, lock, buf, reading, last_read, sh0, shs).
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
-  assert_PROP (Zlength comms = N). (* entailer! loops here *)
+  assert_PROP (Zlength comms = N).
   { go_lowerx; apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold N; omega|].
     unfold unfold_reptype; simpl.
@@ -2027,7 +2036,6 @@ Proof.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold B, N; omega|].
     unfold unfold_reptype; simpl.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
-  (* It's a rather major flaw that we have to reiterate the precondition here. Could we figure it out instead? *)
   forward_spawn (val * val * val * val * val * val * list val * list val * list val *
                  share * share * share * list share * list val * list val * list val * list val)%type
     (writer_, vint 0, fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
@@ -2223,6 +2231,7 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
+(* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.

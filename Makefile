@@ -256,7 +256,8 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
-  verif_sumarray2.v verif_switch.v verif_message.v 
+  verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
+  funcptr.v verif_funcptr.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -358,7 +359,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -377,6 +378,26 @@ FILES = \
  $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
+
+CLEANFILES = \
+ $(MSL_FILES:%=msl/.%o.aux) \
+ $(SEPCOMP_FILES:%=sepcomp/.%o.aux) \
+ $(VERIC_FILES:%=veric/.%o.aux) \
+ $(FLOYD_FILES:%=floyd/.%o.aux) \
+ $(PROGS_FILES:%=progs/.%o.aux) \
+ $(WAND_DEMO_FILES:%=wand_demo/.%o.aux) \
+ $(SHA_FILES:%=sha/.%o.aux) \
+ $(HMAC_FILES:%=sha/.%o.aux) \
+ $(FCF_FILES:%=fcf/.%o.aux) \
+ $(HMACFCF_FILES:%=hmacfcf/.%o.aux) \
+ $(HMACEQUIV_FILES:%=sha/.%o.aux) \
+ $(CCC26x86_FILES:%=ccc26x86/.%o.aux) \
+ $(TWEETNACL_FILES:%=tweetnacl20140427/.%o.aux) \
+ $(CONCUR_FILES:%=concurrency/.%o.aux) \
+ $(HMACDRBG_Files:%=hmacdrbg/.%o.aux)
+# $(DRBG_FILES:%=verifiedDrbg/spec/%)
+
+
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -399,9 +420,13 @@ endif
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
 COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
-ifeq ("$(filter $(COQVERSION),$(COQV))","")
- $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ifeq ($(IGNORECOQVERSION),true)
+else
+ ifeq ("$(filter $(COQVERSION),$(COQV))","")
+  $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ endif
 endif
+
 
 
 #  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
@@ -518,6 +543,12 @@ progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/append.v: progs/append.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/switch.v: progs/switch.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/object.v: progs/object.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/funcptr.v: progs/funcptr.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
@@ -544,7 +575,7 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) $(CLEANFILES) version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)

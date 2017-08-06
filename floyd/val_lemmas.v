@@ -630,6 +630,7 @@ Proof.
   subst.
   hnf; auto.
 Qed.
+Hint Resolve headptr_isptr.
 
 Lemma headptr_offset_zero: forall v,
   headptr (offset_val 0 v) <->
