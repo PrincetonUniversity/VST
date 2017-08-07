@@ -2120,7 +2120,7 @@ Proof.
     apply make_args0_tc_environ; auto.
 Qed.
 
-Lemma semax_return0: forall {cs Espec} Delta Ppre Qpre Rpre Ppost Rpost,
+Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Rpre Ppost Rpost,
   ret_type Delta = Tvoid ->
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx Ppost (LOCALx nil (SEPx Rpost)) ->  
   @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None)
@@ -2140,12 +2140,46 @@ Proof.
     auto.
 Qed.
 
-Lemma semax_return1: forall {cs Espec} Delta Ppre Qpre Rpre Ppost v_post Rpost ret v_gen,
+Inductive return_Some_post_gen (v_gen: val): (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_Some_post_gen_canon:
+    forall P v R,
+      return_Some_post_gen v_gen
+        (PROPx P (LOCALx (temp ret_temp v ::  nil) (SEPx R)))
+        (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx R)))
+| return_Some_post_gen_EX:
+    forall (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_Some_post_gen v_gen (post1 a) (post2 a)) ->
+      return_Some_post_gen v_gen (exp post1) (exp post2).
+
+Lemma return_Some_post_gen_spec: forall v_gen post1 post2,
+  return_Some_post_gen v_gen post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)).
+Proof.
+  intros.
+  induction H.
+  + erewrite PROPx_Permutation by apply Permutation_app_comm.
+    simpl app.
+    go_lowerx.
+    apply andp_right; auto.
+    apply prop_right; split; auto.
+    unfold_lift.
+    subst.
+    unfold eval_id, env_set, te_of.
+    rewrite Map.gss; auto.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a)).
+    intro rho.
+    simpl.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_Some: forall {cs Espec} Delta Ppre Qpre Rpre post1 post2 ret v_gen,
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta (Ecast ret (ret_type Delta)) ->
-  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx (Ppost ++ (v_gen = v_post) :: nil) (LOCALx nil (SEPx Rpost)) ->  
+  return_Some_post_gen v_gen post1 post2 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post2 ->  
   @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn (Some ret))
-     (frame_ret_assert (function_body_ret_assert (ret_type Delta) (PROPx Ppost (LOCALx (temp ret_temp v_post ::  nil) (SEPx Rpost)))) emp).
+     (frame_ret_assert (function_body_ret_assert (ret_type Delta) post1) emp).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_return].
@@ -2153,9 +2187,7 @@ Proof.
   rewrite frame_ret_assert_emp.
   unfold cast_expropt.
   assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
-            |-- ` (function_body_ret_assert (ret_type Delta)
-                     (PROPx Ppost LOCAL (temp ret_temp v_post)  (SEPx Rpost)) EK_return)
-                     ` (Some v_gen) id).
+            |-- ` (function_body_ret_assert (ret_type Delta) post1 EK_return (Some v_gen)) id).
   + unfold function_body_ret_assert, bind_ret, id.
     unfold_lift.
     apply andp_right.
@@ -2166,23 +2198,13 @@ Proof.
       unfold_lift; normalize.
       eapply derives_trans; [apply typecheck_expr_sound; auto |].
       simpl. auto.
-    - eapply derives_trans; [exact H1 |].
-      erewrite PROPx_Permutation by apply Permutation_app_comm.
-      simpl app.
-      go_lowerx.
-      apply andp_right; auto.
-      apply prop_right; split; auto.
-      unfold_lift.
-      subst.
-      unfold eval_id, env_set, te_of.
-      rewrite Map.gss; auto.
-  + rewrite (add_andp _ _ H2), (add_andp _ _ H).
+    - apply (derives_trans _ _ _ H2).
+      apply return_Some_post_gen_spec; auto.
+  + rewrite (add_andp _ _ H3), (add_andp _ _ H).
     rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
     apply andp_left2.
-    forget ((function_body_ret_assert (ret_type Delta)
-       (PROPx Ppost LOCAL (temp ret_temp v_post)  (SEPx Rpost)) EK_return)) as F.
     go_lowerx.
-    unfold id.
     subst.
-    auto.
+    unfold id.
+    normalize.
 Qed.
