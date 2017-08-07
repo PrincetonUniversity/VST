@@ -1,6 +1,5 @@
-Require Import floyd.base.
+Require Import floyd.base2.
 Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.local2ptree_denote.
 
@@ -53,6 +52,12 @@ Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc
   | Efield a i ty => option_map (eval_field (typeof a) i)
                               (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
+  end.
+
+Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
+  match lr with
+  | LLLL => msubst_eval_lvalue T1 T2 e
+  | RRRR => msubst_eval_expr T1 T2 e
   end.
 
 Lemma msubst_eval_expr_eq_aux:
@@ -187,6 +192,17 @@ Proof.
   apply eq_sym, (msubst_eval_lvalue_eq_aux T1 T2); auto.
 Qed.
 
+Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_LR e lr)).
+Proof.
+  intros.
+  destruct lr.
+  + apply msubst_eval_lvalue_eq; auto.
+  + apply msubst_eval_expr_eq; auto.
+Qed.
+
 Lemma msubst_eval_exprlist_eq:
   forall P {cs: compspecs} T1 T2 Q R tys el vl,
   force_list
@@ -221,6 +237,25 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   rewrite <- H. rewrite <- H0.
  auto.
 Qed.
+
+Ltac solve_msubst_eval_lvalue :=
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
+
+Ltac solve_msubst_eval_expr :=
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
+
+Ltac solve_msubst_eval_LR :=
+  unfold msubst_eval_LR;
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
 
 (**********************************************************)
 (* Continuation *)

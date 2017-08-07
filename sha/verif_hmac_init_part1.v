@@ -582,14 +582,14 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
       unfold POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
       eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
-      rewrite Int.signed_repr in lt_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
+      rewrite Int.signed_repr in lt_64_l. trivial. rewrite int_min_signed_eq; omega.
     }
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
       thaw FR2.
       apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
-      rewrite Int.signed_repr in ge_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
+      rewrite Int.signed_repr in ge_64_l. trivial. rewrite int_min_signed_eq; omega.
     }
    intros ek vl.
    unfold POSTCONDITION, abbreviate.

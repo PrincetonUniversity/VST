@@ -163,7 +163,7 @@ make_func_ptr _intpair_serialize.
 gather_SEP 5 6 7.
 replace_SEP 0 
     (data_at Ews t_struct_message
-      (@fold_reptype _ t_struct_message (Vint (Int.repr (mf_size intpair_message)), (ser, des))) ipm). {
+      (Vint (Int.repr (mf_size intpair_message)), (ser, des)) ipm). {
  entailer!.
  unfold_data_at 1%nat.
  rewrite <- (mapsto_field_at _ _ [StructField _bufsize] (Vint (Int.repr 8))) by auto with field_compatible.
@@ -174,7 +174,7 @@ replace_SEP 0
  normalize.
  cancel. rewrite sepcon_comm. apply derives_refl.
 }
-forward. (*  p.x = 1; *)
+forward. (* p.x = 1; *)
 forward. (* p.y = 2; *)
 forward. (* ser = intpair_message.serialize; *)
 

@@ -386,3 +386,59 @@ Proof.
     apply Permutation_app_comm.
   + eapply Permutation_trans; eauto.
 Qed.    
+
+Lemma proj_sumbool_is_false:
+  forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
+Proof.
+intros. destruct a; auto; contradiction.
+Qed.
+Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
+Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
+
+Lemma perm_search:
+  forall {A} (a b: A) r s t,
+     Permutation (a::t) s ->
+     Permutation (b::t) r ->
+     Permutation (a::r) (b::s).
+Proof.
+intros.
+eapply perm_trans.
+apply perm_skip.
+apply Permutation_sym.
+apply H0.
+eapply perm_trans.
+apply perm_swap.
+apply perm_skip.
+apply H.
+Qed.
+
+
+Lemma Permutation_app_comm_trans:
+ forall (A: Type) (a b c : list A),
+   Permutation (b++a) c ->
+   Permutation (a++b) c.
+Proof.
+intros.
+eapply Permutation_trans.
+apply Permutation_app_comm.
+auto.
+Qed.
+
+Ltac solve_perm :=
+    (* solves goals of the form (R ++ ?i = S)
+          where R and S are lists, and ?i is a unification variable *)
+  try match goal with
+       | |-  Permutation (?A ++ ?B) _ =>
+            is_evar A; first [is_evar B; fail 1| idtac];
+            apply Permutation_app_comm_trans
+       end;
+  repeat first [ apply Permutation_refl
+       | apply perm_skip
+       | eapply perm_search
+       ].
+
+Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
+eexists.
+solve_perm.
+Qed.
+

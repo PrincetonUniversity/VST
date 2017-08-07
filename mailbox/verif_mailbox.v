@@ -1002,11 +1002,11 @@ Proof.
       discriminate. }
     Intros.
     forward.
+    { unfold B, N in *; apply prop_right; omega. }
     { entailer!.
       subst available; apply Forall_Znth; [rewrite Zlength_map, Zlength_upto; unfold B, N in *; simpl; omega|].
       rewrite Forall_forall; intros ? Hin.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
-    { unfold B, N in *; apply prop_right; omega. }
     forward_if (PROP (Znth i available (vint 0) = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) lvar0; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
@@ -1872,8 +1872,8 @@ Proof.
       * destruct (eq_dec a b0); reflexivity.
 Qed.
 
-Ltac entailer_for_load_tac ::= go_lower; entailer'.
-Ltac entailer_for_store_tac ::= go_lower; entailer'.
+Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
+Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.

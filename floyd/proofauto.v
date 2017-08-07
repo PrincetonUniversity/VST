@@ -1,7 +1,7 @@
-Require Export floyd.base.
+Require Export floyd.base2.
 Require Export floyd.sublist.
 Require Export floyd.client_lemmas.
-Require Export floyd.assert_lemmas.
+Require Export floyd.go_lower.
 Require Export floyd.closed_lemmas.
 Require Export floyd.compare_lemmas.
 Require Export floyd.semax_tactics.
@@ -16,6 +16,7 @@ Require Export floyd.mapsto_memory_block.
 Require Export floyd.aggregate_type.
 Require floyd.aggregate_pred. Export floyd.aggregate_pred.aggregate_pred.
 Require Export floyd.reptype_lemmas.
+Require Export floyd.simpl_reptype.
 Require Export floyd.data_at_rec_lemmas.
 Require Export floyd.field_at.
 Require Export floyd.field_compat.

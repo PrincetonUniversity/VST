@@ -8,6 +8,13 @@ Local Open Scope logic.
 
 Hint Resolve @derives_refl.
 
+Ltac solve_andp' :=
+  first [ apply derives_refl
+        | apply andp_left1; solve_andp'
+        | apply andp_left2; solve_andp'].
+
+Ltac solve_andp := repeat apply andp_right; solve_andp'.
+
 Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
 Proof. intros; apply prop_right; auto.
 Qed.
@@ -208,6 +215,19 @@ Proof.
  apply orp_right2; apply derives_refl.
 Qed.
 
+Lemma exp_prop: forall {B} {ND: NatDed B} A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply exp_left; intros x.
+    apply prop_left; intros.
+    apply prop_right; exists x; auto.
+  + apply prop_left; intros.
+    destruct H as [x ?].
+    apply (exp_right x).
+    apply prop_right; auto.
+Qed.
+
 Lemma modus_ponens {A}{ND: NatDed A}: forall P Q: A, derives (andp P (imp P Q)) Q.
 Proof.
 intros. apply derives_trans with (andp (imp P Q) P).
@@ -398,6 +418,25 @@ Proof.
     apply derives_refl.
 Qed.
 
+Lemma exp_uncurry:
+  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
+   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
+Proof.
+intros.
+apply pred_ext.
+apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
+apply derives_refl.
+apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
+apply derives_refl.
+Qed.
+
+Lemma exp_trivial {A}{NA: NatDed A}:
+  forall {T: Type} (any: T) (P: A), exp (fun x:T => P) = P.
+Proof.
+ intros. apply pred_ext. apply exp_left; auto.
+ apply exp_right with any; auto.
+Qed.
+
 Lemma allp_andp: forall {A B: Type} `{NatDed A} (P Q: B -> A), allp (P && Q) = allp P && allp Q.
 Proof.
   intros.
@@ -419,6 +458,10 @@ Lemma ND_prop_ext {A}{ND: NatDed A}: forall P Q, (P <-> Q) -> !! P = !! Q.
 Proof.
   intros.
   apply pred_ext; apply prop_derives; tauto.
+Qed.
+
+Lemma prop_True_right {A}{NA: NatDed A}: forall P:A, P |-- !! True.
+Proof. intros; apply prop_right; auto.
 Qed.
 
 Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
@@ -476,6 +519,24 @@ Proof.
   intros.
   eapply CCC_exp_prod2.
   apply sepcon_wand_CCC.
+Qed.
+
+Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:
+  forall T (P: T ->  A) Q, sepcon (allp P) Q |-- allp (fun x => sepcon (P x) Q).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
+Qed.
+
+Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:
+  forall T P (Q: T ->  A), sepcon P (allp Q) |-- allp (fun x => sepcon P (Q x)).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
 Qed.
 
 Lemma exp_andp2  {A}{NA: NatDed A}:
@@ -547,6 +608,17 @@ Proof.
  destruct x; auto.
 Qed.
 
+Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
+ forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+Proof.
+intros.
+apply derives_trans with (|> (A && B)).
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+apply later_derives; assumption.
+Qed.
+
 Lemma andp_dup {A}{ND: NatDed A}: forall P: A, P && P = P.
 Proof. intros. apply pred_ext.
 apply andp_left1; apply derives_refl.
@@ -605,6 +677,20 @@ apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
 Qed.
 
+Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
+  forall (Q: A),  P -> (!! P && Q = Q).
+Proof.
+intros.
+apply pred_ext. apply andp_left2, derives_refl.
+apply andp_right. apply prop_right; auto. apply derives_refl.
+Qed.
+
+Lemma TT_andp_right {A}{NA: NatDed A}:
+ forall P Q, TT |-- P -> TT |-- Q -> TT |-- P && Q.
+Proof.
+  intros. apply andp_right; auto.
+Qed.
+
 Ltac immediate := (assumption || reflexivity).
 
 Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
@@ -627,6 +713,11 @@ rewrite sepcon_emp...
 apply sepcon_derives...
 Qed.
 Hint Resolve @sepcon_TT.
+
+Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
+   forall (P: A), P |-- (TT * P).
+Proof. intros. rewrite sepcon_comm; apply sepcon_TT.
+Qed.
 
 Lemma imp_extract_exp_left {B A: Type} {NA: NatDed A}:
     forall    (p : B -> A) (q: A),
