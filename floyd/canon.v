@@ -2119,3 +2119,70 @@ Proof.
     apply prop_right.
     apply make_args0_tc_environ; auto.
 Qed.
+
+Lemma semax_return0: forall {cs Espec} Delta Ppre Qpre Rpre Ppost Rpost,
+  ret_type Delta = Tvoid ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx Ppost (LOCALx nil (SEPx Rpost)) ->  
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None)
+     (frame_ret_assert (function_body_ret_assert (ret_type Delta) (PROPx Ppost (LOCALx nil (SEPx Rpost)))) emp).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  rewrite frame_ret_assert_emp.
+  apply andp_right.
+  + unfold tc_expropt.
+    unfold_lift; intros rho; apply prop_right; auto.
+  + unfold cast_expropt, id.
+    eapply derives_trans; [exact H0 |].
+    unfold_lift.
+    go_lowerx.
+    rewrite H.
+    auto.
+Qed.
+
+Lemma semax_return1: forall {cs Espec} Delta Ppre Qpre Rpre Ppost v_post Rpost ret v_gen,
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta (Ecast ret (ret_type Delta)) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx (Ppost ++ (v_gen = v_post) :: nil) (LOCALx nil (SEPx Rpost)) ->  
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn (Some ret))
+     (frame_ret_assert (function_body_ret_assert (ret_type Delta) (PROPx Ppost (LOCALx (temp ret_temp v_post ::  nil) (SEPx Rpost)))) emp).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply andp_right; [exact H0 |].
+  rewrite frame_ret_assert_emp.
+  unfold cast_expropt.
+  assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
+            |-- ` (function_body_ret_assert (ret_type Delta)
+                     (PROPx Ppost LOCAL (temp ret_temp v_post)  (SEPx Rpost)) EK_return)
+                     ` (Some v_gen) id).
+  + unfold function_body_ret_assert, bind_ret, id.
+    unfold_lift.
+    apply andp_right.
+    - rewrite (add_andp _ _ H), (add_andp _ _ H0).
+      rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+      apply andp_left2.
+      intro rho; unfold local, lift1; simpl.
+      unfold_lift; normalize.
+      eapply derives_trans; [apply typecheck_expr_sound; auto |].
+      simpl. auto.
+    - eapply derives_trans; [exact H1 |].
+      erewrite PROPx_Permutation by apply Permutation_app_comm.
+      simpl app.
+      go_lowerx.
+      apply andp_right; auto.
+      apply prop_right; split; auto.
+      unfold_lift.
+      subst.
+      unfold eval_id, env_set, te_of.
+      rewrite Map.gss; auto.
+  + rewrite (add_andp _ _ H2), (add_andp _ _ H).
+    rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+    apply andp_left2.
+    forget ((function_body_ret_assert (ret_type Delta)
+       (PROPx Ppost LOCAL (temp ret_temp v_post)  (SEPx Rpost)) EK_return)) as F.
+    go_lowerx.
+    unfold id.
+    subst.
+    auto.
+Qed.
