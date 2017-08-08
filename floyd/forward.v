@@ -2361,7 +2361,8 @@ Ltac forward_return :=
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
           solve_return_Some_post_gen
-        | entailer_for_return]
+        | entailer_for_return];
+        clear H
     end
   end.
 
