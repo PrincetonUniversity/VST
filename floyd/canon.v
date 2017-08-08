@@ -2155,22 +2155,64 @@ Proof.
     auto.
 Qed.
 
-Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Post Rpre Ppost Rpost,
+Inductive return_None_post_gen: (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_None_post_gen_main: forall P ts u,
+    return_None_post_gen (main_post P ts u) `TT
+| return_None_post_gen_canon:
+    forall P R,
+      return_None_post_gen
+        (PROPx P (LOCALx nil (SEPx R)))
+        (PROPx P (LOCALx nil (SEPx R)))
+| return_None_post_gen_EX':
+    forall (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_None_post_gen (post1 a) (post2 a)) ->
+      return_None_post_gen (exp post1) (exp post2).
+
+Lemma return_None_post_gen_EX: forall A post1 post2,
+  (forall a: A, exists P, return_None_post_gen (post1 a) P /\ P = post2 a) ->
+  return_None_post_gen (exp post1) (exp post2).
+Proof.
+  intros.
+  apply return_None_post_gen_EX'.
+  intro a; specialize (H a).
+  destruct H as [? [? ?]]; subst.
+  auto.
+Qed.
+
+Lemma return_None_post_gen_spec: forall post1 post2,
+  return_None_post_gen post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args nil nil rho)).
+Proof.
+  intros.
+  induction H.
+  + unfold main_post.
+    intros rho; simpl; auto.
+  + go_lowerx.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a)).
+    intro rho.
+    simpl.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Rpre Post1 post2 post3,
   ret_type Delta = Tvoid ->
-  return_outer_gen Post
-    (frame_ret_assert (function_body_ret_assert (ret_type Delta) (PROPx Ppost (LOCALx nil (SEPx Rpost)))) emp) ->
-  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx Ppost (LOCALx nil (SEPx Rpost)) ->
-  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None) Post.
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) emp) ->
+  return_None_post_gen post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None) Post1.
 Proof.
   intros.
   eapply semax_pre; [| apply semax_return].
   apply return_outer_gen_spec in H0.
-  rewrite H0; clear Post H0.
+  rewrite H0; clear Post1 H0.
+  apply return_None_post_gen_spec in H1.
   rewrite frame_ret_assert_emp.
   apply andp_right.
   + unfold tc_expropt.
     unfold_lift; intros rho; apply prop_right; auto.
   + unfold cast_expropt, id.
+    eapply derives_trans; [exact H2 |].
     eapply derives_trans; [exact H1 |].
     unfold_lift.
     go_lowerx.

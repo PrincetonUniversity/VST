@@ -2305,6 +2305,22 @@ Ltac entailer_for_return := entailer.
 
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
+Ltac solve_return_None_post_gen :=
+  solve
+    [ simple apply return_None_post_gen_EX;
+      let a := fresh "a" in
+      intro a;
+      eexists;
+      split;
+      [ solve_return_None_post_gen
+      | match goal with
+        | |- ?t = _ => super_pattern t a; reflexivity
+        end
+      ]
+    | simple apply return_None_post_gen_canon
+    | simple apply return_None_post_gen_main
+    ].
+
 Ltac solve_return_Some_post_gen :=
   solve
     [ simple apply return_Some_post_gen_EX;
@@ -2329,6 +2345,9 @@ Ltac forward_return :=
         eapply semax_return_None;
         [ reflexivity
         | solve_return_outer_gen
+        | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
+          try change_compspecs CS;
+          solve_return_None_post_gen
         | entailer_for_return]
     | Some ?ret =>
         let v := fresh "v" in evar (v: val);
