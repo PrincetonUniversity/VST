@@ -1398,14 +1398,14 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
-  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (auto                                   || fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "Cannot prove readable_share")
-  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "unexpected failure in generating loaded value"]
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
 
@@ -1430,15 +1430,15 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | now (clear; let H := fresh in intro H; inversion H)
   | solve_msubst_eval_lvalue
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
-  | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
-  | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast)load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
   | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Cannot prove readable_share")
-  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "unexpected failure in generating loaded value"]
-  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
 
@@ -1455,14 +1455,14 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
-  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (auto                                   || fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "Cannot prove readable_share")
-  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "unexpected failure in generating loaded value"]
   | first [solve_legal_nested_field_in_entailment
-                                             | fail 1000 "unexpected failure in load_tac_no_hint."
+                                             | fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
 
