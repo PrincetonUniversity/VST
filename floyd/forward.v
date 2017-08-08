@@ -2351,7 +2351,7 @@ Ltac forward_return :=
         | entailer_for_return]
     | Some ?ret =>
         let v := fresh "v" in evar (v: val);
-        let H := fresh "H" in
+        let H := fresh "HRE" in
         do_compute_expr Delta P Q R constr:(Ecast ret (ret_type Delta)) v H;
         subst v;
         eapply semax_return_Some;

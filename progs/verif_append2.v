@@ -128,7 +128,7 @@ forward_if.
    clear v s1' Heqs1.
    forward.
    forward.
-   rewrite (proj1 H3 (eq_refl _)).
+   rewrite (proj1 H2 (eq_refl _)).
    Exists x.
    simpl app.
    clear.
@@ -193,7 +193,7 @@ forward_if.
  + (* after the loop *)
    forward. forward.
    Exists x. entailer!.
-   destruct H4 as [? _]. specialize (H4 (eq_refl _)). subst s1b.
+   destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
    unfold listrep at 1. normalize. rewrite H0. rewrite app_ass. simpl app.
    unfold lseg.
    rewrite sepcon_assoc.
