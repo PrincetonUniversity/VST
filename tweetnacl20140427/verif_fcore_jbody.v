@@ -5,7 +5,7 @@ Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -146,79 +146,20 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-
-eapply semax_seq'.
- ensure_normal_ret_assert;
-   hoist_later_in_pre.
-
-
- Ltac load_tac_no_hint LOCAL2PTREE :=
-  eapply semax_PTree_field_load_no_hint;
-  [ exact LOCAL2PTREE
-  | reflexivity (* compute_nested_efield *)
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
-  | econstructor
-  | solve_field_address_gen
-  | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
-  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "Cannot prove readable_share")
-  | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in generating loaded value"]
-  | first [solve_legal_nested_field_in_entailment
-                                             | fail 1000 "unexpected failure in load_tac_no_hint."
-                                                         "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "unexpected failure in entailer_for_load_tac"]
-  ].
-
-Ltac load_tac :=
-  match goal with
-  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
-    let T1 := fresh "T1" in evar (T1: PTree.t val);
-    let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
-    let LOCAL2PTREE := fresh "LOCAL2PTREE" in
-    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
-    [subst T1 T2; prove_local2ptree |](*;
-    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
-    clear T1 T2 LOCAL2PTREE*)
-  end.
-load_tac.
-
-eapply semax_PTree_field_load_no_hint;
-  [ exact LOCAL2PTREE
-  | reflexivity (* compute_nested_efield *)
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | solve_msubst_eval_LR
-  | idtac ..].
-Print Ltac solve_msubst_efield_denote.
-eapply msubst_efield_denote_cons_array;
-  [ reflexivity | solve_msubst_eval_expr |  |  ].
-Print Ltac solve_Int_eqm_unsigned.
-autorewrite with norm.
-       load_tac_no_hint LOCAL2PTREE.
-    forward. 
+    forward.
+    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
+      rewrite ! Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite Z.rem_mod_nonneg; try omega. }
     { unfold Int.mods. 
       rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
+      rewrite NV.
       entailer!. 
       rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
-    clear H_Denote.
-    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr. omega. 
-      rewrite int_max_unsigned_eq; omega. }
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
