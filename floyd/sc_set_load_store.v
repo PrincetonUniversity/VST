@@ -705,6 +705,7 @@ Ltac solve_Int_eqm_unsigned :=
       | Int.sub _ _ => unfold Int.sub at 1
       | Int.add _ _ => unfold Int.add at 1
       | Int.mul _ _ => unfold Int.mul at 1
+      | Int.mods _ _ => unfold Int.mods at 1
       | Int.and _ _ => unfold Int.and at 1
       | Int.or _ _ => unfold Int.or at 1
       end
