@@ -151,13 +151,15 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      rewrite Z.rem_mod_nonneg; try omega. }
+      rewrite Z.rem_mod_nonneg; try omega.
+      rewrite Int.unsigned_repr. omega. 
+      rewrite int_max_unsigned_eq; omega. }
     { unfold Int.mods. 
       rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
-      rewrite NV.
+      rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
       entailer!. 
       rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
     unfold Int.mods. 
