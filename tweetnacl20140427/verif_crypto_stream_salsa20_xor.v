@@ -45,7 +45,7 @@ Proof.
 Qed.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 (*Hint Rewrite op_Z_ulong_Vint_repr using ???(repable_signed) : norm.*)
 

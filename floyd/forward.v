@@ -1399,7 +1399,11 @@ Tactic Notation "forward_while" constr(Inv) :=
         simpl typeof;
        [ reflexivity
        | special_intros_EX
-       | do_compute_expr1 Delta Pre e; eassumption
+       | (do_compute_expr1 Delta Pre e; eassumption) ||
+         fail "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
+Loop invariant:" Pre
+"
+Loop test expression:" e
        | special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          do_repr_inj HRE;
@@ -2680,7 +2684,35 @@ Ltac clear_Delta_specs_if_leaf_function :=
     end
  end.
 
+Ltac type_lists_compatible al bl :=
+ match al with
+ | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
+                 unify (classify_cast a b) cast_case_neutral;
+                 type_lists_compatible al' bl'
+                end
+ | Tnil => match bl with Tnil => idtac end
+ end.
+
+Ltac function_types_compatible t1 t2 :=
+ match t1 with
+ | Tfunction ?al1 ?r1 _ =>
+  match t2 with Tfunction ?al2 ?r2 _ =>
+     type_lists_compatible al1 al2;
+     first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_neutral]
+ end end.
+
 Ltac start_function :=
+ match goal with |- semax_body _ _ ?F ?spec =>
+   let D := constr:(type_of_function F) in 
+   let S := constr:(type_of_funspec (snd spec)) in
+   let D := eval hnf in D in let D := eval simpl in D in 
+   let S := eval hnf in S in let S := eval simpl in S in 
+   tryif (unify D S) then idtac else
+   tryif function_types_compatible D S then idtac else
+   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
+Function body: " D "
+Function spec: " S)
+ end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;

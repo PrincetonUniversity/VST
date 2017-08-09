@@ -609,7 +609,7 @@ Proof.
       thaw FR4. cancel.
       rewrite data_at__memory_block. entailer!.
       destruct seed; inv Pseed. unfold offset_val.
-      rewrite <- repr_unsigned with (i:=i). 
+      rewrite <- Int.repr_unsigned with (i:=i). 
       assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)).
       { simpl. omega. }
       rewrite XX.
