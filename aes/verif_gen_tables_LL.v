@@ -576,7 +576,7 @@ Proof.
       (* default: *)
       default_canon_load_result;
       (* additional: *)
-      try rewrite Z_to_val_to_Vint in Hresult by
+      try rewrite Z_to_val_to_Vint by
       match goal with
       | H : forall j : Z, 1 <= j < 256 -> Znth j _ _ <> -1 |- _ => apply H; omega
       end.
@@ -750,7 +750,7 @@ Proof.
     end.
     rewrite (update_partially_filled i calc_RT0) by assumption.
 
-    Ltac canon_load_result := rewrite Znth_partially_filled by omega.
+    Ltac canon_load_result ::= rewrite Znth_partially_filled by omega.
     forward. forward.
     match goal with
     | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_RT1) (Vint ?v)) _ ] =>
