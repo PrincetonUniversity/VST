@@ -2296,13 +2296,70 @@ Proof. intros. intros ek v.
   intros. apply bind_ret_derives; trivial.
 Qed.
 
+Ltac entailer_for_return := entailer.
+
+Ltac solve_return_outer_gen := solve [repeat constructor].
+
+Ltac solve_return_None_post_gen :=
+  solve
+    [ simple apply return_None_post_gen_EX;
+      let a := fresh "a" in
+      intro a;
+      eexists;
+      split;
+      [ solve_return_None_post_gen
+      | match goal with
+        | |- ?t = _ => super_pattern t a; reflexivity
+        end
+      ]
+    | simple apply return_None_post_gen_canon
+    | simple apply return_None_post_gen_main
+    ].
+
+Ltac solve_return_Some_post_gen :=
+  solve
+    [ simple apply return_Some_post_gen_EX;
+      let a := fresh "a" in
+      intro a;
+      eexists;
+      split;
+      [ solve_return_Some_post_gen
+      | match goal with
+        | |- ?t = _ => super_pattern t a; reflexivity
+        end
+      ]
+    | simple apply return_Some_post_gen_canon
+    | simple apply return_Some_post_gen_main
+    ].
+
 Ltac forward_return :=
-     match goal with |- @semax ?CS _ _ _ _ _ =>
-       eapply semax_pre; [  | apply semax_return ];
-       try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
-       try change_compspecs CS;
-       entailer_for_return
-     end.
+  match goal with
+  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
+    match oe with
+    | None =>
+        eapply semax_return_None;
+        [ reflexivity
+        | solve_return_outer_gen
+        | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
+          try change_compspecs CS;
+          solve_return_None_post_gen
+        | entailer_for_return]
+    | Some ?ret =>
+        let v := fresh "v" in evar (v: val);
+        let H := fresh "H" in
+        do_compute_expr Delta P Q R constr:(Ecast ret (ret_type Delta)) v H;
+        subst v;
+        eapply semax_return_Some;
+        [ exact H
+        | entailer_for_return
+        | solve_return_outer_gen
+        | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
+          try change_compspecs CS;
+          solve_return_Some_post_gen
+        | entailer_for_return];
+        clear H
+    end
+  end.
 
 Ltac test_simple_bound test incr :=
  match incr with

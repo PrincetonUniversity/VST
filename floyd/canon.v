@@ -2119,3 +2119,189 @@ Proof.
     apply prop_right.
     apply make_args0_tc_environ; auto.
 Qed.
+
+Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
+| return_outer_gen_refl: forall P t,
+    return_outer_gen
+      (frame_ret_assert (function_body_ret_assert t P) emp)
+      (frame_ret_assert (function_body_ret_assert t P) emp)
+| return_outer_gen_switch: forall P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (switch_ret_assert P) Q
+| return_outer_gen_post: forall post P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (overridePost post P) Q
+| return_outer_gen_loop1: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop1_ret_assert inv P) Q
+| return_outer_gen_loop2: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop2_ret_assert inv P) Q.
+
+Lemma return_outer_gen_spec: forall P Q,
+  return_outer_gen P Q ->
+  P EK_return = Q EK_return.
+Proof.
+  intros.
+  induction H.
+  + auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+Qed.
+
+Inductive return_None_post_gen: (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_None_post_gen_main: forall P ts u,
+    return_None_post_gen (main_post P ts u) `TT
+| return_None_post_gen_canon:
+    forall P R,
+      return_None_post_gen
+        (PROPx P (LOCALx nil (SEPx R)))
+        (PROPx P (LOCALx nil (SEPx R)))
+| return_None_post_gen_EX':
+    forall (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_None_post_gen (post1 a) (post2 a)) ->
+      return_None_post_gen (exp post1) (exp post2).
+
+Lemma return_None_post_gen_EX: forall A post1 post2,
+  (forall a: A, exists P, return_None_post_gen (post1 a) P /\ P = post2 a) ->
+  return_None_post_gen (exp post1) (exp post2).
+Proof.
+  intros.
+  apply return_None_post_gen_EX'.
+  intro a; specialize (H a).
+  destruct H as [? [? ?]]; subst.
+  auto.
+Qed.
+
+Lemma return_None_post_gen_spec: forall post1 post2,
+  return_None_post_gen post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args nil nil rho)).
+Proof.
+  intros.
+  induction H.
+  + unfold main_post.
+    intros rho; simpl; auto.
+  + go_lowerx.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a)).
+    intro rho.
+    simpl.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Rpre Post1 post2 post3,
+  ret_type Delta = Tvoid ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) emp) ->
+  return_None_post_gen post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H0.
+  rewrite H0; clear Post1 H0.
+  apply return_None_post_gen_spec in H1.
+  rewrite frame_ret_assert_emp.
+  apply andp_right.
+  + unfold tc_expropt.
+    unfold_lift; intros rho; apply prop_right; auto.
+  + unfold cast_expropt, id.
+    eapply derives_trans; [exact H2 |].
+    eapply derives_trans; [exact H1 |].
+    unfold_lift.
+    go_lowerx.
+    rewrite H.
+    auto.
+Qed.
+
+Inductive return_Some_post_gen (v_gen: val): (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_Some_post_gen_main: forall P ts u,
+    return_Some_post_gen v_gen (main_post P ts u) `TT
+| return_Some_post_gen_canon:
+    forall P v R,
+      return_Some_post_gen v_gen
+        (PROPx P (LOCALx (temp ret_temp v ::  nil) (SEPx R)))
+        (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx R)))
+| return_Some_post_gen_EX':
+    forall (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_Some_post_gen v_gen (post1 a) (post2 a)) ->
+      return_Some_post_gen v_gen (exp post1) (exp post2).
+
+Lemma return_Some_post_gen_EX: forall v_gen A post1 post2,
+  (forall a: A, exists P, return_Some_post_gen v_gen (post1 a) P /\ P = post2 a) ->
+  return_Some_post_gen v_gen (exp post1) (exp post2).
+Proof.
+  intros.
+  apply return_Some_post_gen_EX'.
+  intro a; specialize (H a).
+  destruct H as [? [? ?]]; subst.
+  auto.
+Qed.
+
+Lemma return_Some_post_gen_spec: forall v_gen post1 post2,
+  return_Some_post_gen v_gen post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)).
+Proof.
+  intros.
+  induction H.
+  + unfold main_post.
+    intros rho; simpl; auto.
+  + erewrite PROPx_Permutation by apply Permutation_app_comm.
+    simpl app.
+    go_lowerx.
+    apply andp_right; auto.
+    apply prop_right; split; auto.
+    unfold_lift.
+    subst.
+    unfold eval_id, env_set, te_of.
+    rewrite Map.gss; auto.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a)).
+    intro rho.
+    simpl.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_Some: forall {cs Espec} Delta Ppre Qpre Rpre Post1 post2 post3 ret v_gen,
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta (Ecast ret (ret_type Delta)) ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) emp) ->
+  return_Some_post_gen v_gen post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn (Some ret)) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H1.
+  rewrite H1; clear Post1 H1.
+  apply andp_right; [exact H0 |].
+  rewrite frame_ret_assert_emp.
+  unfold cast_expropt.
+  assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
+            |-- ` (function_body_ret_assert (ret_type Delta) post2 EK_return (Some v_gen)) id).
+  + unfold function_body_ret_assert, bind_ret, id.
+    unfold_lift.
+    apply andp_right.
+    - rewrite (add_andp _ _ H), (add_andp _ _ H0).
+      rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+      apply andp_left2.
+      intro rho; unfold local, lift1; simpl.
+      unfold_lift; normalize.
+      eapply derives_trans; [apply typecheck_expr_sound; auto |].
+      simpl. auto.
+    - apply (derives_trans _ _ _ H3).
+      apply return_Some_post_gen_spec; auto.
+  + rewrite (add_andp _ _ H1), (add_andp _ _ H).
+    rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+    apply andp_left2.
+    go_lowerx.
+    subst.
+    unfold id.
+    normalize.
+Qed.
