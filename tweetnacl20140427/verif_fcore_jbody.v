@@ -5,7 +5,7 @@ Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -146,7 +146,14 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-    forward. 
+    forward.
+    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
+      rewrite ! Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite Z.rem_mod_nonneg; try omega.
+      rewrite Int.unsigned_repr. omega. 
+      rewrite int_max_unsigned_eq; omega. }
     { unfold Int.mods. 
       rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -155,14 +162,6 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
       entailer!. 
       rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
-    clear H_Denote.
-    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr. omega. 
-      rewrite int_max_unsigned_eq; omega. }
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
