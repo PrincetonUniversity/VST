@@ -2812,11 +2812,28 @@ Ltac make_compspecs prog :=
          repeat constructor)
  ].
 
+Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
+  match al with
+  | a::al' => match PTree.get a t with None => a::nil | _ => nil end ++
+                 missing_ids t al'
+  | nil => nil
+ end.
+
 Ltac with_library' p G :=
-  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in match x with
+  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in
+  match x with
   | Some ?l => exact l
-  | None => fail 5 "Superfluous or missing funspecs"
-  end.
+  | None => 
+   let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
+                           (map fst (prog_funct p))) in
+   let t := eval compute in t in
+   let missing := constr:(missing_ids t (map fst G)) in
+   let missing := eval simpl in missing in
+   match missing with
+   | nil => fail "Superfluous funspecs?"
+   | _ => fail  "The following names have funspecs but no function definitions: " missing
+  end
+ end.
 
 Ltac with_library prog G := with_library' prog G.
 
