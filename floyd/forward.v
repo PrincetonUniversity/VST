@@ -1355,6 +1355,7 @@ Qed.
 
 Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
+  lazymatch goal with |- semax _ _ (Ssequence _ _) _ => idtac | _ => apply <- semax_seq_skip end;
   first [ignore (Inv: environ->mpred)
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
@@ -2378,10 +2379,15 @@ try eapply semax_seq';
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Delta' := @abbreviate tycontext _, Post' := @abbreviate ret_assert ?R |- semax ?Delta _ ?s ?Post =>
-     tryif (constr_eq Post' Post; constr_eq Delta' Delta)
-       then (unfold abbreviate in Post'; subst Post')
-       else fail "Pleasex use abbreviate_semax to put your proof goal into standard form" 
+ | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+     tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
+ end;
+ lazymatch goal with
+ | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ =>
+     tryif (constr_eq Delta' Delta)
+       then idtac
+       else fail "Please use abbreviate_semax to put your proof goal into standard form" 
+(*  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ => idtac *)
  | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
  | |- _ => fail "Proof goal is not (semax _ _ _ _)."
  end;
