@@ -148,8 +148,10 @@ Proof.
   unfold sha_final_epilog.
   abbreviate_semax.
   Time unfold_data_at 1%nat.
+  assert (Zlength (hash_blocks init_registers hashed) = 8)
+   by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
   Time forward_call (* sha256_block_data_order (c,p); *)
-    (hashed, lastblock, c,
+    (hash_blocks init_registers hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
        Tsh, gv).
   {
@@ -159,6 +161,7 @@ Proof.
     rewrite field_at_data_at with (gfs := [StructField _data]).
     Time cancel.
   }
+  rewrite hash_blocks_last by auto.
   unfold data_block.
   simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
   rewrite <- H1.
