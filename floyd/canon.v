@@ -2121,10 +2121,10 @@ Proof.
 Qed.
 
 Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
-| return_outer_gen_refl: forall P t,
+| return_outer_gen_refl: forall P t sf,
     return_outer_gen
-      (frame_ret_assert (function_body_ret_assert t P) emp)
-      (frame_ret_assert (function_body_ret_assert t P) emp)
+      (frame_ret_assert (function_body_ret_assert t P) sf)
+      (frame_ret_assert (function_body_ret_assert t P) sf)
 | return_outer_gen_switch: forall P Q,
     return_outer_gen P Q ->
     return_outer_gen (switch_ret_assert P) Q

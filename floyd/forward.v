@@ -190,7 +190,7 @@ Qed.
 
 Ltac process_stackframe_of :=
  match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
-   let sf := fresh "sf" in set (sf:= stackframe_of F);
+   let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
@@ -201,7 +201,8 @@ Ltac process_stackframe_of :=
      | |- _ =>    simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
      end
-    end;
+   end;
+ (*
   match goal with |- semax _ ?Pre _ _ =>
      let p := fresh "p" in set (p := Pre);
      rewrite <- (@emp_sepcon (environ->mpred) _ _ _ (fold_right _ _ _));
@@ -211,6 +212,7 @@ Ltac process_stackframe_of :=
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
  change (fold_right sepcon emp (@nil (environ->mpred))) with
    (@emp (environ->mpred) _ _);
+*)
  rewrite ?sepcon_emp, ?emp_sepcon.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
@@ -2351,6 +2353,17 @@ Proof.
     auto.
 Qed.
 
+Ltac solve_Forall2_fn_data_at :=
+  solve
+    [ apply Forall2_nil
+    | apply Forall2_cons; [ apply fn_data_at; [reflexivity | solve_msubst_eval_lvar] | solve_Forall2_fn_data_at]].
+
+Ltac solve_canon_derives_stackframe :=
+  eapply canonicalize_stackframe;
+  [ prove_local2ptree
+  | solve_Forall2_fn_data_at
+  ].
+
 Ltac forward_return :=
   match goal with
   | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
@@ -2359,9 +2372,10 @@ Ltac forward_return :=
         eapply semax_return_None;
         [ reflexivity
         | solve_return_outer_gen
+        | solve_canon_derives_stackframe
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_None_post_gen
+          solve_return_inner_gen
         | entailer_for_return]
     | Some ?ret =>
         let v := fresh "v" in evar (v: val);
@@ -2372,9 +2386,10 @@ Ltac forward_return :=
         [ exact H
         | entailer_for_return
         | solve_return_outer_gen
+        | solve_canon_derives_stackframe
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_Some_post_gen
+          solve_return_inner_gen
         | entailer_for_return];
         clear H
     end
