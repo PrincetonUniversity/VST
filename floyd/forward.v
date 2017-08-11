@@ -210,9 +210,9 @@ Ltac process_stackframe_of :=
   end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
+*)
  change (fold_right sepcon emp (@nil (environ->mpred))) with
    (@emp (environ->mpred) _ _);
-*)
  rewrite ?sepcon_emp, ?emp_sepcon.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
@@ -2353,16 +2353,26 @@ Proof.
     auto.
 Qed.
 
+Lemma canonicalize_stackframe_emp: forall {cs: compspecs} Delta P Q,
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx nil)) |-- emp.
+Proof.
+  intros.
+  go_lowerx.
+Qed.
+  
 Ltac solve_Forall2_fn_data_at :=
   solve
     [ apply Forall2_nil
-    | apply Forall2_cons; [ apply fn_data_at; [reflexivity | solve_msubst_eval_lvar] | solve_Forall2_fn_data_at]].
+    | apply Forall2_cons; [ apply fn_data_at_intro; [reflexivity | solve_msubst_eval_lvar] | solve_Forall2_fn_data_at]].
 
 Ltac solve_canon_derives_stackframe :=
-  eapply canonicalize_stackframe;
-  [ prove_local2ptree
-  | solve_Forall2_fn_data_at
-  ].
+  solve
+    [ eapply canonicalize_stackframe;
+      [ prove_local2ptree
+      | solve_Forall2_fn_data_at
+      ]
+    | apply canonicalize_stackframe_emp
+    ].
 
 Ltac forward_return :=
   match goal with
