@@ -2305,37 +2305,51 @@ Ltac entailer_for_return := entailer.
 
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
-Ltac solve_return_None_post_gen :=
+Ltac solve_return_inner_gen :=
   solve
-    [ simple apply return_None_post_gen_EX;
+    [ simple apply return_inner_gen_EX;
       let a := fresh "a" in
       intro a;
       eexists;
       split;
-      [ solve_return_None_post_gen
+      [ solve_return_inner_gen
       | match goal with
         | |- ?t = _ => super_pattern t a; reflexivity
         end
       ]
-    | simple apply return_None_post_gen_canon
-    | simple apply return_None_post_gen_main
+    | simple apply return_inner_gen_canon_Some
+    | simple apply return_inner_gen_canon_None
+    | simple apply return_inner_gen_main
     ].
 
-Ltac solve_return_Some_post_gen :=
-  solve
-    [ simple apply return_Some_post_gen_EX;
-      let a := fresh "a" in
-      intro a;
-      eexists;
-      split;
-      [ solve_return_Some_post_gen
-      | match goal with
-        | |- ?t = _ => super_pattern t a; reflexivity
-        end
-      ]
-    | simple apply return_Some_post_gen_canon
-    | simple apply return_Some_post_gen_main
-    ].
+Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
+| fn_data_at_intro: forall i t p,
+    (legal_alignas_type t && legal_cosu_type t && complete_type cenv_cs t && (sizeof t <? Int.modulus) = true)%bool ->
+    msubst_eval_lvar T2 i t = Some p ->
+    fn_data_at T2 (i, t) (data_at_ Tsh t p).
+
+Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 fn,
+  local2ptree Q = (T1, T2, nil, nil) ->
+  Forall2 (fn_data_at T2) fn R ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- fold_right sepcon emp (map (var_block Tsh) fn).
+Proof.
+  intros.
+  induction H0.
+  + go_lowerx.
+  + change (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (y :: l'))) |-- var_block Tsh x * fold_right sepcon emp (map (var_block Tsh) l)).
+    eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | exact IHForall2]]; clear IHForall2.
+    apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
+    inv H0.
+    rewrite !andb_true_iff in H2; destruct H2 as [[[? ?] ?] ?].
+    apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
+    rewrite <- H in H3; clear H.
+    rewrite (add_andp _ _ H3); clear H3.
+    go_lowerx.
+    apply sepcon_derives; auto.
+    subst.
+    rewrite var_block_data_at_ by auto.
+    auto.
+Qed.
 
 Ltac forward_return :=
   match goal with
