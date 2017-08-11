@@ -2826,7 +2826,9 @@ Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
  end.
 
 Ltac with_library' p G :=
-  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in
+  let g := eval hnf in G in
+  let x := constr:(augment_funspecs' (prog_funct p) g) in
+  let x := eval hnf in x in
   match x with
   | Some ?l => exact l
   | None => 
