@@ -2158,9 +2158,9 @@ Qed.
 Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
 | return_inner_gen_main: forall ov_gen P ts u,
     return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
-| return_inner_gen_canon_None:
-    forall P R,
-      return_inner_gen S None
+| return_inner_gen_canon_nil:
+    forall ov_gen P R,
+      return_inner_gen S ov_gen
         (PROPx P (LOCALx nil (SEPx R)))
         (PROPx P (LOCALx nil (SEPx (R ++ S))))
 | return_inner_gen_canon_Some:
@@ -2213,7 +2213,8 @@ Proof.
   revert v_gen H0; induction H; intros; subst.
   + unfold main_post.
     go_lowerx.
-  + inversion H0.
+  + rewrite gather_SEP.
+    go_lowerx.
   + erewrite PROPx_Permutation by apply Permutation_app_comm.
     rewrite gather_SEP.
     go_lowerx.

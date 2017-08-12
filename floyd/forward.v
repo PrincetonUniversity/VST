@@ -2320,7 +2320,7 @@ Ltac solve_return_inner_gen :=
         end
       ]
     | simple apply return_inner_gen_canon_Some
-    | simple apply return_inner_gen_canon_None
+    | simple apply return_inner_gen_canon_nil
     | simple apply return_inner_gen_main
     ].
 
