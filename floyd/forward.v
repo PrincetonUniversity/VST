@@ -1357,6 +1357,7 @@ Qed.
 
 Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
+  lazymatch goal with |- semax _ _ (Ssequence _ _) _ => idtac | _ => apply <- semax_seq_skip end;
   first [ignore (Inv: environ->mpred)
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
@@ -1405,7 +1406,11 @@ Tactic Notation "forward_while" constr(Inv) :=
         simpl typeof;
        [ reflexivity
        | special_intros_EX
-       | do_compute_expr1 Delta Pre e; eassumption
+       | (do_compute_expr1 Delta Pre e; eassumption) ||
+         fail "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
+Loop invariant:" Pre
+"
+Loop test expression:" e
        | special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          do_repr_inj HRE;
@@ -2470,10 +2475,15 @@ try eapply semax_seq';
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Delta' := @abbreviate tycontext _, Post' := @abbreviate ret_assert ?R |- semax ?Delta _ ?s ?Post =>
-     tryif (constr_eq Post' Post; constr_eq Delta' Delta)
-       then (unfold abbreviate in Post'; subst Post')
-       else fail "Pleasex use abbreviate_semax to put your proof goal into standard form" 
+ | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+     tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
+ end;
+ lazymatch goal with
+ | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ =>
+     tryif (constr_eq Delta' Delta)
+       then idtac
+       else fail "Please use abbreviate_semax to put your proof goal into standard form" 
+(*  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ => idtac *)
  | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
  | |- _ => fail "Proof goal is not (semax _ _ _ _)."
  end;
@@ -2724,7 +2734,35 @@ Ltac clear_Delta_specs_if_leaf_function :=
     end
  end.
 
+Ltac type_lists_compatible al bl :=
+ match al with
+ | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
+                 unify (classify_cast a b) cast_case_neutral;
+                 type_lists_compatible al' bl'
+                end
+ | Tnil => match bl with Tnil => idtac end
+ end.
+
+Ltac function_types_compatible t1 t2 :=
+ match t1 with
+ | Tfunction ?al1 ?r1 _ =>
+  match t2 with Tfunction ?al2 ?r2 _ =>
+     type_lists_compatible al1 al2;
+     first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_neutral]
+ end end.
+
 Ltac start_function :=
+ match goal with |- semax_body _ _ ?F ?spec =>
+   let D := constr:(type_of_function F) in 
+   let S := constr:(type_of_funspec (snd spec)) in
+   let D := eval hnf in D in let D := eval simpl in D in 
+   let S := eval hnf in S in let S := eval simpl in S in 
+   tryif (unify D S) then idtac else
+   tryif function_types_compatible D S then idtac else
+   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
+Function body: " D "
+Function spec: " S)
+ end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
@@ -2876,11 +2914,30 @@ Ltac make_compspecs prog :=
          repeat constructor)
  ].
 
+Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
+  match al with
+  | a::al' => match PTree.get a t with None => a::nil | _ => nil end ++
+                 missing_ids t al'
+  | nil => nil
+ end.
+
 Ltac with_library' p G :=
-  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in match x with
+  let g := eval hnf in G in
+  let x := constr:(augment_funspecs' (prog_funct p) g) in
+  let x := eval hnf in x in
+  match x with
   | Some ?l => exact l
-  | None => fail 5 "Superfluous or missing funspecs"
-  end.
+  | None => 
+   let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
+                           (map fst (prog_funct p))) in
+   let t := eval compute in t in
+   let missing := constr:(missing_ids t (map fst G)) in
+   let missing := eval simpl in missing in
+   match missing with
+   | nil => fail "Superfluous funspecs?"
+   | _ => fail  "The following names have funspecs but no function definitions: " missing
+  end
+ end.
 
 Ltac with_library prog G := with_library' prog G.
 

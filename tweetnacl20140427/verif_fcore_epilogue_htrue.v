@@ -15,7 +15,7 @@ Require Import tweetnacl20140427.spec_salsa.
 Opaque Snuffle.Snuffle. Opaque prepare_data.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 Definition HTrue_inv1 l i ys xs : Prop :=
       Zlength l = 16 /\ exists ints, l=map Vint ints /\
