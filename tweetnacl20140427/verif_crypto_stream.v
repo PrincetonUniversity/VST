@@ -63,7 +63,7 @@ forward_call (c, s, offset_val 16 nonce, d, Nonce2, HSalsaRes, SV).
   destruct HSalsaRes as [q1 q2]. cancel.
   unfold data_at_. cancel. }
 forward.
-simpl. Exists s. unfold ThirtyTwoByte. entailer.
+unfold ThirtyTwoByte. entailer.
  Exists HSalsaRes. entailer. cancel.
 destruct HSalsaRes as [q1 q2]. cancel.
 Qed.

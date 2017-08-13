@@ -19,7 +19,24 @@ Proof.
 start_function. 
 Time forward. (*8.8*)  
 Time entailer!. (*0.8*)
-     
+{
+  destruct (Int.ltu c Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H0.
+    change (Int.unsigned Int.iwordsize) with 32 in H0.
+    omega.
+  } Unfocus.
+  destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H1.
+    unfold Int.sub in H1.
+    change (Int.unsigned (Int.repr 32)) with 32 in H1.
+    rewrite Int.unsigned_repr in H1 by repable_signed.
+    change (Int.unsigned Int.iwordsize) with 32 in H1.
+    omega.
+  } Unfocus.
+  simpl; auto.
+}
 assert (W: Int.zwordsize = 32). reflexivity.
 assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
 remember (Int.ltu c Int.iwordsize) as d. symmetry in Heqd.
