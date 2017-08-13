@@ -330,7 +330,7 @@ assert (ADD_S := add_s _ _ H H0).
 Opaque add_upto.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.

@@ -169,13 +169,6 @@ Proof.
   - apply H0.
 Qed.
 
-Lemma repr_unsigned: forall i, Int.repr (Int.unsigned i) = i.
-Proof.
-  intros.
-  apply Int.eqm_repr_eq.
-  apply Int.eqm_refl.
-Qed.
-
 Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
 Proof.
   intros.

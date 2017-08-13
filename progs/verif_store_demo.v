@@ -24,7 +24,7 @@ Definition set22_spec :=
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [  ]
+  PRE [ _p OF tptr tuint ]
           PROP  (Zlength contents = n)
           LOCAL (temp _p p)
           SEP (data_at Ews (tarray tuint (1+n)) 
