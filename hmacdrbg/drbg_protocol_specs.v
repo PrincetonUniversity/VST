@@ -128,6 +128,8 @@ Definition drbg_setEntropyLen_spec_abs :=
        LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setEL_ABS l A) ctx).
 
 Definition drbg_setReseedInterval_spec_abs :=
@@ -139,6 +141,8 @@ Definition drbg_setReseedInterval_spec_abs :=
        LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr ri)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setRI_ABS ri A) ctx).
 
 Definition drbg_update_abs_spec :=
