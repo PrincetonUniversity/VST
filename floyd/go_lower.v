@@ -257,10 +257,7 @@ try match goal with
 end;
 first [simple apply quick_finish_lower
 | repeat first
- [ match goal with u:=rho_marker |- _ => idtac end;
-   simple eapply lower_one_temp_trivial;
-     [reflexivity | unfold tc_val at 1; fancy_intro true ]
- | simple eapply lower_one_temp_Vint;
+ [ simple eapply lower_one_temp_Vint;
      [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
  | lower_one_temp_Vint'
  | simple eapply lower_one_temp;

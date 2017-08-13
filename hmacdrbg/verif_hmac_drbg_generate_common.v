@@ -571,20 +571,20 @@ Lemma entailment1: forall (contents : list Z) (additional output : val)
                  true)
 (*  (F : (0 >? 256) = false)*)
   (F32 : (32 >? 32) = false)
-  (return_value : int)
+  (return_value : val)
   (Hrv : negb (Int.eq return_value (Int.repr 0)) = true)
   (Hadd_lenb : (Zlength contents >? 256) = false)
   (Hadd_len: 0 <= Zlength contents <= 256)
   (EL1: entropy_len + Zlength contents <= 384)
    (*ZLc' : Zlength contents' = 0 \/ Zlength contents' = Zlength contents*)
 (*  (EL: entropy_len = 32)*),
-reseedPOST (Vint return_value) contents additional (Zlength contents) s
+reseedPOST return_value contents additional (Zlength contents) s
   I (Vptr b i) Info kv a *
 data_at_ Tsh (tarray tuchar out_len) output
 |-- !! return_value_relate_result
          (mbedtls_HMAC256_DRBG_generate_function s I out_len
             (contents_with_add additional (Zlength contents) contents))
-         (Vint return_value) &&
+         return_value &&
     (match
        mbedtls_HMAC256_DRBG_generate_function s I out_len
          (contents_with_add additional (Zlength contents) contents)

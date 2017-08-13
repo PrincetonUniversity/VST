@@ -420,6 +420,7 @@ forward_if.
   rewrite sublist_list_repeat by Omega1.
   clear H5 H6.
   forward. (* c->num = n+(unsigned int)len; *)
+  weak_normalize_postcondition.
   forward. (* return; *)
   Exists (S256abs hashed (dd ++ sublist 0 len data)).
   repeat rewrite TT_andp.

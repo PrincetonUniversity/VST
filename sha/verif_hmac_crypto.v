@@ -115,16 +115,14 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
          SEP  (K_vector kv; @data_block CompSpecs shmd digest md;
          initPostKey k (CONT KEY);
          @data_block CompSpecs Tsh (CONT MSG) msg))%assert)
-     (EX  v : val,
-      local (locald_denote (lvar _c (Tstruct _hmac_ctx_st noattr) v)) &&
-      `(@data_at_ CompSpecs Tsh (Tstruct _hmac_ctx_st noattr) v))%assert).
+     (stackframe_of f_HMAC)%assert).
 Proof. intros. abbreviate_semax.
 destruct KEY as [kl key].
-destruct MSG as [dl data]. simpl in *.
+destruct MSG as [dl data]. simpl LEN in *; simpl CONT in *.
 rewrite memory_block_isptr. normalize.
 (*NEW: crypto proof requires that we first extract isbyteZ key*)
 assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
-
+simpl fn_body.
 forward_if  (
   PROP  (isptr buf)
    LOCAL  (lvar _c t_struct_hmac_ctx_st buf; temp _md md; temp _key k;
@@ -169,7 +167,7 @@ forward.
 rename H5 into FBUF.*)
 specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists buf dig. thaw FR1. entailer!. 
+Exists dig. thaw FR1. entailer!. 
 { subst.
        split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.

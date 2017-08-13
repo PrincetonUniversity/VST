@@ -19,6 +19,7 @@ Proof.
 start_function. 
 Time forward. (*8.8*)  
 Time entailer!. (*0.8*)
+     
 assert (W: Int.zwordsize = 32). reflexivity.
 assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
 remember (Int.ltu c Int.iwordsize) as d. symmetry in Heqd.

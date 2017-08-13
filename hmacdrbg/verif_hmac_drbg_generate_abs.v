@@ -350,13 +350,117 @@ Proof.
     {
       (* reseed's return_value != 0 *) 
       rename H into Hrv.
-      unfold POSTCONDITION, abbreviate.
+      Print Ltac forward_return.
+
+match goal with
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
+        match oe with
+        | None =>
+            eapply semax_return_None;
+             [ reflexivity
+             | solve_return_outer_gen
+             | solve_canon_derives_stackframe
+             | try
+                match goal with
+                | Post:=_:ret_assert |- _ => subst Post; unfold abbreviate
+                end; try change_compspecs CS; solve_return_inner_gen
+             | forward.entailer_for_return ]
+        | Some ?ret =>
+            let v := fresh "v" in
+            evar ( v : val );
+             (let H := fresh "HRE" in
+              do_compute_expr Delta P Q R ((Ecast ret (ret_type Delta))) v H; subst v;
+               eapply semax_return_Some;
+               [ exact
+               H
+               | forward.entailer_for_return
+               | solve_return_outer_gen
+               | solve_canon_derives_stackframe
+               | try
+                  match goal with
+                  | Post:=_:ret_assert |- _ => subst Post; unfold abbreviate
+                  end; try change_compspecs CS; solve_return_inner_gen
+               | ]; clear H)
+        end
+end.
+
+clear_Delta_specs;
+intros;
+match goal with
+ | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+       apply ENTAIL_normal_ret_assert; fancy_intros true
+ | |- local _ && _ |-- _ => idtac
+ | |- ENTAIL _, _ |-- _ => idtac
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end.
+Check lower_one_temp_trivial.
+Print Ltac lower_one_temp_Vint'.
+repeat (simple apply derives_extract_PROP; fancy_intro true);
+let rho := fresh "rho" in
+intro rho;
+try match goal with
+| |- ?LHS |--  ?S rho =>
+       unify (S rho) (S any_environ);
+       let u := fresh "u" in pose (u := rho_marker);
+   let x := fresh "x" in set (x:=LHS);
+   unfold_for_go_lower; simpl; subst x;
+   rewrite ?(prop_true_andp True) by auto
+    end.
+Check lower_one_temp_trivial.
+simple eapply lower_one_temp_trivial;
+     [reflexivity | unfold tc_val at 1; fancy_intro true ].xzc  
+first [simple apply quick_finish_lower
+| repeat first
+ [ match goal with u:=rho_marker |- _ => idtac end;
+   simple eapply lower_one_temp_trivial;
+     [reflexivity | unfold tc_val at 1; fancy_intro true ]
+ | simple eapply lower_one_temp_Vint;
+     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
+ | lower_one_temp_Vint'
+ | simple eapply lower_one_temp;
+     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
+ | simple apply lower_one_lvar;
+     fold_types1; fancy_intro true; intros ?LV
+ | simple eapply lower_one_gvar;
+     [try reflexivity; eauto
+     | fold_types1; fancy_intro true; intros ?GV]
+ | simple eapply lower_one_sgvar;
+     [try reflexivity; eauto
+     | fold_types1; fancy_intro true; intros ?SGV]
+ ]].
+
+lower_one_temp_Vint'.
+
+go_lower.
+       forward.entailer_for_return.
+clear_Delta_specs;
+intros;
+match goal with
+ | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+       apply ENTAIL_normal_ret_assert; fancy_intros true
+ | |- local _ && _ |-- _ => idtac
+ | |- ENTAIL _, _ |-- _ => idtac
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end.
+repeat (simple apply derives_extract_PROP; fancy_intro true);
+let rho := fresh "rho" in
+intro rho;
+try match goal with
+| |- ?LHS |--  ?S rho =>
+       unify (S rho) (S any_environ);
+       let u := fresh "u" in pose (u := rho_marker);
+   let x := fresh "x" in set (x:=LHS);
+   unfold_for_go_lower; simpl; subst x;
+   rewrite ?(prop_true_andp True) by auto
+    end.
+lower_one_temp_Vint'.
       forward. simpl in *.
 (*      clear - Hadd_lenb Hadd_len Hrv H3 Hout_lenb ZLa F H4 Hshould_reseed.*)
-      Exists (Vint return_value).
-      apply andp_right. apply prop_right; trivial. 
-      apply andp_right. apply prop_right; split; trivial.
-      normalize. 
+      Exists return_value.
+      apply andp_right. apply prop_right; auto.
+      apply andp_right. auto.
+      normalize.
+      Locate entailment1.
       apply entailment1; trivial. }
 
      { (* reseed's return_value = 0 *)

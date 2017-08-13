@@ -1121,7 +1121,7 @@ Ltac mkConciseDelta V G F Delta :=
 (*
 mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta. *)
-  forward. Exists x z. entailer!. 
+  forward. entailer!. 
   unfold crypto_stream_xor_postsep. 
   rewrite Int64.eq_true. cancel. }
 { unfold typed_false, strict_bool_val in H. simpl in H.
@@ -1507,7 +1507,7 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
 }
 unfold IfPost. 
 forward.
-Exists x z. unfold tarray; entailer!.
+unfold tarray; entailer!.
 unfold crypto_stream_xor_postsep. cancel.
 destruct (Int64.eq bInit Int64.zero). trivial.
 Intros l. Exists l. apply andp_right; trivial.
