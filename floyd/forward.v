@@ -2385,12 +2385,12 @@ Ltac forward_return :=
     match oe with
     | None =>
         eapply semax_return_None;
-        [ reflexivity
-        | solve_return_outer_gen
-        | solve_canon_derives_stackframe
+        [ (reflexivity || fail 1000 "Error: return type is not Tvoid")
+        | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
+        | (solve_canon_derives_stackframe || fail 1000 "Error: stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_inner_gen
+          (solve_return_inner_gen || fail 1000 "POSTCONDITION is not in an existential canonical form. One possible cause of this is some 'simpl in *' command which may destroy the existential form.")
         | entailer_for_return]
     | Some ?ret =>
         let v := fresh "v" in evar (v: val);
@@ -2400,11 +2400,11 @@ Ltac forward_return :=
         eapply semax_return_Some;
         [ exact H
         | entailer_for_return
-        | solve_return_outer_gen
-        | solve_canon_derives_stackframe
+        | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
+        | (solve_canon_derives_stackframe || fail 1000 "Error: stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_inner_gen
+          (solve_return_inner_gen || fail 1000 "POSTCONDITION is not in an existential canonical form. One possible cause of this is some 'simpl in *' command which may destroy the existential form.")
         | entailer_for_return];
         clear H
     end
