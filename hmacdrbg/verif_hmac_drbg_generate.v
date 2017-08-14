@@ -694,10 +694,11 @@ Proof.
   unfold hmac256drbgstate_md_info_pointer.
   simpl.
 
-  rename info_contents into Info. simpl in *.
+  rename info_contents into Info. 
   rename H2 into AddLenC. rename H0 into Houtlen. 
   rename H4 into Hentlen. rename H7 into isbtContents.
   rename H into Haddlen. rename H3 into Hent_len_nonneg. rename H6 into isbyteV.
+  simpl in H1, Hent_len_nonneg,  Hentlen, Hreseed_interval, Hreseed_counter_in_range, isbyteV |- *.
 
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
@@ -975,7 +976,6 @@ Proof.
       forward. simpl in *.
 (*      clear - Hadd_lenb Hadd_len Hrv H3 Hout_lenb ZLa F H4 Hshould_reseed.*)
       Exists (Vint return_value).
-      apply andp_right. apply prop_right; trivial. 
       apply andp_right. apply prop_right; split; trivial.
       normalize. 
       apply entailment1; trivial. }
@@ -1819,7 +1819,6 @@ Require Import hamcdrbg_verif_gen_whilebody.
   freeze [1;2;4;5;6;7] FIELDS.
   forward. forward. forward.
   Exists (Vint (Int.repr 0)).
-  apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial.
   thaw FIELDS. thaw FR5. thaw StreamOut.
 (*

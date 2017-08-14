@@ -116,7 +116,10 @@ Definition drbg_setPredictionResistance_spec_abs :=
        PROP ( )
        LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))
        SEP (AREP kv A ctx)
-    POST [ tvoid ] SEP (AREP kv (setPR_ABS r A) ctx).
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (AREP kv (setPR_ABS r A) ctx).
 
 
 Definition drbg_setEntropyLen_spec_abs :=
