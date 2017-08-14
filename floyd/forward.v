@@ -2331,12 +2331,13 @@ Ltac solve_return_inner_gen :=
       match v with
       | Some _ => first [ simple apply return_inner_gen_canon_Some
                         | simple apply return_inner_gen_canon_nil
-                        | fail 1000 "The LOCALx clauses of POSTCONDITION should only contain ret_temp. Other variables appears there now."]
+                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
       | None   => first [ simple apply return_inner_gen_canon_nil
-                        | fail 1000 "The LOCALx clauses of POSTCONDITION should not contain any variable."]
+                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
-                 | fail 1000 "The POSTCONDITION should be in an existential canonical form."]
+                 | fail 1000 "the POSTCONDITION should be in an existential canonical form."
+                             "One possible cause of this is some 'simpl in *' command which destroys the existential form in POSTCONDITION."]
     end
  end.
 
@@ -2399,7 +2400,7 @@ Ltac forward_return :=
         eapply semax_return_None;
         [ (reflexivity || fail 1000 "Error: return type is not Tvoid")
         | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
-        | (solve_canon_derives_stackframe || fail 1000 "Error: stackframe is unfolded or modified.")
+        | (solve_canon_derives_stackframe || fail 1000 "stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
           solve_return_inner_gen
@@ -2413,7 +2414,7 @@ Ltac forward_return :=
         [ exact H
         | entailer_for_return
         | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
-        | (solve_canon_derives_stackframe || fail 1000 "Error: stackframe is unfolded or modified.")
+        | (solve_canon_derives_stackframe || fail 1000 "stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
           solve_return_inner_gen
