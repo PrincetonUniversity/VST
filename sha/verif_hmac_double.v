@@ -67,7 +67,7 @@ name md' _md.
 rename lvar0 into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
-destruct MSG as [dl data]. simpl in *.
+destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
 rewrite memory_block_isptr. normalize.
 rename H into KL. rename H0 into DL.
 
@@ -142,14 +142,13 @@ forward_call (h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
   change A with (list_repeat (Z.to_nat n324) 0)
 end.
-
 forward.
 clear H2.
 pose proof (HMAC_Zlength data key).
 rewrite <- (hmac_sound key data) in *. unfold hmac in *.
 rewrite <- HeqRND2 in HeqRND1. inv HeqRND1.
 rewrite <- HeqRND2 in *. simpl in *.
-Exists c dig2.
+Exists dig2.
 unfold data_block at 1. simpl. entailer!.
 rewrite <- memory_block_data_at_ by auto.
 change (sizeof (Tstruct _hmac_ctx_st noattr))

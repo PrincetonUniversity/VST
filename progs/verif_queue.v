@@ -320,11 +320,18 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
+entailer!.
+{
+unfold fifo, fifo_body.
+destruct (isnil contents).
++ normalize; auto with valid_pointer.
++ entailer!.
+  destruct hd; inv PNhd; entailer!.
+}
 unfold fifo, fifo_body.
 Exists (hd,tl).
 destruct (isnil contents).
 * entailer!.
-  apply andp_right; auto with valid_pointer.
 * Intros prefix.
 Exists prefix.
   assert_PROP (isptr hd).
@@ -332,9 +339,8 @@ Exists prefix.
     rewrite lseg_cons_eq by auto. Intros y. subst v.
     entailer.
  destruct hd; try contradiction.
- entailer!. entailer!.
+ entailer!.
 Qed.
-
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.

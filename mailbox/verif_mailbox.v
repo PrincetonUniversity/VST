@@ -596,7 +596,6 @@ Proof.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts g g0 g1 g2.
   (* entailer! is slow *)
-  apply andp_right; auto.
   apply andp_right; [apply prop_right; repeat (split; auto)|].
   apply andp_right; auto; cancel.
 Qed.
@@ -788,7 +787,7 @@ Proof.
       entailer!.
       apply latest_read_new; auto.
       apply hist_incl_lt; auto. }
-  Intros x b'; destruct x as (t, v); simpl in *.
+  Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
   { destruct (eq_dec v Empty); subst.
     - exists (-1); rewrite eq_dec_refl; split; auto; omega.
@@ -1014,7 +1013,7 @@ Proof.
            data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     { forward.
       forward.
-      Exists lvar0 i; entailer!.
+      Exists i; entailer!.
       { subst available.
         match goal with H : typed_true _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
           try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try omega; unfold typed_true in H; simpl in H; inv H end.

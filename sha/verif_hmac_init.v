@@ -32,12 +32,7 @@ Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
         (PROP  ()
          LOCAL ()
          SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv)))
-     ((EX  v : val,
-       local (locald_denote (lvar _pad (tarray tuchar 64) v)) &&
-       `(data_at_ Tsh (tarray tuchar 64) v))%assert *
-      (EX  v : val,
-       local (locald_denote (lvar _ctx_key (tarray tuchar 64) v)) &&
-       `(data_at_ Tsh (tarray tuchar 64) v))%assert)).
+     (stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
 freeze [1; 2; 3] FR1. simpl.
 Time forward. (*0.8 versus 1.3*)
@@ -190,7 +185,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
      freeze [0; 1; 2] FR4.
      Time forward. (*return*) (* 3 versus 13*) (*Issue : leaves a somewhat messy subgoal*)
-     Exists (Vptr ckb ckoff) pad.
      unfold hmacInit.
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
      Time entailer!. (*1.6 versus 7.4*)
@@ -245,7 +239,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     }
     freeze [0; 1; 2] FR8.
     Time forward. (*return*) (*3.4 versus 17*) (*Issue: leaves messy subgoal*)
-    Exists (Vptr ckb ckoff) pad.
     Time entailer!. (* 1.2 versus 9*)
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).

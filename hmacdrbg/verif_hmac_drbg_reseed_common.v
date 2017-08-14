@@ -130,18 +130,15 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
               (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))
  (frame_ret_assert
      (function_body_ret_assert tint
-        (fun a : environ =>
-         EX x : val,
+       (EX x : val,
          (PROP ( )
           LOCAL (temp ret_temp x)
           SEP (reseedPOST x contents additional add_len s
                  (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
                  info_contents kv
                  (md_ctx',
-                 (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))))) a))
-     (fun a : environ =>
-      EX x : val,
-      local (lvar_denote _seed (tarray tuchar 384) x) a && ` (data_at_ Tsh (tarray tuchar 384) x) a)).
+                 (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))))))
+     (stackframe_of f_mbedtls_hmac_drbg_reseed)).
 Proof.
   intros.
   assert (ZLbytes: Zlength entropy_bytes = entropy_len).
@@ -462,7 +459,7 @@ Proof.
 
   (* return 0 *)
   idtac "Timing a forward (goal: 5secs)". Time forward. (*5 secs*)
-  Exists seed (Vint (Int.repr 0)). normalize.
+  Exists (Vint (Int.repr 0)). normalize.
   entailer!.
 
   assert (ZL1: Zlength (contents_with_add additional (Zlength contents) contents) >? 256 = false).

@@ -186,7 +186,7 @@ Qed.
 
 Ltac process_stackframe_of :=
  match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
-   let sf := fresh "sf" in set (sf:= stackframe_of F);
+   let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
@@ -197,7 +197,8 @@ Ltac process_stackframe_of :=
      | |- _ =>    simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
      end
-    end;
+   end;
+ (*
   match goal with |- semax _ ?Pre _ _ =>
      let p := fresh "p" in set (p := Pre);
      rewrite <- (@emp_sepcon (environ->mpred) _ _ _ (fold_right _ _ _));
@@ -205,6 +206,7 @@ Ltac process_stackframe_of :=
   end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
+*)
  change (fold_right sepcon emp (@nil (environ->mpred))) with
    (@emp (environ->mpred) _ _);
  rewrite ?sepcon_emp, ?emp_sepcon.
@@ -1351,6 +1353,7 @@ Qed.
 
 Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
+  lazymatch goal with |- semax _ _ (Ssequence _ _) _ => idtac | _ => apply <- semax_seq_skip end;
   first [ignore (Inv: environ->mpred)
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
@@ -2304,36 +2307,71 @@ Ltac entailer_for_return := entailer.
 
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
-Ltac solve_return_None_post_gen :=
+Ltac solve_return_inner_gen :=
   solve
-    [ simple apply return_None_post_gen_EX;
+    [ simple apply return_inner_gen_EX;
       let a := fresh "a" in
       intro a;
       eexists;
       split;
-      [ solve_return_None_post_gen
+      [ solve_return_inner_gen
       | match goal with
         | |- ?t = _ => super_pattern t a; reflexivity
         end
       ]
-    | simple apply return_None_post_gen_canon
-    | simple apply return_None_post_gen_main
+    | simple apply return_inner_gen_canon_Some
+    | simple apply return_inner_gen_canon_nil
+    | simple apply return_inner_gen_main
     ].
 
-Ltac solve_return_Some_post_gen :=
+Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
+| fn_data_at_intro: forall i t p,
+    (legal_alignas_type t && legal_cosu_type t && complete_type cenv_cs t && (sizeof t <? Int.modulus) = true)%bool ->
+    msubst_eval_lvar T2 i t = Some p ->
+    fn_data_at T2 (i, t) (data_at_ Tsh t p).
+
+Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 fn,
+  local2ptree Q = (T1, T2, nil, nil) ->
+  Forall2 (fn_data_at T2) fn R ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- fold_right sepcon emp (map (var_block Tsh) fn).
+Proof.
+  intros.
+  induction H0.
+  + go_lowerx.
+  + change (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (y :: l'))) |-- var_block Tsh x * fold_right sepcon emp (map (var_block Tsh) l)).
+    eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | exact IHForall2]]; clear IHForall2.
+    apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
+    inv H0.
+    rewrite !andb_true_iff in H2; destruct H2 as [[[? ?] ?] ?].
+    apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
+    rewrite <- H in H3; clear H.
+    rewrite (add_andp _ _ H3); clear H3.
+    go_lowerx.
+    apply sepcon_derives; auto.
+    subst.
+    rewrite var_block_data_at_ by auto.
+    auto.
+Qed.
+
+Lemma canonicalize_stackframe_emp: forall {cs: compspecs} Delta P Q,
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx nil)) |-- emp.
+Proof.
+  intros.
+  go_lowerx.
+Qed.
+  
+Ltac solve_Forall2_fn_data_at :=
   solve
-    [ simple apply return_Some_post_gen_EX;
-      let a := fresh "a" in
-      intro a;
-      eexists;
-      split;
-      [ solve_return_Some_post_gen
-      | match goal with
-        | |- ?t = _ => super_pattern t a; reflexivity
-        end
+    [ apply Forall2_nil
+    | apply Forall2_cons; [ apply fn_data_at_intro; [reflexivity | solve_msubst_eval_lvar] | solve_Forall2_fn_data_at]].
+
+Ltac solve_canon_derives_stackframe :=
+  solve
+    [ eapply canonicalize_stackframe;
+      [ prove_local2ptree
+      | solve_Forall2_fn_data_at
       ]
-    | simple apply return_Some_post_gen_canon
-    | simple apply return_Some_post_gen_main
+    | apply canonicalize_stackframe_emp
     ].
 
 Ltac forward_return :=
@@ -2344,22 +2382,24 @@ Ltac forward_return :=
         eapply semax_return_None;
         [ reflexivity
         | solve_return_outer_gen
+        | solve_canon_derives_stackframe
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_None_post_gen
+          solve_return_inner_gen
         | entailer_for_return]
     | Some ?ret =>
         let v := fresh "v" in evar (v: val);
-        let H := fresh "H" in
+        let H := fresh "HRE" in
         do_compute_expr Delta P Q R constr:(Ecast ret (ret_type Delta)) v H;
         subst v;
         eapply semax_return_Some;
         [ exact H
         | entailer_for_return
         | solve_return_outer_gen
+        | solve_canon_derives_stackframe
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
-          solve_return_Some_post_gen
+          solve_return_inner_gen
         | entailer_for_return];
         clear H
     end
@@ -2430,10 +2470,15 @@ try eapply semax_seq';
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Delta' := @abbreviate tycontext _, Post' := @abbreviate ret_assert ?R |- semax ?Delta _ ?s ?Post =>
-     tryif (constr_eq Post' Post; constr_eq Delta' Delta)
-       then (unfold abbreviate in Post'; subst Post')
-       else fail "Pleasex use abbreviate_semax to put your proof goal into standard form" 
+ | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+     tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
+ end;
+ lazymatch goal with
+ | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ =>
+     tryif (constr_eq Delta' Delta)
+       then idtac
+       else fail "Please use abbreviate_semax to put your proof goal into standard form" 
+(*  | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ => idtac *)
  | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
  | |- _ => fail "Proof goal is not (semax _ _ _ _)."
  end;
@@ -2864,11 +2909,30 @@ Ltac make_compspecs prog :=
          repeat constructor)
  ].
 
+Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
+  match al with
+  | a::al' => match PTree.get a t with None => a::nil | _ => nil end ++
+                 missing_ids t al'
+  | nil => nil
+ end.
+
 Ltac with_library' p G :=
-  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in match x with
+  let g := eval hnf in G in
+  let x := constr:(augment_funspecs' (prog_funct p) g) in
+  let x := eval hnf in x in
+  match x with
   | Some ?l => exact l
-  | None => fail 5 "Superfluous or missing funspecs"
-  end.
+  | None => 
+   let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
+                           (map fst (prog_funct p))) in
+   let t := eval compute in t in
+   let missing := constr:(missing_ids t (map fst G)) in
+   let missing := eval simpl in missing in
+   match missing with
+   | nil => fail "Superfluous funspecs?"
+   | _ => fail  "The following names have funspecs but no function definitions: " missing
+  end
+ end.
 
 Ltac with_library prog G := with_library' prog G.
 

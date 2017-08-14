@@ -189,7 +189,7 @@ generalize H1; intro.
 hnf in H3. destruct v; try contradiction.
 exists i0. split3; auto.
 Qed.
-
+ 
 Ltac lower_one_temp_Vint' :=
  match goal with
  | a : name ?i |- (local _ && PROPx _ (LOCALx (temp ?i ?v :: _) _)) _ |-- _ =>
@@ -235,78 +235,6 @@ intros.
 apply prop_right; auto.
 Qed.
 
-Definition rho_marker := tt.
-(*
-Ltac go_lower :=
-clear_Delta_specs;
-intros;
-match goal with
- | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
-       apply ENTAIL_normal_ret_assert; fancy_intros true
- | |- local _ && _ |-- _ => idtac
- | |- ENTAIL _, _ |-- _ => idtac
- | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
-end;
-repeat (simple apply derives_extract_PROP; fancy_intro true);
-let rho := fresh "rho" in
-intro rho;
-try match goal with
-| |- ?LHS |--  ?S rho =>
-       unify (S rho) (S any_environ);
-       let u := fresh "u" in pose (u := rho_marker);
-   let x := fresh "x" in set (x:=LHS);
-   unfold_for_go_lower; simpl; subst x;
-   rewrite ?(prop_true_andp True) by auto
-end;
-first [simple apply quick_finish_lower
-| repeat first
- [ match goal with u:=rho_marker |- _ => idtac end;
-   simple eapply lower_one_temp_trivial;
-     [reflexivity | unfold tc_val at 1; fancy_intro true ]
- | simple eapply lower_one_temp_Vint;
-     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
- | lower_one_temp_Vint'
- | simple eapply lower_one_temp;
-     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
- | simple apply lower_one_lvar;
-     fold_types1; fancy_intro true; intros ?LV
- | simple eapply lower_one_gvar;
-     [try reflexivity; eauto
-     | fold_types1; fancy_intro true; intros ?GV]
- | simple eapply lower_one_sgvar;
-     [try reflexivity; eauto
-     | fold_types1; fancy_intro true; intros ?SGV]
- ];
- (simple apply finish_lower ||
- match goal with
- | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
- | |- _ => fail 1 "PROP part of precondition is not a concrete list"
- end);
-unfold_for_go_lower;
-simpl; rewrite ?sepcon_emp;
-repeat match goal with
-| H: eval_id ?i rho = ?v |- _ =>
- first [rewrite ?H in *; clear H; match goal with
-               | H:context[eval_id i rho]|-_ => fail 2
-               | |- _ => idtac
-               end
-        |  let x := fresh "x" in
-             set (x := eval_id i rho) in *; clearbody x; subst x
-        ]
-end;
-repeat match goal with
- | H: lvar_denote ?i ?t ?v rho |- context [lvar_denote ?i ?t' ?v' rho] =>
-     rewrite (eq_True (lvar_denote i t' v' rho) H)
- | H: gvar_denote ?i ?v rho |- context [gvar_denote ?i ?v' rho] =>
-     rewrite (eq_True (gvar_denote i v' rho) H)
- | H: sgvar_denote ?i ?v rho |- context [sgvar_denote ?i ?v' rho] =>
-     rewrite (eq_True (sgvar_denote i v' rho) H)
-end
-];
-try match goal with u := rho_marker |- _ => clear u end;
-clear_Delta;
-try clear dependent rho.
-*)
 Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
@@ -793,14 +721,6 @@ first [clean_LOCAL_canon_canon | clean_LOCAL_canon_mix];
 repeat (simple apply derives_extract_PROP; fancy_intro true);
 let rho := fresh "rho" in
 intro rho;
-try match goal with
-| |- ?LHS |--  ?S rho =>
-       unify (S rho) (S any_environ);
-       let u := fresh "u" in pose (u := rho_marker);
-   let x := fresh "x" in set (x:=LHS);
-   unfold_for_go_lower; simpl; subst x;
-   rewrite ?(prop_true_andp True) by auto
-end;
 first
 [ simple apply quick_finish_lower
 |          
@@ -811,6 +731,5 @@ first
  end);
 unfold_for_go_lower;
 simpl; rewrite ?sepcon_emp;
-try match goal with u := rho_marker |- _ => clear u end;
 clear_Delta;
 try clear dependent rho].
