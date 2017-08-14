@@ -2383,11 +2383,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ eapply canonicalize_stackframe;
+    [ try unfold stackframe_of;
+      simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | apply canonicalize_stackframe_emp
+    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac forward_return :=
