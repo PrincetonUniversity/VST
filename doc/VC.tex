@@ -2176,6 +2176,22 @@ data_at $\pi$ tint $i$ $p$
 |-- $$ data_at $\pi$ t_struct_b $(i,(f,j))$ $p$
 \end{lstlisting}
 
+\newthought{field\_address vs field\_address0.} 
+You use \lstinline{field_address $t$ $\mathit{path}$ $p$} to indicate
+that $p$ points to \textbf{at least one} thing of
+the appropriate field type for $t.\mathit{path}$, that is,
+the type \lstinline{nested_field_type $t$ $\mathit{path}$}.
+
+Sometimes when dealing with arrays, you want a pointer that might
+possibly point just one past the end of the array; that is,
+points to \textbf{at least zero} things.  In this case,
+use \lstinline{field_address0 $t$ $\mathit{path}$ $p$},
+which is built from \lstinline{field_compatible0}.
+It has slightly looser requirements for how close $p$ can be to the
+end of memory.
+
+
+
 
 \chapter{value\_fits}
 \label{refcard:value-fits}

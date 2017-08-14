@@ -3,6 +3,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
+Require Import floyd.sublist.
 Require Import floyd.simple_reify.
 
 Section SIMPL_REPTYPE.
@@ -146,26 +147,38 @@ Ltac solve_load_rule_evaluation_old :=
     end
   end.
 
+(* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
+   Useful for all loads from int arrays.
+   Makes entailer and other tactics more successful. *)
+Ltac default_canon_load_result :=
+  repeat (
+    first [ rewrite Znth_map with (d' := Int.zero)
+          | rewrite Znth_map with (d' := Vundef)
+          | rewrite Znth_map with (d' := 0) ];
+    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
+        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
+        end ]
+  ).
+
+Ltac canon_load_result := default_canon_load_result.
+
 Ltac solve_load_rule_evaluation :=
-  clear;
-  repeat
-  match goal with
-  | A : _ |- _ => clear A 
-  | A := _ |- _ => clear A 
-  end;
-  match goal with
-  | |- JMeq (@proj_reptype _ _ ?name_of_gfs ?name_of_v) _ =>
-    subst name_of_gfs;
-    try subst name_of_v
-  end;
-  match goal with
-  | |- JMeq (@proj_reptype _ _ ?gfs _) _ =>
-    remember_indexes gfs
-  end;
-  match goal with
-  | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
-      let opaque_v := fresh "opaque_v" in
-      set (opaque_v := v);
-      cbv - [opaque_v sublist.Znth Int.repr];
-      subst opaque_v; subst; apply JMeq_refl
-  end.
+  eapply JMeq_trans;
+  [ clear;
+    repeat
+    match goal with
+    | A : _ |- _ => clear A 
+    | A := _ |- _ => clear A 
+    end;
+    match goal with
+    | |- JMeq (@proj_reptype _ _ ?gfs _) _ =>
+      remember_indexes gfs
+    end;
+    match goal with
+    | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
+        let opaque_v := fresh "opaque_v" in
+        set (opaque_v := v);
+        cbv - [opaque_v sublist.Znth Int.repr JMeq];
+        subst opaque_v; subst; apply JMeq_refl
+    end
+  | canon_load_result; apply JMeq_refl ].

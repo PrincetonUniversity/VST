@@ -15,6 +15,44 @@ Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto
 Qed.
 Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
 
+Lemma andp_in_order1 {A}{NA: NatDed A}:
+  forall P Q, P && Q = P && (P --> Q).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_derives; auto.
+    apply imp_andp_adjoint.
+    apply andp_left1; auto.
+  + apply andp_right.
+    - apply andp_left1; auto.
+    - apply modus_ponens.
+Qed.
+
+Lemma andp_in_order2 {A}{NA: NatDed A}:
+  forall P Q, P && Q = Q && (Q --> P).
+Proof.
+  intros.
+  rewrite (andp_comm P Q).
+  apply andp_in_order1.
+Qed.
+
+Lemma andp_right1{A}{NA: NatDed A}:
+  forall P Q R, P |-- Q -> P && Q |-- R -> P |-- Q && R.
+Proof.
+  intros.
+  rewrite andp_in_order1.
+  apply andp_right; auto.
+  apply imp_andp_adjoint; auto.
+Qed.
+
+Lemma andp_right2{A}{NA: NatDed A}:
+  forall P Q R, P |-- R -> P && R |-- Q -> P |-- Q && R.
+Proof.
+  intros.
+  rewrite andp_comm.
+  apply andp_right1; auto.
+Qed.
+
 Definition not_a_prop {A} (P: A) := True.
 
 Ltac not_a_prop := match goal with

@@ -538,7 +538,7 @@ Proof.
       end.
       rewrite (update_partially_filled i calc_FT0) by assumption.
 
-      Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
+      Ltac canon_load_result ::= rewrite Znth_partially_filled by omega.
       forward. forward.
       match goal with
       | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_FT1) (Vint ?v)) _ ] =>
@@ -561,7 +561,7 @@ Proof.
       rewrite (update_partially_filled i calc_FT3) by assumption.
 
       (* reset back to normal: *)
-      Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
+      Ltac canon_load_result ::= default_canon_load_result.
 
     (* reverse tables: *)
     assert (forall i, Int.unsigned (Znth i RSb Int.zero) <= Byte.max_unsigned). {
@@ -572,11 +572,11 @@ Proof.
     assert (forall j, 1 <= j < 256 -> Znth j log 0 <> -1). {
       intros j B. specialize (Hlog j B). pose proof (log3range j B). omega.
     }
-    Ltac canon_load_result Hresult ::= 
+    Ltac canon_load_result ::= 
       (* default: *)
-      default_canon_load_result Hresult;
+      default_canon_load_result;
       (* additional: *)
-      try rewrite Z_to_val_to_Vint in Hresult by
+      try rewrite Z_to_val_to_Vint by
       match goal with
       | H : forall j : Z, 1 <= j < 256 -> Znth j _ _ <> -1 |- _ => apply H; omega
       end.
@@ -750,7 +750,7 @@ Proof.
     end.
     rewrite (update_partially_filled i calc_RT0) by assumption.
 
-    Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
+    Ltac canon_load_result ::= rewrite Znth_partially_filled by omega.
     forward. forward.
     match goal with
     | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_RT1) (Vint ?v)) _ ] =>
@@ -772,7 +772,7 @@ Proof.
     end.
     rewrite (update_partially_filled i calc_RT3) by assumption.
 
-    Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
+    Ltac canon_load_result ::= default_canon_load_result.
 
     (* postcondition implies loop invariant: *)
     entailer!.

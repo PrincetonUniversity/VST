@@ -44,6 +44,7 @@ Definition try_spec (prog: program) (name: string) (spec: funspec) : list (ident
  | Some id => [(id,spec)]
  | None => nil
  end.
+Arguments try_spec prog name spec / .
 
 Definition exit_spec' :=
  WITH u: unit
@@ -53,6 +54,7 @@ Definition exit_spec' :=
    PROP(False) LOCAL() SEP().
 
 Definition exit_spec (prog: program) := try_spec prog "exit" exit_spec'.
+Arguments exit_spec prog / .
 
 Parameter body_exit:
  forall {Espec: OracleKind},
@@ -85,6 +87,7 @@ Definition malloc_spec' :=
 
 Definition malloc_spec (prog: program) :=
    try_spec prog "_malloc" malloc_spec'.
+Arguments malloc_spec prog / .
 
 Parameter body_malloc:
  forall {Espec: OracleKind},
@@ -103,6 +106,7 @@ Definition free_spec' :=
 
 Definition free_spec  (prog: program) :=
    try_spec prog "_free" free_spec'.
+Arguments free_spec prog / .
 
 Parameter body_free:
  forall {Espec: OracleKind},
@@ -111,7 +115,13 @@ Parameter body_free:
 Definition library_G prog :=
   exit_spec prog ++ malloc_spec prog ++ free_spec prog.
 
-Ltac with_library prog G := with_library' prog (library_G prog ++ G).
+Ltac with_library prog G := 
+ let x := constr:(library_G prog) in
+ let x := eval hnf in x in 
+ let x := eval simpl in x in
+ let y := constr:(x++G) in
+ let y := eval cbv beta iota delta [app] in y in 
+ with_library' prog y.
 
 Lemma semax_func_cons_malloc_aux:
   forall (gx : genviron) (x : Z) (ret : option val),
