@@ -196,6 +196,8 @@ split; auto.
 specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
 destruct H4 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split3; auto.
+destruct H6 as [w' []].
+exists w'; split; auto.
 apply H; split; auto.
 destruct H3 as [H3 _].
 do 3 red.
@@ -273,10 +275,13 @@ revert w H0.
 apply imp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-repeat intro. simpl exit_tycon.
+repeat intro.
 unfold frame_ret_assert.
 rewrite sepcon_comm.
 eapply sepcon_derives; try apply H0; auto.
+unfold ghost_update_ret_assert.
+(* !! to finish *)
+
 
 repeat intro.
 specialize (H0 ora jm H1 H2).
@@ -426,6 +431,8 @@ intros.
 eapply semax_pre; eauto.
 eapply semax_post; eauto.
 Qed.
+
+(* ghost state and view shifts *)(* !! START HERE !! *)
 
 Lemma semax_skip {CS: compspecs}:
    forall Delta P, semax Espec Delta P Sskip (normal_ret_assert P).

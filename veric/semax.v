@@ -249,6 +249,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
+              rguard Espec gx (exit_tycon c Delta') (frame_ret_assert (ghost_update_ret_assert R) F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -288,7 +289,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert (ghost_update_ret_assert R) F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.

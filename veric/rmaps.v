@@ -79,8 +79,6 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   Axiom pcm_op_eq : forall a b c c' (Hc : pcm_op a b c) (Hc' : pcm_op a b c'), c = c'.
 End PCM.*)
 
-(* Would we want to just use Sep_alg here, since rmaps with PCMs included must form a Sep_alg? *)
-
 Module Type PCM.
   Parameter M : Type.
   Parameter J_M : Join M.
