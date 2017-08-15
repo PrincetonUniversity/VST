@@ -11,14 +11,14 @@ Require Import compcert.common.Memory. Import Memory.
 Require Import compcert.common.Memdata. Import Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.Clight_new.
-Require Import veric.coqlib4.
-Require Import sepcomp.Address.
-Require Import sepcomp.mem_lemmas.
-Require Import concurrency.permissions.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.coqlib4.
+Require Import VST.sepcomp.Address.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.concurrency.permissions.
 
 Set Bullet Behavior "Strict Subproofs".
 

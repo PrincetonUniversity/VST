@@ -753,7 +753,7 @@ inversion H1; clear H1; subst; simpl; auto.
 Qed.
 
 Require Import Finite_sets_facts.
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
 Lemma Mcardinal_spec': forall s,   cardinal _ (Basics.flip M.In s) (M.cardinal s).
 Proof.

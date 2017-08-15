@@ -1,7 +1,7 @@
-Require Import msl.simple_CCC.
-Require Import msl.seplog.
-(* Require Import msl.alg_seplog. *)
-Require Import msl.Extensionality.
+Require Import VST.msl.simple_CCC.
+Require Import VST.msl.seplog.
+(* Require Import VST.msl.alg_seplog. *)
+Require Import VST.msl.Extensionality.
 Require Import Coq.Setoids.Setoid.
 
 Local Open Scope logic.
@@ -1241,7 +1241,7 @@ prove_assoc_commut.
 Qed.
 
 (***** subtyping and contractiveness -- should split this into a separate file ******)
-Require Import msl.alg_seplog.
+Require Import VST.msl.alg_seplog.
 
 Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall P : A, |> # P |-- # |> P.

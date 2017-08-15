@@ -1,5 +1,5 @@
-Require Export floyd.base.
-Require Export floyd.typecheck_lemmas.
-Require Export floyd.val_lemmas.
-Require Export floyd.seplog_tactics.
-Require Export floyd.assert_lemmas.
+Require Export VST.floyd.base.
+Require Export VST.floyd.typecheck_lemmas.
+Require Export VST.floyd.val_lemmas.
+Require Export VST.floyd.seplog_tactics.
+Require Export VST.floyd.assert_lemmas.

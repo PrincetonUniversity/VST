@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Export progs.reverse.
-Require Export progs.list_dt.
+Require Import VST.floyd.proofauto.
+Require Export VST.progs.reverse.
+Require Export VST.progs.list_dt.
 Local Open Scope logic.
 
 

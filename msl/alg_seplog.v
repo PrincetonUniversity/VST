@@ -1,15 +1,15 @@
-Require Import msl.seplog.
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.age_sepalg.
-Require Import msl.predicates_hered.
-Require Import msl.predicates_sl.
-Require Import msl.subtypes.
-Require Import msl.subtypes_sl.
-Require Import msl.predicates_rec.
-Require Import msl.contractive.
-Require msl.normalize.
+Require Import VST.msl.seplog.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
+Require Import VST.msl.subtypes.
+Require Import VST.msl.subtypes_sl.
+Require Import VST.msl.predicates_rec.
+Require Import VST.msl.contractive.
+Require VST.msl.normalize.
 
 Local Open Scope logic.
 
@@ -87,7 +87,7 @@ Defined.
 
 Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat.
 
-Section SL2. Import msl.seplog.
+Section SL2. Import VST.msl.seplog.
 
 Class RecIndir (A: Type) {NA: NatDed A}{IA: Indir A} := mkRecIndir {
   fash : A -> Triv;
@@ -142,7 +142,7 @@ Defined.
 
 Instance TrivRecIndir: RecIndir Triv := algRecIndir nat.
 
-Section SL3. Import msl.seplog.
+Section SL3. Import VST.msl.seplog.
 
 Lemma fash_triv: forall P: Triv, fash P = P.
 Proof.

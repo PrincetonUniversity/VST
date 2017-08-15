@@ -1,33 +1,33 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.go_lower.
-Require Import floyd.closed_lemmas.
-Require Import floyd.forward_lemmas floyd.call_lemmas.
-Require Import floyd.extcall_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.loadstore_mapsto.
-Require Import floyd.loadstore_field_at.
-Require Import floyd.nested_loadstore.
-Require Import floyd.sc_set_load_store.
-Require Import floyd.stronger.
-Require Import floyd.local2ptree_denote.
-Require Import floyd.local2ptree_eval.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.replace_refill_reptype_lemmas.
-Require Import floyd.aggregate_type.
-Require Import floyd.entailer.
-Require Import floyd.globals_lemmas.
-Require Import floyd.semax_tactics.
-Require Import floyd.for_lemmas.
-Require Import floyd.diagnosis.
-Require Import floyd.simpl_reptype.
-Require Import floyd.nested_pred_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.go_lower.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.forward_lemmas VST.floyd.call_lemmas.
+Require Import VST.floyd.extcall_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.efield_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.loadstore_mapsto.
+Require Import VST.floyd.loadstore_field_at.
+Require Import VST.floyd.nested_loadstore.
+Require Import VST.floyd.sc_set_load_store.
+Require Import VST.floyd.stronger.
+Require Import VST.floyd.local2ptree_denote.
+Require Import VST.floyd.local2ptree_eval.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.proj_reptype_lemmas.
+Require Import VST.floyd.replace_refill_reptype_lemmas.
+Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.entailer.
+Require Import VST.floyd.globals_lemmas.
+Require Import VST.floyd.semax_tactics.
+Require Import VST.floyd.for_lemmas.
+Require Import VST.floyd.diagnosis.
+Require Import VST.floyd.simpl_reptype.
+Require Import VST.floyd.nested_pred_lemmas.
 Import Cop.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
@@ -1388,7 +1388,7 @@ Tactic Notation "forward_while" constr(Inv) :=
              int main(){int i=0; while(i);}
 
              (* verif_example.v file (+you have to Require Import the example.v file produced by clightgen) *)
-             Require Import floyd.proofauto.
+             Require Import VST.floyd.proofauto.
              Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
              Local Open Scope logic.
 

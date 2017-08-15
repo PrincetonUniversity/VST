@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -925,5 +925,5 @@ Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
 Proof. start_function. apply BDY_update; trivial. Qed.
   
-Require Import floyd.ASTsize.
+Require Import VST.floyd.ASTsize.
 Eval compute in (ASTsize (fn_body f_mbedtls_hmac_drbg_update)).

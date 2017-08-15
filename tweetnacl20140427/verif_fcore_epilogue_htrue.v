@@ -1,8 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import floyd.deadvars.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.

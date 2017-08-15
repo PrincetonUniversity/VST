@@ -8,21 +8,21 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Locations.
+Require Import VST.ccc26x86.Locations.
 (*Require Import Stacklayout.*)
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Conventions.
 
-Require Import ccc26x86.Asm.
+Require Import VST.ccc26x86.Asm.
 (*LENB: In CompComp, we used a modified Asm.v, called Asm.comp.v*)
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.val_casted.
-Require Import ccc26x86.BuiltinEffects.
-Require Import ccc26x86.load_frame.
-Require Import sepcomp.event_semantics.
-Require Import ccc26x86.Asm_coop.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.val_casted.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.ccc26x86.load_frame.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.ccc26x86.Asm_coop.
 
 Require Import List. Import ListNotations.
 (*

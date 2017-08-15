@@ -6,12 +6,12 @@ Require Import compcert.lib.Maps.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Memtype.
 
-Require Import msl.eq_dec.
-Require Import msl.Coqlib2.
-Require Import sepcomp.semantics_lemmas.
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import concurrency.permissions.
-Require Import concurrency.lksize.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.Coqlib2.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.lksize.
 Set Bullet Behavior "Strict Subproofs".
 
   Module MiniAddressOrdered <: MiniOrderedType.

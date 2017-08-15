@@ -1,8 +1,8 @@
 (* This file is developed by Qinxiang Cao, Aquinas Hobor and Shengyi Wang in 2015. *)
 
-Require Export veric.base.
-Require Import veric.tycontext.
-Require Import veric.expr2.
+Require Export VST.veric.base.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
 
 Lemma range_overlap_spec: forall l1 n1 l2 n2,
   n1 > 0 ->

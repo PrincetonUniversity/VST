@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import mc_reify.funcs.
 Require Import mc_reify.types.
 Require Import mc_reify.reify.

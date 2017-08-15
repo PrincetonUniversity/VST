@@ -3,12 +3,12 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.cjoins.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.cjoins.
+Require Import VST.msl.eq_dec.
 
 (** The cross split axiom looks unwieldly,
     but here we show that it arises naturally

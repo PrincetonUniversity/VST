@@ -1,6 +1,6 @@
-Require Import msl.seplog.
-Require Import msl.alg_seplog.
-Require Import msl.log_normalize.
+Require Import VST.msl.seplog.
+Require Import VST.msl.alg_seplog.
+Require Import VST.msl.log_normalize.
 Require Import wand_demo.wand_frame.
 Local Open Scope logic.
 

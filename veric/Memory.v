@@ -12,14 +12,14 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Memtype.
 Require Import compcert.common.Memory.
-Require Export sepcomp.Address.
+Require Export VST.sepcomp.Address.
 
 Lemma range_dec: forall a b c: Z, {a <= b < c}+{~(a <= b < c)}.
 Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
   right;  omega. right; omega.
 Qed.
 
-Require Export msl.eq_dec.
+Require Export VST.msl.eq_dec.
 
 Instance EqDec_ident: EqDec ident := ident_eq.
 

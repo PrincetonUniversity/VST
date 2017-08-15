@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.odd.
-Require Import progs.verif_evenodd_spec.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.odd.
+Require Import VST.progs.verif_evenodd_spec.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition Gprog : funspecs :=

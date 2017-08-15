@@ -1,9 +1,9 @@
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import sepcomp.effect_semantics.
+Require Import VST.sepcomp.effect_semantics.
 
-Require Import concurrency.pos.
-Require Import concurrency.compcert_linking.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.compcert_linking.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.

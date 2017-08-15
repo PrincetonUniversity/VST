@@ -5,7 +5,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
 (* Some utilities; probably should go elsewhere.  *)
 

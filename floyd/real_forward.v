@@ -1,5 +1,5 @@
-Require Import floyd.base2.
-Require Import floyd.forward.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.forward.
 
 
 Inductive FWD : Type :=

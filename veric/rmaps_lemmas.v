@@ -1,9 +1,9 @@
-Require Import msl.msl_standard.
-Require Import msl.cjoins.
-Require Import msl.Coqlib2.
-Require Import msl.sepalg_list.
-Require Import veric.shares.
-Require Import veric.rmaps.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.cjoins.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.sepalg_list.
+Require Import VST.veric.shares.
+Require Import VST.veric.rmaps.
 
 Module Rmaps_Lemmas (R: RMAPS).
 Module R := R.

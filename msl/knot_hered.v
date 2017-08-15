@@ -3,12 +3,12 @@
  *
  *)
 
-Require Import msl.base.
+Require Import VST.msl.base.
 Local Open Scope nat_scope.
 
-Require Import msl.ageable.
-Require Import msl.functors.
-Require Import msl.predicates_hered.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Require Import VST.msl.predicates_hered.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.

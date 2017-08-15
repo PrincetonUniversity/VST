@@ -305,7 +305,7 @@ match goal with
 [ |- ?G] => let x := cbv_denote hd G in change x
 end.
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 
 (*
 Definition t_struct_a :=
@@ -324,7 +324,7 @@ cbv_denote_goal.
 (*Locate goalD_Prop.
 
 Require Import reify.
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 
 Goal forall p e,
 (@semax e empty_tycontext

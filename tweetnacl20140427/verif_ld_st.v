@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -8,7 +8,7 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.verif_salsa_base.
 
 Require Import tweetnacl20140427.spec_salsa.
-Require Import veric.expr_lemmas3.
+Require Import VST.veric.expr_lemmas3.
 
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data.
 Opaque fcore_result.

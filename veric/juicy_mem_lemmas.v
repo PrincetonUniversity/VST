@@ -1,7 +1,7 @@
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem.
-Require Import veric.res_predicates.
-Require Import veric.shares.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 

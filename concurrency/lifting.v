@@ -4,28 +4,28 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.semantics.
-Require Import concurrency.dry_machine. Import Concur.
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.scheduler.
 
 (* We assume, on each thread, a structured simulation *)
-Require Import sepcomp.simulations. Import SM_simulation.
+Require Import VST.sepcomp.simulations. Import SM_simulation.
 
 (* We lift to a whole-program simulation on the dry concurrency machine *)
-Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
+Require Import VST.sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.event_semantics.
 
 (** The X86 DryConc Machine*)
-Require Import concurrency.dry_context.
+Require Import VST.concurrency.dry_context.
 
 (** The Clight DryConc Machine*)
-Require Import concurrency.DryMachineSource.
+Require Import VST.concurrency.DryMachineSource.
 
 (** The new machine simulation*)
-Require Import concurrency.machine_semantics. Import machine_semantics.
-Require Import concurrency.machine_simulation. Import Machine_sim.
+Require Import VST.concurrency.machine_semantics. Import machine_semantics.
+Require Import VST.concurrency.machine_simulation. Import Machine_sim.
 
 Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
   Section lifting.

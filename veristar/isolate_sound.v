@@ -2,8 +2,8 @@ Load loadpath.
 Require Import Coq.Lists.List.
 Require Import veristar.variables veristar.datatypes veristar.list_denote.
 Require Import compcert.Coqlib.
-Require Import veric.Coqlib2.
-Require Import msl.predicates_sa.
+Require Import VST.veric.Coqlib2.
+Require Import VST.msl.predicates_sa.
 Require Import ZArith.
 Require Import veristar.veristar_sound.
 Require Import veristar.model_type veristar.model.

@@ -1,10 +1,10 @@
-Require Export veric.base.
-Require Import veric.rmaps.
-Require Import veric.compcert_rmaps.
-Require Import veric.res_predicates.
-Require Import veric.shares.
-Require Import veric.tycontext.
-Require Import veric.expr2.
+Require Export VST.veric.base.
+Require Import VST.veric.rmaps.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.shares.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
 
 Definition GHOSTspec (A: Type) (x: A) : spec :=
   fun sh loc =>

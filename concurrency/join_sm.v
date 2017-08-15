@@ -8,15 +8,15 @@ Require Import Bool.
 Require Import Zbool.
 Require Import BinPos.
 
-Require Import concurrency.compcert_imports. Import CompcertCommon.
+Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.inj_lemmas.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.inj_lemmas.
 
 (* The following variation of [join] is appropriate for shared resources  *)
 (* like extern injections: each core must have a consistent mapping on    *)

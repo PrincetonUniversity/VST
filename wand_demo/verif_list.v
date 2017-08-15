@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import wand_demo.wand_frame.
 Require Import wand_demo.wand_frame_tactic.
 Require Import wand_demo.wandQ_frame.

@@ -2,10 +2,10 @@
  * Copyright (c) 2009-2010, Andrew Appel, Robert Dockins and Aquinas Hobor.
  *
  *)
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 
 Class Age_alg (A:Type) {JOIN: Join A}{as_age : ageable A} :=
 mkAge {

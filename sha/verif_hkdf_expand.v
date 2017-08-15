@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -434,7 +434,7 @@ forward_for_simple_bound bnd
        - destruct (zlt (i1 + 1) (rounds+1)). rewrite Int.unsigned_repr; omega.
          rewrite Int.unsigned_repr; try omega. split. omega. f_equal. f_equal. omega.
      * thaw FR5. destruct out; try contradiction. simpl. rewrite Zminus_diag, memory_block_zero_Vptr. cancel.
-       clear H1 H2 H AC SC H4 H5.
+       clear H1 H2 H (*AC SC*) H4 H5.
        unfold data_block. normalize. rewrite LEN, data_at_tuchar_singleton_array_eq. cancel.
        rewrite sepcon_assoc. apply sepcon_derives.
        - apply data_at_ext_derives; trivial.
@@ -471,7 +471,7 @@ forward_for_simple_bound bnd
             cancel.
 
    + entailer!.
-     * clear H H0 H1 H2 H3 H4 H5 AC SC JMeq_1 LEN. unfold Done, digest_len in *. simpl.
+     * clear H H0 H1 H2 H3 H4 H5 (*AC SC*) JMeq_1 LEN. unfold Done, digest_len in *. simpl.
        rewrite add_repr.
        destruct (zeq rest 0).
        - subst rest; simpl in *.

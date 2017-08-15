@@ -3,11 +3,11 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.knot.
-Require Import msl.knot_hered.
-Require Import msl.functors.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.knot.
+Require Import VST.msl.knot_hered.
+Require Import VST.msl.functors.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.

@@ -1,29 +1,29 @@
-Require Import msl.msl_standard.
-Require Import msl.seplog.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_mem_ops.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.semax.
-Require Import veric.semax_call.
-Require Import veric.semax_ext.
-Require Import veric.juicy_safety.
-Require Import veric.Clight_new.
-Require Import veric.res_predicates.
-Require Import veric.SeparationLogic.
-Require Import sepcomp.semantics.
-Require Import sepcomp.extspec.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import concurrency.lksize.
-Require Import concurrency.semax_conc_pred.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.seplog.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_call.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.extspec.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.semax_conc_pred.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -975,7 +975,7 @@ Proof.
 Qed.
 
 Set Printing Implicit.
-Require Import sepcomp.step_lemmas.
+Require Import VST.sepcomp.step_lemmas.
 
 Lemma at_external_not_halted (G C M : Type) (csem : semantics.CoreSemantics G C M) (q : C) :
   semantics.at_external csem q <> None -> semantics.halted csem q = None.

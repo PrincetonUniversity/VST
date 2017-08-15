@@ -16,8 +16,8 @@ Require Import Events.
 Require Import Ctypes.
 Require Import Cop.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.reach.
 
 (** Properties of values obtained by casting to a given type. *)
 

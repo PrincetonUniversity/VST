@@ -1,8 +1,8 @@
 Require Import Reals.
-Require Export veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.slice.
-Require Import veric.res_predicates.
+Require Export VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.slice.
+Require Import VST.veric.res_predicates.
 
 (* This file contains lemmas regarding "superprecise",
 and in principle, almost proving that "mapsto" is superprecise.
@@ -504,8 +504,8 @@ apply  identity_unit_equiv.
 auto.
 Qed.
 
-Require Import veric.extend_tc.
-Require Import veric.seplog.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
 
 Lemma superprecise_mapsto:
  wishes_eq_horses ->

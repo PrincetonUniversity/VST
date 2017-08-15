@@ -1,7 +1,7 @@
-Require Import floyd.base2.
-Require Import floyd.expr_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.closed_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.expr_lemmas.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.closed_lemmas.
 Import Cop.
 Local Open Scope logic.
 

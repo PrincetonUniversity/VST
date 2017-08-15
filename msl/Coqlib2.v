@@ -1,6 +1,6 @@
 Require Import compcert.lib.Coqlib.
-Require Import msl.base.
-Require Export msl.Extensionality.
+Require Import VST.msl.base.
+Require Export VST.msl.Extensionality.
 
 (*  These three hints are considered "dangerous"
    because they make proofs noncomputational, which is an issue

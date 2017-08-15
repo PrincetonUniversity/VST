@@ -1,4 +1,4 @@
-Require Import msl.msl_standard.
+Require Import VST.msl.msl_standard.
 
 Local Open Scope pred.
 

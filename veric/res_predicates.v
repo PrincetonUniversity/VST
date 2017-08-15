@@ -1,12 +1,12 @@
-Require Import msl.log_normalize.
-Require Export veric.base.
-Require Import veric.rmaps.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.shares.
-Require Import veric.address_conflict.
+Require Import VST.msl.log_normalize.
+Require Export VST.veric.base.
+Require Import VST.veric.rmaps.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.shares.
+Require Import VST.veric.address_conflict.
 
 
 Import RML. Import R.

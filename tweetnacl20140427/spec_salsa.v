@@ -1,5 +1,5 @@
 Require Import Recdef.
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
@@ -10,7 +10,7 @@ Require Import tweetnacl20140427.verif_salsa_base.
 
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.Snuffle.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (v: val * val * val) : mpred :=

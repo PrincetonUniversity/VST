@@ -10,13 +10,13 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Export sepcomp.globalSep.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Export VST.sepcomp.globalSep.
+Require Import VST.sepcomp.semantics_lemmas.
 
 (** * Structured Simulations *)
 
@@ -43,7 +43,7 @@ Context
                   (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
                   RDOnly_fwd m m' (ReadOnlyBlocks ge2)).
 
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics_lemmas.
 Lemma CS1_RDO_N: forall n c m c' m', corestepN Sem1 ge1 n c m c' m' ->
                   (*mem_respects_readonly ge1 m ->*)
                   (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->

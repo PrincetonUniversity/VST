@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.

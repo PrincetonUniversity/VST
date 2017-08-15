@@ -1,16 +1,16 @@
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.simulations.
-Require Import sepcomp.simulations_lemmas.
-(*Require Import sepcomp.compiler_correctness.*)
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.simulations.
+Require Import VST.sepcomp.simulations_lemmas.
+(*Require Import VST.sepcomp.compiler_correctness.*)
 
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
-Require Import veric.Clight_new.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.Clight_new.
 Require compcert.cfrontend.Clight.
 Module CC := Clight.
-Require veric.Clight_core.
+Require VST.veric.Clight_core.
 Module CC' := Clight_core.
 Section GE.
 Variable ge : genv.
@@ -955,7 +955,7 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
             (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
             CS.(at_external_halted_excl).
 
-Require Import sepcomp.step_lemmas.
+Require Import VST.sepcomp.step_lemmas.
 
  Lemma sim_dry_safeN:
   forall dryspec (prog: Clight.program) b q m h,

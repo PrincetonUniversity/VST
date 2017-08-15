@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import sha.general_lemmas.

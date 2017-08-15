@@ -15,7 +15,7 @@ Require Import sha.hmac_common_lemmas.
 
 Require Import sha.pure_lemmas.
 Require Import sha.sha_padding_lemmas.
-Require Import floyd.sublist. (*for Forall_list_repeat*)
+Require Import VST.floyd.sublist. (*for Forall_list_repeat*)
 
 Definition c := (32 * 8)%nat.
 Definition p := (32 * 8)%nat.

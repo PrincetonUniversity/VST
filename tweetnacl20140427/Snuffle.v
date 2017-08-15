@@ -3,7 +3,7 @@
 
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 Require Import List. Import ListNotations.
 
 Require Import compcert.lib.Integers.

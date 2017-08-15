@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.float.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.float.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.

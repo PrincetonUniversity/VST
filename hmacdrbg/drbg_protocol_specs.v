@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,7 +10,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.entropy_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 

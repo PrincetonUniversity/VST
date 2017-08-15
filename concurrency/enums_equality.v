@@ -1,15 +1,15 @@
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
-Require Import concurrency.scheduler.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.addressFiniteMap. (*The finite maps*)
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.lksize.
-Require Import concurrency.semantics.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.addressFiniteMap. (*The finite maps*)
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.semantics.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -25,21 +25,21 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 
 (*From msl get the juice! *)
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.jstep.
-Require Import veric.res_predicates.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.jstep.
+Require Import VST.veric.res_predicates.
 
 
 (**)
-Require Import veric.res_predicates. (*For the precondition of lock make and free*)
+Require Import VST.veric.res_predicates. (*For the precondition of lock make and free*)
 
 (*  This shoul be replaced by global:
-    Require Import concurrency.lksize.  *)
+    Require Import VST.concurrency.lksize.  *)
 
-Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
+Require Import (*compcert_linking*) VST.concurrency.permissions VST.concurrency.threadPool.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.

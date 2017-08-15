@@ -1,9 +1,9 @@
-Require Import veric.rmaps.
-Require Import veric.compcert_rmaps.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.veric.rmaps.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.general_atomics.
 Require Import mailbox.acq_rel_atomics.
 

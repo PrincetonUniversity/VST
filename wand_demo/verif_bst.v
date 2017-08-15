@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import wand_demo.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.

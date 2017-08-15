@@ -1,4 +1,4 @@
-Require Export floyd.sublist.
+Require Export VST.floyd.sublist.
 Require Export Integers.
 Require Export Coqlib.
 Require Export List. Import ListNotations.

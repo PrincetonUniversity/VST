@@ -19,9 +19,9 @@
     have a decidable equality.
 *)
 
-Require Import msl.base.
-Require Import msl.eq_dec.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.sepalg.
 Require Import GenericMinMax.
 
 Module Type BOOLEAN_ALGEBRA.

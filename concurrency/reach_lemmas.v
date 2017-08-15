@@ -7,7 +7,7 @@ Unset Strict Implicit.
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos.
-Require Import msl.eq_dec.
+Require Import VST.msl.eq_dec.
 
 Require Import Globalenvs.
 Require Import Memory.
@@ -16,12 +16,12 @@ Require Import Maps.
 
 Require Import Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
 
 (* nwp = no wild pointers *)
 

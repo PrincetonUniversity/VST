@@ -1,23 +1,23 @@
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.coqlib4.
-Require Import veric.age_to_resource_at.
-Require Import concurrency.permjoin.
-Require Import concurrency.sync_preds_defs.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.coqlib4.
+Require Import VST.veric.age_to_resource_at.
+Require Import VST.concurrency.permjoin.
+Require Import VST.concurrency.sync_preds_defs.
 
 Set Bullet Behavior "Strict Subproofs".
 

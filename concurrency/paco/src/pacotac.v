@@ -1,6 +1,6 @@
 Require Import JMeq.
-Require Import concurrency.paco.src.hpattern.
-Require Export concurrency.paco.src.paconotation.
+Require Import VST.concurrency.paco.src.hpattern.
+Require Export VST.concurrency.paco.src.paconotation.
 
 (** * Tactic support for [paco] library
 

@@ -8,27 +8,27 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
-Require Import concurrency.cast.
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.wf_lemmas.
-Require Import concurrency.reestablish.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
-Require Import concurrency.reach_lemmas.
-Require Import concurrency.compcert_linking.
-Require Import concurrency.compcert_linking_lemmas.
-Require Import concurrency.disjointness.
-Require Import concurrency.rc_semantics.
-Require Import concurrency.rc_semantics_lemmas.
-Require Import concurrency.linking_inv.
-Require Import concurrency.call_lemmas.
-Require Import concurrency.ret_lemmas.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
+Require Import VST.concurrency.cast.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.wf_lemmas.
+Require Import VST.concurrency.reestablish.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
+Require Import VST.concurrency.reach_lemmas.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.compcert_linking_lemmas.
+Require Import VST.concurrency.disjointness.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics_lemmas.
+Require Import VST.concurrency.linking_inv.
+Require Import VST.concurrency.call_lemmas.
+Require Import VST.concurrency.ret_lemmas.
 
 (* compcert imports *)
 
@@ -42,7 +42,7 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq finty
 Set Implicit Arguments.
 
 Require Import Values.
-Require Import nucular_semantics.
+Require Import VST.sepcomp.nucular_semantics.
 
 (** * Linking Proof (Theorem 2) *)
 
@@ -159,7 +159,7 @@ Qed.
 
 End halted_lems.
 
-Require Import sepcomp.mem_wd.
+Require Import VST.sepcomp.mem_wd.
 
 (*TODO: move elsewhere*)
 Lemma valid_genvs_domain_eq F1 F2 V1 V2
@@ -750,7 +750,7 @@ Qed.
 
 End linkingSimulation.
 
-Require Import linking_spec.
+Require Import VST.concurrency.linking_spec.
 
 Module LinkingSimulation : LINKING_SIMULATION.
 

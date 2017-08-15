@@ -1,7 +1,7 @@
 Require Import Coq.Lists.List.
 Require Import veristar.variables veristar.datatypes.
 Require Import compcert.Coqlib.
-Require Import veric.Coqlib2.
+Require Import VST.veric.Coqlib2.
 Require Import ZArith.
 
 Require Import veristar.fresh.

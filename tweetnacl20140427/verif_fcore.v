@@ -4,7 +4,7 @@
 
    Lennart Beringer, June 2015*)
 (*Processing time for this file: approx 13mins*)
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 (*Require Import general_lemmas.

@@ -1,14 +1,14 @@
 (* sepcomp imports *)
 
-Require Import sepcomp. Import SepComp.
-Require Import arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.arguments.
 
-Require Import pos.
-Require Import compcert_linking.
-Require Import rc_semantics.
-Require Import rc_semantics_lemmas.
-Require Import context.
-Require Import linking_spec.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics_lemmas.
+Require Import VST.concurrency.context.
+Require Import VST.concurrency.linking_spec.
 
 (* ssreflect *)
 
@@ -17,11 +17,11 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import nucular_semantics.
+Require Import VST.sepcomp.nucular_semantics.
 Require Import Values.
-Require Import closed_simulations_lemmas.
-Require Import closed_safety.
-Require Import semantics_lemmas.
+Require Import VST.concurrency.closed_simulations_lemmas.
+Require Import VST.concurrency.closed_safety.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Import SM_simulation.
 Import Wholeprog_sim.

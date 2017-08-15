@@ -1,16 +1,16 @@
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
-Require Import concurrency.scheduler.
-Require Import concurrency.TheSchedule.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.addressFiniteMap. (*The finite maps*)
-Require Import concurrency.pos.
-Require Import concurrency.lksize.
-Require Import concurrency.permjoin_def.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.TheSchedule.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.addressFiniteMap. (*The finite maps*)
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.permjoin_def.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -22,15 +22,15 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.semantics.
-Require Import concurrency.TheSchedule. Import TheSchedule.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.TheSchedule. Import TheSchedule.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.permissions.
-Require Import concurrency.bounded_maps.
-Require Import concurrency.threadPool.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.bounded_maps.
+Require Import VST.concurrency.threadPool.
 
 Module LocksAndResources.
   (** Dry resources are one permission map for non-lock locations and another for lock

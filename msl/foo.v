@@ -17,7 +17,7 @@ End FOO1.
 
 Module FOO2.
 
-Require Import msl.base.
+Require Import VST.msl.base.
 
 Set Implicit Arguments.
 

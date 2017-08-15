@@ -1,12 +1,13 @@
 From compcert Require Export Clightdefs.
-Require Export veric.SeparationLogic.
-Require Export msl.Extensionality.
-Require Export compcert.lib.Coqlib msl.Coqlib2 veric.coqlib4 floyd.coqlib3.
-Require Export floyd.jmeq_lemmas.
-Require Export veric.juicy_extspec.
-Require veric.SeparationLogicSoundness.
+Require Export VST.veric.SeparationLogic.
+Require Export VST.msl.Extensionality.
+Require Export compcert.lib.Coqlib.
+Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
+Require Export VST.floyd.jmeq_lemmas.
+Require Export VST.veric.juicy_extspec.
+Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
-Require Import veric.NullExtension.
+Require Import VST.veric.NullExtension.
 
 Local Open Scope logic.
 

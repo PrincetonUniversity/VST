@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import MirrorCore.RTac.Repeat.
 Require Import MirrorCore.RTac.Then.
 Require Import MirrorCore.RTac.Try.

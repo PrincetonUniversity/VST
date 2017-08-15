@@ -1,4 +1,4 @@
-(*Require Import floyd.proofauto.
+(*Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.

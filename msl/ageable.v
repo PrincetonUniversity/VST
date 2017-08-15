@@ -3,7 +3,7 @@
  *
  *)
 
-Require Import msl.base.
+Require Import VST.msl.base.
 
 Local Open Scope nat_scope.
 

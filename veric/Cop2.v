@@ -15,8 +15,8 @@
 (* and a few modifications... *)
 (** Arithmetic and logical operators for the Compcert C and Clight languages *)
 
-Require Import veric.base.
-Require Import veric.tycontext.
+Require Import VST.veric.base.
+Require Import VST.veric.tycontext.
 
 (** * Type classification and semantics of operators. *)
 

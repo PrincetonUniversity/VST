@@ -8,24 +8,24 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
-Require Import concurrency.cast.
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.wf_lemmas.
-Require Import concurrency.reestablish.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
-Require Import concurrency.reach_lemmas.
-Require Import concurrency.compcert_linking.
-Require Import concurrency.compcert_linking_lemmas.
-Require Import concurrency.disjointness.
-Require Import concurrency.rc_semantics.
-Require Import concurrency.rc_semantics_lemmas.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
+Require Import VST.concurrency.cast.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.wf_lemmas.
+Require Import VST.concurrency.reestablish.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
+Require Import VST.concurrency.reach_lemmas.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.compcert_linking_lemmas.
+Require Import VST.concurrency.disjointness.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics_lemmas.
 
 
 (* compcert imports *)
@@ -40,8 +40,8 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq finty
 Set Implicit Arguments.
 
 Require Import Values.
-Require Import sepcomp.nucular_semantics.
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.nucular_semantics.
+Require Import VST.sepcomp.wholeprog_simulations.
 
 (** * Linking Invariant *)
 
@@ -940,7 +940,7 @@ Qed.
 
 Let lo' := replace_locals mu pubS' pubT'.
 
-Require Import sepcomp.effect_properties.
+Require Import VST.sepcomp.effect_properties.
 
 Lemma lo_wd : SM_wd lo'.
 Proof.
@@ -2040,7 +2040,7 @@ Import CallStack.
 Import Linker.
 Import STACK.
 
-Require Import sepcomp.mem_wd.
+Require Import VST.sepcomp.mem_wd.
 
 (** ** Top-Level Invariant *)
 

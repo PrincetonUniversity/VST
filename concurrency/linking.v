@@ -1,9 +1,9 @@
 Require Import Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -388,7 +388,7 @@ Definition at_external0 (l: linker N my_cores) :=
 
 Arguments at_external0 !l.
 
-Require Import concurrency.val_casted. (*for val_has_type_func*)
+Require Import VST.concurrency.val_casted. (*for val_has_type_func*)
 
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in

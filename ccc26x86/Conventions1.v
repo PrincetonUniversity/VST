@@ -14,10 +14,10 @@
     machine registers and stack slots. *)
 
 Require Import compcert.lib.Coqlib.
-Require Import ccc26x86.Decidableplus.
+Require Import VST.ccc26x86.Decidableplus.
 Require Import compcert.common.AST.
 Require Import compcert.common.Events.
-Require Import ccc26x86.Locations.
+Require Import VST.ccc26x86.Locations.
 
 (** * Classification of machine registers *)
 

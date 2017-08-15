@@ -1,4 +1,4 @@
-Require Import progs.conclib.
+Require Import VST.progs.conclib.
 
 (* Axiomatization of view shifts, PCMs, and ghost state *)
 

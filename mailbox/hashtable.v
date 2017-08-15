@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import floyd.sublist.
+Require Import VST.progs.conclib.
+Require Import VST.floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 

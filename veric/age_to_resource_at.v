@@ -1,11 +1,11 @@
 Require Import compcert.common.Memory.
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.ageable.
-Require Import msl.age_to.
-Require Import veric.coqlib4.
-Require Import veric.compcert_rmaps.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.ageable.
+Require Import VST.msl.age_to.
+Require Import VST.veric.coqlib4.
+Require Import VST.veric.compcert_rmaps.
 
 Set Bullet Behavior "Strict Subproofs".
 

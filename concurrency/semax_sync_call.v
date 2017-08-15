@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
+Require Import VST.floyd.proofauto.
+Require Import VST.concurrency.semax_conc.
 
 Module Type threadlib_args.
   Parameter CompSpecs : compspecs.

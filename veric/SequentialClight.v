@@ -1,17 +1,17 @@
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.semantics.
 
-Require Import veric.base.
-Require Import veric.Clight_new.
-Require Import veric.Clight_lemmas.
-Require Import sepcomp.step_lemmas.
-Require Import veric.SeparationLogic.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_mem.
-Require veric.NullExtension.
-Require Import veric.Clight_sim.
-Require Import veric.SeparationLogicSoundness.
-Require Import sepcomp.extspec.
-Require Import msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_mem.
+Require VST.veric.NullExtension.
+Require Import VST.veric.Clight_sim.
+Require Import VST.veric.SeparationLogicSoundness.
+Require Import VST.sepcomp.extspec.
+Require Import VST.msl.msl_standard.
 
 Import SoundSeparationLogic.
 Import CSL.
@@ -65,7 +65,7 @@ Proof.
  - eapply safeN_halted; eauto.
 Qed.
 
-Require Import veric.juicy_safety.
+Require Import VST.veric.juicy_safety.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
