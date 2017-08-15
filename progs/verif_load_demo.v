@@ -127,7 +127,6 @@ assert_PROP (force_val (sem_add_pi tuint p (eval_unop Oneg tint (Vint (Int.repr 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
 { entailer!.
-  change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
   rewrite H.
   apply isptr_field_address_lemma.
   auto with field_compatible.
