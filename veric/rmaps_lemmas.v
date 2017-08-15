@@ -1342,8 +1342,8 @@ apply lub_bot_e in H. destruct H.
 rewrite H0. apply bot_identity.
 Qed.
 
-Definition fixup_trace (retain: AV.address -> Share.t)
-                 (trace: AV.address -> option (rshare * AV.kind))
+(*Definition fixup_trace (retain: AV.address -> Share.t)
+                 (trace: AV.address -> option (rshare * AV.kind)) (gtrace: AV.address -> option M)
                  (f: AV.address -> resource) : AV.address -> resource :=
    fun x => match trace x, f x with
             | None, PURE k pp => PURE k pp
@@ -1351,7 +1351,7 @@ Definition fixup_trace (retain: AV.address -> Share.t)
                YES _ (fixup_trace_readable (retain x) sh) k pp
             | Some (sh,k), YES _ _ _ pp => YES _ (fixup_trace_readable (retain x) sh) k pp
             | Some (sh, k), NO _ _ | Some (sh, k), GHOST _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
-            | None, GHOST m => GHOST (core m)
+            | None, GHOST _ => gtrace x
             | None, _ => NO _ (@retainer_part_nonreadable (retain x))
             end.
 
@@ -1725,7 +1725,7 @@ Proof.
   simpl in *;
  eapply join_fixup_trace; eauto;
  (eapply join_join_sub; eassumption) || (eapply join_join_sub'; eassumption).
-Qed.
+Qed.*)
 
 Lemma identity_resource: forall r: resource, identity r <->
     match r with YES _ _ _ _ => False | NO sh rsh => identity sh | PURE _ _ => True | GHOST m => identity m end.

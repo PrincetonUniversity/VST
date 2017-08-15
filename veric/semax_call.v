@@ -796,7 +796,18 @@ Inductive free_list_juicy_mem:
                           free_list_juicy_mem jm2 bl jm' ->
                           free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
 
-Lemma juicy_free_lemma':
+Lemma perm_of_res_val : forall r, perm_of_res r = Some Freeable ->
+  exists v pp, r = YES Share.top readable_share_top (VAL v) pp.
+Proof.
+  destruct r; simpl; try if_tac; try discriminate.
+  destruct k; try discriminate.
+  unfold perm_of_sh.
+  repeat if_tac; try discriminate.
+  subst; intro; do 2 eexists; f_equal.
+  apply proof_irr.
+Qed.
+
+(*Lemma juicy_free_lemma':
   forall {j b lo hi m' m1 F}
     (H: Mem.free (m_dry j) b lo hi = Some m')
     (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
@@ -815,7 +826,7 @@ Proof.
     eexists; eauto.
   - do 4 eexists; eauto.
     eexists; eauto.
-Qed.
+Qed.*)
 
 Lemma free_list_juicy_mem_i:
   forall jm bl m' F,
@@ -834,11 +845,11 @@ intros jm bl; revert jm; induction bl; intros.
  destruct (free_list_free _ _ _ _ _ _ H) as [m2 [? ?]].
  generalize H0; intro H0'.
  destruct H0 as [phi1 [phi2 [? [? H6]]]].
- assert (H10:= @juicy_free_lemma' jm b lo hi m2 phi1 _ H1 H0' H3).
- spec H10. eexists; eauto.
- match type of H10 with join _ (m_phi ?A) _ => set (jm2:=A) in H10 end.
- assert ((freeable_blocks bl * F)%pred (m_phi jm2)) as Hm2 by admit.
- specialize (IHbl  jm2 m' F H2 Hm2).
+
+ assert (H10:= @juicy_free_lemma' jm b lo hi m2 phi1 _ _ H1 H0' H3 H0).
+ match type of H10 with m_phi ?A = _ => set (jm2:=A) in H10 end; subst.
+
+ specialize (IHbl  jm2 m' F H2 H6).
  destruct IHbl as [jm' [? [? ?]]].
  exists jm'; split3; auto.
  apply (FLJM_cons jm b lo hi bl jm2 jm' H1
@@ -846,7 +857,7 @@ intros jm bl; revert jm; induction bl; intros.
  rewrite <- H7.
  unfold jm2.
  symmetry; apply free_juicy_mem_level.
-Admitted.
+Qed.
 
 
 Lemma free_juicy_mem_ext:
@@ -873,14 +884,11 @@ Proof.
  generalize H2; intro H2'.
  destruct H2 as [phi1 [phi2 [? [? ?]]]].
  apply IHfree_list_juicy_mem.
- pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ H H2' H3).
- spec H5. eexists; eauto.
- match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
+ pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ _ H H2' H3 H2).
+ match type of H5 with m_phi ?A = _ => set (jm3 := A) in H5 end.
  replace jm2 with jm3 by (subst jm3; rewrite <- H0; apply free_juicy_mem_ext; auto).
-(* replace (m_phi jm3) with phi2; auto.
- apply (join_canc (join_comm H5) (join_comm H2)).
-Qed.*)
-Admitted.
+ subst; auto.
+Qed.
 
 Lemma xelements_app:
  forall A (rho: PTree.t A) i al bl,
@@ -1166,7 +1174,6 @@ Proof.
   } Unfocus.
   pose (H0:=True).
   destruct H1 as [phi1 [phi2 [? [? ?]]]].
-
   unfold var_block in H3.
   normalize in H3.
   simpl in H3.
@@ -1196,36 +1203,29 @@ Proof.
     clear - H3 H7. destruct H7.
   rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
   pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
-  clear H7.
-  assert (join phi1 (m_phi jm3) (m_phi jm)) as H7.
-  { apply juicy_free_lemma'.
-    * rewrite Z.sub_0_r; auto.
-    * eapply join_sub_trans; eauto.
-      eexists; eauto. }
-  assert (join_sub phi2 (m_phi jm3)).
+  destruct H as [phix H].
+  destruct (join_assoc H1 H) as [phi3 []].
+  assert (phi3 = m_phi jm3).
   Focus 1. {
-    destruct H as [phix H].
-    destruct (join_assoc (join_comm H1) H) as [phi7 [? ?]].
-    eapply crosssplit_wkSplit.
-    apply H7. apply H10.
-    exists phi; auto.
-  } Unfocus.
-  destruct (IHel phi2 jm3 H9) as [m4 ?]; auto; clear IHel.
+    subst jm3; symmetry; eapply juicy_free_lemma'; eauto.
+    rewrite Z.sub_0_r; auto. } Unfocus.
+  subst phi3.  assert (join_sub phi2 (m_phi jm3)) as Hphi2 by (eexists; eauto).
+  destruct (IHel phi2 jm3 Hphi2) as [m4 ?]; auto; clear IHel.
   + intros.
     specialize (H2 id0 b0 t0).
     spec H2; [ auto |].
     assert (id0 <> id).
     Focus 1. {
-      clear - NOREPe H10.
+      clear - NOREPe H11.
       inv NOREPe. intro; subst.
       apply H1. change id with (fst (id,(b0,t0))); apply in_map; auto.
     } Unfocus.
-    clear - H2 H11.
+    clear - H2 H12.
     induction vl; simpl in *; auto.
     destruct H2. subst a. simpl.
     replace (eqb_ident id0 id) with false; simpl; auto.
     pose proof (eqb_ident_spec id0 id); destruct (eqb_ident id0 id); simpl in *; auto.
-    contradiction H11; apply H; auto.
+    contradiction H12; apply H; auto.
     pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
   + intros; eapply Hve; eauto.
     right; auto.

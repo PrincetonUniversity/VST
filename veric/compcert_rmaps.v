@@ -339,14 +339,14 @@ Proof.
  destruct p; auto.
 Qed.
 
-Lemma fixup_trace_ok_share_of:
+(*Lemma fixup_trace_ok_share_of:
   forall a (OKa: fixup_trace_ok a) x, 
        Share.glb Share.Rsh (share_of (a x)) = share_of (a x).
 Proof.
   intros.
  specialize (OKa x). destruct (a x) as [[? ?]|]; simpl in *.
  auto. apply Share.glb_bot.
-Qed.
+Qed.*)
 
 Lemma join_sub_same_k:
  forall {a a' : rshare} {k k': AV.kind},
