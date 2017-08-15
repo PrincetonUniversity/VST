@@ -583,24 +583,6 @@ Proof.
 apply prop_right; auto.
 Qed.
 
-Ltac entailer_for_return :=
- go_lower;
- unfold main_post; simpl;
- try simple apply empTrue;
- saturate_local; ent_iter;
- normalize;
- repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
- try match goal with 
- | |- _ |-- ?A =>
-   match A with context [eval_id ?i (globals_only _)] =>
-    fail 3 "Your postcondition refers to local variable " i 
-     "but the only local variable that should appear in a function postcondition is ret_temp"
-   end
- end;
- entailer';
- rewrite <- ?sepcon_assoc;
- try match goal with rho: environ |- _ => clear rho end.
-
 Ltac entbang :=
  intros;
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>

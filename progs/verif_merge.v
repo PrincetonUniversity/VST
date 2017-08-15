@@ -531,14 +531,14 @@ forward.
 destruct merged as [|hmerge tmerge].
 (* when merged = [] *)
 assert (begin = c_) by intuition. subst c_.
-Exists ret_ ab_; entailer!.
+Exists ab_; entailer!.
 rewrite H; auto.
 
 (* when merged <> [] *)
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-Exists ret_ begin; entailer.
+Exists begin; entailer.
 
 (* to match the specification from the invariant, we split it into three parts: *)
 

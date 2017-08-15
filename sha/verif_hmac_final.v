@@ -36,9 +36,7 @@ Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
          LOCAL ()
          SEP  (K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
                data_block shmd (snd (hmacFinal h1)) md)))
-     (EX  v : val,
-      local (locald_denote (lvar _buf (tarray tuchar 32) v)) &&
-      `(data_at_ Tsh (tarray tuchar 32) v))%assert).
+     (stackframe_of f_HMAC_Final)%assert).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
@@ -153,7 +151,6 @@ Time forward_call (updSha, md, Vptr b i, shmd, kv). (*4.2 versus 21 SLOW*)
 
 freeze [0;1;2;3] FR6.
 Time forward. (*Sreturn None; 2.7 versus 10.2*)
-Exists buf.
 thaw FR6.
 (*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
      with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
