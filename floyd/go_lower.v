@@ -267,19 +267,19 @@ Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
      match x, y with
      | temp i u, temp j v =>
        if Pos.eqb i j
-       then (u = v) :: extractp_localdef x l0
+       then (v = u) :: extractp_localdef x l0
        else extractp_localdef x l0
      | lvar i ti u, lvar j tj v =>
        if Pos.eqb i j
-       then (ti = tj) :: (u = v) :: extractp_localdef x l0
+       then (tj = ti) :: (v = u) :: extractp_localdef x l0
        else extractp_localdef x l0
      | gvar i u, gvar j v =>
        if Pos.eqb i j
-       then (u= v) :: extractp_localdef x l0
+       then (v = u) :: extractp_localdef x l0
        else extractp_localdef x l0
      | sgvar i u, sgvar j v =>
        if Pos.eqb i j
-       then (u = v) :: extractp_localdef x l0
+       then (v = u) :: extractp_localdef x l0
        else extractp_localdef x l0
      | _, _ => extractp_localdef x l0
      end
