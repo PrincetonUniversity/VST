@@ -231,13 +231,8 @@ Proof.
   hnf. decide equality; try apply eq_dec; try apply zeq.
 Qed.
 
-Module R (GP : PCM) := Rmaps (CompCert_AV)(GP).
-Module RML.
-  Declare Module GP : PCM. (* How does this get provided? *)
-  Module R := R(GP).
-  Module RML' := Rmaps_Lemmas(R).
-  Export RML'.
-End RML.
+Module R := Rmaps (CompCert_AV).
+Module RML := Rmaps_Lemmas(R).
 
 Export RML.
 Export R.
@@ -660,64 +655,64 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
-Instance Trip_resource {M_Trip : Trip_alg GP.M}: Trip_alg resource.
+Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.
-destruct a as [ra | ra sa ka pa | ka pa | ma].
-destruct b as [rb | rb sb kb pb | kb pb|]; try solve [elimtype False; inv H].
-destruct ab as [rab | rab sab kab pab | kab pab|]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H0].
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct a as [ra | ra sa ka pa | ka pa].
+destruct b as [rb | rb sb kb pb | kb pb]; try solve [elimtype False; inv H].
+destruct ab as [rab | rab sab kab pab | kab pab]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H0].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (n5 := join_unreadable_shares j n1 n2).
 exists (NO rabc n5); constructor; auto.
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable2 j sc).
 exists (YES rabc sabc kc pc); constructor; auto.
-destruct ab as [rab | rab sab kab pab | kab pab|]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H0].
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct ab as [rab | rab sab kab pab | kab pab]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H0].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kab pab); constructor; auto.
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kbc pbc). inv H0; inv H; inv H1; constructor; auto.
-destruct b as [rb | rb sb kb pb | kb pb|]; try solve [elimtype False; inv H].
-destruct ab as [rab | rab sab kab pab | kab pab|]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H0].
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct b as [rb | rb sb kb pb | kb pb]; try solve [elimtype False; inv H].
+destruct ab as [rab | rab sab kab pab | kab pab]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H0].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kab pab); constructor; auto.
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kac pac).  inv H; inv H0; inv H1; constructor; auto.
-destruct ab as [rab | rab sab kab pab | kab pab|]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc|]; try solve [elimtype False; inv H0].
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct ab as [rab | rab sab kab pab | kab pab]; try solve [elimtype False; inv H].
+destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H0].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kab pab); constructor; auto.
-destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc|]; try solve [elimtype False; inv H0].
-destruct ac as [rac | rac sac kac pac | kac pac|]; try solve [elimtype False; inv H1].
+destruct bc as [rbc | rbc sbc kbc pbc | kbc pbc]; try solve [elimtype False; inv H0].
+destruct ac as [rac | rac sac kac pac | kac pac]; try solve [elimtype False; inv H1].
 destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
@@ -725,13 +720,6 @@ exists (YES rabc sabc kc pc).
  inv H. inv H1. inv H0.
 constructor; auto.
  exists ab. inv H. inv H1. inv H0. constructor.
-destruct b as [| | |mb]; try solve [exfalso; inv H].
-destruct ab as [| | |mab]; try solve [exfalso; inv H].
-destruct c as [| | |mc]; try solve [exfalso; inv H0].
-destruct bc as [| | |mbc]; try solve [exfalso; inv H0].
-destruct ac as [| | |mac]; try solve [exfalso; inv H1].
-destruct (M_Trip ma mb mc mab mbc mac) as [mabc ?]; [inv H | inv H0 | inv H1 | ]; auto.
-exists (GHOST mabc); constructor; auto.
 Qed.
 
 Lemma pure_readable_share_i:
@@ -743,10 +731,10 @@ do 3 red in H|-*. contradict H.
 rewrite glb_twice in H. auto.
 Qed.
 
-Instance Trip_rmap {M_Trip : Trip_alg GP.M} : Trip_alg rmap.
+Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
-pose (f loc := @Trip_resource _ _ _ _ _ _ _
+pose (f loc := @Trip_resource _ _ _ _ _ _
                  (resource_at_join _ _ _ loc H)
                  (resource_at_join _ _ _ loc H0)
                  (resource_at_join _ _ _ loc H1)).
@@ -790,8 +778,6 @@ rewrite H4 in H5. inv H5.
 *
 intros.
 rewrite H3 in j0. inv j0.
-*
-rewrite H3 in j0; inv j0.
 *
 rewrite H4 in j. inv j.
 assert (H99 := pure_readable_share_i _ r0).

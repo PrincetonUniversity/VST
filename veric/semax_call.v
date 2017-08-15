@@ -312,7 +312,6 @@ destruct (w' @ (loc,0)).
  rewrite core_NO in H4; inv H4.
  rewrite core_YES in H4; inv H4.
  rewrite core_PURE in H4; inv H4. rewrite level_core; reflexivity.
- rewrite core_GHOST in H4; inv H4.
 
 intros loc fs w2 Hw2 H6.
 specialize (H2 loc fs _ (necR_refl _)).
@@ -355,17 +354,9 @@ pose proof (necR_resource_at _ _ _ _ CORE H2).
   rewrite core_YES in H3; inv H3.
   rewrite core_PURE in H3; inv H3.
  reflexivity.
-  rewrite core_GHOST in H3; inv H3.
  pose proof (necR_resource_at _ _ _ _ Hw2 H4).
  inversion2 H6 H5.
  exists p. reflexivity.
-assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (GHOST (core m))).
- rewrite <- core_resource_at.
-simpl; erewrite <- core_GHOST; f_equal; eassumption.
-pose proof (necR_resource_at _ _ _ _ CORE H0).
-pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
-rewrite <- core_resource_at in H2; rewrite H6 in H2;
- rewrite core_PURE in H2; inv H2.
  
 destruct H2 as [id [? ?]].
 exists id. split; auto.
@@ -1338,9 +1329,6 @@ Proof.
  if_tac; auto.
  destruct l; destruct H1; subst. specialize (H0 z).
  spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
- if_tac; auto.
- destruct l; destruct H1; subst. specialize (H0 z).
- spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
 Qed.
 
 Lemma same_glob_funassert':
@@ -1811,7 +1799,6 @@ f_equal.
 pose proof (resource_at_approx (m_phi jm') (b,0)).
 rewrite H7 in H; simpl in H.
 injection H; intro. symmetry in H8. apply H8.
-eapply necR_GHOST in Heqr; try apply H5. inversion2 H6 Heqr.
 }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.
@@ -1901,8 +1888,6 @@ Proof.
     - rewrite level_make_rmap.
       symmetry.
       eapply necR_PURE. constructor 1. eapply age_jm_phi. eassumption.  auto.
-    - symmetry.
-      eapply necR_GHOST. constructor 1. eapply age_jm_phi. eassumption.  auto.
   + rewrite <- (age_jm_dry H); assumption.
 Qed.
 
@@ -2051,7 +2036,7 @@ destruct (allocate (m_phi jm)
 *
  hnf; intros. unfold compose.
  if_tac. apply I. destruct (m_phi jm @ (b,ofs)); simpl. rewrite core_NO; apply I.
- rewrite core_YES; apply I. rewrite core_PURE; apply I. rewrite core_GHOST; apply I.
+ rewrite core_YES; apply I. rewrite core_PURE; apply I.
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
   repeat rewrite core_resource_at.

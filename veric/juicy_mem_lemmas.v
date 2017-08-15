@@ -112,11 +112,6 @@ elimtype False.
 eapply necR_PURE in H1.
 2: constructor 1; eassumption.
 congruence.
-intros.
-elimtype False.
-eapply necR_GHOST in H1.
-2: constructor 1; eassumption.
-congruence.
 Qed.
 
 Lemma preds_fmap_NoneP_approx: forall pp lev1 lev2,
@@ -161,9 +156,6 @@ constructor 1; auto.
 apply (necR_PURE w phi') in H1.
 rewrite H1 in ACCESS; auto.
 constructor 1; auto.
-apply (necR_GHOST w phi') in H1.
-rewrite H1 in ACCESS; auto.
-constructor 1; auto.
 assert (max_access_cohere m w).
 intro loc; specialize (MAXA loc).
 case_eq (w @ loc); intros; auto.
@@ -172,9 +164,6 @@ apply (necR_YES w phi') in H2.
 rewrite H2 in MAXA; auto.
 constructor 1; auto.
 apply (necR_PURE w phi') in H2.
-rewrite H2 in MAXA; auto.
-constructor 1; auto.
-apply (necR_GHOST w phi') in H2.
 rewrite H2 in MAXA; auto.
 constructor 1; auto.
 assert (alloc_cohere m w).
@@ -207,7 +196,6 @@ rewrite Hacc.
 clear - H1.
 simpl.
 unfold perm_of_sh. rewrite if_true by auto. if_tac; constructor.
-contradiction.
 contradiction.
 Qed.
 
@@ -601,7 +589,6 @@ exists sh, r.
 destruct (H1 _ _ _ _ _ H8); subst.
 f_equal.
 inv PERM.
-inv PERM.
 Qed.
 
 Lemma core_load_load: forall ch b ofs v m,
@@ -938,7 +925,6 @@ Focus 2.
   destruct (m_phi j @ (b0,ofs0)).
   rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
   rewrite core_PURE in H0. inversion H0. subst k0 p0; constructor.
-  rewrite core_GHOST in H0; inv H0.
   rename H6 into Hm1.
  clear H0.
 destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
@@ -955,21 +941,6 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
   do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
   rewrite Hm1 in H. rewrite H6 in H.
   rewrite core_PURE in H. rewrite core_NO in H; inv H.
-
-  elimtype False.
-  clear - H2 Hm1 H0 H6.
-  assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
-  do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
-  rewrite Hm1 in H. rewrite H6 in H.
-  rewrite core_GHOST in H. rewrite core_NO in H; inv H.
-
-  rewrite H6 in H0. rewrite core_GHOST in H0.
-  destruct (m_phi j @ (b0,ofs0)).
-  rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
-  rewrite core_PURE in H0; inv H0.
-  rewrite core_GHOST in H0; inv H0.
-  rewrite (identity_core H3'), H8.
-  constructor; apply core_unit.
 Qed.
 
 Section free.
@@ -1037,8 +1008,6 @@ destruct (access_at m loc); try destruct p; try rewrite core_NO; try rewrite cor
 destruct (access_at m loc); try destruct p0; try rewrite core_NO;  repeat rewrite core_YES; auto.
 destruct H1.
 destruct H2. rewrite H2. auto.
-destruct H1.
-destruct H2. rewrite H2. auto.
 Qed.
 
 Lemma writable_writable_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,
@@ -1085,7 +1054,6 @@ assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) (b',ofs')). {
   clear; if_tac; congruence.
  }
  rewrite H1 in H0. simpl in H0. contradiction.
- rewrite H1 in H0; contradiction.
 Qed.
 
 Lemma readable_eq_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,
@@ -1135,7 +1103,6 @@ destruct loc as (b',ofs').
   unfold perm_of_sh. if_tac. if_tac; auto. rewrite if_true by auto. auto.
 
  }
- rewrite H1 in H0. contradiction.
  rewrite H1 in H0. contradiction.
 Qed.
 
@@ -1197,7 +1164,6 @@ Proof.
   unfold perm_of_sh. if_tac. if_tac; constructor. rewrite if_true by auto; constructor.
   if_tac; constructor.
   destruct k; try constructor. apply po_join_sub_sh; eexists; eauto.
-  constructor.
   constructor.
 Qed.
 

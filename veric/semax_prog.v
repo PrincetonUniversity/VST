@@ -184,11 +184,15 @@ intros z ?.
 split; intros ? ? ?.
 assert (app_pred (approx (level (S y)) (P x)) a').
 simpl. split; auto. unfold natLevel.  apply necR_level in H1.
+change compcert_rmaps.R.rmap with rmap in *.
+change compcert_rmaps.R.ag_rmap with ag_rmap in *.
 omega.
 rewrite H0 in H3.
 simpl in H3. destruct H3; auto.
 assert (app_pred (approx (level (S y)) (P' x)) a').
 simpl. split; auto. unfold natLevel.  apply necR_level in H1.
+change compcert_rmaps.R.rmap with rmap in *.
+change compcert_rmaps.R.ag_rmap with ag_rmap in *.
 omega.
 rewrite <- H0 in H3.
 simpl in H3. destruct H3; auto.
@@ -602,8 +606,6 @@ eapply necR_YES in H1; try apply H3.
 rewrite H1 in H2; inv H2.
 eapply necR_PURE in H1; try apply H3.
 rewrite H1 in H2; inv H2; eauto.
-eapply necR_GHOST in H1; try apply H3.
-rewrite H1 in H2; inv H2.
 destruct H3 as [pp' ?].
 unfold initial_core in H3.
 rewrite resource_at_make_rmap in H3.
@@ -1055,7 +1057,7 @@ Proof.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
 
-Lemma semax_prog_rule {CS: compspecs}:
+Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h,
      @semax_prog CS prog V G ->
      Genv.init_mem prog = Some m ->

@@ -196,8 +196,6 @@ split; auto.
 specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
 destruct H4 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split3; auto.
-destruct H6 as [w' []].
-exists w'; split; auto.
 apply H; split; auto.
 destruct H3 as [H3 _].
 do 3 red.
@@ -275,13 +273,10 @@ revert w H0.
 apply imp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-repeat intro.
+repeat intro. simpl exit_tycon.
 unfold frame_ret_assert.
 rewrite sepcon_comm.
 eapply sepcon_derives; try apply H0; auto.
-unfold ghost_update_ret_assert.
-(* !! to finish *)
-
 
 repeat intro.
 specialize (H0 ora jm H1 H2).
@@ -368,7 +363,7 @@ destruct (age1 w4) eqn:?H.
   split; auto.
   split; auto.
 + simpl.
-  eapply af_level1 in H11; [| apply ag_rmap].
+  eapply af_level1 in H11; [| apply compcert_rmaps.R.ag_rmap].
   rewrite H11.
   constructor.
 Qed.
@@ -431,8 +426,6 @@ intros.
 eapply semax_pre; eauto.
 eapply semax_post; eauto.
 Qed.
-
-(* ghost state and view shifts *)(* !! START HERE !! *)
 
 Lemma semax_skip {CS: compspecs}:
    forall Delta P, semax Espec Delta P Sskip (normal_ret_assert P).
@@ -542,7 +535,7 @@ eapply join_comm; eauto.
 auto.
 exists w; exists w; split; auto.
 change (identity w) in H.
-apply identity_unit' in H; auto.
+rewrite identity_unit_equiv in H; auto.
 Qed.
 
 Lemma subp_derives' {A}{agA: ageable A}:

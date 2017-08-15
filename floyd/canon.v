@@ -165,14 +165,6 @@ Proof.
   + congruence.
 Qed.
 
-Lemma approx_idem : forall n P, compcert_rmaps.RML.R.approx n (compcert_rmaps.RML.R.approx n P) =
-  compcert_rmaps.RML.R.approx n P.
-Proof.
-  intros.
-  transitivity (base.compose (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) P); auto.
-  rewrite compcert_rmaps.RML.RML'.approx_oo_approx; auto.
-Qed.
-
 Lemma approx_sepcon: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n (P * Q) =
   compcert_rmaps.RML.R.approx n P *

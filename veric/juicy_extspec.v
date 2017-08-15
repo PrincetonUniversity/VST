@@ -218,7 +218,6 @@ Proof.
   { generalize (necR_level _ _ Hnec); intros Hlev.
     intros. eapply necR_PURE in Hnec; eauto.
     rewrite Hnec in H. inversion H. subst. eexists. eauto. }
-  { intros. eapply necR_GHOST in Hnec; eauto. rewrite Hnec in H. congruence. }
 Qed.
 
 Lemma age_safe {G C}

@@ -830,6 +830,14 @@ Definition spawn_post :=
      SEP ()
    end).
 
+Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
+  compcert_rmaps.R.approx n P.
+Proof.
+  intros.
+  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
+  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+Qed.
+
 Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
 Proof.
   repeat intro.

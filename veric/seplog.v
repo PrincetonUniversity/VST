@@ -242,8 +242,6 @@ Definition switch_ret_assert (R: ret_assert) : ret_assert :=
  | EK_return => R EK_return vl
  end.
 
-Definition ghost_update_ret_assert (R: ret_assert) := fun ek vl rho => ghost_update (R ek vl rho).
-
 Require Import msl.normalize.
 
 Lemma normal_ret_assert_derives:

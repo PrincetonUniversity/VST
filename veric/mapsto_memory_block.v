@@ -302,7 +302,7 @@ Proof.
           else core (w @ loc)))).
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; auto.
+        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
       destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
@@ -315,7 +315,7 @@ Proof.
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
         case_eq (w @ (b',z')); intros;
-         [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; auto.
+         [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
       destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.

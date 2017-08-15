@@ -24,7 +24,7 @@ replace (res_option oo resource_at ephi) with
 apply CompCert_AV.valid_empty.
 extensionality l.
 unfold compose; simpl.
-destruct (resource_at_empty H l) as [?|[[? [? ?]] | [? []]]]; rewrite H0; simpl; auto.
+destruct (resource_at_empty H l) as [?|[? [? ?]]]; rewrite H0; simpl; auto.
 Qed.
 
 Program Definition kind_at (k: kind) (l: address) : pred rmap :=
@@ -267,21 +267,21 @@ Definition resource_share (r: resource) : option share :=
  match r with
  | YES sh _ _ _ => Some sh
  | NO sh _ => Some sh
- | PURE _ _ | GHOST _ => None
+ | PURE _ _ => None
  end.
 
 Definition nonlock (r: resource) : Prop :=
  match r with
  | YES _ _ k _ => isVAL k \/ isFUN k
  | NO _ _ => True
- | PURE _ _ | GHOST _ => False
+ | PURE _ _ => False
  end.
 
 Lemma age1_nonlock: forall phi phi' l,
   age1 phi = Some phi' -> (nonlock (phi @ l) <-> nonlock (phi' @ l)).
 Proof.
   intros.
-  destruct (phi @ l) as [rsh | rsh sh k P | |] eqn:?H.
+  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
   + pose proof (age1_NO phi phi' l rsh n H).
     rewrite H1 in H0.
     rewrite H0.
@@ -296,11 +296,6 @@ Proof.
     destruct H1 as [? _].
     spec H1; [eauto |].
     destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-  + pose proof (age1_GHOST phi phi' l m H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
     rewrite H1.
     reflexivity.
 Qed.
@@ -309,7 +304,7 @@ Lemma age1_resource_share: forall phi phi' l,
   age1 phi = Some phi' -> (resource_share (phi @ l) = resource_share (phi' @ l)).
 Proof.
   intros.
-  destruct (phi @ l) as [rsh | rsh sh k P | |] eqn:?H.
+  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
   + pose proof (age1_NO phi phi' l rsh n H).
     rewrite H1 in H0.
     rewrite H0.
@@ -324,11 +319,6 @@ Proof.
     destruct H1 as [? _].
     spec H1; [eauto |].
     destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-  + pose proof (age1_GHOST phi phi' l m H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
     rewrite H1.
     reflexivity.
 Qed.
@@ -394,8 +384,6 @@ Program Definition nonlockat (l: AV.address): pred rmap :=
       rewrite H1; assumption.
     + eapply necR_PURE in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
-    + eapply necR_GHOST in H1; [ | constructor; eassumption].
-      rewrite H1; assumption.
  Qed.
 
 Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
@@ -408,7 +396,6 @@ Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
       rewrite H1; assumption.
     + eapply necR_YES in H1; [ | constructor; eassumption].
       rewrite H1; assumption.
-    + inv H0.
     + inv H0.
  Qed.
 
@@ -1907,79 +1894,3 @@ Qed.
 
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
-
-Program Definition ghost_at (m : GP.M) : forall (l: AV.address), pred rmap :=
-  fun l => exist _ (fun phi => phi @ l = GHOST m) _.
-Next Obligation.
-  simpl; repeat intro.
-  eapply necR_GHOST in H0; eauto.
-  constructor; auto.
-Qed.
-
-Definition frame_preserving_update (a b : GP.M) := forall c, joins a c -> joins b c.
-
-(* This uses unsquash to make the interaction with age more obvious. *)
-Definition ghost_move' (r r' : rmap') := forall l, proj1_sig r' l = proj1_sig r l \/
-  exists m m', proj1_sig r l = GHOST m /\ proj1_sig r' l = GHOST m' /\ frame_preserving_update m m'.
-
-Definition ghost_move r r' := let '(n, f) := unsquash r in let '(n', f') := unsquash r' in
-  n = n' /\ ghost_move' f f'.
-
-Lemma age1_ghost_move : forall x y x' : rmap, ghost_move x y -> age x x' ->
-  exists y', ghost_move x' y' /\ age y y'.
-Proof.
-  intros.
-  unfold age in *; simpl in *.
-  rewrite rmap_age1_eq in H0 |- *.
-  unfold ghost_move in *.
-  destruct (unsquash x) as [n f].
-  destruct (unsquash y) as [n0 f0].
-  destruct n; [discriminate|].
-  destruct H; inv H0.
-  eexists; split; [|eauto].
-  repeat rewrite unsquash_squash.
-  split; auto.
-  intro l; specialize (H1 l).
-  destruct f0 as [f1], f as [f2]; simpl in *.
-  unfold compose.
-  destruct H1 as [-> | H]; auto.
-  destruct H as [? [? [-> [->]]]]; simpl.
-  right; eauto.
-Qed.
-
-Program Definition ghost_update (P : pred rmap) : pred rmap := fun r => exists r', ghost_move r r' /\ P r'.
-Next Obligation.
-  intros ???? [r' [Hmove HP]].
-  destruct (age1_ghost_move _ _ _ Hmove H) as [r1 []].
-  do 2 eexists; eauto.
-  eapply pred_hereditary; eauto.
-Qed.
-
-Lemma ghost_move_refl : forall a, ghost_move a a.
-Proof.
-  unfold ghost_move.
-  intro; destruct (unsquash a).
-  split; auto; intro; auto.
-Qed.
-
-Lemma ghost_update_now : forall P, P |-- ghost_update P.
-Proof.
-  repeat intro.
-  exists a; split; auto.
-  apply ghost_move_refl.
-Qed.
-
-Definition view_shift (P Q : pred rmap) := forall x, P x -> ghost_update Q x.
-
-Lemma ghost_update_view_shift : forall P Q, view_shift P Q -> P |-- ghost_update Q.
-Proof.
-  repeat intro; auto.
-Qed.
-
-(*Lemma ghost_shift : forall g g' p, frame_preserving_update g g' -> view_shift (ghost_at g p) (ghost_at g' p).
-Proof.
-  repeat intro.
-  simpl in H0.
-  Print make_rmap.
-  Print frame_preserving_update.
-*)

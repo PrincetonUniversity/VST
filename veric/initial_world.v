@@ -108,14 +108,12 @@ case_eq (Share.split Share.top); intros; simpl.
 eapply nonemp_split_neq1; eauto.
 Qed.
 
-Lemma dec_pure: forall r, {exists k, exists pp, r = PURE k pp}+
-  {core r = NO Share.bot bot_unreadable \/ exists m, core r = GHOST (core m)}.
+Lemma dec_pure: forall r, {exists k, exists pp, r = PURE k pp}+{core r = NO Share.bot bot_unreadable}.
 Proof.
  destruct r.
- right; left; apply core_NO.
- right; left; apply core_YES.
+ right; apply core_NO.
+ right; apply core_YES.
  left; eauto.
- right; right; eexists; apply core_GHOST.
 Qed.
 
 Lemma store_init_data_list_lem:
@@ -163,7 +161,6 @@ assert (Hv: CompCert_AV.valid (res_option oo f)).
   rewrite core_NO in H5; inv H5.
   rewrite core_YES in H5; inv H5.
   rewrite core_PURE in H5; inv H5.
-  rewrite core_GHOST in H5; inv H5.
 destruct (remake_rmap f Hv (level w)) as [m2 [? ?]]; clear Hv.
 intros; unfold f, no_preds; simpl; intros; repeat if_tac; auto.
 left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
@@ -232,9 +229,6 @@ rewrite core_YES.
 destruct (access_at m (b', z')); try destruct p0; try constructor; auto.
 destruct IOK2 as [? [? ?]].
 rewrite H2. rewrite core_PURE; constructor.
-destruct IOK2 as [? [? ?]].
-rewrite H2. rewrite core_GHOST; constructor.
-apply join_comm, core_unit.
 
 * (**** case 2 of 3 ****)
 intro loc.
@@ -268,7 +262,7 @@ assert (AV.valid  (res_option oo (fun loc => if adr_range_dec (b,lo) (hi-lo) loc
 apply VAL_valid; unfold compose; intros.
 if_tac in H1. inv H1; eauto.
 elimtype False; revert H1; clear; rewrite <- core_resource_at.
-destruct (w @ l); simpl; [rewrite core_NO | rewrite core_YES | rewrite core_PURE | rewrite core_GHOST]; intro H; inv H.
+destruct (w @ l); simpl; [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; intro H; inv H.
 destruct (make_rmap _ H1 (level w)) as [phi [? ?]].
 extensionality loc; unfold compose; if_tac.
 unfold resource_fmap. f_equal.
@@ -348,11 +342,6 @@ rewrite core_PURE.
 destruct (IOK (b',z')).
 rewrite H0 in H3. destruct H3 as [? [? ?]].
 rewrite H4. constructor.
-rewrite core_GHOST.
-destruct (IOK (b',z')).
-rewrite H0 in H3. destruct H3 as [? [? ?]].
-rewrite H4. constructor.
-apply join_comm, core_unit.
 unfold contents_at; inv H; simpl; auto.
 rewrite PMap.gso; auto.
 unfold access_at; inv H; simpl; auto.
@@ -1499,7 +1488,7 @@ Proof.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
     set (r := proj1_sig _ _) in FAT at 2.
     destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) (b, 0))
-      as [t | t p k p0 | k p | g] eqn:E'''; simpl in E2; try congruence.
+      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.
     simpl. f_equal.
