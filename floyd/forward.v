@@ -2308,8 +2308,11 @@ Ltac entailer_for_return := entailer.
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
 Ltac solve_return_inner_gen :=
-  solve
-    [ simple apply return_inner_gen_EX;
+  match goal with
+  | |- return_inner_gen _ ?v ?P _ =>
+    match P with
+    | exp _ =>
+      simple apply return_inner_gen_EX;
       let a := fresh "a" in
       intro a;
       eexists;
@@ -2319,10 +2322,19 @@ Ltac solve_return_inner_gen :=
         | |- ?t = _ => super_pattern t a; reflexivity
         end
       ]
-    | simple apply return_inner_gen_canon_Some
-    | simple apply return_inner_gen_canon_nil
-    | simple apply return_inner_gen_main
-    ].
+    | PROPx _ (LOCALx _ (SEPx _)) =>
+      match v with
+      | Some _ => first [ simple apply return_inner_gen_canon_Some
+                        | simple apply return_inner_gen_canon_nil
+                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
+      | None   => first [ simple apply return_inner_gen_canon_nil
+                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
+      end
+    | _ => first [ simple apply return_inner_gen_main
+                 | fail 1000 "the POSTCONDITION should be in an existential canonical form."
+                             "One possible cause of this is some 'simpl in *' command which destroys the existential form in POSTCONDITION."]
+    end
+ end.
 
 Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
@@ -2367,11 +2379,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ eapply canonicalize_stackframe;
+    [ try unfold stackframe_of;
+      simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | apply canonicalize_stackframe_emp
+    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac forward_return :=
@@ -2380,9 +2393,9 @@ Ltac forward_return :=
     match oe with
     | None =>
         eapply semax_return_None;
-        [ reflexivity
-        | solve_return_outer_gen
-        | solve_canon_derives_stackframe
+        [ (reflexivity || fail 1000 "Error: return type is not Tvoid")
+        | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
+        | (solve_canon_derives_stackframe || fail 1000 "stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
           solve_return_inner_gen
@@ -2395,8 +2408,8 @@ Ltac forward_return :=
         eapply semax_return_Some;
         [ exact H
         | entailer_for_return
-        | solve_return_outer_gen
-        | solve_canon_derives_stackframe
+        | (solve_return_outer_gen || fail 1000 "unexpected failure in forward_return. Do not remove the stackframe")
+        | (solve_canon_derives_stackframe || fail 1000 "stackframe is unfolded or modified.")
         | try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
           try change_compspecs CS;
           solve_return_inner_gen
