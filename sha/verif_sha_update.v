@@ -23,19 +23,21 @@ auto.
 Qed.
 
 Lemma function_body_ret_assert_derives:
-  forall F F' t ek vl,
+  forall F F' sf t ek vl,
     F |-- F' ->
-  function_body_ret_assert t F ek vl
-    |-- function_body_ret_assert t F' ek vl.
+  frame_ret_assert (function_body_ret_assert t F) sf ek vl
+    |-- frame_ret_assert (function_body_ret_assert t F') sf ek vl.
 Proof.
 intros.
-unfold function_body_ret_assert.
+unfold frame_ret_assert, function_body_ret_assert.
 destruct ek; auto.
 unfold bind_ret.
 destruct vl; auto.
+apply sepcon_derives; auto.
 apply andp_derives; auto.
 unfold_lift. intro rho. apply H.
 destruct t; auto.
+apply sepcon_derives; auto.
 intro rho. apply H.
 Qed.
 
@@ -118,7 +120,7 @@ rewrite <- H0.
 clear H0; pose (H0:=True).
 apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
 *
- semax_subcommand Vprog Gtot  f_SHA256_Update.
+ semax_subcommand Vprog Gtot f_SHA256_Update.
  eapply semax_post_flipped.
  assert (BLEN: bitlength (s256a_hashed a) (s256a_data a) = s256a_len a)
    by (rewrite bitlength_eq, S256abs_recombine; auto).
@@ -132,6 +134,7 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
  apply overridePost_derives.
  apply andp_left2; auto.
  apply andp_left2.  (* this should be done a better way *)
+ 
  apply function_body_ret_assert_derives.
  Intros a'.
  apply derives_extract_PROP'; intro. (* this should be done a better way *)

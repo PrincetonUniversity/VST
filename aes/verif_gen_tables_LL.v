@@ -801,9 +801,6 @@ Proof.
   forget RT3 as RT3'.
 
   forward.
-  Exists lvar1.
-  (* TODO floyd if I do "Exists log" instead, I get a default error, instead of a typechecking error *)
-  Exists lvar0.
   entailer!.
 } }
 (*  Show.*)

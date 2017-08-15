@@ -793,6 +793,8 @@ Definition hmac_drbg_setPredictionResistance_spec :=
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
+       PROP () 
+       LOCAL ()
        SEP (data_at Tsh t_struct_hmac256drbg_context_st (setPR_CTX (Val.of_bool r) CTX) ctx;
             hmac256drbg_relate (setPR_ABS r ABS) (setPR_CTX (Val.of_bool r) CTX)).
 
@@ -816,6 +818,8 @@ Definition hmac_drbg_setEntropyLen_spec :=
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
+       PROP () 
+       LOCAL ()
        SEP (data_at Tsh t_struct_hmac256drbg_context_st (setEL_CTX (Vint (Int.repr l)) CTX) ctx;
             hmac256drbg_relate (setEL_ABS l ABS) (setEL_CTX (Vint (Int.repr l)) CTX)).
 
@@ -839,6 +843,8 @@ Definition hmac_drbg_setReseedInterval_spec :=
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
+       PROP () 
+       LOCAL ()
        SEP (data_at Tsh t_struct_hmac256drbg_context_st (setRI_CTX (Vint (Int.repr l)) CTX) ctx;
             hmac256drbg_relate (setRI_ABS l ABS) (setRI_CTX (Vint (Int.repr l)) CTX)).
 

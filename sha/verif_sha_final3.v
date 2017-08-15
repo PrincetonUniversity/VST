@@ -135,12 +135,13 @@ semax
     K_vector kv;
     memory_block shmd 32 md))
   sha_final_epilog
+  (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
       SEP  (K_vector kv;
         data_at_ Tsh t_struct_SHA256state_st c;
-        data_block shmd (SHA_256 msg) md))).
+        data_block shmd (SHA_256 msg) md))) emp).
 Proof.
   intros. Intros.
   unfold sha_final_epilog.
@@ -390,7 +391,8 @@ semax
           (map Vint (hash_blocks init_registers hashed')) c;
       K_vector kv;
       memory_block shmd 32 md))
-   sha_final_part2
+  sha_final_part2
+  (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
@@ -401,7 +403,7 @@ semax
              (hash_blocks init_registers
                 (generate_and_pad
                    (intlist_to_Zlist hashed ++ dd))))
-          md))).
+          md))) emp).
 Proof.
   intros Espec hashed md c shmd kv H
   bitlen dd H4 H7 H3 DDbytes hashed' dd' pad

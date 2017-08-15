@@ -192,7 +192,6 @@ Proof.
    SEP (reseedPOST v Data data (Zlength Data) s
           myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
-    apply andp_right. apply prop_right; trivial.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
 
@@ -240,7 +239,6 @@ Proof.
   forward. forward.
  
   Exists Int.zero. simpl.
-  apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial. 
   Exists p. 
   thaw ALLSEP. thaw OLD_MD. rewrite <- instantiate256_reseed, RES; trivial. simpl. 

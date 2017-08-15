@@ -234,7 +234,7 @@ Proof. intros.
  rewrite sepcon_emp. auto.
 Qed.
 
-Hint Rewrite frame_ret_assert_emp : ret_assert.
+(*Hint Rewrite frame_ret_assert_emp : ret_assert.*)
 
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.

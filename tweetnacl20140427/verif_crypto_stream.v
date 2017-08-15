@@ -63,7 +63,7 @@ forward_call (c, s, offset_val 16 nonce, d, Nonce2, HSalsaRes, SV).
   destruct HSalsaRes as [q1 q2]. cancel.
   unfold data_at_. cancel. }
 forward.
-simpl. Exists s. unfold ThirtyTwoByte. entailer.
+unfold ThirtyTwoByte. entailer.
  Exists HSalsaRes. entailer. cancel.
 destruct HSalsaRes as [q1 q2]. cancel.
 Qed.
@@ -102,5 +102,5 @@ destruct H0 as [[q1 q2] HS]. rewrite HS.
 forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, (q1,q2), mCont, SV).
 { unfold SByte, Sigma_vector, data_at_. unfold ThirtyTwoByte at 2. cancel. }
 forward.
-Exists s (q1, q2). unfold ThirtyTwoByte. entailer!. 
+Exists (q1, q2). unfold ThirtyTwoByte. entailer!. 
 Qed.
