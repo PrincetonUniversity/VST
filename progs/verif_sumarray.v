@@ -116,7 +116,7 @@ name four _four.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
   (four,Ews,four_contents,4).
- split3; auto. computable.
+split3; auto. computable.
  repeat constructor; computable.
 forward. (* return s; *)
 Qed.
