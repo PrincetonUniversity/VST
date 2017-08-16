@@ -80,7 +80,7 @@ Proof.
     exists r; split; eauto.
 Qed.
 
-Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} {CA : Canc_alg A} l1 l2 x :
+Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
   joinlist (l1 ++ l2) x ->
   exists x1 x2,
     joinlist l1 x1 /\
