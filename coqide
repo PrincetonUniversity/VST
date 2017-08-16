@@ -1,9 +1,9 @@
 #!/bin/bash
 
-if [ -v WINDIR ]
-then
-# Coq 8.6 on Windows, "asynchronous proofs" are broken, so we disable.
-coqide -async-proofs off `cat .loadpath` $* &
-else
-coqide `cat .loadpath` $* &
-fi
+EXTRA="wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox"
+FLAGS=""
+for D in $EXTRA
+do 
+ FLAGS=$FLAGS" -Q $D $D"
+done
+coqide `./coqflags concurrency ccc26x86` $FLAGS -R mathcomp mathcomp $* &
