@@ -56,6 +56,7 @@ Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_safety_makelock.
 Require Import concurrency.semax_safety_spawn.
 Require Import concurrency.semax_safety_freelock.
+Require Import concurrency.semax_safety_release.
 Require Import concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -253,6 +254,15 @@ Section Safety.
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
       apply safety_induction_spawn; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply personal_mem_equiv_spec.
+    }
+
+    (* the case for release *)
+    destruct (blocked_at_external_dec state UNLOCK) as [isrelease|isnotrelease].
+    {
+      apply safety_induction_release; eauto.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
