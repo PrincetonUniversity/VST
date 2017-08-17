@@ -3,11 +3,11 @@
 # for users of VST.
 #
 # USAGE:
-#   (cd VST; bin/coqflags) > .loadpath-VST
+#   (cd VST; util/coqflags) > .loadpath-VST
 #
 # TO INCLUDE EXTRA COMPONENTS OF VST beyond compcert,msl,sepcomp,veric,floyd,
 # use extra arguments, e.g.,
-#   (cd VST; bin/coqflags concurrency) > .loadpath-VST
+#   (cd VST; util/coqflags concurrency) > .loadpath-VST
 
 
 DIRS="msl sepcomp veric floyd $*"

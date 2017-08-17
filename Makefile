@@ -543,14 +543,11 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject: Makefile
-	echo $(COQFLAGS) >_CoqProject
-
-.loadpath-full: Makefile
-	echo $(COQFLAGS) > .loadpath-full
-
-.loadpath: Makefile _CoqProject .loadpath-full
-	util/coqflags > .loadpath
+_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile
+	echo $(COQFLAGS) > .loadpath
+	util/coqflags > .loadpath-export
+	cp .loadpath-export _CoqProject-export
+	cp .loadpath _CoqProject
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
