@@ -65,7 +65,7 @@ Definition perm_of_res_lock_explicit
       else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
              if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => None
-    | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
+    | compcert_rmaps.RML.R.PURE _ _ => None
     end.
       
   Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.

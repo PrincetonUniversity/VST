@@ -798,27 +798,6 @@ Proof.
   apply proof_irr.
 Qed.
 
-(*Lemma juicy_free_lemma':
-  forall {j b lo hi m' m1 F}
-    (H: Mem.free (m_dry j) b lo hi = Some m')
-    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
-    VALspec_range (hi-lo) Share.top (b,lo) m1 ->
-    join_sub m1 (m_phi j) ->
-    join m1 (m_phi (free_juicy_mem _ _ _ _ _ H (juicy_free_aux_lemma _ _ _ _ _ VR))) (m_phi j).
-Proof.
-  intros.
-  destruct H1.
-  apply juicy_free_lemma; auto.
-  { eapply join_core; eauto. }
-  intros.
-  apply (resource_at_join _ _ _ l) in H1; rewrite H2 in H1.
-  inv H1.
-  - do 4 eexists; eauto.
-    eexists; eauto.
-  - do 4 eexists; eauto.
-    eexists; eauto.
-Qed.*)
-
 Lemma free_list_juicy_mem_i:
   forall jm bl m' F,
    free_list (m_dry jm) bl = Some m' ->

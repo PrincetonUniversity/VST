@@ -479,10 +479,10 @@ Proof.
     specialize (H l sh k).
     if_tac in H0.
     - auto.
-    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE, ?core_GHOST in H0; inv H0.
+    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE in H0; inv H0.
   + intros.
     if_tac; [left; eauto |].
-    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE, ?core_GHOST; simpl; auto.
+    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
     left.
     exists w; split; auto.
 Qed.
