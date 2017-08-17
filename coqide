@@ -1,9 +1,10 @@
 #!/bin/bash
 
-EXTRA="wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox"
+if [ -v WINDIR ]
+then  # hacks necessary for cygwin
+FLAGS="-async-proofs off"
+else
 FLAGS=""
-for D in $EXTRA
-do 
- FLAGS=$FLAGS" -Q $D $D"
-done
-coqide `./coqflags concurrency ccc26x86` $FLAGS -R mathcomp mathcomp $* &
+fi
+
+coqide $FLAGS `cat .loadpath-full` $* &

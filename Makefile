@@ -9,10 +9,6 @@ COMPCERT ?= compcert
 #   COMPCERT=../compcert
 # if, for example, you want to build from a compcert distribution
 # that is sitting in a sister directory to vst.
-# One might think that one could change this to  COMPCERT=/home/appel/compcert
-# if there is a compcert build at that pathname, but in cygwin
-# at least, coqdep is confused by the absolute pathname while
-# it works fine with the relative pathname
 #
 # One can also add in CONFIGURE the line
 #   COQBIN=/path/to/bin/
@@ -26,6 +22,7 @@ COMPCERT ?= compcert
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
 # MATHCOMP=/my/path/to/mathcomp
+# and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
@@ -549,8 +546,11 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 _CoqProject: Makefile
 	echo $(COQFLAGS) >_CoqProject
 
-.loadpath: Makefile _CoqProject
-	echo $(COQFLAGS) > .loadpath
+.loadpath-full: Makefile
+	echo $(COQFLAGS) > .loadpath-full
+
+.loadpath: Makefile _CoqProject .loadpath-full
+	util/coqflags > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
