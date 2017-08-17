@@ -59,7 +59,6 @@ Require Import concurrency.semax_simlemmas.
 Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_local.
 Require Import concurrency.semax_preservation_acquire.
-Require Import concurrency.semax_preservation_release.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -1056,8 +1055,8 @@ Section Preservation.
   Qed. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
-  Kblocked at release and acquire, but preservation does not hold for
-  makelock, so, we make an exception and will use safety induction in
+  Kblocked at acquire, but preservation does not hold for
+  makelock or release, so, we make an exception and will use safety induction in
   the safety theorem.  Because it's faster to prove safety induction,
   we don't prove preservation for freelock and spawn, either, because
   we did those two last. *)
@@ -1065,12 +1064,13 @@ Section Preservation.
     ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
     ~ blocked_at_external state FREE_LOCK ->
+    ~ blocked_at_external state UNLOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros not_spawn not_makelock not_freelock STEP.
+    intros not_spawn not_makelock not_freelock not_release STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1399,11 +1399,12 @@ Section Preservation.
         eapply preservation_acquire with (Phi := Phi); eauto.
 
       - (* the case of release *)
-        left.
-        assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
-        cleanup.
-        rewrite El in *.
-        eapply preservation_release with (Phi := Phi); eauto.
+        exfalso; apply not_release.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
 
       - (* the case of spawn *)
         left.

@@ -353,7 +353,7 @@ apply (rel_LR'_sch _ rho w
       (fun e v => forall w', extendM w w' -> rel_expr' rho w' e v)
       (fun e v => forall w', extendM w w' -> rel_lvalue' rho w' e v)); auto; intros;
   try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
-  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+  try solve [match goal with H: forall w': rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
 end].
 *
 eapply rel_expr'_lvalue_By_value; eauto.
