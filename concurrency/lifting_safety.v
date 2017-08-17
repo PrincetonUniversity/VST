@@ -4,24 +4,24 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_machine. Import Concur.
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.scheduler.
 
-Require Import concurrency.lifting.
+Require Import VST.concurrency.lifting.
 
 (* We lift to a whole-program simulation on the dry concurrency machine *)
-Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
+Require Import VST.sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.event_semantics.
 
 (** The X86 DryConc Machine*)
-Require Import concurrency.dry_context.
+Require Import VST.concurrency.dry_context.
 
 (** The Clight DryConc Machine*)
-Require Import concurrency.DryMachineSource.
+Require Import VST.concurrency.DryMachineSource.
 
-Require Import concurrency.machine_simulation. Import machine_simulation.
+Require Import VST.concurrency.machine_simulation. Import machine_simulation.
 
 
 Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).

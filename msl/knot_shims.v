@@ -3,14 +3,14 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sig_isomorphism.
-Require Import msl.functors.
-Require msl.knot.
-Require msl.knot_full_variant.
+Require Import VST.msl.base.
+Require Import VST.msl.sig_isomorphism.
+Require Import VST.msl.functors.
+Require VST.msl.knot.
+Require VST.msl.knot_full_variant.
 
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
 
 Module Type KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL.
   Import CoContraVariantBiFunctor.

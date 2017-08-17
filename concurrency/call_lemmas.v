@@ -8,25 +8,25 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
-Require Import concurrency.cast.
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.wf_lemmas.
-Require Import concurrency.reestablish.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
-Require Import concurrency.reach_lemmas.
-Require Import concurrency.compcert_linking.
-Require Import concurrency.compcert_linking_lemmas.
-Require Import concurrency.disjointness.
-Require Import concurrency.rc_semantics.
-Require Import concurrency.rc_semantics_lemmas.
-Require Import concurrency.linking_inv.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
+Require Import VST.concurrency.cast.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.wf_lemmas.
+Require Import VST.concurrency.reestablish.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
+Require Import VST.concurrency.reach_lemmas.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.compcert_linking_lemmas.
+Require Import VST.concurrency.disjointness.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics_lemmas.
+Require Import VST.concurrency.linking_inv.
 
 (* compcert imports *)
 
@@ -40,11 +40,11 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq eqtyp
 Set Implicit Arguments.
 
 Require Import Values.
-Require Import sepcomp.nucular_semantics.
+Require Import VST.sepcomp.nucular_semantics.
 
 Require Import Values.
-Require Import sepcomp.nucular_semantics.
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.nucular_semantics.
+Require Import VST.sepcomp.wholeprog_simulations.
 
 Import Wholeprog_sim.
 Import SM_simulation.
@@ -52,8 +52,8 @@ Import Linker.
 Import Modsem.
 Import CallStack.
 
-Require Import concurrency.compcert_imports. Import CompcertLibraries.
-Require Import sepcomp.mem_wd.
+Require Import VST.concurrency.compcert_imports. Import CompcertLibraries.
+Require Import VST.sepcomp.mem_wd.
 
 Section call_lems.
 
@@ -282,7 +282,7 @@ Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.
     by apply: (genvs_domain_eq_sym _ _ (my_ge_S ix)).
   by rewrite /= (genvs_domain_eq_isGlobal _ _ eq). }
 
-Require Import sepcomp.effect_properties.
+Require Import VST.sepcomp.effect_properties.
 
 have presglobs: meminj_preserves_globals (ge (cores_S (Core.i c1))) j.
 { move: (head_presglobs my_ge_S hdinv).

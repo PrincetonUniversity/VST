@@ -5,7 +5,7 @@
 (** printing /\ $\land$ #&and;# *)
 
 Require Import Setoid Program.
-Require Import concurrency.paco.src.paco.
+Require Import VST.concurrency.paco.src.paco.
 
 
 

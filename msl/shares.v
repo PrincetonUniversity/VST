@@ -4,14 +4,14 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.boolean_alg.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.eq_dec.
 
-Require msl.tree_shares.
+Require VST.msl.tree_shares.
 
 Module Share : SHARE_MODEL := tree_shares.Share.
 Import Share.

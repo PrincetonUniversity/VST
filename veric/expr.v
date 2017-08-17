@@ -1,10 +1,10 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.tycontext.
-Require Import veric.Clight_lemmas.
-Require Export veric.lift.
-Require Export veric.Cop2.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lift.
+Require Export VST.veric.Cop2.
 
 Definition is_true (b: bool) :=
   match b with true => True | false => False end.

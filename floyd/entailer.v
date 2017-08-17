@@ -1,10 +1,10 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.go_lower.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at floyd.nested_field_lemmas.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.go_lower.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.sublist.
 
 Local Open Scope logic.
 

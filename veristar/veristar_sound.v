@@ -10,7 +10,7 @@ Require Import ZArith Coq.Lists.List Permutation Classical.
 
 (** 2- msl axioms and basic SL predicates *)
 
-Require Import msl.Axioms msl.predicates_sa veric.Coqlib2.
+Require Import VST.msl.Axioms VST.msl.predicates_sa VST.veric.Coqlib2.
 
 (** 3- defns. of datatypes and clauses *)
 

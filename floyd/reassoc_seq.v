@@ -1,5 +1,5 @@
-Require Import floyd.base2.
-Require Import floyd.semax_tactics.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.semax_tactics.
 Import ListNotations.
 
 (* Unlike unfold_Ssequence in veric/SeparationLogic.v, unfold_seq preserves Sfor and Swhile.

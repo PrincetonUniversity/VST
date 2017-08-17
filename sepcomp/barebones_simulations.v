@@ -4,10 +4,10 @@ Require Import compcert.common.Values.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 (* Minimal whole program simulations *)
 

@@ -1,5 +1,5 @@
 Require Import Coq.Setoids.Setoid.
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
 (******************************************
 

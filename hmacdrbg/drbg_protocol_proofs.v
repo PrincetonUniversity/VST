@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,10 +10,9 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.entropy_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 Require Import hmacdrbg.drbg_protocol_specs.
 Require Import hmacdrbg.verif_hmac_drbg_WF.
-Require Import floyd.deadvars.
 
 Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
   ENTROPY.success (bytes, J) ss ->

@@ -9,11 +9,11 @@ Require Import Relation_Definitions.
 Require Import Sorting.
 Require Recdef.
 Require Omega.
-Require Import msl.Axioms msl.Coqlib2.
+Require Import VST.msl.Axioms VST.msl.Coqlib2.
 Require Import NArith veristar.variables veristar.datatypes veristar.clauses.
 Require Import veristar.fresh.
 Require Import Finite_sets_facts.
-Require Import msl.base.
+Require Import VST.msl.base.
 
 
 Definition list_bound {A: Type} (f: A -> Prop) (l: list A):=

@@ -4,8 +4,8 @@ Require Import Coq.Relations.Relations.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 
-Require Import msl.Coqlib2.
-Require Export msl.eq_dec.
+Require Import VST.msl.Coqlib2.
+Require Export VST.msl.eq_dec.
 
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import sha.HMAC256_functional_prog.

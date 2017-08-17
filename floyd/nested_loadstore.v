@@ -1,18 +1,18 @@
-Require Import floyd.base2.
+Require Import VST.floyd.base2.
 
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.stronger.
-Require Import floyd.entailer.
-Require Import floyd.closed_lemmas.
-Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.replace_refill_reptype_lemmas.
-Require Import floyd.loadstore_field_at.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.efield_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.stronger.
+Require Import VST.floyd.entailer.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.proj_reptype_lemmas.
+Require Import VST.floyd.replace_refill_reptype_lemmas.
+Require Import VST.floyd.loadstore_field_at.
 Import DataCmpNotations.
 
 Local Open Scope logic.

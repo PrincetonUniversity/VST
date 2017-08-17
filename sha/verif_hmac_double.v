@@ -3,7 +3,7 @@
   hmac twice, (on the same message, using the same key) and puts the resulting
   (identical) digests side by side in a suitably large array.*)
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.

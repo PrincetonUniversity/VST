@@ -1,13 +1,13 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Export veric.environ_lemmas.
-Require Import veric.binop_lemmas2.
-(*Require Import veric.binop_lemmas.*)
-Require Import veric.expr_lemmas2.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Export VST.veric.environ_lemmas.
+Require Import VST.veric.binop_lemmas2.
+(*Require Import VST.veric.binop_lemmas.*)
+Require Import VST.veric.expr_lemmas2.
 Import Cop.
 Import Cop2.
 

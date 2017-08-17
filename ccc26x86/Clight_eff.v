@@ -7,15 +7,15 @@ Require Export Maps.
 Require Import Events.
 Require Import Globalenvs.
 
-Require Import sepcomp.mem_lemmas. (*for mem_forward*)
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
+Require Import VST.sepcomp.mem_lemmas. (*for mem_forward*)
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
 
 Require Import Cop. (*for sem_cast*)
 Require Import Ctypes. (*for access_mode*)
 Require Import compcert.cfrontend.Clight.
-Require Import ccc26x86.Clight_coop.
-Require Import ccc26x86.BuiltinEffects.
+Require Import VST.ccc26x86.Clight_coop.
+Require Import VST.ccc26x86.BuiltinEffects.
 
 Definition assign_loc_Effect ge (ty:type) (b: block) (ofs: int) : (block -> Z -> bool)  :=
   match access_mode ty with

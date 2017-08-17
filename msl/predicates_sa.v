@@ -1,5 +1,5 @@
-Require Import msl.base.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
 
 Require Import Coq.funind.Recdef.
 Require Coq.Wellfounded.Wellfounded. (* Can't Import this, because that brings the identifier B into
@@ -527,7 +527,7 @@ destruct H0 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; repeat split; auto.
 Qed.
 
-Require Import msl.cross_split.
+Require Import VST.msl.cross_split.
 
 Lemma exactly_i {A} : forall x: A, exactly x x.
 Proof. intros. reflexivity.

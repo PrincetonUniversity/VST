@@ -1,6 +1,6 @@
-Require Import sepcomp.semantics.
-Require Import concurrency.semantics.
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.semantics.
+Require Import VST.sepcomp.event_semantics.
 
 (*
 

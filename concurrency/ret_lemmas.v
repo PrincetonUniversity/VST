@@ -8,25 +8,25 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
-Require Import concurrency.cast.
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
-Require Import concurrency.wf_lemmas.
-Require Import concurrency.reestablish.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
-Require Import concurrency.reach_lemmas.
-Require Import concurrency.compcert_linking.
-Require Import concurrency.compcert_linking_lemmas.
-Require Import concurrency.disjointness.
-Require Import concurrency.rc_semantics.
-Require Import concurrency.rc_semantics_lemmas.
-Require Import concurrency.linking_inv.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
+Require Import VST.concurrency.cast.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
+Require Import VST.concurrency.wf_lemmas.
+Require Import VST.concurrency.reestablish.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
+Require Import VST.concurrency.reach_lemmas.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.compcert_linking_lemmas.
+Require Import VST.concurrency.disjointness.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics_lemmas.
+Require Import VST.concurrency.linking_inv.
 
 (* compcert imports *)
 
@@ -40,13 +40,13 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrfun seq eqtype finty
 Set Implicit Arguments.
 
 Require Import Values.
-Require Import sepcomp.nucular_semantics.
+Require Import VST.sepcomp.nucular_semantics.
 
 (* This file proves the main linking simulation result (see               *)
 (* linking/linking_spec.v for the specification of the theorem that's     *)
 (* proved).                                                               *)
 
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.wholeprog_simulations.
 Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker.
@@ -153,7 +153,7 @@ exists (updStack st2
 by apply: popCoreI.
 Qed.
 
-Require Import sepcomp.mem_wd.
+Require Import VST.sepcomp.mem_wd.
 
 Context (aft1 : LinkerSem.after_external (Some rv1) st1'' = Some st1').
 
@@ -257,7 +257,7 @@ have mu0_wd: SM_wd mu0.
 have vinj0': List.Forall2 (val_inject (as_inj mu0)) vals01 vals02.
 { by apply: (forall_vals_inject_restrictD _ _ _ _ vinj0). }
 
-Require Import sepcomp.effect_properties.
+Require Import VST.sepcomp.effect_properties.
 have [nu_wd [nu_valid0 [nu_inj0 nu_vinj]]]:
   SM_wd nu
   /\ sm_valid nu m10 m20

@@ -1,5 +1,5 @@
 (*Processing time: 18mins. (master: 5min)*)
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.

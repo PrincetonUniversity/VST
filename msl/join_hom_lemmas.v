@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.psepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.psepalg.
 
 (* This file defines a series of lemmas for proving functions from the carrier set
    of one SA to the carrier set of another are join homomorphisms, and then shows

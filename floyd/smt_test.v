@@ -1,9 +1,9 @@
 Require Import compcert.lib.Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import Coq.Lists.List.
 Import ListNotations.
 
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 (* from verif_revarray.v *)
 
@@ -284,12 +284,12 @@ rewrite Znth_skipn by omega.
 f_equal; omega.
 Qed.
 
-Require Import msl.shares.
-Require Import veric.shares.
+Require Import VST.msl.shares.
+Require Import VST.veric.shares.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import compcert.cfrontend.Ctypes.
-Require Import veric.expr.
+Require Import VST.veric.expr.
 
 Lemma verif_sumarray_example1:
 forall (sh : share) (contents : list int) (size : Z) (a : val),
@@ -345,7 +345,7 @@ Vint (sum_int (sublist 0 (Z.succ a1) contents)) = Vint s /\ True.
 Abort.
 
 
-Require Import veric.Clight_lemmas.  (* just for nullval? *)
+Require Import VST.veric.Clight_lemmas.  (* just for nullval? *)
 
 Lemma verif_reverse_example1:
 forall (sum_int: list int -> int) (sh : share) (contents cts : list int) (t0 t_old t : val) (h : int),

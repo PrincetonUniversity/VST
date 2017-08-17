@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.ghost_queue.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost_queue.
 Require Import SetoidList.
 
 Set Bullet Behavior "Strict Subproofs".

@@ -1,8 +1,8 @@
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.mem_lemmas.
-Require Import veric.base.
-Require Import veric.Clight_new.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_new.
 
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
       (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.

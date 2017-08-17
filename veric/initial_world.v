@@ -1,16 +1,16 @@
-Require Import msl.age_to.
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.age_to_resource_at.
+Require Import VST.msl.age_to.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.age_to_resource_at.
 
 Local Open Scope pred.
 

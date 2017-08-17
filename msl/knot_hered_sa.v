@@ -3,18 +3,18 @@
  *
  *)
 
-Require Import msl.base.
+Require Import VST.msl.base.
 Open Local Scope nat_scope.
 
-Require Import msl.ageable.
-Require Import msl.functors.
-Require Import msl.sepalg.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.predicates_hered.
-Require Import msl.knot_hered.
-Require Import msl.knot_lemmas.
-Require Import msl.age_sepalg.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.knot_hered.
+Require Import VST.msl.knot_lemmas.
+Require Import VST.msl.age_sepalg.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.

@@ -9,9 +9,9 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
-Require Import sepcomp.Address.
+Require Import VST.sepcomp.Address.
 
 Notation val_inject:= Val.inject.
 

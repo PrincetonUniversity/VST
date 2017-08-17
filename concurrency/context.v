@@ -1,7 +1,7 @@
 (* sepcomp imports *)
 
-Require Import sepcomp. Import SepComp.
-Require Import arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.arguments.
 
 (* ssreflect *)
 
@@ -10,12 +10,12 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import pos.
-Require Import rc_semantics.
-Require Import nucular_semantics.
-Require Import compcert_linking. Import Modsem.
-Require Import simulations. Import SM_simulation.
-Require Import semantics_lemmas.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.sepcomp.nucular_semantics.
+Require Import VST.concurrency.compcert_linking. Import Modsem.
+Require Import VST.sepcomp.simulations. Import SM_simulation.
+Require Import VST.sepcomp.semantics_lemmas.
 
 (** The (deterministic) context [C]. Assumptions on [C] are:
 - [sim_C]: C self-simulates ([C <= C]) (cf. Definition 2, pg. 10).
@@ -51,9 +51,9 @@ End Ctx.
  program context. *)
 
 Require Import Clight.
-Require Import Clight_coop.
-Require Import Clight_eff.
-Require Import Clight_lemmas.
+Require Import VST.ccc26x86.Clight_coop.
+Require Import VST.ccc26x86.Clight_eff.
+Require Import VST.veric.Clight_lemmas.
 Require Import Clight_self_simulates.
 Require Import safe_clight_rc.
 Require Import clight_nucular. Import CLIGHT_NUKE.

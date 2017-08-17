@@ -9,9 +9,9 @@ Require Import compcert.lib.Integers.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
-Require Import msl.Coqlib2.
-Require Import floyd.coqlib3.
-Require Import floyd.sublist.
+Require Import VST.msl.Coqlib2.
+Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.sublist.
 Require Export sha.common_lemmas.
 Require Psatz.
 

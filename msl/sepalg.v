@@ -4,7 +4,7 @@
  * includes ideas from a discussion with Jonas Jensen and also from
  * a paper by Francois Pottier.
  *)
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
 Set Implicit Arguments.
 

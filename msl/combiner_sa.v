@@ -5,11 +5,11 @@
 
 (* A portion of this file was developed by Le Xuan Bach *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.functors.
-Require Import msl.sepalg_generators.
-Require Import msl.sepalg_functors.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.sepalg_functors.
 
 Import MixVariantFunctor.
 Import MixVariantFunctorLemmas.

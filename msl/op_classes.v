@@ -1,13 +1,13 @@
-Require Import msl.Extensionality.
-Require Import msl.sepalg.
-Require Import msl.ageable.
-Require Import msl.age_sepalg.
-Require Import msl.base.
-Require Import msl.predicates_hered.
-Require Import msl.predicates_sl.
-Require Import msl.subtypes.
-Require Import msl.subtypes_sl.
-Require Import msl.predicates_rec.
+Require Import VST.msl.Extensionality.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.ageable.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
+Require Import VST.msl.subtypes.
+Require Import VST.msl.subtypes_sl.
+Require Import VST.msl.predicates_rec.
 
 (* Given a separation algebra on type [A], we can make a separation logic
    with predicates of type  [pred A].  But the type   [B -> pred A] is also

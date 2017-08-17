@@ -12,15 +12,15 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.cfrontend.Ctypes.
 Require Import compcert.cfrontend.Cop.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.effect_simulations.
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.effect_simulations_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.effect_simulations.
+Require Import VST.sepcomp.effect_properties.
+Require Import VST.sepcomp.effect_simulations_lemmas.
 
 (** Properties of values obtained by casting to a given type. *)
 

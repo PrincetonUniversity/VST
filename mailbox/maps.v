@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.ghost.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
 Require Import RelationClasses.
 
 Section Maps.

@@ -1,16 +1,16 @@
-Require Import msl.base.
-Require Import msl.boolean_alg.
-Require Import msl.sepalg.
-Require Import msl.functors.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.shares.
-Require Import msl.cross_split.
-Require Import msl.psepalg.
-Require Import msl.pshares.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.shares.
+Require Import VST.msl.cross_split.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.pshares.
+Require Import VST.msl.eq_dec.
 
-Require msl.predicates_sa.
+Require VST.msl.predicates_sa.
 
 Lemma in_app:   (* THIS IS FROM compcert/Coqlib.v *)
   forall (A: Type) (x: A) (l1 l2: list A), In x (l1 ++ l2) <-> In x l1 \/ In x l2.
@@ -123,7 +123,7 @@ Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
    either kind.  Thus, we build primitives whose names start with _ to avoid polluting the
   namespace; then we reveal them at appropriate types in EnvSL and EnvASL, below.
 *)
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 (* ENV_MAPSTO *)
 Parameter _env_mapsto: forall {KE: EqDec key}  (id: key) (sh: Share.t) (v: A), pred (env key A).
@@ -372,7 +372,7 @@ Proof.
  repeat f_equal; apply proof_irr.
 Qed.
 
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition _env_mapsto {KE: EqDec key} (id: key) (sh: Share.t) (v: A) : pred env :=
     fun rho => exists p,
@@ -853,7 +853,7 @@ End EnvSA.
 
 Module EnvSL.
 Import EnvSA.
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition env_mapsto: forall {key A}{KE: EqDec key} (id: key) (sh: Share.t) (v: A) , pred (env key A) := @_env_mapsto.
 Arguments env_mapsto [key] [A] [KE] _ _ _ _.

@@ -1,5 +1,5 @@
-Require Import veric.juicy_base.
-Require Import veric.shares.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.shares.
 Import cjoins.
 
 Definition dec_share_nonidentity (sh: Share.t) : {~identity sh}+{identity sh} :=

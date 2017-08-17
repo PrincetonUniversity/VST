@@ -1,15 +1,15 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Import floyd.aggregate_pred.auxiliary_pred.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import floyd.sublist.
-Require Export floyd.fieldlist.
-Require Export floyd.aggregate_type.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Import VST.floyd.aggregate_pred.auxiliary_pred.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.sublist.
+Require Export VST.floyd.fieldlist.
+Require Export VST.floyd.aggregate_type.
 
 Opaque alignof.
 

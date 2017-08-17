@@ -1,37 +1,37 @@
-Require Import floyd.base2.
-Require Import floyd.sublist.
-Require Import floyd.client_lemmas.
-Require Import floyd.closed_lemmas.
-Require Import floyd.compare_lemmas.
-Require Import floyd.semax_tactics.
-Require Import floyd.forward.
-Require Import floyd.call_lemmas.
-Require Import floyd.forward_lemmas.
-Require Import floyd.for_lemmas.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.aggregate_type.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.field_compat.
-Require Import floyd.stronger.
-Require Import floyd.loadstore_mapsto.
-Require Import floyd.loadstore_field_at.
-Require Import floyd.nested_loadstore.
-Require Import floyd.local2ptree_denote.
-Require Import floyd.local2ptree_eval.
-Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.replace_refill_reptype_lemmas.
-Require Import floyd.sc_set_load_store.
-(*Require Import floyd.unfold_data_at.*)
-Require Import floyd.entailer.
-Require Import floyd.globals_lemmas.
-Require Import floyd.diagnosis.
-Require Import floyd.freezer.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.sublist.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.compare_lemmas.
+Require Import VST.floyd.semax_tactics.
+Require Import VST.floyd.forward.
+Require Import VST.floyd.call_lemmas.
+Require Import VST.floyd.forward_lemmas.
+Require Import VST.floyd.for_lemmas.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.efield_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.aggregate_type.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.field_compat.
+Require Import VST.floyd.stronger.
+Require Import VST.floyd.loadstore_mapsto.
+Require Import VST.floyd.loadstore_field_at.
+Require Import VST.floyd.nested_loadstore.
+Require Import VST.floyd.local2ptree_denote.
+Require Import VST.floyd.local2ptree_eval.
+Require Import VST.floyd.proj_reptype_lemmas.
+Require Import VST.floyd.replace_refill_reptype_lemmas.
+Require Import VST.floyd.sc_set_load_store.
+(*Require Import VST.floyd.unfold_data_at.*)
+Require Import VST.floyd.entailer.
+Require Import VST.floyd.globals_lemmas.
+Require Import VST.floyd.diagnosis.
+Require Import VST.floyd.freezer.
 Import ListNotations.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
@@ -44,6 +44,7 @@ Definition try_spec (prog: program) (name: string) (spec: funspec) : list (ident
  | Some id => [(id,spec)]
  | None => nil
  end.
+Arguments try_spec prog name spec / .
 
 Definition exit_spec' :=
  WITH u: unit
@@ -53,6 +54,7 @@ Definition exit_spec' :=
    PROP(False) LOCAL() SEP().
 
 Definition exit_spec (prog: program) := try_spec prog "exit" exit_spec'.
+Arguments exit_spec prog / .
 
 Parameter body_exit:
  forall {Espec: OracleKind},
@@ -85,6 +87,7 @@ Definition malloc_spec' :=
 
 Definition malloc_spec (prog: program) :=
    try_spec prog "_malloc" malloc_spec'.
+Arguments malloc_spec prog / .
 
 Parameter body_malloc:
  forall {Espec: OracleKind},
@@ -103,6 +106,7 @@ Definition free_spec' :=
 
 Definition free_spec  (prog: program) :=
    try_spec prog "_free" free_spec'.
+Arguments free_spec prog / .
 
 Parameter body_free:
  forall {Espec: OracleKind},
@@ -111,7 +115,13 @@ Parameter body_free:
 Definition library_G prog :=
   exit_spec prog ++ malloc_spec prog ++ free_spec prog.
 
-Ltac with_library prog G := with_library' prog (library_G prog ++ G).
+Ltac with_library prog G := 
+ let x := constr:(library_G prog) in
+ let x := eval hnf in x in 
+ let x := eval simpl in x in
+ let y := constr:(x++G) in
+ let y := eval cbv beta iota delta [app] in y in 
+ with_library' prog y.
 
 Lemma semax_func_cons_malloc_aux:
   forall (gx : genviron) (x : Z) (ret : option val),

@@ -66,6 +66,7 @@ compcert/test/
 *.v.d
 .depend
 .loadpath
+.loadpath-full
 version.v
 coqide
 *.cache

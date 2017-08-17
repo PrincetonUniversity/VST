@@ -1,8 +1,8 @@
-Require Import veric.juicy_base.
+Require Import VST.veric.juicy_base.
 Import cjoins.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.shares.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.shares.
 
 Module Type JUICY_MEM_OPS.
 Parameter juicy_mem_store
@@ -301,7 +301,7 @@ End JuicyMemOps.
 (* Here we construct an instance of StratifiedSemanticsWithSeparation using
    the juicy mem operations. *)
 Module Abs := JuicyMemOps.
-Require Import veric.local.
+Require Import VST.veric.local.
 
 Inductive AbsPrimcom : relation juicy_mem -> Prop :=
 | AbsPrimcom_store : forall ch b ofs v,
@@ -417,7 +417,7 @@ Qed.
 
 Existing Instance stratsem.
 
-Require Import veric.compcert_rmaps.
+Require Import VST.veric.compcert_rmaps.
 
 Inductive RmapPrimexpr : pfunc rmap val -> Prop :=.
 

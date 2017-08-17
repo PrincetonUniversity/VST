@@ -1,13 +1,13 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.closed_lemmas.
-Require Import floyd.nested_pred_lemmas.
-(*Require Import floyd.unfold_data_at.*)
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.nested_pred_lemmas.
+(*Require Import VST.floyd.unfold_data_at.*)
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=

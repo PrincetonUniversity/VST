@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -410,7 +410,7 @@ Qed.
 
 Require Export mc_reify.symexe_soundness.
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import MirrorCore.RTac.Repeat.
 Require Import MirrorCore.RTac.Then.
 Require Import MirrorCore.RTac.Try.

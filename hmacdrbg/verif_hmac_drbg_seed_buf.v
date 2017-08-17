@@ -1,7 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.general_lemmas.
@@ -17,7 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec.

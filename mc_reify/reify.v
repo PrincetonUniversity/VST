@@ -5,7 +5,7 @@ Require Import mc_reify.types.
 Require Import mc_reify.funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
-Require Import floyd.local2ptree.
+Require Import VST.floyd.local2ptree.
 Require Import mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
 

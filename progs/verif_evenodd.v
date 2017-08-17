@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.evenodd.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.evenodd.
 Local Open Scope logic.
 
 Inductive repr : Z -> val -> Prop :=

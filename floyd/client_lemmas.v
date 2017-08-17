@@ -1,5 +1,5 @@
-Require Import floyd.base2.
-Require Export floyd.canon.
+Require Import VST.floyd.base2.
+Require Export VST.floyd.canon.
 Local Open Scope logic.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.

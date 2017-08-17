@@ -1,4 +1,4 @@
-Require Import floyd.base2.
+Require Import VST.floyd.base2.
 
 Lemma tc_environ_init: forall Delta id rho,
                          tc_environ (initialized id Delta) rho ->

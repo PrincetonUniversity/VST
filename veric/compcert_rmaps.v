@@ -1,9 +1,9 @@
 
-Require Export msl.msl_standard.
-Require Import veric.base.
-Require Import veric.shares.
-Require Import veric.rmaps.
-Require Import veric.rmaps_lemmas.
+Require Export VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.shares.
+Require Import VST.veric.rmaps.
+Require Import VST.veric.rmaps_lemmas.
 
 Inductive kind : Type := VAL : memval -> kind
                                    | LK : Z -> kind

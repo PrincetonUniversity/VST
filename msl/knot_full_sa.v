@@ -3,16 +3,16 @@
  *
  *)
 
-Require Import msl.base.
+Require Import VST.msl.base.
 Local Open Scope nat_scope.
 
-Require Import msl.ageable.
-Require Import msl.functors.
-Require Import msl.sepalg.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.age_sepalg.
-Require Import msl.knot_full_variant.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.knot_full_variant.
 
 Module Type KNOT_FULL_BASIC_INPUT.
   Parameter F: MixVariantFunctor.functor.

@@ -1,15 +1,15 @@
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
-Require Import concurrency.scheduler.
-Require Import concurrency.TheSchedule.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.semantics.
-Require Import concurrency.juicy_machine. Import Concur.
-Require Import concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.TheSchedule.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.juicy_machine. Import Concur.
+Require Import VST.concurrency.dry_machine. Import Concur.
 
 (*The simulations*)
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.wholeprog_simulations.
 
 Definition init_inj_ok (j: Values.Val.meminj) m:=
   forall b b' ofs, j b = Some (b', ofs) ->

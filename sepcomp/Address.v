@@ -4,7 +4,7 @@ Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 
-Require Import msl.eq_dec.
+Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.
 

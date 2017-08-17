@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import msl.base msl.sepalg.
+Require Import VST.msl.base VST.msl.sepalg.
 Require Import veristar.variables.
 
 (** Separation Logic Interface

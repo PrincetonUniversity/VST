@@ -2,10 +2,10 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
@@ -14,14 +14,14 @@ Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.mem_obs_eq.
-Require Import concurrency.x86_inj.
-Require Import concurrency.x86_context.
-Require Import concurrency.fineConc_safe.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.mem_obs_eq.
+Require Import VST.concurrency.x86_inj.
+Require Import VST.concurrency.x86_context.
+Require Import VST.concurrency.fineConc_safe.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 

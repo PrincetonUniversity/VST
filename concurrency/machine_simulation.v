@@ -10,13 +10,13 @@ Require Import compcert.common.Values.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import sepcomp.mem_wd.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.mem_wd.
 
-Require Import concurrency.machine_semantics.
-Require Import concurrency.machine_semantics_lemmas.
+Require Import VST.concurrency.machine_semantics.
+Require Import VST.concurrency.machine_semantics_lemmas.
 
 Module Machine_sim. Section Machine_sim.
 
@@ -124,7 +124,7 @@ Definition CompCert_wholeprog_sim :=
 
 End CompCert_wholeprog_sim.
 
-Require Import sepcomp.internal_diagram_trans.
+Require Import VST.sepcomp.internal_diagram_trans.
 Require Import Relations.
 Lemma well_founded_sem_compose_ord_eq_eq: forall {D12 D23:Type}
   (ord12: D12 -> D12 -> Prop) (ord23: D23 -> D23 -> Prop)  (C2:Type)
@@ -147,7 +147,7 @@ Proof.
   specialize H1. auto.
 Qed.
 
-Require Import sepcomp.simulations.
+Require Import VST.sepcomp.simulations.
 
 Section WholeSimTrans.
 Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}

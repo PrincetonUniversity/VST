@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
-Require Import msl.subtypes.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.subtypes.
 
 Require Import Coq.Wellfounded.Wellfounded.
 Require Import Coq.funind.Recdef.

@@ -24,9 +24,9 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Op.
-Require Import ccc26x86.Locations.
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Op.
+Require Import VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Conventions.
 
 (** * Abstract syntax *)
 

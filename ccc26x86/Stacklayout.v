@@ -14,7 +14,7 @@
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Memory ccc26x86.Separation.
-Require Import ccc26x86.Bounds.
+Require Import VST.ccc26x86.Bounds.
 
 (** The general shape of activation records is as follows,
   from bottom (lowest offsets) to top:

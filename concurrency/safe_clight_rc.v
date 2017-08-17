@@ -12,13 +12,13 @@ Require Import Clight.
 Require Import Clight_coop.
 Require Import Clight_eff.
 
-Require Import sepcomp. Import SepComp.
-Require Import arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.arguments.
 
-Require Import jstep.
-Require Import pred_lemmas.
-Require Import rc_semantics.
-Require Import simulations. Import SM_simulation.
+Require Import VST.concurrency.jstep.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.rc_semantics.
+Require Import VST.sepcomp.simulations. Import SM_simulation.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -1,8 +1,8 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.fieldlist.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
 Open Scope Z.
 
 

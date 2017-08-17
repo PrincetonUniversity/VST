@@ -1,15 +1,15 @@
-Require Import sepcomp.semantics.
-Require Import sepcomp.simulations.
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.simulations.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.cfrontend.Clight.
 
 (*To prove memsem*)
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 Inductive CC_core : Type :=
     CC_core_State : function ->

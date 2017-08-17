@@ -8,14 +8,14 @@ Require Import Bool.
 Require Import Zbool.
 Require Import BinPos.
 
-Require Import concurrency.compcert_imports. Import CompcertCommon.
+Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
 Require Import Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.seq_lemmas.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.seq_lemmas.
 
 (* This file collects lemmas on structured injections.                    *)
 (* [Inj.t] is the type of well-defined structured injections. It is       *)

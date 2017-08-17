@@ -1,8 +1,8 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import Coqlib.
 Require Import Recdef.
 Existing Instance NullExtension.Espec.
-Require Import progs.switch.
+Require Import VST.progs.switch.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

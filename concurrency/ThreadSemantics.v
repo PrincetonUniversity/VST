@@ -1,9 +1,9 @@
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.semantics.
 
-Require Import compcert.lib.Coqlib.
-Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers.
-Require Import compcert.lib.Axioms.
+Require Import VST.compcert.lib.Coqlib.
+Require Import VST.compcert.lib.Maps.
+Require Import VST.compcert.lib.Integers.
+Require Import VST.compcert.lib.Axioms.
 
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
@@ -11,7 +11,7 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 
 (** *I'm overloading the definition of coresemantics. **)

@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List Coq.Sorting.Permutation
                Coq.Logic.Classical.
-Require Import msl.Axioms msl.predicates_sa.
+Require Import VST.msl.Axioms VST.msl.predicates_sa.
 Require Import veristar.datatypes veristar.clauses veristar.list_denote
                veristar.model_type veristar.model veristar.spred_lemmas
                veristar.basic.

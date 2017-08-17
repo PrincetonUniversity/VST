@@ -5,7 +5,7 @@
 (** First, import the entire Floyd proof automation system, which
  ** includes the VeriC program logic and the MSL theory of separation logic
  **)
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 
 (** Import the theory of list segments.  This is not, strictly speaking,
  ** part of the Floyd system.  In principle, any user of Floyd can build
@@ -15,7 +15,7 @@ Require Import floyd.proofauto.
  ** as the theory uses Coq's dependent types to handle user-defined
  ** record fields.
  **)
-Require Import progs.list_dt. Import LsegSpecial.
+Require Import VST.progs.list_dt. Import LsegSpecial.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c.   The file reverse.v defines abbreviations for identifiers
@@ -23,7 +23,7 @@ Require Import progs.list_dt. Import LsegSpecial.
  ** It also defines "prog", which is the entire abstract syntax tree
  ** of the C program in the reverse.c file.
  **)
-Require Import progs.reverse.
+Require Import VST.progs.reverse.
 
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators

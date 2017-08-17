@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.incr.
+Require Import VST.progs.conclib.
+Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

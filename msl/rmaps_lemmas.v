@@ -1,8 +1,8 @@
-Require Import msl.msl_standard.
-Require Import msl.cjoins.
-Require Import msl.rmaps.
-Require Import msl.Coqlib2.
-Require Import msl.sepalg_list.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.cjoins.
+Require Import VST.msl.rmaps.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.sepalg_list.
 
 Module Rmaps_Lemmas (R: RMAPS).
 Module R := R.

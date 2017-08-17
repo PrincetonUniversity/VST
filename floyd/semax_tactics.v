@@ -1,6 +1,6 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.forward_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.forward_lemmas.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)

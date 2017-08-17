@@ -1,7 +1,7 @@
-Require Import floyd.base2.
+Require Import VST.floyd.base2.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Classes.Morphisms.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 
 Open Scope Z.

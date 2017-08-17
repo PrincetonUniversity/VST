@@ -1,12 +1,12 @@
-Require Import veric.base.
-Require Import msl.normalize.
-Require Import veric.compcert_rmaps.
-Require Import msl.msl_standard.
-Require Import veric.res_predicates.
-Require Import veric.seplog.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.base.
+Require Import VST.msl.normalize.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.seplog.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with

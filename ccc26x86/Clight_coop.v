@@ -13,13 +13,13 @@ Require Import Ctypes.
 Require Import Cop.
 
 Require Import compcert.cfrontend.Clight.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import ccc26x86.BuiltinEffects.
-Require Import sepcomp.val_casted.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.sepcomp.val_casted.
 
 Section CLIGHT_MEM.
 

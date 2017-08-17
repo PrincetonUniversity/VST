@@ -2,18 +2,18 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
-Require Import msl.Coqlib2.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permjoin_def.
+Require Import VST.msl.Coqlib2.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permjoin_def.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
-From veric Require Import shares juicy_mem juicy_mem_lemmas.
-Require Import msl.msl_standard.
+From VST.veric Require Import shares juicy_mem juicy_mem_lemmas.
+Require Import VST.msl.msl_standard.
 Import cjoins.
 
 (*IM using proof irrelevance!*)

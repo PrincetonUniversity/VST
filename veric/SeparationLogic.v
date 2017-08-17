@@ -1,4 +1,4 @@
-Require Import veric.base.
+Require Import VST.veric.base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
@@ -8,27 +8,27 @@ Require Export compcert.common.AST.
 Require Export compcert.common.Values.
 Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
-Require Export sepcomp.Address.
-Require Export msl.eq_dec.
-Require Export msl.shares.
-Require Export msl.predicates_rec.
-Require Export msl.contractive.
-Require Export msl.seplog.
-Require Export msl.alg_seplog.
-Require Export msl.log_normalize.
-Require Export msl.ramification_lemmas.
-Require Export veric.tycontext.
-Require Export veric.expr.
-Require Export veric.expr_rel.
-Require Export veric.Clight_lemmas.
-Require Export veric.shares.
-Require veric.seplog.
-Require veric.assert_lemmas.
-Require Import msl.Coqlib2.
-Require Import veric.juicy_extspec.
-Require Import veric.valid_pointer.
-Require veric.semax_prog.
-Require veric.semax_ext.
+Require Export VST.sepcomp.Address.
+Require Export VST.msl.eq_dec.
+Require Export VST.msl.shares.
+Require Export VST.msl.predicates_rec.
+Require Export VST.msl.contractive.
+Require Export VST.msl.seplog.
+Require Export VST.msl.alg_seplog.
+Require Export VST.msl.log_normalize.
+Require Export VST.msl.ramification_lemmas.
+Require Export VST.veric.tycontext.
+Require Export VST.veric.expr.
+Require Export VST.veric.expr_rel.
+Require Export VST.veric.Clight_lemmas.
+Require Export VST.veric.shares.
+Require VST.veric.seplog.
+Require VST.veric.assert_lemmas.
+Require Import VST.msl.Coqlib2.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.valid_pointer.
+Require VST.veric.semax_prog.
+Require VST.veric.semax_ext.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -841,7 +841,7 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
 
 Definition  funspecs_norepeat (fs : funspecs) := list_norepet (map fst fs).
 
-Require veric.semax_ext.
+Require VST.veric.semax_ext.
 
 Definition add_funspecs (Espec : OracleKind)
          (ext_link: Strings.String.string -> ident)

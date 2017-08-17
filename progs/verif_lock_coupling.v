@@ -1,8 +1,8 @@
-Require Import progs.conclib.
-Require Import progs.ghost.
-(*Require Import progs.list_dt. Import LsegSpecial.*)
-Require Import floyd.library.
-Require Import progs.lock_coupling.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+(*Require Import VST.progs.list_dt. Import LsegSpecial.*)
+Require Import VST.floyd.library.
+Require Import VST.progs.lock_coupling.
 Require Import Sorting.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.

@@ -1,4 +1,4 @@
-Require Import floyd.base.
+Require Import VST.floyd.base.
 
 Local Open Scope logic.
 

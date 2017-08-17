@@ -9,8 +9,8 @@
     the trivial unit and void separation algrbras.
 *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
 
 (** The trivial separation algebra over the unit type.  This SA
     is the identity of the product SA operator, up to isomorphism.

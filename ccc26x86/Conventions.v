@@ -15,8 +15,8 @@
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.common.AST.
-Require Import ccc26x86.Locations.
-Require Export ccc26x86.Conventions1.
+Require Import VST.ccc26x86.Locations.
+Require Export VST.ccc26x86.Conventions1.
 
 (** The processor-dependent and EABI-dependent definitions are in
     [arch/abi/Conventions1.v].  This file adds various processor-independent

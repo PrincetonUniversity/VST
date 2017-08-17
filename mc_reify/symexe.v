@@ -1,5 +1,5 @@
 Require Export mc_reify.reify.
-Import floyd.proofauto.
+Import VST.floyd.proofauto.
 Require Export mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
 Require Import MirrorCore.Lemma.

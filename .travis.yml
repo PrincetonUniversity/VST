@@ -37,7 +37,7 @@ install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
 - eval $(opam config env)
 - opam config var root
-- opam install -j ${NJOBS} -y coq=8.6 ${EXTRA_OPAM}
+- opam install -j ${NJOBS} -y coq=8.6.1 ${EXTRA_OPAM}
 - opam list
 
 jobs:

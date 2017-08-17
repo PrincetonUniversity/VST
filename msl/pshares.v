@@ -3,11 +3,11 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.eq_dec.
-Require Import msl.shares.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.shares.
 
 (** The prototypical example of a psepalg is the positive shares, which
     are just the lifted basic shares. *)

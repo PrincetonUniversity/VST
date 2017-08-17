@@ -1,9 +1,9 @@
 Require Import mailbox.verif_atomic_exchange.
-Require Import veric.rmaps.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.veric.rmaps.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.lock.
 
 Set Bullet Behavior "Strict Subproofs".

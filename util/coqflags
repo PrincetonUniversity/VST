@@ -1,0 +1,40 @@
+#!/bin/bash
+# THIS SCRIPT COMPUTES THE LOADPATH and other useful Coq flags
+# for users of VST.
+#
+# USAGE:
+#   (cd VST; util/coqflags) > .loadpath-VST
+#
+# TO INCLUDE EXTRA COMPONENTS OF VST beyond compcert,msl,sepcomp,veric,floyd,
+# use extra arguments, e.g.,
+#   (cd VST; util/coqflags concurrency) > .loadpath-VST
+
+
+DIRS="msl sepcomp veric floyd $*"
+
+for D in $DIRS
+do
+    if ! [ -d $D ]
+    then
+	>&2 echo "Directory $D not found in current directory"
+	exit 1
+    fi
+done    
+
+
+if [ -v WINDIR ]
+then  # hacks necessary for cygwin
+VST=`/bin/pwd | awk '/^[/]cygdrive[/]/{sub(/^[/]cygdrive[/]/,""); sub("/",":/"); print $0}'`
+FLAGS="-async-proofs off"
+else
+VST=`/bin/pwd`
+FLAGS=
+fi
+
+for D in $DIRS
+do
+    FLAGS=$FLAGS" -Q $VST/$D VST.$D"
+done    
+    
+
+echo $FLAGS -R $VST/compcert compcert

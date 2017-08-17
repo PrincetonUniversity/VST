@@ -8,7 +8,7 @@ Require Import compcert.common.Events.
 (*Will need : *)
 Require Export Coq.Logic.FunctionalExtensionality.
 
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 Notation val_inject:= Val.inject.
 (** * Structured Injections *)
