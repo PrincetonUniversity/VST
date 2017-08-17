@@ -543,7 +543,7 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile
+_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflags 
 	echo $(COQFLAGS) > .loadpath
 	util/coqflags > .loadpath-export
 	cp .loadpath-export _CoqProject-export

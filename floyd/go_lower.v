@@ -232,8 +232,6 @@ intros.
 apply prop_right; auto.
 Qed.
 
-Definition rho_marker := tt.
-
 Ltac go_lower :=
 clear_Delta_specs;
 intros;
@@ -247,20 +245,9 @@ end;
 repeat (simple apply derives_extract_PROP; fancy_intro true);
 let rho := fresh "rho" in
 intro rho;
-try match goal with
-| |- ?LHS |--  ?S rho =>
-       unify (S rho) (S any_environ);
-       let u := fresh "u" in pose (u := rho_marker);
-   let x := fresh "x" in set (x:=LHS);
-   unfold_for_go_lower; simpl; subst x;
-   rewrite ?(prop_true_andp True) by auto
-end;
 first [simple apply quick_finish_lower
 | repeat first
- [ match goal with u:=rho_marker |- _ => idtac end;
-   simple eapply lower_one_temp_trivial;
-     [reflexivity | unfold tc_val at 1; fancy_intro true ]
- | simple eapply lower_one_temp_Vint;
+ [ simple eapply lower_one_temp_Vint;
      [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
  | lower_one_temp_Vint'
  | simple eapply lower_one_temp;
@@ -300,7 +287,6 @@ repeat match goal with
      rewrite (eq_True (sgvar_denote i v' rho) H)
 end
 ];
-try match goal with u := rho_marker |- _ => clear u end;
 clear_Delta;
 try clear dependent rho.
 

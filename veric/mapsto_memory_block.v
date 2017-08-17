@@ -1138,7 +1138,7 @@ Proof.
      exact (conj H0 H1).
  } Unfocus.
   f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1175,7 +1175,7 @@ Proof.
      exact H1.
  } Unfocus.
  f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.

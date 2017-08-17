@@ -246,12 +246,14 @@ semax Delta_update_inner_if
   (inv_at_inner_if sh hashed len c d dd data kv)
   update_inner_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
-     (function_body_ret_assert tvoid
+    (frame_ret_assert
+      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (K_vector kv;
-                 sha256state_ a' c; data_block sh data d)))).
+                 sha256state_ a' c; data_block sh data d)))
+      emp)).
 Proof.
 intros.
 name c' _c.
@@ -374,7 +376,6 @@ forward_if.
   unfold_data_at 1%nat.
   cancel.
 + (* else clause: len < fragment *)
-  weak_normalize_postcondition.
   unfold k.
   clear H1; assert (H1: 64 < Int.max_unsigned) by computable.
   clear - H Hsh LEN64 H3 H3' H4 Hlen H0 H1 H2 DBYTES.
@@ -419,6 +420,7 @@ forward_if.
   rewrite sublist_list_repeat by Omega1.
   clear H5 H6.
   forward. (* c->num = n+(unsigned int)len; *)
+  weak_normalize_postcondition.
   forward. (* return; *)
   Exists (S256abs hashed (dd ++ sublist 0 len data)).
   repeat rewrite TT_andp.

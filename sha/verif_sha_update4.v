@@ -7,7 +7,6 @@ Require Import sha.verif_sha_update3.
 Local Open Scope Z.
 Local Open Scope logic.
 
-
 Lemma Hblocks_lem:
  forall {blocks: list int} {frag: list Z} {data},
  intlist_to_Zlist blocks = frag ++ sublist 0 (Zlength blocks * 4 - Zlength frag) data ->
@@ -83,12 +82,14 @@ semax
      data_block sh data d))
   update_outer_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
+    (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (K_vector kv;
-                 sha256state_ a' c; data_block sh data d)))).
+                 sha256state_ a' c; data_block sh data d)))
+    emp)).
 Proof.
 intros.
 unfold update_outer_if.

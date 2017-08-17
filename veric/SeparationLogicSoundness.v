@@ -70,9 +70,6 @@ Proof.
   intros.
   unfold func_ptr.
   destruct spec.
-  change (@predicates_hered.exp rmap compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
-  change (@predicates_hered.andp rmap compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
-  change (@predicates_hered.prop rmap compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
   normalize.
 Qed.
 

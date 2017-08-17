@@ -202,7 +202,6 @@ Proof.
    SEP (reseedPOST v Data data (Zlength Data) s
           myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
-    apply andp_right. apply prop_right; trivial.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
 
@@ -250,7 +249,6 @@ Proof.
   forward. forward.
  
   Exists Int.zero. simpl.
-  apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial. 
   Exists p. Exists (M1, (M2, M3)).
   thaw ALLSEP. thaw OLD_MD.
@@ -425,7 +423,7 @@ Proof.
   destruct I.
   destruct i as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
-  Intros. simpl in *.
+  Intros. simpl in BOUND.
   rename H into XH1.
   rename H0 into XH2.
   rename H1 into XH3.
@@ -438,7 +436,6 @@ Proof.
   Intros.
 
   (* entropy_len = ctx->entropy_len *)
-  simpl in *.
   remember (contents_with_add additional add_len contents) as contents'.
   assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
     { subst contents'. unfold contents_with_add.
@@ -482,7 +479,9 @@ Proof.
       SEP (FRZL FR2)
   ).
   { rewrite H in *. subst add_len_too_high. forward.
-    Exists seed (Vint (Int.neg (Int.repr 5))). unfold AREP. Exists Info.
+    Exists (Vint (Int.neg (Int.repr 5))). unfold AREP.
+    rewrite <- Heqadd_len_too_high.
+    Exists Info.
     unfold REP. entailer!.
     thaw FR2.
     Exists (md_ctx',
@@ -571,12 +570,13 @@ Proof.
   ).
   { (* != 0 case *)
     forward. 
-    Exists seed (Vint (Int.neg (Int.repr (9)))). (*entailer!.
+    Exists (Vint (Int.neg (Int.repr (9)))). (*entailer!.
     Exists (mbedtls_HMAC256_DRBG_reseed_function s
            (HMAC256DRBGabs key V reseed_counter entropy_len
               prediction_resistance reseed_interval)
               (contents_with_add additional (Zlength contents) contents)).*)
     unfold AREP, REP.
+    simpl.
     Exists Info
       (md_ctx',
          (map Vint (map Int.repr V),
@@ -1189,7 +1189,7 @@ Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
   forward.
  
   (* prove function post condition *)
-  Exists K sep; entailer!. simpl in *.
+  entailer!. simpl in *.
   Exists Info (hmac256drbgabs_to_state (*final_state_abs*)
       (hmac256drbgabs_hmac_drbg_update I (contents_with_add additional add_len contents))
      (IS1a, (IS1b, IS1c), (IS2, (IS3, (IS4, (IS5, IS6)))))).

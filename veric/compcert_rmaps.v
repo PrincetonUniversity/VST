@@ -334,14 +334,14 @@ Proof.
  destruct p; auto.
 Qed.
 
-Lemma fixup_trace_ok_share_of:
+(*Lemma fixup_trace_ok_share_of:
   forall a (OKa: fixup_trace_ok a) x, 
        Share.glb Share.Rsh (share_of (a x)) = share_of (a x).
 Proof.
   intros.
  specialize (OKa x). destruct (a x) as [[? ?]|]; simpl in *.
  auto. apply Share.glb_bot.
-Qed.
+Qed.*)
 
 Lemma join_sub_same_k:
  forall {a a' : rshare} {k k': AV.kind},
@@ -655,7 +655,7 @@ Proof.
  exists (c x0); apply join_comm; apply H0.
 Qed.
 
-Instance Trip_resource : Trip_alg resource.
+Instance Trip_resource: Trip_alg resource.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa].
@@ -717,7 +717,7 @@ destruct (triple_join_exists_share ra rb rc rab rbc rac) as [rabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (sabc := join_readable1 j sab).
 exists (YES rabc sabc kc pc).
- inv H. inv H1. inv H0.  
+ inv H. inv H1. inv H0.
 constructor; auto.
  exists ab. inv H. inv H1. inv H0. constructor.
 Qed.
@@ -746,7 +746,8 @@ destruct x; simpl; auto.
 destruct k; simpl; auto.
 intros.
 destruct (f (b',z'+i)). simpl.
-case_eq (ab @ (b', z')); case_eq (c @ (b', z')); intros.
+case_eq (ab @ (b', z')); case_eq (c @ (b', z')); intros; try solve [rewrite H3 in j; inv j];
+  try solve [rewrite H4 in j; inv j].
 rewrite H3 in j; rewrite H4 in j. inv j.
 rename H3 into H6.
 pose proof (rmap_valid_e1 c b' z' _ _ H2 (readable_part r0)).
@@ -777,8 +778,6 @@ rewrite H4 in H5. inv H5.
 *
 intros.
 rewrite H3 in j0. inv j0.
-*
-rewrite H4 in j. inv j. rewrite H3 in H7. inv H7.
 *
 rewrite H4 in j. inv j.
 assert (H99 := pure_readable_share_i _ r0).
@@ -813,20 +812,10 @@ apply join_glb_Rsh in RJ.
 apply join_glb_Rsh in RJ0.
 rewrite H8 in *; rewrite H7 in *.
 eapply join_eq;  eauto.
-*
-rewrite H3 in j; inv j.
-*
-rewrite H4 in j; inv j.
-*
-rewrite H4 in j; inv j.
-*
-rewrite H3 in j; inv j.
 * (**)
 destruct (f (b',z'-z)).
 simpl.
-case_eq (ab @ (b', z')); case_eq (c @ (b', z')); intros.
-+
-rewrite H2 in j; rewrite H3 in j; inv j.
+case_eq (ab @ (b', z')); case_eq (c @ (b', z')); intros; try solve [rewrite H2, H3 in j; inv j].
 +
 rewrite H2 in j; rewrite H3 in j; inv j.
 rename H2 into H5.
@@ -846,8 +835,6 @@ pose proof (rmap_valid_e1 ab b' (z'-z) _ _ H2 (mk_rshare _ H98)).
 spec H4. rewrite <- H6. simpl. repeat f_equal. apply exist_ext. auto.
 rewrite Z.sub_add in H4.
 rewrite <- H3 in H4; inv H4.
-+
-rewrite H2 in j; inv j.
 +
 rewrite H2 in j; inv j. rewrite H3 in H5; inv H5.
 assert (H99 := pure_readable_share_i _ r0).
@@ -885,14 +872,6 @@ apply join_glb_Rsh in RJ.
 apply join_glb_Rsh in RJ0.
 rewrite H9 in *; rewrite H7 in *.
 eapply join_eq; eauto.
-+
-rewrite H2 in j; inv j.
-+
-rewrite H3 in j; inv j.
-+
-rewrite H3 in j; inv j.
-+
-rewrite H2 in j; inv j.
 *
 destruct (make_rmap _ H2 (level a)) as [abc [? ?]].
 extensionality loc. unfold compose; simpl.

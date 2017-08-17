@@ -114,7 +114,7 @@ Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
 Defined.
 
 Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). Existing Instance Canc_env.
-Parameter Disj_env: forall {DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
+Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
 Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
 
 
@@ -317,7 +317,7 @@ Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Canc_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Disj_env {DA: Disj_alg A}: @Disj_alg env Join_env.
+Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Disj_fpm; auto with typeclass_instances.
 Qed.
 
@@ -816,7 +816,7 @@ apply unit_identity with (pshare_sh sh2); apply join_comm; auto.
 destruct H4 as [? [? ?]]; simpl snd in *; subst.
 generalize (join_canc (join_comm j) (join_comm H)); intro; subst.
 destruct (dec_share_identity (lifted_obj (fst a2))).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (lifted_obj (fst a2))).
+contradiction (@nonunit_nonidentity _ _ _ _ (lifted_obj (fst a2))).
 destruct (fst a2); simpl; auto.
 destruct a2; simpl in *. destruct p; simpl in *.
 constructor; simpl; auto.
@@ -826,7 +826,7 @@ inv H.
 apply bot_identity in j.
 subst.
 destruct (dec_share_identity (pshare_sh sh2)).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (pshare_sh sh2)).
+contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
 f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.

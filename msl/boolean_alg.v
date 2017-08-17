@@ -865,9 +865,10 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
 
   Instance da: Disj_alg t.
   Proof. repeat intro.
-    destruct H.
-    rewrite lub_idem in H0.
-    auto.
+    destruct H, H0.
+    rewrite lub_idem in H1; subst.
+    rewrite glb_idem in H; subst.
+    rewrite lub_commute, lub_bot; auto.
   Qed.
 
 End BA_Facts.

@@ -557,7 +557,7 @@ Proof.
   Focus 1. {
     apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5.
     change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
-    change compcert_rmaps.R.rmap with rmap in *; omega.
+    omega.
   } Unfocus.
   assert (LT: level a2 < level w).
   Focus 1. {

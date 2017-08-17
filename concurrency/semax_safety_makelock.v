@@ -201,8 +201,10 @@ Proof.
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RL0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
-  assert (ji : join_sub (getThreadR _ _ cnti) Phi) by join_sub_tac.
-  destruct ji as (psi & jpsi). cleanup.
+  pose proof juice_join compat as j.
+  rewrite join_all_joinlist in j.
+  rewrite maps_getthread with (cnti := cnti) in j.
+  destruct j as (psi & jpsi1 & jpsi).
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
 
@@ -286,18 +288,12 @@ Proof.
     + (* join_all *)
       (* rewrite <-Hpersonal_juice. autospec El. cleanup. rewrite El. *)
       apply join_all_age_to. cleanup. omega.
-      pose proof juice_join compat as j.
       rewrite join_all_joinlist.
-      rewrite join_all_joinlist in j.
       rewrite maps_updlock1.
       rewrite maps_remLockSet_updThread.
       rewrite maps_updthread.
       rewrite maps_getlock1. 2:assumption.
-      rewrite maps_getthread with (cnti := cnti) in j.
-      destruct j as (psi_ & jpsi_ & jphi_).
-      exists psi; split. 2:assumption.
-      cut (psi = psi_). now intros <-; auto.
-      eapply join_canc. eapply join_comm. apply jpsi. eapply join_comm. eauto.
+      exists psi; auto.
 
     + (* mem_cohere' *)
       split.

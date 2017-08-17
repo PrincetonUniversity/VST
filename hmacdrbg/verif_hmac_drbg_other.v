@@ -20,7 +20,7 @@ Proof.
   rewrite da_emp_isptrornull. Intros.
   destruct ctx; try contradiction.
   - (*ctx==null*)
-    simpl in *; subst i. rewrite da_emp_null; trivial.
+    simpl in PNctx; subst i. rewrite da_emp_null; trivial.
     forward_if (`FF).
     + forward. apply tt.
     + inv H.

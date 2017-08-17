@@ -2119,3 +2119,195 @@ Proof.
     apply prop_right.
     apply make_args0_tc_environ; auto.
 Qed.
+
+Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
+| return_outer_gen_refl: forall P t sf,
+    return_outer_gen
+      (frame_ret_assert (function_body_ret_assert t P) sf)
+      (frame_ret_assert (function_body_ret_assert t P) sf)
+| return_outer_gen_switch: forall P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (switch_ret_assert P) Q
+| return_outer_gen_post: forall post P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (overridePost post P) Q
+| return_outer_gen_loop1: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop1_ret_assert inv P) Q
+| return_outer_gen_loop2: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop2_ret_assert inv P) Q.
+
+Lemma return_outer_gen_spec: forall P Q,
+  return_outer_gen P Q ->
+  P EK_return = Q EK_return.
+Proof.
+  intros.
+  induction H.
+  + auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+  + etransitivity; [| eassumption].
+    auto.
+Qed.
+
+Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_inner_gen_main: forall ov_gen P ts u,
+    return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
+| return_inner_gen_canon_nil:
+    forall ov_gen P R,
+      return_inner_gen S ov_gen
+        (PROPx P (LOCALx nil (SEPx R)))
+        (PROPx P (LOCALx nil (SEPx (R ++ S))))
+| return_inner_gen_canon_Some:
+    forall P v R v_gen,
+      return_inner_gen S (Some v_gen)
+        (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R)))
+        (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx (R ++ S))))
+| return_inner_gen_EX':
+    forall ov_gen (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_inner_gen S ov_gen (post1 a) (post2 a)) ->
+      return_inner_gen S ov_gen (exp post1) (exp post2).
+
+Lemma return_inner_gen_EX: forall S ov_gen A post1 post2,
+  (forall a: A, exists P, return_inner_gen S ov_gen (post1 a) P /\ P = post2 a) ->
+  return_inner_gen S ov_gen (exp post1) (exp post2).
+Proof.
+  intros.
+  apply return_inner_gen_EX'.
+  intro a; specialize (H a).
+  destruct H as [? [? ?]]; subst.
+  auto.
+Qed.
+
+Lemma return_inner_gen_None_spec: forall S post1 post2,
+  return_inner_gen S None post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args nil nil rho)) * SEPx S.
+Proof.
+  intros.
+  remember None eqn:?H.
+  revert H0; induction H; intros; subst.
+  + unfold main_post.
+    go_lowerx.
+  + rewrite gather_SEP.
+    go_lowerx.
+  + inversion H0.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a eq_refl)).
+    intro rho.
+    simpl.
+    apply sepcon_derives; auto.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma return_inner_gen_Some_spec: forall S v_gen post1 post2,
+  return_inner_gen S (Some v_gen) post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)) * SEPx S.
+Proof.
+  intros.
+  remember (Some v_gen) eqn:?H.
+  revert v_gen H0; induction H; intros; subst.
+  + unfold main_post.
+    go_lowerx.
+  + rewrite gather_SEP.
+    go_lowerx.
+  + erewrite PROPx_Permutation by apply Permutation_app_comm.
+    rewrite gather_SEP.
+    go_lowerx.
+    unfold_lift.
+    apply sepcon_derives; auto.
+    apply andp_right; auto.
+    apply prop_right; split; auto.
+    subst.
+    inversion H0.
+    unfold globals_only, eval_id, env_set, te_of.
+    rewrite Map.gss; auto.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a _ eq_refl)).
+    intro rho.
+    simpl.
+    apply sepcon_derives; auto.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3,
+  ret_type Delta = Tvoid ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx SEPsf)) |-- sf ->
+  return_inner_gen SEPsf None post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H0.
+  rewrite H0; clear Post1 H0.
+  apply return_inner_gen_None_spec in H2.
+  apply andp_right.
+  + unfold tc_expropt.
+    unfold_lift; intros rho; apply prop_right; auto.
+  + unfold cast_expropt, id.
+    apply (derives_trans _ _ _ H3) in H2; clear H3.
+    revert H1 H2; unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift.
+    simpl; intros ? ? rho.
+    specialize (H1 rho); specialize (H2 rho).
+    normalize.
+    normalize in H1.
+    normalize in H2.
+    eapply derives_trans; [exact H2 |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H1] |].
+    unfold frame_ret_assert, function_body_ret_assert, bind_ret, make_args.
+    rewrite H.
+    unfold_lift; simpl.
+    auto.
+Qed.
+
+Lemma semax_return_Some: forall {cs Espec} Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3 ret v_gen,
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta (Ecast ret (ret_type Delta)) ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx SEPsf)) |-- sf ->
+  return_inner_gen SEPsf (Some v_gen) post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn (Some ret)) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H1.
+  rewrite H1; clear Post1 H1.
+  apply andp_right; [exact H0 |].
+  apply return_inner_gen_Some_spec in H3.
+  assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
+            |-- ` (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf EK_return (Some v_gen)) id).
+  + unfold frame_ret_assert, function_body_ret_assert, bind_ret, cast_expropt.
+    apply (derives_trans _ _ _ H4) in H3; clear H4.
+    revert H H0 H2 H3.
+    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift.
+    simpl; intros ? ? ? ? rho.
+    specialize (H rho); specialize (H0 rho).
+    specialize (H2 rho); specialize (H3 rho).
+    normalize.
+    normalize in H.
+    normalize in H0.
+    normalize in H2.
+    normalize in H3.
+    rewrite (add_andp _ _ H); normalize; clear H.
+    apply andp_right.
+    - apply (derives_trans _ _ _ H0).
+      eapply derives_trans; [apply typecheck_expr_sound; auto |].
+      unfold_lift; auto.
+    - apply (derives_trans _ _ _ H3).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H2] |].
+      unfold_lift; auto.
+  + rewrite (add_andp _ _ H1), (add_andp _ _ H).
+    rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+    apply andp_left2.
+    go_lowerx.
+    subst.
+    unfold id.
+    normalize.
+Qed.

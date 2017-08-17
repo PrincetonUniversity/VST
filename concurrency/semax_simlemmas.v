@@ -580,11 +580,7 @@ Ltac join_sub_tac :=
           c : mem_compatible_with ?tp _ ?Phi |- _
       => assert (join_sub phi Phi) by eapply (@compatible_lockRes_sub tp loc phi F), c
     end;
-  try
-    match goal with
-    | j : join ?a ?b ?c |- join_sub ?c _ => try apply (join_sub_join j)
-    end;
-  eauto using join_sub_trans, join_sub_join.
+  eauto using join_sub_trans.
 
 Lemma restrPermMap_Max' m p Hlt loc :
   access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.

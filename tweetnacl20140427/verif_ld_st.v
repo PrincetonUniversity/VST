@@ -16,30 +16,38 @@ Opaque fcore_result.
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
-start_function. 
+start_function.
+destruct (Int.ltu c Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H0.
+    change (Int.unsigned Int.iwordsize) with 32 in H0.
+    omega.
+  } Unfocus.
+  destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H1.
+    unfold Int.sub in H1.
+    change (Int.unsigned (Int.repr 32)) with 32 in H1.
+    rewrite Int.unsigned_repr in H1 by repable_signed.
+    change (Int.unsigned Int.iwordsize) with 32 in H1.
+    omega.
+  } Unfocus.
 Time forward. (*8.8*)  
-Time entailer!. (*0.8*)
+{
+  entailer!.
+  rewrite H0, H1; simpl; auto.
+}
+entailer!.
 assert (W: Int.zwordsize = 32). reflexivity.
-assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
-remember (Int.ltu c Int.iwordsize) as d. symmetry in Heqd.
-destruct d; simpl.
-{ clear Heqd.
-  remember (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) as z. symmetry in Heqz.
-  destruct z.
-  - simpl; split; trivial. split. 2: split; trivial.
-    apply ltu_inv in Heqz. unfold Int.sub in *.
-    rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
-    rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
-    unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
-    rewrite Z.mod_small, W; simpl; try omega.
-    rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-    rewrite Int.and_mone. trivial.
-  - apply ltu_false_inv in Heqz. rewrite U in *.
-    unfold Int.sub in Heqz.
-    rewrite (Int.unsigned_repr 32), Int.unsigned_repr in Heqz. omega.
-    rewrite int_max_unsigned_eq; omega.
-    rewrite int_max_unsigned_eq; omega. }
-{ apply ltu_false_inv in Heqd. rewrite U in *. omega. }
+assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
+unfold sem_shift; simpl. rewrite H0, H1; simpl.
+unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
+rewrite Z.mod_small, W; simpl; try omega.
+unfold Int.sub.
+rewrite Int.and_mone.
+change (Int.unsigned (Int.repr 32)) with 32.
+rewrite Int.unsigned_repr by repable_signed.
+auto.
 Time Qed. (*0.9*)
 
 Lemma ld32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs

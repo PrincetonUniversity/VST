@@ -182,8 +182,8 @@ Proof.
     Exists (h' ++ [AE v' v]) v; entailer!.
     cancel. }
   forward.
-  Exists (length h') (Vint v'); unfold AE_loc; entailer!.
-  - rewrite Forall_forall; intros (?, ?) Hin.
+  Exists (length h') (Vint v'). unfold AE_loc; entailer!.
+  - rewrite Forall_forall. intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
   - apply andp_left2; auto.

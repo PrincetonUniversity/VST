@@ -350,13 +350,12 @@ Proof.
     {
       (* reseed's return_value != 0 *) 
       rename H into Hrv.
-      unfold POSTCONDITION, abbreviate.
       forward. simpl in *.
 (*      clear - Hadd_lenb Hadd_len Hrv H3 Hout_lenb ZLa F H4 Hshould_reseed.*)
       Exists (Vint return_value).
-      apply andp_right. apply prop_right; trivial. 
-      apply andp_right. apply prop_right; split; trivial.
-      normalize. 
+      apply andp_right. apply prop_right; auto.
+      apply andp_right. auto.
+      normalize.
       apply entailment1; trivial. }
 
      { (* reseed's return_value = 0 *)
@@ -645,11 +644,11 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
 Opaque HMAC_DRBG_generate_helper_Z.
 Opaque hmac256drbgabs_reseed.
 Opaque mbedtls_HMAC256_DRBG_generate_function.
-    eapply semax_post.
+    eapply semax_post. (* TODO: generate_loopbody should be formalized in a better way such that it can be directly applied, and thus stackframe_of do not need to be unfolded manually. *)
     2: eapply (generate_loopbody StreamAdd) (*with (IS:=aaa) (IC:=IC)*); simpl; trivial.
     intros. unfold POSTCONDITION, abbreviate. old_go_lower. unfold loop1_ret_assert.
     subst; destruct ek; Intros; simpl; try cancel.
-    unfold overridePost; simpl. destruct vl. cancel. normalize. (*
+    unfold overridePost; simpl. destruct vl. unfold stackframe_of; simpl. cancel. normalize. (*
     rename H into Hdone.
     destruct H0 as [Hmultiple | Hcontra]; [| subst done; elim HRE; f_equal; omega].
     destruct Hmultiple as [n Hmultiple].
@@ -1194,7 +1193,6 @@ Require Import hamcdrbg_verif_gen_whilebody.
   freeze [1;2;4;5;6;7] FIELDS.
   forward. forward. forward.
   Exists (Vint (Int.repr 0)).
-  apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial.
   thaw FIELDS. thaw FR5. thaw StreamOut.  
 (*

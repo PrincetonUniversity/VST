@@ -27,13 +27,14 @@ start_function.
   The method shown here is
   only to illustrate some of the steps that "forward" takes.
 *)
-eapply semax_pre; [ | apply semax_return].
-apply andp_right.
-go_lower.
-entailer!.
-subst POSTCONDITION; unfold abbreviate.
-entailer_for_return.
+eapply semax_return_Some.
++ entailer_for_return.
++ entailer_for_return.
++ solve_return_outer_gen.
++ solve_canon_derives_stackframe.
++ unfold POSTCONDITION, abbreviate; solve_return_inner_gen.
++ entailer_for_return.
 Qed.
 
-(*TO DO:  Put some more examples in the .c file! *)
+(* TODO:  Put some more examples in the .c file! *)
 

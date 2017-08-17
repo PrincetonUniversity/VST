@@ -23,7 +23,7 @@ Proof.
   destruct I.
   destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
-  Intros. simpl in *.
+  Intros.
   rename H into XH1.
   rename H0 into XH2.
   rename H1 into XH3.
@@ -37,12 +37,12 @@ Proof.
   rename H9 into XH11.
   rename H10 into XH12.
   rename H11 into XH13.
+  simpl in XH2, XH4, El2, XH6, XH7 |- *.
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
   Intros.
 
   (* entropy_len = ctx->entropy_len *)
-  simpl in *.
   remember (contents_with_add additional add_len contents) as contents'.
   assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
     { subst contents'. unfold contents_with_add.
@@ -85,7 +85,7 @@ Proof.
       SEP (FRZL FR2)
   ).
   { rewrite H in *. subst add_len_too_high. forward.
-    Exists seed (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
+    Exists (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
     unfold reseedPOST. simpl; rewrite <- Heqadd_len_too_high.
     (*remember (zlt 256 (Zlength contents) || zlt 384 (entropy_len + Zlength contents))%bool as c.
     destruct c; simpl in Heqadd_len_too_high; try discriminate.*)
@@ -172,7 +172,7 @@ Proof.
   {
     (* != 0 case *)
     forward.
-    Exists seed (Vint (Int.neg (Int.repr (9)))). entailer!. 
+    Exists (Vint (Int.neg (Int.repr (9)))). entailer!. 
     unfold reseedPOST.
     remember ((zlt 256 (Zlength contents)
        || zlt 384

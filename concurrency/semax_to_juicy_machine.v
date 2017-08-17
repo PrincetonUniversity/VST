@@ -49,12 +49,12 @@ Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.
 Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.sync_preds.
-Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.semax_initial.
 Require Import VST.concurrency.semax_progress.
 Require Import VST.concurrency.semax_preservation_jspec.
 Require Import VST.concurrency.semax_safety_makelock.
 Require Import VST.concurrency.semax_safety_spawn.
+Require Import VST.concurrency.semax_safety_release.
 Require Import VST.concurrency.semax_safety_freelock.
 Require Import VST.concurrency.semax_preservation.
 
@@ -253,6 +253,15 @@ Section Safety.
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
       apply safety_induction_spawn; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply personal_mem_equiv_spec.
+    }
+
+    (* the case for release *)
+    destruct (blocked_at_external_dec state UNLOCK) as [isrelease|isnotrelease].
+    {
+      apply safety_induction_release; eauto.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.

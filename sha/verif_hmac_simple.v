@@ -28,7 +28,7 @@ name md' _md.
 rename lvar0 into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
-destruct MSG as [dl data]. simpl in *.
+destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
 rename H into KL. rename H0 into DL.
 Time assert_PROP (isptr md) as isPtrMD by entailer!. (*1.3*)
 Time forward_if  (
@@ -72,7 +72,7 @@ freeze [0;2;3] FR5.
 forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
 freeze [0;1] FR6.
 Time forward. (*4.2*)
-Exists c. entailer!. Exists (HMAC256 data key). entailer.
+Exists (HMAC256 data key). entailer.
 thaw FR6. thaw FR5. Time cancel. (*2.2*)
 thaw FR4. Time cancel. (*2.1*)
 rewrite <- (hmac_sound key data). unfold hmac.

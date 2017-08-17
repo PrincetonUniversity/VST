@@ -123,8 +123,6 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-      change compcert_rmaps.R.rmap with rmap in *.
       omega.
     } Unfocus.
     split; intros m'' ? ?.
@@ -154,8 +152,6 @@ Proof.
       clear - H0 H1 H2; hnf in H1.
       apply laterR_level in H1.
       apply necR_level in H2; simpl in *.
-      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
-      change compcert_rmaps.R.rmap with rmap in *.
       omega.
     } Unfocus.
     split; intros m'' ? ?.
@@ -325,14 +321,14 @@ destruct fs; simpl in *.
 destruct H6 as [pp H6].
  rewrite <- resource_at_approx.
 case_eq (w @ (loc,0)); intros.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
+assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_NO; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2;
  rewrite core_PURE in H2; inv H2.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
+assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_YES; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
@@ -342,16 +338,16 @@ rewrite <- core_resource_at in H2; rewrite H6 in H2;
 pose proof (resource_at_approx w (loc,0)).
 pattern (w @ (loc,0)) at 1 in H0; rewrite H in H0.
 symmetry in H0.
-assert (core (w @ (loc,0)) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w)) (compcert_rmaps.R.approx (level w))
+assert (core (w @ (loc,0)) = core (resource_fmap (approx (level w)) (approx (level w))
        (PURE k p))) by (f_equal; auto).
 rewrite core_resource_at in H1.
 assert (core w @ (loc,0) =
-        compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w)))
+        resource_fmap (approx (level (core w))) (approx (level (core w)))
          (PURE k p)).
  rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
 pose proof (necR_resource_at _ _ _ _ CORE H2).
- assert (w' @ (loc,0) = compcert_rmaps.R.resource_fmap
-       (compcert_rmaps.R.approx (level w')) (compcert_rmaps.R.approx (level w')) (PURE k p)).
+ assert (w' @ (loc,0) = resource_fmap
+       (approx (level w')) (approx (level w')) (PURE k p)).
  rewrite <- core_resource_at in H3. rewrite level_core in H3.
  destruct (w' @ (loc,0)).
   rewrite core_NO in H3; inv H3.
@@ -361,6 +357,7 @@ pose proof (necR_resource_at _ _ _ _ CORE H2).
  pose proof (necR_resource_at _ _ _ _ Hw2 H4).
  inversion2 H6 H5.
  exists p. reflexivity.
+ 
 destruct H2 as [id [? ?]].
 exists id. split; auto.
 Qed.
@@ -790,6 +787,17 @@ Inductive free_list_juicy_mem:
                           free_list_juicy_mem jm2 bl jm' ->
                           free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
 
+Lemma perm_of_res_val : forall r, perm_of_res r = Some Freeable ->
+  exists v pp, r = YES Share.top readable_share_top (VAL v) pp.
+Proof.
+  destruct r; simpl; try if_tac; try discriminate.
+  destruct k; try discriminate.
+  unfold perm_of_sh.
+  repeat if_tac; try discriminate.
+  subst; intro; do 2 eexists; f_equal.
+  apply proof_irr.
+Qed.
+
 Lemma free_list_juicy_mem_i:
   forall jm bl m' F,
    free_list (m_dry jm) bl = Some m' ->
@@ -807,13 +815,10 @@ intros jm bl; revert jm; induction bl; intros.
  destruct (free_list_free _ _ _ _ _ _ H) as [m2 [? ?]].
  generalize H0; intro H0'.
  destruct H0 as [phi1 [phi2 [? [? H6]]]].
- assert (H10:= @juicy_free_lemma jm b lo hi m2 phi1 _ H1 H0' H3).
- spec H10. apply join_core in H0; auto.
- spec H10. intros. apply (resource_at_join _ _ _ l) in H0.
-     rewrite H4 in H0. inv H0. exists sh3,rsh3,pp; split3; auto. eexists; eauto. eexists; eauto.
-     exists rsh3, pp; split3; auto. eexists; eauto.
- match type of H10 with join _ (m_phi ?A) _ => set (jm2:=A) in H10 end.
- pose proof (join_canc (join_comm H0) (join_comm H10)). subst phi2.  clear H10.
+
+ assert (H10:= @juicy_free_lemma' jm b lo hi m2 phi1 _ _ H1 H0' H3 H0).
+ match type of H10 with m_phi ?A = _ => set (jm2:=A) in H10 end; subst.
+
  specialize (IHbl  jm2 m' F H2 H6).
  destruct IHbl as [jm' [? [? ?]]].
  exists jm'; split3; auto.
@@ -849,27 +854,10 @@ Proof.
  generalize H2; intro H2'.
  destruct H2 as [phi1 [phi2 [? [? ?]]]].
  apply IHfree_list_juicy_mem.
- replace (m_phi jm2) with phi2; auto.
- pose proof  (@juicy_free_lemma jm b lo hi _ phi1 _ H H2').
- specialize (H5 H3).
- spec H5. apply (join_core H2).
- spec H5. {
-  intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
-  exists Share.top, readable_share_top, NoneP.
-  split; auto. apply top_correct'.
-  rewrite H3 in H6; inversion H6; clear H6. subst k pp sh.
-  apply (resource_at_join _ _ _ l) in H2. rewrite H3 in H2.
-  rewrite (proof_irr x readable_share_top) in *; clear x.
-  rewrite preds_fmap_NoneP in H2.
-  inv H2; apply YES_ext;  apply (join_sub_share_top sh3); (econstructor; apply RJ).
-  do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
- }
- match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
- pose proof (join_canc (join_comm H5) (join_comm H2)).
- subst phi2. clear H5.
- rewrite <- H0. subst jm3.
- f_equal.
- apply free_juicy_mem_ext;  auto.
+ pose proof  (@juicy_free_lemma' jm b lo hi _ phi1 _ _ H H2' H3 H2).
+ match type of H5 with m_phi ?A = _ => set (jm3 := A) in H5 end.
+ replace jm2 with jm3 by (subst jm3; rewrite <- H0; apply free_juicy_mem_ext; auto).
+ subst; auto.
 Qed.
 
 Lemma xelements_app:
@@ -1156,7 +1144,6 @@ Proof.
   } Unfocus.
   pose (H0:=True).
   destruct H1 as [phi1 [phi2 [? [? ?]]]].
-
   unfold var_block in H3.
   normalize in H3.
   simpl in H3.
@@ -1186,47 +1173,29 @@ Proof.
     clear - H3 H7. destruct H7.
   rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
   pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
-  destruct H7 as [phi3 H7].
+  destruct H as [phix H].
+  destruct (join_assoc H1 H) as [phi3 []].
   assert (phi3 = m_phi jm3).
   Focus 1. {
-    apply join_comm in H7.
-    eapply join_canc. apply H7.
-    apply join_comm.
-    apply (@juicy_free_lemma _ _ _ _ _ phi1 _ H8).
-    rewrite Z.sub_0_r; auto.
-    apply join_comm in H7. apply join_core in H7; auto.
-    intros.
-    apply (resource_at_join _ _ _ l) in H7.
-    rewrite H9 in H7.
-    clear - H7.
-    inv H7. do 3 eexists; split3; eauto. eexists; eauto.
-    do 3 eexists; split3; eauto. eexists; eauto.
-  } Unfocus.
-  subst phi3.
-  assert (join_sub phi2 (m_phi jm3)).
-  Focus 1. {
-    destruct H as [phix H].
-    destruct (join_assoc (join_comm H1) H) as [phi7 [? ?]].
-    eapply crosssplit_wkSplit.
-    apply H7. apply H10.
-    exists phi; auto.
-  } Unfocus.
-  destruct (IHel phi2 jm3 H9) as [m4 ?]; auto; clear IHel.
+    subst jm3; symmetry; eapply juicy_free_lemma'; eauto.
+    rewrite Z.sub_0_r; auto. } Unfocus.
+  subst phi3.  assert (join_sub phi2 (m_phi jm3)) as Hphi2 by (eexists; eauto).
+  destruct (IHel phi2 jm3 Hphi2) as [m4 ?]; auto; clear IHel.
   + intros.
     specialize (H2 id0 b0 t0).
     spec H2; [ auto |].
     assert (id0 <> id).
     Focus 1. {
-      clear - NOREPe H10.
+      clear - NOREPe H11.
       inv NOREPe. intro; subst.
       apply H1. change id with (fst (id,(b0,t0))); apply in_map; auto.
     } Unfocus.
-    clear - H2 H11.
+    clear - H2 H12.
     induction vl; simpl in *; auto.
     destruct H2. subst a. simpl.
     replace (eqb_ident id0 id) with false; simpl; auto.
     pose proof (eqb_ident_spec id0 id); destruct (eqb_ident id0 id); simpl in *; auto.
-    contradiction H11; apply H; auto.
+    contradiction H12; apply H; auto.
     pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
   + intros; eapply Hve; eauto.
     right; auto.
