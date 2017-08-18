@@ -626,7 +626,7 @@ Ltac unfold_localdef_name QQ Q :=
     end;
     unfold_localdef_name QQ Qt
   end.
-
+(*
 Ltac clean_LOCAL_canon_canon :=
   match goal with
   | |- local _ && (PROPx _ (LOCALx _ (SEPx _))) |-- PROPx _ (LOCALx _ (SEPx _)) =>
@@ -666,95 +666,65 @@ Ltac clean_LOCAL_canon_canon :=
                 cbv beta iota zeta in tl;
                 subst tl
          end).
-
+*)
 Lemma go_lower_localdef_canon_tc_expr {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_expr Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_expr Delta T1 T2 e) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta e.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_expr_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_expr_sound; auto.
 Qed.
 
 Lemma go_lower_localdef_canon_tc_lvalue {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_lvalue Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_lvalue Delta T1 T2 e) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_lvalue Delta e.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_lvalue_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_lvalue_sound; auto.
 Qed.
 
 Lemma go_lower_localdef_canon_tc_LR {cs: compspecs} : forall Delta Ppre Qpre Rpre e lr T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_LR Delta T1 T2 e lr) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_LR Delta T1 T2 e lr) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_LR Delta e lr.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_LR_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_LR_sound; auto.
 Qed.
 
 Lemma go_lower_localdef_canon_tc_efield {cs: compspecs} : forall Delta Ppre Qpre Rpre efs T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_efield Delta T1 T2 efs) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_efield Delta T1 T2 efs) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_efield Delta efs.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_efield_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_efield_sound; auto.
 Qed.
 
 Lemma go_lower_localdef_canon_tc_exprlist {cs: compspecs} : forall Delta Ppre Qpre Rpre ts es T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_exprlist Delta T1 T2 ts es) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_exprlist Delta T1 T2 ts es) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_exprlist Delta ts es.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_exprlist_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_exprlist_sound; auto.
 Qed.
 
 Lemma go_lower_localdef_canon_tc_expropt {cs: compspecs} : forall Delta Ppre Qpre Rpre e t T1 T2,
   local2ptree Qpre = (T1, T2, nil, nil) ->
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- `(msubst_tc_expropt Delta T1 T2 e t) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- `(msubst_tc_expropt Delta T1 T2 e t) ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expropt Delta e t.
 Proof.
   intros.
-  erewrite local2ptree_soundness by eassumption.
-  simpl app.
-  apply msubst_tc_expropt_sound.
-  change Ppre with (nil ++ Ppre).
-  erewrite <- local2ptree_soundness by eassumption.  
-  apply go_lower_localdef_canon_left.
-  auto.
+  erewrite local2ptree_soundness in * by eassumption.
+  apply msubst_tc_expropt_sound; auto.
 Qed.
 
 Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc): (environ -> mpred) -> mpred -> Prop :=
@@ -766,7 +736,8 @@ Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 | clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 (tc_efield Delta efs) (msubst_tc_efield Delta T1 T2 efs)
 | clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 ts es)
 | clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 e t)
-| clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 P1 Q1 -> clean_LOCAL_right Delta T1 T2 P2 Q2 -> clean_LOCAL_right Delta T1 T2 (P1 && P2) (Q1 && Q2).
+| clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 P1 Q1 -> clean_LOCAL_right Delta T1 T2 P2 Q2 -> clean_LOCAL_right Delta T1 T2 (P1 && P2) (Q1 && Q2)
+| clean_LOCAL_right_exp: forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 (exp P) (exp Q).
 
 Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R S S',
   local2ptree Q = (T1, T2, nil, nil) ->
@@ -775,9 +746,10 @@ Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTr
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
 Proof.
   intros.
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- `S') by (apply go_lower_localdef_canon_left; auto); clear H1; rename H2 into H1.
   induction H0.
-  + apply go_lower_localdef_canon_left, H1.
-  + apply go_lower_localdef_canon_left, H1.
+  + auto.
+  + auto.
   + eapply go_lower_localdef_canon_tc_lvalue; eauto.
   + eapply go_lower_localdef_canon_tc_expr; eauto.
   + eapply go_lower_localdef_canon_tc_LR; eauto.
@@ -793,6 +765,10 @@ Proof.
       apply (derives_trans _ _ _ H1).
       unfold_lift; intros rho.
       apply andp_left2; auto.
+  + rewrite (add_andp _ _ H1).
+    normalize.
+    apply (exp_right x).
+    specialize (H2 x).
 Qed.
 
 Ltac clean_LOCAL_canon_mix :=
