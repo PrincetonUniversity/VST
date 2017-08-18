@@ -2,6 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.efield_lemmas.
 Require Import VST.floyd.local2ptree_denote.
+Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
 Local Open Scope logic.
 
@@ -500,6 +501,28 @@ Proof.
   apply msubst_tc_expropt_sound; auto.
 Qed.
 
+Lemma go_lower_localdef_canon_eval_lvalue {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2 u v,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  msubst_eval_lvalue T1 T2 e = Some u ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && `(!! (u = v)) |-- local (`(eq v) (eval_lvalue e)).
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  normalize.
+  apply andp_left2, msubst_eval_lvalue_eq, H0.
+Qed.
+
+Lemma go_lower_localdef_canon_eval_expr {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2 u v,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  msubst_eval_expr T1 T2 e = Some u ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) && `(!! (u = v)) |-- local (`(eq v) (eval_expr e)).
+Proof.
+  intros.
+  erewrite local2ptree_soundness by eassumption.
+  normalize.
+  apply andp_left2, msubst_eval_expr_eq, H0.
+Qed.
+
 Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc): (environ -> mpred) -> mpred -> Prop :=
 | clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 (local `P) (!! P)
 | clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 (!! P) (!! P)
@@ -510,6 +533,8 @@ Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 | clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 ts es)
 | clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 e t)
 | clean_LOCAL_right_canon: forall P Q R, clean_LOCAL_right Delta T1 T2 (PROPx P (LOCALx Q (SEPx R))) (!! (fold_right and True (P ++ msubst_extract_locals T1 T2 Q)) && fold_right_sepcon R)
+| clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue T1 T2 e = Some u -> clean_LOCAL_right Delta T1 T2 (local (`(eq v) (eval_lvalue e))) (!! (u = v))
+| clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr T1 T2 e = Some u -> clean_LOCAL_right Delta T1 T2 (local (`(eq v) (eval_expr e))) (!! (u = v))
 | clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 P1 Q1 -> clean_LOCAL_right Delta T1 T2 P2 Q2 -> clean_LOCAL_right Delta T1 T2 (P1 && P2) (Q1 && Q2)
 | clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 (exp P) (exp Q).
 
@@ -548,6 +573,8 @@ Proof.
     go_lowerx.
     normalize.
     solve_andp.
+  + eapply go_lower_localdef_canon_eval_lvalue; eauto.
+  + eapply go_lower_localdef_canon_eval_expr; eauto.
   + apply andp_right.
     - eapply derives_trans; [| apply IHclean_LOCAL_right1].
       unfold_lift; intros rho; simpl.
@@ -584,6 +611,8 @@ Ltac solve_clean_LOCAL_right :=
     | simple apply clean_LOCAL_right_tc_exprlist
     | simple apply clean_LOCAL_right_tc_expropt
     | simple apply clean_LOCAL_right_canon
+    | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
+    | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
     | simple apply clean_LOCAL_right_andp; solve_clean_LOCAL_right
     | simple apply clean_LOCAL_right_EX;
       let a := fresh "a" in
