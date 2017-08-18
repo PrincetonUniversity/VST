@@ -1,16 +1,16 @@
-Require Import msl.base.
-Require Import msl.boolean_alg.
-Require Import msl.sepalg.
-Require Import msl.functors.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.shares.
-Require Import msl.cross_split.
-Require Import msl.psepalg.
-Require Import msl.pshares.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.shares.
+Require Import VST.msl.cross_split.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.pshares.
+Require Import VST.msl.eq_dec.
 
-Require msl.predicates_sa.
+Require VST.msl.predicates_sa.
 
 Lemma in_app:   (* THIS IS FROM compcert/Coqlib.v *)
   forall (A: Type) (x: A) (l1 l2: list A), In x (l1 ++ l2) <-> In x l1 \/ In x l2.
@@ -114,7 +114,7 @@ Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
 Defined.
 
 Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). Existing Instance Canc_env.
-Parameter Disj_env: forall {DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
+Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
 Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
 
 
@@ -123,7 +123,7 @@ Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
    either kind.  Thus, we build primitives whose names start with _ to avoid polluting the
   namespace; then we reveal them at appropriate types in EnvSL and EnvASL, below.
 *)
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 (* ENV_MAPSTO *)
 Parameter _env_mapsto: forall {KE: EqDec key}  (id: key) (sh: Share.t) (v: A), pred (env key A).
@@ -317,7 +317,7 @@ Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Canc_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Disj_env {DA: Disj_alg A}: @Disj_alg env Join_env.
+Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Disj_fpm; auto with typeclass_instances.
 Qed.
 
@@ -372,7 +372,7 @@ Proof.
  repeat f_equal; apply proof_irr.
 Qed.
 
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition _env_mapsto {KE: EqDec key} (id: key) (sh: Share.t) (v: A) : pred env :=
     fun rho => exists p,
@@ -816,7 +816,7 @@ apply unit_identity with (pshare_sh sh2); apply join_comm; auto.
 destruct H4 as [? [? ?]]; simpl snd in *; subst.
 generalize (join_canc (join_comm j) (join_comm H)); intro; subst.
 destruct (dec_share_identity (lifted_obj (fst a2))).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (lifted_obj (fst a2))).
+contradiction (@nonunit_nonidentity _ _ _ _ (lifted_obj (fst a2))).
 destruct (fst a2); simpl; auto.
 destruct a2; simpl in *. destruct p; simpl in *.
 constructor; simpl; auto.
@@ -826,7 +826,7 @@ inv H.
 apply bot_identity in j.
 subst.
 destruct (dec_share_identity (pshare_sh sh2)).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (pshare_sh sh2)).
+contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
 f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.
@@ -853,7 +853,7 @@ End EnvSA.
 
 Module EnvSL.
 Import EnvSA.
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition env_mapsto: forall {key A}{KE: EqDec key} (id: key) (sh: Share.t) (v: A) , pred (env key A) := @_env_mapsto.
 Arguments env_mapsto [key] [A] [KE] _ _ _ _.

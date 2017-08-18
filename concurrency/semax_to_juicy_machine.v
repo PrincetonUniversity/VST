@@ -8,55 +8,55 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.semax_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.coqlib5.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.sync_preds.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.cl_step_lemmas.
-Require Import concurrency.resource_decay_lemmas.
-Require Import concurrency.resource_decay_join.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.sync_preds.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_initial.
-Require Import concurrency.semax_progress.
-Require Import concurrency.semax_preservation_jspec.
-Require Import concurrency.semax_safety_makelock.
-Require Import concurrency.semax_safety_spawn.
-Require Import concurrency.semax_safety_freelock.
-Require Import concurrency.semax_preservation.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.semax_initial.
+Require Import VST.concurrency.semax_progress.
+Require Import VST.concurrency.semax_preservation_jspec.
+Require Import VST.concurrency.semax_safety_makelock.
+Require Import VST.concurrency.semax_safety_spawn.
+Require Import VST.concurrency.semax_safety_release.
+Require Import VST.concurrency.semax_safety_freelock.
+Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -95,7 +95,7 @@ Proof.
   - now eapply JuicyMachine.schedfail; eauto.
 Qed.
 
-Require Import concurrency.semax_simlemmas.
+Require Import VST.concurrency.semax_simlemmas.
 
 Lemma schstep_norun ge i sch tp m tp' m' :
   @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
@@ -253,6 +253,15 @@ Section Safety.
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
       apply safety_induction_spawn; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply personal_mem_equiv_spec.
+    }
+
+    (* the case for release *)
+    destruct (blocked_at_external_dec state UNLOCK) as [isrelease|isnotrelease].
+    {
+      apply safety_induction_release; eauto.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.

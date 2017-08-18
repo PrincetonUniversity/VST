@@ -1,9 +1,9 @@
-Require Export msl.predicates_sl.
-Require Export concurrency.semax_conc_pred.
-Require Export concurrency.semax_conc.
-Require Export floyd.proofauto.
-Require Import floyd.library.
-Require Export floyd.sublist.
+Require Export VST.msl.predicates_sl.
+Require Export VST.concurrency.semax_conc_pred.
+Require Export VST.concurrency.semax_conc.
+Require Export VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Export VST.floyd.sublist.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -1886,11 +1886,11 @@ Proof.
   { exists r2; auto. }
   { exists r1; apply sepalg.join_comm; auto. }
   intro; subst.
-  pose proof (sepalg.join_self H); subst.
+  pose proof (sepalg.join_self H) as Hid.
+  apply Hid in H; subst.
   destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  pose proof (sepalg.unit_identity _ H) as Hid.
-  rewrite HYES in Hid; apply compcert_rmaps.RML.YES_not_identity in Hid; contradiction.
+  destruct (compcert_rmaps.RML.resource_at_empty Hid l) as [Hl | [? [? Hl]]];
+    rewrite Hl in HYES; discriminate.
 Qed.
 
 Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.

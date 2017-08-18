@@ -1,15 +1,15 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import floyd.sublist.
-Require Import floyd.field_at.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.sublist.
+Require Import VST.floyd.field_at.
 
 Lemma field_compatible_offset_zero:
   forall {cs: compspecs} t gfs p,

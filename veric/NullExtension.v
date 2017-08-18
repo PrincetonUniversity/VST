@@ -1,10 +1,10 @@
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.base.
-Require Import veric.Clight_new.
-Require Import veric.Clight_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_mem.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_mem.
 
 Definition dryspec : external_specification juicy_mem external_function unit
   := Build_external_specification juicy_mem external_function unit

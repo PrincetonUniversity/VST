@@ -1,5 +1,5 @@
 Require Export Coq.Sorting.Permutation.
-Require Import floyd.base2.
+Require Import VST.floyd.base2.
 
 Local Open Scope logic.
 

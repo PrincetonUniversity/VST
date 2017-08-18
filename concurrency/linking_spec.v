@@ -1,18 +1,18 @@
 (* sepcomp imports *)
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.pos.
-Require Import concurrency.compcert_linking.
-Require Import concurrency.rc_semantics.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.compcert_linking.
+Require Import VST.concurrency.rc_semantics.
 
 (* ssreflect *)
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
 
-Require Import sepcomp.nucular_semantics.
+Require Import VST.sepcomp.nucular_semantics.
 Require Import Values.
 
 (** * Forward Simulation is Compatible with Linking *)
@@ -43,7 +43,7 @@ Require Import Values.
 satisfied by all CompCert x86 Asm programs), see
 [linking/CompositionalComplements.v] or footnote 5 on pg. 9 of the paper. *)
 
-Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
+Require Import VST.sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker.
 Import Modsem.

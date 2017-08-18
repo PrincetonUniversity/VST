@@ -1,7 +1,7 @@
-Require Import sepcomp.semantics.
-Require Import sepcomp.simulations.
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.simulations.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
 
 Inductive cont': Type :=

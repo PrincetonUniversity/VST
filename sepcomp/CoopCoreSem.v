@@ -1,5 +1,5 @@
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
 (** * Cooperating Interaction Semantics *)
 
@@ -8,8 +8,8 @@ Require Import sepcomp.semantics_lemmas.
    memories produced by coresteps are [forward] wrt. the initial memory. See
    [core/mem_lemmas.v] for the defn. of [mem_forward]. *)
 
-Require Import compcert.common.Memory.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.compcert.common.Memory.
+Require Import VST.sepcomp.mem_lemmas.
 Record CoopCoreSem {G C} :=
   { coopsem :> CoreSemantics G C mem
   ; corestep_fwd :

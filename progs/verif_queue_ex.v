@@ -1,8 +1,8 @@
-Require Import progs.conc_queue_specs.
-Require Import progs.conclib.
-Require Import progs.queue_ex.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.progs.conc_queue_specs.
+Require Import VST.progs.conclib.
+Require Import VST.progs.queue_ex.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 

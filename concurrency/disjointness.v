@@ -6,13 +6,13 @@ Require Import Axioms.
 Require Import Memory.
 Require Import ZArith.
 
-Require Import sepcomp.rg_lemmas.
+Require Import VST.sepcomp.rg_lemmas.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pred_lemmas.
-Require Import concurrency.inj_lemmas.
-Require Import concurrency.join_sm.
+Require Import VST.concurrency.pred_lemmas.
+Require Import VST.concurrency.inj_lemmas.
+Require Import VST.concurrency.join_sm.
 
 (* [disjinv] enforces disjointness conditions on the local, public and     *)
 (* foreign block sets declared by [mu0] and [mu].  The definition is used  *)

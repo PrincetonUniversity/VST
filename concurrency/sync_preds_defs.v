@@ -1,11 +1,11 @@
-Require Import concurrency.lksize.
-Require Import concurrency.addressFiniteMap.
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.compcert_rmaps.
-Require Import veric.tycontext.
-Require Import veric.res_predicates.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.res_predicates.
 
 Set Bullet Behavior "Strict Subproofs".
 

@@ -1,4 +1,4 @@
-Require Import floyd.base.
+Require Import VST.floyd.base.
 
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).

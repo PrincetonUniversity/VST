@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List.
-Require Import msl.base msl.sepalg msl.sepalg_generators msl.Axioms
-               msl.predicates_sa.
+Require Import VST.msl.base msl.sepalg VST.msl.sepalg_generators msl.Axioms
+               VST.msl.predicates_sa.
 Require Import veristar.datatypes veristar.clauses veristar.model_type veristar.list_denote.
 
 (** The abstract separation logic model, parameterized by a separation logic

@@ -9,7 +9,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 Notation val_inject:=Val.inject.
 
@@ -222,7 +222,7 @@ Proof.
    rewrite Int.add_zero. reflexivity.
 Qed.
 
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.reach.
 
 Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type :=
   mk_valid_genv :

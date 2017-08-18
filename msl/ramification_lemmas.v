@@ -19,11 +19,11 @@
 (*    RAMIF_Q.plain_spec                                                      *)
 (*    RAMIF_Q.exp_right                                                       *)
 
-Require Import msl.base.
-Require Import msl.Coqlib2.
-Require Import msl.simple_CCC.
-Require Import msl.seplog.
-Require Import msl.log_normalize.
+Require Import VST.msl.base.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.simple_CCC.
+Require Import VST.msl.seplog.
+Require Import VST.msl.log_normalize.
 
 Local Open Scope logic.
 

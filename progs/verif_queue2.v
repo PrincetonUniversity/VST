@@ -1,7 +1,7 @@
-Require Import floyd.proofauto.
-Require Import floyd.library.
-Require Import progs.list_dt.  Import LsegSpecial.
-Require Import progs.queue2.
+Require Import VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Import VST.progs.list_dt.  Import LsegSpecial.
+Require Import VST.progs.queue2.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

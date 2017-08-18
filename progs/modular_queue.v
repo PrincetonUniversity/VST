@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.list_dt.
-Require Import progs.queue.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.list_dt.
+Require Import VST.progs.queue.
 
 Local Open Scope logic.
 

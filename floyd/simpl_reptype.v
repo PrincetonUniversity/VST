@@ -1,10 +1,10 @@
-Require Import floyd.base2.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.replace_refill_reptype_lemmas.
-Require Import floyd.sublist.
-Require Import floyd.simple_reify.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.proj_reptype_lemmas.
+Require Import VST.floyd.replace_refill_reptype_lemmas.
+Require Import VST.floyd.sublist.
+Require Import VST.floyd.simple_reify.
 
 Section SIMPL_REPTYPE.
 

@@ -45,7 +45,7 @@ Qed.
 
 
 (** * Perm_of_sh *)
-Require Import veric.juicy_mem.
+Require Import VST.veric.juicy_mem.
 Require Import compcert.common.Memory.
 
 Print perm_of_sh.

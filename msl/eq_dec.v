@@ -6,7 +6,7 @@
 (* This file contains the class of decidable equality and associated theory
     of updateable functions. *)
 
-Require Import msl.base.
+Require Import VST.msl.base.
 
 (* Class of decidable equality *)
 Class EqDec (A : Type) : Type :=

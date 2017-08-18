@@ -3,9 +3,9 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
 
 Local Open Scope pred.
 

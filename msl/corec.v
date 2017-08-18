@@ -1,6 +1,6 @@
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.predicates_sa.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.predicates_sa.
 
 Definition covariant {B A : Type} (F: (B -> pred A) -> (B -> pred A)) : Prop :=
 forall (P Q: B -> pred A), (forall x, P x |-- Q x) -> (forall x, F P x |-- F Q x).

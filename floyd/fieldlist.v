@@ -1,5 +1,5 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .

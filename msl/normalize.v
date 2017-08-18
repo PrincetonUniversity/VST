@@ -1,4 +1,4 @@
-Require Import msl.msl_standard.
+Require Import VST.msl.msl_standard.
 
 Local Open Scope pred.
 
@@ -27,7 +27,7 @@ Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{A
      (P: pred A) : Prop :=
    P |-- emp.
 
-Lemma pure_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall (P : pred A), pure P -> P*P=P.
+Lemma pure_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: forall (P : pred A), pure P -> P*P=P.
 Proof.
 pose proof I.
 intros.
@@ -39,7 +39,7 @@ auto.
 exists w; exists w.
 split; [|split]; auto.
 apply H0 in H1.
-do 3 red in H1. rewrite identity_unit_equiv in H1.
+do 3 red in H1. apply identity_unit' in H1.
 apply H1.
 Qed.
 
@@ -99,7 +99,7 @@ subst; auto.
 Qed.
 
 
-Lemma pure_existential {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_existential {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall B (P: B -> pred A),    (forall x: B , pure (P x)) -> pure (exp P).
 Proof.
 intros.
@@ -110,15 +110,12 @@ Qed.
 
 Hint Resolve @pure_existential.
 
-Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P w, pure P -> P w -> P (core w).
 Proof.
 intros.
-assert (w = core w).
-apply unit_core.
-apply identity_unit_equiv; auto.
+rewrite <- identity_core; auto.
 apply H; auto.
-rewrite <- H1; auto.
 Qed.
 
 Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
@@ -145,7 +142,7 @@ Qed.
 Hint Rewrite @true_eq using (solve [auto]) : normalize.
 
 
-Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
       forall P Q, pure P -> pure Q -> pure (P*Q).
 Proof.
 intros.
@@ -181,7 +178,7 @@ Hint Rewrite @FF_andp @andp_FF : normalize.
 
 Hint Rewrite @andp_dup : normalize.
 
-Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
  forall (Q: pred A),
      (forall w1 w2, core w1 = core w2 -> Q w1 -> Q w2) ->
       (Q && emp * TT = Q).
@@ -192,15 +189,15 @@ intros w [w1 [w2 [? [[? ?] ?]]]].
 apply H with w1; auto.
 apply join_core in H0; auto.
 intros w ?.
-destruct (join_ex_units w) as [e ?].
+destruct (join_ex_identities w) as [e [He [? Hj]]].
 exists e; exists w; split; [|split]; auto.
+specialize (He _ _ Hj); subst; auto.
 split; auto.
 apply H with w; auto.
-unfold unit_for in u; apply join_core in u. auto.
-simpl; apply unit_identity with w; auto.
+symmetry; eapply join_core2; eauto.
 Qed.
 
-Lemma sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall (P: pred A), P |-- (P * TT).
 Proof.
 intros.
@@ -249,7 +246,7 @@ Qed.
 
 Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
 
-Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_sepcon1' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
 
   forall P Q R, pure P -> P * Q |-- P * R -> P * Q |-- R.
 Proof.

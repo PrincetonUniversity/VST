@@ -3,12 +3,12 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.cjoins.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.cjoins.
+Require Import VST.msl.eq_dec.
 
 (** The cross split axiom looks unwieldly,
     but here we show that it arises naturally
@@ -219,7 +219,7 @@ Proof.
   auto.
 Qed.
 
-Lemma constructive_join_sub_smash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+Lemma constructive_join_sub_smash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A}:
   (forall x:A, {identity x}+{~identity x}) ->
   forall a c : lifted JA,
     constructive_join_sub (proj1_sig a) (proj1_sig c) ->
@@ -240,7 +240,7 @@ destruct a; destruct c; simpl in *.
 auto.
 Qed.
 
-Lemma sa_distributive_smash : forall A JA {PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A},
+Lemma sa_distributive_smash : forall A JA {PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A},
   (forall x:A, {identity x}+{~identity x}) ->
   @sa_distributive A JA ->
   sa_distributive (option (lifted JA)).
@@ -287,7 +287,7 @@ apply constructive_join_sub_smash; auto.
 constructor; auto.
 Qed.
 
-Lemma Cross_smash : forall A (JA: Join A) {PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A},
+Lemma Cross_smash : forall A (JA: Join A) {PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A},
   (forall x:A, {identity x}+{~identity x}) ->
   Cross_alg A ->
   Cross_alg (option (lifted JA)).
@@ -359,7 +359,7 @@ Focus 2.
 Qed.
 
 Lemma cross_split_fpm : forall A B
-      (JB: Join B) (PB: Perm_alg B)(SB : Sep_alg B)(CB: Canc_alg B)
+      (JB: Join B) (PB: Perm_alg B)(SB : Sep_alg B)(CB: Disj_alg B)
   (Bdec: forall x:B, {identity x}+{~identity x}) ,
   Cross_alg B  ->
   Cross_alg (fpm A (lifted JB)) .

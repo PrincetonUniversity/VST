@@ -6,7 +6,7 @@
 (** This library reexports portions of the Coq standard libraries used
     throughtout the proof.  It also defines some convenience tactics.
  *)
-Require Export msl.Extensionality.
+Require Export VST.msl.Extensionality.
 Require Export Coq.Lists.List.
 Require Export Coq.Bool.Bool.
 Require Export Coq.Relations.Relations.

@@ -1,6 +1,6 @@
 Require Import Memory.
 
-Require Import semantics.
+Require Import VST.concurrency.semantics.
 
 Module FSem.
 Record t M TM := mk {

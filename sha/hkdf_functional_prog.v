@@ -74,9 +74,9 @@ End HKDF_test_rfc5869_A3.
 
 (********************************Lemmas*************************************)
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import compcert.lib.Integers.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 Require Import sha.hmac_common_lemmas.
 
 Lemma isbyteZ_Ti x y : forall n, Forall general_lemmas.isbyteZ (Ti x y n).

@@ -8,12 +8,12 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 (********************* Lemmas and definitions related to mem_step ********)
 

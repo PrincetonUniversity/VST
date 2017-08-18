@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.logical_compare.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.logical_compare.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 

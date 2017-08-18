@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.functors.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.base.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 
 Set Implicit Arguments.
 

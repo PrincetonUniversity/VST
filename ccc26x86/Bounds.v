@@ -13,13 +13,13 @@
 (** Computation of resource bounds for Linear code. *)
 
 Require Import FSets FSetAVL.
-Require Import compcert.lib.Coqlib ccc26x86.Ordered.
+Require Import compcert.lib.Coqlib VST.ccc26x86.Ordered.
 Require Intv.
 Require Import compcert.common.AST.
-Require Import ccc26x86.Op.
-Require Import ccc26x86.Machregs ccc26x86.Locations.
-Require Import ccc26x86.Linear.
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Op.
+Require Import VST.ccc26x86.Machregs VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Linear.
+Require Import VST.ccc26x86.Conventions.
 
 Module RegOrd := OrderedIndexed (IndexedMreg).
 Module RegSet := FSetAVL.Make (RegOrd).

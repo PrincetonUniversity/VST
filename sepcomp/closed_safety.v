@@ -2,8 +2,8 @@ Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

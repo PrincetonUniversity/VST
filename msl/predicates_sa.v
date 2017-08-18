@@ -1,5 +1,5 @@
-Require Import msl.base.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
 
 Require Import Coq.funind.Recdef.
 Require Coq.Wellfounded.Wellfounded. (* Can't Import this, because that brings the identifier B into
@@ -182,7 +182,7 @@ extensionality w; apply prop_ext; split; intros;
 (destruct H as [w1 [w2 [? [? ?]]]]; exists w2; exists w1; split ; [apply join_comm; auto | split; auto]).
 Qed.
 
-Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}: forall P, (P * emp) = P.
+Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall P, (P * emp) = P.
 Proof.
 intros.
 extensionality w; apply prop_ext; split; intros.
@@ -199,18 +199,18 @@ apply join_comm.
 apply identity_unit; auto.
 Qed.
 
-Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
     forall P, (emp*P) = P.
 Proof. intros. rewrite sepcon_comm; rewrite sepcon_emp; auto. Qed.
 
-Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      precise emp.
 Proof.
-intros.
-rewrite precise_eq.
-intros.
-repeat rewrite emp_sepcon.
-auto.
+repeat intro.
+eapply join_sub_same_identity with (a := w1); eauto.
+apply identity_unit'; auto.
+eapply join_sub_unit_for; eauto.
+apply identity_unit'; auto.
 Qed.
 
 Definition exactly {A} (x: A) : pred A := fun w => w=x.
@@ -286,14 +286,14 @@ destruct H; auto.
 split; auto.
 Qed.
 
-Lemma emp_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
+Lemma emp_wand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
     forall P, emp -* P = P.
 Proof.
 intros.
 extensionality w; apply prop_ext; split; intros.
-destruct (join_ex_units w) as [e ?].
+destruct (join_ex_identities w) as [e [He [? Hj]]].
 eapply H; eauto.
-eapply unit_identity; eauto.
+specialize (He _ _ Hj); subst; auto.
 intro; intros.
 replace z with w; auto.
 Qed.
@@ -320,7 +320,7 @@ Definition ewand {A} {JA: Join A} (P Q: pred A) : pred A :=
 
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
 
-Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:  forall P, ewand emp P = P.
+Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:  forall P, ewand emp P = P.
 Proof.
 intros.
 extensionality w; apply prop_ext; split; intros.
@@ -328,10 +328,10 @@ destruct H as [w1 [w2 [? [? ?]]]].
 replace w with w2; auto.
 eapply join_eq; eauto.
 eapply identity_unit; eauto.
-destruct (join_ex_units w) as [e ?].
+destruct (join_ex_identities w) as [e [He [? Hj]]].
 exists e; exists w.
-split; auto. split; auto.
-eapply unit_identity; eauto.
+split; auto.
+specialize (He _ _ Hj); subst; auto.
 Qed.
 
 
@@ -527,7 +527,7 @@ destruct H0 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; repeat split; auto.
 Qed.
 
-Require Import msl.cross_split.
+Require Import VST.msl.cross_split.
 
 Lemma exactly_i {A} : forall x: A, exactly x x.
 Proof. intros. reflexivity.

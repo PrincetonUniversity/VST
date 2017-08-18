@@ -19,9 +19,9 @@
     have a decidable equality.
 *)
 
-Require Import msl.base.
-Require Import msl.eq_dec.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.sepalg.
 Require Import GenericMinMax.
 
 Module Type BOOLEAN_ALGEBRA.
@@ -865,9 +865,10 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
 
   Instance da: Disj_alg t.
   Proof. repeat intro.
-    destruct H.
-    rewrite lub_idem in H0.
-    auto.
+    destruct H, H0.
+    rewrite lub_idem in H1; subst.
+    rewrite glb_idem in H; subst.
+    rewrite lub_commute, lub_bot; auto.
   Qed.
 
 End BA_Facts.

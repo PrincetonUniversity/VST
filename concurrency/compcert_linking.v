@@ -1,10 +1,10 @@
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pos.
-Require Import concurrency.stack.
-Require Import concurrency.cast.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.stack.
+Require Import VST.concurrency.cast.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -423,7 +423,7 @@ Definition at_external0 (l: linker N my_cores) :=
 
 Arguments at_external0 !l.
 
-Require Import sepcomp.val_casted. (*for val_has_type_func*)
+Require Import VST.sepcomp.val_casted. (*for val_has_type_func*)
 
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in

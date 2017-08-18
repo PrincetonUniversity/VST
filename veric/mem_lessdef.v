@@ -8,29 +8,29 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.extspec.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.extspec.
 
 Definition mem_lessdef m1 m2 :=
   (forall b ofs len v,

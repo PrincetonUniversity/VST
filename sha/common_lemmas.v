@@ -5,7 +5,7 @@ This file DOES NOT IMPORT anything about C or CompCert
   (except the CompCert Integers module)
 *)
 Require Import compcert.lib.Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 

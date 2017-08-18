@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -13,7 +13,7 @@ Require Import sha.HMAC256_functional_prog.
 
 (* mocked_md *)
 Require Import sha.spec_sha.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import hmacdrbg.hmac_drbg_compspecs.
 

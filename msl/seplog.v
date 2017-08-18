@@ -1,4 +1,4 @@
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
 Class NatDed (A: Type) := mkNatDed {
   andp: A -> A -> A;

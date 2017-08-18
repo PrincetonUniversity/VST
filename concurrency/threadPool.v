@@ -3,18 +3,18 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype se
 
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
-Require Import concurrency.scheduler.
-Require Import concurrency.permissions.
-Require Import concurrency.semantics.
-Require Import concurrency.pos.
-Require Import concurrency.threads_lemmas.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Axioms.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.lksize.
+Require Import VST.concurrency.lksize.
 
 Set Implicit Arguments.
 
@@ -482,7 +482,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     destruct n; try omega; eauto.
   Qed.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Import Coqlib.
 
   Lemma lockSet_WorNE: forall js b ofs,
@@ -2263,7 +2263,7 @@ Section OrdinalThreadPool_rec.
     destruct n; try omega; eauto.
   Qed.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Import Coqlib.
 
   Lemma lockSet_WorNE: forall js b ofs,

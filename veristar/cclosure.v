@@ -7,7 +7,7 @@
 
 Load loadpath.
 Require Import List veric.Coqlib2 msl.base.
-Require Import msl.predicates_sa.
+Require Import VST.msl.predicates_sa.
 Require Import veristar.datatypes veristar.clauses veristar.clause_lemmas
                veristar.list_denote veristar.basic veristar.compare.
 Require Import veristar.model_type veristar.model.

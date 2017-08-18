@@ -55,7 +55,7 @@ Require Import Image.
 Require Import veristar.basic.
 Require Import veristar.clause_universe.
 Require Import veristar.compare.
-Require Import veric.Coqlib2.
+Require Import VST.veric.Coqlib2.
 
 Module Type SUPERPOSITION.
 
@@ -670,7 +670,7 @@ Proof.
  apply freshmax_demodulate; auto.
 Qed.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Lemma freshmax_sp:
   forall m d a l,

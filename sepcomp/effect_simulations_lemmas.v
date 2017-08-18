@@ -8,15 +8,15 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.effect_simulations.
 
 Section Eff_INJ_SIMU_DIAGRAMS.
   Context {F1 V1 C1 F2 V2 C2:Type}

@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.nest3.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.nest3.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

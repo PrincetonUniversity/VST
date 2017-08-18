@@ -5,8 +5,8 @@
 
 (* Knots with all the bells and whistles *)
 
-Require Import msl.base.
-Require Import msl.ageable.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
 
 Local Open Scope nat_scope.
 

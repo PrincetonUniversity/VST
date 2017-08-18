@@ -25,7 +25,7 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Switch.
+Require Import VST.ccc26x86.Switch.
 
 (** * Abstract syntax *)
 

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import hmacdrbg.hmac_drbg.
 
 Instance CompSpecs : compspecs.

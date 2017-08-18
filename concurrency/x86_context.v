@@ -1,18 +1,18 @@
 (** * Instantiating the dry and erased machine for X86*)
 
-Require Import concurrency.dry_machine.
-Require Import concurrency.erased_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.permissions.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.dry_context.
-Require Import concurrency.dry_machine_lemmas.
-Require Import ccc26x86.Asm_coop.
-Require Import ccc26x86.Asm_event.
+Require Import VST.concurrency.dry_machine.
+Require Import VST.concurrency.erased_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.ccc26x86.Asm_coop.
+Require Import VST.ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".

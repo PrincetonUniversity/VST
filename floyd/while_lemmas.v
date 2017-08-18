@@ -1,11 +1,11 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.closed_lemmas.
-Require Import floyd.compare_lemmas.
-Require Import floyd.semax_tactics.
-Require Import floyd.forward_lemmas.
-Require Import floyd.entailer.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.compare_lemmas.
+Require Import VST.floyd.semax_tactics.
+Require Import VST.floyd.forward_lemmas.
+Require Import VST.floyd.entailer.
 
 Local Open Scope logic.
 

@@ -30,7 +30,7 @@
   by the lemmas that help us reason about the logical assertions. *)
 
 Require Import Setoid Program.Basics.
-Require Import compcert.lib.Coqlib ccc26x86.Decidableplus.
+Require Import compcert.lib.Coqlib VST.ccc26x86.Decidableplus.
 Require Import compcert.common.AST compcert.lib.Integers compcert.common.Values compcert.common.Memory compcert.common.Events compcert.common.Globalenvs.
 
 (** * Assertions about memory *)

@@ -1,5 +1,5 @@
 Require Import Recdef.
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
@@ -14,8 +14,7 @@ Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
-Require Import floyd.library.
-Require Import floyd.deadvars.
+Require Import VST.floyd.library.
 
 Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data.

@@ -2,26 +2,26 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 (* Require Export compcert.lib.Coqlib. *)
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 
-Require Import concurrency.pos.
-Require Import concurrency.scheduler.
-Require Import concurrency.TheSchedule.
-Require Import concurrency.konig.
-Require Import concurrency.addressFiniteMap. (*The finite maps*)
-Require Import concurrency.pos.
-Require Import concurrency.lksize.
-Require Import concurrency.permjoin_def.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.TheSchedule.
+Require Import VST.concurrency.konig.
+Require Import VST.concurrency.addressFiniteMap. (*The finite maps*)
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.permjoin_def.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-Require Import concurrency.ssromega. (*omega in ssrnat *)
+Require Import VST.concurrency.ssromega. (*omega in ssrnat *)
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.permissions.
-Require Import concurrency.threadPool.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.threadPool.
 
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
 Set Bullet Behavior "Strict Subproofs".

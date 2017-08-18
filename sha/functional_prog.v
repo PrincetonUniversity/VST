@@ -3,9 +3,9 @@ Require Import compcert.lib.Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import compcert.lib.Coqlib.
-Require Import msl.Coqlib2.
-Require Import floyd.coqlib3.
-Require Import floyd.sublist.
+Require Import VST.msl.Coqlib2.
+Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.sublist.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
@@ -141,7 +141,7 @@ End CHECKS.
     FUNCTIONAL SPECIFICATION *)
 
 Require Import sha.common_lemmas.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Local Open Scope nat.
 

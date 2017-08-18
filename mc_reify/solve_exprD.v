@@ -3,7 +3,7 @@ Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.get_set_reif.
 Require Import ExtLib.Tactics.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.client_lemmas.
 
 Ltac destruct_match H :=
 match type of H with

@@ -1,14 +1,14 @@
-Require Export veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.slice.
-Require Import veric.res_predicates.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.Clight_lemmas.
-Require Import msl.normalize.
+Require Export VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.slice.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.msl.normalize.
 
 Local Open Scope pred.
 

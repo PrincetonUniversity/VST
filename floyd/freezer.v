@@ -1,9 +1,9 @@
-Require Import floyd.base2.
-Require Import floyd.canon.
-Require Import floyd.entailer.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.canon.
+Require Import VST.floyd.entailer.
 Require Import Coq.Lists.List.
 Export ListNotations.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.client_lemmas.
 
 Module Type FREEZER.
 Parameter FRZ : mpred -> mpred.

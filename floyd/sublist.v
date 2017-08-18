@@ -1,5 +1,5 @@
 Require Import compcert.lib.Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import Coq.Lists.List.
 Import ListNotations.
 

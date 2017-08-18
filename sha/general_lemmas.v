@@ -1,9 +1,9 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import compcert.lib.Integers.
-Require Import msl.Coqlib2.
-Require Import floyd.coqlib3.
-Require Import floyd.sublist.
+Require Import VST.msl.Coqlib2.
+Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.sublist.
 
 
 Local Open Scope nat.

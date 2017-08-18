@@ -1,16 +1,16 @@
-Require Import msl.log_normalize.
-Require Import msl.alg_seplog.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.slice.
-Require Import veric.res_predicates.
-Require Import veric.Clight_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas3.
-Require Import veric.binop_lemmas2.
-Require Import veric.address_conflict.
-Require Import veric.shares.
+Require Import VST.msl.log_normalize.
+Require Import VST.msl.alg_seplog.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.slice.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas3.
+Require Import VST.veric.binop_lemmas2.
+Require Import VST.veric.address_conflict.
+Require Import VST.veric.shares.
 
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
@@ -1138,7 +1138,7 @@ Proof.
      exact (conj H0 H1).
  } Unfocus.
   f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1175,7 +1175,7 @@ Proof.
      exact H1.
  } Unfocus.
  f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.

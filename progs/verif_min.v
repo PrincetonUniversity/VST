@@ -7,8 +7,8 @@
  http://www.cs.princeton.edu/~appel/papers/modsec.pdf
 *)
 
-Require Import floyd.proofauto.
-Require Import progs.min.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.min.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 

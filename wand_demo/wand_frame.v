@@ -1,5 +1,5 @@
-Require Import msl.seplog.
-Require Import msl.log_normalize.
+Require Import VST.msl.seplog.
+Require Import VST.msl.log_normalize.
 Local Open Scope logic.
 
 Lemma wand_frame_intro {A} {ND: NatDed A} {SL: SepLog A}: forall (P Q: A),

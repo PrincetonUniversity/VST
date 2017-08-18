@@ -12,58 +12,58 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.coqlib4.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.dry_machine_lemmas.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.coqlib4.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.dry_machine_lemmas.
 
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_initial.
-(* Require Import concurrency.semax_to_juicy_machine. *)
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.semax_initial.
+(* Require Import VST.concurrency.semax_to_juicy_machine. *)
 
 (** ** Erasure Imports*)
-Require Import concurrency.erasure_signature.
-Require Import concurrency.erasure_proof.
-Require Import concurrency.erasure_safety.
+Require Import VST.concurrency.erasure_signature.
+Require Import VST.concurrency.erasure_proof.
+Require Import VST.concurrency.erasure_safety.
 
-(* Require Import concurrency.fineConc_safe. *)
+(* Require Import VST.concurrency.fineConc_safe. *)
 
 (** ** Compiler simulation*)
-Require Import concurrency.lifting.
-Require Import concurrency.lifting_safety.
+Require Import VST.concurrency.lifting.
+Require Import VST.concurrency.lifting_safety.
 
 (** ** Target machine*)
-Require Import concurrency.x86_context.
+Require Import VST.concurrency.x86_context.
 
-Require Import concurrency.executions.
-Require Import concurrency.spinlocks.
-Require Import concurrency.fineConc_x86.
-Require Import concurrency.x86_safe.
-Require Import concurrency.SC_erasure.
+Require Import VST.concurrency.executions.
+Require Import VST.concurrency.spinlocks.
+Require Import VST.concurrency.fineConc_x86.
+Require Import VST.concurrency.x86_safe.
+Require Import VST.concurrency.SC_erasure.
 
 Module MainSafety .
 
@@ -509,7 +509,7 @@ Module MainSafety .
         auto.
     Qed.
 
-    Require Import concurrency.dry_context.
+    Require Import VST.concurrency.dry_context.
     (*Definition dry_initial_core_2:=
       initial_core (coarse_semantics)
                    (the_ge) (Vptr x Int.zero) nil.

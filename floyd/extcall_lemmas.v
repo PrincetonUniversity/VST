@@ -1,5 +1,5 @@
-Require Import floyd.base2.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 Local Open Scope logic.
 
 Definition compute_funspecs_norepeat (l : list (ident*funspec)) :=

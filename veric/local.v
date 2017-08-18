@@ -1,5 +1,5 @@
-Require Import veric.base.
-Require Import msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.msl.msl_standard.
 Require Import Coq.Relations.Relations.
 
 Definition deterministic_rel {T} (R: relation T) :=

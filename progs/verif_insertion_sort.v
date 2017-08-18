@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.list_dt.
-Require Import progs.insertionsort.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.list_dt.
+Require Import VST.progs.insertionsort.
 Require Import Sorted.
 Require Import Omega.
 Require Import Coq.Sorting.Permutation.

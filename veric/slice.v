@@ -1,8 +1,8 @@
-Require Import veric.base.
-Require Import msl.msl_standard.
-Require Import veric.shares.
-Require Import veric.compcert_rmaps.
-Require Import veric.res_predicates.
+Require Import VST.veric.base.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.shares.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 
@@ -234,7 +234,6 @@ intros ? ? ? ? H_id.
 unfold slice_resource.
 pose proof rmap_valid phi as H_valid.
 unfold compose in H_valid.
-change compcert_rmaps.R.res_option with res_option in H_valid.
 intro; intros.
 destruct (P_DEC (b, ofs)).
 + specialize (H_valid b ofs); cbv beta in H_valid.
@@ -266,7 +265,7 @@ Qed.
 
 Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
   (forall l : AV.address, ~ P l -> identity (w @ l)) ->
-  {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
+  {w' | level w' = level w /\ resource_at w' =
        (fun l => if P_DEC l then slice_resource sh (w @ l) else w @ l)}.
 Proof.
   intros.
@@ -338,7 +337,7 @@ Proof.
  assert (sh = retainer_part Share.bot).
    unfold retainer_part. rewrite Share.glb_bot.
    apply identity_NO in H.
-   destruct H. inv H. auto. destruct H as [? [? ?]]. inv H.
+   destruct H as [|]. inv H. auto. destruct H as [? [? ?]]. inv H.
    subst; f_equal. apply proof_irr.
    apply YES_not_identity in H. contradiction.
 Qed.
@@ -446,7 +445,7 @@ apply pred_ext; intro w; simpl.
    destruct (readable_share_dec sh1); [ | contradiction].
    destruct (readable_share_dec sh2); [ | contradiction].
    constructor; auto.
-   apply identity_unit_equiv in H0. apply H0.
+   apply identity_unit' in H0. apply H0.
   }
   econstructor; econstructor; split; [apply H1|].
   split.
@@ -532,7 +531,7 @@ unfold slice_resource.
 destruct (readable_share_dec sh1); [ | contradiction].
 destruct (readable_share_dec sh2); [ | contradiction].
 constructor. auto.
-do 3 red in H2. apply identity_unit_equiv in H2. apply H2; auto.
+do 3 red in H2. apply identity_unit' in H2. apply H2; auto.
 +
 exists bl; repeat split; auto.
 intro loc; spec H2 loc; unfold jam in *;  hnf in H2|-*; if_tac; auto.
@@ -802,7 +801,7 @@ Proof.
         rewrite H in H5.
         apply H3 in H5.
         tauto.
-      * apply identity_unit_equiv in H5.
+      * apply identity_unit' in H5.
         exact H5.
     - intros l.
       rewrite H0, H7, H6.
@@ -986,7 +985,6 @@ apply pred_ext.
   split3.
  +
    eapply resource_at_join2; try omega.
-   change compcert_rmaps.R.resource_at with resource_at in *.
   intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
   specialize (H0 loc). hnf in H0.  
   if_tac in H0. destruct H0 as [rsh' H0]. proof_irr. rewrite H0.
@@ -995,8 +993,8 @@ apply pred_ext.
   destruct (readable_share_dec sh1).
   constructor; auto.
   constructor; auto.
-  do 3 red in H0. 
-  apply identity_unit_equiv in H0. apply H0.
+  do 3 red in H0.
+  apply identity_unit' in H0. apply H0.
  +
    intro loc; hnf. simpl. rewrite H2.
   clear dependent w1. clear dependent w2.
@@ -1181,5 +1179,3 @@ Proof.
     - exists (join_readable1 H rsh1). subst. inv H0. apply YES_ext.
       eapply join_eq; eauto.
 Qed.
-
-

@@ -1,6 +1,6 @@
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import compcert.common.Memory.
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.semantics.
 
 
 Module FSem.
@@ -29,8 +29,8 @@ destruct H; auto.
 Qed.
 End IdFSem.
 
-Require Import veric.juicy_mem.
-Require Import veric.juicy_extspec.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_extspec.
 
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=

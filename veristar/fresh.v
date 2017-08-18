@@ -2,7 +2,7 @@ Load loadpath.
 Require Import Coq.Lists.List.
 Require Import veristar.variables veristar.datatypes.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import ZArith.
 Require Import veristar.compare.
 Require Import veristar.clauses.

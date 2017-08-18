@@ -8,58 +8,58 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_safety.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.age_to_resource_at.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import concurrency.coqlib5.
-Require Import concurrency.permjoin.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.lksize.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.sync_preds.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.cl_step_lemmas.
-Require Import concurrency.resource_decay_lemmas.
-Require Import concurrency.resource_decay_join.
-Require Import concurrency.sync_preds.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_simlemmas.
-Require Import concurrency.semax_preservation_jspec.
-Require Import concurrency.semax_preservation_local.
-Require Import concurrency.semax_preservation_acquire.
-Require Import concurrency.semax_preservation_release.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.permjoin.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.semax_simlemmas.
+Require Import VST.concurrency.semax_preservation_jspec.
+Require Import VST.concurrency.semax_preservation_local.
+Require Import VST.concurrency.semax_preservation_acquire.
+Require Import VST.concurrency.semax_preservation_release.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -1056,8 +1056,8 @@ Section Preservation.
   Qed. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
-  Kblocked at release and acquire, but preservation does not hold for
-  makelock, so, we make an exception and will use safety induction in
+  Kblocked at acquire, but preservation does not hold for
+  makelock or release, so, we make an exception and will use safety induction in
   the safety theorem.  Because it's faster to prove safety induction,
   we don't prove preservation for freelock and spawn, either, because
   we did those two last. *)
@@ -1065,12 +1065,13 @@ Section Preservation.
     ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
     ~ blocked_at_external state FREE_LOCK ->
+    ~ blocked_at_external state UNLOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros not_spawn not_makelock not_freelock STEP.
+    intros not_spawn not_makelock not_freelock not_release STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1399,11 +1400,12 @@ Section Preservation.
         eapply preservation_acquire with (Phi := Phi); eauto.
 
       - (* the case of release *)
-        left.
-        assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
-        cleanup.
-        rewrite El in *.
-        eapply preservation_release with (Phi := Phi); eauto.
+        exfalso; apply not_release.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
 
       - (* the case of spawn *)
         left.

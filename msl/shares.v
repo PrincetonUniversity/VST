@@ -4,14 +4,14 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.boolean_alg.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.eq_dec.
 
-Require msl.tree_shares.
+Require VST.msl.tree_shares.
 
 Module Share : SHARE_MODEL := tree_shares.Share.
 Import Share.
@@ -531,7 +531,7 @@ Section SM.
   Instance pa_map : Perm_alg map := Perm_fpm _ _.
   Instance sa_map : Sep_alg map := Sep_fpm _ _.
   Instance ca_map {CA: Canc_alg B} : Canc_alg map := Canc_fpm _.
-  Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _.
+  Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _ _ _.
 
   Definition map_share (a:A) (m:map) : share :=
     match lookup_fpm m a with
@@ -595,13 +595,13 @@ Qed.
     constructor. constructor.
  Qed.
 
-  Lemma empty_map_identity {CAB: Canc_alg B}: identity empty_map.
+  Lemma empty_map_identity {CAB: Disj_alg B}: identity empty_map.
   Proof.
     rewrite identity_unit_equiv.
     intro x. simpl. auto. constructor.
   Qed.
 
-  Lemma map_identity_unique {CAB: Canc_alg B}: forall m1 m2:map,
+  Lemma map_identity_unique {CAB: Disj_alg B}: forall m1 m2:map,
     identity m1 -> identity m2 -> m1 = m2.
   Proof.
     intros.
@@ -627,14 +627,14 @@ Qed.
     destruct x2. destruct H2. simpl in *. apply no_units in H. contradiction.
   Qed.
 
-  Lemma map_identity_is_empty  {CAB: Canc_alg B} : forall m,
+  Lemma map_identity_is_empty  {CAB: Disj_alg B} : forall m,
     identity m -> m = empty_map.
   Proof.
     intros; apply map_identity_unique; auto.
     apply empty_map_identity.
   Qed.
 
-  Lemma empty_map_join {CAB: Canc_alg B} : forall m,
+  Lemma empty_map_join {CAB: Disj_alg B} : forall m,
     join empty_map m m.
   Proof.
     intro m. destruct (join_ex_units m).

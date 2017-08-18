@@ -1,14 +1,14 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Export veric.lift.
-Require Export veric.Cop2.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lift.
+Require Export VST.veric.Cop2.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
 
 (* Why we need l_value/r_value instead of using expr directly?
 Because we cannot represent Vptr constant in expr. *)
@@ -151,8 +151,8 @@ Program Definition rel_l_value {CS: compspecs} (e: l_value) (v: val) (rho: envir
     fun phi => rel_l_value' rho phi e v.
 Next Obligation. intros. apply rel_l_value'_hered. Defined.
 
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.expr_lemmas.
 
 Lemma compute_byref_spec: forall {CS: compspecs} e' e,
   compute_r_value e' = R_byref e ->
@@ -444,7 +444,7 @@ apply (rel_LR_value'_sch _ rho w
       (fun e v => forall w', extendM w w' -> rel_r_value' rho w' e v)
       (fun e v => forall w', extendM w w' -> rel_l_value' rho w' e v)); auto; intros;
   try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
-  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+  try solve [match goal with H: forall w': rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
 end].
 *
 eapply rel_r_value'_load; eauto.

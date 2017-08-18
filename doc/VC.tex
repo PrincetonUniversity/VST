@@ -156,22 +156,21 @@ The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
 \begin{description}
-\item[Coq 8.6,] from coq.inria.fr.  Follow the standard installation instructions.
+\item[Coq 8.6 or 8.6.1,] from coq.inria.fr.  Follow the standard installation instructions.
 \item[CompCert 2.7.2,] from \href{https://github.com/ildyria/CompCert/tree/v2.7.2}{https://github.com/ildyria/CompCert/tree/v2.7.2}. (This is an unofficial release, since no official release of CompCert 2.7 is ported to Coq8.6.)
   Build the \emph{clightgen} tool, using these commands:
   \textsf{./configure ia32-linux; make clightgen}.  You might replace
   ia32-linux with ia32-macosx or ia32-cygwin.  Verifiable C should work
   on other 32-bit architectures as well, but has not been extensively tested.
-\item[VST 1.8,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
+\item[VST 1.9,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
   or else an appropriate
   version from \href{https://github.com/PrincetonUniversity/VST}{https://github.com/PrincetonUniversity/VST}.
   After unpacking, read the \textsc{build\_organization} file
   (or simply \textsf{make -j}).
 \end{description}
 
-
-\newthought{Workflow.}
-Within vst, the \file{progs} directory contains some sample C programs
+\chapter{Workflow.}
+Within VST, the \file{progs} directory contains some sample C programs
 with their verifications.  The workflow is:
 \begin{itemize}
 \item Write a C program $F$.c.
@@ -180,7 +179,7 @@ file $F$.v.
 \item Write a verification of $F$.v in a file such as
 \lstinline{verif_$F$.v}.  That latter file must import
 both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--2001), a pioneer in program verification.} program verification system,
-\lstinline{floyd.proofauto}.
+\lstinline{VST.floyd.proofauto}.
 \end{itemize}
 
 \newthought{Load paths.}
@@ -191,12 +190,29 @@ command-line arguments.  Running \textsf{make} in
 \lstinline{vst} creates a file \lstinline{.loadpath} with
 the right arguments.  You can then do (for example),
 \newline
-\lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v}
-\newline
-\emph{See the heading}
+\lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v &}
+\newline The shell script VST/coqide automates this, with
+a useful bug workaround as well.
+
+\newthought{In normal use}
+(if you are not simply browsing the \textsf{progs} examples,
+your own files ($F$.c, $F$.v, verif\_$F$.v) will not be inside
+the VST directory.  You will need to run coqc or coqide (or Proof General)
+with ``coq flags'' to access the VST components.  For this, use
+the file \lstinline{.loadpath-export} or \lstinline{_CoqProject-export},
+created by \textsf{make} in VST.
+
+Example:
+\begin{lstlisting}
+cd my-own-directory
+coqide `cat my/path/to/VST/.loadpath-export` myfile.v
+\end{lstlisting}
+
+
+\newthought{For more information,}
+See the heading
 \textsc{using proof general and coqide}
-\emph{in the file} \textsc{build\_organization}
-\emph{for more information.}
+in the file \textsc{build\_organization}.
 
 \ychapter{Verifiable C programming}{See PLCC Chapter \ref{ch:compcert-intro}}
 \label{refcard:verifiable-c}
@@ -375,8 +391,8 @@ corresponding to the function prototypes.
 We start \lstinline{verif_sumarray.v}
 with some standard boilerplate:\label{refcard:boilerplate}
 \begin{lstlisting}
-Require Import floyd.proofauto.
-Require Import progs.sumarray.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.sumarray.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.$\label{Vprog-page}$
 \end{lstlisting}
@@ -1703,8 +1719,8 @@ along with various well-formedness theorems about it,
 is built from \lstinline{prog} as follows:
 
 \begin{lstlisting}
-Require Import floyd.proofauto.  (* Import Verifiable C library *)
-Require Import myprogram.        (* AST of my program *)
+Require Import VST.floyd.proofauto.  (* Import Verifiable C library *)
+Require Import VST.myprogram.        (* AST of my program *)
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 \end{lstlisting}
 The \lstinline{make_compspecs} tactic automatically constructs
@@ -2761,7 +2777,7 @@ Here, we import
 the \lstinline{LsegSpecial} module of that theory,
 covering the ``ordinary'' case appropriate for the \lstinline{reverse.c} program.
 \begin{lstlisting}
-Require Import progs.list_dt. Import LsegSpecial.
+Require Import VST.progs.list_dt. Import LsegSpecial.
 \end{lstlisting}
 
 Then we \emph{instantiate} that theory for our particular
@@ -3931,7 +3947,7 @@ Definition Gprog := ltac:(wi$$th_library prog [sumarray_spec; main_spec]).
 \newthought{You may wish} to use standard library functions such as
 \textsf{malloc}, \textsf{free}, \textsf{exit}.  These are axiomatized
 (with external funspecs) in \lstinline{floyd.library}.  To use them,
-\lstinline{Require Import floyd.library} \emph{after} you
+\lstinline{Require Import VST.floyd.library} \emph{after} you
 import \lstinline{floyd.proofauto}.  This imports
 a (floyd.library.)\lstinline{wi$$th_library} tactic hiding the standard
 \linebreak[4]
@@ -3973,7 +3989,7 @@ DECLARE _free
        LOCAL ()
        SEP ().
 \end{lstlisting}
-You must \lstinline{Import floyd.library.}
+You must \lstinline{Import VST.floyd.library.}
 Then these funspecs are made available in your Gprog by the use of the
 \lstinline{wi$$th_library} tactic (\autoref{refcard:with-library}).
 
@@ -3984,7 +4000,7 @@ record was.
 See \file{progs/verif\_queue.v} for a demonstration of malloc/free.
 
 \chapter{exit}
-\lstinline{Import floyd.library.}
+\lstinline{Import VST.floyd.library.}
 before you define
 \lstinline{ Gprog := ltac:(wi$$th_library prog [$\ldots$]).}
 and you will get:

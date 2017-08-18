@@ -9,10 +9,6 @@ COMPCERT ?= compcert
 #   COMPCERT=../compcert
 # if, for example, you want to build from a compcert distribution
 # that is sitting in a sister directory to vst.
-# One might think that one could change this to  COMPCERT=/home/appel/compcert
-# if there is a compcert build at that pathname, but in cygwin
-# at least, coqdep is confused by the absolute pathname while
-# it works fine with the relative pathname
 #
 # One can also add in CONFIGURE the line
 #   COQBIN=/path/to/bin/
@@ -26,15 +22,13 @@ COMPCERT ?= compcert
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
 # MATHCOMP=/my/path/to/mathcomp
+# and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox concurrency
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
-#Replace the INCLUDE above with the following in order to build the linking target:
-#INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
-#  -R $(MATHCOMP)/theories -as MathComp
-# $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
+VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
+OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox
+DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
 CV1=$(shell cat compcert/VERSION)
@@ -58,12 +52,8 @@ ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
-
-ifdef LIBPREFIX
- COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(LIBPREFIX).$(d))) $(EXTFLAGS)
-endif
 
 COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
@@ -257,7 +247,7 @@ PROGS_FILES= \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v
+  funcptr.v verif_funcptr.v ghost.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -359,7 +349,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -418,7 +408,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6
+COQVERSION= 8.6 or-else 8.6.1
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -554,11 +544,11 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject: Makefile
-	echo $(COQFLAGS) >_CoqProject
-
-.loadpath: Makefile _CoqProject
+_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflags 
 	echo $(COQFLAGS) > .loadpath
+	util/coqflags > .loadpath-export
+	cp .loadpath-export _CoqProject-export
+	cp .loadpath _CoqProject
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
@@ -569,6 +559,7 @@ dep:
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
+#	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
 	-@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
 
 depend-paco:

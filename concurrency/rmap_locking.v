@@ -10,28 +10,28 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.shares.
-Require Import veric.compcert_rmaps.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.SeparationLogic.
-Require Import veric.res_predicates.
-Require Import veric.juicy_mem.
-Require Import floyd.field_at.
-Require Import floyd.reptype_lemmas.
-Require Import sepcomp.Address.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import veric.coqlib4.
-Require Import floyd.type_induction.
-Require Import concurrency.permjoin.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.lksize.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.shares.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.juicy_mem.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.sepcomp.Address.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.veric.coqlib4.
+Require Import VST.floyd.type_induction.
+Require Import VST.concurrency.permjoin.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.lksize.
 
 Require Import Setoid.
 
@@ -1113,7 +1113,7 @@ Proof.
   - spec before l n. rewrite before. tauto.
 Qed.
 
-Require Import veric.juicy_mem.
+Require Import VST.veric.juicy_mem.
 
 Definition noyes phi := forall x sh rsh k pp, phi @ x <> YES sh rsh k pp.
 

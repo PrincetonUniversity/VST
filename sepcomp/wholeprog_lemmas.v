@@ -9,12 +9,12 @@ Require Import compcert.common.Values.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.wholeprog_simulations.
-Require Import sepcomp.closed_safety.
-Require Import sepcomp.effect_semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.closed_safety.
+Require Import VST.sepcomp.effect_semantics.
 
 Import Wholeprog_sim.
 

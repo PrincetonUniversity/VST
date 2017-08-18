@@ -1,8 +1,8 @@
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.functors.
-Import msl.functors.MixVariantFunctor.
-Import msl.functors.MixVariantFunctorLemmas.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Import VST.msl.functors.MixVariantFunctor.
+Import VST.msl.functors.MixVariantFunctorLemmas.
 
 Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter F : functor.

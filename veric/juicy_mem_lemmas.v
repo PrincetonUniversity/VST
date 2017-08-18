@@ -1,7 +1,7 @@
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem.
-Require Import veric.res_predicates.
-Require Import veric.shares.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
@@ -943,7 +943,45 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
   rewrite core_PURE in H. rewrite core_NO in H; inv H.
 Qed.
 
+Section free.
 
+Variables (jm :juicy_mem) (m': mem)
+          (b: block) (lo hi: Z)
+          (FREE: free (m_dry jm) b lo hi = Some m')
+          (PERM: forall ofs, lo <= ofs < hi ->
+                      perm_of_res (m_phi jm @ (b,ofs)) = Some Freeable)
+          (phi1 phi2 : rmap) (Hphi1: VALspec_range (hi-lo) Share.top (b,lo) phi1)
+          (Hjoin : join phi1 phi2 (m_phi jm)).
+
+Lemma phi2_eq : m_phi (free_juicy_mem _ _ _ _ _ FREE PERM) = phi2.
+Proof.
+  apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
+  - apply join_level in Hjoin; destruct Hjoin; auto.
+  - intro.
+    specialize (Hphi1 l); simpl in Hphi1.
+    apply (resource_at_join _ _ _ l) in Hjoin.
+    if_tac.
+    + destruct Hphi1 as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
+      * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
+        subst; apply f_equal, proof_irr.
+      * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
+        subst; contradiction bot_unreadable.
+    + apply Hphi1 in Hjoin; auto.
+Qed.
+
+End free.
+
+Lemma juicy_free_lemma':
+  forall {j b lo hi m' m1 m2 F}
+    (H: Mem.free (m_dry j) b lo hi = Some m')
+    (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
+    VALspec_range (hi-lo) Share.top (b,lo) m1 ->
+    join m1 m2 (m_phi j) ->
+    m_phi (free_juicy_mem _ _ _ _ _ H (juicy_free_aux_lemma _ _ _ _ _ VR)) = m2.
+Proof.
+  intros.
+  eapply phi2_eq; eauto.
+Qed.
 
 Lemma initial_mem_core: forall lev m j IOK,
   j = initial_mem m lev IOK -> juicy_mem_core j = core lev.

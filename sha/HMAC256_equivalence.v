@@ -3,7 +3,7 @@ Require Import Bvector.
 Require Import List.
 Require Import compcert.lib.Integers.
 Require Import BinNums.
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import fcf.Blist.
 
 Require Import sha.ByteBitRelations.

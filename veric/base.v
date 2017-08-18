@@ -17,9 +17,9 @@ Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
 
 Require Export EqNat.  (* do we need this? *)
-Require Export msl.Coqlib2.
-Require Export veric.coqlib4.
-Require Export veric.Memory.
+Require Export VST.msl.Coqlib2.
+Require Export VST.veric.coqlib4.
+Require Export VST.veric.Memory.
 Set Implicit Arguments.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)

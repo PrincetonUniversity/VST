@@ -1,4 +1,4 @@
-Require Export concurrency.paco.src.paconotation.
+Require Export VST.concurrency.paco.src.paconotation.
 Set Implicit Arguments.
 
 (** * Formalization of Parameterized Coinduction: the Internal Approach

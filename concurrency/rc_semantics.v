@@ -4,11 +4,11 @@ Require Import BinPos.
 
 Require Import Axioms.
 
-Require Import concurrency.compcert_imports. Import CompcertCommon.
+Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
-Require Import sepcomp.structured_injections.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
+Require Import VST.sepcomp.structured_injections.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

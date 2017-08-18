@@ -2,6 +2,7 @@
 * text=auto
 
 make_version text eol=lf
+coqflags text eol=lf
 coqide text eol=lf
 PACKAGE text eol=lf
 VERSION text eol=lf

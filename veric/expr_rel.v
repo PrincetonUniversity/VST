@@ -1,14 +1,14 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Export veric.lift.
-Require Export veric.Cop2.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lift.
+Require Export VST.veric.Cop2.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
 
 Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty,
@@ -108,8 +108,8 @@ Program Definition rel_lvalue {CS: compspecs}  (e: expr) (v: val) (rho: environ)
     fun phi => rel_lvalue' rho phi e v.
 Next Obligation. intros. apply rel_lvalue'_hered. Defined.
 
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.expr_lemmas.
 
 Definition rel_lvalue'_expr'_sch CS rho phi P P0 :=
   fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 =>
@@ -353,7 +353,7 @@ apply (rel_LR'_sch _ rho w
       (fun e v => forall w', extendM w w' -> rel_expr' rho w' e v)
       (fun e v => forall w', extendM w w' -> rel_lvalue' rho w' e v)); auto; intros;
   try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
-  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+  try solve [match goal with H: forall w': rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
 end].
 *
 eapply rel_expr'_lvalue_By_value; eauto.

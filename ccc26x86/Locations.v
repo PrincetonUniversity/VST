@@ -16,10 +16,10 @@
 Require Import OrderedType.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
-Require Import ccc26x86.Ordered.
+Require Import VST.ccc26x86.Ordered.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.
-Require Export ccc26x86.Machregs.
+Require Export VST.ccc26x86.Machregs.
 
 (** * Representation of locations *)
 

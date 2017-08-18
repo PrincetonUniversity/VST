@@ -11,9 +11,9 @@
 Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.mem_lemmas.
 
 Definition globals_separate {F V:Type} (ge: Genv.t F V) mu nu :=
     forall b1 b2 d, as_inj mu b1 = None ->

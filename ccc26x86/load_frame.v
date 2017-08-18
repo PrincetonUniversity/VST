@@ -7,20 +7,20 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Op.
-Require Import ccc26x86.Locations.
-Require Import ccc26x86.Conventions.
-Require ccc26x86.Stacklayout.
+Require Import VST.ccc26x86.Op.
+Require Import VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Conventions.
+Require VST.ccc26x86.Stacklayout.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.val_casted.
-Require Import ccc26x86.BuiltinEffects.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.reach.
-Require Import msl.Axioms.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.val_casted.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.effect_properties.
+Require Import VST.sepcomp.reach.
+Require Import VST.msl.Axioms.
 
 Definition load_stack (m: mem) (sp: val) (ty: typ) (ofs: int) :=
   Mem.loadv (chunk_of_type ty) m (Val.add sp (Vint ofs)).
@@ -699,7 +699,7 @@ Qed.
 
 Definition store_args m sp args tys := store_args_rec m sp 0 args tys.
 
-Require Import ccc26x86.Conventions1.
+Require Import VST.ccc26x86.Conventions1.
 
 (*Fixpoint agree_args_contains_aux m' sp' ofs args tys : Prop :=
   match args,tys with

@@ -3,14 +3,14 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.ageable.
+Require Import VST.msl.ageable.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
 
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
 
 Definition pures_sub (phi phi' : rmap) :=
   forall adr,

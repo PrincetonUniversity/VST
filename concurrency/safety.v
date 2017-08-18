@@ -7,13 +7,13 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import compcert.common.Memory.
 
-(*Require Import concurrency.juicy_machine.
+(*Require Import VST.concurrency.juicy_machine.
 
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.*)
-Require Import msl.eq_dec.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.*)
+Require Import VST.msl.eq_dec.
 
-Require Import concurrency.konig.
+Require Import VST.concurrency.konig.
 
 Section cardinality.
 (*Here goes cardinality stuff*)
@@ -390,7 +390,7 @@ Section Safety.
   Definition finite_on_x {X Y} (A:X->Y->Prop):=
     exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
   (** This lemma is actually easy. It's unique, under prop_ext. **)
-  Require Import msl.Axioms.
+  Require Import VST.msl.Axioms.
   Lemma finite_rel_generalize' {X Y} (V: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
     (forall x, finite_on_x (possible_image (fun x x' y => R x y x') V x)) ->
     forall (P:X -> Prop), finite P ->
