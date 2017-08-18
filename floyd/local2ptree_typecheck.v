@@ -61,13 +61,10 @@ Definition msubst_tc_expropt {cs: compspecs} (Delta: tycontext) (T1: PTree.t val
 (* Soundness proof *)
 
 Lemma msubst_denote_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    `(msubst_denote_tc_assert T1 T2 tc) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && `(msubst_denote_tc_assert T1 T2 tc) |--
     denote_tc_assert tc.
 Proof.
   intros.
-  rewrite (add_andp _ _ H); clear H.
   induction tc.
   + apply andp_left2; auto.
   + apply andp_left2; auto.
@@ -518,85 +515,67 @@ Proof.
 Qed.
 
 Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_lvalue Delta T1 T2 e) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_lvalue Delta T1 T2 e) |--
     tc_lvalue Delta e.
 Proof.
   intros.
-  unfold msubst_tc_lvalue in H.
-  apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_lvalue_legal_tc_init].
-  apply andp_right; [apply derives_refl | exact H].
+  apply andp_right; [apply andp_left1; apply derives_refl | ].
+  apply msubst_denote_tc_assert_sound.
 Qed.
 
 Lemma msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_expr Delta T1 T2 e) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_expr Delta T1 T2 e) |--
     tc_expr Delta e.
 Proof.
   intros.
-  unfold msubst_tc_expr in H.
-  apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
-  apply andp_right; [apply derives_refl | exact H].
+  apply andp_right; [apply andp_left1; apply derives_refl | ].
+  apply msubst_denote_tc_assert_sound.
 Qed.
 
 Lemma msubst_tc_LR_sound: forall {cs: compspecs} Delta P T1 T2 Q R e lr,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_LR Delta T1 T2 e lr) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_LR Delta T1 T2 e lr) |--
     tc_LR Delta e lr.
 Proof.
   intros.
-  unfold msubst_tc_LR in H.
-  apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_LR_legal_tc_init].
-  apply andp_right; [apply derives_refl | exact H].
+  apply andp_right; [apply andp_left1; apply derives_refl | ].
+  apply msubst_denote_tc_assert_sound.
 Qed.
 
 Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 Q R efs,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_efield Delta T1 T2 efs) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_efield Delta T1 T2 efs) |--
     tc_efield Delta efs.
 Proof.
   intros.
-  unfold msubst_tc_efield in H.
-  apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_efield_legal_tc_init].
-  apply andp_right; [apply derives_refl | exact H].
+  apply andp_right; [apply andp_left1; apply derives_refl | ].
+  apply msubst_denote_tc_assert_sound.
 Qed.
 
 Lemma msubst_tc_exprlist_sound: forall {cs: compspecs} Delta P T1 T2 Q R ts es,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_exprlist Delta T1 T2 ts es) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_exprlist Delta T1 T2 ts es) |--
     tc_exprlist Delta ts es.
 Proof.
   intros.
-  unfold msubst_tc_exprlist in H.
-  apply msubst_denote_tc_assert_sound in H.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_exprlist_legal_tc_init].
-  apply andp_right; [apply derives_refl | exact H].
+  apply andp_right; [apply andp_left1; apply derives_refl | ].
+  apply msubst_denote_tc_assert_sound.
 Qed.
 
 Lemma msubst_tc_expropt_sound: forall {cs: compspecs} Delta P T1 T2 Q R t e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    ` (msubst_tc_expropt Delta T1 T2 e t) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_expropt Delta T1 T2 e t) |--
     tc_expropt Delta e t.
 Proof.
   intros.
-  unfold msubst_tc_expropt, msubst_tc_expr in H; unfold tc_expropt.
-  apply msubst_denote_tc_assert_sound in H.
+  unfold msubst_tc_expropt, msubst_tc_expr, tc_expropt.
   destruct e.
   + eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
-    apply andp_right; [apply derives_refl | exact H].
-  + eapply derives_trans; [exact H |].
-    destruct (eqb_type t Tvoid) eqn:?H.
-    - rewrite eqb_type_spec in H0.
+    apply andp_right; [apply andp_left1; apply derives_refl | ].
+    apply msubst_denote_tc_assert_sound.
+  + destruct (eqb_type t Tvoid) eqn:?H.
+    - rewrite eqb_type_spec in H.
       subst.
       simpl; intro.
       unfold_lift.
