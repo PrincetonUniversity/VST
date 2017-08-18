@@ -396,6 +396,15 @@ Qed.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
 
+Lemma sgvar_gvar: forall i v, local (locald_denote (gvar i v)) |-- local (locald_denote (sgvar i v)).
+Proof.
+  intros.
+  unfold local, lift1; intro rho; apply prop_derives.
+  intros.
+  hnf in H |- *.
+  destruct (Map.get (ve_of rho) i) as [[? ?] |]; tauto.
+Qed.
+
 Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.
 intros. unfold PROPx. simpl. extensionality rho.
