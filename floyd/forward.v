@@ -2,7 +2,8 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
 Require Import VST.floyd.closed_lemmas.
-Require Import VST.floyd.forward_lemmas floyd.call_lemmas.
+Require Import VST.floyd.forward_lemmas.
+Require Import VST.floyd.call_lemmas.
 Require Import VST.floyd.extcall_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.efield_lemmas.
