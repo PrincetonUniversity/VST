@@ -234,7 +234,7 @@ Proof.
 intros.
 apply prop_right; auto.
 Qed.
-
+(*
 Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
@@ -284,7 +284,7 @@ Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
      | _, _ => extractp_localdef x l0
      end
   end.
-
+*)
 Definition localdef_tc (Delta: tycontext) (x: localdef): list Prop :=
   match x with
   | temp i v =>
@@ -372,7 +372,7 @@ Proof.
     rewrite !prop_and, !andp_assoc.
     apply andp_derives; auto.
 Qed.
-
+(*
 Lemma go_lower_localdef_one_step_canon_canon: forall Delta Ppre l Qpre Rpre Ppost Qpost Rpost,
   local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta l) (LOCALx Qpre (SEPx Rpre)) |--
     PROPx (Ppost ++ extractp_localdef l Qpost) (LOCALx (remove_localdef l Qpost) (SEPx Rpost)) ->
@@ -427,10 +427,10 @@ Definition extractp_localdefs (Pre Post: list localdef): list Prop :=
   match re_localdefs Pre Post with
   | (P, _) => concat (rev P)
   end.
-
+*)
 Definition localdefs_tc (Delta: tycontext) (Pre: list localdef): list Prop :=
   concat (map (localdef_tc Delta) Pre).
-
+(*
 Lemma remove_localdefs_cons: forall a Qpre Qpost,
   remove_localdefs (a :: Qpre) Qpost = remove_localdefs Qpre (remove_localdef a Qpost).
 Proof.
@@ -469,7 +469,7 @@ Proof.
     apply perm_skip.
     auto.
 Qed.
-
+*)
 Lemma go_lower_localdef_canon_left: forall Delta Ppre Qpre Rpre post,
   local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- post ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post.
@@ -486,7 +486,7 @@ Proof.
     rewrite <- !app_assoc.
     eapply derives_trans; [exact H | auto].
 Qed.
-
+(*
 Lemma go_lower_localdef_canon_canon: forall Delta Ppre Qpre Rpre Ppost Qpost Rpost,
   local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |--
     PROPx (Ppost ++ extractp_localdefs Qpre Qpost) (LOCALx (remove_localdefs Qpre Qpost) (SEPx Rpost)) ->
@@ -506,6 +506,112 @@ Proof.
     erewrite PROPx_Permutation; [apply derives_refl |].
     apply Permutation_app_head.
     apply extractp_localdefs_cons.
+Qed.
+ *)
+
+Definition msubst_extract_local (T1: PTree.t val) (T2: PTree.t vardesc) (x: localdef): Prop :=
+  match x with
+  | temp i u =>
+    match T1 ! i with
+    | Some v => v = u
+    | None => False
+    end
+  | lvar i ti u =>
+    match T2 ! i with
+    | Some (vardesc_local_global tj v _)
+    | Some (vardesc_local tj v) =>
+      if eqb_type ti tj
+      then v = u
+      else False           
+    | _ => False
+    end
+  | gvar i u =>
+    match T2 ! i with
+    | Some (vardesc_visible_global v) => v = u
+    | _ => False
+    end
+  | sgvar i u =>
+    match T2 ! i with
+    | Some (vardesc_local_global _ _ v)
+    | Some (vardesc_visible_global v)
+    | Some (vardesc_shadowed_global v) => v = u
+    | _ => False
+    end
+  | localprop P => P
+  end.
+
+Definition msubst_extract_locals (T1: PTree.t val) (T2: PTree.t vardesc) := map (msubst_extract_local T1 T2).
+
+Lemma localdef_local_facts_inv: forall Delta P T1 T2 R x,
+  msubst_extract_local T1 T2 x ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 nil) (SEPx R)) |-- local (locald_denote x).
+Proof.
+  intros.
+  destruct x; simpl in H.
+  + apply in_local.
+    apply LocalD_sound_temp.
+    destruct (T1 ! i); inv H; auto.
+  + apply in_local.
+    destruct (T2 ! i) as [[? | ? | ? | ?] |] eqn:?H; try solve [inv H].
+    - destruct (eqb_type t t0) eqn:?H; [| inv H].
+      apply eqb_type_spec in H1; subst.
+      eapply LocalD_sound_local_global in H0.
+      exact (proj1 H0).
+    - destruct (eqb_type t t0) eqn:?H; [| inv H].
+      apply eqb_type_spec in H1; subst.
+      eapply LocalD_sound_local in H0.
+      exact H0.
+  + apply in_local.
+    destruct (T2 ! i) as [[? | ? | ? | ?] |] eqn:?H; inv H.
+    apply LocalD_sound_visible_global; auto.
+  + destruct (T2 ! i) as [[? | ? | ? | ?] |] eqn:?H; inv H.
+    - apply in_local.
+      eapply LocalD_sound_local_global in H0.
+      exact (proj2 H0).
+    - eapply derives_trans; [| apply sgvar_gvar].
+      apply in_local.
+      apply LocalD_sound_visible_global; auto.
+    - apply in_local.
+      apply LocalD_sound_shadowed_global; auto.
+  + unfold local, lift1; unfold_lift; intros ?.
+    apply prop_right; auto.
+Qed.
+
+Lemma go_lower_localdef_one_step_canon_canon {cs: compspecs} : forall Delta Ppre Qpre Rpre Ppost l Qpost Rpost T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx (Ppost ++ msubst_extract_local T1 T2 l :: nil) (LOCALx Qpost (SEPx Rpost)) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx Ppost (LOCALx (l :: Qpost) (SEPx Rpost)).
+Proof.
+  intros.
+  replace (PROPx (Ppost ++ msubst_extract_local T1 T2 l :: nil)) with (PROPx (msubst_extract_local T1 T2 l :: Ppost)) in H0.
+  Focus 2. {
+    apply PROPx_Permutation.
+    eapply Permutation_trans; [| apply Permutation_app_comm].
+    apply Permutation_refl.
+  } Unfocus.
+  rewrite <- !insert_local'.
+  rewrite <- !insert_prop in H0.
+  apply andp_right; [| eapply derives_trans; [exact H0 | apply andp_left2; auto]].
+  rewrite (add_andp _ _ H0).
+  normalize.
+  apply andp_left1.
+  apply (local2ptree_soundness Ppre _ Rpre) in H; simpl in H.
+  rewrite H.
+  apply localdef_local_facts_inv; auto.
+Qed.
+
+Lemma go_lower_localdef_canon_canon {cs: compspecs} : forall Delta Ppre Qpre Rpre Ppost Qpost Rpost T1 T2,
+  local2ptree Qpre = (T1, T2, nil, nil) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx (Ppost ++ msubst_extract_locals T1 T2 Qpost) (LOCALx nil (SEPx Rpost)) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- PROPx Ppost (LOCALx Qpost (SEPx Rpost)).
+Proof.
+  intros.
+  revert Ppost H0; induction Qpost; intros.
+  + simpl app in H0.
+    rewrite app_nil_r in H0; auto.
+  + eapply go_lower_localdef_one_step_canon_canon; [eassumption |].
+    apply IHQpost.
+    rewrite <- app_assoc; auto.
 Qed.
 
 Ltac unfold_localdef_name QQ Q :=
