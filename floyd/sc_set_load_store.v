@@ -1393,7 +1393,7 @@ Ltac quick_typecheck4 :=
 Ltac default_entailer_for_load_tac :=
   repeat match goal with H := _ |- _ => clear H end;
   try quick_typecheck3;
-  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+  simpl typeof;
   try solve [entailer!].
 
 Ltac entailer_for_load_tac := default_entailer_for_load_tac.
