@@ -156,7 +156,7 @@ Proof.
   unfold same_env in *.
   destruct (H3 _ _ H1).
   unfold Map.get; rewrite H4.
-  destruct (H2 _ _ H1) as [b [? ?]].
+  destruct (H2 _ _ H1) as [b ?].
    rewrite H5. simpl.
   eauto.
   destruct H4; congruence.
@@ -447,7 +447,7 @@ intros.
 unfold tc_environ, typecheck_environ in H.
 destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
+specialize (Hc _ _ H1). destruct Hc as [b Hc].
 exists b.
 unfold eval_var; simpl.
 apply Hd in H1.
@@ -486,11 +486,11 @@ Proof.
   rewrite eqb_type_refl.
   simpl. auto.
   destruct H0.
-  destruct (H1 _ _ H3) as [b [? ?]].
+  destruct (H1 _ _ H3) as [b ?].
   rewrite H4. simpl.
  destruct (H2 _ _ H3).
- unfold Map.get; rewrite H6.
+ unfold Map.get; rewrite H5.
  auto.
- destruct H6. congruence.
+ destruct H5. congruence.
 Qed.
 

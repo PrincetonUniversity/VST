@@ -52,7 +52,7 @@ destruct ((var_types Delta) ! i) eqn:?H;
 + apply tc_bool_e in H2.
   apply (typecheck_var_environ_None _ _ H0) in H.
   apply H1 in H3.
-  destruct H3 as [b [? ?]].
+  destruct H3 as [b ?].
   exists b, Int.zero.
   rewrite H, H3.
   auto.
@@ -131,7 +131,7 @@ subst.
 unfold same_env in *.
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0).
 destruct H5. simpl in *. unfold Map.get. rewrite H4.
-unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo0). destruct H5.
+unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo0).
 rewrite H5.
 destruct pt; inv H1; reflexivity.
 destruct H4; congruence. inv H0.
@@ -229,8 +229,8 @@ unfold get_var_type in *.
 
 remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition.
-remember (type_eq t t0). destruct s; intuition.
-- subst. simpl in H0.
+- remember (type_eq t t0). destruct s; intuition.
+ subst. simpl in H0.
 clear H0.
 symmetry in Heqo.
 specialize (H i t0).
@@ -238,19 +238,19 @@ destruct H as [H _]; specialize (H Heqo).
 destruct H. unfold eval_var. simpl.
 rewrite H in *. rewrite eqb_type_refl in *.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; simpl; auto.
-- remember ((glob_types Delta) ! i). destruct o; try congruence.
+- remember ((glob_types Delta) ! i). destruct o; [| inv H0].
 simpl in *.
 unfold eval_var in *.
- super_unfold_lift. remember (eqb_type t t0).
-symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
+super_unfold_lift. remember (eqb_type t t0).
+symmetry in Heqb. destruct b; simpl in *; [| inv H0].
+apply eqb_type_true in Heqb.
 subst.
 symmetry in Heqo0.  specialize (SM _ _ Heqo0).
-destruct SM.
+destruct SM as [| [? ?]]; [| congruence].
 unfold Map.get. rewrite H3.
 unfold typecheck_glob_environ in *.
-destruct (H2 _ _ Heqo0). destruct H4.
-rewrite H4. auto. destruct H3; congruence.
-inv H0. inv H0.
+destruct (H2 _ _ Heqo0).
+rewrite H4. destruct t0 as [| [| | |] [|] | | [|] | | | | |]; inv MODE; simpl; auto.
 Qed.
 
 Definition unOp_result_type op t :=

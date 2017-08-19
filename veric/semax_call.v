@@ -221,7 +221,7 @@ Proof.
   specialize (H0 _ _ H).
   specialize (SAME _ _ H).
   destruct SAME as [SAME | [t SAME]]; [ | congruence].
-  destruct H0 as [b [? ?]].
+  destruct H0 as [b ?].
   specialize (H7 (Vptr b Int.zero) fsig0 cc A P' Q' _ (necR_refl _)).
   spec H7.
   Focus 1. {
@@ -239,7 +239,7 @@ Proof.
     specialize (H5 _ _ _ (necR_refl _) H').
     destruct H5 as [b' [? ?]].
     do 3 red in H5. inversion2 H0 H5.
-    apply H10.
+    apply H9.
 Qed.
 
 Import JuicyMemOps.

@@ -777,7 +777,7 @@ revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
 specialize (Hve i t0). destruct Hve as [Hve _].
 destruct (Hve H0). simpl in *; congruence.
 revert H1; case_eq ((glob_types Delta) ! i); intros; try contradiction.
-destruct (Hge _ _ H1) as [b [? ?]].
+destruct (Hge _ _ H1) as [b ?].
 simpl. simpl in H3.
 rewrite H3.
 
@@ -805,7 +805,7 @@ apply Clight.eval_Evar_global; auto.
  rewrite eqb_type_refl. reflexivity.
  +
  destruct ((glob_types Delta)!i) eqn:?; inv H3.
- destruct (H1 _ _ Heqo) as [b [? ?]];
+ destruct (H1 _ _ Heqo) as [b ?];
  exists b; exists Int.zero; split; auto.
  specialize (H2 _ _ Heqo).
  simpl in H2.
@@ -1155,10 +1155,10 @@ typecheck_glob_environ (ge_of rho) (glob_types Delta).
 Proof.
 intros. destruct c; simpl in *; try apply H;
 try destruct o; try rewrite set_temp_ge in *; try apply H;
-unfold typecheck_glob_environ in *; intros; apply H; try rewrite glob_types_update_dist;
+unfold typecheck_glob_environ in *; intros; eapply H; try rewrite glob_types_update_dist;
 try apply join_ge_eqv;
 repeat rewrite update_tycon_same_ge in *; try rewrite update_le_same_ge;
-auto.
+eauto.
 Qed.
 
 Lemma typecheck_environ_update:

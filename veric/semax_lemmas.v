@@ -155,8 +155,8 @@ split; [ | split; [ | split]].
  intros id ty. specialize (H4 id ty). rewrite <- H4.
  rewrite H0. clear; intuition.
 * clear - H2 H5.
- hnf; intros. apply H5.
- specialize (H2 id). hnf in H2. rewrite H in H2. auto.
+ hnf; intros. eapply H5.
+ specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
 * clear - H6 H1 H2 H0.
  hnf; intros. specialize (H6 id t).
  specialize (H2 id); hnf in H2. rewrite H in H2.

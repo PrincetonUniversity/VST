@@ -948,11 +948,7 @@ clear - H2. induction l; simpl; auto.
 destruct a. destruct g; simpl in *. destruct H2; auto. right; auto.
 apply IHl; auto.
 destruct (find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
-exists b.
-unfold globalenv; simpl Genv.find_symbol.
-split; auto.
-unfold type_of_global.
-destruct f; simpl; auto.
+exists b; auto.
 *
  unfold filter_genv.
  destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? [? TC]]].
@@ -960,9 +956,7 @@ destruct f; simpl; auto.
  pose proof (prog_defmap_norepet _ _ _ H H3).
 destruct (proj1 (Genv.find_def_symbol _ _ _) H5)
   as [b [? ?]].
- exists b.
- split; auto.
- destruct t; inv TC; simpl; auto.
+ exists b; auto.
 Qed.
 
 Lemma semax_prog_typecheck_aux:
