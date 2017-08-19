@@ -353,13 +353,6 @@ Proof.
   apply Z.le_antisymm; eapply Forall_sublist_le; eauto; omega.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
-Qed.
-
 Lemma NoDup_Znth_inj : forall {A} (d : A) l i j (HNoDup : NoDup l)
   (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l) (Heq : Znth i l d = Znth j l d),
   i = j.
@@ -1007,14 +1000,6 @@ Proof.
   induction l1; destruct l3; try discriminate; auto; intros.
   inv H; inv Hlen.
   exploit IHl1; eauto; intros (? & ?); split; [constructor|]; auto.
-Qed.
-
-Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= i -> sublist i j l = [].
-Proof.
-  intros; unfold sublist.
-  replace (Z.to_nat (j - i)) with O; auto.
-  destruct (eq_dec (j - i) 0); try Omega0.
-  rewrite Z2Nat_neg; auto; omega.
 Qed.
 
 Lemma Forall2_firstn : forall {A B} (P : A -> B -> Prop) l1 l2 n, Forall2 P l1 l2 ->
