@@ -21,7 +21,7 @@ Program Logics for Certified Compilers, by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
 Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694) or [e-book PDF](http://www.ebooks.com/1642304/program-logics-for-certified-compilers/appel-andrew-w-dockins-robert-hobor-aquinas-bering/).
 
-##Build:
+## Build:
 
 See the file [BUILD_ORGANIZATION](BUILD_ORGANIZATION) for an explanation of how
 to build and install the VST.
