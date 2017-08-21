@@ -943,8 +943,7 @@ forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
 Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
 forall id  t,  tc ! id = Some t ->
-((exists b,
-(ge id = Some b /\ tc_val t (Vptr b Int.zero)))).
+(exists b, ge id = Some b).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->

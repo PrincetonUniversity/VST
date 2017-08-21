@@ -61,7 +61,7 @@ unfold globvar2pred.
 simpl.
 destruct H6 as [? [? [? ?]]].
 destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b [? ?]].
+destruct (H8 _ _ H0) as [b ?].
 rewrite H11. rewrite H1.
 rewrite H3; simpl.
 unfold eval_var.
@@ -86,7 +86,7 @@ unfold globvar2pred.
 simpl.
 destruct H6 as [? [? [? ?]]].
 destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b [? ?]].
+destruct (H8 _ _ H0) as [b ?].
 rewrite H11. rewrite H1.
 rewrite H3; simpl.
 apply exp_right with (Vptr b Int.zero).
@@ -239,7 +239,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg;
     try destruct g; try solve [simpl; apply TT_right].
- +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+ +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
      simpl.
      rewrite H8.
      eapply derives_trans.
@@ -251,7 +251,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     auto.
     auto.
  +
-   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
    assert (Hv' :=proj1 (expr_lemmas2.typecheck_var_environ_None _ _ (proj1 (proj2 H7)) i) Hv).
    assert (locald_denote (gvar i (Vptr b' Int.zero)) rho)
      by (hnf; rewrite Hv'; rewrite H15; auto).
