@@ -7,4 +7,4 @@ else
 FLAGS=""
 fi
 
-coqide $FLAGS `cat .loadpath-full` $* &
+coqide $FLAGS `cat .loadpath` $* &

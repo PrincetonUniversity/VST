@@ -85,11 +85,9 @@ Definition main_spec :=
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-(** Declare all the functions, in exactly the same order as they
- ** appear in reverse.c (and in reverse.v).
- **)
+(** List all the function-specs, to form the global hypothesis *)
 Definition Gprog : funspecs :=   ltac:(with_library prog [
-    sumlist_spec; reverse_spec; main_spec]).
+    sumlist_spec; main_spec; reverse_spec]).
 
 (** A little equation about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i p ,
