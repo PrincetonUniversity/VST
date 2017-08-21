@@ -3081,7 +3081,7 @@ apply andp_right.
   unfold gvar_denote, eval_var, Map.get.
   destruct H as (_ & _ & DG & DS).
   destruct (DS id _ GS) as [-> | (t & E)]; [ | congruence].
-  destruct (DG id _ GS) as (? & -> & ?); auto.
+  destruct (DG id _ GS) as [? ?]; rewrite H; auto.
 - (* about func_ptr/func_ptr' *)
   unfold func_ptr'.
   rewrite <- andp_left_corable, andp_comm; auto.
