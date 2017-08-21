@@ -449,6 +449,14 @@ Proof. intros. unfold Znth. if_tac. omega. if_tac. omega.
   rewrite H2; reflexivity.
 Qed.
 
+Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
+Proof.
+  intros; unfold Znth.
+  destruct (zlt i 0); [omega|].
+  apply nth_In; rewrite Zlength_correct in *.
+  apply Nat2Z.inj_lt; rewrite Z2Nat.id; omega.
+Qed.
+
 Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
   lo <= mid < hi ->
   Zlength ct = hi - lo ->
@@ -881,17 +889,26 @@ rewrite Z.min_l by omega.
 auto.
 Qed.
 
-Lemma sublist_same:
+Lemma sublist_same_gen:
 forall {A} lo hi (al: list A),
-  lo = 0 -> hi = Zlength al ->
+  lo = 0 -> hi >= Zlength al ->
   sublist lo hi al = al.
 Proof.
 intros.
 unfold sublist; subst.
 rewrite Z.sub_0_r.
-change (Z.to_nat 0) with O.
-rewrite Zlength_correct, Nat2Z.id.
-simpl. apply firstn_exact_length.
+simpl; rewrite firstn_all2; auto.
+apply Nat2Z.inj_le.
+pose proof (Zlength_nonneg al).
+rewrite Z2Nat.id, <- Zlength_correct; omega.
+Qed.
+
+Lemma sublist_same:
+forall {A} lo hi (al: list A),
+  lo = 0 -> hi = Zlength al ->
+  sublist lo hi al = al.
+Proof.
+intros; apply sublist_same_gen; omega.
 Qed.
 
 Lemma Znth_sublist:
@@ -943,6 +960,15 @@ Proof.
 intros.
 unfold sublist.
 rewrite Z.sub_diag. reflexivity.
+Qed.
+
+Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= i -> sublist i j l = [].
+Proof.
+  intros; unfold sublist.
+  replace (Z.to_nat (j - i)) with O; auto.
+  apply Nat2Z.inj; simpl.
+  destruct (Z_eq_dec (j - i) 0); [rewrite e; auto|].
+  rewrite Z2Nat_neg; auto; omega.
 Qed.
 
 Lemma sublist_rev:
