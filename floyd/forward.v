@@ -2843,16 +2843,6 @@ Arguments EqDec_exitkind !a !a'.
 
 (**** make_compspecs ****)
 
-Fixpoint log_base_two_pos (x:positive) : nat :=
- match x with
- | xI y => S (log_base_two_pos y)
- | xO y => S (log_base_two_pos y)
- | xH => O
- end.
-
-Definition log_base_two (x: Z) : nat :=
-match x with Zpos y => log_base_two_pos y | _ => O end.
-
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),
    Forall (fun idco => f (snd idco)) (PTree.elements env) ->
@@ -2874,7 +2864,8 @@ eapply composite_env_consistent_i'; eassumption.
 Qed.
 
 Ltac make_compspecs prog :=
- refine ({| cenv_cs := prog_comp_env prog;
+ let e := eval hnf in (prog_comp_env prog) in
+ refine ({| cenv_cs := e;
             cenv_consistent := _;
             cenv_legal_alignas := _;
             cenv_legal_fieldlist := _ |});
