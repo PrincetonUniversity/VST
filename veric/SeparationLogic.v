@@ -776,7 +776,7 @@ Definition main_post (prog: program) : list Type -> unit -> environ->mpred :=
   (fun nil tt => TT).
 
 Definition main_spec (prog: program): funspec :=
-  mk_funspec (nil,Tvoid) cc_default
+  mk_funspec (nil, tint) cc_default
      (rmaps.ConstType unit) (main_pre prog) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
@@ -786,8 +786,7 @@ Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool 
  | (id,t)::V' => match gvs with
                        | nil => false
                        | (j,g)::gvs' => if eqb_ident id j
-                                              then andb (is_pointer_type t)
-                                                       (andb (eqb_type t (gvar_info g)) (match_globvars gvs' V'))
+                                              then andb (eqb_type t (gvar_info g)) (match_globvars gvs' V')
                                               else match_globvars gvs' V
                       end
   end.
