@@ -2853,50 +2853,6 @@ Fixpoint log_base_two_pos (x:positive) : nat :=
 Definition log_base_two (x: Z) : nat :=
 match x with Zpos y => log_base_two_pos y | _ => O end.
 
-Ltac make_composite_env env c :=
- match c with
- | nil => refine (  {| cenv_cs := env;
-    cenv_consistent := _;
-    cenv_legal_alignas := _;
-    cenv_legal_fieldlist := _ |})
- | Composite ?id ?su ?m ?a :: ?c' =>
- let t := constr: (PTree.get id env) in
- let t := eval hnf in t in
- constr_eq t (@None composite);
- let cm := constr: (complete_members env m) in
- let cm := eval hnf in cm in
- constr_eq cm true;
- let al := constr:(align_attr a (alignof_composite env m)) in
- let al := eval compute in al in
- let sz := constr:(align (sizeof_composite env su m) al) in
- let sz := eval compute in sz in
- let r := constr:(rank_members env m) in
- let r := eval compute in r in
- let szpos := constr:(Z.le_ge 0 sz (proj1 (Z.geb_le sz 0) (eq_refl _))) in
- let al_two_p := constr:(ex_intro (fun n : nat => al = two_power_nat n) (log_base_two al) (eq_refl _)) in
- let sz_al := constr:(ex_intro (fun z : Z => sz = (z * al)%Z) (sz / al) (eq_refl _)) in
- let c1 := constr:( {| co_su := su;
-            co_members := m;
-            co_attr := a;
-            co_sizeof := sz;
-            co_alignof := al;
-            co_rank := r;
-            co_sizeof_pos := szpos;
-            co_alignof_two_p := al_two_p;
-            co_sizeof_alignof := sz_al |}) in
- let env' := constr:(PTree.set id c1 env) in
- let env' := eval simpl in env' in
-  make_composite_env env' c'
-end.
-
-Ltac make_composite_env0 prog :=
-let p := constr:(prog_types prog) in
-let c := eval hnf in p in
-let e := constr:(@PTree.empty composite) in
-let e := eval hnf in e in
-make_composite_env e c.
-
-
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),
    Forall (fun idco => f (snd idco)) (PTree.elements env) ->
@@ -2918,7 +2874,10 @@ eapply composite_env_consistent_i'; eassumption.
 Qed.
 
 Ltac make_compspecs prog :=
- make_composite_env0 prog;
+ refine ({| cenv_cs := prog_comp_env prog;
+            cenv_consistent := _;
+            cenv_legal_alignas := _;
+            cenv_legal_fieldlist := _ |});
  [now (red; apply (composite_env_consistent_i composite_consistent);
           repeat constructor)
  |now (red; apply (composite_env_consistent_i composite_legal_alignas);

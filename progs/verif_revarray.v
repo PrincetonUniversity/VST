@@ -220,3 +220,11 @@ semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
 
+Lemma whole_program_correct:
+  semax_prog prog Vprog Gprog.
+Proof.
+  repeat split.
+  + apply all_funcs_correct.
+  + repeat (first [left; reflexivity | right]).
+Qed.
+
