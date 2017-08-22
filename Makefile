@@ -232,7 +232,7 @@ WAND_DEMO_FILES= \
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
-CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v
+CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
@@ -246,7 +246,7 @@ PROGS_FILES= \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v ghost.v
+  funcptr.v verif_funcptr.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
