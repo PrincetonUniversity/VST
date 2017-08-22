@@ -5,7 +5,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 
-(* Some definitions relating to the functional spec of this particular program.  *)
+(* Functional spec of this program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 
 Lemma sum_Z_app:
@@ -15,7 +15,7 @@ Proof.
 Qed.
 
 (* Beginning of the API spec for the sumarray.c program *)
-Definition sumarray_spec :=
+Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
@@ -31,33 +31,26 @@ Definition sumarray_spec :=
   Then the [Forall] would not be needed in the PROP part of PRE.
 *)
 
-(* The spec of "int main(void){}" always looks like this. *)
+(* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]  
+     PROP() 
+     LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
+     SEP(TT).
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
         ltac:(with_library prog [sumarray_spec; main_spec]).
-
-(* Loop invariant, for use in body_sumarray.  *)
-Definition sumarray_Inv a0 sh contents size :=
- EX i: Z,
-   PROP  (0 <= i <= size)
-   LOCAL (temp _a a0;
-          temp _i (Vint (Int.repr i));
-          temp _n (Vint (Int.repr size));
-          temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a0).
 
 (** Proof that f_sumarray, the body of the sumarray() function,
  ** satisfies sumarray_spec, in the global context (Vprog,Gprog).
  **)
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
-start_function.  (* Always do this at the beginning of a semax_body proof *)
+start_function. (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* i = 0; *)
@@ -65,7 +58,14 @@ forward.  (* s = 0; *)
 (* To do symbolic execution through a [while] loop, we must
  * provide a loop invariant, so we use [forward_while] with
  * the invariant as an argument .*)
-forward_while (sumarray_Inv a sh contents size).
+forward_while
+ (EX i: Z,
+   PROP  (0 <= i <= size)
+   LOCAL (temp _a a;
+          temp _i (Vint (Int.repr i));
+          temp _n (Vint (Int.repr size));
+          temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
+   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
 (* forward_while leaves four subgoals; here we label them
    with the * bullet. *)
 * (* Prove that current precondition implies loop invariant *)
@@ -83,7 +83,6 @@ entailer!.  (* Typechecking conditions usually solve quite easily *)
 assert_PROP (Zlength contents = size). {
   entailer!. do 2 rewrite Zlength_map. reflexivity.
 }
-
 forward. (* x = a[i] *)
 forward. (* s += x; *)
 forward. (* i++; *)
@@ -116,8 +115,9 @@ name four _four.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
   (four,Ews,four_contents,4).
- split3; auto. computable.
- repeat constructor; computable.
+ split3; auto.
+   computable.
+   repeat constructor; computable.
 forward. (* return s; *)
 Qed.
 

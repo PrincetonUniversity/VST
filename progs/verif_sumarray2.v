@@ -27,12 +27,15 @@ Definition sumarray_spec :=
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
            SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 
-(* The spec of "int main(void){}" always looks like this. *)
+(* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]  
+     PROP() 
+     LOCAL (temp ret_temp (Vint (Int.repr (3+4)))) 
+     SEP(TT).
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
@@ -59,16 +62,16 @@ forward_for_simple_bound size
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
 * (* Prove postcondition of loop body implies loop invariant *)
-
-  (*Insertion of this property is suiggested by an error message in the ensuing forward.
-    The property allows forward to discharge a nontrivial typechecking condition, namely that
-    the array-subscript index is in range;  not just in the bounds of the array, but in
-    the _initialized_ portion of the array.*)    
-  assert_PROP (0 <= i < Zlength (map Vint (map Int.repr contents))) as I by entailer!.
-  rewrite 2 Zlength_map in I.
-
-  forward. (* x = a[i] *)
+(* "forward" fails and tells us to first make (0 <= i < Zlength contents)
+   provable by auto, so we assert the following: *)
+assert_PROP (Zlength contents = size). {
+  entailer!. do 2 rewrite Zlength_map. reflexivity.
+}
+forward. (* x = a[i] *)
 forward. (* s += x; *)
+ (* Now we have reached the end of the loop body, and it's
+   time to prove that the _current precondition_  (which is the
+   postcondition of the loop body) entails the loop invariant. *)
 entailer!.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
@@ -78,8 +81,8 @@ entailer!.
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
     entails the postcondition demanded by the function specification. *)
-simpl.
-apply prop_right.
+entailer!.
+autorewrite with sublist in *.
 autorewrite with sublist.
 reflexivity.
 Qed.
