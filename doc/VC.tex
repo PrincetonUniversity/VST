@@ -1389,9 +1389,9 @@ in this theorem, the main proof-of-correctness
 theorem for the program \lstinline{sumarray.c}:
 
 \begin{lstlisting}
-Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_sumarray.
 semax_func_cons body_main.
 Qed.

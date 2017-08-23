@@ -2894,8 +2894,7 @@ let p := constr:(prog_types prog) in
 let c := eval hnf in p in
 let e := constr:(@PTree.empty composite) in
 let e := eval hnf in e in
-make_composite_env e c.
-
+    make_composite_env e c.
 
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),
@@ -2966,3 +2965,13 @@ apply JMeq_eq in H3.
 subst d' e'.
 f_equal; apply proof_irr.
 Qed.
+
+Ltac prove_semax_prog :=
+ split3; [ | | split3; [ | | split]];
+ [ reflexivity || fail "duplicate identifier in prog_defs"
+ | reflexivity || fail "unaligned initializer"
+ | solve [compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"
+ |
+ | reflexivity || fail "match_globvars failed"
+ | solve [repeat (first [left; reflexivity | right])] || fail "Can't find _main in Gprog"
+ ].

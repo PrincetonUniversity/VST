@@ -369,10 +369,10 @@ Proof.
   rewrite retval_ext_rval in H. auto.
 Qed.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
 semax_func_cons body_exit.

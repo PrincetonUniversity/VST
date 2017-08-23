@@ -29,8 +29,7 @@ Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool 
  | (id,t)::V' => match gvs with
                        | nil => false
                        | (j,g)::gvs' => if eqb_ident id j
-                                              then andb (is_pointer_type t)
-                                                       (andb (eqb_type t (gvar_info g)) (match_globvars gvs' V'))
+                                              then andb (eqb_type t (gvar_info g)) (match_globvars gvs' V')
                                               else match_globvars gvs' V
                       end
   end.
@@ -80,7 +79,7 @@ Definition main_post (prog: program) : list Type -> unit -> assert :=
   (fun nil tt _ => TT).
 
 Definition main_spec (prog: program): funspec :=
-  mk_funspec (nil,Tvoid) cc_default
+  mk_funspec (nil, tint) cc_default
      (ConstType unit) (main_pre prog) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
@@ -744,7 +743,7 @@ Lemma match_globvars_in':
   forall i t vl vs,
   match_globvars vl vs = true ->
   In (i,t) vs ->
-  exists g, In (i,g) vl /\ gvar_info g = t /\ is_pointer_type t = true.
+  exists g, In (i,g) vl /\ gvar_info g = t.
 Proof.
  induction vl; destruct vs; intros. inv H0.
  destruct p; inv H.
@@ -752,18 +751,16 @@ Proof.
  destruct a.
  pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
  assert (i=i0) by (rewrite <- H0; auto). subst i0; clear H0.
- apply andb_true_iff in H; destruct H as [PT ?].
  apply andb_true_iff in H; destruct H.
  apply eqb_type_true in H. subst t.
  exists g; split3; auto.
- destruct (IHvl _ H) as [g' [? [? ?]]]. left; auto. exists g'; split3; auto.
+ destruct (IHvl _ H) as [g' [? ?]]. left; auto. exists g'; split; auto.
  simpl in H. destruct a.
  pose proof (eqb_ident_spec i0 i1); destruct (eqb_ident i0 i1).
- apply andb_true_iff in H; destruct H as [PT ?].
  apply andb_true_iff in H; destruct H.
- destruct (IHvl _ H2) as [g' [? [? ?]]]; auto. exists g'; split3; auto.
+ destruct (IHvl _ H2) as [g' [? ?]]; auto. exists g'; split; auto.
  right; auto.
- apply IHvl in H. destruct H as [g' [? [? ?]]]. exists g'; split3; auto.
+ apply IHvl in H. destruct H as [g' [? ?]]. exists g'; split; auto.
  right; auto.
  right; auto.
 Qed.
@@ -774,7 +771,7 @@ Proof.
  intros.
  apply list_in_map_inv in H0. destruct H0 as [t [? ?]]. subst i.
  destruct t as [i t].
- destruct  (match_globvars_in' _ _ _ _ H H1) as [g [? [? ?]]].
+ destruct  (match_globvars_in' _ _ _ _ H H1) as [g [? ?]].
  simpl. apply in_map_fst with g; auto.
 Qed.
 
@@ -792,7 +789,6 @@ simpl in *.
 inv H.
  pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
  assert (i=i0) by (apply H; auto); subst i0; clear H.
- apply andb_true_iff in H0; destruct H0 as [_ H0].
  apply andb_true_iff in H0; destruct H0.
  constructor; auto.
  contradict H3.
@@ -864,7 +860,6 @@ Proof.
  destruct H. inv H. auto.
  pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
  assert (i=i0) by (rewrite <- H1; auto). subst i0; clear H1.
-  apply andb_true_iff in H0; destruct H0 as [_ H0].
   apply andb_true_iff in H0; destruct H0.
  contradiction H3.
  eapply match_globvars_in; eauto. apply in_map_fst with t. auto.
@@ -877,7 +872,6 @@ Proof.
  pose proof (eqb_ident_spec i i0).
  destruct (ident_eq i i0).
  subst. destruct H. rewrite H1 in H0 by auto.
-  apply andb_true_iff in H0; destruct H0 as [_ H0].
  rewrite andb_true_iff in H0; destruct H0.
  apply eqb_type_true in H0. subst t0.
  clear H H1.
@@ -951,7 +945,7 @@ destruct (find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
 exists b; auto.
 *
  unfold filter_genv.
- destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? [? TC]]].
+ destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? ?]].
  apply in_prog_vars_in_prog_defs in H3.
  pose proof (prog_defmap_norepet _ _ _ H H3).
 destruct (proj1 (Genv.find_def_symbol _ _ _) H5)
@@ -1109,7 +1103,7 @@ Proof.
 
   - specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
 
-    assert (E: type_of_fundef f = Tfunction Tnil Tvoid cc_default). {
+    assert (E: type_of_fundef f = Tfunction Tnil tint cc_default). {
       destruct (match_fdecs_exists_Gfun
                   prog G (prog_main prog)
                   (main_spec prog))
@@ -1140,7 +1134,7 @@ Proof.
     eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
               _ (main_post prog) _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil tt (fun _ => TT) (fun _ => TT)
-              None (nil,Tvoid) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _
+              None (nil, tint) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
                  (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
@@ -1159,7 +1153,7 @@ Proof.
       extensionality rho'.
       unfold main_post.
       normalize. rewrite TT_sepcon_TT.
-      apply pred_ext. apply exp_right with Vundef; auto. auto.
+      apply pred_ext. do 2 apply exp_right with Vundef; auto. auto.
     + rewrite (corable_funassert _ _).
       simpl m_phi.
       rewrite core_inflate_initial_mem; auto.
