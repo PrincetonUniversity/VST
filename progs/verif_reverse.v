@@ -292,20 +292,23 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Ltac prove_semax_prog :=
+ split3; [ | | split3; [ | | split]];
+ [ reflexivity || fail "duplicate identifier in prog_defs"
+ | reflexivity || fail "unaligned initializer"
+ | solve [compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"
+ |
+ | reflexivity || fail "match_globvars failed"
+ | solve [repeat (first [left; reflexivity | right])] || fail "Can't find _main in Gprog"
+ ].
+
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_sumlist.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
 
-Lemma whole_program_correct:
-  semax_prog prog Vprog Gprog.
-Proof.
-  repeat split.
-  + apply all_funcs_correct.
-  + repeat (first [left; reflexivity | right]).
-Qed.
 

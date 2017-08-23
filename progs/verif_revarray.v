@@ -212,19 +212,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-
-Lemma whole_program_correct:
-  semax_prog prog Vprog Gprog.
-Proof.
-  repeat split.
-  + apply all_funcs_correct.
-  + repeat (first [left; reflexivity | right]).
-Qed.
-
