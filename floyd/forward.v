@@ -2973,5 +2973,13 @@ Ltac prove_semax_prog :=
  | solve [compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"
  |
  | reflexivity || fail "match_globvars failed"
- | solve [repeat (first [left; reflexivity | right])] || fail "Can't find _main in Gprog"
+ | match goal with |- match ?A with _ => _ end =>
+      let fs := fresh "fs" in set (fs := A); hnf in fs; subst fs; cbv iota beta;
+      lazymatch goal with
+      | |- False => fail "Can't find _main in Gprog" 
+      | |- _ =>  idtac 
+      end;
+      (eexists; reflexivity) || 
+        fail "Funspec of _main is not in the proper form"
+    end
  ].

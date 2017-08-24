@@ -78,6 +78,12 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : list Type -> unit -> assert :=
   (fun nil tt _ => TT).
 
+Definition main_spec' (prog: program) 
+    (post: list Type -> unit -> environ ->pred rmap): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (ConstType unit) (main_pre prog) post
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
      (ConstType unit) (main_pre prog) (main_post prog)
@@ -104,7 +110,10 @@ Definition semax_prog {C: compspecs}
   cenv_cs = prog_comp_env prog /\
   @semax_func V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), main_spec prog) G.
+  match find_id prog.(prog_main) G with
+  | Some s => exists post, s = main_spec' prog post
+  | None => False
+  end.
 
 Lemma semax_func_nil:
    forall
@@ -1065,10 +1074,18 @@ Proof.
   intros until m.
   pose proof I; intros.
   destruct H0 as [? [AL [HGG [[? ?] [GV ?]]]]].
+  assert (H4': exists post, In (prog_main prog, main_spec' prog post) G). {
+    destruct (find_id (prog_main prog) G) eqn:?.
+    apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
+    subst. auto. contradiction.
+  } clear H4. rename H4' into H4.
   assert ({ f | In (prog_main prog, f) (prog_funct prog)}).
   forget (prog_main prog) as id.
-  apply in_map_fst in H4.
-  pose proof (match_fdecs_in _ _ _ H4 H2).
+  assert (H4': In id (map fst G)). {
+    destruct H4 as [? H4].
+  apply in_map_fst in H4. auto.
+  }
+  pose proof (match_fdecs_in _ _ _ H4' H2).
   apply in_map_sig in H5. 2:decide equality.
   destruct H5 as [[? ?] [? ?]]; subst.
   eauto.
@@ -1102,11 +1119,11 @@ Proof.
     unfold initial_core. rewrite level_make_rmap; auto.
 
   - specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
-
+    destruct H4 as [post H4].
     assert (E: type_of_fundef f = Tfunction Tnil tint cc_default). {
       destruct (match_fdecs_exists_Gfun
                   prog G (prog_main prog)
-                  (main_spec prog))
+                  (main_spec' prog post))
         as (fd, (Ifd, sametypes)); auto.
       {
         apply find_id_i; auto.
@@ -1131,10 +1148,11 @@ Proof.
     pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
     intros z.
+    pose (post' := fun rho => TT * EX rv:val, post nil tt (env_set (globals_only rho) ret_temp rv)).
     eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
-              _ (main_post prog) _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
+              _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil tt (fun _ => TT) (fun _ => TT)
-              None (nil, tint) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _
+              None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
                  (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
@@ -1151,9 +1169,12 @@ Proof.
     + hnf; intros; intuition.
       unfold normal_ret_assert; simpl.
       extensionality rho'.
-      unfold main_post.
-      normalize. rewrite TT_sepcon_TT.
-      apply pred_ext. do 2 apply exp_right with Vundef; auto. auto.
+      normalize.
+(*      unfold main_post. rewrite TT_sepcon_TT. *)
+      unfold post'.
+      apply pred_ext.
+         normalize. intro rv. do 2 apply exp_right with rv; auto.
+         normalize. intro rv. apply exp_right with rv; auto. 
     + rewrite (corable_funassert _ _).
       simpl m_phi.
       rewrite core_inflate_initial_mem; auto.
@@ -1165,14 +1186,13 @@ Proof.
       reflexivity.
     + intros ek vl tx' vx'.
       unfold normal_ret_assert, frame_ret_assert.
-      normalize.
-      rewrite TT_sepcon_TT.
+      subst post'. cbv beta.
       normalize.
       apply derives_subp.
-      normalize.
+      normalize. intro rv.
       simpl.
       intros ? ? ? ? _ ?.
-      destruct H8 as [[? [? ?]] ?].
+      destruct H8 as [[? [H10 [H11 ?]]] ?].
       hnf in H10, H11. subst ek vl.
       destruct H8.
       subst a.
@@ -1181,9 +1201,9 @@ Proof.
       apply safe_loop_skip.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
-      instantiate (1:= main_post prog).
+      instantiate (1:= post).
       instantiate (1:= main_pre prog).
-      assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))).
+      assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))). {
       clear - H0.
       unfold prog_defs_names in H0. unfold prog_funct.
       change (AST.prog_defs prog) with (prog_defs prog) in H0.
@@ -1191,6 +1211,7 @@ Proof.
       destruct a; destruct g; simpl; auto. constructor; auto.
       clear - H2; simpl in H2; contradict H2; induction l; simpl in *; auto.
       destruct a; destruct g; simpl in *; auto. destruct H2; auto.
+      }
       forget (prog_funct prog) as fs.
       clear - H4 H8 H2.
       fold (main_spec prog).
@@ -1226,8 +1247,8 @@ Proof.
   - apply initial_jm_without_locks.
   - apply initial_jm_without_locks.
   - apply initial_jm_matchfunspecs.
-  - apply initial_jm_funassert.
-  - apply initial_jm_funassert.
+  -  destruct (initial_jm_funassert V prog m G n H1 H0 H2). auto.
+  -  destruct (initial_jm_funassert V prog m G n H1 H0 H2). auto.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext :=

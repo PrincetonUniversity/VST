@@ -290,16 +290,6 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Ltac prove_semax_prog :=
- split3; [ | | split3; [ | | split]];
- [ reflexivity || fail "duplicate identifier in prog_defs"
- | reflexivity || fail "unaligned initializer"
- | solve [compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"
- |
- | reflexivity || fail "match_globvars failed"
- | solve [repeat (first [left; reflexivity | right])] || fail "Can't find _main in Gprog"
- ].
-
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.

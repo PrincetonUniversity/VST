@@ -775,6 +775,12 @@ Definition main_pre (prog: program) : list Type -> unit -> environ->mpred :=
 Definition main_post (prog: program) : list Type -> unit -> environ->mpred :=
   (fun nil tt => TT).
 
+Definition main_spec' (prog: program) 
+    (post: list Type -> unit -> environ -> mpred): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (rmaps.ConstType unit) (main_pre prog) post
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
      (rmaps.ConstType unit) (main_pre prog) (main_post prog)
@@ -1041,7 +1047,10 @@ Definition semax_prog
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), main_spec prog) G.
+  match initial_world.find_id prog.(prog_main) G with
+  | Some s => exists post, s = main_spec' prog post
+  | None => False
+  end.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C, @semax_func Espec V G C nil nil.
