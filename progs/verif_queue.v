@@ -260,7 +260,8 @@ Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]
+       PROP() LOCAL (temp ret_temp (Vint (Int.repr (1+10)))) SEP(TT).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog

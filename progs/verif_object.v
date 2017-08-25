@@ -80,7 +80,8 @@ Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]
+     EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).
@@ -267,6 +268,7 @@ drop_LOCALs [_p_twiddle; _mtable]. clear sh H r0 t0 mtable0 instance.
 
 (* 6. return *)
 forward.  (* return i; *)
+Exists i; entailer!.
 Qed.
 
 
