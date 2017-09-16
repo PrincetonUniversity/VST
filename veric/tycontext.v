@@ -292,52 +292,6 @@ Proof.
   destruct_in_members i m; [left | right]; auto.
 Qed.
 
-Definition plain_alignof env t: Z :=
-  match t with
-  | Tvoid
-  | Tfunction _ _ _ => 1
-  | Tint I8 _ _ => 1
-  | Tint I16 _ _ => 2
-  | Tint I32 _ _ => 4
-  | Tint IBool _ _ => 1
-  | Tlong _ _ => 4
-  | Tfloat F32 _ => 4
-  | Tfloat F64 _ => 4
-  | Tpointer _ _ => 4
-  | Tarray t' _ _ => alignof env t'
-  | Tstruct id _ =>
-      match env ! id with
-      | Some co => co_alignof co
-      | None => 1
-      end
-  | Tunion id _ =>
-      match env ! id with
-      | Some co => co_alignof co
-      | None => 1
-      end
-  end.
-
-Lemma plain_alignof_spec: forall env t,
-  alignof env t = align_attr (attr_of_type t) (plain_alignof env t).
-Proof.
-  intros.
-  destruct t; auto.
-Qed.
-
-Lemma plain_alignof_two_p: forall env t, exists n,
-  plain_alignof env t = two_power_nat n.
-Proof.
-  intros.
-  destruct t as [| []  ? ? | | [] ? | | | | |];
-  try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity].
-  + simpl.
-    apply alignof_two_p.
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
-Qed.
-
 Lemma size_chunk_sizeof: forall env t ch, access_mode t = By_value ch -> sizeof env t = Memdata.size_chunk ch.
 Proof.
   intros.
@@ -347,54 +301,6 @@ Proof.
   - destruct f; inversion H1; reflexivity.
   - inversion H1; reflexivity.
 Qed.
-
-Definition local_legal_alignas_type env (t: type): bool :=
-  Z.leb (plain_alignof env t) (alignof env t) &&
-  match t with
-  | Tarray t' n a => Z.eqb ((sizeof env t') mod (alignof env t')) 0 && Z.leb 0 n
-  | Tlong _ _ => Z.leb 8 (alignof env t)
-  | _ => true
-  end.
-
-Lemma local_legal_alignas_type_spec: forall env t,
-  local_legal_alignas_type env t = true ->
-  (plain_alignof env t | alignof env t).
-Proof.
-  intros.
-  apply andb_true_iff in H.
-  destruct H as [? _].
-  apply Zle_is_le_bool in H.
-  apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
-Qed.
-
-Lemma align_chunk_alignof: forall env t ch, local_legal_alignas_type env t = true -> access_mode t = By_value ch -> (Memdata.align_chunk ch | alignof env t).
-Proof.
-  intros.
-  destruct t; inversion H0.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    destruct i, s; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-  - unfold local_legal_alignas_type in H.
-    rewrite andb_true_iff in H; destruct H as [_ ?].
-    apply Zge_is_le_bool in H.
-    apply power_nat_divide' in H.
-    * auto.
-    * apply alignof_two_p.
-    * exists 3%nat; auto.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    destruct f; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-Qed.
-
-Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
-  (co_alignof co >= alignof_composite env (co_members co)).
-
-Definition composite_env_legal_alignas env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_alignas env co.
 
 Definition composite_legal_fieldlist (co: composite): Prop :=
   members_no_replicate (co_members co) = true.
