@@ -34,42 +34,6 @@ Print Build_composite.
 Print make_composite_env.
 Print build_composite_env.
 Print add_composite_definitions.
-(* Aux: composite_env's PTree members reordering *)
-
-Definition PTree_get_list {A: Type} (i: positive) (T: PTree.t (list A)): list A :=
-  match PTree.get i T with
-  | Some l => l
-  | None => nil
-  end.
-
-Definition PTree_set_cons {A: Type} (i: positive) (a: A) (T: PTree.t (list A)) :=
-  PTree.set i (a :: PTree_get_list i T) T.
-
-Definition rebuild_composite_tree (env: composite_env): PTree.t (list (ident * composite)) :=
-  fold_right (fun ic => PTree_set_cons (Pos.of_succ_nat (co_rank (snd ic))) ic) (PTree.empty _) (PTree.elements env).
-
-Definition max_rank_composite (env: composite_env): nat :=
-  fold_right (fun ic => max (co_rank (snd ic))) O (PTree.elements env).
-
-Lemma max_rank_composite_is_upper_bound: forall env i co,
-  PTree.get i env = Some co ->
-  (co_rank co <= max_rank_composite env)%nat.
-Proof.
-  intros.
-  apply PTree.elements_correct in H.
-  unfold max_rank_composite.
-  induction (PTree.elements env).
-  + inv H.
-  + destruct H.
-    - subst.
-      simpl.
-      apply Max.le_max_l.
-    - apply IHl in H.
-      etransitivity; [exact H |].
-      simpl.
-      apply Max.le_max_r.
-Qed.
-
 (* Strong align requirement *)
 Fixpoint plain_alignof (env_al: PTree.t Z) t: Z :=
   match t with
