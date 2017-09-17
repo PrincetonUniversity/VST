@@ -2,6 +2,9 @@ Require Import Coq.Sorting.Permutation.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 
+(* TODO: This is obviously true. Ask Xavior to remove the definition list_norepet.*)
+Axiom list_norepet_NoDup: forall {A: Type} (l: list A), list_norepet l <-> NoDup l.
+
 Lemma PTree_In_fst_elements {A: Type}: forall (T: PTree.t A) i,
   In i (map fst (PTree.elements T)) <-> exists a, PTree.get i T = Some a.
 Proof.
@@ -30,6 +33,19 @@ Proof.
   + rewrite PTree.gso; eauto.
 Qed.
 
+Lemma PTree_gs_equiv {A: Type}: forall (T: PTree.t A) i j x,
+  (exists a, PTree.get i T= Some a) \/ i = j <->
+  exists a, PTree.get i (PTree.set j x T) = Some a.
+Proof.
+  intros.
+  split; intros.
+  + destruct H; [apply PTree_gs; auto |].
+    subst; rewrite PTree.gss; eauto.
+  + destruct (Pos.eq_dec i j); auto.
+    rewrite PTree.gso in H by auto.
+    auto.
+Qed.
+
 Lemma PTree_set_In_fst_elements {A: Type}: forall (T: PTree.t A) i i' a',
   In i (map fst (PTree.elements T)) ->
   In i (map fst (PTree.elements (PTree.set i' a' T))).
@@ -46,6 +62,28 @@ Fixpoint relative_defined_type {A: Type} (l: list (ident * A)) (t: type): Prop :
   | Tunion id _ => In id (map fst l)
   | _ => True
   end.
+
+Lemma relative_defined_type_mono: forall {A B: Type} (l1: list (ident * A)) (l2: list (ident * B)) (t: type),
+  (forall i, In i (map fst l1) -> In i (map fst l2)) ->
+  relative_defined_type l1 t ->
+  relative_defined_type l2 t.
+Proof.
+  intros.
+  induction t; auto.
+  + simpl in *.
+    firstorder.
+  + simpl in *.
+    firstorder.
+Qed.
+
+Lemma relative_defined_type_equiv: forall {A B: Type} (l1: list (ident * A)) (l2: list (ident * B)) (t: type),
+  (forall i, In i (map fst l1) <-> In i (map fst l2)) ->
+  (relative_defined_type l1 t <-> relative_defined_type l2 t).
+Proof.
+  intros.
+  split; apply relative_defined_type_mono;
+  firstorder.
+Qed.
 
 (* Aux: composite_env's PTree members reordering *)
 
@@ -139,7 +177,7 @@ Definition env_rec (i: positive) (co: composite) (env: PTree.t A): PTree.t A :=
                               (co_members co)))
     env.
 
-Fixpoint Env (l: list (positive * composite)): PTree.t A :=
+Definition Env (l: list (positive * composite)): PTree.t A :=
   fold_right
     (fun (ic: positive * composite) =>
        let (i, co) := ic in env_rec i co)
@@ -169,34 +207,77 @@ Lemma relative_defined_type_PTree_set: forall t (env: PTree.t A) i a,
   relative_defined_type (PTree.elements (PTree.set i a env)) t.
 Proof.
   intros.
-  induction t; auto.
-  + simpl in H |- *.
-    apply PTree_set_In_fst_elements; auto.
-  + simpl in H |- *.
-    apply PTree_set_In_fst_elements; auto.
+  revert H; apply relative_defined_type_mono.
+  intros; apply PTree_set_In_fst_elements; auto.
 Qed.
 
-Lemma aux_induction_step: forall cenv env i0 co0,
-  ~ In i0 (map fst (PTree.elements env)) ->
-  Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co0)) ->
-  PTree.get i0 cenv = Some co0 ->
-  (forall i co a,
-      PTree.get i cenv = Some co ->
-      PTree.get i env = Some a ->
-      Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co))) ->
-  (forall i co a,
-      PTree.get i cenv = Some co ->
-      PTree.get i (env_rec i0 co0 env) = Some a ->
-      Forall (relative_defined_type (PTree.elements (env_rec i0 co0 env))) (map snd (co_members co))).
+Section Consistency_Induction_Step.
+
+Context (cenv: composite_env)
+        (env: PTree.t A)
+        (l: list (positive * composite))
+        (i0: positive)
+        (co0: composite).
+
+Hypothesis NOT_IN_LIST: ~ In i0 (map fst l).
+
+Hypothesis RDT_list: Forall (relative_defined_type l) (map snd (co_members co0)).
+
+Hypothesis CENV0: PTree.get i0 cenv = Some co0.
+
+Hypothesis IH_In_equiv: forall i, In i (map fst l) <-> In i (map fst (PTree.elements env)).
+
+Hypothesis IH_RDT:
+  forall i co a,
+    PTree.get i cenv = Some co ->
+    PTree.get i env = Some a ->
+    Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co)).
+
+Hypothesis IH_main:
+  Consistency cenv env.
+
+Lemma NOT_IN: ~ In i0 (map fst (PTree.elements env)).
 Proof.
-  intros ? ? i0 co0 NOT_IN RDT CENV0 IH_RDT.
+  intros.
+  rewrite <- IH_In_equiv; auto.
+Qed.
+
+Lemma RDT_PTree: Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co0)).
+Proof.
+  intros.
+  revert RDT_list; apply Forall_impl.
+  intros t.
+  apply relative_defined_type_mono.
+  firstorder.
+Qed.
+
+Lemma establish_In_equiv:
+  forall i, In i (map fst ((i0, co0) :: l)) <-> In i (map fst (PTree.elements (env_rec i0 co0 env))).
+Proof.
+  intros.
+  specialize (IH_In_equiv i).
+  rewrite PTree_In_fst_elements in IH_In_equiv |- *.
+  unfold env_rec.
+  rewrite <- PTree_gs_equiv.
+  simpl In.
+  assert (i0 = i <-> i = i0) by (split; intros; congruence).
+  tauto.
+Qed.
+
+Lemma establish_RDT:
+  forall i co a,
+    PTree.get i cenv = Some co ->
+    PTree.get i (env_rec i0 co0 env) = Some a ->
+    Forall (relative_defined_type (PTree.elements (env_rec i0 co0 env))) (map snd (co_members co)).
+Proof.
+  pose proof RDT_PTree as RDT_PTree.
   intros i co a CENV ENV.
   unfold env_rec in ENV.
   destruct (Pos.eq_dec i i0).
   + subst i0; rewrite CENV in CENV0; inversion CENV0; subst co0; clear CENV0.
     rewrite PTree.gss in ENV.
     inversion ENV; clear a ENV H0.
-    revert RDT.
+    revert RDT_PTree.
     apply Forall_impl; intros t.
     apply relative_defined_type_PTree_set.
   + rewrite PTree.gso in ENV by auto.
@@ -206,18 +287,11 @@ Proof.
     apply relative_defined_type_PTree_set.
 Qed.
 
-Lemma consistent_induction_step: forall cenv env i0 co0,
-  ~ In i0 (map fst (PTree.elements env)) ->
-  Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co0)) ->
-  PTree.get i0 cenv = Some co0 ->
-  (forall i co a,
-      PTree.get i cenv = Some co ->
-      PTree.get i env = Some a ->
-      Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co))) ->
-  Consistency cenv env ->
+Lemma establish_main:
   Consistency cenv (env_rec i0 co0 env).
 Proof.
-  intros ? ? i0 co0 NOT_IN RDT CENV0 IH_RDT IH_main.
+  pose proof NOT_IN as NOT_IN.
+  pose proof RDT_PTree as RDT_PTree.
   intros i co a CENV ENV.
   unfold env_rec in ENV.
   destruct (Pos.eq_dec i i0).
@@ -230,7 +304,7 @@ Proof.
     intros (i1, t1) ?.
     f_equal.
     apply F_PTree_set; auto.
-    rewrite Forall_forall in RDT; apply RDT.
+    rewrite Forall_forall in RDT_PTree; apply RDT_PTree.
     apply (in_map snd) in H; auto.
   + rewrite PTree.gso in ENV by auto.
     specialize (IH_main _ _ _ CENV ENV).
@@ -245,25 +319,56 @@ Proof.
     apply (in_map snd) in H; auto.
 Qed.
 
+End Consistency_Induction_Step.
+
 Lemma Consistent: forall cenv l,
   Permutation l (PTree.elements cenv) ->
   ordered_composite l ->
   Consistency cenv (Env l).
 Proof.
   intros.
+  assert (forall i co, In (i, co) l -> PTree.get i cenv = Some co).
+  Focus 1. {
+    intros.
+    apply PTree.elements_complete.
+    eapply Permutation_in; eauto.
+  } Unfocus.
+  assert (NoDup (map fst l)).
+  Focus 1. {
+    eapply Permutation_NoDup; [symmetry; apply Permutation_map; eassumption |].
+    rewrite <- list_norepet_NoDup.
+    apply PTree.elements_keys_norepet.
+  } Unfocus.
+  clear H.
   assert (
+    (forall i, In i (map fst l) <-> In i (map fst (PTree.elements (Env l)))) /\
     (forall i co a,
       PTree.get i cenv = Some co ->
       PTree.get i (Env l) = Some a ->
       Forall (relative_defined_type (PTree.elements (Env l))) (map snd (co_members co))) /\
     Consistency cenv (Env l)); [| tauto].
   induction l as [| [i0 co0] l].
-  + split; hnf; intros.
-    - unfold Env in H2; simpl in H2.
-      rewrite PTree.gempty in H2; inv H2.
-    - unfold Env in H2; simpl in H2.
-      rewrite PTree.gempty in H2; inv H2.
-  + split.
-    - apply aux_induction_step; admit.
-    - apply consistent_induction_step; admit.
-Admitted.
+  + split; [| split]; hnf; intros.
+    - simpl; tauto.
+    - unfold Env in H3; simpl in H3.
+      rewrite PTree.gempty in H3; inv H3.
+    - unfold Env in H3; simpl in H3.
+      rewrite PTree.gempty in H3; inv H3.
+  + inv H0.
+    rename H4 into RDT_list; specialize (IHl H6); clear H6.
+    assert (CENV0: PTree.get i0 cenv = Some co0).
+    Focus 1. { apply H1; left; auto. } Unfocus.
+    spec IHl; [| clear H1].
+    Focus 1. { intros; apply H1; right; auto. } Unfocus.
+    inv H2.
+    rename H1 into NOT_IN_LIST; specialize (IHl H3); clear H3.
+    destruct IHl as [IH_In_equiv [IH_RDT IH_main]].
+    split; [| split].
+    - apply establish_In_equiv; auto.
+    - eapply establish_RDT; eauto.
+    - eapply establish_main; eauto.
+Qed.
+
+End type_func.
+
+End type_func.
