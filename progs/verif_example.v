@@ -114,14 +114,6 @@ Proof.
     rewrite data_at_isptr, prop_false_andp; auto.
 Qed.
 
-(* up *)
-Lemma sublist_last_1 : forall {A} lo hi (al : list A) d, 0 <= lo <= hi -> hi + 1 <= Zlength al ->
-  sublist lo (hi + 1) al = sublist lo hi al ++ [Znth hi al d].
-Proof.
-  intros.
-  erewrite sublist_split with (mid := hi)(hi0 := hi + 1), sublist_len_1 with (d0 := d); auto; omega.
-Qed.
-
 Lemma sum_base : forall l i, fold_right Z.add i l = fold_right Z.add 0 l + i.
 Proof.
   induction l; auto; simpl; intro.
