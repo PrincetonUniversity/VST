@@ -85,8 +85,6 @@ Proof.
   firstorder.
 Qed.
 
-(* Aux: composite_env's PTree members reordering *)
-
 Definition PTree_get_list {A: Type} (i: positive) (T: PTree.t (list A)): list A :=
   match PTree.get i T with
   | Some l => l
@@ -96,11 +94,156 @@ Definition PTree_get_list {A: Type} (i: positive) (T: PTree.t (list A)): list A 
 Definition PTree_set_cons {A: Type} (i: positive) (a: A) (T: PTree.t (list A)) :=
   PTree.set i (a :: PTree_get_list i T) T.
 
-Definition rebuild_composite_tree (env: composite_env): PTree.t (list (ident * composite)) :=
-  fold_right (fun ic => PTree_set_cons (Pos.of_succ_nat (co_rank (snd ic))) ic) (PTree.empty _) (PTree.elements env).
+Lemma PTree_set_cons_Permutation {A: Type}: forall i a (T: PTree.t (list A)),
+  Permutation (a :: concat (map snd (PTree.elements T)))
+              (concat (map snd (PTree.elements (PTree_set_cons i a T)))).
+Proof.
+  intros.
+  assert (exists l1 l2,
+             map snd (PTree.elements (PTree_set_cons i a T)) =
+             l1 ++ (a :: PTree_get_list i T) :: l2 /\
+             map snd (PTree.elements (PTree.remove i (PTree_set_cons i a T))) =
+             l1 ++ l2
+         ).
+  Focus 1. {
+    pose proof @PTree.elements_remove _ i  (a :: PTree_get_list i T) (PTree_set_cons i a T).
+    unfold PTree_set_cons in H at 1.
+    rewrite PTree.gss in H.
+    specialize (H eq_refl).
+    destruct H as [l1 [l2 [? ?]]].
+    exists (map snd l1), (map snd l2).
+    split.
+    + rewrite H.
+      rewrite map_app; auto.
+    + rewrite H0.
+      rewrite map_app; auto.
+  } Unfocus.
+  assert (exists l1 l2,
+             (map snd (PTree.elements T) =
+             l1 ++ PTree_get_list i T :: l2 \/
+             map snd (PTree.elements T) = l1 ++ l2 /\
+             PTree_get_list i T = nil)
+             /\
+             map snd (PTree.elements (PTree.remove i T)) =
+             l1 ++ l2
+         ).
+  Focus 1. {
+    clear H.
+    destruct (T ! i) eqn:?H.
+    + pose proof @PTree.elements_remove _ i (PTree_get_list i T) T.
+      unfold PTree_get_list in H0 at 1; rewrite H in H0.
+      specialize (H0 eq_refl).
+      destruct H0 as [l1 [l2 [? ?]]].
+      exists (map snd l1), (map snd l2).
+      split.
+      - rewrite H0.
+        rewrite map_app; auto.
+      - rewrite H1.
+        rewrite map_app; auto.
+    + exists nil, (map snd (PTree.elements T)).
+      replace (PTree.elements (PTree.remove i T)) with (PTree.elements T).
+      Focus 2. {
+        apply PTree.elements_extensional; intros.
+        rewrite PTree.grspec.
+        if_tac; auto.
+        subst; auto.
+      } Unfocus.
+      split; auto.
+      right.
+      split; auto.
+      unfold PTree_get_list; rewrite H; auto.
+  } Unfocus.
+  destruct H0 as [l11 [l12 [? ?]]], H as [l21 [l22 [? ?]]].
+  assert (PTree.elements (PTree.remove i T) = PTree.elements (PTree.remove i (PTree_set_cons i a T))).
+  Focus 1. {
+    apply PTree.elements_extensional; intros.
+    unfold PTree_set_cons.
+    rewrite !PTree.grspec.
+    if_tac; auto.
+    rewrite PTree.gso by auto; auto.
+  } Unfocus.
+  rewrite H3, H2 in H1.
+  clear H2 H3.
+  rewrite H; clear H.
+  assert (concat (map snd (PTree.elements T)) = concat (l11 ++ PTree_get_list i T :: l12)).
+  Focus 1. {
+    destruct H0 as [? | [? ?]].
+    + rewrite H; auto.
+    + rewrite H0, H.
+      rewrite !concat_app.
+      auto.
+  } Unfocus.
+  rewrite H; clear H H0.
+  rewrite !concat_app; simpl.
+  rewrite app_comm_cons.
+  rewrite app_assoc.
+  rewrite (Permutation_app_tail _ (Permutation_app_comm _ _)).
+  rewrite <- app_assoc; simpl.
+  rewrite <- concat_app, <- H1, concat_app.
+  rewrite !app_comm_cons, !app_assoc.
+  apply Permutation_app_tail.
+  change (a :: concat l21) with ((a :: nil) ++ concat l21).
+  rewrite app_assoc.
+  rewrite Permutation_app_comm.
+  apply Permutation_app_head.
+  apply Permutation_app_comm.
+Qed.
 
-Definition max_rank_composite (env: composite_env): nat :=
-  fold_right (fun ic => max (co_rank (snd ic))) O (PTree.elements env).
+Module composite_reorder.
+Section composite_reorder.
+
+Context (l: list (positive * composite)).
+
+Definition rebuild_composite_tree: PTree.t (list (ident * composite)) :=
+  fold_right (fun ic => PTree_set_cons (Pos.of_succ_nat (co_rank (snd ic))) ic) (PTree.empty _) l.
+
+Definition max_rank_composite: nat :=
+  fold_right (fun ic => max (co_rank (snd ic))) O l.
+
+Definition rebuild_composite_elements: list (ident * composite) :=
+  let RCT := rebuild_composite_tree in
+  (fix rebuild_composite_elements_rec (n: nat): list (ident * composite) :=
+    match n with
+    | O => nil
+    | S n' => PTree_get_list (Pos.of_succ_nat n') RCT ++ rebuild_composite_elements_rec n'
+    end) max_rank_composite.
+
+Lemma rebuild_composite_tree_Permutation:
+  Permutation l (concat (map snd (PTree.elements rebuild_composite_tree))).
+Proof.
+  intros.
+  unfold rebuild_composite_tree.
+  induction l.
+  + simpl.
+    apply Permutation_refl.
+  + simpl.
+    rewrite perm_skip; [clear IHl0 | apply IHl0].
+    apply PTree_set_cons_Permutation.
+Qed.
+
+Lemma rebuild_composite_tree_correct:
+  forall r i co,
+    In (i, co) (PTree_get_list (Pos.of_succ_nat r) rebuild_composite_tree) ->
+    co_rank co = r.
+Proof.
+  unfold rebuild_composite_tree.
+  revert l; intro L; induction L; intros.
+  + simpl in H.
+    unfold PTree_get_list in H.
+    rewrite PTree.gempty in H.
+    inv H.
+  + destruct a as [i0 co0].
+    simpl in H.
+    unfold PTree_get_list, PTree_set_cons in H.
+    destruct (Pos.eq_dec (Pos.of_succ_nat (co_rank co0)) (Pos.of_succ_nat r)).
+    - rewrite e, PTree.gss in H.
+      destruct H.
+      * inv H.
+        apply SuccNat2Pos.inj; auto.
+      * eapply IHL; eauto.
+    - rewrite PTree.gso in H by auto.
+      eapply IHL; eauto.
+Qed.
 
 Lemma max_rank_composite_is_upper_bound: forall env i co,
   PTree.get i env = Some co ->
