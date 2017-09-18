@@ -31,8 +31,21 @@ Definition strcat_spec :=
     LOCAL (temp ret_temp dest)
     SEP (cstringn (append sd ss) n dest; cstring ss src).
 
+Definition strcmp_spec :=
+ DECLARE _strcmp
+  WITH str1 : val, s1 : string, str2 : val, s2 : string
+  PRE [ _str1 OF tptr tschar, _str2 OF tptr tschar ]
+    PROP ()
+    LOCAL (temp _str1 str1; temp _str2 str2)
+    SEP (cstring s1 str1; cstring s2 str2)
+  POST [ tint ]
+   EX i : int,
+    PROP (if Int.eq i Int.zero then s1 = s2 else s1 <> s2)
+    LOCAL (temp ret_temp (Vint i))
+    SEP (cstring s1 str1; cstring s2 str2).
+
 Definition Gprog : funspecs :=
-         ltac:(with_library prog [ strchr_spec; strcat_spec ]).
+         ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
@@ -264,3 +277,81 @@ match goal with |-semax _ (PROP () (LOCALx [_; ?a; ?b] ?R)) _ _ =>
     unfold loop2_ret_assert; entailer!.
     Exists (j + 1); entailer!.
 Qed.
+
+Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.
+Proof.
+start_function.
+forward.
+unfold cstring.
+set (ls1 := string_to_Z s1).
+set (ls2 := string_to_Z s2).
+Intros.
+apply semax_pre with (P' := EX i : Z,
+  PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
+        sublist 0 i ls1 = sublist 0 i ls2)
+  LOCAL (temp _str1 str1; temp _str2 str2)
+  SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
+          (map Vint (map Int.repr (ls1 ++ [0]))) str1;
+       data_at Tsh (tarray tschar (Zlength ls2 + 1))
+          (map Vint (map Int.repr (ls2 ++ [0]))) str2)).
+{ Exists 0; entailer!.
+  pose proof (Zlength_nonneg ls1); pose proof (Zlength_nonneg ls2); omega. }
+eapply semax_loop.
+- Intros i.
+  forward.
+  assert (Zlength (ls1 ++ [0]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
+  forward.
+  forward.
+  assert (Zlength (ls2 ++ [0]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
+  simpl.
+  pose proof (repable_string_i s i) as Hi; fold ls in Hi.
+  rewrite sign_ext_char by auto.
+  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> c) P) end.
+  { rewrite data_at_isptr; Intros.
+    forward.
+    Exists i.
+    destruct str; try contradiction; simpl in *.
+    Exists (Vptr b (Int.add i0 (Int.repr i))); unfold cstring; rewrite !map_app; entailer!.
+    destruct (zlt i (Zlength ls)); autorewrite with sublist in *; simpl in *.
+    - exploit repr_inj_signed; [| |eassumption|]; auto.
+      intro; subst; destruct (in_dec _ _ _); auto.
+      contradiction n; eapply Znth_In; subst ls; omega.
+    - contradiction H0; apply repr_inj_signed; auto.
+      replace (i - Zlength ls) with 0 in * by omega; auto. }
+  { forward.
+    entailer!. }
+  Intros.
+  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> 0) P) end.
+  { rewrite data_at_isptr; Intros.
+    forward.
+    Exists i (Vint Int.zero); unfold cstring; rewrite !map_app; entailer!.
+    destruct (zlt i (Zlength ls)); autorewrite with sublist in *; simpl in *.
+    - exploit repr_inj_signed; [| |eassumption|]; auto.
+      intro Hz; contradiction H1; rewrite <- Hz; eapply Znth_In; omega.
+    - if_tac; [|subst ls; split; auto; omega].
+      rewrite Forall_forall in H3; exploit H3; eauto; contradiction. }
+  { forward.
+    entailer!.
+    congruence. }
+  intros.
+  unfold POSTCONDITION, abbreviate, overridePost, loop1_ret_assert.
+  destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+  instantiate (1 := EX i : Z,
+    PROP (0 <= i < Zlength ls; Forall (fun d => d <> c) (sublist 0 (i + 1) ls))
+    LOCAL (temp _str str; temp _c (Vint (Int.repr c)); temp _i (Vint (Int.repr i)))
+    SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+            (map Vint (map Int.repr (ls ++ [0]))) str)).
+  Intros; entailer!.
+  Exists i; entailer!.
+  destruct (eq_dec i (Zlength ls)).
+  { subst; rewrite app_Znth2, Zminus_diag in * by omega; contradiction. }
+  split; [omega|].
+  erewrite sublist_split with (mid := i), sublist_len_1 by omega.
+  rewrite Forall_app; split; auto; constructor; auto.
+  autorewrite with sublist in H5; eauto.
+- Intros i.
+  forward.
+  entailer!.
+  Exists (i + 1); entailer!.
+Qed.
+

@@ -18,3 +18,14 @@ char *strcat(char *dest, const char *src){
     if(d == 0) return dest;
   }
 }
+
+int strcmp(const char *str1, const char* str2){
+  for(int i = 0;; i++){
+    char d1 = *(str1 + i);
+    char d2 = *(str2 + i);
+    if(d1 == 0 && d1 == 0) return 0;
+    else if(d1 < d2) return -1;
+    else if(d1 > d2) return 1;
+  }
+}    
+    

@@ -51,15 +51,21 @@ Definition ___i64_utod : ident := 17%positive.
 Definition ___i64_utof : ident := 19%positive.
 Definition _c : ident := 50%positive.
 Definition _d : ident := 52%positive.
+Definition _d1 : ident := 61%positive.
+Definition _d2 : ident := 62%positive.
 Definition _d__1 : ident := 57%positive.
 Definition _dest : ident := 54%positive.
 Definition _i : ident := 51%positive.
 Definition _j : ident := 56%positive.
-Definition _main : ident := 59%positive.
+Definition _main : ident := 64%positive.
 Definition _src : ident := 55%positive.
 Definition _str : ident := 49%positive.
+Definition _str1 : ident := 59%positive.
+Definition _str2 : ident := 60%positive.
 Definition _strcat : ident := 58%positive.
 Definition _strchr : ident := 53%positive.
+Definition _strcmp : ident := 63%positive.
+Definition _t'1 : ident := 65%positive.
 
 Definition f_strchr := {|
   fn_return := (tptr tschar);
@@ -142,6 +148,53 @@ Definition f_strcat := {|
               Sskip))))
       (Sset _j
         (Ebinop Oadd (Etempvar _j tint) (Econst_int (Int.repr 1) tint) tint)))))
+|}.
+
+Definition f_strcmp := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_str1, (tptr tschar)) :: (_str2, (tptr tschar)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: (_d1, tschar) :: (_d2, tschar) ::
+               (_t'1, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sloop
+    (Ssequence
+      Sskip
+      (Ssequence
+        (Sset _d1
+          (Ecast
+            (Ederef
+              (Ebinop Oadd (Etempvar _str1 (tptr tschar)) (Etempvar _i tint)
+                (tptr tschar)) tschar) tschar))
+        (Ssequence
+          (Sset _d2
+            (Ecast
+              (Ederef
+                (Ebinop Oadd (Etempvar _str2 (tptr tschar))
+                  (Etempvar _i tint) (tptr tschar)) tschar) tschar))
+          (Ssequence
+            (Sifthenelse (Ebinop Oeq (Etempvar _d1 tschar)
+                           (Econst_int (Int.repr 0) tint) tint)
+              (Sset _t'1
+                (Ecast
+                  (Ebinop Oeq (Etempvar _d1 tschar)
+                    (Econst_int (Int.repr 0) tint) tint) tbool))
+              (Sset _t'1 (Econst_int (Int.repr 0) tint)))
+            (Sifthenelse (Etempvar _t'1 tint)
+              (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+              (Sifthenelse (Ebinop Olt (Etempvar _d1 tschar)
+                             (Etempvar _d2 tschar) tint)
+                (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint)
+                                 tint)))
+                (Sifthenelse (Ebinop Ogt (Etempvar _d1 tschar)
+                               (Etempvar _d2 tschar) tint)
+                  (Sreturn (Some (Econst_int (Int.repr 1) tint)))
+                  Sskip)))))))
+    (Sset _i
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -377,9 +430,9 @@ prog_defs :=
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_strchr, Gfun(Internal f_strchr)) :: (_strcat, Gfun(Internal f_strcat)) ::
- nil);
+ (_strcmp, Gfun(Internal f_strcmp)) :: nil);
 prog_public :=
-(_strcat :: _strchr :: ___builtin_debug :: ___builtin_nop ::
+(_strcmp :: _strcat :: _strchr :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
