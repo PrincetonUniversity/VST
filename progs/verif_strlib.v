@@ -47,6 +47,10 @@ Definition strcmp_spec :=
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
+(* up *)
+(* Often an if statement only serves to add information (e.g., rule out some cases). *)
+Ltac forward_if_prop P := match goal with |-semax _ (PROP () ?Q) _ _ => forward_if (PROP (P) Q) end.
+
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
 start_function.
@@ -69,7 +73,7 @@ eapply semax_loop.
   simpl.
   pose proof (repable_string_i s i) as Hi; fold ls in Hi.
   rewrite sign_ext_char by auto.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> c) P) end.
+  forward_if_prop (Znth i (ls ++ [0]) 0 <> c).
   { rewrite data_at_isptr; Intros.
     forward.
     Exists i.
@@ -84,7 +88,7 @@ eapply semax_loop.
   { forward.
     entailer!. }
   Intros.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> 0) P) end.
+  forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
   { rewrite data_at_isptr; Intros.
     forward.
     Exists i (Vint Int.zero); unfold cstring; rewrite !map_app; entailer!.
@@ -157,7 +161,7 @@ match goal with |-semax _ (PROP () (LOCALx [_; ?a; ?b] ?R)) _ _ =>
     apply repable_char_int; auto. }
   autorewrite with sublist; simpl.
   rewrite sign_ext_char by auto.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ld ++ [0]) 0 <> 0) P) end.
+  forward_if_prop (Znth i (ld ++ [0]) 0 <> 0).
   + forward.
     entailer!.
     exploit repr_inj_signed; [| |eassumption|]; eauto.
@@ -208,7 +212,7 @@ match goal with |-semax _ (PROP () (LOCALx [_; ?a; ?b] ?R)) _ _ =>
     subst ls ld; omega. }
   simpl.
   rewrite sign_ext_char by auto.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth j (ls ++ [0]) 0 <> 0) P) end.
+  forward_if_prop (Znth j (ls ++ [0]) 0 <> 0).
   + forward.
     unfold cstring, cstringn; entailer!.
     { rewrite string_to_Z_app, in_app in *; tauto. }
@@ -289,7 +293,7 @@ Intros.
 apply semax_pre with (P' := EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
-  LOCAL (temp _str1 str1; temp _str2 str2)
+  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
   SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
           (map Vint (map Int.repr (ls1 ++ [0]))) str1;
        data_at Tsh (tarray tschar (Zlength ls2 + 1))
@@ -301,57 +305,86 @@ eapply semax_loop.
   forward.
   assert (Zlength (ls1 ++ [0]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
   forward.
-  forward.
   assert (Zlength (ls2 ++ [0]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
+  forward.
   simpl.
-  pose proof (repable_string_i s i) as Hi; fold ls in Hi.
-  rewrite sign_ext_char by auto.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> c) P) end.
-  { rewrite data_at_isptr; Intros.
-    forward.
-    Exists i.
-    destruct str; try contradiction; simpl in *.
-    Exists (Vptr b (Int.add i0 (Int.repr i))); unfold cstring; rewrite !map_app; entailer!.
-    destruct (zlt i (Zlength ls)); autorewrite with sublist in *; simpl in *.
-    - exploit repr_inj_signed; [| |eassumption|]; auto.
-      intro; subst; destruct (in_dec _ _ _); auto.
-      contradiction n; eapply Znth_In; subst ls; omega.
-    - contradiction H0; apply repr_inj_signed; auto.
-      replace (i - Zlength ls) with 0 in * by omega; auto. }
+  pose proof (repable_string_i s1 i) as Hi1; fold ls1 in Hi1.
+  pose proof (repable_string_i s2 i) as Hi2; fold ls2 in Hi2.
+  rewrite !sign_ext_char by auto.
+  pose proof (repable_char_int _ Hi1); pose proof (repable_char_int _ Hi2).
+  assert (Znth i (ls1 ++ [0]) 0 = 0 <-> i = Zlength ls1) as Hs1.
+  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
+    destruct (zlt i (Zlength ls1)); [|omega].
+    intro X; lapply (Znth_In i ls1 0); [|omega].
+    rewrite app_Znth1 in X by auto; rewrite X; contradiction. }
+  assert (Znth i (ls2 ++ [0]) 0 = 0 <-> i = Zlength ls2) as Hs2.
+  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
+    destruct (zlt i (Zlength ls2)); [|omega].
+    intro X; lapply (Znth_In i ls2 0); [|omega].
+    rewrite app_Znth1 in X by auto; rewrite X; contradiction. }
+  match goal with |-semax _ (PROP () (LOCALx ?Q ?R)) _ _ =>
+    forward_if (PROP ()
+      (LOCALx (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2))) :: Q) R)) end.
   { forward.
-    entailer!. }
-  Intros.
-  match goal with |-semax _ (PROP () ?P) _ _ => forward_if (PROP (Znth i (ls ++ [0]) 0 <> 0) P) end.
-  { rewrite data_at_isptr; Intros.
-    forward.
-    Exists i (Vint Int.zero); unfold cstring; rewrite !map_app; entailer!.
-    destruct (zlt i (Zlength ls)); autorewrite with sublist in *; simpl in *.
-    - exploit repr_inj_signed; [| |eassumption|]; auto.
-      intro Hz; contradiction H1; rewrite <- Hz; eapply Znth_In; omega.
-    - if_tac; [|subst ls; split; auto; omega].
-      rewrite Forall_forall in H3; exploit H3; eauto; contradiction. }
+    rewrite Hs1 in *; entailer!; simpl.
+    rewrite Z.eqb_refl, Int.eq_signed, !Int.signed_repr by (auto; computable).
+    destruct (zeq _ _).
+    + rewrite Hs2 in e; rewrite e, Z.eqb_refl; auto.
+    + destruct (Zlength ls1 =? Zlength ls2) eqn: Heq; auto.
+      rewrite Z.eqb_eq in Heq; tauto. }
   { forward.
     entailer!.
-    congruence. }
-  intros.
-  unfold POSTCONDITION, abbreviate, overridePost, loop1_ret_assert.
-  destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
-  instantiate (1 := EX i : Z,
-    PROP (0 <= i < Zlength ls; Forall (fun d => d <> c) (sublist 0 (i + 1) ls))
-    LOCAL (temp _str str; temp _c (Vint (Int.repr c)); temp _i (Vint (Int.repr i)))
-    SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
-            (map Vint (map Int.repr (ls ++ [0]))) str)).
-  Intros; entailer!.
-  Exists i; entailer!.
-  destruct (eq_dec i (Zlength ls)).
-  { subst; rewrite app_Znth2, Zminus_diag in * by omega; contradiction. }
-  split; [omega|].
-  erewrite sublist_split with (mid := i), sublist_len_1 by omega.
-  rewrite Forall_app; split; auto; constructor; auto.
-  autorewrite with sublist in H5; eauto.
+    destruct (i =? Zlength ls1) eqn: Heq; auto.
+    rewrite Z.eqb_eq in Heq; tauto. }
+  forward_if_prop (i < Zlength ls1 /\ i < Zlength ls2 /\ Znth i ls1 0 = Znth i ls2 0).
+  + forward.
+    match goal with H : (_ && _)%bool = _ |- _ => rewrite andb_true_iff, !Z.eqb_eq in H;
+      destruct H; subst end.
+    Exists Int.zero; rewrite Int.eq_true; unfold cstring; entailer!.
+    apply string_to_Z_inj.
+    match goal with H : sublist _ _ _ = sublist _ _ _ |- _ => rewrite !sublist_same in H; auto end.
+  + forward_if_prop (i < Zlength ls1 /\ i < Zlength ls2 /\ Znth i ls1 0 = Znth i ls2 0).
+    * forward.
+      Exists (Int.neg (Int.repr 1)); rewrite Int.eq_false by discriminate; unfold cstring; entailer!.
+      subst ls1 ls2; omega.
+    * forward_if_prop (i < Zlength ls1 /\ i < Zlength ls2 /\ Znth i ls1 0 = Znth i ls2 0).
+      -- forward.
+         Exists (Int.repr 1); rewrite Int.eq_false by discriminate; unfold cstring; entailer!.
+      -- forward.
+         entailer!.
+         destruct (i =? Zlength ls1) eqn: Heq.
+         { rewrite Z.eqb_eq, <- Hs1 in Heq; rewrite Heq in *.
+           destruct (i =? Zlength ls2) eqn: Heq2; [discriminate|].
+           rewrite Z.eqb_neq in Heq2; omega. }
+         rewrite Z.eqb_neq in Heq; assert (i < Zlength ls1) as Hlt1 by omega.
+         rewrite (app_Znth1 _ _ [0] 0 _ Hlt1) in *.
+         assert (i < Zlength ls2) as Hlt2 by omega.
+         rewrite (app_Znth1 _ _ [0] 0 _ Hlt2) in *; omega.
+      -- intros.
+         unfold POSTCONDITION, abbreviate, overridePost.
+         destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+         Intros; entailer!.
+    * intros.
+      unfold POSTCONDITION, abbreviate, overridePost.
+      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      Intros; entailer!.
+  + intros.
+    unfold POSTCONDITION, abbreviate, overridePost, loop1_ret_assert.
+    destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+    instantiate (1 := EX i : Z,
+      PROP (0 <= i < Zlength ls1; 0 <= i < Zlength ls2;
+            sublist 0 (i + 1) ls1 = sublist 0 (i + 1) ls2)
+      LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
+      SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
+              (map Vint (map Int.repr (ls1 ++ [0]))) str1;
+           data_at Tsh (tarray tschar (Zlength ls2 + 1))
+              (map Vint (map Int.repr (ls2 ++ [0]))) str2)).
+    Intros; entailer!.
+    Exists i; entailer!.
+    erewrite !sublist_last_1 by omega; f_equal; auto.
+    f_equal; eauto.
 - Intros i.
   forward.
   entailer!.
   Exists (i + 1); entailer!.
 Qed.
-

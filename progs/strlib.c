@@ -19,11 +19,11 @@ char *strcat(char *dest, const char *src){
   }
 }
 
-int strcmp(const char *str1, const char* str2){
+int strcmp(const char *str1, const char *str2){
   for(int i = 0;; i++){
     char d1 = *(str1 + i);
     char d2 = *(str2 + i);
-    if(d1 == 0 && d1 == 0) return 0;
+    if(d1 == 0 && d2 == 0) return 0;
     else if(d1 < d2) return -1;
     else if(d1 > d2) return 1;
   }
