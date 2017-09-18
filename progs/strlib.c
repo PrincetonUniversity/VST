@@ -6,6 +6,14 @@ char *strchr(const char *str, int c){
   }
 }
 
+char *strcpy(char *dest, const char *src){
+  for(int i = 0;; i++){
+    char d = *(src + i);
+    *(dest + i) = d;
+    if(d == 0) return dest;
+  }
+}
+
 char *strcat(char *dest, const char *src){
   int i;
   for(i = 0;; i++){

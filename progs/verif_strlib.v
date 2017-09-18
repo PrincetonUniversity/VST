@@ -44,6 +44,18 @@ Definition strcmp_spec :=
     LOCAL (temp ret_temp (Vint i))
     SEP (cstring s1 str1; cstring s2 str2).
 
+Definition strcpy_spec :=
+ DECLARE _strcpy
+  WITH dest : val, n : Z, src : val, s : string
+  PRE [ _dest OF tptr tschar, _src OF tptr tschar ]
+    PROP (Zlength (string_to_Z s) < n)
+    LOCAL (temp _dest dest; temp _src src)
+    SEP (data_at_ Tsh (tarray tschar n) dest; cstring s src)
+  POST [ tptr tschar ]
+    PROP ()
+    LOCAL (temp ret_temp dest)
+    SEP (cstringn s n dest; cstring s src).
+
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
@@ -386,5 +398,72 @@ eapply semax_loop.
 - Intros i.
   forward.
   entailer!.
+  Exists (i + 1); entailer!.
+Qed.
+
+Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
+Proof.
+start_function.
+forward.
+unfold cstring.
+set (ls := string_to_Z s).
+Intros.
+apply semax_pre with (P' := EX i : Z,
+  PROP (0 <= i < Zlength ls + 1)
+  LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
+  SEP (data_at Tsh (tarray tschar n)
+        (map Vint (map Int.repr (sublist 0 i ls)) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
+       data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vint (map Int.repr (ls ++ [0]))) src)).
+{ pose proof (Zlength_nonneg ls); Exists 0; rewrite Z.sub_0_r; entailer!. }
+eapply semax_loop.
+Intros i.
+forward.
+assert (Zlength (ls ++ [0]) = Zlength ls + 1) by (autorewrite with sublist; auto).
+pose proof (repable_string_i s i) as Hi; fold ls in Hi.
+forward.
+forward.
+{ entailer!.
+  subst ls; omega. }
+simpl.
+rewrite sign_ext_char by auto.
+forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
++ forward.
+  unfold cstring, cstringn; entailer!.
+  exploit repr_inj_signed; [| |eassumption|]; auto.
+  destruct (zlt i (Zlength ls)); autorewrite with sublist.
+  { intro Hz; contradiction H0; rewrite <- Hz; eapply Znth_In; omega. }
+  assert (i = Zlength ls) by omega; subst.
+  intros _.
+  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - Zlength ls)) Vundef)).
+  rewrite upd_Znth_app2 by (autorewrite with sublist; omega).
+  rewrite !Zlength_map, Zminus_diag, upd_Znth0, sublist_list_repeat; rewrite ?Zlength_list_repeat;
+    subst ls; try omega.
+  rewrite Znth_0_cons, !map_app, <- !app_assoc.
+  apply derives_refl'; unfold data_at; simpl; do 5 f_equal; omega.
++ forward.
+  entailer!.
+  congruence.
++ intros.
+  unfold POSTCONDITION, abbreviate, overridePost, loop1_ret_assert.
+  destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+  instantiate (1 := EX i : Z,
+    PROP (0 <= i < Zlength ls)
+    LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
+    SEP (data_at Tsh (tarray tschar n)
+          (map Vint (map Int.repr (sublist 0 (i + 1) ls)) ++ list_repeat (Z.to_nat (n - (i + 1))) Vundef) dest;
+         data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vint (map Int.repr (ls ++ [0]))) src)).
+  Intros; entailer!.
+  assert (i < Zlength ls) as Hi'.
+  { destruct (eq_dec i (Zlength ls)); [|omega].
+    subst; rewrite app_Znth2, Zminus_diag in * by omega; contradiction. }
+  Exists i; entailer!.
+  assert (1 <= n - i) by (subst ls; omega).
+  rewrite upd_Znth_app2; autorewrite with sublist; rewrite ?Zlength_list_repeat; try omega.
+  rewrite upd_Znth0, sublist_list_repeat; rewrite ?Zlength_list_repeat; try omega.
+  erewrite (sublist_split 0 i (i + 1)), sublist_len_1 by omega.
+  rewrite !map_app, <- !app_assoc; simpl.
+  apply derives_refl'; unfold data_at; do 5 f_equal; omega.
++ Intros i; forward.
+  unfold loop2_ret_assert; entailer!.
   Exists (i + 1); entailer!.
 Qed.

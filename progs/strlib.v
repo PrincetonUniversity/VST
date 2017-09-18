@@ -54,21 +54,22 @@ Definition ___i64_utod : ident := 17%positive.
 Definition ___i64_utof : ident := 19%positive.
 Definition _c : ident := 53%positive.
 Definition _d : ident := 55%positive.
-Definition _d1 : ident := 64%positive.
-Definition _d2 : ident := 65%positive.
-Definition _d__1 : ident := 60%positive.
+Definition _d1 : ident := 65%positive.
+Definition _d2 : ident := 66%positive.
+Definition _d__1 : ident := 61%positive.
 Definition _dest : ident := 57%positive.
 Definition _i : ident := 54%positive.
-Definition _j : ident := 59%positive.
-Definition _main : ident := 67%positive.
+Definition _j : ident := 60%positive.
+Definition _main : ident := 68%positive.
 Definition _src : ident := 58%positive.
 Definition _str : ident := 52%positive.
-Definition _str1 : ident := 62%positive.
-Definition _str2 : ident := 63%positive.
-Definition _strcat : ident := 61%positive.
+Definition _str1 : ident := 63%positive.
+Definition _str2 : ident := 64%positive.
+Definition _strcat : ident := 62%positive.
 Definition _strchr : ident := 56%positive.
-Definition _strcmp : ident := 66%positive.
-Definition _t'1 : ident := 68%positive.
+Definition _strcmp : ident := 67%positive.
+Definition _strcpy : ident := 59%positive.
+Definition _t'1 : ident := 69%positive.
 
 Definition f_strchr := {|
   fn_return := (tptr tschar);
@@ -97,6 +98,37 @@ Definition f_strchr := {|
           (Sifthenelse (Ebinop Oeq (Etempvar _d tschar)
                          (Econst_int (Int.repr 0) tint) tint)
             (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+            Sskip))))
+    (Sset _i
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
+|}.
+
+Definition f_strcpy := {|
+  fn_return := (tptr tschar);
+  fn_callconv := cc_default;
+  fn_params := ((_dest, (tptr tschar)) :: (_src, (tptr tschar)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: (_d, tschar) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sloop
+    (Ssequence
+      Sskip
+      (Ssequence
+        (Sset _d
+          (Ecast
+            (Ederef
+              (Ebinop Oadd (Etempvar _src (tptr tschar)) (Etempvar _i tint)
+                (tptr tschar)) tschar) tschar))
+        (Ssequence
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Etempvar _dest (tptr tschar)) (Etempvar _i tint)
+                (tptr tschar)) tschar) (Etempvar _d tschar))
+          (Sifthenelse (Ebinop Oeq (Etempvar _d tschar)
+                         (Econst_int (Int.repr 0) tint) tint)
+            (Sreturn (Some (Etempvar _dest (tptr tschar))))
             Sskip))))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
@@ -446,21 +478,22 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_strchr, Gfun(Internal f_strchr)) :: (_strcat, Gfun(Internal f_strcat)) ::
- (_strcmp, Gfun(Internal f_strcmp)) :: nil);
+ (_strchr, Gfun(Internal f_strchr)) :: (_strcpy, Gfun(Internal f_strcpy)) ::
+ (_strcat, Gfun(Internal f_strcat)) :: (_strcmp, Gfun(Internal f_strcmp)) ::
+ nil);
 prog_public :=
-(_strcmp :: _strcat :: _strchr :: ___builtin_debug :: ___builtin_nop ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_fsqrt :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap64 ::
- ___builtin_bswap :: ___i64_umulh :: ___i64_smulh :: ___i64_sar ::
- ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod :: ___i64_udiv ::
- ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod :: ___i64_stod ::
- ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+(_strcmp :: _strcat :: _strcpy :: _strchr :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fsqrt :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap64 :: ___builtin_bswap :: ___i64_umulh :: ___i64_smulh ::
+ ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
+ ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
  ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
  ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
  ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
