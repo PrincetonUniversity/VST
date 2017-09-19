@@ -68,3 +68,9 @@ jobs:
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
+  - script:
+    - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
+    - mkdir -p build
+    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+    - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true atomics
+    - echo -en 'travis_fold:end:atomics.build\\r'

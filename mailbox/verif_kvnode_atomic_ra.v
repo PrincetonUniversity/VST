@@ -409,7 +409,7 @@ Proof.
   { simpl; cancel. }
   { simpl; split; intros; rewrite ?emp_sepcon, ?sepcon_emp; try reflexivity.
     rewrite sepcon_comm; reflexivity. }
-  Intro x; rewrite version_T_eq; Intros L1; destruct x as (v1', v1); simpl in *; subst.
+  Intro x; rewrite version_T_eq; Intros L1; destruct x as (v1', v1); simpl fst in *; simpl snd in *; subst.
   gather_SEP 7 3; rewrite map_snap_join; Intros.
   assert (forall i, 0 <= i < size -> compatible (map_Znth i L0 0) (map_Znth i L1 0)).
   { intros ???; unfold map_Znth.
@@ -475,9 +475,10 @@ Proof.
     match goal with H : 0 <= i < _ |- _ => rewrite <- size_def in H end.
     forward.
     { entailer!.
+      rewrite size_def in *; auto. }
+    { entailer!.
       apply Forall_Znth; [omega|].
       eapply Forall_impl; [|eauto]; auto. }
-    { rewrite <- size_def; apply prop_right; auto. }
     erewrite sublist_next with (i0 := i), Znth_upto by (rewrite ?Zlength_upto, ?Z2Nat.id; auto; omega); simpl.
     forward_call_dep [Z -> option Z : Type] (load_acq_witness (Znth i locs Vundef)
       (map_add (map_Znth i L0 0) (map_Znth i L1 0)) map_incl (data_T version locs g, data_T version locs g)
@@ -497,7 +498,7 @@ Proof.
       apply later_derives.
       rewrite map_app, list_max_app; simpl.
       rewrite Z.max_comm, list_max_max; auto. }
-    Intros y v'; destruct y as (d, log'); simpl in *.
+    Intros y v'; destruct y as (d, log'); simpl fst in *; simpl snd in *.
     focus_SEP 1; apply protocol_R_forget with (s1 := map_upd (map_Znth i L0 0) v' d).
     { match goal with H : log_latest _ _ _ |- _ => destruct H end.
       apply map_upd_incl; auto.
@@ -595,7 +596,7 @@ Proof.
         * rewrite (sepcon_comm (P * _)), <- !sepcon_assoc; etransitivity; [|apply view_shift_sepcon1, HP].
           apply derives_view_shift; Exists L; entailer!.
           admit. }
-    Intros x; destruct x as (v2', v2); simpl in *; subst.
+    Intros x; destruct x as (v2', v2); simpl fst in *; simpl snd in *; subst.
     match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (v2 <> v1) (LOCALx Q (SEPx R))) end.
     + subst; rewrite eq_dec_refl.
@@ -607,7 +608,7 @@ Proof.
         * unfold map_upd; rewrite eq_dec_refl; auto.
         * intros; unfold map_upd; if_tac; [omega|].
           assert (v0 < v') by omega; auto. }
-      erewrite map_ext_in; eauto; intros; simpl.
+      erewrite sepcon_comm, map_ext_in; eauto; intros; simpl.
       rewrite map_Znth_upd; replace v1 with (Znth a vers' 0); auto.
       rewrite In_upto, Z2Nat.id in *; auto.
     + forward.
@@ -641,8 +642,6 @@ Proof.
       rewrite In_upto in *; erewrite Znth_map, Znth_upto; rewrite ?Zlength_upto; auto; omega.
 Admitted.
 
-(* Is there any use to allowing RA atomics to interact with invariants if they can't take or leave protocol
-   assertions? Possibly. *)
 (* Since the public view of the data structure has no data content (it's just the ghost state), there's no need
    for the backing-out linearization point reasoning (and in fact the linearization point can be anywhere,
    since all new write really guarantees is that no other data will be written at that version, plus maybe a
@@ -664,11 +663,10 @@ Proof.
     view_shift_intros; assert (s' = v0) by omega.
     apply derives_view_shift; rewrite version_T_eq; unfold protocol_W; entailer!.
     admit. (* as above *) }
-  Intros x; destruct x as (?, v); simpl in *; subst.
+  Intros x; destruct x as (?, v); simpl fst in *; simpl snd in *; subst.
   assert (repable_signed (v0 + 1)) by admit. (* version stays in range *)
   forward_call_dep [Z : Type] (store_rel_witness version (v0 + 1) v0 (v0 + 1) Z.le
     (version_T version locs g, version_T version locs g) emp emp).
-  { simpl; cancel. }
   { split; auto; split; [|split; [|omega]]; intros; simpl; rewrite !sepcon_emp, ?emp_sepcon; [reflexivity|].
     rewrite !version_T_eq.
     apply derives_view_shift; Intros L1; Exists L1.
@@ -892,7 +890,7 @@ Ltac lookup_spec_and_change_compspecs CS id ::=
       rewrite Z2Nat.id, Z.add_0_r, Z.mul_add_distr_l, Z.add_assoc by omega.
       rewrite <- size_def; entailer!.
   - Intros L'; forward.
-    Exists data (map_upd_list L (map (fun i => (v + 2 * (i + 1), repeat (i + 1) 8)) (upto (Z.to_nat 3))));
+    Exists (map_upd_list L (map (fun i => (v + 2 * (i + 1), repeat (i + 1) 8)) (upto (Z.to_nat 3))));
       rewrite size_def; simpl; entailer!.
 Admitted.
 
@@ -948,29 +946,6 @@ Proof.
       (* This also fails: the history in the invariant may not have caught up with the value we read. *)
 Abort.*)
 
-(*Lemma node_state_forget : forall L v version locs g lg g' L' v' (HL' : map_incl L' L) (Hv : v' <= v)
-  (Hv' : exists vs, Zlength vs = size /\ log_latest L' v' vs) (Heven : Z.even v' = true),
-  view_shift (node_state Share.bot L v version locs g lg g')
-             (node_state Share.bot L' v' version locs g lg g').
-Proof.
-  intros.
-  unfold node_state.
-  apply view_shift_sepcon, ghost_snap_forget; try (intros; eapply map_join_incl_compat); eauto.
-  apply view_shift_sepcon.
-  - view_shift_intros.
-    etransitivity; [apply protocol_R_forget with (s1 := v'); auto|].
-    { simpl; intros; subst.
-      do 2 eexists; eauto; apply Z.max_le_compat_r; auto. }
-    apply derives_view_shift; entailer!.
-  - apply view_shift_sepcon_list; rewrite !Zlength_map; auto.
-    intros; erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
-    unfold node_entry.
-    apply protocol_R_forget.
-    { intros; eapply map_join_incl_compat; eauto. }
-    { transitivity (map_Znth i L 0); [|destruct (Z.even v); auto; subst; reflexivity].
-      apply map_incl_Znth; auto. }
-Qed.*)
-
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
   name data _data.
@@ -992,7 +967,7 @@ Proof.
       assert (L' v = Some x) as Hv by auto; rewrite Hv in *; congruence. }
   Intro X; destruct X as ((v', vs'), L'); simpl; Intros.
   forward.
-  Exists data v' vs'; rewrite size_def; entailer!.
+  Exists v' vs'; rewrite size_def; entailer!.
   split; auto.
   match goal with H : _ -> _ |- _ => specialize (H eq_refl); subst; auto end.
 Qed.
