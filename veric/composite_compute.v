@@ -1,4 +1,6 @@
 Require Import Coq.Sorting.Permutation.
+Require Import Coq.Sorting.Sorting.
+Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 
@@ -190,8 +192,143 @@ Proof.
 Qed.
 
 Module composite_reorder.
+
+(* Use merge sort instead *)
+(* Sort rank from higher to lower *)
+Module CompositeRankOrder <: TotalLeBool.
+  Definition t := (positive * composite)%type.
+  Definition leb (x y: t) := Nat.leb (co_rank (snd y)) (co_rank (snd x)).
+
+  Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
+  Proof.
+    intros.
+    unfold leb.
+    rewrite !Nat.leb_le.
+    omega.
+  Qed.
+
+  Theorem leb_trans: Transitive (fun x y => is_true (leb x y)).
+  Proof.
+    hnf; intros; unfold leb, is_true in *.
+    rewrite !Nat.leb_le in *.
+    omega.
+  Qed.
+
+End CompositeRankOrder.
+
+Module CompositeRankSort := Sort CompositeRankOrder.
+
 Section composite_reorder.
 
+Context (cenv: composite_env)
+        (cenv_consistent: composite_env_consistent cenv).
+
+Definition rebuild_composite_elements := CompositeRankSort.sort (PTree.elements cenv).
+
+Inductive ordered_composite: list (positive * composite) -> Prop :=
+| ordered_composite_nil: ordered_composite nil
+| ordered_composite_cons: forall i co l,
+    Forall (relative_defined_type l) (map snd (co_members co)) ->
+    ordered_composite l ->
+    ordered_composite ((i, co) :: l).
+
+Inductive ordered_and_complete: list (positive * composite) -> Prop :=
+| ordered_and_complete_nil: ordered_and_complete nil
+| ordered_and_complete_cons: forall i co l,
+    (forall i' co',
+        cenv ! i' = Some co' ->
+        (co_rank co' < co_rank co)%nat ->
+        In (i', co') l) ->
+    ordered_and_complete l ->
+    ordered_and_complete ((i, co) :: l).
+
+Theorem RCT_Permutation: Permutation rebuild_composite_elements (PTree.elements cenv).
+Proof.
+  symmetry.
+  apply CompositeRankSort.Permuted_sort.
+Qed.
+
+Lemma RCT_ordered_and_complete: ordered_and_complete rebuild_composite_elements.
+Proof.
+  pose proof RCT_Permutation.
+  assert (forall i co, cenv ! i = Some co -> In (i, co) rebuild_composite_elements).
+  Focus 1. {
+    intros.
+    eapply Permutation_in.
+    + symmetry; apply RCT_Permutation.
+    + apply PTree.elements_correct; auto.
+  } Unfocus.
+  clear H.
+  pose proof CompositeRankSort.StronglySorted_sort (PTree.elements cenv) CompositeRankOrder.leb_trans.
+  pose proof app_nil_l rebuild_composite_elements.
+  unfold rebuild_composite_elements in *.
+  set (l := (CompositeRankSort.sort (PTree.elements cenv))) in H1 at 1 |- *.
+  revert H1; generalize (@nil (positive * composite)).
+  clearbody l.
+  induction l; intros.
+  + constructor.
+  + specialize (IHl (l0 ++ a :: nil)).
+    rewrite <- app_assoc in IHl.
+    specialize (IHl H1).
+    destruct a as [i co]; constructor; auto.
+    intros.
+    apply H0 in H2.
+    rewrite <- H1 in H2, H.
+    clear - H2 H3 H.
+    induction l0.
+    - destruct H2; auto.
+      exfalso; inv H0.
+      omega.
+    - inv H.
+      destruct H2.
+      * exfalso.
+        subst.
+        rewrite Forall_forall in H5.
+        specialize (H5 (i, co)).
+        rewrite in_app in H5.
+        specialize (H5 (or_intror (or_introl eq_refl))).
+        unfold is_true in H5.
+        rewrite Nat.leb_le in H5; simpl in H5.
+        omega.
+      * apply IHl0; auto.
+Qed.    
+    
+Theorem RCT_ordered: ordered_composite rebuild_composite_elements.
+Proof.
+  pose proof CompositeRankSort.StronglySorted_sort (PTree.elements cenv) CompositeRankOrder.leb_trans.
+  assert (forall i co, In (i, co) rebuild_composite_elements -> cenv ! i = Some co).
+  Focus 1. {
+    intros.
+    eapply Permutation_in in H0; [| exact RCT_Permutation].
+    apply PTree.elements_complete; auto.
+  } Unfocus.
+  assert (forall i co, In (i, co) rebuild_composite_elements -> complete_members cenv (co_members co) = true).
+  Focus 1. {
+    intros.
+    apply co_consistent_complete.
+    eapply cenv_consistent; eauto.
+  } Unfocus.
+  unfold rebuild_composite_elements in *.
+  induction H.
+  + constructor.
+  + destruct a as [i co].
+    pose proof (fun i co HH => H0 i co (or_intror HH)): forall i co, In (i, co) l -> cenv ! i = Some co.
+    pose proof (fun i co HH => H1 i co (or_intror HH)): forall i co, In (i, co) l -> complete_members cenv (co_members co) = true.
+    pose proof (H1 i co (or_introl eq_refl)).
+    constructor; auto.
+    clear - H2 H3 H5.
+    induction (co_members co) as [| [i0 t0] ?].
+    - constructor.
+    - simpl in H5.
+      rewrite andb_true_iff in H5; destruct H5.
+      constructor; auto.
+      simpl.
+      clear H0 IHm.
+      induction t0; inv H; try solve [simpl; auto].
+      * simpl.
+        
+    apply ordered_composite_cons.
+(*
 Context (l: list (positive * composite)).
 
 Definition rebuild_composite_tree: PTree.t (list (ident * composite)) :=
@@ -221,6 +358,9 @@ Proof.
     apply PTree_set_cons_Permutation.
 Qed.
 
+Print complete_type.
+Print composite_consistent.
+
 Lemma rebuild_composite_tree_correct:
   forall r i co,
     In (i, co) (PTree_get_list (Pos.of_succ_nat r) rebuild_composite_tree) ->
@@ -245,9 +385,10 @@ Proof.
       eapply IHL; eauto.
 Qed.
 
-Lemma max_rank_composite_is_upper_bound: forall env i co,
+(*
+Lemma max_rank_composite_is_upper_bound: forall i co,
   PTree.get i env = Some co ->
-  (co_rank co <= max_rank_composite env)%nat.
+  (co_rank co <= max_rank_composite)%nat.
 Proof.
   intros.
   apply PTree.elements_correct in H.
@@ -263,14 +404,11 @@ Proof.
       simpl.
       apply Max.le_max_r.
 Qed.
+*)
+Lemma rebuild_composite_elements_Permutation: 
+*)
 
-Inductive ordered_composite: list (positive * composite) -> Prop :=
-| ordered_composite_nil: ordered_composite nil
-| ordered_composite_cons: forall i co l,
-    Forall (relative_defined_type l) (map snd (co_members co)) ->
-    ordered_composite l ->
-    ordered_composite ((i, co) :: l).
-
+  
 Module type_func.
 Section type_func.
 
