@@ -59,6 +59,7 @@ Notation "continue;" := Scontinue (only printing, format "continue;", at level 1
 Notation "break;" := Sbreak (only printing, format "break;", at level 10) : C_scope.
 Notation "'for' ( ; 1; s2 ) { s1 }" := (Sloop s1%C s2%print_stmt_for) (only printing, s2 at level 26, s1 at level 26, left associativity, at level 26, format "'[v' 'for'  ( ;  '/' 1;  '/' s2 )  {  '/  ' s1 '/' } ']'") : C_scope.
 Notation "'while' (1) { s1 }" := (Sloop s1%C Sskip) (only printing, s1 at level 26, left associativity, at level 26, format "'[v' 'while'  (1)  {  '/  ' s1 '/' } ']'") : C_scope.
+Notation "'while' ( e_val ) { s1 }" := (Swhile e_val%expr s1%C) (only printing, s1 at level 26, left associativity, at level 26, format "'[v' 'while'  ( e_val )  {  '/  ' s1 '/' } ']'") : C_scope.
 Notation "'if' ( e_val ) { s1 } 'else' { s2 }" := (Sifthenelse e_val%expr s1%C s2%C) (only printing, s1 at level 26, s2 at level 26, left associativity, at level 26, format "'[v' 'if'  ( e_val )  {  '/  ' s1 '/' }  'else'  {  '/  ' s2 '/' } ']'") : C_scope.
 Notation "'if' (! e_val ) { s2 }" := (Sifthenelse e_val%expr Sskip s2%C) (only printing, s2 at level 26, left associativity, at level 26, format "'[v' 'if'  (!  e_val )  {  '/  ' s2 '/' } ']'") : C_scope.
 Notation "'if' ( e_val ) { s1 }" := (Sifthenelse e_val%expr s1%C Sskip) (only printing, s1 at level 26, left associativity, at level 26, format "'[v' 'if'  ( e_val )  {  '/  ' s1 '/' } ']'") : C_scope.
