@@ -267,12 +267,12 @@ Fixpoint F (env: PTree.t A) (t: type): A :=
   | _ => f_default t
   end.
 
-Definition Completeness (cenv: composite_env) (env: PTree.t A): Prop :=
-  forall i co,
-    PTree.get i cenv = Some co ->
-    exists a, PTree.get i env = Some a.
+Definition Complete (cenv: composite_env) (env: PTree.t A): Prop :=
+  forall i,
+    (exists co, PTree.get i cenv = Some co) <->
+    (exists a, PTree.get i env = Some a).
 
-Definition Consistency (cenv: composite_env) (env: PTree.t A): Prop :=
+Definition Consistent (cenv: composite_env) (env: PTree.t A): Prop :=
   forall i co a,
     PTree.get i cenv = Some co ->
     PTree.get i env = Some a ->
@@ -347,7 +347,7 @@ Hypothesis IH_RDT:
     Forall (relative_defined_type (PTree.elements env)) (map snd (co_members co)).
 
 Hypothesis IH_main:
-  Consistency cenv env.
+  Consistent cenv env.
 
 Lemma NOT_IN: ~ In i0 (map fst (PTree.elements env)).
 Proof.
@@ -401,7 +401,7 @@ Proof.
 Qed.
 
 Lemma establish_main:
-  Consistency cenv (env_rec i0 co0 env).
+  Consistent cenv (env_rec i0 co0 env).
 Proof.
   pose proof NOT_IN as NOT_IN.
   pose proof RDT_PTree as RDT_PTree.
@@ -434,10 +434,10 @@ Qed.
 
 End Consistency_Induction_Step.
 
-Lemma Consistent: forall cenv l,
+Lemma Consistency: forall cenv l,
   Permutation l (PTree.elements cenv) ->
   ordered_composite l ->
-  Consistency cenv (Env l).
+  Consistent cenv (Env l).
 Proof.
   intros.
   assert (forall i co, In (i, co) l -> PTree.get i cenv = Some co).
@@ -459,7 +459,7 @@ Proof.
       PTree.get i cenv = Some co ->
       PTree.get i (Env l) = Some a ->
       Forall (relative_defined_type (PTree.elements (Env l))) (map snd (co_members co))) /\
-    Consistency cenv (Env l)); [| tauto].
+    Consistent cenv (Env l)); [| tauto].
   induction l as [| [i0 co0] l].
   + split; [| split]; hnf; intros.
     - simpl; tauto.
@@ -482,6 +482,48 @@ Proof.
     - eapply establish_main; eauto.
 Qed.
 
+Lemma Completeness: forall cenv l,
+  Permutation l (PTree.elements cenv) ->
+  Complete cenv (Env l).
+Proof.
+  intros.
+  intro.
+  rewrite <- !PTree_In_fst_elements.
+  pose proof PTree.elements_keys_norepet cenv.
+  rewrite list_norepet_NoDup in H0.
+  rewrite <- H in H0 |- *; clear H.
+  induction l.
+  + simpl; tauto.
+  + destruct a as [i0 co0].
+    inv H0.
+    specialize (IHl H3).
+    simpl.
+    unfold env_rec.
+    rewrite PTree_In_fst_elements, <- PTree_gs_equiv, <- PTree_In_fst_elements.
+    assert (i = i0 <-> i0 = i) by (split; intros; congruence).
+    tauto.
+Qed.
+
 End type_func.
 
 End type_func.
+
+Corollary composite_reorder_consistent {A: Type}:
+  forall cenv f_default f_array f_struct f_union f_members,
+    composite_env_consistent cenv ->
+    type_func.Consistent f_default f_array f_struct f_union f_members cenv (@type_func.Env A f_default f_array f_struct f_union f_members (composite_reorder.rebuild_composite_elements cenv)).
+Proof.
+  intros.
+  apply type_func.Consistency.
+  + apply composite_reorder.RCT_Permutation.
+  + apply composite_reorder.RCT_ordered; auto.
+Qed.
+
+Corollary composite_reorder_complete {A: Type}:
+  forall cenv f_default f_array f_struct f_union f_members,
+    type_func.Complete cenv (@type_func.Env A f_default f_array f_struct f_union f_members (composite_reorder.rebuild_composite_elements cenv)).
+Proof.
+  intros.
+  apply type_func.Completeness.
+  apply composite_reorder.RCT_Permutation.
+Qed.

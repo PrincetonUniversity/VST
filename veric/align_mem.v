@@ -52,36 +52,30 @@ Definition hardware_alignof_env (cenv: composite_env): PTree.t Z :=
   let l := composite_reorder.rebuild_composite_elements cenv in
   fold_right (fun (ic: positive * composite) (T0: PTree.t Z) => let (i, co) := ic in let T := T0 in PTree.set i (hardware_alignof_composite T (co_members co)) T) (PTree.empty _) l.
 
-Lemma hardware_alignof_consistent (cenv: composite_env) (ha_env: PTree.t Z):
-  composite_env_consistent cenv ->
-  ha_env = hardware_alignof_env cenv ->
-  forall i co ha,
-    cenv ! i = Some co ->
-    ha_env ! i = Some ha ->
-    ha = hardware_alignof_composite ha_env (co_members co).
-Proof.
-  intros.
-  pose proof @type_func.Consistent Z
-             (fun t =>
-                match access_mode t with
-                | By_value ch => Memdata.align_chunk ch
-                | _ => 1
-                end)
-             (fun ha _ _ => ha)
-             (fun ha _ => ha)
-             (fun ha _ => ha)
-             (fun _ =>
-                fix fm (l: list (ident * Z)): Z :=
-                match l with
-                | nil => 1
-                | (_, ha) :: l' => Z.max ha (fm l')
-                end)
-             cenv
-             (composite_reorder.rebuild_composite_elements cenv)
-    as HH.
-  specialize (HH (composite_reorder.RCT_Permutation _)).
-  specialize (HH (composite_reorder.RCT_ordered _ H)).
-  assert (forall T co, (fix fm (l : list (ident * Z)) : Z :=
+Module Type HARDWARE_ALIGNOF_FACTS.
+
+  Axiom hardware_alignof_consistent:
+    forall (cenv: composite_env) (ha_env: PTree.t Z),
+      composite_env_consistent cenv ->
+      ha_env = hardware_alignof_env cenv ->
+      forall i co ha,
+        cenv ! i = Some co ->
+        ha_env ! i = Some ha ->
+        ha = hardware_alignof_composite ha_env (co_members co).
+
+  Axiom hardware_alignof_complete:
+    forall (cenv: composite_env) (ha_env: PTree.t Z),
+      ha_env = hardware_alignof_env cenv ->
+      forall i,
+        (exists co, cenv ! i = Some co) <->
+        (exists ha, ha_env ! i = Some ha).
+
+End HARDWARE_ALIGNOF_FACTS.
+
+Module hardware_alignof_facts: HARDWARE_ALIGNOF_FACTS.
+
+Lemma aux1: forall T co,
+  (fix fm (l : list (ident * Z)) : Z :=
      match l with
      | nil => 1
      | (_, ha) :: l' => Z.max ha (fm l')
@@ -99,17 +93,19 @@ Proof.
            | By_nothing => 1
            end) (fun (ha _ : Z) (_ : attr) => ha) (fun (ha : Z) (_ : attr) => ha)
           (fun (ha : Z) (_ : attr) => ha) T t0)) (co_members co)) =
-                    hardware_alignof_composite T (co_members co)).
-  Focus 1. {
-    clear; intros; unfold hardware_alignof_composite, hardware_alignof.
-    induction (co_members co) as [| [i t] ?].
-    + auto.
-    + simpl.
-      f_equal; auto.
-      clear.
-      induction t; auto.
-  } Unfocus.
-  assert (type_func.Env
+                    hardware_alignof_composite T (co_members co).
+Proof.
+  intros; unfold hardware_alignof_composite, hardware_alignof.
+  induction (co_members co) as [| [i t] ?].
+  + auto.
+  + simpl.
+    f_equal; auto.
+    clear.
+    induction t; auto.
+Qed.
+
+Lemma aux2: forall (cenv: composite_env),
+  type_func.Env
           (fun t : type =>
            match access_mode t with
            | By_value ch => align_chunk ch
@@ -123,32 +119,118 @@ Proof.
              match l with
              | nil => 1
              | (_, ha) :: l' => Z.max ha (fm l')
-             end) (composite_reorder.rebuild_composite_elements cenv) = ha_env).
-  Focus 1. {
-    subst ha_env. clear - H3.
-    unfold type_func.Env, type_func.env_rec, hardware_alignof_env. (* *)
-    f_equal.
-    extensionality ic.
-    destruct ic as [i co].
-    extensionality T.
-    f_equal.
-    apply H3.
-  } Unfocus.
-  hnf in HH.
-  rewrite H4 in HH.
-  clear H4.
-  specialize (HH _ _ ha H1 H2).
-  rewrite HH, H3; auto.
+             end) (composite_reorder.rebuild_composite_elements cenv) =
+  hardware_alignof_env cenv.
+Proof.
+  intros.
+  unfold type_func.Env, type_func.env_rec, hardware_alignof_env.
+  f_equal.
+  extensionality ic.
+  destruct ic as [i co].
+  extensionality T.
+  f_equal.
+  apply aux1.
 Qed.
 
+Lemma hardware_alignof_consistent (cenv: composite_env) (ha_env: PTree.t Z):
+  composite_env_consistent cenv ->
+  ha_env = hardware_alignof_env cenv ->
+  forall i co ha,
+    cenv ! i = Some co ->
+    ha_env ! i = Some ha ->
+    ha = hardware_alignof_composite ha_env (co_members co).
+Proof.
+  intros.
+  pose proof @composite_reorder_consistent Z cenv
+             (fun t =>
+                match access_mode t with
+                | By_value ch => Memdata.align_chunk ch
+                | _ => 1
+                end)
+             (fun ha _ _ => ha)
+             (fun ha _ => ha)
+             (fun ha _ => ha)
+             (fun _ =>
+                fix fm (l: list (ident * Z)): Z :=
+                match l with
+                | nil => 1
+                | (_, ha) :: l' => Z.max ha (fm l')
+                end)
+             H
+    as HH.
+  hnf in HH.
+  subst ha_env.
+  rewrite aux2 in HH.
+  specialize (HH _ _ ha H1 H2).
+  rewrite HH, aux1; auto.
+Qed.
 
+Lemma hardware_alignof_complete (cenv: composite_env) (ha_env: PTree.t Z):
+  ha_env = hardware_alignof_env cenv ->
+  forall i,
+    (exists co, cenv ! i = Some co) <->
+    (exists ha, ha_env ! i = Some ha).
+Proof.
+  intros.
+  pose proof @composite_reorder_complete Z cenv
+             (fun t =>
+                match access_mode t with
+                | By_value ch => Memdata.align_chunk ch
+                | _ => 1
+                end)
+             (fun ha _ _ => ha)
+             (fun ha _ => ha)
+             (fun ha _ => ha)
+             (fun _ =>
+                fix fm (l: list (ident * Z)): Z :=
+                match l with
+                | nil => 1
+                | (_, ha) :: l' => Z.max ha (fm l')
+                end)
+    as HH.
+  hnf in HH.
+  subst.
+  rewrite aux2 in HH.
+  auto.
+Qed.
 
+End hardware_alignof_facts.
 
+Section legal_alignas_l1.
 
+Context (cenv: composite_env) (ha_env: PTree.t Z).
 
+Fixpoint legal_alignas_l1 (la1_env: PTree.t bool) t: bool :=
+  (hardware_alignof ha_env t <=? alignof cenv t) &&
+  match t with
+  | Tarray t' _ _ => legal_alignas_l1 la1_env t'
+  | Tstruct id _ =>
+      match la1_env ! id with
+      | Some la1 => la1
+      | None => false
+      end
+  | Tunion id _ =>
+      match la1_env ! id with
+      | Some la1 => la1
+      | None => false
+      end
+  | _ => match access_mode t with
+         | By_value ch => true
+         | _ => false
+         end
+  end.
 
+Fixpoint legal_alignas_l1_composite (la1_env: PTree.t bool) (m: members): bool :=
+  match m with
+  | nil => true
+  | (_, t) :: m' => (legal_alignas_l1 la1_env t) && (legal_alignas_l1_composite la1_env m')
+  end.
 
+Definition legal_alignas_l1_env: PTree.t bool :=
+  let l := composite_reorder.rebuild_composite_elements cenv in
+  fold_right (fun (ic: positive * composite) (T0: PTree.t bool) => let (i, co) := ic in let T := T0 in PTree.set i (legal_alignas_l1_composite T (co_members co)) T) (PTree.empty _) l.
 
+End legal_alignas_l1.
 
 
 
