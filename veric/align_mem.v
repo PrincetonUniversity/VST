@@ -1,117 +1,145 @@
-Require Import VST.msl.msl_standard.
+Require Import Coq.Sorting.Permutation.
+Require Import Coq.Sorting.Sorting.
+Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
-Require Export VST.veric.lift.
+Require Import VST.veric.composite_compute.
 
-(* This file contains two align criteria: a strong one and a weak one.
-   The strong one derives alignment of types from align_memdata.
-   The weak one only requires every single field to be well aligned. *)
+(* This file contains three computational align criteria.
+   1: the hardware alignof is not larger than alignof.
+   2: all fields are aligned as hardware requires. size as a multiple of hardware alignof.
+   3: all value is well-aligned stored.
+   The third one is the final specification we want. *)
 
-(* Aux: relative_complete_type *)
+Section align_compatiable_rec.
 
-Fixpoint relative_complete_type {A: Type} (env: PTree.t A) (t: type): bool :=
+Context (cenv: composite_env).
+
+Inductive align_compatiable_rec: type -> Z -> Prop :=
+| align_compatiable_rec_by_value: forall t ch z, access_mode t = By_value ch -> (Memdata.align_chunk ch | z) -> align_compatiable_rec t z
+| align_compatiable_rec_Tarray: forall t n a z, (forall i, 0 <= i < n -> align_compatiable_rec t (z + sizeof cenv t * i)) -> align_compatiable_rec (Tarray t n a) z
+| align_compatiable_rec_Tstruct: forall i a co z, cenv ! i = Some co -> (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 -> field_offset cenv i0 (co_members co) = Errors.OK z0 -> align_compatiable_rec t0 (z + z0)) -> align_compatiable_rec (Tstruct i a) z
+| align_compatiable_rec_Tunion: forall i a co z, cenv ! i = Some co -> (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatiable_rec t0 z) -> align_compatiable_rec (Tunion i a) z.
+
+End align_compatiable_rec.
+
+Fixpoint hardware_alignof (ha_env: PTree.t Z) t: Z :=
   match t with
-  | Tvoid => false
-  | Tint _ _ _ => true
-  | Tlong _ _ => true
-  | Tfloat _ _ => true
-  | Tpointer _ _ => true
-  | Tarray t' _ _ => relative_complete_type env t'
-  | Tfunction _ _ _ => false
-  | Tstruct id _ => match env ! id with
-                    | Some _ => true
-                    | None => false
-                    end
-  | Tunion id _ => match env ! id with
-                   | Some _ => true
-                   | None => false
-                   end
-  end.
-
-Print Build_composite.
-Print make_composite_env.
-Print build_composite_env.
-Print add_composite_definitions.
-(* Strong align requirement *)
-Fixpoint plain_alignof (env_al: PTree.t Z) t: Z :=
-  match t with
-  | Tvoid
-  | Tfunction _ _ _ => 1
-  | Tint I8 _ _ => 1
-  | Tint I16 _ _ => 2
-  | Tint I32 _ _ => 4
-  | Tint IBool _ _ => 1
-  | Tlong _ _ => 8
-  | Tfloat F32 _ => 4
-  | Tfloat F64 _ => 4
-  | Tpointer _ _ => 4
-  | Tarray t' _ _ => plain_alignof env_al t'
+  | Tarray t' _ _ => hardware_alignof ha_env t'
   | Tstruct id _ =>
-      match env_al ! id with
-      | Some al => al
+      match ha_env ! id with
+      | Some ha => ha
       | None => 1
       end
   | Tunion id _ =>
-      match env_al ! id with
-      | Some al => al
+      match ha_env ! id with
+      | Some ha => ha
       | None => 1
       end
+  | _ => match access_mode t with
+         | By_value ch => Memdata.align_chunk ch
+         | _ => 1
+         end
   end.
 
-Print composite_env.
-Print composite.
-Print compcert.cfrontend.Ctypes.composite_env_consistent.
-Print composite_consistent.
-Print alignof_composite.
-
-Fixpoint plain_alignof_composite (env_al: PTree.t Z) (m: members): Z :=
+Fixpoint hardware_alignof_composite (ha_env: PTree.t Z) (m: members): Z :=
   match m with
   | nil => 1
-  | (_, t) :: m' => Z.max (plain_alignof env_al t) (plain_alignof_composite env_al m')
+  | (_, t) :: m' => Z.max (hardware_alignof ha_env t) (hardware_alignof_composite ha_env m')
   end.
 
-Definition composites_plain_alignof_S (l: list (positive * composite)) (env_al: PTree.t Z) :=
-  fold_right (fun ic => PTree.set (fst ic) (plain_alignof_composite env_al (co_members (snd ic)))) env_al l.
+Definition hardware_alignof_env (cenv: composite_env): PTree.t Z :=
+  let l := composite_reorder.rebuild_composite_elements cenv in
+  fold_right (fun (ic: positive * composite) (T0: PTree.t Z) => let (i, co) := ic in let T := T0 in PTree.set i (hardware_alignof_composite T (co_members co)) T) (PTree.empty _) l.
 
-Definition composites_plain_alignof_rec (env: composite_env) T: nat -> PTree.t Z :=
-  fix composites_plain_alignof_rec (n: nat): PTree.t Z :=
-    match n with
-    | O => PTree.empty _
-    | S n' => composites_plain_alignof_S (PTree_get_list (Pos.of_succ_nat n') T) (composites_plain_alignof_rec n')
-    end.
-
-Definition composites_plain_alignof (env: composite_env): PTree.t Z :=
-  let T := rebuild_composite_tree env in
-  composites_plain_alignof_rec env T (S (max_rank_composite env)).
-
-Definition consistent_plain_alignof env env_al: Prop :=
-  forall i al co,
-    PTree.get i env_al = Some al ->
-    PTree.get i env = Some co ->
-    al = plain_alignof_composite env_al (co_members co).
-
-Lemma composites_plain_alignof_S_fact: forall l env env_al,
-  consistent_plain_alignof env env_al ->
-  (forall i co r list_r, In (i, co) l -> PTree.get env_al r = Some list_r ->
-     In (i, co) list_r 
-    
-Lemma co_consistent_plain_alignof: forall env env_al,
-  env_al = composites_plain_alignof env ->
-  composite_env_consistent env ->
-  consistent_plain_alignof env env_al.
+Lemma hardware_alignof_consistent (cenv: composite_env) (ha_env: PTree.t Z):
+  composite_env_consistent cenv ->
+  ha_env = hardware_alignof_env cenv ->
+  forall i co ha,
+    cenv ! i = Some co ->
+    ha_env ! i = Some ha ->
+    ha = hardware_alignof_composite ha_env (co_members co).
 Proof.
-  intros.  
-  cbv zeta beta delta [composites_plain_alignof] in H.
-  set (RCT := rebuild_composite_tree env) in H.
-  pose proof max_rank_composite_is_upper_bound env _ _ H2.
-  apply le_lt_n_Sm in H3.
-  subst env_al.
-  revert i al co H1 H2 H3; induction (S (max_rank_composite env)); intros.
-  + clear - H3; exfalso. omega.
-  + set (CPA := composites_plain_alignof_rec env RCT n) in IHn.
-    change (composites_plain_alignof_rec env RCT (S n)) with (composites_plain_alignof_S (PTree_get_list (Pos.of_succ_nat n) RCT) CPA) in H1 |- *.
+  intros.
+  pose proof @type_func.Consistent Z
+             (fun t =>
+                match access_mode t with
+                | By_value ch => Memdata.align_chunk ch
+                | _ => 1
+                end)
+             (fun ha _ _ => ha)
+             (fun ha _ => ha)
+             (fun ha _ => ha)
+             (fun _ =>
+                fix fm (l: list (ident * Z)): Z :=
+                match l with
+                | nil => 1
+                | (_, ha) :: l' => Z.max ha (fm l')
+                end)
+             cenv
+             (composite_reorder.rebuild_composite_elements cenv)
+    as HH.
+  specialize (HH (composite_reorder.RCT_Permutation _)).
+  specialize (HH (composite_reorder.RCT_ordered _ H)).
+  assert (forall T co, (fix fm (l : list (ident * Z)) : Z :=
+     match l with
+     | nil => 1
+     | (_, ha) :: l' => Z.max ha (fm l')
+     end)
+    (map
+       (fun it0 : positive * type =>
+        let (i0, t0) := it0 in
+        (i0,
+        type_func.F
+          (fun t : type =>
+           match access_mode t with
+           | By_value ch => align_chunk ch
+           | By_reference => 1
+           | By_copy => 1
+           | By_nothing => 1
+           end) (fun (ha _ : Z) (_ : attr) => ha) (fun (ha : Z) (_ : attr) => ha)
+          (fun (ha : Z) (_ : attr) => ha) T t0)) (co_members co)) =
+                    hardware_alignof_composite T (co_members co)).
+  Focus 1. {
+    clear; intros; unfold hardware_alignof_composite, hardware_alignof.
+    induction (co_members co) as [| [i t] ?].
+    + auto.
+    + simpl.
+      f_equal; auto.
+      clear.
+      induction t; auto.
+  } Unfocus.
+  assert (type_func.Env
+          (fun t : type =>
+           match access_mode t with
+           | By_value ch => align_chunk ch
+           | By_reference => 1
+           | By_copy => 1
+           | By_nothing => 1
+           end) (fun (ha _ : Z) (_ : attr) => ha) (fun (ha : Z) (_ : attr) => ha)
+          (fun (ha : Z) (_ : attr) => ha)
+          (fun _ : struct_or_union =>
+           fix fm (l : list (ident * Z)) : Z :=
+             match l with
+             | nil => 1
+             | (_, ha) :: l' => Z.max ha (fm l')
+             end) (composite_reorder.rebuild_composite_elements cenv) = ha_env).
+  Focus 1. {
+    subst ha_env. clear - H3.
+    unfold type_func.Env, type_func.env_rec, hardware_alignof_env. (* *)
+    f_equal.
+    extensionality ic.
+    destruct ic as [i co].
+    extensionality T.
+    f_equal.
+    apply H3.
+  } Unfocus.
+  hnf in HH.
+  rewrite H4 in HH.
+  clear H4.
+  specialize (HH _ _ ha H1 H2).
+  rewrite HH, H3; auto.
+Qed.
 
 
 
@@ -128,8 +156,15 @@ Proof.
 
 
 
-    
-    Locate op
+
+
+
+
+
+
+
+
+
 
 Lemma plain_alignof_spec: forall env t,
   alignof env t = align_attr (attr_of_type t) (plain_alignof env t).
