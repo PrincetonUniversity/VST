@@ -246,22 +246,22 @@ Section type_func.
 
 Context {A: Type}
         (f_default: type -> A)
-        (f_array: A -> Z -> attr -> A)
-        (f_struct: A -> attr -> A)
-        (f_union: A -> attr -> A)
-        (f_member: struct_or_union -> list (ident * A) -> A).
+        (f_array: A -> type -> Z -> attr -> A)
+        (f_struct: A -> ident -> attr -> A)
+        (f_union: A -> ident -> attr -> A)
+        (f_member: struct_or_union -> list (ident * type * A) -> A).
 
 Fixpoint F (env: PTree.t A) (t: type): A :=
   match t with
-  | Tarray t n a => f_array (F env t) n a
+  | Tarray t n a => f_array (F env t) t n a
   | Tstruct id a =>
       match env ! id with
-      | Some v => f_struct v a
+      | Some v => f_struct v id a
       | None => f_default t
       end
   | Tunion id a =>
       match env ! id with
-      | Some v => f_union v a
+      | Some v => f_union v id a
       | None => f_default t
       end
   | _ => f_default t
@@ -279,14 +279,14 @@ Definition Consistent (cenv: composite_env) (env: PTree.t A): Prop :=
     a = f_member (co_su co) (map
                               (fun it0: positive * type =>
                                  let (i0, t0) := it0 in
-                                 (i0, F env t0))
+                                 (i0, t0, F env t0))
                               (co_members co)).
 
 Definition env_rec (i: positive) (co: composite) (env: PTree.t A): PTree.t A :=
   PTree.set i
     (f_member (co_su co) (map
                               (fun it0: positive * type =>
-                                 let (i0, t0) := it0 in (i0, F env t0))
+                                 let (i0, t0) := it0 in (i0, t0, F env t0))
                               (co_members co)))
     env.
 
@@ -313,7 +313,7 @@ Proof.
   + simpl in H0 |- *.
     rewrite PTree.gso; auto.
     intro; subst; tauto.
-Qed.    
+Qed.
 
 Lemma relative_defined_type_PTree_set: forall t (env: PTree.t A) i a,
   relative_defined_type (PTree.elements env) t ->
