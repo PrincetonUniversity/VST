@@ -79,7 +79,7 @@ Context {CS : compspecs}.
 (* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
 Parameter objective : mpred -> Prop.
 Axiom emp_objective : objective emp.
-Axiom data_at_objective : forall sh t v p, readable_share sh -> objective (data_at sh t v p).
+Axiom data_at_objective : forall sh t v p, objective (data_at sh t v p).
 Axiom ghost_objective : forall {A} {P : PCM A} (g : A) p, objective (ghost g p).
 Axiom prop_objective : forall P, objective (!!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
@@ -543,6 +543,22 @@ Qed.
 End atomicity.
 
 End atomics.
+
+Ltac prove_objective := repeat
+  match goal with
+  | |-objective(if _ then _ else _) => if_tac
+  | |-objective(exp _) => apply exp_objective; intro
+  | |-objective(ghost_ref _ _) => apply exp_objective; intro
+  | |-objective(_ * _) => apply sepcon_objective
+  | |-objective(_ && _) => apply andp_objective
+  | |-objective(!!_) => apply prop_objective
+  | |-objective(ghost _ _) => apply ghost_objective
+  | |-objective(data_at _ _ _ _) => apply data_at_objective
+  | |-objective(data_at_ _ _ _) => rewrite data_at__eq; apply data_at_objective
+  | |-objective(fold_right sepcon emp _) => apply sepcon_list_objective;
+        rewrite ?Forall_map, Forall_forall; intros; simpl
+  | _ => try apply ghost_objective
+  end.
 
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>

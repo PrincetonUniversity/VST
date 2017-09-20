@@ -1803,17 +1803,8 @@ Proof.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 4 1; apply make_inv with (Q := hashtable_inv gh g lg entries).
   { unfold hashtable_inv; Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
-  { unfold hashtable_inv.
-    apply exp_objective; intro.
-    apply sepcon_objective.
-    - unfold hashtable.
-      apply exp_objective; intro T.
-      apply sepcon_objective; [auto with objective | apply sepcon_list_objective].
-      rewrite Forall_forall; unfold hashtable_entry; intro.
-      rewrite in_map_iff; intros (i & ? & ?); subst.
-      destruct (Znth i entries (Vundef, Vundef)), (Znth i T (0, 0)).
-      unfold ghost_master; auto with objective.
-    - unfold ghost_ref; auto with objective. }
+  { unfold hashtable_inv, hashtable, hashtable_entry; prove_objective.
+    destruct (Znth _ entries (Vundef, Vundef)), (Znth _ _ (0, 0)); prove_objective. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
   destruct (split_readable_share Tsh) as (sh1 & sh2 & ? & ? & ?); auto.

@@ -2230,11 +2230,7 @@ Proof.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 4 1; apply make_inv with (Q := hashtable_inv gh g lgk lgv).
   { unfold hashtable_inv, hashtable; Exists (@empty_map Z (Z -> option Z)) (@nil hashtable_hist_el); entailer!. }
-  { apply exp_objective; intro.
-    apply sepcon_objective; apply exp_objective; unfold ghost_ref; intros; auto with objective.
-    apply sepcon_objective, sepcon_list_objective; auto with objective.
-    rewrite Forall_map, Forall_forall; simpl; intros.
-    unfold hashtable_entry.
+  { unfold hashtable_inv, hashtable, hashtable_entry; prove_objective.
     destruct (Znth _ _ _); auto with objective. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
