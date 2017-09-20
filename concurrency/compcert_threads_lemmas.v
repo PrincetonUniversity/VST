@@ -590,9 +590,13 @@ Admitted.
       rewrite gssThreadCC.
       pf_cleanup.
       simpl.
-      eapply initial_core_wd; try apply Hinitial; eauto.
+      (* eapply initial_core_wd; try apply Hinitial; eauto.*)
+
+
       admit.
       admit.
+
+      (*
       specialize (Htp_wd _ ctn).
       rewrite Hcode in Htp_wd.
       simpl in Htp_wd.
@@ -605,7 +609,7 @@ Admitted.
       erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
       specialize (Htp_wd _ cntj).
       eapply ctl_wd_incr;
-        by eauto.
+        by eauto. *)
   Admitted.
 
   Lemma internal_execution_wd:
