@@ -295,39 +295,56 @@ Qed.
     
 Theorem RCT_ordered: ordered_composite rebuild_composite_elements.
 Proof.
-  pose proof CompositeRankSort.StronglySorted_sort (PTree.elements cenv) CompositeRankOrder.leb_trans.
-  assert (forall i co, In (i, co) rebuild_composite_elements -> cenv ! i = Some co).
+  pose proof RCT_ordered_and_complete.
+  assert (forall i co, In (i, co) rebuild_composite_elements -> complete_members cenv (co_members co) = true /\ co_rank co = rank_members cenv (co_members co)).
   Focus 1. {
     intros.
     eapply Permutation_in in H0; [| exact RCT_Permutation].
-    apply PTree.elements_complete; auto.
+    apply PTree.elements_complete in H0; auto.
+    split.
+    + apply co_consistent_complete.
+      eapply cenv_consistent; eauto.
+    + apply co_consistent_rank.
+      eapply cenv_consistent; eauto.
   } Unfocus.
-  assert (forall i co, In (i, co) rebuild_composite_elements -> complete_members cenv (co_members co) = true).
-  Focus 1. {
-    intros.
-    apply co_consistent_complete.
-    eapply cenv_consistent; eauto.
-  } Unfocus.
-  unfold rebuild_composite_elements in *.
   induction H.
   + constructor.
-  + destruct a as [i co].
-    pose proof (fun i co HH => H0 i co (or_intror HH)): forall i co, In (i, co) l -> cenv ! i = Some co.
-    pose proof (fun i co HH => H1 i co (or_intror HH)): forall i co, In (i, co) l -> complete_members cenv (co_members co) = true.
-    pose proof (H1 i co (or_introl eq_refl)).
+  + specialize (IHordered_and_complete (fun i co HH => H0 i co (or_intror HH))).
     constructor; auto.
-    clear - H2 H3 H5.
+    clear IHordered_and_complete H1.
+    specialize (H0 _ _ (or_introl eq_refl)).
+    assert (rank_members cenv (co_members co) <= co_rank co)%nat by omega.
+    destruct H0 as [? _].
     induction (co_members co) as [| [i0 t0] ?].
     - constructor.
-    - simpl in H5.
-      rewrite andb_true_iff in H5; destruct H5.
-      constructor; auto.
+    - simpl in H0; rewrite andb_true_iff in H0; destruct H0.
+      simpl in H1; pose proof Max.max_lub_r _ _ _ H1.
+      apply Max.max_lub_l in H1.
+      constructor; auto; clear IHm H2 H3.
       simpl.
-      clear H0 IHm.
-      induction t0; inv H; try solve [simpl; auto].
-      * simpl.
-        
-    apply ordered_composite_cons.
+      induction t0; try solve [simpl; auto].
+      * (* array *)
+        spec IHt0; auto.
+        spec IHt0; [simpl in H1; omega |].
+        auto.
+      * (* struct *)
+        simpl in H0, H1 |- *.
+        destruct (cenv ! i1) eqn:?H; [| inv H0].
+        specialize (H _ _ H2).
+        spec H; [omega |].
+        apply (in_map fst) in H; auto.
+      * (* union *)
+        simpl in H0, H1 |- *.
+        destruct (cenv ! i1) eqn:?H; [| inv H0].
+        specialize (H _ _ H2).
+        spec H; [omega |].
+        apply (in_map fst) in H; auto.
+Qed.
+
+End composite_reorder.
+
+End composite_reorder.
+
 (*
 Context (l: list (positive * composite)).
 
