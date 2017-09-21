@@ -34,8 +34,9 @@ Require Import concurrency.Clight_safety.
       (Clight.globalenv prog) (Clight.globalenv prog)
       (Values.Vptr b Int.zero).
   Proof.
-    (*You may ignore core_initial, I'm not 100% satisfied with it.*)
-  Ad mitted.
+    (*You may ignore core_initial.*)
+    (*Waiting for the new Compcert interface.*)
+  Admitted.
 
   Module Clight_new2core_simulation_safety:=
     concure_simulation_safety NewMachine CoreMachine.
@@ -67,6 +68,7 @@ Require Import concurrency.Clight_safety.
 
 Require Import veric.Clight_sim.
 
+(*
     Lemma Initial_dry_safety_concur_core:
       forall (CPROOF : CSL_proof),
     forall (sch: DMS.SC.Sch),
@@ -117,4 +119,6 @@ Require Import veric.Clight_sim.
       apply bounded_initial_mem.
      apply H2.
       apply H.
-Ad mitted.
+Ad_itted.
+
+*)

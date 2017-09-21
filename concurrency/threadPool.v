@@ -3565,7 +3565,7 @@ Qed.
      lr_valid (lockRes tp) ->
      lr_valid (lockRes (updThread cnti c' m')).
   Proof.
-  Admitted.
+  Admitted. (*Fact about permissions on locks*)
 
   Lemma contains_iff_num:
     forall tp tp'

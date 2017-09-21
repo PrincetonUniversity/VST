@@ -78,6 +78,7 @@ Admitted.
 Lemma app_assoc_l:
   forall (A : Type) (l m n : seq.seq A),
     l ++ m ++ n = l ++ (m ++ n).
+  Proof.
 Admitted.
 
 Lemma filter_neq_eq :
