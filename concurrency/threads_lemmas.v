@@ -73,12 +73,25 @@ Qed.
 Lemma nth_error_app_inv:
   forall (A : Type) (i : nat) (v: A) (ys xs : seq.seq A), nth_error xs i = Some v ->
                                                    nth_error (xs ++ ys) i = Some v.
-Admitted.
-
+  intros.
+  generalize dependent i.
+  generalize dependent v.
+  induction xs;
+    intros.
+  rewrite Coqlib.nth_error_nil in H.
+  discriminate.
+  destruct i; simpl in *;
+    now auto.
+Qed.
+  
+  
 Lemma app_assoc_l:
   forall (A : Type) (l m n : seq.seq A),
     l ++ m ++ n = l ++ (m ++ n).
-Admitted.
+Proof.
+  intros;
+    by rewrite app_assoc.
+Qed.
 
 Lemma filter_neq_eq :
   forall {A :eqType} (xs : seq.seq A) i j (Hneq: i <> j),
