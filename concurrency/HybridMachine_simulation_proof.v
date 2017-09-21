@@ -719,13 +719,12 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
   econstructor.
   - admit. (*eapply Injfsim_order_wf*)
   - (* core_initial*)
+    admit.
+    (*
     intros.
     destruct (NPeano.Nat.eq_dec hb' 0).
     + pose proof (Injfsim_match_initial_states compiler_simulation).
       unfold initial_state in H2; simpl in H2.
-      
-      
-
       unfold Clight.initial_state in H2.
       
     + (*Easy case where the first thread is compiled already *)  exists None.
@@ -735,6 +734,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
       simpl in *; unfold HybridMachine.init_machine',
                   HybridMachine.init_mach in *; simpl in *.
       unfold initial_core_sum in *. admit. (*Could be lemma *)
+     *)
     
   - (*thread_diagram*)
     intros.
@@ -765,7 +765,7 @@ Section NThredCompiled.
 
 
   (*Need to make the data/order correct: that is a list of cds'*)
-  Inductive  Nconcur_match: forall n, list compiler_index -> meminj -> C0 -> mem -> C n -> mem -> Prop :=
+  Inductive  Nconcur_match: forall n, list (option compiler_index) -> meminj -> C0 -> mem -> C n -> mem -> Prop :=
   | ZeroOneSimulation:
       forall st0 m0,
         Nconcur_match 0 nil inject_id st0 m0 st0 m0
@@ -776,14 +776,18 @@ Section NThredCompiled.
         Nconcur_match (S n) (cd::ls_cd) (compose_meminj jn jn') st0 m0 stn' mn'.
 
   Parameter list_order: list compiler_index -> list compiler_index -> Prop.
+  Parameter option_list_order: list (option compiler_index) ->
+                               list (option compiler_index) -> Prop.
 
+
+  
   Variable v:val.
   Lemma N_compiled_thread_simulation:
     forall n,
           HybridMachine_simulation
             Sems Semt hb0 (hb n) U genv
-            (list compiler_index) list_order 
-            (Nconcur_match n)  v.  
+            (list (option compiler_index)) option_list_order 
+            (Nconcur_match n) v.  
   Proof.
     induction n.
     - simpl.

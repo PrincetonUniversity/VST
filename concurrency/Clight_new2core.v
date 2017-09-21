@@ -35,7 +35,7 @@ Require Import concurrency.Clight_safety.
       (Values.Vptr b Int.zero).
   Proof.
     (*You may ignore core_initial, I'm not 100% satisfied with it.*)
-  Admitted.
+  Ad mitted.
 
   Module Clight_new2core_simulation_safety:=
     concure_simulation_safety NewMachine CoreMachine.
@@ -96,7 +96,7 @@ Require Import veric.Clight_sim.
                    (Some (getCurPerm m, empty_map))
                     (CSL_prog CPROOF) (projT1 (spr CPROOF)) H0).
      destruct (core_initial _ _ _ _ _ H8 inject_id init_st nil m None nil m None H1).
-     admit.
+     ad mit.
      constructor.
      hnf; auto.
      destruct H3 as [q' [? ?]].
@@ -117,4 +117,4 @@ Require Import veric.Clight_sim.
       apply bounded_initial_mem.
      apply H2.
       apply H.
-Admitted.
+Ad mitted.

@@ -173,6 +173,7 @@ Section Clight_safety.
       - simpl; unfold ErasureSafety.ErasureProof.match_rmap_perm; intros.
         split; auto; simpl.
         rewrite getCurPerm_correct.
+        
         admit. (* quite true *)
       - unfold ErasureSafety.ErasureProof.no_locks_perm.
          intros.
@@ -357,13 +358,14 @@ Section Ksafety_Clight.
            destruct pmap; inversion H; auto.
     Qed.
 
-    Lemma init_schedule_all:
+   (* Lemma init_schedule_all:
       forall U pmap n g m p t init_mach om,
         (semantics.initial_core (MachineSemantics U pmap) n g m p t) = Some (init_mach, om) ->
         forall U'',
         correct_schedule (U'', snd (fst init_mach), snd init_mach) ->
-       schedPeek U'' = Some 1  \/ schedPeek U'' = None .
-    Admitted.
+        schedPeek U'' = Some 1  \/ schedPeek U'' = None .
+      
+    Ad_itted. *)
            
     Lemma Initial_dry_ksafety:
       forall (U : semax_invariant.schedule) (n : nat),

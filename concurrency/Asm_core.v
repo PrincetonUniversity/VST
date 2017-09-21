@@ -411,8 +411,8 @@ inv H0.
        eassumption
     ].
  - (* Pcmp_rr case fails! *)
-(*+ exists m1; split; trivial. econstructor; try eassumption. admit.
-+ admit.
+(*+ exists m1; split; trivial. econstructor; try eassumption. ad_it.
++ ad_it.
 *)
 Abort.
 

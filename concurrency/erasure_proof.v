@@ -1654,7 +1654,8 @@ Module Parching <: ErasureSig.
         symmetry. apply mtch_perm2.
         apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
         assumption.
-      +  admit.
+      + admit.
+      (* Range of lock permisison, now it spans multiple locations given my LKSIZE *)
       + reflexivity.
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.
@@ -2480,6 +2481,7 @@ Module Parching <: ErasureSig.
         *  eapply JSEM.compatible_threadRes_sub.
            assumption.
       + admit.
+      (* Range of lock permisison, now it spans multiple locations given my LKSIZE *)
       + apply restrPermMap_ext.
         intros b0.
         extensionality ofs0.
@@ -3947,6 +3949,7 @@ Here be dragons
         (*      + eapply MTCH_compat; eassumption. *)
         + reflexivity.
         + admit.
+      (* Range of lock permisison, now it spans multiple locations given my LKSIZE *)
         + rewrite <- Hstore. f_equal.
           erewrite <- (MTCH_restrict_personal ).
           * reflexivity.
@@ -4413,6 +4416,7 @@ Here be dragons
               + eassumption.
               + reflexivity.
               + admit.
+      (* Range of lock permisison, now it spans multiple locations given my LKSIZE *)
               + erewrite restrPermMap_ext.
                 eassumption.
                 intros b0.

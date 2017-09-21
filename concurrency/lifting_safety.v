@@ -37,15 +37,18 @@ Module lifting_safety.
   (*These are variables spilling from lifting.v*)
   Notation GS := (DMS.SEM.G).
   Notation GT := (SEM.G).
-  Context (gT : GT)( gS : GS)
-          (p : Clight.program) (tp : Asm.program).
-  Hypothesis compiled : Compiler.simpl_transf_clight_program p = Errors.OK tp.
-
+  Variable CProg: Clight.program.
+  Variable AsmProg: Asm.program.
+  Definition ge:= genv CProg AsmProg.
+  Definition gT : GT:= snd ge.
+  Definition gS : GS:= fst ge.
+  Hypothesis compiled : Compiler.simpl_transf_clight_program CProg = Errors.OK AsmProg.
+  
   (*This is the real context*)
   Context (psrc : option DMS.DryMachine.ThreadPool.RES.res)
          (ptgt : option DryMachine.ThreadPool.RES.res) (sch : SC.Sch).
   Definition the_simulation:=
-    lifting.concur_sim p tp compiled
+    lifting.concur_sim CProg AsmProg compiled
                        psrc ptgt sch.
   
   
@@ -53,10 +56,10 @@ Module lifting_safety.
         forall  tr Sds Sm Tds Tm cd
           (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
           (forall sch, DMS.DryConc.new_valid (tr, Sds, Sm) sch ->
-                  DMS.DryConc.explicit_safety (fst genv') sch Sds Sm) ->
+                  DMS.DryConc.explicit_safety (fst ge) sch Sds Sm) ->
           (forall sch, DryConc.valid (sch, tr, Tds) ->
                   DryConc.stutter_stepN_safety
-                    (core_ord:=MSorder Values.Vundef the_simulation) (snd genv') cd sch Tds Tm).
+                    (core_ord:=MSorder Values.Vundef the_simulation) (snd ge) cd sch Tds Tm).
   Proof.
     cofix CIH.
     intros.
@@ -196,15 +199,13 @@ Module lifting_safety.
 
   Qed.
 
-
-  
     Lemma safety_preservation':
       forall tr Sds Sm Tds Tm cd
         (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
       (forall sch, DMS.DryConc.valid (sch, tr, Sds) ->
-              DMS.DryConc.explicit_safety (fst genv') sch Sds Sm) ->
+              DMS.DryConc.explicit_safety (fst ge) sch Sds Sm) ->
       (forall sch, DryConc.valid (sch, tr, Tds) ->
-              DryConc.explicit_safety (snd genv') sch Tds Tm).
+              DryConc.explicit_safety (snd ge) sch Tds Tm).
   Proof.
     move=> tr Sds Sm Tds Tm  cd [] j MATCH HH sch VAL.
     apply @coinductive_safety.safety_stutter_stepN_equiv
@@ -219,9 +220,9 @@ Module lifting_safety.
     forall Sds Sm Tds Tm cd
       (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
       (forall sch, DMS.DryConc.valid (sch, nil, Sds) ->
-              DMS.DryConc.safe_new_step (fst genv') (sch, nil, Sds) Sm) ->
+              DMS.DryConc.safe_new_step (fst ge) (sch, nil, Sds) Sm) ->
       (forall sch, DryConc.valid (sch, nil, Tds) ->
-              DryConc.safe_new_step (snd genv') (sch, nil, Tds) Tm).
+              DryConc.safe_new_step (snd ge) (sch, nil, Tds) Tm).
   Proof.
     intros.
     eapply DryConc.safety_equivalence2; auto.

@@ -26,9 +26,9 @@ Variables
 Notation Clight_new_dry_safety:=
   (Initial_dry_safety CS V G ext_link ext_link_inj prog all_safe init_mem_not_none x block). 
 
-
-Check Clight_new_dry_safety.
-
+(*
 Lemma 
 
 Require Import concurency.Clight_new2core.
+ *)
+End MainSafety.

@@ -44,8 +44,11 @@ Module lifting.
     Import X86Machines.
     Notation GS := (DMS.SEM.G).
     Notation GT := (SEM.G).
-    Definition gT : GT:= snd genv'.
-    Definition gS : GS:= fst genv'.
+    Variables CProg: Clight.program.
+    Variables AsmProg: Asm.program.
+    Definition ge:= genv CProg AsmProg.
+    Definition gT : GT:= snd ge.
+    Definition gS : GS:= fst ge.
 
     Notation semS := (DMS.SEM.Sem).
     Notation semT := (SEM.Sem).
@@ -76,10 +79,7 @@ Module lifting.
       
     Admitted. *)
 
-    
-    
-    Context (p : Clight.program) (tp : Asm.program).
-    Hypothesis compiled : Compiler.simpl_transf_clight_program p = Errors.OK tp.
+    Hypothesis compiled : Compiler.simpl_transf_clight_program CProg = Errors.OK AsmProg.
 
     (** *First: lets realte the concurrent machines and Hybrid machines*)
     Definition source_state_make_hybrid (st: DMS.FineConc.machine_state):
@@ -101,10 +101,10 @@ Module lifting.
     Defined.
 
     Lemma source_step_to_hybrid:
-          forall sch psrc gS gT U st1 m1 st1' m1',
-          thread_step (new_DMachineSem sch psrc) gS U st1 m1 st1' m1' ->
+          forall sch psrc U st1 m1 st1' m1',
+          thread_step (DMS.new_DMachineSem sch psrc) (fst ge) U st1 m1 st1' m1' ->
           thread_step (HybridMachine_simulation.HCSem (Sems) Semt (Some 0) sch)
-                      (gS, gT) U
+                      ge U
                       (source_state_make_hybrid st1) m1
                       (source_state_make_hybrid st1') m1'.
         Proof.
@@ -146,12 +146,12 @@ Module lifting.
             replace Htid_ with Htid. Focus 2. apply proof_irr.
             auto.
         Admitted.
-
+          
         Lemma source_machine_step_to_hybrid:
-          forall sch psrc gS gT U U' tr tr' st1 m1 st1' m1',
-          machine_step (new_DMachineSem sch psrc) gS U tr st1 m1 U' tr' st1' m1' ->
+          forall sch psrc U U' tr tr' st1 m1 st1' m1',
+          machine_step (DMS.new_DMachineSem sch psrc) (fst ge) U tr st1 m1 U' tr' st1' m1' ->
           machine_step (HybridMachine_simulation.HCSem (Sems) Semt (Some 0) sch)
-                      (gS, gT) U nil
+                      ge U nil
                       (source_state_make_hybrid st1) m1 U' nil
                       (source_state_make_hybrid st1') m1'.
          Proof.
@@ -247,26 +247,25 @@ Module lifting.
     (** *Proof the simulation between the Clight_core and Asm machines*)
     Lemma concur_sim psrc ptgt (sch : mySchedule.schedule) :
       Machine_sim
-        (new_DMachineSem sch psrc)
+        (DMS.new_DMachineSem sch psrc)
         (DryConc.new_MachineSemantics sch ptgt)
-        (fst genv') (snd genv') Values.Vundef.
+        (fst ge) (snd ge) Values.Vundef.
     Proof.
-      pose proof (All_compiled_thread_simulation p tp compiled sch).
+      pose proof (All_compiled_thread_simulation CProg AsmProg compiled sch).
       simpl in H.
       inversion H.
       eapply Build_Machine_sim with
-          (MSdata:= list (compiler_index p tp compiled))
-          (MSorder:= (list_order p tp compiled))
+          (MSdata:= list (compiler_index CProg AsmProg compiled))
+          (MSorder:= (list_order CProg AsmProg compiled))
           (MSmatch_states:= fun cd mu c1 m1 c2 m2 =>
-           All_concur_match' p tp compiled sch
+           All_concur_match' CProg AsmProg compiled sch
                      cd mu (source_state_make_hybrid c1) m1 (target_state_make_hybrid c2) m2)
       ; eauto.
       - admit. (*initial*)
       - clear - thread_diagram; intros.
-        destruct genv'.
         eapply source_step_to_hybrid in H.
         eapply thread_diagram in H0; eauto.
-        destruct genv'; eauto. 
+        unfold ge in *; eauto. 
         destruct H0 as
             (st2_ & m2' &  cd' & mu' & MATCH & STEPS).
         destruct STEPS as [STEPS | [STEPS ORDER]].
@@ -279,7 +278,7 @@ Module lifting.
           exists st2', m2', cd', mu'.
           split; auto. rewrite <- eqST2; eauto.
       - clear - machine_diagram; intros.
-        destruct genv'.
+        unfold ge in *.
         assert (HH: tr = nil /\ tr' = nil).
         { inversion H; subst; auto. }
         destruct HH as [HH1 HH2]. subst.
