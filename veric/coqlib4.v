@@ -78,6 +78,20 @@ Proof.
   omega.
 Qed.
 
+Lemma two_power_nat_0: forall x, (exists n, x = two_power_nat n) -> x <> 0.
+Proof.
+  intros.
+  destruct H.
+  pose proof two_power_nat_pos x0.
+  omega.
+Qed.
+
+Hint Rewrite andb_true_iff: align.
+Hint Rewrite <- Zle_is_le_bool: align.
+Hint Rewrite Z.eqb_eq: align.
+Hint Rewrite power_nat_divide_le using (auto with align): align.
+Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
+
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
 Proof. intros.
 change 0 with (Z.of_nat O).
