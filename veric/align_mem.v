@@ -3,6 +3,7 @@ Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
 
 (* This file contains three computational align criteria.
@@ -11,17 +12,35 @@ Require Import VST.veric.composite_compute.
    3: all value is well-aligned stored.
    The third one is the final specification we want. *)
 
-Section align_compatiable_rec.
+Section align_compatible_rec.
 
 Context (cenv: composite_env).
 
-Inductive align_compatiable_rec: type -> Z -> Prop :=
-| align_compatiable_rec_by_value: forall t ch z, access_mode t = By_value ch -> (Memdata.align_chunk ch | z) -> align_compatiable_rec t z
-| align_compatiable_rec_Tarray: forall t n a z, (forall i, 0 <= i < n -> align_compatiable_rec t (z + sizeof cenv t * i)) -> align_compatiable_rec (Tarray t n a) z
-| align_compatiable_rec_Tstruct: forall i a co z, cenv ! i = Some co -> (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 -> field_offset cenv i0 (co_members co) = Errors.OK z0 -> align_compatiable_rec t0 (z + z0)) -> align_compatiable_rec (Tstruct i a) z
-| align_compatiable_rec_Tunion: forall i a co z, cenv ! i = Some co -> (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatiable_rec t0 z) -> align_compatiable_rec (Tunion i a) z.
+Inductive align_compatible_rec: type -> Z -> Prop :=
+| align_compatible_rec_by_value: forall t ch z, access_mode t = By_value ch -> (Memdata.align_chunk ch | z) -> align_compatible_rec t z
+| align_compatible_rec_Tarray: forall t n a z, (forall i, 0 <= i < n -> align_compatible_rec t (z + sizeof cenv t * i)) -> align_compatible_rec (Tarray t n a) z
+| align_compatible_rec_Tstruct: forall i a co z, cenv ! i = Some co -> (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 -> field_offset cenv i0 (co_members co) = Errors.OK z0 -> align_compatible_rec t0 (z + z0)) -> align_compatible_rec (Tstruct i a) z
+| align_compatible_rec_Tunion: forall i a co z, cenv ! i = Some co -> (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatible_rec t0 z) -> align_compatible_rec (Tunion i a) z.
 
-End align_compatiable_rec.
+End align_compatible_rec.
+
+Lemma align_chunk_1248: forall ch, align_chunk ch = 1 \/ align_chunk ch = 2 \/ align_chunk ch = 4 \/ align_chunk ch = 8.
+Proof.
+  intros.
+  destruct ch; simpl;
+  auto.
+Qed.
+
+Lemma align_chunk_two_p:
+  forall ch, exists n, align_chunk ch = two_power_nat n.
+Proof.
+  intros.
+  pose proof align_chunk_1248 ch as [| [| [|]]]; rewrite H.
+  + exists 0%nat; auto.
+  + exists 1%nat; auto.
+  + exists 2%nat; auto.
+  + exists 3%nat; auto.
+Qed.
 
 Fixpoint hardware_alignof (ha_env: PTree.t Z) t: Z :=
   match t with
@@ -52,23 +71,29 @@ Definition hardware_alignof_env (cenv: composite_env): PTree.t Z :=
   let l := composite_reorder.rebuild_composite_elements cenv in
   fold_right (fun (ic: positive * composite) (T0: PTree.t Z) => let (i, co) := ic in let T := T0 in PTree.set i (hardware_alignof_composite T (co_members co)) T) (PTree.empty _) l.
 
+Definition hardware_alignof_env_consistent (cenv: composite_env) (ha_env: PTree.t Z): Prop :=
+  forall i co ha,
+    cenv ! i = Some co ->
+    ha_env ! i = Some ha ->
+    ha = hardware_alignof_composite ha_env (co_members co).
+
+Definition hardware_alignof_env_complete (cenv: composite_env) (ha_env: PTree.t Z): Prop :=
+  forall i,
+    (exists co, cenv ! i = Some co) <->
+    (exists ha, ha_env ! i = Some ha).
+
 Module Type HARDWARE_ALIGNOF_FACTS.
 
-  Axiom hardware_alignof_consistent:
+  Axiom hardware_alignof_consistency:
     forall (cenv: composite_env) (ha_env: PTree.t Z),
       composite_env_consistent cenv ->
       ha_env = hardware_alignof_env cenv ->
-      forall i co ha,
-        cenv ! i = Some co ->
-        ha_env ! i = Some ha ->
-        ha = hardware_alignof_composite ha_env (co_members co).
+      hardware_alignof_env_consistent cenv ha_env.
 
-  Axiom hardware_alignof_complete:
+  Axiom hardware_alignof_completeness:
     forall (cenv: composite_env) (ha_env: PTree.t Z),
       ha_env = hardware_alignof_env cenv ->
-      forall i,
-        (exists co, cenv ! i = Some co) <->
-        (exists ha, ha_env ! i = Some ha).
+      hardware_alignof_env_complete cenv ha_env.
 
 End HARDWARE_ALIGNOF_FACTS.
 
@@ -134,7 +159,7 @@ Proof.
   apply aux1.
 Qed.
 
-Lemma hardware_alignof_consistent (cenv: composite_env) (ha_env: PTree.t Z):
+Lemma hardware_alignof_consistency (cenv: composite_env) (ha_env: PTree.t Z):
   composite_env_consistent cenv ->
   ha_env = hardware_alignof_env cenv ->
   forall i co ha,
@@ -167,7 +192,7 @@ Proof.
   rewrite HH, aux1; auto.
 Qed.
 
-Lemma hardware_alignof_complete (cenv: composite_env) (ha_env: PTree.t Z):
+Lemma hardware_alignof_completeness (cenv: composite_env) (ha_env: PTree.t Z):
   ha_env = hardware_alignof_env cenv ->
   forall i,
     (exists co, cenv ! i = Some co) <->
@@ -198,22 +223,130 @@ Qed.
 
 End hardware_alignof_facts.
 
-Section legal_alignas1.
+Export hardware_alignof_facts.
+
+Lemma hardware_alignof_two_p: forall (cenv: composite_env) (ha_env: PTree.t Z),
+  composite_env_consistent cenv ->
+  hardware_alignof_env_consistent cenv ha_env ->  
+  hardware_alignof_env_complete cenv ha_env ->  
+  forall t, exists n,
+  hardware_alignof ha_env t = two_power_nat n.
+Proof.
+  intros ? ? CENV_CONS HA_ENV_CONS HA_ENV_COMPL ?.
+  type_induction t cenv CENV_CONS.
+  + exists 0%nat; reflexivity.
+  + destruct s, i; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
+  + destruct s; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
+  + destruct f; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
+  + exists 2%nat; reflexivity.
+  + simpl.
+    auto.
+  + exists 0%nat; reflexivity.
+  + simpl.
+    pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
+    destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
+    Focus 2. { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    Focus 2. { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    - specialize (H _ _ eq_refl eq_refl).
+      subst z.
+      clear - IH.
+      induction IH.
+      * exists 0%nat; reflexivity.
+      * destruct x as [i t], H as [n1 ?], IHIH as [n2 ?].
+        simpl in H |- *.
+        rewrite H, H0.
+        rewrite max_two_power_nat.
+        eexists; reflexivity.
+    - exists 0%nat; reflexivity.
+  + simpl.
+    pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
+    destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
+    Focus 2. { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    Focus 2. { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    - specialize (H _ _ eq_refl eq_refl).
+      subst z.
+      clear - IH.
+      induction IH.
+      * exists 0%nat; reflexivity.
+      * destruct x as [i t], H as [n1 ?], IHIH as [n2 ?].
+        simpl in H |- *.
+        rewrite H, H0.
+        rewrite max_two_power_nat.
+        eexists; reflexivity.
+    - exists 0%nat; reflexivity.
+Qed.
+
+Lemma hardware_alignof_pos: forall (cenv: composite_env) (ha_env: PTree.t Z),
+  composite_env_consistent cenv ->
+  hardware_alignof_env_consistent cenv ha_env ->  
+  hardware_alignof_env_complete cenv ha_env ->  
+  forall t,
+  hardware_alignof ha_env t > 0.
+Proof.
+  intros.
+  pose proof hardware_alignof_two_p _ _ H H0 H1 t as [n ?].
+  rewrite H2.
+  apply two_power_nat_pos.
+Qed.
+
+Module Type LEGAL_ALIGNAS.
+
+  Parameter obs: Type.
+  Parameter legal_alignas_type: composite_env -> PTree.t Z -> PTree.t obs -> type -> obs.
+  Parameter legal_alignas_composite: composite_env -> PTree.t Z -> PTree.t obs -> members -> obs.
+  Parameter legal_alignas_env: composite_env -> PTree.t Z -> PTree.t obs.
+  Parameter is_aligned: obs -> Z -> Z -> bool.
+
+  Definition legal_alignas_env_consistent (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t obs): Prop :=
+    forall i co la,
+      cenv ! i = Some co ->
+      la_env ! i = Some la ->
+      la = legal_alignas_composite cenv ha_env la_env (co_members co).
+
+  Definition legal_alignas_env_complete (cenv: composite_env) (la_env: PTree.t obs): Prop :=
+    forall i,
+      (exists co, cenv ! i = Some co) <->
+      (exists la, la_env ! i = Some la).
+
+  Definition legal_alignas_env_sound (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t obs): Prop :=
+    forall ofs t,
+      is_aligned (legal_alignas_type cenv ha_env la_env t) (hardware_alignof ha_env t) ofs = true ->
+      align_compatible_rec cenv t ofs.
+
+  Axiom legal_alignas_env_consistency: forall cenv ha_env,
+    composite_env_consistent cenv ->
+    legal_alignas_env_consistent cenv ha_env (legal_alignas_env cenv ha_env).
+
+  Axiom legal_alignas_env_completeness: forall cenv ha_env,
+    legal_alignas_env_complete cenv (legal_alignas_env cenv ha_env).
+
+  Axiom legal_alignas_soundness: forall cenv ha_env la_env,
+    legal_alignas_env_consistent cenv ha_env la_env ->
+    legal_alignas_env_complete cenv la_env ->
+    legal_alignas_env_sound cenv ha_env la_env.
+
+End LEGAL_ALIGNAS.
+
+Module LegalAlignasStrict.
+
+Section legal_alignas.
 
 Context (cenv: composite_env) (ha_env: PTree.t Z).
 
-Fixpoint legal_alignas1 (la1_env: PTree.t bool) t: bool :=
+Definition obs: Type := bool.
+
+Fixpoint legal_alignas_type (la_env: PTree.t bool) t: bool :=
   (hardware_alignof ha_env t <=? alignof cenv t) &&
   match t with
-  | Tarray t' _ _ => legal_alignas1 la1_env t'
+  | Tarray t' _ _ => legal_alignas_type la_env t'
   | Tstruct id _ =>
-      match la1_env ! id with
-      | Some la1 => la1
+      match la_env ! id with
+      | Some la => la
       | None => false
       end
   | Tunion id _ =>
-      match la1_env ! id with
-      | Some la1 => la1
+      match la_env ! id with
+      | Some la => la
       | None => false
       end
   | _ => match access_mode t with
@@ -222,45 +355,41 @@ Fixpoint legal_alignas1 (la1_env: PTree.t bool) t: bool :=
          end
   end.
 
-Fixpoint legal_alignas1_composite (la1_env: PTree.t bool) (m: members): bool :=
+Fixpoint legal_alignas_composite (la_env: PTree.t bool) (m: members): bool :=
   match m with
   | nil => true
-  | (_, t) :: m' => (legal_alignas1 la1_env t) && (legal_alignas1_composite la1_env m')
+  | (_, t) :: m' => (legal_alignas_type la_env t) && (legal_alignas_composite la_env m')
   end.
 
-Definition legal_alignas1_env: PTree.t bool :=
+Definition legal_alignas_env: PTree.t bool :=
   let l := composite_reorder.rebuild_composite_elements cenv in
-  fold_right (fun (ic: positive * composite) (T0: PTree.t bool) => let (i, co) := ic in let T := T0 in PTree.set i (legal_alignas1_composite T (co_members co)) T) (PTree.empty _) l.
+  fold_right (fun (ic: positive * composite) (T0: PTree.t bool) => let (i, co) := ic in let T := T0 in PTree.set i (legal_alignas_composite T (co_members co)) T) (PTree.empty _) l.
 
-End legal_alignas1.
+Definition is_aligned (b: bool) (ha: Z) (ofs: Z) := b && ((ofs mod ha) =? 0).
 
-Module Type LEGAL_ALIGNAS1_FACTS.
+Definition legal_alignas_env_consistent (la_env: PTree.t obs): Prop :=
+  forall i co la,
+    cenv ! i = Some co ->
+    la_env ! i = Some la ->
+    la = legal_alignas_composite la_env (co_members co).
 
-  Axiom legal_alignas1_consistent:
-    forall (cenv: composite_env) (ha_env: PTree.t Z) (la1_env: PTree.t bool),
-      composite_env_consistent cenv ->
-      la1_env = legal_alignas1_env cenv ha_env ->
-      forall i co la1,
-        cenv ! i = Some co ->
-        la1_env ! i = Some la1 ->
-        la1 = legal_alignas1_composite cenv ha_env la1_env (co_members co).
+Definition legal_alignas_env_complete (la_env: PTree.t obs): Prop :=
+  forall i,
+    (exists co, cenv ! i = Some co) <->
+    (exists la, la_env ! i = Some la).
 
-  Axiom legal_alignas1_complete:
-    forall (cenv: composite_env) (ha_env: PTree.t Z) (la1_env: PTree.t bool),
-      la1_env = legal_alignas1_env cenv ha_env ->
-      forall i,
-        (exists co, cenv ! i = Some co) <->
-        (exists la1, la1_env ! i = Some la1).
+Definition legal_alignas_env_sound (la_env: PTree.t obs): Prop :=
+  forall ofs t,
+    is_aligned (legal_alignas_type la_env t) (hardware_alignof ha_env t) ofs = true ->
+    align_compatible_rec cenv t ofs.
 
-End LEGAL_ALIGNAS1_FACTS.
-
-Module legal_alignas1_facts: LEGAL_ALIGNAS1_FACTS.
+End legal_alignas.
 
 Lemma aux1: forall cenv ha_env T co,
       (fix fm (l : list (ident * type * bool)) : bool :=
           match l with
           | nil => true
-          | (_, _, la1) :: l' => la1 && fm l'
+          | (_, _, la) :: l' => la && fm l'
           end)
          (map
             (fun it0 : positive * type =>
@@ -275,15 +404,15 @@ Lemma aux1: forall cenv ha_env T co,
                 | By_copy => false
                 | By_nothing => false
                 end)
-               (fun (la1 : bool) (t : type) (n : Z) (a0 : attr) =>
-                (hardware_alignof ha_env (Tarray t n a0) <=? alignof cenv (Tarray t n a0)) && la1)
-               (fun (la1 : bool) (id : ident) (a0 : attr) =>
-                (hardware_alignof ha_env (Tstruct id a0) <=? alignof cenv (Tstruct id a0)) && la1)
-               (fun (la1 : bool) (id : ident) (a0 : attr) =>
-                (hardware_alignof ha_env (Tunion id a0) <=? alignof cenv (Tunion id a0)) && la1) T t0)) (co_members co)) =
-      legal_alignas1_composite cenv ha_env T (co_members co).
+               (fun (la : bool) (t : type) (n : Z) (a0 : attr) =>
+                (hardware_alignof ha_env (Tarray t n a0) <=? alignof cenv (Tarray t n a0)) && la)
+               (fun (la : bool) (id : ident) (a0 : attr) =>
+                (hardware_alignof ha_env (Tstruct id a0) <=? alignof cenv (Tstruct id a0)) && la)
+               (fun (la : bool) (id : ident) (a0 : attr) =>
+                (hardware_alignof ha_env (Tunion id a0) <=? alignof cenv (Tunion id a0)) && la) T t0)) (co_members co)) =
+      legal_alignas_composite cenv ha_env T (co_members co).
 Proof.
-  intros; unfold legal_alignas1_composite, legal_alignas1.
+  intros; unfold legal_alignas_composite, legal_alignas_type.
   induction (co_members co) as [| [i t] ?].
   + auto.
   + simpl.
@@ -309,22 +438,22 @@ Lemma aux2: forall cenv ha_env,
            | By_copy => false
            | By_nothing => false
            end)
-          (fun (la1 : bool) (t : type) (n : Z) (a0 : attr) =>
-           (hardware_alignof ha_env (Tarray t n a0) <=? alignof cenv (Tarray t n a0)) && la1)
-          (fun (la1 : bool) (id : ident) (a0 : attr) =>
-           (hardware_alignof ha_env (Tstruct id a0) <=? alignof cenv (Tstruct id a0)) && la1)
-          (fun (la1 : bool) (id : ident) (a0 : attr) =>
-           (hardware_alignof ha_env (Tunion id a0) <=? alignof cenv (Tunion id a0)) && la1)
+          (fun (la : bool) (t : type) (n : Z) (a0 : attr) =>
+           (hardware_alignof ha_env (Tarray t n a0) <=? alignof cenv (Tarray t n a0)) && la)
+          (fun (la : bool) (id : ident) (a0 : attr) =>
+           (hardware_alignof ha_env (Tstruct id a0) <=? alignof cenv (Tstruct id a0)) && la)
+          (fun (la : bool) (id : ident) (a0 : attr) =>
+           (hardware_alignof ha_env (Tunion id a0) <=? alignof cenv (Tunion id a0)) && la)
           (fun _ : struct_or_union =>
            fix fm (l : list (ident * type * bool)) : bool :=
              match l with
              | nil => true
-             | (_, _, la1) :: l' => la1 && fm l'
+             | (_, _, la) :: l' => la && fm l'
              end) (composite_reorder.rebuild_composite_elements cenv)) =
-    legal_alignas1_env cenv ha_env.
+    legal_alignas_env cenv ha_env.
 Proof.
   intros.
-  unfold type_func.Env, type_func.env_rec, legal_alignas1_env.
+  unfold type_func.Env, type_func.env_rec, legal_alignas_env.
   f_equal.
   extensionality ic.
   destruct ic as [i co].
@@ -333,14 +462,10 @@ Proof.
   apply aux1.
 Qed.
 
-Lemma legal_alignas1_consistent:
-  forall (cenv: composite_env) (ha_env: PTree.t Z) (la1_env: PTree.t bool),
+Theorem legal_alignas_env_consistency:
+  forall (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t bool),
     composite_env_consistent cenv ->
-    la1_env = legal_alignas1_env cenv ha_env ->
-    forall i co la1,
-      cenv ! i = Some co ->
-      la1_env ! i = Some la1 ->
-      la1 = legal_alignas1_composite cenv ha_env la1_env (co_members co).
+    legal_alignas_env_consistent cenv ha_env (legal_alignas_env cenv ha_env).
 Proof.
   intros.
   pose proof @composite_reorder_consistent bool cenv
@@ -349,30 +474,27 @@ Proof.
                 | By_value _ => true
                 | _ => false
                 end)
-             (fun la1 t n a => (hardware_alignof ha_env (Tarray t n a) <=? alignof cenv (Tarray t n a)) && la1)
-             (fun la1 id a => (hardware_alignof ha_env (Tstruct id a) <=? alignof cenv (Tstruct id a)) && la1)
-             (fun la1 id a => (hardware_alignof ha_env (Tunion id a) <=? alignof cenv (Tunion id a)) && la1)
+             (fun la t n a => (hardware_alignof ha_env (Tarray t n a) <=? alignof cenv (Tarray t n a)) && la)
+             (fun la id a => (hardware_alignof ha_env (Tstruct id a) <=? alignof cenv (Tstruct id a)) && la)
+             (fun la id a => (hardware_alignof ha_env (Tunion id a) <=? alignof cenv (Tunion id a)) && la)
              (fun _ =>
                 fix fm (l: list (ident * type * bool)): bool :=
                 match l with
                 | nil => true
-                | (_, _, la1) :: l' => la1 && (fm l')
+                | (_, _, la) :: l' => la && (fm l')
                 end)
              H
     as HH.
   hnf in HH.
-  subst la1_env.
   rewrite aux2 in HH.
-  specialize (HH _ _ la1 H1 H2).
+  hnf; intros.
+  specialize (HH _ _ la H0 H1).
   rewrite HH, aux1; auto.
 Qed.
 
-Lemma legal_alignas1_complete:
-  forall (cenv: composite_env) (ha_env: PTree.t Z) (la1_env: PTree.t bool),
-    la1_env = legal_alignas1_env cenv ha_env ->
-    forall i,
-      (exists co, cenv ! i = Some co) <->
-      (exists la1, la1_env ! i = Some la1).
+Theorem legal_alignas_env_completeness:
+  forall (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t bool),
+    legal_alignas_env_complete cenv (legal_alignas_env cenv ha_env).
 Proof.
   intros.
   pose proof @composite_reorder_complete bool cenv
@@ -381,30 +503,97 @@ Proof.
                 | By_value _ => true
                 | _ => false
                 end)
-             (fun la1 t n a => (hardware_alignof ha_env (Tarray t n a) <=? alignof cenv (Tarray t n a)) && la1)
-             (fun la1 id a => (hardware_alignof ha_env (Tstruct id a) <=? alignof cenv (Tstruct id a)) && la1)
-             (fun la1 id a => (hardware_alignof ha_env (Tunion id a) <=? alignof cenv (Tunion id a)) && la1)
+             (fun la t n a => (hardware_alignof ha_env (Tarray t n a) <=? alignof cenv (Tarray t n a)) && la)
+             (fun la id a => (hardware_alignof ha_env (Tstruct id a) <=? alignof cenv (Tstruct id a)) && la)
+             (fun la id a => (hardware_alignof ha_env (Tunion id a) <=? alignof cenv (Tunion id a)) && la)
              (fun _ =>
                 fix fm (l: list (ident * type * bool)): bool :=
                 match l with
                 | nil => true
-                | (_, _, la1) :: l' => la1 && (fm l')
+                | (_, _, la) :: l' => la && (fm l')
                 end)
     as HH.
   hnf in HH.
-  subst.
   rewrite aux2 in HH.
   auto.
 Qed.
 
-End legal_alignas1_facts.
+Lemma two_power_nat_0: forall x, (exists n, x = two_power_nat n) -> x <> 0.
+Proof.
+  intros.
+  destruct H.
+  pose proof two_power_nat_pos x0.
+  omega.
+Qed.  
 
-Lemma legal_alignas1_align_compatiable (cenv: composite_env) (ha_env: PTree.t 
+Hint Rewrite andb_true_iff: align.
+Hint Rewrite <- Zle_is_le_bool: align.
+Hint Rewrite Z.eqb_eq: align.
+Hint Rewrite power_nat_divide_le using (auto with align): align.
+Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
+Hint Resolve alignof_two_p: align.
+Hint Resolve align_chunk_two_p: align.
+Hint Extern 10 (exists n: nat, hardware_alignof _ _ = two_power_nat n) => (eapply hardware_alignof_two_p; eassumption): align.
 
+Lemma legal_alignas_type_divide: forall t,
+  legal_alignas_type cenv ha_env la_env t = true ->
+    (hardware_alignof ha_env t <=? alignof cenv t).
 
+Lemma by_value_sound:
+  forall (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t bool) t ofs,
+    is_aligned (legal_alignas_type cenv ha_env la_env t) (hardware_alignof ha_env t) ofs = true ->
+    (exists ch, access_mode t = By_value ch) ->
+    align_compatible_rec cenv t ofs.
+Proof.
+  intros.
+  unfold is_aligned, legal_alignas_type, hardware_alignof in H.
+  destruct H0 as [ch ?].
+  assert ((align_chunk ch <=? alignof cenv t) && true && (ofs mod align_chunk ch =? 0) = true) by
+    (destruct t; try solve [inversion H0]; rewrite H0 in H; auto); clear H.
+  autorewrite with align in H1.
+  destruct H1 as [_ ?].
+  eapply align_compatible_rec_by_value; eauto.
+Qed.
 
-
-
+Theorem legal_alignas_soundness:
+  forall (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t bool),
+    composite_env_consistent cenv ->
+    hardware_alignof_env_consistent cenv ha_env ->
+    hardware_alignof_env_complete cenv ha_env ->
+    legal_alignas_env_consistent cenv ha_env la_env ->
+    legal_alignas_env_complete cenv la_env ->
+    legal_alignas_env_sound cenv ha_env la_env.
+Proof.
+  intros.
+  hnf; intros.
+  revert ofs H4; type_induction t cenv H; intros.
+  + inversion H4.
+  + eapply by_value_sound; eauto.
+    destruct i, s; eexists; try reflexivity.
+  + eapply by_value_sound; eauto.
+    destruct s; eexists; try reflexivity.
+  + eapply by_value_sound; eauto.
+    destruct f; eexists; try reflexivity.
+  + eapply by_value_sound; eauto.
+    eexists; try reflexivity.
+  + apply align_compatible_rec_Tarray; intros.
+    apply IH; clear IH.
+    unfold is_aligned in H4 |- *.
+    Opaque alignof. simpl in H4 |- *. Transparent alignof.
+    autorewrite with align in H4 |- *.
+    destruct H4 as [[? ?] ?].
+    split; auto.
+    apply Z.divide_add_r; auto.
+    apply Z.divide_mul_l.
+    unfold legal_alignas_type in H6.
+    autorewrite with align in H6.
+    
+    SearchAbout (_ | _ * _).
+    rewrite Z.eqb_eq in H5 |- *.
+    Check   power_nat_divide'.
+    SearchAbout two_power_nat.
+    Locate  two_power_nat_correct.
+    apply Zmod_divide; auto.
 
 
 
@@ -431,20 +620,6 @@ Lemma plain_alignof_spec: forall env t,
 Proof.
   intros.
   destruct t; auto.
-Qed.
-
-Lemma plain_alignof_two_p: forall env t, exists n,
-  plain_alignof env t = two_power_nat n.
-Proof.
-  intros.
-  destruct t as [| []  ? ? | | [] ? | | | | |];
-  try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity].
-  + simpl.
-    apply alignof_two_p.
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
 Qed.
 
 Definition local_legal_alignas_type env (t: type): bool :=

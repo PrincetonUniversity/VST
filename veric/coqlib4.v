@@ -8,6 +8,22 @@ Require Import compcert.lib.Integers.
 Require Import VST.msl.Coqlib2.
 Require Export VST.msl.eq_dec.
 
+Lemma max_two_power_nat: forall n1 n2, Z.max (two_power_nat n1) (two_power_nat n2) = two_power_nat (Nat.max n1 n2).
+Proof.
+  intros.
+  rewrite !two_power_nat_two_p.
+  pose proof Zle_0_nat n1; pose proof Zle_0_nat n2.
+  rewrite Nat2Z.inj_max.
+  forget (Z.of_nat n1) as m1; forget (Z.of_nat n2) as m2.
+  destruct (Z_le_dec m1 m2).
+  + rewrite (Z.max_r m1 m2) by omega.
+    apply Z.max_r.
+    apply two_p_monotone; omega.
+  + rewrite (Z.max_l m1 m2) by omega.
+    apply Z.max_l.
+    apply two_p_monotone; omega.
+Qed.
+
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.
   intros.
@@ -27,16 +43,38 @@ Proof.
   apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
 Qed.
 
-Lemma power_nat_divide': forall n m: Z,
+Lemma power_nat_divide_ge: forall n m: Z,
   (exists N, n = two_power_nat N) ->
   (exists M, m = two_power_nat M) ->
-  n >= m ->
-  (m | n).
+  (n >= m <-> (m | n)).
 Proof.
   intros.
   destruct H, H0.
-  subst.
-  apply power_nat_divide.
+  split; intros.
+  + subst.
+    apply power_nat_divide.
+    omega.
+  + destruct H1 as [k ?].
+    rewrite H1.
+    pose proof two_power_nat_pos x0.
+    pose proof two_power_nat_pos x.
+    assert (k > 0).
+    Focus 1. {
+      eapply Zmult_gt_0_reg_l.
+      + exact H2.
+      + rewrite <- H0, Z.mul_comm; omega.
+    } Unfocus.
+    rewrite <- (Z.mul_1_l m) at 2.
+    apply Zmult_ge_compat_r; omega.
+Qed.
+
+Lemma power_nat_divide_le: forall n m: Z,
+  (exists N, n = two_power_nat N) ->
+  (exists M, m = two_power_nat M) ->
+  (m <= n <-> (m | n)).
+Proof.
+  intros.
+  rewrite <- power_nat_divide_ge; auto.
   omega.
 Qed.
 
