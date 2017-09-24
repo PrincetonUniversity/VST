@@ -24,6 +24,14 @@ Proof.
     apply two_p_monotone; omega.
 Qed.
 
+Lemma Z_max_two_p: forall m1 m2, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> (exists n, Z.max m1 m2 = two_power_nat n).
+Proof.
+  intros ? ? [? ?] [? ?].
+  subst.
+  rewrite max_two_power_nat.
+  eexists; reflexivity.
+Qed.
+
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.
   intros.
@@ -78,6 +86,21 @@ Proof.
   omega.
 Qed.
 
+Lemma two_p_max_divide: forall m1 m2 m, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> ((Z.max m1 m2 | m) <-> (m1 | m) /\ (m2 | m)).
+Proof.
+  intros.
+  destruct (Z_le_dec m1 m2).
+  + rewrite Z.max_r by omega.
+    rewrite power_nat_divide_le in l by auto.
+    pose proof Zdivides_trans m1 m2 m.
+    tauto.
+  + rewrite Z.max_l by omega.
+    assert (m2 <= m1) by omega.
+    rewrite power_nat_divide_le in H1 by auto.
+    pose proof Zdivides_trans m2 m1 m.
+    tauto.
+Qed.
+
 Lemma two_power_nat_0: forall x, (exists n, x = two_power_nat n) -> x <> 0.
 Proof.
   intros.
@@ -91,6 +114,8 @@ Hint Rewrite <- Zle_is_le_bool: align.
 Hint Rewrite Z.eqb_eq: align.
 Hint Rewrite power_nat_divide_le using (auto with align): align.
 Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
+Hint Rewrite two_p_max_divide using (auto with align): align.
+Hint Resolve Z_max_two_p: align.
 
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
 Proof. intros.

@@ -21,6 +21,7 @@ Require Export VST.veric.tycontext.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
+Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
 Require VST.veric.seplog.
 Require VST.veric.assert_lemmas.
@@ -462,7 +463,7 @@ Qed.
 
 Definition align_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | Vptr b i_ofs => is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) (Int.unsigned i_ofs) = true
   | _ => True
   end.
 

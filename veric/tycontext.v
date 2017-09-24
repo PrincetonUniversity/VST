@@ -3,6 +3,7 @@ Require Import VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.align_mem.
 Require Export VST.veric.lift.
 
 Definition type_is_by_value t : bool :=
@@ -312,8 +313,13 @@ Definition composite_env_legal_fieldlist env :=
 Class compspecs := mkcompspecs {
   cenv_cs : composite_env;
   cenv_consistent: composite_env_consistent cenv_cs;
-  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
-  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
+  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs;
+  ha_env_cs: PTree.t Z;
+  ha_env_cs_consistent: hardware_alignof_env_consistent cenv_cs ha_env_cs;
+  ha_env_cs_complete: hardware_alignof_env_complete cenv_cs ha_env_cs;
+  la_env_cs: PTree.t legal_alignas_obs;
+  la_env_cs_consistent: legal_alignas_env_consistent cenv_cs ha_env_cs la_env_cs;
+  la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs
 }.
 
 Existing Class composite_env.
