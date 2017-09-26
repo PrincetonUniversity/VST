@@ -180,13 +180,6 @@ Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstTyp
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
   (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
 
-(* For this to work with load_acquire, Q needs to be somehow future-proof: it should be okay even if v wasn't
-   actually the latest value of tgt. Only getting knowledge isn't enough: P' v must be something that still
-   holds even if the actual value at p has been changed from v. *)
-(* GPS's protocols are equivalent to saying that P' can only place one-sided bounds on the values of atomic
-   memory locations, rather than giving ownership of them or precisely constraining them. GPS does part of this
-   by insisting that Q = P * Q', where Q' is persistent. The rest follows from the fact that atomic locations
-   can *only* be the subject of protocol assertions. *)
 Program Definition load_SC_spec := TYPE AL_type
   WITH p : val, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred, Q : Z -> mpred
   PRE [ 1%positive OF tptr tint ]
@@ -620,3 +613,16 @@ Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_du
 
 Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
   sepcon_objective sepcon_list_objective : objective.
+
+(* a simpler approach to witnesses for builtin atomics *)
+Lemma wand_view_shifts : forall {T} A P B B' Q, view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) ->
+  view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) /\
+  forall x, view_shift (B' x * (B' x -* A * Q)) (A * Q).
+Proof.
+  intros; split; auto.
+  intro; apply derives_view_shift, modus_ponens_wand.
+Qed.
+
+Notation store_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
+  fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q, Q).

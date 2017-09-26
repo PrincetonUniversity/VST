@@ -2811,6 +2811,46 @@ Proof.
   rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
 Qed.
 
+(* wand lemmas *)
+Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply mpred_ext, modus_ponens_wand.
+  subst; cancel.
+  rewrite <- wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply mpred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma extract_wand_sepcon : forall l P, In P l ->
+  fold_right sepcon emp l = P * P -* fold_right sepcon emp l.
+Proof.
+  intros.
+  erewrite <- sublist_same with (al := l) at 1; auto.
+  rewrite sublist_split with (mid := i); try omega.
+  rewrite sublist_next with (i0 := i)(d := FF); try omega.
+  rewrite sepcon_app; simpl.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l FF)).
+  unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
+  rewrite emp_sepcon; auto.
+Qed.
+
+Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
+  fold_right sepcon emp (upd_Znth i l P).
+Proof.
+  intros; unfold upd_Znth.
+  rewrite !sepcon_app; simpl.
+  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
+Qed.
+
 Lemma sepcon_derives_prop : forall P Q R, P |-- !!R -> P * Q |-- !!R.
 Proof.
   intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
