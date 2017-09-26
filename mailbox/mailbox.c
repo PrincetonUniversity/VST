@@ -30,13 +30,6 @@ buffer *bufs[B];
 lock_t *lock[N];
 buf_id *comm[N];
 
-//The initial state as written in the draft is slightly inconsistent:
-//last_read is First, but comm[r] is also First as if it
-//hasn't been read yet. Either last_read or comm[r] should
-//start as Empty instead. comm[r] starting Empty is a bit
-//simpler (although it implies that the readers start with
-//access to bufs[0] as if they've received the first communication).
-
 //registrar function
 buf_id *reading[N], *last_read[N];
 
