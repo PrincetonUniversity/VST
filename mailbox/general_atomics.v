@@ -615,7 +615,8 @@ Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp
   sepcon_objective sepcon_list_objective : objective.
 
 (* a simpler approach to witnesses for builtin atomics *)
-Lemma wand_view_shifts : forall {T} A P B B' Q, view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) ->
+Lemma wand_view_shifts : forall {T} {CS : compspecs} A P B B' Q,
+  view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) ->
   view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) /\
   forall x, view_shift (B' x * (B' x -* A * Q)) (A * Q).
 Proof.
@@ -626,3 +627,25 @@ Qed.
 Notation store_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
   fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -*
   fold_right sepcon emp (map II lI) * Q, Q).
+
+Lemma wand_view_shifts2 : forall {T1 T2} {CS : compspecs} A P B B' Q,
+  view_shift (A * P) (EX x1 : T1, EX x2 : T2, B x1 x2 * (B' x1 x2 -* A * Q x2)) ->
+  view_shift (A * P) (EX x1 : T1, EX x2 : T2, B x1 x2 * (B' x1 x2 -* A * Q x2)) /\
+  forall x1 x2, view_shift (B' x1 x2 * (B' x1 x2 -* A * Q x2)) (A * Q x2).
+Proof.
+  intros; split; auto.
+  intros; apply derives_view_shift, modus_ponens_wand.
+Qed.
+
+Notation AEX_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
+  fun sh v0 => !!(writable_share sh /\ repable_signed v0) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q v0, Q).
+
+Notation load_SC_witness p P II lI Q := (p, P, II%function, lI%gfield,
+  fun sh v => !!(readable_share sh /\ repable_signed v) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q v, Q).
+
+Notation CAS_SC_witness p c v P II lI Q := (p, c, v%Z, P, II%function, lI%gfield,
+  fun sh v0 => !!(writable_share sh /\ repable_signed v0) &&
+    data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -*
+  fold_right sepcon emp (map II lI) * Q v0, Q).
