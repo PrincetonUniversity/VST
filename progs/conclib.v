@@ -2424,8 +2424,8 @@ Proof.
 Qed.
 
 (* It's often useful to split Tsh in half. *)
-Definition gsh1 : share := fst (Share.split Tsh).
-Definition gsh2 : share := snd (Share.split Tsh).
+Definition gsh1 := fst (Share.split Tsh).
+Definition gsh2 := snd (Share.split Tsh).
 
 Lemma readable_gsh1 : readable_share gsh1.
 Proof.
@@ -2876,13 +2876,14 @@ Proof.
   eapply wand_eq; eauto.
 Qed.
 
-Lemma wand_sepcon_map : forall {A} (R : A -> mpred) l P
-  (HR : forall i, In i l -> R i |-- P i * TT),
+Lemma wand_sepcon_map : forall {A} (R : A -> mpred) l P Q
+  (HR : forall i, In i l -> R i = P i * Q i),
   fold_right sepcon emp (map R l) = fold_right sepcon emp (map P l) *
     (fold_right sepcon emp (map P l) -* fold_right sepcon emp (map R l)).
 Proof.
   intros; eapply wand_eq.
-  erewrite map_ext_in, sepcon_map.
+  erewrite map_ext_in, sepcon_map; eauto.
+  apply HR.
 Qed.
 
 Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
