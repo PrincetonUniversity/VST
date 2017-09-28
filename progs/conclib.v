@@ -2424,8 +2424,8 @@ Proof.
 Qed.
 
 (* It's often useful to split Tsh in half. *)
-Definition gsh1 := fst (Share.split Tsh).
-Definition gsh2 := snd (Share.split Tsh).
+Definition gsh1 : share := fst (Share.split Tsh).
+Definition gsh2 : share := snd (Share.split Tsh).
 
 Lemma readable_gsh1 : readable_share gsh1.
 Proof.
