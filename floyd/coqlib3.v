@@ -53,13 +53,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
-Proof.
-  intros.
-  destruct i; try reflexivity.
-  pose proof Zgt_pos_0 p; omega.
-Qed.
-
 Lemma Int_unsigned_repr_le: forall a, 0 <= a -> Int.unsigned (Int.repr a) <= a.
 Proof.
   intros.

@@ -366,3 +366,66 @@ Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
 eexists.
 solve_perm.
 Qed.
+
+Lemma range_pred_dec: forall (P: nat -> Prop),
+  (forall n, {P n} + {~ P n}) ->
+  forall m,
+    {forall n, (n < m)%nat -> P n} + {~ forall n, (n < m)%nat -> P n}.
+Proof.
+  intros.
+  induction m.
+  + left.
+    intros; omega.
+  + destruct (H m); [destruct IHm |].
+    - left.
+      intros.
+      destruct (eq_dec n m).
+      * subst; auto.
+      * apply p0; omega.
+    - right.
+      intro.
+      apply n; clear n.
+      intros; apply H0; omega.
+    - right.
+      intro.
+      apply n; clear n.
+      apply H0.
+      omega.
+Qed.
+
+Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
+Proof.
+  intros.
+  destruct i; try reflexivity.
+  pose proof Zgt_pos_0 p; omega.
+Qed.
+
+Lemma Zrange_pred_dec: forall (P: Z -> Prop),
+  (forall z, {P z} + {~ P z}) ->
+  forall l r,  
+    {forall z, l <= z < r -> P z} + {~ forall z, l <= z < r -> P z}.
+Proof.
+  intros.
+  assert ((forall n: nat, (n < Z.to_nat (r - l))%nat -> P (l + Z.of_nat n)) <-> (forall z : Z, l <= z < r -> P z)).
+  Focus 1. {
+    split; intros.
+    + specialize (H0 (Z.to_nat (z - l))).
+      rewrite <- Z2Nat.inj_lt in H0 by omega.
+      spec H0; [omega |].
+      rewrite Z2Nat.id in H0 by omega.
+      replace (l + (z - l)) with z in H0 by omega.
+      auto.
+    + apply H0.
+      rewrite Nat2Z.inj_lt in H1.
+      destruct (zlt (r - l) 0).
+      - rewrite Z2Nat_neg in H1 by omega.
+        simpl in H1.
+        omega.
+      - rewrite Z2Nat.id in H1 by omega.
+        omega.
+  } Unfocus.
+  eapply sumbool_dec_iff; [clear H0 | eassumption].
+  apply range_pred_dec.
+  intros.
+  apply H.
+Qed.

@@ -460,10 +460,16 @@ Proof.
 intros.
 apply mapsto_memory_block.memory_block_conflict; auto.
 Qed.
-
+(*
 Definition align_compatible {C: compspecs} t p :=
   match p with
   | Vptr b i_ofs => is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) (Int.unsigned i_ofs) = true
+  | _ => True
+  end.
+*)
+Definition align_compatible {C: compspecs} t p :=
+  match p with
+  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Int.unsigned i_ofs)
   | _ => True
   end.
 

@@ -465,7 +465,6 @@ Qed.
 
 Definition field_compatible t gfs p :=
   isptr p /\
-  legal_alignas_type t = true /\
   legal_cosu_type t = true /\
   complete_type cenv_cs t = true /\
   sizeof t < Int.modulus /\
@@ -475,7 +474,6 @@ Definition field_compatible t gfs p :=
 
 Definition field_compatible0 t gfs p :=
   isptr p /\
-  legal_alignas_type t = true /\
   legal_cosu_type t = true /\
   complete_type cenv_cs t = true /\
   sizeof t < Int.modulus /\
@@ -490,15 +488,15 @@ Proof.
   intros.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
-  + destruct legal_alignas_type; [left | right]; congruence.
   + destruct legal_cosu_type; [left | right]; congruence.
   + destruct complete_type; [left | right]; congruence.
   + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
-    apply Zdivide_dec.
-    apply alignof_pos.
+    destruct (is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t)
+                         (hardware_alignof ha_env_cs t) (Int.unsigned i));
+    try (left; congruence); try (right; congruence).
   + apply legal_nested_field_dec.
 Qed.
 
@@ -509,15 +507,15 @@ Proof.
   intros.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
-  + destruct legal_alignas_type; [left | right]; congruence.
   + destruct legal_cosu_type; [left | right]; congruence.
   + destruct complete_type; [left | right]; congruence.
   + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
-    apply Zdivide_dec.
-    apply alignof_pos.
+    destruct (is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t)
+                         (hardware_alignof ha_env_cs t) (Int.unsigned i));
+    try (left; congruence); try (right; congruence).
   + apply legal_nested_field0_dec.
 Qed.
 
@@ -663,10 +661,10 @@ Lemma field_compatible0_range:
    field_compatible0 t (ArraySubsc i :: gfs) p.
 Proof.
   intros.
-  destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
-  destruct H1 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+  destruct H0 as [? [? [? [? [? [? [? ?]]]]]]].
+  destruct H1 as [? [? [? [? [? [? [? ?]]]]]]].
   repeat split; auto.
-  hnf in H9,H17|-*.
+  hnf in H8, H15|-*.
   destruct (nested_field_type t gfs); auto.
   omega.
 Qed.
@@ -818,7 +816,7 @@ Proof.
   apply gfield_array_type_nested_pred; [auto | auto | tauto |].
   apply nested_field_type_nest_pred; auto.
 Qed.
-
+(*
 Lemma alignof_gfield_type_divide_alignof: forall t gf,
   legal_alignas_type t = true ->
   (alignof (gfield_type t gf) | alignof t).
@@ -927,7 +925,7 @@ Proof.
   + simpl.
     apply field_offset_aligned.
 Qed.
-
+*)
 Lemma legal_nested_field0_field:
   forall t gfs, legal_nested_field t gfs -> legal_nested_field0 t gfs.
 Proof.
@@ -942,7 +940,7 @@ omega.
 Qed.
 
 Hint Resolve legal_nested_field0_field.
-
+(*
 Lemma nested_field_offset_type_divide: forall gfs t,
   legal_alignas_type t = true ->
   legal_nested_field t gfs ->
@@ -977,7 +975,7 @@ Proof.
       apply alignof_gfield_type_divide_alignof; auto.
     - apply gfield_offset_type_divide; auto.
 Qed.
-
+*)
 Lemma gfield_offset_in_range: forall t gf,
   legal_field t gf ->
   legal_cosu_type t = true ->
@@ -1178,7 +1176,7 @@ Proof.
   destruct (Int.unsigned_range i).
   omega.
 Qed.
-
+(*
 Lemma align_1_compatible: forall t, alignof t = 1 -> forall p, align_compatible t p.
 Proof.
   intros.
@@ -1186,7 +1184,7 @@ Proof.
   rewrite H.
   apply Z.divide_1_l.
 Qed.
-
+*)
 Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
   legal_cosu_type t = true ->
