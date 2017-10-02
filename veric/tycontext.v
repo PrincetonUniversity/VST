@@ -310,10 +310,43 @@ Definition composite_env_legal_fieldlist env :=
   forall (id : positive) (co : composite),
     env ! id = Some co -> composite_legal_fieldlist co.
 
+Section cuof.
+
+Context (cenv: composite_env).
+  
+Fixpoint legal_su t: Prop :=
+  match t with
+  | Tarray t' _ _ => legal_su t'
+  | Tstruct id _ =>
+      match cenv ! id with
+      | Some co => co_su co = Struct
+      | _ => False
+      end
+  | Tunion id _ =>
+      match cenv ! id with
+      | Some co => co_su co = Union
+      | _ => False
+      end
+  | _ => True
+  end.
+
+Fixpoint composite_legal_su (m: members): Prop :=
+  match m with
+  | nil => True
+  | (_, t) :: m' => legal_su t /\ composite_legal_su m'
+  end.
+
+Definition composite_env_legal_su: Prop :=
+  forall (id : positive) (co : composite),
+    cenv ! id = Some co -> composite_legal_su (co_members co).
+  
+End cuof.
+
 Class compspecs := mkcompspecs {
   cenv_cs : composite_env;
   cenv_consistent: composite_env_consistent cenv_cs;
   cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs;
+  cenv_legal_su: composite_env_legal_su cenv_cs;
   ha_env_cs: PTree.t Z;
   ha_env_cs_consistent: hardware_alignof_env_consistent cenv_cs ha_env_cs;
   ha_env_cs_complete: hardware_alignof_env_complete cenv_cs ha_env_cs;

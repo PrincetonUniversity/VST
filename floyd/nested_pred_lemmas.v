@@ -151,9 +151,7 @@ Proof.
 Defined.
 *)
 
-(******* Samples : legal_cosu_type *************)
-
-Definition local_legal_cosu_type t :=
+Definition legal_cosu_type t :=
   match t with
   | Tstruct id _ => match co_su (get_co id) with
                     | Struct => true
@@ -166,15 +164,11 @@ Definition local_legal_cosu_type t :=
   | _ => true
   end.
 
-Definition legal_cosu_type := nested_pred local_legal_cosu_type.
-
 Lemma legal_cosu_type_Tstruct: forall id a,
   legal_cosu_type (Tstruct id a) = true ->
   co_su (get_co id) = Struct.
 Proof.
   intros.
-  unfold legal_cosu_type in H.
-  apply nested_pred_atom_pred in H.
   simpl in H.
   destruct (co_su (get_co id)); congruence.
 Qed.
@@ -184,8 +178,6 @@ Lemma legal_cosu_type_Tunion: forall id a,
   co_su (get_co id) = Union.
 Proof.
   intros.
-  unfold legal_cosu_type in H.
-  apply nested_pred_atom_pred in H.
   simpl in H.
   destruct (co_su (get_co id)); congruence.
 Qed.
@@ -370,35 +362,3 @@ Ltac pose_field :=
   | _ => idtac
   end
 .
-
-(*
-Ltac pose_field :=
-  match goal with
-  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [sizeof (field_type2 ?i (co_members (get_co ?id)))] =>
-      pose_sizeof_co (Tstruct id a);
-      let H := fresh "H" in
-      pose proof field_offset2_in_range i (co_members (get_co id)) as H;
-      spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
-  | _ : legal_cosu_type (Tunion ?id ?a) = true |-
-    context [sizeof (field_type2 ?i (co_members (get_co ?id)))] =>
-      pose_sizeof_co (Tunion id a);
-      let H := fresh "H" in
-      pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
-      spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
-  | _ => idtac
-  end;
-  match goal with
-  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
-      let H := fresh "H" in
-      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
-      spec H; [solve [auto] |];
-      spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
-  | _ => idtac
-  end
-.
-
-*)

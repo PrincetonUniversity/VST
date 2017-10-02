@@ -5,6 +5,7 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Lists.List.
 Require Import VST.msl.Coqlib2.
+Require Import VST.veric.coqlib4.
 
 Lemma power_nat_one_divede_other: forall n m : nat,
   (two_power_nat n | two_power_nat m) \/ (two_power_nat m | two_power_nat n).

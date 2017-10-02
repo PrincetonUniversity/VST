@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.align_compatible_dec.
 Open Scope Z.
 
 
@@ -493,10 +494,7 @@ Proof.
   + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
-  + destruct p; simpl; try solve [left; auto].
-    destruct (is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t)
-                         (hardware_alignof ha_env_cs t) (Int.unsigned i));
-    try (left; congruence); try (right; congruence).
+  + apply align_compatible_dec.
   + apply legal_nested_field_dec.
 Qed.
 
@@ -512,10 +510,7 @@ Proof.
   + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
-  + destruct p; simpl; try solve [left; auto].
-    destruct (is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t)
-                         (hardware_alignof ha_env_cs t) (Int.unsigned i));
-    try (left; congruence); try (right; congruence).
+  + apply align_compatible_dec.
   + apply legal_nested_field0_dec.
 Qed.
 

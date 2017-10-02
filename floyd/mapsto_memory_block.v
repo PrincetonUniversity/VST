@@ -188,25 +188,36 @@ Section COMPSPECS.
 
 Context {cs: compspecs}.
 
+(* TODO: move it into veric. *)
+Lemma align_compatible_rec_by_value_inv : forall (t : type) (ch : memory_chunk) (z : Z),
+  access_mode t = By_value ch ->
+  align_compatible_rec cenv_cs t z -> (Memdata.align_chunk ch | z).
+Proof.
+  intros.
+  inv H0.
+  + rewrite H in H1; inv H1; auto.
+  + inv H.
+  + inv H.
+  + inv H.
+Qed.
+
 Lemma memory_block_mapsto_:
   forall sh t p,
    type_is_by_value t = true ->
    type_is_volatile t = false ->
-   legal_alignas_type t = true ->
    size_compatible t p ->
    align_compatible t p ->
    memory_block sh (sizeof t) p = mapsto_ sh t p.
 Proof.
   intros.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
-  destruct H4. destruct p; try contradiction.
-  + simpl in H2, H3.
+  destruct H3. destruct p; try contradiction.
+  + simpl in H1, H2.
     destruct (access_mode_by_value _ H) as [ch ?].
-    unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
+    unfold sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
     rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
-    eapply Z.divide_trans; [| apply H3].
-    apply align_chunk_alignof; auto.
-    apply nested_pred_atom_pred; auto.
+    eapply align_compatible_rec_by_value_inv in H2; [| eassumption].
+    auto.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
@@ -214,7 +225,6 @@ Lemma nonreadable_memory_block_mapsto: forall sh p t v,
   ~ readable_share sh ->
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
   tc_val' t v ->
@@ -223,13 +233,12 @@ Proof.
   intros.
   apply access_mode_by_value in H0; destruct H0 as [ch ?].
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
-  destruct H6. destruct p; try contradiction.
-  + simpl in H3, H4.
-    erewrite size_chunk_sizeof in H3 |- * by eauto.
+  destruct H5. destruct p; try contradiction.
+  + simpl in H2, H3.
+    erewrite size_chunk_sizeof in H2 |- * by eauto.
     apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
-    eapply Z.divide_trans; [| apply H4].
-    apply align_chunk_alignof; auto.
-    apply nested_pred_atom_pred; auto.
+    eapply align_compatible_rec_by_value_inv in H3; [| eassumption].
+    auto.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
