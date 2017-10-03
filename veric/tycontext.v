@@ -363,7 +363,7 @@ Arguments alignof {env} !t / .
 
 Arguments sizeof_pos {env} t _.
 Arguments alignof_pos {env} t.
-
+(* TODO: handle other part of compspecs like this. *)
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
 Abort.

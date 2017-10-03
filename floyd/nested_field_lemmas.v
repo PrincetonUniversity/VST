@@ -784,6 +784,62 @@ Proof.
   omega.
 Qed.
 
+Lemma gfield_type_legal_cosu_type: forall (t: type) (gf: gfield),
+  complete_type cenv_cs t = true -> legal_cosu_type t = true -> legal_cosu_type (gfield_type t gf) = true.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?], gf; auto;
+   unfold gfield_type in *; simpl in H, H0; unfold get_co in *.
+  + destruct (cenv_cs ! id) eqn:?H; [| inv H].
+    pose proof cenv_legal_su _ _ H1.
+    pose proof co_consistent_complete _ _ (cenv_consistent _ _ H1).
+    induction (co_members c) as [| [i0 t0] ?].
+    - reflexivity.
+    - inv H2.
+      simpl in H3; rewrite andb_true_iff in H3; destruct H3.
+      apply IHm in H5; auto.
+      simpl.
+      if_tac; auto.
+      apply legal_su_legal_cosu_type; auto.
+  + destruct (cenv_cs ! id) eqn:?H; [| inv H].
+    pose proof cenv_legal_su _ _ H1.
+    pose proof co_consistent_complete _ _ (cenv_consistent _ _ H1).
+    induction (co_members c) as [| [i0 t0] ?].
+    - reflexivity.
+    - inv H2.
+      simpl in H3; rewrite andb_true_iff in H3; destruct H3.
+      apply IHm in H5; auto.
+      simpl.
+      if_tac; auto.
+      apply legal_su_legal_cosu_type; auto.
+Qed.
+
+Lemma gfield_array_type_legal_cosu_type: forall (t: type) lo hi,
+  legal_cosu_type t = true -> legal_cosu_type (gfield_array_type t lo hi) = true.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?]; auto.
+Qed.
+
+Lemma nested_field_type_legal_cosu_type: forall (t: type) (gfs: list gfield), complete_type cenv_cs t = true -> legal_cosu_type t = true -> legal_nested_field t gfs -> legal_cosu_type (nested_field_type t gfs) = true.
+Proof.
+  intros.
+  induction gfs; rewrite nested_field_type_ind.
+  + auto.
+  + destruct H1.
+    apply gfield_type_legal_cosu_type; auto.
+    apply nested_field_type_complete_type; auto.
+Qed.
+
+Lemma nested_field_array_type_legal_cosu_type: forall (t: type) (gfs: list gfield) lo hi, complete_type cenv_cs t = true -> legal_cosu_type t = true -> legal_nested_field t gfs -> legal_cosu_type (nested_field_array_type t gfs lo hi) = true.
+Proof.
+  intros.
+  rewrite nested_field_array_type_ind.
+  simpl in H0.
+  apply gfield_array_type_legal_cosu_type.
+  apply nested_field_type_legal_cosu_type; auto.
+Qed.
+
 Lemma nested_field_type_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gfs: list gfield),
   nested_pred atom_pred t = true -> nested_pred atom_pred (nested_field_type t gfs) = true.
 Proof.
@@ -1034,6 +1090,7 @@ Qed.
 
 Lemma nested_field_offset_in_range: forall t gfs,
   legal_nested_field t gfs ->
+  complete_type cenv_cs t = true ->
   legal_cosu_type t = true ->
   0 <= nested_field_offset t gfs /\
   (nested_field_offset t gfs) + sizeof (nested_field_type t gfs) <= sizeof t.
@@ -1043,13 +1100,15 @@ Proof.
   + omega.
   + specialize (IHgfs (proj1 H)).
     pose proof gfield_offset_in_range (nested_field_type t gfs) gf (proj2 H).
-    spec H1; [apply nested_field_type_nest_pred; auto |].
+    destruct H.
+    spec H2; [apply nested_field_type_legal_cosu_type; auto |].
     omega.
 Qed.
 
 Lemma nested_field_array_offset_in_range: forall t gfs lo hi,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
+  complete_type cenv_cs t = true ->
   legal_cosu_type t = true ->
   0 <= nested_field_offset t (ArraySubsc lo :: gfs) /\
   nested_field_offset t (ArraySubsc lo :: gfs) + sizeof (nested_field_array_type t gfs lo hi) <= sizeof t.
@@ -1058,13 +1117,15 @@ Proof.
   rewrite nested_field_array_type_ind.
   rewrite nested_field0_offset_ind by auto.
   pose proof gfield_array_offset_in_range (nested_field_type t gfs) lo hi (proj2 H) (proj2 H0).
-  spec H2; [apply nested_field_type_nest_pred; auto |].
-  pose proof nested_field_offset_in_range t gfs (proj1 H) H1.
+  destruct H0.
+  spec H3; [apply nested_field_type_legal_cosu_type; auto |].
+  pose proof nested_field_offset_in_range t gfs (proj1 H) H1 H2.
   omega.
 Qed.
 
 Lemma nested_field0_offset_in_range: forall (t : type) (gfs : list gfield),
   legal_nested_field0 t gfs ->
+  complete_type cenv_cs t = true ->
   legal_cosu_type t = true ->
   0 <= nested_field_offset t gfs <= sizeof t.
 Proof.
@@ -1072,10 +1133,12 @@ Proof.
   destruct gfs as [| gf gfs]; rewrite nested_field0_offset_ind by auto.
   + pose proof sizeof_pos t; omega.
   + pose proof gfield0_offset_in_range (nested_field_type t gfs) gf (proj2 H).
-    spec H1; [apply nested_field_type_nest_pred; auto |].
+    destruct H.
+    spec H2; [apply nested_field_type_legal_cosu_type; auto |].
     pose proof nested_field_offset_in_range t gfs.
-    spec H2; [destruct H; auto |].
-    spec H2; [auto |].
+    spec H4; [auto |].
+    spec H4; [auto |].
+    spec H4; [auto |].
     omega.
 Qed.
 
@@ -1182,26 +1245,28 @@ Qed.
 *)
 Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
+  complete_type cenv_cs t = true ->
   legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
   intros.
   destruct p; simpl; try tauto.
-  unfold size_compatible in H1.
+  unfold size_compatible in H2.
   solve_mod_modulus.
   inv_int i.
-  pose proof nested_field_offset_in_range t gfs H H0.
+  pose proof nested_field_offset_in_range t gfs H H0 H1.
   pose proof Zmod_le (ofs + nested_field_offset t gfs) (Int.modulus).
-  spec H4; [pose proof Int.modulus_pos; omega |].
-  spec H4; [omega |].
-  pose proof nested_field_offset_in_range t gfs.
+  spec H5; [pose proof Int.modulus_pos; omega |].
+  spec H5; [omega |].
+  pose proof nested_field_offset_in_range t gfs H H0 H1.
   omega.
 Qed.
 
 Lemma size_compatible_nested_field_array: forall t gfs lo hi p,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
+  complete_type cenv_cs t = true ->
   legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_array_type t gfs lo hi)
@@ -1209,49 +1274,63 @@ Lemma size_compatible_nested_field_array: forall t gfs lo hi p,
 Proof.
   intros.
   destruct p; simpl; try tauto.
-  unfold size_compatible in H2.
+  unfold size_compatible in H3.
   solve_mod_modulus.
   inv_int i.
-  pose proof nested_field_array_offset_in_range t gfs lo hi H H0 H1.
+  pose proof nested_field_array_offset_in_range t gfs lo hi H H0 H1 H2.
   pose proof Zmod_le (ofs + nested_field_offset t (ArraySubsc lo :: gfs)) (Int.modulus).
-  spec H5; [pose proof Int.modulus_pos; omega |].
-  spec H5; [omega |].
-  pose proof nested_field_offset_in_range t gfs (proj1 H) H1.
-  simpl in H3.
+  spec H6; [pose proof Int.modulus_pos; omega |].
+  spec H6; [omega |].
+  pose proof nested_field_offset_in_range t gfs (proj1 H) H1 H2.
+  simpl in H4.
   omega.
 Qed.
-
+(*
+Lemma align_compatible_gfield_type: forall t gf p i,
+  legal_field0 t gf ->
+  align_compatible_rec cenv_cs t (Int.unsigned i) ->
+  align_compatible_rec cenv_cs (nested_field_type t gfs)
+            ((Int.unsigned i + nested_field_offset t gfs) mod Int.modulus)
+  ============================
+  align_compatible_rec cenv_cs (gfield_type t gf)
+    ( gfield_offset (nested_field_type t gfs) gf))
+     mod Int.modulus)
+*)
 Lemma align_compatible_nested_field0: forall t gfs p,
   legal_nested_field0 t gfs ->
-  legal_alignas_type t = true ->
+  size_compatible t p ->
   align_compatible t p ->
   align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
   unfold Int.unsigned; simpl.
-  unfold Int.unsigned; simpl.
+  unfold Int.unsigned at 2; simpl.
   repeat rewrite Int.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
-  assert (alignof (nested_field_type t gfs) | Int.unsigned i + nested_field_offset t gfs).
-  - apply Z.divide_add_r; auto.
-    eapply Z.divide_trans; [| eauto].
-    apply alignof_nested_field_type_divide_alignof'; auto.
-    apply nested_field_offset_type_divide0; auto.
-  - unfold Int.modulus.
-    destruct (alignof_two_p (nested_field_type t gfs)).
-    rewrite H3 in *.
-    destruct H2.
-    unfold Int.unsigned in H2; rewrite H2.
-    rewrite !two_power_nat_two_p in *.
-    apply multiple_divide_mod.
-    * apply two_p_gt_ZERO, Zle_0_nat.
-    * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
+  inv_int i.
+Admitted.
+(*
+  induction gfs as [| gf gfs].
+  + rewrite nested_field_type_ind.
+    rewrite nested_field_offset_ind by auto.
+    rewrite Z.add_0_r.
+    inv_int i.
+    rewrite Zmod_small by auto.
+    auto.
+  + rewrite nested_field_type_ind.
+    rewrite nested_field_offset_ind by auto.
+    
+    Searc
+      hAbout  =
+    SearchAbout Z.modulo.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  rewrite Zplus_mod_idemp_r.
 Qed.
-
+*)
 Lemma align_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
-  legal_alignas_type t = true ->
+  size_compatible t p ->
   align_compatible t p ->
   align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
@@ -1262,17 +1341,19 @@ Qed.
 Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
-  legal_alignas_type t = true ->
+  size_compatible t p ->
   align_compatible t p ->
   align_compatible (nested_field_array_type t gfs lo hi)
    (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
+Admitted.
+(*
   unfold align_compatible.
   rewrite alignof_nested_field_array_type_eq with (i := lo) by auto.
   apply align_compatible_nested_field0; auto.
 Qed.
-
+*)
 Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
   field_compatible (nested_field_type t gfs) nil (offset_val (nested_field_offset t gfs) p).
@@ -1281,10 +1362,10 @@ Proof.
   unfold field_compatible in *.
   repeat split.
   + rewrite isptr_offset_val; tauto.
-  + apply nested_field_type_nest_pred; auto. tauto.
-  + apply nested_field_type_nest_pred; auto. tauto.
+  + apply nested_field_type_legal_cosu_type; auto; tauto.
   + apply nested_field_type_complete_type; tauto.
   + pose proof nested_field_offset_in_range t gfs.
+    spec H0; [tauto |].
     spec H0; [tauto |].
     spec H0; [tauto |].
     omega.
@@ -1302,22 +1383,12 @@ Proof.
   unfold field_compatible, field_compatible0 in *.
   repeat split.
   + rewrite isptr_offset_val; tauto.
-  + apply nested_field_array_type_nest_pred; try  tauto.
-    unfold local_legal_alignas_type.
-    simpl; intros.
-    rewrite !andb_true_iff in H3 |- *.
-    split; [| split].
-    - apply Z.leb_le.
-Transparent alignof.
-      simpl.
-Opaque alignof.
-      rewrite no_alignas_attr_spec.
-      omega.
-    - tauto.
-    - rewrite <- Zle_is_le_bool; auto.
-  + apply nested_field_array_type_nest_pred; tauto.
+  + apply nested_field_array_type_legal_cosu_type; try tauto.
+    destruct H0 as [_ [_ [_ [_ ?]]]].
+    destruct H0 as [_ [_ [? ?]]]; auto.
   + apply nested_field_array_type_complete_type; tauto.
   + pose proof nested_field_array_offset_in_range t gfs lo hi.
+    spec H2; [tauto |].
     spec H2; [tauto |].
     spec H2; [tauto |].
     spec H2; [tauto |].
@@ -1488,7 +1559,6 @@ Qed.
 Lemma lvar_field_compatible:
    forall {cs: compspecs} id t v rho,
     locald_denote (lvar id t v) rho ->
-    legal_alignas_type t = true ->
     legal_cosu_type t = true ->
     complete_type cenv_cs t = true ->
     sizeof t < Int.modulus ->
@@ -1500,9 +1570,15 @@ hnf in H.
 destruct (Map.get (ve_of rho) id); try contradiction.
 destruct p. destruct H. subst v t0.
 repeat split; auto.
-apply H4; omega.
-hnf. exists 0. rewrite Z.mul_0_l.
-reflexivity.
+apply H3; omega.
+hnf.
+eapply legal_alignas_soundness.
+Focus 6.
+Eval compute in (is_aligned true 2 0).
+unfold is_aligned, LegalAlignasStrict.is_aligned.
+Print LegalAlignas.
+Print legal_alignas_env_sound.
+SearchAbout LegalAlignas.is_aligned.
 Qed.
 
 Lemma gvar_field_compatible:

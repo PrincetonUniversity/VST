@@ -151,8 +151,9 @@ Proof.
 Defined.
 *)
 
-Definition legal_cosu_type t :=
+Fixpoint legal_cosu_type t :=
   match t with
+  | Tarray t' _ _ => legal_cosu_type t'
   | Tstruct id _ => match co_su (get_co id) with
                     | Struct => true
                     | Union => false
@@ -181,6 +182,21 @@ Proof.
   simpl in H.
   destruct (co_su (get_co id)); congruence.
 Qed.
+
+Lemma legal_su_legal_cosu_type: forall t, complete_type cenv_cs t = true -> (legal_su cenv_cs t <-> legal_cosu_type t = true).
+Proof.
+  intros.
+  induction t; try solve [split; intro HH; inv HH; reflexivity].
+  + simpl; auto.
+  + simpl in *.
+    unfold get_co.
+    destruct (cenv_cs ! i); [| inv H].
+    destruct (co_su c); split; intros; congruence.
+  + simpl in *.
+    unfold get_co.
+    destruct (cenv_cs ! i); [| inv H].
+    destruct (co_su c); split; intros; congruence.
+Qed.    
 
 Lemma Tarray_sizeof_0: forall t n a,
   sizeof (Tarray t n a) = 0 ->
