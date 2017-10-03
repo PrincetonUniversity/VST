@@ -314,31 +314,35 @@ Section cuof.
 
 Context (cenv: composite_env).
   
-Fixpoint legal_su t: Prop :=
+Fixpoint complete_legal_cosu_type t :=
   match t with
-  | Tarray t' _ _ => legal_su t'
-  | Tstruct id _ =>
-      match cenv ! id with
-      | Some co => co_su co = Struct
-      | _ => False
-      end
-  | Tunion id _ =>
-      match cenv ! id with
-      | Some co => co_su co = Union
-      | _ => False
-      end
-  | _ => True
+  | Tarray t' _ _ => complete_legal_cosu_type t'
+  | Tstruct id _ => match cenv ! id with
+                    | Some co => match co_su co with
+                                 | Struct => true
+                                 | Union => false
+                                 end
+                    | _ => false
+                    end
+  | Tunion id _ => match cenv ! id with
+                   | Some co => match co_su co with
+                                | Struct => false
+                                | Union => true
+                                end
+                   | _ => false
+                   end
+  | _ => true
   end.
 
-Fixpoint composite_legal_su (m: members): Prop :=
+Fixpoint composite_complete_legal_cosu_type (m: members): bool :=
   match m with
-  | nil => True
-  | (_, t) :: m' => legal_su t /\ composite_legal_su m'
+  | nil => true
+  | (_, t) :: m' => complete_legal_cosu_type t && composite_complete_legal_cosu_type m'
   end.
 
-Definition composite_env_legal_su: Prop :=
+Definition composite_env_complete_legal_cosu_type: Prop :=
   forall (id : positive) (co : composite),
-    cenv ! id = Some co -> composite_legal_su (co_members co).
+    cenv ! id = Some co -> composite_complete_legal_cosu_type (co_members co) = true.
   
 End cuof.
 
@@ -346,13 +350,14 @@ Class compspecs := mkcompspecs {
   cenv_cs : composite_env;
   cenv_consistent: composite_env_consistent cenv_cs;
   cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs;
-  cenv_legal_su: composite_env_legal_su cenv_cs;
+  cenv_legal_su: composite_env_complete_legal_cosu_type cenv_cs;
   ha_env_cs: PTree.t Z;
   ha_env_cs_consistent: hardware_alignof_env_consistent cenv_cs ha_env_cs;
   ha_env_cs_complete: hardware_alignof_env_complete cenv_cs ha_env_cs;
   la_env_cs: PTree.t legal_alignas_obs;
   la_env_cs_consistent: legal_alignas_env_consistent cenv_cs ha_env_cs la_env_cs;
-  la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs
+  la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs;
+  la_env_cs_sound: legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs
 }.
 
 Existing Class composite_env.

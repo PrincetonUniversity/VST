@@ -320,6 +320,13 @@ Module Type LEGAL_ALIGNAS.
   Parameter legal_alignas_env: composite_env -> PTree.t Z -> PTree.t legal_alignas_obs.
   Parameter is_aligned: legal_alignas_obs -> Z -> Z -> bool.
 
+End LEGAL_ALIGNAS.
+  
+Module Type LEGAL_ALIGNAS_FACTS.
+
+  Declare Module LegalAlignas: LEGAL_ALIGNAS.
+  Export LegalAlignas.
+
   Definition legal_alignas_env_consistent (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t legal_alignas_obs): Prop :=
     forall i co la,
       cenv ! i = Some co ->
@@ -351,9 +358,9 @@ Module Type LEGAL_ALIGNAS.
     legal_alignas_env_complete cenv la_env ->
     legal_alignas_env_sound cenv ha_env la_env.
 
-End LEGAL_ALIGNAS.
+End LEGAL_ALIGNAS_FACTS.
 
-Module LegalAlignasStrict: LEGAL_ALIGNAS.
+Module LegalAlignasStrict <: LEGAL_ALIGNAS.
 
 Section legal_alignas.
 
@@ -393,11 +400,25 @@ Definition legal_alignas_env: PTree.t bool :=
 
 Definition is_aligned (b: bool) (ha: Z) (ofs: Z) := b && ((ofs mod ha) =? 0).
 
+End legal_alignas.
+
+End LegalAlignasStrict.
+
+Module LegalAlignasStrictFacts: LEGAL_ALIGNAS_FACTS with Module LegalAlignas := LegalAlignasStrict.
+
+Module LegalAlignas := LegalAlignasStrict.
+
+Import LegalAlignas.
+
+Section legal_alignas.
+
+Context (cenv: composite_env) (ha_env: PTree.t Z).
+
 Definition legal_alignas_env_consistent (la_env: PTree.t bool): Prop :=
   forall i co la,
     cenv ! i = Some co ->
     la_env ! i = Some la ->
-    la = legal_alignas_composite la_env (co_members co).
+    la = legal_alignas_composite cenv ha_env la_env (co_members co).
 
 Definition legal_alignas_env_complete (la_env: PTree.t bool): Prop :=
   forall i,
@@ -406,12 +427,10 @@ Definition legal_alignas_env_complete (la_env: PTree.t bool): Prop :=
 
 Definition legal_alignas_env_sound (la_env: PTree.t bool): Prop :=
   forall ofs t,
-    is_aligned (legal_alignas_type la_env t) (hardware_alignof ha_env t) ofs = true ->
+    is_aligned (legal_alignas_type cenv ha_env la_env t) (hardware_alignof ha_env t) ofs = true ->
     align_compatible_rec cenv t ofs.
 
-End legal_alignas.
-
-Lemma aux1: forall cenv ha_env T co,
+Lemma aux1: forall T co,
       (fix fm (l : list (ident * type * bool)) : bool :=
           match l with
           | nil => true
@@ -454,7 +473,7 @@ Proof.
       destruct (T ! i); auto.
 Qed.
 
-Lemma aux2: forall cenv ha_env,
+Lemma aux2:
     (type_func.Env
           (fun t : type =>
            (hardware_alignof ha_env t <=? alignof cenv t) &&
@@ -487,6 +506,8 @@ Proof.
   f_equal.
   apply aux1.
 Qed.
+
+End legal_alignas.
 
 Theorem legal_alignas_env_consistency:
   forall (cenv: composite_env) (ha_env: PTree.t Z),
@@ -674,7 +695,7 @@ Qed.
 
 End soundness.
 
-End LegalAlignasStrict.
+End LegalAlignasStrictFacts.
 (*
 Module LegalAlignasStrong: LEGAL_ALIGNAS.
 
@@ -999,7 +1020,7 @@ End soundness.
 
 End LegalAlignasStrict.
 *)
-Module Export LegalAlignas := LegalAlignasStrict.
+Module Export LegalAlignasFacts := LegalAlignasStrictFacts.
 
 
 
