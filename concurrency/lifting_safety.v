@@ -199,8 +199,6 @@ Module lifting_safety.
 
   Qed.
 
-
-  
     Lemma safety_preservation':
       forall tr Sds Sm Tds Tm cd
         (MATCH: exists j, (MSmatch_states Values.Vundef the_simulation) cd j Sds Sm Tds Tm),
