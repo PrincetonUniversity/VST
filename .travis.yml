@@ -29,7 +29,7 @@ branches:
 notifications:
   email:
     recipients:
-    - wmansky@cs.princeton.edu
+    - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
 
