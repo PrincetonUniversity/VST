@@ -1,3 +1,8 @@
+# IF YOU MODIFY THIS FILE to add or remove "make" targets,
+# please also modify the travis: target in the Makefile.
+# They're not automatically coordinated, the reason being that
+# we want to split the Travis build into multiple jobs.
+
 dist: trusty
 sudo: required
 language: ocaml

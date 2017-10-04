@@ -19,7 +19,7 @@ Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.
 Proof.
   start_function.
-  rename lvar0 into seed.
+  rename v_seed into seed.
   destruct I.
   destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.

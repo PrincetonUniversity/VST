@@ -362,10 +362,10 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
-# $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
-# $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
+# $(CCC26x86_FILES:%=ccc26x86/%) \
+# $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -417,6 +417,8 @@ endif
 # 	@
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
+
+travis: progs hmacdrbg mailbox
 
 all: .loadpath version.vo $(FILES:.v=.vo)
 
