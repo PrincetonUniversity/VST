@@ -1,5 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
- * Use of this source code is governed by the license described	*
+(* Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 
 (* Lists of booleans and related theory. *)
@@ -216,13 +215,13 @@ Theorem shiftOut_S_None : forall (n : nat)(s s1 : Blist)(v1 : Bvector 1),
   shiftOut s 1 = Some (v1, s1) ->
   shiftOut s1 n = None ->
   shiftOut s (S n) = None.
-Admitted.
+Abort.
 
 Theorem shiftOut_1_None : forall (n1 n2 : nat)(s : Blist),
   shiftOut s n1 = None ->
   n2 >= n1 ->
   shiftOut s n2 = None.
-Admitted.
+Abort.
 
 (* Todo : we need a general theorem that covers these sorts of facts.  Something like:
    shiftOut s n1 = Some(_, s1) ->

@@ -31,10 +31,10 @@ Proof.
   * apply len_m.
   * apply block_8. apply len.
   * apply block_8. apply len.
-Qed. 
+Qed.
 
 Theorem HMAC_concat_pad_sap_instantiated
-        h (HH: forall x y, length x = c -> length y = b -> length (h x y)  = c) 
+        h (HH: forall x y, length x = c -> length y = b -> length (h x y)  = c)
         iv (IV: length iv = c) (op ip : Blist) (IL: length ip = b) (OL: length op = b)
         : forall (k m : Blist), length k = b ->
   sha.HMAC_spec_pad.HMAC c p B h iv sha_splitandpad op ip k m =
@@ -50,7 +50,7 @@ Qed.
 Theorem HMAC_concat_pad_explicit : forall (k m : Blist) (op ip : Blist),
                             length k = b ->
                             length ip = b ->
-                            length op = b -> 
+                            length op = b ->
   sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m =
   HMAC_Concat.HMAC c p B sha_h sha_iv sha_splitandpad_inc fpad op ip k m.
 Proof.

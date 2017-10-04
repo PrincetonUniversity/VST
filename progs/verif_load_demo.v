@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.load_demo.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.load_demo.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -14,7 +14,7 @@ Definition get22_spec :=
   PRE [ _pps OF (tptr pair_pair_t), _i OF tint ]
     PROP  (readable_share sh; 0 <= i < array_size)
     LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)))
-    SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] 
+    SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tint ]
         PROP () LOCAL (temp ret_temp (Vint x22))
@@ -27,7 +27,7 @@ Definition uint_sum (contents : list Z) : int :=
 Definition fiddle_spec :=
  DECLARE _fiddle
   WITH p: val, n: Z, tag: Z, contents: list Z
-  PRE [  ]
+  PRE [ _p OF tptr tuint ]
           PROP  (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10)) = n)
           LOCAL (temp _p p)
           SEP (data_at Ews (tarray tuint (1+n)) 
@@ -178,22 +178,23 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
 Qed.
 
 Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.
-Proof.
-start_function.
-(* int_pair_t* p = &pps[i].right; *)
-forward.
-simpl (temp _p _).
-
-(* Assert_PROP what forward asks us for (only for the root expression "p"):  *)
-assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
-  = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
-  entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
-}
-(* int res = p->snd; *)
-forward.
-(* return res; *)
-forward.
-Qed.
+ Proof.
+ start_function.
+ (* int_pair_t* p = &pps[i].right; *)
+ forward.
+ simpl (temp _p _).
+ 
+ (* Assert_PROP what forward asks us for (only for the root expression "p"):  *)
+ assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
+   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
+   entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
+ }
+ (* int res = p->snd; *)
+ forward.
+ (* return res; *)
+ forward.
+ Qed.
+ 
 
 Lemma body_get22_full_expr: semax_body Vprog Gprog f_get22 get22_spec.
 Proof.

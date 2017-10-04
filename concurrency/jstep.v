@@ -1,9 +1,9 @@
 Require Import Memory.
 
-Require Import semantics.
+Require Import VST.concurrency.semantics.
 
 Module FSem.
-Record t M TM := mk { 
+Record t M TM := mk {
     F : forall G C, CoreSemantics G C M -> CoreSemantics G C TM
   ; E : TM -> M
   ; P : TM -> TM -> Prop

@@ -3,16 +3,16 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.age_sepalg.
-Require Import msl.predicates_hered.
-Require Import msl.predicates_rec.
-Require Import msl.predicates_sl.
-Require Import msl.subtypes.
-Require Import msl.subtypes_sl.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_rec.
+Require Import VST.msl.predicates_sl.
+Require Import VST.msl.subtypes.
+Require Import VST.msl.subtypes_sl.
 
 Local Open Scope pred.
 
@@ -52,7 +52,7 @@ Proof.
   apply eqp_subp; auto.
   apply eqp_subp2; auto.
 Qed.
-  
+
 Lemma impl_nonexpansive {A} `{ageable A} : forall F G,
   nonexpansive F ->
   nonexpansive G ->
@@ -288,7 +288,7 @@ Proof.
   hnf; auto.
   auto.
 Qed.
-  
+
 Lemma prove_HOcontractive1 {A} `{ageable A} : forall X F,
   (forall P Q: X -> pred A,
     (ALL x:X, |>(P x >=> Q x) |--
@@ -317,23 +317,23 @@ Proof.
   eapply H0; eauto.
   intro x; specialize (H1 x). apply eqp_later1. auto.
   eapply H0; eauto.
-  intro x; specialize (H1 x). rewrite eqp_comm. 
+  intro x; specialize (H1 x). rewrite eqp_comm.
   apply eqp_later1. auto.
 Qed.
 
-Ltac sub_unfold := 
-   match goal with 
-    | |- _ |-- ?A _ >=> ?A _ => unfold A 
-    | |- _ |-- ?A _ _ >=> ?A _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ >=> ?A _ _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ _ >=> ?A _ _ _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ _ _ >=> ?A _ _ _ _ _ => unfold A 
+Ltac sub_unfold :=
+   match goal with
+    | |- _ |-- ?A _ >=> ?A _ => unfold A
+    | |- _ |-- ?A _ _ >=> ?A _ _ => unfold A
+    | |- _ |-- ?A _ _ _ >=> ?A _ _ _ => unfold A
+    | |- _ |-- ?A _ _ _ _ >=> ?A _ _ _ _ => unfold A
+    | |- _ |-- ?A _ _ _ _ _ >=> ?A _ _ _ _ _ => unfold A
     | v: _ |- _ => destruct v
    end.
 
 Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve @prove_HOcontractive 
+Hint Resolve @prove_HOcontractive
   @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
@@ -498,7 +498,7 @@ Proof.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.
-  
+
   rewrite HORec_fold_unfold by auto.
   spec HF2 (HORec (F P)) b.
   spec HF2 P Q a H0.
@@ -546,7 +546,7 @@ Proof.
   destruct H7; eauto.
   rewrite <- box_all.
   auto.
-  
+
   rewrite HORec_fold_unfold by auto.
   spec HF2 (HORec (F P)) b.
   spec HF2 P Q a H0.
@@ -565,7 +565,7 @@ Qed.
 
 Module Trashcan.
 
-(* Note: This approach to proving HOcontractive doesn't automate 
+(* Note: This approach to proving HOcontractive doesn't automate
   as well as the methods above.*)
 
 Lemma orp_HOcontractive {A}{agA: ageable A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),

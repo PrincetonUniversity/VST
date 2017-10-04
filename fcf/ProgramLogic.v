@@ -1,5 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
- * Use of this source code is governed by the license described	*
+(* Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
@@ -576,8 +575,8 @@ Theorem eq_impl_comp_spec :
   rewrite eqb_leibniz in H4.
   subst.
   rewrite eqb_refl.
-  dist_inline_first.
-  unfold snd.
+  dist_inline_l.
+  simpl snd.
   eapply eqRat_refl.
   
   eapply sumList_body_eq; intuition.
@@ -951,8 +950,8 @@ Theorem le_impl_comp_spec :
   rewrite eqb_leibniz in H4.
   subst.
   rewrite eqb_refl.
-  dist_inline_first.
-  unfold snd.
+  dist_inline_l.
+  simpl snd.
   eapply eqRat_refl.
   
   eapply sumList_body_eq; intuition.

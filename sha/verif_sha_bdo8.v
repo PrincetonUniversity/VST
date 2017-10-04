@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -31,14 +31,14 @@ apply Nat2Z.inj_lt in H; auto.
 Qed.
 
 Lemma sha256_block_load8:
-  forall (Espec : OracleKind) 
+  forall (Espec : OracleKind)
      (data: val) (r_h: list int) (ctx: val) kv
    (H5 : length r_h = 8%nat),
-     semax  
+     semax
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data; 
+   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
                 gvar  _K256 kv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
@@ -50,7 +50,7 @@ Lemma sha256_block_load8:
      (Ssequence (load8 _g 6)
      (Ssequence (load8 _h 7)
          Sskip))))))))
-  (normal_ret_assert 
+  (normal_ret_assert
   (PROP  ()
    LOCAL  (temp _a (Vint (nthi r_h 0));
                 temp _b (Vint (nthi r_h 1));
@@ -60,7 +60,7 @@ Lemma sha256_block_load8:
                 temp _f (Vint (nthi r_h 5));
                 temp _g (Vint (nthi r_h 6));
                 temp _h (Vint (nthi r_h 7));
-                temp _data data; temp _ctx ctx; temp _in data; 
+                temp _data data; temp _ctx ctx; temp _in data;
                 gvar  _K256 kv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))).
 Proof.
@@ -113,7 +113,7 @@ Fixpoint add_upto (k: nat) (u v: list int) {struct k} :=
 
 Lemma length_add_upto:
   forall i r s,
-   length r = length s  -> 
+   length r = length s  ->
    length (add_upto i r s) = length r.
 Proof.
 induction i; destruct r,s; intros;
@@ -122,7 +122,7 @@ Qed.
 
 
 Lemma force_lengthn_short:
-  forall {A} i (b: list A) v, 
+  forall {A} i (b: list A) v,
      (i <= length b)%nat -> force_lengthn i b v = firstn i b.
 Proof.
 induction i; destruct b; intros.
@@ -149,7 +149,7 @@ intros. rename H1 into H4.
  unfold upd_Znth.
  rewrite !sublist_map, <- map_cons, <- map_app.
  f_equal.
- 
+
 assert (H18: length regs = length atoh) by congruence.
 assert (H19: (i < length regs)%nat) by omega.
 clear - H18 H19.
@@ -225,9 +225,9 @@ Lemma int_add_upto:
   forall (regs atoh: list int),
    Datatypes.length regs = 8%nat ->
    Datatypes.length atoh = 8%nat ->
-   forall (j:nat)  (i:Z), 
+   forall (j:nat)  (i:Z),
      j = Z.to_nat i ->
-     0 <= i < 8 -> 
+     0 <= i < 8 ->
      is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh)) Vundef).
 Proof.
 intros until 2.
@@ -243,7 +243,7 @@ intros until 2.
   rewrite Z2Nat.id by omega. apply H2.
 Qed.
 
-Lemma add_s: 
+Lemma add_s:
   forall (regs atoh: list int),
    Datatypes.length regs = 8%nat ->
    Datatypes.length atoh = 8%nat ->
@@ -309,7 +309,7 @@ Lemma add_them_back_proof:
                 temp _g  (Vint (nthi regs' 6));
                 temp _h  (Vint (nthi regs' 7));
                 gvar  _K256 kv)
-   SEP 
+   SEP
    (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx))
    (sequence add_them_back Sskip)
   (normal_ret_assert
@@ -330,7 +330,7 @@ assert (ADD_S := add_s _ _ H H0).
 Opaque add_upto.
 
 (* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+Ltac canon_load_result ::= idtac.
 
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.

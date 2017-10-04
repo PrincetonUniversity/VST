@@ -234,13 +234,13 @@ Module BlockList.
   Lemma mkBlockList_unfold' : forall n,
                                 (S n) :: (mkBlockList (S n)) = mkBlockList (S (S n)).
   Proof.
-    intros; reflexivity. 
+    intros; reflexivity.
   Qed.
-  
+
   Lemma mkBlockList_include : forall n k (Hk: k > 0) (Hineq: k < n) (Hn: n > 1),
                                 List.In k (mkBlockList n).
   Proof.
-    intros n. 
+    intros n.
     induction n;
       intros.
     simpl. ssromega.
@@ -289,7 +289,7 @@ Module SeqLemmas.
 
   Definition subSeq {T:eqType} (s1 s2 : seq T) :=
     drop ((size s2)-(size s1)) s2 == s1.
-  
+
   Lemma dropS:
     forall {T:Type} n (x:T) l l'
       (Hdrop: drop n l = x :: l'), drop n.+1 l = l'.
@@ -353,7 +353,7 @@ Module SeqLemmas.
     - inversion HIn; subst. simpl. by left.
       simpl. right. auto.
   Defined.
-  
+
 End SeqLemmas.
  *)
 

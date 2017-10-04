@@ -1,28 +1,28 @@
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 
-Require Import concurrency.sepcomp. 
+Require Import VST.concurrency.sepcomp.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.permissions.
+Require Import VST.concurrency.permissions.
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
-Require Import concurrency.bounded_maps.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.bounded_maps.
+Require Import VST.concurrency.permissions.
 
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics_lemmas.
 Require Import Coqlib.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
 
 Lemma CLight_Deterministic: forall ge c m c1 m1 c2 m2,
     veric.Clight_new.cl_step ge c m c2 m2 ->
     veric.Clight_new.cl_step ge c m c1 m1 ->
     c1 = c2 /\ m1 = m2.
-Proof. intros. 
+Proof. intros.
        specialize (cl_corestep_fun _ _ _ _ _ _ _ H H0); intros X; inversion X; subst. split; trivial.
 Qed.
 
@@ -48,7 +48,7 @@ Lemma mem_alloc_bounded_init:
 Proof.
   { intros ? ? ? ? ? H0 H.
     Transparent Mem.alloc. unfold Mem.alloc in H. Opaque Mem.alloc.
-    inversion H; clear H; subst. 
+    inversion H; clear H; subst.
     destruct H0; split; simpl in *; trivial.
     red; intros. red in H.
     rewrite (PTree.gmap1 (fun f : Z -> perm_kind -> option permission => f^~ Max)
@@ -57,7 +57,7 @@ Proof.
                                       (Mem.mem_access m).2)) in H1.
     unfold option_map in H1.
     rewrite PTree.gsspec in H1.
-    destruct (peq p (Mem.nextblock m)); subst. 
+    destruct (peq p (Mem.nextblock m)); subst.
     { inversion H1; clear H1; subst. clear H0 H. red.
       exists hi, lo; split; intros.
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; omega. }
@@ -74,9 +74,9 @@ Lemma mem_free_bounded_init:
 Proof.
   intros ? ? ? ? ? H0 Heqq.
   Transparent Mem.free. unfold Mem.free in Heqq. Opaque Mem.free.
-  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); try discriminate. 
+  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); try discriminate.
   inversion Heqq; clear Heqq; subst.
-  destruct H0 as [? INI]; split. 
+  destruct H0 as [? INI]; split.
   intros p f F.  simpl.
   destruct (peq p b); subst.
   { simpl in F. rewrite PTree.gmap1 in F. unfold option_map in F. rewrite PTree.gss in F. inversion F; clear F; subst.
@@ -87,12 +87,12 @@ Proof.
       rewrite PTree.gmap1 in Heqg. unfold option_map in Heqg. rewrite INI.
       destruct (((Mem.mem_access m).2) ! b); try discriminate. inversion Heqg; clear Heqg; subst.
       exists  HI, LO; split; intros.
-      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto. } 
+      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto. }
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto. } }
     { clear H. unfold getMaxPerm in Heqg.
       destruct (zlt lo hi).
       { assert (A: lo <= lo < hi) by omega. specialize (r _ A).
-        apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r. 
+        apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r.
         rewrite PTree.gmap1 in Heqg. unfold option_map in Heqg.
         remember (((Mem.mem_access m).2) ! b) as q. destruct q; simpl in *. discriminate.
         rewrite INI in r. inversion r. }
@@ -116,9 +116,9 @@ Lemma mem_drop_perm_bounded_init:
 Proof.
   intros ? ? ? ? ? ? H0 Heqq.
   Transparent Mem.drop_perm. unfold Mem.drop_perm in Heqq. Opaque Mem.drop_perm.
-  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); try discriminate. 
+  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); try discriminate.
   inversion Heqq; clear Heqq; subst.
-  destruct H0 as [? INI]; split. 
+  destruct H0 as [? INI]; split.
   - intros p f F.  simpl.
     destruct (peq p b); subst.
     { simpl in F.
@@ -139,7 +139,7 @@ Proof.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
-      } 
+      }
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto.
         - move : H=> /Z.min_glb_lt_iff [] ? ?.
           xomega.
@@ -151,7 +151,7 @@ Proof.
     { clear H. unfold getMaxPerm in Heqg.
       destruct (zlt lo hi).
       { assert (A: lo <= lo < hi) by omega. specialize (r _ A).
-        apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r. 
+        apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r.
         rewrite PTree.gmap1 in Heqg. unfold option_map in Heqg.
         remember (((Mem.mem_access m).2) ! b) as q. destruct q; simpl in *. discriminate.
         rewrite INI in r. inversion r. }
@@ -166,7 +166,7 @@ Proof.
     rewrite PTree.gso in F; trivial. }
   simpl; trivial.
 Qed.
-      
+
 Lemma mem_free_list_bounded_init:
   forall m l m',
     bnd_from_init m ->
@@ -176,14 +176,14 @@ Proof.
   intros ? ? ? H0 H.
   { generalize dependent m'. generalize dependent m. induction l; intros.
     { inversion H; clear H; subst. trivial. }
-    { destruct a as [[b lo] hi]. simpl in H. remember (Mem.free m b lo hi) as q; symmetry in Heqq. 
+    { destruct a as [[b lo] hi]. simpl in H. remember (Mem.free m b lo hi) as q; symmetry in Heqq.
       destruct q; try discriminate. apply (IHl m0); trivial. clear H IHl m'.
       rename m0 into m'.
       eapply mem_free_bounded_init; eauto.
   } }
 Qed.
 
-Lemma preserve_bnd: memstep_preserve (fun m m' => bnd_from_init m -> bnd_from_init m'). 
+Lemma preserve_bnd: memstep_preserve (fun m m' => bnd_from_init m -> bnd_from_init m').
 Proof.
   econstructor; intros; eauto.
   induction H; intros.
@@ -196,11 +196,11 @@ Qed.
 Lemma CLight_step_mem_bound' ge c m c' m':
   veric.Clight_new.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
 Proof.
-  intros. 
+  intros.
   apply (memsem_preserves CLN_memsem _ preserve_bnd _ _ _ _ _ H H0).
 Qed.
 
-(*This proof is already in juicy_machine. 
+(*This proof is already in juicy_machine.
  * move it to a more general position.*)
 Lemma Mem_canonical_useful: forall m loc k,
     fst (Mem.mem_access m) loc k = None.
@@ -254,7 +254,7 @@ Lemma mem_alloc_bounded:
     bounded_mem m1.
 Proof.
   intros m lo hi m1 b H H0.
-  apply mem_bound_init_mem_bound; eauto. 
+  apply mem_bound_init_mem_bound; eauto.
   eapply mem_alloc_bounded_init; eauto.
   apply mem_bound_init_mem_bound; eauto.
 Qed.
@@ -266,9 +266,9 @@ Lemma drop_perm_bounded:
     bounded_mem m'.
 Proof.
   intros m b lo hi P m' H H0.
-  apply mem_bound_init_mem_bound; eauto. 
+  apply mem_bound_init_mem_bound; eauto.
   eapply mem_drop_perm_bounded_init ; eauto.
-  apply mem_bound_init_mem_bound; eauto. 
+  apply mem_bound_init_mem_bound; eauto.
 Qed.
 
 Lemma store_bounded:
@@ -278,9 +278,9 @@ Lemma store_bounded:
     bounded_mem m'.
 Proof.
   intros Mint m b ofs v m' H H0.
-  eapply mem_bound_init_mem_bound; eauto. 
+  eapply mem_bound_init_mem_bound; eauto.
   eapply mem_storebytes_counded_init; eauto.
-  - eapply mem_bound_init_mem_bound; eauto. 
+  - eapply mem_bound_init_mem_bound; eauto.
   - eapply Mem.store_storebytes; eauto.
 Qed.
 
@@ -395,4 +395,4 @@ Proof.
     eapply store_zeros_init_data_bounded; try eapply STORE.
     eapply mem_alloc_bounded; eauto.
 Qed.
-    
+

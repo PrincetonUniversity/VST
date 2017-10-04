@@ -8,8 +8,8 @@ Definition DRBG_state_handle: Type := (DRBG_working_state * Z * bool)%type. (* s
 Definition DRBG_instantiate_function (instantiate_algorithm: list Z -> list Z -> list Z -> Z -> DRBG_working_state)
             (min_entropy_length max_entropy_length: Z) (provided_nonce: option (list Z))
             (highest_supported_security_strength: Z) (max_personalization_string_length: Z)
-            (prediction_resistance_supported: bool) (entropy_stream: ENTROPY.stream) 
-            (requested_instantiation_security_strength: Z) (prediction_resistance_flag: bool) 
+            (prediction_resistance_supported: bool) (entropy_stream: ENTROPY.stream)
+            (requested_instantiation_security_strength: Z) (prediction_resistance_flag: bool)
             (personalization_string: list Z): ENTROPY.result DRBG_state_handle :=
   if requested_instantiation_security_strength >? highest_supported_security_strength then ENTROPY.error ENTROPY.generic_error entropy_stream
   else match prediction_resistance_flag, prediction_resistance_supported with
@@ -82,7 +82,7 @@ Fixpoint DRBG_generate_function_helper (generate_algorithm: DRBG_working_state -
           | generate_algorithm_reseed_required =>
             match count with
               | O => ENTROPY.error ENTROPY.generic_error entropy_stream (* impossible *)
-              | S count' => DRBG_generate_function_helper generate_algorithm reseed_function 
+              | S count' => DRBG_generate_function_helper generate_algorithm reseed_function
                                 entropy_stream state_handle requested_number_of_bytes
                                 prediction_resistance_request additional_input true count'
             end
@@ -91,11 +91,11 @@ Fixpoint DRBG_generate_function_helper (generate_algorithm: DRBG_working_state -
       end
     end.
 
-Definition DRBG_generate_function (generate_algorithm: Z -> DRBG_working_state -> Z -> list Z -> DRBG_generate_algorithm_result) 
-             (reseed_function: ENTROPY.stream -> DRBG_state_handle -> bool -> list Z -> ENTROPY.result DRBG_state_handle) 
+Definition DRBG_generate_function (generate_algorithm: Z -> DRBG_working_state -> Z -> list Z -> DRBG_generate_algorithm_result)
+             (reseed_function: ENTROPY.stream -> DRBG_state_handle -> bool -> list Z -> ENTROPY.result DRBG_state_handle)
              (reseed_interval: Z) (max_number_of_bytes_per_request: Z) (max_additional_input_length: Z)
-             (entropy_stream: ENTROPY.stream) (state_handle: DRBG_state_handle) 
-             (requested_number_of_bytes requested_security_strength: Z) 
+             (entropy_stream: ENTROPY.stream) (state_handle: DRBG_state_handle)
+             (requested_number_of_bytes requested_security_strength: Z)
              (prediction_resistance_request: bool) (additional_input: list Z): ENTROPY.result (list Z * DRBG_state_handle) :=
   match state_handle with (working_state, security_strength, prediction_resistance_flag) =>
     if requested_number_of_bytes >? max_number_of_bytes_per_request then ENTROPY.error ENTROPY.generic_error entropy_stream
@@ -106,7 +106,7 @@ Definition DRBG_generate_function (generate_algorithm: Z -> DRBG_working_state -
         else
           if prediction_resistance_request && (negb prediction_resistance_flag) then ENTROPY.error ENTROPY.generic_error entropy_stream
           else
-            match DRBG_generate_function_helper (generate_algorithm reseed_interval) reseed_function 
+            match DRBG_generate_function_helper (generate_algorithm reseed_interval) reseed_function
                        entropy_stream state_handle requested_number_of_bytes prediction_resistance_request
                        additional_input prediction_resistance_request 1%nat with
               | ENTROPY.error e s => ENTROPY.error e s

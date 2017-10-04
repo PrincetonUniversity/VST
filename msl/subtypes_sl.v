@@ -1,11 +1,11 @@
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.age_sepalg.
-Require Import msl.predicates_hered.
-Require Import msl.predicates_sl.
-Require Import msl.subtypes.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
+Require Import VST.msl.subtypes.
 
 Local Open Scope pred.
 
@@ -49,15 +49,15 @@ Proof.
   specialize (H0 _ H2); specialize (H1 _ H2); clear G H2; pose (H2:=True).
   eapply H0 in H8; try apply necR_refl.
   eapply H1; try apply necR_refl.
-  apply necR_level in H4. apply necR_level in H6. apply join_comparable in H7. 
+  apply necR_level in H4. apply necR_level in H6. apply join_comparable in H7.
   apply comparable_fashionR in H7. unfold fashionR in H7. omega.
   eapply H5; eauto.
   apply necR_level in H4. apply necR_level in H6.
-   apply join_comparable2 in H7. 
+   apply join_comparable2 in H7.
   apply comparable_fashionR in H7. unfold fashionR in H7. omega.
 Qed.
 
-Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: 
+Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
    forall Q, Q |-- EX P:_, P && !(P >=> Q) && !!superprecise (P).
 Proof.
 intros.
@@ -74,9 +74,9 @@ apply superprecise_exactly.
 Qed.
 
 Lemma sepcon_subp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
-  forall (P P' Q Q' : pred A) (st: nat),  
-    (P >=> P') st -> 
-    (Q >=> Q') st -> 
+  forall (P P' Q Q' : pred A) (st: nat),
+    (P >=> P') st ->
+    (Q >=> Q') st ->
     (P * Q >=> P' * Q') st.
 Proof.
  pose proof I.
@@ -119,7 +119,7 @@ eapply H; eauto.
 eapply H0; eauto.
 Qed.
 
-Lemma allp_subp' {A} `{agA : ageable A}: forall T (F G: T -> pred A) (w: nat), 
+Lemma allp_subp' {A} `{agA : ageable A}: forall T (F G: T -> pred A) (w: nat),
    (forall x,  (F x >=> G x) w) -> (allp (fun x:T => (F x >=> G x)) w).
 Proof.
 intros.
@@ -127,7 +127,7 @@ intro x; apply H; auto.
 Qed.
 
 
-Lemma pred_eq_e1 {A} `{agA : ageable A}: forall (P Q: pred A) w, 
+Lemma pred_eq_e1 {A} `{agA : ageable A}: forall (P Q: pred A) w,
        ((P <=> Q) w -> (P >=> Q) w).
 Proof.
 intros.
@@ -135,7 +135,7 @@ intros w' ? w'' ? ?.
 eapply H; eauto.
 Qed.
 
-Lemma pred_eq_e2 {A} `{agA : ageable A}: forall (P Q: pred A)  w, 
+Lemma pred_eq_e2 {A} `{agA : ageable A}: forall (P Q: pred A)  w,
      ((P <=> Q) w -> (Q >=> P) w).
 Proof.
 Proof.
@@ -156,13 +156,13 @@ Hint Resolve @pred_eq_e2.
 Lemma allp_imp2_later_e2 {B}{A}{agA: ageable A}:
    forall (P Q: B -> pred A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> Q y >=> |> P y.
-Proof. 
+Proof.
   intros.  intros w ?. specialize (H y). apply pred_eq_e2. auto.
 Qed.
 Lemma allp_imp2_later_e1 {B}{A}{agA: ageable A}:
    forall (P Q: B -> pred A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> P y >=> |> Q y.
-Proof. 
+Proof.
   intros.  intros w ?. specialize (H y). apply pred_eq_e1. auto.
 Qed.
 
@@ -202,8 +202,8 @@ Qed.
 Hint Resolve @subp_unfash.
 
 
-Lemma unfash_sepcon_distrib: 
-        forall {T}{agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} 
+Lemma unfash_sepcon_distrib:
+        forall {T}{agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}
            (P: pred nat) (Q R: pred T),
                unfash P && (Q*R) = (unfash P && Q) * (unfash P && R).
 Proof.

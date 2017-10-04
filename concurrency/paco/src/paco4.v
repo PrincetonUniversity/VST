@@ -1,4 +1,4 @@
-Require Export concurrency.paco.src.paconotation concurrency.paco.src.pacotac concurrency.paco.src.pacodef concurrency.paco.src.pacotacuser.
+Require Export VST.concurrency.paco.src.paconotation VST.concurrency.paco.src.pacotac VST.concurrency.paco.src.pacodef VST.concurrency.paco.src.pacotacuser.
 Set Implicit Arguments.
 
 (** ** Predicates of Arity 4

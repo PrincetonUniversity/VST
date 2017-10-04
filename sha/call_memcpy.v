@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -25,7 +25,7 @@ Definition splice_into_list (lo hi n : Z) (source target : list val) : list val 
    ++ sublist hi n (target ++ list_repeat (Z.to_nat (n- Zlength target)) Vundef).
 
 Lemma splice_into_list_simplify0:
-  forall n src dst, 
+  forall n src dst,
     Zlength src = n ->
     Zlength dst = n ->
     splice_into_list 0 n n src dst = src.
@@ -119,11 +119,11 @@ Proof.
 intros. subst tb. apply JMeq_eq in H0. subst lb. auto.
 Qed.
 
- Definition fsig_of_funspec (fs: funspec)  :=  
+ Definition fsig_of_funspec (fs: funspec)  :=
   match fs with mk_funspec fsig _ _ _ _ _ _=> fsig end.
 
 Lemma part1_splice_into_list:
-  forall lo hi n al bl, 
+  forall lo hi n al bl,
     (0 <= lo <= Zlength bl)%Z ->
     sublist 0 lo (splice_into_list lo hi n al bl) = sublist 0 lo bl.
 Proof.
@@ -144,7 +144,7 @@ rewrite Zlength_sublist; omega.
 Qed.
 
 Lemma part3_splice_into_list:
-  forall lo hi n al bl, 
+  forall lo hi n al bl,
     (0 <= lo <= hi)%Z -> (hi <= n)%Z ->
    (Zlength bl = n)%Z ->
    (Zlength al = hi-lo)%Z ->
@@ -183,7 +183,7 @@ rewrite !Zlength_sublist; omega.
 Qed.
 
 Lemma Zlength_splice_into_list:
-  forall lo hi n al bl, 
+  forall lo hi n al bl,
     (0 <= lo <= hi)%Z -> (hi <= n)%Z ->
     Zlength (splice_into_list lo hi n al bl) = n.
 Proof.
@@ -214,10 +214,10 @@ Lemma semax_call_id0_alt:
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    tfun = type_of_params argsig ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
-                  && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) 
+                  && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
                          * PROPx P (LOCALx Q (SEPx R))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
-    (normal_ret_assert 
+    (normal_ret_assert
        ((ifvoid retty (`(Post x) (make_args nil nil))
                                                    (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
          * PROPx P (LOCALx Q (SEPx R)))).
@@ -261,18 +261,18 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
          local (`(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q)) &&
          local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) &&
-         PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p :: 
+         PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p ::
                                                  field_at shq tq pathq vq q :: R'))) ->
-   @semax _ Espec Delta 
+   @semax _ Espec Delta
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
-             (Evar _memcpy 
+             (Evar _memcpy
                (Tfunction
                 (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
                   (tptr tvoid) cc_default))
               [e_p; e_q; e_n])
-    (normal_ret_assert (PROPx P (LOCALx Q 
-     (SEPx (field_at shp tp pathp vp'' p :: 
+    (normal_ret_assert (PROPx P (LOCALx Q
+     (SEPx (field_at shp tp pathp vp'' p ::
                field_at shq tq pathq vq q :: R'))))).
 Proof.
 intros until R.
@@ -310,7 +310,7 @@ assert (exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)
   by (rewrite H99, <- H5; exists vp; auto).
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
-  eapply derives_trans; [apply Hpre | apply andp_left2]. 
+  eapply derives_trans; [apply Hpre | apply andp_left2].
 old_go_lower; entailer!.
 } destruct H6 as [LNFp LNFq].
 erewrite field_at_Tarray in Hpre; try apply JMeq_refl; try eassumption; auto; try omega.
@@ -328,7 +328,7 @@ assert (LENvqx: Zlength vqx = nq). {
 clear - H98 H6 Hvq'.
 transitivity (Zlength (map Vint contents)).
 forget (map Vint contents) as l.
-forget val as t. subst t. 
+forget val as t. subst t.
 apply JMeq_eq in H6. subst; auto.
 rewrite Zlength_map; auto.
 }
@@ -356,13 +356,13 @@ assert_PROP (field_compatible0 tp (pathp SUB lop) p /\
  saturate_local.
  apply prop_right.
  split3; auto.
-} 
+}
 
 pose (witness := ((shq,shp),
                               field_address0 tp (ArraySubsc lop :: pathp) p,
                               field_address0 tq (ArraySubsc loq :: pathq) q,
                               len,  sublist loq (loq+len) contents)).
-pose (Frame := 
+pose (Frame :=
          array_at shp tp pathp 0 lop
               (sublist 0 lop vpx) p
           :: array_at shp tp pathp (lop+len) np
@@ -371,7 +371,7 @@ pose (Frame :=
                 array_at shq tq pathq (loq + len) nq
                     (sublist (loq+len) (Zlength vqx) vqx) q :: R').
 eapply semax_pre_post;
-  [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q); 
+  [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
@@ -454,7 +454,7 @@ assert (Zlength vpy = np). {
  rewrite Z.sub_0_r.
  replace (lop+len-lop)%Z with len by omega.
  autorewrite with sublist.
- 
+
 match goal with |- ?A * ?B * ?C * ?D |-- _ =>
  apply derives_trans with (C * B * D * A); [solve [cancel] | ]
 end.
@@ -477,10 +477,10 @@ repeat apply sepcon_derives.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
-   unfold tarray; f_equal. clear; omega. 
+   unfold tarray; f_equal. clear; omega.
    eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
   admit. (* tedious *)
-+ 
++
  apply array_at_ext_derives.
  rewrite !Zlength_sublist; omega.
  intros.
@@ -498,7 +498,7 @@ repeat apply sepcon_derives.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H1.
-   unfold tarray; f_equal. clear; omega. 
+   unfold tarray; f_equal. clear; omega.
    eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    apply JMeq_sublist.
    rewrite nested_field_type_ind, H1. reflexivity.
@@ -512,7 +512,7 @@ Lemma call_memset_tuchar:
            (np : Z)
            (vp vp'': reptype (nested_field_type tp pathp))
            (e_p e_c e_n : expr)
-           Espec Delta P Q R (s: signedness) 
+           Espec Delta P Q R (s: signedness)
    (TCp : typeof e_p = tptr tuchar)
    (TCc : typeof e_c = tint)
    (TCn : typeof e_n = Tint I32 s noattr)
@@ -527,21 +527,21 @@ Lemma call_memset_tuchar:
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
    (H4:  JMeq vp'' (splice_into_list lop (lop+len) np (list_repeat (Z.to_nat len) (Vint c)) vp'))
-   (H5: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+   (H5: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
          local (`(eq (Vint c)) (eval_expr e_c)) &&
-         local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) && 
+         local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) &&
          PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p :: R')))),
-   @semax _ Espec Delta 
+   @semax _ Espec Delta
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
-             (Evar _memset 
+             (Evar _memset
                (Tfunction
                 (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
                   (tptr tvoid) cc_default))
               [e_p; e_c; e_n])
-    (normal_ret_assert (PROPx P (LOCALx Q 
+    (normal_ret_assert (PROPx P (LOCALx Q
      (SEPx (field_at shp tp pathp vp'' p :: R'))))).
 Proof.
 intros.
@@ -573,7 +573,7 @@ assert (H6: exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pa
 rewrite H99. eauto.
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp). {
-  eapply derives_trans; [apply Hpre | apply andp_left2]. 
+  eapply derives_trans; [apply Hpre | apply andp_left2].
 old_go_lower; entailer!.
 } rename H1 into LNFp.
 apply (fun H => JMeq_trans H Hvpx) in H3.
@@ -594,17 +594,17 @@ assert_PROP (field_compatible0 tp (pathp SUB lop) p /\
  saturate_local.
  apply prop_right.
  split; auto.
-} 
+}
 pose (witness := (shp,
                               field_address0 tp (ArraySubsc lop :: pathp) p,
                               len,  c)).
-pose (Frame := 
+pose (Frame :=
          array_at shp tp pathp (lop + len) np
               (sublist (lop+len) np vpx) p
           :: array_at shp tp pathp 0 lop (sublist 0 lop vpx) p
               :: R').
 eapply semax_pre_post;
-  [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q); 
+  [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
@@ -622,7 +622,7 @@ eapply semax_pre_post;
  unfold make_args'. simpl map at 2.
  rewrite TCp, TCc, TCn.
  go_lowerx. unfold env_set, eval_id. unfold_lift. simpl.
- autorewrite with gather_prop. 
+ autorewrite with gather_prop.
  apply andp_right.
  apply prop_right. split3; auto.
  rewrite <- H1.
@@ -647,7 +647,7 @@ eapply semax_pre_post;
  autorewrite with norm1 norm2.
  rewrite PROP_combine.
  unfold app at 1.
- subst Frame. 
+ subst Frame.
  simpl map.
  old_go_lower. normalize.
  cancel.
@@ -700,7 +700,7 @@ cancel.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
-   unfold tarray; f_equal. clear; omega. 
+   unfold tarray; f_equal. clear; omega.
    eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    eapply JMeq_trans; [ | apply JMeq_sublist; [ | apply H8]; now auto].
    apply eq_JMeq.

@@ -3,12 +3,12 @@
  *
  *)
 
-Require Import msl.base.
-Open Local Scope nat_scope.
+Require Import VST.msl.base.
+Local Open Scope nat_scope.
 
-Require Import msl.ageable.
-Require Import msl.functors.
-Require Import msl.predicates_hered.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Require Import VST.msl.predicates_hered.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.
@@ -45,7 +45,7 @@ Module Type KNOT_HERED.
   Axiom knot_level : forall k:knot, level k = fst (unsquash k).
 
   Axiom knot_age1 : forall k,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -314,7 +314,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     auto.
   Qed.
 
-  Lemma stratifies_unstratify_more : 
+  Lemma stratifies_unstratify_more :
     forall (n m1 m2:nat) (p1:sinv (m1+n)) (p2:sinv (m2+n)),
       floor m1 n p1 = floor m2 n p2 ->
       (stratifies (unstratify (m1+n) p1) n (floor m1 n p1) ->
@@ -326,7 +326,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     erewrite <- floor_shuffle.
     instantiate (1:=H1).
     replace (unstratify (m2 + S n) p2)
-      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)). 
+      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)).
     assert (m1 + S n = S m1 + n) by omega.
     eapply (IHn (S m1) (S m2)
       (eq_rect (m1 + S n) sinv p1 (S m1 + n) H2)).
@@ -409,7 +409,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     match k with existT _ n f => (n, fmap F (unstrat n) f) end.
 
   Definition level (x:knot) : nat := fst (unsquash x).
-  Program Definition approx (n:nat) (p:predicate) : predicate := 
+  Program Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => level (fst w) < n /\ p w.
   Next Obligation.
     hnf; simpl; intros.
@@ -622,7 +622,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     (* unage *)
     intros.
     destruct (unsquash x') as [n f] eqn:?H; intros.
-    exists (squash (S n, f)). 
+    exists (squash (S n, f)).
     rewrite knot_age_age1.
     rewrite unsquash_squash.
     f_equal.
@@ -645,11 +645,11 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     rewrite H0 in H.
     rewrite unsquash_squash in H.
     congruence.
-    
+
     (* level 0 *)
     intro x. destruct x; simpl.
     destruct x; intuition; discriminate.
-    
+
     (* level S *)
     intros. destruct x; simpl in *.
     destruct x. discriminate.
@@ -671,7 +671,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Proof. reflexivity. Qed.
 
   Lemma knot_age1 : forall k,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))

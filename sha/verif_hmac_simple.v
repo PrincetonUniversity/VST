@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
@@ -16,7 +16,7 @@ Require Import sha.spec_hmac.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 
-Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
+Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC HMAC_spec.
 Proof.
 start_function.
@@ -25,11 +25,11 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-rename lvar0 into c.
+rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
-destruct MSG as [dl data]. simpl in *.
-rename H into KL. rename H0 into DL. 
+destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
+rename H into KL. rename H0 into DL.
 Time assert_PROP (isptr md) as isPtrMD by entailer!. (*1.3*)
 Time forward_if  (
   PROP  (isptr c)
@@ -40,7 +40,7 @@ Time forward_if  (
    data_block Tsh data d; K_vector kv;
    memory_block shmd 32 md)).
   (*3.3*)
-  { clear H. apply denote_tc_comparable_split. 
+  { clear H. apply denote_tc_test_eq_split.
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
   { (*Branch1*) exfalso. subst md. contradiction.  }
@@ -48,31 +48,31 @@ Time forward_if  (
 Time normalize. (*0.8*)
 freeze [2;4] FR1.
 assert_PROP (isptr k) as isPtrK.
-{ unfold data_block. Time normalize. (*1.6 versus 2.2*) rewrite data_at_isptr with (p:=k). Time entailer!. (*1.6 versus 2.5*) } 
+{ unfold data_block. Time normalize. (*1.6 versus 2.2*) rewrite data_at_isptr with (p:=k). Time entailer!. (*1.6 versus 2.5*) }
 
 Time forward_call (c, k, kl, key, kv, HMACabs nil nil nil). (*3*)
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
    unfold initPre. Time entailer!. (*0.6 versus 1.1*)
  }
-freeze [1;2;3] FR2. 
-assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512 /\ 
+freeze [1;2;3] FR2.
+assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512 /\
              field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
   { unfold hmacstate_. Intros r. entailer!. apply H. }
 destruct H as [H0_len512 FC_c].
-thaw FR2. 
-thaw FR1. 
+thaw FR2.
+thaw FR1.
 freeze [0;3] FR3.
 Time forward_call (hmacInit key, c, d, dl, data, kv). (*2.8*)
-  { rewrite H0_len512; assumption. } 
+  { rewrite H0_len512; assumption. }
 
-thaw FR3. 
+thaw FR3.
 freeze [2;3] FR4.
-Time forward_call (hmacUpdate data (hmacInit key), c, md, shmd, kv). (*2.3*) 
+Time forward_call (hmacUpdate data (hmacInit key), c, md, shmd, kv). (*2.3*)
 freeze [0;2;3] FR5.
-forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c). 
+forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
 freeze [0;1] FR6.
 Time forward. (*4.2*)
-Exists c. entailer!. Exists (HMAC256 data key). entailer.
+Exists (HMAC256 data key). entailer.
 thaw FR6. thaw FR5. Time cancel. (*2.2*)
 thaw FR4. Time cancel. (*2.1*)
 rewrite <- (hmac_sound key data). unfold hmac.

@@ -1,4 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
+(* Copyright 2012-2017 by Adam Petcher and FCF Contributors.	*
  * Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 
@@ -6,10 +6,10 @@
 
 Set Implicit Arguments.
 
+Require Import fcf.FCF.
 Require Import fcf.Crypto.
 Require Import fcf.Asymptotic.
-Require Import fcf.NotationV1. (*added by Lennart*)
-Require Import fcf.GenTacs.
+Require Import fcf.Tactics.
 
 Theorem evalDist_bool_support : 
   forall (c : Comp bool)(ls : list bool),
@@ -117,11 +117,6 @@ Theorem evalDist_bool_complement :
   intuition.
   
   eapply evalDist_le_1.
-(*Lennart: rest of proof unnecessary in Coq8.5pl1
-  unfold eq_dec.
-  eapply (EqDec_dec _).
-  intuition.
-*)
 Qed.
 
 Theorem rndBool_bind : 
@@ -182,7 +177,7 @@ Section TwoWorldsEquiv.
       symmetry.
       rewrite <- evalDist_right_ident.
       comp_skip.
-      comp_ute.
+      fcf_compute.
       rewrite H.
       clear H.
       
@@ -191,7 +186,7 @@ Section TwoWorldsEquiv.
       symmetry.
       rewrite <- evalDist_right_ident.
       comp_skip.
-      comp_ute.
+      fcf_compute.
       rewrite H.
       clear H.
       
@@ -213,13 +208,15 @@ Section TwoWorldsEquiv.
       
       eapply evalDist_le_1.
       unfold eq_dec.
-      eapply (EqDec_dec _).
-      wftac.
       
       rewrite <- H at 2.
       
       rewrite ratDistance_add_same_r.
-      intuition.
+      reflexivity.
+
+      Grab Existential Variables.
+      exact _.
+      exact _.
     Qed.
     
     Theorem Def_equiv_2W : 

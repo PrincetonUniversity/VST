@@ -59,7 +59,7 @@ Proof.
     subst.
     replace (k' + 0)%nat with k' in Heqs0_0 by omega.
     intros contra; rewrite <- Heqs0_0 in contra; inversion contra.
-  }  
+  }
 Qed.
 
 Lemma get_first_None_limit:
@@ -150,7 +150,7 @@ Lemma get_bytes_length:
     length b = k.
 Proof.
   unfold ENTROPY.get_bytes; intros.
-  remember (ENTROPY.get_bits (8 * k)%nat s) as get_bits_s. 
+  remember (ENTROPY.get_bits (8 * k)%nat s) as get_bits_s.
   destruct get_bits_s; inv H.
   assert (length l = (8 * k)%nat) by (apply get_bits_length with (s:=s) (s':=s0); auto).
   apply bitsToBytes_len_gen.

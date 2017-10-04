@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.ghost_queue.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost_queue.
 Require Import SetoidList.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -23,19 +23,19 @@ Definition malloc_spec :=
  DECLARE _malloc
   WITH n: Z
   PRE [ 1%positive OF tuint ]
-     PROP (4 <= n <= Int.max_unsigned) 
+     PROP (4 <= n <= Int.max_unsigned)
      LOCAL (temp 1%positive (Vint (Int.repr n)))
      SEP ()
-  POST [ tptr tvoid ] 
+  POST [ tptr tvoid ]
      EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     PROP (malloc_compatible n v)
+     LOCAL (temp ret_temp v)
      SEP (memory_block Tsh n v).
 
 Definition free_spec :=
  DECLARE _free
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid ]  
+  PRE [ 1%positive OF tptr tvoid ]
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p)
       SEP (memory_block Tsh n p)
@@ -1140,7 +1140,7 @@ Lemma main_loop1 : forall {Espec : OracleKind} (q0 lvar0 : val) gsh1 gsh2 (Hgsh1
      (Ssequence
         (Sassign
            (Ederef
-              (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6)) 
+              (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6))
                  (Etempvar _i tint) (tptr (tptr (Tstruct _lock_t noattr)))) (tptr (Tstruct _lock_t noattr)))
            (Etempvar _l (tptr (Tstruct _lock_t noattr))))
         (Ssequence
@@ -1195,7 +1195,7 @@ Proof.
    fun (x : (share * share * share * val * val * val * list val * share)) (lockt : val) =>
    let '(lsh, gsh, tsh, p', p, lock, ghosts, gsh2) := x in
    Pred_list [Pred_prop (readable_share lsh /\ readable_share gsh /\ readable_share tsh);
-     Data_at _ gsh (tptr tqueue_t) p p'; 
+     Data_at _ gsh (tptr tqueue_t) p p';
      Field_at _ lsh tqueue_t [StructField _lock] lock p;
      Lock_inv lsh lock (lock_pred gsh2 p ghosts);
      Lock_inv tsh lockt (f_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh2)])).
@@ -1338,7 +1338,7 @@ Proof.
      let '(lsh, gsh, tsh, t, p', p, lock, ghosts, i, g, gsh1, gsh2) := x in
      Pred_list [Pred_prop (readable_share lsh /\ readable_share gsh /\ readable_share tsh /\
          Int.min_signed <= t <= Int.max_signed /\ sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g);
-       Data_at _ gsh (tptr tqueue_t) p p'; 
+       Data_at _ gsh (tptr tqueue_t) p p';
        Field_at _ lsh tqueue_t [StructField _lock] lock p;
        Lock_inv lsh lock (lock_pred gsh2 p ghosts);
        Lock_inv tsh lockt (g_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh1 gsh2 g);
@@ -1440,7 +1440,7 @@ semax (initialized_list [_i; _i__1; _i__2; _t'1] (func_tycontext f_main Vprog Gp
   (Ssequence
      (Sset _l__2
         (Ederef
-           (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6)) 
+           (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6))
               (Etempvar _i__2 tint) (tptr (tptr (Tstruct _lock_t noattr)))) (tptr (Tstruct _lock_t noattr))))
      (Ssequence
         (Scall None (Evar _acquire (Tfunction (Ctypes.Tcons (tptr tvoid) Ctypes.Tnil) tvoid cc_default))
@@ -1726,10 +1726,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity |]).
 eapply semax_func_cons_ext; try reflexivity.
 { intros; entailer!. }
@@ -1757,8 +1757,8 @@ semax_func_cons body_q_remove.
 semax_func_cons body_f.
 (* XX For some reason, precondition_closed can't prove that all the gvars
    aren't local variables. *)
-apply semax_func_cons; 
- [ reflexivity 
+apply semax_func_cons;
+ [ reflexivity
  | repeat apply Forall_cons; try apply Forall_nil; auto; computable
  | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity
  | | apply body_g | ].
@@ -1767,8 +1767,8 @@ apply semax_func_cons;
   repeat constructor; apply closed_wrtl_gvar; unfold is_a_local; simpl;
     intros [? | ?]; try contradiction; discriminate. }
 (* Here it's just missing an auto. *)
-apply semax_func_cons; 
- [ reflexivity 
+apply semax_func_cons;
+ [ reflexivity
  | repeat apply Forall_cons; try apply Forall_nil; (*here*)auto; computable
  | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity
  | precondition_closed | apply body_main | ].

@@ -5,15 +5,15 @@
 
 (* Knots with all the bells and whistles *)
 
-Require Import msl.base.
-Require Import msl.ageable.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Module Type TY_FUNCTOR_FULL.
   Parameter F : Type -> Type -> Type.
   Parameter bimap : forall A B C D, (A -> B) -> (C -> D) -> F B C -> F A D.
-  Implicit Arguments bimap [A B C D].
+  Arguments bimap [A B C D] _ _ _.
 
   Axiom bimap_id : forall A B, bimap (id A) (id B) = id (F A B).
   Axiom bimap_comp : forall A B C D E F (f:B -> C) (g:A -> B) (s:F -> E) (t:E -> D),
@@ -37,7 +37,7 @@ Module Type TY_FUNCTOR_FULL.
   Parameter T:Type.
   Parameter T_bot:T.
 
-  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel : T -> T -> Prop.
   Parameter T_rel_bot : forall x, T_rel T_bot x.
   Parameter T_rel_refl : forall x, T_rel x x.
   Parameter T_rel_trans : transitive T T_rel.
@@ -74,7 +74,7 @@ Module Type KNOT_FULL.
     n = n' /\ Rel predicate predicate f f'.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -403,7 +403,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     auto.
   Qed.
 
-  Lemma stratifies_unstratify_more : 
+  Lemma stratifies_unstratify_more :
     forall (n m1 m2:nat) (p1:sinv (m1+n)) (p2:sinv (m2+n)),
       floor m1 n p1 = floor m2 n p2 ->
       (stratifies (unstratify (m1+n) p1) n (floor m1 n p1) ->
@@ -415,7 +415,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     erewrite <- floor_shuffle.
     instantiate (1:=H1).
     replace (unstratify (m2 + S n) p2)
-      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)). 
+      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)).
     assert (m1 + S n = S m1 + n) by omega.
     eapply (IHn (S m1) (S m2)
       (eq_rect (m1 + S n) sinv p1 (S m1 + n) H2)).
@@ -504,11 +504,11 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
     end.
-  
+
   Definition knot_unage_def (k:knot) :=
     let (n,k) := unsquash k in squash (S n,k).
 
-  Program Definition approx (n:nat) (p:predicate) : predicate := 
+  Program Definition approx (n:nat) (p:predicate) : predicate :=
     fun w => if (le_gt_dec n (knot_level_def (fst w))) then T_bot else proj1_sig p w.
   Next Obligation.
     hnf; simpl; intros.
@@ -531,7 +531,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     eapply le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
-    
+
     destruct p as [p Hp]; simpl.
     eapply Hp; eauto.
   Qed.
@@ -750,9 +750,9 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
-  
+
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
@@ -828,13 +828,13 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     simpl.
     destruct (decompose_nat x0 x); auto.
     destruct s. elimtype False. omega.
-    
+
     intro.
     unfold knot_age1_def, knot_level_def.
     case_eq (unsquash x); intros.
     destruct n; simpl; intuition;
       discriminate.
-    
+
     intros.
     unfold knot_age1_def, knot_level_def in *.
     case_eq (unsquash x); intros; rewrite H0 in H.
@@ -904,7 +904,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
   Qed.
 
   Lemma knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -936,7 +936,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -965,8 +965,8 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     symmetry.
     trivial.
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp] _.
+
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.

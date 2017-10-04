@@ -13,10 +13,10 @@ Section cAU.
   Hypothesis R_EqDec : EqDec R.
   Variable f : K -> D -> R.
   Variable RndK : Comp K.
-  
+
   Section cAU.
     Variable A : Comp (D * D).
-    
+
     Definition Adv_au_once_G :=
       k <-$ RndK;
       [d1, d2] <-$2 A;

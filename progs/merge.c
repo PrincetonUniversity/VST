@@ -28,7 +28,7 @@ struct list *merge(struct list *a, struct list *b){
     x = &((*x)->tail); */
     cond = a != NULL && b != NULL;
   }
-  
+
   if (a != NULL) {
     *x = a;
   } else {

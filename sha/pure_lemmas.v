@@ -5,14 +5,14 @@
 *)
 
 Require Import compcert.lib.Coqlib.
-Require Import compcert.lib.Integers. 
-Require Import List. Import ListNotations. 
+Require Import compcert.lib.Integers.
+Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
-Require Import msl.Coqlib2. 
-Require Import floyd.coqlib3. 
-Require Import floyd.sublist. 
-Require Export sha.common_lemmas. 
+Require Import VST.msl.Coqlib2.
+Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.sublist.
+Require Export sha.common_lemmas.
 Require Psatz.
 
 Global Opaque CBLOCKz LBLOCKz.
@@ -45,7 +45,7 @@ induction i; intros.
 reflexivity.
 replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
 destruct m; try reflexivity.
-simpl. f_equal. f_equal. f_equal. f_equal. 
+simpl. f_equal. f_equal. f_equal. f_equal.
 apply IHi.
 Qed.
 
@@ -102,7 +102,7 @@ reflexivity.
 Qed.
 
 Lemma Zlist_to_intlist_to_Zlist':
-  forall nl: list Z, 
+  forall nl: list Z,
   Nat.divide (Z.to_nat WORD) (length nl) ->
   Forall isbyteZ nl ->
   intlist_to_Zlist (Zlist_to_intlist nl) = nl.
@@ -142,7 +142,7 @@ rewrite Z2Nat.inj_mul; auto.
 Qed.
 
 Lemma Zlist_to_intlist_to_Zlist:
-  forall nl: list Z, 
+  forall nl: list Z,
   Z.divide WORD (Zlength nl) ->
   Forall isbyteZ nl ->
   intlist_to_Zlist (Zlist_to_intlist nl) = nl.
@@ -153,8 +153,8 @@ apply Ndivide_Zdivide_length; auto.
 compute; congruence.
 Qed.
 
-Lemma length_Zlist_to_intlist: forall n l, 
-       length l = (Z.to_nat WORD * n)%nat -> 
+Lemma length_Zlist_to_intlist: forall n l,
+       length l = (Z.to_nat WORD * n)%nat ->
        length (Zlist_to_intlist l) = n.
 Proof.
 induction n; intros.
@@ -199,7 +199,7 @@ Qed.
 
 Local Open Scope nat.
 
-Definition LBLOCK : nat := Z.to_nat LBLOCKz.   
+Definition LBLOCK : nat := Z.to_nat LBLOCKz.
 Definition CBLOCK : nat := Z.to_nat CBLOCKz.
 Opaque LBLOCK CBLOCK.
 
@@ -229,7 +229,7 @@ Hint Resolve CBLOCKz_pos.
 Local Open Scope Z.
 
 Lemma divide_hashed:
- forall (bb: list int), 
+ forall (bb: list int),
     Nat.divide LBLOCK (length bb) <->
     (LBLOCKz | Zlength bb).
 Proof.
@@ -253,9 +253,9 @@ Lemma LBLOCK_eq: LBLOCK=16%nat.
 Proof. reflexivity. Qed.
 
 Lemma hash_blocks_last:
- forall a bl c, 
+ forall a bl c,
               Zlength a = 8 ->
-              (LBLOCKz | Zlength bl) -> 
+              (LBLOCKz | Zlength bl) ->
               Zlength c = LBLOCKz ->
    hash_block (hash_blocks a bl) c = hash_blocks a (bl++ c).
 Proof.
@@ -266,11 +266,11 @@ destruct H0 as [n ?].
 rewrite Zlength_correct in H,H1.
 change 8 with (Z.of_nat 8) in H.
 change LBLOCKz with (Z.of_nat LBLOCK) in H1.
-apply Nat2Z.inj in H. 
+apply Nat2Z.inj in H.
 apply Nat2Z.inj in H1.
 revert a bl H H0; induction n; intros.
 destruct bl; inv H0.
-rewrite hash_blocks_equation'. 
+rewrite hash_blocks_equation'.
 simpl. rewrite hash_blocks_equation'.
 destruct c eqn:?. inv H1.
 rewrite <- Heql in *; clear i l Heql.
@@ -305,7 +305,7 @@ rewrite firstn_length. apply min_l.
 Psatz.nia.
 rewrite skipn_length.
 apply plus_reg_l with LBLOCK.
-rewrite plus_comm. 
+rewrite plus_comm.
 rewrite Nat.sub_add by Psatz.lia.
 omega.
 Qed.
@@ -320,7 +320,7 @@ destruct H0 as [n ?].
 rewrite Zlength_correct in H0.
 assert (POS := LBLOCKz_pos).
 change LBLOCKz with (Z.of_nat LBLOCK) in *.
-rewrite <- (Z2Nat.id n) in H0 
+rewrite <- (Z2Nat.id n) in H0
  by (apply -> Z.mul_nonneg_cancel_r ; [ | apply POS]; omega).
 rewrite <- Nat2Z.inj_mul in H0.
 apply Nat2Z.inj in H0.
@@ -369,12 +369,12 @@ Lemma generate_and_pad_lemma1:
    (H2 : (LBLOCKz | Zlength hashed'))
    (H5 : intlist_to_Zlist hashed' ++ dd' =
      intlist_to_Zlist hashed ++ dd ++ [128] ++ list_repeat (Z.to_nat pad) 0),
-   let lastblock := 
+   let lastblock :=
              map Int.repr
                (dd' ++
                 list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) 0 ++
                 intlist_to_Zlist [hi_part bitlen; lo_part bitlen])
-   in let lastblock' := 
+   in let lastblock' :=
              Zlist_to_intlist (map Int.unsigned lastblock)
    in forall (H99: Zlength lastblock = CBLOCKz)
          (BYTESlastblock : Forall isbyteZ (map Int.unsigned lastblock)),
@@ -441,7 +441,7 @@ f_equal. {
  change CBLOCKz with 64. change LBLOCKz with 16 in H2.
  destruct PAD; subst.
  rewrite <- Zminus_mod.
- rewrite Z.mod_small; try omega. 
+ rewrite Z.mod_small; try omega.
  rewrite Zlength_correct in H|-*; omega.
  rewrite Zlength_nil in *.
  rewrite <- Zminus_mod.
@@ -480,5 +480,5 @@ f_equal. {
  repeat (apply Forall_app; split; auto).
  apply isbyte_intlist_to_Zlist.
  constructor; auto. split; clear; omega.
- apply Forall_list_repeat. split; clear; omega. 
+ apply Forall_list_repeat. split; clear; omega.
 Qed.

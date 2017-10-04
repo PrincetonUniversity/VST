@@ -2,26 +2,26 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.mem_obs_eq.
-Require Import concurrency.x86_inj.
-Require Import concurrency.x86_context.
-Require Import concurrency.fineConc_safe.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.mem_obs_eq.
+Require Import VST.concurrency.x86_inj.
+Require Import VST.concurrency.x86_context.
+Require Import VST.concurrency.fineConc_safe.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
@@ -32,18 +32,18 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
   (** The initial memory is well-defined*)
   Parameter init_mem_wd:
     forall m, init_mem = Some m -> valid_mem m.
-  
+
   Lemma init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
-      init_mem = Some m -> 
-      match initial_core X86SEM.Sem the_ge v args with
+      init_mem = Some m ->
+      match initial_core X86SEM.Sem 0 the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
       end.
   Proof.
     intros.
     unfold initial_core. unfold X86SEM.Sem. simpl. unfold Asm_coop.Asm_initial_core.
-    destruct v; trivial. 
+    destruct v; trivial.
     destruct (Int.eq_dec i Int.zero); trivial.
     remember (Genv.find_funct_ptr the_ge b ) as d.
     destruct d; trivial. destruct f; trivial.
@@ -78,7 +78,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
       erewrite Genv.init_mem_genv_next in Hget by eauto.
       apply id_ren_validblock in Hget.
       rewrite Hget; auto.
-    - intros. 
+    - intros.
       unfold Senv.symbol_address in H0.
       destruct (Senv.find_symbol (Genv.globalenv the_program) id) eqn:Hfind.
       apply Senv.find_symbol_below in Hfind.
@@ -88,7 +88,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
       apply id_ren_validblock in Hfind. eexists; eauto.
       subst. simpl; auto.
   Qed.
-  
+
 End X86Initial.
 
 (** Safety of the FineConc machine for the X86 architecture*)

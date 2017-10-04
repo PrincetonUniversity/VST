@@ -1,3 +1,3 @@
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.scheduler.
 
-Module THESCH:= ListScheduler NatTID.  
+Module THESCH:= ListScheduler NatTID.

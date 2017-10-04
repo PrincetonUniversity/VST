@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.global.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.global.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -20,7 +20,7 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [f_spec; main_spec]).
 
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.

@@ -1,14 +1,14 @@
 (* Implementation and proof of Red-Black Trees,
   matching the Coq Library MSets interface.
   Author:  Andrew W. Appel, 2011.
-  
-The design decisions behind this implementation are described here:  
+
+The design decisions behind this implementation are described here:
 Efficient Verified Red-Black Trees, by Andrew W. Appel, September 2011.
 http://www.cs.princeton.edu/~appel/papers/redblack.pdf
 
 Additional suggested reading:
-Red-Black Trees in a Functional Setting by Chris Okasaki. 
-Journal of Functional Programming, 9(4):471-477, July 1999. 
+Red-Black Trees in a Functional Setting by Chris Okasaki.
+Journal of Functional Programming, 9(4):471-477, July 1999.
 http://www.eecs.usma.edu/webs/people/okasaki/jfp99redblack.pdf
 
 Red-black trees with types, by Stefan Kahrs.
@@ -39,7 +39,7 @@ Module Type MSetPlus.
  Axiom delete_min_spec2: forall s, delete_min s = None <-> Empty s.
 
  Parameter mem_add: elt -> t -> option t.
- Axiom mem_add_spec: 
+ Axiom mem_add_spec:
     forall x s, mem_add x s = if mem x s then None else Some (add x s).
 
 End MSetPlus.
@@ -54,7 +54,7 @@ Local Notation "'key'" := K.t.
 
  Inductive color := Red | Black.
  Inductive tree  : Type :=
- | EE : tree 
+ | EE : tree
  | T: color -> tree -> key -> tree -> tree.
 
  Fixpoint member (x: key) (t : tree) : bool :=
@@ -69,8 +69,8 @@ Local Notation "'key'" := K.t.
 
 Definition balance color t1 k t2 :=
  match color with Red => T Red t1 k t2
- | _ => 
- match t1, t2 with 
+ | _ =>
+ match t1, t2 with
  | T Red (T Red a x b) y c, d => T Red (T Black a x b) y (T Black c k d)
  | T Red a x (T Red b y c), d => T Red (T Black a x b) y (T Black c k d)
  | a, T Red (T Red b y c) z d => T Red (T Black a k b) y (T Black c z d)
@@ -80,7 +80,7 @@ Definition balance color t1 k t2 :=
  end.
 
 Fixpoint ins x s :=
- match s with 
+ match s with
  | EE => T Red EE x EE
  | T c a y b => match K.compare x y with
                        | Lt => balance c (ins x a) y b
@@ -89,8 +89,8 @@ Fixpoint ins x s :=
                        end
  end.
 
-Definition makeBlack t := 
-  match t with 
+Definition makeBlack t :=
+  match t with
   | EE => EE
   | T _ a x b => T Black a x b
   end.
@@ -98,10 +98,10 @@ Definition makeBlack t :=
 Definition insert x s := makeBlack (ins x s).
 
 Fixpoint ins' x s :=
- match s with 
+ match s with
  | EE => Some (T Red EE x EE)
  | T c a y b => match K.compare x y with
-                       | Lt => match ins' x a with 
+                       | Lt => match ins' x a with
                                    | None => None
                                    | Some s' => Some (balance c s' y b)
                                    end
@@ -113,7 +113,7 @@ Fixpoint ins' x s :=
                        end
  end.
 
-Definition mem_add' x s := 
+Definition mem_add' x s :=
     match ins' x s with
     | None => None
     | Some s' => Some (makeBlack s')
@@ -130,8 +130,8 @@ Definition balance' tl k tr :=
     | _ , _ => T Black tl k tr
     end.
 
-Definition sub1 t := 
-  match t with 
+Definition sub1 t :=
+  match t with
   | EE => EE
   | T _ a x b => T Red a x b
   end.
@@ -187,7 +187,7 @@ Defined.
 Fixpoint del x t :=
  match t with
  | EE => EE
- | T _ a y b => 
+ | T _ a y b =>
    match K.compare x y with
    | Lt => match a with
                | T Black _ _ _ => balleft (del x a) y b
@@ -201,21 +201,21 @@ Fixpoint del x t :=
    end
   end.
 
-Definition delete x t := 
+Definition delete x t :=
    match del x t with
    | T _ a y b => T Black a y b
    | EE => EE
    end.
 
 
-Fixpoint choose' (t : tree) : option key := 
+Fixpoint choose' (t : tree) : option key :=
   match t with
   | EE => None
   | T _ EE k tr => Some k
   | T _ tl k tr => choose' tl
   end.
 
-Fixpoint max_elt' (t : tree) : option key := 
+Fixpoint max_elt' (t : tree) : option key :=
   match t with
   | EE => None
   | T _ tl k EE => Some k
@@ -224,22 +224,22 @@ Fixpoint max_elt' (t : tree) : option key :=
 
 
 Fixpoint delmin a y b : (key * tree) :=
-   match a with 
-   | EE => (y,b) 
-   | T Black aa ya ba => 
+   match a with
+   | EE => (y,b)
+   | T Black aa ya ba =>
               match delmin aa ya ba with
                                  (k, a') => (k,balleft a' y b)
               end
-   | T Red aa ya ba => 
+   | T Red aa ya ba =>
               match delmin aa ya ba with
                (k,a') =>  (k, T Red a' y b)
               end
  end.
 
-Definition delete'_min t : option (key * tree) := 
- match t with 
+Definition delete'_min t : option (key * tree) :=
+ match t with
  | EE => None
- | T _ a y b => 
+ | T _ a y b =>
   match delmin a y b with
    | (k, T _ a y b) => Some (k, T Black a y b)
    | (k, EE) => Some (k,EE)
@@ -256,7 +256,7 @@ Fixpoint treeify_f (n: positive) (l: list key) : tree * list key:=
                    | (t1, x::l2) => let (t2,l3) := treeify_g n' l2 in (T Black t1 x t2, l3)
                    | _ => bogus
                   end
- | xI n' => match treeify_f n' l with 
+ | xI n' => match treeify_f n' l with
                    | (t1, x::l2) => let (t2,l3) := treeify_f n' l2 in (T Black t1 x t2, l3)
                    | _ => bogus
                   end
@@ -268,14 +268,14 @@ Fixpoint treeify_f (n: positive) (l: list key) : tree * list key:=
                    | (t1, x::l2) => let (t2,l3) := treeify_g n' l2 in (T Black t1 x t2, l3)
                    | _ => bogus
                   end
- | xI n' => match treeify_f n' l with 
+ | xI n' => match treeify_f n' l with
                    | (t1, x::l2) => let (t2,l3) := treeify_g n' l2 in (T Black t1 x t2, l3)
                    | _ => bogus
                   end
  end.
 
 
-Fixpoint poslength {A} (l: list A) := 
+Fixpoint poslength {A} (l: list A) :=
  match l with nil => 1%positive | _::tl => Psucc (poslength tl) end.
 
 Definition treeify (l: list key) : tree := fst (treeify_g (poslength l) l).
@@ -295,7 +295,7 @@ Hint Immediate eq_sym.
 
 Ltac do_compare x y :=  destruct (CompSpec2Type (K.compare_spec x y)).
 
-Ltac do_ins_not_EE := 
+Ltac do_ins_not_EE :=
   repeat match goal with
     | |- match ?A with Red => _ | Black => _ end  <> _=> destruct A
     | |- match ?A with EE => _ | T _ _ _ _ => _ end  <> _=>destruct A
@@ -310,7 +310,7 @@ destruct c; simpl; repeat do_ins_not_EE.
 destruct c; simpl; repeat do_ins_not_EE.
 Qed.
 
-Definition ltopt (x y : option key) := 
+Definition ltopt (x y : option key) :=
   match x, y with
   | Some x', Some y' => K.lt x' y'
   | _, _ => True
@@ -324,7 +324,7 @@ Inductive searchtree: option key -> option key -> tree -> Prop :=
                 searchtree lo hi (T c tl k tr) .
 
 Ltac do_searchtree :=
-  assumption || 
+  assumption ||
   constructor ||
   match goal with
   |  |- searchtree _ _ (match ?C with Red => _ | Black => _ end) => destruct C
@@ -332,13 +332,13 @@ Ltac do_searchtree :=
   | H: searchtree _ _ EE |- _ => inv H
   | H: searchtree _ _ (T _ _ _ _) |- _ => inv H
   | |- ltopt _ _ => unfold ltopt in *; auto
-  | |- match ?A with Some _ => _ | None => _ end => destruct A 
-  | H: K.lt ?A ?B  |- K.lt ?A ?C  => 
+  | |- match ?A with Some _ => _ | None => _ end => destruct A
+  | H: K.lt ?A ?B  |- K.lt ?A ?C  =>
            try solve [apply lt_trans with B; assumption]; clear H
   end.
 
 Lemma searchtree_balance:
- forall c  s1 t s2 lo hi, 
+ forall c  s1 t s2 lo hi,
    ltopt lo (Some t) -> ltopt (Some t) hi ->
    searchtree lo (Some t)  s1-> searchtree (Some t) hi s2 ->
     searchtree lo hi (balance c s1 t s2).
@@ -355,7 +355,7 @@ Definition eqopt (a b : option key) :=
  end.
 
 Lemma searchtree_expand_left:
-  forall k t lo hi, searchtree (Some k) hi t -> 
+  forall k t lo hi, searchtree (Some k) hi t ->
      (eqopt lo (Some k) \/ ltopt lo (Some k)) -> searchtree lo hi t.
 Proof.
 induction t; intros.
@@ -389,14 +389,14 @@ Proof.
   intros.
    destruct hi.
    apply searchtree_expand_right with t; simpl in *; auto.
-   destruct lo; auto.  
+   destruct lo; auto.
    apply searchtree_expand_left with t0; simpl in *; auto.
-   destruct lo; auto.  
+   destruct lo; auto.
    apply searchtree_expand_left with t; simpl in *; auto.
 Qed.
 
-Lemma searchtree_mid_congr: 
-     forall c c' s1 x y s2 lo hi, 
+Lemma searchtree_mid_congr:
+     forall c c' s1 x y s2 lo hi,
         searchtree lo hi (T c s1 x s2) -> K.eq x y -> searchtree lo hi (T c' s1 y s2).
 Proof.
 intros.
@@ -412,8 +412,8 @@ Proof.
  destruct lo; simpl in *; auto. destruct hi; simpl in *; auto. apply lt_trans with k; auto.
 Qed.
 
-Lemma ins_is_searchtree: 
-   forall x s lo hi, ltopt lo (Some x) -> ltopt (Some x) hi -> 
+Lemma ins_is_searchtree:
+   forall x s lo hi, ltopt lo (Some x) -> ltopt (Some x) hi ->
                     searchtree lo hi s ->
                     searchtree lo hi (ins x s).
 Proof.
@@ -427,7 +427,7 @@ inv H1.
 apply searchtree_balance; auto; eapply searchtree_proper_bounds; eauto.
 Qed.
 
-Lemma insert_searchtree: forall x s, 
+Lemma insert_searchtree: forall x s,
     searchtree None None s -> searchtree None None (insert x s).
 Proof.
 unfold insert; intros.
@@ -438,7 +438,7 @@ Qed.
 
 Inductive interp: tree -> (key -> Prop) :=
 | member_here: forall x y c tl tr, K.eq x y -> interp (T c tl y tr) x
-| member_left: forall x y c tl tr, interp tl x -> interp (T c tl y tr) x 
+| member_left: forall x y c tl tr, interp tl x -> interp (T c tl y tr) x
 | member_right: forall x y c tl tr, interp tr x -> interp (T c tl y tr) x.
 
 Lemma interp_empty: forall x, ~ interp EE x.
@@ -460,12 +460,12 @@ Lemma interp_range:
 Proof.
 induction 1; intros.
 inv H0.
-inv H1. 
+inv H1.
 split.
- destruct lo; simpl; auto. rewrite H7; apply searchtree_proper_bounds in H; auto. 
+ destruct lo; simpl; auto. rewrite H7; apply searchtree_proper_bounds in H; auto.
  destruct hi; simpl; auto. rewrite H7; apply searchtree_proper_bounds in H0; auto.
 destruct (IHsearchtree1 H7); split; auto.
-destruct hi; simpl; auto.  apply lt_trans with k; auto. 
+destruct hi; simpl; auto.  apply lt_trans with k; auto.
 apply searchtree_proper_bounds in H0; auto.
 destruct (IHsearchtree2 H7); split; auto.
 destruct lo; simpl; auto.
@@ -475,16 +475,16 @@ Qed.
 
 Ltac etac :=
   match goal with
-  | H: interp EE _ |- _ => inv H 
-  | H: InA _ _ nil |- _ => inv H 
+  | H: interp EE _ |- _ => inv H
+  | H: InA _ _ nil |- _ => inv H
   | H: false = true |- _ => inv H
   | H: true = false |- _ => inv H
   | _ => auto
   end.
 
 Lemma interp_member:
-    forall x t, 
-      searchtree None None t -> 
+    forall x t,
+      searchtree None None t ->
       (member x t = true <-> interp t x).
 Proof.
 intros.
@@ -524,19 +524,19 @@ Proof.
 destruct c, tl, tr; unfold balance;  intuition; repeat do_interp_balance.
 Qed.
 
-Lemma ins_ok:  
-   forall x y t lo hi, 
-             searchtree lo hi t -> 
+Lemma ins_ok:
+   forall x y t lo hi,
+             searchtree lo hi t ->
              ((K.eq x y \/ interp t x) <-> interp (ins y t) x).
 Proof.
  induction 1; simpl; intuition;
-  [inv H0; auto | ..];  
+  [inv H0; auto | ..];
   try solve [do_compare y k; auto; apply interp_balance; auto].
   do_compare y k; auto.
  inv H8; auto. constructor 1; auto. apply eq_trans with k; auto.
   apply interp_balance; auto.
   inv H8; auto.
- apply interp_balance; auto. 
+ apply interp_balance; auto.
   inv H8; auto.
   do_compare y k; auto.
  inv H3; auto.
@@ -550,8 +550,8 @@ Proof.
 Qed.
 
 Lemma interp_insert:
-      forall x y s, 
-             searchtree None None s -> 
+      forall x y s,
+             searchtree None None s ->
              ((K.eq x y \/ interp s x) <-> interp (insert y s) x).
 Proof.
   unfold insert; intros.
@@ -579,7 +579,7 @@ Qed.
 Hint Resolve is_redblack_toblack.
 
 Lemma is_redblack_Black_to_Red:
-  forall s n, is_redblack s Black n -> 
+  forall s n, is_redblack s Black n ->
             exists n, is_redblack (makeBlack s) Red n.
 Proof.
 intros.
@@ -601,20 +601,20 @@ Inductive infrared : tree -> nat -> Prop :=
 
 Ltac infrared_tac :=
 repeat (
-auto || 
-constructor || 
-match goal with 
- | |- infrared (match ?A with 
-                                  | EE => _ 
-                                  | T _ _ _ _ => _ 
+auto ||
+constructor ||
+match goal with
+ | |- infrared (match ?A with
+                                  | EE => _
+                                  | T _ _ _ _ => _
                                   end)  _ =>
         match goal with
         | H: is_redblack A _ _ |- _ => inv H
          | H: infrared A _ |- _ => inv H
         end
- | |- is_redblack (match ?A with 
-                                  | EE => _ 
-                                  | T _ _ _ _ => _ 
+ | |- is_redblack (match ?A with
+                                  | EE => _
+                                  | T _ _ _ _ => _
                                   end)  _ _ =>
         match goal with
         | H: is_redblack A _ _ |- _ => inv H
@@ -627,10 +627,10 @@ match goal with
   end).
 
 Lemma ins_is_redblack:
-  forall x s n, 
+  forall x s n,
     (is_redblack s Black n -> infrared (ins x s) n) /\
     (is_redblack s Red n -> is_redblack (ins x s) Black n).
-(* This one is tedious with proof automation, 
+(* This one is tedious with proof automation,
    but extremely tedious without proof automation *)
 Proof.
 induction s; simpl; split; intros; inversion H; clear H; subst.
@@ -669,23 +669,23 @@ apply is_redblack_Black_to_Red with n; auto.
 Qed.
 
 
-Definition valid (x: tree) := searchtree None None x /\ 
+Definition valid (x: tree) := searchtree None None x /\
                                   (exists n, is_redblack x Red n).
 
 (*  NOW FOR THE HARD PART, DELETION!
-   Here we follow the deletion algorithm of Stefan Kahrs (2001), 
+   Here we follow the deletion algorithm of Stefan Kahrs (2001),
   and in particular,
   http://www.cs.kent.ac.uk/people/staff/smk/redblack/Untyped.hs
 *)
 
-Ltac hax := 
+Ltac hax :=
   repeat (auto; try solve [repeat constructor; auto];
              match goal with
-             | H: is_redblack _ Red _ |- _ => inv H 
-              | H: is_redblack _ _ 0 |- _ => inv H 
-             | H: is_redblack _ _ (S _) |- _ => inv H 
-             | H: infrared _ 0 |- _ => inv H 
-             | H: infrared _ (S _) |- _ => inv H 
+             | H: is_redblack _ Red _ |- _ => inv H
+              | H: is_redblack _ _ 0 |- _ => inv H
+             | H: is_redblack _ _ (S _) |- _ => inv H
+             | H: infrared _ 0 |- _ => inv H
+             | H: infrared _ (S _) |- _ => inv H
              end).
 
 Lemma balance'_shape:
@@ -699,7 +699,7 @@ destruct H as [[? ?] | [? ?]]; hax.
 Qed.
 
 Lemma searchtree_balance':
- forall s1 t s2 lo hi, 
+ forall s1 t s2 lo hi,
    searchtree lo (Some t) s1 -> searchtree (Some t) hi s2 ->
     searchtree lo hi (balance' s1 t s2).
 Proof.
@@ -709,7 +709,7 @@ repeat do_searchtree.
 Qed.
 
 Lemma searchtree_append_aux:
-  forall n tl tr, size tl + size tr < n -> 
+  forall n tl tr, size tl + size tr < n ->
              forall lo k hi,
                searchtree lo (Some k) tl -> searchtree (Some k) hi tr ->
                searchtree lo hi (append(tl,tr)).
@@ -806,7 +806,7 @@ inv IHsearchtree1.
 inv H0.
 hax.
 destruct c.
-inv H3. 
+inv H3.
 hax.
 destruct c.
 hax.
@@ -878,7 +878,7 @@ Definition is_black t :=
   match t with T Black _ _ _ => True | _ => False end.
 
 Lemma append_shape_aux:
-  forall sz tl tr, size tl + size tr < sz -> 
+  forall sz tl tr, size tl + size tr < sz ->
            (forall n, is_redblack tl Black n -> is_redblack tr Black n -> infrared (append (tl,tr)) n) /\
            (forall n, is_redblack tl Red n -> is_redblack tr Red n -> is_redblack (append (tl,tr)) Black n).
 Proof.
@@ -902,7 +902,7 @@ apply IHsz. simpl in H|-*; omega.
 hax. hax.
 inv H1.
 hax.
-constructor; auto. 
+constructor; auto.
 apply IHsz. simpl in H|-*; omega.
 hax. hax. hax.
 assert (infrared (append(tr0,tl)) n0).
@@ -1092,7 +1092,7 @@ hax.
 inv H2.
 apply balance'_shape.
 right; split; hax.
-Qed. 
+Qed.
 
 Lemma delete_is_redblack:
   forall x t n, is_redblack t Black n ->
@@ -1132,39 +1132,39 @@ Qed.
 Hint Constructors interp.
 
 Tactic Notation "do_hyp" hyp(H) :=
-  match type of H with ?a -> _ => 
+  match type of H with ?a -> _ =>
     let H1 := fresh in (assert (H1: a); [ |generalize (H H1); clear H H1; intro H]) end.
 
 Ltac jax :=
    repeat
-       match goal with 
-        | H: interp EE _ |- _ => inv H 
+       match goal with
+        | H: interp EE _ |- _ => inv H
         | |- interp match ?c with Red => _ | Black => _ end _ => destruct c
-        | |- interp match ?t with EE => _ | T _ _ _ _ => _ end _ => 
+        | |- interp match ?t with EE => _ | T _ _ _ _ => _ end _ =>
                   match t with balance' _ _ _ => fail 1 | append _ => fail 1 | _ =>  destruct t end
-        | H: interp (balance' _ _ _) _ |- _ => 
+        | H: interp (balance' _ _ _) _ |- _ =>
                          apply interp_balance' in H; destruct H as [?|[?|?]]
-        | |- interp (balance' _ _ _) _ => 
+        | |- interp (balance' _ _ _) _ =>
                          apply interp_balance'
         | H: interp match ?c with Red => _ | Black => _ end _ |- _ => destruct c
-        | H: interp match ?t with EE => _ | T _ _ _ _ => _ end _ |- _  => 
+        | H: interp match ?t with EE => _ | T _ _ _ _ => _ end _ |- _  =>
                 match t with balance' _ _ _ => fail 1 | append _ => fail 1 | _ =>  destruct t end
         | H: interp (T _ _ _ _) _ |- _ => inv H
-        | H: interp _ _ <-> interp _ _ \/ interp _ _ |- _ => 
-                        solve [destruct H  as [H _]; destruct H; auto] 
+        | H: interp _ _ <-> interp _ _ \/ interp _ _ |- _ =>
+                        solve [destruct H  as [H _]; destruct H; auto]
         | |- _ => solve [auto 50]
         | H: interp _ _ -> _ \/ _ |- _ \/ _ => solve [destruct H; auto]
         | H: interp ?JJ  _, IHsz: forall _ _, _ -> _ |- _ =>
           match JJ with context [append(?a,?b)] =>
-                 let H99 := fresh in 
-                    destruct (IHsz a b) as [H99 _];  [simpl in *; omega | ]; 
+                 let H99 := fresh in
+                    destruct (IHsz a b) as [H99 _];  [simpl in *; omega | ];
                     destruct (append(a,b));
                     try  (destruct (H99 H); [ solve [auto] | | ])
            end
          |  IHsz: forall _ _, _ -> _ |- interp ?JJ _ =>
        match JJ with context [append(?a,?b)] =>
-                 let H99 := fresh in 
-                    destruct (IHsz a b) as [HA HB];  [simpl in *; omega | ]; 
+                 let H99 := fresh in
+                    destruct (IHsz a b) as [HA HB];  [simpl in *; omega | ];
                     destruct (append(a,b));
                     try (do_hyp HA; [solve [auto] | ]);
                     try (do_hyp HB; [solve [auto] | ])
@@ -1172,7 +1172,7 @@ Ltac jax :=
      end.
 
 Lemma interp_append_aux:
-  forall x sz tl tr, size tl + size tr < sz -> 
+  forall x sz tl tr, size tl + size tr < sz ->
      (interp (append(tl,tr)) x <-> (interp tl x \/ interp tr x)).
 Proof.
 induction sz; simpl; intros.
@@ -1195,9 +1195,9 @@ Proof.
 unfold sub1; destruct t; intuition; inv H; auto.
 Qed.
 
-Lemma del_ok:  
-   forall x y t lo hi, 
-             searchtree lo hi t -> 
+Lemma del_ok:
+   forall x y t lo hi,
+             searchtree lo hi t ->
              ((~K.eq x y /\ interp t x) <-> interp (del y t) x).
 Proof.
 induction 1; simpl; split; intros.
@@ -1334,7 +1334,7 @@ unfold balright in H1.
 destruct ytr; repeat (do_interp_balance; simpl); auto.
 apply interp_balance' in H5.
 constructor 2.
-destruct H5 as [?|[?|?]]; auto. 
+destruct H5 as [?|[?|?]]; auto.
 constructor 2. apply interp_sub1; auto.
 apply interp_balance' in H1.
 destruct H1 as [?|[?|?]]; auto.
@@ -1363,7 +1363,7 @@ split; auto.
 Qed.
 
 Lemma interp_delete:
-      forall x y s, 
+      forall x y s,
              searchtree None None s ->
              ((~K.eq x y /\ interp s x) <-> interp (delete y s) x).
 Proof.
@@ -1373,7 +1373,7 @@ destruct (del_ok x y s None None H).
 split; intros.
 apply H0 in H2.
 destruct (del y s); auto.
-inv H2; auto. 
+inv H2; auto.
 apply H1.
 destruct (del y s); auto.
 inv H2; auto.
@@ -1381,7 +1381,7 @@ Qed.
 
 Lemma insert_valid: forall x s, valid s -> valid (insert x s).
 Proof.
- intros. destruct H; split. 
+ intros. destruct H; split.
  apply insert_searchtree;  auto.
  destruct H0. simpl.
  eapply insert_is_redblack; eauto.
@@ -1391,7 +1391,7 @@ Lemma empty_valid: valid EE.
 Proof. split. repeat constructor. do 2 econstructor.
 Qed.
 
-Lemma delete_searchtree: forall k s, 
+Lemma delete_searchtree: forall k s,
   searchtree None None s -> searchtree None None (delete k s).
 Proof.
  intros. apply (del_is_searchtree k) in H; unfold delete; simpl. inv H; constructor; auto.
@@ -1424,7 +1424,7 @@ Qed.
   Patrick Gruessay, "An iterative Lisp solution to the Samefringe problem",
   ACM SIGART Bulletin, Issue 59, p. 14, August 1976.
 
-  John McCarthy. Another Samefringe. ACM SIGART Bulletin, No. 61, February 1977. 
+  John McCarthy. Another Samefringe. ACM SIGART Bulletin, No. 61, February 1977.
 
 *)
 
@@ -1437,9 +1437,9 @@ Fixpoint gopher (s: tree) : tree :=
                           end
   end.
 
-Lemma shape_gopher: forall a, 
-  match gopher a with 
-  | T _ (T _ _ _ _) _ _ => False 
+Lemma shape_gopher: forall a,
+  match gopher a with
+  | T _ (T _ _ _ _) _ _ => False
   | _ => True
   end.
 Proof. induction a; simpl; auto.
@@ -1489,17 +1489,17 @@ Lemma interp_gopher: forall s k, interp (gopher s) k <-> interp s k.
   inv H0.
   constructor 3; constructor 1; auto.
   apply H3 in H7.
-  inv H7. 
+  inv H7.
   constructor 1; auto.
   constructor 2; auto.
   constructor 3; constructor 2; auto.
   constructor 3; constructor 3; auto.
 Qed.
 
-Lemma searchtree_gopher: forall a lo hi, 
+Lemma searchtree_gopher: forall a lo hi,
     searchtree lo hi a <-> searchtree lo hi (gopher a).
  Proof.
-  induction a; intros; simpl. 
+  induction a; intros; simpl.
   intuition.
   case_eq (gopher a1); intros.
   intuition.
@@ -1512,7 +1512,7 @@ Lemma searchtree_gopher: forall a lo hi,
   inv H. inv H7.
   constructor; auto.
   apply IHa1. repeat constructor; auto.
- Qed.  
+ Qed.
 
 
 Fixpoint rgopher (s: tree) : tree :=
@@ -1524,9 +1524,9 @@ Fixpoint rgopher (s: tree) : tree :=
                           end
   end.
 
-Lemma shape_rgopher: forall a, 
-  match rgopher a with 
-  | T _ _ _ (T _ _ _ _) => False 
+Lemma shape_rgopher: forall a,
+  match rgopher a with
+  | T _ _ _ (T _ _ _ _) => False
   | _ => True
   end.
 Proof. induction a; simpl; auto.
@@ -1543,10 +1543,10 @@ Proof.
  Qed.
 
 
-Lemma searchtree_rgopher: forall a lo hi, 
+Lemma searchtree_rgopher: forall a lo hi,
     searchtree lo hi a <-> searchtree lo hi (rgopher a).
  Proof.
-  induction a; intros; simpl. 
+  induction a; intros; simpl.
   intuition.
   case_eq (rgopher a2); intros.
   intuition.
@@ -1559,7 +1559,7 @@ Lemma searchtree_rgopher: forall a lo hi,
   inv H. inv H4.
   constructor; auto.
   apply IHa2. repeat constructor; auto.
- Qed. 
+ Qed.
 
 
 Lemma interp_rgopher: forall s k, interp (rgopher s) k <-> interp s k.
@@ -1597,7 +1597,7 @@ Lemma interp_rgopher: forall s k, interp (rgopher s) k <-> interp s k.
   constructor 2; constructor 1; auto.
   constructor 2; constructor 2; auto.
   apply H3 in H7.
-  inv H7. 
+  inv H7.
   constructor 1; auto.
   constructor 2; constructor 3; auto.
   constructor 3; auto.
@@ -1606,7 +1606,7 @@ Qed.
 Function compare' (s t : tree) {measure size s} : comparison :=
  match gopher s, gopher t with
  | EE , EE => Eq
- | T _ EE j sr , T _ EE j' tr => 
+ | T _ EE j sr , T _ EE j' tr =>
     match K.compare j j' with
     | Gt => Gt | Lt => Lt | Eq => compare' sr tr
     end
@@ -1614,25 +1614,25 @@ Function compare' (s t : tree) {measure size s} : comparison :=
  | T _ _ _ _, EE => Gt
  |  EE, T _ _ _ _ => Lt
  end.
- Proof. 
+ Proof.
   intros. subst.
   rewrite <- (size_gopher s). rewrite teq.
   simpl; omega.
   Defined.
 
-Lemma interp_compare': forall a b, 
+Lemma interp_compare': forall a b,
      compare' a b = Eq -> (forall k, interp a k <-> interp b k).
  Proof.
   intros.
   remember (size a) as n.
-  assert (size a <= n) by (subst; auto). 
+  assert (size a <= n) by (subst; auto).
   clear Heqn; revert a b H0 H; induction n; intros.
   destruct a; inv H0. destruct b; inv H. intuition.
   rewrite compare'_equation in H1. simpl in H1.
   destruct (gopher b1); inv H1.
 
   rewrite compare'_equation in H.
-  generalize (interp_gopher a k); intro.  
+  generalize (interp_gopher a k); intro.
   generalize (interp_gopher b k); intro.
   generalize (size_gopher a); intro.
   generalize (size_gopher b); intro.
@@ -1646,7 +1646,7 @@ Lemma interp_compare': forall a b,
   do_compare t2 t5; try discriminate.
   simpl in H3, H4.
   apply IHn in H; try omega.
-  apply H1. inv H8.  constructor 1. rewrite H13; auto. 
+  apply H1. inv H8.  constructor 1. rewrite H13; auto.
   inv H13.
   constructor 3; intuition.
   destruct t1; try contradiction.
@@ -1659,20 +1659,20 @@ Lemma interp_compare': forall a b,
   constructor 3; intuition.
  Qed.
 
-Lemma compare'_interp_aux: 
-  forall a lo hi b lo' hi', 
-       searchtree lo hi a -> 
-       searchtree lo' hi' b -> 
-        (forall k, interp a k <-> interp b k) -> 
+Lemma compare'_interp_aux:
+  forall a lo hi b lo' hi',
+       searchtree lo hi a ->
+       searchtree lo' hi' b ->
+        (forall k, interp a k <-> interp b k) ->
        compare' a b = Eq.
  Proof.
   intro a.
    remember (size a) as n.
-  assert (size a <= n) by (subst; auto). 
+  assert (size a <= n) by (subst; auto).
   clear Heqn; revert a H; induction n; intros; rewrite compare'_equation.
   destruct a; inv H.
   destruct b; simpl; auto.
-  destruct (H2 t). 
+  destruct (H2 t).
   assert (interp EE t). apply H3. constructor 1; auto. reflexivity. inv H4.
   generalize (shape_gopher a) as SHa.
   case_eq (gopher a); intros.
@@ -1710,8 +1710,8 @@ Lemma compare'_interp_aux:
   assert (interp a k). apply H2. constructor 3; auto.
   apply H0 in H16. apply H13 in H16.
   inv H16.
-  elimtype False.  
-  clear - e H22 H14 H6. 
+  elimtype False.
+  clear - e H22 H14 H6.
   destruct (interp_range _ _ _ _ H14 H6).
   simpl in H. rewrite H22 in H. rewrite e in H. apply (lt_irrefl H).
   inv H22. auto.
@@ -1758,7 +1758,7 @@ Function linear_union_aux (st : tree*tree) (nl: positive * list key)
    {measure (fun st => size (fst st) + size (snd st)) st} : positive * list key  :=
  match rgopher (fst st), rgopher (snd st) with
  | EE , EE => nl
- | T _ sl j EE as st1 , T _ tl j' EE as st2 => 
+ | T _ sl j EE as st1 , T _ tl j' EE as st2 =>
     match K.compare j j' with
     | Lt => linear_union_aux (st1, tl) (Psucc (fst nl), j':: snd nl)
     | Gt => linear_union_aux (sl, st2) (Psucc (fst nl), j:: snd nl)
@@ -1768,7 +1768,7 @@ Function linear_union_aux (st : tree*tree) (nl: positive * list key)
  |  EE, T _ tl j' EE => linear_union_aux (EE,tl) (Psucc (fst nl), j':: snd nl)
  | _, _ => nl (* impossible *)
  end.
- Proof. 
+ Proof.
   simpl; intros; subst;
        rewrite <- (size_rgopher (fst st)); rewrite <- (size_rgopher (snd st));
        rewrite teq; rewrite teq0; simpl; omega.
@@ -1794,7 +1794,7 @@ Function linear_diff_aux (st : tree*tree) (nl: positive * list key)
    {measure (fun st => size (fst st) + size (snd st)) st} : positive * list key  :=
  match rgopher (fst st), rgopher (snd st) with
  | EE , _ => nl
- | T _ sl j EE as st1 , T _ tl j' EE as st2 => 
+ | T _ sl j EE as st1 , T _ tl j' EE as st2 =>
     match K.compare j j' with
     | Lt => linear_diff_aux (st1, tl) nl
     | Gt => linear_diff_aux (sl, st2) (Psucc (fst nl), j:: snd nl)
@@ -1803,7 +1803,7 @@ Function linear_diff_aux (st : tree*tree) (nl: positive * list key)
  | T _ sl j EE, EE => linear_diff_aux (sl,EE) (Psucc (fst nl), j:: snd nl)
  | _, _ => nl (* impossible *)
  end.
- Proof. 
+ Proof.
   simpl; intros; subst;
        rewrite <- (size_rgopher (fst st)); rewrite <- (size_rgopher (snd st));
        rewrite teq; rewrite teq1; simpl; omega.
@@ -1829,13 +1829,13 @@ Fixpoint fold' (A: Type) (f: key -> A -> A) (x: tree) (base: A) : A :=
  end.
 
 Definition skip_red t :=
- match t with 
+ match t with
  | T Red t' _ _ => t'
  | _ => t
  end.
 
 Definition skip_black t :=
-  match skip_red t with 
+  match skip_red t with
   | T Black t' _ _ => t'
   | t' => t'
   end.
@@ -1847,13 +1847,13 @@ Definition skip_black t :=
 *)
 Fixpoint compare_height (s1x s1 s2 s2x: tree) : comparison :=
  match skip_red s1x, skip_red s1, skip_red s2, skip_red s2x with
- | T _ s1x' _ _, T _ s1' _ _, T _ s2' _ _, T _ s2x' _ _ => 
+ | T _ s1x' _ _, T _ s1' _ _, T _ s2' _ _, T _ s2x' _ _ =>
         compare_height (skip_black s2x') s1' s2' (skip_black s2x')
  | _, EE, _, T _ _ _ _ => Lt
  | T _ _ _ _, _, EE, _ => Gt
- | T _ s1x' _ _, T _ s1' _ _, T _ s2' _ _, EE => 
+ | T _ s1x' _ _, T _ s1' _ _, T _ s2' _ _, EE =>
         compare_height (skip_black s1x') s1' s2' EE
- | EE, T _ s1' _ _, T _ s2' _ _, T _ s2x' _ _ => 
+ | EE, T _ s1' _ _, T _ s2' _ _, T _ s2x' _ _ =>
         compare_height EE s1'  s2'  (skip_black s2x')
  | _, _, _, _ => Eq
  end.
@@ -1870,7 +1870,7 @@ Function linear_inter_aux (st : tree*tree) (nl: positive * list key)
     end
  | _, _ => nl
  end.
- Proof. 
+ Proof.
   simpl; intros; subst;
        rewrite <- (size_rgopher (fst st)); rewrite <- (size_rgopher (snd st));
        rewrite teq; rewrite teq1; simpl; omega.
@@ -1924,9 +1924,9 @@ Lemma treeify_f_length:
   forall n l, length l >= nat_of_P n ->
            length(snd(treeify_f n l))+nat_of_P n = length l.
  Proof.
- pose (fP n (l: list key) (res: tree * list key) := 
+ pose (fP n (l: list key) (res: tree * list key) :=
                       length l >= nat_of_P n -> length (snd res) + nat_of_P n = length l).
- pose (gP n (l: list key) (res: tree * list key) := 
+ pose (gP n (l: list key) (res: tree * list key) :=
                       S (length l) >= nat_of_P n -> length (snd res) + nat_of_P n = S(length l)).
  intros.
  apply (treeify_f_ind2 fP gP); unfold fP, gP; clear fP gP; simpl; intros; subst;
@@ -1934,7 +1934,7 @@ Lemma treeify_f_length:
   try rewrite nat_of_P_xH in *;
   try rewrite nat_of_P_xO in *;
   try rewrite nat_of_P_xI in *;
-  simpl in *.  
+  simpl in *.
  (* 12 cases! *)
  (* case 1 *)
  rewrite <- H0 by omega. omega.
@@ -1984,13 +1984,13 @@ Lemma treeify_g_length:
  destruct (treeify_f n l); simpl in *.
  destruct l0. simpl in H0.
  spec H0; [omega|]. simpl.
- omega. 
+ omega.
  specialize (IHn l0).
  destruct (treeify_g n l0). simpl in *.
  rewrite <- H0 by omega. omega.
  generalize (IHn l); intros.
  destruct (treeify_g n l); simpl in *.
- destruct l0; simpl in *. 
+ destruct l0; simpl in *.
  omega.
  specialize (IHn l0). destruct (treeify_g n l0); simpl in *. omega.
  (* case 3 of 3 *)
@@ -2012,7 +2012,7 @@ Lemma treeify_g_induc:
        (forall  l n' t1 x l2 t2 l3
          (LEN: length l >= nat_of_P n')
          (LEN2: S (length l2) >= nat_of_P n'),
-          fP n' l (t1, x :: l2) -> treeify_f n' l = (t1, x :: l2) -> gP n' l2 (t2, l3) ->   
+          fP n' l (t1, x :: l2) -> treeify_f n' l = (t1, x :: l2) -> gP n' l2 (t2, l3) ->
           treeify_g n' l2 = (t2, l3) -> fP (xO n') l (T Black t1 x t2, l3)) ->
        (forall x l1, fP xH (x :: l1) (T Red EE x EE, l1)) ->
        (forall  l n' t1 x l2 t2 l3
@@ -2029,11 +2029,11 @@ Lemma treeify_g_induc:
        forall n l, S (length l) >= nat_of_P n -> gP n l (treeify_g n l).
  Proof.
   intros.
-  apply (treeify_g_ind2 
+  apply (treeify_g_ind2
      (fun n (l: list key) (res: tree * list key) => length l >= nat_of_P n -> fP n l res)
      (fun n (l: list key) (res: tree * list key) => S (length l) >= nat_of_P n -> gP n l res));
  intros;
- try (rewrite e0 in *); try (rewrite e2 in *); 
+ try (rewrite e0 in *); try (rewrite e2 in *);
   try rewrite nat_of_P_xH in *;
   try rewrite nat_of_P_xO in *;
   try rewrite nat_of_P_xI in *;
@@ -2045,7 +2045,7 @@ Lemma treeify_g_induc:
  (* case 2 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl; intro.
   spec H9; [omega|].
-  spec H7; [ omega |]. 
+  spec H7; [ omega |].
   spec H6; [omega|].
   eapply H; eauto. omega. omega.
  (* case 3 of 11 *)
@@ -2072,7 +2072,7 @@ Lemma treeify_g_induc:
   (* case 8 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl in *; intro.
   spec H6; [omega|]. spec H7; [omega|]. spec H9; [omega|].
-  eapply H2; eauto; omega. 
+  eapply H2; eauto; omega.
   (* case 9 of 11 *)
   spec H6; [omega|].
   generalize (treeify_g_length n' l0); rewrite e0; simpl in *; intro.
@@ -2082,14 +2082,14 @@ Lemma treeify_g_induc:
   generalize (treeify_g_length n' l0); rewrite e0; simpl in *; intro.
   spec H9; [omega|]. spec H6; [omega|]. spec H7; [omega|].
   eapply H3; eauto. omega. omega.
-  (* case 11 of 11 *) 
+  (* case 11 of 11 *)
   eapply H4; eauto.
   (* done *)
   auto.
 Qed.
 
 Lemma treeify'_g_is_redblack:
-   forall n l, 
+   forall n l,
      S (length l) >= nat_of_P n ->
        is_redblack (fst (treeify_g n l)) Red (plog2 n).
  Proof.
@@ -2137,18 +2137,18 @@ Lemma treeify'_g_is_redblack:
   constructor; apply is_redblack_toblack.
   apply H; omega.
   auto.
-  (* case 6 of 6 *) 
+  (* case 6 of 6 *)
   constructor; auto.
 Qed.
 
-Lemma nat_of_poslength: 
+Lemma nat_of_poslength:
     forall A (l: list A), nat_of_P (poslength l) = S (length l).
 Proof.
  induction l. simpl. rewrite nat_of_P_xH; omega.
-  simpl. 
+  simpl.
   rewrite nat_of_P_succ_morphism.
  omega.
-Qed. 
+Qed.
 
 Lemma treeify_is_redblack:
   forall l, exists n, is_redblack (treeify l) Red n.
@@ -2168,7 +2168,7 @@ Definition HdRel' (R: key -> key -> Prop) (lo: option key) (l: list key) :=
 Lemma treeify_f_not_EE:
   forall n l, length l >= nat_of_P n -> fst (treeify_f n l) <> EE.
 Proof.
- induction n; simpl; intros; 
+ induction n; simpl; intros;
   try rewrite nat_of_P_xH in *;
   try rewrite nat_of_P_xO in *;
   try rewrite nat_of_P_xI in *.
@@ -2182,7 +2182,7 @@ Proof.
  spec H0; [omega|].
   destruct (treeify_f n l).
   simpl in H0. destruct l0.
- simpl in H0; elimtype False. 
+ simpl in H0; elimtype False.
   generalize (nat_of_P_pos n); intro; omega.
   destruct (treeify_g n l0); simpl; congruence.
   destruct l; simpl in H.
@@ -2191,25 +2191,25 @@ Proof.
 Qed.
 
 Lemma treeify'_g_is_searchtree:
-   forall n l lo, 
-    HdRel' K.lt lo l -> Sorted K.lt l ->       
+   forall n l lo,
+    HdRel' K.lt lo l -> Sorted K.lt l ->
      S (length l) >= nat_of_P n ->
-       (searchtree lo (hd_error (snd (treeify_g n l))) (fst (treeify_g n l)) /\ 
-        (forall k, interp (fst (treeify_g n l)) k \/ InA K.eq k (snd (treeify_g n l)) <-> InA K.eq k l) /\ 
+       (searchtree lo (hd_error (snd (treeify_g n l))) (fst (treeify_g n l)) /\
+        (forall k, interp (fst (treeify_g n l)) k \/ InA K.eq k (snd (treeify_g n l)) <-> InA K.eq k l) /\
             Sorted K.lt (snd (treeify_g n l))).
  Proof.
  intros.
- pose (fP n (l: list key) (res: tree*list key) := 
-             forall lo, HdRel' K.lt lo l -> Sorted K.lt l -> 
-                  searchtree lo (hd_error (snd res)) (fst res) /\ 
-        (forall k, interp (fst (treeify_f n l)) k \/ InA K.eq k (snd (treeify_f n l)) <-> InA K.eq k l) /\ 
+ pose (fP n (l: list key) (res: tree*list key) :=
+             forall lo, HdRel' K.lt lo l -> Sorted K.lt l ->
+                  searchtree lo (hd_error (snd res)) (fst res) /\
+        (forall k, interp (fst (treeify_f n l)) k \/ InA K.eq k (snd (treeify_f n l)) <-> InA K.eq k l) /\
         Sorted K.lt (snd (treeify_f n l))).
- pose (gP n (l: list key) (res: tree*list key) := 
-             forall lo, HdRel' K.lt lo l -> Sorted K.lt l -> 
-          searchtree lo (hd_error (snd res))  (fst res)/\ 
-        (forall k, interp (fst (treeify_g n l)) k \/ InA K.eq k (snd (treeify_g n l)) <-> InA K.eq k l) /\ 
+ pose (gP n (l: list key) (res: tree*list key) :=
+             forall lo, HdRel' K.lt lo l -> Sorted K.lt l ->
+          searchtree lo (hd_error (snd res))  (fst res)/\
+        (forall k, interp (fst (treeify_g n l)) k \/ InA K.eq k (snd (treeify_g n l)) <-> InA K.eq k l) /\
                    Sorted K.lt (snd (treeify_g n l))).
- eapply (treeify_g_induc fP gP); auto; 
+ eapply (treeify_g_induc fP gP); auto;
   clear l n H H0 H1;
  unfold fP,gP; clear fP gP; intros;
   try rewrite nat_of_P_xH in *;
@@ -2219,7 +2219,7 @@ Lemma treeify'_g_is_searchtree:
   destruct (H _ H3 H4) as [? [? ?]]; clear H.
   rewrite H0 in *; simpl fst in *; simpl snd in *.
   inv H7.
-  destruct (H1 (Some x) H10 H9) as [? [? ?]]; clear H1. 
+  destruct (H1 (Some x) H10 H9) as [? [? ?]]; clear H1.
   rewrite H2 in *; simpl fst in *; simpl snd in *.
   simpl hd_error in *. unfold value in *.
   rewrite H0. rewrite H2. simpl fst in *; simpl snd in *.
@@ -2228,7 +2228,7 @@ Lemma treeify'_g_is_searchtree:
   apply treeify_f_not_EE in LEN; rewrite H0 in LEN. simpl in LEN.
   destruct t1; try solve [contradiction LEN; auto]. inv H5.
     apply treeify_f_not_EE in LEN2; rewrite H2 in LEN2; simpl in LEN2.
-  destruct t2; try solve [contradiction LEN2; auto]. inv H. 
+  destruct t2; try solve [contradiction LEN2; auto]. inv H.
   clear - H6 H7.
   intro k; specialize (H6 k); specialize (H7 k); intuition. inv H6; intuition.
   inv H0; intuition.
@@ -2249,7 +2249,7 @@ Lemma treeify'_g_is_searchtree:
   split; [|split]; auto. repeat constructor; auto.
   destruct l1; simpl; auto. inv H4; auto.
   intro k; intuition.
-  inv H0; try solve [inv H8]. constructor 1. auto. 
+  inv H0; try solve [inv H8]. constructor 1. auto.
   inv H. left; constructor 1; auto. auto.
   inv H0. simpl.
   split; [|split]; auto. repeat constructor; auto.
@@ -2282,7 +2282,7 @@ Lemma treeify'_g_is_searchtree:
   clear - H6 H7; intro k; specialize (H6 k); specialize (H7 k); intuition.
   inv H6; intuition.
   inv H0; intuition.
- (* case 6 of 6 *) 
+ (* case 6 of 6 *)
   simpl in *.
   split; [|split]; auto.
   constructor.
@@ -2318,10 +2318,10 @@ Definition Kle x y := K.lt x y \/ K.eq x y.
 
   Lemma filter_aux_lemma:
   forall f s n l lo hi,
-           searchtree lo hi s -> filter_aux f s 1%positive nil = (n,l) -> 
+           searchtree lo hi s -> filter_aux f s 1%positive nil = (n,l) ->
           HdRel' K.lt lo l /\ Sorted K.lt l /\ S (length l) = nat_of_P n /\
           (compatb f -> forall x, interp s x /\ f x = true <-> InA K.eq x l).
- Proof. 
+ Proof.
   intros.
   remember 1%positive as n0.
   remember (@nil key) as l0.
@@ -2360,12 +2360,12 @@ Definition Kle x y := K.lt x y \/ K.eq x y.
   split; auto.
   intros COMPAT x; rewrite <-(H13 COMPAT x);  clear  H13.
   specialize (H7 COMPAT x); clear - COMPAT Heqft H7; intuition etac. inv H1; auto. inv H3; auto.
-  rewrite (COMPAT _ _ H4) in *. auto.  
+  rewrite (COMPAT _ _ H4) in *. auto.
   destruct (H0 H4); auto. destruct H1; auto.
 
   specialize (IHs1 _ _ _ _ H0 _ _ H9).
   destruct IHs1 as [? [? [? ?]]].
-  simpl. simpl in H. clear - H. 
+  simpl. simpl in H. clear - H.
   apply HdRel_lt_le; auto.
   omega.
   auto.
@@ -2379,7 +2379,7 @@ Definition Kle x y := K.lt x y \/ K.eq x y.
   rewrite (COMPAT _ _ H22) in *. rewrite <- Heqft in H17; inv H17.
 Qed.
 
-Definition filter' (f: key -> bool) (s: tree) : tree := 
+Definition filter' (f: key -> bool) (s: tree) : tree :=
   let nl := filter_aux f s 1%positive nil in fst (treeify_g (fst nl) (snd nl)).
 
 Lemma filter_valid: forall f s, valid s -> valid (filter' f s).
@@ -2388,7 +2388,7 @@ Proof.
   simpl.
   case_eq (filter_aux f s 1 nil); intros n l ?.
   destruct H.
-  destruct (filter_aux_lemma _ _ _ _ _ _ H H0) as [? [? [? _]]].  
+  destruct (filter_aux_lemma _ _ _ _ _ _ H H0) as [? [? [? _]]].
   assert (S (length l) >= nat_of_P n) by omega.
   destruct (treeify'_g_is_searchtree n l None); simpl; auto.
   generalize (treeify'_g_is_redblack _ _ H5); intro.
@@ -2400,7 +2400,7 @@ Qed.
 
 
 Lemma linear_inter_aux_lemma:
-  forall s1 s2 lo hi, 
+  forall s1 s2 lo hi,
     searchtree lo hi s1 -> searchtree lo hi s2 ->
    forall n l n0 l0,
     (n,l) = (linear_inter_aux (s1, s2) (n0,l0)) ->
@@ -2570,7 +2570,7 @@ destruct l as [n l].
 Qed.
 
 Lemma linear_union_aux_lemma:
-  forall s1 s2 lo hi, 
+  forall s1 s2 lo hi,
     searchtree lo hi s1 -> searchtree lo hi s2 ->
    forall n l n0 l0,
     (n,l) = (linear_union_aux (s1, s2) (n0,l0)) ->
@@ -2711,7 +2711,7 @@ rewrite searchtree_rgopher in H1.
 specialize (IHN _ _ H1 H11).
 destruct (IHN _ _ _ _ H2) as [? [? ?]]; clear IHN; simpl; auto.
 constructor; auto. right; reflexivity.
-constructor; auto. 
+constructor; auto.
 destruct hi; destruct l0; try contradiction; try solve [constructor].
 simpl in H4.
 apply HdRel_le_lt with t2; auto.
@@ -2741,7 +2741,7 @@ rewrite searchtree_rgopher in H0.
 specialize (IHN _ _ H11 H0).
 destruct (IHN _ _ _ _ H2) as [? [? ?]]; clear IHN; simpl; auto.
 constructor; auto. right; reflexivity.
-constructor; auto. 
+constructor; auto.
 destruct hi; destruct l0; try contradiction; try solve [constructor].
 simpl in H4.
 apply HdRel_le_lt with t2; auto.
@@ -2774,7 +2774,7 @@ destruct l as [n l].
 Qed.
 
 Lemma linear_diff_aux_lemma:
-  forall s1 s2 lo hi, 
+  forall s1 s2 lo hi,
     searchtree lo hi s1 -> searchtree lo hi s2 ->
    forall n l n0 l0,
     (n,l) = (linear_diff_aux (s1, s2) (n0,l0)) ->
@@ -2940,7 +2940,7 @@ destruct l as [n l].
   omega.
 Qed.
 
-Fixpoint partition_aux (f: key -> bool) (s: tree) 
+Fixpoint partition_aux (f: key -> bool) (s: tree)
    (nl1 nl2: positive *  list key) :  (positive * list key) * (positive * list key) :=
  match s with
  | T _ sl k sr => match partition_aux f sr nl1 nl2
@@ -2952,7 +2952,7 @@ Fixpoint partition_aux (f: key -> bool) (s: tree)
  end.
 
 Lemma partition_aux_lemma1:
-   forall f s lo hi, searchtree lo hi s -> 
+   forall f s lo hi, searchtree lo hi s ->
      forall nl1' nl2' nl1 nl2,
            (nl1',nl2') = partition_aux f s nl1 nl2 ->
       (hi=None -> snd nl1 = nil /\ snd nl2 = nil) ->
@@ -2962,7 +2962,7 @@ Lemma partition_aux_lemma1:
      Sorted K.lt (snd nl2) ->
      S (length (snd nl1)) = nat_of_P (fst nl1) ->
      S (length (snd nl2)) = nat_of_P (fst nl2) ->
-     HdRel' K.lt lo (snd nl1') /\  HdRel' K.lt lo (snd nl2') /\ 
+     HdRel' K.lt lo (snd nl1') /\  HdRel' K.lt lo (snd nl2') /\
      Sorted K.lt (snd nl1') /\ Sorted K.lt (snd nl2') /\
      S (length (snd nl1')) = nat_of_P (fst nl1') /\
      S (length (snd nl2')) = nat_of_P (fst nl2').
@@ -2980,7 +2980,7 @@ intro Hx; inv Hx.
 constructor; auto. right; reflexivity.
 apply HdRel_lt_le; auto.
 rewrite nat_of_P_succ_morphism; omega.
-split; auto. 
+split; auto.
 intro Hx; inv Hx.
 simpl in *.
 apply HdRel_lt_le. auto.
@@ -2989,7 +2989,7 @@ rewrite nat_of_P_succ_morphism; omega.
 split; auto.
 Qed.
 
-Definition partition'  (f: key -> bool) (s: tree) : (tree*tree) := 
+Definition partition'  (f: key -> bool) (s: tree) : (tree*tree) :=
   match partition_aux f s (1%positive, nil) (1%positive,  nil)
    with ((n1,l1),(n2,l2)) => (fst (treeify_g n1 l1), fst (treeify_g n2 l2))
   end.
@@ -3031,8 +3031,8 @@ Proof.
  Qed.
 
 
-  Lemma fold'_app: forall s d ar, 
-                  fold' (list key) (@cons key) s (app d ar) = 
+  Lemma fold'_app: forall s d ar,
+                  fold' (list key) (@cons key) s (app d ar) =
                       app (fold' (list key) (@cons key) s d) ar.
  induction s; intros; auto.
   simpl fold'.
@@ -3053,7 +3053,7 @@ Proof.
   change (cons t l1) with (app nil (cons t l1)).
   rewrite fold'_app.
  remember (fold' (list key) (@cons key) s2 (@nil key)) as l2.
-  rewrite List.rev_app_distr. 
+  rewrite List.rev_app_distr.
  rewrite List.fold_left_app.
    repeat rewrite <- IHs2.
   f_equal.
@@ -3090,7 +3090,7 @@ Proof.
        (ltopt lo (Some k) /\ ltopt (Some k) hi).
     Proof.
     induction 1; simpl; intros. inv H0.
-    change 
+    change
      (SetoidList.InA E.eq k
        (List.rev
           (fold' (list key) (@cons _) tr (nil++(k0 ::nil)++ fold' (list key) (@cons _) tl nil)%list)))
@@ -3146,7 +3146,7 @@ Lemma tree_similar_lemma':
        destruct (interp_range _ _ _ _ H12 H16). simpl in H2.
        elimtype False.
        destruct (H1 k') as [_ ?].
-       absurd (interp (T c EE k s) k'). 
+       absurd (interp (T c EE k s) k').
         intro Hx; inv Hx.  rewrite H19 in H2. contradiction (lt_irrefl  H2). inv H19.
        destruct (interp_range _ _ _ _ H9 H19). simpl in H7.
           contradiction (lt_irrefl (lt_trans H5 H2)).
@@ -3169,7 +3169,7 @@ Lemma tree_similar_lemma:
    split; auto; intuition.
  Qed.
 
-Definition union' (s1 s2: tree) : tree := 
+Definition union' (s1 s2: tree) : tree :=
    match compare_height s1 s1 s2 s2 with
       | Lt => fold' _ insert s1 s2
       | Gt => fold' _ insert s2 s1
@@ -3178,10 +3178,10 @@ Definition union' (s1 s2: tree) : tree :=
 
 
 Lemma fold'_searchtree:
-  forall (f: key -> tree -> tree) 
+  forall (f: key -> tree -> tree)
       (Hf: forall k s, searchtree None None s -> searchtree None None (f k s))
       s1 s2,
-      searchtree None None s1 -> searchtree None None s2 -> 
+      searchtree None None s1 -> searchtree None None s2 ->
       searchtree None None (fold' _ f s1 s2).
 Proof.
  induction s1; simpl; intros; auto.
@@ -3226,7 +3226,7 @@ apply fold'_valid; auto; apply insert_valid.
 apply fold'_valid; auto; apply insert_valid.
 Qed.
 
-Definition diff' (s1 s2: tree) : tree := 
+Definition diff' (s1 s2: tree) : tree :=
    match compare_height s1 s1 s2 s2 with
       | Lt => filter' (fun k => negb (member k s2)) s1
       | Gt => fold' _ delete s2 s1
@@ -3242,7 +3242,7 @@ apply filter_valid; auto.
 apply fold'_valid; auto; apply remove_valid.
 Qed.
 
-Definition inter' (s1 s2: tree) : tree := 
+Definition inter' (s1 s2: tree) : tree :=
    match compare_height s1 s1 s2 s2 with
       | Lt => filter' (fun k => member k s2) s1
       | Gt => filter' (fun k => member k s1) s2
@@ -3280,7 +3280,7 @@ Lemma elements'_interp : forall s x l,
     rewrite IHs1; right. constructor 2. rewrite IHs2; right; auto.
 Qed.
 
-Lemma union'_spec : forall s s' x, valid s -> valid s' -> 
+Lemma union'_spec : forall s s' x, valid s -> valid s' ->
    (interp (union' s s') x <-> interp s x \/ interp s' x).
   Proof.
   intros s s' x V V';  unfold union'.
@@ -3367,15 +3367,15 @@ Lemma filter'_spec : forall s x f,
   clear; intuition etac.
 Qed.
 
-  Lemma choose'_spec1 : forall s x, searchtree None None s -> 
+  Lemma choose'_spec1 : forall s x, searchtree None None s ->
             choose' s = Some x -> interp s x.
   Proof.
-    intros s x v; 
+    intros s x v;
     induction v; simpl in *; intros.  inv H0.
    clear o.
     destruct tl. inv H. constructor. reflexivity.
     specialize (IHv1 H).
-    constructor 2; auto. 
+    constructor 2; auto.
   Qed.
 
 
@@ -3394,11 +3394,11 @@ Proof.
  intros.
  assert (IN: interp s x) by (apply choose'_spec1; auto).
  assert (ST: exists lo, exists hi, searchtree lo hi s) by eauto.
-  clear v; destruct ST as [lo [hi ST]]. 
+  clear v; destruct ST as [lo [hi ST]].
  unfold delete'_min, delete.
  destruct s. simpl in H. inv H.
  assert (fst (delmin s1 t s2) = x).
- clear - H. 
+ clear - H.
  revert t s2 H; induction s1; simpl; intros.
  inv H; auto.
  destruct s1_1. inv H.
@@ -3413,9 +3413,9 @@ Proof.
   induction s1;  intros. inv H. simpl. rewrite compare_refl.
   rewrite append_equation; auto.
   destruct s1_1.
-  inv H.  simpl.  
+  inv H.  simpl.
   pattern (append(EE,s1_2)); rewrite append_equation.
-  rewrite compare_refl. 
+  rewrite compare_refl.
   inv ST.
   replace (K.compare x t0) with Lt.
   destruct c; auto.
@@ -3442,7 +3442,7 @@ Proof.
    assert (choose' (T c B t s1_2) = Some x).
    simpl in H. destruct B; auto.
    apply choose'_spec1 in H0.
-  destruct (interp_range _ _ _ _ H4 H0). 
+  destruct (interp_range _ _ _ _ H4 H0).
    rewrite compare_lt_iff. apply H2.
   eapply searchtree_None; eauto.
   unfold del in IHs1_1. fold del in IHs1_1. rewrite H1 in IHs1_1.
@@ -3461,7 +3461,7 @@ Lemma delete_min_valid:
                         | None => True
                        end.
  Proof.
-  intros s [? ?]. 
+  intros s [? ?].
  case_eq (delete'_min s); intros; auto.
  destruct p as [k s'].
   case_eq (choose' s); intros.
@@ -3484,7 +3484,7 @@ Proof.
   rewrite H0. rewrite IHs1. rewrite IHs2. auto.
 Qed.
 
-Lemma inter'_spec : forall s s' x,  
+Lemma inter'_spec : forall s s' x,
   valid s -> valid s' -> (interp (inter' s s') x <-> interp s x /\ interp s' x).
   Proof.
   intros s s' x V V'.
@@ -3518,7 +3518,7 @@ Lemma inter'_spec : forall s s' x,
   apply member_compat; auto.
 Qed.
 
- Lemma diff'_spec : forall s s' x,  
+ Lemma diff'_spec : forall s s' x,
    valid s -> valid s' -> (interp (diff' s s') x <-> interp s x /\ ~ interp s' x).
   Proof.
   intros s s' x V V'.
@@ -3547,7 +3547,7 @@ Qed.
   rewrite <- (interp_member x s').
   destruct (member x s'); intuition.
   destruct V'; auto.
-  repeat intro. f_equal. eapply member_compat; eauto. 
+  repeat intro. f_equal. eapply member_compat; eauto.
  (* case 3 *)
   destruct V as [?H _]; destruct V' as [?H _].
   revert H0 s H; induction s'; simpl; intros.
@@ -3644,10 +3644,10 @@ Lemma lt'_compat: Proper (eq ==> eq ==> iff) lt'.
 Qed.
 
 
-Lemma min_elt'_spec2: 
+Lemma min_elt'_spec2:
      forall s (x : key) (y : key),
      choose' s = Some x ->
-     interp s y -> 
+     interp s y ->
     forall (lo hi : option key)
       (ST: searchtree lo hi s), ~ E.lt y x.
  Proof.
@@ -3661,13 +3661,13 @@ Lemma min_elt'_spec2:
   apply choose'_spec1 in H.
   2: eapply searchtree_None; eauto.
   destruct (interp_range _ _ _ _ H5 H). simpl in H1.
-  rewrite <- H7 in H1. 
+  rewrite <- H7 in H1.
   intro. apply (lt_irrefl (lt_trans H1 H2)).
   eapply IHs1; eauto.
   destruct (interp_range _ _ _ _ H8 H7). simpl in H0.
   apply choose'_spec1 in H.
   destruct (interp_range _ _ _ _ H5 H). simpl in H3.
-  intro. 
+  intro.
  apply (lt_irrefl (lt_trans H4 (lt_trans H3 H0))).
   eapply searchtree_None; eauto.
 Qed.
@@ -3683,17 +3683,17 @@ Lemma elements'_spec2 : forall s, valid s -> Sorted.sort E.lt (elements' s nil).
   remember (@nil key) as rest.
   assert (exists lo, exists hi, searchtree lo hi s) by eauto.
   clear v; destruct H as [lo [hi H]].
-  assert (forall x, 
+  assert (forall x,
              SetoidList.InA K.eq x rest ->
              exists hi', hi = Some hi' /\ (K.eq x hi' \/ K.lt hi' x)).
   subst rest; intros; simpl in *. inv H0.
   assert (Sorted.Sorted K.lt rest). subst rest; constructor.
  clear Heqrest.
 
-  revert lo hi H rest H0 H1; 
+  revert lo hi H rest H0 H1;
       induction s; simpl; intros.
   apply H1.
-  inv H.  
+  inv H.
   eapply IHs1; eauto.
   intros. inv H.
   exists t; split; auto.
@@ -3711,7 +3711,7 @@ Lemma elements'_spec2 : forall s, valid s -> Sorted.sort E.lt (elements' s nil).
   apply InA_InfA with K.eq.
   apply K.eq_equiv.
   intros. rewrite elements'_interp in H.
-  destruct H. 
+  destruct H.
   destruct (interp_range _ _ _ _ H9 H).
   auto.
   destruct (H0 _ H) as [hi' [? ?]].
@@ -3734,33 +3734,33 @@ Definition elt := key.
 
 Definition empty : t := exist valid EE empty_valid.
 
-Definition is_empty (x: t) : bool := 
+Definition is_empty (x: t) : bool :=
    match proj1_sig x with EE => true | _ => false end.
 
 Definition mem (k: elt) (x: t) : bool := member k (proj1_sig x).
 
-Definition add (k: elt) (x: t) : t := 
+Definition add (k: elt) (x: t) : t :=
       exist valid (insert k (proj1_sig x)) (insert_valid _ _ (proj2_sig x)).
 
 Definition singleton (k: elt) : t := exist valid _ (singleton_valid k).
 
-Definition remove (k: elt) (x: t) : t := 
+Definition remove (k: elt) (x: t) : t :=
   exist valid _ (remove_valid k _ (proj2_sig x)).
 
 Definition fold (A: Type) (f: elt -> A -> A) (x: t) (base: A) : A :=
   fold' A f (proj1_sig x) base.
 
-Definition for_all (f: elt -> bool) (x: t) : bool := 
+Definition for_all (f: elt -> bool) (x: t) : bool :=
    fold bool (fun k y => andb (f k) y) x true.
 
-Definition exists_ (f: elt -> bool) (x: t) : bool := 
+Definition exists_ (f: elt -> bool) (x: t) : bool :=
    fold bool (fun k y => orb (f k) y) x false.
 
 Definition cardinal (x: t) := fold nat (fun _ => S) x O.
 
 Definition filter (f: elt -> bool) (s: t) : t := exist valid _ (filter_valid f _ (proj2_sig s)).
 
- Definition partition (f: elt -> bool) (s: t) : t*t := 
+ Definition partition (f: elt -> bool) (s: t) : t*t :=
    let s' := partition' f (proj1_sig s)
     in (exist valid _ (partition_valid1 f _ (proj2_sig s)),
          exist valid _ (partition_valid2 f _ (proj2_sig s))).
@@ -3777,7 +3777,7 @@ Definition choose (x: t) : option elt := choose' (proj1_sig x).
 Definition max_elt (x: t) : option elt := max_elt' (proj1_sig x).
 
 
-Definition equal' (s1 s2 : tree) : bool := 
+Definition equal' (s1 s2 : tree) : bool :=
   match compare' s1 s2 with Eq => true | _ => false end.
 
 Definition equal (t1 t2 : t) : bool := equal' (proj1_sig t1) (proj1_sig t2).
@@ -3798,7 +3798,7 @@ unfold In in *.
 simpl in *.
 clear e s.
 induction H0.
-constructor 1. 
+constructor 1.
 transitivity x; auto.
 constructor 2.
 apply IHinterp; auto.
@@ -3824,7 +3824,7 @@ Proof.
 Qed.
 
   Lemma mem_spec : forall s x, mem x s = true <-> In x s.
-  Proof. 
+  Proof.
    intros.
    unfold In, mem.
    destruct s as [? [? ?]].
@@ -3840,7 +3840,7 @@ Qed.
   Proof.
    unfold is_empty, Empty, Empty', In, mem.
   intro; destruct (proj1_sig s);
-  simpl; intuition. 
+  simpl; intuition.
   inv H0.
   contradiction (H t0).
   constructor. reflexivity.
@@ -3863,7 +3863,7 @@ Definition mem_add (x: elt) (s: t) : option t :=
      | Some s' => fun p => Some (exist valid s' (mem_add_valid x _ (proj2_sig s) s' p))
      end (Logic.eq_refl _).
 
-Lemma mem_add_spec: 
+Lemma mem_add_spec:
     forall (x: elt) (s: t), mem_add x s = if mem x s then None else Some (add x s).
  Proof.
  intros.
@@ -3873,14 +3873,14 @@ Lemma mem_add_spec:
   revert z.
   remember (mem_add_valid x s V) as y.
   unfold add.  simpl.
-  remember (insert_valid x s V) as u.   
+  remember (insert_valid x s V) as u.
   clear Heqy Hequ V.
   case_eq (member x s); intros ?.
   assert (mem_add' x s = None); [ |  destruct (mem_add' x s);  inv H0; auto].
   clear - H.
   unfold mem_add'.
   induction s; simpl in *; try discriminate.
-  destruct (K.compare x t0); auto. 
+  destruct (K.compare x t0); auto.
    apply IHs1 in H.  destruct (ins' x s1); inv H; auto.
    apply IHs2 in H.  destruct (ins' x s2); inv H; auto.
   assert (mem_add' x s = Some (insert x s)).
@@ -3898,7 +3898,7 @@ Focus 2.
   rewrite (IHs2 H); auto.
 Qed.
 
-  Lemma remove_spec : forall s x y, 
+  Lemma remove_spec : forall s x y,
                       In y (remove x s) <-> In y s /\ ~E.eq y x.
   Proof.
    intros.
@@ -3908,7 +3908,7 @@ Qed.
     split; intros.
     destruct (H0 H1); intuition. intuition.
  Qed.
-   
+
   Lemma singleton_spec : forall x y, In y (singleton x) <-> E.eq y x.
   Proof. intros. unfold In, singleton; simpl.
     do_compare y x; intuition; try inv H; auto. inv H5. inv H5. inv H5. inv H5.
@@ -4020,7 +4020,7 @@ Qed.
  Qed.
 
 
- Lemma equal'_spec : forall s s', valid s -> valid s' -> 
+ Lemma equal'_spec : forall s s', valid s -> valid s' ->
                (equal' s s' = true <-> Equal' s s').
  Proof.
  unfold equal', Equal'.
@@ -4034,14 +4034,14 @@ Qed.
  Proof.
  intros [s v] [s' v']; apply equal'_spec; auto.
  Qed.
- 
+
 Lemma eq_dec : forall (s s':t), { eq s s' }+{ ~eq s s' }.
 Proof.
  intros. unfold eq, Equal.
   case_eq (equal s s'); intros.
   apply equal_spec in H. left; auto.
   right; intro.
-  apply equal_spec in H0. 
+  apply equal_spec in H0.
   rewrite H in H0; inv H0.
  Qed.
 
@@ -4117,7 +4117,7 @@ Lemma partition_aux_filter:
   induction s; simpl; intros; auto.
   rewrite IHs2.
   unfold compose at 5.
-  case_eq (f t0); simpl; intros. 
+  case_eq (f t0); simpl; intros.
   case_eq (filter_aux (compose negb f) s2 n2 l2); intros.
   rewrite IHs1.
   destruct (filter_aux f s2 n1 l1); simpl. auto.
@@ -4144,7 +4144,7 @@ Lemma partition_aux_filter:
   destruct p as [n1 l1]. destruct p0 as [n2 l2]. simpl.
   intuition.
  Qed.
-  
+
   Lemma partition_spec2 : forall s f,
     compatb f ->
       Equal (snd (partition f s)) (filter (fun x => negb (f x)) s).
@@ -4224,7 +4224,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
   revert a' H loa' hia' STa' a loa hia STa
             b' lob' hib' STb' b lob hib STb
             EQab EQa'b' H1;
-   induction n; simpl; intros. 
+   induction n; simpl; intros.
    elimtype False; omega.
    rewrite compare'_equation in H1; rewrite compare'_equation.
    rewrite <- (size_gopher a') in H.
@@ -4246,19 +4246,19 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
    destruct t0_1; try contradiction.
    destruct (gopher b).
    2: elimtype False; clear - Gab; destruct (Gab t1);
-        absurd (interp EE t1); [intro Hx; inv Hx 
+        absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply H0; constructor 1; reflexivity].
    destruct (gopher b'); auto.
-    absurd (interp EE t0); [intro Hx; inv Hx 
+    absurd (interp EE t0); [intro Hx; inv Hx
                                      | apply Ga'b'; constructor 1; reflexivity].
    destruct t0_1; try contradiction.
    destruct (gopher a'); try discriminate.
     destruct t1_1; try discriminate.
     destruct (gopher b).
-    absurd (interp EE t0); [intro Hx; inv Hx 
+    absurd (interp EE t0); [intro Hx; inv Hx
                                      | apply Gab; constructor 1; reflexivity].
     destruct (gopher b').
-    absurd (interp EE t1); [intro Hx; inv Hx 
+    absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply Ga'b'; constructor 1; reflexivity].
     destruct (t3_1); try contradiction.
     destruct (t2_1); try contradiction.
@@ -4267,9 +4267,9 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
      rewrite <- H0. rewrite <- H3.
      do_compare t0 t1; auto.
      clear SHa' SHa SHb' SHb.
-     inv STa'; inv STa; inv STb'; inv STb. 
-     eapply (IHn t1_2); try ( simpl in H; omega); 
-         try apply H2;  auto; eassumption. 
+     inv STa'; inv STa; inv STb'; inv STb.
+     eapply (IHn t1_2); try ( simpl in H; omega);
+         try apply H2;  auto; eassumption.
   (* PART 2:  similar *)
   destruct x as [a [?v ?]]; destruct y as [b [?v ?]];
   destruct x0 as [a' [?v ?]]; destruct y0 as [b' [?v ?]].
@@ -4291,7 +4291,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
   revert a' H loa' hia' STa' a loa hia STa
             b' lob' hib' STb' b lob hib STb
             EQab EQa'b' H1;
-   induction n; simpl; intros. 
+   induction n; simpl; intros.
    elimtype False; omega.
    rewrite compare'_equation in H1; rewrite compare'_equation.
    rewrite <- (size_gopher a') in H.
@@ -4316,17 +4316,17 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
         absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply H; constructor 1; reflexivity].
    destruct (gopher a'); auto.
-    absurd (interp EE t0); [intro Hx; inv Hx 
+    absurd (interp EE t0); [intro Hx; inv Hx
                                      | apply Ga'b'; constructor 1; reflexivity].
    destruct t0_1; try contradiction.
    destruct (gopher b'); try discriminate.
     destruct t1_1; try discriminate.
     destruct (gopher a).
-    absurd (interp EE t0); [intro Hx; inv Hx 
+    absurd (interp EE t0); [intro Hx; inv Hx
                                      | apply Gab; constructor 1; reflexivity].
     destruct (t2_1); try contradiction.
     destruct (gopher a').
-    absurd (interp EE t1); [intro Hx; inv Hx 
+    absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply Ga'b'; constructor 1; reflexivity].
     destruct (t3_1); try contradiction.
     destruct (tree_similar_lemma _ _ _ _ _ _ _ _ _ _ STa STb Gab).
@@ -4334,8 +4334,8 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
      rewrite  H0. rewrite H3.
      do_compare t0 t1; auto.
      clear SHa' SHa SHb' SHb.
-     inv STa'; inv STa; inv STb'; inv STb. 
-     eapply (IHn t3_2); try ( simpl in H; omega); 
+     inv STa'; inv STa; inv STb'; inv STb.
+     eapply (IHn t3_2); try ( simpl in H; omega);
          try apply H2;  auto; eassumption.
 Qed.
 
@@ -4372,7 +4372,7 @@ Lemma compare_spec
    inv H.
    rewrite <- compare_lt_iff in l. rewrite l. auto.
  Qed.
-   
+
 Definition min_elt: t -> option elt := choose.
 
 Lemma elements_spec2 : forall s, Sorted.sort E.lt (elements s).
@@ -4398,7 +4398,7 @@ Lemma min_elt_spec1
      : forall (s : t) (x : elt), min_elt s = Some x -> In x s.
  Proof. intros. apply choose_spec1. auto. Qed.
 
-Lemma min_elt_spec2 : forall s x y, 
+Lemma min_elt_spec2 : forall s x y,
          min_elt s = Some x -> In y s -> ~ E.lt y x.
 Proof.
   unfold min_elt, choose, In, mem.  intros [s [v ?]]; simpl; intros.
@@ -4408,18 +4408,18 @@ Qed.
  Lemma min_elt_spec3 : forall s, min_elt s = None -> Empty s.
  Proof.  exact choose_spec2. Qed.
 
-  Lemma max_elt'_spec1 : forall s x, searchtree None None s -> 
+  Lemma max_elt'_spec1 : forall s x, searchtree None None s ->
             max_elt' s = Some x -> interp s x.
   Proof.
-    intros s x v; 
+    intros s x v;
     induction v; simpl in *; intros.  inv H0.
     destruct tr. inv H. constructor. reflexivity.
     specialize (IHv2 H).
-    constructor 3; auto. 
+    constructor 3; auto.
   Qed.
 
  Lemma max_elt_spec1 : forall s x, max_elt s = Some x -> In x s.
-  Proof. 
+  Proof.
    unfold In, max_elt; intros [s [? ?]] x ?; simpl in *.
   eapply max_elt'_spec1; eauto.
   Qed.
@@ -4435,12 +4435,12 @@ Qed.
   inv H0. rewrite H5. apply lt_irrefl.
   destruct (interp_range _ _ _ _ ST1 H5).
   simpl in H0.
-  intro Hx. apply (lt_irrefl (lt_trans H0 Hx)). 
+  intro Hx. apply (lt_irrefl (lt_trans H0 Hx)).
   inv H5.
   remember (T c0 tr1 t0 tr2) as tr.
   clear tr1 t0 tr2 Heqtr.
   specialize (IHST2 H).
-  apply max_elt'_spec1 in H.  
+  apply max_elt'_spec1 in H.
   destruct (interp_range _ _ _ _ ST2 H). simpl in H1.
   inv H0. rewrite <- H8 in H1.
   intro Hx. apply (lt_irrefl (lt_trans H1 Hx)).
@@ -4460,7 +4460,7 @@ Proof.
  simpl in H. eapply IHs2_2; eauto.
 Qed.
 
-Lemma choose_spec3 : forall s s' x y, 
+Lemma choose_spec3 : forall s s' x y,
    choose s = Some x -> choose s' = Some y ->
     Equal s s' -> E.eq x y.
 Proof.
@@ -4478,7 +4478,7 @@ Proof.
 Qed.
 
 
-Definition opt_t_aux (x: option (elt * tree)) 
+Definition opt_t_aux (x: option (elt * tree))
     (P: match x with Some (_,s) => valid s | None => True end) : option (elt * t) :=
 match
   x as o
@@ -4505,7 +4505,7 @@ Definition delete_min (s: t) : option (elt * t) :=
   remember (delete_min_valid s v) as P.
   clear HeqP.
   split; intro.
-  case_eq (choose' s); intros. 
+  case_eq (choose' s); intros.
    generalize (delmin_eq _ _ (proj1 v) H0); intro.
    destruct (delete'_min s); inv H1.
    simpl in H. inv H. split; simpl; auto.

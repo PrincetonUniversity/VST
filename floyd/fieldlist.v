@@ -1,6 +1,5 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
@@ -53,7 +52,7 @@ Proof.
       if_tac; [congruence |].
       exact IHm.
 Qed.
- 
+
 Lemma field_offset_field_type_match: forall cenv i m,
   match Ctypes.field_offset cenv i m, Ctypes.field_type i m with
   | Errors.OK _, Errors.OK _ => True
@@ -93,9 +92,9 @@ Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 
 Ltac solve_field_offset_type i m :=
-  let H := fresh "H" in 
-  let Hty := fresh "H" in 
-  let Hofs := fresh "H" in 
+  let H := fresh "H" in
+  let Hty := fresh "H" in
+  let Hofs := fresh "H" in
   let t := fresh "t" in
   let ofs := fresh "ofs" in
   pose proof field_offset_field_type_match cenv_cs i m;
@@ -338,10 +337,10 @@ Proof.
   + destruct (id_in_list i (map fst m)) eqn:HH.
     - apply id_in_list_true in HH.
        split; intros. inv H. destruct H. elimtype False; apply H.
-      apply HH. 
+      apply HH.
     - apply id_in_list_false in HH.
-      split; intros. split; auto. destruct H; auto. 
-Defined. 
+      split; intros. split; auto. destruct H; auto.
+Defined.
 
 Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->
@@ -458,7 +457,7 @@ Proof.
 Qed.
 
 Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),
-       In x l -> In (f x) (map f l) := 
+       In x l -> In (f x) (map f l) :=
 fun (A B : Type) (f : A -> B) (l : list A) =>
 list_ind (fun l0 : list A => forall x : A, In x l0 -> In (f x) (map f l0))
   (fun (x : A) (H : In x nil) => H)

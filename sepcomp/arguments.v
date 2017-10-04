@@ -1,7 +1,7 @@
-Require Import sepcomp.semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.effect_simulations.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.effect_simulations.
+Require Import VST.sepcomp.mem_lemmas.
 
 Import SM_simulation.
 
@@ -15,13 +15,13 @@ Arguments core_ord  [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] _ _ _.
 Arguments match_state [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2]
   _ _ _ _ _ _ _.
 
-Arguments match_sm_wd 
+Arguments match_sm_wd
   [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 s d mu c1 m1 c2 m2] _.
 Arguments effect_semantics.effax1 [G C e M g c m c' m'] _.
 Arguments effect_semantics.effstepN_unchanged [G C Sem g n U c1 m1 c2 m2] _.
 (*Arguments corestep_mem [G C g c m0 c' m'] _.*)
 Arguments effect_semantics.effstepN_fwd [G C Sem g n U c m c' m'] _ _ _.
-Arguments match_validblocks 
+Arguments match_validblocks
   [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] s [d mu c1 m1 c2 m2] _.
 
 Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.

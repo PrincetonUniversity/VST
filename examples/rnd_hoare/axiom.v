@@ -39,7 +39,7 @@ Section step.
 Variable F: State -> A.
 Hypothesis HF: forall l: State, P (proj1_sig l ++ F l :: nil).
 
-Fixpoint step (n: nat): State := 
+Fixpoint step (n: nat): State :=
   match n with
   | 0 => state_nil
   | S m => exist _ _ (HF (step m))
@@ -53,7 +53,7 @@ Proof.
     reflexivity.
   + simpl.
     f_equal; auto.
-Qed.    
+Qed.
 
 End step.
 

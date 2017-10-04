@@ -1,22 +1,22 @@
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.coqlib4.
-Require Import concurrency.lksize.
-Require Import concurrency.sync_preds_defs.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.coqlib4.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.sync_preds_defs.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -31,7 +31,7 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
@@ -47,7 +47,7 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     unfold resource_fmap in *; f_equal.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
@@ -66,8 +66,9 @@ Proof.
   - destruct (phi @ loc); simpl in R; try discriminate.
     eexists.
     injection R. intros; subst.
-    split; reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]; congruence.
+    split; try reflexivity.
+    f_equal; apply proof_irr. 
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]; congruence.
   - destruct R as [v [v' R]]; congruence.
   - destruct R as [v [pp [R H]]]; congruence.
 Qed.
@@ -84,8 +85,8 @@ Proof.
   - auto.
   - apply YES_not_identity in ID. tauto.
   - apply PURE_identity.
-  - destruct RD as (? & sh & _ & E & _).
-    destruct (phi @ loc); simpl in E; try discriminate.
+  - destruct RD as (sh & Psh & v1 & v2 & A & B).
+    destruct (phi @ loc); simpl in A; simpl in B; try discriminate.
     apply YES_not_identity in ID. tauto.
   - destruct RD. auto with *.
   - destruct RD as (? & ? & ? & ->).
@@ -209,7 +210,7 @@ Proof.
   specialize (RD loc).
   destruct RD as [N [RD|[RD|[RD|RD]]]].
   - rewrite PAT in RD; simpl in RD. rewrite RD; auto.
-  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?&?). congruence.
+  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?&?&?). congruence.
   - rewrite PAT in N. pose proof (N (proj1 RD)). congruence.
   - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?). congruence.
 Qed.

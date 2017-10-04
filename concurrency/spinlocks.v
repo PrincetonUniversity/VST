@@ -1,15 +1,15 @@
 (** * Spinlock well synchronized and spinlock clean*)
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -20,17 +20,17 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.permjoin_def.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.dry_context.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.dry_machine_step_lemmas.
-Require Import concurrency.executions.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.permjoin_def.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.executions.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -46,7 +46,7 @@ Module SpinLocks (SEM: Semantics)
   Module ThreadPoolWF := ThreadPoolWF SEM Machines.
   Module CoreLanguage := CoreLanguage SEM SemAxioms.
   Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
-  Module StepLemmas := StepLemmas SEM Machines.          
+  Module StepLemmas := StepLemmas SEM Machines.
   Module Executions := Executions SEM SemAxioms Machines AsmContext.
 
   Import Executions CoreLanguage CoreLanguageDry ThreadPoolWF StepLemmas.
@@ -102,7 +102,7 @@ Module SpinLocks (SEM: Semantics)
       thread_id ev1 <> thread_id ev2 /\ (* different threads*)
       sameLocation ev1 ev2 /\ (* same location *)
       caction ev1 /\ (* both are competing type*)
-      caction ev2 /\ 
+      caction ev2 /\
       (is_internal ev1 ->
        is_internal ev2 ->
        (** if they are both internal, at least one of them is a Write*)
@@ -112,7 +112,7 @@ Module SpinLocks (SEM: Semantics)
        freelock*)
        action ev1 = Mklock \/ action ev1 = Freelock
        \/ action ev2 = Mklock \/ action ev2 = Freelock).
-    
+
     (** Spinlock well synchronized*)
     Definition spinlock_synchronized (tr : SC.event_trace) :=
       forall i j ev1 ev2,
@@ -131,7 +131,7 @@ Module SpinLocks (SEM: Semantics)
             i < u < j /\
             List.nth_error tr u = Some eu /\
             action eu = Spawn).
-    
+
     (** Spinlock clean*)
     Definition spinlock_clean (tr : FineConc.event_trace) :=
       forall i j evi evj
@@ -257,7 +257,7 @@ Module SpinLocks (SEM: Semantics)
           unfold Mem.range_perm in Hload.
           rewrite nat_of_Z_max in Hintv.
           destruct (Z.max_dec n 0) as [Hmax | Hmax];
-            rewrite Hmax in Hintv. 
+            rewrite Hmax in Hintv.
           * specialize (Hload ofs' Hintv).
             unfold Mem.perm in Hload.
             unfold permission_at in *.
@@ -276,7 +276,7 @@ Module SpinLocks (SEM: Semantics)
         destruct pre; simpl in H1; inv H1.
       }
     Qed.
-    
+
     (** FineConc is spinlock clean*)
     Theorem fineConc_clean:
       forall U tr tp m tp' m'
@@ -295,7 +295,7 @@ Module SpinLocks (SEM: Semantics)
       destruct evi'; try discriminate.
       simpl in *.
       rewrite <- app_nil_r with (l := [:: external tidi (mklock a)]) in Hstep;
-        rewrite <- app_nil_l with (l := [:: external tidi (mklock a)]) in Hstep; 
+        rewrite <- app_nil_l with (l := [:: external tidi (mklock a)]) in Hstep;
         rewrite <- app_assoc in Hstep;
       assert (Hsched: U' = tidi :: U'')
         by (eapply fstep_event_sched in Hstep;
@@ -336,7 +336,7 @@ Module SpinLocks (SEM: Semantics)
         intros u evu Hnth.
         assert (exists trj''', trj = trj'' ++ pre_j ++ [:: evj] ++ post_j ++ trj''').
         { eapply multi_fstep_trace_monotone in Hexecj''.
-          destruct Hexecj'' as [? Hexecj'']. 
+          destruct Hexecj'' as [? Hexecj''].
           do 3 rewrite <- app_assoc in Hexecj''.
           apply app_inv_head in Hexecj''.
           apply app_inv_head in Hexecj''.
@@ -376,7 +376,7 @@ Module SpinLocks (SEM: Semantics)
       eapply fstep_clean; eauto.
       destruct evi; simpl in *; auto. destruct m0; discriminate.
     Qed.
-      
+
     Lemma maximal_competing:
       forall i j tr evi evj
         (Hij: i < j)
@@ -395,7 +395,7 @@ Module SpinLocks (SEM: Semantics)
       generalize dependent i.
       induction tr; intros.
       - rewrite nth_error_nil in Hi.
-        discriminate.              
+        discriminate.
       - (** Is there any competing with [evj] event in [tr]?*)
         assert (Hcompeting: (exists k' evk',
                                 i < k' < j /\
@@ -431,7 +431,7 @@ Module SpinLocks (SEM: Semantics)
           exists k', evk'.
           split; eauto.
     Qed.
-   
+
     (** Actions that require a [Readable] permission*)
     Inductive raction ev : Prop :=
     | read: action ev = Read ->
@@ -472,7 +472,7 @@ Module SpinLocks (SEM: Semantics)
     Lemma fstep_ev_perm:
       forall U tr tp m U' tr_pre tr_post tp' m' ev
         (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post , tp') m'),
-        (waction ev -> 
+        (waction ev ->
          forall (cnt: containsThread tp (thread_id ev)) (cnt': containsThread tp' (thread_id ev)),
            match location ev with
            | Some (b, ofs, sz) =>
@@ -497,7 +497,7 @@ Module SpinLocks (SEM: Semantics)
                        Mem.perm_order'' ((getThreadR cnt').2 !! b ofs') (Some Readable)) \/
                       (tr_pre = [::] /\ tr_post = [::] /\ action ev = Release /\
                        (exists rmap, sz = lksize.LKSIZE_nat /\
-                                lockRes tp' (b, ofs) = Some rmap /\ 
+                                lockRes tp' (b, ofs) = Some rmap /\
                                 (Mem.perm_order'' (rmap.1 !! b ofs') (Some Readable) \/
                                  Mem.perm_order'' (rmap.2 !! b ofs') (Some Readable)))) \/
                       deadLocation tp' m' b ofs')
@@ -606,7 +606,7 @@ Module SpinLocks (SEM: Semantics)
             - right.
               econstructor; eauto.
               + intros.
-                pose proof (cntUpdate' cnti) as cnti0.              
+                pose proof (cntUpdate' cnti) as cnti0.
                 destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
                 * subst. pf_cleanup.
                   rewrite gssThreadRes.
@@ -621,7 +621,7 @@ Module SpinLocks (SEM: Semantics)
                   eapply (mem_compatible_invalid_block _ Hcmpt n).2;
                   now eauto.
           }
-        } 
+        }
         simpl in *.
         inversion Htstep; subst.
         split; intros Haction Hcnt Hcnt';
@@ -681,7 +681,7 @@ Module SpinLocks (SEM: Semantics)
                   now eauto.
             - (** case the block was not freed*)
               split.
-              + intros. 
+              + intros.
                 rewrite! restrPermMap_Cur in Hread.
                 left.
                 eapply Hread;
@@ -706,7 +706,7 @@ Module SpinLocks (SEM: Semantics)
             - do 2 right.
               econstructor; eauto.
               + intros.
-                pose proof (cntUpdate' cnti) as cnti0.              
+                pose proof (cntUpdate' cnti) as cnti0.
                 destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
                 * subst. pf_cleanup.
                   rewrite gssThreadRes.
@@ -747,11 +747,9 @@ Module SpinLocks (SEM: Semantics)
           - intros ofs' Hintv.
             pf_cleanup.
             split.
-            intros Hvalid. 
-            apply Mem.store_valid_access_3 in Hstore.
-            destruct Hstore as [Hrange _].
-            specialize (Hrange _ Hintv).
-            unfold Mem.perm in Hrange.
+            intros Hvalid.
+            specialize (Hfreeable _ Hintv).
+            unfold Mem.perm in Hfreeable.
             erewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid)#1) by eauto.
             unfold permission_at. now eauto.
             left. rewrite gLockSetRes gssThreadRes.
@@ -761,7 +759,7 @@ Module SpinLocks (SEM: Semantics)
           - intros ofs' Hintv.
             pf_cleanup.
             split.
-            intros Hvalid. 
+            intros Hvalid.
             specialize (Hfreeable _ Hintv).
             unfold Mem.perm in Hfreeable.
             erewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid)#2) by eauto.
@@ -775,8 +773,8 @@ Module SpinLocks (SEM: Semantics)
             destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
             erewrite nat_of_Z_eq in Hneq_perms
               by (simpl in *; now ssromega).
-            assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
-            simpl in *.  ssromega.
+            assert ((0 <= ofs' - Int.intval ofs < lksize.LKSIZE)%Z)
+              by (simpl in *; unfold lksize.LKSIZE; ssromega).
             replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
             (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
               by (zify;
@@ -790,23 +788,20 @@ Module SpinLocks (SEM: Semantics)
         destruct ev0; inv Htstep.
         + intros ofs' Hintv.
           pf_cleanup.
-          split. intros. apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
+          split. intros. 
+          specialize (Haccess _ Hintv).
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
           rewrite gLockSetRes gssThreadRes.
           clear Hwritable Hstep.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hrange _].
-          specialize (Hrange ofs' Hintv).
-          unfold Mem.perm in Hrange.
+          specialize (Haccess ofs' Hintv).
+          unfold Mem.perm in Haccess.
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).2 b ofs') as Heq.
           unfold permission_at in Heq.
-          rewrite Heq in Hrange.
+          rewrite Heq in Haccess.
           specialize (Hangel2 b ofs').
           eapply permjoin_readable_iff in Hangel2.
-          pose proof (Hangel2.1 Hrange) as Hperm.
+          pose proof (Hangel2.1 Haccess) as Hperm.
           destruct Hperm as [Hperm | Hperm].
           simpl in Hperm.
           left. now auto.
@@ -818,34 +813,28 @@ Module SpinLocks (SEM: Semantics)
         + intros ofs' Hintv.
           pf_cleanup.
           split. intros.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
+          specialize (Haccess _ Hintv).
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
           rewrite gLockSetRes gssThreadRes.
           clear Hwritable Hstep.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hrange _].
-          specialize (Hrange ofs' Hintv).
-          unfold Mem.perm in Hrange.
+          specialize (Haccess ofs' Hintv).
+          unfold Mem.perm in Haccess.
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).2 b ofs') as Heq.
           unfold permission_at in Heq.
-          rewrite Heq in Hrange.
+          rewrite Heq in Haccess.
           specialize (Hangel2 b ofs').
           eapply permjoin_readable_iff in Hangel2.
-          pose proof (Hangel2.2 (or_intror Hrange)) as Hperm.
+          pose proof (Hangel2.2 (or_intror Haccess)) as Hperm.
           left; now auto.
         + intros ofs' Hintv.
           pf_cleanup.
-          apply Mem.store_valid_access_3 in Hstore.
-          destruct Hstore as [Hrange _].
-          specialize (Hrange _ Hintv).
+          specialize (Hfreeable _ Hintv).
           pose proof (restrPermMap_Cur (Hcmpt _ Htid).1 b ofs') as Heq.
           unfold permission_at in Heq.
-          unfold Mem.perm in Hrange.
-          rewrite po_oo in Hrange.
-          rewrite Heq in Hrange.
+          unfold Mem.perm in Hfreeable.
+          rewrite po_oo in Hfreeable.
+          rewrite Heq in Hfreeable.
           split.
           intros.
           left.
@@ -876,8 +865,8 @@ Module SpinLocks (SEM: Semantics)
           destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
           erewrite nat_of_Z_eq in Hneq_perms
             by (simpl in *; now ssromega).
-          assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
-          simpl in *.  ssromega.
+          assert ((0 <= ofs' - Int.intval ofs < lksize.LKSIZE)%Z)
+            by (simpl in *; unfold lksize.LKSIZE; ssromega).
           replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
           (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
             by (zify;
@@ -890,10 +879,8 @@ Module SpinLocks (SEM: Semantics)
             by exfalso.
         + intros ofs' Hintv.
           pf_cleanup.
-          apply Mem.load_valid_access in Hload.
-          destruct Hload as [Hperm _].
-          specialize (Hperm _ Hintv).
-          rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid cnt').2).
+          specialize (Haccess _ Hintv).
+          rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid).2).
           unfold permission_at, Mem.perm in *; now auto.
         + destruct l; simpl in H9; inv H9.
     Qed.
@@ -1025,7 +1012,7 @@ Module SpinLocks (SEM: Semantics)
         assert (cntj': containsThread tp' (thread_id evj))
           by (eapply fstep_ev_contains in Hstep;
               eapply Hstep.2).
-      
+
         inversion Hcompetes_kj as (Hthreads_neq & Hsame_loc & Hcactionk & Hcactionj & _ & _).
         (** [location] is defined for [evk] as it is a competing event*)
         assert (Hloc_k: exists bk ofsk szk, location evk = Some (bk, ofsk, szk))
@@ -1056,7 +1043,7 @@ Module SpinLocks (SEM: Semantics)
             eapply fstep_invariant in Hstep.
             now eapply Hstep.
         }
-        
+
         assert (cntk'_j: containsThread tp (thread_id evk))
           by (eapply fstep_ev_contains in Hstepk;
               destruct Hstepk;
@@ -1081,7 +1068,7 @@ Module SpinLocks (SEM: Semantics)
             eapply perm_order_valid_block;
             now eauto.
         }
-         
+
         assert (Hvalid_m: forall p, Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some p) \/
                                Mem.perm_order'' ((getThreadR cntk').2 !! b ofs) (Some p) ->
                                Mem.valid_block m b).
@@ -1248,7 +1235,7 @@ Module SpinLocks (SEM: Semantics)
                                               ((getThreadR cntj).2 !! b ofs))
             by (destruct ((no_race_thr Hinv cntk'_j cntj Hthreads_neq).2 b ofs) as [pu Hcompatiblek'j];
                  rewrite Hcompatiblek'j; auto).
-          
+
           (** There are two main cases: 1. evk is a [raction], 2. evk is a [waction]*)
           destruct Hcases as [[Hractionk Hwactionj] | [Hwactionk _]].
           { (** Case [evk] is an [raction] and [evj] is an [waction]*)
@@ -1287,7 +1274,7 @@ Module SpinLocks (SEM: Semantics)
                   tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
             destruct Hspec_u as [Hfreed | [Hspawned | [Hfreelock | [Hmklock | Hrelease]]]].
               { (** Case permissions dropped by a [Free] event. This leads to a
-                  contradiction because it would be a [deadLocation] *) 
+                  contradiction because it would be a [deadLocation] *)
                 destruct Hfreed as (HIn & HFree & Hdead).
                 inversion Hdead.
                 specialize (Hthreads _ cntj).
@@ -1528,8 +1515,8 @@ Module SpinLocks (SEM: Semantics)
                       erewrite (Hres_fl_empty b ofs).2;
                       [left | right];
                       now auto).
-                          
-                
+
+
                 destruct (lockRes_permission_decrease_execution _ _ _ _ Hresu Hres_fl
                                                                 Hexec_pre_fl Hperm_rmap_drop)
                   as (v & evv & Hv & Haction_v & Hloc_v).
@@ -1656,8 +1643,8 @@ Module SpinLocks (SEM: Semantics)
                       erewrite (Hres_fl_empty b ofs).2;
                       [left | right];
                       now auto).
-                          
-                
+
+
                 destruct (lockRes_permission_decrease_execution _ _ _ _ Hresk' Hres_fl
                                                                 Hexec_pre_fl Hperm_rmap_drop)
                   as (v & evv & Hv & Haction_v & Hloc_v).
@@ -1700,7 +1687,7 @@ Module SpinLocks (SEM: Semantics)
                 * rewrite Hloc_v Hloc_k.
                   reflexivity.
             }
-             } 
+             }
           { (** Case [evk] is a [waction] *)
             specialize (Hwritablek Hwactionk).
             (** [thread_id evj] must have permissions that are below [Readable]*)
@@ -2040,7 +2027,7 @@ Module SpinLocks (SEM: Semantics)
                     reflexivity.
             }
           }
-      
+
         { (** Case [thread_id evj] was not in the threadpool*)
           destruct (thread_spawn_execution _ Hnot_contained cntj Hexec')
             as (tr_pre_spawn & evv & ? & ? & tp_pre_spawn & m_pre_spawn &
@@ -2081,7 +2068,7 @@ Module SpinLocks (SEM: Semantics)
     Proof.
       intro.
       induction U; intros.
-      - inversion Hexec. 
+      - inversion Hexec.
         rewrite <- app_nil_r in H3 at 1;
           apply app_inv_head in H3;
           subst.
@@ -2125,7 +2112,6 @@ Module SpinLocks (SEM: Semantics)
       simpl.
       now econstructor.
     Qed.
-                                                                                      
+
   End Spinlocks.
 End SpinLocks.
-                                                                                      

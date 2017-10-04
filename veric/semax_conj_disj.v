@@ -1,19 +1,19 @@
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.semax.
-Require Import veric.semax_lemmas.
-Require Import veric.Clight_lemmas.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_new.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.Clight_lemmas.
 
 Open Local Scope pred.
 
@@ -137,7 +137,7 @@ Qed.
 
 Lemma semax_unfold' {CS: compspecs}:
   semax Espec = fun Delta P c R =>
-    forall (psi: Clight.genv) Delta' (w: nat) 
+    forall (psi: Clight.genv) Delta' (w: nat)
           (TS: tycontext_sub Delta Delta')
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (st: environ * rmap),
@@ -246,10 +246,10 @@ Abort.
     rewrite <- !(sepcon_comm (F rho)).
     Check distrib_sepcon_andp.
     SearchAbout andp sepcon.
-  
+
 Check semax_fold_unfold.
 Check semax_fold.
-    forall (psi: Clight.genv) Delta' (w: nat) 
+    forall (psi: Clight.genv) Delta' (w: nat)
           (TS: tycontext_sub Delta Delta')
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),

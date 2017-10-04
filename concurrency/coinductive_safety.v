@@ -5,7 +5,7 @@
 (** printing /\ $\land$ #&and;# *)
 
 Require Import Setoid Program.
-Require Import concurrency.paco.src.paco.
+Require Import VST.concurrency.paco.src.paco.
 
 Section safety_equivalence.
 
@@ -21,14 +21,14 @@ Section safety_equivalence.
       valid x y  -> int_step x y y' ->
       forall x',
         valid x' y -> int_step x' y y'.
-  
+
   Axiom valid_step:
     forall x y y',
       valid x y  -> int_step x y y' ->
       valid x y'.
-  
+
   Section explicit_safety.
-    
+
     (** *Normal explicit safety *)
     CoInductive exp_safety (x:X) (y:Y): Prop:=
     | halted_safety : halted x y -> exp_safety x y
@@ -50,7 +50,7 @@ Section safety_equivalence.
                                   exp_safety_gen x y.
     Definition paco_exp_safety := paco2 (@exp_safety_gen).
 
-    
+
 
     (*Show that the paco representation is correct. *)
     Lemma exp_safety_paco_correct:
@@ -61,8 +61,8 @@ Section safety_equivalence.
         pfold. inversion HH;
           [ econstructor 1; eauto |
             econstructor 2; eauto |
-            econstructor 3; eauto ]; intros x'' VAL'.  
-      - cofix CO; intros x y HH. 
+            econstructor 3; eauto ]; intros x'' VAL'.
+      - cofix CO; intros x y HH.
         inversion HH. inversion SIM;
           [ econstructor 1; eauto |
             econstructor 2; eauto |
@@ -74,14 +74,14 @@ Section safety_equivalence.
           destruct LE. 2: compute in *; tauto.
           apply H1.
     Qed.
-    
+
   End explicit_safety.
 
   Section explicit_safetyN.
     Inductive stepN x y y': nat -> Prop :=
     | trivial_step: y = y' -> stepN x y y' 0
-    | _stepN n _y: int_step x y _y -> stepN x _y y' n -> stepN x y y' (S n).  
-    
+    | _stepN n _y: int_step x y _y -> stepN x _y y' n -> stepN x y y' (S n).
+
     (** *Safety with stepN *)
     Inductive exp_safetyN_gen {_exp_safety} (x:X) (y:Y): Prop:=
     | paco_halted_safetyN : halted x y -> exp_safetyN_gen x y
@@ -92,7 +92,7 @@ Section safety_equivalence.
                                    (forall x',  valid x' y' -> _exp_safety x' y') ->
                                    exp_safetyN_gen x y.
     Definition paco_exp_safetyN := paco2 (@exp_safetyN_gen).
-    
+
     Lemma determinismN:
       forall n,
       forall x y y',
@@ -122,7 +122,7 @@ Section safety_equivalence.
            - apply (IHn _ _y); try assumption.
              apply (valid_step x y _y VAL H0).
     Qed.
-    
+
     Lemma safetyN_equivalence:
       forall x y,
         valid x y ->
@@ -141,7 +141,7 @@ Section safety_equivalence.
           constructor; reflexivity.
           intros x' AA.
           right.
-          eapply CO; try assumption. 
+          eapply CO; try assumption.
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -150,7 +150,7 @@ Section safety_equivalence.
           econstructor 3. eauto.
           intros x'0 AA.
           right.
-          eapply CO; try assumption. 
+          eapply CO; try assumption.
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -172,7 +172,7 @@ Section safety_equivalence.
               pfold. econstructor 2. eassumption.
               intros x' AA.
               right.
-              eapply CO; try assumption. 
+              eapply CO; try assumption.
               specialize (LE' _ _ (H0 _ AA)).
               destruct LE'; [ | compute in *; tauto].
               unfold paco_exp_safetyN.
@@ -193,7 +193,7 @@ Section safety_equivalence.
           econstructor 3. eauto.
           intros x'0 AA.
           right.
-          eapply CO; try assumption. 
+          eapply CO; try assumption.
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -208,7 +208,7 @@ Section safety_equivalence.
   Context {core_data: Type}
           {core_ord : core_data -> core_data -> Prop}
           (core_ord_wf: well_founded core_ord).
-  
+
   (** *Safety with Stutter and stepN*)
   CoInductive exp_safetyN_stutter (cd:core_data) (x:X) (y:Y): Prop:=
   | halted_safetyN_stut : halted x y -> exp_safetyN_stutter cd x y
@@ -246,13 +246,13 @@ Section safety_equivalence.
         [ econstructor 1; eauto |
             econstructor 2; eauto |
             econstructor 3; eauto |
-            econstructor 4; eauto ]; intros x'' VAL'.  
-    - cofix CO; intros cd x y HH. 
+            econstructor 4; eauto ]; intros x'' VAL'.
+    - cofix CO; intros cd x y HH.
       inversion HH. inversion SIM;
         [ econstructor 1; eauto |
           econstructor 2; eauto |
           econstructor 3; eauto |
-          econstructor 4; eauto ]. 
+          econstructor 4; eauto ].
       + intros x'' VAL'; eapply CO.
         specialize (LE _ _ _ (H0 _ VAL')).
         destruct LE. 2: compute in *; tauto.
@@ -261,12 +261,12 @@ Section safety_equivalence.
         specialize (LE _ _ _ (H0 _ VAL')).
           destruct LE. 2: compute in *; tauto.
           apply H1.
-      + eapply CO . 
+      + eapply CO .
         specialize (LE _ _ _ (H0)).
         destruct LE. 2: compute in *; tauto.
         apply H1.
   Qed.
-  
+
   (*The stutter doesn't matter*)
   Lemma speach_therapy:
     forall cd x y,
@@ -285,7 +285,7 @@ Section safety_equivalence.
       + specialize (LE _ _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
         unfold upaco3. right. apply CO. eapply H1.
-        
+
       + specialize (LE _ _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
         unfold upaco3. right. apply CO. eapply H1.
@@ -299,7 +299,7 @@ Section safety_equivalence.
                                       exp_safetyN_gen x y)); auto.
 
       (*now do teh cofixpoint induction*)
-      
+
       intros x wf_ind x' y HH; inversion HH; subst; clear HH.
       inversion SIM; clear SIM;
         [ econstructor 1; eauto |
@@ -331,12 +331,12 @@ Section safety_equivalence.
   End explicit_safetyN_stutter.
 
   Section The_Equivalence.
-    
+
   Context (core_data: Type)
           (core_ord : core_data -> core_data -> Prop)
           (core_ord_wf: well_founded core_ord)
           (default: core_data).
-  
+
   Theorem safety_stutter_stepN_equiv:
     forall x y,
       valid x y ->

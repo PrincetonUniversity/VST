@@ -7,8 +7,8 @@
  http://www.cs.princeton.edu/~appel/papers/modsec.pdf
 *)
 
-Require Import floyd.proofauto.
-Require Import progs.min.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.min.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -57,7 +57,7 @@ Proof.
 Qed.
 
 Lemma fold_min_another:
-  forall x al y, 
+  forall x al y,
     fold_right Z.min x (al ++ [y]) = Z.min (fold_right Z.min x al) y.
 Proof.
  intros.
@@ -92,27 +92,25 @@ Definition minimum_spec :=
 Definition Gprog : funspecs :=
       ltac:(with_library prog [minimum_spec]).
 
+(* First approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-revert POSTCONDITION; 
- replace (hd 0 al) with (Znth 0 al 0) by (destruct al; reflexivity);
- intro POSTCONDITION.
 forward.  (* min = a[0]; *)
-autorewrite with sublist.
-forward_for_simple_bound n 
+forward_for_simple_bound n
   (EX i:Z,
-    PROP() 
-    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al 0) (sublist 0 i al)))); 
-          temp _a a; 
+    PROP()
+    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al 0) (sublist 0 i al))));
+          temp _a a;
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
  entailer!.
-*
+* (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al 0))
      by (apply Forall_Znth; auto; omega).
@@ -125,19 +123,83 @@ forward_for_simple_bound n
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite (sublist_one i (i+1) al 0) by omega.
  rewrite fold_min_another.
- forward_if. 
+ forward_if.
+ +
+ forward. (* min = j; *)
+ entailer!.
+ rewrite Z.min_r; auto; omega.
+ +
+ forward. (* skip; *)
+ entailer!.
+ rewrite Z.min_l; auto; omega.
+* (* After the loop *)
+ forward. (* return *)
+ entailer!.
+ autorewrite with sublist.
+ destruct al; simpl; auto.
+Qed.
+
+(* Demonstration of the same theorem, but using
+    forward_for  instead of forward_for_simple_bound *)
+Lemma body_min': semax_body Vprog Gprog f_minimum minimum_spec.
+Proof.
+start_function.
+assert_PROP (Zlength al = n). {
+  entailer!. autorewrite with sublist; auto.
+}
+revert POSTCONDITION;
+ replace (hd 0 al) with (Znth 0 al 0) by (destruct al; reflexivity);
+ intro POSTCONDITION.
+forward.  (* min = a[0]; *)
+pose (Inv d (f: Z->Prop) (i: Z) :=
+    PROP(0 <= i <= n; f i)
+    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al 0) (sublist 0 (i+d) al))));
+          temp _a a; temp _i (Vint (Int.repr i));
+          temp _n (Vint (Int.repr n)))
+    SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
+forward_for (Inv 0 (fun _ => True)) (Inv 1 (Z.gt n)).
+*
+forward.
+Exists 0. unfold Inv; entailer!.
+*
+entailer!.
+*
+rename a0 into i.
+ forward. (* j = a[i]; *)
+ assert (repable_signed (Znth i al 0))
+     by (apply Forall_Znth; auto; omega).
+ assert (repable_signed (fold_right Z.min (Znth 0 al 0) (sublist 0 i al)))
+   by (apply Forall_fold_min;
+          [apply Forall_Znth; auto; omega
+          |apply Forall_sublist; auto]).
+ autorewrite with sublist.
+ apply semax_post_flipped with  (normal_ret_assert (Inv 1 (Z.gt n) i)).
+ unfold Inv.
+ rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite (sublist_one i (i+1) al 0) by omega.
+ rewrite fold_min_another.
+ forward_if.
  +
  forward. (* min = j; *)
  entailer!. rewrite Z.min_r; auto; omega.
  +
  forward. (* skip; *)
  entailer!. rewrite Z.min_l; auto; omega.
+ +
+ intros.
+ subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
+ unfold normal_ret_assert. normalize. autorewrite with ret_assert.
+ (* TODO: entailer! fails here with a misleading error message *)
+ Exists i. apply andp_left2. normalize.
 *
- forward. (* return *)
+ rename a0 into i.
+ forward.
+ Exists (i+1).
  entailer!.
- autorewrite with sublist. auto.
+*
+ autorewrite with sublist.
+ forward.
 Qed.
-
 
 Definition minimum_spec2 :=
  DECLARE _minimum
@@ -152,22 +214,24 @@ Definition minimum_spec2 :=
     LOCAL(temp ret_temp  (Vint (Int.repr j)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
+
+(* Second approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min2: semax_body Vprog Gprog f_minimum minimum_spec2.
 Proof.
 start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-forward.  (* min = a[0]; *) 
-autorewrite with sublist.
-forward_for_simple_bound n 
+forward.  (* min = a[0]; *)
+forward_for_simple_bound n
   (EX i:Z, EX j:Z,
     PROP(
-         In j (sublist 0 (Z.max 1 i) al); 
-         Forall (Z.le j) (sublist 0 i al)) 
+         In j (sublist 0 (Z.max 1 i) al);
+         Forall (Z.le j) (sublist 0 i al))
     LOCAL(
-          temp _min (Vint (Int.repr j)); 
-          temp _a a; 
+          temp _min (Vint (Int.repr j));
+          temp _a a;
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Show that the precondition entails the loop invariant *)
@@ -178,11 +242,10 @@ rewrite sublist_one with (d:=0) by omega.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
-forward. (* j = a[i]; *) 
+forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al 0))
    by (apply Forall_Znth; auto; omega).
-autorewrite with sublist in *.
-assert (repable_signed x) 
+assert (repable_signed x)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 forward_if.
  + (* Then clause *)
@@ -201,11 +264,11 @@ forward_if.
  + (* Else clause *)
  forward. (* skip; *)
  Exists x.
- autorewrite with sublist.
  entailer!.
+ rewrite Z.max_r by omega.
  split.
  destruct (zlt 1 i).
- rewrite Z.max_r in H3 by omega. 
+ rewrite Z.max_r in H3 by omega.
  rewrite (sublist_split 0 i (i+1)) by omega.
  apply in_app; left; auto.
  rewrite Z.max_l in H3 by omega.

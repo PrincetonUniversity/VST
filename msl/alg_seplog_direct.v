@@ -1,18 +1,18 @@
-Require Import msl.Extensionality.
-Require Import msl.seplog.
-Require Import msl.base.
-Require Import msl.boolean_alg.
-Require Import msl.sepalg.
-Require Import msl.predicates_sa.
-Require Import msl.corable_direct.
+Require Import VST.msl.Extensionality.
+Require Import VST.msl.seplog.
+Require Import VST.msl.base.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.predicates_sa.
+Require Import VST.msl.corable_direct.
 
 Local Open Scope logic.
 
 Instance algNatDed (T: Type) : NatDed (pred T).
-  apply (mkNatDed _ 
-                    predicates_sa.andp 
+  apply (mkNatDed _
+                    predicates_sa.andp
                     predicates_sa.orp
-                    (@predicates_sa.exp _) 
+                    (@predicates_sa.exp _)
                     (@predicates_sa.allp _)
                     predicates_sa.imp predicates_sa.prop
                     (@predicates_sa.derives _)).

@@ -3,17 +3,17 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.knot.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.sepalg_functors.
-Require Import msl.age_sepalg.
-Require Import msl.knot_lemmas.
-Require Import msl.functors.
-Require Import msl.sepalg_functors.
-Require Import msl.knot_hered.
+Require Import VST.msl.base.
+Require Import VST.msl.knot.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.knot_lemmas.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.knot_hered.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.
@@ -21,7 +21,7 @@ Import CovariantFunctorGenerator.
 
 (* This file specializes knot to have T = Prop *)
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 (*
   We get these from knot_hered and knot_hered_sa.
@@ -37,7 +37,7 @@ End TY_FUNCTOR_PROP.
 Module Type TY_FUNCTOR_SA_PROP.
   Declare Module TF:TY_FUNCTOR_PROP.
   Import TF.
-  
+
   Parameter saf_F : safunctor f_F.
   EXisting Instance saf_F.
 End TY_FUNCTOR_SA_PROP.
@@ -49,7 +49,7 @@ Module Type KNOT_PROP.
 
   Parameter knot : Type.
 
-  Parameter ag_knot : ageable knot. 
+  Parameter ag_knot : ageable knot.
   Existing Instance ag_knot.
   Existing Instance ag_prod.
 
@@ -58,7 +58,7 @@ Module Type KNOT_PROP.
   Parameter squash : (nat * F predicate) -> knot.
   Parameter unsquash : knot -> (nat * F predicate).
 
-  Definition approx (n:nat) (p:predicate) : predicate := 
+  Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => level w < n /\ p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
@@ -87,11 +87,11 @@ End TyFunctorProp2TyFunctor.
 
 Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
   Module TF := TF'.
-  
+
   Module TF_G := TyFunctorProp2TyFunctor(TF).
 
   Module Knot_G := Knot(TF_G).
-  
+
   Import TF.
   Definition knot : Type := Knot_G.knot.
   Definition predicate := (knot * other) -> Prop.
@@ -105,7 +105,7 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
   Existing Instance ag_knot.
   Existing Instance ag_prod.
 
-  Definition approx (n:nat) (p:predicate) : predicate := 
+  Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => level w < n /\ p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
@@ -128,8 +128,8 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
 End KnotProp.
 
 (* Coercion *)
-Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP) 
-                                   (K : KNOT_PROP with Module TF := TF') <: 
+Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
+                                   (K : KNOT_PROP with Module TF := TF') <:
                                      KNOT.
   Module TF := TyFunctorProp2TyFunctor(K.TF).
   Import TF.
@@ -147,7 +147,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
   Definition unsquash : knot -> (nat * F predicate) :=
     K.unsquash.
 
-  Definition approx (n:nat) (p:predicate) : predicate := 
+  Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
@@ -161,7 +161,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.unsquash_squash.
     extensionality n p w.
     unfold approx, K.approx, TF.T_bot.
-    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.    
+    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
     unfold knot, ag_knot, other in *.
     omega.
   Qed.
@@ -188,8 +188,8 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2] _.
+
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
   Proof.
@@ -217,8 +217,8 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     symmetry.
     trivial.
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp] _.
+
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.

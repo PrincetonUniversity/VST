@@ -1,14 +1,14 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.tycontext.
-Require Import veric.Clight_lemmas.
-Require Export veric.expr.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.expr.
 
 
 
 Lemma neutral_cast_lemma: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true -> 
+  is_neutral_cast t1 t2 = true ->
   tc_val t1 v -> eval_cast t1 t2 v = v.
 Proof.
 intros.
@@ -37,7 +37,7 @@ assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
 Qed.
 
 Lemma neutral_cast_subsumption: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true -> 
+  is_neutral_cast t1 t2 = true ->
   tc_val t1 v -> tc_val t2 v.
 Proof.
 intros.
@@ -68,14 +68,15 @@ Qed.
 
 Definition denote_tc_iszero v : mpred :=
          match v with
-         | Vint i => prop (is_true (Int.eq i Int.zero)) 
+         | Vint i => prop (is_true (Int.eq i Int.zero))
          | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
          | _ => FF
          end.
 
-Definition denote_tc_nonzero v : mpred := 
-         match v with 
+Definition denote_tc_nonzero v : mpred :=
+         match v with
          | Vint i => if negb (Int.eq i Int.zero) then TT else FF
+         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
@@ -84,9 +85,15 @@ Definition denote_tc_igt i v : mpred :=
      | _ => FF
      end.
 
+Definition denote_tc_lgt l v : mpred :=
+     match v with
+     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
+     | _ => FF
+     end.
+
 Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
   match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ =>
        Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
     | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
     | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
@@ -96,7 +103,7 @@ Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
 
 Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
   match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ =>
        Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
     | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
     | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
@@ -105,7 +112,7 @@ Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
   end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
 
 
-Definition denote_tc_Zge z v : mpred := 
+Definition denote_tc_Zge z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
                                     | Some n => prop (is_true (Zge_bool z n))
@@ -118,7 +125,7 @@ Definition denote_tc_Zge z v : mpred :=
                      | _ => FF
                   end.
 
-Definition denote_tc_Zle z v : mpred := 
+Definition denote_tc_Zle z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
                                     | Some n => prop (is_true (Zle_bool z n))
@@ -128,7 +135,7 @@ Definition denote_tc_Zle z v : mpred :=
                                     | Some n => prop (is_true (Zle_bool z n))
                                     | None => FF
                                    end
-                     | _ => FF 
+                     | _ => FF
                   end.
 
 Definition sameblock v1 v2 : bool :=
@@ -143,33 +150,49 @@ Definition denote_tc_samebase v1 v2 : mpred :=
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
 match v1, v2 with
-          | Vint n1, Vint n2 => prop (is_true (negb 
-                                   (Int.eq n1 (Int.repr Int.min_signed) 
+          | Vint n1, Vint n2 => prop (is_true (negb
+                                   (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone)))
+          | Vlong n1, Vlong n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone)))
           | _ , _ => FF
         end.
 
-Definition denote_tc_initialized id ty rho : mpred := 
+Definition denote_tc_initialized id ty rho : mpred :=
     prop (exists v, Map.get (te_of rho) id = Some v
-               /\ is_true (typecheck_val v ty)).
+               /\ tc_val ty v).
 
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
-Definition comparable_ptrs v1 v2 : mpred :=
+Definition test_eq_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
   then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
   else (andp (valid_pointer v1) (valid_pointer v2)).
 
-Definition denote_tc_comparable v1 v2 : mpred :=
- match v1, v2 with
+Definition test_order_ptrs v1 v2 : mpred :=
+  if sameblock v1 v2
+  then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
+  else FF.
+
+Definition denote_tc_test_eq v1 v2 : mpred :=
+ match cast_out_long v1, cast_out_long v2 with
  | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
  | Vint i, Vptr _ _ =>
       andp (prop (i = Int.zero)) (weak_valid_pointer v2)
- | Vptr _ _, Vint i => 
+ | Vptr _ _, Vint i =>
       andp (prop (i = Int.zero)) (weak_valid_pointer v1)
- | Vptr _ _, Vptr _ _ => 
-      comparable_ptrs v1 v2
+ | Vptr _ _, Vptr _ _ =>
+      test_eq_ptrs v1 v2
+ | _, _ => FF
+ end.
+
+Definition denote_tc_test_order v1 v2 : mpred :=
+ match cast_out_long v1, cast_out_long v2 with
+ | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vptr _ _, Vptr _ _ =>
+      test_order_ptrs v1 v2
  | _, _ => FF
  end.
 
@@ -183,8 +206,10 @@ Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
-  | tc_comparable' e1 e2 => `denote_tc_comparable (eval_expr e1) (eval_expr e2)
+  | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
+  | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_llt' e l => `(denote_tc_lgt l) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
@@ -213,23 +238,23 @@ Proof.
 intros; apply prop_ext; intuition.
 Qed.
 
-Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m, 
-    denote_tc_assert  (tc_andp a1 a2) rho m <->  
-    denote_tc_assert  (tc_andp' a1 a2) rho m. 
+Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m,
+    denote_tc_assert  (tc_andp a1 a2) rho m <->
+    denote_tc_assert  (tc_andp' a1 a2) rho m.
 Proof.
 intros.
  unfold tc_andp.
  destruct a1; simpl; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and 
+ repeat first [rewrite False_and | rewrite True_and
                     | rewrite and_False | rewrite and_True ];
   try apply iff_refl;
   destruct a2; simpl in *; unfold_lift;
  repeat first [rewrite False_and | rewrite True_and
                     | rewrite and_False | rewrite and_True ];
   try apply iff_refl.
-Qed. 
+Qed.
 
-Lemma denote_tc_assert_andp: 
+Lemma denote_tc_assert_andp:
   forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp a b) rho =
              andp (denote_tc_assert a rho) (denote_tc_assert b rho).
 Proof.

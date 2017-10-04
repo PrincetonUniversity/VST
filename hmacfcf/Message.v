@@ -7,10 +7,10 @@ Set Implicit Arguments.
 Require Import Bvector.
 Require Import EqDec.
 
-Local Open Scope type_scope. 
+Local Open Scope type_scope.
 
 Section HMAC_Message.
-  
+
   Variable word_size max_size : nat.
 
   Definition Message := nat * Vector.t (Bvector word_size) max_size.

@@ -1,7 +1,7 @@
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values. (*for val*)
-Require Import concurrency.permissions.
+Require Import VST.concurrency.permissions.
 Require Import Coq.ZArith.ZArith.
 Require Import compcert.lib.Coqlib.
 
@@ -23,12 +23,12 @@ Module MemoryLemmas.
     erewrite Mem.store_mem_contents; eauto.
     simpl.
     destruct (Pos.eq_dec b b') as [Heq | Hneq];
-      [| by erewrite Maps.PMap.gso by auto].
+      [| erewrite Maps.PMap.gso by auto; reflexivity ].
     subst b'.
     rewrite Maps.PMap.gss.
     destruct (Z_lt_le_dec ofs' ofs) as [Hlt | Hge].
     erewrite Mem.setN_outside by (left; auto);
-      by reflexivity.
+      reflexivity.
     destruct (Z_lt_ge_dec
                 ofs' (ofs + (size_chunk chunk)))
       as [Hlt | Hge'].
@@ -38,14 +38,14 @@ Module MemoryLemmas.
     destruct Hstore as [Hcontra _].
     unfold Mem.range_perm in Hcontra.
     specialize (Hcontra ofs' (conj Hge Hlt));
-      by exfalso.
-    erewrite Mem.setN_outside by (right; rewrite size_chunk_conv in Hge';
-                                    by rewrite encode_val_length);
-      by auto.
+      exfalso; intuition.
+    erewrite Mem.setN_outside; auto.
+    right; rewrite size_chunk_conv in Hge';
+      rewrite encode_val_length; auto.
   Qed.
 
   Transparent Mem.alloc.
-  
+
   Lemma val_at_alloc_1:
     forall m m' sz nb b ofs
       (Halloc: Mem.alloc m 0 sz = (m', nb))
@@ -212,7 +212,7 @@ Module MemoryLemmas.
       unfold Mem.perm in *. unfold permission_at in *.
       rewrite <- Hfree''. assumption.
   Qed.
-  
+
   Lemma mem_free_contents:
     forall m m2 sz b
       (Hfree: Mem.free m b 0 sz = Some m2),
@@ -278,7 +278,7 @@ Module MemoryLemmas.
     simpl in H.
     do 2 eexists; split; eauto.
   Qed.
-  
+
   Lemma load_valid_block:
     forall (m : mem) b ofs chunk v,
       Mem.load chunk m b ofs = Some v ->
@@ -312,18 +312,18 @@ Module MemoryLemmas.
     unfold permission_at in H.
     rewrite H.
     rewrite getMaxPerm_correct;
-      by assumption.
+      assumption.
   Qed.
 
    Lemma sim_valid_access:
-    forall (mf m1f : mem) 
+    forall (mf m1f : mem)
       (b1 b2 : block) (ofs : Z)
       (Hm1f: m1f = makeCurMax mf)
       (HmaxF: max_inv mf)
       (Hvalidb2: Mem.valid_block mf b2)
       (Halign: (4 | ofs)%Z),
       Mem.valid_access m1f Mint32 b2 ofs Freeable.
-  Proof.          
+  Proof.
     unfold Mem.valid_access. simpl. split; try assumption.
     unfold Mem.range_perm. intros ofs0 Hbounds. subst m1f.
     specialize (HmaxF _ ofs0 Hvalidb2).
@@ -334,7 +334,7 @@ Module MemoryLemmas.
     unfold Mem.perm.
     rewrite <- Hperm.
     simpl;
-      by constructor.
+      constructor.
   Qed.
 
   Lemma setPermBlock_lt:
@@ -350,7 +350,7 @@ Module MemoryLemmas.
     destruct (Pos.eq_dec b b').
     - subst.
       destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat sz)%Z).
-      + erewrite setPermBlock_same by eauto.
+      + erewrite setPermBlock_same; [|eauto].
         specialize (Hinv _ ofs' Hvalid).
         erewrite getMaxPerm_correct in *.
         erewrite Hinv in *.
@@ -361,7 +361,7 @@ Module MemoryLemmas.
         assumption.
         eapply Intv.range_notin in n; eauto.
         simpl. zify; omega.
-    - erewrite setPermBlock_other_2 by eauto.
+    - erewrite setPermBlock_other_2; [| eauto].
       assumption.
   Qed.
 
@@ -401,5 +401,5 @@ Module MemoryLemmas.
         erewrite Z2Nat.id in * by omega.
         omega.
   Qed.
-  
+
 End MemoryLemmas.

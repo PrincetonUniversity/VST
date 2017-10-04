@@ -40,15 +40,15 @@ fname = many1 (alphaNum <|> oneOf "_")
 graphDoc :: GR -> Doc
 graphDoc gr =
    text "digraph SrcDeps {"
-   $+$ 
+   $+$
      nest 4 (vcat (map docLine gr))
    $+$
    text "}"
 
 docLine :: (String, S.Set String) -> Doc
-docLine (nm, deps) | codeFile nm = 
+docLine (nm, deps) | codeFile nm =
   text nm <+> text "[color=blue,shape=note]" <+> docDeps nm (S.toList deps)
-docLine (nm, deps) | proofFile nm = 
+docLine (nm, deps) | proofFile nm =
   text nm <+> text "[color=red,shape=oval]" <+> docDeps nm (S.toList deps)
 
 docDeps :: String -> [String] -> Doc
@@ -56,22 +56,22 @@ docDeps _ [] = empty
 docDeps nm nms = vcat (map ln nms)
   where ln x = text nm <+> text "->" <+> text x <> text ";"
 
-dropFiles = [ 
+dropFiles = [
   "base", "Coqlib", "Coqlib2", "ClassicalReasoningAboutComputation",
-  "Extensionality", "loadpath", "superpose_modelsat", 
+  "Extensionality", "loadpath", "superpose_modelsat",
   "superpose_modelsat_sound", "example", "isolate", "isolate_sound" ]
-  
-dropFile = flip elem dropFiles
-  
-codeFiles = [ 
-  "redblack", "compare", "variables", "datatypes",
-  "superpose", "heapresolve", "veristar",  
-  "clauses", "isolate", 
-  "clause_universe", "wellfounded", "fresh"]
-            
-codeFile = flip elem codeFiles            
 
-proofFile = not . codeFile 
+dropFile = flip elem dropFiles
+
+codeFiles = [
+  "redblack", "compare", "variables", "datatypes",
+  "superpose", "heapresolve", "veristar",
+  "clauses", "isolate",
+  "clause_universe", "wellfounded", "fresh"]
+
+codeFile = flip elem codeFiles
+
+proofFile = not . codeFile
 
 mapFst :: (a -> b) -> (a,c) -> (b,c)
 mapFst f (x,y) = (f x,y)
@@ -85,6 +85,6 @@ filterGraph = map (mapSnd (S.filter f)) . filter (f . fst)
 
 main :: IO ()
 main = do
-  parseFromFile dependsParser ".depend" 
+  parseFromFile dependsParser ".depend"
     >>= either (fail . show) (return . render . graphDoc . filterGraph)
-    >>= putStrLn 
+    >>= putStrLn

@@ -1,5 +1,5 @@
-Require Import progs.prod.
-Require Import floyd.proofauto.
+Require Import VST.progs.prod.
+Require Import VST.floyd.proofauto.
 
 Definition bound_int (v : val) (b : Z) :=
   match v with
@@ -35,9 +35,9 @@ Definition product_spec :=
     SEP (`(data_at sh (tarray tlong 10) orig_a a0);
          `(data_at sh (tarray tlong 10) orig_b b0);
          `(data_at sh (tarray tlong 10) (product orig_a orig_b) out0)).
- 
+
 Local Open Scope logic.
- 
+
 Definition Vprog : varspecs := nil.
 Definition Gprog : funspecs :=   ltac:(with_library prog [product_spec]).
 
@@ -55,7 +55,7 @@ auto.
 auto.
 inversion H.
 Qed.
- 
+
 Lemma product_sumarray : semax_body Vprog Gprog f_product product_spec.
 Proof.
 start_function.

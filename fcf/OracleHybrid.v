@@ -7,6 +7,7 @@ Set Implicit Arguments.
 Require Import fcf.FCF.
 (* RndInList has a useful theorem (qam_count) about counting calls to an oracle. *)
 Require Import fcf.RndInList. 
+Require Import fcf.Tactics.
 
 Section OracleHybrid.
 

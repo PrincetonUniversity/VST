@@ -2,8 +2,8 @@ Load loadpath.
 Require Import Coq.Lists.List.
 Require Import veristar.variables veristar.datatypes veristar.list_denote.
 Require Import compcert.Coqlib.
-Require Import veric.Coqlib2.
-Require Import msl.predicates_sa.
+Require Import VST.veric.Coqlib2.
+Require Import VST.msl.predicates_sa.
 Require Import ZArith.
 Require Import veristar.veristar_sound.
 Require Import veristar.model_type veristar.model.
@@ -18,10 +18,10 @@ Module Type ISO_SOUND.
 Declare Module VeriStarSound : VERISTAR_SOUND.
 Import VeriStarSound VSM VeriStarLogic.
 
-Axiom expr_denote_heap_ind : forall x s h h', 
+Axiom expr_denote_heap_ind : forall x s h h',
   expr_denote x (State s h)=expr_denote x (State s h').
 
-Axiom oracle_sound: forall (e: entailment), 
+Axiom oracle_sound: forall (e: entailment),
     oracle e = true -> entailment_denote e.
 
 
@@ -32,19 +32,19 @@ Axiom existsv_refl:  forall P x, P |-- existsv x P.
 
 Definition fresh {A} (f: A -> var) (a: A) (x: var) : Prop :=  Ident.lt (f a) x.
 
-Ltac do_fresh1 := 
+Ltac do_fresh1 :=
   repeat match goal with H: Ile _ _ |- _ => revert H
                                      | H: Ident.lt _ _ |- _ => revert H
                                      | H: fresh _ _ _ |- _ => revert H end;
   clear;
-  unfold fresh; simpl; 
-  repeat ((rewrite freshmax_list_app || rewrite freshmax_list_rev 
+  unfold fresh; simpl;
+  repeat ((rewrite freshmax_list_app || rewrite freshmax_list_rev
                 || rewrite varmax_minid || rewrite varmax_minid'); simpl).
 
 Ltac do_fresh :=
   do_fresh1; intros;
-  repeat match goal with 
-             |  H: Ident.lt (var_max _ _) _ |- _ => apply var_max_split in H; destruct H 
+  repeat match goal with
+             |  H: Ident.lt (var_max _ _) _ |- _ => apply var_max_split in H; destruct H
              end;
   repeat apply var_max_intro; auto;
   try solve [etransitivity; eauto].
@@ -115,13 +115,13 @@ Axiom isolate_sound:
       isolate e P nextv = Some results ->
        fresh freshmax_expr e nextv ->
        fresh freshmax_assertion P nextv ->
-      assertion_denote P |-- 
+      assertion_denote P |--
         fold_right (fun P => orp (existsv nextv (assertion_denote P))) FF results /\
-      forall Q, In Q results -> 
+      forall Q, In Q results ->
             match Q with
            |Assertion _ (Next e0 _ :: _) => e=e0
-           | _ => False 
-           end /\ 
+           | _ => False
+           end /\
            fresh freshmax_assertion Q nextv2.
 End ISO_SOUND.
 
@@ -133,7 +133,7 @@ Import VeriStarSound VSM VeriStarLogic.
 Maybe some of the lemmas there Repair import-structire later******
 ********)
 
-Lemma expr_denote_heap_ind : forall x s h h', 
+Lemma expr_denote_heap_ind : forall x s h h',
   expr_denote x (State s h)=expr_denote x (State s h').
 Proof.
 intros. destruct x; auto.
@@ -141,7 +141,7 @@ Qed.
 
 (************end of duplicated lemma ********)
 
-Lemma oracle_sound: forall (e: entailment), 
+Lemma oracle_sound: forall (e: entailment),
     oracle e = true -> entailment_denote e.
 Proof.
 unfold oracle;
@@ -179,7 +179,7 @@ Definition fresh {A} (f: A -> var) (a: A) (x: var) : Prop :=  Ident.lt (f a) x.
 Lemma list_denote_separate':
   forall (X Y: Type) (f: X -> spred) (g: Y -> spred) (base: spred) l1 l2,
   list_denote f (@sepcon _ _) (list_denote g (@sepcon _ _) base l2) l1 =
-  sepcon (list_denote f (@sepcon _ _) emp l1) 
+  sepcon (list_denote f (@sepcon _ _) emp l1)
    (sepcon (list_denote g (@sepcon _ _) emp l2)
      base).
 Proof.
@@ -192,26 +192,26 @@ f_equal.
 auto.
 Qed.
 
-Ltac do_fresh1 := 
+Ltac do_fresh1 :=
   repeat match goal with H: Ile _ _ |- _ => revert H
                                      | H: Ident.lt _ _ |- _ => revert H
                                      | H: fresh _ _ _ |- _ => revert H end;
   clear;
-  unfold fresh; simpl; 
-  repeat ((rewrite freshmax_list_app || rewrite freshmax_list_rev 
+  unfold fresh; simpl;
+  repeat ((rewrite freshmax_list_app || rewrite freshmax_list_rev
                 || rewrite varmax_minid || rewrite varmax_minid'); simpl).
 
 Ltac do_fresh :=
   do_fresh1; intros;
-  repeat match goal with 
-             |  H: Ident.lt (var_max _ _) _ |- _ => apply var_max_split in H; destruct H 
+  repeat match goal with
+             |  H: Ident.lt (var_max _ _) _ |- _ => apply var_max_split in H; destruct H
              end;
   repeat apply var_max_intro; auto;
   try solve [etransitivity; eauto].
 (*  repeat rewrite Zpos_succ_morphism in *; solve [auto | omega]. *)
 
 Lemma freshmax_pn_atom_Equ_Destruct: forall e e' nextv,
-fresh freshmax_pn_atom (Equ e e') nextv -> 
+fresh freshmax_pn_atom (Equ e e') nextv ->
 fresh freshmax_expr e nextv /\ fresh freshmax_expr e' nextv.
 Proof.
 intros.
@@ -219,7 +219,7 @@ split; do_fresh.
 Qed.
 
 Lemma freshmax_pn_atom_Nequ_Destruct: forall e e' nextv,
-fresh freshmax_pn_atom (Nequ e e') nextv -> 
+fresh freshmax_pn_atom (Nequ e e') nextv ->
 fresh freshmax_expr e nextv /\ fresh freshmax_expr e' nextv.
 Proof.
 intros.
@@ -351,12 +351,12 @@ unfold fresh in *. transitivity x; auto.
 Qed.
 
 Lemma or_FF: forall {A} (P: pred A), (orp P FF) = P.
-Proof. unfold orp; intros; extensionality z; apply prop_ext; intuition. 
+Proof. unfold orp; intros; extensionality z; apply prop_ext; intuition.
 Qed.
 
 Lemma permute_sigma0:
  forall sigma0 (a: space_atom) sigma, Permutation (sigma0 ++ a :: sigma) (a :: sigma0 ++ sigma).
-Proof. 
+Proof.
 intros; eapply perm_trans; [apply Permutation_app_comm | apply Permutation_cons; apply Permutation_app_comm].
 Qed.
 
@@ -397,7 +397,7 @@ rewrite listd_cons in HypSig.
 destruct HypSig as [s1 [s2 [? [? ?]]]].
 inv H4.
 contradiction H3.
-unfold var_eq. 
+unfold var_eq.
 clear - H6 H2.
  destruct s1; destruct s2; destruct s; destruct H2; destruct H; simpl in *; auto.
 subst; rewrite (expr_denote_heap_ind e0 s h1 h). rewrite (expr_denote_heap_ind e1 s h1 h).
@@ -413,7 +413,7 @@ clear HypP.
 exists (set_in_state nextv z s1).
 exists (set_in_state nextv z s2).
 split3.
-clear - H2. destruct H2; destruct H; 
+clear - H2. destruct H2; destruct H;
 unfold set_in_state; repeat split; simpl; try congruence.
 exists (set_in_state nextv z (State (stk s1) h0)).
 exists (set_in_state nextv z (State (stk s1) h1)).
@@ -455,7 +455,7 @@ Lemma exorcize_sound_Lseg:
     |-- fold_right
          (fun P => orp (existsv nextv (assertion_denote P))) FF l) /\
    (forall (Q : assertion),
-     In Q l -> 
+     In Q l ->
           match Q with
           |Assertion _ (Next e0 _ :: _) => e=e0
           | _ => False
@@ -478,10 +478,10 @@ destruct IHsigma.
 split.
 simpl in H0,H2.
 intros s ?.
-simpl in H0, H4. 
+simpl in H0, H4.
 generalize (H0 _ H4); clear H0; intros [? _].
 rewrite (@listd_prop pn_atom state pn_atom_denote) in H4.
-destruct H4 as [HypP HypSig]. 
+destruct H4 as [HypP HypSig].
 destruct (classic ((e0===e1) s)).
 right.
 apply H2.
@@ -548,11 +548,11 @@ Lemma exorcize_e:
   (entailment_denote
        (Entailment (Assertion pnatoms (rev (Lseg e0 e1 :: sigma0) ++ sigma))
           (Assertion [Equ e e0] (rev (Lseg e0 e1 :: sigma0) ++ sigma)))
-    /\ (exists cl', 
+    /\ (exists cl',
           exorcize e (Equ e0 e1 :: pnatoms) (Lseg e0 e1 :: sigma0) sigma nextv = Some cl' /\
            cl = (Assertion pnatoms
                        (Next e (Var nextv) :: Lseg (Var nextv) e1 :: rev sigma0 ++ sigma)) :: cl'))
-  \/ exorcize e pnatoms (Lseg e0 e1 :: sigma0) sigma nextv = Some cl.                
+  \/ exorcize e pnatoms (Lseg e0 e1 :: sigma0) sigma nextv = Some cl.
 Proof.
 simpl; intros until cl.
 case_eq (oracle
@@ -573,7 +573,7 @@ Lemma exorcize_sound:
       (FRESHe: fresh freshmax_expr e nextv)
       (LT: Ident.lt nextv nextv2),
       (fresh freshmax_assertion (Assertion pnatoms sigma) nextv) ->
-      forall cl, 
+      forall cl,
       (exorcize e pnatoms nil sigma nextv) = Some cl ->
  (assertion_denote (Assertion pnatoms sigma)
  |-- fold_right (fun P => orp (existsv nextv (assertion_denote P))) FF cl) /\
@@ -631,7 +631,7 @@ case_eq (oracle
 apply oracle_sound in H.
 inv H0.
 left; auto.
-revert H0; 
+revert H0;
  case_eq (oracle
            (Entailment
               (Assertion pnatoms (rev sigma0 ++ Lseg e0 e1 :: sigma))
@@ -642,7 +642,7 @@ right; right; auto.
 Qed.
 
 Lemma if_bool_e:
-  forall {A: Type} (b: bool) (c d e: A), 
+  forall {A: Type} (b: bool) (c d e: A),
      (if b then c else d) = e ->
      b=true /\ c=e \/ b=false /\ d=e.
 Proof.
@@ -679,7 +679,7 @@ split; auto.
 do_fresh.
 Qed.
 
-Lemma isolate_Next2: 
+Lemma isolate_Next2:
   forall e e0 e1 sigma nextv nextv2 pnatoms sigma0
   (FRESHe:  fresh freshmax_expr e nextv)
   (LT: Ident.lt nextv nextv2),
@@ -695,7 +695,7 @@ Lemma isolate_Next2:
    In Q [Assertion pnatoms (Next e e1 :: rev sigma0 ++ sigma)] ->
            match Q with
            |Assertion _ (Next e0 _ :: _) => e=e0
-           | _ => False 
+           | _ => False
            end/\
    fresh freshmax_assertion Q nextv2).
 Proof.
@@ -723,7 +723,7 @@ unfold var_eq in H.
 repeat rewrite expr_denote_heap_ind with (h:=h0)(h':=h) in *.
 rewrite <- H in *.
 apply H1.
-simpl in H. unfold assertion_denote. 
+simpl in H. unfold assertion_denote.
 intros s [_ ?].
 rewrite space_denote_permute with (l':= rev sigma0 ++ Next e e1 :: sigma); auto.
 apply Permutation_sym; apply permute_sigma0.
@@ -750,14 +750,14 @@ Lemma isolate_Lseg1: forall e e0 e1 sigma nextv nextv2 pnatoms sigma0
       [Assertion pnatoms (Next e (Var nextv) :: Lseg (Var nextv) e1 :: rev sigma0 ++ sigma)] ->
         match Q with
            |Assertion _ (Next e0 _ :: _) => e=e0
-           | _ => False 
+           | _ => False
            end /\
     fresh freshmax_assertion Q nextv2).
 Proof.
 intros.
-split. 
+split.
 assert (list_denote pn_atom_denote (@andp _ )
-         (space_denote (rev sigma0 ++ Lseg e0 e1 :: sigma)) pnatoms |-- 
+         (space_denote (rev sigma0 ++ Lseg e0 e1 :: sigma)) pnatoms |--
          e===e0 && neg (pn_atom_denote (Equ e0 e1))).
 eapply derives_trans; try apply H. intros w [? [? ?]]; split; auto.
 clear H.
@@ -774,17 +774,17 @@ Qed.
 
 Lemma isolate'_sound:
   forall e pnatoms sigma nextv nextv2 results
-  (LT: Ident.lt nextv nextv2),      
+  (LT: Ident.lt nextv nextv2),
       isolate' e pnatoms nil sigma nextv 0 = Some results ->
       fresh freshmax_expr e nextv ->
       fresh freshmax_assertion (Assertion pnatoms sigma) nextv ->
-      assertion_denote (Assertion pnatoms sigma) |-- 
+      assertion_denote (Assertion pnatoms sigma) |--
         fold_right (fun P => orp (existsv nextv (assertion_denote P))) FF results /\
-      (forall Q, In Q results -> 
+      (forall Q, In Q results ->
             match Q with
            |Assertion _ (Next e0 _ :: _) => e=e0
-           | _ => False 
-           end /\ 
+           | _ => False
+           end /\
            fresh freshmax_assertion Q nextv2).
 Proof.
 intros until 2. intro FRESHe; intros.
@@ -796,7 +796,7 @@ remember O as N. clear HeqN.
 revert pnatoms sigma0 results N H H0; induction sigma; intros.
 
 (* nil case *)
-rewrite <- app_nil_end in *; 
+rewrite <- app_nil_end in *;
 unfold isolate' in H.
 apply exorcize_sound; auto.
 destruct (lt_dec N 2) as [? | _];  [ inversion H | ].
@@ -817,7 +817,7 @@ apply isolate_Next1; auto.
 revert H; case_eq (oracle
           (Entailment
              (Assertion pnatoms (rev sigma0 ++ Next e0 e1 :: sigma))
-             (Assertion [Equ e e0] (rev sigma0 ++ Next e0 e1 :: sigma)))); 
+             (Assertion [Equ e e0] (rev sigma0 ++ Next e0 e1 :: sigma))));
      intros; inv H2; [|clear H].
 apply isolate_Next2; auto; apply oracle_sound; auto.
 
@@ -853,13 +853,13 @@ Lemma isolate_sound:
       isolate e P nextv = Some results ->
        fresh freshmax_expr e nextv ->
        fresh freshmax_assertion P nextv ->
-      assertion_denote P |-- 
+      assertion_denote P |--
         fold_right (fun P => orp (existsv nextv (assertion_denote P))) FF results /\
-      forall Q, In Q results -> 
+      forall Q, In Q results ->
             match Q with
            |Assertion _ (Next e0 _ :: _) => e=e0
-           | _ => False 
-           end /\ 
+           | _ => False
+           end /\
            fresh freshmax_assertion Q nextv2.
 Proof.
 unfold isolate; destruct P; intros.

@@ -1,15 +1,15 @@
-Require Import veric.base.
+Require Import VST.veric.base.
 Require Import compcert.cfrontend.Clight.
 Definition nullval : val := Vint Int.zero.
 
 Definition val_to_bool (v: val) : option bool :=
-  match v with 
+  match v with
     | Vint n => Some (negb (Int.eq n Int.zero))
     | Vptr _ _ => Some true
     | _ => None
   end.
 
-Definition bool_of_valf (v: val): option bool := 
+Definition bool_of_valf (v: val): option bool :=
 match v with
   | Vint i => Some (negb (Int.eq i Int.zero))
   | Vlong i => Some (negb (Int64.eq i Int64.zero))
@@ -19,12 +19,12 @@ match v with
   | Vundef => None
 end.
 
-Definition var_name (V: Type) (bdec: ident * globvar V) : ident := 
+Definition var_name (V: Type) (bdec: ident * globvar V) : ident :=
    fst bdec.
 
 Definition no_dups (F V: Type) (fdecs: list (ident * F)) (bdecs: list (ident * globvar V)) : Prop :=
   list_norepet (map (@fst ident F) fdecs ++ map (@var_name V) bdecs).
-Implicit Arguments no_dups.
+Arguments no_dups [F V] _ _.
 
 Lemma no_dups_inv:
   forall  (A V: Type) id f fdecs bdecs,
@@ -40,8 +40,8 @@ apply H3.
 intro; contradiction H2; apply in_or_app; auto.
 intro; contradiction H2; apply in_or_app; auto.
 Qed.
-Implicit Arguments no_dups_inv.
- 
+Arguments no_dups_inv [A V] _ _ _ _ _.
+
 
 Lemma of_bool_Int_eq_e:
   forall i j, Val.of_bool (Int.eq i j) = Vtrue -> i = j.
@@ -55,8 +55,8 @@ rewrite H0 in H ; trivial.
 inversion H1.
 Qed.
 
-Lemma eq_block_lem: 
-    forall (A: Set) a (b: A) c, (if eq_block a a then b else c) = b. 
+Lemma eq_block_lem:
+    forall (A: Set) a (b: A) c, (if eq_block a a then b else c) = b.
 Proof.
 intros.
 unfold eq_block.
@@ -99,14 +99,14 @@ Proof.
 intros.
 rewrite <- H; auto.
 Qed.
-Implicit Arguments equiv_e1.
+Arguments equiv_e1 [A B] _ _.
 
 Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
 Proof.
 intros.
 rewrite H; auto.
 Qed.
-Implicit Arguments equiv_e2.
+Arguments equiv_e2 [A B] _ _.
 
 Lemma deref_loc_fun: forall {ty m b z v v'},
    Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.
@@ -122,10 +122,10 @@ Proof.
  intros.
  destruct (Clight.eval_expr_lvalue_ind ge e le m
    (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); 
+   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i')));
   simpl; intros;
 
-  try solve [repeat 
+  try solve [repeat
   match goal with
   |  H: eval_expr _ _ _ _ ?a _  |- _ => (is_var a; fail 1) || inv H
   | H: eval_lvalue _ _ _ _ ?a _ _ |- _  => (is_var a; fail 1) || inv H
@@ -135,7 +135,7 @@ Proof.
  * inv H2. apply H0 in H7; congruence. inv H3.
  * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.
  * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3.
- * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto. 
+ * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto.
    inv H. congruence. inversion2 H4 H10.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
@@ -174,7 +174,7 @@ Qed.
 Lemma inv_find_symbol_fun:
   forall {ge id id' b},
     Senv.find_symbol ge id = Some b ->
-    Senv.find_symbol ge id' = Some b -> 
+    Senv.find_symbol ge id' = Some b ->
     id=id'.
 Proof.
   intros.
@@ -183,9 +183,9 @@ Proof.
   rewrite H0 in H.
   inversion H.
   reflexivity.
-Qed. 
+Qed.
 
-Lemma assign_loc_fun: 
+Lemma assign_loc_fun:
   forall {cenv ty m b ofs v m1 m2},
    assign_loc cenv ty m b ofs v m1 ->
    assign_loc cenv ty m b ofs v m2 ->
@@ -194,7 +194,7 @@ Proof.
  intros. inv H; inv H0; try congruence.
 Qed.
 
-Lemma alloc_variables_fun: 
+Lemma alloc_variables_fun:
   forall {ge e m vl e1 m1 e2 m2},
      Clight.alloc_variables ge e m vl e1 m1 ->
      Clight.alloc_variables ge e m vl e2 m2 ->
@@ -203,11 +203,11 @@ Proof.
  intros until vl; revert e m;
  induction vl; intros; inv H; inv H0; auto.
  inversion2 H5 H9.
- eauto. 
+ eauto.
 Qed.
 
 Lemma bind_parameters_fun:
-  forall {ge e m p v m1 m2}, 
+  forall {ge e m p v m1 m2},
     Clight.bind_parameters ge e m p v m1 ->
     Clight.bind_parameters ge e m p v m2 ->
     m1=m2.
@@ -218,7 +218,7 @@ intros until p. revert e m; induction p; intros; inv H; inv H0; auto.
 Qed.
 
 Lemma eventval_list_match_fun:
-  forall {se a a' t v}, 
+  forall {se a a' t v},
     Events.eventval_list_match se a t v ->
     Events.eventval_list_match se a' t v ->
     a=a'.
@@ -235,7 +235,7 @@ Qed.
 
 Ltac fun_tac :=
   match goal with
-  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H' 
+  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H'
   | H: Clight.eval_expr ?ge ?e ?le ?m ?A _,
     H': Clight.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
         apply (eval_expr_fun H) in H'; subst
@@ -258,17 +258,17 @@ Ltac fun_tac :=
     H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
         apply (bind_parameters_fun H) in H'; inv H'
   | H: Senv.find_symbol ?ge _ = Some ?b,
-    H': Senv.find_symbol ?ge _ = Some ?b |- _ => 
+    H': Senv.find_symbol ?ge _ = Some ?b |- _ =>
        apply (inv_find_symbol_fun H) in H'; inv H'
   | H: Events.eventval_list_match ?ge _ ?t ?v,
     H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>
        apply (eventval_list_match_fun H) in H'; inv H'
- end. 
+ end.
 
 (* Lemmas about ident lists *)
 
 Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
- match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end. 
+ match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end.
 
 Fixpoint compute_list_norepet (ids: list ident) : bool :=
  match ids with
@@ -291,7 +291,7 @@ Proof.
  apply IHids; auto.
 Qed.
 
-Lemma compute_list_norepet_e: forall ids, 
+Lemma compute_list_norepet_e: forall ids,
      compute_list_norepet ids = true -> list_norepet ids.
 Proof.
  induction ids; simpl; intros.
@@ -361,7 +361,7 @@ Lemma rev_if_be_singleton:
 Proof. intro. unfold rev_if_be; destruct Archi.big_endian; auto. Qed.
 
 Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
-Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity. 
+Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity.
 Qed.
 
 Lemma decode_byte_val:

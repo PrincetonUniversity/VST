@@ -1,6 +1,6 @@
-Require Import floyd.base.
-Require Import floyd.fieldlist.
-Require Import floyd.computable_theorems.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.fieldlist.
+Require Import VST.floyd.computable_theorems.
 Open Scope nat.
 
 Inductive ListType: list Type -> Type :=
@@ -52,7 +52,7 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
        fun E1 : A :: B = map (fun _ : X => F) (x :: l2) =>
        (fun
           X0 : map (fun _ : X => F) (x :: l2) =
-               map (fun _ : X => F) (x :: l2) -> list F => 
+               map (fun _ : X => F) (x :: l2) -> list F =>
         X0 eq_refl)
          match
            E1 in (_ = y)
@@ -79,7 +79,7 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
   end.
 
 Definition decay {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): list F :=
-  let l0 := map (fun _ => F) l in 
+  let l0 := map (fun _ => F) l in
   let E := @eq_refl _ (map (fun _ => F) l) : l0 = map (fun _ => F) l in
   decay'' l0 v l E.
 
@@ -245,7 +245,7 @@ Lemma type_func_rec_rank_irrelevent: forall t n n0,
   n0 >= rank_type cenv_cs t ->
   type_func_rec n t = type_func_rec n0 t.
 Proof.
- (* DON'T USE omega IN THIS PROOF!  
+ (* DON'T USE omega IN THIS PROOF!
    We want the proof to compute reasonably efficiently.
 *)
   intros t.
@@ -255,7 +255,7 @@ Proof.
   + (* Tarray *)
     destruct n; simpl in H; try solve [inv H].
     destruct n0; simpl in H; try solve [inv H0].
-    simpl. f_equal. 
+    simpl. f_equal.
     apply IH; apply le_S_n; auto.
   + (* Tstruct *)
     destruct (cenv_cs ! id) as [co |] eqn: CO.
@@ -277,7 +277,7 @@ Proof.
       pose proof In_field_type (i, t) _ H1 Hin.
       rewrite <- (co_consistent_rank cenv_cs (get_co id) (get_co_consistent _)) in H3.
       unfold field_type in H2.
-      apply IH; 
+      apply IH;
        (eapply le_trans; [ | eassumption]; rewrite H2; auto).
     - destruct n, n0; simpl;  unfold FT_aux in *;
       generalize (F_Tstruct id a) as FF; unfold get_co;
@@ -312,7 +312,7 @@ Definition FTI_aux id :=
     (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func (field_type (fst it) m)) m).
 
 
-Lemma type_func_eq: forall t, 
+Lemma type_func_eq: forall t,
   type_func t =
   match t as t0 return A t0 with
   | Tarray t0 n a => F_Tarray t0 n a (type_func t0)

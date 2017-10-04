@@ -1,5 +1,5 @@
 { (* header *)
-  
+
 open Lexing
 open Parser
 
@@ -78,7 +78,7 @@ rule token = parse
   | ";"  { SEMI }
   | "&&" { AMPERAMPER }
   | "||" { BARBAR }
-  | ":"  { COLON } 
+  | ":"  { COLON }
   | "="  { EQUAL }
   | "==" { EQUALEQUAL }
   | "!=" { BANGEQUAL }

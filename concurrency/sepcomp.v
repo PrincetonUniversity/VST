@@ -1,21 +1,21 @@
 Module SepComp.
-Require Export sepcomp.semantics.
-Require Export sepcomp.mem_lemmas.
-Require Export sepcomp.structured_injections.
-Require Export sepcomp.effect_semantics.
-Require Export sepcomp.reach. 
-Require Export sepcomp.simulations.
-(*Require Export sepcomp.closed_simulations.*)
-(*Require Export sepcomp.barebones_simulations.*)
-(*Require Export sepcomp.effect_properties.*)
-(*Require Export sepcomp.open_safety.*)
-Require Export sepcomp.extspec.
-Require Export sepcomp.Address.
-(*Require Export sepcomp.relyguarantee_lemmas.*)
-(* Require Export sepcomp.arguments. *)
+Require Export VST.sepcomp.semantics.
+Require Export VST.sepcomp.mem_lemmas.
+Require Export VST.sepcomp.structured_injections.
+Require Export VST.sepcomp.effect_semantics.
+Require Export VST.sepcomp.reach.
+Require Export VST.sepcomp.simulations.
+(*Require Export VST.sepcomp.closed_simulations.*)
+(*Require Export VST.sepcomp.barebones_simulations.*)
+(*Require Export VST.sepcomp.effect_properties.*)
+(*Require Export VST.sepcomp.open_safety.*)
+Require Export VST.sepcomp.extspec.
+Require Export VST.sepcomp.Address.
+(*Require Export VST.sepcomp.relyguarantee_lemmas.*)
+(* Require Export VST.sepcomp.arguments. *)
 End SepComp.
 
 Module SepCompExtras.
-Require Export sepcomp.mem_wd.
-(* Require Export nucular_semantics. *)
+Require Export VST.sepcomp.mem_wd.
+(* Require Export VST.nucular_semantics. *)
 End SepCompExtras.

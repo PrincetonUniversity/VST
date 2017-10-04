@@ -1,8 +1,8 @@
 Require Import MirrorShard.SepExpr.
-Require Import veric.SeparationLogic.
-Require Import floyd.proofauto.
-Require Import progs.list_dt.
-Require Import progs.queue.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.list_dt.
+Require Import VST.progs.queue.
 Local Open Scope logic.
 
 
@@ -15,8 +15,8 @@ Definition Refl_himp := derives_refl.
 Definition Trans_himp := derives_trans.
 
 Lemma Refl_heq : Reflexive heq.
-Proof. 
-intros. 
+Proof.
+intros.
 unfold heq; split; apply derives_refl; auto.
 Qed.
 
@@ -53,21 +53,21 @@ Definition inj := fun p => (prop p && emp).
 
 Definition star := sepcon.
 
-Definition ex := @exp mpred Nveric. 
+Definition ex := @exp mpred Nveric.
 
-Lemma himp_star_comm : forall P Q, 
+Lemma himp_star_comm : forall P Q,
     (star P Q) ===> (star Q P).
 Proof.
-intros. unfold star, himp. cancel. 
+intros. unfold star, himp. cancel.
 Qed.
 
-Lemma heq_star_comm : forall P Q, 
+Lemma heq_star_comm : forall P Q,
     (star P Q) <===> (star Q P).
 Proof.
 intros. split; unfold star; cancel.
 Qed.
 
-Lemma heq_star_assoc : forall P Q R, 
+Lemma heq_star_assoc : forall P Q R,
   (star (star P Q) R) <===> (star P (star Q R)).
 Proof.
 split; unfold star; cancel.
@@ -83,7 +83,7 @@ Proof.
 split; unfold star; cancel.
 Qed.
 
-Lemma himp_star_frame : forall P Q R S, 
+Lemma himp_star_frame : forall P Q R S,
   P ===> Q -> R ===> S -> (star P R) ===> (star Q S).
 Proof.
 intros. unfold star. unfold himp in *. apply sepcon_derives; auto.
@@ -92,7 +92,7 @@ Qed.
 Ltac sep_solve :=
   unfold star, himp, heq, emp, inj, ex in *; intuition; cancel; auto.
 
-Lemma heq_star_frame : forall P Q R S, 
+Lemma heq_star_frame : forall P Q R S,
   P <===> Q -> R <===> S -> (star P R) <===> (star Q S).
 Proof.
 intros; sep_solve.
@@ -129,7 +129,7 @@ Proof.
 sep_solve.
 Qed.
 
-Lemma heq_star_cancel : forall P Q R, 
+Lemma heq_star_cancel : forall P Q R,
   Q <===> R -> (star P Q) <===> (star P R).
 Proof.
 sep_solve.
@@ -160,27 +160,27 @@ sep_solve. entailer!.
 Qed.
 
   (** ex lemmas **)
-  Lemma himp_ex_p : forall T (P : T -> _) Q, 
+  Lemma himp_ex_p : forall T (P : T -> _) Q,
             (forall v, (P v) ===> Q) -> (ex T P) ===> Q.
   Proof. sep_solve. apply exp_left. auto.
 Qed.
 
-  Lemma himp_ex_c : forall T (P : T -> _) Q, 
+  Lemma himp_ex_c : forall T (P : T -> _) Q,
     (exists v, Q ===> (P v)) -> Q ===> (ex T P).
-  Proof. 
+  Proof.
  sep_solve. destruct H. eapply exp_right.  apply H.
 Qed.
 
-  Lemma heq_ex : forall T (P Q : T -> _), 
+  Lemma heq_ex : forall T (P Q : T -> _),
     (forall v, P v <===> Q v) ->
     ex T P <===> ex T Q.
-Proof. 
+Proof.
 sep_solve; apply exp_left;  intros;
 specialize (H x); destruct H; apply (exp_right x);
 auto.
 Qed.
 
-  Lemma himp_ex : forall T (P Q : T -> _), 
+  Lemma himp_ex : forall T (P Q : T -> _),
     (forall v, P v ===> Q v) ->
     ex T P ===> ex T Q.
 Proof.
@@ -217,7 +217,7 @@ Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 Check (isnil nil).
 
 
-Instance QS: listspec t_struct_elem _next. 
+Instance QS: listspec t_struct_elem _next.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition link := field_at Tsh t_struct_elem _next.
@@ -230,12 +230,12 @@ Definition fifo (contents: list val) (p: val) : mpred:=
       field_at Tsh t_struct_fifo _tail p tl *
       if isnil contents
       then (!!(hd=nullval) && emp)
-      else (EX prefix: list val, 
+      else (EX prefix: list val,
               !!(contents = prefix++tl::nil)
             &&  (links QS Tsh prefix hd tl * link tl nullval)).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_at Tsh t_struct_elem _a p (Vint (fst rep)) * 
+  field_at Tsh t_struct_elem _a p (Vint (fst rep)) *
   (field_at Tsh t_struct_elem _b p (Vint (snd rep)) *
    (field_at_ Tsh t_struct_elem _next p)).
 
@@ -263,7 +263,7 @@ Qed.
 Hint Resolve link__local_facts : saturate_local.
 
 
-Definition Delta := 
+Definition Delta :=
   @abbreviate tycontext
     (initialized _h
        (@PTree.Node (type * bool)
@@ -298,14 +298,14 @@ Definition Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
+                           (WITH  p0 : val * list val, p : val PRE
                             [(_Q, tptr t_struct_fifo),
                             (_p, tptr t_struct_elem)]
                             (let (q0, contents0) := p0 in
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `(link_ p))) POST 
+                             SEP  (`(fifo contents0 q0); `(link_ p))) POST
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p :: @nil val) q0)))))
@@ -326,7 +326,7 @@ Definition Delta :=
                             (_b, tint)]
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
+                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST
                             [tptr t_struct_elem]`(elemrep (a, b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
@@ -350,7 +350,7 @@ Definition Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  q0 : val, contents0 : list val PRE 
+                           (WITH  q0 : val, contents0 : list val PRE
                             [(_Q, tptr t_struct_fifo)]
                             PROP  ()
                             LOCAL  (`(@eq val q0) (eval_id _Q))
@@ -372,7 +372,7 @@ Definition Delta :=
                          (2%positive, tint)]
                          PROP  ()
                          LOCAL ()
-                         SEP 
+                         SEP
                          (`(memory_block Tsh)
                             (`force_int (eval_id 2%positive))
                             (eval_id 1%positive)) POST  [tvoid]
@@ -380,12 +380,12 @@ Definition Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
+                           (WITH  p0 : val * list val, p : val PRE
                             [(_Q, tptr t_struct_fifo)]
                             (let (q0, contents0) := p0 in
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q))
-                             SEP  (`(fifo (p :: contents0) q0))) POST 
+                             SEP  (`(fifo (p :: contents0) q0))) POST
                             [tptr t_struct_elem]
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
@@ -446,9 +446,9 @@ Definition environ2prop_type : Expr.type.
 Defined.
 
 Definition our_types := cons tycontext_type
-                       (cons c_option_expr_type 
-                       (cons c_type_type 
-                       (cons environ_type 
+                       (cons c_option_expr_type
+                       (cons c_type_type
+                       (cons environ_type
                        (cons Expr.Prop_type
                        (cons environ2prop_type nil))))).
 
@@ -469,12 +469,12 @@ Definition delta_const := @Expr.Const our_types tycontext_type_var Delta.
 
 (*above preconstructed, below constructed by entailer *)
 
-Definition c_option_expr_const := @Expr.Const our_types c_option_expr_type_var 
+Definition c_option_expr_const := @Expr.Const our_types c_option_expr_type_var
 (@Some expr
             (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)).
 
-Definition ret_type_signature := 
+Definition ret_type_signature :=
 Expr.Sig our_types (cons tycontext_type_var nil)
   c_type_type_var ret_type.
 
@@ -490,7 +490,7 @@ Expr.Sig our_types (nil) (environ_type_var) (rho).
 
 Definition functions (rho:environ) := cons ret_type_signature
                        (cons tc_expropt_signature
-                       (cons tc_expropt_signature_lifted 
+                       (cons tc_expropt_signature_lifted
                        (cons (environ_signature rho) nil))).
 
 Definition ret_type_delta : Expr.expr our_types.
@@ -506,7 +506,7 @@ Defined.
 Definition tc_expropt_application_unlifted : Expr.expr our_types.
 eapply Expr.Func.
 apply 1%nat.
-apply (cons delta_const (cons c_option_expr_const (cons ret_type_delta 
+apply (cons delta_const (cons c_option_expr_const (cons ret_type_delta
                                                        (cons (Expr.Func 3%nat nil) nil)))).
 Defined.
 
@@ -525,7 +525,7 @@ forall rho,
                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
          (ret_type Delta) rho).
 
-Lemma tc_expropt_true : 
+Lemma tc_expropt_true :
 forall rho,
 tc_environ Delta rho ->
 (tc_expropt Delta
@@ -541,7 +541,7 @@ assert  (Some (tc_expropt Delta
      (Some
         (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
            (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
-     (ret_type Delta) rho) = 
+     (ret_type Delta) rho) =
 Expr.exprD funcs nil nil tc_expropt_application_unlifted prop_type_var).
 auto.
 
@@ -557,7 +557,7 @@ Expr.exprD f nil nil exp prop_type_var = Some p ->
 Proof. admit.
 Qed.
 
-Lemma prove_goal_sound : 
+Lemma prove_goal_sound :
 forall exp f p,
 prove_goal exp = true ->
 Expr.exprD f nil nil exp prop_type_var = Some p ->
@@ -566,7 +566,7 @@ Proof.
 intros. inv H.
 Qed.
 
- 
+
 assert ((prove_goal tc_expropt_application_unlifted = true)) by admit.
 eapply prove_goal_sound.
 apply H1.
@@ -613,14 +613,14 @@ let Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
+                           (WITH  p0 : val * list val, p : val PRE
                             [(_Q, tptr t_struct_fifo),
                             (_p, tptr t_struct_elem)]
                             (let (q0, contents0) := p0 in
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `(link_ p))) POST 
+                             SEP  (`(fifo contents0 q0); `(link_ p))) POST
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p :: @nil val) q0)))))
@@ -641,7 +641,7 @@ let Delta :=
                             (_b, tint)]
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
+                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST
                             [tptr t_struct_elem]`(elemrep (a, b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
@@ -665,7 +665,7 @@ let Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  q0 : val, contents0 : list val PRE 
+                           (WITH  q0 : val, contents0 : list val PRE
                             [(_Q, tptr t_struct_fifo)]
                             PROP  ()
                             LOCAL  (`(@eq val q0) (eval_id _Q))
@@ -687,7 +687,7 @@ let Delta :=
                          (2%positive, tint)]
                          PROP  ()
                          LOCAL ()
-                         SEP 
+                         SEP
                          (`(memory_block Tsh)
                             (`force_int (eval_id 2%positive))
                             (eval_id 1%positive)) POST  [tvoid]
@@ -695,12 +695,12 @@ let Delta :=
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
                      (@Some global_spec
                         (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
+                           (WITH  p0 : val * list val, p : val PRE
                             [(_Q, tptr t_struct_fifo)]
                             (let (q0, contents0) := p0 in
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q))
-                             SEP  (`(fifo (p :: contents0) q0))) POST 
+                             SEP  (`(fifo (p :: contents0) q0))) POST
                             [tptr t_struct_elem]
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
@@ -747,20 +747,20 @@ SEP  (`(field_at Tsh t_struct_fifo _head q hd);
          (ret_type Delta)) (@id environ)
 . Proof. intros Q h.
  ungather_entail.
-unfold fifo. 
+unfold fifo.
 go_lower.
 
 Check Expr.Func.
 
 Definition saturate (exps: ((list Expr.expr) * Expr.expr)) : bool :=
 let exps := (assumptions, goal) in
-match with 
+match with
  ...
 | Exps.Func n exps =>
-     if eqb_nat n 5 then 
+     if eqb_nat n 5 then
              sat
-     else 
-         .... 
+     else
+         ....
 
 
 entailer.
@@ -773,7 +773,7 @@ Qed.
 
 
 
-(* 
+(*
 *** Local Variables: ***
 *** coq-load-path: (("../../../GitHub/coq-ext-lib/theories" "ExtLib") ("../../../GitHub/mirror-shard/src" "MirrorShard") ("../veric/" "veric") ("../floyd" "floyd") ("../progs" "progs") ("../compcert" "compcert") ("../msl" "msl") ("../sepcomp" "sepcomp")) ***
 *** End: ***

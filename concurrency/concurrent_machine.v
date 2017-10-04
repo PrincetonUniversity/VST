@@ -2,46 +2,46 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
-Require Import sepcomp.semantics.
-Require Import sepcomp.event_semantics.
-Require Export concurrency.semantics.
-Require Import concurrency.threadPool. Export threadPool.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.event_semantics.
+Require Export VST.concurrency.semantics.
+Require Import VST.concurrency.threadPool. Export threadPool.
 
-Require Import concurrency.machine_semantics.
-Require Import concurrency.permissions.
-Require Import concurrency.bounded_maps.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.machine_semantics.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.bounded_maps.
+Require Import VST.concurrency.addressFiniteMap.
 
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.scheduler.
 Require Import Coq.Program.Program.
 
-Require Import concurrency.safety.
+Require Import VST.concurrency.safety.
 
-Require Import concurrency.coinductive_safety.
+Require Import VST.concurrency.coinductive_safety.
 
 
 
-Notation EXIT := 
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
+Notation EXIT :=
+  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)).
 
 Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 
-Notation READ := 
+Notation READ :=
   (EF_external "READ"
                (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
-Notation WRITE := 
+Notation WRITE :=
   (EF_external "WRITE"
                (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 
-Notation MKLOCK := 
+Notation MKLOCK :=
   (EF_external "makelock" (mksignature (AST.Tint::nil) None cc_default)).
-Notation FREE_LOCK := 
+Notation FREE_LOCK :=
   (EF_external "freelock" (mksignature (AST.Tint::nil) None cc_default)).
 
 Notation LOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
@@ -67,9 +67,9 @@ Module Type EventSig.
   Inductive machine_event : Type :=
   | internal: TID.tid -> mem_event -> machine_event
   | external : TID.tid -> sync_event -> machine_event.
-  
+
 End EventSig.
-  
+
 
 Module Type ConcurrentMachineSig.
   Declare Module ThreadPool: ThreadPoolSig.
@@ -83,7 +83,7 @@ Module Type ConcurrentMachineSig.
   Parameter richMem: Type.
   Parameter dryMem: richMem -> mem.
   Parameter diluteMem : mem -> mem.
-  
+
   (** Environment and Threadwise semantics *)
   (** These values come from SEM *)
 
@@ -97,7 +97,7 @@ Module Type ConcurrentMachineSig.
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> seq mem_event -> Prop.
   Axiom threadStep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
+    forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
@@ -107,19 +107,19 @@ Module Type ConcurrentMachineSig.
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> sync_event -> Prop.
-  
+
   Axiom syncstep_equal_run:
-    forall b g i tp m cnt cmpt tp' m' tr, 
+    forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
-  
+
   Axiom syncstep_not_running:
-    forall b g i tp m cnt cmpt tp' m' tr, 
+    forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
-  
+
   Parameter threadHalted:
     forall {tid0 ms},
       containsThread ms tid0 -> Prop.
@@ -129,26 +129,26 @@ Module Type ConcurrentMachineSig.
       forall tp cnt cnti c' cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j (@updThreadC i tp cnti c') cnt') .
-  
+
   Axiom syncstep_equal_halted:
-    forall b g i tp m cnti cmpt tp' m' tr, 
+    forall b g i tp m cnti cmpt tp' m' tr,
       @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').
-  
+
   Axiom threadStep_not_unhalts:
-    forall g i tp m cnt cmpt tp' m' tr, 
+    forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) ->
         (@threadHalted j tp' cnt') .
-  
+
 
   (*Parameter initial_machine: C -> thread_pool.*)
-  
+
   Parameter init_mach : option RES.res  -> G -> val -> list val -> option thread_pool.
-  
+
 End ConcurrentMachineSig.
 
 
@@ -162,28 +162,28 @@ Module Type ConcurrentMachine.
   Import SIG.Events.
 
   Notation event_trace := (seq machine_event).
-  
+
   Definition MachState : Type:= (schedule * event_trace * t)%type.
 
   Parameter MachineSemantics: schedule -> option RES.res ->
                               CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
-  Axiom initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Axiom initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
       U' = U /\ tr = nil.
 End ConcurrentMachine.
-  
+
 Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID :=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module TP:= SIG.ThreadPool  with Module SIG:= SIG.
   Module SCH:=SCH.
   Module TP:=SIG.ThreadPool.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
-  
+
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
 
   Notation event_trace := (seq machine_event).
-  
+
   (** Resume and Suspend: threads running must be preceded by a Resume
      and followed by Suspend.  This functions wrap the state to
      indicate it's ready to take a syncronisation step or resume
@@ -195,7 +195,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   | StartThread: forall tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
                     (Hcode: getThreadC ctn = Kinit vf arg)
-                    (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                    (Hinitial: initial_core Sem (tid2nat tid0)
+                                            genv vf (arg::nil) = Some c_new)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread' genv ctn ms'.
@@ -228,7 +229,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition suspend_thread : forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @suspend_thread'.
-  
+
   Inductive machine_step {genv:G}:
     Sch -> event_trace -> machine_state -> mem -> Sch ->
     event_trace -> machine_state -> mem -> Prop :=
@@ -262,13 +263,13 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Htstep:suspend_thread Htid ms'),
         machine_step U [::] ms m U' [::] ms' m
   | sync_step:
-      forall tid U U' ms ms' m m' ev 
+      forall tid U U' ms ms' m m' ev
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
-        machine_step U [::] ms m  U' [::] ms' m'           
+        machine_step U [::] ms m  U' [::] ms' m'
   | halted_step:
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
@@ -291,7 +292,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       @machine_step ge U tr st m U' tr' st' m' ->
   tr = nil /\ tr' = nil.
   Proof. move=> ge U tr st m U' tr' st' m' ms; inversion ms; intuition. Qed.
-  
+
   (*The new semantics bellow makes internal (thread) and external (machine) steps explicit*)
   Inductive internal_step {genv:G}:
     Sch -> machine_state -> mem -> machine_state -> mem -> Prop :=
@@ -328,13 +329,13 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Htstep:suspend_thread Htid ms'),
         external_step U [::] ms m U' [::] ms' m
   | sync_step':
-      forall tid U U' ms ms' m m' ev 
+      forall tid U U' ms ms' m m' ev
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
-        external_step U [::] ms m  U' [::] ms' m'           
+        external_step U [::] ms m  U' [::] ms' m'
   | halted_step':
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
@@ -382,17 +383,17 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
               solve[econstructor 6 ; eauto]|
               solve[econstructor 7 ; eauto]].
    Qed.
-  
+
   Definition MachState: Type := (Sch * event_trace * machine_state)%type.
 
   Definition MachStep G (c:MachState) (m:mem)
              (c' :MachState) (m':mem) :=
     @machine_step G (fst (fst c)) (snd (fst c)) (snd c)  m
                   (fst (fst c')) (snd (fst c')) (snd c')  m'.
-  
+
   Definition at_external (st : MachState)
     : option (external_function * list val) := None.
-  
+
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.
 
@@ -408,7 +409,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   (*Lemma halted_al_schedules: forall st,
       halted st ->*)
-      
+
 
   Definition init_machine (U:schedule) (r : option RES.res) the_ge
              (f : val) (args : list val)
@@ -417,12 +418,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | None => None
     | Some c => Some (U, [::], c)
     end.
-  
+
   Program Definition MachineSemantics (U:schedule) (r : option RES.res):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U r)
+                              (fun n => init_machine U r)
                               at_external
                               after_external
                               halted
@@ -445,7 +446,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
    * find_thread
    * running_thread *)
   Definition find_runnin (c:@ctl C): bool :=
-    match c with 
+    match c with
     | Krun _ => true
     | _ => false
     end.
@@ -458,12 +459,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
        ~ @threadHalted j tp cnti  ->
        eq_tid_dec i j.
 
-  
+
   Program Definition new_MachineSemantics (U:schedule) (r : option RES.res):
     @ConcurSemantics G tid schedule event_trace machine_state mem.
   apply (@Build_ConcurSemantics _ tid schedule event_trace  machine_state _
                               (init_machine' r)
-                              (fun U st => halted (U, nil, st))  
+                              (fun U st => halted (U, nil, st))
                               (fun ge U st m st' m' =>
                                  @internal_step ge U st m
                                                 st' m'
@@ -479,11 +480,11 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   - intros. inversion H; subst; rewrite HschedN; reflexivity.
   - intros. inversion H; subst; rewrite HschedN; reflexivity.
   Defined.
-  
+
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
-  Lemma initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals = Some (U',tr,c) ->
       U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].
@@ -513,11 +514,11 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Section new_safety.
   (** *I create a new type of safety that satisfies (forall n, safeN) -> safe and is preserved by simulations. *)
-    
+
     Inductive sem_with_halt ge: MachState -> mem -> MachState -> mem -> Prop:=
     | halt_with_step st m: halted st -> sem_with_halt ge st m st m
     | step_with_halt st m st' m' : MachStep ge st m st' m' -> sem_with_halt ge st m st' m'.
-    
+
   Definition new_state: Type:= seq machine_event * machine_state * mem.
   Definition mk_nstate (st:MachState) m:new_state:= (snd (fst st), snd st, m).
   Definition mk_ostate (st:new_state) U :MachState:= (U, fst (fst st), snd (fst st)).
@@ -532,8 +533,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     end.*)
 
   Section valid_schedule.
-    
-    Definition is_running tp i:= 
+
+    Definition is_running tp i:=
       exists cnti q, @getThreadC i tp cnti = Krun q /\ ~ @threadHalted i tp cnti.
 
     Lemma unique_runing_not_running:
@@ -563,11 +564,11 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         ~ is_running tp i ->
         forall j, unique_Krun tp j.
     Proof.
-      intros. destruct (unique_runing_not_running _ _ H). 
-      - contradict H0; assumption.     
+      intros. destruct (unique_runing_not_running _ _ H).
+      - contradict H0; assumption.
       - apply H1.
     Qed.
-        
+
   Lemma no_running_one_running:
     forall tp,
       (forall j, unique_Krun tp j) ->
@@ -592,7 +593,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     unfold unique_Krun.
     intros.
     destruct (eq_tid_dec i j0).
-    - subst i. 
+    - subst i.
       rewrite (gssThreadCC cnti0) in H0; inversion H0.
     - rewrite <- (gsoThreadCC n (cntUpdateC' cnti0)) in H0.
       eapply H with (j:=j0) in H0.
@@ -601,7 +602,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       intros HH; apply H1.
       eapply threadHalt_update in HH; eauto.
   Qed.
-    
+
   Lemma no_running_no_running:
     forall tp,
       (forall h, unique_Krun tp h ) ->
@@ -610,7 +611,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     unfold unique_Krun.
     intros.
     destruct (eq_tid_dec i j0).
-    - subst i. 
+    - subst i.
       rewrite (gssThreadCC cnti0) in H0; inversion H0.
     - rewrite <- (gsoThreadCC n (cntUpdateC' cnti0)) in H0.
       eapply H with (j:=j0) in H0.
@@ -618,23 +619,23 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       intros HH; apply H1.
       eapply threadHalt_update in HH; eauto.
   Qed.
-  
+
   End valid_schedule.
-    
+
   Definition correct_schedule(st: MachState): Prop:=
     match schedPeek (fst (fst st)) with
     | Some i => unique_Krun (snd st) i
     | None => True
     end.
-  
+
   Definition valid (st: MachState): Prop:=
     correct_schedule st.
 
   Definition bounded_mem (m: mem) := bounded_maps.bounded_map (snd (getMaxPerm m)) .
- 
-  Definition new_valid st U := correct_schedule (mk_ostate st U). 
+
+  Definition new_valid st U := correct_schedule (mk_ostate st U).
   Definition new_valid_bound st U :=
-    correct_schedule (mk_ostate st U) /\ bounded_mem (snd st). 
+    correct_schedule (mk_ostate st U) /\ bounded_mem (snd st).
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
   Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
@@ -644,7 +645,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   (*Things that we must prove:*)
   Lemma sch_dec': forall (U U': Sch), {U = U'} + {U <> U'}.
-  Proof. apply SCH.sch_dec. Qed.                 
+  Proof. apply SCH.sch_dec. Qed.
   Lemma step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U=U' \/ schedSkip(U)=U'.
   Proof.
     intros.
@@ -695,7 +696,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       apply Htstep in HH; destruct HH as [cnt [q0 j_runs0]].
       eapply H0; eauto.
       intros HH; apply j_not_halted;
-      eapply threadStep_not_unhalts; eauto. 
+      eapply threadStep_not_unhalts; eauto.
     - destruct (schedPeek a') eqn:SCH'; auto.
       rewrite HschedN in H0.
       inversion Htstep; subst.
@@ -715,7 +716,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                  getThreadC cntj = Krun q).
       { exists cntj, q; auto. }
       apply Htstep' in HH; destruct HH as [cnt [q0 j_runs0]].
-      
+
       destruct (eq_tid_dec tid0 j); subst.
       + exfalso; eapply
                  (syncstep_not_running _ _ _ _ _ _ _ _ _ _ Htstep).
@@ -749,22 +750,22 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       subst tid0.
       contradict Htid; assumption.
   Qed.
-  
+
   Lemma step_valid: forall {ge st m st' m'},
       MachStep ge st m st' m'  ->
       valid st ->
       valid st'.
   Proof. intros ? ? ? ? ?; eapply step_sch_correct. Qed.
-  
+
   Lemma step_new_valid: forall {ge st m st' m'},
       MachStep ge st m st' m'  ->
       new_valid (mk_nstate st m) (fst (fst st)) ->
       new_valid (mk_nstate st' m') (fst (fst st')).
-  Proof. intros ? ? ? ? ? STEP VAL. 
+  Proof. intros ? ? ? ? ? STEP VAL.
          eapply step_sch_correct; eauto.
   Qed.
 
-  
+
   Lemma step_correct_schedule: forall {ge U tr tp m tr' tp' m'},
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
       correct_schedule (U, tr, tp) ->
@@ -772,7 +773,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Proof.
     unfold correct_schedule in *.
     intros ? ? ? ? ? ? ? ? ?.
-    
+
     inversion H; subst; simpl in *;
     match goal with
     | [ H: schedPeek (schedSkip ?U) = Some _, H': U = schedSkip U  |- _ ] =>
@@ -789,10 +790,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       + erewrite <- (gsoThreadCC n (cntUpdateC' cnti))  in KRUN; eauto.
         eapply H0 in KRUN.
         destruct (eq_tid_dec tid0 j) as [e|e].
-        * rewrite e in n; exfalso; apply n; auto. 
+        * rewrite e in n; exfalso; apply n; auto.
         * inversion KRUN.
           intros HALT; eapply NOT_HALT.
-          Set Printing Implicit. 
+          Set Printing Implicit.
           eapply threadHalt_update in HALT; eauto.
     - rewrite HschedN.
       intros. destruct (schedPeek U'') eqn:UUU; trivial.
@@ -805,14 +806,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
         assert (HH:=KRUN').
         eapply H0 in HH.
-        
+
         assert (HH': ~ @threadHalted j tp cntj).
         { intros HH'. apply NOT_HALT.
           eapply syncstep_equal_halted in Htstep; eauto.
           eapply Htstep.
           exact HH'. }
         apply HH in HH'.
-        
+
         destruct (eq_tid_dec tid0 j); try solve[ inversion HH'].
         subst.
         eapply syncstep_not_running in Htstep.
@@ -833,7 +834,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       exfalso; apply Htid.
       eassumption.
   Qed.
-  
+
   Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> valid (U, tr, tp) -> forall U'', valid (U'', tr', tp').
   Proof. intros; eapply step_correct_schedule; eauto. Qed.
 
@@ -844,10 +845,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       forall U'', new_valid (tr', tp', m') U''.
   Proof. intros ? ? ? ? ? ? ? ? STEP VAL.
          eapply step_correct_schedule; eauto.
-         
+
   Qed.
 
-  
+
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
@@ -860,7 +861,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     { rewrite /new_valid /mk_ostate /=.
       split; auto. *)
     (*  by rewrite /new_valid /mk_ostate /= //. clear VAL.*)
-    
+
     (*move: VAL_=> /(KSF _ n) KSF_new.*)
     move: st_ m KSF U VAL.
     induction n.
@@ -887,12 +888,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
           { destruct st' as [[tr' tp'] m'] => /=; eapply IHn.
             - move => U0 nVAL0. rewrite /ksafe_new_step /mk_nstate=> /=.
               simpl in HH; rewrite -HH in H1.
-              by apply: H1. 
+              by apply: H1.
             - simpl in H.
               eapply (step_sch_new_valid H); eauto.
           }
   Qed.
-        
+
   Lemma safety_equivalence:
     forall ge tp m,
       (forall U, new_valid (nil, tp, m) U) ->
@@ -904,16 +905,16 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Definition explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
     exp_safety _ _ (fun U stm => halted (U, nil, fst stm))
-                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm'))
                    (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
                    (fun U stm => @new_valid (nil,fst stm, snd stm) U) U (st,m).
 
   Definition explicit_safety_bounded ge (U:Sch) (st:machine_state) (m:mem): Prop:=
     exp_safety _ _ (fun U stm => halted (U, nil, fst stm))
-                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm'))
                    (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
                    (fun U stm => @new_valid_bound (nil,fst stm, snd stm) U) U (st,m).
-  
+
   (*CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
   | halted_safety : halted (U, nil, st) -> explicit_safety ge U st m
   | internal_safety st' m': @internal_step ge U st m st' m' ->
@@ -937,7 +938,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     move: H; rewrite /mk_nstate /= => stp.
     inversion stp; subst.
     - move: H6; rewrite /mk_ostate /= => hltd.
-      eapply (halted_safety); simpl; assumption. 
+      eapply (halted_safety); simpl; assumption.
     - destruct st' as [[tr tp] m'].
       move: H H0; rewrite /mk_ostate /MachStep /= => HH.
       move: HH (HH)  => /trace_nil [] ? -> /step_equivalence1 [[] -> [] ? istp | estp] sns_all'.
@@ -962,11 +963,11 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     - econstructor.
       + econstructor. rewrite /mk_nstate /mk_ostate /= //.
       + rewrite /mk_nstate /= => U'' VAL.
-        apply: safety_equivalence22 => //. 
+        apply: safety_equivalence22 => //.
     - econstructor.
       + econstructor 2.
         instantiate(1:=(@nil machine_event, fst y', snd y')).
-        rewrite /mk_nstate /mk_ostate /MachStep /=. 
+        rewrite /mk_nstate /mk_ostate /MachStep /=.
         move: H => / step_equivalence2.
         instantiate(1:=U).
         simpl => //.
@@ -974,9 +975,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         destruct y';
         apply: safety_equivalence22 => //.
     - econstructor.
-      + econstructor 2. 
+      + econstructor 2.
         instantiate(1:=(@nil machine_event, fst y' ,  snd y')).
-        rewrite /mk_nstate /mk_ostate /MachStep /=. 
+        rewrite /mk_nstate /mk_ostate /MachStep /=.
         move: H => / step_equivalence3.
         instantiate(1:=x').
         simpl => //.
@@ -1002,7 +1003,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
     Definition stutter_stepN_safety ge cd (U:Sch) (st:machine_state) (m:mem): Prop:=
     @exp_safetyN_stutter _ _ (fun U stm => halted (U, nil, fst stm))
-                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm'))
                    (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
                    (fun U stm => @new_valid (nil,fst stm, snd stm) U)
                    core_data core_ord
@@ -1031,7 +1032,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
     End newer_semantics_with_stutter.
 
-    
+
   End new_safety.
 
   Lemma csafe_reduce:
@@ -1062,7 +1063,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       Focus 2. simpl in Hsafe. eauto.
       omega.
   Qed.
-  
+
 End CoarseMachine.
 
 Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module TP:= SIG.ThreadPool with Module SIG:= SIG.
@@ -1070,7 +1071,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   Module TP:=SIG.ThreadPool.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
-  
+
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
   Notation event_trace := (seq machine_event).
@@ -1080,14 +1081,14 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   | StartThread: forall tid0 ms ms' c_new vf arg
                    (ctn: containsThread ms tid0)
                    (Hcode: getThreadC ctn = Kinit vf arg)
-                   (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                   (Hinitial: initial_core Sem (tid2nat tid0) genv vf (arg::nil) = Some c_new)
                    (Hinv: invariant ms)
                    (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread' genv ctn ms'.
   Definition start_thread genv: forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @start_thread' genv.
-  
+
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall tid0 ms ms' c c' X
@@ -1115,7 +1116,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   Definition suspend_thread : forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @suspend_thread'.
-  
+
   Inductive machine_step {genv:G}:
     Sch -> event_trace -> machine_state -> mem -> Sch
     -> event_trace -> machine_state -> mem -> Prop :=
@@ -1160,7 +1161,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: syncStep false genv Htid Hcmpt ms' m' ev),
-        machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'           
+        machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'
   | halted_step:
       forall tid U U' ms m tr
         (HschedN: schedPeek U = Some tid)
@@ -1188,28 +1189,28 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
 
   Definition at_external (st : MachState)
     : option (external_function * list val) := None.
-  
+
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.
-  
+
   Definition halted (st : MachState) : option val :=
     match schedPeek (fst (fst st)) with
     | Some _ => None
     | _ => Some Vundef
     end.
-  
+
   Definition init_machine (U:schedule) (p : option RES.res) the_ge
              (f : val) (args : list val) : option MachState :=
     match init_mach p the_ge f args with
     | None => None
     | Some c => Some (U, [::],c)
     end.
-  
+
   Program Definition MachineSemantics (U:schedule) (p : option RES.res):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U p)
+                              (fun _ => init_machine U p)
                               at_external
                               after_external
                               halted
@@ -1221,15 +1222,15 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
   Defined.
 
 
-  Lemma initial_schedule: forall genv main vals U U' p c tr,
-      initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c tr n,
+      initial_core (MachineSemantics U p) n genv main vals =  Some (U',tr,c) ->
       U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].
         inversion H; subst; split; auto.
   Qed.
 
-  (** Schedule safety of the fine-grained machine*)  
+  (** Schedule safety of the fine-grained machine*)
    Inductive fsafe (ge : SEM.G) (tp : thread_pool) (m : mem) (U : Sch)
     : nat -> Prop :=
   | Safe_0: fsafe ge tp m U 0
@@ -1239,11 +1240,11 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
       fsafe ge tp' m' (schedSkip U) n ->
       fsafe ge tp m U (S n).
-  
+
 End FineMachine.
 
 Module Events <: EventSig
-   with Module TID:=NatTID. 
+   with Module TID:=NatTID.
 
  Module TID := NatTID.
  Import TID event_semantics.
@@ -1260,7 +1261,7 @@ footprints of permissions moved  when applicable*)
  | freelock : address -> sync_event
  | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
  | failacq: address -> sync_event.
- 
+
  (** Machine Events *)
   Inductive machine_event : Type :=
   | internal: TID.tid -> mem_event -> machine_event
@@ -1295,7 +1296,7 @@ footprints of permissions moved  when applicable*)
     | external _ _ => true
     | _ => false
     end.
-  
+
   Definition action ev : act :=
     match ev with
     | internal _ mev =>
@@ -1315,7 +1316,7 @@ footprints of permissions moved  when applicable*)
       | spawn _ _ _ => Spawn
       end
     end.
-  
+
   Definition location ev : option (address*nat) :=
     match ev with
     | internal _ mev =>
@@ -1323,7 +1324,7 @@ footprints of permissions moved  when applicable*)
       | event_semantics.Write b ofs vs => Some ((b, ofs), length vs)
       | event_semantics.Read b ofs _ vs => Some ((b, ofs), length vs)
       | _ => None
-      end 
+      end
     | external _ sev =>
       match sev with
       | release addr _ => Some (addr, lksize.LKSIZE_nat)
@@ -1334,5 +1335,5 @@ footprints of permissions moved  when applicable*)
       | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
     end.
-  
+
 End Events.

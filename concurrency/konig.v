@@ -132,7 +132,7 @@ Proof.
   split. now apply IHk; auto.
   simpl. apply IHk; eauto.
 Qed.
-  
+
 Lemma zip_1 {X} f1 f2 n : @zip X f1 f2 (2 * n) = f1 n.
 Proof.
   replace (f1 n) with (f1 (0 + n)) by (f_equal; omega).
@@ -184,7 +184,7 @@ Lemma finite_product:
 Proof.
   intros A B PA PB [ NA [FA FA_spec]] [ NB [FB FB_spec]].
   exists (NB*NA)%nat.
-  exists (fun n => ( FA (Nat.modulo n NA) , FB (Nat.div n NA))). 
+  exists (fun n => ( FA (Nat.modulo n NA) , FB (Nat.div n NA))).
   intros [x1 x2] [PAx PBx].
   apply FA_spec in PAx. destruct PAx as [ia [ineqa funa]].
   apply FB_spec in PBx. destruct PBx as [ib [ineqb funb]].
@@ -196,10 +196,10 @@ Proof.
     apply lt_le_S.
     eapply Nat.le_lt_trans; eauto. omega.
 
-    
+
     rewrite Nat.mul_add_distr_r.
     apply plus_lt_le_compat.
-    omega. 
+    omega.
 
     eapply mult_le_compat_r.
     omega.
@@ -299,7 +299,7 @@ Proof.
       + simpl in *. tauto.
     - clear. induction b; compute; tauto.
   }
-  
+
   clear bound.
   pattern A in inf |- *.
   match goal with |- ?P A => cut (P (Or b)) end.
@@ -307,7 +307,7 @@ Proof.
   match type of inf with ?P A => assert (inf' : P (Or b)) end.
   { intros a; destruct (inf a) as (c & ? & x & ?); exists c. intuition. exists x; intuition. rewrite <-HA; auto. }
   clear inf. simpl in inf'; rename inf' into inf. clear HA.
-  
+
   induction b.
   - exfalso.
     destruct (inf 0) as (c & ? & x & INV & ?).
@@ -329,16 +329,16 @@ Qed.
 
 Section Safety.
   Definition rel X := X -> X -> Prop.
-  
+
   Variable X : Type.
   Variable R : rel X.
-  
+
   Inductive safeN : nat -> X -> Prop :=
   | safeO : forall x, safeN 0 x
   | safeS : forall n x x', R x x' -> safeN n x' -> safeN (S n) x.
-  
+
   Definition safeN' n f : Prop := forall i, i < n -> R (f i) (f (1 + i)).
-  
+
   (** Relating [safeN] to [safeN'] (everything is finite, no axioms) *)
 
   Lemma safeN_safeN' n x : safeN n x <-> (exists f, f 0 = x /\ safeN' n f).
@@ -361,13 +361,13 @@ Section Safety.
   Qed.
 
   (** Coinductive safety & corresponding Knaster-Tarski definition *)
-  
+
   CoInductive safe : X -> Prop :=
     safe_cons : forall x x', R x x' -> safe x' -> safe x.
-  
+
   Definition stable (P : X -> Prop) := forall x, P x -> exists x', R x x' /\ P x'.
   Definition kt_safe x := exists P, P x /\ stable P.
-  
+
   Lemma kt_safe_safe x : safe x <-> kt_safe x.
   Proof.
     split; intros H.
@@ -380,12 +380,12 @@ Section Safety.
       apply (safe_cons x x' st).
       apply CIH, sa.
   Qed.
-  
+
   (** Proving that [safe'] implies [safe] (the reverse implication
       only holds if we replace [f] with a coinductive stream) *)
-  
+
   Definition safe' f := forall i, R (f i) (f (1 + i)).
-  
+
   Lemma safe'_safe x : (exists f, f 0 = x /\ safe' f) -> safe x.
   Proof.
     intros (f & <- & Sf).
@@ -393,10 +393,10 @@ Section Safety.
     cofix CIH; intros n.
     apply safe_cons with (f (1 + n)). apply Sf. apply CIH.
   Qed.
-  
+
   (** From [safe], we can derive a function assumming the functional
       axiom of choice (but we don't need choice to prove [safe]) *)
-  
+
   Lemma safe_safe' x :
     (forall P, P \/ ~P) ->
     FunctionalChoice ->
@@ -419,26 +419,26 @@ Section Safety.
       simpl.
       apply Hf, IHi.
   Qed.
-  
+
   Lemma not_ex_forall {A} (P : A -> Prop) : (~ex P) <-> (forall x, ~P x).
     split.
     - intros a x px; eauto.
     - intros a (x, px); apply (a x px).
   Qed.
-  
+
   Lemma safeN_S n x : safeN (S n) x -> safeN n x.
   Proof.
     revert x; induction n. constructor.
     inversion 1; subst; econstructor; eauto.
   Qed.
-  
+
   Lemma safeN_le n n' x : n <= n' -> safeN n' x -> safeN n x.
   Proof.
     intros l; replace n' with ((n' - n) + n) by omega.
     generalize (n' - n) as k; clear l; induction k; auto.
     intros H; apply IHk. apply safeN_S; auto.
   Qed.
-  
+
   Lemma konigsafe x : (forall P, P \/ ~P) -> (forall x, finite (R x)) -> (forall n, safeN n x) -> safe x.
   Proof.
     intros EM FinBranching sa. apply kt_safe_safe.
@@ -463,5 +463,5 @@ Section Safety.
     destruct (inf n) as (n' & ln' & sa').
     eapply safeN_le; eauto.
   Qed.
-  
+
 End Safety.

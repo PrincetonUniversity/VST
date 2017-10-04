@@ -1,17 +1,17 @@
 Require Import compcert.common.Memory.
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.ageable.
-Require Import msl.age_to.
-Require Import veric.coqlib4.
-Require Import veric.juicy_mem.
-Require Import veric.compcert_rmaps.
-Require Import veric.semax.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.mem_lessdef.
-Require Import veric.age_to_resource_at.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.ageable.
+Require Import VST.msl.age_to.
+Require Import VST.veric.coqlib4.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.semax.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -83,7 +83,7 @@ Qed.
 
 (** * Aging and operational steps *)
 
-Lemma jstep_age_sim {G C} {csem : semantics.CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
+Lemma jstep_age_sim {G C} {csem : @semantics.CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
   age jm1 jm2 ->
   jstep csem ge c jm1 c' jm1' ->
   level jm2 <> O ->

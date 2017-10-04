@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -28,13 +28,25 @@ Proof. intros; subst. unfold da_emp. rewrite data_at_isptr. unfold isptr. simpl.
   apply pred_ext.
   + normalize. apply orp_left. trivial. normalize.
   + simpl. apply orp_right1. entailer.
-Qed. 
+Qed.
 Lemma da_emp_ptr sh t v b i: da_emp sh t v (Vptr b i) = !! (sizeof t > 0) && data_at sh t v (Vptr b i).
 Proof. intros; unfold da_emp, nullval; simpl.
   apply pred_ext.
   + apply orp_left; normalize. inv H.
   + apply orp_right2. trivial.
-Qed.  
+Qed.
+
+Lemma false_zgt z a: false = (z >? a) -> z<=a. 
+Proof. unfold Z.gtb.
+  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
+  discriminate.
+Qed. 
+Lemma false_zge z a: false = (z >=? a) -> z<=a. 
+Proof. unfold Z.geb.
+  remember (z ?= a). destruct c; intros; try discriminate.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
+Qed.
 
 (*
 Lemma da_emp_isptrornull sh t v p :
@@ -52,32 +64,32 @@ Proof. intros; subst. unfold da_emp. rewrite data_at_isptr.
   apply pred_ext.
   + normalize. rewrite orp_FF. trivial.
   + simpl. apply orp_right1. entailer.
-Qed. 
+Qed.
 Lemma da_emp_ptr sh t v b i: da_emp sh t v (Vptr b i) = data_at sh t v (Vptr b i).
 Proof. intros; unfold da_emp, nullval; simpl.
   apply pred_ext.
   + apply orp_left; trivial. normalize. inv H.
   + apply orp_right2. trivial.
-Qed.  
+Qed.
 *)
 
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
   unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
 Qed.
- 
+
 Lemma Tarray_0_emp' sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
   emp |-- data_at sh (Tarray tuchar 0 noattr) nil c.
 Proof. intros.
   unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
   entailer.
-Qed. 
+Qed.
 
 Lemma data_at_weak_valid_ptr: forall (sh : Share.t) (t : type) (v : reptype t) (p : val),
        sepalg.nonidentity sh ->
        (*sizeof cenv_cs t >= 0 -> *) sizeof t > 0 -> data_at sh t v p |-- weak_valid_pointer p.
-Proof. intros. 
+Proof. intros.
 eapply derives_trans. 2: apply valid_pointer_weak. apply data_at_valid_ptr; trivial. Qed.
 
 Lemma sublist_app_exact1:

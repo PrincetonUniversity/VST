@@ -1,15 +1,15 @@
 (** * SC Machine is spinlock clean and well-synchronized*)
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -20,15 +20,15 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_context.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.SC_erasure.
-Require Import concurrency.spinlocks.
-Require Import concurrency.executions.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.SC_erasure.
+Require Import VST.concurrency.spinlocks.
+Require Import VST.concurrency.executions.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -41,7 +41,7 @@ Module SCSpinlocks (SEM: Semantics)
   Import Machines DryMachine ThreadPool AsmContext.
   Import event_semantics.
   Import Events.
-      
+
   Module Executions := Executions SEM SemAxioms Machines AsmContext.
   Module SpinLocks := SpinLocks SEM SemAxioms Machines AsmContext.
   Module SCErasure := SCErasure SEM SemAxioms Machines AsmContext CE.
@@ -207,7 +207,7 @@ Module SCSpinlocks (SEM: Semantics)
   Proof.
     intros; inv H; reflexivity.
   Qed.
-  
+
   Lemma event_erasure_competes:
     forall ev1 ev2 ev1' ev2'
       (Herasure1: event_erasure ev1 ev1')
@@ -221,7 +221,7 @@ Module SCSpinlocks (SEM: Semantics)
     eapply event_erasure_caction in H1;
       eapply event_erasure_caction in H2; eauto.
     erewrite <- event_erasure_thread_id in H by eauto.
-    erewrite <- event_erasure_thread_id with (ev' := ev2') in H by eauto. 
+    erewrite <- event_erasure_thread_id with (ev' := ev2') in H by eauto.
     erewrite <- event_erasure_is_internal in H3 by eauto.
     erewrite <- event_erasure_is_internal with (ev' := ev2') in H3 by eauto.
     erewrite <- event_erasure_is_external in H3 by eauto.
@@ -233,7 +233,7 @@ Module SCSpinlocks (SEM: Semantics)
     destruct H3.
     repeat split; auto.
   Qed.
-  
+
   Lemma trace_erasure_spinlock_synchronized:
     forall tr tr'
       (Herased: trace_erasure tr tr')

@@ -8,38 +8,38 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_safety.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import floyd.coqlib3.
-Require Import sepcomp.extspec.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import concurrency.coqlib5.
-Require Import concurrency.permjoin.
-Require Import concurrency.semax_conc.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.sync_preds_defs.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.permjoin.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.sync_preds_defs.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -52,7 +52,7 @@ Section Jspec'_properties.
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
-  
+
   Lemma is_EF_external ef : ext_spec_type Jspec' ef -> exists name sg, ef = EF_external name sg.
   Proof.
     destruct ef as [name sg | | | | | | | | | | | ].
@@ -69,58 +69,58 @@ Section Jspec'_properties.
     - simpl; do 5 (if_tac; [ now breakhyps | ]); now intros [].
     - simpl; do 5 (if_tac; [ now breakhyps | ]); now intros [].
   Qed.
-  
+
   Open Scope string_scope.
-  
+
   Lemma Jspec'_juicy_mem_equiv : ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec').
   Proof.
     split; [ | easy ].
     intros e x b tl vl z m1 m2 E.
-    
+
     destruct (is_EF_external e x) as (name & sg & ->).
-    
+
     (* dependent destruction *)
     revert x.
-    
+
     (** * the case of acquire *)
     funspec_destruct "acquire".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of release *)
     funspec_destruct "release".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of makelock *)
     funspec_destruct "makelock".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of freelock *)
     funspec_destruct "freelock".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of spawn *)
     funspec_destruct "spawn".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * no more cases *)
     simpl; tauto.
   Qed.
-  
+
   Lemma Jspec'_hered : ext_spec_stable age (JE_spec _ Jspec').
   Proof.
     split; [ | easy ].
     intros e x b tl vl z m1 m2 A.
-    
+
     unfold Jspec' in *.
     destruct (is_EF_external e x) as (name & sg & ->).
-    
+
     apply age_jm_phi in A.
-    
+
     (* dependent destruction *)
     revert x.
     1:funspec_destruct "acquire".
@@ -128,7 +128,7 @@ Section Jspec'_properties.
     3:funspec_destruct "makelock".
     4:funspec_destruct "freelock".
     5:funspec_destruct "spawn".
-    
+
     6: solve[intros[]].
     all:intros x (Hargsty & H); split; [apply Hargsty | ].
     all:breakhyps.
@@ -138,7 +138,7 @@ Section Jspec'_properties.
     all:agehyps.
     all:eauto.
   Qed.
-  
+
   Lemma Jspec'_jsafe_phi ge n ora c jm ext :
     cl_at_external c = Some ext ->
     jsafeN Jspec' ge n ora c jm ->
@@ -156,24 +156,24 @@ Section Jspec'_properties.
       intros jm_ Ejm_.
       constructor 3 with (e := ef) (args := args) (x := x).
       + auto.
-      
+
       + (* precondition only cares about phi *)
         clear Post.
         unfold Jspec' in *.
         destruct (is_EF_external ef x) as (name & sg & ->).
         revert x Pre.
-        
+
         1:funspec_destruct "acquire".
         2:funspec_destruct "release".
         3:funspec_destruct "makelock".
         4:funspec_destruct "freelock".
         5:funspec_destruct "spawn".
         6: solve[intros[]].
-        
+
         all: intros x Pre.
         all: exact_eq Pre.
         all: rewrite Ejm_; try reflexivity.
-      
+
       + (* postcondition only cares about phi *)
         unfold Jspec' in *.
         destruct (is_EF_external ef x) as (name & sg & ->).
@@ -185,15 +185,15 @@ Section Jspec'_properties.
         4:funspec_destruct "freelock".
         5:funspec_destruct "spawn".
         6: solve[intros[]].
-        
+
         all: intros x Post.
         all: exact_eq Post.
         all: unfold Hrel in *.
         all: do 2 rewrite level_juice_level_phi.
         all: rewrite Ejm_; try reflexivity.
-    
+
     - (* halted: not at external *)
       destruct (Clight_new.cl_core_sem_obligation_1 c); discriminate.
   Qed.
-  
-End Jspec'_properties.  
+
+End Jspec'_properties.

@@ -11,7 +11,7 @@ Section Predicates.
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
 
 Fixpoint _SigmaAlgebras (As: list Type): Type :=
-  match As with 
+  match As with
   | nil => unit
   | cons A As0 => (SigmaAlgebra A * _SigmaAlgebras As0)%type
   end.

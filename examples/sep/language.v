@@ -2,7 +2,7 @@ Add LoadPath "../..".
 Require Import Arith.
 Require Import List.
 Require Import msl.eq_dec.
-Import Relations. 
+Import Relations.
 
 Definition table (A B : Type) := list (A*B).
 
@@ -33,7 +33,7 @@ Definition stack := table var adr.
 Definition heap := table adr adr.
 Definition state := (stack * heap)%type.
 
-Inductive command := 
+Inductive command :=
 | Skip : command
 | Assign: var -> var -> command
 | Load : var -> var -> command
@@ -41,16 +41,16 @@ Inductive command :=
 | Seq: command -> command -> command.
 
 Inductive step: relation (command * state) :=
-| stepAssign: 
+| stepAssign:
         forall x y v stk hp,
         table_get stk y = Some v ->
         step (Assign x y, (stk,hp)) (Skip, (table_set x v stk, hp))
-| stepLoad: 
+| stepLoad:
         forall x y v v' stk hp,
          table_get stk y = Some v ->
          table_get hp v = Some v' ->
          step (Load x y, (stk,hp)) (Skip, (table_set x v' stk, hp))
-| stepStore: 
+| stepStore:
          forall x y v p stk hp,
           table_get stk y = Some v ->
           table_get stk x = Some p ->
@@ -67,22 +67,22 @@ Inductive step': relation (list command * state)  :=
 | step'Skip:
          forall k s,
          step' (Skip :: k, s) (k,s)
-| step'Assign: 
+| step'Assign:
         forall x y v stk hp k,
         table_get stk y = Some v ->
         step' (Assign x y :: k, (stk,hp)) (k, (table_set x v stk, hp))
-| step'Load: 
+| step'Load:
         forall x y v v' stk hp k,
          table_get stk y = Some v ->
          table_get hp v = Some v' ->
          step' (Load x y :: k, (stk,hp)) (k, (table_set x v' stk, hp))
-| step'Store: 
+| step'Store:
          forall x y v p stk hp k,
           table_get stk y = Some v ->
           table_get stk x = Some p ->
           step' (Store x y :: k, (stk,hp)) (k, (stk, table_set p v hp))
 | step'Seq:
-         forall c1 c2 k s cs', 
+         forall c1 c2 k s cs',
          step' (c1 :: c2 ::k, s) cs' ->
          step' (Seq c1 c2 :: k, s) cs'.
 
@@ -111,7 +111,7 @@ Qed.
 
 Lemma step'_equiv:
   forall k s k' s',
-  clos_refl_trans _ step' (k,s) (k', s') -> 
+  clos_refl_trans _ step' (k,s) (k', s') ->
   clos_refl_trans _ step (stackit' k, s) (stackit' k', s').
 Proof.
  intros.

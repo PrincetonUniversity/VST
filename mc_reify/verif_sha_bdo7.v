@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -7,7 +7,7 @@ Require Import sha.bdo_lemmas.
 Local Open Scope logic.
 Local Open Scope nat.
 
-Definition rearrange_regs2c := 
+Definition rearrange_regs2c :=
      Ssequence (Sset _h (Etempvar _g tuint))
         (Ssequence (Sset _g (Etempvar _f tuint))
            (Ssequence (Sset _f (Etempvar _e tuint))
@@ -206,20 +206,20 @@ Definition bdo_loop2_body :=
                                       (Etempvar _i tint) (tptr tuint)) tuint))
                              rearrange_regs2b))))))))).
 
-Definition block_data_order_loop2 := 
+Definition block_data_order_loop2 :=
    nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
 Fixpoint Xarray' (b: list int) (i k: nat) : list int :=
  match k with
  | O => nil
- | S k' => W (nthi b) (Z.of_nat i - 16 + (16-(Z.of_nat k)- Z.of_nat i) mod 16) :: 
+ | S k' => W (nthi b) (Z.of_nat i - 16 + (16-(Z.of_nat k)- Z.of_nat i) mod 16) ::
                  Xarray' b i k'
  end.
 
 Definition Xarray (b: list int) (i: nat) := Xarray' b i 16.
 
 Lemma Znth_land_is_int:
-  forall i b j, 
+  forall i b j,
   is_int I32 Unsigned (Znth (Z.land i 15) (map Vint (Xarray b j)) Vundef).
 Proof.
 intros.
@@ -237,7 +237,7 @@ Lemma Xarray_simpl:
    forall b, length b = 16%nat -> Xarray b 16 = b.
 Proof.
 intros.
-assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b); 
+assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b);
  [ | apply H0; auto ].
 induction n; intros.
 clear H0. rewrite skipn_short by omega. reflexivity.
@@ -246,7 +246,7 @@ unfold Xarray'; fold Xarray'.
 rewrite IHn by omega. clear IHn.
 change (Z.of_nat 16) with 16%Z.
 
-assert (H1: firstn 1 (skipn (16 - S n) b) = 
+assert (H1: firstn 1 (skipn (16 - S n) b) =
             W (nthi b) (16 - 16 + (Z.of_nat (16 - S n) - 16) mod 16) :: nil). {
  unfold firstn.
  destruct (skipn (16 - S n) b) eqn:?.
@@ -262,7 +262,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  rewrite Z.sub_diag. rewrite Z.add_0_l.
  rewrite plus_0_l.
  rewrite Zminus_mod.
- rewrite Z.mod_same by omega. rewrite Z.sub_0_r. 
+ rewrite Z.mod_same by omega. rewrite Z.sub_0_r.
  rewrite Z.mod_mod by omega.
  assert (0 <= (Z.of_nat (16 - S n))mod 16 < 16)%Z by (apply Z.mod_pos_bound; omega).
  rewrite W_equation.
@@ -352,10 +352,10 @@ unfold upd_reptype_array.
 assert (0 <= Z.of_nat i mod 16 < 16)%Z
          by (apply Z_mod_lt; compute; congruence).
 rewrite force_lengthn_firstn
-  by (change (length (map Vint (Xarray b i))) with 
+  by (change (length (map Vint (Xarray b i))) with
         (nat_of_Z 16);
         apply Z2Nat.inj_le; omega).
-rewrite firstn_map. 
+rewrite firstn_map.
 rewrite skipn_map.
 rewrite <- map_cons.
 rewrite <- map_app.
@@ -373,10 +373,10 @@ repeat match type of H0 with
 end.
 Qed.
 
-Lemma W_unfold: 
-  forall i b, 
+Lemma W_unfold:
+  forall i b,
   (16 <= Z.of_nat i < 64)%Z ->
-   W (nthi b) (Z.of_nat i) = 
+   W (nthi b) (Z.of_nat i) =
     Int.add (W (nthi b) (Z.of_nat i - 16 + 0))
              (Int.add
                 (Int.add (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1)))
@@ -410,7 +410,7 @@ Qed.
 
 Require Export mc_reify.symexe_soundness.
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import MirrorCore.RTac.Repeat.
 Require Import MirrorCore.RTac.Then.
 Require Import MirrorCore.RTac.Try.
@@ -523,9 +523,9 @@ assert (semax (remove_global_spec Delta)
                  (Ebinop Oand
                     (Ebinop Oadd (Etempvar _i tint)
                        (Econst_int (Int.repr 1) tint) tint)
-                    (Econst_int (Int.repr 15) tint) tint) 
+                    (Econst_int (Int.repr 15) tint) tint)
                  (tptr tuint)) tuint)) POSTCONDITION).
-+ 
++
 *)
 
 match goal with
@@ -534,9 +534,9 @@ match goal with
         (Ebinop Oadd (Evar _X (tarray tuint 16))
            (Ebinop Oand
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-                 tint) (Econst_int (Int.repr 15) tint) tint) 
+                 tint) (Econst_int (Int.repr 15) tint) tint)
            (tptr tuint)) tuint)*)
- 
+
     Post); [| admit]
 end.
 (*
@@ -604,7 +604,7 @@ end.
 unfold assertD, localD, LocalD, PTree.fold; simpl PTree.xfold.
 rewrite insert_local.
 apply andp_right.
-Focus 2. 
+Focus 2.
 solve_legal_nested_field_in_entailment'.
 admit.
 unfold proj_val, repinject.
@@ -636,7 +636,7 @@ forward. (* T1 = X[i&0xf]; *)
 rewrite Znth_nthi' by reflexivity.
 replace (nthi (Xarray b i) (Z.of_nat i mod 16))
   with (W (nthi b) (Z.of_nat i - 16 + 0))
- by (replace (Z.of_nat i mod 16) with ((Z.of_nat i + 0) mod 16) 
+ by (replace (Z.of_nat i mod 16) with ((Z.of_nat i + 0) mod 16)
         by (rewrite Z.add_0_r; auto);
       rewrite extract_from_b; try omega; auto).
 

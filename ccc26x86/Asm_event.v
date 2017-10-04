@@ -8,21 +8,21 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Locations.
+Require Import VST.ccc26x86.Locations.
 (*Require Import Stacklayout.*)
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Conventions.
 
-Require Import ccc26x86.Asm.
+Require Import VST.ccc26x86.Asm.
 (*LENB: In CompComp, we used a modified Asm.v, called Asm.comp.v*)
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.val_casted.
-Require Import ccc26x86.BuiltinEffects.
-Require Import ccc26x86.load_frame.
-Require Import sepcomp.event_semantics.
-Require Import ccc26x86.Asm_coop.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.val_casted.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.ccc26x86.load_frame.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.ccc26x86.Asm_coop.
 
 Require Import List. Import ListNotations.
 (*
@@ -41,7 +41,7 @@ Inductive load_frame: Type :=
 Section ASM_EV.
 (*Variable hf : I64Helpers.helper_functions.*)
 
-Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem) 
+Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
            : option (list mem_event)  :=
   match i with
   | Pfstps_m a => match eval_addrmode ge a rs with
@@ -166,9 +166,9 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
       | Some m2 =>
           match Mem.storev Mint32 m2 (Val.add sp (Vint ofs_ra)) rs#RA with
           | None => None
-          | Some m3 => Some [Alloc stk 0 sz; 
+          | Some m3 => Some [Alloc stk 0 sz;
                              Write stk (Int.unsigned ofs_link) (encode_val Mint32 (rs ESP));
-                             Write stk (Int.unsigned ofs_ra) (encode_val Mint32 (rs RA))] 
+                             Write stk (Int.unsigned ofs_ra) (encode_val Mint32 (rs RA))]
           end
       end
   | Pfreeframe sz ofs_ra ofs_link =>
@@ -184,7 +184,7 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
                   | None => None
                   | Some m' => match (Val.add rs#ESP (Vint ofs_ra)), (Val.add rs#ESP (Vint ofs_link)) with
                                 Vptr b1 ofs1, Vptr b2 ofs2 =>
-                                  match Mem.loadbytes m b1 (Int.unsigned ofs1) (size_chunk Mint32), Mem.loadbytes m b2 (Int.unsigned ofs2) (size_chunk Mint32) 
+                                  match Mem.loadbytes m b1 (Int.unsigned ofs1) (size_chunk Mint32), Mem.loadbytes m b2 (Int.unsigned ofs2) (size_chunk Mint32)
                                   with Some bytes1, Some bytes2=>
                                      Some [Read b1 (Int.unsigned ofs1) (size_chunk Mint32) bytes1;
                                            Read b2 (Int.unsigned ofs2) (size_chunk Mint32) bytes2;
@@ -203,12 +203,12 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
 (*  | Pannot ef args =>
       EmptyEffect *)*)
   | _ => Some [Free nil]
-  end. 
+  end.
 
 Lemma store_stack_ev_elim m sp ty ofs v m' (SS: store_stack m sp ty ofs v = Some m'):
   exists b z, sp =Vptr b z /\
   ev_elim m [Write b (Int.unsigned (Int.add z ofs)) (encode_val (chunk_of_type ty) v)] m'.
-Proof. 
+Proof.
   destruct sp; try discriminate. unfold store_stack in SS.
   exists b, i; split; trivial.
   apply Mem.store_storebytes in SS.
@@ -218,9 +218,9 @@ Qed.
 Fixpoint store_args_ev_rec sp ofs args tys : option (list mem_event) :=
   match tys, args with
     | nil, nil => Some nil
-    | ty'::tys',a'::args' => 
-      match ty', a' with 
-        | Tlong, Vlong n => 
+    | ty'::tys',a'::args' =>
+      match ty', a' with
+        | Tlong, Vlong n =>
            match store_args_ev_rec sp (ofs+2) args' tys' with
              None => None
            | Some tailEvents =>
@@ -231,13 +231,13 @@ Fixpoint store_args_ev_rec sp ofs args tys : option (list mem_event) :=
                      tailEvents)
            end
         | Tlong, _ => None
-        | _,_ => 
+        | _,_ =>
            match store_args_ev_rec sp (ofs+typesize ty') args' tys' with
              None => None
            | Some tailEvents =>
                Some ((Write sp (Int.unsigned (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs))) (encode_val (chunk_of_type ty') a'))
                       :: tailEvents)
-           end 
+           end
       end
     | _, _ => None
   end.
@@ -255,7 +255,7 @@ induction args; intros tys; destruct tys; simpl; intros; try discriminate.
             | Z.pos y' => Z.pos y'~0~0
             | Z.neg y' => Z.neg y'~0~0
             end) a) as p.
-    destruct p; inv SA. 
+    destruct p; inv SA.
     destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
     symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b [z [B EV]]]; inv B.
     rewrite Int.add_zero_l in EV.
@@ -269,7 +269,7 @@ induction args; intros tys; destruct tys; simpl; intros; try discriminate.
             | Z.pos y' => Z.pos y'~0~0
             | Z.neg y' => Z.neg y'~0~0
             end) a) as p.
-    destruct p; inv SA. 
+    destruct p; inv SA.
     destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
     symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b [z [B EV]]]; inv B.
     rewrite Int.add_zero_l in EV.
@@ -291,7 +291,7 @@ induction args; intros tys; destruct tys; simpl; intros; try discriminate.
             | 0 => 0
             | Z.pos y' => Z.pos y'~0~0
             | Z.neg y' => Z.neg y'~0~0
-            end) (Vint (Int64.loword i))) as q. 
+            end) (Vint (Int64.loword i))) as q.
     destruct q; inv H0.
     destruct (IHargs _ _ _ _ H1) as [T [SAT EVT]]. simpl. rewrite SAT.
     symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b1 [z1 [B1 EV1]]]; inv B1.
@@ -301,7 +301,7 @@ induction args; intros tys; destruct tys; simpl; intros; try discriminate.
     rewrite Int.add_zero_l in EV2.
     simpl in EV2. destruct EV2 as [mm2 [SB2 MM2]]. subst m1. clear - SB1 SB2 EVT.
     eexists; split. reflexivity.
-    econstructor. split. apply SB1.  
+    econstructor. split. apply SB1.
     econstructor. split. apply SB2. assumption.
   - remember (store_stack m (Vptr sp Int.zero) Tsingle
          (Int.repr
@@ -354,9 +354,9 @@ Lemma AR n: match n with
                   | Z.pos y' => Z.pos y'~0~0
                   | Z.neg y' => Z.neg y'~0~0
                   end = 4*n.
-destruct n; simpl; trivial. Qed. 
+destruct n; simpl; trivial. Qed.
 
-Section EXTCALL_ARG_EVENT. 
+Section EXTCALL_ARG_EVENT.
 
 Inductive extcall_arg_ev (rs: regset) (m: mem): loc -> val -> list mem_event -> Prop :=
   | extcall_arg_reg: forall r,
@@ -381,7 +381,7 @@ Proof.
   destruct (Mem.load_loadbytes _ _ _ _ _ H1) as [bytes [Bytes U]]. rewrite AR in *.
   destruct (Mem.load_valid_access _ _ _ _ _ H1) as [ ALGN].
   eexists; econstructor; try eassumption; try rewrite <- Heqp; reflexivity.
-Qed. 
+Qed.
 
 Lemma extcall_arg_ev_extcall_arg rs m l u T (EA:extcall_arg_ev rs m l u T): extcall_arg rs m l u.
 Proof.
@@ -390,7 +390,7 @@ Proof.
 + remember (rs ESP) as p; destruct p; inv H0. rewrite AR in *.
   econstructor. reflexivity. rewrite <- Heqp. simpl. rewrite AR.
   erewrite Mem.loadbytes_load; try reflexivity; eassumption.
-Qed. 
+Qed.
 
 Lemma extcall_arg_ev_determ rs m l u T (EAV:extcall_arg_ev rs m l u T) T' (EAV':extcall_arg_ev rs m l u T'): T=T'.
 Proof. inv EAV; inv EAV'; trivial. rewrite H5 in H0; inv H0. rewrite H8 in H3; inv H3. trivial. Qed.
@@ -409,13 +409,13 @@ Inductive extcall_arguments_ev_aux: regset -> mem -> list (rpair loc) -> list va
   extcall_arguments_ev_nil: forall rs m, extcall_arguments_ev_aux rs m nil nil nil
 | extcall_arguments_ev_cons: forall rs m l locs v T1 vl T2 ,
                          extcall_arg_pair_ev rs m l v T1 ->
-                         extcall_arguments_ev_aux rs m locs vl T2 -> 
+                         extcall_arguments_ev_aux rs m locs vl T2 ->
                          extcall_arguments_ev_aux rs m (l::locs) (v::vl) (T1++T2).
 
 Definition extcall_arguments_ev (rs:regset) (m: mem) (sg:signature) (args: list val) (T: list mem_event): Prop :=
   extcall_arguments_ev_aux rs m (loc_arguments sg) args T.
 
-Lemma extcall_arguments_extcall_arguments_ev rs m sg args: 
+Lemma extcall_arguments_extcall_arguments_ev rs m sg args:
       extcall_arguments rs m sg args -> exists T, extcall_arguments_ev rs m sg args T.
 Proof.
 unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
@@ -440,10 +440,10 @@ Proof. intros.
     - inv H4. inv H0. inv H6. trivial. inv H6. rewrite H7 in H1. inv H1.
       rewrite H5 in H10. inv H10. trivial.
     - inv H4. rewrite H9 in H2. inv H2. rewrite H8 in H12. inv H12. f_equal.
-      inv H0. 
+      inv H0.
       * inv H6; trivial.
       * inv H6. rewrite H1 in H10. inv H10. rewrite H14 in H5. inv H5. trivial.
-Qed. 
+Qed.
 
 Lemma extcall_arguments_ev_aux_determ rs m: forall locs args T (EA: extcall_arguments_ev_aux rs m locs args T)
       T' (EA': extcall_arguments_ev_aux rs m locs args T'), T=T'.
@@ -457,7 +457,7 @@ Lemma extcall_arguments_ev_determ rs m sg args T (EA: extcall_arguments_ev rs m 
       T' (EA': extcall_arguments_ev rs m sg args T'): T=T'.
 Proof. eapply extcall_arguments_ev_aux_determ; eassumption. Qed.
 
-Lemma extcall_arguments_ev_extcall_arguments rs m sg args T: 
+Lemma extcall_arguments_ev_extcall_arguments rs m sg args T:
       extcall_arguments_ev rs m sg args T -> extcall_arguments rs m sg args.
 Proof.
 unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
@@ -472,7 +472,7 @@ Qed.
 Lemma extcall_arg_ev_elim rs m : forall l v T (EA: extcall_arg_ev rs m l v T), ev_elim m T m.
 Proof. induction 1; repeat constructor; eauto. Qed.
 
-Lemma extcall_arg_ev_elim_strong rs m : forall l v T (EA: extcall_arg_ev rs m l v T), 
+Lemma extcall_arg_ev_elim_strong rs m : forall l v T (EA: extcall_arg_ev rs m l v T),
       ev_elim m T m /\ (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ extcall_arg_ev rs mm l v T).
 Proof.
  induction 1.
@@ -483,7 +483,7 @@ Proof.
   - repeat constructor; eauto.
   - intros. inv H4. inv H5. inv H1.
     split. trivial.
-    econstructor; try eassumption; reflexivity. 
+    econstructor; try eassumption; reflexivity.
 Qed.
 
 Lemma extcall_arguments_ev_aux_elim rs m:
@@ -502,7 +502,7 @@ Lemma extcall_arguments_ev_aux_elim_strong rs m:
 Proof. induction 1.
 + split.
   - constructor.
-  - intros. inv H. split; trivial. constructor. 
+  - intros. inv H. split; trivial. constructor.
 + destruct IHEA as [IH1 IH2].
   split.
   - inv H.
@@ -552,7 +552,7 @@ Inductive eval_builtin_arg_ev: builtin_arg A -> val -> list mem_event -> Prop :=
       eval_builtin_arg_ev (BA_single n) (Vsingle n) nil
   | eval_BA_ev_loadstack: forall chunk ofs v b z bytes,
       Mem.loadv chunk m (Val.add sp (Vint ofs)) = Some v ->
-      (align_chunk chunk | (Int.unsigned z)) -> 
+      (align_chunk chunk | (Int.unsigned z)) ->
       Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
       v= decode_val chunk bytes ->
       Val.add sp (Vint ofs) = Vptr b z ->
@@ -561,7 +561,7 @@ Inductive eval_builtin_arg_ev: builtin_arg A -> val -> list mem_event -> Prop :=
       eval_builtin_arg_ev (BA_addrstack ofs) (Val.add sp (Vint ofs)) nil
   | eval_BA_ev_loadglobal: forall chunk id ofs v b z bytes,
       Mem.loadv chunk m (Senv.symbol_address ge id ofs) = Some v ->
-      (align_chunk chunk | (Int.unsigned z)) -> 
+      (align_chunk chunk | (Int.unsigned z)) ->
       Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
       v= decode_val chunk bytes ->
       Senv.symbol_address ge id ofs = Vptr b z ->
@@ -587,7 +587,7 @@ Proof.
   induction 1; intros; try solve [eexists; econstructor; try eassumption].
 + assert (B: exists b z, sp = Vptr b z). destruct sp; inv H. exists b, i; trivial.
   destruct B as [b [i SP]]. subst sp. simpl in H.
-  destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALIGN]. 
+  destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALIGN].
   destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes [LD V]].
   eexists. econstructor. subst sp; simpl; eassumption. eassumption. eassumption. trivial. subst sp. reflexivity.
 + assert (B: exists b z, (Senv.symbol_address ge id ofs) = Vptr b z). destruct (Senv.symbol_address ge id ofs); inv H. exists b, i; trivial.
@@ -606,7 +606,7 @@ Inductive eval_builtin_args_ev: list (builtin_arg A) -> list val -> list mem_eve
   eval_builtin_args_ev_nil: eval_builtin_args_ev nil nil nil
 | eval_builtin_args_ev_cons: forall a v T1 al vl T2 ,
                          eval_builtin_arg_ev a v T1 ->
-                         eval_builtin_args_ev al vl T2 -> 
+                         eval_builtin_args_ev al vl T2 ->
                          eval_builtin_args_ev (a::al) (v::vl) (T1++T2).
 
 Lemma eval_builtin_args_ev_determ: forall al vl1 T1 (HA1: eval_builtin_args_ev al vl1 T1)
@@ -627,16 +627,16 @@ Proof.
 + destruct IHlist_forall2 as [T2 HT2].
   destruct (eval_builtin_arg_event _ _ H) as [T1 HT1].
   eexists; econstructor; eassumption.
-Qed. 
+Qed.
 
 Lemma eval_builtin_args_ev_eval_builtin_args: forall al vl T, eval_builtin_args_ev al vl T ->
   eval_builtin_args ge e sp m al vl.
 Proof.
   induction 1.
 + econstructor.
-+ apply eval_builtin_arg_event_inv in H. econstructor; eassumption. 
++ apply eval_builtin_arg_event_inv in H. econstructor; eassumption.
 Qed.
- 
+
 End EVAL_BUILTIN_ARG_EV.
 
 Lemma eval_builtin_arg_ev_elim_strong {A} ge (rs: A -> val) sp m a v T (EV: eval_builtin_arg_ev A ge rs sp m a v T):
@@ -655,7 +655,7 @@ Proof.
     * inv H5; trivial.
     * inv H5. rewrite H3 in *.
       destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
-      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].  
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
       constructor; try eassumption; trivial.
       rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
 + split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
@@ -665,7 +665,7 @@ Proof.
     * inv H5; trivial.
     * inv H5. rewrite H3 in *.
       destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
-      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].  
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
       constructor; try eassumption; trivial.
       rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
 + split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
@@ -676,7 +676,7 @@ Proof.
   destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
   split; trivial.
   constructor; eassumption.
-Qed. 
+Qed.
 
 Lemma eval_builtin_args_ev_elim_strong {A} ge (rs: A -> val) sp m al vl T (EV: eval_builtin_args_ev A ge rs sp m al vl T):
   ev_elim m T m /\
@@ -695,12 +695,12 @@ Proof.
   constructor; trivial.
 Qed.
 
-Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop := 
+Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
   BE_malloc: forall m n m'' b m'
          (ALLOC: Mem.alloc m (-4) (Int.unsigned n) = (m'', b))
          (ALGN : (align_chunk Mint32 | (-4)))
          (ST: Mem.storebytes m'' b (-4) (encode_val Mint32 (Vint n)) = Some m'),
-         builtin_event EF_malloc m [Vint n] 
+         builtin_event EF_malloc m [Vint n]
                [Alloc b (-4) (Int.unsigned n); Write b (-4) (encode_val Mint32 (Vint n))]
 | BE_free: forall m b lo bytes sz m'
         (POS: Int.unsigned sz > 0)
@@ -708,7 +708,7 @@ Inductive builtin_event: external_function -> mem -> list val -> list mem_event 
         (FR: Mem.free m b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) = Some m')
         (ALGN : (align_chunk Mint32 | Int.unsigned lo - 4))
         (SZ : Vint sz = decode_val Mint32 bytes),
-        builtin_event EF_free m [Vptr b lo] 
+        builtin_event EF_free m [Vptr b lo]
               [Read b (Int.unsigned lo - 4) (size_chunk Mint32) bytes;
                Free [(b,Int.unsigned lo - 4, Int.unsigned lo + Int.unsigned sz)]]
 | BE_memcpy: forall m al bsrc bdst sz bytes osrc odst m'
@@ -748,7 +748,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       drf_instr ge (fn_code f) i rs m = Some T ->
       asm_ev_step ge (State rs lf) m T (State rs' lf) m'
   | asm_ev_step_builtin:
-      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)      
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b ofs f ef args res rs m vargs t vres rs' m' lf T1 T2
         (*(HFD: helper_functions_declared ge hf)*)
          (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
@@ -763,14 +763,14 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
       eval_builtin_args_ev _ ge rs (rs ESP) m args vargs T1 ->
       builtin_event ef m vargs T2 ->
-      asm_ev_step ge (State rs lf) m (T1++T2) (State rs' lf) m' 
+      asm_ev_step ge (State rs lf) m (T1++T2) (State rs' lf) m'
   | asm_ev_step_to_external:
       forall b ef args rs m lf T
       (*(HFD: helper_functions_declared ge hf)*),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External ef) ->
       extcall_arguments rs m (ef_sig ef) args ->
-      extcall_arguments_ev rs m (ef_sig ef) args T -> 
+      extcall_arguments_ev rs m (ef_sig ef) args T ->
       asm_ev_step ge (State rs lf) m T (Asm_CallstateOut ef args rs lf) m
 
   | asm_ev_step_external: (*really, a helper-step*)
@@ -786,30 +786,30 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       builtin_event  callee m args T ->
       asm_ev_step ge (Asm_CallstateOut callee args rs lf) m T (State rs' lf) m'
   (*NOTE [loader]*)
-  | asm_ev_initialize_call: 
+  | asm_ev_initialize_call:
       forall m args tys retty m1 stk m2 fb z T
       (*(HFD: helper_functions_declared ge hf)*),
-      args_len_rec args tys = Some z -> 
+      args_len_rec args tys = Some z ->
       Mem.alloc m 0 (4*z) = (m1, stk) ->
       store_args m1 stk args tys = Some m2 ->
-      store_args_events stk args tys = Some T -> 
-      let rs0 := (Pregmap.init Vundef) 
+      store_args_events stk args tys = Some T ->
+      let rs0 := (Pregmap.init Vundef)
                   #PC <- (Vptr fb Int.zero)
-                  #RA <- Vzero 
+                  #RA <- Vzero
                   # ESP <- (Vptr stk Int.zero) in
       asm_ev_step ge (Asm_CallstateIn fb args tys retty) m (Alloc stk 0 (4*z) :: T)
                (State rs0 (mk_load_frame stk retty)) m2.
 
-Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*): 
+Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*):
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), corestep (Asm_mem_sem (*hf*)) g c m c' m'.
 Proof.
  induction 1; try contradiction.
 + destruct i; inv H2;
   try solve[eapply asm_exec_step_internal; try eassumption; reflexivity].
 (*+ (*builtin*) eapply asm_exec_step_builtin; eassumption.*)
-+ (*step-to_callstateOut*) eapply asm_exec_step_to_external; eassumption. 
++ (*step-to_callstateOut*) eapply asm_exec_step_to_external; eassumption.
 (*+ (*step_from-callstateOut*) eapply asm_exec_step_external; try eassumption.*)
-+ (*loadframe*) eapply asm_exec_initialize_call; try eassumption. 
++ (*loadframe*) eapply asm_exec_initialize_call; try eassumption.
 Qed.
 
 Lemma asm_ev_ax2 g: forall c m c' m' (CS:corestep (Asm_mem_sem (*hf*)) g c m c' m'),
@@ -819,13 +819,13 @@ Proof. induction 1; try contradiction.
   try solve [eexists; eapply asm_ev_step_internal; try eassumption; reflexivity].
   - unfold exec_load in H4.
     remember (Mem.loadv Mint32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mint32 m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -833,16 +833,16 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs r1)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -853,13 +853,13 @@ Proof. induction 1; try contradiction.
     * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs r1)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -870,13 +870,13 @@ Proof. induction 1; try contradiction.
     * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs ST0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -884,16 +884,16 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs ST0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -901,7 +901,7 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mint8unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -909,7 +909,7 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Mint16unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -917,52 +917,52 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mint8unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mint8signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mint16unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Mint16signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Many32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Many32 m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -970,16 +970,16 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - unfold exec_load in H4.
     remember (Mem.loadv Many64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_load. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq, LB. reflexivity. 
+    * rewrite <- Heqq, LB. reflexivity.
   - unfold exec_store in H4.
     remember (Mem.storev Many64 m (eval_addrmode g a rs) (rs r1)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -987,9 +987,9 @@ Proof. induction 1; try contradiction.
     destruct q; try discriminate.
     eexists; eapply asm_ev_step_internal; try eassumption; simpl.
     * unfold exec_store. rewrite <- Heqq, Heqp. trivial.
-    * rewrite <- Heqq. reflexivity. 
+    * rewrite <- Heqq. reflexivity.
   - (*Pallocframe*)
-    remember (Mem.alloc m 0 sz) as alloc; destruct alloc as [m1 stk]. 
+    remember (Mem.alloc m 0 sz) as alloc; destruct alloc as [m1 stk].
     remember (Mem.store Mint32 m1 stk (Int.unsigned (Int.add Int.zero ofs_link)) (rs ESP)) as p; destruct p; try discriminate.
     remember (Mem.store Mint32 m0 stk (Int.unsigned (Int.add Int.zero ofs_ra)) (rs RA)) as q; destruct q; try discriminate.
     inv H4.
@@ -1008,10 +1008,10 @@ Proof. induction 1; try contradiction.
     eexists.
     eapply asm_ev_step_internal; try eassumption; simpl.
     * rewrite <- Heqw in *. simpl.
-      rewrite Heqp, Heqq, <- Heqr. trivial. 
+      rewrite Heqp, Heqq, <- Heqr. trivial.
     * rewrite <- Heqw in *. simpl in *.
       rewrite Heqp, Heqq, <- Heqr, Bytes1, Bytes2. reflexivity.
-(*+ (*builtin*) 
+(*+ (*builtin*)
   exploit eval_builtin_args_eval_builtin_args_ev. eassumption. intros [T HT].
   destruct ef; simpl in *; try solve [elim H4; trivial].
   - exists (T ++ nil).
@@ -1028,19 +1028,19 @@ Proof. induction 1; try contradiction.
     * econstructor; eassumption.
   - (*free*)
     inv H3. destruct (Mem.load_valid_access _ _ _ _ _ H6) as [_ ALGN].
-    destruct (Mem.load_loadbytes _ _ _ _ _ H6) as [bytes [LB V]]. 
+    destruct (Mem.load_loadbytes _ _ _ _ _ H6) as [bytes [LB V]].
     eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
     * econstructor; try eassumption.
     * econstructor; eassumption.
   - (*memcpy*)
-    inv H3. 
+    inv H3.
     eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
     * econstructor; try eassumption.
     * econstructor; eassumption.*)
 + (*step-to_callstateOut*)
    exploit extcall_arguments_extcall_arguments_ev. eassumption. intros [T HT].
    exists T. econstructor; eassumption.
-(*+ (*step_from-callstateOut*) 
+(*+ (*step_from-callstateOut*)
    exists nil.
    econstructor; try eassumption. inv H1.
    destruct callee; simpl in *; try solve [contradiction].
@@ -1049,7 +1049,7 @@ Proof. induction 1; try contradiction.
 + (*loadframe*)
   unfold store_args in H1.
   destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [T [HT EV]].
-  eexists. eapply asm_ev_initialize_call; eassumption. 
+  eexists. eapply asm_ev_initialize_call; eassumption.
 Qed.
 
 Lemma asm_ev_fun g: forall c m T' c' m' T'' c'' m''
@@ -1073,21 +1073,21 @@ inv Estep'; inv Estep''; trivial; try contradiction.
 (*+ rewrite H5 in H; inv H. rewrite H0 in H6; inv H6.*)
 + rewrite H5 in H; inv H. rewrite H6 in H0; inv H0.
   exploit extcall_arguments_determ. apply H1. apply H7. intros; subst args.
-  eapply extcall_arguments_ev_determ; eassumption. 
+  eapply extcall_arguments_ev_determ; eassumption.
 (*+ rewrite H7 in H; inv H. eapply builtin_event_determ; eassumption. *)
 + (*loadframe*)
   rewrite H7 in H; inv H. rewrite H12 in H0; inv H0.
-  rewrite H13 in H1; inv H1. rewrite H14 in H2; inv H2. reflexivity. 
-Qed. 
+  rewrite H13 in H1; inv H1. rewrite H14 in H2; inv H2. reflexivity.
+Qed.
 
 Lemma asm_ev_elim g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
 Proof.
 induction 1; intros; try contradiction.
 + destruct i; inv H2; inv H3;
-  try solve [eexists; split; reflexivity]. 
+  try solve [eexists; split; reflexivity].
   - unfold exec_load in H5.
     remember (Mem.loadv Mint32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1095,14 +1095,14 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Mint32 m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1110,14 +1110,14 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1125,14 +1125,14 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1140,14 +1140,14 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs ST0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1155,28 +1155,28 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs ST0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_store in H5.
     remember (Mem.storev Mint8unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_store in H5.
     remember (Mem.storev Mint16unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Mint8unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1184,7 +1184,7 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_load in H5.
     remember (Mem.loadv Mint8signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1192,7 +1192,7 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_load in H5.
     remember (Mem.loadv Mint16unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1200,7 +1200,7 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_load in H5.
     remember (Mem.loadv Mint16signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1216,7 +1216,7 @@ induction 1; intros; try contradiction.
     * destruct b0; inv H3; eexists; simpl; split; reflexivity.
     * eexists; simpl; split; reflexivity.
   - unfold goto_label in H5. rewrite H in *.
-    destruct (label_pos l 0 (fn_code f)); inv H5. 
+    destruct (label_pos l 0 (fn_code f)); inv H5.
     eexists; simpl; split; reflexivity.
   - destruct (eval_testcond c rs); inv H5.
     destruct b0; inv H3; try solve [eexists; simpl; split; reflexivity].
@@ -1232,13 +1232,13 @@ induction 1; intros; try contradiction.
       eexists; simpl; split; reflexivity.
     * destruct (eval_testcond c2 rs); inv H4; try solve [eexists; simpl; split; reflexivity].
   - destruct (rs r); inv H5.
-    destruct (list_nth_z tbl (Int.unsigned i)); inv H3. 
+    destruct (list_nth_z tbl (Int.unsigned i)); inv H3.
     unfold goto_label in H4. rewrite H in *.
     destruct (label_pos l 0 (fn_code f)); inv H4.
     eexists; simpl; split; reflexivity.
   - unfold exec_load in H5.
     remember (Mem.loadv Many32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1246,14 +1246,14 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Many32 m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
     econstructor. split; simpl; trivial. eassumption.
   - unfold exec_load in H5.
     remember (Mem.loadv Many64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1261,7 +1261,7 @@ induction 1; intros; try contradiction.
     constructor; simpl; trivial.
   - unfold exec_store in H5.
     remember (Mem.storev Many64 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     apply Mem.store_storebytes in Heqp.
@@ -1269,9 +1269,9 @@ induction 1; intros; try contradiction.
   - (*Pallocframe*)
     remember (Mem.alloc m 0 sz) as a; symmetry in Heqa; destruct a as [m1 stk].
     remember (Mem.store Mint32 m1 stk
-         (Int.unsigned (Int.add Int.zero ofs_link)) 
+         (Int.unsigned (Int.add Int.zero ofs_link))
          (rs ESP)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (Mem.store Mint32 m0 stk (Int.unsigned (Int.add Int.zero ofs_ra))
          (rs RA)) as q.
     destruct q; try discriminate; symmetry in Heqq. inv H5; inv H4.
@@ -1281,14 +1281,14 @@ induction 1; intros; try contradiction.
     econstructor. split. eassumption.
     econstructor. split. eassumption.
     econstructor. split. eassumption.
-    econstructor. 
+    econstructor.
   - (*Pfreeframe*)
     remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))) as q.
     destruct q; try discriminate; symmetry in Heqq.
     remember (rs ESP) as w; destruct w; try discriminate.
-    remember (Mem.free m b0 0 sz) as t; destruct t; try discriminate. 
+    remember (Mem.free m b0 0 sz) as t; destruct t; try discriminate.
     inv H5; inv H4; simpl in *.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes1 [Bytes1 LD1]].
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqq) as [bytes2 [Bytes2 LD2]].
@@ -1296,14 +1296,14 @@ induction 1; intros; try contradiction.
     econstructor. trivial.
     econstructor. trivial.
     econstructor. split. simpl. rewrite <- Heqt; trivial.
-    econstructor. 
+    econstructor.
 (*+ (*builtin*)
   destruct ef; simpl in *; try solve [elim H4; trivial].
-  - inv H7. 
+  - inv H7.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     eapply ev_elim_app. eassumption.
     (*EFexternal helpers don't change memory - should follow from HFD*)
-  - inv H7. 
+  - inv H7.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     eapply ev_elim_app. eassumption.
     (*EFbuiltin helpers don't change memory - should follow from HFD*)
@@ -1315,21 +1315,21 @@ induction 1; intros; try contradiction.
     econstructor. split. eassumption.
     econstructor. split. eassumption. constructor.
   - (*free*)
-    inv H3; inv H7. 
+    inv H3; inv H7.
     destruct (Mem.load_loadbytes _ _ _ _ _ H8) as [bytes1 [LB1 SZ1]].
     rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ; inv SZ.
     rewrite H10 in FR; inv FR.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     eapply ev_elim_app. eassumption.
     econstructor. eassumption.
-    econstructor. split. simpl. rewrite H10. reflexivity. constructor. 
+    econstructor. split. simpl. rewrite H10. reflexivity. constructor.
   - (*memcpy*)
     inv H3; inv H7. rewrite LB in H14; inv H14. rewrite ST in H15; inv H15.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     eapply ev_elim_app. eassumption.
     econstructor. eassumption.
     econstructor. split. eassumption. constructor.*)
-+ eapply extcall_arguments_ev_aux_elim; eassumption. 
++ eapply extcall_arguments_ev_aux_elim; eassumption.
 (*+ inv H1.
   destruct callee; simpl in *; try solve [contradiction].
   - inv H3. (*EFexternal helpers don't change memory - should follow from HFD*)
@@ -1347,21 +1347,21 @@ Lemma store_args_rec_transfer stk m2 mm': forall args tys m1 n
 Proof.
  induction args; simpl; intros; destruct tys; try discriminate.
 + inv STARGS. inv STARGSEV. inv EV.  trivial.
-+ rewrite AR in *. Opaque Z.mul. 
-  destruct t. 
++ rewrite AR in *. Opaque Z.mul.
+  destruct t.
   - remember (store_args_ev_rec stk (n + typesize Tint) args tys) as p; destruct p; inv STARGSEV.
     inv EV. destruct H as [ST EV].
     remember (store_stack m1 (Vptr stk Int.zero) Tint (Int.repr (4*n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp. 
+    symmetry in Heqq, Heqp.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
     erewrite Mem.storebytes_store; eassumption.
   - remember ( store_args_ev_rec stk (n + typesize Tfloat) args tys) as p; destruct p; inv STARGSEV.
     inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tfloat 
+    remember (store_stack m1 (Vptr stk Int.zero) Tfloat
              (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp. 
+    symmetry in Heqq, Heqp.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
@@ -1378,7 +1378,7 @@ Proof.
                 end) (Vint (Int64.hiword i))) as q. destruct q; inv STARGS.
     remember (store_stack m (Vptr stk Int.zero) Tint (Int.repr (4 * n))
          (Vint (Int64.loword i))) as w; destruct w; inv H2.
-    symmetry in Heqq, Heqp, Heqw. 
+    symmetry in Heqq, Heqp, Heqw.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGNhi].
     unfold store_stack in Heqw; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqw) as [_ ALGNlo].
     specialize (IHargs _ _ _ H3 _ Heqp _ H0).
@@ -1389,7 +1389,7 @@ Proof.
   - remember (store_args_ev_rec stk (n + typesize Tsingle) args tys) as p; destruct p; inv STARGSEV.
     inv EV. destruct H as [ST EV].
     remember (store_stack m1 (Vptr stk Int.zero) Tsingle (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp. 
+    symmetry in Heqq, Heqp.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
@@ -1397,7 +1397,7 @@ Proof.
   - remember (store_args_ev_rec stk (n + typesize Tany32) args tys) as p; destruct p; inv STARGSEV.
     inv EV. destruct H as [ST EV].
     remember (store_stack m1 (Vptr stk Int.zero) Tany32 (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp. 
+    symmetry in Heqq, Heqp.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
@@ -1405,25 +1405,25 @@ Proof.
   - remember (store_args_ev_rec stk (n + typesize Tany64) args tys) as p; destruct p; inv STARGSEV.
     inv EV. destruct H as [ST EV].
     remember (store_stack m1 (Vptr stk Int.zero) Tany64 (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp. 
+    symmetry in Heqq, Heqp.
     unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
     specialize (IHargs _ _ _ H0 _ Heqp _ EV).
     unfold store_stack; simpl. rewrite Int.add_zero_l in *.
     erewrite Mem.storebytes_store; eassumption.
 Qed.
 
-Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'), 
+Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
       ev_elim m T m' /\ (forall mm mm', ev_elim mm T mm' -> exists cc', asm_ev_step g c mm T cc' mm').
 Proof.
 induction 1; intros; try contradiction.
-+ destruct i; inv H2; inv H3; try solve [split; 
++ destruct i; inv H2; inv H3; try solve [split;
         first [eexists; split; reflexivity |
                intros mm mm' EV'; inv EV'; destruct H2 as [FL EV']; inv EV'; inv FL;
-                 eexists; econstructor; try eassumption; reflexivity]]. 
+                 eexists; econstructor; try eassumption; reflexivity]].
   - (*Pmov_rm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mint32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1434,11 +1434,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl. erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmov_mr*)
     unfold exec_store in H5.
     remember (Mem.storev Mint32 m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1448,11 +1448,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovsd_fm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1463,11 +1463,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsd_mf*)
     unfold exec_store in H5.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1477,11 +1477,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovss_fm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1492,11 +1492,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovss_mf*)
     unfold exec_store in H5.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1506,11 +1506,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pfldl_m*)
     unfold exec_load in H5.
     remember (Mem.loadv Mfloat64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1521,11 +1521,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pfstpl_m*)
     unfold exec_store in H5.
     remember (Mem.storev Mfloat64 m (eval_addrmode g a rs) (rs ST0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1535,10 +1535,10 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pflds_m*)unfold exec_load in H5.
     remember (Mem.loadv Mfloat32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1549,11 +1549,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pfstps_m*)
     unfold exec_store in H5.
     remember (Mem.storev Mfloat32 m (eval_addrmode g a rs) (rs ST0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1563,11 +1563,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovb_mr*)
     unfold exec_store in H5.
     remember (Mem.storev Mint8unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1577,11 +1577,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovw_mr*)
     unfold exec_store in H5.
     remember (Mem.storev Mint16unsigned m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1591,11 +1591,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovzb_rm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mint8unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1609,7 +1609,7 @@ induction 1; intros; try contradiction.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsb_rm*)unfold exec_load in H5.
     remember (Mem.loadv Mint8signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1624,7 +1624,7 @@ induction 1; intros; try contradiction.
   - (*Pmovzw_rm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mint16unsigned m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1635,11 +1635,11 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity.   
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsw_rm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mint16signed m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1650,7 +1650,7 @@ induction 1; intros; try contradiction.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
-      ++ rewrite <- Heqq, H2; reflexivity. 
+      ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pdiv*)
     remember (Val.divu (rs EAX) (rs # EDX <- Vundef r1)) as p; destruct p; inv H5.
     remember (Val.modu (rs EAX) (rs # EDX <- Vundef r1)) as q; destruct q; inv H3.
@@ -1658,7 +1658,7 @@ induction 1; intros; try contradiction.
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       eexists; econstructor; try eassumption; simpl; trivial.
-      rewrite <- Heqp, <- Heqq; reflexivity. 
+      rewrite <- Heqp, <- Heqq; reflexivity.
   - (*Pidiv*)
     remember (Val.divs (rs EAX) (rs # EDX <- Vundef r1)) as p; destruct p; inv H5.
     remember ( Val.mods (rs EAX) (rs # EDX <- Vundef r1)) as q; destruct q; inv H3.
@@ -1666,7 +1666,7 @@ induction 1; intros; try contradiction.
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       eexists; econstructor; try eassumption; simpl; trivial.
-      rewrite <- Heqp, <- Heqq; reflexivity. 
+      rewrite <- Heqp, <- Heqq; reflexivity.
   - (*Pcmov*)
     remember (eval_testcond c rs) as p; destruct p; inv H5.
     * destruct b0; inv H3.
@@ -1681,15 +1681,15 @@ induction 1; intros; try contradiction.
       eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
   - (*Pjmp_l*)
     unfold goto_label in H5. rewrite H in *.
-    remember (label_pos l 0 (fn_code f)) as p; destruct p; inv H5. 
-    split. 
+    remember (label_pos l 0 (fn_code f)) as p; destruct p; inv H5.
+    split.
     * econstructor. split. reflexivity. constructor.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       eexists; econstructor; try eassumption; simpl; trivial.
       unfold goto_label. rewrite <- Heqp, H. reflexivity.
   - (*Pjcc*)
     remember (eval_testcond c rs) as p;destruct p; inv H5.
-    destruct b0; inv H3. 
+    destruct b0; inv H3.
     * unfold goto_label in H4. rewrite H in *.
       remember (label_pos l 0 (fn_code f)) as q; destruct q; inv H4.
       split.
@@ -1724,7 +1724,7 @@ induction 1; intros; try contradiction.
          eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
   - (*Pjmptbl*)
     remember (rs r) as p; destruct p; inv H5.
-    remember (list_nth_z tbl (Int.unsigned i)) as q; destruct q; inv H3. 
+    remember (list_nth_z tbl (Int.unsigned i)) as q; destruct q; inv H3.
     unfold goto_label in H4. rewrite H in *.
     remember (label_pos l 0 (fn_code f)) as w; destruct w; inv H4.
     split.
@@ -1735,7 +1735,7 @@ induction 1; intros; try contradiction.
   - (*Pmov_rm_a*)
     unfold exec_load in H5.
     remember (Mem.loadv Many32 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1750,7 +1750,7 @@ induction 1; intros; try contradiction.
   - (*Pmov_mr_a*)
     unfold exec_store in H5.
     remember (Mem.storev Many32 m (eval_addrmode g a rs) (rs rs0)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1760,11 +1760,11 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pmovsd_fm_a*)
     unfold exec_load in H5.
     remember (Mem.loadv Many64 m (eval_addrmode g a rs)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
     destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
@@ -1779,7 +1779,7 @@ induction 1; intros; try contradiction.
   - (*Pmovsd_mf_a*)
     unfold exec_store in H5.
     remember (Mem.storev Many64 m (eval_addrmode g a rs) (rs r1)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5; inv H4.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
@@ -1789,13 +1789,13 @@ induction 1; intros; try contradiction.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
-      ++ rewrite <- Heqq; reflexivity. 
+      ++ rewrite <- Heqq; reflexivity.
   - (*Pallocframe*)
     remember (Mem.alloc m 0 sz) as a; symmetry in Heqa; destruct a as [m1 stk].
     remember (Mem.store Mint32 m1 stk
-         (Int.unsigned (Int.add Int.zero ofs_link)) 
+         (Int.unsigned (Int.add Int.zero ofs_link))
          (rs ESP)) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (Mem.store Mint32 m0 stk (Int.unsigned (Int.add Int.zero ofs_ra))
          (rs RA)) as q.
     destruct q; try discriminate; symmetry in Heqq. inv H5; inv H4.
@@ -1811,10 +1811,10 @@ induction 1; intros; try contradiction.
       econstructor.
     * intros mm mm' EV'; inv EV'. destruct H2 as [ALLOC EV]. inv EV. inv H2. inv H4. destruct H2. inv H4.
       eexists; econstructor; try eassumption; simpl; repeat rewrite Int.add_zero_l; rewrite ALLOC;
-      repeat erewrite Mem.storebytes_store; try eassumption; reflexivity. 
+      repeat erewrite Mem.storebytes_store; try eassumption; reflexivity.
   - (*Pfreeframe*)
     remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))) as p.
-    destruct p; try discriminate; symmetry in Heqp.  
+    destruct p; try discriminate; symmetry in Heqp.
     remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))) as q.
     destruct q; try discriminate; symmetry in Heqq.
     remember (rs ESP) as w; destruct w; try discriminate.
@@ -1827,17 +1827,17 @@ induction 1; intros; try contradiction.
     destruct (Mem.load_valid_access _ _ _ _ _ Heqq) as [_ ALIGN2].
     split.
     * econstructor; trivial. econstructor; trivial.  econstructor.
-      split. simpl. rewrite <- Heqt; trivial. econstructor. 
+      split. simpl. rewrite <- Heqt; trivial. econstructor.
     * intros mm mm' EV'. inv EV'. inv H3. inv H5. destruct H3. inv H5. simpl in H3.
       remember (Mem.free mm b0 0 sz) as d; destruct d; try discriminate. inv H3.
       exploit (Mem.loadbytes_load Mint32). apply H2. assumption.
       exploit (Mem.loadbytes_load Mint32). apply H4. assumption.
-      eexists; econstructor; try eassumption. 
+      eexists; econstructor; try eassumption.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
-(*+ (*builtin*)
+(* + (*builtin*)
   destruct ef; simpl in *; try solve [elim H4; trivial].
-  - inv H7. 
+  - inv H7.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     split.
     * eapply ev_elim_app. eassumption.
@@ -1849,8 +1849,8 @@ induction 1; intros; try contradiction.
       eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
         eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
         2: reflexivity.
-        2: constructor; trivial. *)  
-  - inv H7. 
+        2: constructor; trivial. *)
+  - inv H7.
     destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
     split.
     * eapply ev_elim_app. eassumption.
@@ -1871,7 +1871,7 @@ induction 1; intros; try contradiction.
     * eapply ev_elim_app. eassumption.
       econstructor. split. eassumption.
       econstructor. split. eassumption. constructor.
-    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
       inv EV2. destruct H3. inv H5. destruct H7. inv H7.
       rename x into mm2. rename x0 into mm3.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
@@ -1880,7 +1880,7 @@ induction 1; intros; try contradiction.
       ++ econstructor. eassumption. erewrite Mem.storebytes_store; try reflexivity; eassumption.
       ++ econstructor; try eassumption.
   - (*free*)
-    inv H3; inv H7.  
+    inv H3; inv H7.
     destruct (Mem.load_loadbytes _ _ _ _ _ H8) as [bytes1 [LB1 SZ1]].
     rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ; inv SZ.
     rewrite H10 in FR; inv FR.
@@ -1888,12 +1888,12 @@ induction 1; intros; try contradiction.
     split.
     * eapply ev_elim_app. eassumption.
       econstructor. eassumption.
-      econstructor. split. simpl. rewrite H10. reflexivity. constructor. 
-    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+      econstructor. split. simpl. rewrite H10. reflexivity. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
       inv EV2. inv H5. destruct H7. inv H7.
-      rename x into mm2. 
+      rename x into mm2.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
-      simpl in H5. 
+      simpl in H5.
       remember (Mem.free mm b0 (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz)) as d.
       destruct d; inv H5; symmetry in Heqd.
       eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
@@ -1908,9 +1908,9 @@ induction 1; intros; try contradiction.
     * eapply ev_elim_app. eassumption.
       econstructor. eassumption.
       econstructor. split. eassumption. constructor.
-    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
       inv EV2. inv H5. destruct H7. inv H7.
-      rename x into mm2. 
+      rename x into mm2.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
       eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
       ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
@@ -1920,18 +1920,18 @@ induction 1; intros; try contradiction.
   exploit extcall_arguments_ev_aux_elim_strong. apply H2. intros [EV HEV].
   split; trivial; intros.
   destruct (HEV _ _ H3); subst.
-  eexists. eapply asm_ev_step_to_external; try eassumption. eapply extcall_arguments_ev_extcall_arguments. eassumption. 
+  eexists. eapply asm_ev_step_to_external; try eassumption. eapply extcall_arguments_ev_extcall_arguments. eassumption.
 (*+ inv H1.
   destruct callee; simpl in *; try solve [contradiction].
   - inv H3. (*EFexternal helpers don't change memory - should follow from HFD*)
   - inv H3. (*EFbuiltin helpers don't change memory - should follow from HFD*)*)
 + (*loadframe*)
    destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [TT [HTT EV]].
-   unfold store_args_events in H2. rewrite H2 in HTT. inv HTT. 
+   unfold store_args_events in H2. rewrite H2 in HTT. inv HTT.
    split.
    * econstructor. split; eassumption.
    * intros mm mm' EV'. inv EV'. destruct H3.
-     exploit store_args_rec_transfer. eassumption. eassumption. eassumption. intros SAR. 
+     exploit store_args_rec_transfer. eassumption. eassumption. eassumption. intros SAR.
      eexists. econstructor; try eassumption.
 Qed. (*due to extcall and builtins*)
 

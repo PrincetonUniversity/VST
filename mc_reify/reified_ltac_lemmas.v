@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import mc_reify.bool_funcs.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
@@ -21,7 +21,7 @@ Proof.
 Qed.
 
 Lemma mpred_semax_post' : forall (R' : environ -> mpred) (Espec : OracleKind)
-         (Delta : tycontext) (R P : environ -> mpred) 
+         (Delta : tycontext) (R P : environ -> mpred)
          (c : statement),
        (forall rho, R' rho |-- R rho) ->
        semax Delta P c (normal_ret_assert R') ->
@@ -118,7 +118,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -130,7 +130,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -142,7 +142,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -154,7 +154,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -167,7 +167,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -179,7 +179,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.

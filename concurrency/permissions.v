@@ -2,17 +2,18 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
-Require Import msl.Coqlib2.
-Require Import sepcomp.mem_lemmas.
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permjoin_def.
+Require Import VST.msl.Coqlib2.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permjoin_def.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
-From veric Require Import shares juicy_mem.
-Require Import msl.msl_standard.
+From VST.veric Require Import shares juicy_mem juicy_mem_lemmas.
+Require Import VST.msl.msl_standard.
 Import cjoins.
 
 (*IM using proof irrelevance!*)
@@ -41,7 +42,7 @@ Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
 
 Section permMapDefs.
-  
+
   Definition empty_map : access_map :=
     (fun z => None, Maps.PTree.empty (Z -> option permission)).
 
@@ -67,7 +68,7 @@ Section permMapDefs.
     | Some Nonempty | None =>
                       match p2 with
                       | Some Freeable => False
-                      | _ => True 
+                      | _ => True
                       end
     end.
 
@@ -123,26 +124,47 @@ Section permMapDefs.
     constructor.
   Qed.
 
+  Lemma perm_of_glb_not_Freeable: forall sh,
+      ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
+  Admitted.
+  Lemma writable_not_join_readable:
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable_share sh1 ->
+      ~ readable_share sh2.
+  Admitted. 
+  Lemma writable_not_join_writable :
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable_share sh1 ->
+      ~ writable_share sh2.
+  Admitted. 
+  Lemma only_bot_joins_top:
+    forall sh, joins Share.top sh -> sh = Share.bot.
+  Admitted.
+  Lemma glb_Rsh_not_top:
+    forall sh, ~ Share.glb Share.Rsh sh = Share.top.
+  Admitted.
+  Lemma writable_right:
+    forall sh,  writable_share (Share.glb Share.Rsh sh) ->
+           writable_share sh.
+  Admitted.
+  
   Lemma perm_coh_self: forall res,
       perm_coh (perm_of_res res)
                (perm_of_res_lock res).
         destruct res; simpl; auto.
         - apply perm_coh_empty_1.
         - destruct k; try apply perm_coh_empty_1; simpl.
-          + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
-            auto; destruct p1 eqn:HH'; auto.
-            subst.
-            apply perm_of_sh_Freeable_top in HH; inversion HH.
-            apply Share.nontrivial; auto.
+          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
+            destruct p0; auto.
             
-          + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
-            auto; destruct p1 eqn:HH'; auto.
-            subst.
-            apply perm_of_sh_Freeable_top in HH; inversion HH.
-            apply Share.nontrivial; auto.
+            eapply perm_of_glb_not_Freeable; eauto.
+          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
+            destruct p0; auto.
+            eapply perm_of_glb_not_Freeable; eauto.
   Qed.
 
-  
 
   Lemma perm_coh_joins:
     forall a b, joins a b ->
@@ -154,43 +176,63 @@ Section permMapDefs.
     - apply perm_coh_empty_1.
     - apply perm_coh_empty_1.
     - destruct k; try apply perm_coh_empty_1.
-      + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
-        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+      + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
+        destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
         try constructor.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
-      + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
-        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+          exfalso; eapply glb_Rsh_not_top; eauto.
+      + destruct (perm_of_sh  (Share.glb Share.Rsh sh2)) eqn:AA;
+        destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
         try constructor.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
     - destruct k; try apply perm_coh_empty_1.
-      + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
-        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+      + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
+        destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
         try constructor.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
-      + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
-        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+          exfalso; eapply glb_Rsh_not_top; eauto.
+      + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
+        destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
         try constructor.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; apply Share.nontrivial; auto.
+          exfalso; eapply glb_Rsh_not_top; eauto.
     - constructor.
   Qed.
 
   
+  Lemma po_join_sub_lock:
+  forall r1 r2 ,
+    join_sub r2 r1 ->
+    Mem.perm_order'' (perm_of_res_lock r1) (perm_of_res_lock r2).
+  Proof.
+  intros.
+  destruct H as [x H].
+  inversion H; subst; simpl; try constructor.
+  - destruct k; simpl; auto;
+      apply juicy_mem_lemmas.po_join_sub_sh; eexists;
+        eapply compcert_rmaps.join_glb_Rsh; eassumption.
+  - apply event_semantics.po_None.
+    
+  - destruct k; simpl; auto;
+      apply juicy_mem_lemmas.po_join_sub_sh; eexists;
+        eapply compcert_rmaps.join_glb_Rsh; eassumption.
+    
+Qed.
+
+
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
 
@@ -202,7 +244,7 @@ Section permMapDefs.
         specialize (H b ofs).
         apply perm_coh_empty_2; assumption.
   Qed.
-  
+
   Lemma permCoh_empty': forall x,
       permMapCoherence x empty_map.
   Proof.
@@ -216,19 +258,19 @@ Section permMapDefs.
       Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
   Proof.
     destruct r; try constructor; destruct k ; simpl; auto.
-    - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
-      destruct p1; try constructor.
+    - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
+      destruct p0; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
-      exfalso; apply Share.nontrivial; auto.
-    - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
-      destruct p1; try constructor.
+          exfalso; eapply glb_Rsh_not_top; eauto.
+    - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
+      destruct p0; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
-      exfalso; apply Share.nontrivial; auto.
+      exfalso; eapply glb_Rsh_not_top; eauto.
   Qed.
-  
+
   (* Some None represents the empty permission. None is used for
   permissions that conflict/race. *)
-     
+
   Definition perm_union (p1 p2 : option permission) : option (option permission) :=
     match p1,p2 with
       | None, _ => Some p2
@@ -307,7 +349,7 @@ Section permMapDefs.
             eexists; eauto.
   Qed.
 
-  
+
   Inductive not_racy : option permission -> Prop :=
   | empty : not_racy None.
 
@@ -317,7 +359,7 @@ Section permMapDefs.
   Lemma not_racy_union :
     forall p1 p2 (Hnot_racy: not_racy p1),
     exists pu, perm_union p1 p2 = Some pu.
-  Proof. intros. destruct p2 as [o |]; [destruct o|]; inversion Hnot_racy; subst; 
+  Proof. intros. destruct p2 as [o |]; [destruct o|]; inversion Hnot_racy; subst;
                  simpl; eexists; reflexivity.
   Qed.
 
@@ -363,7 +405,7 @@ Section permMapDefs.
       try (by inversion Hwritable);
       try (by inversion Hreadable).
   Qed.
-    
+
   Definition perm_max (p1 p2 : option permission) : option permission :=
     match p1,p2 with
       | Some Freeable, _ => p1
@@ -416,14 +458,14 @@ Section permMapDefs.
                        Mem.perm_order'' (Maps.PMap.get b (getMaxPerm m) ofs)
                                         (Maps.PMap.get b  (getCurPerm m) ofs).
   Proof.
-    intros. 
+    intros.
     assert (Hlt:= Mem.access_max m b ofs).
     unfold Mem.perm_order'' in *.
     unfold getMaxPerm, getCurPerm.
     do 2 rewrite Maps.PMap.gmap.
     auto.
   Qed.
-  
+
   Lemma getMaxPerm_correct :
     forall m b ofs,
       Maps.PMap.get b (getMaxPerm m) ofs = permission_at m b ofs Max.
@@ -446,7 +488,7 @@ Section permMapDefs.
    Lemma permDisjoint_None: forall p,
       permDisjoint None p.
   Proof. intros p. exists p; reflexivity. Qed.
-  
+
   Lemma permDisjoint_comm: forall p1 p2,
       permDisjoint p1 p2 -> permDisjoint p2 p1.
   Proof. intros p1 p2.
@@ -481,10 +523,10 @@ Section permMapDefs.
           try solve[exists (Some Writable); reflexivity].
   Qed.
 
-  Lemma join_sh_permDisjoint: forall rsh1 rsh2 rsh3 (sh1 sh2 sh3: pshare),
+  (* Lemma join_sh_permDisjoint: forall rsh1 rsh2 rsh3 (sh1 sh2 sh3: pshare),
       join rsh1 rsh2 rsh3 ->
       join sh1 sh2 sh3 ->
-      permDisjoint (perm_of_sh rsh1 (pshare_sh sh1)) (perm_of_sh rsh2 (pshare_sh sh2)).
+      permDisjoint (perm_of_sh (Share.glb Share.Rsh sh1))) (perm_of_sh (Share.glb Share.Rsh sh1))).
   Proof.
     intros rsh1 rsh2 rsh3 sh1 sh2 sh3.
     intros H1.
@@ -538,61 +580,217 @@ Section permMapDefs.
       apply pshare_join_full_false3 in H2.
       exfalso; assumption.
   Qed.
-    
+   *)
+  (*The new version of the above*)
+  Ltac if_simpl:=
+    repeat match goal with
+           | [ H: ?X = true |- context[if ?X then _ else _] ] => rewrite H; simpl 
+           | [ H: ?X = false |- context[if ?X then _ else _] ] => rewrite H; simpl 
+           | [ H: ?X = left _ |- context[match ?X with left _ => _ | right _ => _ end] ]=>
+             rewrite H; simpl 
+           | [ H: ?X = right _ |- context[match ?X with left _ => _ | right _ => _ end] ]=>
+             rewrite H; simpl 
+           | [ H: (@is_left _ _ ?X) = true |-
+               context [match ?X with left _ => _ | right _ => _ end ]] => destruct X; inversion H
+           | [ H: (@is_left _ _ ?X) = false |-
+               context [match ?X with left _ => _ | right _ => _ end ]] => destruct X; inversion H
+           end.
+
+  Ltac permDisj_solve:= eexists; simpl; reflexivity.
+  
+  Lemma join_sh_permDisjoint:
+        forall sh1 sh2,
+          joins sh1 sh2 ->
+          permDisjoint (perm_of_sh sh1) (perm_of_sh sh2).
+  
+    Ltac joins_sh_contradiction_onside:=
+      match goal with
+      | [ H: joins ?sh1 ?sh2,
+             W1: writable_share ?sh1,
+                 W2: writable_share ?sh2 |- _ ] =>
+        exfalso; eapply writable_not_join_writable; eassumption
+      | [ H: joins ?sh1 ?sh2,
+             W1: writable_share ?sh1,
+                 W2: readable_share ?sh2 |- _ ] =>
+        exfalso; eapply writable_not_join_readable; eassumption
+      | [ H: joins Share.top ?sh2,
+             H0: ?sh2 <> Share.bot |- _ ] =>
+        exfalso; eapply H0; eapply only_bot_joins_top; eassumption
+      end.
+    Ltac joins_sh_contradiction:=
+      first[ joins_sh_contradiction_onside |
+             match goal with
+             | [ H: joins ?sh1 ?sh2 |- _ ] =>
+               eapply joins_comm in H
+             end; joins_sh_contradiction_onside].
+  Proof.
+    (*intros.
+        unfold perm_of_sh.
+        destruct (writable_share_dec sh1).
+          
+        - pose proof (writable_not_join_writable H w).
+          pose proof (writable_not_join_readable H w).
+          destruct (writable_share_dec sh2); try contradiction.
+          destruct (readable_share_dec sh2); try contradiction.
+          destruct (eq_dec sh1 Share.top).
+          + subst. apply only_bot_joins_top in H; subst.
+            destruct (eq_dec Share.bot Share.bot); try contradiction.
+            eexists; reflexivity.
+          + destruct (eq_dec sh2 Share.bot); eexists; reflexivity.
+        - destruct (readable_share_dec sh1).
+          pose proof (readable_not_join_writable H r). 
+          pose proof (readable_not_join_readable H r). 
+          destruct ( writable_share_dec sh2); try contradiction.
+          destruct (readable_share_dec sh2); try contradiction.
+          destruct (eq_dec sh2 Share.bot); eexists; reflexivity.*)
+    intros.
+
+    functional induction (perm_of_sh sh1) using perm_of_sh_ind;
+      functional induction (perm_of_sh sh2) using perm_of_sh_ind;
+      try permDisj_solve;
+      joins_sh_contradiction.
+    Qed.
+ 
+  (*HERE*)
   Lemma joins_permDisjoint: forall r1 r2,
       joins r1 r2 ->
       permDisjoint (perm_of_res r1) (perm_of_res r2).
   Proof.
-    intros. unfold permDisjoint.
-    destruct H as [X H]; inversion H; simpl.
-    - unfold permDisjoint.
-      destruct (eq_dec rsh1 Share.bot); destruct (eq_dec rsh2 Share.bot);
-      try solve[eexists; reflexivity].
-    - unfold permDisjoint.
-      destruct k; destruct (eq_dec rsh2 Share.bot); try solve[eexists; reflexivity].
+    intros.
+    destruct H as [X H]; inversion H; simpl;
+      try permDisj_solve.
+    - destruct (eq_dec sh1 Share.bot); destruct (eq_dec sh2 Share.bot);
+      try permDisj_solve.
+    - destruct k; destruct (eq_dec sh2 Share.bot); try solve[eexists; reflexivity].
       + eapply permDisjoint_comm. apply permDisjoint_None.
-      + pose Share.nontrivial.
-        subst; unfold perm_of_sh.
-        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.top);
-        destruct (eq_dec rsh1 Share.top);
-        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.bot);
-        destruct (eq_dec rsh1 Share.bot);
-        try solve[eexists; reflexivity]; subst; try solve [congruence].
-        clear - RJ n. inversion RJ.
-        rewrite Share.glb_commute in H. rewrite Share.glb_top in H; congruence.
+      + subst; unfold perm_of_sh.
+        destruct (writable_share_dec sh1).
+          destruct (eq_dec sh1 Share.top); simpl;
+            try permDisj_solve.
+        * inversion RJ; subst.
+          rewrite Share.glb_commute in H0.
+          rewrite Share.glb_top in H0; contradiction.
+        * destruct (readable_share_dec sh1); try contradiction.
+          permDisj_solve.
     - unfold permDisjoint.
-      destruct k; destruct (eq_dec rsh1 Share.bot); try solve[eexists; reflexivity].
-      pose Share.nontrivial.
+      destruct k; destruct (eq_dec sh1 Share.bot); try permDisj_solve.
       subst; unfold perm_of_sh.
-      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.top);
-        destruct (eq_dec rsh2 Share.top);
-        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.bot);
-        destruct (eq_dec rsh2 Share.bot);
-        try solve[eexists; reflexivity]; subst; try solve [congruence].
-      clear - RJ n. inversion RJ.
-      rewrite Share.glb_top in H; congruence.
-    - destruct k; try solve[eexists; reflexivity].
-      eapply join_sh_permDisjoint; eauto.
-      eexists; reflexivity.
-  Qed.
+      destruct (writable_share_dec sh2).
+      * destruct (eq_dec sh2 Share.top);
+          try permDisj_solve.
+        subst; inversion RJ.
+        rewrite Share.glb_top in H0; contradiction.
+      * destruct (readable_share_dec sh2);
+          try permDisj_solve.
+        destruct (eq_dec sh2 Share.bot); 
+          try permDisj_solve.
+    - destruct k; try permDisj_solve.
 
+      Restart.
+
+      (*Explicit consturction of cases and induction*)
+
+      Inductive perm_of_res_cases (r : compcert_rmaps.RML.R.resource):=
+        | NO_bot: forall sh Psh, r = compcert_rmaps.RML.R.NO sh Psh ->
+                  is_left (eq_dec sh Share.bot) = true ->
+                  perm_of_res_cases r
+        | NO_nbot: forall sh Psh, r = compcert_rmaps.RML.R.NO sh Psh ->
+                   is_left (eq_dec sh Share.bot) = false ->
+                  perm_of_res_cases r
+        | YES_VAL_Freeable: forall sh Psh k Pk v, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.VAL v ->
+                    is_left (writable_share_dec sh) = true ->
+                    is_left (eq_dec sh Share.top) = true ->
+                   perm_of_res_cases r
+        | YES_VAL_Writable: forall sh Psh k Pk v, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.VAL v ->
+                    is_left (writable_share_dec sh) = true ->
+                    is_left (eq_dec sh Share.top) = false ->
+                   perm_of_res_cases r
+        | YES_VAL_Readable: forall sh Psh k Pk v, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.VAL v ->
+                    is_left (writable_share_dec sh) = false ->
+                    is_left (readable_share_dec sh)  = true ->
+                   perm_of_res_cases r
+        | YES_LK: forall sh Psh k Pk v, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.LK v ->
+                   perm_of_res_cases r
+        | YES_CT: forall sh Psh k Pk v, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.CT v ->
+                   perm_of_res_cases r
+        | YES_FUN: forall sh Psh k Pk x1 x2, r = compcert_rmaps.RML.R.YES sh Psh k Pk ->
+                   k = compcert_rmaps.FUN x1 x2 ->
+                   perm_of_res_cases r
+        | IS_PURE: forall P Q, r = compcert_rmaps.RML.R.PURE P Q ->
+                          perm_of_res_cases r.
+      (* Print perm_of_res_cases_ind. *)
+
+      Restart.
+      
+      intros.
+      (* Print perm_of_res_ind.*)
+      Functional Scheme perm_of_res_ind := Induction for perm_of_res Sort Prop.
+      Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
+
+      functional induction (perm_of_res r1) using perm_of_res_ind; simpl; subst;
+        unfold perm_of_sh; if_simpl; subst;
+      functional induction (perm_of_res r2) using perm_of_res_ind; simpl; subst;
+        unfold perm_of_sh; if_simpl; subst;
+          try permDisj_solve.
+      
+      functional induction (perm_of_sh sh0) using perm_of_sh_ind; simpl; subst;
+        unfold perm_of_sh; if_simpl; subst;
+          try permDisj_solve.
+
+      Restart.
+      
+      intros.
+      
+       Ltac join_sh_contradiction:=
+        match goal with
+        | [ H: @join Share.t _ _ _ _ |- _ ] => apply join_joins in H
+        end;
+      joins_sh_contradiction.
+      functional induction (perm_of_res_explicit r1) using perm_of_res_expl_ind;
+        simpl;subst;
+        unfold perm_of_sh; if_simpl; subst;
+          functional induction (perm_of_res_explicit r2) using perm_of_res_expl_ind;
+          simpl; subst;
+        unfold perm_of_sh; if_simpl; subst;
+          try permDisj_solve;
+          inversion H; inversion H0; subst;
+      try join_sh_contradiction.
+      
+  Qed.                                    
+  
+  
+  
+  Ltac glb_contradictions:=
+    repeat match goal with
+           | [ H: writable_share_dec _ = _ |- _ ] => clear H
+           end;
+    match goal with
+    | [ H:  Share.glb Share.Rsh ?sh = Share.top  |- _ ] =>
+      exfalso; eapply glb_Rsh_not_top; eassumption
+    | [ H: writable_share (Share.glb Share.Rsh ?sh) |- _ ] =>
+      eapply writable_right in H
+    end; join_sh_contradiction.
+  
   Lemma joins_permDisjoint_lock: forall r1 r2,
       joins r1 r2 ->
       permDisjoint (perm_of_res_lock r1) (perm_of_res_lock r2).
   Proof.
-    move => r1 r2 [] r3 H.
-    destruct r1; destruct r2; simpl;
-    try solve[ eexists; reflexivity];
-    destruct k;  try solve[ eexists; reflexivity];
-    destruct ((perm_of_sh Share.bot (pshare_sh p))) eqn:AA;
-    try solve [eexists; reflexivity].
-    - rewrite -AA.
-      inversion H; subst.
-      eapply join_sh_permDisjoint; eauto.
-      (* eapply bot_join_eq. *)
-    - rewrite -AA.
-      inversion H; subst.
-      eapply join_sh_permDisjoint; eauto.
+    intros.
+    
+    functional induction (perm_of_res_lock_explicit r1) using perm_of_res_lock_expl_ind;
+      simpl; subst;
+        unfold perm_of_sh; if_simpl; subst;
+    functional induction (perm_of_res_lock_explicit r2) using perm_of_res_lock_expl_ind;
+          simpl; subst;
+            unfold perm_of_sh; if_simpl; subst;
+              try permDisj_solve;
+          inversion H; inversion H0; subst;
+            try glb_contradictions.
   Qed.
   
   (*Lemma permDisjoint_sub: forall r1 r2 p,
@@ -607,7 +805,7 @@ Section permMapDefs.
       permDisjoint (perm_of_res r2) p ->
       permDisjoint (perm_of_res r3) p.
 Proof.*)
-  
+
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
@@ -629,7 +827,7 @@ Proof.*)
         intros. destruct  (H b ofs) as [k H'].
         exists k; assumption.
   Qed.
-  
+
   Lemma empty_disjoint':
     forall pmap,
       permMapsDisjoint empty_map pmap.
@@ -644,7 +842,7 @@ Proof.*)
       rewrite Maps.PTree.gempty; simpl.
       exists None; reflexivity.
   Qed.
-  
+
   Lemma permMapsDisjoint_comm :
     forall pmap1 pmap2
       (Hdis: permMapsDisjoint pmap1 pmap2),
@@ -664,7 +862,7 @@ Proof.*)
     split; intros (? & ?); split;
       eauto using permMapsDisjoint_comm.
   Qed.
-  
+
   Lemma disjoint_norace:
     forall (mi mj : mem) (b : block) (ofs : Z)
       (Hdisjoint: permMapsDisjoint (getCurPerm mi) (getCurPerm mj))
@@ -709,7 +907,7 @@ Proof.*)
          Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
   Proof.
     induction ls.
-    - auto. 
+    - auto.
     - intros. simpl.
       destruct (Pos.max_spec a.1 i) as [LTi | GEi];
       destruct (Pos.max_spec a.1 j) as [LTj | GEj];
@@ -745,7 +943,7 @@ Proof.*)
          * apply Pos.ge_le. apply fold_max_monoton'.
            apply Pos.le_ge; apply Pos.le_1_l.
   Qed.
-  
+
   Lemma max_works: forall A (t:PTree.t A) m, (m > TreeMaxIndex t)%positive ->
                                         t ! m = None.
   Proof.
@@ -756,7 +954,7 @@ Proof.*)
     apply Pos.ge_le in GET. apply Pos.le_nlt in GET.
     contradict GET. apply Pos.gt_lt; assumption.
   Qed.
-      
+
   Lemma Cur_isCanonical: forall m, isCanonical (getCurPerm m).
         unfold isCanonical. intros.
         pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getCurPerm m).2) ) (Mem.nextblock m)).
@@ -775,7 +973,7 @@ Proof.*)
           reflexivity.
         - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
   Qed.
-  
+
   Lemma Max_isCanonical: forall m, isCanonical (getMaxPerm m).
         unfold isCanonical. intros.
         pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getMaxPerm m).2) ) (Mem.nextblock m)).
@@ -793,8 +991,8 @@ Proof.*)
           rewrite HH.
           reflexivity.
         - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
-  Qed.  
-  
+  Qed.
+
   Definition permMapLt (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs,
       Mem.perm_order'' (Maps.PMap.get b pmap2 ofs)
@@ -806,7 +1004,7 @@ Proof.*)
                rewrite empty_map_spec.
                destruct (pmap !! b ofs); simpl; exact I.
   Qed.
-  
+
   Lemma canonical_lt :
     forall p' m
       (Hlt: permMapLt p' (getMaxPerm m)),
@@ -826,7 +1024,7 @@ Proof.*)
       apply Pos.le_max_r.
     }
     assert (Hp': (b' >= (Pos.succ ( TreeMaxIndex p'.2)))%positive).
-    { subst b'. apply Pos.le_ge. apply Pos.le_max_l. 
+    { subst b'. apply Pos.le_ge. apply Pos.le_max_l.
     }
     apply Pos.ge_le in Hm; apply Pos.le_succ_l in Hm.
     apply Pos.lt_gt in Hm; eapply max_works in Hm.
@@ -866,7 +1064,7 @@ Proof.*)
     rewrite H in Hlt. simpl in Hlt.
     destruct (pmap !! b ofs); [by exfalso | reflexivity].
   Qed.
-    
+
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=
     Maps.PMap.set b (fun ofs' => if Coqlib.zeq ofs ofs' then
@@ -1001,7 +1199,7 @@ Proof.*)
       right.
       zify. omega.
   Qed.
-  
+
   Lemma setPermBlock_var_same:
     forall p b ofs ofs' pmap sz
       (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
@@ -1040,7 +1238,7 @@ Proof.*)
       reflexivity.
   Qed.
 
-  
+
 
   (*Lemma setPermBlock_var_or:
     forall p b ofs sz pmap b' ofs',
@@ -1066,7 +1264,7 @@ Proof.*)
       + erewrite Maps.PMap.gso by eauto.
         eauto.
   Qed. *)
-  
+
 
 
   Lemma permMapCoherence_increase:
@@ -1180,16 +1378,16 @@ Proof.*)
         specialize (Hnonempty _ i).
         destruct (pmap !! b' ofs') as [p|] eqn:Hpmap'; simpl; auto;
           destruct p; simpl in Hnonempty; eauto using perm_order.
-      + destruct sz; 
+      + destruct sz;
           first by (simpl; assumption).
         erewrite setPermBlock_other_1.
         assumption.
-        apply Intv.range_notin in n; eauto.      
+        apply Intv.range_notin in n; eauto.
         simpl. rewrite Zpos_P_of_succ_nat. omega.
     - erewrite setPermBlock_other_2 by eauto.
       assumption.
   Qed.
-  
+
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
@@ -1252,9 +1450,9 @@ Proof.*)
     rewrite Hdmap.
       by reflexivity.
   Qed.
-  
+
   Import Maps BlockList.
-  
+
   Definition maxF (f : Z -> perm_kind -> option permission) :=
     fun ofs k => match k with
               | Max => Some Freeable
@@ -1263,7 +1461,7 @@ Proof.*)
 
   Definition allF (f : Z -> perm_kind -> option permission) :=
     fun (_ : Z) (_ : perm_kind) => Some Freeable.
-  
+
   Fixpoint PList (f : (Z -> perm_kind -> option permission) ->
                       Z -> perm_kind -> option permission)
            l m : list (positive * (Z -> perm_kind -> option permission)) :=
@@ -1272,7 +1470,7 @@ Proof.*)
       | x :: l =>
         (Pos.of_nat x, f (PMap.get (Pos.of_nat x) m)) :: (PList f l m)
   end.
-  
+
   Lemma PList_app :
     forall l m x f,
       (PList f l m) ++ ((Pos.of_nat x,
@@ -1326,7 +1524,7 @@ Proof.*)
     rewrite <- mkBlockList_unfold'.
     right. auto.
   Qed.
-  
+
   Lemma PList_mkBlock_det :
     forall n f k v v' m
            (HIn1: List.In (Pos.of_nat k, v) (PList f (mkBlockList n) m))
@@ -1364,7 +1562,7 @@ Proof.*)
         apply mkBlockList_not_in in HIn1; auto. now exfalso.
         eauto.
   Qed.
-  
+
   Fixpoint canonicalPTree (l : list (positive * (Z -> perm_kind -> option permission))) :=
     match l with
       | nil => PTree.empty _
@@ -1406,7 +1604,7 @@ Proof.*)
     inversion Heq; subst. simpl; auto.
     auto.
   Qed.
-  
+
   Lemma canonicalPTree_get_sound :
     forall n m k fn
            (Hk: k > 0)
@@ -1437,7 +1635,7 @@ Proof.*)
     intros ?; subst. discriminate.
     assumption.
   Qed.
-  
+
   Definition canonicalPMap fn n m : Maps.PMap.t (Z -> perm_kind -> option permission) :=
     let l := mkBlockList n in
     (fun _ _ => None, canonicalPTree (PList fn l m)).
@@ -1568,7 +1766,7 @@ Proof.*)
     assert (Hmax := setMaxPerm_Max m b ofs);
     destruct Hmax; auto.
   Qed.
-  
+
   Lemma setMaxPerm_Cur :
     forall m b ofs,
       permission_at (setMaxPerm m) b ofs Cur = permission_at m b ofs Cur.
@@ -1592,10 +1790,10 @@ Proof.*)
   Definition makeCurMax_map (mem_access:PMap.t (Z -> perm_kind -> option permission)):
     PMap.t (Z -> perm_kind -> option permission):=
     PMap.map (fun f => fun z k => f z Max) mem_access.
-    
-  
+
+
   Definition makeCurMax (m:mem): mem.
-  apply (Mem.mkmem (Mem.mem_contents m) 
+  apply (Mem.mkmem (Mem.mem_contents m)
                    (makeCurMax_map (Mem.mem_access m))
                    (Mem.nextblock m)).
   - intros. unfold makeCurMax_map; simpl. rewrite PMap.gmap.
@@ -1609,7 +1807,7 @@ Proof.*)
     forall m b ofs k,
       permission_at m b ofs Max = permission_at (makeCurMax m) b ofs k.
   Proof.
-    intros. 
+    intros.
     unfold permission_at, makeCurMax, makeCurMax_map.
     simpl;
       by rewrite Maps.PMap.gmap.
@@ -1623,7 +1821,7 @@ Proof.*)
     unfold Mem.valid_block, makeCurMax; simpl;
       by auto.
   Qed.
-  
+
   Definition restrPermMap p' m (Hlt: permMapLt p' (getMaxPerm m)) : mem.
   Proof.
     refine ({|
@@ -1724,7 +1922,7 @@ Lemma restrPermMap_irr:
         f_equal. f_equal.
         simpl.
         do 4 (apply functional_extensionality; intro).
-        destruct x2; try rewrite H; reflexivity. 
+        destruct x2; try rewrite H; reflexivity.
       }
       subst.
       destruct (restrPermMap P1);
@@ -1732,7 +1930,7 @@ Lemma restrPermMap_irr:
       subst. f_equal;
       apply proof_irrelevance.
     Qed.
-    
+
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       Mem.nextblock (restrPermMap Hlt) = Mem.nextblock m.
@@ -1747,14 +1945,14 @@ Lemma restrPermMap_irr:
     intros. unfold Mem.valid_block. rewrite restrPermMap_nextblock.
       by split.
   Qed.
-  
+
   Lemma restrPermMap_contents :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       contents_at (restrPermMap Hlt) = contents_at m.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
-  
+
   Lemma restrPermMap_max :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       max_access_at (restrPermMap Hlt) = max_access_at m.
@@ -1783,7 +1981,7 @@ Lemma restrPermMap_irr:
     destruct ((Mem.mem_access m).2 ! b);
       by auto.
   Qed.
-    
+
   Lemma restrPermMap_irr' : forall p' p'' m
                              (Hlt : permMapLt p' (getMaxPerm m))
                              (Hlt': permMapLt p'' (getMaxPerm m))
@@ -1847,7 +2045,7 @@ Lemma restrPermMap_irr:
       unfold Coqlib.option_map; simpl;
       destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?; auto.
     unfold Maps.PMap.get in Hlt.
-    unfold isCanonical in *. 
+    unfold isCanonical in *.
     destruct (Maps.PTree.get b p'.2) eqn:?; [| by rewrite Hcan_p'].
     rewrite Hcan_m in Hlt.
     unfold getMaxPerm in Hlt. rewrite Maps.PTree.gmap1 in Hlt.
@@ -1876,7 +2074,7 @@ Lemma restrPermMap_irr:
       by destruct Heq.
   Qed.
 
-    
+
   Lemma restrPermMap_can : forall (p : access_map) (m m': mem)
                              (Hlt: permMapLt p (getMaxPerm m))
                              (Hrestrict: restrPermMap Hlt = m'),
@@ -1969,7 +2167,7 @@ Lemma restrPermMap_irr:
     destruct Hperm; auto.
   Qed.
 
-   Definition decay m_before m_after := forall b ofs, 
+   Definition decay m_before m_after := forall b ofs,
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
        (forall k, Maps.PMap.get b (Mem.mem_access m_after) ofs k = Some Freeable)
@@ -1989,7 +2187,7 @@ Lemma restrPermMap_irr:
     split; intros; first by exfalso.
     right; auto.
   Qed.
-  
+
   Lemma decay_trans :
     forall m m' m'',
       (forall b, Mem.valid_block m b -> Mem.valid_block m' b) ->
@@ -2061,7 +2259,7 @@ Lemma restrPermMap_irr:
     simpl in Hlt. destruct (pmap !! b ofs);
                     [by exfalso | auto].
   Qed.
-  
+
   Lemma perm_order_valid_block:
     forall pmap m b ofs p
       (Hperm: Mem.perm_order'' (pmap !! b ofs) (Some p))
@@ -2093,5 +2291,5 @@ Lemma restrPermMap_irr:
     try (destruct op, op'); auto;
     right; intros Hcontra; discriminate.
   Defined.
-  
+
 End permMapDefs.

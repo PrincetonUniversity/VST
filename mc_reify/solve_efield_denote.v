@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import mc_reify.bool_funcs.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
@@ -57,7 +57,7 @@ Qed.
 
 Lemma msubst_efield_denote_cons_array: forall ei efs T1 T2 i gfs,
   msubst_efield_denote T1 T2 efs = Some gfs ->
-  type_is_int ei = true -> 
+  type_is_int ei = true ->
   msubst_eval_LR T1 T2 ei RRRR = Some (Values.Vint i) ->
   msubst_efield_denote T1 T2 (eArraySubsc ei :: efs) = Some (ArraySubsc (Int.unsigned i) :: gfs).
 Proof.
@@ -105,13 +105,13 @@ Existing Instance RSym_sym.
 Fixpoint solve_efield_denote (efs: list efield) : rtac typ (expr typ func) :=
   match efs with
   | nil => EAPPLY typ func msubst_efield_denote_nil_lemma
-  | eStructField fld :: efs0 => 
+  | eStructField fld :: efs0 =>
       THEN (EAPPLY typ func (msubst_efield_denote_cons_struct_lemma fld efs0))
         (solve_efield_denote efs0)
-  | eUnionField fld :: efs0 => 
+  | eUnionField fld :: efs0 =>
       THEN (EAPPLY typ func (msubst_efield_denote_cons_union_lemma fld efs0))
         (solve_efield_denote efs0)
-  | eArraySubsc ei :: efs0 => 
+  | eArraySubsc ei :: efs0 =>
       THEN (THEN (EAPPLY typ func (msubst_efield_denote_cons_array_lemma ei efs0))
         (TRY (REFLEXIVITY_MSUBST tbl)))
         (solve_efield_denote efs0)

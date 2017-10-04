@@ -2,10 +2,10 @@
  ** See the Makefile for how to strip the annotations
  **)
 
-(** First, import the entire Floyd proof automation system, which 
+(** First, import the entire Floyd proof automation system, which
  ** includes the VeriC program logic and the MSL theory of separation logic
  **)
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 
 (** Import the theory of list segments.  This is not, strictly speaking,
  ** part of the Floyd system.  In principle, any user of Floyd can build
@@ -15,7 +15,7 @@ Require Import floyd.proofauto.
  ** as the theory uses Coq's dependent types to handle user-defined
  ** record fields.
  **)
-Require Import progs.list_dt. Import LsegSpecial.
+Require Import VST.progs.list_dt. Import LsegSpecial.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c.   The file reverse.v defines abbreviations for identifiers
@@ -23,13 +23,13 @@ Require Import progs.list_dt. Import LsegSpecial.
  ** It also defines "prog", which is the entire abstract syntax tree
  ** of the C program in the reverse.c file.
  **)
-Require Import progs.reverse.
+Require Import VST.progs.reverse.
 
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
-** line (which looks identical for any program) builds this 
+** line (which looks identical for any program) builds this
 ** interpretation, called "CompSpecs" *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -54,11 +54,11 @@ Definition t_struct_list := Tstruct _list noattr.
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
-  PRE [ _p OF (tptr t_struct_list) ] 
+  PRE [ _p OF (tptr t_struct_list) ]
      PROP(readable_share sh)
      LOCAL (temp _p p)
      SEP (lseg LS sh (map Vint contents) p nullval)
-  POST [ tint ]  
+  POST [ tint ]
      PROP()
      LOCAL(temp ret_temp (Vint (sum_int contents)))
      SEP (lseg LS sh (map Vint contents) p nullval).
@@ -72,7 +72,7 @@ Definition reverse_spec :=
      SEP (lseg LS sh contents p nullval)
   POST [ (tptr t_struct_list) ]
     EX p:val,
-     PROP () LOCAL (temp ret_temp p) 
+     PROP () LOCAL (temp ret_temp p)
      SEP (lseg LS sh (rev contents) p nullval).
 
 (** The "main" function is special, since its precondition includes
@@ -83,19 +83,18 @@ Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]
+     PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
 
-(** Declare all the functions, in exactly the same order as they
- ** appear in reverse.c (and in reverse.v).
- **)
-Definition Gprog : funspecs :=   ltac:(with_library prog [ 
-    sumlist_spec; reverse_spec; main_spec]).
+(** List all the function-specs, to form the global hypothesis *)
+Definition Gprog : funspecs :=   ltac:(with_library prog [
+    sumlist_spec; main_spec; reverse_spec]).
 
 (** A little equation about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i p ,
    sepalg.nonidentity sh ->
    field_compatible t_struct_list [] p ->
-   list_cell LS sh (Vint i) p = 
+   list_cell LS sh (Vint i) p =
    field_at sh t_struct_list (DOT _head) (Vint i) p.
 Proof.
   intros.
@@ -106,8 +105,8 @@ Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) (p: val) : environ->mpred :=
-          (EX cts1: list int, EX cts2: list int, EX t: val, 
-            PROP (contents = cts1++cts2) 
+          (EX cts1: list int, EX cts2: list int, EX t: val,
+            PROP (contents = cts1++cts2)
             LOCAL (temp _t t; temp _s (Vint (sum_int cts1)))
             SEP ( lseg LS sh (map Vint cts1) p t ; lseg LS sh (map Vint cts2) t nullval)).
 
@@ -121,7 +120,7 @@ Qed.
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
- ** (in this case, sumlist_spec).  
+ ** (in this case, sumlist_spec).
  **)
 Lemma body_sumlist: semax_body Vprog Gprog f_sumlist sumlist_spec.
 Proof.
@@ -129,7 +128,7 @@ Proof.
  ** start-function; then forward.
  **)
 start_function.
-forward.  (* s = 0; *) 
+forward.  (* s = 0; *)
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents p).
 * (* Prove that current precondition implies loop invariant *)
@@ -148,7 +147,7 @@ forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 Exists (cts1++[i],cts2,y).
-entailer. 
+entailer.
 apply andp_right.
 apply prop_right.
 split.
@@ -166,7 +165,7 @@ Qed.
 
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
           (EX cts1: list val, EX cts2 : list val, EX w: val, EX v: val,
-            PROP (contents = rev cts1 ++ cts2) 
+            PROP (contents = rev cts1 ++ cts2)
             LOCAL (temp _w w; temp _v v)
             SEP (lseg LS sh cts1 w nullval;
                    lseg LS sh cts2 v nullval)).
@@ -189,6 +188,7 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
+(* The following line is optional, the proof works without it. *)
 replace_SEP 2 (field_at sh t_struct_list (DOT _tail) w v) by entailer!.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
@@ -211,7 +211,7 @@ rewrite <- app_nil_end, rev_involutive.
 auto.
 Qed.
 
-(** The next lemma concerns the extern global initializer, 
+(** The next lemma concerns the extern global initializer,
  ** struct list three[] = {{1, three+1}, {2, three+2}, {3, NULL}};
  ** This is equivalent to a linked list of three elements [1,2,3].
  ** The proof is not very beautiful at present; it would be helpful
@@ -220,10 +220,10 @@ Qed.
 
 Lemma setup_globals:
  forall Delta x,
-  (glob_types Delta) ! _three = Some (tarray t_struct_list 3) ->
+  PTree.get _three (glob_types Delta) = Some (tarray t_struct_list 3) ->
   ENTAIL Delta, PROP  ()
    LOCAL  (gvar _three x)
-   SEP 
+   SEP
    (mapsto Ews tuint (offset_val 0 x) (Vint (Int.repr 1));
     mapsto Ews (tptr t_struct_list) (offset_val 4 x)
         (offset_val 8 x);
@@ -232,7 +232,7 @@ Lemma setup_globals:
        (offset_val 16 x);
    mapsto Ews tuint (offset_val 16 x) (Vint (Int.repr 3));
    mapsto Ews tuint (offset_val 20 x) (Vint (Int.repr 0)))
-  |-- PROP() LOCAL(gvar _three x) 
+  |-- PROP() LOCAL(gvar _three x)
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
                   x nullval).
 Proof.
@@ -241,8 +241,7 @@ Proof.
   rewrite !prop_true_andp by auto.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] x)
-    by (hnf; repeat apply conj; auto; compute; auto).
-  (* apply field_compatible_offset_zero in FC. *)
+    by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace x with (offset_val 0 x) by normalize.
   subst a.
@@ -265,7 +264,7 @@ Proof.
         unfold data_at_rec, at_offset; simpl; normalize | ]);
     clear FC'
     end.
-   
+
   rewrite mapsto_tuint_tptr_nullval; auto.
   rewrite @lseg_nil_eq.
   rewrite prop_true_andp; auto.
@@ -274,15 +273,14 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name three _three.
 start_function.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
-  eapply ENTAIL_trans; [ | apply (setup_globals Delta three); auto ] | ].
+  eapply ENTAIL_trans; [ | apply (setup_globals Delta v_three); auto ] | ].
  entailer!.
 forward_call (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three).
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], v_three).
 Intros r'.
 rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)
@@ -292,12 +290,13 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_sumlist.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
+
 

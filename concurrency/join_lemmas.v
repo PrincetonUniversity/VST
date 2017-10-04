@@ -6,12 +6,12 @@ Require Import Coq.Sorting.Permutation.
 
 Require Import compcert.lib.Coqlib.
 
-Require Import msl.Coqlib2.
-Require Import msl.seplog.
-Require Import msl.sepalg.
-Require Import msl.age_to.
-Require Import veric.mem_lessdef.
-Require Import veric.coqlib4.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.seplog.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.age_to.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.coqlib4.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -80,7 +80,7 @@ Proof.
     exists r; split; eauto.
 Qed.
 
-Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} {CA : Canc_alg A} l1 l2 x :
+Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
   joinlist (l1 ++ l2) x ->
   exists x1 x2,
     joinlist l1 x1 /\
@@ -271,7 +271,7 @@ Proof.
   - destruct l. simpl; omega. simpl.
     injection 1 as ->. rewrite IHi; auto.
 Qed.
-  
+
 Lemma upd_rev {A} i x (l : list A) :
   (i < length l)%nat ->
   upd i x (rev l) = option_map (@rev A) (upd (length l - 1 - i) x l).
@@ -298,8 +298,8 @@ Proof.
       apply upd_app_Some. congruence.
 Qed.
 
-Require Import msl.ageable.
-Require Import msl.age_sepalg.
+Require Import VST.msl.ageable.
+Require Import VST.msl.age_sepalg.
 
 Lemma age_by_overflow {A} {_ : ageable A} {JA: Join A} (x : A) n : le (level x) n -> age_by n x = age_by (level x) x.
 Proof.
@@ -426,14 +426,14 @@ Proof.
     + rewrite <-IHl with x; auto. do 3 f_equal. intuition.
 Qed.
 
-Require Import veric.compcert_rmaps.
-Require Import concurrency.enums_equality.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.concurrency.enums_equality.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
 
 (*! Instantiation of modules *)
 Import THE_JUICY_MACHINE.
@@ -578,7 +578,7 @@ Proof.
   induction l; simpl. reflexivity.
   destruct (f a); rewrite IHl; reflexivity.
 Qed.
-                          
+
 Lemma minus_plus a b c : a - (b + c) = a - b - c.
 Proof.
   omega.
@@ -864,7 +864,7 @@ Proof.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
   unfold LocksAndResources.lock_info in *.
-  induction l as [|[addr' x] l]; simpl; intros F; auto. 
+  induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
@@ -878,7 +878,7 @@ Proof.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
   unfold LocksAndResources.lock_info in *.
-  induction l as [|[addr' x] l]; simpl; intros F; auto. 
+  induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
 Qed.

@@ -8,55 +8,55 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.semax_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.coqlib5.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.sync_preds.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.cl_step_lemmas.
-Require Import concurrency.resource_decay_lemmas.
-Require Import concurrency.resource_decay_join.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.sync_preds.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_initial.
-Require Import concurrency.semax_progress.
-Require Import concurrency.semax_preservation_jspec.
-Require Import concurrency.semax_safety_makelock.
-Require Import concurrency.semax_safety_spawn.
-Require Import concurrency.semax_safety_freelock.
-Require Import concurrency.semax_preservation.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.semax_initial.
+Require Import VST.concurrency.semax_progress.
+Require Import VST.concurrency.semax_preservation_jspec.
+Require Import VST.concurrency.semax_safety_makelock.
+Require Import VST.concurrency.semax_safety_spawn.
+Require Import VST.concurrency.semax_safety_release.
+Require Import VST.concurrency.semax_safety_freelock.
+Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -95,7 +95,7 @@ Proof.
   - now eapply JuicyMachine.schedfail; eauto.
 Qed.
 
-Require Import concurrency.semax_simlemmas.
+Require Import VST.concurrency.semax_simlemmas.
 
 Lemma schstep_norun ge i sch tp m tp' m' :
   @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
@@ -109,7 +109,7 @@ Proof.
   { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
   assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC j tp cntj <> @Krun code q).
   { intros j cntj q cnti ne E. autospec uniq. spec uniq j cntj q E. breakhyps. }
-  
+
   inversion step; try tauto.
   all: try inversion Htstep; repeat match goal with H : ?x = ?y |- _ => subst x || subst y end.
   all: intros j cnti q.
@@ -134,23 +134,23 @@ Proof.
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
-  
+
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
   destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.
-  
+
   all: try congruence.
   all: eauto.
-  
+
   inversion Hhalted.
   unfold SEM.Sem in *.
   rewrite SEM.CLN_msem in Hcant.
   simpl in Hcant.
   inversion Hcant.
-  
+
   intros E.
   hnf in uniq.
   autospec uniq.
@@ -169,14 +169,14 @@ Section Safety.
     (prog : Clight.program)
     (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
-  
+
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
-  
+
   (* another, looser invariant to have more standard preservation
   statement *)
   Definition inv Gamma n state :=
     exists m, n <= m /\ state_invariant Jspec' Gamma m state.
-  
+
   Lemma inv_sch_irr Gamma n m ge i sch sch' tp :
     inv Gamma n (m, ge, (i :: sch, tp)) ->
     inv Gamma n (m, ge, (i :: sch', tp)).
@@ -185,7 +185,7 @@ Section Safety.
     exists k; split; auto.
     eapply state_invariant_sch_irr, Hk.
   Qed.
-  
+
   Lemma no_Krun_inv Gamma n m ge sch sch' tp :
     (1 < pos.n (num_threads tp) -> no_Krun tp) ->
     inv Gamma n (m, ge, (sch, tp)) ->
@@ -199,7 +199,7 @@ Section Safety.
     intros H. autospec nokrun. revert H.
     apply no_Krun_unique_Krun, nokrun.
   Qed.
-  
+
   Lemma blocked_at_external_dec state ef : {blocked_at_external state ef} + {~blocked_at_external state ef}.
   Proof.
     Local Ltac t := solve [right; intros []; intros; breakhyps].
@@ -208,13 +208,16 @@ Section Safety.
       try (assert (i' = i) by congruence; subst i');
       try (assert (cnti' = cnti) by apply proof_irr; subst cnti');
       breakhyps.
-    
+
     destruct state as ((m, ge) & [ | i sch] & tp). now t.
     simpl.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
-    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei; try solve [t' i cnti]; [].
-    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo. 2: now t' i cnti.
-    destruct (eq_dec ef ef'). subst ef'. 2: now t' i cnti.
+    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei;
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
+    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
+    destruct (eq_dec ef ef'); try subst ef';
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     (* destruct (EqDec_external_function ef ef'). subst ef'. 2: now t' i cnti. *)
     now left; repeat eexists; eauto.
   Qed.
@@ -236,7 +239,7 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
     (* the case for freelock *)
     destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
     {
@@ -245,7 +248,7 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
     (* the case for spawn *)
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
@@ -254,12 +257,21 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
+    (* the case for release *)
+    destruct (blocked_at_external_dec state UNLOCK) as [isrelease|isnotrelease].
+    {
+      apply safety_induction_release; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply personal_mem_equiv_spec.
+    }
+
     destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
   Qed.
-  
+
   Lemma inv_step Gamma n state :
     inv Gamma (S n) state ->
     exists state',
@@ -274,7 +286,7 @@ Section Safety.
     - exists (m - 1). split. omega. assumption.
     - exists m. split. omega. exact_eq H; f_equal. omega.
   Qed.
-  
+
   Lemma invariant_safe Gamma n state :
     inv Gamma n state -> jmsafe n state.
   Proof.
@@ -297,18 +309,18 @@ Section Safety.
         all: destruct INV as (? & lm & INV).
         all: inv INV; auto.
   Qed.
-  
+
   Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
-  
+
   Definition spr :=
     semax_prog_rule
       (Concurrent_Espec unit CS ext_link) V G prog
-      (proj1_sig init_mem) all_safe (proj2_sig init_mem).
-  
+      (proj1_sig init_mem) 0 all_safe (proj2_sig init_mem).
+
   Definition initial_corestate : corestate := projT1 (projT2 spr).
-  
+
   Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
-  
+
   Definition initial_machine_state (n : nat) :=
     ThreadPool.mk
       (pos.mkPos (le_n 1))
@@ -326,15 +338,15 @@ Section Safety.
       (* when the machine is halted, it means no more schedule, there
       is nothing to check: *)
       (fun _ _ _ => Logic.True).
-  
+
   Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
-  
+
   (* We state the theorem in terms of [safeN_] but because there are
   no external, this really just says that the initial state is
   "angelically safe" : for every schedule and every fuel n, there is a
   path either ending on an empty schedule or consuming all the
   fuel. *)
-  
+
   Theorem safe_initial_state : forall sch r n genv_symb,
       safeN_
         (G := genv)
@@ -382,7 +394,7 @@ Section Safety.
       + apply IHn.
         apply INV'.
   Qed.
-  
+
   (* The following is a slightly stronger result, proving [jmsafe]
   i.e. a safety that universally quantifies over all schedule each
   time a part of the schedule is consumed *)
@@ -393,7 +405,7 @@ Section Safety.
     eapply invariant_safe.
     exists n; split; auto; apply initial_invariant.
   Qed.
-  
+
   Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> JuicyMachine.csafe ge (sch, nil, s) m n.
   Proof.
     clear.
@@ -404,14 +416,14 @@ Section Safety.
     - econstructor 3; simpl; eauto.
     - econstructor 4; simpl; eauto.
   Qed.
-  
+
   (* [jmsafe] is an intermediate result, we can probably prove [csafe]
   directly *)
-  
+
   Theorem safety_initial_state (sch : schedule) (n : nat) :
     JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
   Proof.
     apply jmsafe_csafe, jmsafe_initial_state.
   Qed.
-  
+
 End Safety.

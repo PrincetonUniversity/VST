@@ -1,8 +1,8 @@
-Require Import veric.base.
-Require Import msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.msl.msl_standard.
 Require Import Coq.Relations.Relations.
 
-Definition deterministic_rel {T} (R: relation T) := 
+Definition deterministic_rel {T} (R: relation T) :=
   forall s s' s'', R s s' /\ R s s'' -> s'=s''.
 
 Definition pfunc T R := T -> option R.
@@ -19,12 +19,12 @@ Class GenericSemantics
   (W : Type) (* Worlds *)
   (V : relation W -> Prop) (* Primitive commands *)
   (G : pfunc W val -> Prop) (* Primitive expressions *)
-  : Type := mkGenericSem { 
+  : Type := mkGenericSem {
 }.
 
-Section Expressions. 
-Variables 
-  (W : Type) 
+Section Expressions.
+Variables
+  (W : Type)
   (G : pfunc W val -> Prop) (* Primitive expressions *).
 
 Inductive unop := UNeg.
@@ -37,7 +37,7 @@ Inductive expr : Type :=
 | EBinop : forall (op : binop) (e1 e2 : expr), expr
 | EPrim : forall (f : pfunc W val), expr.
 
-Definition is_true (v : val) := 
+Definition is_true (v : val) :=
   exists n, (v = Vint n \/ v = Vptr n) /\ n <> O.
 
 Lemma is_true_dec : forall v, {is_true v} + {~ is_true v}.
@@ -60,7 +60,7 @@ destruct Contra as [n' [H H0]]. inv H; inv H1.
 Qed.
 
 Definition unopDenote (op : unop) (v : val) : val :=
-  match op, is_true_dec v with 
+  match op, is_true_dec v with
     | UNeg, left _ => Vint 0
     | UNeg, right _ => Vint 1
   end.
@@ -80,16 +80,16 @@ Fixpoint expr_wellformed (e : expr) : Prop :=
     | EPrim f => G f
   end.
 
-Fixpoint exprEval' (e : expr) : W -> option val := fun w => 
+Fixpoint exprEval' (e : expr) : W -> option val := fun w =>
   match e with
     | EVal v => Some v
-    | EUnop op e' => 
+    | EUnop op e' =>
       let v := exprEval' e' w in
         match v with
           | Some v' => Some (unopDenote op v')
           | None => None
         end
-    | EBinop op e1 e2 => 
+    | EBinop op e1 e2 =>
       let v1 := exprEval' e1 w in
       let v2 := exprEval' e2 w in
         match v1, v2 with
@@ -131,20 +131,20 @@ case_eq (exprEval' e2 w'); intros. rewrite H4 in H7; inv H7.
 destruct H; destruct H2; destruct H0.
 f_equal. apply IHe1; auto||split; auto.
          apply IHe2; auto||split; auto.
-rewrite H4 in *; congruence.         
+rewrite H4 in *; congruence.
 rewrite H5 in *; congruence.
 rewrite H3 in *; congruence.
 rewrite H1 in *; congruence.
 inv H.
 Qed.
 
-Lemma pure_expr_safe : forall e w, 
+Lemma pure_expr_safe : forall e w,
   pure_expr e
   -> exists b, exprEval e w b.
 Proof.
 induction e; intros.
 eexists; split; simpl; eauto.
-simpl in *. 
+simpl in *.
 destruct (IHe w H) as [b [? ?]].
 exists (unopDenote op b). split; simpl; auto||rewrite H1; auto.
 simpl in *. destruct H.
@@ -174,16 +174,16 @@ intros [? ?]; apply H; auto.
 right; auto.
 Qed.
 End Expressions.
-Implicit Arguments exprEval' [W].
-Implicit Arguments exprEval [W].
-Implicit Arguments EUnop [W].
-Implicit Arguments EUnop [W].
-Implicit Arguments EBinop [W].
-Implicit Arguments EPrim [W].
+Arguments exprEval' [W] _ _.
+Arguments exprEval [W] _ _ _ _.
+Arguments EUnop [W] _ _.
+Arguments EUnop [W] _ _.
+Arguments EBinop [W] _ _ _.
+Arguments EPrim [W] _.
 
-Section ExpressionErasure. 
-Variables 
-  (W S' : Type) 
+Section ExpressionErasure.
+Variables
+  (W S' : Type)
   (G : pfunc W val -> Prop)
   (F : pfunc S' val -> Prop)
   (GF : pfunc W val -> pfunc S' val -> Prop)
@@ -203,7 +203,7 @@ Variables
     -> exists b2, exprEval F (EPrim f) s b2).
 
 Inductive expr_erase : expr W -> expr S' -> Prop :=
-| erase_EVal : forall v, 
+| erase_EVal : forall v,
      expr_erase (EVal _ v) (EVal _ v)
 | erase_EUnop : forall op e e',
      expr_erase e e'
@@ -216,9 +216,9 @@ Inductive expr_erase : expr W -> expr S' -> Prop :=
      GF g f
      -> expr_erase (EPrim g) (EPrim f).
 
-Lemma expr_erase_pure_expr : forall e e', 
-  expr_erase e e' 
-  -> pure_expr _ e 
+Lemma expr_erase_pure_expr : forall e e',
+  expr_erase e e'
+  -> pure_expr _ e
   -> pure_expr _ e'.
 Proof.
 intros.
@@ -229,7 +229,7 @@ Qed.
 
 Lemma expr_erasure : forall e e' w b1 b2,
   expr_erase e e'
-  -> exprEval G e w b1 
+  -> exprEval G e w b1
   -> exprEval F e' (world_erase w) b2
   -> b1=b2.
 Proof.
@@ -245,12 +245,12 @@ rewrite H3 in *; congruence.
 rewrite H1 in *; congruence.
 destruct H1; destruct H2; simpl in *.
 case_eq (exprEval' e1 w); intros.
-case_eq (exprEval' e2 w); intros. 
+case_eq (exprEval' e2 w); intros.
 rewrite H5 in *; rewrite H6 in *; inv H3.
-case_eq (exprEval' e1' (world_erase w)); intros. 
-case_eq (exprEval' e2' (world_erase w)); intros. 
+case_eq (exprEval' e1' (world_erase w)); intros.
+case_eq (exprEval' e2' (world_erase w)); intros.
 rewrite H3 in *; rewrite H7 in *; inv H4.
-destruct H1; destruct H2. 
+destruct H1; destruct H2.
 f_equal. apply IHexpr_erase1; auto||split; auto.
          apply IHexpr_erase2; auto||split; auto.
 rewrite H3 in *. rewrite H7 in *. congruence.
@@ -262,7 +262,7 @@ Qed.
 
 Lemma expr_safety : forall e e' w b1,
   expr_erase e e'
-  -> exprEval G e w b1 
+  -> exprEval G e w b1
   -> exists b2, exprEval F e' (world_erase w) b2.
 Proof.
 intros.
@@ -294,7 +294,7 @@ rewrite H4 in H3; congruence.
 eapply primexpr_safety; eauto.
 Qed.
 End ExpressionErasure.
-Implicit Arguments expr_erase [W S'].
+Arguments expr_erase [W S'] _ _ _.
 
 
 (* Here we define the syntax and operational semantics of generic semantics. *)
@@ -303,17 +303,17 @@ Context {W V G} `{GS : GenericSemantics W V G}.
 
 Inductive stmt : Type :=
 | Sprimcom: forall (u: relation W), stmt
-| Sskip 
+| Sskip
 | Sseq: forall (s1 s2: stmt), stmt
 | Sifte: forall (e: expr W) (s1 s2: stmt), stmt
 | Swhile: forall (e: expr W) (s: stmt), stmt.
 
 Inductive ctl : Type := Kstop | Kseq: forall (s: stmt) (k: ctl), ctl.
 
-Inductive step : W -> ctl -> W -> ctl -> Prop := 
+Inductive step : W -> ctl -> W -> ctl -> Prop :=
 | step_Sprimcom: forall v (w w': W) (k: ctl),
      V v
-     -> v w w' 
+     -> v w w'
      -> step w (Kseq (Sprimcom v) k) w' k
 | step_Sskip: forall w (k: ctl),
      step w (Kseq Sskip k) w k
@@ -328,27 +328,27 @@ Inductive step : W -> ctl -> W -> ctl -> Prop :=
      -> ~is_true v
      -> step w (Kseq (Sifte e s1 s2) k) w (Kseq s2 k)
 | step_Swhile: forall (s: stmt) e w (k: ctl),
-     step w (Kseq (Swhile e s) k) 
+     step w (Kseq (Swhile e s) k)
           w (Kseq (Sifte e (Sseq s (Swhile e s)) Sskip) k).
 
 (* The usual closures and definition of safety *)
-Inductive step_star : W -> ctl -> W -> ctl -> Prop := 
-| step_star0: forall w k, step_star w k w k 
+Inductive step_star : W -> ctl -> W -> ctl -> Prop :=
+| step_star0: forall w k, step_star w k w k
 | step_starN: forall w k w'' k'' w' k', step w k w'' k'' -> step_star w'' k'' w' k'
      -> step_star w k w' k'.
 
 Inductive stepN : nat -> W -> ctl -> W -> ctl -> Prop :=
 | stepN_0: forall w k, stepN O w k w k
-| stepN_S: forall n w k w' k' w'' k'', 
+| stepN_S: forall n w k w' k' w'' k'',
      step w k w' k'
      -> stepN n w' k' w'' k''
      -> stepN (S n) w k w'' k''.
 
-Inductive immed_safe : W -> ctl -> Prop := 
-| immed_safe0: forall w, 
+Inductive immed_safe : W -> ctl -> Prop :=
+| immed_safe0: forall w,
      immed_safe w Kstop
-| immed_safe1: forall w k w' k', 
-     step w k w' k' 
+| immed_safe1: forall w k w' k',
+     step w k w' k'
      -> immed_safe w k.
 
 Definition safe w k := forall w'' k'', step_star w k w'' k'' -> immed_safe w'' k''.
@@ -386,7 +386,7 @@ Qed.
 
 Lemma step_nprimcom_det : forall w k w' k' w'' k'',
   (forall u k', k <> Kseq (Sprimcom u) k')
-  -> step w k w' k' 
+  -> step w k w' k'
   -> step w k w'' k''
   -> w'=w'' /\ k'=k''.
 Proof.
@@ -395,7 +395,7 @@ destruct k. inv H0.
 destruct s; try solve
   [elimtype False; apply (H u k); auto
   |inv H0; inv H1; split; auto].
-inv H0; inv H1; split; 
+inv H0; inv H1; split;
 destruct H8; destruct H9; congruence.
 Qed.
 
@@ -409,7 +409,7 @@ Qed.
 Definition config_det w k := forall w' k' w'' k'',
   step w k w' k' -> step w k w'' k'' -> w'=w'' /\ k'=k''.
 
-Lemma step_safe' : forall w k w' k', 
+Lemma step_safe' : forall w k w' k',
   safe w' k' -> step w k w' k' -> config_det w k -> safe w k.
 Proof.
 unfold safe, config_det; intros.
@@ -430,7 +430,7 @@ inv H1.
 auto.
 Qed.
 
-Lemma step_compatible : forall c w w' k, 
+Lemma step_compatible : forall c w w' k,
   step w (Kseq c Kstop) w' Kstop -> step w (Kseq c k) w' k.
 Proof.
 intros. inv H; econstructor; eauto.
@@ -440,9 +440,9 @@ End GenericSemanticsElaboration.
 (* Stratified Semantics -- the "product" of two generic semantics. *)
 (* We use S' instead of S to avoid problems with Datatypes.S. *)
 Class StratifiedSemantics {W V G S' U F}
-                          `{WVG : GenericSemantics W V G} 
+                          `{WVG : GenericSemantics W V G}
                            (* The abstract semantics *)
-                          `{S'UF : GenericSemantics S' U F} 
+                          `{S'UF : GenericSemantics S' U F}
                            (* The concrete semantics *)
                            (world_erase : W -> S')
                            (* An erasure function mapping worlds to states *)
@@ -453,17 +453,17 @@ Class StratifiedSemantics {W V G S' U F}
                            : Type := mkStratifiedSemantics {
 
   (* These axioms just enforce that VU and GF are subsets of the products
-     V x U and G x F. *)                             
-  ss_VU_wellformed : forall v u, 
+     V x U and G x F. *)
+  ss_VU_wellformed : forall v u,
     VU v u
     -> V v /\ U u;
 
   ss_GF_wellformed : forall g f,
-    GF g f 
+    GF g f
     -> G g /\ F f;
 
   (* Erasure and safety of primitive commands *)
-  ss_primcom_erasure : forall v u w w' s s', 
+  ss_primcom_erasure : forall v u w w' s s',
     VU v u
     -> world_erase w = s
     -> v w w'
@@ -490,11 +490,11 @@ Class StratifiedSemantics {W V G S' U F}
     -> exists b2, exprEval F (EPrim f) s b2
 }.
 
-Section UnpackStratifiedSemantics. 
-Context {W V G S' U F world_erase VU GF} 
+Section UnpackStratifiedSemantics.
+Context {W V G S' U F world_erase VU GF}
         `{SS : StratifiedSemantics W V G S' U F world_erase VU GF}.
 
-Lemma VU_wellformed : forall v u, 
+Lemma VU_wellformed : forall v u,
     VU v u
     -> V v /\ U u.
 Proof. inversion SS; auto. Qed.
@@ -504,7 +504,7 @@ Lemma GF_wellformed : forall g f,
     -> G g /\ F f.
 Proof. inversion SS; auto. Qed.
 
-Lemma primcom_erasure : forall v u w w' s s', 
+Lemma primcom_erasure : forall v u w w' s s',
     VU v u
     -> world_erase w = s
     -> v w w'
@@ -537,24 +537,24 @@ End UnpackStratifiedSemantics.
 
 
 (* Corollaries of primitive erasure in the context of a stratified semantics (WVG, S'UF) *)
-Section ErasureCorollaries. 
-Context 
+Section ErasureCorollaries.
+Context
   {W V G S' U F world_erase VU GF}
   `{SS : StratifiedSemantics W V G S' U F world_erase VU GF}.
 
 (* Syntax erasure *)
-Inductive stmt_erase : @stmt W -> @stmt S' -> Prop := 
-| erase_SPrimcom: forall v u, 
-     VU v u 
+Inductive stmt_erase : @stmt W -> @stmt S' -> Prop :=
+| erase_SPrimcom: forall v u,
+     VU v u
      -> stmt_erase (Sprimcom v) (Sprimcom u)
 | erase_SSkip: stmt_erase Sskip Sskip
-| erase_SSeq: forall c1 c1' c2 c2',  
-     stmt_erase c1 c1' 
+| erase_SSeq: forall c1 c1' c2 c2',
+     stmt_erase c1 c1'
      -> stmt_erase c2 c2'
      -> stmt_erase (Sseq c1 c2) (Sseq c1' c2')
-| erase_SIfte: forall e e' c1 c2 c1' c2', 
+| erase_SIfte: forall e e' c1 c2 c1' c2',
      expr_erase GF e e'
-     -> stmt_erase c1 c1' 
+     -> stmt_erase c1 c1'
      -> stmt_erase c2 c2'
      -> stmt_erase (Sifte e c1 c2) (Sifte e' c1' c2')
 | erase_SWhile: forall e e' c c',
@@ -564,7 +564,7 @@ Inductive stmt_erase : @stmt W -> @stmt S' -> Prop :=
 
 Inductive ctl_erase : @ctl W -> @ctl S' -> Prop :=
 | erase_KStop: ctl_erase Kstop Kstop
-| erase_KSeq: forall c c' k k', 
+| erase_KSeq: forall c c' k k',
      stmt_erase c c'
      -> ctl_erase k k'
      -> ctl_erase (Kseq c k) (Kseq c' k').
@@ -572,7 +572,7 @@ Inductive ctl_erase : @ctl W -> @ctl S' -> Prop :=
 (* Corollaries of primitive command erasure and safety *)
 Lemma stratified_expr_erasure : forall e e' w b1 b2,
   expr_erase GF e e'
-  -> exprEval G e w b1 
+  -> exprEval G e w b1
   -> exprEval F e' (world_erase w) b2
   -> b1=b2.
 Proof.
@@ -583,7 +583,7 @@ Qed.
 
 Lemma stratified_expr_safety : forall e e' w b1,
   expr_erase GF e e'
-  -> exprEval G e w b1 
+  -> exprEval G e w b1
   -> exists b2, exprEval F e' (world_erase w) b2.
 Proof.
 intros.
@@ -629,7 +629,7 @@ inversion H0; subst.
 assert (exprEval F e' (world_erase w') v).
   destruct (stratified_expr_safety _ _ _ _ H4 H6).
   generalize (stratified_expr_erasure _ _ _ _ _ H4 H6 H); intro.
-  rewrite H1; auto. 
+  rewrite H1; auto.
 exists (world_erase w'); exists (Kseq c2' k'); econstructor; eauto.
 inv H0; repeat eexists; econstructor.
 Qed.
@@ -639,7 +639,7 @@ Lemma step_star_erasure : forall w w' s k_w k_w' k_s,
   -> ctl_erase k_w k_s
   -> @step_star _ V G w k_w w' k_w'
   -> exists s', exists k_s',
-        @step_star _ U F s k_s s' k_s' 
+        @step_star _ U F s k_s s' k_s'
         /\ world_erase w' = s' /\ ctl_erase k_w' k_s'.
 Proof.
 intros.
@@ -650,14 +650,14 @@ intros.
 destruct (step_safety _ _ _ _ _ _ H0 H2 H) as [s' [k_s' H5]].
 destruct (step_erasure _ _ _ _ _ _ _ _ H0 H2 H H5).
 generalize (IHstep_star s' k_s' H3 H4); intros [s'' [k_s'' [? [? ?]]]].
-assert (@step_star _ U F s k_s s'' k_s'') by (eapply step_starN; eauto). 
+assert (@step_star _ U F s k_s s'' k_s'') by (eapply step_starN; eauto).
 exists s''; exists k_s''. split; auto.
 Qed.
 End ErasureCorollaries.
 
 
 (* Stratified Semantics with Separation -- this is where put everything together. *)
-Class StratifiedSemanticsWithSeparation 
+Class StratifiedSemanticsWithSeparation
   {W V G S' U F world_erase VU GF}
   `{StratifiedSemantics W V G S' U F world_erase VU GF}
   {A}
@@ -667,16 +667,16 @@ Class StratifiedSemanticsWithSeparation
   (* Projection function mapping worlds to elements of A *)
   (H : pfunc A val -> Prop)
   (* Set of primitive expressions on A -- we need these in order
-     to use [assert_expr]-style predicates in our separation 
+     to use [assert_expr]-style predicates in our separation
      logic. *)
-  (HG : pfunc A val -> pfunc W val -> Prop) 
+  (HG : pfunc A val -> pfunc W val -> Prop)
   (* Acceptable primitive expression pairs on A and W *)
   : Type := {
 
    sss_HG_wellformed : forall h g,
-     HG h g 
+     HG h g
      -> H h /\ G g;
-   
+
    sss_primexpr_erasure : forall w a g h b1 b2,
     HG h g
     -> projA w = a
@@ -692,12 +692,12 @@ Class StratifiedSemanticsWithSeparation
 }.
 
 Section UnpackStratifiedSemanticsWithSeparation.
-Context 
+Context
 {W V G S' U F world_erase VU GF A projA H HG}
 `{SSS : StratifiedSemanticsWithSeparation W V G S' U F world_erase VU GF A projA H HG}.
 
 Lemma HG_wellformed : forall h g,
-     HG h g 
+     HG h g
      -> H h /\ G g.
 Proof. inversion SSS; auto. Qed.
 
@@ -719,7 +719,7 @@ End UnpackStratifiedSemanticsWithSeparation.
 
 
 Section SepErasureCorollaries.
-Context 
+Context
 {W V G S' U F world_erase VU GF A projA H HG}
 `{SSS : StratifiedSemanticsWithSeparation W V G S' U F world_erase VU GF A projA H HG}.
 

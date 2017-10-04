@@ -12,10 +12,10 @@ Definition Blist := list bool.
 
 Fixpoint splitVector(A : Set)(n m : nat) : Vector.t A (n + m) -> (Vector.t A n * Vector.t A m) :=
   match n with
-    | 0 => 
+    | 0 =>
       fun (v : Vector.t A (O + m)) => (@Vector.nil A, v)
-    | S n' => 
-      fun (v : Vector.t A (S n' + m)) => 
+    | S n' =>
+      fun (v : Vector.t A (S n' + m)) =>
         let (v1, v2) := splitVector _ _ (Vector.tl v) in
           (Vector.cons _ (Vector.hd v) _ v1, v2)
   end.
@@ -24,7 +24,7 @@ Section HMAC.
 
   Variable c p : nat.
   Definition b := c + p.
-  
+
   (* The compression function *)
   Variable h : Bvector c -> Bvector b -> Bvector c.
   (* The initialization vector is part of the spec of the hash function. *)
@@ -37,12 +37,12 @@ Section HMAC.
 
   Variable Message : Set.
   Variable splitAndPad : Message -> list (Bvector b).
-  Hypothesis splitAndPad_1_1 : 
+  Hypothesis splitAndPad_1_1 :
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
       b1 = b2.
-  
-  Variable fpad : Bvector c -> Bvector p. 
+
+  Variable fpad : Bvector c -> Bvector p.
   Definition app_fpad (x : Bvector c) : Bvector b :=
     (Vector.append x (fpad x)).
 
@@ -56,9 +56,9 @@ Section HMAC.
   (* The "two-key" version of GHMAC and HMAC. *)
   Definition GHMAC_2K (k : Bvector (b + b)) m :=
     let (k_Out, k_In) := splitVector b b k in
-      let h_in := (hash_words (k_In :: m)) in 
+      let h_in := (hash_words (k_In :: m)) in
         hash_words (k_Out :: (app_fpad h_in) :: nil).
-  
+
   Definition HMAC_2K (k : Bvector (b + b)) (m : Message) :=
     GHMAC_2K k (splitAndPad m).
 

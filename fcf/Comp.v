@@ -61,7 +61,7 @@ Lemma comp_base_exists : forall (A : Set),
   eauto using Bvector_exists.
 Qed.
 
-(*Require Import EqDec. *)
+Require Import fcf.EqDec. 
 
 Lemma comp_EqDec : forall (A : Set),
   Comp A ->

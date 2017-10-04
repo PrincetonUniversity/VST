@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -41,7 +41,7 @@ autorewrite with sublist.
 f_equal. f_equal. f_equal. omega.
 Qed.
 
-Definition block_data_order_loop1 := 
+Definition block_data_order_loop1 :=
  Ssequence
  (Sset _i (Econst_int (Int.repr 0) tint))
    (nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip).
@@ -58,13 +58,13 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _c (Vint (nthi regs 2)); temp _d (Vint (nthi regs 3));
                 temp _e (Vint (nthi regs 4)); temp _f (Vint (nthi regs 5));
                 temp _g (Vint (nthi regs 6)); temp _h (Vint (nthi regs 7));
-                temp _data data; temp _ctx ctx; temp _in data; 
+                temp _data data; temp _ctx ctx; temp _in data;
                 gvar _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP  (data_at_ Tsh (tarray tuint 16) Xv;
            data_block sh (intlist_to_Zlist b) data; K_vector kv))
   block_data_order_loop1
   (normal_ret_assert
-    (PROP () 
+    (PROP ()
      LOCAL(temp _ctx ctx; temp _i (Vint (Int.repr LBLOCKz));
                 temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 0));
                 temp _b (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 1));
@@ -101,7 +101,7 @@ forward_for_simple_bound 16
                  lvar _X (tarray tuint LBLOCKz) Xv;
                  gvar _K256 kv)
      SEP (K_vector kv;
-       data_at Tsh (tarray tuint LBLOCKz) 
+       data_at Tsh (tarray tuint LBLOCKz)
            (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16-i)) Vundef)
             Xv;
        data_block sh (intlist_to_Zlist b) data)).
@@ -123,7 +123,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
           (map Vint (map Int.repr (intlist_to_Zlist b)))) data). {
  entailer!.
  unfold data_block. rewrite prop_true_andp by auto.
- unfold data_at at 1. 
+ unfold data_at at 1.
    erewrite field_at_Tarray
    by (try reflexivity; auto; autorewrite with sublist; Omega1).
    rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
@@ -143,13 +143,13 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
   f_equal. f_equal. simpl. omega.
  }
 forward_call (* l = __builtin_read32_reversed(_data) *)
-      (offset_val (i*4) data, sh, 
+      (offset_val (i*4) data, sh,
          sublist (i*4) ((i+1)*4) (map Int.repr (intlist_to_Zlist b))).
  entailer!; make_Vptr data; reflexivity.
  rewrite H1; cancel.
  autorewrite with sublist; omega.
 gather_SEP 3 0 4.
- match goal with |- context [SEPx (?A::_)] => 
+ match goal with |- context [SEPx (?A::_)] =>
   replace A with (data_block sh (intlist_to_Zlist b) data)
     by (rewrite H1,<- !sepcon_assoc; auto)
  end.

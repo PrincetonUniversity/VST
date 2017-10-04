@@ -89,7 +89,7 @@ Inductive RTL_corestep (ge:genv): RTL_core -> mem -> RTL_core -> mem -> Prop :=
       RTL_corestep ge (RTL_State s f (Vptr stk Int.zero) pc rs) m
         (RTL_Callstate s fd rs##args) m'
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS
   | rtl_corestep_exec_Ibuiltin:
       forall s f sp pc rs m ef args res pc' t v m',
       (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
@@ -156,7 +156,7 @@ Definition RTL_initial_core (ge: genv) (v:val)(args: list val): option RTL_core:
 
 (** A final state is a [Returnstate] with an empty call stack. *)
 
-(*LENB: in shared-memory compcert, we should allow arbitrary 
+(*LENB: in shared-memory compcert, we should allow arbitrary
   return values, not just integers*)
 Definition RTL_halted (c: RTL_core ): option val :=
   match c with
@@ -180,7 +180,7 @@ Definition RTL_at_external (c: RTL_core): option (external_function * signature 
 Definition RTL_after_external (vret: option val)(c: RTL_core): option RTL_core :=
   match c with
     | RTL_State stack f sp pc rs => None
-    | RTL_Callstate stack f args => 
+    | RTL_Callstate stack f args =>
       match f with
           Internal _ => None
         | External f' => match vret with
@@ -189,11 +189,11 @@ Definition RTL_after_external (vret: option val)(c: RTL_core): option RTL_core :
                          end
       end
     | RTL_Returnstate stack v => None
-  end.           
+  end.
 
 Lemma corestep_not_external: forall (ge : genv) (m : mem) (q : RTL_core) (m' : mem) (q' : RTL_core),
                                RTL_corestep ge q m q' m' -> RTL_at_external q = None.
-  intros. inv H; reflexivity. 
+  intros. inv H; reflexivity.
 Qed.
 
 Lemma corestep_not_halted: forall (ge : genv) (m : mem) (q : RTL_core) (m' : mem) (q' : RTL_core),
@@ -222,21 +222,21 @@ Defined.
 
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 
-Lemma rtl_coop_forward : forall g c m c' m' (CS: RTL_corestep g c m c' m'), 
+Lemma rtl_coop_forward : forall g c m c' m' (CS: RTL_corestep g c m c' m'),
       mem_forward m m'.
 Proof. intros.
        inv CS; try apply mem_forward_refl.
          (*Storev*)
-          destruct a; simpl in H1; inv H1. 
-          eapply store_forward. eassumption. 
+          destruct a; simpl in H1; inv H1.
+          eapply store_forward. eassumption.
          eapply free_forward; eassumption.
-         (*builtin*) 
+         (*builtin*)
           (*eapply external_call_mem_forward; eassumption.*)
          eapply free_forward; eassumption.
          eapply alloc_forward; eassumption.
 Qed.
 
-Program Definition rtl_coop_sem : 
+Program Definition rtl_coop_sem :
   CoopCoreSem genv RTL_core.
 apply Build_CoopCoreSem with (coopsem := RTL_core_sem).
   apply rtl_coop_forward.

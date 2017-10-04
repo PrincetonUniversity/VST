@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
@@ -12,7 +12,7 @@ Require Import sha.hmac.
 Require Import sha.spec_hmac.
 Require Import sha.hmac_common_lemmas.
 
-Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs 
+Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_cleanup HMAC_Cleanup_spec.
 Proof.
 start_function.
@@ -30,7 +30,7 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
- entailer!.
+ entailer!; auto.
 apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
@@ -40,12 +40,12 @@ Lemma cleanupbodyproof1 Espec c h :
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))
-  (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None)) 
+  (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
-         SEP 
+         SEP
          (data_block Tsh
             (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
             c))) emp).
@@ -65,11 +65,11 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
- entailer!.
+ entailer!; auto.
 apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
-Lemma body_hmac_cleanup1: semax_body HmacVarSpecs HmacFunSpecs 
+Lemma body_hmac_cleanup1: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_cleanup HMAC_Cleanup_spec1.
 Proof.
 start_function.

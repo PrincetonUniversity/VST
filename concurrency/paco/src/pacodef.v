@@ -1,9 +1,9 @@
-Require Export concurrency.paco.src.paconotation.
+Require Export VST.concurrency.paco.src.paconotation.
 Set Implicit Arguments.
 
 (** * Formalization of Parameterized Coinduction: the Internal Approach
 
-    We use the strict positivization trick (Section 6.1 of the paper) 
+    We use the strict positivization trick (Section 6.1 of the paper)
     in order to define G for arbitrary functions (here called paco{n}).
 *)
 

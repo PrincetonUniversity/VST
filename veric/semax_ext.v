@@ -1,13 +1,13 @@
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_mem_ops.
-Require Import sepcomp.extspec.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.semax.
-Require Import veric.semax_call.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.sepcomp.extspec.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_call.
 
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
@@ -76,7 +76,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun rv z m => False)
   end.
 
-Require Import veric.res_predicates.
+Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 

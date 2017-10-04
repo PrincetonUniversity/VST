@@ -1,5 +1,5 @@
-Require Import floyd.proofauto. (* Import the Verifiable C system *)
-Require Import progs.sumarray2. (* Import the AST of this C program *)
+Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
+Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -7,7 +7,7 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
-  
+
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
@@ -27,15 +27,18 @@ Definition sumarray_spec :=
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
            SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 
-(* The spec of "int main(void){}" always looks like this. *)
+(* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ]  
+     PROP() 
+     LOCAL (temp ret_temp (Vint (Int.repr (3+4)))) 
+     SEP(TT).
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [sumarray_spec; main_spec]).
 
 (** Proof that f_sumarray, the body of the sumarray() function,
@@ -47,10 +50,10 @@ start_function.  (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* s = 0; *)
-forward_for_simple_bound size 
+forward_for_simple_bound size
   (EX i: Z,
    PROP  ((*0 <= i <= size*))
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           (*temp _i (Vint (Int.repr i)); *)
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
@@ -59,20 +62,17 @@ forward_for_simple_bound size
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
 * (* Prove postcondition of loop body implies loop invariant *)
+(* "forward" fails and tells us to first make (0 <= i < Zlength contents)
+   provable by auto, so we assert the following: *)
+assert_PROP (Zlength contents = size). {
+  entailer!. do 2 rewrite Zlength_map. reflexivity.
+}
 forward. (* x = a[i] *)
-entailer!. (* This is an example of a typechecking condition 
-   that is nontrivial; entailer! leaves a subgoal.  The subgoal basically
-   says that the array-subscript index is in range;  not just in 
-   the bounds of the array, but in the _initialized_ portion of the array.*)
-   rewrite Znth_map with (d':=Int.zero). hnf; auto.
-   rewrite Zlength_map in H1; auto.
 forward. (* s += x; *)
+ (* Now we have reached the end of the loop body, and it's
+   time to prove that the _current precondition_  (which is the
+   postcondition of the loop body) entails the loop invariant. *)
 entailer!.
- autorewrite with sublist in *.
- rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
- rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
- simpl. 
- rewrite add_repr.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
@@ -81,130 +81,13 @@ entailer!.
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
     entails the postcondition demanded by the function specification. *)
-simpl.
-apply prop_right.
-autorewrite with sublist.
+entailer!.
+autorewrite with sublist in *.
 reflexivity.
 Qed.
 
 (* Contents of the extern global initialized array "_four" *)
 Definition four_contents := [1; 2; 3; 4].
-
-(*  discard this...
-Lemma split_array':
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
-                            v (v': list (reptype t)) v1 v2 p,
-    0 <= mid <= n ->
-    JMeq v v' ->
-    JMeq v1 (sublist 0 mid v') ->
-    JMeq v2 (sublist mid n v') ->
-    Zlength v' = n ->
-    sizeof (tarray t n) < Int.modulus ->
-    field_compatible0 (tarray t mid) [ArraySubsc 0] p ->
-    field_compatible0 (tarray t n) [ArraySubsc mid] p ->
-    field_compatible0 (tarray t n) [ArraySubsc n] p ->
-    data_at sh (tarray t n) v p =
-    data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
-            (field_address0 (tarray t n) [ArraySubsc mid] p).
-Proof.
-intros.
-destruct H.
-unfold data_at.
-erewrite !field_at_Tarray; try reflexivity; try eassumption; try apply JMeq_refl; try reflexivity; try omega.
-rewrite (split2_array_at sh _ _ 0 mid n); simpl; try omega.
-autorewrite with sublist.
-f_equal.
-*
-unfold array_at.
-simpl. f_equal.
-f_equal. f_equal.
-admit.  
-admit.
-*
-rewrite (array_at_data_at_rec sh _ _ mid n); auto.
-change (nested_field_array_type _ _ _ _) with (tarray t (n-mid)).
-rewrite (array_at_data_at_rec sh _ _ 0 (n-mid)); auto; try omega.
-change (nested_field_array_type _ _ _ _) with (tarray t (n-mid-0)).
-rewrite H3.
-autorewrite with sublist.
-f_equal.
-rewrite !field_address0_clarify.
-simpl. rewrite offset_offset_val. f_equal.
-omega.
-admit.
-admit.
-admit.
-admit.
-Admitted.
-
-Lemma split_arrayx:
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
-                            v (v': list (reptype t)) v1 v2 p,
-    0 <= mid <= n ->
-    JMeq v v' ->
-    JMeq v1 (sublist 0 mid v') ->
-    JMeq v2 (sublist mid n v') ->
-    Zlength v' = n ->
-    sizeof (tarray t n) < Int.modulus ->
-    data_at sh (tarray t n) v p =
-    data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
-            (field_address0 (tarray t n) [ArraySubsc mid] p).
-Proof.
-intros.
-apply pred_ext.
-*
-saturate_local.
-erewrite <- split_array'; try eassumption; auto.
- +
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto.
-   admit. admit. admit. split; auto. split; auto. hnf. omega.
- +
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto.
-    split; auto. split; auto.
- + 
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto.
-    split; auto. split; auto. hnf. omega.
-*
- saturate_local.
- erewrite <- split_array'; try eassumption; auto.
- +
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto. split; auto. split; auto. hnf; omega.
- +
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   destruct H8 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto.
-   admit.
-   hnf in G0. rewrite field_address0_clarify in G0. 
-   clear - H H4 G G0 B. destruct p; try contradiction; simpl in *.
-   unfold Int.add in G0; rewrite !Int.unsigned_repr in G0.
-   autorewrite with sublist in *.
-   rewrite <- Z.add_assoc in G0.
-   rewrite <- Z.mul_add_distr_l in G0.
-   replace (mid + (n-mid)) with n in G0 by omega; auto.
-   autorewrite with sublist in *.
-   admit.
-   autorewrite with sublist in *.
-   rewrite Int.unsigned_repr.
-   admit.
-   admit.
-   clear - B0. auto.
-   split; auto.
-   split; auto.
- +
-   destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   destruct H8 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
-   split3; [ | | split3; [ | | split3]]; auto.
-   admit.
-   admit.
-   split; auto. split; auto. hnf;  omega.
-Admitted.
-*)
 
 Lemma Forall_sublist: forall {A} (P: A->Prop) lo hi (al: list A),
   Forall P al -> Forall P (sublist lo hi al).
@@ -216,18 +99,29 @@ apply H; auto.
 apply sublist_In in H0. auto.
 Qed.
 
+
 Lemma split_array:
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
-                            v (v' v1' v2': list (reptype t)) v1 v2 p,
-    0 <= mid <= n ->
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
+                            v (v1' v2': list (reptype t)) v1 v2 p,
+    Zlength v1' = mid ->
+    Zlength v2' = n-mid ->
     JMeq v (v1'++v2') ->
     JMeq v1 v1' ->
     JMeq v2 v2' ->
     data_at sh (tarray t n) v p =
     data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
+    data_at sh (tarray t (n-mid)) v2
             (field_address0 (tarray t n) [ArraySubsc mid] p).
-Admitted.
+Proof.
+intros.
+pose proof (Zlength_nonneg v1').
+pose proof (Zlength_nonneg v2').
+apply split2_data_at_Tarray with (v1'++v2'); auto.
+omega.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -245,7 +139,7 @@ erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivit
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+ 
++
  clear - GV. unfold gvar_denote, eval_var in *.
   destruct (Map.get (ve_of rho) _four) as [[? ?]|?]; try contradiction.
   destruct (ge_of rho _four); try contradiction. apply I.
@@ -268,17 +162,17 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_sumarray.
 semax_func_cons body_main.
 Qed.
 
 (**  Here begins an alternate proof of the "for" loop.
-  Instead of using forward_for_simple_bound, we use the primitive
-  axioms: semax_loop, semax_seq, semax_if, etc.
+  Instead of using forward_for_simple_bound, we use the 
+  general-case loop tactic, forward_for.
 
 To understand this verification, let's take the program,
 
@@ -292,88 +186,38 @@ To understand this verification, let's take the program,
      return s;
   }
 
-and break it down into the "loop" form of Clight:
-
-  int sumarray(int a[], int n) {
-     int i,s,x;
-     s=0;
-     i=0;
-     for ( ; ; i++) {
-       if (i<n) then ; else break;
-       x = a[i];
-       s += x;
-     }
-     return s;
-  }
-
-in which "Sloop c1 c2" is basically the same as 
-  "for ( ; ; c2) c1".
-
-Into this program we put these assertions:
+and annotate with assertions:
 
 
   int sumarray(int a[], int n) {
      int i,s,x;
      s=0;
-     i=0;
-     assert (sumarray_Pre);
-     for ( ; ; i++) {
-       assert (sumarray_Inv);
-       if (i<n) then ; else break;
-       assert (sumarray_PreBody);
+     for (i=0; i<n; i++) {
+       assert (sumarray_Inv(i));
        x = a[i];
        s += x;
-       assert (sumarray_PostBody);
+       assert (sumarray_PostBody(i));
      }
-     assert (sumarray_Post);
      return s;
   }
 
-The assertions are defined in these five definitions:
+The assertions are defined in these definitions:
 *)
-
-Definition sumarray_Pre a sh contents size :=
-(PROP  ()
-   LOCAL (temp _a a; 
-          temp _i (Vint (Int.repr 0));
-          temp _n (Vint (Int.repr size));
-          temp _s (Vint (Int.repr (sum_Z (sublist 0 0 contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
-
-Definition sumarray_Inv a sh contents size :=
-(EX i: Z,
+Definition sumarray_Inv a sh contents size i :=
    PROP  (0 <= i <= size)
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 
-Definition sumarray_PreBody a sh contents size :=
-(EX i: Z,
+Definition sumarray_PostBody a sh contents size i :=
    PROP  (0 <= i < size)
-   LOCAL (temp _a a; 
-          temp _i (Vint (Int.repr i));
-          temp _n (Vint (Int.repr size));
-          temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
-
-Definition sumarray_PostBody a sh contents size :=
-(EX i: Z,
-   PROP  (0 <= i < size)
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 (i+1) contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
-
-Definition sumarray_Post a sh contents size :=
-   (PROP()
-   LOCAL (temp _a a; 
-          temp _i (Vint (Int.repr size));
-          temp _n (Vint (Int.repr size));
-          temp _s (Vint (Int.repr (sum_Z contents))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 
 (* . . . and now you can see how these assertions are used
    in the proof, using the semax_loop rule. *)
@@ -381,63 +225,33 @@ Definition sumarray_Post a sh contents size :=
 Lemma body_sumarray_alt: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
-(* The next two lines do forward symbolic execution through
-   the first two executable statements of the function body *)
 forward.  (* s = 0; *)
-unfold Sfor.
+forward_for (sumarray_Inv a sh contents size)
+   (sumarray_PostBody a sh contents size).
+* (* initializer establishes precondition *)
 forward. (* i=0; *)
-apply semax_pre with (sumarray_Inv a sh contents size).
-  { unfold sumarray_Inv. Exists 0. entailer!. }
-apply semax_seq with (sumarray_Post a sh contents size).
-*
- apply semax_loop with (sumarray_PostBody a sh contents size).
- + 
-   unfold sumarray_Inv.
-   Intros i.
-   forward_if (sumarray_PreBody a sh contents size).
-   - (* then clause *)
-     forward. (* skip *)
-     { unfold sumarray_PreBody. Exists i. entailer!. }
-   - (* else clause *)
-     forward. (* break *)
-     unfold sumarray_Post.
-       entailer!.
-       autorewrite with sublist in *.
-       assert (i=Zlength contents) by omega. subst i.
-       autorewrite with sublist. auto.
-   - (* after the if *)
-     unfold sumarray_PreBody.
-     clear i H1.
-     Intros i.
-     forward.  (* x = a[i]; *) 
-     entailer!.
-     autorewrite with sublist in *.
-     rewrite Znth_map with (d':=Int.zero).
-     apply I.
-     autorewrite with sublist.
-     omega.
-     forward. (* s+=x; *)
-     unfold sumarray_PostBody.
-     Exists i. entailer!.
-     autorewrite with sublist in *.
-     rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
-     rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
-     simpl.
-     rewrite add_repr.
+unfold sumarray_Inv. Exists 0. entailer!.
+* (* loop-test expression typechecks *)
+entailer!.
+* (* loop body preserves invariant *)
+rename a0 into i.
+assert_PROP (size=Zlength contents)
+  by (entailer!; autorewrite with sublist; auto).
+forward. (* x = a[i]; *)
+forward. (* s += x; *)
+unfold sumarray_PostBody. Exists i.
+entailer!. clear H5.
      f_equal. f_equal.
      rewrite (sublist_split 0 i (i+1)) by omega.
      rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
      simpl. rewrite Z.add_0_r. reflexivity.
-  +
-     unfold sumarray_PostBody.
-     Intros i.
-     forward. (* i++; *)
-     simpl loop2_ret_assert.
-     unfold sumarray_Inv.
-     Exists (i+1).
-     entailer!.
- *
-  abbreviate_semax.
-  unfold sumarray_Post.
-  forward. (* return s; *)
+* (* loop increment *)
+forward. (* i++; *)
+rename a0 into i.
+Exists (i+1). entailer!.
+* (* after the loop *)
+forward. (* return s; *)
+autorewrite with sublist in *.
+autorewrite with sublist.
+entailer!.
 Qed.

@@ -4,8 +4,8 @@ Require Import Coq.Relations.Relations.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 
-Require Import msl.Coqlib2.
-Require Export msl.eq_dec.
+Require Import VST.msl.Coqlib2.
+Require Export VST.msl.eq_dec.
 
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.
@@ -22,7 +22,7 @@ Proof.
     exact l.
     assert (Z.of_nat m < Z.of_nat n) by omega.
     assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; omega).
-    omega.  
+    omega.
   apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
 Qed.
 
@@ -40,7 +40,7 @@ Proof.
 Qed.
 
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
-Proof. intros. 
+Proof. intros.
 change 0 with (Z.of_nat O).
 apply inj_ge. clear; omega.
 Qed.
@@ -136,13 +136,13 @@ Qed.
 (** Additions to [if_tac]: when mature, move these upstream *)
 
 Tactic Notation "if_tac" "eq:" simple_intropattern(E) :=
-  match goal with 
+  match goal with
     |- context [if ?a then _ else _] =>
     destruct a as [?H | ?H] eqn:E
   end.
 
 Tactic Notation "if_tac" simple_intropattern(H) "eq:" simple_intropattern(E):=
-  match goal with 
+  match goal with
     |- context [if ?a then _ else _] =>
     destruct a as H eqn:E
   end.
@@ -211,18 +211,18 @@ Tactic Notation "rewr" :=
 
 Tactic Notation "rewr" constr(e) :=
   match goal with
-    E : e = _ |- _ => rewrite E 
+    E : e = _ |- _ => rewrite E
   | E : _ = e |- _ => rewrite <-E
   end.
 
 Tactic Notation "rewr" constr(e) "in" "*" :=
   match goal with
-    E : e = _ |- _ => rewrite E in * 
+    E : e = _ |- _ => rewrite E in *
   | E : _ = e |- _ => rewrite <-E in *
   end.
 
 Tactic Notation "rewr" constr(e) "in" hyp(H) :=
   match goal with
-    E : e = _ |- _ => rewrite E in H 
+    E : e = _ |- _ => rewrite E in H
   | E : _ = e |- _ => rewrite <-E in H
   end.

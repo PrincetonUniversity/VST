@@ -12,7 +12,7 @@ Section TypeTree.
 
 Context {cs: compspecs}.
 
-Definition typeR (t1: type) (t2: type): Prop := 
+Definition typeR (t1: type) (t2: type): Prop :=
   match t2 with
   | Tstruct sid => exists i1, In (i1, t1) (co_members (get_co sid))
   | _ => False
@@ -194,7 +194,7 @@ Proof.
              Type
     with
     | Tint => fun _ _ => val
-    | Tstruct sid => fun H f => 
+    | Tstruct sid => fun H f =>
        (fix reptype_fix_aux_members (m: members): Forall (fun p => TypeTree.typeR (snd p) (Tstruct sid)) m -> Type :=
           match m as m_PAT
             return Forall (fun p => TypeTree.typeR (snd p) (Tstruct sid)) m_PAT -> Type
@@ -256,7 +256,7 @@ Proof.
   intros.
   (* We have to use explicit type casting here because we do not want to access the intermediate function Fix_F in standard WF-recursion library. *)
   refine
-   (eq_rect_r (fun T => T) 
+   (eq_rect_r (fun T => T)
     ((match y as y_PAT
         return match y_PAT with
                | Tint => True
@@ -274,7 +274,7 @@ Proof.
                end
       with
       | Tint => fun _ _ => Vundef
-      | Tstruct sid => fun H f => 
+      | Tstruct sid => fun H f =>
          (fix default_val_fix_aux_members (m: members):
             Forall (fun p => TypeTree.typeR (snd p) (Tstruct sid)) m ->
             (fix reptype_members (m: members): Type :=
@@ -426,7 +426,7 @@ Defined.
 Fixpoint reptype_aux (t: type) (wit_t: acc_type t): Type :=
   match wit_t in acc_type t_PAT with
   | acc_Tint => val
-  | acc_Tstruct id wit_id => 
+  | acc_Tstruct id wit_id =>
      (fix reptype_aux_members (m: members) (wit_m: ForallT (fun p => acc_type (snd p)) m): Type :=
         match wit_m with
         | ForallT_nil => unit
@@ -456,7 +456,7 @@ Abort.
 Fixpoint default_val_aux (t: type) (wit_t: acc_type t): reptype_aux t wit_t :=
   match wit_t as wit_t_PAT in acc_type t_PAT return reptype_aux t_PAT wit_t_PAT with
   | acc_Tint => Vundef
-  | acc_Tstruct id wit_id => 
+  | acc_Tstruct id wit_id =>
      (fix default_val_aux_members (m: members) (wit_m: ForallT (fun p => acc_type (snd p)) m):
         (fix reptype_aux_members (m: members) (wit_m: ForallT (fun p => acc_type (snd p)) m): Type :=
         match wit_m with
@@ -561,7 +561,7 @@ Proof.
              Type
     with
     | Tint => fun _ _ => val
-    | Tstruct sid => fun H f => 
+    | Tstruct sid => fun H f =>
        (fix reptype_fix_aux_members (m: members): Forall (fun p => typeR (snd p) (Tstruct sid)) m -> Type :=
           match m as m_PAT
             return Forall (fun p => typeR (snd p) (Tstruct sid)) m_PAT -> Type
@@ -624,7 +624,7 @@ Proof.
   intros.
   (* We have to use explicit type casting here because we do not want to access the intermediate function Fix_F in standard WF-recursion library. *)
   refine
-   (eq_rect_r (fun T => T) 
+   (eq_rect_r (fun T => T)
     ((match y as y_PAT
         return match y_PAT with
                | Tint => True
@@ -642,7 +642,7 @@ Proof.
                end
       with
       | Tint => fun _ _ => Vundef
-      | Tstruct sid => fun H f => 
+      | Tstruct sid => fun H f =>
          (fix default_val_fix_aux_members (m: members):
             Forall (fun p => typeR (snd p) (Tstruct sid)) m ->
             (fix reptype_members (m: members): Type :=

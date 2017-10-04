@@ -1,13 +1,12 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.aggregate_type.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.proj_reptype_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 Section SINGLE_HOLE.
 
@@ -29,7 +28,7 @@ Proof.
 Defined.
 
 Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
-  fold_reptype 
+  fold_reptype
   (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
   with
   | Tarray t0 n a, ArraySubsc i => upd_Znth i
@@ -52,7 +51,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
   | gf :: gfs0 => fun v0 => upd_reptype t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
   end (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t gfs))).
 
-Lemma upd_Znth_ints i xints v: 
+Lemma upd_Znth_ints i xints v:
       upd_Znth i (map Vint xints) (Vint v) =
       map Vint ((sublist 0 i xints) ++
                 v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
@@ -60,7 +59,7 @@ Proof. unfold upd_Znth; intros. rewrite map_app. simpl.
   do 2 rewrite sublist_map; trivial.
 Qed.
 
-Require Import floyd.stronger.
+Require Import VST.floyd.stronger.
 
 Lemma upd_reptype_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype t gfs v v0) (upd_reptype t gfs v v1).
 Proof.
@@ -266,7 +265,7 @@ Ltac pose_upd_reptype_1 CS t gf v v0 H :=
 
 Ltac pose_upd_reptype CS t gfs v v0 H :=
   match gfs with
-  | nil => 
+  | nil =>
       assert (data_equal (@upd_reptype CS t gfs v v0) v0) as H by reflexivity
   | ?gf :: ?gfs0 =>
       pose proof I as H;   (* *2* SEE LINE *3* *)
@@ -370,7 +369,7 @@ exact H1.
 Qed.
 
 Goal forall n l, 0 < n -> data_equal
-    (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) l Vundef) 
+    (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) l Vundef)
     (Vundef :: sublist 1 (Zlength l) l).
 intros.
 pose_proj_reptype cs (tarray tint n) (ArraySubsc 0 :: nil) l HH.

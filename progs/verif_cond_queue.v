@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.cond_queue.
+Require Import VST.progs.conclib.
+Require Import VST.progs.cond_queue.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -20,19 +20,19 @@ Definition malloc_spec :=
  DECLARE _malloc
   WITH n: Z
   PRE [ 1%positive OF tuint ]
-     PROP (4 <= n <= Int.max_unsigned) 
+     PROP (4 <= n <= Int.max_unsigned)
      LOCAL (temp 1%positive (Vint (Int.repr n)))
      SEP ()
-  POST [ tptr tvoid ] 
+  POST [ tptr tvoid ]
      EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     PROP (malloc_compatible n v)
+     LOCAL (temp ret_temp v)
      SEP (memory_block Tsh n v).
 
 Definition free_spec :=
  DECLARE _free
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid ]  
+  PRE [ 1%positive OF tptr tvoid ]
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p)
       SEP (memory_block Tsh n p)
@@ -456,7 +456,7 @@ Proof.
   start_function.
   rewrite <- seq_assoc.
   forward_for_simple_bound 10 (EX i : Z, PROP ()
-    LOCAL (gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon; gvar _length len; 
+    LOCAL (gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon; gvar _length len;
                       gvar _requests_lock lock)
     SEP (data_at Ews (tarray (tptr trequest) MAX)
              (repeat (Vint (Int.repr 0)) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (10 - i))) buf;
@@ -593,10 +593,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity|]).
 semax_func_cons_ext.
 semax_func_cons_ext.

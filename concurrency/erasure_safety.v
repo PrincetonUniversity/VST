@@ -1,34 +1,34 @@
 Require Import compcert.common.Memory.
 
 
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
-Require Import veric.res_predicates.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.res_predicates.
 
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
-Require Import concurrency.scheduler.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.juicy_machine. Import Concur.
-Require Import concurrency.dry_machine. Import Concur.
-(*Require Import concurrency.dry_machine_lemmas. *)
-Require Import concurrency.lksize.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.juicy_machine. Import Concur.
+Require Import VST.concurrency.dry_machine. Import Concur.
+(*Require Import VST.concurrency.dry_machine_lemmas. *)
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.permissions.
 
 (*SSReflect*)
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
-Require Import concurrency.ssromega. (*omega in ssrnat *)
+Require Import VST.concurrency.ssromega. (*omega in ssrnat *)
 
 (*The simulations*)
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.wholeprog_simulations.
 
 (*General erasure*)
-Require Import concurrency.erasure_signature.
-Require Import concurrency.erasure_proof.
+Require Import VST.concurrency.erasure_signature.
+Require Import VST.concurrency.erasure_proof.
 
 From mathcomp.ssreflect Require Import ssreflect seq.
 
@@ -50,7 +50,7 @@ Module ErasureSafety.
 
   (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.*)
   Definition step_diagram:= ErasureProof.core_diagram.
-  
+
   Lemma erasure_safety': forall n ge sch js ds m,
       ErasureProof.match_st js ds ->
       DMS.invariant ds ->
@@ -87,7 +87,7 @@ Module ErasureSafety.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
         econstructor 4; eauto. }
 Qed.
-        
+
 
   Theorem erasure_safety: forall ge cd j js ds m n,
       Erasure.match_state cd j js m ds m ->
@@ -101,19 +101,19 @@ Qed.
 
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
-      (vals : seq Values.val) (m : Memory.mem) 
-      (rmap0 : rmap) (pmap : access_map * access_map) main genv,
+      (vals : seq Values.val) (m : Memory.mem)
+      (rmap0 : rmap) (pmap : access_map * access_map) main genv h,
       match_rmap_perm rmap0 pmap ->
       no_locks_perm rmap0 ->
-      initial_core (JMachineSem U (Some rmap0)) genv
+      initial_core (JMachineSem U (Some rmap0)) h genv
          main vals = Some (U, [::], js) ->
       exists (mu : SM_Injection) (ds : dstate),
-        initial_core (DMachineSem U (Some pmap)) genv
+        initial_core (DMachineSem U (Some pmap)) h genv
                      main vals = Some (U, [::], ds) /\
         DMS.invariant ds /\ match_st js ds.
   Proof.
-    intros ? ? ? ? ? ? ? ? mtch_perms no_locks init.
-    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv)
+    intros ? ? ? ? ? ? ? ? ? mtch_perms no_locks init.
+    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv h)
     as [mu [ds [_ [dinit [dinv MTCH]]]]]; eauto.
     unfold init_inj_ok; intros b b' ofs H. inversion H.
   Qed.
@@ -137,7 +137,7 @@ Qed.
       destruct st as [[a b] c]; destruct st' as [[a' b'] c']; simpl in *.
       inversion H4; subst.
       apply: (safety.sft_step).
-      - apply: DryMachine.halt_with_step=> //. 
+      - apply: DryMachine.halt_with_step=> //.
       - move => U'' nVAL.
         apply: IHn => //.
         + apply: (MATCH).
@@ -159,7 +159,7 @@ Qed.
       (*We need to talk about traces... until now... they are empty:*)
       assert (requirement:(a') = nil).
       { inversion H0; simpl in *; eauto. }
-        
+
       rewrite requirement in H0.
       eapply step_diagram in H0 => //.
       destruct H0 as [ ds' [ Dinv' [ match' step']]].
@@ -180,7 +180,7 @@ Qed.
   Qed.
 
   Lemma new_erasure_safety': forall n ge js ds m,
-      (forall sch, JuicyMachine.valid (sch, nil, js)) -> 
+      (forall sch, JuicyMachine.valid (sch, nil, js)) ->
       ErasureProof.match_st js ds ->
       DMS.invariant ds ->
       (forall sch, JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
@@ -192,10 +192,10 @@ Qed.
     - eapply assume. exact MATCH.
       apply: all_val.
   Qed.
-      
+
 
  (* Theorem new_erasure_safety: forall ge cd j jtp dtp m n,
-      (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) -> 
+      (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) ->
       forall sch, Erasure.match_state cd j (sch, nil, jtp) m (sch, nil, dtp) m ->
     JuicyMachine.csafe ge (sch, nil, jtp) m n ->
     DryMachine.csafe ge (sch, nil, dtp) m n.
@@ -206,6 +206,6 @@ Qed.
     inversion MATCH. subst.
     eapply erasure_safety'; eauto.
   Qed.*)
-  
-    
-End ErasureSafety. 
+
+
+End ErasureSafety.

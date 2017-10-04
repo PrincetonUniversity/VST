@@ -1,34 +1,34 @@
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
 
-Require Import concurrency.pos.
-Require Import concurrency.concurrent_machine.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.concurrent_machine.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
-Require Import veric.shares msl.msl_standard.
-Require Import concurrency.threads_lemmas.
+Require Import VST.veric.shares VST.msl.msl_standard.
+Require Import VST.concurrency.threads_lemmas.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import (*compcert_linking*) concurrency.permissions.
+Require Import (*compcert_linking*) VST.concurrency.permissions.
 
 Module ThreadPool.
   Section ThreadPool.
-    
+
     Variable cT : Type.
-    
+
     Record t := mk
                   { num_threads : pos
                     ; pool :> 'I_num_threads -> (@ctl cT)
@@ -37,7 +37,7 @@ Module ThreadPool.
 
     Definition containsThread: t -> nat -> Prop:=
       fun tp tid => tid < (num_threads tp).
-    
+
   End ThreadPool.
 End ThreadPool.
 
@@ -47,13 +47,13 @@ Section poolDefs.
 
   Import ThreadPool.
 
-  Notation "x <= y" := (x <= y)%nat. 
+  Notation "x <= y" := (x <= y)%nat.
   Notation "x < y" := (x < y)%nat.
   Notation thread_pool := (t cT).
 
   Variable (tp : thread_pool).
   Notation num_threads := (ThreadPool.num_threads tp).
-  
+
   (* Per-thread disjointness definition*)
   Definition race_free (tp : thread_pool) :=
     forall tid0 tid0' (Htid0 : containsThread tp tid0)
@@ -90,17 +90,17 @@ Section poolDefs.
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
-  
+
   Definition addThread (c : cT) (smap : share_map) : thread_pool :=
     let: new_num_threads := pos_incr num_threads in
     let: new_tid := ordinal_pos_incr num_threads in
     mk new_num_threads
-        (fun (n : 'I_new_num_threads) => 
+        (fun (n : 'I_new_num_threads) =>
            match unlift new_tid n with
              | None => Kresume c (*Could be a new state Kinit?? *)
              | Some n' => tp n'
            end)
-        (fun (n : 'I_new_num_threads) => 
+        (fun (n : 'I_new_num_threads) =>
            match unlift new_tid n with
              | None => smap
              | Some n' => (share_maps tp) n'
@@ -148,7 +148,7 @@ Section poolDefs.
         exfalso. apply unlift_some in Hcontra. rewrite Hget0 in Hcontra. destruct Hcontra.
         discriminate.
   Defined.
-  
+
   Definition updThreadC tid (cont: containsThread tp tid) (c' : ctl) : thread_pool :=
     mk num_threads (fun (n : 'I_num_threads) =>
                       if n == (Ordinal cont) then c' else tp n) (share_maps tp).
@@ -158,7 +158,7 @@ Section poolDefs.
     mk num_threads (pool tp) (fun (n : 'I_num_threads) =>
                                 if n == (Ordinal cont) then smap'
                                 else (share_maps tp) n).
-  
+
   Definition shareMap_wf smap tid :=
     forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
       shareMapsJoins ((share_maps tp) (Ordinal Htid0)) smap.
@@ -184,18 +184,18 @@ Section poolDefs.
                                                                                                      (Ordinal (n:=num_threads) (m:=tid0') Htid0' == Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0'.
     - move/eqP:Heq0 => Heq0. subst.
       move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
-    - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
+    - move/eqP:Heq0=>Heq0. inversion Heq0. subst.
       apply shareMapsJoins_comm.
       eapply Hwf. simpl; auto.
     - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
       eapply Hwf. simpl; auto.
     - simpl in *. eapply Hrace_free; eauto.
   Defined.
-  
+
 
   Definition getThreadC tid (cont : containsThread tp tid) : ctl :=
     tp (Ordinal cont).
-    
+
   Definition getThreadS tid (cont : containsThread tp tid) : share_map :=
     (share_maps tp) (Ordinal cont).
 
@@ -210,7 +210,7 @@ Section poolDefs.
     { perm_comp: perm_compatible (getMaxPerm m);
       mem_canonical: isCanonical (getMaxPerm m)
     }.
-    
+
 End poolDefs.
 
 Section poolLemmas.
@@ -225,13 +225,13 @@ Section poolLemmas.
   Proof.
     intros. unfold containsThread, updThreadS in *. subst. now simpl.
   Defined.
-  
-        
+
+
   (*This broke owhen lifting getters and setters for ThreadC. Should be fixed. Nick
     suggested to abstract the machine_state for both machines and have only one set
     of proofs.*)
   (*
-  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' counter' : 
+  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' counter' :
     getThreadC (updThread tp tid c' p' counter') tid = c'.
   Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
 
@@ -239,7 +239,7 @@ Section poolLemmas.
     tid' != tid -> getThreadC (updThread tp tid c' p' counter') tid' = getThreadC tp tid'.
   Proof. by rewrite /getThreadC /updThread /=; case Heq: (tid' == tid). Defined.
 
-  Lemma gssThreadPerm (tid : 'I_(num_threads tp)) c' p' counter' : 
+  Lemma gssThreadPerm (tid : 'I_(num_threads tp)) c' p' counter' :
     getThreadPerm (updThread tp tid c' p' counter') tid = p'.
   Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
 
@@ -256,7 +256,7 @@ Section poolLemmas.
                            (cont : containsThread tp tid),
       permMapLt (share_to_access_map (getThreadS cont)) p.
   Proof.
-    intros. 
+    intros.
     unfold permMapLt; auto.
   Qed.
 
@@ -327,7 +327,7 @@ Section poolLemmas.
       destruct (p'.1 ofs); tauto.
       rewrite H; auto. destruct k; auto.
   Defined.
-  
+
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       Mem.nextblock (restrPermMap Hlt) = Mem.nextblock m.
@@ -379,7 +379,7 @@ Section poolLemmas.
                | [H: match ?Expr with _ => _ end |- _] => destruct Expr
              end; tauto.
   Qed.
-  
+
   Lemma no_race_wf : forall tid (cont: containsThread tp tid) (Hrace: race_free tp),
                        shareMap_wf tp (getThreadS cont) tid.
   Proof.
@@ -390,7 +390,7 @@ End poolLemmas.
 
 Module Concur.
   Section Concur.
-    
+
     Import ThreadPool.
     Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
 
@@ -400,18 +400,18 @@ Module Concur.
     Variable the_ge : G.
     Definition ls_id : nat := 0.
     Definition sp_id : nat := 1.
-    
+
     Record invariant (tp : thread_pool) :=
       { no_race : race_free tp;
         lock_set : forall (cont : containsThread tp ls_id), exists c,
               getThreadC cont = Krun c /\ halted the_sem c;
         share_pool : forall (cont : containsThread tp sp_id), exists c,
               getThreadC cont = Krun c /\ halted the_sem c }.
-    
+
     (* Semantics of the coarse-grained concurrent machine*)
     (* Definition cont2ord {ms tid0} (cnt: containsThread ms tid0) := *)
     (*   Ordinal cnt. *)
-    
+
     Inductive dry_step {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_dry :
@@ -425,7 +425,7 @@ Module Concur.
             (Htp': tp' = updThread cnt (Krun c')
                                    (access_to_share_map smap (getCurPerm m'))),
             dry_step cnt Hcompatible tp' m'.
-    
+
     (*missing lock-ranges*)
     Inductive ext_step {tid0 tp m}
               (cnt0: containsThread tp tid0) (Hcompat: mem_compatible tp m):
@@ -453,7 +453,7 @@ Module Concur.
             (Htp'': tp'' = updThread (updThreadS_cnt Htp') (Kresume c')
                                      smap_tid'),
             ext_step cnt0 Hcompat tp'' m'
-                     
+
     | step_unlock :
         forall  (tp' tp'':thread_pool) m1 c c' m' b ofs smap_sp' smap_tid' tmap
            (cnt_ls: containsThread tp ls_id)
@@ -472,11 +472,11 @@ Module Concur.
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
             (Hjoin1: shareMapsJoin smap_tid' tmap smap_tid)
             (Hjoin2: shareMapsJoin smap_sp tmap smap_sp')
-            (Htp': tp' = updThreadS cnt_sp smap_sp') 
+            (Htp': tp' = updThreadS cnt_sp smap_sp')
             (Htp'': tp'' = updThread (updThreadS_cnt Htp') (Kresume c')
                                    smap_tid'),
-            ext_step cnt0 Hcompat tp'' m' 
-                     
+            ext_step cnt0 Hcompat tp'' m'
+
     | step_create :
         forall  (tp_upd tp':thread_pool) c c' c_new vf arg smap_tid' tmap
            (cnt_ls: containsThread tp ls_id)
@@ -494,7 +494,7 @@ Module Concur.
             (Htp_upd: tp_upd = updThread cnt0 (Kresume c') smap_tid')
             (Htp': tp' = addThread tp_upd c_new tmap),
             ext_step cnt0 Hcompat tp' m
-                     
+
     | step_mklock :
         forall  (tp' tp'': thread_pool) m1 c c' m' b ofs smap_tid' smap_ls'
            (cnt_ls: containsThread tp ls_id),
@@ -517,8 +517,8 @@ Module Concur.
             (Htp': tp' = updThreadS cnt_ls smap_ls')
             (Htp'':
                tp'' = updThread (updThreadS_cnt Htp') (Kresume c') smap_tid'),
-            ext_step cnt0 Hcompat tp'' m' 
-                     
+            ext_step cnt0 Hcompat tp'' m'
+
     | step_freelock :
         forall  (tp' tp'': thread_pool) c c' b ofs smap_tid' smap_ls'
            (cnt_ls: containsThread tp ls_id),
@@ -536,8 +536,8 @@ Module Concur.
             (Htp': tp' = updThreadS cnt_ls smap_ls')
             (Htp'':
                tp'' = updThread (updThreadS_cnt Htp') (Kresume c') smap_tid'),
-            ext_step cnt0 Hcompat  tp'' m 
-                     
+            ext_step cnt0 Hcompat  tp'' m
+
     | step_lockfail :
         forall  c b ofs m1
            (cnt_ls: containsThread tp ls_id),
@@ -551,52 +551,52 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             ext_step cnt0 Hcompat tp m.
   End Concur.
-  
+
   Module ShareMachineSig (Sem: Semantics) <: ConcurrentMachineSig NatTID.
     (*TID = NAT*)
-    Definition tid := nat.                                             
+    Definition tid := nat.
     (*Memories*)
     Definition richMem: Type:= Sem.M.
     Definition dryMem: richMem -> mem:= fun x => x.
-    
+
     (*CODE*)
     Definition cT: Type:= Sem.C.
     Definition G: Type:= Sem.G.
     Definition Sem := Sem.Sem.
     Definition cT': Type := @ctl cT.
-    
+
     (*thread pool*)
-    Import ThreadPool.  
+    Import ThreadPool.
     Notation thread_pool := (t cT).
-    
+
     (*MACHINE VARIABLES*)
     Definition machine_state: Type:= thread_pool.
     Definition containsThread: machine_state -> tid -> Prop:=
       fun ms tid0 => tid0 < (num_threads ms).
     Definition ls_id : tid:= 0.
     Definition sp_id : tid:= 1.
-    
+
     (*INVARIANTS*)
     (*The state respects the memory*)
     Definition mem_compatible: machine_state -> mem -> Prop:=
       @mem_compatible cT.
-    
+
     (*CODE GETTER AND SETTER*)
-    Definition getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT:= @getThreadC cT.                  
+    Definition getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT:= @getThreadC cT.
     Definition updThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT -> machine_state:= @updThreadC cT.
-    
+
     (*Steps*)
     Definition cstep (genv:G): forall {tid0 ms m},
                                  containsThread ms tid0 -> mem_compatible ms m ->
                                  machine_state -> mem -> Prop:=
       @dry_step cT G Sem genv.
-    
+
     Definition conc_call (genv:G):
       forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
       fun tid ms m => @ext_step cT G Sem genv tid ms m.
-    
+
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
     | thread_halted':
@@ -606,7 +606,7 @@ Module Concur.
           forall
             (Hthread: getThreadC cnt = Krun c)
             (Hcant: halted Sem c),
-            threadHalted' cnt. 
+            threadHalted' cnt.
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
@@ -620,7 +620,7 @@ Module Concur.
       end.
   End ShareMachineSig.
 
-  
+
   (* Here I make the core semantics*)
   Variable example_G: Type.
   Variable example_C: Type.
@@ -642,7 +642,7 @@ Module Concur.
     myCoarseSemantics.MachineSemantics.
   Definition fine_semantics:=
     myFineSemantics.MachineSemantics.
-  
+
 End Concur.
 
 
@@ -663,10 +663,10 @@ End Concur.
 (*   Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}. *)
 (*   Import ThreadPool. *)
 
-  
+
 (*   Notation thread_pool := (t cT). *)
 (*   Notation perm_map := access_map. *)
-  
+
 (*   Definition at_external (st : (list nat) * thread_pool) *)
 (*   : option (external_function * signature * seq val) := None. *)
 
@@ -674,7 +674,7 @@ End Concur.
 (*     option (list nat * thread_pool) := None. *)
 
 (*   Definition two_pos : pos := mkPos NPeano.Nat.lt_0_2. *)
-  
+
 (*   Definition ord1 := Ordinal (n := two_pos) (m := 1) (leqnn two_pos). *)
 
 (*   (*not clear what the value of halted should be*) *)
@@ -710,7 +710,7 @@ End Concur.
 (*              (st' : list nat * thread_pool) m' := *)
 (*     @step cT G the_sem the_ge aggelos (@fine_step cT G the_sem the_ge) *)
 (*           (fst st) (snd st) m (fst st') (snd st') m'. *)
-  
+
 (*   Program Definition coarse_semantics : *)
 (*     CoreSemantics G (list nat * thread_pool) mem := *)
 (*     Build_CoreSemantics _ _ _ *)

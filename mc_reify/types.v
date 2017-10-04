@@ -1,12 +1,12 @@
 Require Import MirrorCore.Lambda.ExprCore.
 
-Require Import floyd_funcs.
+Require Import VST.floyd_funcs.
 
 Require Import ExtLib.Core.RelDec.
 Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
-(*Require Import progs.list_dt. *)
+(*Require Import VST.progs.list_dt. *)
 Require Import Coq.FSets.FMapPositive.
 
 Inductive typ :=
@@ -60,7 +60,7 @@ Inductive typ :=
 
 Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
     match t with
-        | tyArr a b => typD a  -> typD b 
+        | tyArr a b => typD a  -> typD b
         | tytycontext => tycontext
         | tyc_expr => expr
         | tyc_type => type

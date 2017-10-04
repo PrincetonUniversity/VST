@@ -12,11 +12,11 @@
 
 Require Import String.
 Require Import compcert.lib.Coqlib.
-Require Import ccc26x86.Decidableplus.
+Require Import VST.ccc26x86.Decidableplus.
 Require Import compcert.lib.Maps.
 Require Import compcert.common.AST.
 Require Import compcert.lib.Integers.
-Require Import ccc26x86.Op.
+Require Import VST.ccc26x86.Op.
 
 (** ** Machine registers *)
 
@@ -55,7 +55,7 @@ Proof.
 Qed.
 
 Instance Decidable_eq_mreg : forall (x y: mreg), Decidable (eq x y) := Decidable_eq mreg_eq.
-  
+
 Instance Finite_mreg : Finite mreg := {
   Finite_elements := all_mregs;
   Finite_elements_spec := all_mregs_complete

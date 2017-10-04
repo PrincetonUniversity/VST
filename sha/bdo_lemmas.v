@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.sha.
 Require Import sha.spec_sha.
@@ -64,7 +64,7 @@ reflexivity.
 Qed.
 
 Lemma  Sigma_0_eq: forall b_,
-   Sigma_0 b_ = 
+   Sigma_0 b_ =
       (Int.xor
         (Int.xor
            (Int.or (Int.shl b_ (Int.repr 30))
@@ -94,7 +94,7 @@ Proof. reflexivity.
 Qed.
 
 Lemma Maj_eq:
-  forall b c d, 
+  forall b c d,
   Maj b c d =
   (Int.xor (Int.xor (Int.and b c) (Int.and b d)) (Int.and c d)).
 Proof.
@@ -105,7 +105,7 @@ rewrite Int.xor_assoc. auto.
 Qed.
 
 Lemma sigma_1_eq:
- forall s, sigma_1 s = 
+ forall s, sigma_1 s =
    Int.xor
      (Int.xor
         (Int.or (Int.shl s (Int.repr 15))
@@ -124,7 +124,7 @@ unfold Rotr. f_equal.
 Qed.
 
 Lemma sigma_0_eq:
- forall s, sigma_0 s = 
+ forall s, sigma_0 s =
   Int.xor
    (Int.xor
      (Int.or (Int.shl s (Int.repr 25))
@@ -143,7 +143,7 @@ unfold Rotr. f_equal.
 Qed.
 
 Lemma and_mod_15_lem:
- forall (n: Z), 
+ forall (n: Z),
  (0 <= Int.signed (Int.and (Int.repr n) (Int.repr 15)) < 16)%Z.
 Proof.
 intro n.
@@ -152,14 +152,13 @@ rewrite (Int.unsigned_repr 15) by repable_signed.
 change 15%Z with (Z.ones 4).
 assert (0 <= Z.land (Int.unsigned (Int.repr n)) (Z.ones 4) < 16)%Z.
 rewrite Z.land_ones.
-apply Z.mod_bound_pos. 
+apply Z.mod_bound_pos.
 apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
 repable_signed.
 Qed.
 
-Definition Delta_loop1 : tycontext.
-simplify_Delta_from
+Definition Delta_loop1 : tycontext :=
           (initialized _h
            (initialized _g
               (initialized _f
@@ -170,7 +169,6 @@ simplify_Delta_from
                              (initialized _a
                                 (initialized _data
      (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
-Defined.
 
 Definition c64 := 64%nat.  Global Opaque c64.
 Definition c48 := 48%nat.  Global Opaque c48.

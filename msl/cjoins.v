@@ -3,19 +3,19 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
 
 Definition constructive_join_sub {A} {JOIN: Join A} (w1 w3: A) := {w2 | join w1 w2 w3}.
 
-Lemma cjoin_sub_join_sub{A} {JOIN: Join A}: 
+Lemma cjoin_sub_join_sub{A} {JOIN: Join A}:
     forall {w1 w3}, constructive_join_sub w1 w3 -> join_sub w1 w3.
 Proof.
 intros.
 destruct X as [w2 ?]; exists w2; auto.
 Qed.
 
-Lemma cjoin_sub_irr {A} `{Perm_alg A}{CA: Canc_alg A}: 
+Lemma cjoin_sub_irr {A} `{Perm_alg A}{CA: Canc_alg A}:
     forall {w1 w3: A} (j1 j2: constructive_join_sub w1 w3), proj1_sig j1 = proj1_sig j2.
 Proof.
 intros.
@@ -52,7 +52,7 @@ intros.
 destruct X as [w3 ?]; exists w3; auto.
 Qed.
 
-Lemma cjoins_irr {A} `{Perm_alg A}: forall {w1 w2: A} 
+Lemma cjoins_irr {A} `{Perm_alg A}: forall {w1 w2: A}
     (j1 j2: constructive_joins w1 w2), proj1_sig j1 = proj1_sig j2.
 Proof.
 intros.
@@ -62,7 +62,7 @@ simpl.
 apply  (join_eq j j0).
 Qed.
 
-Lemma constructive_joins_sym {A} `{Perm_alg A}: forall a b,  
+Lemma constructive_joins_sym {A} `{Perm_alg A}: forall a b,
       constructive_joins a b = constructive_joins b a.
 Proof.
 intros.
@@ -77,68 +77,68 @@ Definition same_constructive_silhouette {A} {JOIN: Join A} (a b: A) :=
                  (constructive_joins c b -> constructive_joins c a).
 
 
-  Definition sub_constructive_silhouette {A} {JOIN: Join A}  (a b: A) :=                                                                                       
+  Definition sub_constructive_silhouette {A} {JOIN: Join A}  (a b: A) :=
     forall c, constructive_joins c b -> constructive_joins c a.
 
-  Lemma sub_constructive_silhouette_refl {A} {JOIN: Join A} : forall a, sub_constructive_silhouette a a.                                                                           
-  Proof. unfold sub_constructive_silhouette; intuition. Qed.                                                                                      
-    
-  Lemma sub_constructive_silhouette_trans {A} {JOIN: Join A} : forall a b c,                                                                                          
-    sub_constructive_silhouette a b -> sub_constructive_silhouette b c -> sub_constructive_silhouette a c.                                                              
-  Proof. unfold sub_constructive_silhouette; intuition. Qed.                                                                                      
-      
-  Lemma same_constructive_silhouette_refl {A} {JOIN: Join A} : forall a, same_constructive_silhouette a a.                                                                         
-  Proof. unfold same_constructive_silhouette; intuition. Qed.                                                                                     
-        
-  Lemma same_constructive_silhouette_sym {A} {JOIN: Join A}: forall a b,                                                                                             
-    same_constructive_silhouette a b -> same_constructive_silhouette b a.                                                                                  
-  Proof. unfold same_constructive_silhouette; intuition; destruct (X c); auto. Qed.                                                               
-          
-  Lemma same_constructive_silhouette_trans {A} {JOIN: Join A}: forall a b c,                                                                                         
+  Lemma sub_constructive_silhouette_refl {A} {JOIN: Join A} : forall a, sub_constructive_silhouette a a.
+  Proof. unfold sub_constructive_silhouette; intuition. Qed.
+
+  Lemma sub_constructive_silhouette_trans {A} {JOIN: Join A} : forall a b c,
+    sub_constructive_silhouette a b -> sub_constructive_silhouette b c -> sub_constructive_silhouette a c.
+  Proof. unfold sub_constructive_silhouette; intuition. Qed.
+
+  Lemma same_constructive_silhouette_refl {A} {JOIN: Join A} : forall a, same_constructive_silhouette a a.
+  Proof. unfold same_constructive_silhouette; intuition. Qed.
+
+  Lemma same_constructive_silhouette_sym {A} {JOIN: Join A}: forall a b,
+    same_constructive_silhouette a b -> same_constructive_silhouette b a.
+  Proof. unfold same_constructive_silhouette; intuition; destruct (X c); auto. Qed.
+
+  Lemma same_constructive_silhouette_trans {A} {JOIN: Join A}: forall a b c,
     same_constructive_silhouette a b -> same_constructive_silhouette b c -> same_constructive_silhouette a c.
  Proof. unfold same_constructive_silhouette; intuition;
-             destruct (X c0); destruct (X0 c0);   auto. Qed.                                                                                   
-            
-  Lemma same_constructive_silhouette_sub1{A} {JOIN: Join A}: forall a b, 
-    same_constructive_silhouette a b -> sub_constructive_silhouette a b.                                                 
-  Proof. unfold same_constructive_silhouette, sub_constructive_silhouette; intuition; destruct (X c); auto. Qed.                                               
-              
-  Lemma same_constructive_silhouette_sub2 {A} {JOIN: Join A}: forall a b,
-     same_constructive_silhouette a b -> sub_constructive_silhouette b a.                                                 
-  Proof. unfold same_constructive_silhouette, sub_constructive_silhouette; intuition; destruct (X c); auto. Qed. 
+             destruct (X c0); destruct (X0 c0);   auto. Qed.
 
-                
-  Lemma sub_same_constructive_silhouette {A} {JOIN: Join A}: 
-    forall a b, sub_constructive_silhouette a b -> sub_constructive_silhouette b a -> same_constructive_silhouette a b.                                                    
+  Lemma same_constructive_silhouette_sub1{A} {JOIN: Join A}: forall a b,
+    same_constructive_silhouette a b -> sub_constructive_silhouette a b.
+  Proof. unfold same_constructive_silhouette, sub_constructive_silhouette; intuition; destruct (X c); auto. Qed.
+
+  Lemma same_constructive_silhouette_sub2 {A} {JOIN: Join A}: forall a b,
+     same_constructive_silhouette a b -> sub_constructive_silhouette b a.
+  Proof. unfold same_constructive_silhouette, sub_constructive_silhouette; intuition; destruct (X c); auto. Qed.
+
+
+  Lemma sub_same_constructive_silhouette {A} {JOIN: Join A}:
+    forall a b, sub_constructive_silhouette a b -> sub_constructive_silhouette b a -> same_constructive_silhouette a b.
   Proof. unfold same_constructive_silhouette, sub_constructive_silhouette; intuition; destruct (H0 c); auto. Qed.
-                  
-  Lemma same_constructive_silhouette_join {A} `{HA: Perm_alg A}:   
-    forall phi phi' phiy phiz phiz',   
-      same_constructive_silhouette phi phi' ->                                                                                                
-      join phi phiy phiz ->                                                                                                    
-      join phi' phiy phiz' ->                                                                                                  
-      same_constructive_silhouette phiz phiz'.                                                                                                
+
+  Lemma same_constructive_silhouette_join {A} `{HA: Perm_alg A}:
+    forall phi phi' phiy phiz phiz',
+      same_constructive_silhouette phi phi' ->
+      join phi phiy phiz ->
+      join phi' phiy phiz' ->
+      same_constructive_silhouette phiz phiz'.
   Proof.
     intros * H ? ?.
-    intro phiu.                                                                                                                        
-    split; intros [phix ?H].                                                                                                            
-    destruct (join_assoc H0 (join_comm H2)) as [phif [? ?]].                                                      
-    spec H phif.                                                                                                                       
+    intro phiu.
+    split; intros [phix ?H].
+    destruct (join_assoc H0 (join_comm H2)) as [phif [? ?]].
+    spec H phif.
     destruct H as [?H ?H].
-    assert (H6: constructive_joins phi phif) by (econstructor; eauto).       
-    spec H. rewrite constructive_joins_sym.  auto.                                                                                                  
-    clear H5 H6.                                                                                                                       
-    destruct H as [phix' ?H].                                                                                                           
-    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].                                                         
-    generalize (join_eq H1 (join_comm H5)); intro. rewrite <- H7 in *; clear H7 phig.                                                        
-    clear H5.                                                                                                                          
-    exists phix'.                                                                                                                      
-    auto.                                                                                                                              
-    destruct (join_assoc H1 (join_comm H2)) as [phif [? ?]].                                                        
-    spec H phif.                                                                                                                       
+    assert (H6: constructive_joins phi phif) by (econstructor; eauto).
+    spec H. rewrite constructive_joins_sym.  auto.
+    clear H5 H6.
+    destruct H as [phix' ?H].
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].
+    generalize (join_eq H1 (join_comm H5)); intro. rewrite <- H7 in *; clear H7 phig.
+    clear H5.
+    exists phix'.
+    auto.
+    destruct (join_assoc H1 (join_comm H2)) as [phif [? ?]].
+    spec H phif.
     destruct H as [?H ?H].
-    assert (H6: constructive_joins phi' phif) by (econstructor; eauto).                                                                                                         
-    spec H5. rewrite constructive_joins_sym.  auto.                                                                                                 
+    assert (H6: constructive_joins phi' phif) by (econstructor; eauto).
+    spec H5. rewrite constructive_joins_sym.  auto.
     clear H H6.
     destruct H5 as [phix' ?H].
     destruct (join_assoc (join_comm H3) H) as [phig [? ?]].

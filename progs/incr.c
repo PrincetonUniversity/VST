@@ -11,7 +11,7 @@ void incr() {
   acquire((void*)l);
   int t = ctr;
   ctr = t + 1;
-  release((void*)l);  
+  release((void*)l);
 }
 
 int read() {
@@ -40,7 +40,7 @@ int main(void)
   makelock((void*)lockt);
   /* Spawn */
   spawn((void *)&thread_func, (void *)NULL);
-   
+
   //Increment the counter
   incr();
 
@@ -51,7 +51,7 @@ int main(void)
   /* free the locks */
   freelock2((void*)lockt);
   freelock((void*)lockc);
-   
+
   /*printf("I'm done with a final counter of: %d\n", t);*/
 
   return t;

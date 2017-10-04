@@ -102,10 +102,10 @@ rewrite H. intro; discriminate.
 rewrite Zcompare_refl; intro; discriminate.
 Defined.
 
-Definition Pos_compare_cont_antisym : 
+Definition Pos_compare_cont_antisym :
   forall (p q : positive) (c : comparison),
        eq (CompOpp (Pos.compare_cont c p q))
-         (Pos.compare_cont (CompOpp c) q p ) := 
+         (Pos.compare_cont (CompOpp c) q p ) :=
 fun (p q : positive) (c : comparison) =>
 positive_ind
   (fun p0 : positive =>
@@ -163,7 +163,7 @@ positive_ind
    | 1%positive => fun c0 : comparison => eq_refl
    end) p q c.
 
-Definition Pos_compare_antisym: 
+Definition Pos_compare_antisym:
   forall p q : positive,
        eq (Pos.compare q p) (CompOpp (Pos.compare p q)) :=
   fun p q : positive =>
@@ -178,7 +178,7 @@ apply IHx in H; discriminate.
 apply IHx in H; discriminate.
 Defined.
 
-Lemma Pos_compare_cont_eq: 
+Lemma Pos_compare_cont_eq:
   forall x y c, eq (Pos.compare_cont c x y) Eq -> eq x y.
 Proof.
 induction x; destruct y; simpl; intros; auto; try discriminate.
@@ -238,7 +238,7 @@ le_ind n (fun m0 : nat => pred n <= pred m0) (le_n (pred n))
 Definition le_S_n : forall n m : nat, S n <= S m -> n <= m  :=
    fun n m => le_pred (S n) (S m).
 
-Definition max_l: forall n m : nat, m <= n -> max n m = n := 
+Definition max_l: forall n m : nat, m <= n -> max n m = n :=
 fun n : nat =>
 nat_ind (fun n0 : nat => forall m : nat, m <= n0 -> max n0 m = n0)
   (fun m : nat =>
@@ -279,7 +279,7 @@ nat_ind (fun n0 : nat => forall m : nat, m <= n0 -> max n0 m = n0)
        fun H : S m0 <= S n0 => f_equal S (IHn m0 (le_S_n m0 n0 H))
    end) n.
 
-Definition max_r     : forall n m : nat, n <= m -> max n m = m := 
+Definition max_r     : forall n m : nat, n <= m -> max n m = m :=
 fun n : nat =>
 nat_ind (fun n0 : nat => forall m : nat, n0 <= m -> max n0 m = m)
   (fun m : nat =>
@@ -320,7 +320,7 @@ nat_ind (fun n0 : nat => forall m : nat, n0 <= m -> max n0 m = m)
        fun H : S n0 <= S m0 => f_equal S (IHn m0 (le_S_n n0 m0 H))
    end) n.
 
-Definition le_n_S : forall n m : nat, n <= m -> S n <= S m := 
+Definition le_n_S : forall n m : nat, n <= m -> S n <= S m :=
 fun (n m : nat) (H : n <= m) =>
 le_ind n (fun m0 : nat => S n <= S m0) (le_n (S n))
   (fun (m0 : nat) (_ : n <= m0) (IHle : S n <= S m0) =>
@@ -336,9 +336,9 @@ le_ind m (fun p0 : nat => n <= p0) H
 
 Definition le_Sn_le: forall n m : nat, S n <= m -> n <= m :=
 fun (n m : nat) (H : S n <= m) => le_trans n (S n) m (le_S n n (le_n n)) H.
-  
+
 Definition lt_le_weak: forall n m : nat, n < m -> n <= m :=
-fun (n m : nat) (H : n < m) => le_Sn_le n m H.    
+fun (n m : nat) (H : n < m) => le_Sn_le n m H.
 
 Lemma le_or_lt: forall n m : nat, n <= m \/ m < n.
 Proof.
@@ -395,19 +395,19 @@ Defined.
 
 Definition Forall_impl: forall (A : Type) (P Q : A -> Prop),
        (forall a : A, P a -> Q a) ->
-       forall l : list A, Forall P l -> Forall Q l := 
+       forall l : list A, Forall P l -> Forall Q l :=
 fun (A : Type) (P Q : A -> Prop) (Himp : forall a : A, P a -> Q a)
   (l : list A) (H : Forall P l) =>
 Forall_ind (fun l0 : list A => Forall Q l0) (Forall_nil Q)
   (fun (x : A) (l0 : list A) (H0 : P x) (_ : Forall P l0)
      (IHForall : Forall Q l0) =>
    (fun H2 : P x -> Q x =>
-    (fun H3 : Q x => Forall_cons x H3 IHForall) (H2 H0)) 
+    (fun H3 : Q x => Forall_cons x H3 IHForall) (H2 H0))
      (Himp x)) H.
 
 Definition Forall_inv:
   forall (A : Type) (P : A -> Prop) (a : A) (l : list A),
-    Forall P (a :: l) -> P a := 
+    Forall P (a :: l) -> P a :=
 fun (A : Type) (P : A -> Prop) (a : A) (l : list A) (H : Forall P (a :: l)) =>
 (fun H0 : a :: l = a :: l -> P a => H0 eq_refl)
   match H in (Forall _ l0) return (l0 = a :: l -> P a) with
@@ -430,7 +430,7 @@ fun (A : Type) (P : A -> Prop) (a : A) (l : list A) (H : Forall P (a :: l)) =>
           eq_ind a (fun a0 : A => l0 = l -> P a0 -> Forall P l0 -> P a)
             (fun H7 : l0 = l =>
              eq_ind l (fun l1 : list A => P a -> Forall P l1 -> P a)
-               (fun (H8 : P a) (_ : Forall P l) => H8) l0 
+               (fun (H8 : P a) (_ : Forall P l) => H8) l0
                (eq_sym H7)) x (eq_sym H6)) H5)
           (f_equal
              (fun e : list A => match e with
@@ -455,7 +455,7 @@ Qed.
 *)
 Definition Forall_inv2:
   forall (A : Type) (P : A -> Prop) (a : A) (l : list A),
-       Forall P (a :: l) -> Forall P l := 
+       Forall P (a :: l) -> Forall P l :=
 fun (A : Type) (P : A -> Prop) (a : A) (l : list A) (H : Forall P (a :: l)) =>
 (fun H0 : a :: l = a :: l -> Forall P l => H0 eq_refl)
   match H in (Forall _ l0) return (l0 = a :: l -> Forall P l) with
@@ -479,7 +479,7 @@ fun (A : Type) (P : A -> Prop) (a : A) (l : list A) (H : Forall P (a :: l)) =>
             (fun a0 : A => l0 = l -> P a0 -> Forall P l0 -> Forall P l)
             (fun H7 : l0 = l =>
              eq_ind l (fun l1 : list A => P a -> Forall P l1 -> Forall P l)
-               (fun (_ : P a) (H9 : Forall P l) => H9) l0 
+               (fun (_ : P a) (H9 : Forall P l) => H9) l0
                (eq_sym H7)) x (eq_sym H6)) H5)
           (f_equal
              (fun e : list A => match e with
@@ -509,7 +509,7 @@ list_ind
      (H : forall x : A, a = x \/ In x l0 -> f x = f' x) =>
    eq_ind (f a) (fun b : B => b :: map f' l0 = f a :: map f l0)
      (eq_ind_r (fun l1 : list B => f a :: l1 = f a :: map f l0) eq_refl
-        (IHl (fun (x : A) (H0 : In x l0) => H x (or_intror H0)))) 
+        (IHl (fun (x : A) (H0 : In x l0) => H x (or_intror H0))))
      (f' a) (H a (or_introl eq_refl))) l.
 
 Definition map_map : forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),

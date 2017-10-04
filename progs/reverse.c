@@ -20,7 +20,7 @@ int sumlist (struct list *p) {
 
 struct list *reverse (struct list *p) {
   struct list *w, *t, *v;
-  w = NULL; 
+  w = NULL;
   v = p;
   while (v) {
     t = v->tail;
@@ -29,7 +29,7 @@ struct list *reverse (struct list *p) {
     v = t;
   }
   return w;
-}  
+}
 
 int main (void) {
   struct list *r; int s;

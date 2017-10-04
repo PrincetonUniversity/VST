@@ -5,7 +5,7 @@
 
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 Require Import List. Import ListNotations.
 
 Require Import compcert.lib.Integers.
@@ -14,7 +14,7 @@ Require Import sha.functional_prog.
 Require Import sha.pure_lemmas.
 Require Import sha.general_lemmas.
 
-Definition map4 {A B} (f:A -> B) a := 
+Definition map4 {A B} (f:A -> B) a :=
   match a with (a0, a1, a2, a3) => (f a0, f a1, f a2, f a3) end.
 
 Definition Zlist2Z (l:list Z) : Z :=
@@ -29,7 +29,7 @@ Goal Zmod (hexstring_to_Z "c0a8787e"%string +
 reflexivity. Qed.
 
 (*Explicit definition of sum following Bernstein's "Salsa20 specification" paper:*)
-Definition sum (a b:int): int := 
+Definition sum (a b:int): int :=
   Int.repr (Zmod (Int.unsigned a + Int.unsigned b) (2^32)).
 
 (*Of course, it's equivalnt to Int.add:*)
@@ -39,18 +39,18 @@ Proof. intros. unfold sum. rewrite Int.add_unsigned.
   apply Int.eqmod_mod. cbv; trivial.
 Qed.
 
-Lemma sum_zero_r a: sum a Int.zero = a. 
+Lemma sum_zero_r a: sum a Int.zero = a.
  unfold sum. rewrite Int.unsigned_zero.
-  rewrite Z.add_0_r. rewrite <- Int.unsigned_repr_eq. 
+  rewrite Z.add_0_r. rewrite <- Int.unsigned_repr_eq.
   rewrite Int.repr_unsigned.
   apply Int.repr_unsigned.
 Qed.
 
-Lemma sum_sym a b: sum a b = sum b a. 
+Lemma sum_sym a b: sum a b = sum b a.
  unfold sum. rewrite Z.add_comm. trivial. Qed.
 
 Lemma sum_zero_l a: sum Int.zero a = a.
-  rewrite sum_sym. apply sum_zero_r. Qed.  
+  rewrite sum_sym. apply sum_zero_r. Qed.
 
 (*We're using sum in the following because it appears to compute more nicely.*)
 
@@ -58,12 +58,12 @@ Lemma sum_zero_l a: sum Int.zero a = a.
 Definition x2i s : int := Int.repr (hexstring_to_Z s).
 
 Goal sum (x2i "c0a8787e"%string)
-         (x2i "9fd1161d"%string) = 
+         (x2i "9fd1161d"%string) =
      x2i "60798e9b"%string.
 reflexivity. Qed.
 
 Goal Int.xor (x2i "c0a8787e"%string)
-         (x2i "9fd1161d"%string) = 
+         (x2i "9fd1161d"%string) =
      x2i "5f796e63"%string.
 reflexivity. Qed.
 
@@ -89,10 +89,10 @@ Definition quarterround_old (y:QuadWord): QuadWord :=
 Lemma QR y: quarterround y = quarterround_old y.
 destruct y as [[[y0 y1] y2] y3]. simpl. repeat rewrite sum_add.
 repeat rewrite (Int.add_commut y0).
-f_equal. f_equal. f_equal. f_equal. f_equal. 
+f_equal. f_equal. f_equal. f_equal. f_equal.
 rewrite Int.add_commut.  f_equal.  f_equal. rewrite Int.add_commut. trivial.
 f_equal. rewrite Int.add_commut. trivial.
-Qed. 
+Qed.
 
 Definition zeroHex := x2i "00000000".
 Goal zeroHex = Int.zero. reflexivity. Qed.
@@ -119,13 +119,13 @@ Definition rowround(y: SixteenWord) : SixteenWord :=
   ((z0, z1, z2, z3), (z4, z5, z6, z7), (z8, z9, z10, z11), (z12, z13, z14, z15))
   end end end end end.
 
-Goal rowround (map4 x2i ("08521bd6", "1fe88837", "bb2aa576", "3aa26365"), 
-               map4 x2i ("c54c6a5b", "2fc74c2f", "6dd39cc3", "da0a64f6"), 
-               map4 x2i ("90a2f23d", "067f95a6", "06b35f61", "41e4732e"), 
+Goal rowround (map4 x2i ("08521bd6", "1fe88837", "bb2aa576", "3aa26365"),
+               map4 x2i ("c54c6a5b", "2fc74c2f", "6dd39cc3", "da0a64f6"),
+               map4 x2i ("90a2f23d", "067f95a6", "06b35f61", "41e4732e"),
                map4 x2i ("e859c100", "ea4d84b7", "0f619bff", "bc6e965a"))%string =
-      (map4 x2i ("a890d39d", "65d71596", "e9487daa", "c8ca6a86"), 
-       map4 x2i ("949d2192", "764b7754", "e408d9b9", "7a41b4d1"), 
-       map4 x2i ("3402e183", "3c3af432", "50669f96", "d89ef0a8"), 
+      (map4 x2i ("a890d39d", "65d71596", "e9487daa", "c8ca6a86"),
+       map4 x2i ("949d2192", "764b7754", "e408d9b9", "7a41b4d1"),
+       map4 x2i ("3402e183", "3c3af432", "50669f96", "d89ef0a8"),
        map4 x2i ("0040ede5", "b545fbce", "d257ed4f", "1818882d"))%string.
  reflexivity. Qed.
 
@@ -148,14 +148,14 @@ Lemma columnround_rowround: forall x,
   =
   rowround ((x0, x4, x8, x12), (x1, x5, x9, x13), (x2, x6, x10, x14), (x3, x7, x11, x15))
   end end.
-Proof. intros. 
+Proof. intros.
   destruct x as [[[X0 X1] X2] X3].
-  unfold columnround. unfold rowround. 
+  unfold columnround. unfold rowround.
   destruct X0 as [[[x0 x1] x2] x3].
   destruct X1 as [[[x4 x5] x6] x7].
   destruct X2 as [[[x8 x9] x10] x11].
   destruct X3 as [[[x12 x13] x14] x15].
-  remember (quarterround (x0, x4, x8, x12)) as QR0. 
+  remember (quarterround (x0, x4, x8, x12)) as QR0.
   remember (quarterround (x5, x9, x13, x1)) as  QR1.
   remember (quarterround (x10, x14, x2, x6)) as  QR2.
   remember (quarterround (x15, x3, x7, x11)) as  QR3.
@@ -166,13 +166,13 @@ Proof. intros.
   destruct QR3 as [[[q12 q13] q14] q15]. trivial.
 Qed.
 
-Goal columnround 
-       (map4 x2i ("08521bd6", "1fe88837", "bb2aa576", "3aa26365"), 
-        map4 x2i ("c54c6a5b", "2fc74c2f", "6dd39cc3", "da0a64f6"), 
-        map4 x2i ("90a2f23d", "067f95a6", "06b35f61", "41e4732e"), 
+Goal columnround
+       (map4 x2i ("08521bd6", "1fe88837", "bb2aa576", "3aa26365"),
+        map4 x2i ("c54c6a5b", "2fc74c2f", "6dd39cc3", "da0a64f6"),
+        map4 x2i ("90a2f23d", "067f95a6", "06b35f61", "41e4732e"),
         map4 x2i ("e859c100", "ea4d84b7", "0f619bff", "bc6e965a"))%string =
      (map4 x2i ("8c9d190a", "ce8e4c90", "1ef8e9d3", "1326a71a"),
-      map4 x2i ("90a20123", "ead3c4f3", "63a091a0", "f0708d69"), 
+      map4 x2i ("90a20123", "ead3c4f3", "63a091a0", "f0708d69"),
       map4 x2i ("789b010c", "d195a681", "eb7d5504", "a774135c"),
       map4 x2i ("481c2027", "53a8e4b5", "4c1f89c5", "3f78c9c8"))%string.
  reflexivity. Qed.
@@ -202,21 +202,21 @@ Definition littleendian (b:QuadByte): int :=
 Goal littleendian (Byte.zero, Byte.zero, Byte.zero, Byte.zero) = x2i "00000000".
   reflexivity. Qed.
 
-Goal littleendian (Byte.repr 86, Byte.repr 75, Byte.repr 30, Byte.repr 9) = 
+Goal littleendian (Byte.repr 86, Byte.repr 75, Byte.repr 30, Byte.repr 9) =
      x2i "091e4b56".
   reflexivity. Qed.
 
-Goal littleendian (Byte.repr 255, Byte.repr 255, Byte.repr 255, Byte.repr 250) = 
+Goal littleendian (Byte.repr 255, Byte.repr 255, Byte.repr 255, Byte.repr 250) =
      x2i "faffffff".
   reflexivity. Qed.
 
 Definition littleendian_invert (w:int) : QuadByte :=
-  let b3 := Int.unsigned w / (2^24) in 
+  let b3 := Int.unsigned w / (2^24) in
     let w2 := Z.modulo (Int.unsigned w) (2^24) in
-  let b2 := w2 / (2^16) in 
+  let b2 := w2 / (2^16) in
     let w1 := Z.modulo w2 (2^16) in
   let b1 := w1 / (2^8) in
-  (Byte.repr (Z.modulo w1 (2^8)), 
+  (Byte.repr (Z.modulo w1 (2^8)),
    Byte.repr b1,
     Byte.repr b2, Byte.repr b3).
 
@@ -224,7 +224,7 @@ Goal littleendian_invert (x2i "faffffff") =
      (Byte.repr 255, Byte.repr 255, Byte.repr 255, Byte.repr 250).
   reflexivity. Qed.
 
-Definition SixtyFourByte:Type := 
+Definition SixtyFourByte:Type :=
  (QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte *
   QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte)%type.
 
@@ -239,14 +239,14 @@ Definition map16 {A B} (f:A -> B) a :=
   end.
 
 Definition Salsa20r (n:nat) (x:SixtyFourByte):SixtyFourByte :=
-  match map16 littleendian x with 
+  match map16 littleendian x with
      ( x0,  x1, x2,  x3,  x4,  x5,  x6,  x7,
        x8,  x9, x10, x11, x12, x13, x14, x15) =>
     match rounds n
        ((x0, x1, x2, x3), (x4, x5, x6, x7), (x8, x9, x10, x11), (x12, x13, x14, x15))
     with ((z0,  z1,  z2,  z3), (z4,  z5,  z6, z7),
           (z8,  z9, z10, z11), (z12, z13, z14, z15))
-    => map16 littleendian_invert 
+    => map16 littleendian_invert
         (sum z0 x0, sum z1 x1, sum z2 x2, sum z3 x3,
          sum z4 x4, sum z5 x5, sum z6 x6, sum z7 x7,
          sum z8 x8, sum z9 x9, sum z10 x10, sum z11 x11,
@@ -255,7 +255,7 @@ Definition Salsa20r (n:nat) (x:SixtyFourByte):SixtyFourByte :=
   end.
 
 Definition Salsa20 (x:SixtyFourByte):SixtyFourByte :=
-  match map16 littleendian x with 
+  match map16 littleendian x with
      ( x0,  x1,  x2,  x3,  x4,  x5,  x6,  x7,
        x8,  x9,  x10, x11, x12, x13, x14, x15) =>
     match
@@ -264,7 +264,7 @@ Definition Salsa20 (x:SixtyFourByte):SixtyFourByte :=
        (x0, x1, x2, x3), (x4, x5, x6, x7), (x8, x9, x10, x11), (x12, x13, x14, x15)))))))))))
     with ((z0,  z1,  z2,  z3), (z4,  z5,  z6, z7),
           (z8,  z9, z10, z11), (z12, z13, z14, z15))
-    => map16 littleendian_invert 
+    => map16 littleendian_invert
         (sum z0 x0, sum z1 x1, sum z2 x2, sum z3 x3,
          sum z4 x4, sum z5 x5, sum z6 x6, sum z7 x7,
          sum z8 x8, sum z9 x9, sum z10 x10, sum z11 x11,
@@ -321,19 +321,19 @@ Definition Salsa20K (k n:  QuadByte * QuadByte * QuadByte * QuadByte):SixtyFourB
   end end.
 
 Definition K0 : QuadByte * QuadByte * QuadByte * QuadByte :=
-  ((Byte.repr 1, Byte.repr 2, Byte.repr 3, Byte.repr 4), 
+  ((Byte.repr 1, Byte.repr 2, Byte.repr 3, Byte.repr 4),
    (Byte.repr 5, Byte.repr 6, Byte.repr 7, Byte.repr 8),
    (Byte.repr 9, Byte.repr 10, Byte.repr 11, Byte.repr 12),
    (Byte.repr 13, Byte.repr 14, Byte.repr 15, Byte.repr 16)).
 
 Definition K1 : QuadByte * QuadByte * QuadByte * QuadByte :=
-  ((Byte.repr 201, Byte.repr 202, Byte.repr 203, Byte.repr 204), 
+  ((Byte.repr 201, Byte.repr 202, Byte.repr 203, Byte.repr 204),
    (Byte.repr 205, Byte.repr 206, Byte.repr 207, Byte.repr 208),
    (Byte.repr 209, Byte.repr 210, Byte.repr 211, Byte.repr 212),
    (Byte.repr 213, Byte.repr 214, Byte.repr 215, Byte.repr 216)).
 
 Definition n : QuadByte * QuadByte * QuadByte * QuadByte :=
-  ((Byte.repr 101, Byte.repr 102, Byte.repr 103, Byte.repr 104), 
+  ((Byte.repr 101, Byte.repr 102, Byte.repr 103, Byte.repr 104),
    (Byte.repr 105, Byte.repr 106, Byte.repr 107, Byte.repr 108),
    (Byte.repr 109, Byte.repr 110, Byte.repr 111, Byte.repr 112),
    (Byte.repr 113, Byte.repr 114, Byte.repr 115, Byte.repr 116)).
@@ -371,7 +371,7 @@ Goal SHA256.str_to_Z "expand 16-byte k" =
 reflexivity. Qed.
 
 (*Next, the HSalsa20/r function from Bernstein's paper "Extending the Salsa20 nonce"*)
-Definition ThirtyTwoByte:Type := 
+Definition ThirtyTwoByte:Type :=
  (QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte)%type.
 
 Definition SixteenByte:Type := (QuadByte * QuadByte * QuadByte * QuadByte)%type.
@@ -400,7 +400,7 @@ Definition HSalsa20_k_n_2r (r:nat) (k:ThirtyTwoByte) (nonce:SixteenByte):Sixteen
   end end end.
 
 Definition HSalsa20 (r:nat) (k:ThirtyTwoByte) (nonce:SixteenByte):ThirtyTwoByte :=
-  match HSalsa20_k_n_2r r k nonce 
+  match HSalsa20_k_n_2r r k nonce
     with ((z0,  z1,  z2,  z3), (z4,  z5,  z6, z7),
           (z8,  z9, z10, z11), (z12, z13, z14, z15))
     => (littleendian_invert z0,
@@ -431,8 +431,8 @@ Definition HSalsa20_k_n_2r' (r:nat) (k:ThirtyTwoByte) (nonce:SixteenByte):SixtyF
   match rounds r
        ((x0, x1, x2, x3), (x4, x5, x6, x7), (x8, x9, x10, x11), (x12, x13, x14, x15))
   with ((w0, w1, w2, w3), (w4, w5, w6, w7), (w8, w9, w10, w11), (w12, w13, w14, w15)) =>
-     map16 littleendian_invert (w0, w1, w2, w3, w4, w5, w6, w7, 
-                               w8, w9, w10, w11, w12, w13, w14, w15) 
+     map16 littleendian_invert (w0, w1, w2, w3, w4, w5, w6, w7,
+                               w8, w9, w10, w11, w12, w13, w14, w15)
   end end end end.
 
 Definition TwentyFourByte:Type := (QuadByte * QuadByte * QuadByte * QuadByte * QuadByte * QuadByte)%type.
@@ -473,7 +473,7 @@ Definition XSalsa20 (r:nat) (k:ThirtyTwoByte) (nonce:TwentyFourByte)(cntr:EightB
   :SixtyFourByte :=
   match XSalsa20_k_n_cntr_2r r k nonce cntr with
    ((x0, x1, x2, x3), (x4, x5, x6, x7), (x8, x9, x10, x11), (x12, x13, x14, x15))
-  => 
+  =>
   match rounds r ((x0, x1, x2, x3), (x4, x5, x6, x7), (x8, x9, x10, x11), (x12, x13, x14, x15))
 
   with ((z0,  z1,  z2,  z3), (z4,  z5,  z6, z7),
@@ -513,7 +513,7 @@ Definition XSalsa20_k_n_cntr_2r' (r:nat) (k:ThirtyTwoByte) (nonce:TwentyFourByte
         littleendian_invert z7, littleendian_invert z8, littleendian_invert z9, littleendian_invert x15)
   end end end end end.
 
-Lemma littleendian_inv b: 
+Lemma littleendian_inv b:
   littleendian_invert (littleendian b) = b.
 Proof. destruct b as [[[b0 b1] b2] b3].
   unfold littleendian_invert, littleendian.
@@ -527,53 +527,53 @@ Proof. destruct b as [[[b0 b1] b2] b3].
                apply Zmult_le_compat_l; trivial.
   assert (0 <= 2 ^ 8 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial.
   assert (0 <= 2 ^ 16 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial.
-  assert (0 <= 2 ^ 24 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial. 
+  assert (0 <= 2 ^ 24 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial.
   rewrite Int.unsigned_repr.
   Focus 2. split. clear H0 H2 H4 H6.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
-            eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
-              apply Z.add_le_mono; try eassumption. 
+            eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
+              apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; eassumption.
             rewrite int_max_unsigned_eq. simpl. omega.
-  assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 < 2 ^ 24). 
+  assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 < 2 ^ 24).
               split. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 <= 2 ^ 24 -1). 2: omega.
-              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^24) (Byte.unsigned b3)); try eassumption.
      Focus 2. rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity.
   assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 < 2 ^ 16).
              split. apply OMEGA2; trivial.
               assert (Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 <= 2 ^ 16 -1). 2: omega.
-              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
               simpl. omega.
   erewrite (Zmod_unique _ (2^16) (Byte.unsigned b2)); try eassumption.
      Focus 2. rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity.
   erewrite (Zmod_unique _ (2^8) (Byte.unsigned b1)).
      Focus 2. rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity.
-     2: apply Byte.unsigned_range. 
-  rewrite Byte.repr_unsigned. 
+     2: apply Byte.unsigned_range.
+  rewrite Byte.repr_unsigned.
     erewrite (Zdiv_unique _ _ (Byte.unsigned b1)).
-      rewrite Byte.repr_unsigned. 
+      rewrite Byte.repr_unsigned.
       erewrite (Zdiv_unique _ _ (Byte.unsigned b2)).
         rewrite Byte.repr_unsigned.
         erewrite (Zdiv_unique _ _ (Byte.unsigned b3)).
           rewrite Byte.repr_unsigned. reflexivity.
-      rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity. 
-      assumption. 
-    rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity. 
-    assumption. 
-  rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity. 
-  apply Byte.unsigned_range.  
+      rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity.
+      assumption.
+    rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity.
+    assumption.
+  rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity.
+  apply Byte.unsigned_range.
 Qed.
 
-Lemma inv_littleendian b: 
+Lemma inv_littleendian b:
   littleendian (littleendian_invert b) = b.
 Proof.
   unfold littleendian_invert, littleendian.
-  rewrite Byte.unsigned_repr. 
+  rewrite Byte.unsigned_repr.
   Focus 2. assert (0 <= ((Int.unsigned b mod 2 ^ 24) mod 2 ^ 16) mod 2 ^ 8 < Byte.max_unsigned +1). 2:omega.
            apply Z_mod_lt. simpl; omega.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
@@ -586,7 +586,7 @@ Proof.
            assert (z / 2 ^ 8 < Byte.max_unsigned + 1). 2: omega.
            assert (Byte.max_unsigned + 1 = 2^8) by reflexivity. rewrite H1; clear H1.
            apply Zdiv_lt_upper_bound; trivial.
-  rewrite Byte.unsigned_repr; trivial. 
+  rewrite Byte.unsigned_repr; trivial.
   assert (Q2: 0 <= Int.unsigned b mod 2 ^ 24 / 2 ^ 16 <= Byte.max_unsigned).
     destruct (Z_mod_lt (Int.unsigned b) (2 ^ 24)). cbv; trivial.
            split. apply Z_div_pos; trivial. cbv; trivial.
@@ -594,7 +594,7 @@ Proof.
            assert (z / 2 ^ 16 < Byte.max_unsigned + 1). 2: omega.
            assert (Byte.max_unsigned + 1 = 2^8) by reflexivity. rewrite H1; clear H1.
            apply Zdiv_lt_upper_bound; trivial.
-  rewrite Byte.unsigned_repr; trivial. 
+  rewrite Byte.unsigned_repr; trivial.
   assert (Q3: 0 <= Int.unsigned b / 2 ^ 24 <= Byte.max_unsigned).
            split. apply Z_div_pos; trivial. cbv; trivial. apply Int.unsigned_range.
            remember (Int.unsigned b).
@@ -607,7 +607,7 @@ Proof.
    2 ^ 16 * (Int.unsigned b mod 2 ^ 24 / 2 ^ 16) +
    2 ^ 24 * (Int.unsigned b / 2 ^ 24)) = Int.repr (Int.unsigned b)).
   2: rewrite Int.repr_unsigned in *; trivial.
-  f_equal. remember (Int.unsigned b). 
+  f_equal. remember (Int.unsigned b).
   assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) +
          2 ^ 16 * (z mod 2 ^ 24 / 2 ^ 16) + 2 ^ 24 * (z / 2 ^ 24) =
       2 ^ 24 * (z / 2 ^ 24) + z mod 2 ^ 24).
@@ -619,14 +619,14 @@ Proof.
   Focus 2. rewrite <- (Z.div_mod (z mod 2 ^ 24) (2^16)) in H. assumption. cbv; omega.
   rewrite Z.add_comm. f_equal.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
-  assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) = 
+  assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) =
           2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) + (z mod 2 ^ 16) mod 2 ^ 8).
   Focus 2. rewrite <- (Z.div_mod (z mod 2 ^ 16) (2^8)) in H. assumption. cbv; omega.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
   apply Z.add_comm.
-Qed. 
+Qed.
 
-Lemma littleendian_inv_iff q i: 
+Lemma littleendian_inv_iff q i:
     littleendian i = q <-> littleendian_invert q = i.
 split; intros; subst.
 apply littleendian_inv.
@@ -655,11 +655,11 @@ Module SalsaGeneralizedCascade <: GeneralizedCascade.
   Definition L:Type := SixtyFourByte.
   Definition X (k1:K1) (i1: I1) (i2: I2): L :=
     match i1 with (((x, y), z), u) =>
-    match i2 with (((a, b), c), d) => 
+    match i2 with (((a, b), c), d) =>
        XSalsa20 10 k1 (x, y, z, u, a, b) (c, d)
     end end.
 
-  Definition S (k: K2) (i: I2) : L :=  
+  Definition S (k: K2) (i: I2) : L :=
     match k with (((((((k0, k1), k2), k3), k4), k5), k6), k7) =>
      Salsa20K0K1 (((k0, k1), k2), k3) (((k4, k5), k6), k7) i
     end.
@@ -709,15 +709,15 @@ Module SalsaGeneralizedCascade <: GeneralizedCascade.
                                   littleendian
                                     (Byte.repr 116, Byte.repr 101,
                                     Byte.repr 32, Byte.repr 107))) as RHS.
-    remember 
+    remember
        (x2i "61707865", w0, w5, w10,
        (w15, x2i "3320646e", littleendian x, littleendian y),
        (littleendian z, littleendian u, x2i "79622d32", w6),
        (w7, w8, w9, x2i "6b206574")) as LHS.
-    assert (LHS = RHS). 
+    assert (LHS = RHS).
       subst. repeat rewrite inv_littleendian. reflexivity.
     rewrite H0. clear H0 HeqLHS HeqRHS LHS.
-    unfold x2i, rounds. 
+    unfold x2i, rounds.
     remember (doubleround
        (doubleround
           (doubleround
@@ -734,6 +734,6 @@ Module SalsaGeneralizedCascade <: GeneralizedCascade.
     destruct qw3 as (((x12, x13), x14), x15).
     repeat rewrite inv_littleendian. reflexivity.
 Qed.
-End SalsaGeneralizedCascade. 
+End SalsaGeneralizedCascade.
 Check SalsaGeneralizedCascade.X_char.
 (*About 1 day*)

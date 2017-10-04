@@ -6,10 +6,10 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
-Require Import compcert.common.AST. 
+Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 (** * Interaction Semantics *)
 
@@ -22,7 +22,7 @@ Require Import sepcomp.mem_lemmas.
 (** [at_external] gives a way to determine when the sequential
    execution is blocked on an extension call, and to extract the
    data necessary to execute the call. *)
-   
+
 (** [after_external] give a way to inject the extension call results
    back into the sequential state so execution can continue. *)
 
@@ -44,20 +44,20 @@ Require Import sepcomp.mem_lemmas.
 (** -3 a state cannot both be halted and blocked on an external call. *)
 
 Record CoreSemantics {G C M : Type} : Type :=
-  { initial_core : G -> val -> list val -> option C
+  { initial_core : nat -> G -> val -> list val -> option C
   ; at_external : C -> option (external_function * list val)
   ; after_external : option val -> C -> option C
   ; halted : C -> option val
   ; corestep : G -> C -> M -> C -> M -> Prop
 
-  ; corestep_not_at_external: 
+  ; corestep_not_at_external:
       forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
-  ; corestep_not_halted: 
+  ; corestep_not_halted:
       forall ge m q m' q', corestep ge q m q' m' -> halted q = None
-  ; at_external_halted_excl: 
+  ; at_external_halted_excl:
       forall q, at_external q = None \/ halted q = None }.
 
-Implicit Arguments CoreSemantics [].
+Arguments CoreSemantics : clear implicits.
 
 Inductive mem_step m m' : Prop :=
     mem_step_storebytes: forall b ofs bytes,
@@ -77,7 +77,7 @@ Record perm_lesseq (m m': mem):= {
 ; perm_le_Max:
     forall b ofs, Mem.perm_order'' ((Mem.mem_access m')#b ofs Max) ((Mem.mem_access m)#b ofs Max)
 ; perm_le_cont:
-    forall b ofs, Mem.perm m b ofs Cur Readable -> 
+    forall b ofs, Mem.perm m b ofs Cur Readable ->
      ZMap.get ofs (Mem.mem_contents m') !! b= ZMap.get ofs (Mem.mem_contents m) !! b
 ; perm_le_nb: Mem.nextblock m = Mem.nextblock m'
 }.
@@ -95,4 +95,4 @@ Record MemSem {G C} :=
          exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'*)
   }.
 
-Implicit Arguments MemSem [].
+Arguments MemSem : clear implicits.

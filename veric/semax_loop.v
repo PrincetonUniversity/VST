@@ -1,24 +1,24 @@
-Require Import veric.juicy_base.
-Require Import msl.normalize.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.semax.
-Require Import veric.semax_lemmas.
-Require Import veric.semax_congruence.
-Require Import veric.Clight_lemmas.
+Require Import VST.veric.juicy_base.
+Require Import VST.msl.normalize.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_new.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.semax_congruence.
+Require Import VST.veric.Clight_lemmas.
 
-Open Local Scope pred.
-Open Local Scope nat_scope.
+Local Open Scope pred.
+Local Open Scope nat_scope.
 
 Section extensions.
 Context (Espec : OracleKind).
@@ -29,63 +29,12 @@ intros; apply same_glob_funassert. rewrite glob_specs_update_tycon. auto.
 Qed.
 
 
-Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.
-Proof.
-intros.
-split; auto.
-intros. destruct ((temp_types Delta)!id) as [[? ?]|]; auto.
-split; auto. destruct b; reflexivity.
-Qed.
-
-
-Lemma tycontext_evolve_join:
-  forall Delta Delta1 Delta2,
-   tycontext_evolve Delta Delta1 ->
-   tycontext_evolve Delta Delta2 ->
-   tycontext_evolve Delta (join_tycon Delta1 Delta2).
-Proof.
-intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
-  [? [? [? [? ?]]]] [? [? [? [? ?]]]];
-simpl in *;
- repeat split; auto.
- clear - H H4.
-intro id; specialize (H id); specialize (H4 id).
- unfold temp_types in *; simpl in *.
- destruct (A ! id) as [[? ?]|].
- destruct (A1 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct (A2 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct H,H4; subst t1 t0.
- rewrite (join_te_eqv _ _ _ _ _ _ Heqo Heqo0).
- split; auto. destruct b,b0; inv H0; auto.
- rewrite join_te_denote2.
- unfold te_one_denote.
- destruct (A1 ! id) as [[? ?]|]; [contradiction|].
- auto.
-Qed.
-
-Lemma tycontext_evolve_update_tycon:
- forall c Delta, tycontext_evolve Delta (update_tycon Delta c)
- with tycontext_evolve_join_labeled:
- forall l Delta, tycontext_evolve Delta (join_tycon_labeled l Delta).
-Proof.
-clear tycontext_evolve_update_tycon.
-induction c; simpl; intros; try destruct o; try apply tycontext_evolve_refl;
-try apply initialized_tycontext_evolve.
-eapply tycontext_evolve_trans; [ apply IHc1 | apply IHc2].
-apply tycontext_evolve_join; auto.
-auto.
-clear tycontext_evolve_join_labeled.
-induction l; simpl; auto; intros.
-apply tycontext_evolve_refl.
-apply tycontext_evolve_join; auto.
-Qed.
-
-Lemma semax_ifthenelse {CS: compspecs}: 
+Lemma semax_ifthenelse {CS: compspecs}:
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Espec Delta (fun rho => P rho && !! expr_true b rho) c R -> 
-     semax Espec Delta (fun rho => P rho && !! expr_false b rho) d R -> 
-     semax Espec Delta 
+     semax Espec Delta (fun rho => P rho && !! expr_true b rho) c R ->
+     semax Espec Delta (fun rho => P rho && !! expr_false b rho) d R ->
+     semax Espec Delta
               (fun rho => tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho && P rho)
               (Sifthenelse b c d) R.
 Proof.
@@ -142,7 +91,7 @@ Focus 2. {
 } Unfocus.
 *)
 apply andp_derives; auto.
-unfold exit_tycon; simpl. destruct ek; simpl; auto. 
+unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join2 with Delta'; auto;
   apply tycontext_evolve_update_tycon.
@@ -186,15 +135,14 @@ assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2'). 
  destruct TC2' as [TC2' TC2'a].
 assert (exists b': bool, Cop.bool_val (eval_expr b rho) (typeof b) (m_dry jm) = Some b'). {
 clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
- rewrite tc_val_eq in TCS.
  simpl in TCS. unfold_lift in TCS.
  unfold Cop.bool_val;
  destruct (eval_expr b rho) eqn:H15;
  simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
     intuition; simpl in *; try rewrite TCS; eauto;
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2';
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
  simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2';
- subst; rewrite comparable1; eauto.
+ subst; rewrite tc_test_eq0; eauto.
 } clear TCS.
 (* typechecking proof *)
 destruct H9 as [b' ?].
@@ -205,12 +153,12 @@ revert H10; case_eq (level jm); intros.
 omegaContradiction.
 apply levelS_age1 in H10. destruct H10 as [jm' ?].
 clear H11.
-apply (@safe_step'_back2  _ _ _ _ _ _ _ _ psi ora _ jm 
+apply (@safe_step'_back2  _ _ _ _ _ _ _ _ psi ora _ jm
         (State vx tx (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.
-apply age1_resource_decay; auto. 
-apply age_level; auto. 
+apply age1_resource_decay; auto.
+apply age_level; auto.
 change (level (m_phi jm)) with (level jm).
 replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H10; omega).
 eapply @age_safe; try apply H10.
@@ -229,12 +177,12 @@ rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H9 TC2.
 unfold typed_true, strict_bool_val.
-destruct (eval_expr b rho) eqn:H16, 
+destruct (eval_expr b rho) eqn:H16,
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
  simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_comparable in TC2;
+ unfold denote_tc_test_eq in TC2;
  rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2;
  subst; rewrite Int.eq_true; reflexivity.
 eapply H1; auto.
@@ -249,13 +197,13 @@ unfold tc_expr in TC2.
  destruct TC2 as [TC2 TC2a].
 clear - H9 TC2.
 unfold typed_false, strict_bool_val.
-destruct (eval_expr b rho) eqn:H16, 
+destruct (eval_expr b rho) eqn:H16,
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
  try (rewrite negb_false_iff in H0; rewrite H0); auto.
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
  simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_comparable in TC2;
+ unfold denote_tc_test_eq in TC2;
  rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2.
  unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
  unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
@@ -263,7 +211,7 @@ destruct (eval_expr b rho) eqn:H16,
 }
 Qed.
 (*
-Lemma seq_assoc1:  
+Lemma seq_assoc1:
    forall Delta P s1 s2 s3 R,
         semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R ->
         semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
@@ -281,10 +229,10 @@ specialize (H te ve y H0 a' H1 H2).
 clear - H.
 intros ora jm _ H2; specialize (H ora jm (eq_refl _) H2).
 clear - H.
-destruct (@level rmap ag_rmap a'); simpl in *; auto. 
+destruct (@level rmap ag_rmap a'); simpl in *; auto.
 constructor.
 inv H.
-{ destruct (corestep_preservation_lemma Espec psi 
+{ destruct (corestep_preservation_lemma Espec psi
                      (Kseq (Ssequence s2 s3) :: k)
                      (Kseq s2 :: Kseq s3 :: k)
                      ora ve te jm n (Kseq s1) nil c' m')
@@ -299,10 +247,10 @@ clear.
 hnf; intros.
 eapply convergent_controls_safe; try apply H0; simpl; auto.
 clear; intros.
-destruct H as [H1 [H1a H1b]]; split3; auto.  inv H1; auto. 
-destruct H1 as (?&?&?). constructor; eauto. 
+destruct H as [H1 [H1a H1b]]; split3; auto.  inv H1; auto.
+destruct H1 as (?&?&?). constructor; eauto.
 simpl in H|-*. inv H. auto.
-destruct H as [H1' [H1a H1b]]. 
+destruct H as [H1' [H1a H1b]].
 econstructor; eauto.
 split3; auto.  inv H1; auto.
 do 2 econstructor. auto.
@@ -311,16 +259,16 @@ simpl in H1. congruence.
 simpl in H0. unfold cl_halted in H0. congruence.
 Qed.
 *)
-Ltac inv_safe H := 
+Ltac inv_safe H :=
   inv H;
-  try solve[match goal with 
-    | H : semantics.at_external _ _ = _ |- _ => 
+  try solve[match goal with
+    | H : semantics.at_external _ _ = _ |- _ =>
       simpl in H; congruence
-    | H : semantics.halted _ _ = _ |- _ => 
+    | H : semantics.halted _ _ = _ |- _ =>
       simpl in H; unfold cl_halted in H; congruence
   end].
 (*
-Lemma seq_assoc2:  
+Lemma seq_assoc2:
    forall Delta P s1 s2 s3 R,
         semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R ->
         semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R.
@@ -340,7 +288,7 @@ intros ora jm _ H2; specialize (H ora jm (eq_refl _) H2).
 clear - H.
 destruct (@level rmap ag_rmap a'); simpl in *. constructor.
 inv_safe H.
-destruct (corestep_preservation_lemma Espec psi 
+destruct (corestep_preservation_lemma Espec psi
                      (Kseq s2 :: Kseq s3 :: k)
                      (Kseq (Ssequence s2 s3) :: k)
                      ora ve te jm n (Kseq s1) nil c' m')
@@ -358,12 +306,12 @@ eapply convergent_controls_safe; try apply H0; simpl; auto.
 clear; intros.
 destruct H as [H1 [H1a H1b]]; split3; auto.
 constructor; auto.
-destruct H1 as (?&?&?). constructor; eauto. 
+destruct H1 as (?&?&?). constructor; eauto.
 simpl in H|-*. inv H. inv H11. auto.
 econstructor; eauto.
 destruct H as [H1' [H1a H1b]]; split3; auto.
 inv H1. inv H; auto. constructor. auto.
-Qed. 
+Qed.
 *)
 Lemma seq_assoc {CS: compspecs}:
   forall Delta P s1 s2 s3 R,
@@ -476,7 +424,7 @@ specialize (H2 ek vl tx vx).
 replace (exit_tycon h Delta' ek) with Delta'
  by (destruct ek; try congruence; auto).
 replace (exit_tycon (Ssequence h t) Delta' ek) with Delta'
-  in H2 
+  in H2
  by (destruct ek; try congruence; auto).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp.
@@ -485,9 +433,9 @@ Qed.
 
 Lemma control_as_safe_refl psi n k : control_as_safe Espec psi n k k.
 Proof.
-intros ????? H; inversion 1; subst. constructor. 
+intros ????? H; inversion 1; subst. constructor.
 econstructor; eauto.
-simpl in *. congruence. 
+simpl in *. congruence.
 simpl in H1. unfold cl_halted in H1. congruence.
 Qed.
 
@@ -542,7 +490,7 @@ destruct H as [H1 [H1a H1b]]; split3; auto.
 solve[inv H1; auto]. }
 { destruct H1 as (?&?&?). econstructor; eauto. inv H. auto. }
 econstructor; eauto.
-Qed. 
+Qed.
 
 Lemma semax_skip_seq {CS: compspecs}:
   forall Delta P s Q,
@@ -578,7 +526,7 @@ revert w H; apply guard_safe_adj; [reflexivity | ].
   inv H. inv H10; auto.
 Qed.
 
-Lemma semax_loop {CS: compspecs}: 
+Lemma semax_loop {CS: compspecs}:
 forall Delta Q Q' incr body R,
      semax Espec Delta Q body (loop1_ret_assert Q' R) ->
      semax Espec Delta Q' incr (loop2_ret_assert Q R) ->
@@ -607,26 +555,26 @@ Proof.
   apply assert_safe_last; intros a2 LEVa2.
   assert (NEC2: necR w (level a2)).
   Focus 1. {
-    apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5. 
+    apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5.
     change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
-    change compcert_rmaps.R.rmap with rmap in *; omega.
+    omega.
   } Unfocus.
   assert (LT: level a2 < level w).
   Focus 1. {
-    apply age_level in LEVa2. apply necR_nat in H5. 
+    apply age_level in LEVa2. apply necR_nat in H5.
     clear - H4 H5 LEVa2.
     change w with (level w) in H4.
-    change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
+    change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2.
     apply nec_nat in H5. omega.
   } Unfocus.
-  assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2)) 
+  assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2))
     by (apply pred_nec_hereditary with w; auto).
   generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
   remember (construct_rho (filter_genv psi) vx tx) as rho.
   pose proof I.
   intros ora jm RE H11.
   pose (H10:=True).
-  replace (level a') with (S (level a2)) 
+  replace (level a') with (S (level a2))
     by (apply age_level in LEVa2;  rewrite LEVa2; apply minus_n_O).
   subst a'.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm' LEVa2'].
@@ -653,7 +601,7 @@ Proof.
   clear Delta TS.
   assert (w >= level (m_phi jm)).
   Focus 1. {
-    apply necR_nat in H5. apply nec_nat in H5. 
+    apply necR_nat in H5. apply nec_nat in H5.
     change R.rmap with rmap in *; omega.
   } Unfocus.
   clear y H5 H4. rename H11 into H5. pose (H4:=True).
@@ -696,7 +644,7 @@ Proof.
             rewrite sepcon_comm. auto.
       + unfold frame_ret_assert. normalize.
       + unfold frame_ret_assert. normalize.
-      + unfold frame_ret_assert. 
+      + unfold frame_ret_assert.
         change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
           with (exit_cont EK_return vl2 k).
         eapply subp_trans'; [ | apply H3'].
@@ -723,7 +671,7 @@ Proof.
       rewrite sepcon_comm.
       unfold loop1_ret_assert.
       intros tx3 vx3.
-      auto.
+      auto. normalize in vx3; auto.
   + intros tx3 vx3.
     unfold loop1_ret_assert, frame_ret_assert.
     eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
@@ -739,7 +687,7 @@ Proof.
       apply derives_subp.
       apply andp_derives; auto.
       rewrite sepcon_comm.
-      apply andp_derives; auto.
+      apply andp_derives; auto. normalize; auto.
     } Unfocus.
     clear tx2 vx2.
     intros ek2 vl2 tx2 vx2.
@@ -751,7 +699,7 @@ Proof.
       intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
     - eapply subp_trans'; [ | eapply H1; eauto].
       apply derives_subp.
-      rewrite funassert_exit_tycon; 
+      rewrite funassert_exit_tycon;
       apply andp_derives; auto.
       apply andp_derives; auto.
       * simpl exit_tycon.
@@ -764,6 +712,7 @@ Proof.
         intros tx4 vx4.
         unfold frame_ret_assert in H3', vx4.
         rewrite sepcon_comm; auto.
+        normalize in vx4; auto.
     - intros tx4 vx4.
       unfold frame_ret_assert in H3', vx4|-*.
       unfold loop2_ret_assert. normalize.
@@ -783,7 +732,7 @@ Proof.
     unfold loop1_ret_assert.
     auto.
 Qed.
-   
+
 Lemma semax_break {CS: compspecs}:
    forall Delta Q,        semax Espec Delta (Q EK_break None) Sbreak Q.
 Proof.
@@ -806,11 +755,11 @@ Proof.
   destruct (@level rmap _ a). constructor.
   apply convergent_controls_safe with (State ve te (break_cont k)); auto.
   simpl.
-   
-  intros. 
+
+  intros.
   destruct H3 as [? [? ?]].
   split3; auto.
-   
+
   econstructor; eauto.
 Qed.
 
@@ -837,7 +786,7 @@ destruct (@level rmap _ a). constructor.
 apply convergent_controls_safe with (State ve te (continue_cont k)); auto.
 simpl.
 
-intros. 
+intros.
 destruct H3 as [? [? ?]].
 split3; auto.
 

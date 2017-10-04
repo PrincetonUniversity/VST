@@ -9,33 +9,33 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 
 Require Import compcert.cfrontend.Ctypes. (*for type and access_mode*)
-Require Import sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
+Require Import VST.sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
 
-Require Import msl.Axioms.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach. 
-Require Import sepcomp.semantics. 
-Require Import sepcomp.semantics_lemmas. 
-Require Import sepcomp.effect_semantics. 
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.globalSep.
+Require Import VST.msl.Axioms.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.effect_properties.
+Require Import VST.sepcomp.globalSep.
 
-Require Import ccc26x86.I64Helpers.
+Require Import VST.ccc26x86.I64Helpers.
 
 Definition memcpy_Effect sz vargs m:=
-       match vargs with 
+       match vargs with
           Vptr b1 ofs1 :: Vptr b2 ofs2 :: _ => (*CompCert2.1 had pattern Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil here*)
           fun b z => eq_block b b1 && zle (Int.unsigned ofs1) z && zle 0 sz &&
                      zlt z (Int.unsigned ofs1 + sz) && valid_block_dec m b
        | _ => fun b z => false
        end.
-      
+
 Lemma memcpy_Effect_unchOn: forall m bsrc osrc sz bytes bdst odst m'
         (LD: Mem.loadbytes m bsrc (Int.unsigned osrc) sz = Some bytes)
         (ST: Mem.storebytes m bdst (Int.unsigned odst) bytes = Some m')
         (SZ: sz >= 0),
     Mem.unchanged_on
-      (fun b z=> memcpy_Effect sz (Vptr bdst odst :: Vptr bsrc osrc :: nil) 
+      (fun b z=> memcpy_Effect sz (Vptr bdst odst :: Vptr bsrc osrc :: nil)
                  m b z = false) m m'.
 Proof. intros.
   split; intros.
@@ -47,7 +47,7 @@ Proof. intros.
     destruct (valid_block_dec m b); simpl in *. rewrite andb_true_r in H; clear v.
     destruct (eq_block b bdst); subst; simpl in *.
       rewrite PMap.gss. apply Mem.setN_other.
-      intros. intros N; subst. 
+      intros. intros N; subst.
         rewrite (Mem.loadbytes_length _ _ _ _ _ LD), nat_of_Z_eq in H1; trivial.
           destruct (zle (Int.unsigned odst) ofs); simpl in *.
             destruct (zle 0 sz); simpl in *. 2: omega.
@@ -59,31 +59,31 @@ Qed.
 
 Lemma external_call_memcpy_unchOn:
     forall {F V:Type} (ge : Genv.t F V) e m ty b1 ofs1 b2 ofs2 m' a tr vres,
-    external_call (EF_memcpy (sizeof e ty) a) ge 
-                  (Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil) m tr vres m' -> 
+    external_call (EF_memcpy (sizeof e ty) a) ge
+                  (Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil) m tr vres m' ->
     Mem.unchanged_on
-      (fun b z=> memcpy_Effect (sizeof e ty) (Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil) 
+      (fun b z=> memcpy_Effect (sizeof e ty) (Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil)
                  m b z = false) m m'.
 Proof. intros. inv H.
   eapply memcpy_Effect_unchOn; try eassumption.
 Qed.
- 
+
 Lemma memcpy_Effect_validblock:
     forall {F V:Type} (ge : Genv.t F V) m sz vargs b z,
     memcpy_Effect sz vargs m b z = true ->
     Mem.valid_block m b.
 Proof. intros.
- unfold memcpy_Effect in H.  
+ unfold memcpy_Effect in H.
   destruct vargs; try discriminate.
   destruct v; try discriminate.
   destruct vargs; try discriminate.
   destruct v; try discriminate.
-  rewrite andb_true_iff in H. destruct H. 
-  destruct (valid_block_dec m b); try discriminate. trivial. 
+  rewrite andb_true_iff in H. destruct H.
+  destruct (valid_block_dec m b); try discriminate. trivial.
 Qed.
-  
+
 Definition free_Effect vargs m:=
-       match vargs with 
+       match vargs with
           Vptr b1 lo :: _ =>  (*LENB: For CompCert2.1, had pattern Vptr b1 lo :: nil => here*)
           match Mem.load Mint32 m b1 (Int.unsigned lo - 4)
           with Some (Vint sz) =>
@@ -98,11 +98,11 @@ Definition free_Effect vargs m:=
 Lemma free_Effect_unchOn: forall {F V : Type} (g : Genv.t F V)
         vargs m t vres m' (FR : external_call EF_free g vargs m t vres m'),
      Mem.unchanged_on (fun b z => free_Effect vargs m b z = false) m m'.
-Proof. intros. inv FR. 
+Proof. intros. inv FR.
   eapply Mem.free_unchanged_on. eassumption.
   intros. unfold free_Effect. rewrite H.
     destruct (eq_block b b); simpl.
-      clear e. destruct (zlt 0 (Int.unsigned sz)); simpl; try omega. 
+      clear e. destruct (zlt 0 (Int.unsigned sz)); simpl; try omega.
       clear l. destruct (zlt 0 (Int.unsigned sz)); simpl; try omega.
       clear l. destruct (zle (Int.unsigned lo - 4) i); simpl; try omega.
       clear l. destruct (zlt i (Int.unsigned lo + Int.unsigned sz)); simpl; try omega.
@@ -110,7 +110,7 @@ Proof. intros. inv FR.
    elim n; trivial.
 Qed.
 
-Lemma freeEffect_valid_block vargs m: forall b z 
+Lemma freeEffect_valid_block vargs m: forall b z
         (FR: free_Effect vargs m b z = true),
       Mem.valid_block m b.
 Proof. intros.
@@ -155,11 +155,11 @@ Proof. intros.
           rewrite (Mem.nextblock_store _ _ _ _ _ _ H0).
           rewrite (Mem.nextblock_alloc _ _ _ _ _ H). apply Ple_succ.
           unfold Mem.perm. rewrite (Mem.store_access _ _ _ _ _ _ H0).
-          split; intros. 
-            eapply Mem.perm_alloc_1; eassumption. 
+          split; intros.
+            eapply Mem.perm_alloc_1; eassumption.
             eapply Mem.perm_alloc_4; try eassumption.
               intros N. subst. eapply Mem.fresh_block_alloc; eassumption.
-        rewrite <- (AllocContentsOther _ _ _ _ _ H). 
+        rewrite <- (AllocContentsOther _ _ _ _ _ H).
                 rewrite (Mem.store_mem_contents _ _ _ _ _ _ H0).
                 rewrite PMap.gso. trivial.
                 intros N; subst. apply Mem.perm_valid_block in H2.
@@ -172,7 +172,7 @@ Section BUILTINS.
 Require Import String.
 Inductive is_I64_builtinS : String.string -> signature -> Prop :=
   bltin_neglS: is_I64_builtinS "__builtin_negl" sig_l_l
-| bltin_addlS: is_I64_builtinS "__builtin_addl" sig_ll_l 
+| bltin_addlS: is_I64_builtinS "__builtin_addl" sig_ll_l
 | bltin_sublS: is_I64_builtinS "__builtin_subl" sig_ll_l
 | bltin_mullS: is_I64_builtinS "__builtin_mull" sig_ii_l.
 
@@ -210,18 +210,18 @@ Lemma observableEF_dec ef: {observableEF ef} + {~observableEF ef}.
 Proof.
 destruct ef; simpl; try solve[left; trivial].
   destruct (is_I64_helperS_dec name sg).
-    right. intros N. apply (N i). 
-    left; trivial. 
+    right. intros N. apply (N i).
+    left; trivial.
   destruct (is_I64_builtinS_dec name sg).
-    right. intros N. apply (N i). 
-    left; trivial. 
+    right. intros N. apply (N i).
+    left; trivial.
   right; intros N. trivial.
   right; intros N. trivial.
   right; intros N. trivial.
 Qed.
 
 Definition EFisHelper ef :=
-match ef with 
+match ef with
     EF_builtin name sg => is_I64_builtinS name sg
   | EF_external name sg => is_I64_helperS name sg
   | _ => False
@@ -230,37 +230,37 @@ end.
 Lemma EFhelpers ef: EFisHelper ef -> ~ observableEF ef.
 Proof. unfold observableEF; intros. intros N.
 destruct ef; simpl in H; trivial. apply (N H). apply (N H).
-Qed. 
+Qed.
 
-Lemma EFhelpersE name sg: 
+Lemma EFhelpersE name sg:
   ~ observableEF (EF_external name sg) ->
   is_I64_helperS name sg.
-Proof. 
+Proof.
 unfold observableEF. intros.
-destruct (is_I64_helperS_dec name sg). 
+destruct (is_I64_helperS_dec name sg).
   trivial.
-  elim (H n). 
-Qed. 
+  elim (H n).
+Qed.
 
-Lemma EFhelpersB name sg: 
+Lemma EFhelpersB name sg:
   ~observableEF (EF_builtin name sg) ->
   is_I64_builtinS name sg.
-Proof. 
+Proof.
 unfold observableEF. intros.
-destruct (is_I64_builtinS_dec name sg). 
+destruct (is_I64_builtinS_dec name sg).
   trivial.
-  elim (H n). 
-Qed. 
+  elim (H n).
+Qed.
 
 Lemma obs_efB name sg : is_I64_builtinS name sg ->
      ~ observableEF (EF_builtin name sg).
-Proof. intros. unfold observableEF. 
+Proof. intros. unfold observableEF.
   intros N. apply (N H).
 Qed.
 
 Lemma obs_efE name sg : is_I64_helperS name sg ->
      ~ observableEF (EF_external name sg).
-Proof. intros. unfold observableEF. 
+Proof. intros. unfold observableEF.
   intros N. apply (N H).
 Qed.
 
@@ -297,7 +297,7 @@ Axiom i64_helpers_correct :
  /\ (forall x y, external_implements "__i64_shr" sig_li_l (x::y::nil) (Val.shrlu x y))
  /\ (forall x y, external_implements "__i64_sar" sig_li_l (x::y::nil) (Val.shrl x y)).
 
-(*Does not typecheck 
+(*Does not typecheck
 Definition helper_declared {F V: Type} (p: AST.program (AST.fundef F) V) (id: ident) (name: string) (sg: signature) : Prop :=
   (prog_defmap p)!id = Some (Gfun (External (EF_runtime name sg))).
 
@@ -346,7 +346,7 @@ Definition helper_functions_declared {F V: Type} (ge: Genv.t (AST.fundef F) V) (
   /\ builtin_mem_refl "__builtin_subl" sig_ll_l
   /\ builtin_mem_refl "__builtin_mull" sig_ii_l.
 *)
-Definition builtin_injects name sg:= forall {F V TF TV: Type} 
+Definition builtin_injects name sg:= forall {F V TF TV: Type}
   (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
    vargs tvargs t vres m m' j tm,
@@ -364,10 +364,10 @@ Axiom Builtins_inject:
  builtin_injects "__builtin_subl" sig_ll_l /\
  builtin_injects "__builtin_mull"  sig_ii_l.
 (*
-Lemma builtins_inject: forall {F V TF TV: Type} 
-  (ge: Genv.t (AST.fundef F) V) (tge : Genv.t (AST.fundef TF) TV) 
+Lemma builtins_inject: forall {F V TF TV: Type}
+  (ge: Genv.t (AST.fundef F) V) (tge : Genv.t (AST.fundef TF) TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
-  hf (HF: helper_functions_declared ge hf) (THF: helper_functions_declared tge hf) 
+  hf (HF: helper_functions_declared ge hf) (THF: helper_functions_declared tge hf)
   (*ide*) name sg vargs m t vres m1 mu tm vargs'
   (WD : SM_wd mu)
   (SMV : sm_valid mu m tm)
@@ -394,18 +394,18 @@ Lemma builtins_inject: forall {F V TF TV: Type}
      SM_wd mu' /\
      sm_valid mu' m1 tm1 /\
      REACH_closed m1 (vis mu').
-Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9 
+Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9
            [HLP10 [HLP11 [HLP12 [HLP13 [BLTneg [BLTadd [BLTsub BLTmul]]]]]]]]]]]]]]]].
-  destruct THF as [THLP1 [THLP2 [THLP3 [THLP4 [THLP5 [THLP6 [THLP7 [THLP8 [THLP9 
+  destruct THF as [THLP1 [THLP2 [THLP3 [THLP4 [THLP5 [THLP6 [THLP7 [THLP8 [THLP9
            [THLP10 [THLP11 [THLP12 [THLP13 [TBLTneg [TBLTadd [TBLTsub TBLTmul]]]]]]]]]]]]]]]].
-  destruct Builtins_inject as [I64_i_1 [I64_i_2 [I64_i_3 I64_i_4]]]. 
+  destruct Builtins_inject as [I64_i_1 [I64_i_2 [I64_i_3 I64_i_4]]].
 specialize (inject_restrict _ _ _ _ MINJ RC); intros MI.
 inv OBS.
 { (*negl*)
   destruct (I64_i_1 _ _ _ _ ge tge SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [res_inj tm_inj]]]].
   apply TBLTneg in EC. specialize (TBLTneg _ _ _ _ _ _ _ _ TEC). subst m1 tm1.
-  exists mu, tvres, tm. intuition. 
+  exists mu, tvres, tm. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -416,7 +416,7 @@ inv OBS.
   destruct (I64_i_2 _ _ _ _ ge tge SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [res_inj tm_inj]]]].
   apply TBLTadd in EC. specialize (TBLTadd _ _ _ _ _ _ _ _ TEC). subst m1 tm1.
-  exists mu, tvres, tm. intuition. 
+  exists mu, tvres, tm. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -427,7 +427,7 @@ inv OBS.
   destruct (I64_i_3 _ _ _ _ ge tge SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [res_inj tm_inj]]]].
   apply TBLTsub in EC. specialize (TBLTsub _ _ _ _ _ _ _ _ TEC). subst m1 tm1.
-  exists mu, tvres, tm. intuition. 
+  exists mu, tvres, tm. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -438,7 +438,7 @@ inv OBS.
   destruct (I64_i_4 _ _ _ _ ge tge SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [res_inj tm_inj]]]].
   apply TBLTmul in EC. specialize (TBLTmul _ _ _ _ _ _ _ _ TEC). subst m1 tm1.
-  exists mu, tvres, tm. intuition. 
+  exists mu, tvres, tm. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -447,8 +447,8 @@ inv OBS.
       try rewrite freshloc_irrefl; intuition. }
 Qed.
 
-Definition i64_injects name sg:= forall {F V TF TV: Type} 
-  (ge: Genv.t F V) (tge : Genv.t TF TV) 
+Definition i64_injects name sg:= forall {F V TF TV: Type}
+  (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
    vargs tvargs t vres m m' j tm,
   Val.inject_list j vargs tvargs ->
@@ -474,10 +474,10 @@ Axiom i64s_inject:
   /\ i64_injects "__i64_shr" sig_li_l
   /\ i64_injects "__i64_sar" sig_li_l.
 
-Lemma helpers_inject: forall {F V TF TV: Type} 
-  (ge: Genv.t (AST.fundef F) V) (tge : Genv.t (AST.fundef TF) TV) 
+Lemma helpers_inject: forall {F V TF TV: Type}
+  (ge: Genv.t (AST.fundef F) V) (tge : Genv.t (AST.fundef TF) TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
-  hf (HF: helper_functions_declared ge hf) (THF: helper_functions_declared tge hf) 
+  hf (HF: helper_functions_declared ge hf) (THF: helper_functions_declared tge hf)
   (*ide*) name sg vargs m t vres m1 mu tm vargs'
   (WD : SM_wd mu)
   (SMV : sm_valid mu m tm)
@@ -503,21 +503,21 @@ Lemma helpers_inject: forall {F V TF TV: Type}
      SM_wd mu' /\
      sm_valid mu' m1 tm1 /\
      REACH_closed m1 (vis mu').
-Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9 
+Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9
            [HLP10 [HLP11 [HLP12 [HLP13 [BLTneg [BLTadd [BLTsub BLTmul]]]]]]]]]]]]]]]].
-  destruct THF as [THLP1 [THLP2 [THLP3 [THLP4 [THLP5 [THLP6 [THLP7 [THLP8 [THLP9 
+  destruct THF as [THLP1 [THLP2 [THLP3 [THLP4 [THLP5 [THLP6 [THLP7 [THLP8 [THLP9
            [THLP10 [THLP11 [THLP12 [THLP13 [TBLTneg [TBLTadd [TBLTsub TBLTmul]]]]]]]]]]]]]]]].
-  destruct i64s_inject as [I64_i_1 [I64_i_2 [I64_i_3 [I64_i_4 [I64_i_5 [I64_i_6 
+  destruct i64s_inject as [I64_i_1 [I64_i_2 [I64_i_3 [I64_i_4 [I64_i_5 [I64_i_6
            [I64_i_7 [I64_i_8 [I64_i_9 [I64_i_10 [I64_i_11 [I64_i_12 I64_i_13]]]]]]]]]]]].
 specialize (inject_restrict _ _ _ _ MINJ RC); intros MI.
 inv OBS.
 { (*i64dtos*)
-  destruct HLP1 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP1 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP1 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP1 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_1 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -525,12 +525,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64dtou*)
-  destruct HLP2 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP2 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP2 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP2 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_2 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -538,12 +538,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64stod*)
-  destruct HLP3 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP3 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP3 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP3 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_3 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -551,12 +551,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64utod*)
-  destruct HLP4 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP4 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP4 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP4 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_4 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -564,12 +564,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64stof*)
-  destruct HLP5 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP5 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP5 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP5 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_5 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -577,12 +577,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64utof*)
-  destruct HLP6 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP6 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP6 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP6 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_6 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -590,12 +590,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64sdiv*)
-  destruct HLP7 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP7 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP7 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP7 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_7 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -603,12 +603,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64udiv*)
-  destruct HLP8 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP8 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP8 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP8 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_8 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -616,12 +616,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64smod*)
-  destruct HLP9 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP9 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP9 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP9 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_9 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -629,12 +629,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64umod*)
-  destruct HLP10 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP10 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP10 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP10 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_10 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -642,12 +642,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64shl*)
-  destruct HLP11 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP11 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP11 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP11 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_11 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -655,12 +655,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64shr*)
-  destruct HLP12 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP12 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP12 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP12 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_12 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -668,12 +668,12 @@ inv OBS.
     repeat split; extensionality b;
       try rewrite freshloc_irrefl; intuition. }
 { (*i64sar*)
-  destruct HLP13 as [? [? [? HLP]]]. simpl in HLP. 
-  destruct THLP13 as [? [? [? THLP]]]. simpl in THLP. 
+  destruct HLP13 as [? [? [? HLP]]]. simpl in HLP.
+  destruct THLP13 as [? [? [? THLP]]]. simpl in THLP.
   destruct (I64_i_13 _ _ _ _ _ _ SymbPres _ _ _ _ _ _ _ _ ArgsInj MI EC)
   as [tvres [tm1 [TEC [vres_inj tm_inj]]]].
   apply HLP in EC. specialize (THLP _ _ _ _ _ TEC). subst m1 tm.
-  exists mu, tvres, tm1. intuition. 
+  exists mu, tvres, tm1. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
     apply gsep_refl.
@@ -686,10 +686,10 @@ Lemma BuiltinEffect_unchOn:
     forall {F V:Type} (ge: Genv.t (AST.fundef F) V) ef hf vargs m t vres m'
     (HF: helper_functions_declared ge hf)
     (NOBS: ~ observableEF ef),
-    external_call ef ge vargs m t vres m' -> 
+    external_call ef ge vargs m t vres m' ->
     Mem.unchanged_on
       (fun b z=> BuiltinEffect ge ef vargs m b z = false) m m'.
-Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9 
+Proof. intros. destruct HF as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9
            [HLP10 [HLP11 [HLP12 [HLP13 [BLTneg [BLTadd [BLTsub BLTmul]]]]]]]]]]]]]]]].
 destruct ef; simpl in *.
 + destruct (is_I64_helperS_dec name sg). Focus 2. elim NOBS; trivial. clear NOBS.
@@ -719,21 +719,21 @@ destruct ef; simpl in *.
 + (*case EF_malloc*)
   eapply  malloc_Effect_unchOn. eassumption.
 + (*case EE_memcpy*)
-  eapply free_Effect_unchOn. eassumption. 
+  eapply free_Effect_unchOn. eassumption.
 + (*memcpy*)
   inv H.
    eapply mem_unchanged_on_sub. eapply memcpy_Effect_unchOn; try eassumption.
    intros. simpl. simpl in H. trivial.
-+ elim NOBS; trivial.  
-+ elim NOBS; trivial.  
-+ elim NOBS; trivial.  
-+ elim NOBS; trivial.  
++ elim NOBS; trivial.
++ elim NOBS; trivial.
++ elim NOBS; trivial.
++ elim NOBS; trivial.
 Qed.
 
-Lemma nonobs_extcall_curWR {F V} (ge:Genv.t F V) (*hf*) ef (vargs:list val) (m:mem) (t:trace) vres (m':mem) 
+Lemma nonobs_extcall_curWR {F V} (ge:Genv.t F V) (*hf*) ef (vargs:list val) (m:mem) (t:trace) vres (m':mem)
       (EC: @external_call ef (Genv.to_senv ge) vargs m t vres m')
       (NOBS: ~ observableEF (*hf*) ef) b z (EFF: BuiltinEffect ge ef vargs m b z = true):
-     Mem.perm m b z Cur Writable. 
+     Mem.perm m b z Cur Writable.
 Proof.
   destruct ef; simpl in *; try discriminate; clear NOBS; inv EC; simpl in *.
   - destruct (Mem.load Mint32 m b0 (Int.unsigned lo - 4)); inv EFF.
@@ -755,14 +755,14 @@ Qed.*)
 
 Lemma BuiltinEffect_valid_block:
     forall {F V:Type} ef (g : Genv.t F V) vargs m b z,
-     BuiltinEffect g ef vargs m b z = true -> Mem.valid_block m b. 
-Proof. intros. unfold BuiltinEffect in H. 
+     BuiltinEffect g ef vargs m b z = true -> Mem.valid_block m b.
+Proof. intros. unfold BuiltinEffect in H.
   destruct ef; try discriminate.
     eapply freeEffect_valid_block; eassumption.
     eapply memcpy_Effect_validblock; eassumption.
 Qed.
 
-(*NEW*) 
+(*NEW*)
 Definition isInlinedAssembly ef :=
   match ef with EF_inline_asm _ _ _ => True
    | _ => False
@@ -780,8 +780,8 @@ Lemma extcall_mem_step ef vargs m t vres m'
      (*NEW*) (NASS: ~isInlinedAssembly ef):
       @external_call ef ge vargs m t vres m' ->
       mem_step m m'.
-Proof. 
-intros. destruct HELPERS as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9 
+Proof.
+intros. destruct HELPERS as [HLP1 [HLP2 [HLP3 [HLP4 [HLP5 [HLP6 [HLP7 [HLP8 [HLP9
            [HLP10 [HLP11 [HLP12 [HLP13 [BLTneg [BLTadd [BLTsub BLTmul]]]]]]]]]]]]]]]].
 destruct ef; simpl in *.
 + destruct (is_I64_helperS_dec name sg). Focus 2. elim NOBS; trivial. clear NOBS.
@@ -814,7 +814,7 @@ destruct ef; simpl in *.
     eapply mem_step_store. eassumption.
 + (*free*)
   inv H. eapply mem_step_free. eassumption.
-+ (*memcpy*) 
++ (*memcpy*)
    inv H. eapply mem_step_storebytes; eassumption.
 + (*annot_sem*)
   inv H. apply mem_step_refl.
@@ -825,7 +825,7 @@ destruct ef; simpl in *.
 + (*debug_sem*)
   elim NOBS; trivial.
 Qed.*)
-End BUILTINS. 
+End BUILTINS.
 (*
 Lemma extcall_memcpy_ok:
   forall sz al,
@@ -935,12 +935,12 @@ Qed.
   Mem-Unchanged_on condition loc_out_of_reach, rather than
   local_out_of_reach as in external calls.*)
 Lemma inlineable_extern_inject: forall {F V TF TV:Type}
-       (ge:Genv.t (AST.fundef F) V) (tge:Genv.t (AST.fundef TF) TV) (GDE: genvs_domain_eq ge tge) 
+       (ge:Genv.t (AST.fundef F) V) (tge:Genv.t (AST.fundef TF) TV) (GDE: genvs_domain_eq ge tge)
        (SymbPres: forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
        hf ef vargs m t vres m1 mu tm vargs'
        (HF: helper_functions_declared ge hf) (THF: helper_functions_declared tge hf)
        (WD: SM_wd mu) (SMV: sm_valid mu m tm) (RC: REACH_closed m (vis mu))
-       (Glob: forall b, isGlobalBlock ge b = true -> 
+       (Glob: forall b, isGlobalBlock ge b = true ->
               frgnBlocksSrc mu b = true)
        (OBS: ~ observableEF (*hf*) ef),
        meminj_preserves_globals ge (as_inj mu) ->
@@ -960,7 +960,7 @@ Lemma inlineable_extern_inject: forall {F V TF TV:Type}
          SM_wd mu' /\ sm_valid mu' m1 tm1 /\
          REACH_closed m1 (vis mu').
 Proof. intros.
-destruct ef; simpl in H0. 
+destruct ef; simpl in H0.
 + (*EFexternal*)
      eapply (helpers_inject  _ _ SymbPres _ HF THF); try eassumption.
       apply EFhelpersE; eassumption.
@@ -974,8 +974,8 @@ destruct ef; simpl in H0.
     inv H0. inv H2. inv H8. inv H6. clear OBS.
     exploit alloc_parallel_intern; eauto. apply Zle_refl. apply Zle_refl.
     intros [mu' [tm' [tb [TALLOC [INJ' [INC [AI1 [AI2 [SEP [LOCALLOC [WD' [SMV' RC']]]]]]]]]]]].
-    exploit Mem.store_mapped_inject. eexact INJ'. eauto. eauto. 
-    instantiate (1 := Vint n). auto.   
+    exploit Mem.store_mapped_inject. eexact INJ'. eauto. eauto.
+    instantiate (1 := Vint n). auto.
     intros [tm1 [ST' INJ1]].
     assert (visb': vis mu' b = true).
         apply sm_locally_allocatedChar in LOCALLOC.
@@ -1000,8 +1000,8 @@ destruct ef; simpl in H0.
          intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 H5).
       rewrite (Mem.store_mem_contents _ _ _ _ _ _ H4).
         apply Mem.perm_valid_block in H5.
-        rewrite PMap.gso. 
-          rewrite (AllocContentsOther1 _ _ _ _ _ H3). trivial. 
+        rewrite PMap.gso.
+          rewrite (AllocContentsOther1 _ _ _ _ _ H3). trivial.
           intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 H5).
         intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 H5).
     split; unfold loc_out_of_reach; intros.
@@ -1020,8 +1020,8 @@ destruct ef; simpl in H0.
          intros N; subst. eapply (Mem.fresh_block_alloc _ _ _ _ _ TALLOC H5).
       rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST').
         apply Mem.perm_valid_block in H5.
-        rewrite PMap.gso. 
-          rewrite (AllocContentsOther1 _ _ _ _ _ TALLOC). trivial. 
+        rewrite PMap.gso.
+          rewrite (AllocContentsOther1 _ _ _ _ _ TALLOC). trivial.
           intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ TALLOC H5).
           intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ TALLOC H5).
           eapply intern_incr_globals_separate; eauto.
@@ -1056,7 +1056,7 @@ destruct ef; simpl in H0.
           rewrite (freshloc_alloc _ _ _ _ _ H3) in H2.
           destruct (eq_block b1 b); subst; simpl in *.
             eapply Mem.valid_new_block; eassumption.
-          rewrite orb_false_r in H2. 
+          rewrite orb_false_r in H2.
             eapply Mem.valid_block_alloc; try eassumption.
             eapply SMV; eassumption.
 
@@ -1065,11 +1065,11 @@ destruct ef; simpl in H0.
           rewrite (freshloc_alloc _ _ _ _ _ TALLOC) in H2.
           destruct (eq_block b2 tb); subst; simpl in *.
             eapply Mem.valid_new_block; eassumption.
-          rewrite orb_false_r in H2. 
+          rewrite orb_false_r in H2.
             eapply Mem.valid_block_alloc; try eassumption.
             eapply SMV; eassumption.
       eapply (REACH_Store m'); try eassumption.
-      intros ? getBl. rewrite getBlocks_char in getBl. 
+      intros ? getBl. rewrite getBlocks_char in getBl.
          destruct getBl as [zz [ZZ | ZZ]]; inv ZZ.
 + (*case EF_free*)
     inv H0. inv H2. inv H9. inv H7.
@@ -1080,31 +1080,31 @@ destruct ef; simpl in H0.
     intros [v [TLD Vinj]]. inv Vinj.
     assert (Mem.range_perm m b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) Cur Freeable).
       eapply Mem.free_range_perm; eauto.
-    exploit Mem.address_inject. eapply H1. 
+    exploit Mem.address_inject. eapply H1.
       apply Mem.perm_implies with Freeable; auto with mem.
       apply H0. instantiate (1 := lo). omega.
-      eassumption. 
+      eassumption.
     intro EQ.
     assert (Mem.range_perm tm b2 (Int.unsigned lo + delta - 4) (Int.unsigned lo + delta + Int.unsigned sz) Cur Freeable).
-      red; intros. 
+      red; intros.
       replace ofs with ((ofs - delta) + delta) by omega.
       eapply Mem.perm_inject. eassumption. eassumption. eapply H0. omega.
 (*    destruct (Mem.range_perm_free _ _ _ _ H2) as [m2' FREE].*)
     exists mu; eexists; exists tm1; split.
       simpl. econstructor.
        rewrite EQ. replace (Int.unsigned lo + delta - 4) with (Int.unsigned lo - 4 + delta) by omega.
-       eauto. auto. 
+       eauto. auto.
       rewrite EQ. clear - TFR.
         assert (Int.unsigned lo + delta - 4 = Int.unsigned lo - 4 + delta). omega. rewrite H; clear H.
         assert (Int.unsigned lo + delta + Int.unsigned sz = Int.unsigned lo + Int.unsigned sz + delta). omega. rewrite H; clear H.
         assumption.
-     intuition.  
+     intuition.
 
-     eapply Mem.free_unchanged_on; eauto. 
+     eapply Mem.free_unchanged_on; eauto.
        unfold loc_unmapped; intros. congruence.
 
-     eapply Mem.free_unchanged_on; eauto.   
-       unfold loc_out_of_reach; intros. red; intros. eelim H8; eauto. 
+     eapply Mem.free_unchanged_on; eauto.
+       unfold loc_out_of_reach; intros. red; intros. eelim H8; eauto.
        apply Mem.perm_cur_max. apply Mem.perm_implies with Freeable; auto with mem.
        apply H0. omega.
 
@@ -1122,7 +1122,7 @@ destruct ef; simpl in H0.
      eapply REACH_closed_free; eassumption.
 + (*memcpy*)
    clear OBS.
-   inv H0. 
+   inv H0.
    inv H2. inv H12. inv H14. inv H12. inv H15.
    destruct (restrictD_Some _ _ _ _ _ H11).
    destruct (restrictD_Some _ _ _ _ _ H13).
@@ -1156,13 +1156,13 @@ destruct ef; simpl in H0.
         rewrite (storebytes_freshloc _ _ _ _ _ SB). clear. intuition.
         rewrite (storebytes_freshloc _ _ _ _ _ H10). clear. intuition.
        rewrite (storebytes_freshloc _ _ _ _ _ SB). clear. intuition.
-     split; trivial. 
+     split; trivial.
      split. split; intros.
        eapply storebytes_forward; try eassumption.
           eapply SMV; trivial.
        eapply storebytes_forward; try eassumption.
           eapply SMV; trivial.
-     destruct (loadbytes_D _ _ _ _ _ H9). 
+     destruct (loadbytes_D _ _ _ _ _ H9).
      intros. eapply REACH_Storebytes; try eassumption.
           intros. inv H17.
 
@@ -1175,13 +1175,13 @@ destruct ef; simpl in H0.
     eapply Mem.range_perm_implies. eapply Mem.storebytes_range_perm; eauto. auto with mem.
     rewrite LEN. apply nat_of_Z_eq. omega.
   exploit (Mem.address_inject (as_inj mu) m tm bsrc); try eassumption. eapply RPSRC.
-     split. apply Zle_refl. omega. 
+     split. apply Zle_refl. omega.
   exploit (Mem.address_inject (as_inj mu) m tm bdst); try eassumption. eapply RPDST.
-     split. apply Zle_refl. omega. 
+     split. apply Zle_refl. omega.
   exploit Mem.loadbytes_inject; eauto. intros [bytes2 [A B]]. intros EQ1.
   exploit Mem.storebytes_mapped_inject; eauto. intros [m2' [C D]]. intros EQ2.
   exists mu; exists Vundef; exists m2'.
-  split. econstructor; try rewrite EQ1; try rewrite EQ2; eauto. 
+  split. econstructor; try rewrite EQ1; try rewrite EQ2; eauto.
   (*new:*)intros.
    eapply Mem.aligned_area_inject with (m := m); eauto.
   (*new:*)intros.
@@ -1196,10 +1196,10 @@ destruct ef; simpl in H0.
          unfold loc_unmapped; intros. rewrite H11. congruence.
   split. eapply Mem.storebytes_unchanged_on; eauto.
          unfold loc_out_of_reach; intros. red; intros.
-         eapply (H16 _ _ H11). 
+         eapply (H16 _ _ H11).
              apply Mem.perm_cur_max. apply Mem.perm_implies with Writable; auto with mem.
-             eapply Mem.storebytes_range_perm; eauto.  
-             erewrite list_forall2_length; eauto. 
+             eapply Mem.storebytes_range_perm; eauto.
+             erewrite list_forall2_length; eauto.
              omega.
   split. apply intern_incr_refl.
   split. apply sm_inject_separated_same_sminj.
@@ -1210,22 +1210,22 @@ destruct ef; simpl in H0.
        rewrite (storebytes_freshloc _ _ _ _ _ C). clear. intuition.
        rewrite (storebytes_freshloc _ _ _ _ _ H10). clear. intuition.
        rewrite (storebytes_freshloc _ _ _ _ _ C). clear. intuition.
-  split; trivial. 
+  split; trivial.
   split. split; intros.
        eapply storebytes_forward; try eassumption.
           eapply SMV; trivial.
        eapply storebytes_forward; try eassumption.
           eapply SMV; trivial.
   destruct (loadbytes_D _ _ _ _ _ H9); clear A C.
-   clear RPSRC RPDST (*PSRC PDST H8 H11 H3 H5 H6 H7 EQ1 EQ2 B D*).  
+   clear RPSRC RPDST (*PSRC PDST H8 H11 H3 H5 H6 H7 EQ1 EQ2 B D*).
   intros. eapply REACH_Storebytes; try eassumption.
           intros. eapply RC. subst bytes.
           destruct (in_split _ _ H17) as [bts1 [bts2 Bytes]]; clear H17.
           specialize (getN_range _ _ _ _ _ _ Bytes). intros.
-          apply getN_aux in Bytes. 
+          apply getN_aux in Bytes.
           eapply REACH_cons. instantiate(1:=bsrc).
             eapply REACH_nil. assumption.
-            Focus 2. apply eq_sym. eassumption. 
+            Focus 2. apply eq_sym. eassumption.
             eapply H15. (* clear - H3 H4. *)
             split. specialize (Zle_0_nat (Datatypes.length bts1)). intros. omega.
                    apply inj_lt in H16. rewrite nat_of_Z_eq in H16; omega.
@@ -1250,7 +1250,7 @@ Lemma BuiltinEffect_Propagate: forall {F V TF TV:Type}
 Proof.
  intros. destruct ef; try inv H.
   (*free*)
-    simpl in EC. inv EC. 
+    simpl in EC. inv EC.
     inv ArgsInj. inv H7. inv H5.
     rewrite H1. unfold free_Effect in H1.
     destruct (restrictD_Some _ _ _ _ _ H6) as [AIb VISb].
@@ -1258,10 +1258,10 @@ Proof.
     intros [v [TLD Vinj]]. inv Vinj.
     assert (RP: Mem.range_perm m b0 (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) Cur Freeable).
       eapply Mem.free_range_perm; eauto.
-    exploit Mem.address_inject. eapply MINJ. 
+    exploit Mem.address_inject. eapply MINJ.
       apply Mem.perm_implies with Freeable; auto with mem.
       apply RP. instantiate (1 := lo). omega.
-      eassumption. 
+      eassumption.
     intro EQ.
     rewrite EQ in *.
     assert (Arith4: Int.unsigned lo - 4 + delta = Int.unsigned lo + delta - 4) by omega.
@@ -1275,20 +1275,20 @@ Proof.
     Focus 2. destruct (local_DomRng _ WD _ _ _ LOC). rewrite H5 in H1; discriminate.
     split; trivial.
     destruct (eq_block b0 b0); simpl in *.
-    Focus 2. elim n; trivial. 
-    clear e. 
+    Focus 2. elim n; trivial.
+    clear e.
         destruct (zlt 0 (Int.unsigned sz)); simpl in *; try inv H4.
         destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try inv H5.
         destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try inv H4.
         destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
         split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
-                 omega. 
-        eapply Mem.perm_implies. 
+                 omega.
+        eapply Mem.perm_implies.
           eapply Mem.perm_max. eapply RP. split; trivial. omega.
-          constructor. 
+          constructor.
      (*memcpy*)
-        simpl in EC. inv EC. 
-        inv ArgsInj. inv H12. inv H10. inv H11. inv H14. 
+        simpl in EC. inv EC.
+        inv ArgsInj. inv H12. inv H10. inv H11. inv H14.
         rewrite H1. unfold memcpy_Effect in H1.
         destruct (eq_block b b2); subst; simpl in *; try inv H1.
         destruct (zle (Int.unsigned (Int.add odst (Int.repr delta))) ofs); simpl in *; try inv H9.
@@ -1308,11 +1308,11 @@ Proof.
         intros UNSIG; rewrite UNSIG in *.
         assert (MP: Mem.perm m bdst (ofs - delta) Max Nonempty).
            eapply Mem.perm_implies.
-             eapply Mem.perm_max. 
+             eapply Mem.perm_max.
              eapply Mem.storebytes_range_perm. eassumption.
              rewrite (Mem.loadbytes_length _ _ _ _ _ H6).
              rewrite nat_of_Z_eq; omega.
-           constructor. 
+           constructor.
         rewrite (restrict_vis_foreign_local _ WD) in H12.
         destruct (joinD_Some _ _ _ _ _ H12) as [FRG | [FRG LOC]]; clear H12.
           split; trivial. split; trivial.
@@ -1343,11 +1343,11 @@ Lemma BuiltinEffect_Propagate': forall {F V TF TV:Type}
            BuiltinEffect ge ef vargs m b1 (ofs - delta1) = true /\
            Mem.perm m b1 (ofs - delta1) Max Nonempty).
 Proof.
- intros. 
+ intros.
  destruct ef; try inv H.
   (*free*)
-  { simpl in EC. inv EC. 
-    inv ArgsInj. inv H. inv H. inv H0. 
+  { simpl in EC. inv EC.
+    inv ArgsInj. inv H. inv H. inv H0.
     rewrite H1. unfold free_Effect in H1.
     destruct (restrictD_Some _ _ _ _ _ H7) as [AIb VISb].
     exploit (Mem.load_inject (as_inj mu) m); try eassumption.
@@ -1355,10 +1355,10 @@ Proof.
     assert (RP: Mem.range_perm m b0 (Int.unsigned lo - 4)
                                (Int.unsigned lo + Int.unsigned sz) Cur Freeable).
     { eapply Mem.free_range_perm; eauto. }
-    exploit Mem.address_inject. eapply MINJ. 
+    exploit Mem.address_inject. eapply MINJ.
     { apply Mem.perm_implies with Freeable; auto with mem.
       apply RP. instantiate (1 := lo). omega. }
-    eassumption. 
+    eassumption.
     intro EQ.
     rewrite EQ in *.
     assert (Arith4: Int.unsigned lo - 4 + delta = Int.unsigned lo + delta - 4) by omega.
@@ -1373,32 +1373,32 @@ Proof.
       split; trivial.
       inv H2.
       destruct (eq_block b0 b0); simpl in *.
-      Focus 2. elim n; trivial. 
+      Focus 2. elim n; trivial.
       clear e.
       rewrite !andb_true_iff in H0.
-      destruct H0 as [[HH1 HH2] HH3]. 
-      destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
-      destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try discriminate.
-      destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try discriminate.
-      destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
-      split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
-      omega. 
-      eapply Mem.perm_implies. 
-      eapply Mem.perm_max. eapply RP. split; trivial. omega.
-      constructor. 
-(*      congruence.*)
-      destruct (eq_block b0 b0); simpl in *.
-      Focus 2. elim n; trivial. 
-      clear e.
-      rewrite !andb_true_iff in H0.
-      destruct H0 as [[HH1 HH2] HH3]. 
+      destruct H0 as [[HH1 HH2] HH3].
       destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
       destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try discriminate.
       destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try discriminate.
       destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
       split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
       omega.
-      eapply Mem.perm_implies. 
+      eapply Mem.perm_implies.
+      eapply Mem.perm_max. eapply RP. split; trivial. omega.
+      constructor.
+(*      congruence.*)
+      destruct (eq_block b0 b0); simpl in *.
+      Focus 2. elim n; trivial.
+      clear e.
+      rewrite !andb_true_iff in H0.
+      destruct H0 as [[HH1 HH2] HH3].
+      destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
+      destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try discriminate.
+      destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try discriminate.
+      destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
+      split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
+      omega.
+      eapply Mem.perm_implies.
       eapply Mem.perm_max. eapply RP. split; trivial. omega.
       constructor.   } }
 (*    { (*b<>b2*)
@@ -1409,13 +1409,13 @@ Proof.
 
   { (*memcpy*)
     simpl in EC. inv EC.
-    inv ArgsInj. inv H. inv H2. inv H. 
+    inv ArgsInj. inv H. inv H2. inv H.
     rewrite H1. unfold memcpy_Effect in H1. inv H.
-    inv H0; try congruence. 
+    inv H0; try congruence.
     inv H3; try congruence. simpl.
 (*    inv H4; try congruence.*)
     destruct (eq_block b b2); subst; simpl in *; try discriminate.
-    destruct (zle (Int.unsigned (Int.add odst (Int.repr delta))) ofs); simpl in *; try discriminate. 
+    destruct (zle (Int.unsigned (Int.add odst (Int.repr delta))) ofs); simpl in *; try discriminate.
     destruct (zle 0 sz); simpl in *; try discriminate.
     destruct (zlt ofs (Int.unsigned (Int.add odst (Int.repr delta)) + sz)); simpl in *; try discriminate.
     destruct (valid_block_dec m2 b2); simpl in *; try discriminate.
@@ -1427,12 +1427,12 @@ Proof.
     eapply Mem.storebytes_range_perm; eauto.
     split. apply Z.le_refl.
     rewrite (Mem.loadbytes_length _ _ _ _ _ H12).
-    rewrite nat_of_Z_eq; omega. 
+    rewrite nat_of_Z_eq; omega.
     eassumption.
     intros UNSIG; rewrite UNSIG in *.
     assert (MP: Mem.perm m bdst (ofs - delta) Max Nonempty).
     { eapply Mem.perm_implies.
-      eapply Mem.perm_max. 
+      eapply Mem.perm_max.
       eapply Mem.storebytes_range_perm. eassumption.
       rewrite (Mem.loadbytes_length _ _ _ _ _ H12).
       rewrite nat_of_Z_eq; omega.
@@ -1456,7 +1456,7 @@ Proof.
   congruence.*) }
 Qed.
 (*
-Lemma helpers_EmptyEffect: forall {F V:Type} (ge: Genv.t F V) 
+Lemma helpers_EmptyEffect: forall {F V:Type} (ge: Genv.t F V)
    hf ef args m,
    EFisHelper hf ef -> (BuiltinEffect ge ef args m = EmptyEffect).
 Proof. intros.
@@ -1464,27 +1464,27 @@ destruct ef; simpl in *; try reflexivity.
 contradiction. contradiction.
 Qed.
 *)
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Conventions.
 Lemma BuiltinEffect_decode: forall F V (ge: Genv.t F V) ef tls,
  BuiltinEffect ge ef (map tls (loc_arguments (ef_sig ef))) =
  BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef))
            (map tls (loc_arguments (ef_sig ef)))).
 Proof. intros.
-  unfold BuiltinEffect. extensionality m. 
+  unfold BuiltinEffect. extensionality m.
   destruct ef; trivial.
 Qed.
 
 Section EC_DET.
 
-Context (hf : helper_functions) 
+Context (hf : helper_functions)
         {F V : Type} (ge : Genv.t F V) (t1 t2: trace) (m m1 m2:mem).
 
-(*In comment:Axiom EC'_det: forall ef args res1 res2,  
+(*In comment:Axiom EC'_det: forall ef args res1 res2,
       external_call' ef ge args m t1 res1 m1 ->
       external_call' ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2.
 
-Lemma EC'_determ: forall ef args res1 res2,  
+Lemma EC'_determ: forall ef args res1 res2,
       external_call' ef ge args m t1 res1 m1 ->
       external_call' ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2 /\ res1=res2 /\ m1=m2.
@@ -1493,17 +1493,17 @@ assert (t1 = t2).
   eapply  EC'_det; eassumption.
 split; trivial.
 inv H. inv H0.
-specialize (external_call_spec ef); intros SP. destruct SP. 
+specialize (external_call_spec ef); intros SP. destruct SP.
 destruct (ec_determ _ _ _ _ _ _ _ _ _ H3 H).
 destruct H2; trivial. subst. split; trivial.
 Qed.*)
 
-Axiom helpers_det: forall ef args res1 res2,  
+Axiom helpers_det: forall ef args res1 res2,
       external_call ef ge args m t1 res1 m1 ->
       external_call ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2.
 
-Lemma EC_determ: forall ef args res1 res2,  
+Lemma EC_determ: forall ef args res1 res2,
       external_call ef ge args m t1 res1 m1 ->
       external_call ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2 /\ res1=res2 /\ m1=m2.
@@ -1512,9 +1512,9 @@ assert (t1 = t2).
   eapply  helpers_det; eassumption.
 split; trivial.
 eapply external_call_spec; eassumption.
-Qed. 
+Qed.
 
-Lemma EC'_determ: forall ef args res1 res2,  
+Lemma EC'_determ: forall ef args res1 res2,
       external_call' ef ge args m t1 res1 m1 ->
       external_call' ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2 /\ res1=res2 /\ m1=m2.
@@ -1530,22 +1530,22 @@ destruct ef; simpl.
 specialize (EC'_determ ef args (res1::nil) (res2::nil)).
 assert (external_call' ef ge args m t1 (res1 :: nil) m1).
   econstructor.
-a H H0 H1). 
+a H H0 H1).
 destruct ef; simpl in *.
 eapply EC'_determ.
 + (*EF_malloc*)
-inv H; inv H0. trivial. 
+inv H; inv H0. trivial.
 + (*EF_free*)
-inv H; inv H0; trivial. 
+inv H; inv H0; trivial.
 + (*EF_memcpy*)
 inv H; inv H0; trivial.
 Qed.
  /\ res1=res2 /\ m1=m2.
 
-Lemma EC'_determ_wk: forall ef args res1 res2,  
+Lemma EC'_determ_wk: forall ef args res1 res2,
       external_call' ef ge args m t1 res1 m1 ->
       external_call' ef ge args m t2 res2 m2 ->
-      ~ EFisHelper (*hf*) ef -> 
+      ~ EFisHelper (*hf*) ef ->
       ~ observableEF (*hf*) ef -> t1=t2.
 Proof. intros.
 destruct ef; simpl in H2; intuition.
@@ -1560,7 +1560,7 @@ inv H; inv H0. simpl in *. destruct args. inv H; inv H2.
    destruct args. inv H; inv H2. inv H; inv H3. trivial.
 Qed.
 
-Lemma EC_determ: forall ef args res1 res2,  
+Lemma EC_determ: forall ef args res1 res2,
       external_call ef ge args m t1 res1 m1 ->
       external_call ef ge args m t2 res2 m2 ->
       EFisHelper (*hf*) ef -> t1=t2 /\ res1=res2 /\ m1=m2.
@@ -1569,27 +1569,27 @@ destruct ef; simpl.
 specialize (EC'_determ ef args (res1::nil) (res2::nil)).
 assert (external_call' ef ge args m t1 (res1 :: nil) m1).
   econstructor.
-a H H0 H1). 
+a H H0 H1).
 destruct ef; simpl in *.
 eapply EC'_determ.
 + (*EF_malloc*)
-inv H; inv H0. trivial. 
+inv H; inv H0. trivial.
 + (*EF_free*)
-inv H; inv H0; trivial. 
+inv H; inv H0; trivial.
 + (*EF_memcpy*)
 inv H; inv H0; trivial.
 Qed.
-Lemma EC_determ: forall ef args res1 res2,  
+Lemma EC_determ: forall ef args res1 res2,
       external_call ef ge args m t1 res1 m1 ->
       external_call ef ge args m t2 res2 m2 ->
-      ~ EFisHelper (*hf*) ef -> 
+      ~ EFisHelper (*hf*) ef ->
       ~ observableEF (*hf*) ef -> t1=t2.
 Proof. intros.
 destruct ef; simpl in H2; intuition.
 + (*EF_malloc*)
-inv H; inv H0. trivial. 
+inv H; inv H0. trivial.
 + (*EF_free*)
-inv H; inv H0; trivial. 
+inv H; inv H0; trivial.
 + (*EF_memcpy*)
 inv H; inv H0; trivial.
 Qed.

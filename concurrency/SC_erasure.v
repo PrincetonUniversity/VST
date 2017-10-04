@@ -2,15 +2,15 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -21,16 +21,16 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.dry_context.
-Require Import concurrency.fineConc_safe.
-Require Import concurrency.executions.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.fineConc_safe.
+Require Import VST.concurrency.executions.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -64,7 +64,7 @@ Module ValErasure.
       val_erasure v1 v2 /\ q1 = q2 /\ n1 = n2
     | mv1, mv2 => mv1 = mv2
     end.
-  
+
   Inductive val_erasure_list : seq.seq val -> seq.seq val -> Prop :=
     val_erasure_nil : val_erasure_list [::] [::]
   | val_erasure_cons : forall (v v' : val) (vl vl' : seq.seq val),
@@ -95,7 +95,7 @@ Module ValErasure.
 
   Hint Immediate memval_erasure_refl val_erasure_refl : val_erasure.
   Hint Constructors memval_erasure_list val_erasure_list : val_erasure.
-  
+
   Lemma val_erasure_list_refl:
     forall vs, val_erasure_list vs vs.
   Proof with eauto with val_erasure.
@@ -148,7 +148,7 @@ Module ValErasure.
     | Vundef => false
     | _ => true
     end.
-  
+
   Lemma val_erasure_add_result:
     forall v1 v1' v2 v2' v,
       val_erasure v1 v1' ->
@@ -168,7 +168,7 @@ Module ValErasure.
     unfold isPointer, isDefined;
     destruct v; auto.
   Qed.
-  
+
   Lemma val_erasure_add:
     forall v1 v2 v1' v2',
       val_erasure v1 v1' ->
@@ -190,7 +190,7 @@ Module ValErasure.
     simpl; auto;
     inv H; inv H0; simpl; auto.
   Qed.
-  
+
   Lemma val_erasure_mul_result:
     forall v1 v2 v1' v2' v,
       val_erasure v1 v1'->
@@ -204,7 +204,7 @@ Module ValErasure.
     try by exfalso.
     reflexivity.
   Qed.
-  
+
   Lemma val_erasure_hiword:
     forall v v',
       val_erasure v v' ->
@@ -298,7 +298,7 @@ Module ValErasure.
     intros.
     destruct v; inv H; simpl; eauto using val_erasure_refl.
   Qed.
-  
+
   Lemma val_erasure_singleofint:
     forall v v',
       val_erasure v v' ->
@@ -309,7 +309,7 @@ Module ValErasure.
     destruct v; inv H; simpl; eauto using val_erasure_refl.
   Qed.
 
-  
+
   Lemma val_erasure_neg:
     forall v v',
       val_erasure v v' ->
@@ -347,7 +347,7 @@ Module ValErasure.
     simpl; auto;
     inv H; inv H0; simpl; auto.
   Qed.
-  
+
   Lemma val_erasure_sub:
     forall v1 v2 v1' v2',
       val_erasure v1 v1' ->
@@ -528,7 +528,7 @@ Module ValErasure.
     simpl; auto;
     inv H; inv H0; simpl; auto.
   Qed.
-  
+
   Lemma val_erasure_subf:
     forall v1 v2 v1' v2',
       val_erasure v1 v1' ->
@@ -612,7 +612,7 @@ Module ValErasure.
     intros.
     destruct v; inv H; simpl; auto.
   Qed.
-  
+
   Lemma val_erasure_absf:
     forall v v',
       val_erasure v v' ->
@@ -650,7 +650,7 @@ Module ValErasure.
     destruct q; simpl; unfold inj_value; simpl;
     repeat (econstructor; simpl; auto).
   Qed.
-    
+
   Lemma repeat_Undef_erasure_self :
     forall (n : nat),
       memval_erasure_list (list_repeat n Undef) (list_repeat n Undef).
@@ -667,20 +667,20 @@ Module ValErasure.
     destruct v, chunk; simpl; unfold inj_value; simpl;
     repeat econstructor...
   Qed.
-    
+
   Lemma val_erasure_encode_val:
     forall chunk v v',
       val_erasure v v' ->
       memval_erasure_list (encode_val chunk v) (encode_val chunk v').
   Proof.
-    intros. 
+    intros.
     destruct v; inversion H; subst; simpl; destruct chunk;
     auto using inj_bytes_erasure,  inj_value_erasure, repeat_Undef_erasure_self,
-    repeat_Undef_inject_encode_val.    
+    repeat_Undef_inject_encode_val.
     unfold encode_val. destruct v'; apply inj_value_erasure; auto.
     unfold encode_val. destruct v'; apply inj_value_erasure; auto.
   Qed.
-  
+
   Lemma val_defined_add_1:
     forall v1 v2 v,
       Val.add v1 v2 = v ->
@@ -753,7 +753,7 @@ Module TraceErasure.
     | Events.spawn addr _ _ => Events.spawn addr None None
     | _ => ev
     end.
-  
+
   Inductive event_erasure : Events.machine_event -> Events.machine_event -> Prop :=
   | InternalErasure: forall tid mev mev',
       mem_event_erasure mev mev' ->
@@ -781,7 +781,7 @@ Module TraceErasure.
     simpl.
     constructor; eauto.
   Qed.
-        
+
   Lemma trace_erasure_cat:
     forall tr1 tr1' tr2 tr2',
       trace_erasure tr1 tr1' ->
@@ -810,12 +810,12 @@ Module TraceErasure.
   Hint Constructors trace_erasure event_erasure : trace_erasure.
 
 End TraceErasure.
-    
+
 (** ** Memory Erasure*)
 Module MemErasure.
 
   Import ValErasure.
-  
+
   (** The values of the erased memory may be more defined and its
        permissions are top.*)
   (** In retrospect setting the permissions to top was a bad
@@ -829,7 +829,7 @@ Module MemErasure.
   Record mem_erasure (m m': mem) :=
     { perm_le:
         forall b ofs k,
-          Mem.valid_block m' b -> 
+          Mem.valid_block m' b ->
           (Mem.mem_access m')#b ofs k = Some Freeable;
       erased_contents: forall b ofs,
           memval_erasure (ZMap.get ofs ((Mem.mem_contents m) # b))
@@ -917,7 +917,7 @@ Module MemErasure.
     destruct mv; try discriminate.
     simpl in H. destruct mv'; try discriminate.
     destruct H as [? [? ?]]; subst.
-    
+
     InvBooleans; assert (n = n1) by (apply beq_nat_true; auto). subst.
     replace v1 with v'.
     unfold proj_sumbool; rewrite ! dec_eq_true. rewrite <- beq_nat_refl. simpl; eauto.
@@ -943,7 +943,7 @@ Module MemErasure.
       eauto with val_erasure.
     simpl; auto.
   Qed.
-  
+
   Lemma load_result_erasure:
     forall chunk v1 v2,
       val_erasure v1 v2 ->
@@ -951,7 +951,7 @@ Module MemErasure.
   Proof.
     intros. destruct v1; inv H; destruct chunk; simpl; econstructor; eauto.
   Qed.
-  
+
   Lemma decode_val_erasure:
     forall vl1 vl2 chunk,
       memval_erasure_list vl1 vl2 ->
@@ -1005,7 +1005,7 @@ Module MemErasure.
     apply pred_dec_true; auto.
     exploit Mem.load_result; eauto. intro. rewrite H1.
     apply decode_val_erasure; auto.
-    apply getN_erasure; auto. 
+    apply getN_erasure; auto.
     Opaque Mem.load.
   Qed.
 
@@ -1026,7 +1026,7 @@ Module MemErasure.
     rewrite ZMap.gss. auto.
     rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
   Qed.
-  
+
   Lemma mem_store_erased:
     forall chunk m m' b ofs v v' m2
       (Hstore: Mem.store chunk m b ofs v = Some m2)
@@ -1091,7 +1091,7 @@ Module MemErasure.
     simpl in *.
     eapply mem_load_erased; eauto.
   Qed.
-    
+
   Lemma mem_storev_erased:
     forall chunk m m' vptr v v' m2
       (Hstore: Mem.storev chunk m vptr v = Some m2)
@@ -1105,7 +1105,7 @@ Module MemErasure.
     simpl in *.
     eapply mem_store_erased; eauto.
   Qed.
-  
+
   Lemma mem_erasure_valid_pointer:
     forall m m' b ofs,
       mem_erasure m m' ->
@@ -1237,7 +1237,7 @@ Module MemErasure.
     destruct Hmem_erasure; auto.
     discriminate.
   Qed.
-    
+
   Lemma mem_erasure_idempotent:
     forall m m',
       mem_erasure m m' ->
@@ -1253,11 +1253,11 @@ Module MemErasure.
     unfold permission_at in *.
     auto.
   Qed.
-  
+
   Hint Resolve mem_erasure_idempotent mem_erasure_dilute_1
        mem_erasure_restr: mem_erasure.
 
-  
+
  Record mem_erasure' (m m': mem) :=
     { perm_le':
         forall b ofs k,
@@ -1269,7 +1269,7 @@ Module MemErasure.
                          (ZMap.get ofs ((Mem.mem_contents m') # b));
       erased_nb': Mem.nextblock m = Mem.nextblock m'
     }.
- 
+
   Lemma mem_erasure'_erase:
     forall m m',
       mem_erasure' m m' ->
@@ -1283,7 +1283,7 @@ Module MemErasure.
     simpl in H.
     eapply erasePerm_V in H; eauto.
   Qed.
-    
+
   Lemma alloc_erasure':
     forall m m' sz m2 m2' b b'
       (Herased: mem_erasure m m')
@@ -1323,7 +1323,7 @@ Module MemErasure.
         * assert (ofs < 0)
             by omega.
           assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ ofs Halloc'
-                                                          ltac:(eauto)). 
+                                                          ltac:(eauto)).
           assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc ltac:(eauto)).
           unfold permission_at in H1,H2.
           specialize (H1 k). specialize (H2 k).
@@ -1332,7 +1332,7 @@ Module MemErasure.
         * assert (ofs < 0)
             by omega.
           assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ ofs Halloc'
-                                                          ltac:(eauto)). 
+                                                          ltac:(eauto)).
           assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc ltac:(eauto)).
           unfold permission_at in H1,H2.
           specialize (H1 k). specialize (H2 k).
@@ -1352,7 +1352,7 @@ Module MemErasure.
     - intros.
       destruct (Pos.eq_dec b b'). subst.
       erewrite MemoryLemmas.val_at_alloc_2 by eauto.
-      simpl; auto.      
+      simpl; auto.
       erewrite <- MemoryLemmas.val_at_alloc_3 by eauto.
       erewrite <- MemoryLemmas.val_at_alloc_3 with (m' := m2') by eauto.
       eauto.
@@ -1361,7 +1361,7 @@ Module MemErasure.
       rewrite Halloc' Halloc erased_nb0.
       reflexivity.
   Qed.
-  
+
   Lemma mem_free_erasure':
     forall m m' sz m2 b
       (Herased: mem_erasure m m')
@@ -1521,7 +1521,7 @@ Module MemErasure.
     apply getN_erasure; auto.
     Opaque Mem.load.
   Qed.
-                    
+
   Lemma mem_erasure_erasure':
     forall m m',
       mem_erasure m m' ->
@@ -1535,13 +1535,13 @@ Module MemErasure.
     erewrite perm_le0 by eauto.
     simpl. destruct ((Mem.mem_access m) # b ofs k); simpl; constructor.
   Qed.
-    
+
 End MemErasure.
 
 (** Erasure of cores *)
 Module Type CoreErasure (SEM: Semantics).
   Import SEM ValErasure MemErasure TraceErasure event_semantics.
-  
+
   Parameter core_erasure : C -> C -> Prop.
   Parameter core_erasure_refl: forall c, core_erasure c c.
 
@@ -1562,14 +1562,14 @@ Module Type CoreErasure (SEM: Semantics).
     exists c2',
       after_external SEM.Sem v' c' = Some c2' /\
       core_erasure c2 c2'.
-  
+
   Parameter erasure_initial_core:
-    forall ge v arg v' arg' c
+    forall h ge v arg v' arg' c
       (Hv: val_erasure v v')
       (Harg: val_erasure arg arg')
-      (Hinit: initial_core Sem ge v [:: arg] = Some c),
-      initial_core Sem ge v' [:: arg'] = Some c.
-  
+      (Hinit: initial_core Sem h ge v [:: arg] = Some c),
+      initial_core Sem h ge v' [:: arg'] = Some c.
+
   Parameter halted_erase:
     forall c c'
       (HeraseCores: core_erasure c c')
@@ -1587,7 +1587,7 @@ Module Type CoreErasure (SEM: Semantics).
       mem_event_list_erasure ev ev'.
 
   Hint Resolve core_erasure_refl : erased.
-  
+
 End CoreErasure.
 
 Module ThreadPoolErasure (SEM: Semantics)
@@ -1595,7 +1595,7 @@ Module ThreadPoolErasure (SEM: Semantics)
        (CE : CoreErasure SEM).
   Import ValErasure CE
          Machines DryMachine ThreadPool.
-  
+
   Definition ctl_erasure c c' : Prop :=
     match c, c' with
     | Kinit vf arg, Kinit vf' arg' =>
@@ -1620,7 +1620,7 @@ Module ThreadPoolErasure (SEM: Semantics)
       threadPool_erasure tp tp'.
 
   Lemma erasedPool_contains:
-    forall tp1 tp1' 
+    forall tp1 tp1'
       (HerasedPool: threadPool_erasure tp1 tp1') i,
       containsThread tp1 i <-> ErasedMachine.ThreadPool.containsThread tp1' i.
   Proof.
@@ -1636,7 +1636,7 @@ Module ThreadPoolErasure (SEM: Semantics)
   Proof with eauto with val_erasure erased.
     destruct c; simpl...
   Qed.
-  
+
   Lemma erased_updLockSet:
     forall tp tp' addr addr' rmap rmap',
       threadPool_erasure tp tp' ->
@@ -1647,7 +1647,7 @@ Module ThreadPoolErasure (SEM: Semantics)
     inversion H.
     constructor; auto.
   Qed.
-  
+
   Lemma erased_updThread:
     forall tp tp' i (cnti: containsThread tp i)
       (cnti': ErasedMachine.ThreadPool.containsThread tp' i) c c' pmap pmap',
@@ -1698,7 +1698,7 @@ Module ThreadPoolErasure (SEM: Semantics)
       erewrite ErasedMachine.ThreadPool.gssAddCode; eauto.
       simpl...
   Qed.
-  
+
   Lemma erased_remLockSet:
     forall tp tp' addr addr',
       threadPool_erasure tp tp' ->
@@ -1714,7 +1714,7 @@ Module ThreadPoolErasure (SEM: Semantics)
        erased_addThread erased_remLockSet: erased.
 
 End ThreadPoolErasure.
-  
+
 (** ** Erasure from FineConc to SC*)
 Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
        (Machines: MachinesSig with Module SEM := SEM)
@@ -1729,7 +1729,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
   Import event_semantics.
   (** ** Simulation for syncStep, startStep, resumeStep, suspendStep,
   and haltedStep *)
-  
+
   Lemma syncStep_erase:
     forall ge tp1 tp1' m1 m1' tp2 m2 i ev
       (HerasePool: threadPool_erasure tp1 tp1')
@@ -1746,7 +1746,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     intros.
     Hint Resolve mem_erasure_restr : erased.
     inversion HerasePool as [Hnum Hthreads].
-    specialize (Hthreads _ cnti cnti').      
+    specialize (Hthreads _ cnti cnti').
     inversion Hstep; subst;
     match goal with
     | [H: ctl_erasure ?Expr1 ?Expr2, H1: ?Expr1 = _ |- _] =>
@@ -1904,7 +1904,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
              apply cntUpdate' in H2;
                assert (H1 = H2) by (by eapply cnt_irr); subst H2
            end.
-  
+
   Lemma startStep_erasure:
     forall ge tp1 tp1' tp2 i
       (HerasePool: threadPool_erasure tp1 tp1')
@@ -2001,7 +2001,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         by eauto.
       inversion HerasePool; eauto.
   Qed.
-  
+
   Lemma suspendStep_erasure:
     forall tp1 tp1' tp2 i
       (HerasePool: threadPool_erasure tp1 tp1')
@@ -2188,7 +2188,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       econstructor 7; simpl; eauto.
       split; eauto.
   Qed.
-  
+
   Notation sc_safe := (SC.fsafe the_ge).
   Notation fsafe := (FineConc.fsafe the_ge).
 
@@ -2235,13 +2235,13 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     simpl in *. unfold SC.init_machine, FineConc.init_machine in *.
     unfold init_mach, ErasedMachine.init_mach in *.
     simpl in *.
-    destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+    destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
     destruct init_perm; try discriminate.
     inv HinitSC. inv HinitF.
     unfold initial_machine, ErasedMachine.initial_machine.
     simpl.
     econstructor. simpl; eauto.
-    intros. 
+    intros.
     simpl.
     apply core_erasure_refl; auto.
   Qed.
@@ -2250,7 +2250,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     tr' can be matched by an execution of the SC machine with an
     erased trace *)
   Lemma execution_sim:
-    forall U U' tpf tpf' mf mf' tpsc msc tr tr' trsc 
+    forall U U' tpf tpf' mf mf' tpsc msc tr tr' trsc
       (Hexec: fine_execution (U, tr, tpf) mf (U', tr', tpf') mf')
       (HerasedPool: threadPool_erasure tpf tpsc)
       (Hmem_erasure: mem_erasure mf msc),
@@ -2266,7 +2266,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       exists tpsc, msc, trsc.
       split.
       econstructor 1. simpl; auto.
-      split... 
+      split...
     - intros.
       inversion Hexec; subst.
       + simpl in H5; by exfalso.
@@ -2344,7 +2344,7 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     eapply execution_sim with (trsc := [::]) in H; eauto.
     destruct H as (? & ? & ? & ?& ?& ? & Htrace_erasure).
     specialize (Htrace_erasure ltac:(by constructor)).
-    do 3 eexists; split... 
+    do 3 eexists; split...
   Qed.
 
 End SCErasure.

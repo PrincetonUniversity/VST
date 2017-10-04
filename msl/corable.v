@@ -1,10 +1,10 @@
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.age_sepalg.
-Require Import msl.predicates_hered.
-Require Import msl.predicates_sl.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.predicates_sl.
 
 Local Open Scope pred.
 
@@ -38,7 +38,7 @@ Proof.
  apply prop_ext; split; (intros [?|?]; [left|right]; congruence).
 Qed.
 Lemma corable_allp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
+  forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (allp P).
 Proof.
  unfold corable, allp; intros.
@@ -46,7 +46,7 @@ Proof.
  rewrite <- H; auto. rewrite H; auto.
 Qed.
 Lemma corable_exp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
+  forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (exp P).
 Proof.
  unfold corable, exp; intros.
@@ -144,7 +144,7 @@ Proof.
   exists n; auto.
 Qed.
 
-Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp 
+Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp
                     @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later.
 
 Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:

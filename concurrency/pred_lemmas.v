@@ -5,9 +5,9 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-(* Some utilities; probably should go elsewhere.  *)                        
+(* Some utilities; probably should go elsewhere.  *)
 
 (* Like Haskell '$'. Should bind more tightly than =, <> (level 70), etc. *)
 
@@ -31,15 +31,15 @@ Inductive and9 (P1 P2 P3 P4 P5 P6 P7 P8 P9 : Prop) : Prop :=
 Inductive and10 (P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 : Prop) : Prop :=
   And10 of P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8 & P9 & P10.
 
-Notation "[ /\ P1 , P2 , P3 , P4 , P5 & P6 ]" := 
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 & P6 ]" :=
   (and6 P1 P2 P3 P4 P5 P6) : type_scope.
-Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" := 
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" :=
   (and7 P1 P2 P3 P4 P5 P6 P7) : type_scope.
-Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 & P8 ]" := 
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 & P8 ]" :=
   (and8 P1 P2 P3 P4 P5 P6 P7 P8) : type_scope.
-Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 & P9 ]" := 
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 & P9 ]" :=
   (and9 P1 P2 P3 P4 P5 P6 P7 P8 P9) : type_scope.
-Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 & P10 ]" := 
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 & P10 ]" :=
   (and10 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10) : type_scope.
 
 Section AllAnd.
@@ -51,24 +51,24 @@ Lemma all_and6 (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x & P6 x]) :
   [/\ a P1, a P2, a P3, a P4, a P5 & a P6].
 Proof. by split=> x; case: (hP x). Qed.
 
-Lemma all_and7 
+Lemma all_and7
   (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x & P7 x]) :
   [/\ a P1, a P2, a P3, a P4, a P5, a P6 & a P7].
 Proof. by split=> x; case: (hP x). Qed.
 
-Lemma all_and8 
+Lemma all_and8
   (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x & P8 x]) :
   [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7 & a P8].
 Proof. by split=> x; case: (hP x). Qed.
 
-Lemma all_and9 
-  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x 
+Lemma all_and9
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x
                     & P9 x]) :
   [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7, a P8 & a P9].
 Proof. by split=> x; case: (hP x). Qed.
 
-Lemma all_and10 
-  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x 
+Lemma all_and10
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x
                     , P9 x & P10 x]) :
   [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7, a P8, a P9 & a P10].
 Proof. by split=> x; case: (hP x). Qed.
@@ -85,13 +85,13 @@ End AllAnd.
 Notation Disjoint p q := ([predI p & q] = pred0).
 
 Notation Disjoint_ext p q := ([predI p & q] =i pred0).
- 
+
 Section pred_lems.
 
 Variable T : Type.
 
 Lemma pred_ext (p q : pred T) : p = q <-> p =i q.
-Proof. 
+Proof.
 split=> A; first by move=> b; rewrite A.
 by extensionality b; apply: (A b).
 Qed.
@@ -101,7 +101,7 @@ Proof. by extensionality a. Qed.
 
 Lemma pred_exteta (p q : pred T) :
   [pred x | p x] = [pred x | q x] <-> [pred x | p x] =i [pred x | q x].
-Proof. 
+Proof.
 split=> A; first by move=> b; rewrite A.
 by f_equal; extensionality b; apply: (A b).
 Qed.
@@ -109,7 +109,7 @@ Qed.
 Lemma predIC (p q : pred T) : [predI p & q] = [predI q & p].
 Proof. by rewrite/predI; f_equal; extensionality a; rewrite andb_comm. Qed.
 
-Lemma predIA (p q r : pred T) : 
+Lemma predIA (p q r : pred T) :
   [predI p & [predI q & r]] = [predI [predI p & q] & r].
 Proof.
 rewrite/predI/in_mem/=; f_equal; extensionality a.
@@ -128,33 +128,33 @@ Proof. by []. Qed.
 Lemma predIT1 (p : pred T) : [predI p & predT] = [pred x | p x].
 Proof. by rewrite predIC predIT2. Qed.
 
-Lemma predI_sub1 (p q r : pred T) : 
-  {subset p <= [predI q & r]} -> 
+Lemma predI_sub1 (p q r : pred T) :
+  {subset p <= [predI q & r]} ->
   {subset p <= q} /\ {subset p <= r}.
 Proof.
 by move=> A; split=> a B; move: (A a B); rewrite/in_mem/=; move/andP=> [].
 Qed.
 
-Lemma predI_sub2 (p q : pred T) : 
+Lemma predI_sub2 (p q : pred T) :
   [predI p & q] = [pred x | p x] -> {subset p <= q}.
 Proof.
 rewrite pred_exteta=> A a; move: (A a); rewrite/in_mem/=; move/andP.
 by rewrite/in_mem/=; case: (p a)=> // [][].
 Qed.
 
-Lemma predI_sub3 (p p' q : pred T) : 
-  [predI p & q] = [pred x | p x] -> 
-  {subset p' <= p} -> 
+Lemma predI_sub3 (p p' q : pred T) :
+  [predI p & q] = [pred x | p x] ->
+  {subset p' <= p} ->
   [predI p' & q] = [pred x | p' x].
 Proof.
 rewrite !pred_exteta=> A B a; move: (A a) (B a); rewrite/in_mem/=.
-move/andP; rewrite/in_mem/=. 
+move/andP; rewrite/in_mem/=.
 case: (p a); case: (p' a); case: (q a)=> //; first by case.
 by move=> _; move/(_ erefl).
 Qed.
 
 Lemma predI_sub4 (p q : pred T) :
-  {subset p <= q} -> 
+  {subset p <= q} ->
   [predI p & q] = [pred x | p x].
 Proof.
 move=> S; rewrite !pred_exteta=> a.
@@ -171,19 +171,19 @@ move=> S; case: p S; case: q=> //=.
 move/(_ erefl); discriminate.
 Qed.
 
-Lemma in_predI (p q : pred T) b : 
+Lemma in_predI (p q : pred T) b :
   b \in [predI p & q] = [&& b \in p & b \in q].
 Proof. by rewrite/in_mem. Qed.
 
-Lemma predI_absorb (p q : pred T) : 
+Lemma predI_absorb (p q : pred T) :
   [predI p & [predI p & q]] = [predI p & q].
 Proof.
 rewrite/predI; f_equal; extensionality a=>/=.
 by rewrite/in_mem/=; case: (p a).
 Qed.
 
-Lemma predI_absorb_sub (p' p q : pred T) : 
-  {subset p <= p'} -> 
+Lemma predI_absorb_sub (p' p q : pred T) :
+  {subset p <= p'} ->
   [predI p & q] = [predI p' & [predI p & q]].
 Proof.
 move=> A; rewrite/predI; f_equal; extensionality a=>/=.
@@ -195,13 +195,13 @@ Qed.
 Lemma predI_refl (p : pred T) : [predI p & p] = [pred x | p x].
 Proof.
 rewrite/predI; f_equal; extensionality a=> /=; rewrite /in_mem /=.
-by case: (p a). 
+by case: (p a).
 Qed.
 
 Lemma predUC (p q : pred T) : [predU p & q] = [predU q & p].
 Proof. by rewrite/predU; f_equal; extensionality a; rewrite orb_comm. Qed.
 
-Lemma predUA (p q r : pred T) : 
+Lemma predUA (p q r : pred T) :
   [predU p & [predU q & r]] = [predU [predU p & q] & r].
 Proof.
 rewrite/predU/in_mem/=; f_equal; extensionality a.
@@ -220,19 +220,19 @@ Proof. by []. Qed.
 Lemma predUT1 (p : pred T) : [predU p & predT] = predT.
 Proof. by rewrite predUC predUT2. Qed.
 
-Lemma in_predU (p q : pred T) b : 
+Lemma in_predU (p q : pred T) b :
   b \in [predU p & q] = [|| b \in p | b \in q].
 Proof. by rewrite/in_mem. Qed.
 
-Lemma predU_absorb (p q : pred T) : 
+Lemma predU_absorb (p q : pred T) :
   [predU p & [predU p & q]] = [predU p & q].
 Proof.
 rewrite/predU; f_equal; extensionality a=>/=.
 by rewrite/in_mem/=; case: (p a).
 Qed.
 
-Lemma predU_absorb' (p' p q : pred T) : 
-  {subset p' <= p} -> 
+Lemma predU_absorb' (p' p q : pred T) :
+  {subset p' <= p} ->
   [predU p' & [predU p & q]] = [predU p & q].
 Proof.
 rewrite/predU=> A; f_equal; extensionality a=>/=.
@@ -243,11 +243,11 @@ Qed.
 Lemma predU_refl (p : pred T) : [predU p & p] = [pred x | p x].
 Proof.
 rewrite/predU; f_equal; extensionality a=> /=; rewrite /in_mem /=.
-by case: (p a). 
+by case: (p a).
 Qed.
 
 Lemma predD02 (p : pred T) : [predD pred0 & p] = pred0.
-Proof. 
+Proof.
 rewrite/predD/pred0; f_equal; extensionality a=>/=.
 by rewrite/in_mem/=; rewrite andb_false_r.
 Qed.
@@ -256,7 +256,7 @@ Lemma predD01 (p : pred T) : [predD p & pred0] = [pred x | p x].
 Proof. by []. Qed.
 
 Lemma predDT2 (p : pred T) : [predD predT & p] = [pred x | ~~p x].
-Proof. 
+Proof.
 rewrite/predD/predT; f_equal; extensionality a=>/=.
 by rewrite/in_mem/=; rewrite andb_true_r.
 Qed.
@@ -282,25 +282,25 @@ Qed.
 Lemma predDU2 (p q : pred T) : [predU q & [predD p & q]] = [predU p & q].
 Proof. by rewrite (predUC q) predDU1. Qed.
 
-Lemma predDidem (p q : pred T) : 
+Lemma predDidem (p q : pred T) :
   [predD [predD p & q] & q] = [predD p & q].
 Proof.
 rewrite/predD; f_equal; extensionality a=>/=.
 by rewrite/in_mem/= -{3}(andb_diag (~~ q a)) andb_assoc.
 Qed.
 
-Lemma in_predD (p q : pred T) b : 
+Lemma in_predD (p q : pred T) b :
   b \in [predD p & q] = [&& b \in p & b \notin q].
 Proof. by rewrite/in_mem/=/in_mem/= andb_comm. Qed.
 
-Lemma notin_predD (p q : pred T) b : 
+Lemma notin_predD (p q : pred T) b :
   b \notin [predD p & q] = [|| b \notin p | b \in q].
-Proof. 
+Proof.
 rewrite/in_mem/=; rewrite/in_mem/=.
 by case: (p b)=> //; case: (q b)=> //.
 Qed.
 
-Lemma DisjointIn1 (p q : pred T) : 
+Lemma DisjointIn1 (p q : pred T) :
   [predD p & q]=[pred x | p x] -> Disjoint p q.
 Proof.
 move=> A; change ([predI [pred x | p x] & q] = pred0).
@@ -310,15 +310,15 @@ Qed.
 Lemma DisjointInD (p q : pred T) : Disjoint [predD p & q] q.
 Proof. by apply: DisjointIn1; rewrite predDidem. Qed.
 
-Lemma DisjointInE (p q : pred T) : 
+Lemma DisjointInE (p q : pred T) :
   Disjoint p q <-> Disjoint_ext p q.
-Proof. 
+Proof.
 rewrite/predI/pred0/=; split=> A; f_equal; first by rewrite A.
 by extensionality a; apply: (A a).
 Qed.
 
 Lemma DisjointInI (p q : pred T) : Disjoint [predI p & q] [pred a | ~~ q a].
-Proof. 
+Proof.
 rewrite DisjointInE=> a; rewrite/predI/pred0/=/in_mem/=.
 by case: (p a); case: (q a)=> //.
 Qed.
@@ -344,21 +344,21 @@ move: (A a) (B a)=> /=; rewrite/in_mem/=.
 by case: (p a); case: (q a); case: (r a).
 Qed.
 
-Lemma Disjoint_incr (p q r : pred T) : 
-  Disjoint p q -> 
-  Disjoint p [predD r & q] -> 
+Lemma Disjoint_incr (p q r : pred T) :
+  Disjoint p q ->
+  Disjoint p [predD r & q] ->
   Disjoint p r.
 Proof.
 move/DisjointP=> A; move/DisjointP=> B; rewrite DisjointP=> a.
 move: (A a) (B a); case; first by left.
 move=> C; case=> D; first by left.
-move: C D; rewrite/predD/=/in_mem/=. 
+move: C D; rewrite/predD/=/in_mem/=.
 by case: (q a)=> //; case: (r a)=> //; right.
 Qed.
 
 Lemma Disjoint_sub1 (p q q' : pred T) :
-  Disjoint p q -> 
-  {subset q' <= q} -> 
+  Disjoint p q ->
+  {subset q' <= q} ->
   Disjoint p q'.
 Proof.
 move/DisjointP=> A B; rewrite DisjointP=> a; move: (A a) (B a).
@@ -368,8 +368,8 @@ by move=> _; elim=> //; left.
 Qed.
 
 Lemma Disjoint_sub2 (p p' q : pred T) :
-  Disjoint p q -> 
-  {subset p' <= p} -> 
+  Disjoint p q ->
+  {subset p' <= p} ->
   Disjoint p' q.
 Proof.
 move/DisjointP=> A B; rewrite DisjointP=> a; move: (A a) (B a).
@@ -381,7 +381,7 @@ Qed.
 Lemma in_pred0 (b : T) : b \in pred0 = false.
 Proof. by rewrite/pred0/in_mem. Qed.
 
-Lemma subset_trans' (p q r : pred T) : 
+Lemma subset_trans' (p q r : pred T) :
   {subset p <= q} -> {subset q <= r} -> {subset p <= r}.
 Proof. by move=> A B b C; apply: B; apply: A. Qed.
 

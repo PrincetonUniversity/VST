@@ -1,16 +1,16 @@
-Require Import msl.base.
-Require Import msl.boolean_alg.
-Require Import msl.sepalg.
-Require Import msl.functors.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.shares.
-Require Import msl.cross_split.
-Require Import msl.psepalg.
-Require Import msl.pshares.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.shares.
+Require Import VST.msl.cross_split.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.pshares.
+Require Import VST.msl.eq_dec.
 
-Require msl.predicates_sa.
+Require VST.msl.predicates_sa.
 
 Lemma in_app:   (* THIS IS FROM compcert/Coqlib.v *)
   forall (A: Type) (x: A) (l1 l2: list A), In x (l1 ++ l2) <-> In x l1 \/ In x l2.
@@ -59,22 +59,24 @@ Parameter env_get: forall (rho: env key A) (id: key), option (pshare * A).
 Parameter env_set_sh: forall {KE: EqDec key} (id: key) (v: option (pshare * A)) (rho: env key A), env key A.
 
 Definition env_set  {KE: EqDec key} (id: key) (v: A) (rho: env key A) : env key A :=
-     env_set_sh id (Some (pfullshare, v)) rho. 
+     env_set_sh id (Some (pfullshare, v)) rho.
 
 Axiom env_gss: forall {KE: EqDec key}  i a rho, env_get (env_set i a rho) i = Some (pfullshare, a).
 Axiom env_gso: forall {KE: EqDec key}  i j a rho, i <> j -> env_get (env_set j a rho) i = env_get rho i.
 
-Axiom env_gss_sh: forall {KE: EqDec key} i v rho, 
-  env_get (env_set_sh i v rho) i = v. 
+Axiom env_gss_sh: forall {KE: EqDec key} i v rho,
+  env_get (env_set_sh i v rho) i = v.
 
-Axiom env_gso_sh: forall {KE: EqDec key} i j v rho, i <> j -> 
+Axiom env_gso_sh: forall {KE: EqDec key} i j v rho, i <> j ->
    env_get (env_set_sh j v rho) i = env_get rho i.
 
 Definition finite_idfun (f: key -> option (pshare * A)) :=
   exists l, forall a, ~In a l -> f a = None.
 
 Parameter mk_env:  forall (f: key -> option (pshare * A)), finite_idfun f -> env key A.
-Implicit Arguments mk_env[].
+(*
+Arguments mk_env.
+*)
 
 Axiom env_get_mk_env:  forall (f: key -> option (pshare * A)) P, env_get (mk_env f P) = f.
 
@@ -82,7 +84,7 @@ Axiom env_finite: forall rho, finite_idfun (env_get rho).
 
 Axiom env_ext: forall rho1 rho2, env_get rho1 = env_get rho2 -> rho1=rho2.
 
-Axiom env_funct: forall rho1 rho2, 
+Axiom env_funct: forall rho1 rho2,
   rho1 = rho2 -> forall id sh1 sh2 v1 v2, env_get rho1 id = Some(sh1, v1)
   -> env_get rho2 id = Some(sh2, v2)
   -> v1 = v2.
@@ -95,13 +97,13 @@ Axiom env_get_empty: forall id, env_get empty_env id = None.
 (* We use the Section to hide these instances, because  variables-as-resources clients
   will want Join_env, but global-variables users will want Join_equiv.
   Only the variables-as-resources clients should add these instances,
-  which is done in the Module EnvSA,  below 
+  which is done in the Module EnvSA,  below
 *)
-Instance Join_env: Join (env key A) := 
+Instance Join_env: Join (env key A) :=
     fun (rho1 rho2 rho3: env key A) => join (env_get rho1) (env_get rho2) (env_get rho3).
 Parameter Perm_env: forall {PA: Perm_alg A}, Perm_alg (env key A).  Existing Instance Perm_env.
 
-Instance Sep_env {SA: Sep_alg A}: Sep_alg (env key A). 
+Instance Sep_env {SA: Sep_alg A}: Sep_alg (env key A).
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
@@ -112,7 +114,7 @@ Instance Sing_env  {SA: Sep_alg A} : Sing_alg (env key A).
 Defined.
 
 Parameter Canc_env: forall {PA: Perm_alg A}{CA: Canc_alg A}, Canc_alg (env key A). Existing Instance Canc_env.
-Parameter Disj_env: forall {DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
+Parameter Disj_env: forall {PA: Perm_alg A}{DA: Disj_alg A}, Disj_alg (env key A).   Existing Instance Disj_env.
 Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
 
 
@@ -121,22 +123,22 @@ Parameter Cross_env : Cross_alg (env key A).  Existing Instance Cross_env.
    either kind.  Thus, we build primitives whose names start with _ to avoid polluting the
   namespace; then we reveal them at appropriate types in EnvSL and EnvASL, below.
 *)
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 (* ENV_MAPSTO *)
 Parameter _env_mapsto: forall {KE: EqDec key}  (id: key) (sh: Share.t) (v: A), pred (env key A).
 
 Axiom _env_mapsto_exists: forall {KE: EqDec key}  id sh v, exists rho, _env_mapsto id (pshare_sh sh) v rho.
 
-Axiom _env_get_mapsto: forall {KE: EqDec key}  id v rho,  
-  (exists sh, env_get rho id = Some (sh,v)) = 
+Axiom _env_get_mapsto: forall {KE: EqDec key}  id v rho,
+  (exists sh, env_get rho id = Some (sh,v)) =
   (exp (fun sh => _env_mapsto id sh v) * TT)%pred rho.
 
-Axiom _env_get_mapsto': forall {KE: EqDec key}  id (sh: pshare) v rho, 
-  env_get rho id = Some(pfullshare,v) -> 
+Axiom _env_get_mapsto': forall {KE: EqDec key}  id (sh: pshare) v rho,
+  env_get rho id = Some(pfullshare,v) ->
        (_env_mapsto id (pshare_sh sh) v * TT)%pred rho.
 
-Axiom _env_mapsto_set: forall {KE: EqDec key} id v, 
+Axiom _env_mapsto_set: forall {KE: EqDec key} id v,
   _env_mapsto id Share.top v (env_set id v empty_env).
 
 Axiom _env_mapsto_set_sh: forall {KE: EqDec key} id (sh: pshare) v,
@@ -164,7 +166,7 @@ Module Env: ENV.
 
 Section ENVSEC.
 Context {key: Type}{A: Type}.
-Instance JA: Join A := Join_equiv A. 
+Instance JA: Join A := Join_equiv A.
 
 Definition env := fpm key (pshare * A).
 
@@ -251,7 +253,7 @@ generalize (equal_f  H id); intro.
 destruct (x id); destruct (x0 id); inv H0; auto.
 Qed.
 
-Lemma env_funct: forall rho1 rho2, 
+Lemma env_funct: forall rho1 rho2,
   rho1 = rho2 -> forall id sh1 sh2 v1 v2, env_get rho1 id = Some(sh1, v1)
   -> env_get rho2 id = Some(sh2, v2)
   -> v1 = v2.
@@ -275,7 +277,7 @@ intros.
 unfold empty_env. rewrite env_get_mk_env; auto.
 Qed.
 
-Instance Join_env: Join env := 
+Instance Join_env: Join env :=
     fun (rho1 rho2 rho3: env) => join (env_get rho1) (env_get rho2) (env_get rho3).
 
 Lemma Join_env_eq: Join_env = Join_fpm (Join_prod _ Join_pshare _ JA).
@@ -286,7 +288,7 @@ destruct rho1 as [rho1 V1]; destruct rho2 as [rho2 V2]; destruct rho3 as [rho3 V
 unfold Join_env, Join_fpm; simpl.
 apply prop_ext; split; intros H id; spec H id;
 unfold env_get in * ; simpl in *; clear - H;
-destruct (rho1 id) as [[[sh1 v1] n1]| ]; 
+destruct (rho1 id) as [[[sh1 v1] n1]| ];
 destruct (rho2 id) as [[[sh2 v2] n2]| ];
 destruct (rho3 id) as [[[sh3 v3] n3]| ];
 inv H; simpl in *;  try constructor; auto.
@@ -301,7 +303,7 @@ Proof.
   rewrite Join_env_eq. apply Perm_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Sep_env {SA: Sep_alg A}: @Sep_alg env Join_env. 
+Instance Sep_env {SA: Sep_alg A}: @Sep_alg env Join_env.
  refine (mkSep Join_env (fun _ => empty_env) _ _).
  repeat intro; rewrite env_get_empty; constructor.
  auto.
@@ -315,7 +317,7 @@ Instance Canc_env {PA: Perm_alg A}{CA: Canc_alg A}: @Canc_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Canc_fpm; auto with typeclass_instances.
 Qed.
 
-Instance Disj_env {DA: Disj_alg A}: @Disj_alg env Join_env.
+Instance Disj_env {PA: Perm_alg A}{DA: Disj_alg A}: @Disj_alg env Join_env.
 Proof.   rewrite Join_env_eq. apply Disj_fpm; auto with typeclass_instances.
 Qed.
 
@@ -326,7 +328,7 @@ Proof.
  pose (bij := @fpm_bij key _ _ (@lift_prod_bij share _ A)).
  pose (J := @Join_fpm key _ (@Join_lift _ (Join_prod share _ _ JA))).
  unfold pshare.
- replace 
+ replace
   (@Join_fpm key (@lifted Share.t Share.Join_ba * A)
      (Join_prod (@lifted Share.t Share.Join_ba) Join_pshare A
         JA))
@@ -356,7 +358,7 @@ Proof.
  set (yi:= proj1_sig y i); clearbody yi.
  set (zi:= proj1_sig z i); clearbody zi.
  clear.
- destruct xi; destruct yi; destruct zi; 
+ destruct xi; destruct yi; destruct zi;
  apply prop_ext; split; intro; inv H; try constructor.
  destruct p as [[x Hx] x']. destruct p0 as [[y Hy] y']. destruct p1 as [[z Hz] z'].
   simpl in *. inv H3; simpl in *. split; auto.
@@ -364,16 +366,16 @@ Proof.
   simpl in *. inv H3; simpl in *. split; auto.
  destruct p as [[x Hx] x']. destruct p0 as [[z Hz] z'].
  simpl in H1. inv H1. apply join_unit2; auto.
- repeat f_equal; apply proof_irr. 
+ repeat f_equal; apply proof_irr.
  destruct p as [[x Hx] x']. destruct p0 as [[z Hz] z'].
  simpl in H0. inv H0. apply join_unit1; auto.
- repeat f_equal; apply proof_irr. 
-Qed. 
+ repeat f_equal; apply proof_irr.
+Qed.
 
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition _env_mapsto {KE: EqDec key} (id: key) (sh: Share.t) (v: A) : pred env :=
-    fun rho => exists p, 
+    fun rho => exists p,
    forall id', env_get rho id' = if eq_dec id id' then Some (exist _ sh p,v) else None.
 
 Lemma _env_mapsto_exists{KE: EqDec key}: forall id sh v, exists rho, _env_mapsto id (pshare_sh sh) v rho.
@@ -393,8 +395,8 @@ intros.
 auto.
 Qed.
 
-Lemma _env_get_mapsto {KE: EqDec key}:  forall (id: key) (v: A) (rho: env),  
-  (exists sh, env_get rho id = Some (sh,v)) = 
+Lemma _env_get_mapsto {KE: EqDec key}:  forall (id: key) (v: A) (rho: env),
+  (exists sh, env_get rho id = Some (sh,v)) =
   (exp (fun sh => _env_mapsto id sh v) * TT)%pred rho.
 Proof.
 intros.
@@ -439,13 +441,13 @@ destruct a2; destruct a3; destruct H4 as [? [? ?]]; simpl in *; subst.
 econstructor; eauto.
 Qed.
 
-Lemma _env_get_mapsto'  {KE: EqDec key}: forall id (sh: pshare) v rho, 
+Lemma _env_get_mapsto'  {KE: EqDec key}: forall id (sh: pshare) v rho,
   env_get rho id = Some(pfullshare,v) -> (_env_mapsto id (pshare_sh sh) v * TT)%pred rho.
 Proof.
 intros.
 destruct (top_correct' (pshare_sh sh)) as [sh2 ?].
 assert (finite_idfun (fun i => if eq_dec i id then Some (sh,v) else None)).
-exists (id::nil); intros. simpl in H1. 
+exists (id::nil); intros. simpl in H1.
 assert (id <> a) by intuition.
 destruct (eq_dec a id); auto. contradiction H2; auto.
 destruct (dec_share_identity sh2).
@@ -497,7 +499,7 @@ f_equal. f_equal. destruct sh; simpl.  auto.
 destruct (eq_dec id id'); auto. contradiction n0; auto.
 Qed.
 
-Lemma _env_mapsto_set{KE: EqDec key}: forall id v, 
+Lemma _env_mapsto_set{KE: EqDec key}: forall id v,
   _env_mapsto id Share.top v (env_set id v empty_env).
 Proof.
   intros id v.
@@ -530,9 +532,9 @@ Proof.
   intros id sh v rho [p H1].
   spec H1 id; simpl in *.
   destruct (eq_dec id id); firstorder.
-Qed.  
+Qed.
 
-Lemma _env_mapsto_empty_env {KE: EqDec key} : forall id v sh, 
+Lemma _env_mapsto_empty_env {KE: EqDec key} : forall id v sh,
   ~(_env_mapsto id sh v empty_env).
 Proof.
   unfold not, _env_mapsto.
@@ -541,7 +543,7 @@ Proof.
   destruct (eq_dec id id); auto.
   inversion H.
 Qed.
-  
+
 Lemma _env_mapsto_get_neq {KE: EqDec key} : forall (id1 id2: key) (sh: Share.t) (v: A) rho,
   id1 <> id2 -> _env_mapsto id1 sh v rho -> env_get rho id2 = None.
 Proof.
@@ -549,7 +551,7 @@ Proof.
   intros id1 id2 sh v rho Hneq [p H1].
   spec H1 id2.
   destruct (eq_dec id1 id2); try contradiction ;auto.
-Qed.  
+Qed.
 
 Lemma _env_mapsto_splittable1 {KE: EqDec key}: forall id v (sh sh1 sh2: pshare) rho,
   join (proj1_sig sh1) (proj1_sig sh2) (proj1_sig sh)
@@ -564,7 +566,7 @@ Proof.
   spec Hrho_join id'.
   rewrite H_env_mapsto1 in Hrho_join; rewrite H_env_mapsto2 in Hrho_join.
   destruct (eq_dec id id').
-  
+
   (* id = id' *)
   inversion Hrho_join; simpl in *; subst.
   destruct a3; destruct H3 as [? [? ?]]; simpl in *; subst.
@@ -631,13 +633,13 @@ Existing Instance Canc_env.
 Existing Instance Disj_env.
 Existing Instance Cross_env.
 
-Lemma empty_env_unit {key: Type}{A: Type}: 
+Lemma empty_env_unit {key: Type}{A: Type}:
     forall rho: env key A, unit_for empty_env rho.
 Proof.
 intro; intros.
 unfold unit_for.
 intro.
-rewrite env_get_empty. 
+rewrite env_get_empty.
 constructor.
 Qed.
 
@@ -648,7 +650,7 @@ Qed.
 Hint Resolve @empty_env_unit @empty_env_unit'.
 
 Lemma env_join_sub1 {key: Type}{A: Type}:
-  forall rho1 rho2: env key A, (forall id x, env_get rho1 id = Some x -> env_get rho2 id = Some x) -> 
+  forall rho1 rho2: env key A, (forall id x, env_get rho1 id = Some x -> env_get rho2 id = Some x) ->
      join_sub rho1 rho2.
 Proof.
 intros.
@@ -687,7 +689,7 @@ rewrite H0 in H.
 clear H0 rho.
 destruct sh as [sh n].
 destruct (env_get rho' id) as [[[sh' n'] v'] |]; [|inv H].
-revert H; 
+revert H;
 destruct (env_get x id) as [[[shx nx] vx] | ]; intro H; inv H.
 simpl in *.
 destruct H3 as [? [? ?]]; simpl in *; subst.
@@ -697,14 +699,14 @@ simpl. apply join_sub_refl.
 Qed.
 
 Lemma env_at_joins {key: Type}{A: Type}{KE: EqDec key}:
-  forall rho1 rho2: env key A, 
-         (forall id, @joins _ (@Join_lower (pshare * A) (Join_prod pshare Join_pshare A (Join_equiv _))) (env_get rho1 id) (env_get rho2 id)) -> 
+  forall rho1 rho2: env key A,
+         (forall id, @joins _ (@Join_lower (pshare * A) (Join_prod pshare Join_pshare A (Join_equiv _))) (env_get rho1 id) (env_get rho2 id)) ->
                joins rho1 rho2.
 Proof.
 intros.
 unfold joins in H.
-pose (share_of rho id := match @env_get key A rho id with 
-                                       | None => Share.bot 
+pose (share_of rho id := match @env_get key A rho id with
+                                       | None => Share.bot
                                        | Some (p,v) => pshare_sh p
                                        end).
 assert (forall id, joins (share_of rho1 id) (share_of rho2 id)).
@@ -732,7 +734,7 @@ destruct (env_finite rho1) as [l1 ?].
 destruct (env_finite rho2) as [l2 ?].
 exists (l1++l2).
 intros.
-rewrite in_app in H3. 
+rewrite in_app in H3.
 destruct (In_dec eq_dec a l1) as [H3' | H3'].
 contradiction H3; auto.
 assert (H4: ~In a l2) by intuition.
@@ -758,7 +760,7 @@ destruct (dec_share_identity x).
 generalize (split_identity _ _ j i); intro.
 elimtype False; clear - H1.
 revert H1; apply nonunit_nonidentity.
-apply pshare_nonunit. 
+apply pshare_nonunit.
 constructor; auto. constructor; auto. simpl. apply join_equiv_refl.
 Qed.
 
@@ -767,8 +769,8 @@ Lemma env_at_join_sub {key: Type}{A: Type}{KE: EqDec key}:
 Proof.
 intros.
 unfold join_sub in H.
-pose (share_of rho id := match @env_get key A rho id with 
-                                       | None => Share.bot 
+pose (share_of rho id := match @env_get key A rho id with
+                                       | None => Share.bot
                                        | Some (p,v) => pshare_sh p
                                        end).
 assert (forall id, join_sub (share_of rho1 id) (share_of rho2 id)).
@@ -814,7 +816,7 @@ apply unit_identity with (pshare_sh sh2); apply join_comm; auto.
 destruct H4 as [? [? ?]]; simpl snd in *; subst.
 generalize (join_canc (join_comm j) (join_comm H)); intro; subst.
 destruct (dec_share_identity (lifted_obj (fst a2))).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (lifted_obj (fst a2))).
+contradiction (@nonunit_nonidentity _ _ _ _ (lifted_obj (fst a2))).
 destruct (fst a2); simpl; auto.
 destruct a2; simpl in *. destruct p; simpl in *.
 constructor; simpl; auto.
@@ -824,7 +826,7 @@ inv H.
 apply bot_identity in j.
 subst.
 destruct (dec_share_identity (pshare_sh sh2)).
-contradiction (@nonunit_nonidentity _ _ _ _ _ (pshare_sh sh2)).
+contradiction (@nonunit_nonidentity _ _ _ _ (pshare_sh sh2)).
 apply pshare_nonunit.
 apply join_unit1; auto.
 f_equal. f_equal. unfold mk_lifted; destruct sh2; simpl. f_equal. apply proof_irr.
@@ -849,26 +851,26 @@ Qed.
 
 End EnvSA.
 
-Module EnvSL.  
+Module EnvSL.
 Import EnvSA.
-Import msl.predicates_sa.
+Import VST.msl.predicates_sa.
 
 Definition env_mapsto: forall {key A}{KE: EqDec key} (id: key) (sh: Share.t) (v: A) , pred (env key A) := @_env_mapsto.
-Implicit Arguments env_mapsto [[key][A][KE]].
+Arguments env_mapsto [key] [A] [KE] _ _ _ _.
 
 Lemma env_mapsto_exists{key A}{KE: EqDec key}: forall id sh (v: A), exists rho, _env_mapsto id (pshare_sh sh) v rho.
 Proof. apply _env_mapsto_exists. Qed.
 
-Lemma env_get_mapsto {key A}{KE: EqDec key}:  forall (id: key) (v: A) (rho: env _ _),  
-  (exists sh, env_get rho id = Some (sh,v)) = 
+Lemma env_get_mapsto {key A}{KE: EqDec key}:  forall (id: key) (v: A) (rho: env _ _),
+  (exists sh, env_get rho id = Some (sh,v)) =
   (exp (fun sh => _env_mapsto id sh v) * TT)%pred rho.
 Proof. apply _env_get_mapsto. Qed.
 
-Lemma env_get_mapsto'  {key A}{KE: EqDec key}: forall id (sh: pshare) (v: A) rho, 
+Lemma env_get_mapsto'  {key A}{KE: EqDec key}: forall id (sh: pshare) (v: A) rho,
   env_get rho id = Some(pfullshare,v) -> (_env_mapsto id (pshare_sh sh) v * TT)%pred rho.
 Proof. apply _env_get_mapsto'. Qed.
 
-Lemma env_mapsto_set {key A}{KE: EqDec key}: forall id (v: A), 
+Lemma env_mapsto_set {key A}{KE: EqDec key}: forall id (v: A),
     env_mapsto id Share.top v (env_set id v empty_env).
 Proof. apply _env_mapsto_set. Qed.
 
@@ -882,7 +884,7 @@ Lemma env_mapsto_get{key A}{KE: EqDec key}: forall id sh (v:A) rho,
         env_get rho id = Some (exist nonunit sh Pf, v).
 Proof. apply _env_mapsto_get. Qed.
 
-Lemma env_mapsto_empty_env {key A}{KE: EqDec key} : forall id (v:A) sh, 
+Lemma env_mapsto_empty_env {key A}{KE: EqDec key} : forall id (v:A) sh,
   ~(env_mapsto id sh v empty_env).
   Proof. apply _env_mapsto_empty_env. Qed.
 
@@ -896,7 +898,7 @@ Lemma env_mapsto_splittable {key A}{KE: EqDec key}: forall id (v:A) (sh sh1 sh2:
         <-> (_env_mapsto id (pshare_sh sh1) v * _env_mapsto id (pshare_sh sh2)  v)%pred rho).
 Proof. apply _env_mapsto_splittable. Qed.
 
-Lemma env_mapsto_positive{key: Type}{A: Type}{KE: EqDec key}: forall id sh (v: A) rho, 
+Lemma env_mapsto_positive{key: Type}{A: Type}{KE: EqDec key}: forall id sh (v: A) rho,
   env_mapsto id sh v rho -> nonidentity sh.
 Proof.
   intros until rho.
@@ -927,8 +929,8 @@ auto.
 Qed.
 Hint Resolve @emp_empty_env'.
 
-Lemma env_mapsto_cohere{key: Type}{A: Type}{KE: EqDec key}: forall id sh1 (v1: A) sh2 v2, 
-  (env_mapsto id sh1 v1 * TT) && (env_mapsto id sh2 v2 * TT) 
+Lemma env_mapsto_cohere{key: Type}{A: Type}{KE: EqDec key}: forall id sh1 (v1: A) sh2 v2,
+  (env_mapsto id sh1 v1 * TT) && (env_mapsto id sh2 v2 * TT)
     |-- !!(v1=v2).
 Proof.
   intros.
@@ -962,10 +964,10 @@ Qed.
 Definition own_var {key: Type}{A: Type}{KE: EqDec key} (sh: pshare) (id: key) : pred (env key A) :=
   exp (env_mapsto id (pshare_sh sh)).
 
-Definition see_var {key: Type}{A: Type}{KE: EqDec key} (id: key) : pred (env key A) := 
+Definition see_var {key: Type}{A: Type}{KE: EqDec key} (id: key) : pred (env key A) :=
   exp (fun sh: pshare => own_var sh id).
 
-Definition own_all {key: Type}{A: Type}{KE: EqDec key} (l: list key) : pred (env key A) := 
+Definition own_all {key: Type}{A: Type}{KE: EqDec key} (l: list key) : pred (env key A) :=
    list_sepcon (map (own_var pfullshare) l).
 
 Lemma own_all_nil {key: Type}{A: Type}{KE: EqDec key} : own_all nil = (emp: pred (env key A)).
@@ -1021,7 +1023,7 @@ auto.
 Qed.
 
 Lemma restrict_env_app  {key: Type}{A: Type}{KE: EqDec key} :
-  forall ids1 ids2 (rho: env key A),  list_disjoint ids1 ids2 -> 
+  forall ids1 ids2 (rho: env key A),  list_disjoint ids1 ids2 ->
     join (restrict_env ids1 rho) (restrict_env ids2 rho) (restrict_env (ids1++ids2) rho).
 Proof.
 intros.
@@ -1059,7 +1061,7 @@ unfold restrict_env', restrict_env_comp'.
 destruct (in_dec eq_dec id ids); constructor.
 Qed.
 
-Lemma restrict_env_rev {key: Type}{A: Type}{KE: EqDec key}: 
+Lemma restrict_env_rev {key: Type}{A: Type}{KE: EqDec key}:
     forall ids, @restrict_env key A _ (rev ids) = restrict_env ids.
 Proof.
 intros.
@@ -1081,8 +1083,8 @@ intro; intros.
 apply pshareval_join_e in H.
 apply pshareval_join_e in H0.
 apply pshareval_join_e in H1.
-destruct a as [[[sa pa] va]|]; 
-destruct b as [[[sb pb] vb]|]; 
+destruct a as [[[sa pa] va]|];
+destruct b as [[[sb pb] vb]|];
 destruct ab as [[[sab pab] vab]|]; try solve [elimtype False; inv H];
 destruct c as [[[sc pc] vc]|];
 destruct bc as [[[sbc pbc] vbc]|]; try solve [elimtype False; inv H0];
@@ -1090,17 +1092,17 @@ destruct ac as [[[sac pac] vac]|]; try solve [elimtype False; inv H1];
 simpl in *;
 try (assert (Hx: join sa sb sab /\ va = vb /\ vb = vab)
      by (inv H; simpl in *; intuition;
-            match goal with H: @join B _ _ _ _ |- _ => destruct H end; 
+            match goal with H: @join B _ _ _ _ |- _ => destruct H end;
              congruence);
     decompose [and] Hx; clear H Hx; subst vab);
 try (assert (Hx: join sb sc sbc /\ vb = vc /\ vb = vbc)
     by (inv H0; simpl in *; intuition;
-            match goal with H: @join B _ _ _ _ |- _ => destruct H end; 
+            match goal with H: @join B _ _ _ _ |- _ => destruct H end;
              congruence);
     decompose [and] Hx; clear H0 Hx; subst vbc);
 try (assert (Hx: join sa sc sac /\ va = vc /\ va = vac)
     by (inv H1; simpl in *; intuition;
-            match goal with H: @join B _ _ _ _ |- _ => destruct H end; 
+            match goal with H: @join B _ _ _ _ |- _ => destruct H end;
              congruence);
     decompose [and] Hx; clear H1 Hx; subst vac);
 subst; subst;

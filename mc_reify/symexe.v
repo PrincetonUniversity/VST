@@ -1,5 +1,5 @@
 Require Export mc_reify.reify.
-Import floyd.proofauto.
+Import VST.floyd.proofauto.
 Require Export mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
 Require Import MirrorCore.Lemma.
@@ -54,14 +54,14 @@ end.
 
 Ltac extract_sep_lift_semax :=
   match goal with
-      [ |- context [semax _ (*(PROP (?P1) (LOCALx ?Q1 SEP (?R1)))*) 
-                 (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ 
+      [ |- context [semax _ (*(PROP (?P1) (LOCALx ?Q1 SEP (?R1)))*)
+                 (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _
                  (normal_ret_assert (*(PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))))*) _)]] =>
       let R1' := pull_sep_lift R1 in
       (*let R2' := pull_sep_lift R2 in*)
-      try (change (PROPx (P1) (LOCALx Q1 (SEPx (R1)))) 
+      try (change (PROPx (P1) (LOCALx Q1 (SEPx (R1))))
       with (assertD nil Q1 R1'))(*;
-      try  (change (PROPx (P2) (LOCALx Q2 (SEPx (R2)))) 
+      try  (change (PROPx (P2) (LOCALx Q2 (SEPx (R2))))
       with (assertD nil Q2 R2'))*)
 end.
 
@@ -76,7 +76,7 @@ extract_sep_lift_semax;
 hnf_tycontext.
 
 
-Definition remove_global_spec (t : tycontext) := 
+Definition remove_global_spec (t : tycontext) :=
 match t with
 | mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
 end.
@@ -172,12 +172,12 @@ match e with
   (get_arguments_delta Delta,
    get_arguments_pre Pre,
    get_arguments_statement CCmd)
-| App _ e 
+| App _ e
 | Abs _ e => get_arguments e
 | _ => (None, None, None)
 end.
 
-Definition compute_hlip_arg (arg: 
+Definition compute_hlip_arg (arg:
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
        (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
@@ -186,7 +186,7 @@ Definition compute_hlip_arg (arg:
   | ((t, v, r, gt, _), (_, _, _, R, _), s) => (t, v, r, gt, s, R)
   end.
 
-Definition compute_set_arg (arg: 
+Definition compute_set_arg (arg:
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
        (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
@@ -259,7 +259,7 @@ end.
 
 Definition nth_solver R p := nth_solver_rec R p 0.
 
-Definition compute_load_arg (arg: 
+Definition compute_load_arg (arg:
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
        (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
@@ -286,7 +286,7 @@ Definition compute_load_arg (arg:
     end
   end.
 
-Definition compute_store_arg (arg: 
+Definition compute_store_arg (arg:
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
        (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
@@ -321,7 +321,7 @@ Variable tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
-Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
+Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind)
          (P : environ -> mpred)  (P' : environ -> mpred)
           (Q : ret_assert) (Delta : tycontext) ,
        @semax Espec Delta P c1 (normal_ret_assert P') ->
@@ -332,9 +332,9 @@ eapply semax_seq'; eauto.
 Qed.
 
 Definition skip_lemma : my_lemma.
-reify_lemma reify_vst 
+reify_lemma reify_vst
 @semax_skip.
-Defined. 
+Defined.
 
 Definition seq_lemma (s1 s2: statement)  : my_lemma.
 reify_lemma reify_vst (semax_seq_reif s1 s2).
@@ -342,18 +342,18 @@ Defined.
 
 Definition replace_set (e : expr typ func) : expr typ func :=
 match e with
-| App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
-                     Delta) pre) s) post => 
-  let newpre := 
+| App (App (App (App (App (Inj (inr (Smx fsemax))) es)
+                     Delta) pre) s) post =>
+  let newpre :=
       match pre with
         |  App (App (App (Inj (inr (Smx fassertD))) P)
                     (App (App (Inj (inr (Smx flocalD)))
-                              T1) T2)) R => 
+                              T1) T2)) R =>
            let newT1 := match T1 with
-                          | App (App 
+                          | App (App
                                     (Inj (inr (Data (fset tyval n))))
                                     val) T1' =>
-                            get_set_reif.set_reif n val T1' tyval 
+                            get_set_reif.set_reif n val T1' tyval
                           | _ => T1
                         end in
            App (App (App (Inj (inr (Smx fassertD))) P)
@@ -361,11 +361,11 @@ match e with
                               newT1) T2)) R
         | _ => pre
       end in
-  App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+  App (App (App (App (App (Inj (inr (Smx fsemax))) es)
                      Delta) newpre) s) post
 | _ => e
 end.
-       
+
 Definition SIMPL_SET : rtac typ (ExprCore.expr typ func) :=
 SIMPLIFY (fun _ _ _ _ => replace_set).
 
@@ -373,9 +373,9 @@ Definition update_tycon_tac (l : list (option (expr typ func)))
 (e : expr typ func) (args : list (expr typ func))
 	: expr typ func :=
 match e with
-    | (Inj (inr (Smx (fupdate_tycon)))) => 
+    | (Inj (inr (Smx (fupdate_tycon)))) =>
       match args with
-          | [App (Inj (inr (Smx (ftycontext t v r gt)))) gs; (Inj (inr (Smx (fstatement s))))] => 
+          | [App (Inj (inr (Smx (ftycontext t v r gt)))) gs; (Inj (inr (Smx (fstatement s))))] =>
             App (Inj (inr (Smx (ftycontext (update_temp t s) v r gt)))) gs
           | _ =>  AppN.apps e args
       end
@@ -389,7 +389,7 @@ Definition INTROS := (REPEAT 10 (INTRO typ func)).
 
 Definition APPLY_SKIP :=  (APPLY typ func  skip_lemma).
 
-Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e := 
+Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e :=
   t nil nil 0%nat 0%nat (CTop nil nil) (ctx_empty (expr := expr typ func)) e.
 
 Definition run_tac_intros e :=
@@ -413,7 +413,7 @@ Definition FORWARD_SET Delta Pre s :=
   | Some (temp, var, ret, gt, i, e0, ty) =>
       THEN (EAPPLY typ func (set_lemma temp var ret gt i e0 ty))
            (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
-                        REFLEXIVITY_MSUBST tbl; 
+                        REFLEXIVITY_MSUBST tbl;
                         REFLEXIVITY_BOOL tbl;
                         AFTER_SET_LOAD tbl;
                         REFLEXIVITY tbl]))
@@ -474,12 +474,12 @@ Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)
   (Then.THEN (AT_GOAL
-    (fun c s e => 
+    (fun c s e =>
          match (get_arguments e) with
-         | (Some Delta, Some Pre, Some s) =>  
+         | (Some Delta, Some Pre, Some s) =>
            match compute_forward_rule s with
            | Some ForwardSkip => APPLY_SKIP
-           | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2 
+           | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2
            | Some ForwardSet => FORWARD_SET Delta Pre s
            | Some ForwardLoad => FORWARD_LOAD Struct_env Delta Pre s
            | Some ForwardStore => FORWARD_STORE Struct_env Delta Pre s
@@ -517,8 +517,8 @@ Definition test_lemma :=
           _
           nil nil.
 
-Fixpoint is_pure (e : expr typ func) := 
-match e with 
+Fixpoint is_pure (e : expr typ func) :=
+match e with
 | App e1 e2 => is_pure e1
 | (Inj (inr (Sep fprop))) => true
 | _ => false
@@ -530,16 +530,16 @@ Let Expr_expr := (Expr_expr_fs tbl).
 Existing Instance Expr_expr.
 
 Definition run_tac' tac goal :=
-  runOnGoals tac nil nil 0 0 (CTop nil nil) 
+  runOnGoals tac nil nil 0 0 (CTop nil nil)
     (ctx_empty (typ := typ) (expr := expr typ func)) goal.
 
 Lemma run_rtac_More tac s goal e
-  (Hsound : rtac_sound tac) 
+  (Hsound : rtac_sound tac)
   (Hres : run_tac' tac (GGoal e) = More_ s goal) :
   goalD_Prop tbl nil nil goal -> exprD_Prop tbl nil nil e.
 Proof.
   intros He'.
-  apply runOnGoals_sound_ind with (g := GGoal e) (ctx := CTop nil nil) 
+  apply runOnGoals_sound_ind with (g := GGoal e) (ctx := CTop nil nil)
   	(s0 := TopSubst (expr typ func) nil nil) in Hsound.
   unfold rtac_spec in Hsound. simpl in Hsound.
   unfold run_tac' in Hres. simpl in Hres.
@@ -558,12 +558,12 @@ Proof.
   simpl in H0; inv_all; subst.
   unfold pctxD in H0; inv_all; subst.
   apply H5.
-  unfold goalD_Prop in He'. simpl in He'. 
+  unfold goalD_Prop in He'. simpl in He'.
   destruct (goalD [] [] goal); congruence.
 Qed.
 
 Lemma run_rtac_Solved tac s e
-  (Hsound : rtac_sound tac) 
+  (Hsound : rtac_sound tac)
   (Hres : run_tac' tac (GGoal e) = Solved s) :
   exprD_Prop tbl nil nil e.
 Proof.
@@ -576,9 +576,9 @@ Proof.
   simpl in Hsound.
   unfold propD, exprD'_typ0 in Hsound.
   unfold exprD_Prop.
-  
+
   simpl in Hsound. unfold exprD. simpl. forward.
-  destruct Hsound. 
+  destruct Hsound.
   inversion Hwfs; subst. simpl in H8. inv_all; subst.
   simpl in *.
   admit.
@@ -605,16 +605,16 @@ Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
                         PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
 
 Goal
-forall {Espec : OracleKind} (contents : list val) (v: val) ,  
+forall {Espec : OracleKind} (contents : list val) (v: val) ,
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
-     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at Tsh t_struct_list (Values.Vundef, Values.Vint Int.zero) (force_ptr v)])
-     (Sassign 
+     (Sassign
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
               _tail (tptr t_struct_list))
-          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
-     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at Tsh t_struct_list (default_val _) (force_ptr v)])
 )).
 intros.
@@ -642,9 +642,9 @@ reflexivity.
 reify_expr_tac.
 Set Printing Depth 200.
 Set Printing All.
-Eval vm_compute in (run_tac 
+Eval vm_compute in (run_tac
         (match (get_arguments e) with
-         | (Some Delta, Some Pre, Some s) => 
+         | (Some Delta, Some Pre, Some s) =>
              THEN (INTROS) (FORWARD_STORE tbl Struct_env Delta Pre s)
          | _ => FAIL
          end) e).
@@ -674,18 +674,18 @@ Existing Instance NullExtension.Espec.
 
 Definition replace_set2 (e : expr typ func) : expr typ func :=
 match e with
-| App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
-                     Delta) pre) s) post => 
-  let newpre := 
+| App (App (App (App (App (Inj (inr (Smx fsemax))) es)
+                     Delta) pre) s) post =>
+  let newpre :=
       match pre with
         |  App (App (App (Inj (inr (Smx fassertD))) P)
                     (App (App (Inj (inr (Smx flocalD)))
-                              T1) T2)) R => 
+                              T1) T2)) R =>
            let newT1 := match T1 with
-                          | App (App 
+                          | App (App
                                     (Inj (inr (Data (fset tyval n))))
                                     val) T1' =>
-                            get_set_reif.set_reif n val T1' tyval 
+                            get_set_reif.set_reif n val T1' tyval
                           | _ => T1
                         end in
            App (App (App (Inj (inr (Smx fassertD))) P)
@@ -693,7 +693,7 @@ match e with
                               newT1) T2)) R
         | _ => pre
       end in
-  App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+  App (App (App (App (App (Inj (inr (Smx fsemax))) es)
                      Delta) newpre) s) post
 | _ => e
 end.

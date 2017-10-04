@@ -4,9 +4,9 @@ Require Import compcert.lib.Maps.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 
-Require Import sepcomp.extspec.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Definition has_opttyp (v : option val) (t : option typ) :=
   match v, t with
@@ -19,7 +19,7 @@ Section safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
   Context {Hrel: nat -> M -> M -> Prop}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
 
   Variable ge : G.
@@ -29,7 +29,7 @@ Section safety.
   | safeN_step:
       forall n z c m c' m',
       corestep Hcore ge c m c' m' ->
-      safeN_ n z c' m' -> 
+      safeN_ n z c' m' ->
       safeN_ (S n) z c m
   | safeN_external:
       forall n z c m e args x,
@@ -38,27 +38,27 @@ Section safety.
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : has_opttyp ret (sig_res (ef_sig e))),
-         (n' <= n)%nat -> 
-         Hrel n' m m' -> 
+         (n' <= n)%nat ->
+         Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
            after_external Hcore ret c = Some c' /\
-           safeN_ n' z' c' m') -> 
+           safeN_ n' z' c' m') ->
       safeN_ (S n) z c m
   | safeN_halted:
       forall n z c m i,
-      halted Hcore c = Some i -> 
+      halted Hcore c = Some i ->
       ext_spec_exit Hspec (Some i) z m ->
       safeN_ n z c m.
 
   Definition corestep_fun  :=
        forall ge m q m1 q1 m2 q2 ,
-       corestep Hcore ge q m q1 m1 -> 
-       corestep Hcore ge q m q2 m2 -> 
+       corestep Hcore ge q m q1 m1 ->
+       corestep Hcore ge q m q2 m2 ->
        (q1, m1) = (q2, m2).
 
   Lemma safe_corestep_forward:
-     corestep_fun -> 
+     corestep_fun ->
     forall c m c' m' n z,
     corestep Hcore ge c m c' m' -> safeN_ (S n) z c m -> safeN_ n z c' m'.
   Proof.
@@ -82,12 +82,12 @@ Section safety.
   Proof.
     induction n. econstructor; eauto.
     intros c m z H. inv H.
-    + econstructor; eauto. 
-    + eapply safeN_external; eauto. 
+    + econstructor; eauto.
+    + eapply safeN_external; eauto.
     + eapply safeN_halted; eauto.
   Qed.
 
-  Lemma safe_downward : 
+  Lemma safe_downward :
     forall n n' c m z,
       le n' n ->
       safeN_ n z c m -> safeN_ n' z c m.
@@ -97,10 +97,10 @@ Section safety.
   Qed.
 
   Lemma safe_corestepN_forward:
-    corestep_fun -> 
+    corestep_fun ->
     forall z c m c' m' n n0,
-      corestepN Hcore ge n0 c m c' m' -> 
-      safeN_ (n + S n0) z c m -> 
+      corestepN Hcore ge n0 c m c' m' ->
+      safeN_ (n + S n0) z c m ->
       safeN_ n z c' m'.
   Proof.
     intros.
@@ -109,7 +109,7 @@ Section safety.
     simpl in H0; inv H0.
     eapply safe_downward in H1; eauto. omega.
     simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-    apply (IHn0 _ _ _ _ n STEPN). 
+    apply (IHn0 _ _ _ _ n STEPN).
     assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
     rewrite Heq in H1.
     eapply safe_corestep_forward in H1; eauto.
@@ -126,14 +126,14 @@ Section safety.
     destruct n.
     constructor.
     simpl in H0. replace (n-0)%nat with n in H0.
-    eapply safe_corestep_backward; eauto. 
+    eapply safe_corestep_backward; eauto.
     omega.
   Qed.
 
   Lemma safe_corestepN_backward:
     forall z c m c' m' n n0,
-      corestepN Hcore ge n0 c m c' m' -> 
-      safeN_ (n - n0) z c' m' -> 
+      corestepN Hcore ge n0 c m c' m' ->
+      safeN_ (n - n0) z c' m' ->
       safeN_ n z c m.
   Proof.
     simpl; intros.
@@ -142,24 +142,24 @@ Section safety.
     simpl in H; inv H.
     solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
     simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-    assert (H: safeN_ (n - 1 - n0) z c' m'). 
+    assert (H: safeN_ (n - 1 - n0) z c' m').
     eapply safe_downward in H0; eauto. omega.
-    specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H). 
+    specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply safe_step'_back2; eauto].
   Qed.
-    
-  Lemma convergent_controls_safe : 
+
+  Lemma convergent_controls_safe :
     forall m q1 q2,
       (at_external Hcore q1 = at_external Hcore q2) ->
       (forall ret q', after_external Hcore ret q1 = Some q' ->
                       after_external Hcore ret q2 = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
-      (forall q' m', corestep Hcore ge q1 m q' m' -> 
+      (forall q' m', corestep Hcore ge q1 m q' m' ->
                      corestep Hcore ge q2 m q' m') ->
       (forall n z, safeN_ n z q1 m -> safeN_ n z q2 m).
   Proof.
     intros. destruct n; simpl in *; try constructor.
-    inv H3. 
+    inv H3.
     + econstructor; eauto.
     + eapply safeN_external; eauto.
       rewrite <-H; auto.
@@ -173,7 +173,7 @@ Section safety.
 
   Lemma wlog_safeN_gt0 : forall
     n z q m,
-    (lt 0 n -> safeN_ n z q m) -> 
+    (lt 0 n -> safeN_ n z q m) ->
     safeN_ n z q m.
   Proof.
     intros. destruct n. constructor.
@@ -185,7 +185,7 @@ End safety.
 Section dry_safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
   Definition dry_safeN := @safeN_ G C M Z genv_symb (fun n' m m' => True) Hcore Hspec.
 End dry_safety.

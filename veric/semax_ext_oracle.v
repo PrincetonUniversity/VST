@@ -1,17 +1,17 @@
 (* this file is a version of veric/semax_ext.v that let external
 specifications reason about the oracle. *)
 
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_mem_ops.
-Require Import sepcomp.extspec.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.semax.
-Require Import veric.semax_call.
-Require Import veric.semax_ext.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.sepcomp.extspec.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_call.
+Require Import VST.veric.semax_ext.
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -66,7 +66,7 @@ Definition funspecOracle2extspec (ext_link: Strings.String.string -> ident) (f :
         (fun rv z m => False)
   end.
 
-Require Import veric.res_predicates.
+Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 
@@ -242,14 +242,14 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: string -> ident) (fs : l
 
 (*! Adapting semax_external to a judgment mentioning oracles *)
 
-Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap): 
-        pred nat := 
- ALL gx: genv, ALL x: A, 
+Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap):
+        pred nat :=
+ ALL gx: genv, ALL x: A,
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty),
-   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=> 
+   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     ext_spec_pre' Espec ef x' (Genv.genv_symb gx) ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Espec ef x' (Genv.genv_symb gx) tret ret z' >=>
           juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
 

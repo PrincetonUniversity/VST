@@ -1,17 +1,17 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.entailer.
-Require Import floyd.closed_lemmas.
+(* TODO: remove this file *)
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.proj_reptype_lemmas.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.entailer.
+Require Import VST.floyd.closed_lemmas.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Classes.Morphisms.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 Local Open Scope logic.
 
@@ -246,7 +246,7 @@ Defined.
 
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
-  (forall i, 0 <= i < n -> 
+  (forall i, 0 <= i < n ->
      Znth i (unfold_reptype v0) (default_val _) === Znth i (unfold_reptype v1) (default_val _)) ->
   v0 === v1.
 Proof.
@@ -254,13 +254,13 @@ Proof.
   apply data_equal_stronger; split; apply stronger_array_ext; auto.
   + intros.
     specialize (H0 i H1).
-    destruct (data_equal_stronger 
+    destruct (data_equal_stronger
                       (Znth i (unfold_reptype v0) (default_val _))
                       (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
   + intros.
     specialize (H0 i H1).
-    destruct (data_equal_stronger 
+    destruct (data_equal_stronger
                       (Znth i (unfold_reptype v0) (default_val _))
                       (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
@@ -290,7 +290,7 @@ Proof.
 Qed.
 
 Instance Proper_fold_reptype_array: forall t n a,
-  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n) 
+  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n)
                ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
 Proof.
   intros.

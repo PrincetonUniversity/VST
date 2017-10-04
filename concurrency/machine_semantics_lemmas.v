@@ -6,16 +6,16 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
-Require Import compcert.common.AST. 
+Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import msl.Extensionality. 
+Require Import VST.msl.Extensionality.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
 
-Require Import concurrency.machine_semantics.
+Require Import VST.concurrency.machine_semantics.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Section thread_stepN.
   Context {G TID SCH TR C M E:Type} (Sem:@ConcurSemantics G TID SCH TR C M) (ge:G).
@@ -39,12 +39,12 @@ Section thread_stepN.
     inv H. auto.
     decompose [ex and] H. clear H.
     destruct (IHn m U x x0 c3 m3).
-    apply H in H2. 
+    apply H in H2.
     decompose [ex and] H2. clear H2.
     repeat econstructor; eauto.
     decompose [ex and] H. clear H.
     exists x1. exists x2; split; auto.
-    destruct (IHn m U x1 x2 c3 m3). 
+    destruct (IHn m U x1 x2 c3 m3).
     eauto.
   Qed.
 
@@ -59,7 +59,7 @@ Section thread_stepN.
   Proof. intros. destruct H as [n1 H1]. eexists. apply H1. Qed.
 
   Lemma thread_step_plus_trans : forall U c1 c2 c3 m1 m2 m3,
-    thread_step_plus U c1 m1 c2 m2 -> thread_step_plus U c2 m2 c3 m3 -> 
+    thread_step_plus U c1 m1 c2 m2 -> thread_step_plus U c2 m2 c3 m3 ->
     thread_step_plus U c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
     destruct (thread_stepN_add (S n1) (S n2) U  c1 m1 c3 m3) as [_ H].
@@ -67,42 +67,42 @@ Section thread_stepN.
   Qed.
 
   Lemma thread_step_star_plus_trans : forall U c1 c2 c3 m1 m2 m3,
-    thread_step_star U c1 m1 c2 m2 -> thread_step_plus U c2 m2 c3 m3 -> 
+    thread_step_star U c1 m1 c2 m2 -> thread_step_plus U c2 m2 c3 m3 ->
     thread_step_plus U c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (thread_stepN_add n1 (S n2) U  c1 m1 c3 m3) as [_ H]. 
+    destruct (thread_stepN_add n1 (S n2) U  c1 m1 c3 m3) as [_ H].
     rewrite <- plus_n_Sm in H.
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
   Lemma thread_step_plus_star_trans: forall U c1 c2 c3 m1 m2 m3,
-    thread_step_plus U c1 m1 c2 m2 -> thread_step_star U c2 m2 c3 m3 -> 
+    thread_step_plus U c1 m1 c2 m2 -> thread_step_star U c2 m2 c3 m3 ->
     thread_step_plus U c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (thread_stepN_add (S n1) n2 U c1 m1 c3 m3) as [_ H]. 
+    destruct (thread_stepN_add (S n1) n2 U c1 m1 c3 m3) as [_ H].
     rewrite plus_Sn_m in H.
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
-  Lemma thread_step_star_trans: forall U c1 c2 c3 m1 m2 m3, 
-    thread_step_star U c1 m1 c2 m2 -> thread_step_star U c2 m2 c3 m3 -> 
+  Lemma thread_step_star_trans: forall U c1 c2 c3 m1 m2 m3,
+    thread_step_star U c1 m1 c2 m2 -> thread_step_star U c2 m2 c3 m3 ->
     thread_step_star U c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (thread_stepN_add n1 n2 U c1 m1 c3 m3) as [_ H]. 
+    destruct (thread_stepN_add n1 n2 U c1 m1 c3 m3) as [_ H].
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
   Lemma thread_step_plus_one: forall U c m c' m',
     thread_step  Sem ge U c m c' m' -> thread_step_plus U c m c' m'.
   Proof. intros. unfold thread_step_plus, thread_stepN. simpl.
-    exists O. exists c'. exists m'. eauto. 
+    exists O. exists c'. exists m'. eauto.
   Qed.
 
   Lemma thread_step_plus_two: forall U c m c' m' c'' m'',
-    thread_step  Sem ge U c m c' m' -> thread_step  Sem ge U c' m' c'' m'' -> 
+    thread_step  Sem ge U c m c' m' -> thread_step  Sem ge U c' m' c'' m'' ->
     thread_step_plus U c m c'' m''.
-  Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. 
+  Proof. intros.
+    exists (S O). exists c'. exists m'. split; trivial.
     exists c''. exists m''. split; trivial. reflexivity.
   Qed.
 
@@ -111,17 +111,17 @@ Section thread_stepN.
 
   Lemma thread_step_star_one: forall U c m c' m',
     thread_step  Sem ge U c m c' m' -> thread_step_star U c m c' m'.
-  Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. reflexivity. 
+  Proof. intros.
+    exists (S O). exists c'. exists m'. split; trivial. reflexivity.
   Qed.
 
   Lemma thread_step_plus_split: forall U c m c' m',
     thread_step_plus U c m c' m' ->
-    exists c'', exists m'', thread_step  Sem ge U c m c'' m'' /\ 
+    exists c'', exists m'', thread_step  Sem ge U c m c'' m'' /\
       thread_step_star U  c'' m'' c' m'.
   Proof. intros.
-    destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*. 
-    exists c2. exists m2. split. assumption. exists n. assumption.  
+    destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*.
+    exists c2. exists m2. split. assumption. exists n. assumption.
   Qed.
 
 End thread_stepN.

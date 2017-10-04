@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
+Require Import VST.floyd.proofauto.
+Require Import VST.concurrency.semax_conc.
 
 Module Type threadlib_args.
   Parameter CompSpecs : compspecs.
@@ -153,7 +153,7 @@ Lemma semax_call_00_helper:  (* This lemma's proof almost identical to semax_cal
 forall (Frame : list mpred) (cs : compspecs) (Delta : tycontext)
   (P : list Prop) (Q : list localdef) (R : list mpred) (bl : list expr)
   (Ppre : list Prop) (Qpre : list localdef) (Qtemp Qpre_temp : PTree.t val)
-  (Qvar Qpre_var : PTree.t vardesc) 
+  (Qvar Qpre_var : PTree.t vardesc)
   (B : Type) (Ppost : B -> list Prop) (Rpre : list mpred)
   (Rpost : B -> list mpred)
   (vl : list val)
@@ -175,7 +175,7 @@ forall (Frame : list mpred) (cs : compspecs) (Delta : tycontext)
       |-- tc_exprlist Delta (argtypes argsig) bl)
   (MSUBST : force_list
            (map (msubst_eval_expr Qtemp Qvar)
-              (explicit_cast_exprlist (argtypes argsig) bl)) = 
+              (explicit_cast_exprlist (argtypes argsig) bl)) =
          Some vl)
   (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
             |-- !! Forall
@@ -219,9 +219,9 @@ eapply semax_pre_post; [ | | apply H].
  apply andp_right; [apply andp_left1; auto | ].
  apply andp_right; [| apply andp_left2; auto].
  eapply derives_trans; [apply TC1 | ].
- clear. go_lowerx. 
+ clear. go_lowerx.
  unfold tc_exprlist.
- revert bl; induction (argtypes argsig); destruct bl; 
+ revert bl; induction (argtypes argsig); destruct bl;
    simpl; try apply @FF_left.
  apply prop_right; auto.
  repeat rewrite denote_tc_assert_andp. apply andp_left2.
@@ -271,14 +271,14 @@ intro rho; unfold SEPx.
 apply andp_left2. apply andp_left1.
  assert (LEN': length (var_names argsig) = length (eval_exprlist (argtypes argsig) bl rho)).
  clear - LEN.
-  revert bl LEN; induction argsig as [ | [? ?]]; destruct bl; 
+  revert bl LEN; induction argsig as [ | [? ?]]; destruct bl;
     simpl; intros; auto.
  inv LEN.
  forget (argtypes argsig) as tys.
  cut (local (fold_right `and `True (map locald_denote (LocalD Qtemp Qvar nil))) rho |--
             `(local (fold_right `and `True (map locald_denote Qpre)))
                (fun rho => (make_args (var_names argsig) (eval_exprlist tys bl rho) rho)) rho).
- intro. eapply derives_trans; [apply H  |]. 
+ intro. eapply derives_trans; [apply H  |].
  unfold make_args'. simpl @fst. change (map fst argsig) with (var_names argsig).
  clear.  unfold_lift. unfold local, lift1. apply prop_derives.
  induction Qpre; simpl; auto.  intros [? ?]. split; auto.
@@ -312,7 +312,7 @@ Qed.
 
 Lemma semax_call_id00_wow_threads:
   forall  {A} {A'} (witness: A) (witness' : A')
-     (Frame: list mpred) 
+     (Frame: list mpred)
      (* Espec *) {cs: compspecs} Delta P Q R id (paramty: typelist) (bl: list expr)
      (argsig: list (ident * type)) (retty: type) cc (Pre Post: A -> environ -> mpred)
      ffunspec
@@ -338,11 +338,11 @@ Lemma semax_call_id00_wow_threads:
           |-- (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
    (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
-   (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
+   (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar)
                     (explicit_cast_exprlist (argtypes argsig) bl))
                 = Some vl)
    (PTREE'': pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals)
-   (CHECKTEMP: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
+   (CHECKTEMP: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
@@ -396,17 +396,17 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id00_wow_threadlib witness witness' Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity
- | prove_local2ptree | repeat constructor 
+ | prove_local2ptree | repeat constructor
  | try apply local_True_right; entailer!
  | reflexivity
- | prove_local2ptree | repeat constructor 
+ | prove_local2ptree | repeat constructor
  | reflexivity | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta iota; 
+ | cbv beta iota;
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0; 
+    try rewrite no_post_exists0;
     first [reflexivity | extensionality; simpl; reflexivity]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
@@ -420,7 +420,7 @@ Ltac fwd_call'_threadlib witness witness' :=
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
  first [
-     revert witness; 
+     revert witness;
      match goal with |- let _ := ?A in _ => intro; fwd_call'_threadlib A witness'
      end
    | eapply semax_seq';
@@ -441,24 +441,24 @@ Tactic Notation "forward_call_threadlib" constr(witness) constr(witness') simple
     check_canonical_call; *)
     check_Delta;
     fwd_call'_threadlib witness witness';
-  [ .. 
-  | first 
+  [ ..
+  | first
       [ (* body of uniform_intros tactic *)
          (((assert True by (intros v; apply I);
             assert (forall a: unit, True) by (intros v; apply I);
             fail 1)
-          || intros v) 
+          || intros v)
         || idtac);
         (* end body of uniform_intros tactic *)
         match goal with
-        | |- semax _ _ _ _ => idtac 
-        | |- unit -> semax _ _ _ _ => intros _ 
+        | |- semax _ _ _ _ => idtac
+        | |- unit -> semax _ _ _ _ => intros _
         end;
         repeat (apply semax_extract_PROP; intro);
        abbreviate_semax;
        try fwd_skip
      | complain_intros
-     ]  
+     ]
   ].
 *)
 End threadlib.

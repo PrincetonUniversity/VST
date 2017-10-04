@@ -1,9 +1,8 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.fieldlist.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
 Open Scope Z.
 
 
@@ -11,7 +10,7 @@ Open Scope Z.
 
 Definition of nested_field_type2, nested_field_offset2
 
-The principle of this part is only exposing nft2 and nfo2 to users 
+The principle of this part is only exposing nft2 and nfo2 to users
 and hide the implimentation of nf_rec
 
 ************************************************)
@@ -81,7 +80,7 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
   | nil => Some (0, t)
   | hd :: tl =>
     match nested_field_rec t tl with
-    | Some (pos, t') => 
+    | Some (pos, t') =>
       match t', hd with
       | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof t'' * i, t'')
       | Tstruct id _, StructField i =>
@@ -108,7 +107,7 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
   | nil => Some (0, t)
   | hd :: tl =>
     match nested_field_rec t tl with
-    | Some (pos, t') => 
+    | Some (pos, t') =>
       match t', hd with
       | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof t'' * i, t'')
       | Tstruct id _, StructField i =>
@@ -214,7 +213,7 @@ Lemma nested_field_offset_ind: forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -235,7 +234,7 @@ Lemma nested_field_offset_ind': forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -283,7 +282,7 @@ Lemma nested_field0_offset_ind: forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -300,7 +299,7 @@ Proof.
 Qed.
 
 Ltac valid_nested_field_rec f a T :=
-  let H := fresh "H" in 
+  let H := fresh "H" in
   let t := fresh "t" in
   let ofs := fresh "ofs" in
   simpl in T; destruct (nested_field_rec f a) as [[ofs t]|] eqn:H; [|inversion T].
@@ -329,7 +328,7 @@ Proof.
   tauto.
 Qed.
 
-Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0, 
+Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0,
   nested_field_rec t (gf :: gfs) = Some (ofs0, t0)
   <->
   match gf, nested_field_rec t gfs with
@@ -412,7 +411,7 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
   let co := fresh "co" in
   let CO := fresh "CO" in
   match type of H with
-  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) => 
+  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) =>
     destruct (nested_field_rec_cons_eq_Some_lemma T A GFS OFS T0) as [HH _];
     specialize (HH H);
     destruct A eqn:HeqA;
@@ -592,19 +591,21 @@ Definition field_address0 t gfs p :=
   else Vundef.
 
 Lemma field_address_isptr:
-  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
+  forall t path c, field_compatible t path c -> isptr (field_address t path c).
 Proof.
   intros.
   unfold field_address. rewrite if_true by auto.
+  destruct H as [? _].
   normalize.
 Qed.
 
 Lemma field_address0_isptr:
-  forall t path c, isptr c -> field_compatible0 t path c -> isptr (field_address0 t path c).
+  forall t path c, field_compatible0 t path c -> isptr (field_address0 t path c).
 Proof.
- intros.
- unfold field_address0. rewrite if_true by auto.
- normalize.
+  intros.
+  unfold field_address0. rewrite if_true by auto.
+  destruct H as [? _].
+  normalize.
 Qed.
 
 Lemma field_address_clarify:
@@ -612,7 +613,7 @@ Lemma field_address_clarify:
    is_pointer_or_null (field_address t path c) ->
    field_address t path c = offset_val (nested_field_offset t path) c.
 Proof.
- intros. unfold field_address in *.
+  intros. unfold field_address in *.
   if_tac; try contradiction.
   auto.
 Qed.
@@ -639,7 +640,7 @@ Proof.
   split; [| tauto].
   omega.
 Qed.
-  
+
 Lemma field_compatible_field_compatible0':
   forall (t : type) (i : Z) (gfs : list gfield) (p : val),
   field_compatible t (ArraySubsc i :: gfs) p <->
@@ -655,7 +656,7 @@ Proof.
 Qed.
 
 Lemma field_compatible0_range:
- forall i lo hi t gfs p, 
+ forall i lo hi t gfs p,
    lo <= i <= hi ->
    field_compatible0 t (ArraySubsc lo :: gfs) p ->
    field_compatible0 t (ArraySubsc hi :: gfs) p ->
@@ -671,7 +672,7 @@ Proof.
 Qed.
 
 Lemma field_compatible_range:
- forall i lo hi t gfs p, 
+ forall i lo hi t gfs p,
    lo <= i < hi ->
    field_compatible0 t (ArraySubsc lo :: gfs) p ->
    field_compatible0 t (ArraySubsc hi :: gfs) p ->
@@ -683,7 +684,7 @@ Proof.
 Qed.
 
 Lemma is_pointer_or_null_field_compatible:
-  forall t path c, 
+  forall t path c,
      is_pointer_or_null (field_address t path c) ->
       field_compatible t path c.
 Proof.
@@ -757,7 +758,7 @@ Lemma gfield_type_nested_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid
   nested_pred atom_pred t = true -> nested_pred atom_pred (gfield_type t gf) = true.
 Proof.
   intros.
-  destruct t as [| | | | | | | id ? | id ?], gf; auto; 
+  destruct t as [| | | | | | | id ? | id ?], gf; auto;
    unfold gfield_type in *; rewrite nested_pred_eq in H0.
   + rewrite andb_true_iff in H0.
     tauto.
@@ -1009,7 +1010,7 @@ Proof.
   simpl in *.
   rewrite (Z.max_r 0 z) by omega.
   assert (0 <= Z.max 0 (hi - lo) <= hi) by (apply arith_aux05; omega).
-  assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; omega).  
+  assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; omega).
   pose_size_mult cenv_cs t (0 :: Z.max 0 (hi - lo) :: hi :: nil).
   pose_size_mult cenv_cs t (0 :: lo :: lo + Z.max 0 (hi - lo) :: z :: nil).
   omega.
@@ -1033,7 +1034,7 @@ Proof.
     omega.
   + unfold gfield_type, gfield_offset.
     pose_sizeof_co (Tunion id a).
-    pose proof sizeof_union_in_members _ _ H. 
+    pose proof sizeof_union_in_members _ _ H.
     pose proof sizeof_pos (field_type i (co_members (get_co id))).
     omega.
 Qed.
@@ -1087,96 +1088,9 @@ Qed.
 
 (************************************************
 
-nested_field_offset_app
+nested_field app
 
 ************************************************)
-
-(*
-Lemma nested_field_rec_app: forall t gfs0 gfs1 t0 t1 ofs0 ofs1,
-  nested_field_rec t gfs0 = Some (ofs0, t0) ->
-  nested_field_rec t0 gfs1 = Some (ofs1, t1) ->
-  nested_field_rec t (gfs1 ++ gfs0) = Some (ofs0 + ofs1, t1).
-Proof.
-  intros.
-  revert ofs1 t1 H0.
-  induction gfs1; intros.
-  + simpl in *.
-    inversion H0.
-    subst.
-    rewrite H.
-    rewrite Z.add_0_r.
-    reflexivity.
-  + solve_nested_field_rec_cons_eq_Some H0.
-    - (* Tarray *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      f_equal.
-      f_equal.
-      omega.
-    - (* Tstruct *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      rewrite CO, H2.
-      destruct_in_members i (co_members co); [| tauto].
-      f_equal.
-      f_equal.
-      omega.
-    - (* Tunion *)
-      subst.
-      simpl.
-      rewrite (IHgfs1 _ _ eq_refl).
-      rewrite CO, H2.
-      destruct_in_members i (co_members co); [| tauto].
-      reflexivity.
-Qed.
-
-Lemma nested_field_rec_app_rev: forall t gfs0 gfs1 t0 t1 ofs0 ofs1,
-  nested_field_rec t gfs0 = Some (ofs0, t0) ->
-  nested_field_rec t (gfs1 ++ gfs0) = Some (ofs0 + ofs1, t1) ->
-  nested_field_rec t0 gfs1 = Some (ofs1, t1).
-Proof.
-  intros.
-  revert ofs1 t1 H0.
-  induction gfs1; intros.
-  + simpl in *.
-    rewrite H in H0.
-    inversion H0.
-    f_equal. f_equal. omega.
-  + simpl app in H0.
-    solve_nested_field_rec_cons_eq_Some H0;
-    apply nested_field_rec_cons_eq_Some_lemma.
-    - (* Tarray *)
-      specialize (IHgfs1 (ofs - ofs0) (Tarray t2 z a0)).
-      replace (ofs0 + (ofs - ofs0)) with ofs in IHgfs1 by omega.
-      rewrite (IHgfs1 eq_refl).
-      split; [f_equal; f_equal; omega | auto].
-    - (* Tstruct *)
-      specialize (IHgfs1 (ofs - ofs0) (Tstruct id a0)).
-      replace (ofs0 + (ofs - ofs0)) with ofs in IHgfs1 by omega.
-      rewrite (IHgfs1 eq_refl).
-      rewrite CO.
-      repeat split; auto.
-      omega.
-    - (* Tunion *)
-      specialize (IHgfs1 ofs1 (Tunion id a0)).
-      subst ofs.
-      rewrite (IHgfs1 eq_refl).
-      rewrite CO.
-      auto.
-Qed.
-*)
-Lemma legal_nested_field_app: forall t gfs0 gfs1,
-  legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field t gfs0.
-Proof.
-  intros.
-  induction gfs1.
-  + simpl in *; auto.
-  + simpl app in H.
-    simpl in H.
-    tauto.
-Qed.
 
 Lemma nested_field_type_nested_field_type: forall t gfs0 gfs1,
   nested_field_type (nested_field_type t gfs0) gfs1 = nested_field_type t (gfs1 ++ gfs0).
@@ -1192,7 +1106,18 @@ Proof.
     reflexivity.
 Defined.
 
-Lemma legal_nested_field_app': forall t gfs0 gfs1,
+Lemma legal_nested_field_shrink: forall t gfs0 gfs1,
+  legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field t gfs0.
+Proof.
+  intros.
+  induction gfs1.
+  + simpl in *; auto.
+  + simpl app in H.
+    simpl in H.
+    tauto.
+Qed.
+
+Lemma legal_nested_field_app: forall t gfs0 gfs1,
   legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field (nested_field_type t gfs0) gfs1.
 Proof.
   intros.
@@ -1202,6 +1127,19 @@ Proof.
     specialize (IHgfs1 (proj1 H)).
     simpl.
     rewrite nested_field_type_nested_field_type.
+    tauto.
+Qed.
+
+Lemma legal_nested_field_app_inv: forall t gfs0 gfs1,
+  legal_nested_field t gfs0 ->
+  legal_nested_field (nested_field_type t gfs0) gfs1 ->
+  legal_nested_field t (gfs1 ++ gfs0).
+Proof.
+  intros.
+  induction gfs1.
+  + exact H.
+  + simpl in *.
+    rewrite <- nested_field_type_nested_field_type.
     tauto.
 Qed.
 
@@ -1218,7 +1156,7 @@ Proof.
   + simpl app in *.
     specialize (IHgfs1 (proj1 H)).
     rewrite nested_field_offset_ind with (gfs := a :: gfs1 ++ gfs0) by auto.
-    rewrite nested_field_offset_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app'; auto).
+    rewrite nested_field_offset_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app; auto).
     rewrite nested_field_type_nested_field_type.
     omega.
 Qed.
@@ -1298,7 +1236,7 @@ Lemma align_compatible_nested_field0: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
-  unfold Int.unsigned; simpl. 
+  unfold Int.unsigned; simpl.
   unfold Int.unsigned; simpl.
   repeat rewrite Int.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
@@ -1446,15 +1384,6 @@ Proof.
   auto.
 Qed.
 
-Lemma legal_nested_field_shrink: forall t_root gfsB gfsA,
-  legal_nested_field t_root (gfsB ++ gfsA) ->
-  legal_nested_field t_root gfsA.
-Proof.
-  intros. induction gfsB.
-  - rewrite app_nil_l in H. assumption.
-  - apply IHgfsB. clear IHgfsB. simpl in H. destruct H. assumption.
-Qed.
-
 Lemma field_compatible_shrink: forall t_root gfsB gfsA a,
   field_compatible t_root (gfsB ++ gfsA) a ->
   field_compatible t_root gfsA a.
@@ -1480,22 +1409,59 @@ Proof.
     rewrite E; destruct H; auto.
 Qed.
 
+Lemma field_compatible_app_inv': forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  legal_nested_field (nested_field_type t_root gfsA) gfsB ->
+  field_compatible t_root (gfsB ++ gfsA) a.
+Proof.
+  unfold field_compatible.
+  intros.
+  pose proof legal_nested_field_app_inv t_root gfsA gfsB.
+  tauto.
+Qed.
+
+Lemma field_compatible_app_inv: forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) ->
+  field_compatible t_root (gfsB ++ gfsA) a.
+Proof.
+  intros.
+  apply field_compatible_app_inv'; auto.
+  destruct H0; tauto.
+Qed.
+
 Lemma field_address_app: forall t_root gfsA gfsB a,
-  field_compatible t_root (gfsB ++ gfsA) a ->
   field_address t_root (gfsB ++ gfsA) a =
   field_address (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
 Proof.
   intros.
-  rewrite field_compatible_field_address.
-  rewrite field_compatible_field_address.
-  rewrite nested_field_offset_app.
-  rewrite field_compatible_field_address.
-  rewrite offset_offset_val.
-  reflexivity.
-  { eapply field_compatible_shrink. eassumption. }
-  { eapply field_compatible_legal_nested_field. eassumption. }
-  { eapply field_compatible_app. assumption. }
-  { assumption. }
+  assert (
+    ~ field_compatible t_root gfsA a /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
+    ~ field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
+    field_compatible t_root (gfsB ++ gfsA) a).
+  Focus 1. {
+    pose proof field_compatible_app_inv gfsB t_root gfsA a.
+    tauto.
+  } Unfocus.
+  destruct H as [[? ?] | [[? ?] | ?]].
+  + unfold field_address.
+    rewrite if_false by auto.
+    destruct (field_compatible_dec t_root gfsA a); [tauto |].
+    if_tac; reflexivity.
+  + unfold field_address.
+    rewrite if_false by auto.
+    rewrite if_false by auto.
+    reflexivity.
+  + rewrite field_compatible_field_address.
+    rewrite field_compatible_field_address.
+    rewrite nested_field_offset_app.
+    rewrite field_compatible_field_address.
+    rewrite offset_offset_val.
+    reflexivity.
+    { eapply field_compatible_shrink. eassumption. }
+    { eapply field_compatible_legal_nested_field. eassumption. }
+    { eapply field_compatible_app. assumption. }
+    { assumption. }
 Qed.
 
 End COMPOSITE_ENV.
@@ -1515,14 +1481,14 @@ Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_neste
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
-  locald_denote (lvar id t v) rho -> 
+  locald_denote (lvar id t v) rho ->
   sizeof t <= Int.modulus ->
   size_compatible t v.
 Proof.
-intros. hnf in H. 
+intros. hnf in H.
 destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
 destruct H; subst.
-red. 
+red.
 rewrite Int.unsigned_zero. rewrite Z.add_0_l; auto.
 Qed.
 
@@ -1547,8 +1513,8 @@ reflexivity.
 Qed.
 
 Lemma gvar_field_compatible:
-  forall {cs: compspecs} i s rho t, 
-    locald_denote (gvar i s) rho -> 
+  forall {cs: compspecs} i s rho t,
+    locald_denote (gvar i s) rho ->
     sizeof t < Int.modulus ->
    legal_alignas_type t = true ->
    legal_cosu_type t = true ->
@@ -1575,6 +1541,28 @@ apply compute_in_members_true_iff. auto.
 Qed.
 
 Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
-  (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ]) 
+  (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ])
       : field_compatible.
+
+Lemma field_compatible_nullval: forall CS t f P,
+  @field_compatible CS t f nullval -> P.
+Proof.
+intros.
+destruct H.
+contradiction H.
+Qed.
+
+Lemma field_compatible_nullval1:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> p <> nullval.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.
+
+Lemma field_compatible_nullval2:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> nullval <> p.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.
 

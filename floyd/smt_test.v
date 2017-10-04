@@ -1,14 +1,14 @@
 Require Import compcert.lib.Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 Require Import Coq.Lists.List.
 Import ListNotations.
 
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 (* from verif_revarray.v *)
 
 Definition flip_between {A} lo hi (contents: list A) :=
-  firstn (Z.to_nat lo) (rev contents) 
+  firstn (Z.to_nat lo) (rev contents)
   ++ firstn (Z.to_nat (hi-lo)) (skipn (Z.to_nat lo) contents)
   ++ skipn (Z.to_nat hi) (rev contents).
 
@@ -58,7 +58,7 @@ omega.
   f_equal. f_equal. f_equal.
   rewrite <- Z2Nat.inj_add by omega. rewrite H2.
   rewrite <- Z2Nat.inj_sub by omega. f_equal; omega.
-  rewrite firstn_length, min_l. 
+  rewrite firstn_length, min_l.
   change 1%nat with (Z.to_nat 1). apply Z2Nat.inj_le; omega.
   rewrite skipn_length.  rewrite H2.
   rewrite <- Z2Nat.inj_sub by omega. apply Z2Nat.inj_le; omega.
@@ -132,7 +132,7 @@ rewrite Zfirstn_firstn by omega.
 rewrite Zskipn_app1.
 Focus 2. {
 rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_rev. 
+rewrite Zlength_rev.
 rewrite !Zlength_app.
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Z.min_l by omega.
@@ -284,12 +284,12 @@ rewrite Znth_skipn by omega.
 f_equal; omega.
 Qed.
 
-Require Import msl.shares.
-Require Import veric.shares.
+Require Import VST.msl.shares.
+Require Import VST.veric.shares.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import compcert.cfrontend.Ctypes.
-Require Import veric.expr.
+Require Import VST.veric.expr.
 
 Lemma verif_sumarray_example1:
 forall (sh : share) (contents : list int) (size : Z) (a : val),
@@ -345,7 +345,7 @@ Vint (sum_int (sublist 0 (Z.succ a1) contents)) = Vint s /\ True.
 Abort.
 
 
-Require Import veric.Clight_lemmas.  (* just for nullval? *)
+Require Import VST.veric.Clight_lemmas.  (* just for nullval? *)
 
 Lemma verif_reverse_example1:
 forall (sum_int: list int -> int) (sh : share) (contents cts : list int) (t0 t_old t : val) (h : int),

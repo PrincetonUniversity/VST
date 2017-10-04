@@ -1,8 +1,8 @@
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.functors.
-Import msl.functors.MixVariantFunctor.
-Import msl.functors.MixVariantFunctorLemmas.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.functors.
+Import VST.msl.functors.MixVariantFunctor.
+Import VST.msl.functors.MixVariantFunctorLemmas.
 
 Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter F : functor.
@@ -25,7 +25,7 @@ Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter T:Type.
   Parameter T_bot:T.
 
-  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel : T -> T -> Prop.
   Parameter T_rel_bot : forall x, T_rel T_bot x.
   Parameter T_rel_refl : forall x, T_rel x x.
   Parameter T_rel_trans : transitive T T_rel.
@@ -62,7 +62,7 @@ Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
     n = n' /\ Rel predicate f f'.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -383,7 +383,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     auto.
   Qed.
 
-  Lemma stratifies_unstratify_more : 
+  Lemma stratifies_unstratify_more :
     forall (n m1 m2:nat) (p1:sinv (m1+n)) (p2:sinv (m2+n)),
       floor m1 n p1 = floor m2 n p2 ->
       (stratifies (unstratify (m1+n) p1) n (floor m1 n p1) ->
@@ -395,7 +395,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     erewrite <- floor_shuffle.
     instantiate (1:=H1).
     replace (unstratify (m2 + S n) p2)
-      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)). 
+      with (unstratify (S m2 + n) (eq_rect (m2 + S n) sinv p2 (S m2 + n) H1)).
     assert (m1 + S n = S m1 + n) by omega.
     eapply (IHn (S m1) (S m2)
       (eq_rect (m1 + S n) sinv p1 (S m1 + n) H2)).
@@ -484,11 +484,11 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
     end.
-  
+
   Definition knot_unage_def (k:knot) :=
     let (n,k) := unsquash k in squash (S n,k).
 
-  Program Definition approx (n:nat) (p:predicate) : predicate := 
+  Program Definition approx (n:nat) (p:predicate) : predicate :=
     fun w => if (le_gt_dec n (knot_level_def (fst w))) then T_bot else proj1_sig p w.
   Next Obligation.
     hnf; simpl; intros.
@@ -511,7 +511,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     eapply le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
-    
+
     destruct p as [p Hp]; simpl.
     eapply Hp; eauto.
   Qed.
@@ -720,9 +720,9 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
-  
+
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
@@ -798,13 +798,13 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl.
     destruct (decompose_nat x0 x); auto.
     destruct s. elimtype False. omega.
-    
+
     intro.
     unfold knot_age1_def, knot_level_def.
     case_eq (unsquash x); intros.
     destruct n; simpl; intuition;
       discriminate.
-    
+
     intros.
     unfold knot_age1_def, knot_level_def in *.
     case_eq (unsquash x); intros; rewrite H0 in H.
@@ -874,7 +874,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
   Qed.
 
   Lemma knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -1010,7 +1010,7 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1030,8 +1030,8 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp] _.
+
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
@@ -1101,7 +1101,7 @@ Module Type KNOT_FULL.
      else proj1_sig (bij_f _ _ KO.pkp p) ko.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -1127,16 +1127,16 @@ Module Type KNOT_FULL_LEMMAS.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2] _.
+
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
 
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap KI.F (approx n) (approx n) Fp.
-  Implicit Arguments unsquash_approx [k n Fp].
-  
+  Arguments unsquash_approx [k n Fp] _.
+
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
 
@@ -1202,7 +1202,7 @@ Module KnotFull
   Qed.
 
   Lemma knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -1263,7 +1263,7 @@ Module KnotFullLemmas (K: KNOT_FULL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1283,7 +1283,7 @@ Module KnotFullLemmas (K: KNOT_FULL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig (bij_f _ _ KO.pkp p1) x =
@@ -1360,7 +1360,7 @@ Module Type KNOT_FULL_INPUT.
   Parameter T:Type.
   Parameter T_bot:T.
 
-  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel : T -> T -> Prop.
   Parameter T_rel_bot : forall x, T_rel T_bot x.
   Parameter T_rel_refl : forall x, T_rel x x.
   Parameter T_rel_trans : transitive T T_rel.
@@ -1369,7 +1369,7 @@ Module Type KNOT_FULL_INPUT.
 
   Parameter Pred2predicate: forall {K agK KRel},
     Pred K agK KRel ->
-    { p: K * other -> T | 
+    { p: K * other -> T |
       (forall k k' k'' o o',
       clos_refl_trans _ age k k' ->
       KRel k' k'' ->
@@ -1377,7 +1377,7 @@ Module Type KNOT_FULL_INPUT.
       T_rel (p (k,o)) (p (k'',o'))) }.
 
   Parameter predicate2Pred: forall {K agK} {KRel: K -> K -> Prop},
-    { p: K * other -> T | 
+    { p: K * other -> T |
       (forall (k k' k'': K) o o',
       clos_refl_trans _ age k k' ->
       KRel k' k'' ->
@@ -1424,7 +1424,7 @@ Module Type KNOT_FULL.
     n = n' /\ Rel predicate f f'.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -1499,7 +1499,7 @@ Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
     n = n' /\ Rel predicate f f'.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))

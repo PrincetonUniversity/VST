@@ -125,7 +125,7 @@ let normalize_can_spred = function
   | Csp_tree (c1,c2,e) -> Csp_tree (c1,c2,normalize_can_exp e)
   | Csp_indpred _ -> assert false
 
-let normalize_can_form (pl,sl) = 
+let normalize_can_form (pl,sl) =
   (List.map normalize_can_atom pl, List.map normalize_can_spred sl)
 
 
@@ -524,7 +524,7 @@ let pp_sp_entailment f (cf1,cf2) =
 let pp_inst f inst =
   if !Config.verbose1 then
     if inst <> []
-    then fprintf f "Instantiations inferred: %a@." 
+    then fprintf f "Instantiations inferred: %a@."
 	(pp_seq (fun f (x,e) -> fprintf f "%s=%a" (string_of_ident x) pp_can_exp e)) inst
 
 let pp_constraint f (cal,ca) =
@@ -580,7 +580,7 @@ let rec prop_to_can_atom ?(quiet=false) p  = match p with
 		    pp_assert fmt p;
 		    Format.pp_print_flush fmt ();
 		    Buffer.contents buf))
-   
+
 let a_space_pred_to_can_spred = function
   | Aspred_list (t,e) ->
       if !Config.inductive_preds
@@ -678,7 +678,7 @@ let fv_killable_vars cp =
 
 let kill_vars_can_prop cp kill =
   let rec f = function
-    | Cp_base (pl,sl) -> 
+    | Cp_base (pl,sl) ->
 	let pl1 = List.filter
 	  (fun ca -> IdSet.is_empty (IdSet.inter (fv_can_atom ca) kill)) pl in
 	let sl1 = List.map
@@ -699,7 +699,7 @@ let kill_garbage_vars (eq,cp) =
   let (eq1,sub) = kill_vars_eq eq kill in
   let cp1 = kill_vars_can_prop (sub_can_prop sub cp) kill
   in
-  (* for debugging 
+  (* for debugging
     if not (IdSet.is_empty kill)
     then
       fprintf !Config.formatter "@.STATE %a@.%a@.KILLING VARS %a@.RETURNS %a@.%a@."

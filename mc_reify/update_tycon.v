@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import mc_reify.funcs.
 Require Import mc_reify.types.
 Require Import mc_reify.reify.
@@ -46,12 +46,12 @@ with
 update_temp_labeled_eq : forall t v r gt gs s,
 join_tycon_labeled s (mk_tycontext t v r gt gs) = (mk_tycontext (update_temp_labeled t s) v r gt gs).
 Proof.
-intros. 
+intros.
 destruct s; intros;
 simpl; try rewrite initialized_temp_eq; try reflexivity.
 destruct o; try rewrite initialized_temp_eq; auto.
 repeat rewrite update_temp_eq. reflexivity.
-unfold join_tycon. 
+unfold join_tycon.
 repeat rewrite update_temp_eq. reflexivity.
 repeat rewrite update_temp_labeled_eq. reflexivity.
 

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ -v WINDIR ]
+then  # hacks necessary for cygwin
+FLAGS="-async-proofs off"
+else
+FLAGS=""
+fi
+
+coqide $FLAGS `cat .loadpath` $* &

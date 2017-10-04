@@ -21,20 +21,20 @@ Inductive InBlocks {A : Type} (n : nat) : list A -> Prop :=
                    length front = n ->
                    full = front ++ back ->
                    InBlocks n back ->
-                   InBlocks n full. 
+                   InBlocks n full.
 
 Lemma InBlocks_len : forall {A : Type} (l : list A) (n : nat),
                        PeanoNat.Nat.divide (n) (length l) -> InBlocks n l.
-Proof. 
+Proof.
   intros A l n div.
   destruct div.
   revert A l n H.
   induction x; intros; simpl in *.
   - destruct l; simpl in *. constructor. inversion H.
   - destruct (list_splitLength _ _ _ H) as [l1 [l2 [L [L1 L2]]]]. clear H; subst.
-    apply IHx in L2. clear IHx. 
+    apply IHx in L2. clear IHx.
     apply (InBlocks_block _ l1 l2); trivial.
-Qed. 
+Qed.
 
 (* ----- Inductive *)
 
@@ -114,7 +114,7 @@ Proof.
   * reflexivity.
   *
     simpl. rewrite -> IHl1. reflexivity.
-Qed.    
+Qed.
 
 Lemma bytesToBits_len : forall (l : list Z),
                           length (bytesToBits l) = (length l * 8)%nat.
@@ -124,7 +124,7 @@ Proof.
     simpl.
     rewrite -> IHl.
     reflexivity.
-Qed.    
+Qed.
 
 (* Prove by brute force (test all Z in range) *)
 Theorem byte_bit_byte_id : forall (byte : Z),
@@ -161,11 +161,11 @@ Proof.
     simpl.
     Transparent bitsToBytes. fold bitsToBytes.
     rewrite -> IHbytes.
-    
+
     Transparent bitsToByte.
     unfold bitsToByte. f_equal.
     apply byte_bit_byte_id.
-    
+
     apply H. Transparent bytesToBits.
 Qed.
 
@@ -218,9 +218,9 @@ Proof.
     * unfold bitsToBytes.
       fold bitsToBytes.
       f_equal. unfold convertByteBits in H.
-        destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [B BT]]]]]]]]]. 
-        inversion B; clear B. subst. reflexivity.  
-    * eapply Forall_tl. eassumption. 
+        destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [B BT]]]]]]]]].
+        inversion B; clear B. subst. reflexivity.
+    * eapply Forall_tl. eassumption.
 Qed.
 
 Theorem bits_bytes_ind_comp : forall (bits : Blist) (bytes : list Z),
@@ -249,9 +249,9 @@ Proof.
     f_equal.
     apply bits_byte_bits_id.
 
-    eapply Forall_tl. eassumption. 
+    eapply Forall_tl. eassumption.
 Qed.
-    
+
 (* ----------------------------- *)
 (* Relating bits to bytes *)
 
@@ -302,7 +302,7 @@ Proof.
     (* strange that destruct works here but not after [rewrite -> IHblocks] *)
     - simpl in *.
       inversion len.
-    - 
+    -
       destruct front as [ | x0 [| x1 [ | x2 [ | x3 [ | x4 [ | x5 [ | x6 [ | x7 ]]]]]]]];
       inversion H.
 
@@ -353,7 +353,7 @@ Proof.
     simpl.
     apply list_nil in H2. rewrite -> H2. simpl.
     rewrite -> IHlen.
-    
+
     destruct x0; destruct x1; destruct x2; destruct x3;
     destruct x4; destruct x5; destruct x6; destruct x7; reflexivity.
 Qed.
@@ -379,7 +379,7 @@ Qed.
 
 
 Lemma bytesToBits_nil_inv l: nil = bytesToBits l -> l = nil.
-Proof. destruct l; trivial. simpl; intros. discriminate. Qed.  
+Proof. destruct l; trivial. simpl; intros. discriminate. Qed.
 
 Lemma bytesToBits_cons b l:
       bytesToBits (b::l) = byteToBits b ++ bytesToBits l.
@@ -387,16 +387,16 @@ Proof. reflexivity. Qed.
 
 Lemma byteToBits_injective: forall a b,
       byteToBits a = byteToBits b ->
-      isbyteZ a -> isbyteZ b -> a = b. 
-Proof. intros. unfold isbyteZ in *. 
+      isbyteZ a -> isbyteZ b -> a = b.
+Proof. intros. unfold isbyteZ in *.
 assert (bitsToByte (byteToBits a) = bitsToByte (byteToBits b)).
   rewrite H; trivial.
 clear H.
 rewrite byte_bit_byte_id in H2; trivial.
 rewrite byte_bit_byte_id in H2; trivial.
 Qed.
-  
-Lemma bytesToBits_injective: forall b1 b2, bytesToBits b1 = bytesToBits b2 -> 
+
+Lemma bytesToBits_injective: forall b1 b2, bytesToBits b1 = bytesToBits b2 ->
       Forall isbyteZ b1 -> Forall isbyteZ b2 -> b1=b2.
 Proof. induction b1.
   intros; destruct b2; trivial. discriminate.
@@ -407,8 +407,8 @@ Proof. induction b1.
   rewrite (byteToBits_injective _ _ H2). trivial.
     eapply Forall_inv; eassumption.
     eapply Forall_inv; eassumption.
-    eapply Forall_tl; eassumption. 
-    eapply Forall_tl; eassumption. 
+    eapply Forall_tl; eassumption.
+    eapply Forall_tl; eassumption.
 Qed.
 
 Lemma bitsToBytes_injective8 b1 b2 (B: bitsToBytes b1 = bitsToBytes b2)
@@ -423,8 +423,8 @@ Proof. intros.
   apply InBlocks_len; assumption.
 Qed.
 
-Lemma bitsToByte_cons: forall bits h t, (h::t) = bitsToBytes bits -> 
-      exists b0, exists b1, exists b2, exists b3, 
+Lemma bitsToByte_cons: forall bits h t, (h::t) = bitsToBytes bits ->
+      exists b0, exists b1, exists b2, exists b3,
       exists b4, exists b5, exists b6, exists b7, exists xs,
       bits = b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: xs /\
       h = bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7] /\
@@ -458,7 +458,7 @@ Proof. intros bytes.
   destruct H as [b0 [b1 [b2 [b3 [b4 [b5 [b6 [b7 [xs [BITS [A BYTES]]]]]]]]]]].
   constructor.
      subst. apply bitsToByte_isbyteZ.
-     eauto. 
+     eauto.
 Qed.
 
 Lemma convertByteBits_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7 byte:
@@ -475,5 +475,5 @@ Qed.
 Lemma bytesBitsLists_isbyteZ bytes bits: bytes_bits_lists bits bytes -> Forall isbyteZ bytes.
 Proof. intros.
   induction H. constructor.
-  constructor; trivial. eapply convertByteBits_isbyteZ. apply H0. 
+  constructor; trivial. eapply convertByteBits_isbyteZ. apply H0.
 Qed.

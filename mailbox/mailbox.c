@@ -1,7 +1,7 @@
 #include <stdlib.h>
-#include <stdio.h>
-#include "threads.h"
+//#include <stdio.h>
 #include "atomic_exchange.h"
+//#include "threads.h"
 //#include <stdatomic.h>
 
 void *surely_malloc (size_t n) {
@@ -168,7 +168,7 @@ int main(){
   initialize_channels();
 
   spawn((void *)&writer, NULL);
-  
+
   for(int i = 0; i < N; i++){
     int *d = surely_malloc(sizeof(int));
     *d = i;
@@ -177,4 +177,4 @@ int main(){
 
   while(1);
 }
-  
+

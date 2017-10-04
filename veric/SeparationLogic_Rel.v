@@ -1,10 +1,10 @@
-Require Import veric.SeparationLogic.
-Require Export veric.xexpr_rel.
+Require Import VST.veric.SeparationLogic.
+Require Export VST.veric.xexpr_rel.
 
 (*
 
 Inductive rel_r_value' {CS: compspecs} (rho: environ) (phi: rmap): r_value -> val -> Prop :=
- | rel_r_value'_const: forall v, 
+ | rel_r_value'_const: forall v,
                  rel_r_value' rho phi (R_const v) v
  | rel_r_value'_tempvar: forall id v,
                  Map.get (te_of rho) id = Some v ->

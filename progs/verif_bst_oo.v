@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.bst_oo.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.bst_oo.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -147,7 +147,7 @@ Definition subscr_spec :=
     PROP(Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
     SEP (treebox_rep t b)
-  POST [ (tptr tvoid) ]
+  POST [ tptr (tptr tvoid) ]
     EX p: val, EX q: val,
     PROP(key_store (insert x p t) x q)
     LOCAL(temp ret_temp q)
@@ -357,16 +357,19 @@ Axiom tree_inb_false_iff: forall x (t: tree val), tree_inb x t = false <-> ~ key
 Lemma body_subscr: semax_body Vprog Gprog f_subscr subscr_spec.
 Proof.
   start_function.
-  apply (semax_post'' (EX p: val, EX q: val,
+  apply semax_post'' with
+     (EX p: val, EX q: val,
                        PROP ( )
                        LOCAL (temp ret_temp q)
-                       SEP (subscr_post b t x p q))).
-  Focus 1. {
-    Intros p.
-    Exists p.
-    (* TODO entailer: let entailer work here. *)
-    admit.
-  } Unfocus.
+                       SEP (subscr_post b t x p q)).
+ reflexivity.
+ { 
+  Intros p q; Exists p q.
+  unfold subscr_post.
+  destruct (tree_inb x t) eqn:?.
+  apply tree_inb_true_iff in  Heqb0. entailer!.  apply orp_right1. auto.
+  apply tree_inb_false_iff in  Heqb0. entailer!. apply orp_right2. entailer!.
+ }
   rename H into Range_x.
   eapply semax_pre; [
     | apply (semax_loop _ (subscr_inv b t x) (subscr_inv b t x))].
@@ -378,10 +381,10 @@ Proof.
     apply allp_right; intros q.
     apply wand_sepcon_adjoint; entailer!.
   * (* Loop body *)
-    (* TODO: why this skip is here? *)
-    forward. (* Sskip *)
     unfold subscr_inv.
     Intros b1 t1.
+    (* TODO: why this skip is here? *)
+    forward. (* Sskip *)
     destruct t1; simpl treebox_rep at 1; normalize.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
@@ -416,7 +419,7 @@ Proof.
       entailer!.
     + forward. (* p = *t; *)
       forward_if. (* else clause *)
-      (* TODO: better automation for field_compatible. *)
+       (* TODO: better automation for field_compatible. *)
         1: admit.
       (* TODO: better automation for field_compatible. *)
         1: admit.

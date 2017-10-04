@@ -1,29 +1,29 @@
-Require Import msl.msl_standard.
-Require Import msl.seplog.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.juicy_mem_ops.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.semax.
-Require Import veric.semax_call.
-Require Import veric.semax_ext.
-Require Import veric.juicy_safety.
-Require Import veric.Clight_new.
-Require Import veric.res_predicates.
-Require Import veric.SeparationLogic.
-Require Import sepcomp.semantics.
-Require Import sepcomp.extspec.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import concurrency.lksize.
-Require Import concurrency.semax_conc_pred.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.seplog.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_call.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.extspec.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.field_at.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.semax_conc_pred.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -117,14 +117,14 @@ Proof.
     eapply derives_trans.
       apply nonexpansive_entail, nonexpansive_lock_inv.
       apply fash_derives, andp_left1, derives_refl.
-    
+
     (* join resource invariant *)
     repeat apply subp_sepcon; try apply subp_refl.
       apply allp_left with true.
       eapply derives_trans.
         apply nonexpansive_entail, nonexpansive_lock_inv.
         apply fash_derives, andp_left1, derives_refl.
-      
+
       apply allp_left with false.
       eapply derives_trans.
         apply nonexpansive_entail, nonexpansive_lock_inv.
@@ -290,7 +290,7 @@ Qed.
 
 Definition acquire_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   acquire_arg_type
   (fun _ => acquire_pre)
   (fun _ => acquire_post)
@@ -356,7 +356,7 @@ Qed.
 
 Definition release_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   release_arg_type
   (fun _ => release_pre)
   (fun _ => release_post)
@@ -366,7 +366,7 @@ Definition release_spec: funspec := mk_funspec
 
 Program Definition makelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -407,7 +407,7 @@ Qed.
 
 Program Definition freelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -482,7 +482,7 @@ Qed.
 
 Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -542,7 +542,7 @@ Qed.
 
 Program Definition release2_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -626,7 +626,7 @@ Definition freecond_spec cs :=
 
 Program Definition wait_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -683,7 +683,7 @@ Qed.
 
 Program Definition wait2_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -784,7 +784,7 @@ Definition gvars := map (fun x => gvar (fst x) (snd x)).
 
 Local Open Scope logic.
 
-Definition spawn_arg_type := 
+Definition spawn_arg_type :=
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred))).
 
 Definition spawn_pre :=
@@ -846,11 +846,11 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
   apply (PROP_LOCAL_SEP_super_non_expansive
    (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
     nil
-    ((fun ts x => 
+    ((fun ts x =>
         match x with
         | (f, b, w, pre) => temp _args b
         end) :: nil)
-    ((fun (ts: list Type) x => 
+    ((fun (ts: list Type) x =>
        match x with
        | (f, b, w, pre) =>
          EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
@@ -866,7 +866,7 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
                  SEP   (emp))
              f)
        end) ::
-     (fun ts x => 
+     (fun ts x =>
        match x with
        | (f, b, w, pre) => pre w b
        end) :: nil)); repeat constructor.
@@ -926,7 +926,7 @@ Qed.
 
 Definition spawn_spec := mk_funspec
   ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   spawn_arg_type
   spawn_pre
   spawn_post
@@ -940,7 +940,7 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
     Build_external_specification
       juicy_mem external_function T
       (fun ef => False)
-      (fun ef Hef ge tys vl m z => False) 
+      (fun ef Hef ge tys vl m z => False)
       (fun ef Hef ge ty vl m z => False)
       (fun rv m z => False).
 
@@ -975,7 +975,7 @@ Proof.
 Qed.
 
 Set Printing Implicit.
-Require Import sepcomp.step_lemmas.
+Require Import VST.sepcomp.step_lemmas.
 
 Lemma at_external_not_halted (G C M : Type) (csem : semantics.CoreSemantics G C M) (q : C) :
   semantics.at_external csem q <> None -> semantics.halted csem q = None.

@@ -1,11 +1,10 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-Require Export floyd.compact_prod_sum.
-Require Import floyd.fieldlist.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.type_induction.
+Require Export VST.floyd.compact_prod_sum.
+Require Import VST.floyd.fieldlist.
+Require Import VST.floyd.sublist.
 
-Definition 
+Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
        map g (map f l) = map (fun x : A => g (f x)) l :=
 fun (A B C : Type) (f : A -> B) (g : B -> C) (l : list A) =>
@@ -163,7 +162,7 @@ Definition default_val t: reptype t :=
 Lemma reptype_gen_eq: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 n _ => match reptype_gen t0 
+  | Tarray t0 n _ => match reptype_gen t0
                                  with existT T V => existT (fun x => x) (list T) (list_repeat (Z.to_nat n) V) end
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -179,7 +178,7 @@ Proof.
   intros.
   unfold reptype_gen at 1.
   rewrite type_func_eq.
-  destruct t; auto.   
+  destruct t; auto.
   +  unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
     reflexivity.
@@ -483,7 +482,7 @@ Notation REPTYPE' t :=
   | Tunion id _ => compact_sum (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
   end.
 
-Lemma reptype'_eq: forall t, 
+Lemma reptype'_eq: forall t,
   reptype' t = REPTYPE' t.
 Proof.
   intros.
@@ -677,19 +676,19 @@ Global Notation REPTYPE t :=
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
 
-Tactic Notation "unfold_repinj" := 
-repeat match goal with |- appcontext [repinj ?T] =>
+Tactic Notation "unfold_repinj" :=
+repeat match goal with |- context [repinj ?T] =>
  let x := fresh "x" in set (x := repinj T);
     lazy beta iota zeta delta in x; subst x; lazy beta
 end.
 
 Tactic Notation "unfold_repinj" constr(T) :=
-match goal with |- appcontext [repinj T] =>
+match goal with |- context [repinj T] =>
  let x := fresh "x" in set (x := repinj T);
     lazy beta iota zeta delta in x; subst x; lazy beta
 end.
 
-(* Too expensive to do "pattern (repinj T V)", this 
+(* Too expensive to do "pattern (repinj T V)", this
   can blow up.
 Tactic Notation "unfold_repinj" constr(T) constr(V) :=
    pattern (repinj T V);
@@ -807,7 +806,7 @@ intros.
   unfold Znth at 1. rewrite if_false by omega. simpl. auto.
   clear H.
   unfold Znth at 1. rewrite if_false by omega.
-  destruct (Z.to_nat lo) eqn:?. 
+  destruct (Z.to_nat lo) eqn:?.
   apply Z2Nat.inj_lt in H1; try omega.
   simpl nth.
   specialize (IHk (Z.of_nat n0) (Z.succ lo')).
@@ -857,7 +856,7 @@ intros.
  rewrite <- Nat2Z.inj_sub by omega.
  rewrite Nat2Z.id.
  assert (hi-lo <= length al - lo)%nat by omega.
- clear H. 
+ clear H.
  forget (hi-lo)%nat as n. clear hi.
  revert n al H0; induction lo; intros.
  simpl.
@@ -868,12 +867,12 @@ intros.
  rewrite <- (IHn al) by omega. clear IHn.
  rewrite <- (replist'_succ _ (default_val t) 0 n r al) by omega.
  reflexivity.
- rewrite inj_S. 
+ rewrite inj_S.
   destruct al. simpl length in H0. assert (n=0)%nat by omega.
   subst;   simpl. auto.
   simpl length in H0. simpl in H0. simpl. rewrite <- (IHlo _ _ H0).
   apply replist'_succ. omega.
-Qed. 
+Qed.
 
 Lemma skipn_0:
  forall A (al: list A) n,
@@ -898,7 +897,7 @@ apply firstn_exact_length.
 Qed.
 
 Lemma replist_Zlength {cs: compspecs}:
-  forall t lo hi al, 
+  forall t lo hi al,
     lo <= hi ->
    Zlength (replist t lo hi al) = hi-lo.
 Proof.
@@ -915,7 +914,7 @@ rewrite IHn. auto.
 Qed.
 
 Lemma replist_length {cs: compspecs}:
-  forall t lo hi al, 
+  forall t lo hi al,
     lo <= hi ->
    length (replist t lo hi al) = Z.to_nat (hi-lo).
 Proof.

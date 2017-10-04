@@ -1,14 +1,12 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.mapsto_memory_block.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
 
 Local Open Scope logic.
 
 (***************************************
 
 Load/store lemmas about mapsto:
-  semax_store_nth.
   semax_load_37
   semax_load_37'
   semax_cast_load_37
@@ -17,23 +15,23 @@ Load/store lemmas about mapsto:
 ***************************************)
 
 
-Definition semax_load_37 := @semax_load. 
+Definition semax_load_37 := @semax_load.
 
-Lemma semax_load_37' : 
+Lemma semax_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
          (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id e1)
        (normal_ret_assert
-         (PROPx P 
-           (LOCALx (temp id v2 :: remove_localdef id Q)
+         (PROPx P
+           (LOCALx (temp id v2 :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros.
@@ -66,30 +64,29 @@ Proof.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
         intros; apply prop_derives; congruence.
-      * apply derives_refl'.
-        apply remove_localdef_PROP.
+      * apply remove_localdef_temp_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
 Qed.
 
-Definition semax_cast_load_37 := @semax_cast_load. 
+Definition semax_cast_load_37 := @semax_cast_load.
 
-Lemma semax_cast_load_37' : 
+Lemma semax_cast_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
     classify_cast (typeof e1) t1 <> cast_case_p2bool ->
     readable_share sh ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
          (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert
-         (PROPx P 
-           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef id Q)
+         (PROPx P
+           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef_temp id Q)
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
@@ -122,9 +119,8 @@ Proof.
         intros; apply prop_derives.
         unfold force_val1.
         congruence.
-      * apply derives_refl'.
-        apply remove_localdef_PROP.
-  + 
+      * apply remove_localdef_temp_PROP.
+  +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
 Qed.
@@ -132,11 +128,83 @@ Qed.
 (***************************************
 
 Load/store lemmas about mapsto:
-  semax_store_nth_ram.
   semax_load_nth_ram.
   semax_cast_load_nth_ram.
+  semax_store_nth_ram.
 
 ***************************************)
+
+Lemma semax_load_nth_ram :
+  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
+    typeof e1 = t1 ->
+    typeof_temp Delta id = Some t2 ->
+    is_neutral_cast (typeof e1) t2 = true ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+       local (`(eq p) (eval_lvalue e1)) ->
+    nth_error R n = Some Pre ->
+    readable_share sh ->
+    Pre |-- mapsto sh t1 p v * TT ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      (tc_lvalue Delta e1) && local (`(tc_val t1 v)) ->
+    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      (Sset id e1)
+      (normal_ret_assert
+         (PROPx P
+           (LOCALx (temp id v :: remove_localdef_temp id Q)
+             (SEPx R)))).
+Proof.
+  intros.
+  subst; eapply semax_load_37'; eauto.
+  apply andp_right; auto.
+  rewrite (add_andp _ _ H2).
+  rewrite andp_comm. rewrite <- andp_assoc.
+  erewrite SEP_nth_isolate, <- insert_SEP by eauto.
+  rewrite <- local_lift2_and.
+  rewrite <- local_sepcon_assoc1.
+  eapply derives_trans.
+  + apply sepcon_derives; [| apply derives_refl].
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+  + rewrite sepcon_assoc.
+    apply sepcon_derives; auto.
+Qed.
+
+Lemma semax_cast_load_nth_ram :
+  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
+    typeof e1 = t1 ->
+    typeof_temp Delta id = Some t2 ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      local (`(eq p) (eval_lvalue e1)) ->
+    nth_error R n = Some Pre ->
+    classify_cast t1 t2 <> cast_case_p2bool ->
+    readable_share sh ->
+    Pre |-- mapsto sh t1 p v * TT ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+     (tc_lvalue Delta e1) && local (`(tc_val t2 (eval_cast t1 t2 v))) ->
+    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+     (Sset id (Ecast e1 t2))
+     (normal_ret_assert
+         (PROPx P
+           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef_temp id Q)
+             (SEPx R)))).
+Proof.
+  intros.
+  subst; eapply semax_cast_load_37'; eauto.
+  apply andp_right; auto.
+  rewrite (add_andp _ _ H1).
+  rewrite andp_comm. rewrite <- andp_assoc.
+  erewrite SEP_nth_isolate, <- insert_SEP by eauto.
+  rewrite <- local_lift2_and.
+  rewrite <- local_sepcon_assoc1.
+  eapply derives_trans.
+  + apply sepcon_derives; [| apply derives_refl].
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+  + rewrite sepcon_assoc.
+    apply sepcon_derives; auto.
+Qed.
 
 Lemma semax_store_nth_ram:
   forall {Espec: OracleKind} {cs: compspecs} n Delta P Q R e1 e2 Pre Post p v sh t1,
@@ -148,9 +216,9 @@ Lemma semax_store_nth_ram:
     nth_error R n = Some Pre ->
     writable_share sh ->
     Pre |-- mapsto_ sh t1 p * (mapsto sh t1 p v -* Post) ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_lvalue Delta e1) && (tc_expr Delta (Ecast e2 t1)) ->
-    semax Delta 
+    semax Delta
      (|> PROPx P (LOCALx Q (SEPx R)))
      (Sassign e1 e2)
      (normal_ret_assert
@@ -159,7 +227,7 @@ Proof.
   intros.
   eapply semax_pre_simple; [| eapply semax_post'; [| apply semax_store; eauto]].
   + apply later_left2.
-    apply andp_right;  [subst; auto |]. 
+    apply andp_right;  [subst; auto |].
     simpl lifted.
     change  (@LiftNatDed environ mpred Nveric)
       with (@LiftNatDed' mpred Nveric).
@@ -191,74 +259,3 @@ Proof.
     apply modus_ponens_wand.
 Qed.
 
-Lemma semax_load_nth_ram : 
-  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
-    typeof e1 = t1 ->
-    typeof_temp Delta id = Some t2 ->
-    is_neutral_cast (typeof e1) t2 = true ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-       local (`(eq p) (eval_lvalue e1)) ->
-    nth_error R n = Some Pre ->
-    readable_share sh ->
-    Pre |-- mapsto sh t1 p v * TT ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
-      (tc_lvalue Delta e1) && local (`(tc_val t1 v)) ->
-    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-      (Sset id e1)
-      (normal_ret_assert
-         (PROPx P 
-           (LOCALx (temp id v :: remove_localdef id Q)
-             (SEPx R)))).
-Proof.
-  intros.
-  subst; eapply semax_load_37'; eauto.
-  apply andp_right; auto.
-  rewrite (add_andp _ _ H2).
-  rewrite andp_comm. rewrite <- andp_assoc.
-  erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-  rewrite <- local_lift2_and.
-  rewrite <- local_sepcon_assoc1.
-  eapply derives_trans.
-  + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
-    unfold local, lift1; unfold_lift; intro rho; simpl.
-    normalize.
-  + rewrite sepcon_assoc.
-    apply sepcon_derives; auto.
-Qed.
-
-Lemma semax_cast_load_nth_ram : 
-  forall {Espec: OracleKind}{cs: compspecs} n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
-    typeof e1 = t1 ->
-    typeof_temp Delta id = Some t2 ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-      local (`(eq p) (eval_lvalue e1)) ->
-    nth_error R n = Some Pre ->
-    classify_cast t1 t2 <> cast_case_p2bool ->
-    readable_share sh ->
-    Pre |-- mapsto sh t1 p v * TT ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
-     (tc_lvalue Delta e1) && local (`(tc_val t2 (eval_cast t1 t2 v))) ->
-    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-     (Sset id (Ecast e1 t2))
-     (normal_ret_assert
-         (PROPx P 
-           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef id Q)
-             (SEPx R)))).
-Proof.
-  intros.
-  subst; eapply semax_cast_load_37'; eauto.
-  apply andp_right; auto.
-  rewrite (add_andp _ _ H1).
-  rewrite andp_comm. rewrite <- andp_assoc.
-  erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-  rewrite <- local_lift2_and.
-  rewrite <- local_sepcon_assoc1.
-  eapply derives_trans.
-  + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
-    unfold local, lift1; unfold_lift; intro rho; simpl.
-    normalize.
-  + rewrite sepcon_assoc.
-    apply sepcon_derives; auto.
-Qed.

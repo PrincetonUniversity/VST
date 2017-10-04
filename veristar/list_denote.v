@@ -1,8 +1,8 @@
 Load loadpath.
 Require Import Coq.Lists.List Permutation veric.Coqlib2.
-Require Import msl.Axioms msl.sepalg msl.predicates_sa msl.base
-               veristar.variables veristar.datatypes 
-               veristar.clauses veristar.basic veristar.compare.  
+Require Import VST.msl.Axioms msl.sepalg VST.msl.predicates_sa msl.base
+               veristar.variables veristar.datatypes
+               veristar.clauses veristar.basic veristar.compare.
 
 (* listd - interpretation functions folded over sequences *)
 
@@ -25,9 +25,9 @@ End ListDenote.
 Notation "'listd'" := (list_denote).
 
 Lemma listd_app {A T} f g (b : T) (l l' : list A) :
-  listd f g b (l ++ l') = 
+  listd f g b (l ++ l') =
   listd f g (listd f g b l') l.
-Proof. 
+Proof.
 intros; do 3 rewrite listd_fold_right; apply fold_right_app.
 Qed.
 
@@ -40,7 +40,7 @@ Variables (f : A -> T) (g : T -> T -> T) (b : T).
 Lemma listd_nil : listd f g b nil = b.
 Proof. auto. Qed.
 
-Lemma listd_cons a l : 
+Lemma listd_cons a l :
   listd f g b (a :: l) = g (f a) (listd f g b l).
 Proof. auto. Qed.
 
@@ -50,8 +50,8 @@ Proof with auto. induction l; simpl; intros... rewrite IHl, Hgh_eq... Qed.
 
 Lemma listd_filter h l (H : forall a b', false=h a -> g (f a) b' = b') :
   listd f g b (filter h l) = listd f g b l.
-Proof with auto. 
-induction l; simpl... 
+Proof with auto.
+induction l; simpl...
 remember (h a) as b'; destruct b'; simpl. rewrite IHl... rewrite IHl, H...
 Qed.
 
@@ -89,7 +89,7 @@ Lemma listd_AS_unit un l (un_unit : forall x, g x un = x) :
   listd f g b l = g b (listd f g un l).
 Proof with auto. induction l; simpl... rewrite IHl, fgAS... Qed.
 
-Lemma listd_perm l l' (Hperm : Permutation l l') : 
+Lemma listd_perm l l' (Hperm : Permutation l l') :
   listd f g b l = listd f g b l'.
 Proof with auto.
 intros; induction Hperm; simpl... rewrite IHHperm...
@@ -109,7 +109,7 @@ Proof. apply gconj. Qed.
 
 Context {B : Type}.
 Variables (h : A -> pred B) (k : pred B -> pred B -> pred B) (b0 : pred B).
-Variable (hconj : forall x y b, k x y b -> y b). 
+Variable (hconj : forall x y b, k x y b -> y b).
 
 Lemma listd_conjP a l : forall b, listd h k b0 (a :: l) b -> listd h k b0 l b.
 Proof. apply hconj. Qed.
@@ -125,7 +125,7 @@ Context {A : Type}.
 Variables (f : A -> Prop) (b : Prop).
 
 Lemma andS (x y : Prop) : and x y = and y x.
-Proof. apply prop_ext; intuition. Qed. 
+Proof. apply prop_ext; intuition. Qed.
 
 Lemma andA x y z : and x (and y z) = and (and x y) z.
 Proof. apply prop_ext; intuition.  Qed.
@@ -142,7 +142,7 @@ Proof. apply listd_conj; auto. intros x y [hx hy]; auto. Qed.
 Lemma listd_unfold_and l : listd f and b l = (listd f and True l /\ b).
 Proof with auto.
 induction l; simpl... apply prop_ext; split; tauto.
-apply prop_ext; split; simpl; rewrite IHl; tauto. 
+apply prop_ext; split; simpl; rewrite IHl; tauto.
 Qed.
 
 Lemma listd_unfold_or l : listd f or b l = (listd f or False l \/ b).
@@ -151,7 +151,7 @@ induction l; simpl... apply prop_ext; split; tauto.
 apply prop_ext; split; simpl; rewrite IHl; tauto.
 Qed.
 
-Lemma listd_flat_map_and h l 
+Lemma listd_flat_map_and h l
   (H : forall a b', and (f a) b' -> listd f and b' (h a)) :
   listd f and b l -> listd f and b (flat_map h l).
 Proof with auto.
@@ -165,7 +165,7 @@ Proof with simpl; try solve[exfalso; auto]; auto. induction l... Qed.
 Lemma listd_In_inv_prop a l : listd f and True l -> In a l -> f a.
 Proof with try solve[exfalso; auto]; auto.
 revert a; induction l; simpl; intros a' C D...
-destruct D as [D|D]; [rewrite <- D|]. 
+destruct D as [D|D]; [rewrite <- D|].
 solve [destruct C as [C1 C2]; auto]. solve[destruct C; apply IHl; auto].
 Qed.
 
@@ -175,11 +175,11 @@ Section ListDenoteProp1.
 Context {A : Type}.
 Variables (f : A -> Prop).
 
-Lemma listd_unfold_app_and b l l' : 
+Lemma listd_unfold_app_and b l l' :
   listd f and b (l ++ l') = (listd f and True l /\ listd f and b l').
 Proof with auto. rewrite listd_app, listd_unfold_and... Qed.
 
-Lemma listd_unfold_app_or b l l' : 
+Lemma listd_unfold_app_or b l l' :
   listd f or b (l ++ l') = (listd f or False l \/ listd f or b l').
 Proof with auto. rewrite listd_app, listd_unfold_or... Qed.
 
@@ -187,7 +187,7 @@ End ListDenoteProp1.
 
 (* next - when f : A -> pred B *)
 
-(*these two lemmas should go in predicates_tc, which should maybe be called 
+(*these two lemmas should go in predicates_tc, which should maybe be called
    just predicates*)
 Lemma union_com {A} : forall (P Q: pred A), ((P || Q) = (Q || P))%pred.
 Proof.
@@ -195,7 +195,7 @@ intros; extensionality w.
 unfold orp; apply prop_ext; intuition.
 Qed.
 
-Lemma union_assoc {A} : forall (P Q R: pred A), 
+Lemma union_assoc {A} : forall (P Q R: pred A),
   ((P || Q) || R = P || (Q || R))%pred.
 Proof.
 intros; extensionality w.
@@ -209,20 +209,20 @@ Section ListDenotePred.
 Context {A B : Type}.
 Variables (f : A -> pred B) (b : pred B).
 
-Lemma listd_conj_inter a l : 
+Lemma listd_conj_inter a l :
   forall b', listd f inter TT (a :: l) b' -> listd f inter TT l b'.
 Proof. intro b'; apply listd_conjP. intros x y b0 [H1 H2]; auto. Qed.
 
 Lemma listd_unfold_inter l : listd f inter b l = (listd f inter TT l && b)%pred.
 Proof with auto.
-induction l; simpl... apply extensionality; intro x. 
+induction l; simpl... apply extensionality; intro x.
 apply prop_ext; split; intro H. split... destruct H...
 rewrite IHl, andp_assoc...
 Qed.
 
 Lemma listd_unfold_un l : listd f un b l = (listd f un FF l || b)%pred.
 Proof with auto.
-induction l; simpl... apply extensionality; intro x. 
+induction l; simpl... apply extensionality; intro x.
 apply prop_ext; split; intro H. right... destruct H... inversion H.
 rewrite IHl, union_assoc...
 Qed.
@@ -235,7 +235,7 @@ induction l; simpl... intros [C D].
 solve[rewrite listd_app; apply H; split; auto].
 Qed.
 
-Lemma listd_In_pred l s : 
+Lemma listd_In_pred l s :
   (forall a, In a l -> f a s) -> b s -> listd f inter b l s.
 Proof with simpl; try solve[exfalso; auto]; auto.
 induction l... intro C; split; [ solve [apply (C a); left; auto] | ].
@@ -245,68 +245,68 @@ Qed.
 Lemma listd_In_inv_pred a l s : listd f inter TT l s -> In a l -> f a s.
 Proof with try solve[exfalso; auto]; auto.
 revert a; induction l; simpl; intros a' C D...
-destruct D as [D|D]; [rewrite <- D|]. 
+destruct D as [D|D]; [rewrite <- D|].
 solve [destruct C as [C1 C2]; auto]. solve[destruct C; apply IHl; auto].
 Qed.
 
-Lemma listd_In_pred_un l s : 
+Lemma listd_In_pred_un l s :
   (exists a, In a l /\ f a s) \/ b s -> listd f un b l s.
 Proof with simpl; try solve[exfalso; auto|congruence]; auto.
-induction l... intros [[a [C D]]|E]... intros [[a0 [C D]]|E]... 
+induction l... intros [[a [C D]]|E]... intros [[a0 [C D]]|E]...
 destruct C; subst. left... right; apply IHl; eauto.
 right; eapply IHl...
 Qed.
 
-Lemma listd_In_inv_pred_un l s : 
+Lemma listd_In_inv_pred_un l s :
   listd f un b l s -> (exists a, In a l /\ f a s) \/ b s.
 Proof with try solve[exfalso; auto|congruence]; auto.
 induction l... destruct 1. left; exists a; split; simpl...
-spec IHl H. destruct IHl as [[a0 [C D]]|E]. 
+spec IHl H. destruct IHl as [[a0 [C D]]|E].
 left; exists a0; split; simpl... right...
 Qed.
 
 (* todo: add map/fold_right lems for prop, etc. *)
 
-Lemma listd_map_pred {C : Type} h (g : C -> pred B) l s 
+Lemma listd_map_pred {C : Type} h (g : C -> pred B) l s
   (H : forall a, f a s -> g (h a) s) :
   listd f inter TT l s -> listd g inter TT (map h l) s.
 Proof with try solve [exfalso; auto]; auto.
-induction l... simpl; intros [? ?]; split... 
+induction l... simpl; intros [? ?]; split...
 Qed.
 
-Lemma listd_omapl_pred {C : Type} h (g : C -> pred B) l s 
+Lemma listd_omapl_pred {C : Type} h (g : C -> pred B) l s
   (H : forall a, f a s -> match h a with Some a' => g a' s | None => True end) :
   listd f inter TT l s -> listd g inter TT (omapl h l) s.
 Proof with simpl; try solve [exfalso; auto]; auto.
 induction l... simpl; intros [? ?]. spec H a. destruct (h a)... split...
 Qed.
 
-Lemma listd_foldr_pred h c0 l s 
+Lemma listd_foldr_pred h c0 l s
   (H : forall a x, f a s -> f x s -> f (h a x) s) :
   f c0 s -> listd f inter TT l s -> f (fold_right h c0 l) s.
 Proof with try solve [exfalso; auto]; auto.
 revert c0 H; induction l... simpl; intros c0 H C [D E]. apply H...
 Qed.
 
-Lemma listd_foldl_pred h c0 l s 
+Lemma listd_foldl_pred h c0 l s
   (H : forall a x, f a s -> f x s -> f (h x a) s) :
   f c0 s -> listd f inter TT l s -> f (fold_left h l c0) s.
 Proof with try solve [exfalso; auto]; auto.
 revert c0 H; induction l... simpl; intros c0 H C [D E]; apply IHl...
 Qed.
 
-Lemma listd_filter_pred h l s : 
+Lemma listd_filter_pred h l s :
   listd f inter TT l s -> listd f inter TT (filter h l) s.
 Proof with try solve [exfalso; auto]; auto.
 induction l... simpl. intros [H1 H2]. if_tac... simpl... split...
 Qed.
 
 Lemma listd_partition_pred h l xs ys s (H : partition h l = (xs, ys)) :
-  listd f inter TT l s -> 
+  listd f inter TT l s ->
     listd f inter TT xs s /\ listd f inter TT ys s.
 Proof with try solve [exfalso; auto]; auto.
 revert xs ys H; induction l... simpl. inversion 1; auto.
-intros xs ys; simpl; intros H1 [H2 H3]. 
+intros xs ys; simpl; intros H1 [H2 H3].
 remember (partition h l) as c. destruct c. destruct (h a); inversion H1; subst.
 spec IHl l0 ys. destruct IHl... split; auto. split; auto.
 spec IHl xs l1. destruct IHl... split; auto. split; auto.
@@ -318,11 +318,11 @@ Section ListDenotePred1.
 Context {A B : Type}.
 Variables (f : A -> pred B).
 
-Lemma listd_unfold_app_inter b l l' : 
+Lemma listd_unfold_app_inter b l l' :
   listd f inter b (l ++ l') = (listd f inter TT l && listd f inter b l')%pred.
 Proof with auto. rewrite listd_app, listd_unfold_inter... Qed.
 
-Lemma listd_unfold_app_un b l l' : 
+Lemma listd_unfold_app_un b l l' :
   listd f un b (l ++ l') = (listd f un FF l || listd f un b l')%pred.
 Proof with auto. rewrite listd_app, listd_unfold_un... Qed.
 
@@ -336,9 +336,9 @@ Variables (f : A -> T) (g : T -> T -> T) (b : T).
 Variable (gS : forall x y, g x y = g y x).
 Variable (gA : forall x y z, g x (g y z) = g (g x y) z).
 
-Lemma listd_insert cmp a l : 
+Lemma listd_insert cmp a l :
   listd f g b (insert cmp a l) = g (f a) (listd f g b l).
-Proof with auto. 
+Proof with auto.
 rewrite listd_perm with (l' := (a :: l))... apply perm_insert.
 Qed.
 
@@ -356,10 +356,10 @@ Variables (f : A -> T) (g : T -> T -> T) (b : T).
 Variable (gS : forall x y, g x y = g y x).
 Variable (gA : forall x y z, g x (g y z) = g (g x y) z).
 Variable (cmp : A -> A -> comparison).
-Variable (Hcmp : forall x y, Eq = cmp x y -> 
+Variable (Hcmp : forall x y, Eq = cmp x y ->
   forall b, g (f x) (g (f y) b) = g (f y) b).
- 
-Lemma listd_insert_uniq a l : 
+
+Lemma listd_insert_uniq a l :
   listd f g b (insert_uniq cmp a l) = g (f a) (list_denote f g b l).
 Proof with auto.
 induction l; simpl...
@@ -383,19 +383,19 @@ Variable (f : A -> Prop) (b : Prop).
 
 Local Hint Resolve andS andA orS orA.
 
-Lemma listd_insert_and cmp a l : 
+Lemma listd_insert_and cmp a l :
   listd f and b (insert cmp a l) = and (f a) (listd f and b l).
 Proof. apply listd_insert; auto. Qed.
 
-Lemma list_sort_and cmp l : 
+Lemma list_sort_and cmp l :
   listd f and b (rsort cmp l) = listd f and b l.
 Proof. apply listd_sort; auto. Qed.
 
-Lemma listd_insert_or cmp a l : 
+Lemma listd_insert_or cmp a l :
   listd f or b (insert cmp a l) = or (f a) (listd f or b l).
 Proof. apply listd_insert; auto. Qed.
 
-Lemma listd_sort_or cmp l : 
+Lemma listd_sort_or cmp l :
   listd f or b (rsort cmp l) = listd f or b l.
 Proof. apply listd_sort; auto. Qed.
 
@@ -426,21 +426,21 @@ Variables (JB: Join B) (PB: Perm_alg B)(SB: Sep_alg B).
 Lemma sepconS (x y : pred B) : sepcon x y = sepcon y x.
 Proof. apply sepcon_comm. Qed.
 
-Lemma sepconA (x y z : pred B) : 
+Lemma sepconA (x y z : pred B) :
   sepcon x (sepcon y z) = sepcon (sepcon x y) z.
 Proof. rewrite sepcon_assoc; auto. Qed.
 
 Local Hint Resolve interS interA unS unA sepconS sepconA.
 
-Lemma listd_insert_inter cmp a l : 
+Lemma listd_insert_inter cmp a l :
   listd f inter b (insert cmp a l) = inter (f a) (listd f inter b l).
 Proof. apply listd_insert; auto. Qed.
 
-Lemma listd_sort_inter cmp l : 
+Lemma listd_sort_inter cmp l :
   listd f inter b (rsort cmp l) = listd f inter b l.
 Proof. apply listd_sort; auto. Qed.
 
-Lemma listd_insert_un cmp a l : 
+Lemma listd_insert_un cmp a l :
   listd f un b (insert cmp a l) = un (f a) (listd f un b l).
 Proof. apply listd_insert; auto. Qed.
 
@@ -449,11 +449,11 @@ Proof. apply listd_sort; auto. Qed.
 
 (* todo: add sortuniq lems for sepcon *)
 
-Lemma listd_insert_sepcon cmp a l : 
+Lemma listd_insert_sepcon cmp a l :
   listd f sepcon b (insert cmp a l) = sepcon (f a) (listd f sepcon b l).
 Proof. apply listd_insert; auto. Qed.
 
-Lemma listd_sort_sepcon cmp l : 
+Lemma listd_sort_sepcon cmp l :
   listd f sepcon b (rsort cmp l) = listd f sepcon b l.
 Proof. apply listd_sort; auto. Qed.
 
@@ -469,31 +469,31 @@ Variable (Hcmp : forall x y, Eq = cmp x y -> x = y).
 
 Local Hint Resolve andS andA orS orA.
 
-Lemma listd_insert_uniq_and a l : 
+Lemma listd_insert_uniq_and a l :
   listd f and b (insert_uniq cmp a l) = and (f a) (listd f and b l).
-Proof. 
-apply listd_insert_uniq; auto. 
+Proof.
+apply listd_insert_uniq; auto.
 intros x y H b'; rewrite (Hcmp _ _ H); apply prop_ext; split; tauto.
 Qed.
 
-Lemma list_sort_uniq_and l : 
+Lemma list_sort_uniq_and l :
   listd f and b (rsort_uniq cmp l) = listd f and b l.
-Proof. 
-apply listd_sort_uniq; auto. 
+Proof.
+apply listd_sort_uniq; auto.
 intros x y H b'; rewrite (Hcmp _ _ H); apply prop_ext; split; tauto.
 Qed.
 
-Lemma listd_insert_uniq_or a l : 
+Lemma listd_insert_uniq_or a l :
   listd f or b (insert_uniq cmp a l) = or (f a) (listd f or b l).
-Proof. 
-apply listd_insert_uniq; auto. 
+Proof.
+apply listd_insert_uniq; auto.
 intros x y H b'; rewrite (Hcmp _ _ H); apply prop_ext; split; tauto.
 Qed.
 
-Lemma listd_sort_uniq_or l : 
+Lemma listd_sort_uniq_or l :
   listd f or b (rsort_uniq cmp l) = listd f or b l.
-Proof. 
-apply listd_sort_uniq; auto. 
+Proof.
+apply listd_sort_uniq; auto.
 intros x y H b'; rewrite (Hcmp _ _ H); apply prop_ext; split; tauto.
 Qed.
 
@@ -509,37 +509,37 @@ Variable (Hcmp : forall x y, Eq = cmp x y -> x = y).
 
 Local Hint Resolve (@interS B) (@interA B) (@unS B) (@unA B).
 
-Lemma listd_insert_uniq_inter a l : 
+Lemma listd_insert_uniq_inter a l :
   listd f inter b (insert_uniq cmp a l) = inter (f a) (listd f inter b l).
-Proof. 
-apply listd_insert_uniq; auto. 
-intros x y H b'; rewrite (Hcmp _ _ H). 
-apply extensionality; intros ?; apply prop_ext; split; 
+Proof.
+apply listd_insert_uniq; auto.
+intros x y H b'; rewrite (Hcmp _ _ H).
+apply extensionality; intros ?; apply prop_ext; split;
   unfold andp; tauto.
 Qed.
 
-Lemma listd_sort_uniq_inter l : 
+Lemma listd_sort_uniq_inter l :
   listd f inter b (rsort_uniq cmp l) = listd f inter b l.
-Proof. 
-apply listd_sort_uniq; auto. 
-intros x y H b'; rewrite (Hcmp _ _ H). 
-apply extensionality; intros ?; apply prop_ext; split; 
+Proof.
+apply listd_sort_uniq; auto.
+intros x y H b'; rewrite (Hcmp _ _ H).
+apply extensionality; intros ?; apply prop_ext; split;
   unfold andp; tauto.
 Qed.
 
-Lemma listd_insert_uniq_un a l : 
+Lemma listd_insert_uniq_un a l :
   listd f un b (insert_uniq cmp a l) = un (f a) (listd f un b l).
-Proof. 
-apply listd_insert_uniq; auto. 
-intros x y H b'; rewrite (Hcmp _ _ H). 
+Proof.
+apply listd_insert_uniq; auto.
+intros x y H b'; rewrite (Hcmp _ _ H).
 apply extensionality; intros ?; apply prop_ext; split; unfold orp; tauto.
 Qed.
 
-Lemma listd_sort_uniq_un l : 
+Lemma listd_sort_uniq_un l :
   listd f un b (rsort_uniq cmp l) = listd f un b l.
-Proof. 
-apply listd_sort_uniq; auto. 
-intros x y H b'; rewrite (Hcmp _ _ H). 
+Proof.
+apply listd_sort_uniq; auto.
+intros x y H b'; rewrite (Hcmp _ _ H).
 apply extensionality; intros ?; apply prop_ext; split; unfold orp; tauto.
 Qed.
 
@@ -555,7 +555,7 @@ Lemma listd_merge_inter l1 l2 s :
   listd f inter TT l1 s -> listd f inter TT l2 s ->
   listd f inter TT (merge cmp l1 l2) s.
 Proof with simpl; auto.
-revert l2; induction l1... intros l2 _ H1. 
+revert l2; induction l1... intros l2 _ H1.
 assert (forall l, (fix merge_aux (l0 : list A) := l0) l = l)
   as -> by (destruct l; auto)...
 intros l2 H1 H2. induction l2... remember (cmp a a0) as b0; destruct b0...
@@ -569,7 +569,7 @@ Proof. solve[induction l; simpl; auto]. Qed.
 Lemma merge_nil' l : merge cmp nil l = l.
 Proof. solve[induction l; simpl; auto]. Qed.
 
-Lemma merge_cons_unfold a1 a2 l1 l2 : 
+Lemma merge_cons_unfold a1 a2 l1 l2 :
   merge cmp (a1 :: l1) (a2 :: l2) = match cmp a1 a2 with
                                       | Eq => a1 :: merge cmp l1 l2
                                       | Gt => a1 :: merge cmp l1 (a2 :: l2)
@@ -579,7 +579,7 @@ Proof. simpl; remember (cmp a1 a2) as c; destruct c; auto. Qed.
 
 Lemma merge_elems a l1 l2 : In a l1 \/ In a l2 <-> In a (merge cmp l1 l2).
 Proof with try solve[simpl; auto].
-split. intros [H1|H1]. 
+split. intros [H1|H1].
 (*-->*)
 revert l1 H1; induction l2; induction l1... inversion 1.
 intros H2; simpl in H2; destruct H2; subst.
@@ -598,14 +598,14 @@ right. apply IHl1. right...
 revert l1; induction l2; induction l1...
 rewrite merge_cons_unfold. remember (cmp a1 a0) as c; destruct c...
 simpl. destruct 1; subst... specialize (IHl2 _ H); firstorder.
-intros H1. apply in_inv in H1. destruct H1; subst... 
-specialize (IHl2 _ H). destruct IHl2... 
-intros H1. apply in_inv in H1. destruct H1; subst... 
+intros H1. apply in_inv in H1. destruct H1; subst...
+specialize (IHl2 _ H). destruct IHl2...
+intros H1. apply in_inv in H1. destruct H1; subst...
 specialize (IHl1 H). destruct IHl1...
 Qed.
 
 Lemma listd_merge_inter' l1 l2 s :
-  listd f inter TT (merge cmp l1 l2) s -> 
+  listd f inter TT (merge cmp l1 l2) s ->
   listd f inter TT l1 s /\ listd f inter TT l2 s.
 Proof with auto.
 intros H1; split.
@@ -622,8 +622,8 @@ Lemma listd_merge_un1 l1 l2 s :
 Proof with simpl; auto.
 revert l2; induction l1... intros l2; inversion 1. intros l2 H1.
 induction l2... remember (cmp a a0) as b0; destruct b0...
-apply (Hcmp a a0) in Heqb0; subst. 
-inversion H1; try solve[left; auto]. right... 
+apply (Hcmp a a0) in Heqb0; subst.
+inversion H1; try solve[left; auto]. right...
 right; apply IHl2... inversion H1; try solve[left; auto]. right; auto.
 Qed.
 
@@ -632,9 +632,9 @@ Lemma listd_merge_un2 l1 l2 s :
 Proof with simpl; auto.
 revert l1; induction l2. intros ?; inversion 1. intros l1 H1.
 induction l1; auto. simpl merge. simpl. remember (cmp a0 a) as b0; destruct b0...
-apply (Hcmp a0 a) in Heqb0; subst. 
+apply (Hcmp a0 a) in Heqb0; subst.
 inversion H1. left; auto. right; apply IHl2; auto.
-inversion H1. left; auto. 
+inversion H1. left; auto.
 spec IHl2 (a0 :: l1). simpl in IHl2. right; auto.
 right; apply IHl1.
 Qed.
@@ -648,7 +648,7 @@ cut (listd f un FF (l1 ++ l2) s).
   intros H2. rewrite listd_app, listd_unfold_un in H2.
   destruct H2; firstorder.
 apply listd_In_inv_pred_un in H1. destruct H1 as [[a [C D]]|E].
-apply listd_In_pred_un. 
+apply listd_In_pred_un.
 left. exists a. rewrite <-merge_elems in C. rewrite Coqlib.in_app. split...
 inversion E.
 Qed.
@@ -657,22 +657,22 @@ End ListDenoteMergePreds.
 
 Section ListDenoteSeparate.
 Context {X Y B : Type}.
-Variables (f : X -> pred B) (g : Y -> pred B) (b : pred B) (l1 : list X) 
+Variables (f : X -> pred B) (g : Y -> pred B) (b : pred B) (l1 : list X)
           (l2 : list Y).
 
 Lemma listd_separate :
   listd f inter (listd g inter b l2) l1 =
   andp (listd f inter TT l1) (andp (listd g inter TT l2) b).
 Proof with auto.
-rewrite listd_unfold_inter. 
+rewrite listd_unfold_inter.
 pattern (inter (listd g inter TT l2) b); rewrite <- listd_unfold_inter...
 Qed.
 
-Lemma listd_prop: 
-listd f inter b l1 = 
+Lemma listd_prop:
+listd f inter b l1 =
 (andp (listd f inter TT l1) b).
 Proof.
-induction l1; intros; simpl. rewrite TT_and. trivial. 
+induction l1; intros; simpl. rewrite TT_and. trivial.
 apply extensionality. intros s.
 apply prop_ext; split; simpl; intros.
   rewrite IHl in H.
@@ -690,7 +690,7 @@ End ListDenoteSeparate.
 
 Section SetDenote.
 
-Definition setd {T} (f : M.elt -> T) (g : T -> T -> T) (b : T) (s : M.t) := 
+Definition setd {T} (f : M.elt -> T) (g : T -> T -> T) (b : T) (s : M.t) :=
   listd f g b (M.elements s).
 
 End SetDenote.
@@ -700,7 +700,7 @@ End SetDenote.
 Section SetLems.
 Variables (s : M.t) (x y : clause).
 
-Lemma setd_add_In_refl : M.In x (M.add x s). 
+Lemma setd_add_In_refl : M.In x (M.add x s).
 Proof. rewrite M.add_spec.  auto.  Qed.
 
 Lemma setd_add_In_refl_elems : In x (M.elements (M.add x s)).
@@ -710,7 +710,7 @@ rewrite <- M.elements_spec1, SetoidList.InA_alt in A; destruct A as [z [A B]].
 subst; auto.
 Qed.
 
-Lemma setd_add_In : x = y \/ M.In y s -> M.In y (M.add x s). 
+Lemma setd_add_In : x = y \/ M.In y s -> M.In y (M.add x s).
 Proof with auto.
 rewrite M.add_spec; intuition.
 Qed.
@@ -741,9 +741,9 @@ rewrite H; constructor.
 auto.
 Qed.
 
-Lemma setd_add_In_inv_elems : 
+Lemma setd_add_In_inv_elems :
   In y (M.elements (M.add x s)) -> x = y \/ M.In y s.
-Proof with auto. 
+Proof with auto.
 intro A; rewrite elements_In in A.
 solve [apply setd_add_In_inv in A; exact A].
 Qed.
@@ -751,32 +751,32 @@ Qed.
 Lemma setd_rem_In_inv : M.In y (M.remove x s) -> M.In y s.
 Proof with auto. rewrite M.remove_spec; intros [A _]... Qed.
 
-Lemma setd_rem_In_inv_elems : 
+Lemma setd_rem_In_inv_elems :
   In y (M.elements (M.remove x s)) -> In y (M.elements s).
 Proof.
-intro A; rewrite elements_In in A. 
-solve [apply setd_rem_In_inv in A; rewrite <- elements_In in A; auto]. 
+intro A; rewrite elements_In in A.
+solve [apply setd_rem_In_inv in A; rewrite <- elements_In in A; auto].
 Qed.
 
 End SetLems.
 
 (* lemmas about interpreting clausesets *)
 
-Section SetDenoteLems. 
-Context (B : Type). Variables (f : clause -> pred B) (b : pred B). 
+Section SetDenoteLems.
+Context (B : Type). Variables (f : clause -> pred B) (b : pred B).
 Variable (h : M.t -> clause -> M.t).
-Variable (H : forall c cls s, setd f inter b cls s -> f c s -> 
+Variable (H : forall c cls s, setd f inter b cls s -> f c s ->
                               setd f inter b (h cls c) s).
 
-Lemma setd_fold_left cls0 l s : 
-  listd f inter b l s -> setd f inter b cls0 s -> 
+Lemma setd_fold_left cls0 l s :
+  listd f inter b l s -> setd f inter b cls0 s ->
   setd f inter b (fold_left h l cls0) s.
 Proof with simpl; auto.
 revert cls0; induction l... intros s0 [A C] D; apply IHl...
 Qed.
 
 Lemma setd_fold cls0 l s :
-  setd f inter b l s -> setd f inter b cls0 s -> 
+  setd f inter b l s -> setd f inter b cls0 s ->
   setd f inter b (M.fold (Basics.flip h) cls0 l) s.
 Proof with simpl; auto.
 rewrite M.fold_spec; intros; apply setd_fold_left; auto.
@@ -786,12 +786,12 @@ Lemma setd_un cls1 cls2 s :
   setd f inter TT cls1 s -> setd f inter TT cls2 s ->
   setd f inter TT (M.union cls1 cls2) s.
 Proof with auto.
-intros H1 H2. unfold setd. 
+intros H1 H2. unfold setd.
  apply listd_In_pred; [ | auto]; intros e H3.
 assert (H4: M.In e cls1 \/ M.In e cls2) by
   (rewrite elements_In in H3; apply M.union_spec; auto).
 do 2 rewrite <-elements_In in H4.
-destruct H4 as [H4|H4]; 
+destruct H4 as [H4|H4];
 [apply listd_In_inv_pred with (l := M.elements cls1)|
  apply listd_In_inv_pred with (l := M.elements cls2)]...
 Qed.
@@ -807,7 +807,7 @@ Proof.
  rewrite IHl.
  rewrite <- andp_assoc. rewrite (andp_comm (f0 a)).
  rewrite andp_assoc; auto.
-Qed. 
+Qed.
 
 Lemma setd_add c cls s :
   setd f inter b cls s -> f c s -> setd f inter b (M.add c cls) s.
@@ -818,7 +818,7 @@ intros A C.
  destruct A as [A' A]. split; auto.
  clear A'.
  apply listd_In_pred; [| auto].
- intros a D.  
+ intros a D.
  generalize (setd_add_In_inv_elems cls _ _ D); intros [E | F].
 rewrite <- E... rewrite <- M.elements_spec1, SetoidList.InA_alt in F.
 destruct F as [y [F G]]; subst y.
@@ -834,36 +834,36 @@ apply setd_rem_In_inv_elems with (x := c)...
 Qed.
 
 Lemma setd_empty_set s : setd f inter TT M.empty s.
-Proof. 
+Proof.
 apply listd_In_pred; [|auto]; intros x A.
 rewrite empty_set_elems in A; inversion A.
 Qed.
 
 Require Import MSetFacts Logic.
 
-Lemma setd_filter bf cls s : 
+Lemma setd_filter bf cls s :
   setd f inter TT cls s -> setd f inter TT (M.filter bf cls) s.
 Proof.
 intros.
-apply listd_In_pred; [|auto]. intros a H1. unfold setd in H0. 
+apply listd_In_pred; [|auto]. intros a H1. unfold setd in H0.
 assert (H2: In a (M.elements cls)).
   rewrite elements_In, M.filter_spec in H1; auto.
   destruct H1 as [H1 _]. rewrite <-elements_In in H1; auto.
-  unfold Proper, respectful. intros. 
+  unfold Proper, respectful. intros.
   subst x; auto.
 apply (listd_In_inv_pred _ _ _ _ H0 H2).
 Qed.
 
 End SetDenoteLems.
 
-Section FoldLem. 
-Context (B : Type). Variables (f : clause -> pred B) (b : pred B). 
+Section FoldLem.
+Context (B : Type). Variables (f : clause -> pred B) (b : pred B).
 Variable (h : list clause -> clause -> list clause).
 
-Lemma listd_fold_left cls0 l s 
-  (H : forall c cls, listd f inter b cls s -> f c s -> 
+Lemma listd_fold_left cls0 l s
+  (H : forall c cls, listd f inter b cls s -> f c s ->
                      listd f inter b (h cls c) s) :
-  listd f inter b l s -> listd f inter b cls0 s -> 
+  listd f inter b l s -> listd f inter b cls0 s ->
   listd f inter b (fold_left h l cls0) s.
 Proof with simpl; auto.
 revert cls0; induction l... intros s0 [A C] D; apply IHl...
@@ -871,17 +871,17 @@ Qed.
 
 End FoldLem.
 
-Section FoldLemWeak. 
-Context (B : Type). Variables (f : clause -> pred B) (b : pred B). 
+Section FoldLemWeak.
+Context (B : Type). Variables (f : clause -> pred B) (b : pred B).
 Variable (h : list clause -> clause -> list clause).
-Variable (H : forall c cls s, listd f inter b cls s -> (forall s, f c s) -> 
+Variable (H : forall c cls s, listd f inter b cls s -> (forall s, f c s) ->
                               listd f inter b (h cls c) s).
 
-Lemma listd_fold_left_wk cls0 l s : 
-  listd (fun c => forall s, f c s) and True l -> listd f inter b cls0 s -> 
+Lemma listd_fold_left_wk cls0 l s :
+  listd (fun c => forall s, f c s) and True l -> listd f inter b cls0 s ->
   listd f inter b (fold_left h l cls0) s.
 Proof with simpl; auto.
-revert cls0 s; induction l... intros s0 s H1. 
+revert cls0 s; induction l... intros s0 s H1.
 assert (H2: forall s, f a s). intros s'. destruct H1 as [H1 H2]. spec H1 s'...
 intros D; apply IHl... destruct H1...
 Qed.
@@ -902,7 +902,7 @@ split; trivial.
     apply H. right. assumption.
 Qed.
 
-Lemma listd_inter_rev: forall {A B} (f: A -> B -> Prop) l, 
+Lemma listd_inter_rev: forall {A B} (f: A -> B -> Prop) l,
   listd f inter TT (rev  l) = listd f inter TT l.
 Proof.
 induction l; simpl; auto.
@@ -923,12 +923,12 @@ Lemma listd_un_rev:
   forall {A B} (f: A -> B -> Prop) l, listd f un FF (rev  l) = listd f un FF l.
 Proof.
 induction l; simpl; auto.
-rewrite listd_app; simpl; rewrite <-IHl, orp_FF. 
-generalize (listd_unfold_un f (f a) (rev l)). intros H1. 
+rewrite listd_app; simpl; rewrite <-IHl, orp_FF.
+generalize (listd_unfold_un f (f a) (rev l)). intros H1.
 rewrite unS in H1; auto.
 Qed.
 
-Lemma setd_filter_pred: 
+Lemma setd_filter_pred:
   forall {B: Type} (f: M.elt -> pred B) (h: M.elt -> bool) (s: M.t),
      setd f inter TT s |-- setd f inter TT (M.filter h s).
 Proof.

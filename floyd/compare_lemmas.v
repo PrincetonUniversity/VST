@@ -1,6 +1,5 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 
 Local Open Scope logic.
 
@@ -12,7 +11,7 @@ Proof.
  intros.
  destruct v; inv H.
  pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
+ destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
 Qed.
 
@@ -23,7 +22,7 @@ Proof.
  intros. unfold eval_binop, typed_true in H.
  destruct v; inv H; auto.
  pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
+ destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
 Qed.
 
@@ -60,10 +59,10 @@ Lemma typed_true_binop_int:
    typeof e2 = tint ->
    (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
    (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
-  @semax cs Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx
       (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
-  @semax cs Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx
       (`(typed_true
           (typeof (Ebinop op e1 e2 tint)))
           (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
@@ -137,10 +136,10 @@ Lemma typed_false_binop_int:
    typeof e2 = tint ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e1) ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e2) ->
-  @semax cs Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx
       (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
-  @semax cs Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx
       (`(typed_false
           (typeof (Ebinop op e1 e2 tint)))
           (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
@@ -202,14 +201,14 @@ Lemma typed_false_One_nullval:
    local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `nullval)) |--
     local (`(eq nullval) v).
 Proof.
-intros. 
+intros.
  intro rho; unfold local, lift1; unfold_lift.
  apply prop_derives; intro.
  destruct (v rho); inv H.
  pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
+ destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
-Qed. 
+Qed.
 
 Lemma typed_true_One_nullval:
  forall  {cs: compspecs}  v t t',
@@ -237,11 +236,11 @@ intros. subst.
  inv H.
 Qed.
 
-Lemma local_entail_at: 
+Lemma local_entail_at:
   forall n S T (H: local (locald_denote S) |-- local (locald_denote T))
     P Q R,
     nth_error Q n = Some S ->
-    PROPx P (LOCALx Q (SEPx R)) |-- 
+    PROPx P (LOCALx Q (SEPx R)) |--
     PROPx P (LOCALx (replace_nth n Q T) (SEPx R)).
 Proof.
  intros.
@@ -274,26 +273,26 @@ Ltac simplify_typed_comparison :=
 match goal with
 | |- semax _ (PROPx _ (LOCALx (`(typed_true _) ?A :: _) _)) _ _ =>
  (eapply typed_true_binop_int;
-   [reflexivity | reflexivity | reflexivity 
-   | try solve [go_lower; apply prop_right; auto ] 
-   | try solve [go_lower; apply prop_right; auto ] 
+   [reflexivity | reflexivity | reflexivity
+   | try solve [go_lowerx; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
    | ])
  ||
   (let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [  
+   eapply local_entail_at_semax_0; [
     first [ apply typed_true_Oeq_nullval
            | apply typed_true_One_nullval
            ]
     |  ])
 | |- semax _ (PROPx _ (LOCALx (`(typed_false _) ?A :: _) _)) _ _ =>
  (eapply typed_false_binop_int;
-   [reflexivity | reflexivity | reflexivity 
-   | try solve [go_lower; apply prop_right; auto ] 
-   | try solve [go_lower; apply prop_right; auto ] 
+   [reflexivity | reflexivity | reflexivity
+   | try solve [go_lowerx; apply prop_right; auto ]
+   | try solve [go_lowerx; apply prop_right; auto ]
    | ])
  ||
   let a := fresh "a" in set (a:=A); simpl in a; unfold a; clear a;
-   eapply local_entail_at_semax_0; [  
+   eapply local_entail_at_semax_0; [
     first [ apply typed_false_Oeq_nullval
            | apply typed_false_One_nullval
            ]
@@ -306,7 +305,7 @@ Definition compare_pp op p q :=
    match p with
             | Vptr b z =>
                match q with
-               | Vptr b' z' => if eq_block b b' 
+               | Vptr b' z' => if eq_block b b'
                               then Vint (if Int.cmpu op z z' then Int.one else Int.zero)
                               else Vundef
                | _ => Vundef
@@ -314,10 +313,10 @@ Definition compare_pp op p q :=
              | _ => Vundef
    end.
 
-Lemma force_sem_cmp_pp: 
-  forall op p q, 
-  isptr p -> isptr q -> 
-  force_val (sem_cmp_pp op p q) = 
+Lemma force_sem_cmp_pp:
+  forall op p q,
+  isptr p -> isptr q ->
+  force_val (sem_cmp_pp op p q) =
    match op with
    | Ceq => Vint (if eq_dec p q then Int.one else Int.zero)
    | Cne => Vint (if eq_dec p q then Int.zero else Int.one)

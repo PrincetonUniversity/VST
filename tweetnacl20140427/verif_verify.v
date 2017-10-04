@@ -1,10 +1,14 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
 Require Import sha.general_lemmas.
 Require Import tweetnacl20140427.tweetNaclBase.
+
+(*from verif_ld_st*)
+Lemma Byte_unsigned_range_32 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
+Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; omega. Qed.
 
 Lemma vn_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_vn vn_spec.
@@ -25,21 +29,26 @@ forward_for_simple_bound n
    data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y))).
 { Exists Byte.zero. entailer!.  }
 { Intros. rename H0 into I. rename H1 into B. rename x0 into b.
-  forward. entailer!.
-  apply (expr_lemmas3.zero_ext_range' 8 (Int.repr (Znth i (map Byte.unsigned xcont) 0))). omega.
-  forward. entailer!.
-  apply (expr_lemmas3.zero_ext_range' 8 (Int.repr (Znth i (map Byte.unsigned ycont) 0))). omega.
-  forward. entailer!.
-  rewrite ! Zlength_map in *.
+  rewrite 3 Zlength_map in LenX, LenY. 
+  forward.
+  { entailer!. 
+    rewrite Znth_map with (d':=Byte.zero); trivial. 
+    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32. }
+  rewrite Znth_map with (d':=Byte.zero) by omega. 
+  forward.
+  { entailer!.
+    rewrite Znth_map with (d':=Byte.zero) by omega. 
+    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32. }
+  rewrite Znth_map with (d':=Byte.zero) by omega. 
+  forward. entailer!. clear H3 H6 H4 H7.
   rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1 with (d:=Byte.zero); try omega.
   rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1 with (d:=Byte.zero); try omega.
   rewrite list_eq_dec_app. 2: rewrite 2 Zlength_sublist; trivial; omega. 2: rewrite 2 Zlength_cons, Zlength_nil; trivial.
   rewrite <- B. unfold Int.xor. 
   remember (list_eq_dec Byte.eq_dec [Znth i xcont Byte.zero] [Znth i ycont Byte.zero]).  simpl.
-  rewrite or_repr. clear H0 H1 H2 H4 H5 H7 SH SH0 PNx PNy Heqs.
-  rewrite 2 Znth_map with (d':=Byte.zero) by omega.
-  rewrite 2 zero_ext_inrange by 
-      (rewrite Int.unsigned_repr; [ apply Byte.unsigned_range_2 | apply byte_unsigned_range_int_unsigned_max]).
+  rewrite or_repr. clear H0 H1 H2 (*H4*) H5 (*H7*) SH SH0 PNx PNy Heqs.
+(*  rewrite 2 zero_ext_inrange by 
+      (rewrite Int.unsigned_repr; [ apply Byte.unsigned_range_2 | apply byte_unsigned_range_int_unsigned_max]).*)
   rewrite 2 Int.unsigned_repr by apply byte_unsigned_range_int_unsigned_max. 
   destruct (list_eq_dec Byte.eq_dec (sublist 0 i xcont) (sublist 0 i ycont)).
   + specialize (Byte.eq_spec b Byte.zero); rewrite B; intros; subst b; clear B.
@@ -48,9 +57,8 @@ forward_for_simple_bound n
       Exists Byte.zero. entailer.
     - destruct (Z_lxor_byte_neq (Znth i xcont Byte.zero) (Znth i ycont Byte.zero)) as [bb [BB HBB]].
       * intros N. apply n; rewrite N; trivial.
-      * rewrite BB, Zlor_Byteor, Byte.or_zero_l.
-        Exists bb. entailer!. 
-        apply Byte.eq_false; trivial.
+      * Exists bb; entailer!. split. apply Byte.eq_false; trivial. 
+        rewrite BB, Zlor_Byteor, Byte.or_zero_l; trivial.
   + destruct s.
     - inv e. rewrite H1, Z.lxor_nilpotent, Z.lor_0_r, andb_true_r.
       Exists b. entailer!.

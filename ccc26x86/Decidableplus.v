@@ -77,14 +77,14 @@ Program Instance Decidable_not (P: Prop) (dP: Decidable P) : Decidable (~ P) := 
   Decidable_witness := negb (@Decidable_witness P dP)
 }.
 Next Obligation.
-  rewrite negb_true_iff. split. apply Decidable_complete_alt. apply Decidable_sound_alt. 
+  rewrite negb_true_iff. split. apply Decidable_complete_alt. apply Decidable_sound_alt.
 Qed.
 
 Program Instance Decidable_equiv (P Q: Prop) (dP: Decidable P) (dQ: Decidable Q) : Decidable (P <-> Q) := {
   Decidable_witness := Bool.eqb (@Decidable_witness P dP) (@Decidable_witness Q dQ)
 }.
 Next Obligation.
-  rewrite eqb_true_iff. 
+  rewrite eqb_true_iff.
   split; intros.
   split; intros; eapply Decidable_sound; [rewrite <- H | rewrite H]; eapply Decidable_complete; eauto.
   destruct (@Decidable_witness Q dQ) eqn:D.
@@ -112,7 +112,7 @@ Program Instance Decidable_implies (P Q: Prop) (dP: Decidable P) (dQ: Decidable 
 Next Obligation.
   split.
 - intros. rewrite Decidable_complete in H by auto. eapply Decidable_sound; eauto.
-- intros. destruct (@Decidable_witness P dP) eqn:WP; auto. 
+- intros. destruct (@Decidable_witness P dP) eqn:WP; auto.
   eapply Decidable_complete. apply H. eapply Decidable_sound; eauto.
 Qed.
 
@@ -122,7 +122,7 @@ Program Definition Decidable_eq {A: Type} (eqdec: forall (x y: A), {x=y} + {x<>y
   Decidable_witness := proj_sumbool (eqdec x y)
 |}.
 Next Obligation.
-  split; intros. InvBooleans. auto. subst y. apply dec_eq_true. 
+  split; intros. InvBooleans. auto. subst y. apply dec_eq_true.
 Qed.
 
 Program Instance Decidable_eq_bool : forall (x y : bool), Decidable (eq x y) := {
@@ -159,19 +159,19 @@ Program Instance Decidable_le_Z : forall (x y: Z), Decidable (x <= y) := {
   Decidable_witness := Z.leb x y
 }.
 Next Obligation.
-  apply Z.leb_le. 
+  apply Z.leb_le.
 Qed.
 
 Program Instance Decidable_lt_Z : forall (x y: Z), Decidable (x < y) := {
   Decidable_witness := Z.ltb x y
 }.
 Next Obligation.
-  apply Z.ltb_lt. 
+  apply Z.ltb_lt.
 Qed.
 
 (** Deciding properties over lists *)
 
-Program Instance Decidable_forall_in_list : 
+Program Instance Decidable_forall_in_list :
       forall (A: Type) (l: list A) (P: A -> Prop) (dP: forall x:A, Decidable (P x)),
       Decidable (forall x:A, In x l -> P x) := {
   Decidable_witness := List.forallb (fun x => @Decidable_witness (P x) (dP x)) l
@@ -179,10 +179,10 @@ Program Instance Decidable_forall_in_list :
 Next Obligation.
   rewrite List.forallb_forall. split; intros.
 - eapply Decidable_sound; eauto.
-- eapply Decidable_complete; eauto. 
+- eapply Decidable_complete; eauto.
 Qed.
 
-Program Instance Decidable_exists_in_list : 
+Program Instance Decidable_exists_in_list :
       forall (A: Type) (l: list A) (P: A -> Prop) (dP: forall x:A, Decidable (P x)),
       Decidable (exists x:A, In x l /\ P x) := {
   Decidable_witness := List.existsb (fun x => @Decidable_witness (P x) (dP x)) l
@@ -207,8 +207,8 @@ Program Instance Decidable_forall : forall (T: Type) (fT: Finite T) (P: T -> Pro
 }.
 Next Obligation.
   rewrite List.forallb_forall. split; intros.
-- eapply Decidable_sound; eauto. apply H. apply Finite_elements_spec. 
-- eapply Decidable_complete; eauto. 
+- eapply Decidable_sound; eauto. apply H. apply Finite_elements_spec.
+- eapply Decidable_complete; eauto.
 Qed.
 
 Program Instance Decidable_exists : forall (T: Type) (fT: Finite T) (P: T -> Prop) (dP: forall x:T, Decidable (P x)), Decidable (exists x, P x) := {
@@ -217,7 +217,7 @@ Program Instance Decidable_exists : forall (T: Type) (fT: Finite T) (P: T -> Pro
 Next Obligation.
   rewrite List.existsb_exists. split.
 - intros (x & A & B). exists x. eapply Decidable_sound; eauto.
-- intros (x & A). exists x; split. eapply Finite_elements_spec. eapply Decidable_complete; eauto. 
+- intros (x & A). exists x; split. eapply Finite_elements_spec. eapply Decidable_complete; eauto.
 Qed.
 
 (** Some examples of finite types. *)

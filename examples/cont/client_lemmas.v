@@ -18,14 +18,14 @@ Hint Extern 3 (inlist _ _ = false) => (compute; reflexivity).
 
 Lemma arguments_gss: forall x xl v vl, arguments (x::xl)(v::vl) x = v.
 Proof.
-  intros.  
+  intros.
  Transparent arguments. unfold arguments, locals2env,mk_locals;  simpl.
  Opaque arguments.
   rewrite if_true; auto.
 Qed.
 Lemma arguments_gso: forall x xl v vl x', x<>x' -> arguments (x::xl)(v::vl)x' = arguments xl vl x'.
 Proof.
-  intros.  
+  intros.
  Transparent arguments. unfold arguments, locals2env,mk_locals;  simpl.
  Opaque arguments.
   rewrite if_false; auto.
@@ -40,7 +40,7 @@ Ltac call_tac := unfold call; simpl; autorewrite with args; simpl.
 
 
 Lemma funassert_e:  forall G i f,
-      table_get G i = Some f -> 
+      table_get G i = Some f ->
       funassert G |-- cont f i.
 Proof.
   intros.
@@ -52,24 +52,24 @@ Proof.
   apply andp_right; auto. apply TT_right. apply modus_ponens.
 Qed.
 
-Ltac funassert_tac := 
-  match goal with 
+Ltac funassert_tac :=
+  match goal with
   | |-   ?A && ?B |-- _ =>
       match A with context [funassert _] => apply andp_left1; funassert_tac  end ||
       match B with context [funassert _] => apply andp_left2; funassert_tac  end
   | |- funassert _ |-- _ => apply funassert_e; simpl; reflexivity
  end.
 
-Ltac func_tac := 
-   apply semax_func_cons; 
-    [ compute; reflexivity | compute; reflexivity | compute; reflexivity 
+Ltac func_tac :=
+   apply semax_func_cons;
+    [ compute; reflexivity | compute; reflexivity | compute; reflexivity
     |  (*eapply semax_pre; [intro ; call_tac; apply derives_refl | ] *)
-    | ].                     
+    | ].
 
 Ltac rewrite' H := eapply semax_pre; [ intro; rewrite H; apply derives_refl | ].
 
 (* This tactic works but introduces magic wands, which is undesirable *)
-Ltac forward_magic := 
+Ltac forward_magic :=
   match goal with |- semax _ ?G ?P (Assign (Mem ?e1) ?e2 ?c) =>
       let v := fresh "v" in
         (evar (v:adr);
@@ -90,21 +90,21 @@ Lemma semax_store_next: forall x y v c vars G (Q P: assert),
     Q = (fun s => next (eval x s) v  * P s) ->
     semax vars G (fun s => next (eval x s) (eval y s) * P s) c ->
     semax vars G Q  (Do Mem x  := y ; c).
-Proof. intros; subst. 
+Proof. intros; subst.
     apply semax_pre with (fun s => mapsto (eval x s) v * (!! (eval x s > 0) && P s)).
-    intros. unfold next. rewrite sepcon_andp_prop. 
+    intros. unfold next. rewrite sepcon_andp_prop.
     rewrite sepcon_comm. rewrite sepcon_andp_prop. rewrite sepcon_comm; auto.
     apply semax_store; auto.
     eapply semax_pre; try apply H2.
     intros; unfold next.
-    rewrite sepcon_andp_prop. 
+    rewrite sepcon_andp_prop.
     rewrite (sepcon_comm (andp _ _)). rewrite sepcon_andp_prop.
    rewrite sepcon_comm; auto.
  Qed.
 
 Lemma semax_load_next: forall x y z c vars G P,
     expcheck vars y = true ->
-    semax (vs_add x vars) G P c -> 
+    semax (vs_add x vars) G P c ->
     semax vars G (fun s => (next (eval y s) z * TT) && |> subst x z P s)
                (Do x := Mem y ; c).
 Proof.
@@ -116,22 +116,22 @@ Qed.
 
 
 
-Ltac forward := 
+Ltac forward :=
  match goal with
  | |- semax _ _ _ (IfThenElse _ _ _) =>
           apply semax_if; [ compute; reflexivity | | ]
- | |- semax _ _ _ (Assign (Mem _) _ _) => 
+ | |- semax _ _ _ (Assign (Mem _) _ _) =>
             (eapply semax_store || eapply semax_store_next);
              [ compute ; reflexivity | compute; reflexivity | reflexivity | ]
- | |- semax _ _ _ (Assign _ (Mem _) _) => 
+ | |- semax _ _ _ (Assign _ (Mem _) _) =>
             (eapply semax_load || eapply semax_load_next);
              [ compute ; reflexivity | ]
  | |- semax _ _ ?P (Go ?x ?ys) =>
   apply semax_G;
-  let p := fresh "P" in 
+  let p := fresh "P" in
    evar (p: funspec);
    eapply semax_pre with (fun s => cont p (eval x s) && call p (eval_list ys s));
-       [ intro; apply andp_right 
+       [ intro; apply andp_right
        | apply semax_go; [ compute; reflexivity ] ]; unfold p; clear p;
        [ try funassert_tac | call_tac  ]; simpl
  end.

@@ -24,7 +24,7 @@ Class CCC (prod expo: A -> A -> A): Prop := mkCCC {
 
 Hypothesis transitivity: forall x y z, arrow x y -> arrow y z -> arrow x z.
 Hypothesis identity: forall x, arrow x x.
-  
+
 Lemma expo_UMP: forall prod expo `{CCC prod expo},
   forall x x' y y', arrow x' x -> arrow y y' -> arrow (expo x y) (expo x' y').
 Proof.

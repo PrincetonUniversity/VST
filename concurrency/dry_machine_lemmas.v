@@ -1,30 +1,30 @@
 (** * Lemmas about the Dry Machine*)
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat seq ssrfun eqtype fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_context.
-Require Import concurrency.semantics.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.semantics.
 Import threadPool.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
@@ -129,7 +129,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
           { rewrite /DryMachine.ThreadPool.containsThread /IM /=.
             move => i; destruct i; first[reflexivity | intros HH; inversion HH].
           }
-          assert (noLock: forall l rm, 
+          assert (noLock: forall l rm,
                      DryMachine.ThreadPool.lockRes IM l = Some rm -> False).
         { rewrite /DryMachine.ThreadPool.lockRes /IM /=.
           move => l rm.
@@ -138,12 +138,12 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
                   /empty_lset /= find_empty => HH.
           inversion HH.
         }
-        
+
         constructor.
           + move => i j0 cnti cntj HH.
             exfalso; apply HH.
             move: cnti cntj => /isZ -> /isZ ->; reflexivity.
-          + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra. 
+          + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra.
         + move => i l cnt rm /noLock contra; inversion contra.
         + move=> i cnti; split.
           * move => j0 cntj.
@@ -156,7 +156,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         + move => b ofs.
           rewrite / IM /= //.
           Qed.
-  
+
   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
            invariant ds ->
            (forall j (cnt: containsThread ds j),
@@ -172,7 +172,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
                        permMapsDisjoint pmap0.1 pmap.1 /\
                        permMapsDisjoint pmap0.2 pmap.2  ) ->
            (forall l pmap0, lockRes ds l = Some pmap0 ->
-                       permMapCoherence pmap0.1 pmap.2 /\ 
+                       permMapCoherence pmap0.1 pmap.2 /\
                        permMapCoherence pmap.1 pmap0.2) ->
            (permMapCoherence pmap#1 pmap#2) ->
            invariant (updThread cnt c pmap).
@@ -216,7 +216,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
              * rewrite gsoThreadLPool in H.
                apply B' with (l:= laddr); assumption.
            + rewrite gsoThreadRes; auto; split ; intros.
-             * 
+             *
                { destruct (scheduler.NatTID.eq_tid_dec x j).
                  - subst j. rewrite gssThreadRes; apply A''; auto.
                  - rewrite gsoThreadRes; auto.
@@ -374,7 +374,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
       (Hinv : invariant tp),
       invariant (updThreadC ctn c).
   Proof.
-    intros. 
+    intros.
     inversion Hinv;
       constructor;
       simpl in *;
@@ -453,7 +453,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         split; intros;
           [rewrite gLockSetRes; eapply Hcoh_thr|].
         destruct (EqDec_address (b, ofs) laddr').
-        * subst. 
+        * subst.
           erewrite gssLockRes in H.
           inversion H; subst.
           eauto.
@@ -601,7 +601,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         [rewrite gsslockResRemLock | rewrite gsolockResRemLock];
         now auto.
   Qed.
-  
+
   Lemma invariant_add:
     forall tp i (cnti: containsThread tp i) c pmap1 pmap2 vf arg
       (Hinv: invariant
@@ -772,7 +772,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Lemma getThreadR_init:
     forall the_ge pmap f arg tp
       (Hinit: init_mach (Some pmap) the_ge f arg = Some tp)
-      (cnt: containsThread tp 0), 
+      (cnt: containsThread tp 0),
       getThreadR cnt = (pmap.1, empty_map).
   Proof.
     intros.
@@ -794,7 +794,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Proof.
     intros.
     unfold init_mach.
-    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg);
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) 0 the_ge f arg);
       reflexivity.
   Qed.
 
@@ -806,7 +806,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Proof.
     intros.
     unfold init_mach in Hinit.
-    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) 0 the_ge f arg); try discriminate.
     destruct pmap; try discriminate.
     unfold initial_machine in Hinit.
     inversion Hinit.
@@ -858,8 +858,8 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
       discriminate.
   Qed.
 
-  
-  
+
+
 End ThreadPoolWF.
 
 
@@ -896,7 +896,7 @@ End SemanticsAxioms.
 (** ** Lemmas about threadwise semantics*)
 Module CoreLanguage (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM).
   Import SEM event_semantics SemAxioms.
-  
+
   Lemma corestep_validblock:
     forall ge c m c' m',
       corestep Sem ge c m c' m' ->
@@ -975,7 +975,7 @@ End CoreLanguage.
 (** ** Lemmas about the threadwise semantics with respect to a (dry) concurrent machine*)
 Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
        (DryMachine : dry_machine.Concur.DryMachineSig SEM).
-               
+
   Import SEM event_semantics SemAxioms DryMachine ThreadPool.
 
   Module CoreLanguage := CoreLanguage SEM SemAxioms.
@@ -1007,7 +1007,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
            end.
 
   (** Lemmas about containsThread and coresteps *)
-  
+
     Lemma corestep_containsThread:
       forall (tp : thread_pool) ge c c' m m' p i j ev
         (Hcnti : containsThread tp i)
@@ -1045,7 +1045,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         mem_compatible (updThread pf (Krun c') (getCurPerm m', (getThreadR pf).2)) m'.
     Proof.
       intros.
-      constructor. 
+      constructor.
       { intros tid cnt.
         (* tid is also a valid thread in tp*)
         assert (cnt0 : containsThread tp tid)
@@ -1123,7 +1123,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                 unfold permission_at in Hrestr_max.
                 rewrite Hrestr_max.
                 eauto.
-              * (*case it's  another thread*)            
+              * (*case it's  another thread*)
                 rewrite gsoThreadRes; auto.
                 assert (HeqCur := Heq Max).
                 assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf).1 b ofs).
@@ -1540,14 +1540,14 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       rewrite n in Hreadable.
       simpl; by exfalso.
     Qed.
-        
+
     (** If some thread has permission above readable on some address then
     stepping another thread cannot change the value of that location*)
     Corollary corestep_disjoint_val:
       forall (tp : thread_pool) ge (m m' : mem) i j (Hneq: i <> j)
-        (c c' : C) 
+        (c c' : C)
         (pfi : containsThread tp i) (pfj : containsThread tp j)
-        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
+        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z)
         (Hreadable: Mem.perm (restrPermMap (Hcomp j pfj).1) b ofs Cur Readable \/
                     Mem.perm (restrPermMap (Hcomp j pfj).2) b ofs Cur Readable)
         (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi).1) c' m')
@@ -1563,9 +1563,9 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Qed.
 
     Corollary corestep_disjoint_locks:
-      forall (tp : thread_pool) ge (m m' : mem) i j (c c' : C) 
+      forall (tp : thread_pool) ge (m m' : mem) i j (c c' : C)
         (pfi : containsThread tp i) (pfj : containsThread tp j)
-        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
+        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z)
         (Hreadable: Mem.perm (restrPermMap (Hcomp j pfj).2) b ofs Cur Readable)
         (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi).1) c' m')
         (Hinv: invariant tp),
@@ -1601,5 +1601,5 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         eapply corestep_stable_val; eauto;
           [left; eapply no_race0; eauto| right; eapply (proj1 (locks_data_lock_coh0 addr _ Hlock)); eauto].
     Qed.
-    
+
 End CoreLanguageDry.

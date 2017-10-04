@@ -8,58 +8,58 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_safety.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.age_to_resource_at.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import concurrency.coqlib5.
-Require Import concurrency.permjoin.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.lksize.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.sync_preds.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.cl_step_lemmas.
-Require Import concurrency.resource_decay_lemmas.
-Require Import concurrency.resource_decay_join.
-Require Import concurrency.sync_preds.
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_simlemmas.
-Require Import concurrency.semax_preservation_jspec.
-Require Import concurrency.semax_preservation_local.
-Require Import concurrency.semax_preservation_acquire.
-Require Import concurrency.semax_preservation_release.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.permjoin.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.semax_simlemmas.
+Require Import VST.concurrency.semax_preservation_jspec.
+Require Import VST.concurrency.semax_preservation_local.
+Require Import VST.concurrency.semax_preservation_acquire.
+Require Import VST.concurrency.semax_preservation_release.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -79,7 +79,7 @@ Proof.
   intros j B l p; specialize (B l p).
   apply resource_at_join with (loc := l) in j.
   rewrite B in j.
-  inv j; eauto.
+  inv j; eauto. apply NO_ext.
   erewrite join_to_bot_l; eauto.
 Qed.
 
@@ -88,7 +88,7 @@ Lemma resource_fmap_YES_inv f g r sh rsh k pp :
   exists pp', r = YES sh rsh k pp' /\ pp = preds_fmap f g pp'.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
-  injection 1 as <- <- <- <-. eauto.
+  injection 1 as <- <- <-. exists p0. split; auto. apply YES_ext; auto.
 Qed.
 
 Lemma resource_fmap_PURE_inv f g r k pp :
@@ -99,9 +99,9 @@ Proof.
   injection 1 as <- <-. eauto.
 Qed.
 
-Lemma resource_fmap_NO_inv f g r rsh :
-  resource_fmap f g r = NO rsh ->
-  r = NO rsh.
+Lemma resource_fmap_NO_inv f g r sh nsh :
+  resource_fmap f g r = NO sh nsh ->
+  r = NO sh nsh.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
 Qed.
@@ -184,7 +184,7 @@ Qed.
 
 Lemma decay_rewrite m m' :
   decay m m' <->
-  forall loc, 
+  forall loc,
     (~valid_block m (fst loc) ->
      valid_block m' (fst loc) ->
      (forall k, access_at m' loc k = Some Freeable) \/
@@ -251,6 +251,12 @@ Proof.
     Abort.
 Abort.
 
+           Lemma perm_of_res'_resource_fmap f g r :
+             perm_of_res' (resource_fmap f g r) = perm_of_res' r.
+           Proof.
+             destruct r; simpl; auto.
+           Qed.
+
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
   mem_cohere' (m_dry jm) Phi ->
   sepalg.join (m_phi jm) X Phi ->
@@ -266,19 +272,19 @@ Proof.
   exists Phi'. split. apply J'.
   pose proof cl_step_mem_step _ _ _ _ _ step as ms.
   pose proof cl_step_decay _ _ _ _ _ step as dec.
-  
+
   destruct MC as [A B C D].
   unfold contents_cohere in *.
   constructor.
   (* apply mem_cohere'_redundant. *)
-  
+
   - (* Proving contents_cohere *)
     intros sh rsh v loc pp AT.
     specialize A _ _ _ loc.
     apply (resource_at_join _ _ _ loc) in J.
     apply (resource_at_join _ _ _ loc) in J'.
     destruct RD as (lev, RD); specialize (RD loc).
-    
+
     rewrite age_to_resource_at in *.
     pose proof juicy_mem_contents jm as Co.
     pose proof juicy_mem_contents jm' as Co'.
@@ -299,16 +305,16 @@ Proof.
     clear Heqx Heqj Heqj' HeqR' HeqR.
     subst R'.
     inv J'.
-    
+
     + (* everything in jm' *)
       specialize (Co' _ _ _ _ eq_refl).
       auto.
-    
+
     + (* everything in X : it means nothing has been changed at this place in jm' *)
       symmetry in H0.
       apply resource_fmap_YES_inv in H0.
       destruct H0 as (pp' & -> & ->).
-      
+
       inv J.
       * (* case where nothing came from jm, which means indeed
         contents was not changed *)
@@ -324,23 +330,23 @@ Proof.
         if_tac in Ac.
         -- rewrite mem_step_contents_at_None with (m := m_dry jm); auto.
         -- rewrite mem_step_contents_at_Nonempty with (m := m_dry jm); auto.
-      
+
       * (* case where something was in jm, which is impossible because
         everything is in X *)
         exfalso.
         destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
         all: breakhyps.
-        injection H as -> -> -> ->.
-        apply join_pfullshare in H5.
-        destruct H5.
-    
+        apply YES_inj in H. inv H. inv H0.
+         clear - RJ0 rsh5. apply join_top_l in RJ0. subst.
+         apply shares.bot_unreadable; auto.
+
     + (* from both X and jm' *)
-      symmetry in H1.
-      apply resource_fmap_YES_inv in H1.
-      destruct H1 as (pp' & -> & ->).
+      symmetry in H0.
+      apply resource_fmap_YES_inv in H0.
+      destruct H0 as (pp' & -> & ->).
       simpl in *.
       inv J; eauto.
-  
+
   - (* Proving access_cohere' *)
     intros loc.
     specialize (B loc).
@@ -353,15 +359,15 @@ Proof.
       apply resource_at_join with (loc := loc) in J'.
       rewrite <-RD in J'.
       rewrite age_to_resource_at in J'.
-      
+
       apply resource_at_join with (loc := loc) in J.
       pose proof resource_fmap_join (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) _ _ _ J as J_.
       pose proof join_eq J' J_ as E'.
-      
+
       rewrite decay_rewrite in dec.
       specialize (dec loc).
       unfold rmap_bound in *.
-      
+
       destruct dec as (dec1, dec2).
       destruct (valid_block_dec (m_dry jm) (fst loc)); swap 1 2.
       * rewrite <-valid_block0 in NN. autospec NN. rewrite NN in *.
@@ -384,15 +390,10 @@ Proof.
            destruct Freed; congruence.
         -- unfold max_access_at in * (* same Cur and Max *).
            rewrite <-(Same Max), E'.
-           Lemma perm_of_res'_resource_fmap f g r :
-             perm_of_res' (resource_fmap f g r) = perm_of_res' r.
-           Proof.
-             destruct r; simpl; auto.
-           Qed.
            rewrite perm_of_res'_resource_fmap; auto.
-    
+
     + (* "Write" case *)
-      destruct RD as (rsh & v & v' & E & E').
+      destruct RD as (sh & wsh & v & v' & E & E').
       rewrite decay_rewrite in dec.
       specialize (dec loc).
       unfold rmap_bound in *.
@@ -423,19 +424,18 @@ Proof.
               apply resource_fmap_YES_inv in H.
               destruct H as (pp' & -> & Epp).
               simpl; f_equal.
-              assert (rsh0 = rsh2) by congruence. subst.
+              assert (sh0 = sh2) by congruence. subst.
               eapply join_eq; eauto.
            ++ destruct (X @ loc); congruence.
            ++ destruct (X @ loc); congruence.
-           ++ assert (rsh0 = rsh2) by congruence. subst.
-              assert (sh0 = sh2) by congruence. subst.
+           ++ assert (sh0 = sh2) by congruence. subst.
               symmetry in H5.
+              assert (sh3=sh4) by (eapply join_eq; eauto). subst.
               apply resource_fmap_YES_inv in H5.
-              destruct H5 as (pp' & -> & Epp).
+              destruct H5 as (pp' & ? & Epp).
+              destruct (Phi @ loc); inv H.
               simpl; f_equal.
-              ** eapply join_eq; eauto.
-              ** eapply join_eq; eauto.
-    
+
     + (* "Alloc" case *)
       autospec NN.
       eapply perm_order''_trans. now apply access_cur_max.
@@ -444,7 +444,7 @@ Proof.
       simpl.
       rewrite perm_of_freeable.
       destruct (perm_of_res' (Phi' @ loc)) as [[]|]; constructor.
-    
+
     + (* "Free" case *)
       cut (perm_of_res' (Phi' @ loc) = None).
       { intros ->. destruct (max_access_at (m_dry jm') loc) as [[]|]; constructor. }
@@ -459,8 +459,9 @@ Proof.
         inv J'.
         apply join_bot_bot_eq in RJ; subst.
         simpl. if_tac. auto. tauto.
-      * apply join_pfullshare in H0. tauto.
-  
+      * elimtype False; clear - RJ rsh2.  apply join_top_l in RJ. subst.
+         apply shares.bot_unreadable; auto.
+
   - (* Proving alloc_cohere *)
     intros loc g.
     pose proof juicy_mem_alloc_cohere jm' loc g as Ac'.
@@ -476,7 +477,8 @@ Proof.
     rewr (X @ loc) in J'.
     simpl in J'.
     inv J'.
-    rewrite (join_bot_bot_eq rsh3); auto.
+    apply NO_ext.
+    rewrite (join_bot_bot_eq sh3); auto.
 Qed.
 
 (** About lock_coherence *)
@@ -636,17 +638,20 @@ Proof.
         { unfold ii; split. omega.
           unfold LKSIZE, align_chunk, size_chunk in *.
           omega. }
-        pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii sh1' as H.
+        pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii
+                          (shares.readable_part sh1')
+
+               as H.
         assert_specialize H.
-        { rewrite EPhi. reflexivity. }
+        { rewrite EPhi. simpl. reflexivity. }
         replace (Int.intval ofs + ii)%Z with ofs' in H by (unfold ii; omega).
         rewrite E in H. simpl in H. congruence.
-        
+
     + rewrite <-Out.
       unfold juicyRestrict_locks in *.
       rewrite restrPermMap_contents.
       auto.
-      
+
   - intros loc.
     replace (max_access_at m' loc)
     with (max_access_at (restrPermMap Hlt') loc)
@@ -658,7 +663,7 @@ Proof.
     unfold juicyRestrict_locks in *.
     rewrite restrPermMap_max.
     apply Ac.
-    
+
   - unfold alloc_cohere in *.
     destruct SO as (_ & _ & <-). auto.
 Qed.
@@ -668,7 +673,7 @@ Lemma access_at_fold m b ofs k :
 Proof.
   reflexivity.
 Qed.
-  
+
 Lemma personal_mem_equiv_spec m m' phi pr pr' :
   nextblock m = nextblock m' ->
   (forall loc, max_access_at m loc = max_access_at m' loc) ->
@@ -678,7 +683,7 @@ Lemma personal_mem_equiv_spec m m' phi pr pr' :
     (m_dry (@personal_mem m' phi pr')).
 Proof.
   intros En Emax Econt.
-  
+
   assert (same_perm :
             forall b ofs k p,
               perm (juicyRestrict _ _ (acc_coh pr)) b ofs k p <->
@@ -701,7 +706,7 @@ Proof.
       rewrite <-juic2Perm_correct. 2: apply acc_coh, pr'.
       reflexivity.
   }
-  
+
   unfold personal_mem in *; simpl.
   split3.
   - Transparent loadbytes.
@@ -781,7 +786,7 @@ Proof.
     repeat f_equal. apply proof_irr.
 Qed.
 
-Lemma lockSet_Writable_updLockSet_updThread m m' i tp 
+Lemma lockSet_Writable_updLockSet_updThread m m' i tp
       cnti b ofs ophi ophi' c' phi' z
       (Hcmpt : mem_compatible tp m)
       (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
@@ -843,7 +848,7 @@ Proof.
       apply SO.
 Qed.
 
-Lemma lockSet_Writable_updThread_updLockSet m m' i tp 
+Lemma lockSet_Writable_updThread_updLockSet m m' i tp
       b ofs ophi ophi' c' phi' z cnti
       (Hcmpt : mem_compatible tp m)
       (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
@@ -908,9 +913,9 @@ Section Preservation.
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
-  
+
   Open Scope string_scope.
-  
+
   Ltac jmstep_inv :=
     match goal with
     | H : JuicyMachine.start_thread _ _ _  |- _ => inversion H
@@ -921,7 +926,7 @@ Section Preservation.
     | H : threadHalted _                   |- _ => inversion H
     | H : JuicyMachine.schedfail _         |- _ => inversion H
     end; try subst.
-  
+
   Ltac getThread_inv :=
     match goal with
     | [ H : @getThreadC ?i _ _ = _ ,
@@ -931,9 +936,9 @@ Section Preservation.
             H2 : @getThreadR ?i _ _ = _ |- _ ] =>
       pose proof (getThreadR_fun _ _ _ _ _ _ H H2)
     end.
-  
+
   Ltac substwith x y := assert (x = y) by apply proof_irr; subst x.
-  
+
   Lemma preservation_Kinit
   (Gamma : funspecs)
   (n : nat)
@@ -962,14 +967,14 @@ Section Preservation.
   (* ============================ *)
   @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma n (m', ge, (sch', tp')) \/
   @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m', ge, (sch', tp')).
-  
+
   Proof.
     inversion jmstep; subst; try inversion HschedN; subst tid;
       unfold containsThread, is_true in *;
       try congruence.
     {
       inv Htstep.
-      replace (initial_core SEM.Sem) with cl_initial_core in Hinitial
+      replace (initial_core SEM.Sem _) with cl_initial_core in Hinitial
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       rename m' into m.
       pose proof safety as safety'.
@@ -985,14 +990,14 @@ Section Preservation.
       rewrite Find in Hinitial.
       injection Hinitial as <-.
        *)
-      
+
       right.
-      
+
       unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
       2:assumption.
       2:assumption.
       2:assumption.
-      
+
       - split.
         + (* is trivial, but the rmap needs to change in the juicy
           machine (not almost empty anymore, and even almost empty would
@@ -1042,17 +1047,17 @@ Section Preservation.
         + injection 1 as <-. eauto.
         + intros Ej. spec unique more j cntj q Ej. auto.
     }
-    
+
     all: jmstep_inv.
     all: try substwith ctn Htid.
     all: try substwith cnti Htid.
     all: try substwith cnt Htid.
     all: try congruence.
   Qed. (* Lemma preservation_Kinit *)
-  
+
   (* We prove preservation for most states of the machine, including
-  Kblocked at release and acquire, but preservation does not hold for
-  makelock, so, we make an exception and will use safety induction in
+  Kblocked at acquire, but preservation does not hold for
+  makelock or release, so, we make an exception and will use safety induction in
   the safety theorem.  Because it's faster to prove safety induction,
   we don't prove preservation for freelock and spawn, either, because
   we did those two last. *)
@@ -1060,35 +1065,36 @@ Section Preservation.
     ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
     ~ blocked_at_external state FREE_LOCK ->
+    ~ blocked_at_external state UNLOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros not_spawn not_makelock not_freelock STEP.
+    intros not_spawn not_makelock not_freelock not_release STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
     inversion INV as [m0 ge0 sch0 tp0 Phi lev envcoh compat sparse lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
-    
+
     destruct sch as [ | i sch ].
-    
+
     (* empty schedule: we loop in the same state *)
     {
       inversion jmstep; subst; try inversion HschedN.
     }
-    
+
     destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei; swap 1 2.
-    
+
     (* bad schedule *)
     {
       inversion jmstep; subst; try inversion HschedN; subst tid;
         unfold containsThread, is_true in *;
         try congruence.
       simpl.
-      
+
       assert (i :: sch <> sch) by (clear; induction sch; congruence).
       inversion jmstep; subst; simpl in *; try tauto;
         unfold containsThread, is_true in *;
@@ -1103,24 +1109,24 @@ Section Preservation.
       destruct unique as [sch' unique]; injection unique as <- <- .
       congruence.
     }
-    
+
     (* the schedule selected one thread *)
     assert (cnti : containsThread tp i) by apply Ei.
     remember (getThreadC _ _ cnti) as ci eqn:Eci; symmetry in Eci.
     (* remember (getThreadR cnti) as phi_i eqn:Ephi_i; symmetry in Ephi_i. *)
-    
+
     destruct ci as
         [ (* Krun *) ci
         | (* Kblocked *) ci
         | (* Kresume *) ci v
         | (* Kinit *) v1 v2 ].
-    
+
     (* thread[i] is running *)
     {
       pose (jmi := jm_ cnti compat).
-      
+
       destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
-      
+
       (* thread[i] is running and some internal step *)
       {
         (* get the next step of this particular thread (with safety for all oracles) *)
@@ -1146,24 +1152,24 @@ Section Preservation.
           - apply step.
           - apply safety.
         }
-        
+
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp'' := @updThread i tp cnti (Krun ci') (m_phi jmi')).
         pose (tp''' := age_tp_to (level jmi') tp').
         pose (cm' := (m_dry jmi', ge, (i :: sch, tp'''))).
-        
+
         (* now, the step that has been taken in jmstep must correspond
         to this cm' *)
         inversion jmstep; subst; try inversion HschedN; subst tid;
           unfold containsThread, is_true in *;
           try congruence.
-        
+
         - (* not in Kinit *)
           jmstep_inv. getThread_inv. congruence.
-        
+
         - (* not in Kresume *)
           jmstep_inv. getThread_inv. congruence.
-        
+
         - (* here is the important part, the corestep *)
           jmstep_inv.
           assert (En : level Phi = S n) by auto. (* will be in invariant *)
@@ -1193,7 +1199,7 @@ Section Preservation.
               f_equal.
               apply personal_mem_ext.
               repeat f_equal; apply proof_irr.
-        
+
         - (* not at external *)
           jmstep_inv. getThread_inv.
           injection H as <-.
@@ -1201,12 +1207,12 @@ Section Preservation.
           unfold SEM.Sem in *.
           rewrite SEM.CLN_msem.
           eapply stepi.
-          
+
         - (* not in Kblocked *)
           jmstep_inv.
           all: getThread_inv.
           all: congruence.
-          
+
         - (* not halted *)
           jmstep_inv. getThread_inv.
           injection H as <-.
@@ -1216,31 +1222,31 @@ Section Preservation.
           eapply stepi.
       }
       (* end of internal step *)
-      
+
       (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
       {
         inversion jmstep; subst; try inversion HschedN; subst tid;
           unfold containsThread, is_true in *;
           try congruence.
-        
+
         - (* not in Kinit *)
           jmstep_inv. getThread_inv. congruence.
-        
+
         - (* not in Kresume *)
           jmstep_inv. getThread_inv. congruence.
-        
+
         - (* not a corestep *)
           jmstep_inv. getThread_inv. injection H as <-.
           pose proof corestep_not_at_external _ _ _ _ _ _ Hcorestep.
           rewrite Ejuicy_sem in *.
           discriminate.
-        
+
         - (* we are at an at_ex now *)
           jmstep_inv. getThread_inv.
           injection H as <-.
           rename m' into m.
           right. (* no aging *)
-          
+
           match goal with |- _ _ (_, _, (_, ?tp)) => set (tp' := tp) end.
           assert (compat' : mem_compatible_with tp' m Phi).
           {
@@ -1255,23 +1261,23 @@ Section Preservation.
             - apply LC.
             - apply LJ.
           }
-          
+
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
           + assumption.
-          
+
           + (* env_coherence *)
             assumption.
-          
+
           + (* lock sparsity *)
             auto.
-          
+
           + (* lock coherence *)
             unfold lock_coherence' in *.
             exact_eq lock_coh.
             f_equal.
             f_equal.
             apply proof_irr.
-          
+
           + (* safety (same, except one thing is Kblocked instead of Krun) *)
             intros i0 cnti0' ora.
             destruct (eq_dec i i0) as [ii0 | ii0].
@@ -1304,7 +1310,7 @@ Section Preservation.
               -- REWR.
               -- REWR.
               -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
-          
+
           + (* wellformed. *)
             intros i0 cnti0'.
             destruct (eq_dec i i0) as [ii0 | ii0].
@@ -1322,7 +1328,7 @@ Section Preservation.
               -- apply wellformed.
               -- apply wellformed.
               -- constructor.
-          
+
           + (* uniqueness *)
             intros notalone i0 cnti0' q Eci0.
             pose proof (unique notalone i0 cnti0' q) as unique'.
@@ -1338,12 +1344,12 @@ Section Preservation.
               destruct (unique notalone i cnti _ Eci).
               destruct (unique notalone i0 cnti0 q Eci0).
               congruence.
-        
+
         - (* not in Kblocked *)
           jmstep_inv.
           all: getThread_inv.
           all: congruence.
-          
+
         - (* not halted *)
           jmstep_inv. getThread_inv.
           injection H as <-.
@@ -1354,7 +1360,7 @@ Section Preservation.
           congruence.
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
-    
+
     (* thread[i] is in Kblocked *)
     { (* only one possible jmstep, in fact divided into 6 sync steps *)
       inversion jmstep; try inversion HschedN; subst tid;
@@ -1374,32 +1380,33 @@ Section Preservation.
         rewrite getThread_level with (Phi := Phi). auto. apply compat.
       }
       assert (El : 0 = 0 -> level (getThreadR _ _ cnti) - 1 = n) by omega.
-      
+
       pose proof mem_compatible_with_age compat (n := n) as compat_aged.
-      
+
       pose proof lockSet_Writable_updLockSet_updThread.
       pose proof mem_cohere'_store.
       pose proof personal_mem_equiv_spec.
       pose proof Jspec'_juicy_mem_equiv CS ext_link.
       pose proof Jspec'_hered CS ext_link.
-      
+
       jmstep_inv. all: autospec Ephi; autospec El; try rewrite El.
       (* pose (compat_ := mem_compatible_with tp_ m_ (age_to n Phi)). *)
       (* match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end. *)
-      
+
       - (* the case of acquire *)
         left.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
         eapply preservation_acquire with (Phi := Phi); eauto.
-      
+
       - (* the case of release *)
-        left.
-        assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
-        cleanup.
-        rewrite El in *.
-        eapply preservation_release with (Phi := Phi); eauto.
-      
+        exfalso; apply not_release.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
+
       - (* the case of spawn *)
         left.
         simpl (m_phi _) in *.
@@ -1410,7 +1417,7 @@ Section Preservation.
         unfold SEM.Sem.
         rewrite SEM.CLN_msem.
         reflexivity.
-      
+
       - (* the case of makelock *)
         left.
         simpl (m_phi _) in *.
@@ -1421,7 +1428,7 @@ Section Preservation.
         unfold SEM.Sem.
         rewrite SEM.CLN_msem.
         reflexivity.
-      
+
       - (* the case of freelock *)
         left.
         simpl (m_phi _) in *.
@@ -1432,7 +1439,7 @@ Section Preservation.
         unfold SEM.Sem.
         rewrite SEM.CLN_msem.
         reflexivity.
-      
+
       - (* the case of acq-fail *)
         right.
         eapply state_invariant_c with (PHI := Phi); eauto.
@@ -1440,7 +1447,7 @@ Section Preservation.
         eapply unique_Krun_no_Krun; eauto.
         rewrite Eci. congruence.
     }
-    
+
     (*thread[i] is in Kresume *)
     { (* again, only one possible case *)
       right (* no aging *).
@@ -1463,24 +1470,24 @@ Section Preservation.
         - apply LC.
         - apply LJ.
       }
-      
+
       apply state_invariant_c with (PHI := Phi) (mcompat := compat').
       + (* level *)
         assumption.
-      
+
       + (* env_coherence *)
         assumption.
-      
+
       + (* sparsity *)
         assumption.
-      
+
       + (* lock coherence *)
         unfold lock_coherence' in *.
         exact_eq lock_coh.
         f_equal.
         f_equal.
         apply proof_irr.
-      
+
       + intros i0 cnti0' ora.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
@@ -1511,7 +1518,7 @@ Section Preservation.
           -- REWR.
           -- REWR.
           -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
-      
+
       + (* wellformed. *)
         intros i0 cnti0'.
         destruct (eq_dec i i0) as [ii0 | ii0].
@@ -1526,7 +1533,7 @@ Section Preservation.
           -- apply wellformed.
           -- apply wellformed.
           -- constructor.
-             
+
       + (* uniqueness *)
         intros notalone i0 cnti0' q Eci0.
         pose proof (unique notalone i0 cnti0' q) as unique'.
@@ -1539,12 +1546,12 @@ Section Preservation.
           destruct (unique notalone i0 cnti0 q Eci0).
           congruence.
     }
-    
+
     (* thread[i] is in Kinit *)
     {
       (* still unclear how to handle safety of Kinit states *)
       eapply preservation_Kinit; eauto.
     }
   Qed.
-  
+
 End Preservation.

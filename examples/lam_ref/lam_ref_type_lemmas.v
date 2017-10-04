@@ -100,7 +100,7 @@ Lemma expr_type_search_rule : forall (G Q tau sigma:pred world) (f:expr -> expr)
          closed (f e) ->
          (|>G) (k,v) ->
          Q (k,v) ->
-         mtype_valid m (k,v) -> 
+         mtype_valid m (k,v) ->
          (%tau) (k,exp_to_val e H) ->
          expr_type (f e) sigma (k,v))
   (Hsearch:
@@ -136,7 +136,7 @@ Proof.
   exists w; split; auto.
   destruct H9.
   split; auto.
-  apply Hsearch; auto.  
+  apply Hsearch; auto.
   change (f e') with (snd (m',f e')).
   eapply closed_step; eauto.
   rewrite <- HG in H1.
@@ -324,7 +324,7 @@ Proof.
   simpl in H8.
   simpl; auto.
   rewrite value_knot_necR; split; auto.
-  
+
   repeat intro.
   destruct a'; simpl in H8.
   spec H6 (m4,v0).
@@ -411,7 +411,7 @@ Qed.
 
 
 (** Redex rules **)
-  
+
 Lemma typ_beta: forall v1 v2 sigma tau w,
   forces w v1 (ty_lam sigma tau) ->
   forces w v2 (%sigma) ->
@@ -498,7 +498,7 @@ Proof.
   rewrite expr_type_eqn.
   repeat intro.
   split; repeat intro.
-  
+
   simpl in H4.
   inv H4.
   assert (stopped b x).
@@ -846,7 +846,7 @@ Proof.
   destruct H4 as [l' [? ?]].
   simpl in H4; inv H4.
   simpl fst in H6.
-  assert (mtype_valid b0 (m,v)).  
+  assert (mtype_valid b0 (m,v)).
   apply pred_nec_hereditary with a'0; auto.
   simpl in H6.
   hnf in H4.

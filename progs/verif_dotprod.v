@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.dotprod.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.dotprod.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
@@ -17,13 +17,13 @@ Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C 
 Definition add_spec :=
  DECLARE _add
   WITH x: val, y : val, z: val, fy : list float, fz: list float
-  PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble] 
+  PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble]
       PROP ()
       LOCAL (temp _x x; temp _y y; temp _z z)
       SEP (`(data_at_ Tsh (tarray tdouble 3)  x) ;
              `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
              `(data_at Tsh (tarray tdouble 3) (map Vfloat fz) z))
-  POST [ tvoid ] 
+  POST [ tvoid ]
       PROP ()
       LOCAL ()
       SEP (`(data_at Tsh (tarray tdouble 3) (map Vfloat (map2 Float.add fy fz)) x);
@@ -36,12 +36,12 @@ Definition dotprod (fx fy : list float) : float :=
 Definition dotprod_spec :=
  DECLARE _dotprod
   WITH n: Z, x: val, y : val, fx : list float, fy: list float, sh: share
-  PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble] 
+  PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble]
       PROP (0 <= n < Int.max_signed)
       LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))
-  POST [ tdouble ] 
+  POST [ tdouble ]
       PROP ()
       LOCAL (temp ret_temp (Vfloat (dotprod fx fy)))
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
@@ -137,7 +137,7 @@ Definition Svector_add (n: Z) (_i _x _y _z : ident) :=
            (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
               tint))).
 
-Definition vector_add (fx fy: Z -> float) i := 
+Definition vector_add (fx fy: Z -> float) i :=
     Float.add (fx i) (fy i).
 
 Lemma semax_vector_add:
@@ -155,10 +155,10 @@ Lemma semax_vector_add:
     nth_error R sz = Some (`(array_at tdouble Tsh (Vfloat oo fz) 0 n z)) ->
     sx <> sy ->
     sx <> sz ->
-   @semax Espec Delta 
+   @semax Espec Delta
         (PROPx P (LOCALx Q (SEPx R)))
         (Svector_add n _i _x _y _z)
-        (normal_ret_assert 
+        (normal_ret_assert
          (PROPx P (LOCALx Q
           (SEPx  (replace_nth sx R
              (`(array_at tdouble Tsh (Vfloat oo (vector_add fy fz)) 0 n x))))))).
@@ -191,12 +191,12 @@ apply semax_extract_prop; intro Pz.
 apply (semax_for_simple_bound_const_init n
    (EX  i : Z, PROPx ((fun _ => P) i)
                   (LOCALx ((fun _ => Q) i)
-                  (SEPx ((fun i => 
+                  (SEPx ((fun i =>
                  replace_nth sx R
                    (`(array_at tdouble Tsh
                          (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else fx j) 0 n x))
                ) i))))
-     Espec Delta _ (fun _ => P) (fun _ => Q) (fun i =>  
+     Espec Delta _ (fun _ => P) (fun _ => Q) (fun i =>
                  replace_nth sx R
                    (`(array_at tdouble Tsh (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else fx j) 0 n x))
                ));
@@ -214,10 +214,10 @@ simple apply array_at_ext; intros.
 rewrite if_false by omega; reflexivity.
 rewrite <- (replace_nth_nth_error _ _ _ H3).
 rewrite <- insert_local.
-apply andp_right; auto. go_lowerx. normalize. 
+apply andp_right; auto. go_lowerx. normalize.
 *
 intro i.
-go_lowerx; normalize. apply prop_right. hnf. simpl. 
+go_lowerx; normalize. apply prop_right. hnf. simpl.
 rewrite Ti. simpl. apply I.
 *
 rewrite normal_ret_assert_elim.
@@ -230,7 +230,7 @@ rewrite if_true by omega. auto.
 intro i.
 drop_LOCAL 1%nat.
 match goal with |- semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-   apply semax_pre0 
+   apply semax_pre0
    with (PROPx P (LOCALx (`(eq x) (eval_id _x) :: `(eq y) (eval_id _y) ::
                            `(eq z) (eval_id _z) :: Q) (SEPx R)))
  end.
@@ -245,8 +245,8 @@ apply semax_extract_PROP; intro.
 eapply semax_pre0; [ apply now_later | ].
 eapply semax_post_flipped';
    [simple eapply (semax_loadstore_array sx);
-       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
-       | 
+       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity
+       |
        | erewrite nth_error_replace_nth; eauto
        | auto |  | eassumption ]
     |  ].
@@ -318,8 +318,8 @@ Ltac forward_vector_add :=
  [eapply semax_vector_add;
  [reflexivity | auto 50 with closed | auto 50 with closed
    | repable_signed
-   | solve_nth_error | solve_nth_error | solve_nth_error 
-   | solve_nth_error | solve_nth_error | solve_nth_error 
+   | solve_nth_error | solve_nth_error | solve_nth_error
+   | solve_nth_error | solve_nth_error | solve_nth_error
   | computable | computable ]
  | unfold replace_nth
  ].

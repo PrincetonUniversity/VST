@@ -31,23 +31,23 @@ Proof.
 Qed.
 
 Ltac IF_tac :=
-match goal with |- context [IF ?a then _ else _] => 
+match goal with |- context [IF ?a then _ else _] =>
    cut (a \/ ~a);
-   [ let H := fresh "H" in intro H; destruct H; 
+   [ let H := fresh "H" in intro H; destruct H;
      [try (rewrite IF_then_else_True;[|auto]) | try (rewrite IF_then_else_False; [|auto])]
    | ]
 end.
 
 Ltac IF_tac_in H :=
-match type of H with context [IF ?a then _ else _] => 
+match type of H with context [IF ?a then _ else _] =>
    cut (a \/ ~a);
-   [ let H' := fresh "H" in intro H'; destruct H'; 
-     [try (rewrite IF_then_else_True in H ;[|auto]) | try (rewrite IF_then_else_False in H; [|auto])] 
+   [ let H' := fresh "H" in intro H'; destruct H';
+     [try (rewrite IF_then_else_True in H ;[|auto]) | try (rewrite IF_then_else_False in H; [|auto])]
    | ]
 end.
 
 (* Coerce from values to exprs... *)
-Lemma isvNat: forall n, 
+Lemma isvNat: forall n,
   isValue (Nat n).
 Proof.
   firstorder.
@@ -89,7 +89,7 @@ Fixpoint subst_env' (n : nat) (rho : env) (exp : expr) : expr :=
   end.
 
 Definition subst_env (rho : env) (exp : expr) : expr :=
-  subst_env' 0 rho exp.  
+  subst_env' 0 rho exp.
 
 Definition empty_mem : mem := (0, fun _ => v_Nat 0).
 

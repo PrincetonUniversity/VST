@@ -15,7 +15,7 @@ Section safety.
   Fixpoint safeN (n:nat) (z:Z) (c:C) (m:M) : Prop :=
     match n with
     | O => True
-    | S n' => 
+    | S n' =>
        match at_external Hcore c, halted Hcore c with
        | None, None =>
            exists c', exists m',
@@ -36,12 +36,12 @@ Section safety.
 
   Definition corestep_fun  :=
        forall ge m q m1 q1 m2 q2 ,
-       corestep Hcore ge q m q1 m1 -> 
-       corestep Hcore ge q m q2 m2 -> 
+       corestep Hcore ge q m q1 m1 ->
+       corestep Hcore ge q m q2 m2 ->
        (q1, m1) = (q2, m2).
 
   Lemma safe_corestep_forward:
-     corestep_fun -> 
+     corestep_fun ->
     forall c m c' m' n z,
     corestep Hcore ge c m c' m' -> safeN (S n) z c m -> safeN n z c' m'.
   Proof.
@@ -73,7 +73,7 @@ Section safety.
     destruct p; auto.
     destruct p. destruct p.
     destruct H as [x ?].
-    exists x. 
+    exists x.
     destruct H. split; auto.
     intros. specialize (H0 ret m' z' H1).
     destruct H0 as [c' [? ?]].
@@ -83,7 +83,7 @@ Section safety.
     exists c'. exists m'; split; auto.
   Qed.
 
-  Lemma safe_downward : 
+  Lemma safe_downward :
     forall n n' c m z,
       le n' n ->
       safeN n z c m -> safeN n' z c m.
@@ -91,8 +91,8 @@ Section safety.
     do 6 intro. revert c m z. induction H; auto.
     intros. apply IHle. apply safe_downward1. auto.
   Qed.
-    
-  Lemma convergent_controls_safe : 
+
+  Lemma convergent_controls_safe :
     forall m q1 q2,
       (at_external Hcore q1 = at_external Hcore q2) ->
       (forall ret q', after_external Hcore ret q1 = Some q' ->
@@ -107,7 +107,7 @@ Section safety.
       destruct (halted Hcore q2); auto.
     destruct p. destruct p.
     destruct H3 as [x ?].
-    exists x. 
+    exists x.
     destruct H3; split; auto.
     intros. specialize (H4 ret m' z' H5).
     destruct H4 as [c' [? ?]].
@@ -135,7 +135,7 @@ Qed.
 
 Lemma wlog_safeN_gt0 : forall
   n z q m,
-  (lt 0 n -> safeN n z q m) -> 
+  (lt 0 n -> safeN n z q m) ->
   safeN n z q m.
 Proof.
   intros. destruct n.

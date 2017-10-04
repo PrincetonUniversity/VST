@@ -22,9 +22,9 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Locations.
-Require Import ccc26x86.Stacklayout.
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Stacklayout.
+Require Import VST.ccc26x86.Conventions.
 
 (** * Abstract syntax *)
 
@@ -949,7 +949,7 @@ Proof.
   { intros. inv H; inv H0; congruence. }
   assert (B: forall p v1 v2,
              extcall_arg_pair rs m p v1 -> extcall_arg_pair rs m p v2 -> v1 = v2).
-  { intros. inv H; inv H0. 
+  { intros. inv H; inv H0.
     eapply A; eauto.
     f_equal; eapply A; eauto. }
   assert (C: forall ll vl1, list_forall2 (extcall_arg_pair rs m) ll vl1 ->

@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.functors.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.base.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 
 Set Implicit Arguments.
 
@@ -14,7 +14,7 @@ Import MixVariantFunctor.
 Import MixVariantFunctorLemmas.
 Import MixVariantFunctorGenerator.
 
-(* Parameterized separating structures, useful for knot_prop_sa and 
+(* Parameterized separating structures, useful for knot_prop_sa and
     maybe for the general sa_knot. *)
 
 Section unmaps.
@@ -31,8 +31,10 @@ Section unmaps.
       join (f x) (f y) z' ->
       { y0: A & { z:A | join x y0 z /\ f y0 = f y /\ f z = z' }}.
 End unmaps.
+(*
 Implicit Arguments unmap_right.
 Implicit Arguments unmap_left.
+*)
 
 (*
 Definition Join_paf (F: functor): Type :=
@@ -180,7 +182,7 @@ Section SigmaSAFunctor.
     hnf; simpl; intros.
     inv H. constructor.
     apply paf_join_hom; auto.
-    
+
     hnf; simpl; intros.
     destruct x' as [xi x'].
     destruct y as [yi y].
@@ -235,14 +237,14 @@ Section SepAlgSubset_Functor.
   Variables (F: functor).
   Variables (JOIN: forall A, Join (F A))
             (fSA : @pafunctor F JOIN).
-  
+
   Variable P : forall A, F A -> Prop.
   Arguments P {A} _.
   Hypothesis HPfmap1 : forall A B (f: A -> B) (g: B -> A) x,
     P x -> P (fmap F f g x).
-  Hypothesis HPfmap2 : forall A B (f: A -> B) (g: B -> A) x, 
+  Hypothesis HPfmap2 : forall A B (f: A -> B) (g: B -> A) x,
     P (fmap F f g x) -> P x.
-  
+
   Definition paf_subset :
     @pafunctor (fsubset F (@P) HPfmap1) (fun A => Join_prop _ _ P).
   Proof.

@@ -1,10 +1,11 @@
 #!/bin/bash
 # This script builds a VST distribution as a tgz file.
-# To run it: 
+# To run it:
 # FIRST DO A "git push" if necessary.
 # THEN, from some place outside of a git-checked-out directory,
 #   sh  .../vst/util/PACKAGE
 # the result will be in vst.tgz
+# see also: util/RELEASE
 
 set -e
 mkdir vst
@@ -13,7 +14,8 @@ git clone https://github.com/PrincetonUniversity/VST.git vst-temp
 cd vst-temp
 bash util/make_version
 rm -r sepcomp/submit*
-mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION version.v ../vst
+mv BUILD_ORGANIZATION HISTORY LICENSE pg README.md VERSION version.v ../vst
+grep -v CONCPROGS <Makefile  >../vst/Makefile
 mv compcert msl sepcomp veric floyd progs examples util ../vst
 mv doc/VC.pdf ../vst/doc
 cd ..

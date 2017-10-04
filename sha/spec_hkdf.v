@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -12,7 +12,7 @@ Qed.
 (****************************************************************************)
 
 
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import sha.spec_sha.
 Require Import sha.protocol_spec_hmac.
@@ -169,7 +169,8 @@ Definition Hkdf_VarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
 
 
 Definition hmac_init_funspec:=
-    (WITH x : val * Z * list Z * val + val * Z * list Z * val * block * int PRE
+    (WITH x : val * Z * list Z * val + val * Z * list Z * val * val
+     PRE
      [(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
      (hmac._len, tint)] match x with
                         | inl (c, l, key, kv) =>
@@ -179,13 +180,13 @@ Definition hmac_init_funspec:=
                             gvar sha._K256 kv)
                             SEP (HMAC_SPEC.FULL key c;
                             spec_sha.K_vector kv)
-                        | inr (c, l, key, kv, b0, i) =>
+                        | inr (c, l, key, kv, k) =>
                             PROP (spec_hmac.has_lengthK l key)
-                            LOCAL (temp hmac._ctx c; temp hmac._key (Vptr b0 i);
+                            LOCAL (temp hmac._ctx c; temp hmac._key k;
                             temp hmac._len (Vint (Int.repr l)); 
                             gvar sha._K256 kv)
                             SEP (HMAC_SPEC.EMPTY c;
-                            spec_sha.data_block Tsh key (Vptr b0 i); 
+                            spec_sha.data_block Tsh key k; 
                             spec_sha.K_vector kv)
                         end
      POST [tvoid] match x with
@@ -195,12 +196,12 @@ Definition hmac_init_funspec:=
                       SEP (HMAC_SPEC.REP
                              (HMAC_SPEC.hABS key []) c;
                       spec_sha.K_vector kv)
-                  | inr (c, _, key, kv, b0, i) =>
+                  | inr (c, _, key, kv, k) =>
                       PROP ( )
                       LOCAL ()
                       SEP (HMAC_SPEC.REP
                              (HMAC_SPEC.hABS key []) c;
-                      spec_sha.data_block Tsh key (Vptr b0 i); 
+                      spec_sha.data_block Tsh key k; 
                       spec_sha.K_vector kv)
                   end).
 

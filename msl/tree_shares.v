@@ -4,10 +4,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.eq_dec.
-Require Import msl.sepalg.
-Require Import msl.boolean_alg.
+Require Import VST.msl.base.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.boolean_alg.
 
 Require Import Recdef.
 Require Import NPeano.
@@ -831,7 +831,7 @@ Module Share <: SHARE_MODEL.
   | Hole      => c2
   end.
 
-  Fixpoint fill (c:Sctx) (x:ShareTree) {struct c} : ShareTree := 
+  Fixpoint fill (c:Sctx) (x:ShareTree) {struct c} : ShareTree :=
   match c with
   | NodeR l r => Node l (fill r x)
   | NodeL l r => Node (fill l x) r
@@ -1607,7 +1607,7 @@ Module Share <: SHARE_MODEL.
 
     Definition isTokenFactory (x:t) (n:nat) := isTokenFactory' (proj1_sig x) n.
     Definition isToken (x:t) (n:nat) := isToken' (proj1_sig x) n.
-    
+
     Lemma isTokenFactory_canon : forall n fac,
       isTokenFactory' fac n -> canonicalTree fac.
     Proof.
@@ -1792,7 +1792,7 @@ Module Share <: SHARE_MODEL.
     Definition split_token (n:nat) (tok:t) : t * t :=
       match n with
       | O => (bot,tok)
-      | S n' => 
+      | S n' =>
         (exist (fun x => canonicalTree x) (mkCanon (split_tok1 n' (proj1_sig tok))) (mkCanon_correct _)
         ,exist (fun x => canonicalTree x) (mkCanon (split_tok2 n' (proj1_sig tok))) (mkCanon_correct _)
         )
@@ -2031,7 +2031,7 @@ Module Share <: SHARE_MODEL.
       apply canonicalUnique; auto.
     Qed.
 
-    Open Local Scope nat_scope.
+    Local Open Scope nat_scope.
 
     Lemma fac_tok_classification : forall fac n,
       isTokenFactory' fac n ->
@@ -2420,7 +2420,7 @@ Module Share <: SHARE_MODEL.
       hnf in H0; simpl in H0.
       inv H0; inv H.
     Qed.
-    
+
     Lemma nonidentityFactory : forall x n, isTokenFactory x n -> x <> bot.
     Proof.
       repeat intro.
@@ -2437,14 +2437,14 @@ Module Share <: SHARE_MODEL.
   Specification of "unrel" operator by Andrew W. Appel and Robert Dockins
   Definition of "unrel", and all the proofs about it, by Le Xuan Bach
 *)
-  
+
    Program Definition tree_decompose (ct : canonTree) :(canonTree * canonTree) :=
      let (t, pf) := ct in
      match t with
      |Leaf b => (Leaf b, Leaf b)
      |Node t1 t2 => (t1 ,t2)
      end.
-   Next Obligation. 
+   Next Obligation.
     destruct pf. tauto.
    Defined.
    Next Obligation.
@@ -2455,7 +2455,7 @@ Module Share <: SHARE_MODEL.
      Decomposible tree_decompose.
 
   Fixpoint tree_heightP (t : ShareTree) : nat :=
-   match t with 
+   match t with
    | Leaf b  => 0
    | Node l r => (max (tree_heightP l) (tree_heightP r)) + 1
   end.
@@ -2474,12 +2474,13 @@ Module Share <: SHARE_MODEL.
     | exist _ (Leaf b) _ => t2
     | _ => let (ltr1, rtr1) := decompose t1 in
            let (ltr2, rtr2) := decompose t2 in
-              match ltr1 with  
+              match ltr1 with
                | exist _ (Leaf true) _ => ltr2
                | exist _ (Leaf false) _ => unrel rtr1 rtr2
                | _ => unrel ltr1 ltr2
               end
    end.
+Proof.
  intros.
  clear -teq1.
  inv teq1.
@@ -2487,7 +2488,7 @@ Module Share <: SHARE_MODEL.
  simpl. unfold tree_height.
  simpl.
  omega.
- 
+
  intros.
  clear -teq1.
  inv teq1.
@@ -2563,9 +2564,9 @@ Proof.
   generalize (mkCanon_identity _ c);intro.
   simpl in H0.
   trivial.
-Qed.  
+Qed.
 
-Lemma unrel_rel: forall x sh, 
+Lemma unrel_rel: forall x sh,
     nonidentity x -> unrel x (rel x sh) = sh.
 Proof.
   intro.
@@ -2582,7 +2583,7 @@ Proof.
 
   elimtype False.
   apply H.
-  assert (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c = 
+  assert (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c =
                  core (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c)).
   simpl.
   unfold BAF.bot.
@@ -2593,14 +2594,14 @@ Proof.
   rewrite unrel_equation.
   destruct c as [? [? [? ?]]].
   assert (decompose (exist _ (Node x1 x2)
-          (conj n (conj n0 (conj c c0)))) = 
-          (exist (fun t0 : ShareTree => canonicalTree t0) x1 c, 
+          (conj n (conj n0 (conj c c0)))) =
+          (exist (fun t0 : ShareTree => canonicalTree t0) x1 c,
            exist (fun t0 : ShareTree => canonicalTree t0) x2 c0)).
     simpl;trivial.
   unfold decompose,decompose_tree in *.
   rewrite H0;clear H0.
   assert (decompose (rel (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
-         (conj n (conj n0 (conj c c0)))) sh) = 
+         (conj n (conj n0 (conj c c0)))) sh) =
          (rel (exist _ x1 c) sh, rel (exist _ x2 c0) sh)).
    generalize (rel_classification);intro.
    spec X (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
@@ -2611,7 +2612,7 @@ Proof.
    simpl.
    apply injective_projections;simpl;symmetry;
    apply rel_bot1.
-   
+
    destruct a.
    destruct H1.
    unfold decompose.
@@ -2654,7 +2655,7 @@ Qed.
 Definition Lsh  : Share.t := fst (Share.split Share.top).
 Definition Rsh  : Share.t := snd (Share.split Share.top).
 
-Definition splice (a b: t) : t := Share.lub (rel Lsh a) (rel Rsh b). 
+Definition splice (a b: t) : t := Share.lub (rel Lsh a) (rel Rsh b).
 
 Lemma mkCanon_Leaf : forall b , mkCanon (Leaf b) = Leaf b.
 Proof.
@@ -2670,7 +2671,7 @@ Qed.
     trivial.
  Qed.
 
- Lemma mkCanon_split : forall t1 t2 t1' t2', mkCanon (Node t1 t2) = Node t1' t2' -> 
+ Lemma mkCanon_split : forall t1 t2 t1' t2', mkCanon (Node t1 t2) = Node t1' t2' ->
                                             mkCanon t1 = t1' /\ mkCanon t2 = t2'.
  Proof.
     intros.
@@ -2679,7 +2680,7 @@ Qed.
     try icase (bool_dec b b0);inversion H1;auto.
  Qed.
 
- Lemma mkCanon_Leaf_split : forall t1 t2 b, Leaf b = mkCanon (Node t1 t2) -> 
+ Lemma mkCanon_Leaf_split : forall t1 t2 b, Leaf b = mkCanon (Node t1 t2) ->
                                            mkCanon t1 = Leaf b /\ mkCanon t2 = Leaf b.
   Proof.
     intros.
@@ -2812,7 +2813,7 @@ Qed.
     rewrite<-H2.
     rewrite<-H3.
     icase b.
-    
+
     generalize (mkCanon_Leaf_split _ _ _ Heqs0);intro.
     symmetry in Heqs.
     generalize (mkCanon_split _ _ _ _ Heqs);intro.
@@ -2822,7 +2823,7 @@ Qed.
     rewrite H42 in *.
     rewrite<- H51 in *.
     rewrite<- H52 in *.
-    replace (union_tree (Node (mkCanon t1_1) (mkCanon t1_2)) (Leaf b)) 
+    replace (union_tree (Node (mkCanon t1_1) (mkCanon t1_2)) (Leaf b))
     with (union_tree (Leaf b) (Node (mkCanon t1_1) (mkCanon t1_2)))
     by apply union_commute.
     replace (union_tree (mkCanon t1_1) (Leaf b))
@@ -2851,7 +2852,7 @@ Qed.
     trivial.
  Qed.
 
- Lemma splice_rewrite: forall a b, splice a b = 
+ Lemma splice_rewrite: forall a b, splice a b =
       exist (fun t0 => canonicalTree t0) (mkCanon (Node (proj1_sig a) (proj1_sig b))) (mkCanon_correct _).
  Proof.
   intros.
@@ -2868,7 +2869,7 @@ Qed.
     simpl.
     generalize (rel_classification);intro.
     spec X (exist (fun t0 : ShareTree => canonicalTree t0)
-        (Node (Leaf true) (Leaf false))  
+        (Node (Leaf true) (Leaf false))
           (conj (or_intror (true = false) (Logic.eq_refl false))
            (conj (or_introl (false = true) (Logic.eq_refl true)) (conj I I))))
      (exist (fun t0 : ShareTree => canonicalTree t0) x c).
@@ -2920,7 +2921,7 @@ Qed.
   trivial.
  Qed.
 
- Lemma canonTree_check: forall x y, canonicalTree x -> canonicalTree y -> 
+ Lemma canonTree_check: forall x y, canonicalTree x -> canonicalTree y ->
                        (exists b, x = Leaf b /\ y = Leaf b) \/ (canonicalTree (Node x y)).
  Proof.
   intros.
@@ -3064,7 +3065,7 @@ Proof.
              (Node (Leaf true) (Leaf false))
              (conj (or_intror eq_refl) (conj (or_introl eq_refl) (conj I I))))
           (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
-             (conj n (conj n0 (conj c c0))))) = 
+             (conj n (conj n0 (conj c c0))))) =
         (top, exist (fun t0 : ShareTree => canonicalTree t0) x2 c0)).
    unfold BAF.lub.
    unfold proj1_sig.
@@ -3147,7 +3148,7 @@ Qed.
                 (conj (or_intror (false = true) (Logic.eq_refl true))
                    (conj I I))))
         (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
-        (conj n (conj n0 (conj c c0))))) = 
+        (conj n (conj n0 (conj c c0))))) =
         (exist (fun t0 : ShareTree => canonicalTree t0) x1 c, top)).
    unfold BAF.lub.
    unfold proj1_sig.
@@ -3192,7 +3193,7 @@ Qed.
 
 (*START HERE*)
   Fixpoint fullTreeP (t : ShareTree) (d  : nat): Prop :=
-   match t with 
+   match t with
     | Leaf b => d = 0
     | Node l r => (d > 0) /\ (fullTreeP l (d - 1)) /\ (fullTreeP r (d - 1))
    end.
@@ -3202,12 +3203,12 @@ Qed.
 
   Fixpoint mkFull (d : nat)  (t : ShareTree) : option ShareTree :=
    match d with
-    |0 => match t with 
+    |0 => match t with
           |Leaf b => Some (Leaf b)
           |Node l r => None
           end
-    |S n => match t with 
-            |Leaf b => match (mkFull n (Leaf b)) with 
+    |S n => match t with
+            |Leaf b => match (mkFull n (Leaf b)) with
                        | Some t => Some (Node t t)
                        |_ => None
                        end
@@ -3296,7 +3297,7 @@ Qed.
    Instance avgable_tree : avgable t :=
      Avgable tree_avg.
 
-  Lemma compose_canon1 : forall b1 b2,b1 <> b2 -> canonicalTree (Leaf b1) -> 
+  Lemma compose_canon1 : forall b1 b2,b1 <> b2 -> canonicalTree (Leaf b1) ->
                                                   canonicalTree (Leaf b2) ->
                                                   canonicalTree (Node (Leaf b1) (Leaf b2)).
   Proof.
@@ -3304,7 +3305,7 @@ Qed.
    try icase b1;try icase b2;compute in *;tauto.
   Qed.
 
-  Lemma compose_canon2 : forall b t1 t2, canonicalTree (Leaf b) -> 
+  Lemma compose_canon2 : forall b t1 t2, canonicalTree (Leaf b) ->
                                          canonicalTree (Node t1 t2)->
                                          canonicalTree (Node (Leaf b) (Node t1 t2)).
   Proof.
@@ -3313,7 +3314,7 @@ Qed.
    firstorder.
   Qed.
 
-  Lemma compose_canon3 : forall t1 t2 b, canonicalTree (Node t1 t2)-> 
+  Lemma compose_canon3 : forall t1 t2 b, canonicalTree (Node t1 t2)->
                                          canonicalTree (Leaf b) ->
                                          canonicalTree (Node (Node t1 t2) (Leaf b) ).
   Proof.
@@ -3322,7 +3323,7 @@ Qed.
    firstorder.
   Qed.
 
-  Lemma compose_canon4 : forall t1 t2 t3 t4, canonicalTree (Node t1 t2) -> 
+  Lemma compose_canon4 : forall t1 t2 t3 t4, canonicalTree (Node t1 t2) ->
                                              canonicalTree (Node t3 t4) ->
                                              canonicalTree (Node (Node t1 t2) (Node t3 t4)).
   Proof.
@@ -3401,7 +3402,7 @@ Qed.
     replace (n-0) with n in * by omega.
     trivial.
    Qed.
-  
+
   Lemma fullTreeP_height : forall n t, fullTreeP t n -> tree_heightP t = n.
    Proof.
     induction n;intros.
@@ -3432,7 +3433,7 @@ Qed.
    replace (n-0) with n in * by omega;
    trivial.
   Qed.
-    
+
   Lemma fullTree_double : forall t, fullTree t -> fullTree (Node t t).
   Proof.
    intros.
@@ -3451,7 +3452,7 @@ Qed.
    trivial.
   Qed.
 
-  Lemma fullTree_sub : forall t1 t2, fullTree (Node t1 t2) <-> 
+  Lemma fullTree_sub : forall t1 t2, fullTree (Node t1 t2) <->
                                       (fullTree t1 /\ fullTree t2 /\ tree_heightP t1 = tree_heightP t2).
   Proof.
     intros.
@@ -3556,7 +3557,7 @@ Qed.
    inversion H.
   Qed.
 
-  Lemma mkFull_mkCanon : forall n t t', mkFull n t = Some t' -> 
+  Lemma mkFull_mkCanon : forall n t t', mkFull n t = Some t' ->
                                         mkCanon t = mkCanon t'.
   Proof.
    induction n;intros;
@@ -3727,8 +3728,8 @@ Qed.
   Qed.
 
   Lemma canonTree_rewrite1 : forall (t' : canonTree), exists t1, exists t2,
-                            t' = (exist (fun t => canonicalTree t) 
-                           (mkCanon (Node t1 t2)) 
+                            t' = (exist (fun t => canonicalTree t)
+                           (mkCanon (Node t1 t2))
                            (mkCanon_correct _)).
   Proof.
    intros.
@@ -3745,7 +3746,7 @@ Qed.
    trivial.
    Qed.
 
-  Lemma canonTree_rewrite2: forall (t : canonTree), t = 
+  Lemma canonTree_rewrite2: forall (t : canonTree), t =
         exist (fun t => canonicalTree t) (mkCanon (proj1_sig t)) (mkCanon_correct _).
   Proof.
    intros.
@@ -3755,12 +3756,12 @@ Qed.
    congruence.
   Qed.
 
-  Lemma mkCanon_height_split : forall n t11 t12 t21 t22, 
-        max (tree_heightP (mkCanon (Node t11 t12))) 
+  Lemma mkCanon_height_split : forall n t11 t12 t21 t22,
+        max (tree_heightP (mkCanon (Node t11 t12)))
             (tree_heightP (mkCanon (Node t21 t22))) < S (S n) ->
-        max (tree_heightP (mkCanon t11)) 
+        max (tree_heightP (mkCanon t11))
             (tree_heightP (mkCanon t21)) < S n /\
-        max (tree_heightP (mkCanon t12)) 
+        max (tree_heightP (mkCanon t12))
             (tree_heightP (mkCanon t22)) < S n.
   Proof.
    intros.
@@ -3797,10 +3798,10 @@ Qed.
    replace (max (tree_heightP (Node s1 s2)) (tree_heightP (Leaf b)))
    with (max (tree_heightP (Leaf b)) (tree_heightP (Node s1 s2)) ) in H
    by apply max_comm.
-   replace (max (tree_heightP s1) (tree_heightP (Leaf b))) 
+   replace (max (tree_heightP s1) (tree_heightP (Leaf b)))
    with (max (tree_heightP (Leaf b)) (tree_heightP s1))
    by apply max_comm.
-   replace (max (tree_heightP s2) (tree_heightP (Leaf b))) 
+   replace (max (tree_heightP s2) (tree_heightP (Leaf b)))
    with (max (tree_heightP (Leaf b)) (tree_heightP s2))
    by apply max_comm.
    simpl in H.
@@ -3809,7 +3810,7 @@ Qed.
    simpl.
    generalize (le_max_l (tree_heightP s1) (tree_heightP s2));intro H31.
    generalize (le_max_r (tree_heightP s1) (tree_heightP s2));intro H32.
-   omega.   
+   omega.
 
    symmetry in Heqs,Heqs0.
    generalize (mkCanon_split _ _ _ _ Heqs);intro H1.
@@ -3819,7 +3820,7 @@ Qed.
    rewrite H11,H12,H21,H22.
    simpl in H.
    generalize (plus_max_distr_r (max (tree_heightP s1) (tree_heightP s2))
-                                (max (tree_heightP s0_1) (tree_heightP s0_2))                  
+                                (max (tree_heightP s0_1) (tree_heightP s0_2))
                                  1);
    intro H3.
    rewrite H3 in H.
@@ -3840,7 +3841,7 @@ Qed.
    generalize (max_lub _ _ _ H1 H10);intro H14.
    generalize (max_lub _ _ _ H2 H13);intro H15.
    omega.
-  Qed. 
+  Qed.
 
   Lemma mkCanon_diff : forall t11 t12 t21 t22,
                        mkCanon (Node t11 t12) <> mkCanon (Node t21 t22) ->
@@ -3856,7 +3857,7 @@ Qed.
    rewrite e,H1;trivial.
 
    left;trivial.
-  Qed. 
+  Qed.
 
   Lemma canonTree_proof_irr: forall t1 t2 c1 c2, t1 = t2 -> exist (fun t => canonicalTree t) t1 c1 =
                                                             exist (fun t => canonicalTree t) t2 c2.
@@ -4008,7 +4009,7 @@ Qed.
     rewrite<-H2.
     rewrite<-H3.
     icase b.
-    
+
     generalize (mkCanon_Leaf_split _ _ _ Heqs0);intro.
     symmetry in Heqs.
     generalize (mkCanon_split _ _ _ _ Heqs);intro.
@@ -4018,7 +4019,7 @@ Qed.
     rewrite H42 in *.
     rewrite<- H51 in *.
     rewrite<- H52 in *.
-    replace (intersect_tree (Node (mkCanon t1_1) (mkCanon t1_2)) (Leaf b)) 
+    replace (intersect_tree (Node (mkCanon t1_1) (mkCanon t1_2)) (Leaf b))
     with (intersect_tree (Leaf b) (Node (mkCanon t1_1) (mkCanon t1_2)))
     by apply intersect_commute.
     replace (intersect_tree (mkCanon t1_1) (Leaf b))
@@ -4165,7 +4166,7 @@ Qed.
     trivial.
   Qed.
 
-  Lemma mkCanon_mkFull_split : forall n t1 t2 t1' t2', mkFull (S n) (mkCanon (Node t1 t2)) = 
+  Lemma mkCanon_mkFull_split : forall n t1 t2 t1' t2', mkFull (S n) (mkCanon (Node t1 t2)) =
                                                  Some (Node t1' t2') <->
                                                  mkFull n (mkCanon t1) = Some t1' /\
                                                  mkFull n (mkCanon t2) = Some t2'.
@@ -4197,9 +4198,9 @@ Qed.
   Qed.
 
   Lemma tree_round_left_combine: forall n t1 t2 t1' t2',
-                                roundL n (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _)) 
+                                roundL n (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t1') (mkCanon_correct _)) ->
-                                roundL n (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _)) 
+                                roundL n (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t2') (mkCanon_correct _))->
                                 roundL (S n) (exist (fun t => canonicalTree t)(mkCanon (Node t1 t2)) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon (Node t1' t2')) (mkCanon_correct _)).
@@ -4226,13 +4227,13 @@ Qed.
     rewrite<- H3.
     trivial.
   Qed.
-    
+
   Lemma tree_round_left_split : forall n t1 t2 t1' t2',
                                 roundL (S (S n)) (exist (fun t => canonicalTree t)(mkCanon (Node t1 t2)) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon (Node t1' t2')) (mkCanon_correct _)) ->
-                                roundL (S n) (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _)) 
+                                roundL (S n) (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t1') (mkCanon_correct _)) /\
-                                roundL (S n) (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _)) 
+                                roundL (S n) (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t2') (mkCanon_correct _)).
   Proof.
     unfold roundL,roundableL_tree.
@@ -4262,12 +4263,12 @@ Qed.
     destruct H as [H4 H5].
     split;f_equal;apply exist_ext;trivial.
   Qed.
-    
-  Lemma tree_round_left_Leaf : forall b n, 
+
+  Lemma tree_round_left_Leaf : forall b n,
   roundL (S n) (exist (fun t => canonicalTree t)(Leaf b) (canonTree_Leaf _))
   = Some (exist (fun t => canonicalTree t)(Leaf b) (canonTree_Leaf _)).
   Proof.
-    unfold roundL,roundableL_tree.    
+    unfold roundL,roundableL_tree.
     induction n.
     unfold tree_round_left.
     simpl.
@@ -4275,13 +4276,13 @@ Qed.
     apply exist_ext.
     trivial.
 
-    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Leaf b)) 
+    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Leaf b))
                (canonTree_Leaf _) (mkCanon_correct _));
     intro H.
     detach H.
     rewrite H in IHn.
     generalize (tree_round_left_combine _ _ _ _ _ IHn IHn);intro H1.
-    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Node (Leaf b) (Leaf b))) 
+    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Node (Leaf b) (Leaf b)))
                (canonTree_Leaf _) (mkCanon_correct _));
     intro H2.
     detach H2.
@@ -4290,7 +4291,7 @@ Qed.
     icase b.
   Qed.
   (*L15*)
-  Lemma tree_round_left_identity : forall n t, height t < n ->  
+  Lemma tree_round_left_identity : forall n t, height t < n ->
                                                roundL n t = Some t.
   Proof.
    unfold roundL,roundableL_tree.
@@ -4306,7 +4307,7 @@ Qed.
    detach H1;trivial.
    rewrite H1.
    apply tree_round_left_Leaf.
-  
+
    simpl in H.
    assert ( n > tree_heightP x1 /\ n > tree_heightP x2).
      generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
@@ -4332,9 +4333,9 @@ Qed.
    symmetry; apply mkCanon_identity;trivial.
   Qed.
 
-  Lemma tree_round_left_one : forall t1 t2 t c, 
-   roundL 1 (exist (fun t => canonicalTree t)(Node t1 t2) c) = Some t ->                 
-   exists b1,exists b2, t1 = Leaf b1 /\ t2 = Leaf b2 /\ 
+  Lemma tree_round_left_one : forall t1 t2 t c,
+   roundL 1 (exist (fun t => canonicalTree t)(Node t1 t2) c) = Some t ->
+   exists b1,exists b2, t1 = Leaf b1 /\ t2 = Leaf b2 /\
    t = (exist (fun t => canonicalTree t)(Leaf b1) (canonTree_Leaf _)).
   Proof.
    unfold roundL,roundableL_tree.
@@ -4349,11 +4350,11 @@ Qed.
    trivial.
   Qed.
   (*L14*)
-  Lemma tree_round_left_join : forall n t1 t2 t3 t1' t2' t3', 
+  Lemma tree_round_left_join : forall n t1 t2 t3 t1' t2' t3',
     join t1 t2 t3 ->
     roundL n t1 = Some t1' ->
     roundL n t2 = Some t2' ->
-    roundL n t3 = Some t3' ->    
+    roundL n t3 = Some t3' ->
     join t1' t2' t3'.
    Proof.
     unfold roundL,roundableL_tree.
@@ -4362,7 +4363,7 @@ Qed.
     unfold tree_round_left in H0.
     simpl in H0.
     icase x.
-    
+
     icase n.
 
     destruct t1 as [t1 ?];
@@ -4384,7 +4385,7 @@ Qed.
     elimtype False;clear-H.
     inv H.
     icase b.
-   
+
    generalize (tree_round_left_one _ _ _ _ H1);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
    destruct H as [H3 H4].
@@ -4515,8 +4516,8 @@ Qed.
    apply mkCanon_join_combine;trivial.
   Qed.
   (*L16*)
-  Lemma tree_round_left_None : forall n t, 
-   n < height t -> 
+  Lemma tree_round_left_None : forall n t,
+   n < height t ->
    roundL n t = None.
   Proof.
    unfold roundL,roundableL_tree in *.
@@ -4527,8 +4528,8 @@ Qed.
    trivial.
   Qed.
   (*L17*)
-  Lemma tree_round_left_decrease : forall n t, 
-   S n = height t -> 
+  Lemma tree_round_left_decrease : forall n t,
+   S n = height t ->
    exists t', roundL (S n) t = Some t' /\ height t' <= n.
   Proof.
   unfold roundL,roundableL_tree in *.
@@ -4551,7 +4552,7 @@ Qed.
   assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
        (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by omega;
   clear H1.
-  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2)) 
+  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
                                (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
   rewrite H0 in H;omega.
 
@@ -4582,7 +4583,7 @@ Qed.
     rewrite H23;
     trivial.
   rewrite H5 in H21;clear H5.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4591,7 +4592,7 @@ Qed.
     rewrite H23;
     trivial.
   rewrite H5 in H21;clear H5.
-  assert (exist (fun t : ShareTree => canonicalTree t) x1 H3 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x1 H3 =
           exist (fun t => canonicalTree t) (mkCanon x1) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4627,7 +4628,7 @@ Qed.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
   omega.
-  
+
   assert (tree_heightP x1 = tree_heightP x2 \/ tree_heightP x1 > tree_heightP x2).
   omega.
   destruct H.
@@ -4637,7 +4638,7 @@ Qed.
   rewrite H1 in H0.
   rewrite<- H0 in H.
   clear n0 H1.
-  assert (tree_round_left (S nk) (exist (fun t => canonicalTree t) (Node x1 x2) c) = 
+  assert (tree_round_left (S nk) (exist (fun t => canonicalTree t) (Node x1 x2) c) =
           tree_round_left (S nk) (exist (fun t => canonicalTree t) (mkCanon (Node x1 x2)) (mkCanon_correct _))).
     simpl.
     f_equal.
@@ -4672,7 +4673,7 @@ Qed.
     trivial.
   rewrite H5 in H21;clear H5.
   destruct x.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4682,7 +4683,7 @@ Qed.
     trivial.
   rewrite H5 in H11;clear H5.
   destruct x0.
-  assert (exist (fun t : ShareTree => canonicalTree t) x0 c1 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x0 c1 =
           exist (fun t => canonicalTree t) (mkCanon x0) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4730,7 +4731,7 @@ Qed.
     rewrite H13;
     trivial.
   rewrite H6 in H11;clear H6.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4739,7 +4740,7 @@ Qed.
     rewrite H13;
     trivial.
   rewrite H6 in H11;clear H6.
-  assert (exist (fun t : ShareTree => canonicalTree t) x2 H5 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x2 H5 =
           exist (fun t => canonicalTree t) (mkCanon x2) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -4777,7 +4778,7 @@ Qed.
   omega.
   Qed.
   (*L18*)
-  Lemma tree_round_left_Some : forall n t, 
+  Lemma tree_round_left_Some : forall n t,
    height t <= S n ->
    exists t', roundL (S n) t = Some t'.
   Proof.
@@ -4792,7 +4793,7 @@ Qed.
    exists x.
    rewrite<- H0.
    trivial.
-   
+
    assert (H2 : tree_height t0 < S n) by omega.
    apply tree_round_left_identity in H2.
    exists t0.
@@ -4835,14 +4836,14 @@ Qed.
   Qed.
 
   Lemma tree_round_right_combine : forall n t1 t2 t1' t2',
-                                roundR n (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _)) 
+                                roundR n (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t1') (mkCanon_correct _)) ->
-                                roundR n (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _)) 
+                                roundR n (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t2') (mkCanon_correct _))->
                                 roundR (S n) (exist (fun t => canonicalTree t)(mkCanon (Node t1 t2)) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon (Node t1' t2')) (mkCanon_correct _)).
   Proof.
-    unfold roundR,roundableR_tree in *.    
+    unfold roundR,roundableR_tree in *.
     intros ? ? ? ? ? H1 H2.
     unfold tree_round_right in *.
     unfold proj1_sig in *.
@@ -4868,9 +4869,9 @@ Qed.
   Lemma tree_round_right_split : forall n t1 t2 t1' t2',
                                 roundR (S (S n)) (exist (fun t => canonicalTree t)(mkCanon (Node t1 t2)) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon (Node t1' t2')) (mkCanon_correct _)) ->
-                                roundR (S n) (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _)) 
+                                roundR (S n) (exist (fun t => canonicalTree t)(mkCanon t1) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t1') (mkCanon_correct _)) /\
-                                roundR (S n) (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _)) 
+                                roundR (S n) (exist (fun t => canonicalTree t)(mkCanon t2) (mkCanon_correct _))
                                 = Some (exist (fun t => canonicalTree t)(mkCanon t2') (mkCanon_correct _)).
   Proof.
     unfold roundR,roundableR_tree in *.
@@ -4901,7 +4902,7 @@ Qed.
     split;f_equal;apply exist_ext;trivial.
   Qed.
 
-  Lemma tree_round_right_Leaf : forall b n, 
+  Lemma tree_round_right_Leaf : forall b n,
    roundR (S n) (exist (fun t => canonicalTree t)(Leaf b) (canonTree_Leaf _))
    = Some (exist (fun t => canonicalTree t)(Leaf b) (canonTree_Leaf _)).
   Proof.
@@ -4913,13 +4914,13 @@ Qed.
     apply exist_ext.
     trivial.
 
-    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Leaf b)) 
+    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Leaf b))
                (canonTree_Leaf _) (mkCanon_correct _));
     intro H.
     detach H.
     rewrite H in IHn.
     generalize (tree_round_right_combine _ _ _ _ _ IHn IHn);intro H1.
-    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Node (Leaf b) (Leaf b))) 
+    generalize (canonTree_proof_irr (Leaf b) (mkCanon (Node (Leaf b) (Leaf b)))
                (canonTree_Leaf _) (mkCanon_correct _));
     intro H2.
     detach H2.
@@ -4929,7 +4930,7 @@ Qed.
   Qed.
   (*L22*)
   Lemma tree_round_right_identity : forall n t,
-   height t < n ->  
+   height t < n ->
    roundR n t = Some t.
   Proof.
    unfold roundR,roundableR_tree in *.
@@ -4946,7 +4947,7 @@ Qed.
    detach H1;trivial.
    rewrite H1.
    apply tree_round_right_Leaf.
-  
+
    simpl in H.
    assert ( n > tree_heightP x1 /\ n > tree_heightP x2).
      generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
@@ -4972,9 +4973,9 @@ Qed.
    symmetry; apply mkCanon_identity;trivial.
   Qed.
 
-  Lemma tree_round_right_one : forall t1 t2 t c, 
-   roundR 1 (exist (fun t => canonicalTree t)(Node t1 t2) c) = Some t ->                 
-   exists b1,exists b2, t1 = Leaf b1 /\ t2 = Leaf b2 /\ 
+  Lemma tree_round_right_one : forall t1 t2 t c,
+   roundR 1 (exist (fun t => canonicalTree t)(Node t1 t2) c) = Some t ->
+   exists b1,exists b2, t1 = Leaf b1 /\ t2 = Leaf b2 /\
    t = (exist (fun t => canonicalTree t)(Leaf b2) (canonTree_Leaf _)).
   Proof.
    unfold roundR,roundableR_tree in *.
@@ -4989,11 +4990,11 @@ Qed.
    trivial.
   Qed.
   (*L21*)
-  Lemma tree_round_right_join : forall n t1 t2 t3 t1' t2' t3', 
+  Lemma tree_round_right_join : forall n t1 t2 t3 t1' t2' t3',
     join t1 t2 t3 ->
     roundR n t1 = Some t1' ->
     roundR n t2 = Some t2' ->
-    roundR n t3 = Some t3' ->    
+    roundR n t3 = Some t3' ->
     join t1' t2' t3'.
   Proof.
     unfold roundR,roundableR_tree in *.
@@ -5002,7 +5003,7 @@ Qed.
     unfold tree_round_right in H0.
     simpl in H0.
     icase x.
-    
+
     icase n.
 
     destruct t1 as [t1 ?];
@@ -5024,7 +5025,7 @@ Qed.
     elimtype False;clear-H.
     inv H.
     icase b.
-   
+
    generalize (tree_round_right_one _ _ _ _ H1);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
    destruct H as [H3 H4].
@@ -5155,8 +5156,8 @@ Qed.
    apply mkCanon_join_combine;trivial.
   Qed.
   (*L23*)
-  Lemma tree_round_right_None : forall n t, 
-   n < height t -> 
+  Lemma tree_round_right_None : forall n t,
+   n < height t ->
    roundR n t = None.
   Proof.
    unfold roundR,roundableR_tree in *.
@@ -5168,8 +5169,8 @@ Qed.
    trivial.
   Qed.
   (*L24*)
-  Lemma tree_round_right_decrease : forall n t, 
-   S n = height t -> 
+  Lemma tree_round_right_decrease : forall n t,
+   S n = height t ->
    exists t', roundR (S n) t = Some t' /\ height t' <= n.
   Proof.
   unfold roundR,roundableR_tree in *.
@@ -5191,7 +5192,7 @@ Qed.
   assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
        (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by omega;
   clear H1.
-  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2)) 
+  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
                                (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
   rewrite H0 in H;omega.
 
@@ -5222,7 +5223,7 @@ Qed.
     rewrite H23;
     trivial.
   rewrite H5 in H21;clear H5.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5231,7 +5232,7 @@ Qed.
     rewrite H23;
     trivial.
   rewrite H5 in H21;clear H5.
-  assert (exist (fun t : ShareTree => canonicalTree t) x1 H3 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x1 H3 =
           exist (fun t => canonicalTree t) (mkCanon x1) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5267,7 +5268,7 @@ Qed.
   generalize (mkCanon_height _ _ H1);intro.
   simpl in *.
   omega.
-  
+
   assert (tree_heightP x1 = tree_heightP x2 \/ tree_heightP x1 > tree_heightP x2).
   omega.
   destruct H.
@@ -5277,7 +5278,7 @@ Qed.
   rewrite H1 in H0.
   rewrite<- H0 in H.
   clear n0 H1.
-  assert (tree_round_right (S nk) (exist (fun t => canonicalTree t) (Node x1 x2) c) = 
+  assert (tree_round_right (S nk) (exist (fun t => canonicalTree t) (Node x1 x2) c) =
           tree_round_right (S nk) (exist (fun t => canonicalTree t) (mkCanon (Node x1 x2)) (mkCanon_correct _))).
     simpl.
     f_equal.
@@ -5312,7 +5313,7 @@ Qed.
     trivial.
   rewrite H5 in H21;clear H5.
   destruct x.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5322,7 +5323,7 @@ Qed.
     trivial.
   rewrite H5 in H11;clear H5.
   destruct x0.
-  assert (exist (fun t : ShareTree => canonicalTree t) x0 c1 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x0 c1 =
           exist (fun t => canonicalTree t) (mkCanon x0) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5370,7 +5371,7 @@ Qed.
     rewrite H13;
     trivial.
   rewrite H6 in H11;clear H6.
-  assert (exist (fun t : ShareTree => canonicalTree t) x c = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x c =
           exist (fun t => canonicalTree t) (mkCanon x) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5379,7 +5380,7 @@ Qed.
     rewrite H13;
     trivial.
   rewrite H6 in H11;clear H6.
-  assert (exist (fun t : ShareTree => canonicalTree t) x2 H5 = 
+  assert (exist (fun t : ShareTree => canonicalTree t) x2 H5 =
           exist (fun t => canonicalTree t) (mkCanon x2) (mkCanon_correct _)).
     simpl;
     f_equal;
@@ -5417,7 +5418,7 @@ Qed.
   omega.
  Qed.
  (*L25*)
- Lemma tree_round_right_Some : forall n t, 
+ Lemma tree_round_right_Some : forall n t,
    height t <= S n ->
    exists t', roundR (S n) t = Some t'.
   Proof.
@@ -5432,7 +5433,7 @@ Qed.
    exists x.
    rewrite<- H0.
    trivial.
-   
+
    assert (H2 : tree_height t0 < S n) by omega.
    apply tree_round_right_identity in H2.
    exists t0.
@@ -5482,13 +5483,13 @@ Qed.
    unfold tree_round_right.
    icase (mkFull 0 (proj1_sig t0)).
   Qed.
-                                             
- Lemma tree_avg_Leaf : forall n b c, 
-  avg (S n) (exist (fun t => canonicalTree t)(Leaf b) c) 
-  (exist (fun t => canonicalTree t)(Leaf b) c) 
+
+ Lemma tree_avg_Leaf : forall n b c,
+  avg (S n) (exist (fun t => canonicalTree t)(Leaf b) c)
+  (exist (fun t => canonicalTree t)(Leaf b) c)
   = Some (exist (fun t => canonicalTree t)(Leaf b) c).
   Proof.
-   unfold avg,avgable_tree in *. 
+   unfold avg,avgable_tree in *.
    induction n ;intros.
    simpl.
    f_equal;apply exist_ext.
@@ -5504,13 +5505,13 @@ Qed.
    rewrite H0.
    icase b.
   Qed.
- 
+
   (*L29*)
-  Lemma tree_avg_identity : forall n t, 
-   height t < n -> 
+  Lemma tree_avg_identity : forall n t,
+   height t < n ->
    avg n t t = Some t.
   Proof.
-    unfold avg,avgable_tree in *. 
+    unfold avg,avgable_tree in *.
     unfold height;simpl.
     induction n;intros;
     destruct t0;
@@ -5546,15 +5547,15 @@ Qed.
     icase (mkCanon s2).
     icase b; icase b0;simpl in *.
     elimtype False; firstorder.
-    elimtype False; firstorder.    
+    elimtype False; firstorder.
   Qed.
 
   (*L30*)
-  Lemma tree_avg_None : forall n t1 t2, 
-   n <= max (height t1) (height t2) -> 
+  Lemma tree_avg_None : forall n t1 t2,
+   n <= max (height t1) (height t2) ->
    avg n t1 t2 = None.
   Proof.
-   unfold avg,avgable_tree in *. 
+   unfold avg,avgable_tree in *.
    unfold height;simpl.
    intros.
    icase n.
@@ -5572,7 +5573,7 @@ Qed.
    generalize (mkFull_None _ _ H0);intro.
    rewrite H1.
    icase (mkFull n x).
-  Qed.   
+  Qed.
 
   Lemma tree_avg_split : forall n t11 t12 t21 t22 t31 t32,
                          avg (S (S n)) (exist (fun t => canonicalTree t) (mkCanon (Node t11 t12)) (mkCanon_correct _))
@@ -5583,9 +5584,9 @@ Qed.
                                      = Some (exist (fun t => canonicalTree t) (mkCanon t31) (mkCanon_correct _)) /\
                          avg (S n )    (exist (fun t => canonicalTree t) (mkCanon t12) (mkCanon_correct _))
                                             (exist (fun t => canonicalTree t) (mkCanon t22) (mkCanon_correct _))
-                                     = Some (exist (fun t => canonicalTree t) (mkCanon t32) (mkCanon_correct _)).                  
+                                     = Some (exist (fun t => canonicalTree t) (mkCanon t32) (mkCanon_correct _)).
   Proof.
-    unfold avg,avgable_tree in *. 
+    unfold avg,avgable_tree in *.
     intros.
     simpl in *.
     remember (mkCanon (Node t11 t12));
@@ -5641,8 +5642,8 @@ Qed.
     inv H.
     generalize (mkCanon_eq_split _ _ _ _ H1);intro H3.
     destruct H3 as [H31 H32].
-    split;f_equal;apply exist_ext;trivial.    
-   
+    split;f_equal;apply exist_ext;trivial.
+
     symmetry in Heqs,Heqs0;
     generalize (mkCanon_split _ _ _ _ Heqs);intro H1;
     generalize (mkCanon_split _ _ _ _ Heqs0);intro H2.
@@ -5660,7 +5661,7 @@ Qed.
     generalize (mkCanon_eq_split _ _ _ _ H1);intro H3.
     destruct H3 as [H31 H32].
     split;f_equal;apply exist_ext;trivial.
-  Qed. 
+  Qed.
 
   Lemma tree_avg_combine : forall n t11 t12 t21 t22 t31 t32,
                            avg n (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _))
@@ -5673,7 +5674,7 @@ Qed.
                                             (exist (fun t => canonicalTree t) (mkCanon (Node t21 t22)) (mkCanon_correct _))
                                      = Some (exist (fun t => canonicalTree t) (mkCanon (Node t31 t32)) (mkCanon_correct _)).
    Proof.
-    unfold avg,avgable_tree in *. 
+    unfold avg,avgable_tree in *.
     intros ? ? ? ? ? ? ? H1 H2.
     icase n.
     simpl in *.
@@ -5746,10 +5747,10 @@ Qed.
     inv H1;inv H2.
     f_equal;apply exist_ext.
     rewrite<- H0;rewrite<- H1;trivial.
-  Qed.    
+  Qed.
   (*L31*)
-  Lemma tree_avg_round2avg : forall n t1 t2 t3, 
-   roundL n t3 = Some t1 -> 
+  Lemma tree_avg_round2avg : forall n t1 t2 t3,
+   roundL n t3 = Some t1 ->
    roundR n t3 = Some t2 ->
    avg n t1 t2 = Some t3.
   Proof.
@@ -5812,7 +5813,7 @@ Qed.
     trivial.
    Qed.
   (*L32*)
-  Lemma tree_avg_avg2round : forall n t1 t2 t3, 
+  Lemma tree_avg_avg2round : forall n t1 t2 t3,
    avg n t1 t2 = Some t3 ->
    roundL n t3 = Some t1 /\
    roundR n t3 = Some t2.
@@ -5831,10 +5832,10 @@ Qed.
     inv H.
     icase (bool_dec b b0).
     inv H1.
-    subst b0.
     unfold tree_round_left;
     unfold tree_round_right;
     simpl.
+    try subst.
     split;apply f_equal;apply exist_ext;trivial.
     unfold tree_avg in H.
     simpl in H.
@@ -5912,7 +5913,7 @@ Qed.
     apply exist_ext.
     icase b;icase b0;icase b1;icase b2.
     icase b;icase b0;icase b1;icase b2;icase b3;icase b4.
-    
+
     generalize (mkCanon_identity _ c11);intro H11.
     generalize (mkCanon_identity _ c12);intro H12.
     generalize (mkCanon_identity _ c13);intro H13.
@@ -5967,7 +5968,7 @@ Qed.
     rewrite<-H311 in *.
     rewrite<-H321 in *.
     rewrite<-H331 in *.
-    
+
     generalize (tree_avg_split _ _ _ _ _ _ _ H1);intro H6.
     generalize (tree_avg_split _ _ _ _ _ _ _ H2);intro H7.
     generalize (tree_avg_split _ _ _ _ _ _ _ H3);intro H8.
@@ -5984,7 +5985,7 @@ Qed.
   Qed.
 
   Lemma tree_avg_increase : forall n t1 t2,
-   t1 <> t2 -> max (height t1) (height t2) < n -> 
+   t1 <> t2 -> max (height t1) (height t2) < n ->
    exists t3, avg n t1 t2 = Some t3 /\ height t3 = n.
   Proof.
    simpl.
@@ -6007,7 +6008,7 @@ Qed.
    intro;apply H.
    rewrite H6;apply exist_ext;trivial.
    icase b;icase b0;simpl.
-   elimtype False;tauto.
+   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
    exists (exist (fun t0 : ShareTree => canonicalTree t0)
           (Node (Leaf true) (Leaf false))
           (mkCanon_correct (Node (Leaf true) (Leaf false)))).
@@ -6016,7 +6017,7 @@ Qed.
           (Node (Leaf false) (Leaf true))
           (mkCanon_correct (Node (Leaf false) (Leaf true)))).
    split;trivial.
-   elimtype False; tauto.
+   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
@@ -6043,7 +6044,7 @@ Qed.
    assert (tree_heightP (mkCanon t11) < S n).
      generalize (le_max_l (tree_heightP (mkCanon t11)) (tree_heightP (mkCanon t21)));intro.
      omega.
-   generalize (tree_avg_identity (S n) 
+   generalize (tree_avg_identity (S n)
               (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _)) H8);
    intro H9.
    assert (exist (fun t => canonicalTree t) (mkCanon t12) (mkCanon_correct _) <>
@@ -6053,7 +6054,7 @@ Qed.
    destruct H11 as [ t3 [H11 H12]].
    generalize (canonTree_rewrite2 t3);intro H13.
    rewrite H13 in H11.
-   assert ((exist (fun t : ShareTree => canonicalTree t) (mkCanon t11) (mkCanon_correct t11)) = 
+   assert ((exist (fun t : ShareTree => canonicalTree t) (mkCanon t11) (mkCanon_correct t11)) =
            (exist (fun t : ShareTree => canonicalTree t) (mkCanon t21) (mkCanon_correct t21))).
      apply canonTree_proof_irr.
      trivial.
@@ -6099,9 +6100,9 @@ Qed.
      generalize (le_max_r (tree_heightP (mkCanon t22))
                           (tree_heightP (mkCanon t22)));intro.
      omega.
-   generalize (tree_avg_identity (S n) (exist (fun t => canonicalTree t) 
+   generalize (tree_avg_identity (S n) (exist (fun t => canonicalTree t)
               (mkCanon t22) (mkCanon_correct _)) H10);intro H11.
-   assert (exist (fun t : ShareTree => canonicalTree t) (mkCanon t12) (mkCanon_correct t12) = 
+   assert (exist (fun t : ShareTree => canonicalTree t) (mkCanon t12) (mkCanon_correct t12) =
            exist (fun t : ShareTree => canonicalTree t) (mkCanon t22) (mkCanon_correct t22)).
      apply canonTree_proof_irr;trivial.
    rewrite<- H12 in H11 at 1.
@@ -6124,7 +6125,7 @@ Qed.
    icase x3.
    rewrite H.
    simpl.
-   assert (max (tree_heightP x3) (tree_heightP (mkCanon t22)) + 1 = 
+   assert (max (tree_heightP x3) (tree_heightP (mkCanon t22)) + 1 =
            S (max (tree_heightP x3) (tree_heightP (mkCanon t22)))) by omega.
    rewrite H0;f_equal.
    rewrite<- H9 in *.
@@ -6193,8 +6194,8 @@ Qed.
   Lemma avg_share_correct: forall n s,
    (height s <= S n)%nat ->
    exists s', exists s'',
-    roundL (S n) s = Some s' /\ 
-    roundR (S n) s = Some s'' /\ 
+    roundL (S n) s = Some s' /\
+    roundR (S n) s = Some s'' /\
     avg (S n) s' s'' = Some s.
   Proof.
    intros.
@@ -6208,7 +6209,7 @@ Qed.
    split;trivial.
    split;trivial.
    apply tree_avg_round2avg;trivial.
-  Qed.   
+  Qed.
 
   (*L5*)
   Lemma decompose_recompose: forall t,
@@ -6276,8 +6277,8 @@ Qed.
  Qed.
 
 
- Lemma decompose_rewrite : forall t t1 t2, decompose t = (t1 ,t2) 
-       <-> t = exist (fun t => canonicalTree t) 
+ Lemma decompose_rewrite : forall t t1 t2, decompose t = (t1 ,t2)
+       <-> t = exist (fun t => canonicalTree t)
               (mkCanon (Node (proj1_sig t1) (proj1_sig t2))) (mkCanon_correct _).
  Proof.
   intros.
@@ -6343,7 +6344,7 @@ Qed.
     decompose t1 = (t11, t12) ->
     decompose t2 = (t21, t22) ->
     decompose t3 = (t31, t32) ->
-    (join t1 t2 t3 <-> 
+    (join t1 t2 t3 <->
     (join t11 t21 t31 /\ join t12 t22 t32)).
  Proof.
    intros ? ? ? ? ? ? ? ? ? H1 H2 H3.
@@ -6394,7 +6395,7 @@ Fixpoint countBLeafST (n : nat) (s : ShareTree) : nat :=
  | (S n', Leaf true) => (countBLeafST n' (Leaf true)) + (countBLeafST n' (Leaf true))
  | (S n', Leaf false) => 0
  | (S n', Node s1 s2) => (countBLeafST n' s1) + (countBLeafST n' s2)
- end. 
+ end.
 
 Definition countBLeafCT (n : nat) (s : canonTree) : nat :=
   countBLeafST n (proj1_sig s).
@@ -6435,8 +6436,8 @@ Proof.
  simpl in pf1,pf2;
  destruct pf1 as [? [? [? ?]]];
  destruct pf2 as [? [? [? ?]]];simpl.
- icase b;icase b0;inv H. 
- inversion H;subst. 
+ icase b;icase b0;inv H.
+ inversion H;subst.
  inversion H2;subst.
  tauto.
  inversion H;subst.
@@ -6532,8 +6533,8 @@ Qed.
 (*L38*)
 Lemma countBLeafCT_lt : forall n s1 s2,
   (s1 <= s2)%ba ->
-   s1 <> s2 -> 
-   height s2 <= n -> 
+   s1 <> s2 ->
+   height s2 <= n ->
    countBLeafCT n s1 < countBLeafCT n s2.
 Proof.
   unfold height;simpl.
@@ -6619,7 +6620,7 @@ Qed.
 
 (*L40*)
 Lemma countBLeafCT_bot: forall n, countBLeafCT n bot = 0.
-Proof.  
+Proof.
  induction n.
  assert (H1 := countBLeafCT_lt 0 bot top).
  spec H1.
@@ -6663,9 +6664,9 @@ Proof.
  omega.
 Qed.
 
-(*L42*) 
-Lemma countBLeafCT_positive : forall s n, 
- height s <= n -> bot <> s -> 
+(*L42*)
+Lemma countBLeafCT_positive : forall s n,
+ height s <= n -> bot <> s ->
  0 < countBLeafCT n s.
 Proof.
  intros.
@@ -6845,12 +6846,12 @@ Qed.
   destruct H.
   rewrite lub_commute in H0. rewrite lub_bot in H0. trivial.
  Qed.
- 
+
  Lemma join_top : forall t1 t2, join top t1 t2 -> t1 = bot /\ t2 = top.
  Proof.
    intros. destruct H.
    rewrite glb_commute, glb_top in H.
-   rewrite lub_commute, lub_top in H0. split; auto. 
+   rewrite lub_commute, lub_top in H0. split; auto.
  Qed.
 
  Lemma tree_height_0: forall s, height s = 0 -> s = top \/ s = bot.
@@ -6923,10 +6924,10 @@ Proof.
  assert (H3 := max_lub _ _ _ H1 H2).
  omega.
 Qed.
- 
+
  (*L57*)
- Lemma height_glb1 : forall s1 s2, 
-  height s1 <= tree_height s2-> 
+ Lemma height_glb1 : forall s1 s2,
+  height s1 <= tree_height s2->
   height (glb s1 s2) <= height s2.
  Proof.
   unfold tree_height;simpl.
@@ -6936,7 +6937,7 @@ Qed.
   unfold height;simpl.
   omega.
  Qed.
- 
+
  (*L54*)
  Lemma tree_height_lub_limit: forall n s1 s2,
   height s1 <= n ->
@@ -6991,9 +6992,9 @@ Qed.
  Qed.
 
  (*L56*)
- Lemma height_lub1 : forall s1 s2, 
-  height s1 <= height s2-> 
-  height (lub s1 s2) <= height s2. 
+ Lemma height_lub1 : forall s1 s2,
+  height s1 <= height s2->
+  height (lub s1 s2) <= height s2.
  Proof.
   unfold height;simpl.
   intros.
@@ -7162,8 +7163,8 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
          end
  end.
  (*L48*)
- Lemma share_metric_nerr : forall s n, 
-  height s < n -> 
+ Lemma share_metric_nerr : forall s n,
+  height s < n ->
   0 < share_metric n s.
  Proof.
   intros.
@@ -7175,10 +7176,10 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   unfold height in H;simpl in H.
   omega.
  Qed.
- 
- (*L49*) 
- Lemma share_metric_err  : forall s n, 
-  n <= height s -> 
+
+ (*L49*)
+ Lemma share_metric_err  : forall s n,
+  n <= height s ->
   share_metric n s = 0.
  Proof.
   intros.
@@ -7189,8 +7190,8 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   elimtype False;omega.
  Qed.
  (*L50*)
- Lemma share_metric_height_monotonic : forall s n1 n2, 
-  n1<=n2 -> 
+ Lemma share_metric_height_monotonic : forall s n1 n2,
+  n1<=n2 ->
   share_metric n1 s <= share_metric n2 s.
  Proof.
   intros.
@@ -7209,10 +7210,10 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   omega.
  Qed.
  (*L51*)
- Lemma share_metric_lub : forall s s' n, 
-  ~(s'<=s)%ba-> 
-  0 < share_metric n s -> 
-  0 < share_metric n (lub s s') -> 
+ Lemma share_metric_lub : forall s s' n,
+  ~(s'<=s)%ba->
+  0 < share_metric n s ->
+  0 < share_metric n (lub s s') ->
   (share_metric n s<share_metric n (lub s s')).
  Proof.
   intros.
@@ -7234,12 +7235,12 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   inv H1.
  Qed.
  (*L52*)
- Lemma share_metric_glb : forall s s' n, 
-  ~(s<=s')%ba-> 
-  0 < share_metric n s -> 
+ Lemma share_metric_glb : forall s s' n,
+  ~(s<=s')%ba->
+  0 < share_metric n s ->
   0 < share_metric n (glb s s') ->
  (share_metric n (glb s s') < share_metric n s)%nat.
- Proof. 
+ Proof.
   intros.
   icase n.
   simpl.
@@ -7262,10 +7263,10 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
 
  (*L53*)
  Lemma share_metric_dif_monotonic: forall s1 s2 n n0,
- (s1<=s2)%ba -> n<=n0 -> 
+ (s1<=s2)%ba -> n<=n0 ->
   height s1 < n ->
   height s2 < n ->
- (share_metric n s2 - share_metric n s1 <= 
+ (share_metric n s2 - share_metric n s1 <=
   share_metric n0 s2 - share_metric n0 s1).
  Proof.
   intros.
@@ -7327,11 +7328,11 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
  Qed.
 (*L2*)
  Lemma height_bot: height bot = 0.
- Proof.  
+ Proof.
   tauto.
  Qed.
 (*L3*)
- Lemma height_zero_eq: forall t, 
+ Lemma height_zero_eq: forall t,
   height t = 0 -> {t = top} + {t = bot}.
  Proof.
   intros.
@@ -7451,7 +7452,7 @@ Proof.
  assert (H1 := decompose_height _ _ _ _ Heqn H).
  simpl in *.
  omega.
-Qed. 
+Qed.
 
 
 Lemma tree_top_rewrite : forall c,
@@ -7469,9 +7470,9 @@ Proof.
  f_equal. apply proof_irr.
 Qed.
 
-Lemma tree_basic_rewrite : forall b c, 
+Lemma tree_basic_rewrite : forall b c,
 exist _ (Leaf b) c = top \/ exist _ (Leaf b) c = bot.
-Proof. 
+Proof.
  intros. icase b.
  left;apply tree_top_rewrite.
  right;apply tree_bot_rewrite.
@@ -7502,7 +7503,7 @@ Proof.
 Qed.
 
 Lemma decompose_bot: decompose bot = (bot,bot).
-Proof. 
+Proof.
  apply decompose_basic.
 Qed.
 
@@ -7545,7 +7546,7 @@ Qed.
 
 Lemma bot_unrel: forall a,
  unrel bot a = a.
-Proof. 
+Proof.
  intros.
  rewrite unrel_equation.
  unfold bot. trivial.
@@ -7571,8 +7572,8 @@ Qed.
     generalize (mkCanon_eq_split _ _ _ _ H3);intro.
     destruct H2 as [? ?].
     split;apply exist_ext;rewrite mkCanon_union;congruence.
-    
-    apply exist_ext. 
+
+    apply exist_ext.
     destruct H. inversion H. inversion H0.
     generalize (mkCanon_union (Node t11 t12) (Node t21 t22));intro.
     rewrite mkCanon_union in H2.
@@ -7602,8 +7603,8 @@ Qed.
     generalize (mkCanon_eq_split _ _ _ _ H3);intro.
     destruct H2 as [? ?].
     split;apply exist_ext; simpl; rewrite mkCanon_intersect;congruence.
-    
-    apply exist_ext. 
+
+    apply exist_ext.
     destruct H. inversion H. inversion H0.
     generalize (mkCanon_intersect (Node t11 t12) (Node t21 t22));intro.
     rewrite mkCanon_intersect in H2.
@@ -7676,13 +7677,13 @@ Proof.
  simpl. destruct c as [? [? [? ?]]].
  replace (tree_decompose a) with (decompose a) by trivial.
  rewrite H0.
- icase t1. icase b. tauto.
+ icase t1. icase b. try tauto.
  repeat f_equal. apply proof_irr.
 Qed.
 
 Lemma unrel_left_obmit: forall a a1 a2 t c c',
  decompose a = (a1,a2) ->
- unrel (exist _ (Node (Leaf false) t) c) a = 
+ unrel (exist _ (Node (Leaf false) t) c) a =
  unrel (exist _ t c') a2.
 Proof.
  intros.
@@ -7789,7 +7790,7 @@ Qed.
 Lemma unrel_join: forall x a b c,
  join a b c ->
  join (unrel x a) (unrel x b) (unrel x c).
-Proof. 
+Proof.
  intros.
  destruct H.
  split. rewrite<- unrel_glb.
@@ -7799,7 +7800,7 @@ Qed.
 
 Lemma unrel_disjoint: forall a a',
  a <> bot ->
- glb a a' = bot -> 
+ glb a a' = bot ->
  unrel a a' = bot.
 Proof.
  intro a.
@@ -7831,7 +7832,7 @@ Proof.
  intro.
  inversion H5.
 Qed.
- 
+
 Lemma decompose_height_zero: forall s sL sR,
   decompose s = (sL,sR) ->
   height s = 0 ->
@@ -7848,11 +7849,11 @@ Lemma decompose_equal: forall a b aL aR bL bR,
  decompose a = (aL,aR) ->
  decompose b = (bL,bR) ->
  (a = b <-> aL = bL /\ aR = bR).
-Proof with auto. 
+Proof with auto.
   intros.
   assert (forall x y, x = y <-> join bot x y).
    intros;split;intro. subst.
-   split. 
+   split.
    rewrite glb_commute.
    apply glb_bot.
    rewrite lub_commute.
@@ -7890,7 +7891,7 @@ Proof.
  intros.
  apply tree_avg_avg2round in H.
  apply tree_avg_avg2round in H0.
- destruct H. destruct H0. 
+ destruct H. destruct H0.
  split;congruence.
 Qed.
 
@@ -7917,7 +7918,7 @@ Proof with try tauto.
 Qed.
 
 Lemma tree_avg_nonzero: forall sL sR s n,
-  avg n sL sR = Some s -> 
+  avg n sL sR = Some s ->
   (s <> bot <-> sL <> bot \/ sR <> bot).
 Proof with try tauto.
   intros.
@@ -7956,7 +7957,7 @@ Lemma decompose_Rsh: forall sh,
 Proof.
  intros. unfold Rsh. simpl.
  rewrite unrel_equation.
- unfold rel;simpl. 
+ unfold rel;simpl.
  destruct (tree_decompose sh);simpl.
  rewrite unrel_equation. trivial.
 Qed.
@@ -7966,7 +7967,7 @@ Lemma decompose_Lsh: forall sh,
 Proof.
  intros. unfold Lsh. simpl.
  rewrite unrel_equation.
- unfold rel;simpl. 
+ unfold rel;simpl.
  destruct (tree_decompose sh);simpl.
  auto.
 Qed.
@@ -7998,7 +7999,7 @@ Qed.
 Lemma lub_rel_recompose: forall sh1 sh2,
 lub (rel Lsh sh1) (rel Rsh sh2) = recompose (sh1,sh2).
 Proof.
- intros. 
+ intros.
  rewrite rel_Lsh, rel_Rsh.
  erewrite decompose_lub;eauto.
  rewrite decompose_recompose. f_equal.

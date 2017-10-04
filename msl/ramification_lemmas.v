@@ -19,15 +19,15 @@
 (*    RAMIF_Q.plain_spec                                                      *)
 (*    RAMIF_Q.exp_right                                                       *)
 
-Require Import msl.base.
-Require Import msl.Coqlib2.
-Require Import msl.simple_CCC.
-Require Import msl.seplog.
-Require Import msl.log_normalize.
+Require Import VST.msl.base.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.simple_CCC.
+Require Import VST.msl.seplog.
+Require Import VST.msl.log_normalize.
 
 Local Open Scope logic.
 
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}: 
+Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
                       forall P P' Q: A, P |-- P' ->  derives (sepcon P (wand P' Q)) Q.
 Proof.
 intros.
@@ -59,9 +59,9 @@ Proof.
   apply TT_right.
 Qed.
 
-Lemma trans: forall g m l g' m' l', 
-      g |-- m * (m' -* g') -> 
-      m |-- l * (l' -* m') -> 
+Lemma trans: forall g m l g' m' l',
+      g |-- m * (m' -* g') ->
+      m |-- l * (l' -* m') ->
       g |-- l * (l' -* g').
 Proof.
   intros.
@@ -76,7 +76,7 @@ Proof.
 Qed.
 
 Lemma trans':
-   forall (m l g' m' l': A), 
+   forall (m l g' m' l': A),
        m |-- l * (l' -* m') ->
        m * (m' -* g') |-- l * (l' -* g').
 Proof.
@@ -84,8 +84,8 @@ Proof.
 Qed.
 
 Lemma trans'':
-   forall (p g' m' l': A), 
-       p |-- l' -* m' -> 
+   forall (p g' m' l': A),
+       p |-- l' -* m' ->
        p * (m' -* g') |-- (l' -* g').
 Proof.
   intros.
@@ -149,7 +149,7 @@ Proof.
   apply wand_derives; auto.
   apply (exp_right a); auto.
 Qed.
-  
+
 End RAMIF_PLAIN.
 End RAMIF_PLAIN.
 
@@ -245,7 +245,7 @@ Proof.
   eapply trans with (mL' := m') (mG' := m') (fL := id B) (fG := id B); eauto.
 Qed.
 
-Lemma trans'': 
+Lemma trans'':
   forall {CS: ClassicalSep A}
      {B C: Type} (f: B->C) p l m g1 g2,
      g2 = g1 oo f ->
@@ -409,7 +409,7 @@ Proof.
   apply andp_right; [apply andp_left1; auto |].
   rewrite <- corable_andp_sepcon1 by auto.
   apply wand_sepcon_adjoint.
-  apply modus_ponens.  
+  apply modus_ponens.
 Qed.
 
 Lemma solve: forall {B} g l p g' l' F,

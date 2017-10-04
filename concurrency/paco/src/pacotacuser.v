@@ -1,4 +1,4 @@
-Require Export concurrency.paco.src.paconotation concurrency.paco.src.pacotac concurrency.paco.src.pacodef.
+Require Export VST.concurrency.paco.src.paconotation VST.concurrency.paco.src.pacotac VST.concurrency.paco.src.pacodef.
 Set Implicit Arguments.
 
 (** ** Type Class for acc, mult, fold and unfold

@@ -2,10 +2,10 @@
  * Copyright (c) 2009-2010, Andrew Appel, Robert Dockins and Aquinas Hobor.
  *
  *)
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 
 Class Age_alg (A:Type) {JOIN: Join A}{as_age : ageable A} :=
 mkAge {
@@ -29,8 +29,8 @@ Proof.
 Qed.
 
 Lemma age1_joins_eq {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{XA: Age_alg A}: forall phi1 phi2,
-        joins phi1 phi2 -> 
-        forall phi1', age1 phi1 = Some phi1' -> 
+        joins phi1 phi2 ->
+        forall phi1', age1 phi1 = Some phi1' ->
         forall phi2', age1 phi2 = Some phi2' ->
         joins phi1' phi2'.
 Proof.
@@ -79,7 +79,7 @@ Section BIJECTION.
     split. red; repeat rewrite gf; auto.
     rewrite H2; rewrite H3.
     auto.
-    
+
     (* commute3 *)
     revert H0; case_eq (age1 (g x)); intros; try discriminate.
     inv H1.
@@ -90,7 +90,7 @@ Section BIJECTION.
     split. red; repeat rewrite gf; auto.
     repeat rewrite gf. rewrite H2; rewrite H3.
     repeat rewrite fg; split; auto.
-    
+
     (* commute4 *)
     revert H0; case_eq (age1 (g z)); intros; try discriminate.
     inv H1.
@@ -124,7 +124,7 @@ Section PROD.
     simpl in *.
     case_eq (age1 xa); intros; inv H2.
     destruct (age1_join _ H H1) as [ya' [za' [? [? ?]]]].
-    exists (ya',yb); exists (za',zb); 
+    exists (ya',yb); exists (za',zb);
       rewrite H3; rewrite H4; repeat split; auto.
 
     (* commute2 *)
@@ -132,7 +132,7 @@ Section PROD.
     simpl in *.
     case_eq (age1 za); intros; inv H2.
     destruct (age1_join2 _ H H1) as [xa' [ya' [? [? ?]]]].
-    exists (xa',xb); exists (ya',yb); 
+    exists (xa',xb); exists (ya',yb);
       rewrite H3; rewrite H4; repeat split; auto.
 
     (* commute3 *)
@@ -173,7 +173,7 @@ Section PROD'.
     simpl in *.
     case_eq (age1 xb); intros; inv H2.
     destruct (age1_join _ H0 H1) as [yb' [zb' [? [? ?]]]].
-    exists (ya,yb'); exists (za,zb'); 
+    exists (ya,yb'); exists (za,zb');
       rewrite H3; rewrite H4; repeat split; auto.
 
     (* commute2 *)
@@ -181,7 +181,7 @@ Section PROD'.
     simpl in *.
     case_eq (age1 zb); intros; inv H2.
     destruct (age1_join2 _ H0 H1) as [xb' [yb' [? [? ?]]]].
-    exists (xa,xb'); exists (ya,yb'); 
+    exists (xa,xb'); exists (ya,yb');
       rewrite H3; rewrite H4; repeat split; auto.
 
     (* commute3 *)
@@ -206,7 +206,7 @@ End PROD'.
 Lemma joins_fashionR {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{XA: Age_alg A} : forall x y,
   joins x y -> fashionR x y.
 Proof.
-  pose proof I.  
+  pose proof I.
   intros.
   unfold fashionR.
   destruct H0 as [z ?].
@@ -276,7 +276,7 @@ Qed.
     intros.
     destruct H; subst.
     exists x'. exists x'.
-    intuition. 
+    intuition.
     intros.
     destruct H; subst.
     exists z'; exists z'; intuition.
@@ -397,8 +397,8 @@ Proof.
   congruence.
 Qed.
 
-Lemma age_twin {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: 
-  forall phi1 phi2 n phi1', 
+Lemma age_twin {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
+  forall phi1 phi2 n phi1',
   level phi1 = level phi2 ->
   ageN n phi1 = Some phi1' ->
   exists phi2', ageN n phi2 = Some phi2' /\ level phi1' = level phi2'.
@@ -417,7 +417,7 @@ rename a into phi.
 assert (exists ophi2, age phi2 ophi2 /\ level phi = level ophi2).
 generalize (age_level _ _ H0); intro.
 rewrite H in H2; apply levelS_age1 in H2. destruct H2 as [y ?].
-exists y; split; auto. 
+exists y; split; auto.
 apply age_level in H0; apply age_level in H2; omega.
 destruct H2 as [ophi2 [? ?]].
 specialize (IHn _ _ _ H3 H1).
@@ -455,19 +455,23 @@ Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
 
-Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall x y : A, age x y -> age (core x) (core y).
 Proof.
  intros. unfold age in *.
  pose proof (core_unit x).
  unfold unit_for in H0.
  destruct (age1_join2 _ H0 H) as [a [b [? [? ?]]]].
- unfold age in H3. rewrite H3 in H; inv H. 
+ unfold age in H3. rewrite H3 in H; inv H.
  pose proof (core_unit y).
- pose proof (join_canc H1 H). subst. apply H2.
+ assert (a = core y); [|subst; auto].
+ eapply same_identity; eauto.
+ - eapply age_identity; eauto.
+   apply core_identity.
+ - apply core_identity.
 Qed.
 
-Lemma necR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma necR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall x y : A, necR x y -> necR (core x) (core y).
 Proof.
  induction 1.
@@ -597,7 +601,7 @@ Proof.
       * reflexivity.
 Qed.
 
-Lemma power_age_core: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} {CaA: Canc_alg A} (x y: A) n,
+Lemma power_age_core: forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Perm_alg A} {SaA: Sep_alg A} {XA: Age_alg A} (x y: A) n,
   relation_power n age x y -> relation_power n age (core x) (core y).
 Proof.
   intros.
@@ -672,7 +676,7 @@ Proof.
     exists y.
     split.
        unfold necR; auto.
-       exact H0.    
+       exact H0.
   + intros.
     apply nec_refl_or_later in H.
     destruct H.
@@ -680,7 +684,7 @@ Proof.
       split.
          unfold necR; auto.
          rewrite <- H0. rewrite -> Heqn. rewrite H. reflexivity.
-    - apply levelS_age in H0; destruct H0 as [y'' [? ?]]. 
+    - apply levelS_age in H0; destruct H0 as [y'' [? ?]].
       apply levelS_age in Heqn; destruct Heqn as [x'' [? ?]].
       remember (IHn x'' y'' H3 x') as HH; clear HeqHH.
       assert(necR x'' x').

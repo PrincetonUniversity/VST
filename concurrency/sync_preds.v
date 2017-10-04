@@ -8,42 +8,42 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.age_to_resource_at.
-Require Import veric.coqlib4.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.semantics.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.lksize.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
+Require Import VST.veric.coqlib4.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.lksize.
 Import threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -53,7 +53,7 @@ Set Bullet Behavior "Strict Subproofs".
 (* todo: maybe remove one of those lemmas *)
 
 Lemma isSome_find_map addr f lset :
-  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) = 
+  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) =
   ssrbool.isSome (AMap.find (elt:=option rmap) addr lset).
 Proof.
   match goal with |- _ ?a = _ ?b => destruct a eqn:E; destruct b eqn:F end; try reflexivity.
@@ -83,7 +83,7 @@ Qed.
 Local Open Scope nat_scope.
 
 (** * Results related to machine predicates *)
-   
+
 (* Instantiation of modules *)
 Import THE_JUICY_MACHINE.
 Import JSEM.
@@ -291,7 +291,7 @@ Proof.
   - hnf in *. rewrite <-EN.
     auto.
 Qed.
-  
+
 Lemma mem_compatible_with_same_except_cur tp m m' phi :
   same_except_cur m m' ->
   mem_compatible_with tp m phi ->
@@ -321,7 +321,7 @@ Qed.
 Lemma juicyRestrict_Max b ofs phi m (coh : access_cohere' m phi):
   (Mem.mem_access (juicyRestrict coh)) !! b ofs Max =
   (Mem.mem_access m) !! b ofs Max.
-Proof. 
+Proof.
   symmetry.
   apply (juicyRestrictMax coh (b, ofs)).
 Qed.
@@ -435,7 +435,7 @@ Proof.
   apply PTree_xmap_self, H.
 Qed.
 
-Lemma juicyRestrictCur_unchanged m phi 
+Lemma juicyRestrictCur_unchanged m phi
       (coh : access_cohere' m phi)
       (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc Cur) :
   Mem.mem_access (juicyRestrict coh) = Mem.mem_access m.
@@ -515,6 +515,8 @@ Proof.
   apply (P phi w1 w2); auto; eapply approx_p; eassumption.
 Qed.
 
+Import shares.
+
 Lemma positive_precise_joins_false R phi1 phi2 :
   positive_mpred R ->
   precise R ->
@@ -537,7 +539,10 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-  eapply self_join_pshare_false; eauto.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
 Qed.
 
 Lemma weak_positive_precise_joins_false R phi phi1 phi2 :
@@ -565,7 +570,10 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-  eapply self_join_pshare_false; eauto.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
 Qed.
 
 Lemma isLKCT_rewrite r :
@@ -580,7 +588,7 @@ Proof.
 Qed.
 
 Lemma isLK_rewrite r :
-  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  (forall (sh : Share.t) Psh (z : Z) (P : preds), r <> YES sh Psh (LK z) P)
   <->
   ~ isLK r.
 Proof.
@@ -596,8 +604,8 @@ Proof.
   rewrite age_to_resource_at.
   destruct (phi @ loc); simpl; auto.
   - apply prop_ext; split;
-      intros (sh & sh' & z & P & E);
-      injection E; intros; subst; eauto.
+      intros (shi & shi' & zi & Pi & Ei);
+      injection Ei; intros; subst; eauto.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
 Qed.
@@ -608,8 +616,8 @@ Proof.
   rewrite age_to_resource_at.
   destruct (phi @ loc); simpl; auto.
   - apply prop_ext; split;
-      intros (sh & sh' & z & P & E);
-      injection E; intros; subst; eauto.
+      intros (shi & shi' & zi & Pi & Ei);
+      injection Ei; intros; subst; eauto.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
 Qed.
@@ -624,8 +632,8 @@ Proof.
   breakhyps.
   rewr (phi @ loc) in H.
   pose proof (YES_inj _ _ _ _ _ _ _ _ H).
-  assert (snd ((x, x0, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
-    snd  (x2, x3, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  assert (snd ((x, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+          snd  (x2, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
   simpl in H2.
   apply SomeP_inj in H2.
   pose proof equal_f_dep H2 nil.
@@ -643,13 +651,13 @@ Proof.
   eauto.
 Qed.
 
-Lemma predat2 {phi loc R sh sh'} :
-  LKspec_ext R sh sh' loc phi ->
+Lemma predat2 {phi loc R sh } :
+  LKspec_ext R sh loc phi ->
   predat phi loc (approx (level phi) R).
 Proof.
   intros lk; specialize (lk loc); simpl in lk.
   if_tac in lk. 2:range_tac.
-  if_tac in lk. 2:tauto.
+  if_tac in lk. 2:congruence.
   hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
 Qed.
 

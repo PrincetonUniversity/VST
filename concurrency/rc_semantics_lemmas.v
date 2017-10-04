@@ -4,12 +4,12 @@ Require Import BinPos.
 
 Require Import Axioms.
 
-Require Import concurrency.compcert_imports. Import CompcertCommon.
+Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
@@ -32,20 +32,20 @@ Variable ge_T : Genv.t F_T V_T.
 
 Variable sim : SM_simulation_inject eff_S eff_T ge_S ge_T.
 
-Lemma rc_sim : 
+Lemma rc_sim :
   SM_simulation_inject (RC.effsem eff_S) eff_T ge_S ge_T.
 Proof.
-case: sim=> cd mtch ord e f g genv_infos h i j init step halt atext aftext. 
+case: sim=> cd mtch ord e f g genv_infos h i j init step halt atext aftext.
 eapply Build_SM_simulation_inject with
        (core_data   := cd)
        (core_ord    := ord)
-       (match_state := 
-         fun cd mu c m d tm => 
+       (match_state :=
+         fun cd mu c m d tm =>
            mtch cd mu (RC.core c) m d tm); eauto.
 { move=> v vals1 c1 m1 j0 vals2 m2 dS dT.
 move=> init1 inj vinj pres pres2 H I resp1 resp2 J K.
 have [c1' init1']:
-  exists c1', initial_core eff_S ge_S v vals1 = Some c1'.
+  exists c1', initial_core eff_S 0 ge_S v vals1 = Some c1'.
 { move: init1; rewrite /= /RC.initial_core.
   case x: (initial_core _ _ _ _)=> //.
   by case; case: c1=> c ?; case=> -> _; exists c. }
@@ -64,13 +64,13 @@ split=> //.
 split=> //.
 split=> //.
 split=> //.
-by exists estep'.                    
+by exists estep'.
 (*by exists U2.*) }
 { move=> cd0 mu c1 m1 c2 m2 v1 M; rewrite /= /RC.halted.
   case hlt1: (halted _ _)=> //.
   case def1: (vals_def _)=> //; case=> <-.
   case: (halt _ _ _ _ _ _ _ M hlt1)=> v2 []? []? ?.
-  exists v2; split=> //. }                                         
+  exists v2; split=> //. }
 { move=> cd0 mu c1 m1 c2 m2 e0 vals1 mtch' at1.
 have at1': at_external eff_S (RC.core c1) = Some (e0, vals1).
 { move: at1; rewrite /= /RC.at_external.

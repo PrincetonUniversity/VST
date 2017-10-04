@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -6,13 +6,13 @@ Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
 Local Open Scope logic.
 
-Definition block_data_order_loop2 := 
+Definition block_data_order_loop2 :=
    nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
 Fixpoint Xarray' (b: list int) (i k: nat) : list int :=
  match k with
  | O => nil
- | S k' => W (nthi b) (Z.of_nat i - 16 + (16-(Z.of_nat k)- Z.of_nat i) mod 16) :: 
+ | S k' => W (nthi b) (Z.of_nat i - 16 + (16-(Z.of_nat k)- Z.of_nat i) mod 16) ::
                  Xarray' b i k'
  end.
 
@@ -22,7 +22,7 @@ Lemma Xarray_simpl:
    forall b, length b = 16%nat -> Xarray b 16 = b.
 Proof.
 intros.
-assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b); 
+assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b);
  [ | apply H0; auto ].
 induction n; intros.
 clear H0. rewrite skipn_short by omega. reflexivity.
@@ -31,7 +31,7 @@ unfold Xarray'; fold Xarray'.
 rewrite IHn by omega. clear IHn.
 change (Z.of_nat 16) with 16%Z.
 
-assert (H1: firstn 1 (skipn (16 - S n) b) = 
+assert (H1: firstn 1 (skipn (16 - S n) b) =
             W (nthi b) (16 - 16 + (Z.of_nat (16 - S n) - 16) mod 16) :: nil). {
  unfold firstn.
  destruct (skipn (16 - S n) b) eqn:?.
@@ -47,7 +47,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  rewrite Z.sub_diag. rewrite Z.add_0_l.
  rewrite plus_0_l.
  rewrite Zminus_mod.
- rewrite Z.mod_same by omega. rewrite Z.sub_0_r. 
+ rewrite Z.mod_same by omega. rewrite Z.sub_0_r.
  rewrite Z.mod_mod by omega.
  assert (0 <= (Z.of_nat (16 - S n))mod 16 < 16)%Z by (apply Z.mod_pos_bound; omega).
  rewrite W_equation.
@@ -148,10 +148,10 @@ repeat match type of H0 with
 end.
 Qed.
 
-Lemma W_unfold: 
-  forall i b, 
+Lemma W_unfold:
+  forall i b,
   16 <= i < 64 ->
-   W (nthi b) (i) = 
+   W (nthi b) (i) =
     Int.add (W (nthi b) (i - 16 + 0))
              (Int.add
                 (Int.add (sigma_0 (W (nthi b) (i - 16 + 1)))
@@ -168,6 +168,7 @@ Proof.
         [do 2 f_equal; omega | ];
       f_equal; [do 2 f_equal; omega | f_equal; omega].
 Qed.
+
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
@@ -190,8 +191,8 @@ Lemma sha256_block_data_order_loop2_proof:
            data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv))
   block_data_order_loop2
   (normal_ret_assert
-    (PROP () 
-     LOCAL(temp _ctx ctx; 
+    (PROP ()
+     LOCAL(temp _ctx ctx;
                 temp _a (Vint (nthi (Round regs (nthi b) 63) 0));
                 temp _b (Vint (nthi (Round regs (nthi b) 63) 1));
                 temp _c (Vint (nthi (Round regs (nthi b) 63) 2));
@@ -205,30 +206,17 @@ Lemma sha256_block_data_order_loop2_proof:
             data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
 intros.
+unfold Delta_loop1.
 unfold block_data_order_loop2; simpl nth.
 rewrite semax_skip_seq.
-match goal with 
+match goal with
  | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3)] =>
       fold (Sfor s1 e s2 s3)
  end.
 abbreviate_semax.
-(*
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name t_ _t.
-name Ki _Ki.
-name ctx_ _ctx.
-name i_ _i.
-*)
 change 16%nat with LBLOCK.
 
-forward_for_simple_bound 64%Z 
+forward_for_simple_bound 64%Z
    (EX i:Z,
     PROP ((16 <= i)%Z )
     LOCAL  (temp _ctx ctx;
@@ -275,7 +263,7 @@ forward. (* T1 = X[i&0xf]; *)
 autorewrite with sublist. rewrite Zland_15.
 replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
   with (W (nthi b) (i - 16 + 0))
- by (replace (i mod 16) with ((i + 0) mod 16) 
+ by (replace (i mod 16) with ((i + 0) mod 16)
         by (rewrite Z.add_0_r; auto);
       rewrite extract_from_b; try omega; auto).
 
@@ -298,7 +286,7 @@ autorewrite with sublist.
 rename b into bb.
 assert (Hregs' := length_Round _ (nthi bb) (i-1) Hregs).
 remember (Round regs (nthi bb) (i - 1)) as regs' eqn:H1.
-(destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; 
+(destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]];
   try now inversion Hregs'); [ clear Hregs' ].
 change (nthi [a;b;c;d;e;f;g;h]) with (fun t => nth (Z.to_nat t) [a;b;c;d;e;f;g;h] Int.zero);
   cbv beta; simpl nth.

@@ -4,14 +4,14 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.psepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.boolean_alg.
-Require Import msl.eq_dec.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.psepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.boolean_alg.
+Require Import VST.msl.eq_dec.
 
-Require msl.tree_shares.
+Require VST.msl.tree_shares.
 
 Module Share : SHARE_MODEL := tree_shares.Share.
 Import Share.
@@ -74,7 +74,7 @@ Proof.
   apply identities_unique; auto.
   exists s.
   apply join_comm.
-  
+
   destruct (top_correct' s).
   assert (x = top).
   apply H; auto.
@@ -294,9 +294,9 @@ Qed.
 Lemma top_share_nonunit: nonunit top.
 Proof.
   repeat intro. unfold unit_for in H.
-  destruct H. rewrite glb_commute in H. rewrite glb_top in H. subst. 
+  destruct H. rewrite glb_commute in H. rewrite glb_top in H. subst.
   rewrite lub_bot in H0. apply nontrivial; auto.
-Qed.  
+Qed.
 
 Lemma bot_join_eq : forall x, join bot x x.
 Proof.
@@ -429,7 +429,7 @@ Qed.
 
 Lemma triple_join_exists_share : Trip_alg t.
 Proof.
-  repeat intro. 
+  repeat intro.
   destruct H; destruct H0; destruct H1.
   exists (lub a (lub b c)).
   split.
@@ -531,7 +531,7 @@ Section SM.
   Instance pa_map : Perm_alg map := Perm_fpm _ _.
   Instance sa_map : Sep_alg map := Sep_fpm _ _.
   Instance ca_map {CA: Canc_alg B} : Canc_alg map := Canc_fpm _.
-  Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _.
+  Instance da_map {DA: Disj_alg B} : Disj_alg map := @Disj_fpm _ _ _ _ _ _.
 
   Definition map_share (a:A) (m:map) : share :=
     match lookup_fpm m a with
@@ -559,11 +559,11 @@ Section SM.
 Lemma join_lifted {t} {J: Join t}:
     forall (a b c: lifted J), join a b c -> join (lifted_obj a) (lifted_obj b) (lifted_obj c).
 Proof. destruct a; destruct b; destruct c; simpl; intros. apply H.
-Qed. 
+Qed.
 
   Lemma map_join_char : forall m1 m2 m3,
     join m1 m2 m3 <->
-    (forall a, 
+    (forall a,
        join (map_share a m1) (map_share a m2) (map_share a m3) /\
        join (map_val a m1) (map_val a m2) (map_val a m3)).
   Proof with auto.
@@ -575,7 +575,7 @@ Qed.
     destruct (proj1_sig m3 a) as [[sh3 a3] ?| ]; inv H; try solve [inv H0]; simpl; auto.
     destruct H3; simpl in *; auto.
     split. apply join_lifted; auto. constructor; auto.
-    split; apply join_unit2; auto. 
+    split; apply join_unit2; auto.
     split; apply join_unit1; auto.
     split; apply join_unit1; auto.
     split; apply join_unit1; auto.
@@ -595,13 +595,13 @@ Qed.
     constructor. constructor.
  Qed.
 
-  Lemma empty_map_identity {CAB: Canc_alg B}: identity empty_map.
+  Lemma empty_map_identity {CAB: Disj_alg B}: identity empty_map.
   Proof.
     rewrite identity_unit_equiv.
     intro x. simpl. auto. constructor.
   Qed.
-    
-  Lemma map_identity_unique {CAB: Canc_alg B}: forall m1 m2:map,
+
+  Lemma map_identity_unique {CAB: Disj_alg B}: forall m1 m2:map,
     identity m1 -> identity m2 -> m1 = m2.
   Proof.
     intros.
@@ -627,14 +627,14 @@ Qed.
     destruct x2. destruct H2. simpl in *. apply no_units in H. contradiction.
   Qed.
 
-  Lemma map_identity_is_empty  {CAB: Canc_alg B} : forall m,
+  Lemma map_identity_is_empty  {CAB: Disj_alg B} : forall m,
     identity m -> m = empty_map.
   Proof.
     intros; apply map_identity_unique; auto.
     apply empty_map_identity.
   Qed.
 
-  Lemma empty_map_join {CAB: Canc_alg B} : forall m,
+  Lemma empty_map_join {CAB: Disj_alg B} : forall m,
     join empty_map m m.
   Proof.
     intro m. destruct (join_ex_units m).
@@ -650,7 +650,7 @@ Qed.
     unfold map_val, map_share, lookup_fpm.
     destruct (proj1_sig m a); intuition.
     disc.
-    contradiction (no_units a0 a0). destruct a0. simpl in *. subst. 
+    contradiction (no_units a0 a0). destruct a0. simpl in *. subst.
     contradiction (n bot). auto.
   Qed.
 
@@ -723,7 +723,7 @@ Qed.
     rewrite fpm_gss. auto.
   Qed.
 
-  Lemma map_gso_val : forall i j v m m', 
+  Lemma map_gso_val : forall i j v m m',
        i <> j ->
        map_upd j v m = Some m' ->
        map_val i m = map_val i m'.
@@ -793,7 +793,7 @@ Qed.
      fold_right
       (fun (ab:A * B) m =>
         insert_fpm EqDec_A
-           (fst ab) 
+           (fst ab)
            (mk_lifted fullshare top_share_nonunit,snd ab) m)
       empty_map l.
 
@@ -864,7 +864,7 @@ Qed.
           (build_map (l1++l2)).
   Proof.
     induction l1; intros.
-    simpl app. 
+    simpl app.
     unfold build_map at 1.
     simpl fold_right.
     apply empty_fpm_join; auto with typeclass_instances.

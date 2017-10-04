@@ -1,6 +1,6 @@
 Require Import JMeq.
-Require Import concurrency.paco.src.hpattern.
-Require Export concurrency.paco.src.paconotation.
+Require Import VST.concurrency.paco.src.hpattern.
+Require Export VST.concurrency.paco.src.paconotation.
 
 (** * Tactic support for [paco] library
 
@@ -209,12 +209,12 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 1
 *)
 
-Ltac paco_cont1 e0 := 
+Ltac paco_cont1 e0 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 paco_convert e0 x0 EQ0;
 intros x0 EQ0;
 generalize EQ0; clear EQ0;
-move x0 at top; 
+move x0 at top;
 paco_generalize_hyp _paco_mark; revert x0.
 
 Lemma _paco_pre1: forall T0 (gf: rel1 T0) x0
@@ -244,7 +244,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 2
 *)
 
-Ltac paco_cont2 e0 e1 := 
+Ltac paco_cont2 e0 e1 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 paco_convert e1 x1 EQ1;
@@ -252,7 +252,7 @@ paco_convert e0 x0 EQ0;
 intros x0 EQ0;
 intros x1 EQ1;
 generalize (conj EQ0 EQ1); clear EQ0 EQ1;
-move x0 at top; move x1 at top; 
+move x0 at top; move x1 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1.
 
 Lemma _paco_pre2: forall T0 T1 (gf: rel2 T0 T1) x0 x1
@@ -282,7 +282,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 3
 *)
 
-Ltac paco_cont3 e0 e1 e2 := 
+Ltac paco_cont3 e0 e1 e2 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -293,7 +293,7 @@ intros x0 EQ0;
 intros x1 EQ1;
 intros x2 EQ2;
 generalize (conj EQ0 (conj EQ1 EQ2)); clear EQ0 EQ1 EQ2;
-move x0 at top; move x1 at top; move x2 at top; 
+move x0 at top; move x1 at top; move x2 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2.
 
 Lemma _paco_pre3: forall T0 T1 T2 (gf: rel3 T0 T1 T2) x0 x1 x2
@@ -323,7 +323,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 4
 *)
 
-Ltac paco_cont4 e0 e1 e2 e3 := 
+Ltac paco_cont4 e0 e1 e2 e3 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -337,7 +337,7 @@ intros x1 EQ1;
 intros x2 EQ2;
 intros x3 EQ3;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 EQ3))); clear EQ0 EQ1 EQ2 EQ3;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3.
 
 Lemma _paco_pre4: forall T0 T1 T2 T3 (gf: rel4 T0 T1 T2 T3) x0 x1 x2 x3
@@ -367,7 +367,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 5
 *)
 
-Ltac paco_cont5 e0 e1 e2 e3 e4 := 
+Ltac paco_cont5 e0 e1 e2 e3 e4 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -384,7 +384,7 @@ intros x2 EQ2;
 intros x3 EQ3;
 intros x4 EQ4;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 EQ4)))); clear EQ0 EQ1 EQ2 EQ3 EQ4;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4.
 
 Lemma _paco_pre5: forall T0 T1 T2 T3 T4 (gf: rel5 T0 T1 T2 T3 T4) x0 x1 x2 x3 x4
@@ -414,7 +414,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 6
 *)
 
-Ltac paco_cont6 e0 e1 e2 e3 e4 e5 := 
+Ltac paco_cont6 e0 e1 e2 e3 e4 e5 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -434,7 +434,7 @@ intros x3 EQ3;
 intros x4 EQ4;
 intros x5 EQ5;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 EQ5))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5.
 
 Lemma _paco_pre6: forall T0 T1 T2 T3 T4 T5 (gf: rel6 T0 T1 T2 T3 T4 T5) x0 x1 x2 x3 x4 x5
@@ -464,7 +464,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 7
 *)
 
-Ltac paco_cont7 e0 e1 e2 e3 e4 e5 e6 := 
+Ltac paco_cont7 e0 e1 e2 e3 e4 e5 e6 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -487,7 +487,7 @@ intros x4 EQ4;
 intros x5 EQ5;
 intros x6 EQ6;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 EQ6)))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6.
 
 Lemma _paco_pre7: forall T0 T1 T2 T3 T4 T5 T6 (gf: rel7 T0 T1 T2 T3 T4 T5 T6) x0 x1 x2 x3 x4 x5 x6
@@ -517,7 +517,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 8
 *)
 
-Ltac paco_cont8 e0 e1 e2 e3 e4 e5 e6 e7 := 
+Ltac paco_cont8 e0 e1 e2 e3 e4 e5 e6 e7 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -543,7 +543,7 @@ intros x5 EQ5;
 intros x6 EQ6;
 intros x7 EQ7;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 EQ7))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7.
 
 Lemma _paco_pre8: forall T0 T1 T2 T3 T4 T5 T6 T7 (gf: rel8 T0 T1 T2 T3 T4 T5 T6 T7) x0 x1 x2 x3 x4 x5 x6 x7
@@ -573,7 +573,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 9
 *)
 
-Ltac paco_cont9 e0 e1 e2 e3 e4 e5 e6 e7 e8 := 
+Ltac paco_cont9 e0 e1 e2 e3 e4 e5 e6 e7 e8 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -602,7 +602,7 @@ intros x6 EQ6;
 intros x7 EQ7;
 intros x8 EQ8;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 EQ8)))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8.
 
 Lemma _paco_pre9: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 (gf: rel9 T0 T1 T2 T3 T4 T5 T6 T7 T8) x0 x1 x2 x3 x4 x5 x6 x7 x8
@@ -632,7 +632,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 10
 *)
 
-Ltac paco_cont10 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 := 
+Ltac paco_cont10 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -664,7 +664,7 @@ intros x7 EQ7;
 intros x8 EQ8;
 intros x9 EQ9;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 EQ9))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9.
 
 Lemma _paco_pre10: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 (gf: rel10 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9
@@ -694,7 +694,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 11
 *)
 
-Ltac paco_cont11 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 := 
+Ltac paco_cont11 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -729,7 +729,7 @@ intros x8 EQ8;
 intros x9 EQ9;
 intros x10 EQ10;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 (conj EQ9 EQ10)))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9 EQ10;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10.
 
 Lemma _paco_pre11: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 (gf: rel11 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
@@ -759,7 +759,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 12
 *)
 
-Ltac paco_cont12 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 := 
+Ltac paco_cont12 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -797,7 +797,7 @@ intros x9 EQ9;
 intros x10 EQ10;
 intros x11 EQ11;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 (conj EQ9 (conj EQ10 EQ11))))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9 EQ10 EQ11;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11.
 
 Lemma _paco_pre12: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 (gf: rel12 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
@@ -827,7 +827,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 13
 *)
 
-Ltac paco_cont13 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 := 
+Ltac paco_cont13 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -868,7 +868,7 @@ intros x10 EQ10;
 intros x11 EQ11;
 intros x12 EQ12;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 (conj EQ9 (conj EQ10 (conj EQ11 EQ12)))))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9 EQ10 EQ11 EQ12;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12.
 
 Lemma _paco_pre13: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 (gf: rel13 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12
@@ -898,7 +898,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 14
 *)
 
-Ltac paco_cont14 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 := 
+Ltac paco_cont14 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -942,7 +942,7 @@ intros x11 EQ11;
 intros x12 EQ12;
 intros x13 EQ13;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 (conj EQ9 (conj EQ10 (conj EQ11 (conj EQ12 EQ13))))))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9 EQ10 EQ11 EQ12 EQ13;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top; move x13 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top; move x13 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13.
 
 Lemma _paco_pre14: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 (gf: rel14 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13
@@ -972,7 +972,7 @@ let CIH' := fresh CIH in try rename INC into CIH'.
 (** *** Arity 15
 *)
 
-Ltac paco_cont15 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 e14 := 
+Ltac paco_cont15 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 e14 :=
 let x0 := fresh "_paco_v_" in let EQ0 := fresh "_paco_EQ_" in
 let x1 := fresh "_paco_v_" in let EQ1 := fresh "_paco_EQ_" in
 let x2 := fresh "_paco_v_" in let EQ2 := fresh "_paco_EQ_" in
@@ -1019,7 +1019,7 @@ intros x12 EQ12;
 intros x13 EQ13;
 intros x14 EQ14;
 generalize (conj EQ0 (conj EQ1 (conj EQ2 (conj EQ3 (conj EQ4 (conj EQ5 (conj EQ6 (conj EQ7 (conj EQ8 (conj EQ9 (conj EQ10 (conj EQ11 (conj EQ12 (conj EQ13 EQ14)))))))))))))); clear EQ0 EQ1 EQ2 EQ3 EQ4 EQ5 EQ6 EQ7 EQ8 EQ9 EQ10 EQ11 EQ12 EQ13 EQ14;
-move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top; move x13 at top; move x14 at top; 
+move x0 at top; move x1 at top; move x2 at top; move x3 at top; move x4 at top; move x5 at top; move x6 at top; move x7 at top; move x8 at top; move x9 at top; move x10 at top; move x11 at top; move x12 at top; move x13 at top; move x14 at top;
 paco_generalize_hyp _paco_mark; revert x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14.
 
 Lemma _paco_pre15: forall T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 (gf: rel15 T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14) x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
@@ -1136,7 +1136,7 @@ Tactic Notation "pcofix" ident(CIH) "using" constr(lem) "with" ident(nr) :=
      end; destruct TMP);
   clear TMP;
   revert N;
-  match goal with 
+  match goal with
   | [|- let _ := 0 in _] => intros _; pcofix0 CIH using lem with nr
   | [|- let _ := 1 in _] => intros _; pcofix1 CIH using lem with nr
   | [|- let _ := 2 in _] => intros _; pcofix2 CIH using lem with nr

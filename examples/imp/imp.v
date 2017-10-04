@@ -8,7 +8,7 @@ Require Import msl.msl_standard.
 Definition ident := nat.
 Definition addr  := nat.
 
-(* Values are either integers or pointers (addresses) *) 
+(* Values are either integers or pointers (addresses) *)
 Inductive val : Set :=
   | int_val : nat -> val
   | ptr_val : addr -> val.
@@ -54,18 +54,18 @@ Inductive cmd :=
 Inductive fun_decl :=
   { fnd_formals : list ident
   ; fnd_locals  : list (ident * val)
-  ; fnd_cmd     : cmd 
+  ; fnd_cmd     : cmd
   ; fnd_valid   : NoDup (fnd_formals ++ map (@fst _ _) fnd_locals)
   }.
 
-(* A program is a mapping from function identifiers to function declarations. *) 
+(* A program is a mapping from function identifiers to function declarations. *)
 Definition program_unit := nat -> option fun_decl.
 
 
 (** Operational semantics **)
 
 (* Controls capture the control stack of imperative languages.
- 
+
     kseq c k       means "execute c, then run k"
     kcall i rho k  means "when a return is executed, unwind to this point,
                          restore local varibles rho, and update i with the
@@ -135,7 +135,7 @@ Inductive step (pu:program_unit) :
 
  | step_if_false : forall k rho m e c1 c2,
        proj1_sig e rho = Some (int_val 0) ->
-       
+
        step pu k rho m
                (cif e c1 c2)
                (kseq c2 k) rho m
@@ -143,7 +143,7 @@ Inductive step (pu:program_unit) :
  | step_if_true : forall k rho m x e c1 c2,
        x <> 0 ->
        proj1_sig e rho = Some (int_val x) ->
-       
+
        step pu k rho m
                (cif e c1 c2)
                (kseq c1 k) rho m
@@ -204,7 +204,7 @@ Inductive step (pu:program_unit) :
  | step_store : forall k rho m e1 a e2 v m',
        proj1_sig e1 rho = Some (ptr_val a) ->
        proj1_sig e2 rho = Some v ->
-       
+
        ShareMap.map_upd _ _ _ a v m = Some m' ->
 
        step pu k rho m

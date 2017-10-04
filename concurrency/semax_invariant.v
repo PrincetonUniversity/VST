@@ -8,43 +8,43 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.age_to.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.seplog.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.coqlib5.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.semantics.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.lksize.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.age_to.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.seplog.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.lksize.
 Import threadPool.
 
 (*! Instantiation of modules *)
@@ -110,22 +110,22 @@ Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
   forall loc : address,
     match AMap.find loc lset with
-    
+
     (* not a lock *)
     | None => ~isLK (phi @ loc) (* /\ ~isCT (phi @ loc) *)
-    
+
     (* locked lock *)
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
       (4 | snd loc) /\
-      (snd loc + 4 <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Int.modulus)%Z /\
       exists R, lkat R loc phi
-    
+
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
       (4 | snd loc) /\
-      (snd loc + 4 <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Int.modulus)%Z /\
       exists (R : mpred),
         lkat R loc phi /\
         (app_pred R (age_by 1 lockphi) \/ level phi = O)
@@ -158,7 +158,7 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
 
 Lemma lock_sparsity_age_to tp n :
-  lock_sparsity (lset tp) -> 
+  lock_sparsity (lset tp) ->
   lock_sparsity (lset (age_tp_to n tp)).
 Proof.
   destruct tp as [A B C lset0]; simpl.
@@ -297,7 +297,7 @@ Definition threads_wellformed tp :=
     end.
 
 (* Havent' move this, but it's already defined in the concurrent_machien...
- * Probably in the wrong part... 
+ * Probably in the wrong part...
  * SC: I had to change unique_Krun to include ~ Halted. Because halted
  * threads are still in Krun. (Although, ass you know right now there are no Hatled
  * threads...)  *)

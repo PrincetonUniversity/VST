@@ -1,32 +1,32 @@
 (** ** Memories equal up to alpha-renaming *)
 
 Require Import compcert.lib.Axioms.
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.val_casted.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.val_casted.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.
 Require Import compcert.common.Values. (*for val*)
 (* Require Import compcert.common.Globalenvs. *)
 Require Import compcert.common.Memory.
-Require Import concurrency.memory_lemmas.
+Require Import VST.concurrency.memory_lemmas.
 (* Require Import compcert.common.Events. *)
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.dry_context.
-Require Import concurrency.semantics.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.semantics.
 
 (** ** Block renamings*)
 Module Renamings.
@@ -231,8 +231,8 @@ Qed.
     erewrite restrPermMap_valid in n; by exfalso.
     erewrite restrPermMap_valid in v; by exfalso.
   Qed.
-  
-  
+
+
   Lemma incr_domain_id:
     forall m f f'
       (Hincr: ren_incr f f')
@@ -254,19 +254,19 @@ Qed.
     apply id_ren_correct in Hid;
       by subst.
   Qed.
-  
+
   Hint Immediate ren_incr_refl ren_separated_refl : renamings.
 
   Hint Resolve id_ren_correct id_ren_domain id_ren_validblock
        id_ren_invalidblock : id_renamings.
-  
+
 End Renamings.
 
 (** ** Well-Defined values with respect to a renaming*)
 Module ValueWD.
 
   Import Renamings.
-  
+
   Hint Immediate ren_domain_incr_refl : wd.
 
   (** Valid values are the ones that have no pointers outside the domain of f*)
@@ -276,7 +276,7 @@ Module ValueWD.
       exists b', f b = Some b'
     | _ => True
     end.
-  
+
   Inductive valid_val_list (f: memren) : seq val -> Prop :=
   | vs_nil: valid_val_list f [::]
   | vs_cons: forall v vs,
@@ -381,7 +381,7 @@ Module ValueWD.
   Proof.
     simpl; auto.
   Qed.
-  
+
   Lemma valid_val_one:
     forall f, valid_val f Vone.
   Proof.
@@ -432,7 +432,7 @@ Module ValueWD.
     destruct v1; simpl; auto;
     destruct v2; simpl; auto.
   Qed.
-  
+
   Lemma valid_val_mulhu:
     forall f v1 v2,
       valid_val f (Val.mulhu v1 v2).
@@ -468,13 +468,13 @@ Module ValueWD.
     destruct v1; simpl; auto;
     destruct v2; simpl; auto.
   Qed.
-  
+
   Lemma valid_intoffloat:
     forall f v,
       valid_val f (Val.maketotal (Val.intoffloat v)).
   Proof.
     destruct v; simpl; auto; unfold Val.maketotal;
-    unfold option_map; 
+    unfold option_map;
     match goal with
     | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
       destruct Expr
@@ -486,7 +486,7 @@ Module ValueWD.
       valid_val f (Val.maketotal (Val.intofsingle v)).
   Proof.
     destruct v; simpl; auto; unfold Val.maketotal;
-    unfold option_map; 
+    unfold option_map;
     match goal with
     | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
       destruct Expr
@@ -498,19 +498,19 @@ Module ValueWD.
       valid_val f (Val.maketotal (Val.singleofint v)).
   Proof.
     destruct v; simpl; auto; unfold Val.maketotal;
-    unfold option_map; 
+    unfold option_map;
     match goal with
     | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
       destruct Expr
     end; simpl; auto.
   Qed.
-  
+
   Lemma valid_floatofint:
     forall f v,
       valid_val f (Val.maketotal (Val.floatofint v)).
   Proof.
     destruct v; simpl; auto; unfold Val.maketotal;
-    unfold option_map; 
+    unfold option_map;
     match goal with
     | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
       destruct Expr
@@ -537,14 +537,14 @@ Module ValueWD.
   Proof.
     destruct v; simpl; auto.
   Qed.
-  
+
   Lemma valid_val_sign_ext:
     forall f v n,
       valid_val f (Val.sign_ext n v).
   Proof.
     intros; destruct v; simpl; auto.
   Qed.
-  
+
   Lemma valid_val_zero_ext:
     forall f v n,
       valid_val f (Val.zero_ext n v).
@@ -723,8 +723,8 @@ Module ValueWD.
   Proof.
     intros.
     destruct v; simpl; auto.
-  Qed. 
-  
+  Qed.
+
   Lemma valid_val_divu:
     forall f v1 v2 v,
       Val.divu v1 v2 = Some v ->
@@ -812,7 +812,7 @@ Module ValueWD.
   Proof.
     destruct v1,v2; simpl; auto.
   Qed.
-  
+
   Lemma valid_val_negative:
     forall f v,
       valid_val f (Val.negative v).
@@ -844,7 +844,7 @@ Module ValueWD.
        valid_val_subf valid_val_divf
        valid_val_addfs valid_val_mulfs
        valid_val_subfs valid_val_divfs
-       valid_val_negf valid_val_absf 
+       valid_val_negf valid_val_absf
        valid_val_negfs valid_val_absfs
        valid_val_of_optbool valid_val_sub_overflow
        valid_val_negative valid_val_of_bool : wd.
@@ -884,7 +884,7 @@ Module MemoryWD.
       by (rewrite H; auto);
       by apply Hdomain in H'.
   Qed.
-  
+
   Lemma restrPermMap_val_valid:
     forall m p (Hlt: permMapLt p (getMaxPerm m)) v,
       mem_wd.val_valid v m <-> mem_wd.val_valid v (restrPermMap Hlt).
@@ -945,7 +945,7 @@ Module MemoryWD.
       inversion H; subst;
       inversion H2; eexists; eauto.
   Qed.
-  
+
   Lemma getN_wd :
     forall (f : memren) (m : mem) b,
       Mem.valid_block m b ->
@@ -962,7 +962,7 @@ Module MemoryWD.
     erewrite <- wd_val_valid; eauto.
     eauto.
   Qed.
-  
+
   Lemma valid_val_encode:
     forall v m chunk
       (Hval_wd: mem_wd.val_valid v m),
@@ -1023,7 +1023,7 @@ Module MemoryWD.
         destruct (Intv.In_dec ofs0
                               (ofs,
                                (ofs + Z.of_nat (length (encode_val chunk v)))%Z)).
-        
+
         + apply Mem.setN_in with (c:= (Mem.mem_contents m) # b0) in i.
           apply valid_val_encode with (m := m) in i; auto.
           destruct (ZMap.get ofs0
@@ -1046,9 +1046,9 @@ Module MemoryWD.
       eapply Hdomain; auto.
       intros. eapply Mem.store_valid_block_1; eauto.
       apply Hdomain; auto.
-    } 
+    }
   Qed.
-  
+
   Lemma storev_wd_domain:
     forall (m m' : mem) (chunk : memory_chunk) (vptr v : val) f,
       domain_memren f m ->
@@ -1090,7 +1090,7 @@ Module MemoryWD.
     destruct vptr; try discriminate.
     eapply valid_mem_load; eauto.
   Qed.
-  
+
   Lemma domain_memren_store:
     forall chunk m m' b ofs v f
       (Hdomain: domain_memren f m)
@@ -1125,7 +1125,7 @@ End MemoryWD.
 Module ValObsEq.
 
   Import ValueWD MemoryWD Renamings MemoryLemmas.
-  
+
   (** Strong injections on values *)
   Inductive val_obs (mi : memren) : val -> val -> Prop :=
     obs_int : forall i : int, val_obs mi (Vint i) (Vint i)
@@ -1148,7 +1148,7 @@ Module ValObsEq.
       memval_obs_eq f (Fragment v1 q n) (Fragment v2 q n)
   | memval_obs_undef : memval_obs_eq f Undef Undef.
 
-  
+
   Inductive val_obs_list (mi : memren) : seq val -> seq val -> Prop :=
     val_obs_list_nil : val_obs_list mi [::] [::]
   | val_obs_list_cons : forall (v v' : val) (vl vl' : seq val),
@@ -1157,7 +1157,7 @@ Module ValObsEq.
                        val_obs_list mi (v :: vl) (v' :: vl').
 
   Hint Constructors val_obs : val_renamings.
-  
+
   Lemma val_obs_incr:
     forall f f' v v'
       (Hval_obs: val_obs f v v')
@@ -1167,7 +1167,7 @@ Module ValObsEq.
     intros.
     destruct v; inversion Hval_obs; subst...
   Qed.
-      
+
   Lemma val_obs_trans:
     forall (v v' v'' : val) (f f' f'' : memren),
       val_obs f v v'' ->
@@ -1175,7 +1175,7 @@ Module ValObsEq.
       (forall b b' b'' : block,
           f b = Some b'' ->
           f' b = Some b' ->
-          f'' b' = Some b'') -> 
+          f'' b' = Some b'') ->
       val_obs f'' v' v''.
   Proof with eauto with val_renamings.
     intros v v' v'' f f' f'' Hval'' Hval' Hf.
@@ -1189,7 +1189,7 @@ Module ValObsEq.
       (forall b b' b'' : block,
           f b = Some b'' ->
           f' b = Some b' ->
-          f'' b' = Some b'') -> 
+          f'' b' = Some b'') ->
       memval_obs_eq f'' v' v''.
   Proof.
     intros v v' v'' f f' f'' Hval'' Hval' Hf.
@@ -1198,7 +1198,7 @@ Module ValObsEq.
     eapply val_obs_trans;
       by eauto.
   Qed.
- 
+
   Lemma val_obs_list_trans:
     forall (vs vs' vs'' : seq val) (f f' f'' : memren),
       val_obs_list f vs vs'' ->
@@ -1228,7 +1228,7 @@ Module ValObsEq.
       constructor;
       eauto using val_obs_incr.
   Qed.
-    
+
   (** Two values that are equal are related by the id injection on a valid memory*)
   Lemma val_obs_id:
     forall f v
@@ -1255,7 +1255,7 @@ Module ValObsEq.
     constructor;
       [eapply val_obs_id; eauto | eauto].
   Qed.
-  
+
   Lemma memval_obs_eq_id:
     forall f mv
       (Hvalid: valid_memval f mv)
@@ -1327,7 +1327,7 @@ Module ValObsEq.
   Proof with eauto with val_renamings.
     intros; destruct v; inversion Hval_obs; subst; simpl...
   Qed.
-  
+
   Definition val_obsC f v :=
     match v with
     | Vptr b n => match f b with
@@ -1360,7 +1360,7 @@ Module ValObsEq.
     destruct v; inversion Hval_obs; subst; simpl;
       by tauto.
   Qed.
-  
+
   Lemma val_has_type_list_obs:
     forall f vs vs' ts
       (Hval_obs: val_obs_list f vs vs'),
@@ -1426,8 +1426,8 @@ Module ValObsEq.
   Proof with eauto with val_renamings.
     intros; destruct v; inversion Hval_obs; subst; simpl...
   Qed.
-  
-  
+
+
   Lemma val_obs_singleoffloat:
     forall f v v'
       (Hval_obs: val_obs f v v'),
@@ -1485,7 +1485,7 @@ Module ValObsEq.
     unfold Coqlib.option_map in Heqo.
     destruct (Floats.Float32.to_int f0); inversion Heqo...
   Qed.
-  
+
   Lemma val_obs_singleofint:
     forall f v v'
       (Hval_obs: val_obs f v v'),
@@ -1528,7 +1528,7 @@ Module ValObsEq.
     destruct v1, v1'; inversion Hval_obs;
     inversion Hval_obs'; subst; simpl...
   Qed.
-  
+
   Lemma val_obs_and:
     forall f v1 v2 v1' v2'
       (Hval_obs': val_obs f v1' v2')
@@ -1539,7 +1539,7 @@ Module ValObsEq.
     destruct v1, v1'; inversion Hval_obs;
     inversion Hval_obs'; subst; simpl...
   Qed.
-  
+
   Lemma val_obs_or:
     forall f v1 v2 v1' v2'
       (Hval_obs': val_obs f v1' v2')
@@ -1596,7 +1596,7 @@ Module ValObsEq.
     destruct (Int.ltu i0 Int.iwordsize)...
   Qed.
 
-  
+
   Lemma val_obs_shru:
     forall f v1 v2 v1' v2'
       (Hval_obs': val_obs f v1' v2')
@@ -1736,7 +1736,7 @@ Module ValObsEq.
     destruct v1; inversion Hval_obs;
     subst; simpl...
   Qed.
-  
+
   Lemma val_obs_absf:
     forall f v1 v2
       (Hval_obs: val_obs f v1 v2),
@@ -1906,7 +1906,7 @@ Module ValObsEq.
     intros.
     destruct b; simpl; constructor.
   Qed.
-  
+
   Hint Resolve
        val_obs_add valid_val_incr val_obs_incr val_obsC_correct
        val_obs_load_result val_obs_hiword val_obs_loword
@@ -1925,9 +1925,9 @@ Module ValObsEq.
        val_obs_subfs val_obs_divf val_obs_divfs
        val_obs_divu_id val_obs_modu_id
        val_obs_divs_id val_obs_mods_id val_obs_of_bool : val_renamings.
-  
+
 End ValObsEq.
-  
+
 (** ** Renamings between memories *)
 Module MemObsEq.
 
@@ -1939,7 +1939,7 @@ Module MemObsEq.
      not neccessary and in retrospect may be a limiting factor. For
      example we would be able to reuse this development for our final
      erasure if we allowed undefined values to become more defined. *)
-  
+
   (** Weak injection between memories *)
   Record weak_mem_obs_eq (f : memren) (mc mf : mem) :=
     {
@@ -1955,7 +1955,7 @@ Module MemObsEq.
             (permission_at mc b1 ofs Cur)
             (permission_at mf b2 ofs Cur)}.
 
- 
+
 
   (** Strong injection between memories *)
   Record strong_mem_obs_eq (f : memren) (mc mf : mem) :=
@@ -1969,7 +1969,7 @@ Module MemObsEq.
           memval_obs_eq f (Maps.ZMap.get ofs mc.(Mem.mem_contents)#b1)
                         (Maps.ZMap.get ofs mf.(Mem.mem_contents)#b2)}.
 
-  
+
   (** Renaming between memories *)
   Record mem_obs_eq (f : memren) (mc mf : mem) :=
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
@@ -2086,7 +2086,7 @@ Module MemObsEq.
       specialize (perm_obs_strong0 _ _ ofs H).
       rewrite! restrPermMap_Cur in perm_obs_strong0.
       assumption.
-    } 
+    }
     constructor; eauto.
     intros.
     simpl.
@@ -2150,12 +2150,12 @@ Module MemObsEq.
         congruence.
   Qed.
 
-  Axiom EM: ClassicalFacts.excluded_middle. 
+  Axiom EM: ClassicalFacts.excluded_middle.
   Lemma pigeon_positive:
     forall (n m: positive) (f: positive -> option positive),
-      (forall i, (i < n)%positive -> 
+      (forall i, (i < n)%positive ->
             exists j, (j < m)%positive /\ f i = Some j) ->
-      (forall i i' j j', 
+      (forall i i' j j',
           f i = Some j -> f i' = Some j' ->
           i<>i' -> j<>j') ->
       (n <= m)%positive.
@@ -2225,7 +2225,7 @@ Module MemObsEq.
         apply (H0 _ _ _ _ H1 H2).
         now auto.
   Qed.
-  
+
   (** If a memory [m] injects into a memory [m'] then [m'] is at least
 as big as [m] *)
   Lemma weak_mem_obs_eq_nextblock:
@@ -2248,7 +2248,7 @@ as big as [m] *)
     intro Hcontra. subst.
     now eauto.
   Qed.
-    
+
   Lemma mf_align :
     forall (m : mem) (f : memren) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
       (ofs : Z) (p : permission),
@@ -2261,7 +2261,7 @@ as big as [m] *)
   Qed.
 
   Lemma memval_obs_eq_incr:
-    forall (mc mf : mem) (f f': memren) 
+    forall (mc mf : mem) (f f': memren)
       (b1 b2 : block) (ofs : Z)
       (Hf': f' b1 = Some b2)
       (Hincr: ren_incr f f')
@@ -2303,7 +2303,7 @@ as big as [m] *)
     discriminate.
       by rewrite (IHlist_forall2 (Logic.eq_refl _)).
   Qed.
-  
+
   Lemma val_obs_equal:
     forall f v1 v1' v2 v2'
       (Hinjective: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
@@ -2349,7 +2349,7 @@ as big as [m] *)
     destruct (Val.eq v' v2); auto.
     exfalso. specialize ((proj2 H) ltac:(auto)); auto.
   Qed.
-    
+
 
   Lemma proj_value_obs:
     forall f q vl1 vl2,
@@ -2364,7 +2364,7 @@ as big as [m] *)
     destruct (check_value (size_quantity_nat q) v2 q (Fragment v2 q0 n :: bl));
       eauto with val_renamings.
   Qed.
-  
+
   Lemma load_result_obs:
     forall f chunk v1 v2,
       val_obs f v1 v2 ->
@@ -2372,7 +2372,7 @@ as big as [m] *)
   Proof.
     intros. inversion H; destruct chunk; simpl; econstructor; eauto.
   Qed.
-  
+
   Lemma decode_val_obs:
     forall f vl1 vl2 chunk,
       (forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1') ->
@@ -2394,7 +2394,7 @@ as big as [m] *)
       apply load_result_obs;
       apply proj_value_obs; auto.
   Qed.
-  
+
   Lemma valid_access_obs_eq:
     forall f m1 m2 b1 b2 chunk ofs p,
       strong_mem_obs_eq f m1 m2 ->
@@ -2402,7 +2402,7 @@ as big as [m] *)
       Mem.valid_access m1 chunk b1 ofs p ->
       Mem.valid_access m2 chunk b2 ofs p.
   Proof.
-    intros. destruct H1 as [A B]. constructor; auto.    
+    intros. destruct H1 as [A B]. constructor; auto.
     intros ofs' Hofs.
     specialize (A ofs' Hofs).
     destruct H.
@@ -2411,7 +2411,7 @@ as big as [m] *)
     unfold Mem.perm in *.
     rewrite perm_obs_strong0; auto.
   Qed.
-  
+
   Lemma getN_obs:
     forall f m1 m2 b1 b2,
       strong_mem_obs_eq f m1 m2 ->
@@ -2431,7 +2431,7 @@ as big as [m] *)
     apply H1. omega.
     apply IHn. red; intros; apply H1; omega.
   Qed.
-  
+
   Transparent Mem.load.
   Lemma load_val_obs:
     forall (mc mf : mem) (f:memren)
@@ -2450,7 +2450,7 @@ as big as [m] *)
     eapply valid_access_obs_eq; eauto.
     eapply Mem.load_valid_access; eauto.
     exploit Mem.load_result; eauto. intro. rewrite H.
-    apply decode_val_obs; auto.    
+    apply decode_val_obs; auto.
     apply getN_obs; auto.
     rewrite <- size_chunk_conv.
     exploit Mem.load_valid_access; eauto. intros [A B]. auto.
@@ -2474,7 +2474,7 @@ as big as [m] *)
     inversion Hf; subst.
     eapply load_val_obs in Hload; eauto.
   Qed.
-  
+
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
 
   Lemma encode_val_obs_eq:
@@ -2508,7 +2508,7 @@ as big as [m] *)
     rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
   Qed.
 
-  
+
   (** Storing related values on related memories results in related memories*)
   Transparent Mem.store.
   Lemma store_val_obs:
@@ -2570,7 +2570,7 @@ as big as [m] *)
                                  (ofs + Z.of_nat (length (encode_val chunk v1)))%Z)).
           * apply setN_obs_eq with
             (access := fun ofs => Mem.perm mc b0 ofs Cur Readable); auto.
-            eapply encode_val_obs_eq; eauto.            
+            eapply encode_val_obs_eq; eauto.
           * apply Intv.range_notin in n.
             simpl in n.
             erewrite Mem.setN_outside by eauto.
@@ -2607,7 +2607,7 @@ as big as [m] *)
     inversion Hf; subst.
     eapply store_val_obs in Hstore; eauto.
   Qed.
-    
+
   Lemma mem_obs_eq_storeF:
     forall f mc mf mf' chunk b ofs v pmap pmap2
       (Hlt: permMapLt pmap (getMaxPerm mf))
@@ -2823,6 +2823,7 @@ as big as [m] *)
       assumption.
   Qed.
 
+  (*TODO: Generalize what is stored, chunk, value, etc.*)
   Lemma strong_mem_obs_eq_store:
     forall mc mf mc' mf' rmap rmapF bl1 bl2 ofsl f v
       (Hlt: permMapLt rmap (getMaxPerm mc))
@@ -2890,7 +2891,7 @@ as big as [m] *)
   Qed.
 
   Corollary mem_obs_eq_store :
-    forall (mc mf mc' mf' : mem) (rmap rmapF : access_map) (bl1 bl2 : block) (ofsl : Z) f v 
+    forall (mc mf mc' mf' : mem) (rmap rmapF : access_map) (bl1 bl2 : block) (ofsl : Z) f v
       (Hlt : permMapLt rmap (getMaxPerm mc)) (HltF : permMapLt rmapF (getMaxPerm mf))
       (Hlt2 : permMapLt rmap (getMaxPerm mc'))
       (Hlt2F : permMapLt rmapF (getMaxPerm mf'))
@@ -2914,7 +2915,7 @@ as big as [m] *)
       eauto using weak_mem_obs_eq_store, strong_mem_obs_eq_store.
   Qed.
 
-  
+
   Lemma alloc_perm_eq:
     forall f m m' sz m2 m2' b b'
       (Hobs_eq: mem_obs_eq f m m')
@@ -3020,7 +3021,7 @@ Lemma setPermBlock_var_eq:
       erewrite! setPermBlock_var_other_2 by assumption.
       assumption.
   Qed.
-  
+
   Lemma setPermBlock_var_obs_eq:
     forall f bl1 bl2 ofsl pmap pmapF mc mf p
       (Hlt: permMapLt pmap (getMaxPerm mc))
@@ -3074,7 +3075,7 @@ Lemma setPermBlock_var_eq:
         unfold permission_at in Heq. rewrite Heq.
         assumption.
   Qed.
-  
+
   Lemma setPermBlock_weak_obs_eq:
     forall (f : block -> option block) (bl1 bl2 : block) (ofsl : Z)
       (pmap pmapF : access_map) (mc mf : mem) (p : option permission) (Hlt : permMapLt pmap (getMaxPerm mc))
@@ -3097,7 +3098,7 @@ Lemma setPermBlock_var_eq:
     eapply setPermBlock_var_weak_obs_eq;
       now eauto.
   Qed.
-  
+
   Lemma setPermBlock_obs_eq:
     forall f bl1 bl2 ofsl pmap pmapF mc mf p
       (Hlt: permMapLt pmap (getMaxPerm mc))
@@ -3123,7 +3124,7 @@ Lemma setPermBlock_var_eq:
     eapply setPermBlock_var_obs_eq;
       now eauto.
   Qed.
-  
+
   Lemma mem_free_obs_perm:
     forall f m m' m2 m2' sz b1 b2
       (Hmem_obs_eq: mem_obs_eq f m m')
@@ -3158,7 +3159,7 @@ Lemma setPermBlock_var_eq:
   Qed.
 
   Transparent Mem.free.
-  
+
   Lemma mem_free_obs:
     forall f m m' sz b1 b2 m2
       (Hmem_obs_eq: mem_obs_eq f m m')
@@ -3181,7 +3182,7 @@ Lemma setPermBlock_var_eq:
       specialize (HpermEq _ _ ofs Hf).
       rewrite HpermEq;
         auto.
-    } 
+    }
     - eexists; split; eauto.
       constructor.
       + (*weak_obs_eq*)
@@ -3214,7 +3215,7 @@ Lemma setPermBlock_var_eq:
     intros.
     unfold Mem.valid_pointer in *.
     destruct Hmem_obs_eq as [_ [Hperm_eq _]].
-    specialize (Hperm_eq _ _ ofs Hf). 
+    specialize (Hperm_eq _ _ ofs Hf).
     unfold permissions.permission_at in *.
     unfold Coqlib.proj_sumbool in *.
     destruct (Mem.perm_dec m b1 ofs Cur Nonempty);
@@ -3285,7 +3286,7 @@ Lemma setPermBlock_var_eq:
             assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
             specialize (Hinjective _ _ _ H4 H0); subst.
               by exfalso.
-      }            
+      }
       destruct (eq_block b b3) eqn:Hb;
         destruct (eq_block b0 b4) eqn:Hb0; simpl in *; subst;
         destruct Hequiv; try (by exfalso; eauto).
@@ -3319,7 +3320,7 @@ Lemma setPermBlock_var_eq:
              | [|- context[match ?Expr with _ => _ end]] =>
                destruct Expr eqn:?
              end...
-  Qed.      
+  Qed.
 
   Hint Resolve val_obs_cmpu : val_renamings.
 
@@ -3352,7 +3353,7 @@ Lemma setPermBlock_var_eq:
       rewrite Hpermeq;
         apply po_refl.
   Qed.
-      
+
 End MemObsEq.
 
 Module Type CoreInjections (SEM: Semantics).
@@ -3363,35 +3364,35 @@ Module Type CoreInjections (SEM: Semantics).
   Parameter core_wd : memren -> C -> Prop.
   (** Pointers in the global env are well-defined *)
   Parameter ge_wd : memren -> G -> Prop.
-  
+
   Parameter ge_wd_incr: forall f f' (g : G),
       ge_wd f g ->
       ren_domain_incr f f' ->
       ge_wd f' g.
-  
+
   Parameter ge_wd_domain : forall f f' m (g : G),
       ge_wd f g ->
       domain_memren f m ->
       domain_memren f' m ->
       ge_wd f' g.
-  
+
   Parameter core_wd_incr : forall f f' c,
       core_wd f c ->
       ren_domain_incr f f' ->
       core_wd f' c.
-  
+
   Parameter core_wd_domain : forall f f' m c,
       core_wd f c ->
       domain_memren f m ->
       domain_memren f' m ->
       core_wd f' c.
-  
+
   Parameter at_external_wd:
     forall f c ef args,
       core_wd f c ->
       at_external Sem c = Some (ef, args) ->
       valid_val_list f args.
-  
+
   Parameter after_external_wd:
     forall c c' f ef args ov,
       at_external Sem c = Some (ef, args) ->
@@ -3403,10 +3404,10 @@ Module Type CoreInjections (SEM: Semantics).
             | None => True
             end ->
       core_wd f c'.
-  
+
   Parameter initial_core_wd:
-    forall the_ge f vf arg c_new,
-      initial_core Sem the_ge vf [:: arg] = Some c_new ->
+    forall the_ge f vf arg c_new h,
+      initial_core Sem h the_ge vf [:: arg] = Some c_new ->
       valid_val f arg ->
       ge_wd f the_ge ->
       core_wd f c_new.
@@ -3414,7 +3415,7 @@ Module Type CoreInjections (SEM: Semantics).
   (** Renamings on cores *)
   Parameter core_inj: memren -> C -> C -> Prop.
 
-  Parameter core_inj_ext: 
+  Parameter core_inj_ext:
     forall c c' f (Hinj: core_inj f c c'),
       match at_external Sem c, at_external Sem c' with
       | Some (ef, vs), Some (ef', vs') =>
@@ -3422,8 +3423,8 @@ Module Type CoreInjections (SEM: Semantics).
       | None, None => True
       | _, _ => False
       end.
-  
-  Parameter core_inj_after_ext: 
+
+  Parameter core_inj_after_ext:
     forall c cc c' ov1 f (Hinj: core_inj f c c'),
       match ov1 with
       | Some v1 => valid_val f v1
@@ -3443,7 +3444,7 @@ Module Type CoreInjections (SEM: Semantics).
                  | _ => False
                  end
         end.
-  
+
   Parameter core_inj_halted:
     forall c c' f (Hinj: core_inj f c c'),
       match halted Sem c, halted Sem c' with
@@ -3451,24 +3452,24 @@ Module Type CoreInjections (SEM: Semantics).
       | None, None => True
       | _, _ => False
       end.
-  
+
   Parameter core_inj_init:
-    forall vf vf' arg arg' c_new f fg the_ge
+    forall vf vf' arg arg' c_new f fg the_ge h
       (Hf: val_obs_list f arg arg')
       (Hf': val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core Sem the_ge vf arg = Some c_new),
+      (Hinit: initial_core Sem h the_ge vf arg = Some c_new),
     exists c_new',
-      initial_core Sem the_ge vf' arg' = Some c_new' /\
+      initial_core Sem h the_ge vf' arg' = Some c_new' /\
       core_inj f c_new c_new'.
-  
+
   Parameter core_inj_id: forall c f,
-      core_wd f c -> 
+      core_wd f c ->
       (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
       core_inj f c c.
-  
+
   Parameter core_inj_trans:
     forall c c' c'' (f f' f'' : memren)
       (Hcore_inj: core_inj f c c'')
@@ -3515,7 +3516,7 @@ Module Type CoreInjections (SEM: Semantics).
      new memory and additionally that the new core is well defined
      with respect to all renamings withe same domain.  Note that we
      cannot say anything about the codomain, i.e. that f' is an
-     extension of f.*) 
+     extension of f.*)
   Parameter corestep_wd:
     forall c m c' m' f fg the_ge
       (Hwd: core_wd f c)
@@ -3529,13 +3530,13 @@ Module Type CoreInjections (SEM: Semantics).
       forall f', domain_memren f' m' ->
             core_wd f' c'.
 
-  
+
 End CoreInjections.
 
 Module ThreadPoolInjections (SEM: Semantics)
        (Machines: MachinesSig with Module SEM := SEM)
        (CI: CoreInjections SEM).
-  
+
   Import ValObsEq ValueWD MemoryWD Renamings CI.
   Import concurrent_machine Machines.DryMachine ThreadPool.
   (** Renamings on Thread Pools *)
@@ -3574,11 +3575,11 @@ here*)
            | [H: _ /\ _ |- _] =>
              destruct H
            | [ |- _] => split
-           end;     
+           end;
     try (eapply core_wd_incr; eauto);
     try (eapply valid_val_incr; eauto).
   Qed.
-  
+
   Lemma ctl_inj_trans:
     forall c c' c'' (f f' f'' : memren)
       (Hcore_inj: ctl_inj f c c'')
@@ -3694,4 +3695,4 @@ here*)
 
 End ThreadPoolInjections.
 
-  
+

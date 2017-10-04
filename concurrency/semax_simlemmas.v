@@ -8,51 +8,51 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import msl.seplog.
-Require Import msl.age_to.
-Require Import veric.aging_lemmas.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.juicy_safety.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.res_predicates.
-Require Import veric.mem_lessdef.
-Require Import veric.age_to_resource_at.
-Require Import veric.seplog.
-Require Import floyd.coqlib3.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.coqlib5.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.sync_preds_defs.
-Require Import concurrency.sync_preds.
-Require Import concurrency.join_lemmas.
-Require Import concurrency.lksize.
-Require Import concurrency.cl_step_lemmas.
-Require Import concurrency.resource_decay_lemmas.
-Require Import concurrency.resource_decay_join.
-Require Import concurrency.semax_invariant.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
+Require Import VST.veric.seplog.
+Require Import VST.floyd.coqlib3.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.coqlib5.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.sync_preds_defs.
+Require Import VST.concurrency.sync_preds.
+Require Import VST.concurrency.join_lemmas.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.
+Require Import VST.concurrency.semax_invariant.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -87,6 +87,7 @@ Proof.
   intros C F.
   split.
   - intros ofs' r. eapply lset_range_perm; eauto.
+     unfold LKSIZE; simpl in r; omega. (* Andrew says: looks fishy *)
   - eapply lock_coherence_align; eauto.
 Qed.
 
@@ -137,7 +138,7 @@ Proof.
   assert (A' = SpecTT A) by (injection PS; auto). subst A'.
   apply PURE_SomeP_inj2 in PS.
   simpl in RA. injection RA as RA. apply inj_pair2 in RA.
-  
+
   edestruct MFS with (P := fun i a e' => pp' i
     (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
           (compcert_rmaps.R.approx (level Phi)) a) true e')
@@ -163,7 +164,7 @@ Proof.
     all:rewrite approx_oo_approx.
     all:change compcert_rmaps.R.approx with approx in *.
     all:reflexivity. }
-  
+
   exists id, P', Q', P'_ne, Q'_ne. split; auto. split; auto.
   split.
   all: eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
@@ -171,10 +172,10 @@ Proof.
   all: extensionality a e'; simpl.
   all: apply equal_f_dep with (x := ts) in PS.
   all: apply equal_f_dep with (x := a) in PS.
-  
+
   1: apply equal_f_dep with (x := true) in PS.
   2: apply equal_f_dep with (x := false) in PS.
-  
+
   all: apply equal_f_dep with (x := e') in PS.
   all: simpl in PS.
   all: change compcert_rmaps.R.approx with approx in *.
@@ -263,7 +264,7 @@ Proof.
     spec FA2 b fs phi1 (necR_refl phi1). subst fs.
     spec FA2; [ | auto]. simpl. clear -pat necr SP.
     simpl in pat. spec SP (b, Z0).
-    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E). 
+    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
     rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
     rewrite <-resource_at_approx, SP. reflexivity.
 Qed.
@@ -315,7 +316,7 @@ Proof.
   eapply resource_decay_pures_eq; eauto.
 Qed.
 
-Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)): 
+Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)):
   Mem.mem_contents (restrPermMap Hlt) = Mem.mem_contents m.
 Proof.
   reflexivity.
@@ -335,14 +336,13 @@ Proof.
   eapply Mem.valid_access_implies with (p1 := Writable).
   2:destruct p; constructor || tauto.
   pose proof lset_range_perm.
-  do 6 autospec H.
-  split; auto.
-  (* (* necessary if we change LKSIZE to something bigger than 4: *)
-  intros loc range.
-  apply H.
-  unfold size_chunk in *.
-  unfold LKSIZE in *.
-  omega. *)
+  do 6 autospec H;
+  split; auto;
+  intros loc range;
+  apply H;
+  unfold size_chunk in *;
+  unfold LKSIZE in *;
+  omega.
 Qed.
 
 Lemma LockRes_age_content1 js n a :
@@ -367,7 +367,7 @@ Proof.
 Qed.
 
 Lemma join_sub_join {A} {J : Join A}
-      {PA : Perm_alg A} {SA : Sep_alg A} {_ : Canc_alg A} {DA : Disj_alg A} {CA : Cross_alg A} 
+      {PA : Perm_alg A} {SA : Sep_alg A} {_ : Canc_alg A} {DA : Disj_alg A} {CA : Cross_alg A}
       (a b c x : A) :
   join a b c ->
   join_sub a x ->
@@ -398,7 +398,7 @@ Proof.
   rewrite SEM.CLN_msem.
   reflexivity.
 Qed.
-  
+
 Lemma level_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
   level (jm_ cnti compat) = level Phi.
@@ -432,8 +432,8 @@ Proof.
 Qed.
 
 Lemma pures_same_eq_l phi1 phi1' phi2 :
-  pures_same phi1 phi1' -> 
-  pures_eq phi1 phi2 -> 
+  pures_same phi1 phi1' ->
+  pures_eq phi1 phi2 ->
   pures_eq phi1' phi2.
 Proof.
   intros E [M N]; split; intros loc; autospec M; autospec N; autospec E.
@@ -443,14 +443,14 @@ Proof.
     all: breakhyps.
     all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
     injection H as <- <-.
-    exists p1. f_equal. 
+    exists p1. f_equal.
     try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
-Qed.    
+Qed.
 
 Lemma pures_same_eq_r phi1 phi2 phi2' :
   level phi2 = level phi2' ->
-  pures_same phi2 phi2' -> 
-  pures_eq phi1 phi2 -> 
+  pures_same phi2 phi2' ->
+  pures_eq phi1 phi2 ->
   pures_eq phi1 phi2'.
 Proof.
   intros L E [M N]; split; intros loc; autospec M; autospec N; autospec E.
@@ -466,7 +466,7 @@ Qed.
 
 Lemma pures_same_pures_eq phi1 phi2 :
   level phi1 = level phi2 ->
-  pures_same phi1 phi2 -> 
+  pures_same phi1 phi2 ->
   pures_eq phi1 phi2.
 Proof.
   intros L E.
@@ -580,11 +580,7 @@ Ltac join_sub_tac :=
           c : mem_compatible_with ?tp _ ?Phi |- _
       => assert (join_sub phi Phi) by eapply (@compatible_lockRes_sub tp loc phi F), c
     end;
-  try
-    match goal with
-    | j : join ?a ?b ?c |- join_sub ?c _ => try apply (join_sub_join j)
-    end;
-  eauto using join_sub_trans, join_sub_join.
+  eauto using join_sub_trans.
 
 Lemma restrPermMap_Max' m p Hlt loc :
   access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.
@@ -676,10 +672,10 @@ Proof.
     spec E l.
     destruct (x @ l), (y @ l); split; intro; simpl in *; breakhyps.
     + spec E k0 p. destruct E as [_ E]. autospec E. discriminate.
-    + spec E k1 p1. destruct E as [_ E]. autospec E. discriminate.
+    + spec E k1 p0. destruct E as [_ E]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
-    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence. 
+    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
     + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
   - (* reflexivity case *)
     intuition eauto.
@@ -847,3 +843,25 @@ Ltac lkomega :=
   unfold LKSIZE in *;
   unfold size_chunk in *;
   try omega.
+
+Lemma FF_orp:
+ forall A (ND: NatDed A) (P: A), seplog.orp seplog.FF P = P.
+Proof.
+intros.
+unfold seplog.FF.
+apply seplog.pred_ext.
+apply seplog.orp_left; auto.
+apply prop_left; intro; contradiction.
+apply seplog.orp_right2; auto.
+Qed.
+
+Lemma TT_andp:
+ forall A (ND: NatDed A) (P: A), seplog.andp seplog.TT P = P.
+Proof.
+intros.
+unfold seplog.TT.
+apply seplog.pred_ext.
+apply seplog.andp_left2; auto.
+apply seplog.andp_right; auto.
+apply prop_right; auto.
+Qed.

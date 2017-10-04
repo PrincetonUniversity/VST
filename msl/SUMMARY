@@ -123,7 +123,7 @@ knot_sa.v
 knot_prop.v
    This file specializes the knot construction to use "Prop" as
    truth values.
-   
+
 knot_unique.v
    The development of the uniqueness proof for knots.  We prove that
    any two implementations of the theory of indirection are isomorphic.

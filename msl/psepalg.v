@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.eq_dec.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.base.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 
 (* Other definitions and facts about psepalgs *)
 
@@ -44,7 +44,7 @@ Proof.
   destruct H.
   destruct H0.
   destruct (join_assoc (join_comm H) (join_comm H0)) as [? [? _]].
-  rewrite (join_self H1) in H1.
+  rewrite (join_self H1) in H1 by auto.
   eapply no_units; eauto.
 Qed.
 
@@ -83,7 +83,6 @@ Section PSA_LIFT.
   Coercion lifted_obj : lifted >-> A.
   Definition mk_lifted (a : A) (pf : nonunit a) : lifted :=
     exist nonunit a pf.
-  Implicit Arguments mk_lifted [].
 
   Instance Join_lift: Join lifted := fun a1 a2 a3 : lifted => @join A J_A a1 a2 a3.
 
@@ -130,12 +129,16 @@ Section PSA_LIFT.
 
   Instance Disj_lift {DA: Disj_alg A}: Disj_alg lifted.
   Proof.
-    repeat intro. do 2 red in H.  apply join_self in H.  destruct a; destruct b; simpl in *; subst;
+    repeat intro. destruct a, b; hnf in H.
+    simpl in H; apply join_self in H.
+    destruct a0, b0.
+    hnf in H0; simpl in H0.
+    specialize (H _ _ H0); subst.
     f_equal.  apply proof_irr.
   Qed.
 
   (** General facts about lifting *)
-  
+
   Lemma lifted_eq : forall a b, 
     lifted_obj a = lifted_obj b -> 
     a = b.
@@ -144,13 +147,13 @@ Section PSA_LIFT.
     destruct a. destruct b. simpl in *. subst x0.
     f_equal. apply proof_irr.
   Qed.
-  
-  Lemma mk_lifted_refl1: forall a pf1 pf2, 
-    mk_lifted a pf1 = mk_lifted a pf2.
+
+  Lemma mk_lifted_refl1: forall (a:A)  (pf1 pf2: nonunit a),
+    mk_lifted pf1 = mk_lifted pf2.
   Proof.
     intros; rewrite (proof_irr pf1 pf2); auto.
   Qed.
-  
+
   Lemma lifted_pjoins : forall a b : lifted,
     joins a b = @joins A J_A a b.
   Proof.
@@ -197,7 +200,7 @@ Existing Instance Perm_lift.
 Existing Instance Pos_lift.
 Existing Instance Canc_lift.
 Existing Instance Disj_lift.
-Implicit Arguments mk_lifted [A J_A].
+Arguments mk_lifted [A J_A] _ _.
 
 (** The dual of lifting is lowering: adding a distinct unit to a Pos_alg 
     produces a sepalg.  Note that lower o lift is not an isomorphism for
@@ -255,17 +258,19 @@ Section SA_LOWER.
    f_equal. apply (join_canc H1 H4). 
  Qed.
 
-   Instance Disj_lower {DA: Disj_alg A}: @Disj_alg _ Join_lower.
-  Proof. repeat intro. 
-     icase a; inv H; auto. apply join_self in H2; f_equal; auto.
+  Instance Disj_lower {psa_A: Pos_alg A}{DA: Disj_alg A}: @Disj_alg _ Join_lower.
+  Proof. repeat intro. inv H0; inv H; auto.
+    - contradiction (no_units a1 a1).
+      apply identity_unit; [eapply join_self | eexists]; eauto.
+    - eapply f_equal, join_self; eauto.
   Qed.
 
 End SA_LOWER.
-Implicit Arguments Perm_lower [[Pj_A][PA_A]].
-Implicit Arguments Sep_lower [[Pj_A]].
-Implicit Arguments Sing_lower [[Pj_A]].
-Implicit Arguments Canc_lower [[Pj_A][psa_A][CA]].
-Implicit Arguments Disj_lower [[Pj_A][DA]].
+Arguments Perm_lower _ [Pj_A][PA_A].
+Arguments Sep_lower _ [Pj_A].
+Arguments Sing_lower _ [Pj_A].
+Arguments Canc_lower _ [Pj_A][psa_A][CA] _ _ _ _ _ _.
+Arguments Disj_lower _ [Pj_A][PA_A][psa_A][DA] _ _ _.
 
 Existing Instance Join_lower.  (* Must not be inside a Section *)
 Existing Instance Perm_lower.
@@ -333,7 +338,7 @@ Section SA_SMASH.
   Qed.
 End SA_SMASH.
 
-Implicit Arguments smashed [[J_T]].
+Arguments smashed _  [J_T].
 Existing Instance Perm_smash. (* Must not be inside a Section *)
 Existing Instance Sep_smash. (* Must not be inside a Section *)
 
@@ -450,7 +455,7 @@ Section FinitePartialMap.
   Qed.
 
   Instance Disj_fpm {DA_B: Disj_alg B}: Disj_alg fpm.
-  Proof. repeat intro. apply (join_self H). Qed.
+  Proof. repeat intro. apply (join_self H); auto. Qed.
 
   Definition lookup_fpm (f:fpm) : A -> Rng := proj1_sig f.
 

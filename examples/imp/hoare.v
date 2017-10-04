@@ -51,7 +51,7 @@ Fixpoint stepn (pu:program_unit) (n:nat) (st1 st2:state) {struct n} : Prop :=
   match n with
   | 0 => st1 = st2
   | S n' => exists st', step' pu st1 st' /\ stepn pu n' st' st2
-  end. 
+  end.
 
 Local Open Scope pred.
 
@@ -162,9 +162,9 @@ Definition rguards (pu:program_unit) (R:val -> pred world) (F:pred world) (k:ctl
   All e:expr, guards pu ((EX v:val, eval e v && R v) * F) (kseq (ret e) k).
 
 (* The continuation-passing hoare tuple of partial correctness.  In short,
-   the hoare tuple holds if, whenever the postconditions guard 
+   the hoare tuple holds if, whenever the postconditions guard
    some continuation k, it is the case that the precondition guards
-   (kseq c k).  
+   (kseq c k).
  *)
 Definition hoare_ (pu:program_unit) (R:val -> pred world) (P:pred world) (c:cmd) (Q:pred world) : pred nat :=
         All k:ctl, All F:pred world,
@@ -173,7 +173,7 @@ Definition hoare_ (pu:program_unit) (R:val -> pred world) (P:pred world) (c:cmd)
           guards pu (P * F) (kseq c k).
 
 
-(* We vefify programs by defining function specifications in the usual 
+(* We vefify programs by defining function specifications in the usual
    way, by defining pre and postconditions for each function.  We
    use an additional type 'fs_A' to allow information sharing between
    the pre and post.  At call sites, the verifier chooses some appropriate
@@ -216,7 +216,7 @@ Definition func_post (fs:fun_spec) (a:fs_A fs) : val -> pred world :=
   fun v => fs_post fs a v * anylocals.
 
 (* We say a function 'i' satisfies a function spec in a program 'pu' provided
-   the function has some declaration and that declaration (approximately) satifies 
+   the function has some declaration and that declaration (approximately) satifies
    a hoare tuple describing the expected behavior of the function body. *)
 Definition satisfies_fun_spec (pu:program_unit) (i:ident) (fs:fun_spec) : pred nat :=
   EX fd:fun_decl, !!(pu i = Some fd) &&
@@ -235,7 +235,7 @@ Definition validate (ps:prog_spec) (pu:program_unit) (ps':prog_spec) :=
   |>satisfies_spec pu ps |-- satisfies_spec pu ps'.
 
 
-(* Some facts about evaluation.  Most importantly, Evaluation passes into larger worlds.  
+(* Some facts about evaluation.  Most importantly, Evaluation passes into larger worlds.
 *)
 
 Lemma eval_up : forall e v P Q R,
@@ -335,7 +335,7 @@ Proof.
   simpl. auto.
   simpl snd. rewrite identity_unit_equiv in H. auto.
   simpl. split; auto.
-  unfold LocalsMap.build_map. 
+  unfold LocalsMap.build_map.
   unfold hasval. split.
   simpl fold_right.
   unfold LocalsMap.map_val.
@@ -358,7 +358,7 @@ Proof.
   contradiction.
   auto.
   apply IHl. auto. inv H0. auto.
-  
+
   generalize (fnd_valid fd).
   revert vs.
   generalize (fnd_formals fd).
@@ -491,7 +491,7 @@ Proof.
   intros.
   case_eq (MemMap.map_val a' (snd (snd w1))); auto; intros.
   rewrite H4 in H8; auto. discriminate.
-  erewrite MemMap.map_gso_val in H8. 
+  erewrite MemMap.map_gso_val in H8.
   3: eauto. auto. auto.
   destruct w2. destruct H. destruct H.
   simpl in H. subst n0. simpl in H8. subst n.
@@ -614,7 +614,7 @@ Proof.
   rewrite <- box_all.
   apply box_positive; auto.
   eapply pred_nec_hereditary; eauto.
-  
+
   spec H1 a H2.
   spec H1 b b0 a.
   spec H1; auto. spec H1; auto.
@@ -677,7 +677,7 @@ Proof.
   inv H13.
   repeat intro.
   rewrite FF_sepcon in H9. elim H9.
-  
+
   spec H4 (make_locals vals fd) m (n',(make_locals vals fd,m)).
   spec H4; auto.
   spec H4; auto.
@@ -718,7 +718,7 @@ Proof.
   destruct (join_ex_units (snd (snd w1))).
   simpl.
   eapply unit_identity; eauto.
-  
+
   inv H6.
   inv H13.
   rewrite H in H18. inv H18.
@@ -746,7 +746,7 @@ Proof.
   eapply H; eauto.
   rewrite exp_sepcon1.
   exists b. auto.
-  
+
   do 12 intro.
   rewrite exp_sepcon1 in H3.
   destruct H3 as [x ?].
@@ -771,8 +771,8 @@ Proof.
   spec H.
   destruct H4.
   replace (fst x'') with (fst w1); auto.
-  destruct H0. destruct H0. 
-  etransitivity.  apply H0.  auto. 
+  destruct H0. destruct H0.
+  etransitivity.  apply H0.  auto.
 
   spec H k F (fst x''). spec H; auto.
   spec H. apply pred_nec_hereditary with x'; auto.
@@ -998,7 +998,7 @@ Proof.
   cut (list_eval es args w2).
   apply list_eval_evaluate_exprs.
   apply list_eval_join_sub with wpre; eauto.
-  
+
   destruct H0 as [st'' [? ?]].
   inv H0. inv H7.
   rewrite Hfd in H12. inv H12. rename fd0 into fd.
@@ -1014,7 +1014,7 @@ Proof.
   destruct H0; auto.
   change (laterR (fst w2) n').
   rewrite later_nat. omega.
-  
+
   revert H1.
   destruct (join_assoc Hj2 Hj) as [w [? ?]].
   spec Hsat (kcall i (fst (snd w2)) k) (lift_mem (eq (snd (snd w)))).
@@ -1052,14 +1052,14 @@ Proof.
     rewrite andp_com in H2.
     apply eval_up' in H2.
     destruct H2.
-    hnf in H8. 
+    hnf in H8.
     destruct e.
     simpl in H8, H10.
     congruence.
   subst v'.
   rewrite H17 in H3.
   inv H3.
-  
+
   spec Hg rho''' (snd (snd q)).
   spec Hg (n'0,(rho''',snd (snd q))).
   spec Hg.
@@ -1188,7 +1188,7 @@ Proof.
     rewrite later_nat; auto.
     simpl in H0; destruct H0. auto.
     destruct wF'; auto.
-    
+
     eapply join_canc; eauto.
     assert (fst (snd w) = fst (snd w2)).
     destruct H1.
@@ -1199,7 +1199,7 @@ Proof.
     unfold world, mem, locals, LocalsMap.map, MemMap.map in *.
     rewrite H28.
     auto.
-    
+
   rewrite <- sepcon_assoc in H16.
   revert H16. apply split_sepcon.
   rewrite wand_sepcon_adjoint. hnf; auto.
@@ -1249,7 +1249,7 @@ Proof.
 
   replace vals with args.
   auto.
-  
+
   apply list_eval_join_sub with _ _ _ w2 in Hargs; eauto.
   apply list_eval_evaluate_exprs in Hargs.
   eapply evaluate_exprs_fun; eauto.
@@ -1346,7 +1346,7 @@ Proof.
   apply H0 with n'; auto. omega.
   elim H21.
   hnf in H5; congruence.
-  
+
   spec H b b0 a' H1 H2.
   spec H rho m a'0 H3.
   spec H.
@@ -1513,12 +1513,12 @@ Lemma hoare_while : forall ps R e c I n,
      c
      (EX v:nat, eval e (int_val v) && I) n ->
 
-  hoare_ ps R 
+  hoare_ ps R
      (EX v:nat, eval e (int_val v) && I)
      (while e c)
      (eval e (int_val 0) && I) n.
 Proof.
-  intros. 
+  intros.
   induction n using (well_founded_induction lt_wf).
   do 10 intro.
   destruct H4 as [w1 [w2 [? [? ?]]]].
@@ -1532,7 +1532,7 @@ Proof.
 
   destruct (eq_nat_dec v 0).
   subst v.
-  
+
   spec H8 (fst (snd a'0)) (snd (snd a'0)).
   spec H8 a'0.
   spec H8.
@@ -1544,7 +1544,7 @@ Proof.
   spec H8; auto.
   exists w1; exists w2; intuition.
   split; auto.
-  
+
   repeat intro.
   destruct n'; simpl in H11.
   subst st'. constructor 2.
@@ -1553,7 +1553,7 @@ Proof.
   destruct H11 as [st'' [? ?]].
   inv H11. inv H18.
   apply H8 with n'; auto. omega.
-  
+
   hnf in H9. rewrite H9 in H22.
   elim H17. congruence.
 
@@ -1603,7 +1603,7 @@ Proof.
   spec H0; auto.
   spec H0.
   split. apply pred_nec_hereditary with a'; auto.
-  
+
   rewrite nec_nat.
   apply le_trans with (fst a'0).
   omega.
@@ -1618,7 +1618,7 @@ Proof.
   rewrite <- nec_nat.
   destruct a'0. rewrite world_nec_split in H3; destruct H3; auto.
   auto.
-  
+
   spec H (fst (snd a'0)) (snd (snd a'0)).
   spec H (n',(fst (snd a'0),snd (snd a'0))).
   spec H; auto.
@@ -1630,7 +1630,7 @@ Proof.
   simpl snd.
   destruct H4. destruct a'0; auto.
   split.
-  exists x. 
+  exists x.
   split. split; auto.
   apply pred_nec_hereditary with w1; auto.
   destruct w1. rewrite world_nec_split; split; auto.
@@ -1709,10 +1709,10 @@ Proof.
 Qed.
 
 Lemma hoare_while_wp : forall ps R e c Q,
-  TT |-- hoare_ ps R 
+  TT |-- hoare_ ps R
      (EX I:pred world,
         (lift_nat
-        (hoare_ ps R 
+        (hoare_ ps R
              (EX v:nat, eval e (int_val v) && !!(v <> 0) && I)
              c
              (EX v:nat, eval e (int_val v) && I))) *

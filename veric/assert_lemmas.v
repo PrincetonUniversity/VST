@@ -1,19 +1,19 @@
-Require Export veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.slice.
-Require Import veric.res_predicates.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.Clight_lemmas.
-Require Import msl.normalize.
+Require Export VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.slice.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.msl.normalize.
 
 Local Open Scope pred.
 
-Lemma mapsto_core_load: forall ch v rsh sh loc m, 
-  (address_mapsto ch v rsh sh loc * TT)%pred m -> core_load ch loc v m.
+Lemma mapsto_core_load: forall ch v sh loc m, 
+  (address_mapsto ch v sh loc * TT)%pred m -> core_load ch loc v m.
 Proof.
 unfold address_mapsto, core_load.
 intros until m; intros H.
@@ -31,9 +31,7 @@ rewrite H in Hjoin; clear H.
 repeat rewrite preds_fmap_NoneP in Hjoin.
 inv Hjoin.
 do 3 econstructor; try reflexivity.
-exists rsh3.
-destruct sh3 as [sh3 p3].
-exists sh3; exists p3. reflexivity.
+do 2 econstructor; reflexivity.
 auto.
 Qed.
 
@@ -42,14 +40,14 @@ Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
 Proof.
 intros until i; intros H.
 revert i l H.
-induction i; destruct l; intros; simpl in *; 
+induction i; destruct l; intros; simpl in *;
   try solve [eauto|omegaContradiction].
 apply IHi; omega.
 Qed.
 
 Lemma nth_eq_nth_error_eq: forall {A} (d: A) (l l': list A) i,
-  (O <= i < length l)%nat 
-  -> length l = length l' 
+  (O <= i < length l)%nat
+  -> length l = length l'
   -> nth i l d = nth i l' d
   -> nth_error l i = nth_error l' i.
 Proof.
@@ -79,7 +77,7 @@ induction bl; destruct bl'; intros; try solve [spec H5 O; inv H5|auto].
 f_equal.
 spec H5 O; inv H5; auto.
 apply IHbl.
-intro i. 
+intro i.
 spec H5 (S i).
 auto.
 intro i.
@@ -87,9 +85,9 @@ destruct loc as (b, ofs).
 spec H (b, ofs + Z_of_nat i).
 spec H0 (b, ofs + Z_of_nat i).
 hnf in H, H0. if_tac in H.
-(* adr_range *)
-destruct H as [rsh [sh [p H]]].
-destruct H0 as [rsh' [sh' [p' H0]]].
+* (* adr_range *)
+destruct H as [sh [rsh H]].
+destruct H0 as [sh' [rsh' H0]].
 rewrite H0 in H.
 clear H0.
 simpl in *.
@@ -101,7 +99,7 @@ apply nth_eq_nth_error_eq with (d := Undef); auto.
 destruct H5 as [? [H5 H5']].
 rewrite size_chunk_conv in H5'.
 omega.
-(* ~adr_range *)
+* (* ~adr_range *)
 cut (i >= length bl)%nat. intro Hlen.
 cut (i >= length bl')%nat. intro Hlen'.
 generalize (nth_error_length i bl) as H6; intro.
@@ -114,7 +112,7 @@ rewrite <- H1; auto.
 unfold adr_range in H5.
 rewrite size_chunk_conv in H5.
 rewrite <- H1 in H5.
-cut ( ~(O <= i < length bl))%nat. 
+cut ( ~(O <= i < length bl))%nat.
 omega.
 intro HContra.
 apply H5.
@@ -125,7 +123,7 @@ omega.
 Qed.
 
 Lemma extensible_core_load': forall ch loc v
-  w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'. 
+  w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'.
 Proof.
 intros.
 unfold core_load in *.
@@ -141,16 +139,13 @@ apply resource_at_join with (loc := loc') in H.
 hnf in H2|-*.
 if_tac; auto.
 hnf in H2|-*.
-destruct H2 as [rsh [sh [p H2]]].
+destruct H2 as [sh [rsh H2]].
 rewrite H2 in H.
 inv H; subst; eauto.
-exists rsh3.
-destruct sh3 as [sh3 p3].
-exists sh3; exists p3; auto.
 Qed.
 
 
-Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert := 
+Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert :=
   fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
 
 Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
@@ -158,7 +153,7 @@ Proof.
 intros.
 intros st ?.
 split; auto.
-Qed. 
+Qed.
 
 (*   Lemma assert_Val_is_true:
    forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
@@ -204,7 +199,7 @@ omega.
 Qed.
 
 Lemma adr_range_split_lem2: forall n m r loc loc',
-  r = n + m -> n >= 0 -> m >= 0 -> adr_range (fst loc, snd loc + n) m loc' 
+  r = n + m -> n >= 0 -> m >= 0 -> adr_range (fst loc, snd loc + n) m loc'
   -> adr_range loc r loc'.
 Proof.
 unfold adr_range; intros.
@@ -214,7 +209,7 @@ omega.
 Qed.
 
 Lemma adr_range_split_lem3: forall n m r loc loc',
-  r = n + m -> n >= 0 -> m >= 0 
+  r = n + m -> n >= 0 -> m >= 0
   -> ~adr_range loc n loc'
   -> ~adr_range (fst loc, snd loc + n) m loc'
   -> ~adr_range loc r loc'.
@@ -304,8 +299,8 @@ Qed.
 
 Hint Resolve corable_funassert.
 
-Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap), 
-    (forall loc, corable (P loc)) -> 
+Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
+    (forall loc, corable (P loc)) ->
     (forall loc, corable (Q loc)) ->
     forall b, corable (jam S P Q b).
 Proof.
@@ -335,7 +330,7 @@ Qed.
 
 Hint Resolve corable_fun_assert : normalize.
 *)
-Lemma prop_derives {A}{H: ageable A}: 
+Lemma prop_derives {A}{H: ageable A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
 intros. intros w ?; apply H0; auto.
@@ -346,9 +341,9 @@ Variable CS: compspecs.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
 
-Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho phi,
+Lemma tc_bool_e_sub: forall b b' err rho phi,
   (b = true -> b' = true) ->
-  denote_tc_assert (tc_bool b err) rho phi -> 
+  denote_tc_assert (tc_bool b err) rho phi ->
   denote_tc_assert (tc_bool b' err) rho phi.
 Proof.
   intros.
@@ -358,7 +353,7 @@ Proof.
   + inversion H0.
 Qed.
 
-Lemma denote_tc_assert_tc_bool_i:
+Lemma tc_bool_e_i:
   forall b c rho phi,
    b = true ->
   app_pred (denote_tc_assert (tc_bool b c) rho) phi.
@@ -443,7 +438,7 @@ Proof.
   + destruct IHe. apply (H3 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [_ H8]; apply (H8 w); auto.
-Qed.    
+Qed.
 
 Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho |-- tc_expr Delta' e rho.
@@ -467,17 +462,17 @@ destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
 destruct H; subst.
 rewrite !denote_tc_assert_andp in H0 |- *.
 split.
-+ eapply denote_tc_assert_tc_bool_sub; [| exact (proj1 H0)].
++ eapply tc_bool_e_sub; [| exact (proj1 H0)].
   exact (fun x => x).
 + destruct H0 as [? _].
-  apply denote_tc_assert_tc_bool in H.
+  apply tc_bool_e in H.
   eapply neutral_isCastResultType.
   exact H.
 Qed.
-  
+
 Lemma tc_temp_id_load_sub:
-   forall id t v rho, 
-   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
+   forall id t v rho,
+   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.
 Proof.
 rename extends into H.
 unfold tc_temp_id_load; simpl; intros.

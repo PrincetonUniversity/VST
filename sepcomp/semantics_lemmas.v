@@ -6,36 +6,36 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
-Require Import compcert.common.AST. 
+Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import msl.Extensionality. 
+Require Import VST.msl.Extensionality.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 (********************* Lemmas and definitions related to mem_step ********)
 
 Lemma mem_step_refl m: mem_step m m.
   apply (mem_step_freelist _ _ nil); trivial.
-Qed. 
- 
-Lemma mem_step_free: 
+Qed.
+
+Lemma mem_step_free:
       forall m b lo hi m', Mem.free m b lo hi = Some m' -> mem_step m m'.
 Proof.
- intros. eapply (mem_step_freelist _ _ ((b,lo,hi)::nil)). 
+ intros. eapply (mem_step_freelist _ _ ((b,lo,hi)::nil)).
  simpl. rewrite H; reflexivity.
 Qed.
 
-Lemma mem_step_store: 
+Lemma mem_step_store:
       forall m ch b a v m', Mem.store ch m b a v = Some m' -> mem_step m m'.
 Proof.
- intros. eapply mem_step_storebytes. eapply Mem.store_storebytes; eassumption. 
+ intros. eapply mem_step_storebytes. eapply Mem.store_storebytes; eassumption.
 Qed.
 
 Record memstep_preserve (P:mem -> mem -> Prop) :=
-  { 
+  {
     preserve_trans: forall m1 m2 m3, P m1 m2 -> P m2 m3 -> P m1 m3;
     preserve_mem: forall m m', mem_step m m' -> P m m'
   }.
@@ -43,7 +43,7 @@ Record memstep_preserve (P:mem -> mem -> Prop) :=
 Lemma preserve_refl {P} (HP: memstep_preserve P): forall m, P m m.
 Proof. intros. eapply (preserve_mem _ HP). apply mem_step_refl. Qed.
 
-Lemma preserve_free {P} (HP: memstep_preserve P): 
+Lemma preserve_free {P} (HP: memstep_preserve P):
       forall m b lo hi m', Mem.free m b lo hi = Some m' -> P m m'.
 Proof.
  intros. eapply (preserve_mem _ HP). eapply mem_step_free; eauto. Qed.
@@ -53,7 +53,7 @@ Theorem preserve_conj {P Q} (HP:memstep_preserve P) (HQ: memstep_preserve Q):
 Proof.
 intros. constructor.
 + intros. destruct H; destruct H0. split. eapply HP; eauto. eapply HQ; eauto.
-+ intros; split. apply HP; trivial. apply HQ; trivial. 
++ intros; split. apply HP; trivial. apply HQ; trivial.
 Qed.
 
 (*opposite direction appears not to hold*)
@@ -62,7 +62,7 @@ Theorem preserve_impl {A} (P:A -> mem -> mem -> Prop) (Q:A->Prop):
 Proof.
 intros.
 constructor; intros.
-+ eapply H; eauto. 
++ eapply H; eauto.
 + apply H; eauto.
 Qed.
 
@@ -74,7 +74,7 @@ Theorem preserve_univ {A} (P:A -> mem -> mem -> Prop):
         (forall a, memstep_preserve (P a)) -> memstep_preserve (fun m m' => forall a, P a m m').
 Proof. intros.
 eapply preserve_exensional.
-eapply (@preserve_impl A (fun a m m'=> P a m m') (fun a=>True)). 
+eapply (@preserve_impl A (fun a m m'=> P a m m') (fun a=>True)).
 intros. apply H. extensionality m. extensionality m'. apply prop_ext. intuition.
 Qed.
 
@@ -83,8 +83,8 @@ Proof.
 constructor.
 + apply mem_forward_trans.
 + intros. induction H.
-  eapply storebytes_forward; eassumption. 
-  eapply alloc_forward; eassumption. 
+  eapply storebytes_forward; eassumption.
+  eapply alloc_forward; eassumption.
   eapply freelist_forward; eassumption.
   eapply mem_forward_trans; eassumption.
 Qed.
@@ -92,13 +92,13 @@ Qed.
 Theorem readonly_preserve b: memstep_preserve (fun m m' => mem_forward m m' /\ (Mem.valid_block m b -> readonly m b m')).
 Proof.
 constructor.
-+ intros. destruct H; destruct H0. 
++ intros. destruct H; destruct H0.
   split; intros. eapply mem_forward_trans; eassumption.
   eapply readonly_trans; eauto. apply H2. apply H. eassumption.
-+ intros; induction H. 
++ intros; induction H.
   - split; intros. eapply storebytes_forward; eassumption.
     eapply storebytes_readonly; eassumption.
-  - intros. 
+  - intros.
     split; intros. eapply alloc_forward; eassumption.
     eapply alloc_readonly; eassumption.
   - intros.
@@ -109,14 +109,14 @@ constructor.
     intros. eapply readonly_trans. eauto. apply H4. apply H1; eassumption.
 Qed.
 
-Theorem readonly_preserve': 
+Theorem readonly_preserve':
    memstep_preserve (fun m m' => mem_forward m m' /\ (forall b, Mem.valid_block m b -> readonly m b m')).
-Proof. 
+Proof.
 eapply preserve_exensional.
 eapply preserve_univ; intros. apply (readonly_preserve a).
   extensionality m. extensionality m'. apply prop_ext.
-  split; intros. split. eapply H. apply xH. intros. eapply (H b). trivial. 
-  destruct H. split; eauto. 
+  split; intros. split. eapply H. apply xH. intros. eapply (H b). trivial.
+  destruct H. split; eauto.
 Qed.
 
 Lemma storebytes_unch_loc_unwritable b ofs: forall l m m' (L: Mem.storebytes m b ofs l = Some m'),
@@ -125,7 +125,7 @@ Proof.
 intros.
 split; intros.
 + rewrite (Mem.nextblock_storebytes _ _ _ _ _ L); apply Ple_refl.
-+ split; intros. 
++ split; intros.
   eapply Mem.perm_storebytes_1; eassumption.
   eapply Mem.perm_storebytes_2; eassumption.
 + rewrite (Mem.storebytes_mem_contents _ _ _ _ _ L).
@@ -133,13 +133,13 @@ split; intros.
   destruct (eq_block b0 b); subst.
   - destruct (zle ofs ofs0).
       destruct (zlt ofs0 (ofs + Z.of_nat (length l))).
-        elim H. eapply Mem.perm_max. apply L. omega. 
+        elim H. eapply Mem.perm_max. apply L. omega.
       rewrite PMap.gss. apply Mem.setN_other. intros. omega.
     rewrite PMap.gss. apply Mem.setN_other. intros. omega.
   - rewrite PMap.gso; trivial.
 Qed.
 
-Lemma unch_on_loc_not_writable_trans m1 m2 m3 
+Lemma unch_on_loc_not_writable_trans m1 m2 m3
         (Q : Mem.unchanged_on (loc_not_writable m1) m1 m2)
         (W : Mem.unchanged_on (loc_not_writable m2) m2 m3)
         (F:mem_forward m1 m2):
@@ -157,32 +157,32 @@ Proof.
      apply Q1; trivial. eapply Mem.perm_valid_block; eassumption.
 Qed.
 
-Theorem loc_not_writable_preserve: 
+Theorem loc_not_writable_preserve:
    memstep_preserve (fun m m' => mem_forward m m' /\ Mem.unchanged_on (loc_not_writable m) m m').
 Proof.
 constructor.
 + intros. destruct H as [F1 Q]; destruct H0 as [F2 W].
   split; intros. eapply mem_forward_trans; eassumption. clear F2.
   eapply unch_on_loc_not_writable_trans; eassumption.
-+ intros; induction H. 
++ intros; induction H.
   - split; intros. eapply storebytes_forward; eassumption.
     eapply storebytes_unch_loc_unwritable; eassumption.
   - split; intros. eapply alloc_forward; eassumption.
-    eapply Mem.alloc_unchanged_on; eassumption. 
+    eapply Mem.alloc_unchanged_on; eassumption.
   - split; intros. eapply freelist_forward; eassumption.
     generalize dependent m.
     induction l; simpl; intros. inv H. apply Mem.unchanged_on_refl.
-    destruct a. destruct p. 
+    destruct a. destruct p.
     remember (Mem.free m b z0 z) as w. destruct w; inv H. symmetry in Heqw.
     eapply unch_on_loc_not_writable_trans.
-      eapply Mem.free_unchanged_on. eassumption. 
-        intros i I N. elim N; clear N. 
+      eapply Mem.free_unchanged_on. eassumption.
+        intros i I N. elim N; clear N.
         eapply Mem.perm_max. eapply Mem.perm_implies. eapply Mem.free_range_perm; eassumption. constructor.
       apply IHl; eassumption.
       eapply free_forward; eassumption.
   - destruct IHmem_step1; destruct IHmem_step2.
     split. eapply mem_forward_trans; eassumption.
-    intros. clear H H0 H3. eapply unch_on_loc_not_writable_trans; eassumption. 
+    intros. clear H H0 H3. eapply unch_on_loc_not_writable_trans; eassumption.
 Qed.
 
 Lemma freelist_perm: forall l m m' (L : Mem.free_list m l = Some m') b (B: Mem.valid_block m b)
@@ -204,7 +204,7 @@ Proof. induction l; simpl; intros.
         split; intros. apply (Mem.perm_free_1 _ _ _ _ _ Heqw) in H0; eauto.
                        eapply Mem.perm_free_3; eassumption.
         split; intros.
-          eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw; trivial. omega. 
+          eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw; trivial. omega.
         eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw. omega.
           eapply Mem.perm_implies. eapply Mem.perm_max. eassumption. constructor.
     - split; intros.
@@ -214,19 +214,19 @@ Proof. induction l; simpl; intros.
   intuition.
 Qed.
 
-Theorem perm_preserve: 
-   memstep_preserve (fun m m' =>  mem_forward m m' /\ forall b, Mem.valid_block m b -> forall ofs, Mem.perm m' b ofs Max Nonempty -> 
+Theorem perm_preserve:
+   memstep_preserve (fun m m' =>  mem_forward m m' /\ forall b, Mem.valid_block m b -> forall ofs, Mem.perm m' b ofs Max Nonempty ->
                                   forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p).
-Proof. 
+Proof.
 constructor.
 + intros; split. eapply mem_forward_trans. apply H. apply H0.
   destruct H; destruct H0. intros.
   assert (M: Mem.perm m1 b ofs k p <-> Mem.perm m2 b ofs k p).
   - clear H2. apply H1; trivial. apply H0; trivial. apply H; trivial.
   - clear H1.
-    assert (VB2: Mem.valid_block m2 b). apply H; trivial. 
+    assert (VB2: Mem.valid_block m2 b). apply H; trivial.
     destruct (H2 _ VB2 _ H4 k p); destruct M. split; intros; eauto.
-+ intros; induction H. 
++ intros; induction H.
   - split; intros. eapply storebytes_forward; eassumption.
     split; intros. eapply Mem.perm_storebytes_1; eassumption.
     eapply Mem.perm_storebytes_2; eassumption.
@@ -234,15 +234,15 @@ constructor.
     split; intros. eapply Mem.perm_alloc_1; eassumption.
     eapply Mem.perm_alloc_4; try eassumption.
     intros N; subst b'. elim (Mem.fresh_block_alloc _ _ _ _ _ H H0).
-  - intros; split. eapply freelist_forward; eassumption. 
+  - intros; split. eapply freelist_forward; eassumption.
     apply (freelist_perm _ _ _ H).
-  - clear H H0. destruct IHmem_step1; destruct IHmem_step2. 
+  - clear H H0. destruct IHmem_step1; destruct IHmem_step2.
     split. eapply mem_forward_trans; eassumption.
-    intros. 
+    intros.
     assert (M: Mem.perm m b ofs k p <-> Mem.perm m'' b ofs k p).
     * clear H2. apply H0; trivial. apply H1; trivial. apply H; trivial.
     * clear H0.
-      assert (VB2: Mem.valid_block m'' b). apply H; trivial.   
+      assert (VB2: Mem.valid_block m'' b). apply H; trivial.
       destruct (H2 _ VB2 _ H4 k p); destruct M. split; intros; eauto.
 Qed.
 
@@ -255,7 +255,7 @@ Lemma freelist_perm_inv: forall l m m' (L : Mem.free_list m l = Some m') b (B: M
       ofs k p (P: Mem.perm m b ofs k p),
       Mem.perm m b ofs Max Freeable \/ Mem.perm m' b ofs k p.
 Proof. induction l; simpl; intros.
-+ inv L. right; trivial. 
++ inv L. right; trivial.
 + destruct a. destruct p0.
   remember (Mem.free m b0 z0 z) as w. symmetry in Heqw.
   destruct w; inv L.
@@ -266,27 +266,27 @@ Proof. induction l; simpl; intros.
     left. eapply Mem.perm_free_3; eauto.
 Qed.
 
-Theorem preserves_max_eq_or_free: 
-   memstep_preserve (fun m m' =>  mem_forward m m' /\ 
-                                  forall b (VB: Mem.valid_block m b) ofs, 
-                                   (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/ 
-                                   (Mem.perm m b ofs Max Freeable /\ 
+Theorem preserves_max_eq_or_free:
+   memstep_preserve (fun m m' =>  mem_forward m m' /\
+                                  forall b (VB: Mem.valid_block m b) ofs,
+                                   (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/
+                                   (Mem.perm m b ofs Max Freeable /\
                                     Mem.perm_order'' None ((Mem.mem_access m') !! b ofs Max))).
-Proof. 
+Proof.
 constructor.
 + intros; split. eapply mem_forward_trans. apply H. apply H0.
   destruct H; destruct H0. intros.
   assert (VB2: Mem.valid_block m2 b). { apply H; trivial. }
   destruct (H1 _ VB ofs) as [K1 | [K1 L1]]; destruct (H2 _ VB2 ofs) as [K2 | [K2 L2]]; clear H1 H2.
   - left; intros. specialize (K1 k p); specialize (K2 k p). intuition.
-  - right; split; trivial. apply K1; trivial. 
+  - right; split; trivial. apply K1; trivial.
   - right; split; trivial. simpl in *. specialize (K2 Max).
     unfold Mem.perm in *.
     remember ((Mem.mem_access m3) !! b ofs Max) as w; destruct w; trivial.
-    destruct ((Mem.mem_access m2) !! b ofs Max); try contradiction. 
+    destruct ((Mem.mem_access m2) !! b ofs Max); try contradiction.
     destruct (K2 p); simpl in *. apply H2. apply perm_refl.
-  - right; split; trivial. 
-+ intros; induction H. 
+  - right; split; trivial.
++ intros; induction H.
   - split; intros. eapply storebytes_forward; eassumption.
     left; intros. split; intros.
     * eapply Mem.perm_storebytes_1; eassumption.
@@ -305,8 +305,8 @@ constructor.
        elim n; clear n. constructor.
       left; intros.
       split; intros. 2: eapply perm_freelist; eassumption.
-      exploit freelist_perm_inv; eauto. intros [X | X]; trivial; contradiction. 
-  - clear H H0. destruct IHmem_step1; destruct IHmem_step2. 
+      exploit freelist_perm_inv; eauto. intros [X | X]; trivial; contradiction.
+  - clear H H0. destruct IHmem_step1; destruct IHmem_step2.
     split. eapply mem_forward_trans; eassumption.
     intros.
     assert (VB2 : Mem.valid_block m'' b). { apply H; trivial. }
@@ -321,10 +321,10 @@ constructor.
       destruct ((Mem.mem_access m'') !! b ofs Max); try contradiction.
       specialize (L p); simpl in *. apply L. apply perm_refl.
     * right. split; trivial.
-Qed. 
+Qed.
 
 Theorem mem_step_max_eq_or_free m m' (STEP: mem_step m m') b (VB: Mem.valid_block m b) ofs:
-       (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/ 
+       (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/
        (Mem.perm m b ofs Max Freeable /\ None = ((Mem.mem_access m') !! b ofs Max)).
 Proof. intros.
 exploit preserve_mem. apply preserves_max_eq_or_free. eassumption.
@@ -356,8 +356,8 @@ Lemma mem_step_nextblock:  memstep_preserve (fun m m' => Mem.nextblock m <= Mem.
 constructor.
 + intros. xomega.
 + induction 1.
- - apply Mem.nextblock_storebytes in H; 
-   rewrite H; xomega. 
+ - apply Mem.nextblock_storebytes in H;
+   rewrite H; xomega.
  - apply Mem.nextblock_alloc in H.
    rewrite H. clear. xomega.
  - apply nextblock_freelist in H.
@@ -374,9 +374,9 @@ Proof. apply mem_step_nextblock. Qed.
 (*E-step: Axiomatization of external steps - potentially useful when Memory interface is hardened
 Inductive e_step m m' : Prop :=
     mem_step_estep: mem_step m m' -> e_step m m'
-  | drop_perm_estep: forall b lo hi p, 
+  | drop_perm_estep: forall b lo hi p,
       Mem.drop_perm m b lo hi p = Some m' -> e_step m m'
-  | change_cur_estep: 
+  | change_cur_estep:
       (forall b ofs, (Mem.mem_access m) !! b ofs Max = (Mem.mem_access m') !! b ofs Max) ->
       Mem.unchanged_on (loc_not_writable m) m m' ->
       (Mem.mem_contents m = Mem.mem_contents m') ->
@@ -403,8 +403,8 @@ Qed.
 Lemma estep_unch_on_loc_not_writable m m' (E:e_step m m'): Mem.unchanged_on (loc_not_writable m) m m'.
 Proof.
 induction E.
-+ apply loc_not_writable_preserve in H. apply H. 
-+ unfold Mem.drop_perm in H. 
++ apply loc_not_writable_preserve in H. apply H.
++ unfold Mem.drop_perm in H.
   destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inv H; simpl in *.
   split; simpl; trivial.
   intros. red in H.
@@ -413,35 +413,35 @@ induction E.
   destruct (zle lo ofs); simpl. 2: intuition.
   destruct (zlt ofs hi); simpl. 2: intuition.
   elim H. eapply Mem.perm_max. eapply Mem.perm_implies. apply r. omega. constructor.
-+ trivial. 
++ trivial.
 + eapply unch_on_loc_not_writable_trans; try eassumption. eapply estep_forward; eassumption.
 Qed.
 *)
 (*
 Theorem loadbytes_drop m b lo hi p m' (D:Mem.drop_perm m b lo hi p = Some m'):
-  forall b' ofs, 
+  forall b' ofs,
   b' <> b \/ ofs < lo \/ hi <= ofs \/ perm_order p Readable ->
   Mem.loadbytes m' b' ofs 1 = Mem.loadbytes m b' ofs 1.
 Proof.
   intros.
 Transparent Mem.loadbytes.
   unfold Mem.loadbytes.
-  destruct (Mem.range_perm_dec m b' ofs (ofs + 1) Cur Readable). 
+  destruct (Mem.range_perm_dec m b' ofs (ofs + 1) Cur Readable).
   rewrite pred_dec_true.
   unfold Mem.drop_perm in D. destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inv D. simpl. auto.
   red; intros. specialize (Mem.perm_drop_1 _ _ _ _ _ _ D ofs0 Cur); intros.
     destruct (eq_block b' b); subst.
       destruct H. eapply Mem.perm_drop_3. eassumption. left; trivial. apply r. trivial.
       destruct (zlt ofs lo). eapply Mem.perm_drop_3. eassumption. right. omega. apply r. trivial.
-      destruct H. omega. 
-      destruct (zle hi ofs). eapply Mem.perm_drop_3. eassumption. right. omega. apply r. trivial. 
+      destruct H. omega.
+      destruct (zle hi ofs). eapply Mem.perm_drop_3. eassumption. right. omega. apply r. trivial.
       destruct H. omega.
       eapply Mem.perm_implies. apply H1. omega. trivial.
    eapply Mem.perm_drop_3. eassumption. left; trivial. apply r. omega.
 
   destruct (Mem.range_perm_dec m' b' ofs (ofs + 1) Cur Readable); trivial.
   elim n; clear n. red; intros. eapply Mem.perm_drop_4. eassumption. apply r. trivial.
-Qed. 
+Qed.
 *)
 
 Lemma mem_step_obeys_cur_write:
@@ -469,7 +469,7 @@ Proof.
  etransitivity.
  2: eapply IHbytes; try apply H2.
  clear H2 IHbytes.
- unfold Mem.storebytes in H1. 
+ unfold Mem.storebytes in H1.
 Opaque Mem.storebytes.
  destruct (Mem.range_perm_dec m b0 ofs0
          (ofs0 + Z.of_nat (length (a :: nil))) Cur Writable);
@@ -478,7 +478,7 @@ Opaque Mem.storebytes.
  rewrite PMap.gss.
  destruct (zeq ofs0 ofs). subst.
  contradiction H0. apply r. simpl. omega.
- rewrite ZMap.gso; auto. 
+ rewrite ZMap.gso; auto.
  rewrite PMap.gso; auto.
  clear - H H1.
  eapply Mem.storebytes_valid_block_1; eauto.
@@ -530,9 +530,9 @@ Opaque Mem.storebytes.
    eapply Plt_le_trans; eauto.
 Qed.
 
-Lemma ple_load m ch a v 
+Lemma ple_load m ch a v
             (LD: Mem.loadv ch m a = Some v)
-            m1 (PLE: perm_lesseq m m1): 
+            m1 (PLE: perm_lesseq m m1):
            Mem.loadv ch m1 a = Some v.
 Proof.
 unfold Mem.loadv in *.
@@ -597,7 +597,7 @@ destruct H0.
 clear - H0.
 forget ((Mem.mem_contents m1) !! b) as mA.
 forget ((Mem.mem_contents m) !! b) as mB.
-revert z mA mB H0; induction vl; intros; simpl. 
+revert z mA mB H0; induction vl; intros; simpl.
 simpl in H0; omega.
 simpl length in H0; rewrite inj_S in H0.
 destruct (zeq z ofs).
@@ -620,7 +620,7 @@ specialize (perm_le_Cur b ofs).
 hnf in H|-*.
 destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
 inv H;
-destruct ((Mem.mem_access m1) !! b ofs Cur); 
+destruct ((Mem.mem_access m1) !! b ofs Cur);
 inv perm_le_Cur; auto; try constructor; try inv H.
 Qed.
 
@@ -633,8 +633,8 @@ destruct (peq b' b); subst; trivial.
 destruct (zle lo ofs && zlt ofs hi); inv P; trivial.
 Qed.
 
-Lemma free_access_inv_None m b lo hi m' (FR: Mem.free m b lo hi = Some m') b' ofs k 
-  (P: (Mem.mem_access m') !! b' ofs k = None): 
+Lemma free_access_inv_None m b lo hi m' (FR: Mem.free m b lo hi = Some m') b' ofs k
+  (P: (Mem.mem_access m') !! b' ofs k = None):
   (b' = b /\ Z.le lo ofs /\ Z.lt ofs hi /\  (Mem.mem_access m) !! b' ofs k = Some Freeable) \/
   ((b' <> b \/ Z.lt ofs lo \/ Z.le hi ofs) /\ (Mem.mem_access m) !! b' ofs k = None).
 Proof.
@@ -653,10 +653,10 @@ destruct (peq b' b); subst.
       destruct p; simpl in *; try inv RP; simpl; trivial. contradiction.
     * unfold Mem.perm in RP. destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try discriminate.
       destruct p; simpl in *; try inv RP; simpl; trivial. contradiction.
-  - right; split; trivial. right. 
+  - right; split; trivial. right.
     destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; try omega.
 + right; split; trivial. left; trivial.
-Qed. 
+Qed.
 
 Lemma ple_free: forall m m' b lo hi (FL: Mem.free m b lo hi = Some m') m1 (PLE:perm_lesseq m m1),
       exists m1', Mem.free m1 b lo hi = Some m1' /\ perm_lesseq m' m1'.
@@ -665,7 +665,7 @@ Proof. intros.
   assert (RF: Mem.range_perm m1 b lo hi Cur Freeable).
   { destruct PLE. red; intros.
     specialize (perm_le_Cur b ofs). specialize (H _ H0). unfold Mem.perm in *.
-    destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try contradiction.  
+    destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try contradiction.
     destruct ((Mem.mem_access m1) !! b ofs Cur); simpl in *; try contradiction.
     eapply perm_order_trans; eassumption.
   }
@@ -681,10 +681,10 @@ Proof. intros.
          destruct w; trivial.
          rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *. simpl in *; trivial.
       * remember ((Mem.mem_access m') !! b0 ofs Cur) as w; symmetry in Heqw.
-        destruct w; trivial. 
+        destruct w; trivial.
         rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *.
         destruct (free_access_inv_None _ _ _ _ _ MM _ _ _ Heqq).
-        ++ destruct H0 as [? [? [? ?]]]; subst. 
+        ++ destruct H0 as [? [? [? ?]]]; subst.
            rewrite (Mem.free_result _ _ _ _ _ FL) in *. simpl in *.
            rewrite PMap.gss in Heqw.
            remember (zle lo ofs&& zlt ofs hi ) as t; destruct t; simpl in *; try discriminate.
@@ -698,10 +698,10 @@ Proof. intros.
          destruct w; trivial.
          rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *. simpl in *; trivial.
       * remember ((Mem.mem_access m') !! b0 ofs Max) as w; symmetry in Heqw.
-        destruct w; trivial. 
+        destruct w; trivial.
         rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *.
         destruct (free_access_inv_None _ _ _ _ _ MM _ _ _ Heqq).
-        ++ destruct H0 as [? [? [? ?]]]; subst. 
+        ++ destruct H0 as [? [? [? ?]]]; subst.
            rewrite (Mem.free_result _ _ _ _ _ FL) in *. simpl in *.
            rewrite PMap.gss in Heqw.
            remember (zle lo ofs&& zlt ofs hi ) as t; destruct t; simpl in *; try discriminate.
@@ -710,7 +710,7 @@ Proof. intros.
   - rewrite (Mem.free_result _ _ _ _ _ FL). rewrite (Mem.free_result _ _ _ _ _ MM).
     simpl. apply perm_le_cont. eapply Mem.perm_free_3; eassumption.
   - rewrite (Mem.free_result _ _ _ _ _ FL). rewrite (Mem.free_result _ _ _ _ _ MM).
-    simpl; trivial. 
+    simpl; trivial.
 Qed.
 
 Lemma ple_freelist: forall l m m' (FL: Mem.free_list m l = Some m') m1 (PLE:perm_lesseq m m1),
@@ -730,16 +730,16 @@ Lemma ple_storebytes:
 Proof.
 intros. Transparent Mem.storebytes. unfold Mem.storebytes in *. Opaque Mem.storebytes.
 remember (Mem.range_perm_dec m b ofs (ofs + Z.of_nat (length bytes)) Cur Writable ) as d.
-destruct d; inv H. 
+destruct d; inv H.
 destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writable).
 + clear Heqd.
   eexists; split. 2: reflexivity.
-  destruct PLE. 
+  destruct PLE.
   split; intros; simpl.
   - simpl. apply perm_le_Cur.
   - simpl. apply perm_le_Max.
   - simpl in *. rewrite PMap.gsspec. rewrite PMap.gsspec.
-    destruct (peq b0 b); subst. 
+    destruct (peq b0 b); subst.
     * destruct (zlt ofs0 ofs).
       ++ rewrite Mem.setN_outside. 2: left; trivial.  rewrite Mem.setN_outside. 2: left; trivial.  apply perm_le_cont. apply H.
       ++ destruct (zle (ofs+Z.of_nat (length bytes)) ofs0).
@@ -747,10 +747,10 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writab
          clear - g g0.
          remember ((Mem.mem_contents m1) !! b) as mA. clear HeqmA.
          remember ((Mem.mem_contents m) !! b) as mB. clear HeqmB.
-         revert ofs mA mB g g0; induction bytes; intros; simpl. 
+         revert ofs mA mB g g0; induction bytes; intros; simpl.
          -- simpl in *; omega.
          -- simpl length in g0; rewrite inj_S in g0.
-            destruct (zeq ofs ofs0). 
+            destruct (zeq ofs ofs0).
             ** subst ofs0. rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
             ** apply IHbytes; omega.
     * apply perm_le_cont. apply H.
@@ -762,11 +762,11 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writab
   destruct ((Mem.mem_access m) !! b ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
   inv r.
   destruct ((Mem.mem_access m) !! b ofs0 Cur); inv perm_le_Cur. inv r.
-Qed. 
+Qed.
 
-Lemma ple_loadbytes m b ofs n bytes 
+Lemma ple_loadbytes m b ofs n bytes
             (LD: Mem.loadbytes m b ofs n = Some bytes)
-            m1 (PLE: perm_lesseq m m1) (N: 0 <= n): 
+            m1 (PLE: perm_lesseq m m1) (N: 0 <= n):
             Mem.loadbytes m1 b ofs n = Some bytes.
 Proof.
 Transparent Mem.loadbytes.
@@ -776,7 +776,7 @@ apply loadbytes_D in LD. destruct LD as [RP1 CONT].
 destruct PLE.
 destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
 + rewrite CONT; f_equal. eapply Mem.getN_exten.
-  intros. apply perm_le_cont. apply RP1. rewrite nat_of_Z_eq in H; omega. 
+  intros. apply perm_le_cont. apply RP1. rewrite nat_of_Z_eq in H; omega.
 + elim n0; clear - RP1 perm_le_Cur.
   red; intros. specialize (RP1 _ H). specialize (perm_le_Cur b ofs0).
   unfold Mem.perm in *.
@@ -787,8 +787,8 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
 Qed.
 
 Lemma alloc_access_inv m b lo hi m' (ALLOC: Mem.alloc m lo hi = (m', b)) b' ofs k p
-  (P: (Mem.mem_access m') !! b' ofs k = Some p): 
-  (b'=b /\ Z.le lo ofs /\ Z.lt ofs hi) \/ 
+  (P: (Mem.mem_access m') !! b' ofs k = Some p):
+  (b'=b /\ Z.le lo ofs /\ Z.lt ofs hi) \/
   (b' <> b /\ (Mem.mem_access m) !! b' ofs k = Some p).
 Proof.
 Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc. inv ALLOC; simpl in *.
@@ -806,19 +806,19 @@ Proof.
 Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc. inv ALLOC; simpl in *.
 rewrite PMap.gsspec in P.
 destruct (peq b' (Mem.nextblock m)); subst; trivial.
-apply Mem.nextblock_noaccess. xomega. 
+apply Mem.nextblock_noaccess. xomega.
 Qed.
 
 Lemma alloc_inc_perm: forall m lo hi m' b
       (M: Mem.alloc m lo hi = (m',b)) m1 (PLE: perm_lesseq m m1),
-      exists m1' : mem, Mem.alloc m1 lo hi =(m1',b) /\ perm_lesseq m' m1'. 
+      exists m1' : mem, Mem.alloc m1 lo hi =(m1',b) /\ perm_lesseq m' m1'.
 Proof. intros.
   remember (Mem.alloc m1 lo hi). destruct p; symmetry in Heqp.
   assert (B: b0=b).
      apply Mem.alloc_result  in M. apply Mem.alloc_result  in Heqp.
      destruct PLE. rewrite perm_le_nb in *; subst. trivial.
-  subst b0. 
-  eexists m0; split; trivial. 
+  subst b0.
+  eexists m0; split; trivial.
   Transparent Mem.alloc. unfold Mem.alloc in *. Opaque Mem.alloc. inv M; inv Heqp. simpl in *.
   destruct PLE.
   split; simpl; intros.
@@ -836,7 +836,7 @@ Proof. intros.
     - rewrite perm_le_nb. do 2 rewrite PMap.gss. trivial.
     - rewrite PMap.gso; try rewrite H1; trivial. rewrite PMap.gso; trivial. apply perm_le_cont. apply H.
   + rewrite H1; trivial.
-Qed. 
+Qed.
 
 Lemma perm_lesseq_refl:
   forall m, perm_lesseq m m.
@@ -849,16 +849,16 @@ Qed.
 
 (*************************************************************************)
 
-Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
+Definition corestep_fun {G C M : Type} (sem : @CoreSemantics G C M) :=
   forall (m m' m'' : M) ge c c' c'',
-  corestep sem ge c m c' m' -> 
-  corestep sem ge c m c'' m'' -> 
+  corestep sem ge c m c' m' ->
+  corestep sem ge c m c'' m'' ->
   c'=c'' /\ m'=m''.
 
 (**  Multistepping *)
 
 Section corestepN.
-  Context {G C M E:Type} (Sem:CoreSemantics G C M) (ge:G).
+  Context {G C M E:Type} (Sem:@CoreSemantics G C M) (ge:G).
 
   Fixpoint corestepN (n:nat) : C -> M -> C -> M -> Prop :=
     match n with
@@ -879,12 +879,12 @@ Section corestepN.
     inv H. auto.
     decompose [ex and] H. clear H.
     destruct (IHn m x x0 c3 m3).
-    apply H in H2. 
+    apply H in H2.
     decompose [ex and] H2. clear H2.
     repeat econstructor; eauto.
     decompose [ex and] H. clear H.
     exists x1. exists x2; split; auto.
-    destruct (IHn m x1 x2 c3 m3). 
+    destruct (IHn m x1 x2 c3 m3).
     eauto.
   Qed.
 
@@ -899,7 +899,7 @@ Section corestepN.
   Proof. intros. destruct H as [n1 H1]. eexists. apply H1. Qed.
 
   Lemma corestep_plus_trans : forall c1 c2 c3 m1 m2 m3,
-    corestep_plus c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> 
+    corestep_plus c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 ->
     corestep_plus c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
     destruct (corestepN_add (S n1) (S n2) c1 m1 c3 m3) as [_ H].
@@ -907,42 +907,42 @@ Section corestepN.
   Qed.
 
   Lemma corestep_star_plus_trans : forall c1 c2 c3 m1 m2 m3,
-    corestep_star c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> 
+    corestep_star c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 ->
     corestep_plus c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (corestepN_add n1 (S n2) c1 m1 c3 m3) as [_ H]. 
+    destruct (corestepN_add n1 (S n2) c1 m1 c3 m3) as [_ H].
     rewrite <- plus_n_Sm in H.
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
   Lemma corestep_plus_star_trans: forall c1 c2 c3 m1 m2 m3,
-    corestep_plus c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 -> 
+    corestep_plus c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 ->
     corestep_plus c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (corestepN_add (S n1) n2 c1 m1 c3 m3) as [_ H]. 
+    destruct (corestepN_add (S n1) n2 c1 m1 c3 m3) as [_ H].
     rewrite plus_Sn_m in H.
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
-  Lemma corestep_star_trans: forall c1 c2 c3 m1 m2 m3, 
-    corestep_star c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 -> 
+  Lemma corestep_star_trans: forall c1 c2 c3 m1 m2 m3,
+    corestep_star c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 ->
     corestep_star c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (corestepN_add n1 n2 c1 m1 c3 m3) as [_ H]. 
+    destruct (corestepN_add n1 n2 c1 m1 c3 m3) as [_ H].
     eexists. apply H.  exists c2. exists m2.  split; assumption.
   Qed.
 
   Lemma corestep_plus_one: forall c m c' m',
     corestep  Sem ge c m c' m' -> corestep_plus c m c' m'.
   Proof. intros. unfold corestep_plus, corestepN. simpl.
-    exists O. exists c'. exists m'. eauto. 
+    exists O. exists c'. exists m'. eauto.
   Qed.
 
   Lemma corestep_plus_two: forall c m c' m' c'' m'',
-    corestep  Sem ge c m c' m' -> corestep  Sem ge c' m' c'' m'' -> 
+    corestep  Sem ge c m c' m' -> corestep  Sem ge c' m' c'' m'' ->
     corestep_plus c m c'' m''.
-  Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. 
+  Proof. intros.
+    exists (S O). exists c'. exists m'. split; trivial.
     exists c''. exists m''. split; trivial. reflexivity.
   Qed.
 
@@ -951,17 +951,17 @@ Section corestepN.
 
   Lemma corestep_star_one: forall c m c' m',
     corestep  Sem ge c m c' m' -> corestep_star c m c' m'.
-  Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. reflexivity. 
+  Proof. intros.
+    exists (S O). exists c'. exists m'. split; trivial. reflexivity.
   Qed.
 
   Lemma corestep_plus_split: forall c m c' m',
     corestep_plus c m c' m' ->
-    exists c'', exists m'', corestep  Sem ge c m c'' m'' /\ 
+    exists c'', exists m'', corestep  Sem ge c m c'' m'' /\
       corestep_star c'' m'' c' m'.
   Proof. intros.
-    destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*. 
-    exists c2. exists m2. split. assumption. exists n. assumption.  
+    destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*.
+    exists c2. exists m2. split. assumption. exists n. assumption.
   Qed.
 
 End corestepN.
@@ -972,7 +972,7 @@ Section memstepN.
 Lemma corestepN_mem n: forall c m c' m', corestepN M g n c m c' m' -> mem_step m m'.
 induction n; intros; inv H.
   apply mem_step_refl.
-  destruct H0 as [m'' [CS CSN]]. eapply mem_step_trans. 
+  destruct H0 as [m'' [CS CSN]]. eapply mem_step_trans.
   eapply corestep_mem; eassumption.
   eapply IHn; eassumption.
 Qed.
@@ -985,7 +985,7 @@ destruct H as [n H]. eapply corestepN_mem; eassumption. Qed.
 
 Lemma memsem_preservesN P (HP: memstep_preserve P)
       n c m c' m' (H: corestepN M g n c m c' m'): P m m'.
-apply corestepN_mem in H. apply HP; trivial. Qed. 
+apply corestepN_mem in H. apply HP; trivial. Qed.
 
 Lemma memsem_preserves_plus P (HP:memstep_preserve P)
       c m c' m' (H: corestep_plus M g c m c' m'): P m m'.
@@ -1012,7 +1012,7 @@ Lemma corestep_star_fwd c m c' m'
 Proof.
 destruct CS. eapply corestepN_fwd; eassumption.
 Qed.
- 
+
 Lemma corestepN_rdonly n c m c' m'
     (CS:corestepN M g n c m c' m') b (VB:Mem.valid_block m b): readonly m b m'.
 Proof.
@@ -1030,5 +1030,5 @@ Lemma corestep_star_rdonly c m c' m'
 Proof.
 destruct CS. eapply corestepN_rdonly; eassumption.
 Qed.
- 
+
 End memstepN.

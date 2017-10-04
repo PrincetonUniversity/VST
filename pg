@@ -17,13 +17,13 @@ pad () {
 	    echo -n "\"$PWD/$1\" "
 	fi
 	I=0
-    else 
+    else
 	if [[ $1 == -I ]] || [[ $1 == -R ]]
 	then echo -n "\"$1\" "; I=1
 	else echo -n "\"$1\" "
 	fi
-    fi 
-}    
+    fi
+}
 
 COQPROGNAME="coqtop"
 COQPROGARGS=`for w in $LOADPATH; do pad $w; done`

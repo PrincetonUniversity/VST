@@ -1,31 +1,31 @@
 (** * Lemmas about the Dry Machine*)
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat seq ssrfun eqtype fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_context.
-Require Import concurrency.semantics.
-Require Import concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.dry_machine_lemmas.
 Import threadPool.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
@@ -133,7 +133,7 @@ Module StepLemmas (SEM : Semantics)
   Proof.
     intros; erewrite gsoThreadCC; eauto.
   Qed.
-  
+
   Corollary gsoThreadC_suspendC:
     forall tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j) (Hneq: i <> j)
@@ -186,7 +186,7 @@ Module StepLemmas (SEM : Semantics)
     inversion Hsuspend; subst.
       by apply updThreadC_invariant.
   Qed.
-  
+
   Lemma suspendF_invariant:
     forall tp tp' i
       (pff: containsThread tp i)
@@ -220,7 +220,7 @@ Module StepLemmas (SEM : Semantics)
     intros. inversion Hsuspend; subst.
       by erewrite gsoThreadCLPool.
   Qed.
-  
+
   Lemma suspendF_lockPool :
     forall (tp tp' : thread_pool) (i : tid) (pff : containsThread tp i)
       (Hsuspend: FineConc.suspend_thread pff tp') addr,
@@ -358,7 +358,7 @@ Module StepLemmas (SEM : Semantics)
     intros.
     split; auto.
   Qed.
-  
+
   Lemma safeC_invariant:
     forall tpc mc n the_ge
       (Hn: n > 0)
@@ -374,7 +374,7 @@ Module StepLemmas (SEM : Semantics)
         try (inversion Hhalted; simpl in *; subst; auto);
         simpl in *; subst; auto.
   Qed.
-  
+
   Lemma safeC_compatible:
     forall tpc mc n the_ge
       (Hn: n > 0)
@@ -438,10 +438,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
   Section InternalSteps.
     Variable the_ge : G.
-    
+
     Notation threadStep := (threadStep the_ge).
     Notation Sch := SCH.schedule.
-    
+
     (** Internal steps are just thread coresteps or resume steps or start steps,
   they mimic fine-grained internal steps *)
     Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
@@ -538,14 +538,14 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                    erewrite base_case; eauto)
           end
         ]
-      end. 
+      end.
 
     (** [containsThread] is preserved by [internal_step]*)
     Lemma containsThread_internal_step :
       forall tp m tp' m' tid0 tid
         (Hcnt0: containsThread tp tid0)
         (Hcomp: mem_compatible tp m)
-        (Hstep: internal_step Hcnt0 Hcomp tp' m') 
+        (Hstep: internal_step Hcnt0 Hcomp tp' m')
         (Hcnt: containsThread tp tid),
         containsThread tp' tid.
     Proof.
@@ -577,7 +577,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       forall tp m tp' m' i j
         (Hcnt0: containsThread tp j)
         (Hcomp: mem_compatible tp m)
-        (Hstep: internal_step Hcnt0 Hcomp tp' m') 
+        (Hstep: internal_step Hcnt0 Hcomp tp' m')
         (Hcnt: containsThread tp' i),
         containsThread tp i.
     Proof.
@@ -650,7 +650,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         subst;
         [eapply dry_step_compatible
         | eapply coarseResume_compatible
-        | eapply coarseStart_compatible]; 
+        | eapply coarseStart_compatible];
           by eauto.
     Qed.
 
@@ -695,7 +695,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply internal_step_compatible; eauto.
       eapply internal_step_invariant; eauto.
     Qed.
-    
+
     Lemma gsoThreadC_step:
       forall tp tp' m m' i j (pfi: containsThread tp i)
         (pfj: containsThread tp j)
@@ -827,7 +827,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
     (** The [lockRes] is preserved by [internal_execution]*)
     Lemma gsoLockPool_execution :
-      forall (tp : thread_pool) (m : mem) (tp' : thread_pool) 
+      forall (tp : thread_pool) (m : mem) (tp' : thread_pool)
         (m' : mem) (i : nat) (xs : seq nat_eqType)
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         addr,
@@ -891,7 +891,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         rewrite Hstep2.
         now eapply IHxs.
     Qed.
-        
+
     Lemma permission_at_execution:
       forall tp m tp' m' i j xs
         (pfi: containsThread tp i)
@@ -921,7 +921,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
-        (Hreadable: 
+        (Hreadable:
            Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
            Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
@@ -933,7 +933,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply corestep_disjoint_val;
         by eauto.
     Qed.
-    
+
     Lemma internal_exec_disjoint_val :
       forall tp tp' m m' i j xs
         (Hneq: i <> j)
@@ -941,7 +941,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (pfj: containsThread tp j)
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
-        (Hreadable: 
+        (Hreadable:
            Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
            Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
@@ -999,7 +999,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
-        (Hreadable: 
+        (Hreadable:
            Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1011,7 +1011,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           by eauto.
     Qed.
 
-    
+
     Lemma internal_exec_disjoint_locks:
       forall tp tp' m m' i j xs
         (pfi: containsThread tp i)
@@ -1281,7 +1281,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           eapply internal_step_stable; eauto.
         + by eauto.
     Qed.
- 
+
     Lemma internal_execution_decay:
       forall tp m tp' m' xs i (cnt: containsThread tp i)
         (cnt': containsThread tp' i)
@@ -1348,7 +1348,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply corestep_disjoint_val_lockpool;
         by eauto.
     Qed.
-    
+
     Lemma internal_exec_disjoint_val_lockPool:
       forall (tp tp' : thread_pool) (m m' : mem) (i : tid) xs bl ofsl pmap
         (Hcomp : mem_compatible tp m)
@@ -1449,8 +1449,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         pf_cleanup. auto.
         rewrite updThread_updThreadC_comm; auto.
     Qed.
-        
-    
+
+
     Lemma updThread_internal_execution:
       forall tp tp' m m' i j xs c pmap
         (cnti: containsThread tp i)
@@ -1518,7 +1518,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         right; left.
         split; auto.
         econstructor; eauto.
-        erewrite gsoAddCode with (cntj := ctn); eauto.            
+        erewrite gsoAddCode with (cntj := ctn); eauto.
           by rewrite add_updateC_comm.
       - destruct Hinit; subst.
         right; right.
@@ -1529,7 +1529,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           by rewrite add_updateC_comm.
     Qed.
 
-    
+
     Lemma addThread_internal_execution:
       forall tp tp' m m' i j xs vf arg pmap
         (Hneq: i <> j)
@@ -1604,7 +1604,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         rewrite gRemLockSetCode; auto.
         eapply remLock_inv; eauto.
     Qed.
-    
+
     Lemma remLock_internal_execution:
       forall tp tp' m m' j xs b ofs
         (Hcomp': mem_compatible (remLockSet tp (b,ofs)) m)
@@ -1651,7 +1651,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       apply Pos.le_refl.
       apply Pos.le_refl.
     Qed.
-     
+
     Lemma internal_execution_nextblock:
       forall tp m tp' m' xs
         (Hexec: internal_execution xs tp m tp' m'),
@@ -1670,7 +1670,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply internal_step_nextblock; eauto.
       eauto.
     Qed.
-    
+
   End InternalSteps.
 End InternalSteps.
 
@@ -1681,7 +1681,7 @@ Module StepType (SEM : Semantics)
        (AsmContext : AsmContext SEM Machine ).
 
   Import AsmContext Machine DryMachine ThreadPool.
-  Import SEM event_semantics SemAxioms. 
+  Import SEM event_semantics SemAxioms.
 
   Module StepLemmas := StepLemmas SEM Machine.
   Module ThreadPoolWF := ThreadPoolWF SEM Machine.
@@ -1698,7 +1698,7 @@ Module StepType (SEM : Semantics)
     | Kinit _ _ => Internal
     | Krun c =>
       match at_external Sem c with
-      | None => 
+      | None =>
         match halted Sem c with
         | Some _ => Halted
         | None => Internal
@@ -1708,7 +1708,7 @@ Module StepType (SEM : Semantics)
     | Kblocked c => Concurrent
     | Kresume c _ => Internal
     end.
-  
+
   Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
     ctlType (getThreadC cnt).
 
@@ -1740,8 +1740,8 @@ Module StepType (SEM : Semantics)
                  [discriminate | by exfalso] |
                 rewrite Hcontra in H1; by exfalso]
            end; try discriminate; try (exfalso; by auto).
-  
-  
+
+
   Section StepType.
     Variable ge : G.
   Lemma internal_step_type :
@@ -1821,7 +1821,7 @@ Module StepType (SEM : Semantics)
       eauto.
       move/eqP:Hia; auto.
   Qed.
-      
+
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) ge).
 
@@ -1849,7 +1849,7 @@ Module StepType (SEM : Semantics)
     absurd_internal Hstep.
     - apply updThreadC_invariant; auto.
     - apply updThreadC_invariant; auto.
-    -  
+    -
       eapply ev_step_ax1 in Hcorestep.
       eapply corestep_invariant;
         by (simpl; eauto).
@@ -1918,7 +1918,7 @@ Module StepType (SEM : Semantics)
       try (by rewrite gsoThreadCLPool);
       try (by rewrite gsoThreadLPool).
   Qed.
-  
+
   Lemma fmachine_step_disjoint_val :
     forall tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
@@ -1929,7 +1929,7 @@ Module StepType (SEM : Semantics)
       (Hcomp': mem_compatible tp' m')
       (Hinv: pfi @ I)
       (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr', tp') m') b ofs
-      (Hreadable: 
+      (Hreadable:
          Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
          Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
@@ -1959,12 +1959,12 @@ Module StepType (SEM : Semantics)
     eapply Mem.store_valid_block_1; eauto.
     eapply Mem.store_valid_block_1; eauto.
   Qed.
-  
+
   End StepType.
 
   Hint Resolve fmachine_step_compatible fmachine_step_invariant
        fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
 
   Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
-  
+
 End StepType.

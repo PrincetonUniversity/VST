@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,6 +10,9 @@ Require Import sha.hmac_common_lemmas.
 
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
+
+Require Import sha.ByteBitRelations.
+Require Import sha.verif_hmac_crypto.
 
 Module Type HMAC_ABSTRACT_SPEC.
 
@@ -149,9 +152,6 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-
-Require Import sha.ByteBitRelations.
-Require Import sha.verif_hmac_crypto.
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
@@ -215,6 +215,13 @@ rewrite two_power_pos_equiv in *.
 assert (l * 8 < 2^31 * 8) by omega. clear H0.
 eapply Z.lt_trans. eassumption. clear H. cbv; trivial.
 Qed.
+
+Require Import sha.verif_hmac_final.
+Require Import sha.verif_hmac_update.
+Require Import sha.verif_hmac_init.
+Require Import sha.verif_hmac_cleanup.
+Import sha.ByteBitRelations.
+Import sha.verif_hmac_crypto.
 
 Module OPENSSL_HMAC_ABSTRACT_SPEC <: HMAC_ABSTRACT_SPEC.
 Inductive HABS := hABS: forall (key data:list Z), HABS.
@@ -367,9 +374,6 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-Import sha.ByteBitRelations.
-Import sha.verif_hmac_crypto.
-
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
@@ -402,16 +406,11 @@ Definition hmac_crypto_spec :=
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
 
-Require Import sha.verif_hmac_final.
-Require Import sha.verif_hmac_update.
-Require Import sha.verif_hmac_init.
-Require Import sha.verif_hmac_cleanup.
-
 Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC hmac_crypto_spec.
 Proof.
 start_function.
-rename lvar0 into c. rename H into KL. rename H0 into DL.
+rename v_c into c. rename H into KL. rename H0 into DL.
 eapply semax_pre_post.
 Focus 3.
 eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
@@ -426,7 +425,7 @@ Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_reset_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 abbreviate_semax.
 apply semax_pre with (P':=EX h1:hmacabs, 
   (PROP  ()
@@ -452,7 +451,7 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final hmac_final_spec. 
 Proof.
 start_function.
-rename lvar0 into buf.
+rename v_buf into buf.
 unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
@@ -495,7 +494,7 @@ Lemma body_hmac_starts: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_starts_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.

@@ -1,8 +1,7 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.fieldlist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.fieldlist.
 Open Scope Z.
 
 (************************************************
@@ -41,7 +40,7 @@ Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
   fold_right (fun it b => (nested_pred atom_pred (field_type (fst it) m) && b)%bool) true m.
 
 Lemma nested_pred_eq: forall atom_pred t,
-  nested_pred atom_pred t = 
+  nested_pred atom_pred t =
   match t with
   | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
   | Tstruct id _
@@ -113,7 +112,7 @@ Proof.
   intros.
   apply nested_pred_Tstruct in H.
   apply nested_fields_pred_nested_pred; auto.
-Qed.  
+Qed.
 
 Lemma nested_pred_Tunion: forall (atom_pred: type -> bool) id a,
   nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members (get_co id)) = true.
@@ -131,7 +130,7 @@ Proof.
   intros.
   apply nested_pred_Tunion in H.
   apply nested_fields_pred_nested_pred; auto.
-Qed.  
+Qed.
 (*
 Lemma nested_fields_pred_hd: forall (atom_pred: type -> bool) i t m,
   nested_fields_pred atom_pred ((i, t) :: m) = true ->

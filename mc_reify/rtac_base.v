@@ -27,7 +27,7 @@ Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ fun
 
 Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
 
-Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
+Definition THEN (r1 r2 : rtac typ (expr typ func)) :=
   THEN' r1 (THEN' (INSTANTIATE typ func) r2).
 
 Section tbled.
@@ -52,9 +52,9 @@ Instance MentionsAnyOk : MentionsAnyOk MA _ _.
 Admitted.
 
 Lemma THEN_sound : forall t1 t2,
-rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t1 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t2 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (THEN t1 t2). 
+rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t1 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t2 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (THEN t1 t2).
 intros. unfold THEN.
-unfold THEN'. 
+unfold THEN'.
 apply THEN_sound; auto.
 apply runOnGoals_sound; auto;
 rtac_derive_soundness.
@@ -62,14 +62,14 @@ apply INSTANTIATE_sound.
 apply runOnGoals_sound. auto.
 Qed.
 
-Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
-(*Definition APPLY_sound := 
+Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ).
+(*Definition APPLY_sound :=
   (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _
  (fun (subst : Type)
                                  (SS : Subst subst (expr typ func))
                                  (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
+                                 (tus tvs : tenv typ)
+                                 (n : nat) (l r : expr typ func)
                                  (t3 : typ) (s1 : subst) =>
                                @ExprUnify_simul.exprUnify subst typ func
                                  RType_typ (_)
@@ -81,8 +81,8 @@ Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ 
  (fun (subst : Type)
                                  (SS : Subst subst (expr typ func))
                                  (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
+                                 (tus tvs : tenv typ)
+                                 (n : nat) (l r : expr typ func)
                                  (t3 : typ) (s1 : subst) =>
                                @ExprUnify_simul.exprUnify subst typ func
                                  RType_typ (_)
@@ -90,12 +90,12 @@ Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ 
                                  (S (S (S (S (S (S (S (S (S (S O))))))))))
                                  tus tvs n l r t3 s1) _ (* (ExprLift.vars_to_uvars_exprD')*)).*)
 
-Definition EAPPLY_sound := 
+Definition EAPPLY_sound :=
   (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _). (*_ _ (fun (subst : Type)
                                  (SS : Subst subst (expr typ func))
                                  (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
+                                 (tus tvs : tenv typ)
+                                 (n : nat) (l r : expr typ func)
                                  (t3 : typ) (s1 : subst) =>
                                @ExprUnify_simul.exprUnify subst typ func
                                  RType_typ (func_defs.RSym_sym symexe.tbl)
@@ -109,17 +109,17 @@ apply vars_to_uvars_exprD'.
 Qed.
 
 Lemma APPLY_condition2:
- forall (subst : Type) (S : Subst subst (expr typ func)) 
+ forall (subst : Type) (S : Subst subst (expr typ func))
    (SO : SubstOk S) (SU : SubstUpdate subst (expr typ func))
    (SUO : SubstUpdateOk SU SO),
  UnifyI.unify_sound
-   (fun (tus tvs : tenv typ) (n : nat) (l r : expr typ func) 
+   (fun (tus tvs : tenv typ) (n : nat) (l r : expr typ func)
       (t : typ) (s : subst) => exprUnify 10 tus tvs n l r t s).
 intros.
 change (UnifyI.unify_sound (exprUnify 10)).
 unfold UnifyI.unify_sound.
 generalize (exprUnify_sound).
-unfold ExprUnify_common.unify_sound, ExprUnify_common.unify_sound_ind. intros. forward_reason. 
+unfold ExprUnify_common.unify_sound, ExprUnify_common.unify_sound_ind. intros. forward_reason.
 Admitted. (*new version!*)
 
 End tbled.

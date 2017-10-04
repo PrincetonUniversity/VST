@@ -14,7 +14,7 @@ Proof. intros. unfold compose_meminj.
 Qed.
 
 Lemma compose_meminjI_None: forall j k b1
-          (H: (j b1 = None) \/ 
+          (H: (j b1 = None) \/
               (exists b2 d1, j b1 =Some(b2,d1) /\ k b2=None)),
           compose_meminj j k b1 = None.
 Proof. intros. unfold compose_meminj.
@@ -60,15 +60,15 @@ Lemma join_assoc: forall f g h, join f (join g h) = join (join f g) h.
 Proof. intros. unfold join.
   extensionality b.
   destruct (f b); trivial. destruct p. trivial.
-Qed.  
+Qed.
 
 Lemma join_com: forall f g, disjoint f g -> join f g = join g f.
 Proof. intros. unfold join.
 extensionality b.
 destruct (H b); rewrite H0.
-  destruct (g b); intuition. 
+  destruct (g b); intuition.
   destruct (f b); intuition.
-Qed. 
+Qed.
 
 Lemma disjoint_com: forall f g, disjoint f g <-> disjoint g f.
 Proof. intros. unfold disjoint.
@@ -111,7 +111,7 @@ Proof. intros.
      case_eq (k b); eauto.
      destruct p; eauto.
    case_eq (j b); eauto.
-     destruct p; eauto. 
+     destruct p; eauto.
 Qed.
 
 Lemma joinD_Some:
@@ -121,7 +121,7 @@ Proof. intros. unfold join in J.
   remember (j b) as d.
   destruct d; apply eq_sym in Heqd.
     destruct p; left. assumption.
-  right; split; auto. 
+  right; split; auto.
 Qed.
 
 Lemma joinD_None:
@@ -130,14 +130,14 @@ Lemma joinD_None:
 Proof. intros. unfold join in J.
   remember (j b) as d.
   destruct d; apply eq_sym in Heqd; auto.
-    destruct p. inv J. 
+    destruct p. inv J.
 Qed.
 
 
 Lemma joinI_None: forall j k b (J:j b = None) (K:k b = None),
                   join j k b = None.
 Proof. intros.
-  unfold join. rewrite J. assumption. 
+  unfold join. rewrite J. assumption.
 Qed.
 
 Lemma inject_incr_join: forall j j' k k'
@@ -162,7 +162,7 @@ Proof. intros. intros b; intros.
   unfold join; rewrite H; trivial.
 Qed.
 
-Lemma join_incr_right: forall j k (D:disjoint j k), 
+Lemma join_incr_right: forall j k (D:disjoint j k),
                        inject_incr k (join j k).
 Proof. intros. intros b; intros.
   unfold join.
@@ -170,12 +170,12 @@ Proof. intros. intros b; intros.
   inv H.
 Qed.
 
-Lemma disjointD_left: 
-      forall j k b b' delta (J: j b = Some (b',delta)) 
+Lemma disjointD_left:
+      forall j k b b' delta (J: j b = Some (b',delta))
              (D:disjoint j k), k b = None.
 Proof. intros.
   destruct (D b) as [K | K]; rewrite K in *. inv J. trivial.
-Qed. 
+Qed.
 
 Lemma disjointD_right:
       forall j k b b' delta (K: k b = Some (b',delta))
@@ -184,9 +184,9 @@ Proof. intros.
   destruct (D b) as [J | J]; rewrite J in *. trivial. inv K.
 Qed.
 
-Lemma join_left_agree: 
+Lemma join_left_agree:
       forall j k b b1 d1 (JK: join j k b = Some(b1,d1))
-             b2 d2 (J: j b = Some(b2,d2)), 
+             b2 d2 (J: j b = Some(b2,d2)),
       b1=b2 /\ d1=d2.
 Proof. intros. rewrite (join_incr_left _ _ _ _ _ J) in JK.
   inv JK; split; trivial.
@@ -219,12 +219,12 @@ Record SM_Injection :=
   { locBlocksSrc : block -> bool;
                      (* The blocks allocated by THIS module in the
                         source language SRC*)
-    locBlocksTgt : block -> bool; 
+    locBlocksTgt : block -> bool;
                      (* The blocks allocated by THIS module in the
-                        target language TGT*) 
-    pubBlocksSrc : block -> bool; (*subset of locBlocksSrc that have been 
+                        target language TGT*)
+    pubBlocksSrc : block -> bool; (*subset of locBlocksSrc that have been
                         made public. Must be mapped by pubInj.*)
-    pubBlocksTgt : block -> bool; (*subset of locBlocksTgt that have been 
+    pubBlocksTgt : block -> bool; (*subset of locBlocksTgt that have been
                         made public. Contains the image of pubInj.*)
     local_of: meminj; (* meminj on blocks allocated by THIS module.
                         Remains unchanged by external steps,
@@ -235,49 +235,49 @@ Record SM_Injection :=
     extBlocksSrc: block -> bool; (*blocks allocated by OTHER modules in SRC *)
     extBlocksTgt: block -> bool; (*blocks allocated by OTHER modules in TGT *)
 
-    frgnBlocksSrc : block -> bool; (*subset of extBlocksSrc that have been 
+    frgnBlocksSrc : block -> bool; (*subset of extBlocksSrc that have been
                         made visible to THIS module. Must be apped by foreign.*)
-    frgnBlocksTgt : block -> bool; (*subset of extBlocksTgt that have been 
+    frgnBlocksTgt : block -> bool; (*subset of extBlocksTgt that have been
                         made visible to THIS module. Contains image of foreign*)
-   
-    extern_of: meminj (* a meminj on blocks allocated by OTHER modules; 
+
+    extern_of: meminj (* a meminj on blocks allocated by OTHER modules;
                         the injection is not modified by coresteps, and
-                        is partitioned by frgnBlocksSrc/Tgt into 
+                        is partitioned by frgnBlocksSrc/Tgt into
                         foreign (leaked to this module) and unknown (non-leaked)
-                        components, where the former blocks are 
-                        accessible by THIS module. 
+                        components, where the former blocks are
+                        accessible by THIS module.
                         THIS module behaves uniformly over block mentioned by frgnInj, and
-                        assumes that blocks in frgnInj remain mapped. Compilation of THIS 
-                        module neither merges nor unmaps blocks from here, 
+                        assumes that blocks in frgnInj remain mapped. Compilation of THIS
+                        module neither merges nor unmaps blocks from here,
                         nor does it spill into them*)
 }.
 
 (*The four projections*)
 Definition unknown_of (mu: SM_Injection) : meminj :=
-  match mu with 
-    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern => 
-    fun b => if locBSrc b then None else if fSrc b then None else extern b 
+  match mu with
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
+    fun b => if locBSrc b then None else if fSrc b then None else extern b
   end.
 
 Definition foreign_of (mu: SM_Injection) : meminj :=
-  match mu with 
-    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern => 
+  match mu with
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
     fun b => if fSrc b then extern b else None
   end.
 
 Definition pub_of (mu: SM_Injection) : meminj :=
-  match mu with 
-    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern => 
+  match mu with
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
     fun b => if pSrc b then local b else None
   end.
 
 Definition priv_of (mu: SM_Injection) : meminj :=
-  match mu with 
-    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern => 
+  match mu with
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
     fun b => if pSrc b then None else local b
   end.
 
-Lemma local_pubpriv: forall mu, 
+Lemma local_pubpriv: forall mu,
       local_of mu = join (pub_of mu) (priv_of mu).
 Proof. intros. unfold pub_of, priv_of.
 unfold join; extensionality b.
@@ -293,18 +293,18 @@ Definition shared_of (mu: SM_Injection) : meminj :=
 
 Lemma unknown_in_extern: forall mu,
       inject_incr (unknown_of mu) (extern_of mu).
-Proof. intros. 
+Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; intros. 
-    destruct (locBSrc b). inv H. 
-    destruct (fSrc b). inv H. trivial. 
-Qed. 
+    intros b; intros.
+    destruct (locBSrc b). inv H.
+    destruct (fSrc b). inv H. trivial.
+Qed.
 
 Lemma foreign_in_extern: forall mu,
       inject_incr (foreign_of mu) (extern_of mu).
-Proof. intros. 
+Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; intros. 
+    intros b; intros.
     destruct (fSrc b). trivial. inv H.
 Qed.
 
@@ -314,101 +314,101 @@ Proof. intros. apply join_incr_left. Qed.
 
 Lemma pub_in_local: forall mu,
       inject_incr (pub_of mu) (local_of mu).
-Proof. intros. 
+Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; intros. 
-    destruct (pSrc b). trivial. inv H. 
+    intros b; intros.
+    destruct (pSrc b). trivial. inv H.
 Qed.
 
 Lemma priv_in_local: forall mu,
       inject_incr (priv_of mu) (local_of mu).
-Proof. intros. 
+Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; intros. 
+    intros b; intros.
     destruct (pSrc b). inv H. trivial.
 Qed.
 
 Lemma disjoint_pub_priv: forall mu, disjoint (pub_of mu) (priv_of mu).
 Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; simpl. 
+    intros b; simpl.
     destruct (pSrc b). right; trivial. left; trivial.
-Qed. 
+Qed.
 
 Lemma disjoint_frgn_unknown: forall mu, disjoint (foreign_of mu) (unknown_of mu).
 Proof. intros.
     destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl.
-    intros b; simpl. 
+    intros b; simpl.
     destruct (fSrc b).
       right. destruct (locBSrc b); trivial.
     left; trivial.
-Qed. 
+Qed.
 
 Record SM_wd (mu:SM_Injection):Prop := {
   disjoint_extern_local_Src: forall b, locBlocksSrc mu b = false \/ extBlocksSrc mu b = false;
   disjoint_extern_local_Tgt: forall b, locBlocksTgt mu b = false \/ extBlocksTgt mu b = false;
 
-  local_DomRng: forall b1 b2 z, local_of mu b1 = Some(b2,z) -> 
+  local_DomRng: forall b1 b2 z, local_of mu b1 = Some(b2,z) ->
                (locBlocksSrc mu b1 = true /\ locBlocksTgt mu b2 = true);
-  extern_DomRng: forall b1 b2 z, extern_of mu b1 = Some(b2,z) -> 
+  extern_DomRng: forall b1 b2 z, extern_of mu b1 = Some(b2,z) ->
                (extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true);
 
-  pubSrcAx: forall b1, pubBlocksSrc mu b1 = true -> 
+  pubSrcAx: forall b1, pubBlocksSrc mu b1 = true ->
               exists b2 z, local_of mu b1 = Some(b2,z) /\
                            pubBlocksTgt mu b2 = true;
-  frgnSrcAx: forall b1, frgnBlocksSrc mu b1 = true -> 
+  frgnSrcAx: forall b1, frgnBlocksSrc mu b1 = true ->
               exists b2 z, extern_of mu b1 = Some(b2,z) /\
                            frgnBlocksTgt mu b2 = true;
 
-  pubBlocksLocalTgt: forall b, pubBlocksTgt mu b = true -> 
+  pubBlocksLocalTgt: forall b, pubBlocksTgt mu b = true ->
                                locBlocksTgt mu b = true;
-  frgnBlocksExternTgt: forall b, frgnBlocksTgt mu b = true -> 
+  frgnBlocksExternTgt: forall b, frgnBlocksTgt mu b = true ->
                               extBlocksTgt mu b = true
 }.
 
-Lemma pubSrc: forall mu (WD: SM_wd mu) b1, pubBlocksSrc mu b1 = true -> 
+Lemma pubSrc: forall mu (WD: SM_wd mu) b1, pubBlocksSrc mu b1 = true ->
               exists b2 z, pub_of mu b1 = Some(b2,z) /\
                            pubBlocksTgt mu b2 = true.
 Proof. intros.
   destruct (pubSrcAx _ WD _ H) as [b2 [d [LOC PT]]].
-  unfold pub_of. exists b2, d. destruct mu; simpl in *. 
+  unfold pub_of. exists b2, d. destruct mu; simpl in *.
   rewrite H; split; assumption.
 Qed.
 
-Lemma frgnSrc: forall mu (WD: SM_wd mu) b1, frgnBlocksSrc mu b1 = true -> 
+Lemma frgnSrc: forall mu (WD: SM_wd mu) b1, frgnBlocksSrc mu b1 = true ->
               exists b2 z, foreign_of mu b1 = Some(b2,z) /\
                            frgnBlocksTgt mu b2 = true.
 Proof. intros.
   destruct (frgnSrcAx _ WD _ H) as [b2 [d [EXT PT]]].
-  unfold foreign_of. exists b2, d. destruct mu; simpl in *. 
+  unfold foreign_of. exists b2, d. destruct mu; simpl in *.
   rewrite H; split; assumption.
 Qed.
 
-Lemma extBlocksSrc_locBlocksSrc: forall mu (WD: SM_wd mu) b, 
+Lemma extBlocksSrc_locBlocksSrc: forall mu (WD: SM_wd mu) b,
       extBlocksSrc mu b = true -> locBlocksSrc mu b = false.
 Proof. intros.
-  destruct (disjoint_extern_local_Src _ WD b); congruence. 
+  destruct (disjoint_extern_local_Src _ WD b); congruence.
 Qed.
 
-Lemma extBlocksTgt_locBlocksTgt: forall mu (WD: SM_wd mu) b, 
+Lemma extBlocksTgt_locBlocksTgt: forall mu (WD: SM_wd mu) b,
       extBlocksTgt mu b = true -> locBlocksTgt mu b = false.
 Proof. intros.
-  destruct (disjoint_extern_local_Tgt _ WD b); congruence. 
+  destruct (disjoint_extern_local_Tgt _ WD b); congruence.
 Qed.
 
-Lemma locBlocksSrc_extBlocksSrc: forall mu (WD: SM_wd mu) b, 
+Lemma locBlocksSrc_extBlocksSrc: forall mu (WD: SM_wd mu) b,
       locBlocksSrc mu b = true -> extBlocksSrc mu b = false.
 Proof. intros.
-  destruct (disjoint_extern_local_Src _ WD b); congruence. 
+  destruct (disjoint_extern_local_Src _ WD b); congruence.
 Qed.
 
-Lemma locBlocksTgt_extBlocksTgt: forall mu (WD: SM_wd mu) b, 
+Lemma locBlocksTgt_extBlocksTgt: forall mu (WD: SM_wd mu) b,
       locBlocksTgt mu b = true -> extBlocksTgt mu b = false.
 Proof. intros.
-  destruct (disjoint_extern_local_Tgt _ WD b); congruence. 
+  destruct (disjoint_extern_local_Tgt _ WD b); congruence.
 Qed.
 
-Lemma pubBlocksLocalSrc: forall mu (WD: SM_wd mu) b, 
+Lemma pubBlocksLocalSrc: forall mu (WD: SM_wd mu) b,
       pubBlocksSrc mu b = true -> locBlocksSrc mu b = true.
 Proof. intros.
   destruct (pubSrc _ WD _ H) as [b2 [d1 [P T]]].
@@ -416,7 +416,7 @@ Proof. intros.
   apply (local_DomRng _ WD _ _ _ P).
 Qed.
 
-Lemma frgnBlocksSrc_extBlocksSrc: forall mu (WD: SM_wd mu) b, 
+Lemma frgnBlocksSrc_extBlocksSrc: forall mu (WD: SM_wd mu) b,
       frgnBlocksSrc mu b = true -> extBlocksSrc mu b = true.
 Proof. intros.
   destruct (frgnSrc _ WD _ H) as [b2 [d1 [F T]]].
@@ -443,7 +443,7 @@ Qed.
 Lemma frgnBlocksSrc_locBlocksSrc: forall mu (WD:SM_wd mu) b
       (FB: frgnBlocksSrc mu b = true), locBlocksSrc mu b = false.
 Proof. intros. apply (frgnBlocksSrc_extBlocksSrc _ WD) in FB.
-       destruct (disjoint_extern_local_Src _ WD b); congruence. 
+       destruct (disjoint_extern_local_Src _ WD b); congruence.
 Qed.
 
 Lemma locBlocksSrc_frgnBlocksSrc: forall mu (WD:SM_wd mu) b
@@ -451,7 +451,7 @@ Lemma locBlocksSrc_frgnBlocksSrc: forall mu (WD:SM_wd mu) b
 Proof. intros.
        remember (frgnBlocksSrc mu b) as d; destruct d; trivial.
        apply eq_sym in Heqd.
-       destruct (frgnBlocksSrc_locBlocksSrc _ WD _ Heqd); intuition. 
+       destruct (frgnBlocksSrc_locBlocksSrc _ WD _ Heqd); intuition.
 Qed.
 
 Lemma locBlocksTgt_frgnBlocksTgt: forall mu (WD:SM_wd mu) b
@@ -474,7 +474,7 @@ Qed.
 Lemma locBlocksTgt_frgnBlocksTgt_D: forall mu (WD:SM_wd mu) b
             (MB: locBlocksTgt mu b = true) (FB: frgnBlocksTgt mu b = true),
       False.
-Proof. intros. 
+Proof. intros.
        rewrite (locBlocksTgt_frgnBlocksTgt _ WD _ MB) in FB. inv FB.
 Qed.
 
@@ -486,7 +486,7 @@ Proof. intros.
        apply unknown_in_extern.
 Qed.
 
-Lemma extern_foreignunknown: forall mu (WD: SM_wd mu), 
+Lemma extern_foreignunknown: forall mu (WD: SM_wd mu),
       extern_of mu = join (foreign_of mu) (unknown_of mu).
 Proof. intros. unfold foreign_of, unknown_of.
 unfold join; extensionality b.
@@ -495,7 +495,7 @@ specialize (locBlocksSrc_externNone _ WD b); intros.
 destruct mu; simpl in *.
 remember (frgnBlocksSrc0 b) as d.
 destruct d; apply eq_sym in Heqd.
-  rewrite H; trivial. 
+  rewrite H; trivial.
   destruct (extern_of0 b); trivial.
   destruct p; trivial.
 remember (locBlocksSrc0 b) as q.
@@ -521,19 +521,19 @@ Proof. intros.
   destruct (pSrc b1); trivial. inv H.
 Qed.
 
-Lemma pubSrcContra: forall mu b1, 
+Lemma pubSrcContra: forall mu b1,
          pubBlocksSrc mu b1 = false -> pub_of mu b1 = None.
 Proof. intros.
   unfold pub_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
-  rewrite H. trivial. 
+  rewrite H. trivial.
 Qed.
 
-Lemma pubTgtContra: forall mu (WD: SM_wd mu) b2, pubBlocksTgt mu b2 = false -> 
+Lemma pubTgtContra: forall mu (WD: SM_wd mu) b2, pubBlocksTgt mu b2 = false ->
             ~ exists b1 d, pub_of mu b1 = Some(b2,d).
 Proof. intros. intros N.
   destruct N as [b1 [d PUB]].
-  destruct (pubChar _ WD _ _ _ PUB). rewrite H1 in H. discriminate. 
+  destruct (pubChar _ WD _ _ _ PUB). rewrite H1 in H. discriminate.
 Qed.
 
 Lemma disjoint_extern_local: forall mu (WD: SM_wd mu),
@@ -541,7 +541,7 @@ Lemma disjoint_extern_local: forall mu (WD: SM_wd mu),
 Proof. intros.
   intros b; intros.
   remember (local_of mu b) as q.
-  destruct q; try (right; reflexivity). 
+  destruct q; try (right; reflexivity).
   apply eq_sym in Heqq; destruct p.
   destruct (local_DomRng _ WD _ _ _ Heqq).
   left; apply (locBlocksSrc_externNone _ WD _ H).
@@ -557,28 +557,28 @@ Qed.
 
 Lemma pub_in_shared: forall mu (WD: SM_wd mu),
       inject_incr (pub_of mu) (shared_of mu).
-Proof. intros. unfold shared_of. 
-    apply join_incr_right. 
-    apply disjoint_foreign_pub. assumption. 
+Proof. intros. unfold shared_of.
+    apply join_incr_right.
+    apply disjoint_foreign_pub. assumption.
 Qed.
 
 (*DOM/RNG: all blocks mentioned by a SM_Injection. Used for
   stating match_validblocks etc*)
-Definition DomSrc (mu: SM_Injection) (b1: block): bool := 
+Definition DomSrc (mu: SM_Injection) (b1: block): bool :=
      locBlocksSrc mu b1 || extBlocksSrc mu b1.
 Definition DOM (mu: SM_Injection) (b1: block): Prop := DomSrc mu b1 = true.
-  
-Definition DomTgt (mu: SM_Injection) (b2: block): bool := 
+
+Definition DomTgt (mu: SM_Injection) (b2: block): bool :=
      locBlocksTgt mu b2 || extBlocksTgt mu b2.
 Definition RNG (mu: SM_Injection) (b2:block): Prop := DomTgt mu b2 = true.
 
 (*we enforce
   pub_of mu = pub_of mu', via
-  pubBlocksSrc/Tgt mu = pubBlocksSrc/Tgt mu': 
+  pubBlocksSrc/Tgt mu = pubBlocksSrc/Tgt mu':
   it suffices to reclassify leakage at at/afterExternal.
-  This enables the proof of 
+  This enables the proof of
   effect_corediagram_trans.diagram_injinj etc*)
-Definition intern_incr (mu mu': SM_Injection): Prop := 
+Definition intern_incr (mu mu': SM_Injection): Prop :=
    inject_incr (local_of mu) (local_of mu') /\
    (extern_of mu = extern_of mu') /\
    (forall b, locBlocksSrc mu b = true -> locBlocksSrc mu' b = true) /\
@@ -590,7 +590,7 @@ Definition intern_incr (mu mu': SM_Injection): Prop :=
    (extBlocksSrc mu = extBlocksSrc mu') /\
    (extBlocksTgt mu = extBlocksTgt mu').
 
-Lemma intern_incr_DomSrc: 
+Lemma intern_incr_DomSrc:
       forall mu mu' (Inc: intern_incr mu mu') b,
       DomSrc mu b = true -> DomSrc mu' b = true.
 Proof. unfold DomSrc. intros.
@@ -598,12 +598,12 @@ Proof. unfold DomSrc. intros.
   apply orb_true_iff in H.
   destruct H. intuition. rewrite H1 in H. intuition.
 Qed.
-Lemma intern_incr_DOM: 
+Lemma intern_incr_DOM:
       forall mu mu' (Inc: intern_incr mu mu') b,
       DOM mu b -> DOM mu' b.
 Proof. intros. apply (intern_incr_DomSrc _ _ Inc _ H). Qed.
 
-Lemma intern_incr_DomTgt: 
+Lemma intern_incr_DomTgt:
       forall mu mu' (Inc: intern_incr mu mu') b,
       DomTgt mu b = true -> DomTgt mu' b = true.
 Proof. unfold DomTgt. intros.
@@ -612,33 +612,33 @@ Proof. unfold DomTgt. intros.
   destruct H. intuition. rewrite H1 in H. intuition.
 Qed.
 
-Lemma intern_incr_RNG: 
+Lemma intern_incr_RNG:
       forall mu mu' (Inc: intern_incr mu mu') b,
       RNG mu b -> RNG mu' b.
 Proof. intros. apply (intern_incr_DomTgt _ _ Inc _ H). Qed.
 
-Lemma intern_incr_DomSrc_inv: forall mu mu' (INC: intern_incr mu mu') b, 
+Lemma intern_incr_DomSrc_inv: forall mu mu' (INC: intern_incr mu mu') b,
       DomSrc mu' b = false -> DomSrc mu b = false.
 Proof. intros.
   remember (DomSrc mu b) as d; destruct d; trivial; apply eq_sym in Heqd.
-  apply (intern_incr_DomSrc _ _ INC) in Heqd. congruence.  
+  apply (intern_incr_DomSrc _ _ INC) in Heqd. congruence.
 Qed.
-  
-Lemma intern_incr_DomTgt_inv: forall mu mu' (INC: intern_incr mu mu') b, 
+
+Lemma intern_incr_DomTgt_inv: forall mu mu' (INC: intern_incr mu mu') b,
       DomTgt mu' b = false -> DomTgt mu b = false.
 Proof. intros.
   remember (DomTgt mu b) as d; destruct d; trivial; apply eq_sym in Heqd.
   apply (intern_incr_DomTgt _ _ INC) in Heqd. congruence.
 Qed.
 
-Lemma intern_incr_locBlocksSrc_inv: forall mu mu' (INC: intern_incr mu mu') b, 
+Lemma intern_incr_locBlocksSrc_inv: forall mu mu' (INC: intern_incr mu mu') b,
       locBlocksSrc mu' b = false -> locBlocksSrc mu b = false.
 Proof. intros.
   remember (locBlocksSrc mu b) as d; destruct d; trivial; apply eq_sym in Heqd.
   apply INC in Heqd. rewrite Heqd in H; trivial.
 Qed.
 
-Lemma intern_incr_locBlocksTgt_inv: forall mu mu' (INC: intern_incr mu mu') b, 
+Lemma intern_incr_locBlocksTgt_inv: forall mu mu' (INC: intern_incr mu mu') b,
       locBlocksTgt mu' b = false -> locBlocksTgt mu b = false.
 Proof. intros.
   remember (locBlocksTgt mu b) as d; destruct d; trivial; apply eq_sym in Heqd.
@@ -653,14 +653,14 @@ Proof. intros.
   assert (pubBlocksSrc mu = pubBlocksSrc mu') by apply INC. clear INC.
   intros b; intros.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
-  subst. 
+  subst.
   destruct mu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern']; simpl in *.
   destruct (pSrc' b); trivial.
-  apply INCL. assumption. 
+  apply INCL. assumption.
 Qed.
 
 Lemma intern_incr_pub: forall mu mu' (INC: intern_incr mu mu')
-       (WD: SM_wd mu), pub_of mu = pub_of mu'. 
+       (WD: SM_wd mu), pub_of mu = pub_of mu'.
 Proof. intros.
   unfold pub_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
@@ -675,7 +675,7 @@ Proof. intros.
 Qed.
 
 Lemma intern_incr_foreign: forall mu mu' (INC: intern_incr mu mu'),
-      foreign_of mu = foreign_of mu'. 
+      foreign_of mu = foreign_of mu'.
 Proof. intros.
   unfold foreign_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
@@ -686,7 +686,7 @@ Proof. intros.
 Qed.
 
 Lemma intern_incr_unknown: forall mu mu' (INC: intern_incr mu mu')
-       (WD': SM_wd mu'), unknown_of mu = unknown_of mu'. 
+       (WD': SM_wd mu'), unknown_of mu = unknown_of mu'.
 Proof. intros.
   unfold foreign_of.
   specialize (locBlocksSrc_externNone _ WD'); intros.
@@ -696,16 +696,16 @@ Proof. intros.
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
   remember (fSrc' b) as q; destruct q; apply eq_sym in Heqq.
-    remember (locBSrc b) as d; destruct d; apply eq_sym in Heqd. 
+    remember (locBSrc b) as d; destruct d; apply eq_sym in Heqd.
       apply H2 in Heqd. rewrite Heqd. trivial.
       destruct (locBSrc' b); trivial.
-    remember (locBSrc b) as d; destruct d; apply eq_sym in Heqd. 
+    remember (locBSrc b) as d; destruct d; apply eq_sym in Heqd.
       apply H2 in Heqd. rewrite Heqd. trivial.
       remember (locBSrc' b) as p; destruct p; apply eq_sym in Heqp; trivial.
   apply H. apply Heqp.
 Qed.
 
-Definition extern_incr (mu mu': SM_Injection): Prop := 
+Definition extern_incr (mu mu': SM_Injection): Prop :=
    inject_incr (extern_of mu) (extern_of mu') /\
    (local_of mu = local_of mu') /\
    (forall b, extBlocksSrc mu b = true -> extBlocksSrc mu' b = true) /\
@@ -717,7 +717,7 @@ Definition extern_incr (mu mu': SM_Injection): Prop :=
    (frgnBlocksSrc mu = frgnBlocksSrc mu') /\
    (frgnBlocksTgt mu = frgnBlocksTgt mu').
 
-Lemma extern_incr_DomSrc: 
+Lemma extern_incr_DomSrc:
       forall mu mu' (Inc: extern_incr mu mu') b,
       DomSrc mu b = true -> DomSrc mu' b = true.
 Proof. unfold DomSrc. intros.
@@ -725,21 +725,21 @@ Proof. unfold DomSrc. intros.
   apply orb_true_iff in H.
   destruct H. rewrite H1 in H. intuition. intuition.
 Qed.
-Lemma extern_incr_DOM: 
+Lemma extern_incr_DOM:
       forall mu mu' (Inc: extern_incr mu mu') b,
       DOM mu b -> DOM mu' b.
 Proof. intros. apply (extern_incr_DomSrc _ _ Inc _ H). Qed.
 
-Lemma extern_incr_DomTgt: 
+Lemma extern_incr_DomTgt:
       forall mu mu' (Inc: extern_incr mu mu') b,
       DomTgt mu b = true -> DomTgt mu' b = true.
 Proof. unfold DomTgt. intros.
   destruct Inc as [_ [_ [_ [? [_ [? _]]]]]].
   apply orb_true_iff in H.
-  destruct H. rewrite H1 in H. intuition. intuition. 
+  destruct H. rewrite H1 in H. intuition. intuition.
 Qed.
 
-Lemma extern_incr_RNG: 
+Lemma extern_incr_RNG:
       forall mu mu' (Inc: extern_incr mu mu') b,
       RNG mu b -> RNG mu' b.
 Proof. intros. apply (extern_incr_DomTgt _ _ Inc _ H). Qed.
@@ -750,7 +750,7 @@ Proof. intros.
   unfold unknown_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
   destruct mu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern']; simpl in *.
-  intros b; intros. 
+  intros b; intros.
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
   remember (locBSrc' b) as d; destruct d; trivial.
@@ -758,12 +758,12 @@ Proof. intros.
   apply (H0 _ _ _ H).
 Qed.
 
-Lemma extern_incr_frgnBlocksSrc: forall 
+Lemma extern_incr_frgnBlocksSrc: forall
           mu nu (INC: extern_incr mu nu),
        frgnBlocksSrc mu = frgnBlocksSrc nu.
 Proof. intros. eapply INC. Qed.
 
-Lemma extern_incr_frgnBlocksTgt: forall 
+Lemma extern_incr_frgnBlocksTgt: forall
           mu nu (INC: extern_incr mu nu),
        frgnBlocksTgt mu = frgnBlocksTgt nu.
 Proof. intros. eapply INC. Qed.
@@ -774,7 +774,7 @@ Proof. intros.
   unfold foreign_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
   destruct mu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern']; simpl in *.
-  intros b; intros. 
+  intros b; intros.
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
   remember (fSrc' b) as q; destruct q; apply eq_sym in Heqq.
@@ -838,19 +838,19 @@ Proof. intros.
 Qed.
 
 Lemma extern_in_all: forall mu, inject_incr (extern_of mu) (as_inj mu).
-Proof. intros. apply join_incr_left. Qed. 
+Proof. intros. apply join_incr_left. Qed.
 
 Lemma foreign_in_all: forall mu, inject_incr (foreign_of mu) (as_inj mu).
 Proof. intros.
   eapply inject_incr_trans.
-  apply foreign_in_extern. apply extern_in_all. 
-Qed. 
+  apply foreign_in_extern. apply extern_in_all.
+Qed.
 
 Lemma unknown_in_all: forall mu, inject_incr (unknown_of mu) (as_inj mu).
 Proof. intros.
   eapply inject_incr_trans.
-  apply unknown_in_extern. apply extern_in_all. 
-Qed. 
+  apply unknown_in_extern. apply extern_in_all.
+Qed.
 
 Lemma shared_in_all: forall j (PR:SM_wd j), inject_incr (shared_of j) (as_inj j).
 Proof. intros. intros b; intros.
@@ -862,21 +862,21 @@ Proof. intros. intros b; intros.
 Qed.
 
 Lemma as_injD_None: forall mu b1, as_inj mu b1 = None ->
-   extern_of mu b1 = None /\ 
+   extern_of mu b1 = None /\
    local_of mu b1 = None.
 Proof. intros. apply joinD_None in H. assumption. Qed.
 
 Lemma local_ofD_None: forall mu b1, local_of mu b1 = None ->
-   pub_of mu b1 = None /\ 
+   pub_of mu b1 = None /\
    priv_of mu b1 = None.
-Proof. intros. 
+Proof. intros.
 split; eapply inject_incr_inv; try eassumption.
   apply pub_in_local.
   apply priv_in_local.
 Qed.
- 
+
 Lemma extern_ofD_None: forall mu b1, extern_of mu b1 = None ->
-   foreign_of mu b1 = None /\ 
+   foreign_of mu b1 = None /\
    unknown_of mu b1 = None.
 Proof. intros.
 split; eapply inject_incr_inv; try eassumption.
@@ -931,7 +931,7 @@ Proof. intros. unfold shared_of.
    apply disjoint_foreign_priv; trivial.
   apply disjoint_pub_priv.
 Qed.
- 
+
 Lemma disjoint_shared_unknown: forall mu (WD: SM_wd mu),
       disjoint (shared_of mu) (unknown_of mu).
 Proof. intros. unfold shared_of.
@@ -939,19 +939,19 @@ Proof. intros. unfold shared_of.
    apply disjoint_frgn_unknown; trivial.
   rewrite disjoint_com. apply disjoint_unknown_pub; trivial.
 Qed.
- 
+
 Lemma as_inj_DomRng: forall mu b1 b2 d, as_inj mu b1 = Some(b2, d) -> SM_wd mu ->
                 DomSrc mu b1 = true /\ DomTgt mu b2 = true.
-Proof. intros. 
+Proof. intros.
   unfold DomSrc, DomTgt.
   apply joinD_Some in H.
   destruct H as [ExtSome | [ExtNone LocalSome]].
     apply extern_DomRng in ExtSome; intuition.
-    apply local_DomRng in LocalSome; intuition. 
+    apply local_DomRng in LocalSome; intuition.
 Qed.
 
 Lemma local_locBlocks: forall mu (WD:SM_wd mu)
-                  b1 b2 z (L: local_of mu b1 = Some(b2,z)), 
+                  b1 b2 z (L: local_of mu b1 = Some(b2,z)),
       locBlocksSrc mu b1  = true /\ locBlocksTgt mu b2  = true /\
       extBlocksSrc mu b1 = false /\ extBlocksTgt mu b2 = false /\
       frgnBlocksSrc mu b1 = false /\ frgnBlocksTgt mu b2 = false /\
@@ -966,11 +966,11 @@ Proof. intros.
   split. destruct (disjoint_extern_local_Tgt _ WD b2); congruence.
   split. apply locBlocksSrc_frgnBlocksSrc; eassumption.
   split. apply locBlocksTgt_frgnBlocksTgt; eassumption.
-  unfold DomSrc, DomTgt; intuition. 
+  unfold DomSrc, DomTgt; intuition.
 Qed.
 
 Lemma pub_locBlocks: forall mu (WD:SM_wd mu)
-                  b1 b2 z (L: pub_of mu b1 = Some(b2,z)), 
+                  b1 b2 z (L: pub_of mu b1 = Some(b2,z)),
       pubBlocksSrc mu b1 = true /\ pubBlocksTgt mu b2 = true /\
       locBlocksSrc mu b1 = true /\ locBlocksTgt mu b2 = true /\
       extBlocksSrc mu b1 = false /\ extBlocksTgt mu b2 = false /\
@@ -979,27 +979,27 @@ Lemma pub_locBlocks: forall mu (WD:SM_wd mu)
 Proof. intros.
   split. eapply pubChar; eassumption.
   split. eapply pubChar; eassumption.
-  eapply local_locBlocks; trivial. 
+  eapply local_locBlocks; trivial.
   eapply pub_in_local; eassumption.
 Qed.
 
 Lemma priv_locBlocks: forall mu (WD:SM_wd mu)
-                  b1 b2 z (L: priv_of mu b1 = Some(b2,z)), 
-      pubBlocksSrc mu b1 = false /\ 
+                  b1 b2 z (L: priv_of mu b1 = Some(b2,z)),
+      pubBlocksSrc mu b1 = false /\
       locBlocksSrc mu b1 = true /\ locBlocksTgt mu b2 = true /\
       extBlocksSrc mu b1 = false /\ extBlocksTgt mu b2 = false /\
       frgnBlocksSrc mu b1 = false /\ frgnBlocksTgt mu b2 = false /\
       DomSrc mu b1 = true /\ DomTgt mu b2 = true.
 Proof. intros.
   split. eapply privChar; eassumption.
-  eapply local_locBlocks; trivial. 
+  eapply local_locBlocks; trivial.
   eapply priv_in_local; eassumption.
 Qed.
 
 Lemma extern_DomRng': forall mu (WD:SM_wd mu) b1 b2 d
                       (L:extern_of mu b1 = Some(b2,d)),
-      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\ 
-      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\ 
+      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\
+      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\
       extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true /\
       DomSrc mu b1 = true /\ DomTgt mu b2 = true.
 Proof. intros.
@@ -1017,33 +1017,33 @@ Qed.
 
 Lemma foreign_DomRng: forall mu (WD:SM_wd mu) b1 b2 d
                       (L:foreign_of mu b1 = Some(b2,d)),
-      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\ 
-      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\ 
+      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\
+      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\
       frgnBlocksSrc mu b1 = true /\ frgnBlocksTgt mu b2 = true /\
-      extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true /\ 
+      extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true /\
       DomSrc mu b1 = true /\ DomTgt mu b2 = true.
 Proof. intros.
    specialize (foreign_in_extern _ _ _ _ L). intros EXT.
    apply (extern_DomRng' _ WD) in EXT.
-   intuition. clear - WD L. 
+   intuition. clear - WD L.
    unfold foreign_of in L.
      destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
      destruct (fSrc b1); trivial; inv L.
-   clear - WD L. 
+   clear - WD L.
    remember (frgnBlocksSrc mu b1) as q.
    destruct q; apply eq_sym in Heqq.
      destruct (frgnSrc _ WD _ Heqq) as [? [? [? ?]]]. congruence.
    unfold foreign_of in L.
      destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
-     rewrite Heqq in L; congruence. 
+     rewrite Heqq in L; congruence.
 Qed.
 
 Lemma unknown_DomRng: forall mu (WD:SM_wd mu) b1 b2 d
                       (L: unknown_of mu b1 = Some(b2,d)),
-      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\ 
-      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\ 
-      extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true /\ 
-      frgnBlocksSrc mu b1 = false /\ 
+      pubBlocksSrc mu b1 = false /\ pubBlocksTgt mu b2 = false /\
+      locBlocksSrc mu b1 = false /\ locBlocksTgt mu b2 = false /\
+      extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true /\
+      frgnBlocksSrc mu b1 = false /\
       DomSrc mu b1 = true /\ DomTgt mu b2 = true.
 Proof. intros.
 specialize (unknown_in_extern _ _ _ _ L). intros E.
@@ -1053,12 +1053,12 @@ unfold unknown_of in L.
 destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
 rewrite H0 in L.
 destruct (fSrc b1); trivial. inv L.
-Qed. 
+Qed.
 
 Definition locvisible_of mu := join (foreign_of mu) (local_of mu) .
 Definition extvisible_of mu := join (extern_of mu) (pub_of mu).
 
-Lemma locvisible_sharedprivate: forall mu, 
+Lemma locvisible_sharedprivate: forall mu,
       locvisible_of mu = join (shared_of mu) (priv_of mu).
 Proof. intros. unfold locvisible_of, shared_of.
 rewrite <- join_assoc.
@@ -1066,37 +1066,37 @@ rewrite local_pubpriv.
 trivial.
 Qed.
 
-Lemma shared_in_locvisible: forall mu, 
+Lemma shared_in_locvisible: forall mu,
       inject_incr (shared_of mu) (locvisible_of mu).
-Proof. intros. 
+Proof. intros.
 rewrite locvisible_sharedprivate.
 apply join_incr_left.
 Qed.
 
-Lemma local_in_locvisible: forall mu (WD: SM_wd mu), 
+Lemma local_in_locvisible: forall mu (WD: SM_wd mu),
       inject_incr (local_of mu) (locvisible_of mu).
-Proof. intros. 
+Proof. intros.
 apply join_incr_right.
 apply (disjoint_foreign_local _ WD).
 Qed.
 
-Lemma private_in_locvisible: forall mu (WD: SM_wd mu), 
+Lemma private_in_locvisible: forall mu (WD: SM_wd mu),
       inject_incr (priv_of mu) (locvisible_of mu).
-Proof. intros. 
+Proof. intros.
 rewrite locvisible_sharedprivate.
 apply join_incr_right.
-apply (disjoint_shared_priv _ WD). 
+apply (disjoint_shared_priv _ WD).
 Qed.
 
-Lemma pub_in_locvisible: forall mu (WD: SM_wd mu), 
+Lemma pub_in_locvisible: forall mu (WD: SM_wd mu),
       inject_incr (pub_of mu) (locvisible_of mu).
-Proof. intros. 
+Proof. intros.
 eapply inject_incr_trans.
 apply pub_in_local.
 apply (local_in_locvisible _ WD).
 Qed.
 
-Lemma extvisible_sharedunknown: forall mu (WD: SM_wd mu), 
+Lemma extvisible_sharedunknown: forall mu (WD: SM_wd mu),
       extvisible_of mu = join (shared_of mu) (unknown_of mu).
 Proof. intros. unfold extvisible_of, shared_of.
 rewrite extern_foreignunknown; trivial.
@@ -1107,23 +1107,23 @@ rewrite disjoint_com.
 apply (disjoint_unknown_pub _ WD).
 Qed.
 
-Lemma shared_in_extvisible: forall mu( WD: SM_wd mu), 
+Lemma shared_in_extvisible: forall mu( WD: SM_wd mu),
       inject_incr (shared_of mu) (extvisible_of mu).
-Proof. intros. 
+Proof. intros.
 rewrite extvisible_sharedunknown; trivial.
 apply join_incr_left.
 Qed.
 
-Lemma unknown_in_extvisible: forall mu (WD: SM_wd mu), 
+Lemma unknown_in_extvisible: forall mu (WD: SM_wd mu),
       inject_incr (unknown_of mu) (extvisible_of mu).
-Proof. intros. 
+Proof. intros.
 rewrite extvisible_sharedunknown; trivial.
 apply join_incr_right.
-apply (disjoint_shared_unknown _ WD). 
+apply (disjoint_shared_unknown _ WD).
 Qed.
 
 (*an inject_separated-like property wrt DOM/RNG instead of
-  wrt validity in suitable memories*) 
+  wrt validity in suitable memories*)
 Definition sm_inject_separated (mu mu' : SM_Injection) (m1 m2:mem):Prop :=
   (forall b1 b2 d, as_inj mu b1 = None -> as_inj mu' b1 = Some(b2,d) ->
                    (DomSrc mu b1 = false /\ DomTgt mu b2 = false)) /\
@@ -1140,7 +1140,7 @@ Proof.
   destruct (A _ _ _ H H0); clear A.
   destruct (as_inj_DomRng _ _ _ _ H0); trivial.
   split; eapply B; assumption.
-Qed. 
+Qed.
 
 Lemma sm_inject_separated_asinj_same: forall mu nu m1 m2
          (SEP: sm_inject_separated mu nu m1 m2)
@@ -1158,7 +1158,7 @@ Proof. intros.
 Qed.
 
 Definition freshloc m m' b := andb (valid_block_dec m' b) (negb (valid_block_dec m b)).
-Lemma freshloc_charT: forall m m' b, 
+Lemma freshloc_charT: forall m m' b,
       (freshloc m m' b = true) <-> (Mem.valid_block m' b /\ ~Mem.valid_block m b).
 Proof. intros.
   unfold freshloc.
@@ -1168,7 +1168,7 @@ Proof. intros.
     split; auto.
   split; intros. inv H. destruct H. contradiction.
 Qed.
-Lemma freshloc_charF: forall m m' b, 
+Lemma freshloc_charF: forall m m' b,
       (freshloc m m' b = false) <-> (Mem.valid_block m b \/ ~Mem.valid_block m' b).
 Proof. intros.
   unfold freshloc.
@@ -1176,7 +1176,7 @@ Proof. intros.
     remember (valid_block_dec m b) as s; destruct s; simpl.
     split; intros. left. assumption. trivial.
     split; intros. discriminate. destruct H; contradiction.
-  split; intros. right; assumption. trivial. 
+  split; intros. right; assumption. trivial.
 Qed.
 Lemma freshloc_irrefl: forall m b, freshloc m m b = false.
 Proof. intros. apply freshloc_charF.
@@ -1194,10 +1194,10 @@ Proof. intros.
    destruct e; apply eq_sym in Heqe;
    destruct f; apply eq_sym in Heqf;
    simpl; try reflexivity.
-   apply freshloc_charT in Heqd. destruct Heqd.   
+   apply freshloc_charT in Heqd. destruct Heqd.
      apply freshloc_charF in Heqe. destruct Heqe. contradiction.
      apply freshloc_charF in Heqf. destruct Heqf; contradiction.
-   apply freshloc_charT in Heqe. destruct Heqe.   
+   apply freshloc_charT in Heqe. destruct Heqe.
      apply freshloc_charT in Heqf. destruct Heqf. contradiction.
    apply freshloc_charT in Heqe. destruct Heqe.
      destruct (FWD' b H) as [? _].
@@ -1209,11 +1209,11 @@ Proof. intros.
      apply freshloc_charF in Heqd. destruct Heqd; try contradiction.
       destruct (FWD b H2) as [? _]. contradiction.
 Qed.
-  
+
 (*Expresses that the evolution soundly and completely tracks what happened during
   related coresteps. sm_locally_allocated is typically be used in conjunction with
   intern_incr, so extern mu = extern mu', and equalities
-  (pSrc,pTgt,fSrc,fTgt)=(pSrc',pTgt',fSrc',fTgt') hold, too.*) 
+  (pSrc,pTgt,fSrc,fTgt)=(pSrc',pTgt',fSrc',fTgt') hold, too.*)
 Definition sm_locally_allocated (mu mu' : SM_Injection) (m1 m2 m1' m2':mem):Prop :=
   match mu, mu' with
      Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern,
@@ -1236,14 +1236,14 @@ Proof. intros.
 destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern].
 destruct mu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern'].
 simpl in *.
-unfold DomSrc, DomTgt in *. simpl in *; subst. 
-intuition. 
+unfold DomSrc, DomTgt in *. simpl in *; subst.
+intuition.
 subst.
   extensionality b. rewrite <- orb_assoc. rewrite <- orb_assoc.
      rewrite (orb_comm (extBSrc b)). trivial.
 subst.
   extensionality b. rewrite <- orb_assoc. rewrite <- orb_assoc.
-     rewrite (orb_comm (extBTgt b)). trivial. 
+     rewrite (orb_comm (extBTgt b)). trivial.
 Qed.
 
 Lemma sm_inject_separated_intern_MYB: forall mu mu' m1 m2 m1' m2'
@@ -1260,13 +1260,13 @@ Proof.
 split; intros; rewrite H1 in H2; simpl in H2.
    eapply freshloc_charT. eassumption.
    eapply freshloc_charT. eassumption.
-Qed. 
+Qed.
 
 (*in extern_incr steps, sm_inject_separated_intern_MYB is not needed/trivial,
  since locBlocksSrc mu b = locBlocksSrc mu' b and locBlocksTgt mu b = locBlocksTgt mu' b*)
 
 Definition sm_valid (mu : SM_Injection) (m1 m2: mem) :=
-       (forall b1, DOM mu b1 -> Mem.valid_block m1 b1)  
+       (forall b1, DOM mu b1 -> Mem.valid_block m1 b1)
     /\ (forall b2, RNG mu b2 -> Mem.valid_block m2 b2).
 
 Lemma intern_incr_refl: forall mu, intern_incr mu mu.
@@ -1275,10 +1275,10 @@ split. apply inject_incr_refl.
 intuition.
 Qed.
 
-Definition smvalid_src (mu : SM_Injection) m1 := 
+Definition smvalid_src (mu : SM_Injection) m1 :=
   forall b1, DOM mu b1 -> Memory.Mem.valid_block m1 b1.
 
-Lemma sm_valid_smvalid_src mu m1 m2 : 
+Lemma sm_valid_smvalid_src mu m1 m2 :
   sm_valid mu m1 m2 -> smvalid_src mu m1.
 Proof. destruct 1; intros b X; apply (H _ X). Qed.
 
@@ -1291,11 +1291,11 @@ Qed.
 Lemma intern_incr_local: forall mu mu' (INC: intern_incr mu mu'),
       inject_incr (local_of mu) (local_of mu').
 Proof. intros. apply INC. Qed.
-  
+
 Lemma intern_incr_extern: forall mu mu' (INC: intern_incr mu mu'),
       extern_of mu = extern_of mu'.
 Proof. intros. apply INC. Qed.
-  
+
 Lemma extern_incr_extern: forall mu mu' (INC: extern_incr mu mu'),
       inject_incr (extern_of mu) (extern_of mu').
 Proof. intros. apply INC. Qed.
@@ -1304,7 +1304,7 @@ Lemma extern_incr_local: forall mu mu' (INC: extern_incr mu mu'),
       local_of mu = local_of mu'.
 Proof. intros. apply INC. Qed.
 
-Lemma intern_incr_trans: forall mu mu' mu'' 
+Lemma intern_incr_trans: forall mu mu' mu''
       (Inc: intern_incr mu mu') (Inc': intern_incr mu' mu''),
       intern_incr mu mu''.
 Proof. intros.
@@ -1312,7 +1312,7 @@ split. eapply inject_incr_trans.
   apply intern_incr_local; eassumption.
   apply intern_incr_local; eassumption.
 split. rewrite (intern_incr_extern _ _ Inc).
-  apply (intern_incr_extern _ _ Inc'). 
+  apply (intern_incr_extern _ _ Inc').
 destruct Inc as [A [B [C [D [E [F [G [H [I J]]]]]]]]].
 destruct Inc' as [A' [B' [C' [D' [E' [F' [G' [H' [I' J']]]]]]]]].
 simpl in *. subst.
@@ -1320,7 +1320,7 @@ rewrite G, H, I, J, E, F in *.
 repeat (split; eauto).
 Qed.
 
-Lemma extern_incr_trans: forall mu mu' mu'' 
+Lemma extern_incr_trans: forall mu mu' mu''
       (Inc: extern_incr mu mu') (Inc': extern_incr mu' mu''),
       extern_incr mu mu''.
 Proof. intros.
@@ -1328,7 +1328,7 @@ split. eapply inject_incr_trans.
   apply extern_incr_extern; eassumption.
   apply extern_incr_extern; eassumption.
 split. rewrite (extern_incr_local _ _ Inc).
-  apply (extern_incr_local _ _ Inc'). 
+  apply (extern_incr_local _ _ Inc').
 destruct Inc as [A [B [C [D [E [F [G [H [I J]]]]]]]]].
 destruct Inc' as [A' [B' [C' [D' [E' [F' [G' [H' [I' J']]]]]]]]].
 simpl in *. subst.
@@ -1344,7 +1344,7 @@ split; simpl; intros.
 split; intros.
   rewrite H0 in H. inv H.
   rewrite H0 in H. inv H.
-Qed. 
+Qed.
 
 Lemma intern_incr_as_inj: forall mu mu'
       (INC: intern_incr mu mu') (WD': SM_wd mu'),
@@ -1352,11 +1352,11 @@ Lemma intern_incr_as_inj: forall mu mu'
 Proof. intros.
   intros b1; intros.
   unfold as_inj in *.
-  apply joinD_Some in H. 
+  apply joinD_Some in H.
   destruct H as[EXT | [EXT LOC]];
      rewrite (intern_incr_extern _ _ INC) in EXT.
      apply join_incr_left. apply EXT.
-   apply join_incr_right. 
+   apply join_incr_right.
      apply disjoint_extern_local. apply WD'.
      eapply intern_incr_local. apply INC. apply LOC.
 Qed.
@@ -1367,11 +1367,11 @@ Lemma extern_incr_as_inj: forall mu mu'
 Proof. intros.
   intros b1; intros.
   unfold as_inj in *.
-  apply joinD_Some in H. 
+  apply joinD_Some in H.
   destruct H as[EXT | [EXT LOC]].
-     apply join_incr_left. 
+     apply join_incr_left.
      apply (extern_incr_extern _ _ INC). apply EXT.
-   apply join_incr_right. 
+   apply join_incr_right.
      apply disjoint_extern_local. apply WD'.
      rewrite (extern_incr_local _ _ INC) in LOC. apply LOC.
 Qed.
@@ -1413,7 +1413,7 @@ Lemma intern_separated_incr_fwd2:
   intern_incr mu0 mu ->
   mem_forward m10 m1 ->
   sm_inject_separated mu0 mu m10 m20 ->
-  mem_forward m20 m2 -> 
+  mem_forward m20 m2 ->
   SM_wd mu' ->
   sm_inject_separated mu0 mu' m10 m20.
 Proof. intros.
@@ -1421,12 +1421,12 @@ split; intros; simpl.
   remember (as_inj mu b1) as q.
   destruct q; apply eq_sym in Heqq.
     destruct p.
-    rewrite (intern_incr_as_inj _ _ H H5 _ _ _ Heqq) in H7. inv H7. 
+    rewrite (intern_incr_as_inj _ _ H H5 _ _ _ Heqq) in H7. inv H7.
     eapply H3. assumption. eassumption.
   assert (DomSrc mu b1 = false /\ DomTgt mu b2 = false).
     eapply H0. assumption. eassumption.
   destruct H8.
-    split. apply (intern_incr_DomSrc_inv _ _ H1 _ H8). 
+    split. apply (intern_incr_DomSrc_inv _ _ H1 _ H8).
     apply (intern_incr_DomTgt_inv _ _ H1 _ H9).
 split; intros.
   remember (DomSrc mu b1) as q.
@@ -1477,12 +1477,12 @@ split. extensionality b.
   rewrite LA4; clear LA4.
   rewrite <- orb_assoc.
   rewrite freshloc_trans; trivial.
-rewrite LA5', LA6'.  
-  intuition. 
+rewrite LA5', LA6'.
+  intuition.
 Qed.
 
-Definition sharedSrc mu b := 
-    match shared_of mu b 
+Definition sharedSrc mu b :=
+    match shared_of mu b
     with Some _ => true | None => false
     end.
 
@@ -1496,8 +1496,8 @@ Proof. intros.
   split; intros. intuition. destruct H as [b2 [d X]]; discriminate.
 Qed.
 
-Lemma pubSrc_shared: forall mu (WD: SM_wd mu) b, 
-                     pubBlocksSrc mu b = true -> 
+Lemma pubSrc_shared: forall mu (WD: SM_wd mu) b,
+                     pubBlocksSrc mu b = true ->
                      sharedSrc mu b = true.
 Proof. intros.
   destruct (pubSrc _ WD _ H) as [b2 [d [P T]]].
@@ -1506,8 +1506,8 @@ Proof. intros.
   trivial.
 Qed.
 
-Lemma frgnSrc_shared: forall mu (WD: SM_wd mu) b, 
-                     frgnBlocksSrc mu b = true -> 
+Lemma frgnSrc_shared: forall mu (WD: SM_wd mu) b,
+                     frgnBlocksSrc mu b = true ->
                      sharedSrc mu b = true.
 Proof. intros.
   destruct (frgnSrc _ WD _ H) as [b2 [d [P T]]].
@@ -1516,23 +1516,23 @@ Proof. intros.
   trivial.
 Qed.
 
-Lemma sharedSrc_iff_frgnpub: forall mu (WD: SM_wd mu), 
+Lemma sharedSrc_iff_frgnpub: forall mu (WD: SM_wd mu),
       sharedSrc mu = fun b => orb (frgnBlocksSrc mu b) (pubBlocksSrc mu b).
 Proof. intros. extensionality b.
   remember (sharedSrc mu b) as d.
-  destruct d; apply eq_sym in Heqd. 
-    apply sharedSrc_iff in Heqd. destruct Heqd as [b2 [d SH]]. 
+  destruct d; apply eq_sym in Heqd.
+    apply sharedSrc_iff in Heqd. destruct Heqd as [b2 [d SH]].
     destruct (joinD_Some _ _ _ _ _ SH); clear SH.
       assert (frgnBlocksSrc mu b = true).
         eapply foreign_DomRng; eassumption.
       rewrite H0; intuition.
-    destruct H. 
+    destruct H.
       assert (pubBlocksSrc mu b = true).
         eapply pub_locBlocks; eassumption.
       rewrite H1; intuition.
   remember (frgnBlocksSrc mu b) as q.
   destruct q; apply eq_sym in Heqq.
-    rewrite (frgnSrc_shared _ WD _ Heqq) in Heqd. inv Heqd. 
+    rewrite (frgnSrc_shared _ WD _ Heqq) in Heqd. inv Heqd.
   clear Heqq.
   remember (pubBlocksSrc mu b) as q.
   destruct q; apply eq_sym in Heqq.
@@ -1543,12 +1543,12 @@ Qed.
 Definition sharedTgt mu b := orb (frgnBlocksTgt mu b) (pubBlocksTgt mu b).
 
 
-Lemma shared_SrcTgt: forall mu (WD: SM_wd mu) b 
+Lemma shared_SrcTgt: forall mu (WD: SM_wd mu) b
                     (SH: sharedSrc mu b = true),
       exists jb d, shared_of mu b = Some (jb, d) /\ sharedTgt mu jb = true.
 Proof. intros. apply sharedSrc_iff in SH. destruct SH as [b2 [d SH]].
   rewrite SH. exists b2, d; split; trivial.
-  unfold sharedTgt. apply orb_true_iff. 
+  unfold sharedTgt. apply orb_true_iff.
   destruct (joinD_Some _ _ _ _ _ SH).
     left. eapply foreign_DomRng; eassumption.
   destruct H.
@@ -1558,37 +1558,37 @@ Qed.
 (*Construction used in make_initial_core: put incoming injection
   into foreign/unknown component as specified, initialize local_of,
   locBlocksSrc/Tgt, and pubBlocksSrc/Tgt as empty*)
-Definition initial_SM (extS extT frgnS frgnT: block->bool) 
+Definition initial_SM (extS extT frgnS frgnT: block->bool)
                      (extern:meminj): SM_Injection :=
-  Build_SM_Injection 
+  Build_SM_Injection
       (*locBlocksSrc/Tgt:*) (fun b => false) (fun b => false)
-      (*pubBlocksSrc/Tgt:*)(fun b => false) (fun b => false) 
+      (*pubBlocksSrc/Tgt:*)(fun b => false) (fun b => false)
       (*local:*)(fun b => None)
       (*extBlocksSrc/Tgt:*) extS extT
       (*frgnBlocksSrc/Tgt:*) frgnS frgnT
       extern.
 
 Lemma initial_SM_wd: forall extS extT frgnS frgnT extern
-                       (EXT: forall b1 b2 d, extern b1 =Some(b2,d) -> 
+                       (EXT: forall b1 b2 d, extern b1 =Some(b2,d) ->
                             extS b1 = true /\ extT b2 = true)
-                       (F: forall b1, frgnS b1 = true -> 
+                       (F: forall b1, frgnS b1 = true ->
                            exists b2 z, extern b1 = Some (b2, z) /\ frgnT b2 = true)
                        (FS: forall b, frgnS b = true -> extS b = true)
                        (FT: forall b, frgnT b = true -> extT b = true),
-                       SM_wd (initial_SM extS extT frgnS frgnT extern). 
+                       SM_wd (initial_SM extS extT frgnS frgnT extern).
 Proof. intros.
 constructor; unfold initial_SM; simpl in *; intros; try (solve [inv H]).
   left; trivial.
   left; trivial.
-  destruct (EXT _ _ _ H). auto. 
-  auto. 
+  destruct (EXT _ _ _ H). auto.
   auto.
-Qed. 
+  auto.
+Qed.
 
 Lemma initial_SM_as_inj: forall extS extT frgnS frgnT j,
       as_inj (initial_SM extS extT frgnS frgnT j) = j.
 Proof. intros.
-  unfold as_inj; simpl. extensionality b. 
+  unfold as_inj; simpl. extensionality b.
   unfold join. destruct (j b); intuition.
 Qed.
 
@@ -1602,7 +1602,7 @@ Proof. intros.
   remember (X b1) as dd.
   destruct dd; inv R. split; trivial.
 Qed.
-Lemma restrictI_Some: forall j X b b2 d (J:j b = Some(b2,d)) 
+Lemma restrictI_Some: forall j X b b2 d (J:j b = Some(b2,d))
                             (Hb: X b = true),
                       restrict j X b = Some(b2,d).
 Proof. intros.
@@ -1616,7 +1616,7 @@ Proof. intros.
   destruct dd; inv R; trivial.
 Qed.
 Lemma restrictD_None': forall j X b1 (R:restrict j X b1 = None),
-                         j b1 = None \/ 
+                         j b1 = None \/
                         (exists b2 d, j b1 =Some(b2,d) /\ X b1 = false).
 Proof. intros.
   remember (j b1) as d.
@@ -1634,7 +1634,7 @@ Proof. intros.
   destruct Hb; trivial; congruence.
 Qed.
 
-Lemma join_restrict: forall j k X, 
+Lemma join_restrict: forall j k X,
       join (restrict j X) (restrict k X) = restrict (join j k) X.
 Proof. intros.
   unfold join, restrict. extensionality b.
@@ -1665,7 +1665,7 @@ Proof. intros. unfold restrict.
   destruct (Y b); destruct (X b); trivial.
 Qed.
 
-Lemma restrict_nest: forall j X Y 
+Lemma restrict_nest: forall j X Y
          (HXY: forall b, Y b = true -> X b = true),
       restrict (restrict j X) Y = restrict j Y.
 Proof. intros. unfold restrict.
@@ -1674,11 +1674,11 @@ Proof. intros. unfold restrict.
   destruct d; trivial. apply eq_sym in Heqd.
   rewrite (HXY _ Heqd). trivial.
 Qed.
-Lemma restrict_nest': forall j X Y 
+Lemma restrict_nest': forall j X Y
          (HXY: forall b, Y b = true -> X b = true),
       restrict (restrict j Y) X = restrict j Y.
 Proof. intros. rewrite restrict_com.
-  apply restrict_nest; assumption. 
+  apply restrict_nest; assumption.
 Qed.
 
 Lemma val_inject_restrictD: forall j v v' X
@@ -1686,10 +1686,10 @@ Lemma val_inject_restrictD: forall j v v' X
      val_inject j v v'.
 Proof. intros.
   inv V; try econstructor.
-  eapply restrict_incr.  apply H. 
-trivial. 
+  eapply restrict_incr.  apply H.
+trivial.
 Qed.
- 
+
 Lemma forall_vals_inject_restrictD: forall j vals1 vals2 X
      (Inj : Forall2 (val_inject (restrict j X)) vals1 vals2),
  Forall2 (val_inject j) vals1 vals2.
@@ -1700,12 +1700,12 @@ Proof. intros.
 Qed.
 
 Definition reestablish (mu0 mu: SM_Injection): SM_Injection :=
-  match mu0, mu with 
-    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  match mu0, mu with
+    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                        extBSrc0 extBTgt0 fSrc0 fTgt0 extern0,
-    Build_SM_Injection locBSrc locBTgt pSrc pTgt local 
-                       extBSrc extBTgt fSrc fTgt extern => 
-    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local
+                       extBSrc extBTgt fSrc fTgt extern =>
+    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                        (fun b => if locBSrc0 b then false else locBSrc b || extBSrc b)
                        (fun b => if locBTgt0 b then false else locBTgt b || extBTgt b)
                        fSrc0 fTgt0 (*We have not YET learned about additional blocks - that's
@@ -1717,9 +1717,9 @@ Lemma reestablish_DomSrc: forall mu0 mu
       (D: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true),
       DomSrc (reestablish mu0 mu) = DomSrc mu.
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   unfold DomSrc  in *; simpl in *. extensionality b.
   remember (locBSrc0 b) as d.
@@ -1731,9 +1731,9 @@ Lemma reestablish_DomTgt: forall mu0 mu
       (D: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true),
       DomTgt (reestablish mu0 mu) = DomTgt mu.
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   unfold DomTgt in *; simpl in *. extensionality b.
   remember (locBTgt0 b) as d.
@@ -1745,19 +1745,19 @@ Lemma reestablish_wd: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
           (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
           (SEP: forall b1 b2 d, as_inj mu0 b1 = None -> as_inj mu b1 = Some(b2,d) ->
                                 (DomSrc mu0 b1 = false /\ DomTgt mu0 b2 = false))
-          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true), 
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true),
       SM_wd (reestablish mu0 mu).
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
   specialize (as_inj_DomRng mu); intros ADR.
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   unfold DomSrc, DomTgt, as_inj in *; simpl in *.
   split; intros; simpl in *.
-    remember (locBSrc0 b) as d. destruct d; intuition. 
+    remember (locBSrc0 b) as d. destruct d; intuition.
     remember (locBTgt0 b) as d. destruct d; intuition.
-    apply (local_DomRng _ WD0 _ _ _ H).  
+    apply (local_DomRng _ WD0 _ _ _ H).
     remember (locBSrc0 b1) as d. destruct d; inv H.
       destruct (ADR b1 b2 z H1 WD).
       split; trivial.
@@ -1767,11 +1767,11 @@ Proof. intros.
         assert (JJ: join extern local b1 = Some (b, z0) /\ locBSrc0 b1 || extBSrc0 b1 = true).
           rewrite <- REST in Heqw. apply (restrictD_Some _ _ _ _ _ Heqw).
         destruct JJ. rewrite H2 in H1; inv H1.
-        rewrite <- Heqd in *; simpl in *. 
+        rewrite <- Heqd in *; simpl in *.
         destruct (joinD_Some _ _ _ _ _ Heqw).
           specialize (extern_DomRng' _ WD0 _ _ _ H1); unfold DomSrc, DomTgt; simpl; intros.
           destruct H4 as [_ [_ [_ [? [? [? _]]]]]]. rewrite H4. apply H0.
-        destruct H1. 
+        destruct H1.
           destruct (local_DomRng _ WD0 _ _ _ H4); simpl in *.
           rewrite H5 in Heqd. discriminate.
       destruct (SEP _ _ _ Heqw H1). apply orb_false_iff in H3. destruct H3.
@@ -1781,8 +1781,8 @@ Proof. intros.
       rewrite H0.
       destruct (frgnSrc _ WD0 _ H) as [b2 [z [FRG FT]]]; simpl in *.
         rewrite H in FRG. exists b2, z. split; trivial.
-        assert (J: join extern0 local0 b1 = Some(b2,z)). 
-          apply joinI; left; assumption. 
+        assert (J: join extern0 local0 b1 = Some(b2,z)).
+          apply joinI; left; assumption.
         rewrite <- REST in J. apply (restrictD_Some _ _ _ _ _ J).
     apply (pubBlocksLocalTgt _ WD0 _ H).
     specialize (frgnBlocksTgt_locBlocksTgt _ WD0 _ H); simpl; intros.
@@ -1792,29 +1792,29 @@ Qed.
 
 Lemma reestablish_wd': forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
                       (INC: inject_incr (as_inj mu0) (as_inj mu))
-                      (Hmu: forall b1 b2 z (A:as_inj mu b1 = Some(b2,z)), 
+                      (Hmu: forall b1 b2 z (A:as_inj mu b1 = Some(b2,z)),
                             locBlocksSrc mu0 b1 = locBlocksTgt mu0 b2 /\
                             extBlocksSrc mu0 b1 = extBlocksTgt mu0 b2)
-                      (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true), 
+                      (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true),
                       SM_wd (reestablish mu0 mu).
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   simpl in *.
   split; intros; simpl in *.
-    remember (locBSrc0 b) as d. destruct d; intuition. 
+    remember (locBSrc0 b) as d. destruct d; intuition.
     remember (locBTgt0 b) as d. destruct d; intuition.
-    apply (local_DomRng _ WD0 _ _ _ H).  
+    apply (local_DomRng _ WD0 _ _ _ H).
     remember (locBSrc0 b1) as d. destruct d; inv H.
       unfold as_inj in Hmu; simpl in *.
       destruct (Hmu _ _ _ H1) as [LB EB]; clear Hmu.
-      rewrite LB in *. rewrite <- Heqd. 
+      rewrite LB in *. rewrite <- Heqd.
       destruct (joinD_Some _ _ _ _ _ H1) as [EXT | [EXT LOC]]; clear H1.
         destruct (extern_DomRng _ WD _ _ _ EXT); simpl in *.
-          rewrite H, H0. split; intuition. 
-      destruct (local_DomRng _ WD _ _ _ LOC); simpl in *. 
+          rewrite H, H0. split; intuition.
+      destruct (local_DomRng _ WD _ _ _ LOC); simpl in *.
         rewrite H, H0; simpl. split; trivial.
     apply (pubSrcAx _ WD0 _ H).
       specialize (frgnBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
@@ -1834,19 +1834,19 @@ Lemma reestablish_extern_incr': forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
           (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true),
       extern_incr mu0 (reestablish mu0 mu).
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   simpl in *. unfold as_inj in *; simpl in *.
   split; simpl in *; intuition.
     red; intros.
-      destruct (extern_DomRng' _ WD0 _ _ _ H) as [_ [_ [? _]]]; simpl in *. 
+      destruct (extern_DomRng' _ WD0 _ _ _ H) as [_ [_ [? _]]]; simpl in *.
       rewrite H0. apply INC. eapply joinI; left; assumption.
     specialize (extBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
         rewrite H0. apply (ExtSrc _ H).
     specialize (extBlocksTgt_locBlocksTgt _ WD0 _ H); simpl; intros.
-        rewrite H0. apply (ExtTgt _ H). 
+        rewrite H0. apply (ExtTgt _ H).
 Qed.
 
 Lemma reestablish_extern_incr: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
@@ -1856,10 +1856,10 @@ Lemma reestablish_extern_incr: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
       extern_incr mu0 (reestablish mu0 mu).
 Proof. intros.
   eapply reestablish_extern_incr'; try eassumption.
-  rewrite <- REST. apply restrict_incr. 
+  rewrite <- REST. apply restrict_incr.
 Qed.
 
-Lemma reestablish_internstep': forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu') 
+Lemma reestablish_internstep': forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu')
           (INC: inject_incr (as_inj mu0) (as_inj mu))
           (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
           (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true)
@@ -1867,13 +1867,13 @@ Lemma reestablish_internstep': forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (
       extern_incr mu0 (reestablish mu0 mu').
 Proof. intros.
 eapply reestablish_extern_incr'; trivial.
-  eapply inject_incr_trans; try eassumption. 
+  eapply inject_incr_trans; try eassumption.
      eapply intern_incr_as_inj; eassumption.
   intros. apply ExtSrc in H. eapply intern_incr_DomSrc; eassumption.
   intros. apply ExtTgt in H. eapply intern_incr_DomTgt; eassumption.
 Qed.
-  
-Lemma reestablish_internstep: forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu') 
+
+Lemma reestablish_internstep: forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu')
           (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
           (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
           (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true)
@@ -1881,16 +1881,16 @@ Lemma reestablish_internstep: forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (W
       extern_incr mu0 (reestablish mu0 mu').
 Proof. intros.
 eapply (reestablish_internstep' mu0 mu mu'); try eassumption.
-  rewrite <- REST. apply restrict_incr. 
+  rewrite <- REST. apply restrict_incr.
 Qed.
-  
-Lemma reestablish_as_inj: forall mu0 mu (WD0:SM_wd mu0) 
+
+Lemma reestablish_as_inj: forall mu0 mu (WD0:SM_wd mu0)
           (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0),
       as_inj (reestablish mu0 mu) = as_inj mu.
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   simpl in *. unfold as_inj, DomSrc  in *; simpl in *.
   extensionality b1; unfold join.
@@ -1902,7 +1902,7 @@ Proof. intros.
          unfold as_inj in Heqw; simpl in Heqw.
          rewrite <- REST in Heqw.
          destruct (restrictD_Some _ _ _ _ _ Heqw).
-         apply eq_sym. apply H. 
+         apply eq_sym. apply H.
       assert (JN: join extern0 local0 b1 = None).
         unfold join. specialize (locBlocksSrc_externNone _ WD0 _ Heqd). simpl.
               intros XX; rewrite XX. assumption.
@@ -1921,15 +1921,15 @@ Proof. intros.
    rewrite H in Heqd. discriminate.
 Qed.
 
-Lemma reestablish_as_inj': forall mu0 mu (WD0:SM_wd mu0) 
+Lemma reestablish_as_inj': forall mu0 mu (WD0:SM_wd mu0)
            (HINC: inject_incr (as_inj mu0) (as_inj mu))
            (H: forall b, locBlocksSrc mu0 b = true -> local_of mu0 b = None ->
                          as_inj mu b = None),
       as_inj (reestablish mu0 mu) = as_inj mu.
 Proof. intros.
-  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0
                    extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
-  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+  destruct mu as [locBSrc locBTgt pSrc pTgt local
                   extBSrc extBTgt fSrc fTgt extern].
   simpl in *. unfold as_inj, DomSrc  in *; simpl in *.
   extensionality b1; unfold join.
@@ -1952,7 +1952,7 @@ Proof. intros.
    rewrite H0 in Heqd. discriminate.
 Qed.
 
-Lemma reestablish_sm_injsep: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu) 
+Lemma reestablish_sm_injsep: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
           (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
           (LocSrc: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true)
           (LocTgt: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true)
@@ -1965,7 +1965,7 @@ Proof. intros.
   rewrite reestablish_DomTgt; trivial.
 Qed.
 
-Lemma reestablish_sm_valid: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu) 
+Lemma reestablish_sm_valid: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
           (LocSrc: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true)
           (DomTgt: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true)
           m1 m2 (VAL: sm_valid mu m1 m2),

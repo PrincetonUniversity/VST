@@ -19,9 +19,9 @@
     have a decidable equality.
 *)
 
-Require Import msl.base.
-Require Import msl.eq_dec.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.eq_dec.
+Require Import VST.msl.sepalg.
 Require Import GenericMinMax.
 
 Module Type BOOLEAN_ALGEBRA.
@@ -104,7 +104,7 @@ Class heightable (A : Type) : Type := Heightable {
   height : A -> nat;
   is_height_zero : forall a : A, {height a = 0} + {height a <> 0} (* Should run in O(1) time for trees *)
  }.
-Implicit Arguments Heightable [A].
+Arguments Heightable [A] _ _.
 Definition is_height_zero_spec {A : Type} (height : A -> nat) : Type :=
   forall a : A, {height a = 0} + {height a <> 0}.
 
@@ -113,7 +113,7 @@ Definition list_height {A} `{heightable A} (LA : list A) : nat :=
 Fixpoint list_is_height_zero_bool {A} `{heightable A} (L : list A) : bool :=
   match L with
    | nil => true
-   | a :: L' => 
+   | a :: L' =>
       if is_height_zero a then list_is_height_zero_bool L' else false
   end.
 Instance list_heightable {A} `{heightable A} : heightable (list A).
@@ -129,20 +129,22 @@ Defined.
  Class decomposible (A : Type) : Type := Decomposible {
   decompose : A -> (A * A)
  }.
- Implicit Arguments Decomposible [A].
+ Arguments Decomposible [A] _.
 
  Class roundableLeft (A : Type) : Type := RoundableLeft {
    roundL : nat -> A -> option A
  }.
- Implicit Arguments RoundableLeft [A].
+ Arguments RoundableLeft [A] _.
+
  Class roundableRight (A : Type) : Type := RoundableRight {
    roundR : nat -> A -> option A
  }.
- Implicit Arguments RoundableRight [A].
+ Arguments RoundableRight [A] _.
+
  Class avgable (A : Type) : Type := Avgable {
     avg : nat -> A -> A -> option A
  }.
- Implicit Arguments Avgable [A].
+ Arguments Avgable [A] _.
 
 (* END NEW MATERIAL *)
 
@@ -211,7 +213,7 @@ Module Type SHARE_MODEL.
   Axiom nonidentityToken : forall x n, (n > 0)%nat -> isToken x n -> x <> bot.
   Axiom nonidentityFactory : forall x n, isTokenFactory x n -> x <> bot.
 
-  
+
   (* relativization *)
   Parameter rel : t -> t -> t.
 
@@ -231,7 +233,7 @@ Module Type SHARE_MODEL.
   Parameter unrel: t -> t -> t.
   Definition Lsh  : t := fst (split top).
   Definition Rsh  : t := snd (split top).
-  Definition splice (a b: t) : t := lub (rel Lsh a) (rel Rsh b). 
+  Definition splice (a b: t) : t := lub (rel Lsh a) (rel Rsh b).
 
   Axiom unrel_rel: forall x sh, nonidentity x -> unrel x (rel x sh) = sh.
   Axiom unrel_splice_L: forall a b, unrel Lsh (splice a b) = a.
@@ -305,7 +307,7 @@ Module Type SHARE_MODEL.
     decompose t1 = (t11, t12) ->
     decompose t2 = (t21, t22) ->
     decompose t3 = (t31, t32) ->
-    (join t1 t2 t3 <-> 
+    (join t1 t2 t3 <->
     (join t11 t21 t31 /\ join t12 t22 t32)).
  Axiom decompose_glb: forall t1 t11 t12 t2 t21 t22 t3 t31 t32,
   decompose t1 = (t11,t12) ->
@@ -351,26 +353,26 @@ Module Type SHARE_MODEL.
   decompose s2 = (s21,s22) ->
   s11 <> s21 \/ s12 <> s22.
  (*L14*)
- Axiom tree_round_left_join : forall n t1 t2 t3 t1' t2' t3', 
+ Axiom tree_round_left_join : forall n t1 t2 t3 t1' t2' t3',
     join t1 t2 t3 ->
     roundL n t1 = Some t1' ->
     roundL n t2 = Some t2' ->
-    roundL n t3 = Some t3' ->    
+    roundL n t3 = Some t3' ->
     join t1' t2' t3'.
  (*L15*)
- Axiom tree_round_left_identity : forall n t, 
-    height t < n -> 
+ Axiom tree_round_left_identity : forall n t,
+    height t < n ->
     roundL n t = Some t.
  (*L16*)
  Axiom tree_round_left_None : forall n t,
-    n < height t -> 
+    n < height t ->
     roundL n t = None.
  (*L17*)
  Axiom tree_round_left_decrease : forall n t,
-    S n = height t -> 
+    S n = height t ->
     exists t', roundL (S n) t = Some t' /\ (height t' <= n)%nat.
  (*L18*)
- Axiom tree_round_left_Some : forall n t, 
+ Axiom tree_round_left_Some : forall n t,
     (height t <= S n)%nat ->
     exists t', roundL (S n) t = Some t'.
  (*L19*)
@@ -381,26 +383,26 @@ Module Type SHARE_MODEL.
   Axiom tree_round_left_zero: forall t,
     roundL 0 t = None.
  (*L21*)
- Axiom tree_round_right_join : forall n t1 t2 t3 t1' t2' t3', 
+ Axiom tree_round_right_join : forall n t1 t2 t3 t1' t2' t3',
     join t1 t2 t3 ->
     roundR n t1 = Some t1' ->
     roundR n t2 = Some t2' ->
-    roundR n t3 = Some t3' ->    
+    roundR n t3 = Some t3' ->
     join t1' t2' t3'.
  (*L22*)
- Axiom tree_round_right_identity : forall n t, 
-    height t < n -> 
+ Axiom tree_round_right_identity : forall n t,
+    height t < n ->
     roundR n t = Some t.
  (*L23*)
  Axiom tree_round_right_None : forall n t,
-    n < height t -> 
+    n < height t ->
     roundR n t = None.
  (*L24*)
  Axiom tree_round_right_decrease : forall n t,
-    S n = height t -> 
+    S n = height t ->
     exists t', roundR (S n) t = Some t' /\ (height t' <= n)%nat.
  (*L25*)
- Axiom tree_round_right_Some : forall n t, 
+ Axiom tree_round_right_Some : forall n t,
     (height t <= S n)%nat ->
     exists t', roundR (S n) t = Some t'.
  (*L26*)
@@ -416,16 +418,16 @@ Module Type SHARE_MODEL.
    height t < n ->
    avg n t t = Some t.
   (*L30*)
-  Axiom tree_avg_None : forall n t1 t2, 
-   (n <= max (height t1) (height t2))%nat -> 
+  Axiom tree_avg_None : forall n t1 t2,
+   (n <= max (height t1) (height t2))%nat ->
    avg n t1 t2 = None.
   (*L31*)
-    Axiom tree_avg_round2avg : forall n t1 t2 t3, 
-   roundL n t3 = Some t1 -> 
+    Axiom tree_avg_round2avg : forall n t1 t2 t3,
+   roundL n t3 = Some t1 ->
    roundR n t3 = Some t2 ->
    avg n t1 t2 = Some t3.
   (*L32*)
-  Axiom tree_avg_avg2round : forall n t1 t2 t3, 
+  Axiom tree_avg_avg2round : forall n t1 t2 t3,
    avg n t1 t2 = Some t3 ->
    roundL n t3 = Some t1 /\
    roundR n t3 = Some t2.
@@ -446,8 +448,8 @@ Module Type SHARE_MODEL.
   Axiom avg_share_correct: forall n s,
    (height s <= S n)%nat ->
    exists s', exists s'',
-    roundL (S n) s = Some s' /\ 
-    roundR (S n) s = Some s'' /\ 
+    roundL (S n) s = Some s' /\
+    roundR (S n) s = Some s'' /\
     avg (S n) s' s'' = Some s.
 
  (*L36*)
@@ -460,8 +462,8 @@ Module Type SHARE_MODEL.
  (*L38*)
  Axiom countBLeafCT_lt : forall n s1 s2,
   s1 <= s2 ->
-  s1 <> s2 -> 
-  (height s2 <= n)%nat -> 
+  s1 <> s2 ->
+  (height s2 <= n)%nat ->
   countBLeafCT n s1 < countBLeafCT n s2.
  (*L39*)
  Axiom countBLeafCT_limit: forall n s, (countBLeafCT n s <= power 2 n)%nat.
@@ -470,8 +472,8 @@ Module Type SHARE_MODEL.
  (*L41*)
  Axiom countBLeafCT_top: forall n, countBLeafCT n top = power 2 n.
  (*L42*)
- Axiom countBLeafCT_positive : forall s n, 
-   (height s <= n)%nat -> 
+ Axiom countBLeafCT_positive : forall s n,
+   (height s <= n)%nat ->
    bot <> s -> 0 < countBLeafCT n s.
  (*L43*)
  Axiom countBLeafCT_mono_le: forall n1 n2 s,
@@ -498,37 +500,37 @@ Module Type SHARE_MODEL.
   (height s2 <= n)%nat ->
   countBLeafCT n s1 + countBLeafCT n s2 = countBLeafCT n s3.
  (*L48*)
- Axiom share_metric_nerr : forall s n, 
-  height s < n -> 
+ Axiom share_metric_nerr : forall s n,
+  height s < n ->
   0 < share_metric n s.
  (*L49*)
- Axiom share_metric_err  : forall s n, 
-  (n <= height s)%nat -> 
+ Axiom share_metric_err  : forall s n,
+  (n <= height s)%nat ->
   share_metric n s = 0.
  (*L50*)
  Axiom share_metric_height_monotonic : forall s n1 n2,
-  (n1 <= n2)%nat -> 
+  (n1 <= n2)%nat ->
   (share_metric n1 s <= share_metric n2 s)%nat.
  (*L51*)
- Axiom share_metric_lub : forall s s' n, 
-  ~(s'<=s) -> 
-  0 < share_metric n s -> 
-  0 < share_metric n (lub s s') -> 
+ Axiom share_metric_lub : forall s s' n,
+  ~(s'<=s) ->
+  0 < share_metric n s ->
+  0 < share_metric n (lub s s') ->
   share_metric n s < share_metric n (lub s s').
  (*L52*)
- Axiom share_metric_glb : forall s s' n, 
-  ~(s<=s') -> 
-  0 < share_metric n s -> 
-  0 < share_metric n (glb s s') -> 
+ Axiom share_metric_glb : forall s s' n,
+  ~(s<=s') ->
+  0 < share_metric n s ->
+  0 < share_metric n (glb s s') ->
   share_metric n (glb s s') < share_metric n s.
  (*L53*)
  Axiom share_metric_dif_monotonic: forall s1 s2 n n0,
-  s1<=s2 -> 
-  (n<=n0)%nat -> 
+  s1<=s2 ->
+  (n<=n0)%nat ->
   height s1 < n -> height s2 < n ->
-  (share_metric n s2 - share_metric n s1 <= 
+  (share_metric n s2 - share_metric n s1 <=
   share_metric n0 s2 - share_metric n0 s1)%nat.
- 
+
  (*L54*)
  Axiom tree_height_lub_limit: forall n s1 s2,
   (height s1 <= n)%nat ->
@@ -540,15 +542,15 @@ Module Type SHARE_MODEL.
   (height s2 <= n)%nat ->
   (height (glb s1 s2) <= n)%nat.
  (*L56*)
- Axiom height_lub1 : forall s1 s2, 
-  (height s1<= height s2)%nat-> 
+ Axiom height_lub1 : forall s1 s2,
+  (height s1<= height s2)%nat->
   (height (lub s1 s2) <= height s2)%nat.
  (*L57*)
- Axiom height_glb1 : forall s1 s2, 
-  (height s1<= height s2)%nat-> 
-  (height (glb s1 s2) <= height s2)%nat. 
+ Axiom height_glb1 : forall s1 s2,
+  (height s1<= height s2)%nat->
+  (height (glb s1 s2) <= height s2)%nat.
  (*L58*)
- Axiom height_comp: forall s, 
+ Axiom height_comp: forall s,
   height (comp s)= height s.
 
  Axiom decompose_height_zero: forall s sL sR,
@@ -575,7 +577,7 @@ Module Type SHARE_MODEL.
   (s = bot <-> sL = bot /\ sR = bot).
 
  Axiom tree_avg_nonzero: forall sL sR s n,
-  avg n sL sR = Some s -> 
+  avg n sL sR = Some s ->
   (s <> bot <-> sL <> bot \/ sR <> bot).
 
  Axiom tree_avg_bound: forall sL sR s n,
@@ -815,7 +817,7 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     apply ord_antisym; rewrite lub_assoc; auto with ba.
     subst.
     rewrite glb_commute in H |- *.
-    rewrite distrib1 in H. 
+    rewrite distrib1 in H.
     generalize (lub_upper1 (glb c a) (glb c b)); intro.
     rewrite H in H0.
     apply ord_antisym; auto.
@@ -830,9 +832,9 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
     (* saf_positivity *)
     hnf in *.
     intuition.
-    subst a. 
-    rewrite (lub_commute b) in H2. rewrite lub_commute in H2. 
-     rewrite <- lub_assoc in H2. 
+    subst a.
+    rewrite (lub_commute b) in H2. rewrite lub_commute in H2.
+     rewrite <- lub_assoc in H2.
     apply ord_spec2 in H2.
     rewrite lub_commute; apply ord_spec2.
     apply ord_trans with (lub a' b'); auto.
@@ -863,9 +865,10 @@ Module BA_Facts (BA:BOOLEAN_ALGEBRA) <: BA_FACTS.
 
   Instance da: Disj_alg t.
   Proof. repeat intro.
-    destruct H.
-    rewrite lub_idem in H0.
-    auto.
+    destruct H, H0.
+    rewrite lub_idem in H1; subst.
+    rewrite glb_idem in H; subst.
+    rewrite lub_commute, lub_bot; auto.
   Qed.
 
 End BA_Facts.

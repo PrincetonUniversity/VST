@@ -1,6 +1,6 @@
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.predicates_sa.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.predicates_sa.
 
 Local Open Scope pred.
 
@@ -34,7 +34,7 @@ Proof.
  apply prop_ext; split; (intros [?|?]; [left|right]; congruence).
 Qed.
 Lemma corable_allp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
+  forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (allp P).
 Proof.
  unfold corable, allp; intros.
@@ -42,7 +42,7 @@ Proof.
  rewrite <- H; auto. rewrite H; auto.
 Qed.
 Lemma corable_exp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
+  forall {B: Type} (P:  B -> pred A) ,
       (forall b, corable (P b)) -> corable (exp P).
 Proof.
  unfold corable, exp; intros.

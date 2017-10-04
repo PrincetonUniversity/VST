@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.revarray.
-Require Import floyd.sublist.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.revarray.
+Require Import VST.floyd.sublist.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -29,7 +29,7 @@ Definition flip_ends {A} lo hi (contents: list A) :=
   ++ sublist lo hi contents
   ++ sublist hi (Zlength contents) (rev contents).
 
-Definition reverse_Inv a0 sh contents size := 
+Definition reverse_Inv a0 sh contents size :=
  (EX j:Z,
   (PROP  (0 <= j; j <= size-j)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
@@ -59,7 +59,7 @@ Proof.
       by (autorewrite with sublist; omega).
   rewrite !sublist_rev by (autorewrite with sublist; omega).
  rewrite <- !rev_app_distr, ?H.
- autorewrite with sublist; auto. 
+ autorewrite with sublist; auto.
 Qed.
 
 Lemma flip_fact_3:
@@ -212,11 +212,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-

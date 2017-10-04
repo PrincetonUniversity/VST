@@ -3,9 +3,9 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
 
 Local Open Scope pred.
 
@@ -51,7 +51,7 @@ Qed.
 
 Notation "'#' e" := (fash e) (at level 30, right associativity): pred.
 
-Lemma fash_K {A} `{H: ageable A}: forall (P Q: pred A), 
+Lemma fash_K {A} `{H: ageable A}: forall (P Q: pred A),
                  # (P --> Q) |-- # P --> # Q.
 Proof.
 intros.
@@ -88,7 +88,7 @@ apply H.
 unfold natLevel in H0. omega.
 Qed.
 
-Lemma fash_derives {A} `{agA : ageable A}:  
+Lemma fash_derives {A} `{agA : ageable A}:
      forall (P Q: pred A), P |-- Q  ->  # P |-- # Q.
 Proof.
 intros.
@@ -154,7 +154,7 @@ Proof.
   apply subp_eqp.
     apply eqp_subp2. hnf; auto.
     apply eqp_subp. hnf; auto.
-Qed.    
+Qed.
 
 Lemma subp_refl {A} `{ageable A} : forall G P,
   G |-- P >=> P.
@@ -218,7 +218,7 @@ Proof.
 Qed.
 
 Lemma subp_subp {A}{agA: ageable A}:
-  forall (G: pred nat) (P Q R S: pred A), 
+  forall (G: pred nat) (P Q R S: pred A),
    G |-- (R >=> P) ->
    G |-- (Q >=> S) ->
    G |-- (P >=> Q) >=> (R >=> S).
@@ -233,9 +233,9 @@ Proof.
  2: eassumption. 3: eassumption.
  apply necR_level in H2. apply le_trans with (level y); auto. apply le_trans with (level a'); auto.
  auto.
- apply necR_level in H5. 
+ apply necR_level in H5.
  apply le_trans with (level y0); auto. apply le_trans with a'; auto.
- apply necR_level in H2.  apply le_trans with (level y); auto. 
+ apply necR_level in H2.  apply le_trans with (level y); auto.
 Qed.
 
 Lemma subp_allp {A} `{ageable A} : forall G B (X Y:B -> pred A),
@@ -282,20 +282,20 @@ apply laterR_level in H1.
 omega.
 Qed.
 
-Lemma later_fash {A} `{agA : ageable A}: 
+Lemma later_fash {A} `{agA : ageable A}:
     forall P, |> # P = # |> P.
 Proof.
 intros.
 apply pred_ext.
 apply later_fash1.
-(** backward direction **) 
+(** backward direction **)
 intros w ? w' ?.
 simpl in *.
 intros.
 destruct (af_unage age_facts y).
 apply (H x).
 apply later_nat in H0.
-apply age_level in H2. 
+apply age_level in H2.
 omega.
 constructor 1; auto.
 Qed.
@@ -342,14 +342,14 @@ Qed.
 Program Definition unfash {A} `{agA: ageable A} (P: pred nat) : pred A :=
      fun x => P (level x).
 Next Obligation.
- apply age_level in H. 
+ apply age_level in H.
  rewrite H in H0.
  eapply pred_hereditary; eauto. unfold age;  simpl. auto.
 Qed.
 
 Notation "'!' e" := (unfash e) (at level 30, right associativity): pred.
 
-Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat}, 
+Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat},
          laterR (level w) n' ->
        exists w', laterR w w' /\ n' = level w'.
 Proof.
@@ -358,7 +358,7 @@ remember (level w) as n.
 revert w Heqn; induction H0; intros; subst.
 case_eq (age1 w); intros.
 exists a; split. constructor; auto.
-symmetry; unfold age in H0; simpl in H0. 
+symmetry; unfold age in H0; simpl in H0.
   unfold natAge1 in H0; simpl in H0. revert H0; case_eq (level w); intros; inv H2.
   apply age_level in H1. congruence. rewrite age1_level0 in H1.
    rewrite H1 in H0. inv H0.
@@ -386,7 +386,7 @@ Qed.
 Lemma subp_derives {A} `{agA : ageable A} :
   forall (P P' Q Q': pred A),
     P' |-- P ->
-    Q |-- Q' -> 
+    Q |-- Q' ->
     (P >=> Q) |-- (P' >=> Q').
 Proof.
 
@@ -406,7 +406,7 @@ intros w' ? w'' ? ?.
 eauto.
 Qed.
 
-Lemma exp_subp' {A} `{H : ageable A}: 
+Lemma exp_subp' {A} `{H : ageable A}:
   forall (T: Type) (P Q: T -> pred A) (st: nat),
                 (forall x, (P x >=> Q x) st) -> ((EX x : T, P x) >=> (EX x : T, Q x)) st.
 Proof.
@@ -416,7 +416,7 @@ destruct H3 as [x ?]; exists x.
 eapply H0; eauto.
 Qed.
 
-Lemma fash_subp {A} `{agA: ageable A}: 
+Lemma fash_subp {A} `{agA: ageable A}:
     forall (P Q: pred A), fashionable (P >=> Q).
 Proof.
 intros.
@@ -426,7 +426,7 @@ Qed.
 Hint Resolve @fash_subp.
 
 Lemma fash_allp {A} {agA:ageable A}:
-  forall  (B: Type) (F: B -> pred A), 
+  forall  (B: Type) (F: B -> pred A),
       # (allp F) = allp (fun z: B => # F z).
 Proof.
 intros.
@@ -443,7 +443,7 @@ Qed.
 Proof. intros.
   intros n ?. intros ? ? ? ? ?. apply H. split; auto.
  eapply pred_nec_hereditary. apply H2.
- assert (P (level y)). eapply pred_nec_hereditary; try apply H0. 
+ assert (P (level y)). eapply pred_nec_hereditary; try apply H0.
  apply nec_nat. auto. apply H4.
 Qed.
 
@@ -453,7 +453,7 @@ intros.
 apply pred_ext; intros w ?.
 specialize (H _ (le_refl _)); auto.
 intros n' ?. inv H0; auto.
-eapply pred_nec_hereditary; try apply H. 
+eapply pred_nec_hereditary; try apply H.
 apply nec_nat.
 unfold level in H1. simpl in H1. unfold natLevel in H1. omega.
 Qed.

@@ -39,7 +39,7 @@ c = c -->         [7]
 
 The original set of clauses 0-3 is therefore unsatisfiable.
 
-For more information about system S, see the following tutorial paper: 
+For more information about system S, see the following tutorial paper:
 
 "Equational Reasoning in Saturation-Based Theorem Proving." Leo Bachmair and
 Harald Ganzinger.  February 19, 1998.  *)
@@ -55,24 +55,24 @@ Require Import Image.
 Require Import veristar.basic.
 Require Import veristar.clause_universe.
 Require Import veristar.compare.
-Require Import veric.Coqlib2.
+Require Import VST.veric.Coqlib2.
 
 Module Type SUPERPOSITION.
 
 Definition model := list (var * expr).
 
-Inductive superposition_result : Type := 
+Inductive superposition_result : Type :=
 | Valid : superposition_result
 | C_example : model -> M.t -> superposition_result
 | Aborted : list clause -> superposition_result.
 
 (* check a pure entailment of the form Pi ==> Pi';
-   returns a superposition_result and the final clause set (i.e., the set of 
+   returns a superposition_result and the final clause set (i.e., the set of
    clauses derived during proof search) *)
 Parameter check : entailment -> superposition_result * M.t * M.t.
 
 (* just like check, except we start out with a set of clauses instead of an
-   entailment.  this function is the one called by the main theorem prover, 
+   entailment.  this function is the one called by the main theorem prover,
    veristarulate.v. *)
 Parameter check_clauseset : M.t -> superposition_result * M.t * M.t.
 
@@ -82,7 +82,7 @@ Parameter clauses_generate : model -> list clause -> model * M.t.
 
 End SUPERPOSITION.
 
-Module Superposition <: SUPERPOSITION. 
+Module Superposition <: SUPERPOSITION.
 
 (* side conditions *)
 Definition pure_atom_gt1 a (l: list pure_atom) :=
@@ -98,43 +98,43 @@ Definition pure_atom_geq1 a (l: list pure_atom) :=
 Definition sp (c d : clause) l0 : list clause :=
   match c, d with
   (* negative superposition *)
-  | PureClause nil (Eqv s t :: pos) _ _ , 
+  | PureClause nil (Eqv s t :: pos) _ _ ,
         PureClause (Eqv s' v :: neg') pos' _ _ =>
     if expr_eq s s' && expr_lt t s && expr_lt v s'
     then mkPureClause (insu_atm (norm_pure_atom (Eqv t v)) neg')
                       (merge pure_atom_cmp pos pos') :: l0
     else l0
-  | PureClause nil (Eqv s t :: pos) _ _, 
-        PureClause nil (Eqv s' v :: pos') _ _ => 
+  | PureClause nil (Eqv s t :: pos) _ _,
+        PureClause nil (Eqv s' v :: pos') _ _ =>
     let ef := match c with
       (* equality factoring *)
       | PureClause nil (Eqv u v :: Eqv s t :: pos) _ _ =>
-        if expr_eq s u && pure_atom_gt (Eqv u v) (Eqv s t) 
+        if expr_eq s u && pure_atom_gt (Eqv u v) (Eqv s t)
         then mkPureClause [norm_pure_atom (Eqv v t)]
                (insu_atm (norm_pure_atom (Eqv u t)) pos) :: l0
         else l0
       | _ => l0 end in
     (* positive superposition *)
-    if expr_eq s s' && expr_lt t s && expr_lt v s' && 
-       pure_atom_gt1 (Eqv s t) pos && pure_atom_gt1 (Eqv s' v) pos' && 
-       pure_atom_gt (Eqv s' v) (Eqv s t) 
-    then mkPureClause nil (insu_atm (norm_pure_atom (Eqv t v)) 
+    if expr_eq s s' && expr_lt t s && expr_lt v s' &&
+       pure_atom_gt1 (Eqv s t) pos && pure_atom_gt1 (Eqv s' v) pos' &&
+       pure_atom_gt (Eqv s' v) (Eqv s t)
+    then mkPureClause nil (insu_atm (norm_pure_atom (Eqv t v))
                           (merge pure_atom_cmp pos pos')) :: ef
     else ef
   | _ , _ => l0
   end.
 
-(* "superpose" applies "sp" from L-R and R-L, thus returning all new 
+(* "superpose" applies "sp" from L-R and R-L, thus returning all new
    clauses derivable from clauses "c" and "d" under the proof rules *)
 Definition superpose (c d : clause) l0 : list clause := sp c d (sp d c l0).
 
 (* clause simplification -- the following proof rules simplify clauses
-   "in place".  that is, either a newly generated clause is simplified before 
-   entering the clause database for the first time or an existing clause is 
-   replaced by its simplified form, e.g., when it is rewritten by a newly 
+   "in place".  that is, either a newly generated clause is simplified before
+   entering the clause database for the first time or an existing clause is
+   replaced by its simplified form, e.g., when it is rewritten by a newly
    derived positive unit clause (demodulation). *)
 Definition rewrite_by s t atm :=
-  match atm with Eqv u v => 
+  match atm with Eqv u v =>
     if expr_eq s u then if expr_eq s v then norm_pure_atom (Eqv t t)
                         else norm_pure_atom (Eqv t v)
     else if expr_eq s v then norm_pure_atom (Eqv u t)
@@ -146,17 +146,17 @@ Definition rewrite_by s t atm :=
 Definition demodulate (c d : clause) : clause :=
   match c, d with
   | PureClause nil [Eqv s t] _ _, PureClause neg pos _ _ =>
-      mkPureClause (map (rewrite_by s t) neg) (map (rewrite_by s t) pos)  
+      mkPureClause (map (rewrite_by s t) neg) (map (rewrite_by s t) pos)
   | _, _ => d
   end.
 
-(** Delete resolved negative atoms, i.e., atoms of the form "Eqv x x" 
+(** Delete resolved negative atoms, i.e., atoms of the form "Eqv x x"
     lying in negative positions *)
 
 Definition delete_resolved (c : clause) : clause :=
   match c with
   | PureClause neg pos _ _ =>
-     mkPureClause (sortu_atms (remove_trivial_atoms neg)) 
+     mkPureClause (sortu_atms (remove_trivial_atoms neg))
                             (sortu_atms pos)
   | _ => mkPureClause nil [Eqv Nil Nil] (* impossible *)
   end.
@@ -189,20 +189,20 @@ Definition delete_resolved (c : clause) : clause :=
 (*   end. *)
 (*end hide*)
 
-(* for some reason, this version of not_taut when extracted runs faster 
+(* for some reason, this version of not_taut when extracted runs faster
    than the one above *)
 Definition not_taut (c: clause) :=
   negb (match c with
-        | PureClause neg pos _ _ => 
-          existsb (fun a => existsb (fun b => 
+        | PureClause neg pos _ _ =>
+          existsb (fun a => existsb (fun b =>
                      pure_atom_eq a b) pos) neg ||
-          existsb (fun a => 
+          existsb (fun a =>
             match a with Eqv e1 e2 => expr_eq e1 e2 end) pos
         | _ => false end).
 
 
-(* rewrite "c" by any positive unit clauses in "l". delete resolved atoms 
-   from the resulting clause. Argument l is sorted so no need to sort here. 
+(* rewrite "c" by any positive unit clauses in "l". delete resolved atoms
+   from the resulting clause. Argument l is sorted so no need to sort here.
  *)
 Definition simplify (l : list clause) (c : clause) : clause :=
   delete_resolved (fold_left (fun d c => demodulate c d) l c).
@@ -210,14 +210,14 @@ Definition simplify (l : list clause) (c : clause) : clause :=
 (* derive all possible inferences from clause "c" and clauses "l", simplifying
    any resulting clauses using facts in "l" *)
 Definition infer_list (c : clause) (l : list clause) : list clause :=
-  print_inferred_list (filter not_taut (map (simplify l) 
+  print_inferred_list (filter not_taut (map (simplify l)
     (fold_left (fun l0 d => superpose c d l0) l nil))).
 
 (*begin hide*)
-(* VERSION 0: 
+(* VERSION 0:
 Definition mem_add (x: M.elt) (s: M.t) : option M.t :=
  if M.mem x s then None else Some (M.add x s).
-Lemma mem_add_spec: 
+Lemma mem_add_spec:
     forall x s, mem_add x s = if M.mem x s then None else Some (M.add x s).
 Proof. auto. Qed.
 Opaque mem_add.
@@ -225,13 +225,13 @@ Opaque mem_add.
 (*end hide*)
 (* VERSION 1: *)
 Definition mem_add := M.mem_add.
-Lemma mem_add_spec: 
+Lemma mem_add_spec:
     forall x s, mem_add x s = if M.mem x s then None else Some (M.add x s).
 Proof. apply M.mem_add_spec. Qed.
 (* END VERSION 1 *)
 
-Definition mem_add_nonempty x s := 
-  if isEq (compare_clause x (mkPureClause nil nil)) then None else 
+Definition mem_add_nonempty x s :=
+  if isEq (compare_clause x (mkPureClause nil nil)) then None else
     mem_add x s.
 
 Definition add_list_to_set_simple (l: list M.elt) (s: M.t) : M.t :=
@@ -271,32 +271,32 @@ Definition is_unit_cls (c: clause) :=
   match c with
   | PureClause nil [Eqv _ _] _ _ => true | _ => false end.
 
-Definition one_inference_step (given_unselected: M.t*M.t) 
+Definition one_inference_step (given_unselected: M.t*M.t)
   : (M.t * M.t) :=
   let (given, unselected) := given_unselected in
   match M.delete_min unselected with
-  | Some (given_clause, unselected') => 
-    if is_pure_clause given_clause && 
+  | Some (given_clause, unselected') =>
+    if is_pure_clause given_clause &&
        not_taut given_clause
     then let s := M.elements given in
-      let c := simplify s given_clause in 
+      let c := simplify s given_clause in
       match mem_add c given with
       | None => (given, unselected')
       | Some new_given =>
-        let inferred_clauses := infer_list c s in 
-        let new_unselected := 
-          fold_left (fun s0 c => 
-            if M.mem c new_given then s0 
+        let inferred_clauses := infer_list c s in
+        let new_unselected :=
+          fold_left (fun s0 c =>
+            if M.mem c new_given then s0
             else M.add c s0) inferred_clauses unselected'
           in (new_given, new_unselected)
-      end  
+      end
     else (given, unselected')
   | None => (given, unselected)
   end.
 
 Definition model := list (var * expr).
 
-Inductive superposition_result : Type := 
+Inductive superposition_result : Type :=
 | Valid : superposition_result
 | C_example : model -> M.t -> superposition_result
 | Aborted : list clause -> superposition_result.
@@ -314,9 +314,9 @@ Definition is_model_of (R: model) (gamma delta : list pure_atom) : bool :=
 
 Definition is_model_of_PI (R: model) (nc : (*negative spatial*) clause) : bool :=
  match nc with NegSpaceClause pi_plus _ pi_minus =>
-  match remove_trivial_atoms (fold_right (fun ve => 
+  match remove_trivial_atoms (fold_right (fun ve =>
           subst_pures_delete (fst ve) (snd ve)) pi_plus R),
-        fold_right (fun ve => 
+        fold_right (fun ve =>
           subst_pures (fst ve) (snd ve)) pi_minus R with
   | nil , pi_minus' => forallb nonreflex_atom pi_minus'
   | _ :: _ , _ => false
@@ -326,9 +326,9 @@ Definition is_model_of_PI (R: model) (nc : (*negative spatial*) clause) : bool :
 
 Definition clause_generate (R: model) (cl: clause) : option (var * expr * clause) :=
   match apply_model R cl with
-  | PureClause gamma (Eqv (Var l' as l) r :: delta) _ _ as c' => 
+  | PureClause gamma (Eqv (Var l' as l) r :: delta) _ _ as c' =>
     if (andb (greater_than_expr l' r)
-         (andb (greater_than_all l' gamma) 
+         (andb (greater_than_all l' gamma)
            (andb (greater_than_atoms (Eqv l r) delta)
              (negb (is_model_of R gamma delta))))) then Some (l', r, cl)
     else None
@@ -336,7 +336,7 @@ Definition clause_generate (R: model) (cl: clause) : option (var * expr * clause
   end.
 
 Fixpoint clauses_generate (R: model) (cl: list clause) : model * M.t :=
-  match cl with 
+  match cl with
   | nil => (R, M.empty)
   | c::cs => match clause_generate R c with
              | Some (i,e,c') => match clauses_generate ((i,e)::R) cs with
@@ -350,7 +350,7 @@ Fixpoint clauses_generate (R: model) (cl: list clause) : model * M.t :=
    if n<=0: return Abort
    else:
        if empty_clause \in U: return Valid
-       else: 
+       else:
            (G, U) <- one_inference_step(G, U)
            if is_empty U: return counter-example //G is saturated
            else: loop(n-1, G', U') *)
@@ -367,7 +367,7 @@ Definition effective_cardinal (vb : vset) (s: M.t) (n: nat) :=
 Definition headroom (vb: vset) (s: M.t) (h: nat) :=
  exists n, effective_cardinal vb s n /\ cardinal _ (clause_bound vb) (n+h).
 
-Definition clause_set_increases vb (s s':  M.t) : Prop :=  
+Definition clause_set_increases vb (s s':  M.t) : Prop :=
   exists n, exists n',  headroom vb s n /\ headroom vb s' n' /\ n < n'.
 
 Lemma effective_cardinal_fun: forall vb s n n',
@@ -388,7 +388,7 @@ Proof.
  intros; subst; auto. omega.
 Qed.
 
-Lemma well_founded_clause_set_increases: 
+Lemma well_founded_clause_set_increases:
  forall vb, well_founded (clause_set_increases vb).
 Proof.
  intro vb.
@@ -399,7 +399,7 @@ Proof.
   intros.
   destruct H0 as [h' [? ?]].
   destruct H2 as [h'' [? ?]].
-  assert (h'=h'') by (eapply effective_cardinal_fun; eauto). 
+  assert (h'=h'') by (eapply effective_cardinal_fun; eauto).
   subst h''.
   assert (h'+m = h' + n').
   eapply cardinal_is_functional; eauto.
@@ -457,7 +457,7 @@ Lemma pures_bound_empty n : pures_bound n [].
 Proof. split; [apply Forall_nil|apply NoDup_nil]. Qed.
 
 Lemma pures_bound_nil_nil n : pures_bound n [Eqv Nil Nil].
-Proof. 
+Proof.
 split; [solve[apply Forall_cons; simpl; auto]|].
 apply NoDup_cons; simpl; auto. apply NoDup_nil.
 Qed.
@@ -478,7 +478,7 @@ Proof.
 Qed.
 
 Lemma pure_bound_norm:
-  forall n e1 e2, expr_bound n e1 -> expr_bound n  e2 -> 
+  forall n e1 e2, expr_bound n e1 -> expr_bound n  e2 ->
            pure_bound n (norm_pure_atom (Eqv e1 e2)).
 Proof.
  intros. simpl.
@@ -512,7 +512,7 @@ apply pure_bound_rewrite; auto.
 Qed.
 
 Lemma clause_bound_demodulate:
-  forall n c d, clause_bound' n c  -> clause_bound' n d -> 
+  forall n c d, clause_bound' n c  -> clause_bound' n d ->
     clause_bound' n (demodulate c d).
 Proof.
 unfold demodulate; intros.
@@ -565,17 +565,17 @@ Qed.
 Ltac fresh_tac :=
    solve [auto]
  || rewrite freshmax_norm in *
- || match goal with 
-  | H : List.In _ (match ?D with | PureClause _ _ _ _ => _ 
+ || match goal with
+  | H : List.In _ (match ?D with | PureClause _ _ _ _ => _
           | PosSpaceClause _ _ _ => _ | NegSpaceClause _ _ _ => _ end)
      |- _  => destruct D
-  | H : List.In _ (match ?D with nil => _ | _ :: _ => _ end) |- _  => destruct D 
-  | H : List.In _ (match ?D with Eqv _ _ => _ end) |- _  => destruct D 
-  | H : List.In _ (if ?D then _ else _) |- _ => 
+  | H : List.In _ (match ?D with nil => _ | _ :: _ => _ end) |- _  => destruct D
+  | H : List.In _ (match ?D with Eqv _ _ => _ end) |- _  => destruct D
+  | H : List.In _ (if ?D then _ else _) |- _ =>
       let H' := fresh in revert H; case_eq D; intros H' H;
            repeat rewrite <- andb_assoc in H';
            try (rewrite andb_true_iff in H'; destruct H' as [H' _])
-  | H : expr_eq _ ?e1 = true |- _ => symmetry in H; apply expr_eq_eq' in H; 
+  | H : expr_eq _ ?e1 = true |- _ => symmetry in H; apply expr_eq_eq' in H;
                                         subst e1
   | H : Ile _ _ |- _ => apply var_max_split' in H; destruct H
   | H : List.In ?c (_ :: _) |- _ => destruct H; [ subst c | ]
@@ -601,18 +601,18 @@ Qed.
 
 
 Lemma freshmax_rewrite_by:
-  forall m e e' a, Ile (freshmax_expr e) m -> Ile (freshmax_expr e') m -> 
-      Ile (freshmax_pure_atom a) m -> 
+  forall m e e' a, Ile (freshmax_expr e) m -> Ile (freshmax_expr e') m ->
+      Ile (freshmax_pure_atom a) m ->
       Ile (freshmax_pure_atom (rewrite_by e e' a)) m.
 Proof.
  intros.
  unfold rewrite_by.
  destruct a; auto.
- repeat fresh_tac. 
+ repeat fresh_tac.
 Qed.
 
 Lemma freshmax_demodulate:
-  forall a c m, Ile (freshmax_clause a) m -> Ile (freshmax_clause c) m -> 
+  forall a c m, Ile (freshmax_clause a) m -> Ile (freshmax_clause c) m ->
              Ile (freshmax_clause (demodulate a c)) m.
 Proof.
  unfold demodulate; intros.
@@ -636,7 +636,7 @@ Lemma varbound_remove:
 Proof.
  unfold varbound; intros.
  simpl.
- intros ? ?; unfold In, var_upto in *. 
+ intros ? ?; unfold In, var_upto in *.
  remember (freshmax_list freshmax_clause (M.elements (M.union s s')))  as m.
  assert (forall c, M.In c (M.union s s') -> Ile (freshmax_clause c) m).
   subst; clear; intros.
@@ -670,26 +670,26 @@ Proof.
  apply freshmax_demodulate; auto.
 Qed.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Lemma freshmax_sp:
-  forall m d a l, 
+  forall m d a l,
     Ile (freshmax_clause d) m ->
     Ile (freshmax_clause a) m ->
     (forall c, List.In c l -> Ile (freshmax_clause c) m) ->
     forall c, List.In c (sp d a l) -> Ile (freshmax_clause c) m.
 Proof.
   intros.
-  unfold sp in H2. 
+  unfold sp in H2.
   repeat fresh_tac.
   destruct delta; auto; destruct p; auto.
   if_tac in H2; auto.
-  destruct H2; auto. rewrite <-H2. 
+  destruct H2; auto. rewrite <-H2.
   repeat fresh_tac; auto.
 Qed.
 
 Lemma freshmax_superpose:
-  forall m d a l, 
+  forall m d a l,
     Ile (freshmax_clause d) m ->
     Ile (freshmax_clause a) m ->
     (forall c, List.In c l -> Ile (freshmax_clause c) m) ->
@@ -703,8 +703,8 @@ Proof.
 Qed.
 
 Lemma freshmax_infer_list:
-  forall d l m, 
-        Ile (freshmax_clause d) m -> 
+  forall d l m,
+        Ile (freshmax_clause d) m ->
         (forall c, List.In c l -> Ile (freshmax_clause c) m) ->
         forall c, List.In c (infer_list d l) -> Ile (freshmax_clause c) m.
 Proof.
@@ -724,7 +724,7 @@ Proof.
 Qed.
 
 Lemma varbound_nonincreasing: forall given unselected giv,
-  M.In giv unselected -> 
+  M.In giv unselected ->
  Included _ (varbound
   (M.add (simplify (M.elements given) giv) given,
   fold_left
@@ -763,7 +763,7 @@ Proof.
   destruct H1. subst.
   assert (Ile (freshmax_clause giv) m).
   apply H0. rewrite M.union_spec; auto.
-  remember (M.elements given) as l; 
+  remember (M.elements given) as l;
   clear - H1 H2.
   apply freshmax_simplify; auto.
   apply H0. rewrite M.union_spec; auto.
@@ -795,7 +795,7 @@ Proof.
 Qed.
 
 Lemma varbound_nonincreasing': forall given unselected giv,
-  M.In giv unselected -> 
+  M.In giv unselected ->
   Included _ (varbound
   (M.add (simplify (M.elements given) giv) given,
   fold_left
@@ -834,7 +834,7 @@ Proof.
   destruct H1. subst.
   assert (Ile (freshmax_clause giv) m).
   apply H0. rewrite M.union_spec; auto.
-  remember (M.elements given) as l; 
+  remember (M.elements given) as l;
   clear - H1 H2.
   apply freshmax_simplify; auto.
   apply H0. rewrite M.union_spec; auto.
@@ -877,7 +877,7 @@ Proof.
  destruct H; split; split; auto; constructor; auto. apply NoDup_nil.
  destruct H; split; split; auto; constructor; auto. apply NoDup_nil.
 Qed.
-  
+
 Lemma one_inference_step_order:
        forall given unselected new_given  new_unselected,
        M.mem empty_clause unselected = false ->
@@ -888,9 +888,9 @@ Lemma one_inference_step_order:
   unfold one_inference_step; intros.
   rewrite mem_spec' in H. rewrite is_empty_spec' in H0.
   revert H1; case_eq (M.delete_min unselected); intros.
-Focus 2. 
+Focus 2.
   rewrite M.delete_min_spec2 in H1.
-  symmetry in H2;   inversion H2; clear H2; subst. 
+  symmetry in H2;   inversion H2; clear H2; subst.
   contradiction.
  (* End Focus 2 *)
   destruct p as [giv uns].
@@ -904,7 +904,7 @@ Focus 2.
   split. apply varbound_remove.
   simpl. right; split; auto.
   apply remove_decreases; auto.
-  rewrite mem_add_spec in H2. 
+  rewrite mem_add_spec in H2.
   destruct (not_taut giv); simpl in H2.
   revert H2; case_eq (M.mem  (simplify (M.elements given) giv) given); intros.
   symmetry in H3; inversion H3; clear H3; subst.
@@ -916,7 +916,7 @@ Focus 2.
   match goal with |- superpose_loop_order ?SS _ => remember SS as ss end.
   split.
   subst ss; clear - H1.
- apply varbound_nonincreasing'; auto.  
+ apply varbound_nonincreasing'; auto.
   left.
   unfold clause_set_increases.
   destruct (finite_cardinal _ _ ( Intersection_preserves_finite _
@@ -964,18 +964,18 @@ Focus 2.
 Qed.
 
 (*begin show*)
-(* NOTE: it may occur that empty_clause \in given if the clause selected from 
+(* NOTE: it may occur that empty_clause \in given if the clause selected from
    unselected is simplified to empty_clause. We need to check both. *)
-Function loop (given_unselected : M.t*M.t) 
+Function loop (given_unselected : M.t*M.t)
   {wf superpose_loop_order given_unselected}
   : superposition_result * M.t*M.t :=
-  let (given, unselected) := given_unselected in 
-    if M.mem empty_clause given || M.mem empty_clause unselected 
+  let (given, unselected) := given_unselected in
+    if M.mem empty_clause given || M.mem empty_clause unselected
     then (Valid, given, unselected)
     else match one_inference_step (given, unselected) with
          | (new_given, new_unselected) =>
            if M.is_empty new_unselected
-             then let (R, selected) := clauses_generate nil 
+             then let (R, selected) := clauses_generate nil
                  (rsort_uniq (rev_cmp compare_clause) (M.elements new_given)) in
                (C_example R selected, new_given, new_unselected)
              else loop (new_given, new_unselected)
@@ -1004,10 +1004,10 @@ Definition purecnf (en: entailment) : M.t :=
     end
   end.
 
-Definition check (ent : entailment) : superposition_result * M.t*M.t := 
+Definition check (ent : entailment) : superposition_result * M.t*M.t :=
   loop (M.empty, purecnf ent).
 
-Definition check_clauseset (s : M.t) : superposition_result * M.t*M.t := 
+Definition check_clauseset (s : M.t) : superposition_result * M.t*M.t :=
   loop (M.empty, M.filter not_taut s).
 
 End Superposition.

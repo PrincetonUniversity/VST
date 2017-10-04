@@ -32,18 +32,18 @@ Inductive CMin_core: Type :=
       CMin_core.
 
 Definition ToState (q:CMin_core) (m:mem): Cminor.state :=
-  match q with 
+  match q with
      CMin_State f s k sp e => State f s k sp e m
    | CMin_Callstate f args k => Callstate f args k m
-   | CMin_Returnstate v k => Returnstate v k m 
+   | CMin_Returnstate v k => Returnstate v k m
   end.
 
 Definition FromState (c: Cminor.state) : CMin_core * mem :=
-  match c with 
+  match c with
      State f s k sp e m => (CMin_State f s k sp e, m)
    | Callstate f args k m => (CMin_Callstate f args k, m)
    | Returnstate v k m => (CMin_Returnstate v k, m)
-  end. 
+  end.
 (*
 Definition CMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
    Genv.alloc_variables ge Mem.empty d = Some m.
@@ -53,15 +53,15 @@ Definition CMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
 (* initial_core : G -> val -> list val -> option C;*)
 Definition CMin_initial_core (ge:Cminor.genv) (v: val) (args:list val): option CMin_core :=
    match v with
-        Vptr b i => 
-          if Int.eq_dec i  Int.zero 
+        Vptr b i =>
+          if Int.eq_dec i  Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => Some (CMin_Callstate f args Kstop)
                end
           else None
       | _ => None
-   end.  
+   end.
 
 (*
 Parameter CMin_MainIdent:ident.
@@ -72,14 +72,14 @@ Definition CMin_make_initial_core (ge:genv) (v: val) (args:list val): option CMi
       | Some b => match Genv.find_funct_ptr ge b with
                     None => None
                   | Some f => match funsig f with
-                                           {| sig_args := sargs; sig_res := sres |} => 
-                                                   match sargs, sres with 
+                                           {| sig_args := sargs; sig_res := sres |} =>
+                                                   match sargs, sres with
                                                       nil, Some Tint => Some (CMin_Callstate f nil Kstop) (*args = nil???*)
                                                    | _ , _ => None
                                                    end
                                        end
                   end
-   end.  
+   end.
 *)
 (*Original Cminor_semantics has this for initial states:
 Genv.find_symbol ge p.(prog_main) = Some b ->
@@ -98,8 +98,8 @@ Definition CMin_at_external (c: CMin_core) : option (external_function * signatu
  end.
 
 Definition CMin_after_external (vret: option val) (c: CMin_core) : option CMin_core :=
-  match c with 
-    CMin_Callstate fd args k => 
+  match c with
+    CMin_Callstate fd args k =>
          match fd with
             Internal f => None
           | External ef => match vret with
@@ -220,7 +220,7 @@ Inductive CMin_corestep (ge : genv) : CMin_core -> mem -> CMin_core -> mem -> Pr
   | step_external_function: forall ef vargs k m t vres m',
       external_call ef ge vargs m t vres m' ->
       sCMin_coretep (CMin_Callstate (External ef) vargs k) m
-         t (CMin_Returnstate vres k m') *)     
+         t (CMin_Returnstate vres k m') *)
 
   | cmin_corestep_return: forall v optid f sp e k m,
       CMin_corestep ge (CMin_Returnstate v (Kcall optid f sp e k)) m
@@ -232,15 +232,15 @@ Lemma CMin_corestep_not_at_external:
 
 (*LENB: Cminor.v requires v to be Vint i -should we keep this condition?*)
 Definition CMin_halted (q : CMin_core): option val :=
-    match q with 
+    match q with
        CMin_Returnstate v Kstop => Some v
      | _ => None
     end.
 
-Lemma CMin_corestep_not_halted : forall ge m q m' q', 
+Lemma CMin_corestep_not_halted : forall ge m q m' q',
        CMin_corestep ge q m q' m' -> CMin_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
-    
+
 Lemma CMin_at_external_halted_excl :
        forall q, CMin_at_external q = None \/ CMin_halted q = None.
    Proof. intros. destruct q; auto. Qed.
@@ -266,23 +266,23 @@ Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
 
-Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
+Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'),
       mem_lemmas.mem_forward m m'.
   Proof. intros.
      inv CS; try apply mem_forward_refl.
          eapply free_forward; eassumption.
          (*Storev*)
-          destruct vaddr; simpl in H1; inv H1. 
-          eapply store_forward; eassumption. 
+          destruct vaddr; simpl in H1; inv H1.
+          eapply store_forward; eassumption.
          eapply free_forward; eassumption.
-         (*builtin*) 
+         (*builtin*)
           (*eapply external_call_mem_forward; eassumption.*)
          eapply free_forward; eassumption.
          eapply free_forward; eassumption.
-         eapply alloc_forward; eassumption. 
+         eapply alloc_forward; eassumption.
 Qed.
 
-Program Definition cmin_coop_sem : 
+Program Definition cmin_coop_sem :
   CoopCoreSem Cminor.genv CMin_core.
 apply Build_CoopCoreSem with (coopsem := CMin_core_sem).
   apply CMin_forward.

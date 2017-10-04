@@ -1,14 +1,14 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Export veric.lift.
-Require Export veric.Cop2.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lift.
+Require Export VST.veric.Cop2.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
 
 (* Why we need l_value/r_value instead of using expr directly?
 Because we cannot represent Vptr constant in expr. *)
@@ -60,7 +60,7 @@ Fixpoint compute_r_value {cs: compspecs} (e: expr) : r_value :=
   | Esizeof t ty => R_const (Vint (Int.repr (sizeof t)))
   | Ealignof t ty => R_const (Vint (Int.repr (alignof t)))
   end
-with compute_l_value {cs: compspecs} (e:expr) : l_value := 
+with compute_l_value {cs: compspecs} (e:expr) : l_value :=
   match e with
   | Evar id ty => L_var id ty
   | Ederef a ty => L_deref (compute_r_value a)
@@ -69,7 +69,7 @@ with compute_l_value {cs: compspecs} (e:expr) : l_value :=
   end.
 
 Inductive rel_r_value' {CS: compspecs} (rho: environ) (phi: rmap): r_value -> val -> Prop :=
- | rel_r_value'_const: forall v, 
+ | rel_r_value'_const: forall v,
                  rel_r_value' rho phi (R_const v) v
  | rel_r_value'_tempvar: forall id v,
                  Map.get (te_of rho) id = Some v ->
@@ -151,8 +151,8 @@ Program Definition rel_l_value {CS: compspecs} (e: l_value) (v: val) (rho: envir
     fun phi => rel_l_value' rho phi e v.
 Next Obligation. intros. apply rel_l_value'_hered. Defined.
 
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.expr_lemmas.
 
 Lemma compute_byref_spec: forall {CS: compspecs} e' e,
   compute_r_value e' = R_byref e ->
@@ -216,7 +216,7 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
  intros; subst rho;
  match goal with
  | _: compute_r_value _ = R_byref _ |- _ => idtac
- | _: appcontext [mapsto] |- _ => idtac
+ | _: context[mapsto] |- _ => idtac
  | _ =>
  destruct e';
  match goal with
@@ -264,17 +264,14 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
   if_tac; auto.
   + destruct H5 as [p ?].
     hnf in H5. rewrite preds_fmap_NoneP in H5.
-    apply (resource_at_join _ _ _ b') in H3.  
+    apply (resource_at_join _ _ _ b') in H3.
     rewrite H5 in H3; clear H5.
     inv H3.
-    - symmetry in H15.
-      exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
-    - symmetry in H15.
-      simpl.
-      destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
+    - symmetry in H14; do 2 eexists; eassumption.
+    - symmetry in H14; do 2 eexists; eassumption.
   + apply I.
 * (* Efield *)
-  econstructor; eauto. 
+  econstructor; eauto.
   + eapply Clight.eval_Elvalue; eauto.
     apply deref_loc_copy.
     rewrite H8; auto.
@@ -351,7 +348,7 @@ intros.
 destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  inv H0; inversion2 H H1; inv H; unfold Mem.loadv in *;
  apply Mem.load_result in H2; subst; simpl;
- match goal with 
+ match goal with
   | |- context [decode_val _ (?x :: nil)] => destruct x; try reflexivity
   | |- context [decode_val _ (?x :: ?y :: nil)] => destruct x,y; try reflexivity
   | |- context [decode_val ?ch ?a] => destruct (decode_val ch a) eqn:?; try reflexivity
@@ -447,7 +444,7 @@ apply (rel_LR_value'_sch _ rho w
       (fun e v => forall w', extendM w w' -> rel_r_value' rho w' e v)
       (fun e v => forall w', extendM w w' -> rel_l_value' rho w' e v)); auto; intros;
   try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
-  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+  try solve [match goal with H: forall w': rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
 end].
 *
 eapply rel_r_value'_load; eauto.

@@ -1,7 +1,7 @@
-Require Import floyd.base.
+Require Import VST.floyd.base2.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Classes.Morphisms.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 
 Open Scope Z.
@@ -195,7 +195,7 @@ Proof.
 Qed.
 
 Lemma zl_concat_sub:
-  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo mid hi lo' hi' 
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo mid hi lo' hi'
      (l: zlist A lo' hi'),
   lo' <= lo -> hi <= hi' ->
   lo <= mid <= hi ->
@@ -207,7 +207,7 @@ Proof.
   if_tac; rewrite !zl_sublist_correct by omega; auto.
 Qed.
 
-(* old version, less general 
+(* old version, less general
 Lemma zl_concat_sub:
   forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo mid hi (l: zlist A lo hi),
   lo <= mid <= hi ->
@@ -380,8 +380,8 @@ End ZLIST.
 Global Existing Instance list_zlist_correct.
 Global Existing Instance Equiv_zl_equiv.
 Global Existing Instance Proper_concat.
-Global Opaque zl_concat. 
-Global Opaque zl_sublist. 
+Global Opaque zl_concat.
+Global Opaque zl_sublist.
 Global Opaque zl_constr'.
 Global Opaque zl_shift.
 Global Opaque zl_gen.

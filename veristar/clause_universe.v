@@ -9,11 +9,11 @@ Require Import Relation_Definitions.
 Require Import Sorting.
 Require Recdef.
 Require Omega.
-Require Import msl.Axioms msl.Coqlib2. 
+Require Import VST.msl.Axioms VST.msl.Coqlib2.
 Require Import NArith veristar.variables veristar.datatypes veristar.clauses.
 Require Import veristar.fresh.
 Require Import Finite_sets_facts.
-Require Import msl.base.
+Require Import VST.msl.base.
 
 
 Definition list_bound {A: Type} (f: A -> Prop) (l: list A):=
@@ -44,23 +44,23 @@ Definition spaces_bound' n := Forall (space_bound n).
 Definition clause_bound' (n: vset)  (cl: clause) :=
  match cl with
  | PureClause pi pi' _ _ =>  pures_bound' n pi /\ pures_bound' n pi'
- | PosSpaceClause pi pi' sigma => 
+ | PosSpaceClause pi pi' sigma =>
     pures_bound' n pi /\ pures_bound' n pi'/\ spaces_bound' n sigma
- | NegSpaceClause pi sigma pi' => 
+ | NegSpaceClause pi sigma pi' =>
     pures_bound' n pi /\ pures_bound' n pi'/\ spaces_bound' n sigma
  end.
 
 Definition clause_bound (n: vset)  (cl: clause) :=
  match cl with
  | PureClause pi pi' _ _ =>  pures_bound n pi /\ pures_bound n pi'
- | PosSpaceClause pi pi' sigma => 
+ | PosSpaceClause pi pi' sigma =>
     pures_bound n pi /\ pures_bound n pi'/\ spaces_bound n sigma
- | NegSpaceClause pi sigma pi' => 
+ | NegSpaceClause pi sigma pi' =>
     pures_bound n pi /\ pures_bound n pi'/\ spaces_bound n sigma
  end.
 
 
-Lemma expr_bound_more: forall  n n' e, 
+Lemma expr_bound_more: forall  n n' e,
     Included _ n n' -> expr_bound n e -> expr_bound n' e.
 Proof.
  unfold expr_bound; intros; auto.
@@ -75,7 +75,7 @@ Proof.
  destruct a;  destruct H0; split; eapply expr_bound_more; eauto.
 Qed.
 
-Lemma pures_bound'_more:  
+Lemma pures_bound'_more:
   forall n n' gamma, Included _ n n' -> pures_bound' n gamma -> pures_bound' n' gamma.
 Proof.
  unfold pures_bound'; intros.
@@ -130,7 +130,7 @@ Lemma S_nat_of_P_id2pos_le:
 Proof.
  intros.
  generalize (nat_of_P_id2pos_le x y H); intro; omega.
-Qed. 
+Qed.
 
 Lemma included_var_upto:
   forall a b, Ile a b -> Included _ (var_upto a) (var_upto b).
@@ -152,7 +152,7 @@ Lemma pure_bound_freshmax:
 Qed.
 
 Lemma pures_bound_freshmax:
-  forall gamma, 
+  forall gamma,
   pures_bound' (var_upto (freshmax_list freshmax_pure_atom gamma)) gamma.
 Proof.
  intros.
@@ -197,7 +197,7 @@ Lemma space_bound_freshmax:
 Qed.
 
 Lemma spaces_bound'_freshmax:
-  forall gamma, 
+  forall gamma,
   spaces_bound' (var_upto (freshmax_list freshmax_space_atom gamma)) gamma.
 Proof.
  intros.
@@ -225,12 +225,12 @@ Proof.
  intros.
  destruct c; simpl.
  split.
- apply pures_bound'_more with 
+ apply pures_bound'_more with
    (var_upto (freshmax_list freshmax_pure_atom gamma)).
  apply included_var_upto.
  apply Ile_var_max1.
  apply pures_bound_freshmax.
- apply pures_bound'_more with 
+ apply pures_bound'_more with
    (var_upto (freshmax_list freshmax_pure_atom delta)).
  apply included_var_upto.
  apply Ile_var_max2.
@@ -312,7 +312,7 @@ Proof.
     with (Im T (fun y => (x,y))).
  apply finite_image; auto.
  clear.
- intros [x' y] [? ?]. inv H. simpl in *. unfold In. 
+ intros [x' y] [? ?]. inv H. simpl in *. unfold In.
  econstructor; eauto.
  clear.
  intros [x' y] ?. unfold In in *.
@@ -337,10 +337,10 @@ clear HeqY.
  revert X H1; induction H0; intros.
  apply Finite_downward_closed with (Empty_set U).
  constructor.
- intros ? ?. 
+ intros ? ?.
  unfold injective in H.
  assert (~ Im X f (f x)). intro.  apply H1 in H2. inv H2.
- contradiction H2. 
+ contradiction H2.
  apply Im_intro with x; auto.
  apply Finite_downward_closed
    with  (Union (fun z => f z =x) (fun y : U => X y /\ f y <> x)).
@@ -381,11 +381,11 @@ Proof.
  apply Finite_downward_closed
   with  (Singleton (Empty_set U)).
  apply Singleton_is_finite.
- intros ? ?. inv H. apply Singleton_intro.  
+ intros ? ?. inv H. apply Singleton_intro.
  unfold Included in H0.
- extensionality y. apply prop_ext; intuition. apply H0 in H. inv H. 
+ extensionality y. apply prop_ext; intuition. apply H0 in H. inv H.
  apply Finite_downward_closed
-   with (Union (Power_set A) 
+   with (Union (Power_set A)
                (Im (Power_set A) (fun s => Add s x))).
  apply Union_preserves_Finite; auto.
  apply finite_image; auto.
@@ -398,7 +398,7 @@ Focus 2.
  clear - H2.
  extensionality z; unfold Add, Subtract. unfold Setminus.
  apply prop_ext; intuition.
- destruct (Classical_Prop.classic (x=z)). right. apply Singleton_intro; auto. 
+ destruct (Classical_Prop.classic (x=z)). right. apply Singleton_intro; auto.
  left; auto. split; auto.  intro.  apply Singleton_inv in H1. contradiction.
  destruct H. destruct H. apply H. apply Singleton_inv in H. subst; auto.
  (* End Focus 2 *)
@@ -435,7 +435,7 @@ Program Definition ff U (F: Ensemble U) (l : sig (@NoDup (sig F))) : sig (@NoDup
  auto.
 Qed.
 
-Lemma NoDup_finite: 
+Lemma NoDup_finite:
   forall U (F: Ensemble U), Finite F -> Finite (fun l: sig (@NoDup _) => Forall F (proj1_sig l)).
 Proof.
 intros.
@@ -448,7 +448,7 @@ intros.
  apply Finite_downward_closed
   with (fun l => length l <= n).
  clear H0.
- induction n. 
+ induction n.
  apply Finite_downward_closed with (Singleton nil).
  apply Singleton_is_finite.
  intros ? ?. unfold In in *. destruct x; inv H0.
@@ -486,11 +486,11 @@ intros.
  revert H H1; induction l; simpl; intros.
   exists (exist (@NoDup _) _ (NoDup_nil _)).
   simpl. auto.
- inv H. inv H1.  
+ inv H. inv H1.
   specialize (IHl H4 H5).
  destruct IHl as [l' ?].
   assert (NoDup (exist F a H2 :: (proj1_sig l'))).
- constructor. contradict H3. 
+ constructor. contradict H3.
  clear - H H3.
  destruct l' as [l' H1].
  revert l H1 H4 H H3; induction l'; simpl; intros. contradiction.
@@ -500,7 +500,7 @@ intros.
  inv H1.
  inv H4.
  apply (IHl' (map (@proj1_sig _ _) l') H6 H7).
- simpl. auto. 
+ simpl. auto.
  simpl. auto.
  simpl in *. subst.
  clear - H4.
@@ -508,7 +508,7 @@ intros.
  exists (exist (@NoDup _) _ H0).
  simpl. f_equal. simpl in H; auto.
  destruct H2 as [x' ?].
- apply Im_intro with x'. 
+ apply Im_intro with x'.
  2: unfold ff; destruct x as [x ?];  simpl in *; apply exist_ext; auto.
  unfold In.
  destruct x as [l' ?].
@@ -518,7 +518,7 @@ intros.
  rename l' into l.
  revert F n n0 H0 H1; induction l; simpl; intros.
  omega.
- inv n0. inv H1. 
+ inv n0. inv H1.
  assert (length l <= pred n).
   (apply (IHl (Subtract F a))); auto.
  apply card_soustr_1; auto.
@@ -531,24 +531,24 @@ intros.
  eapply inh_card_gt_O; try eassumption. exists a; apply H5.
  omega.
 Qed.
- 
-Lemma finite_list_bound: 
+
+Lemma finite_list_bound:
  forall U (F: Ensemble U), Finite F -> Finite (list_bound F).
 Proof.
  unfold list_bound; intros.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
     with   (Im (fun l: sig (@NoDup _) => Forall F (proj1_sig l)) (@proj1_sig _ _)).
  apply finite_image.
  apply NoDup_finite; auto.
- intros ? ?. destruct H0; unfold In; 
+ intros ? ?. destruct H0; unfold In;
      apply Im_intro with (exist (@NoDup _) x H1); [apply H0 |  reflexivity].
 Qed.
- 
+
 Lemma finite_expr_bound:
   forall n, Finite n -> Finite (expr_bound n).
 Proof.
  unfold expr_bound; intros.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
    with (Union (Singleton Nil) (Im n Var)).
  apply Union_preserves_Finite.
  apply Singleton_is_finite.
@@ -561,28 +561,28 @@ Qed.
 Lemma finite_pure_bound: forall n, Finite n -> Finite (pure_bound n).
 Proof.
  unfold pure_bound;  intros.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
     with (Im (fun xy => expr_bound n (fst xy) /\ expr_bound n (snd xy))
                   (fun xy => Eqv (fst xy) (snd xy))).
  apply finite_image.
  apply finite_pair; apply finite_expr_bound; auto.
  intros ? ?. destruct x. unfold In in H0. destruct H0.
- unfold In. 
+ unfold In.
  apply Im_intro with (e,e0). split; auto. simpl; auto.
 Qed.
 
 Lemma finite_space_bound: forall n, Finite n -> Finite (space_bound n).
 Proof. intros n FIN.
  unfold space_bound; intros.
- apply Finite_downward_closed 
-   with (Union 
+ apply Finite_downward_closed
+   with (Union
               (Intersection (space_bound n)
                          (fun a => match a with Next _ _ => True | _ => False end))
               (Intersection (space_bound n)
                          (fun a => match a with Lseg _ _ => True | _ => False end))).
  2: intros a H; unfold In in *; destruct a; [left | right]; unfold In; split; unfold In; simpl; auto.
  apply Union_preserves_Finite.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
     with  (Im (fun xy => expr_bound n (fst xy) /\ expr_bound n (snd xy))
                    (fun xy : expr * expr => Next (fst xy) (snd xy))).
  apply finite_image.
@@ -590,7 +590,7 @@ Proof. intros n FIN.
  intros ? ?; unfold In in *. destruct H. destruct x; simpl in H0; try contradiction.
  unfold In, space_bound in H; destruct H.
  apply Im_intro with (e,e0); split; auto.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
     with  (Im (fun xy => expr_bound n (fst xy) /\ expr_bound n (snd xy))
                    (fun xy : expr * expr => Lseg (fst xy) (snd xy))).
  apply finite_image.
@@ -605,7 +605,7 @@ Proof.
 intros. apply finite_list_bound.
 apply finite_pure_bound; auto.
 Qed.
- 
+
 Lemma finite_spaces_bound: forall n, Finite n -> Finite (spaces_bound n).
 Proof.
 intros. apply finite_list_bound.
@@ -615,11 +615,11 @@ Qed.
 Lemma clause_bound_finite: forall n, Finite n -> Finite (clause_bound n).
 Proof.
 intros n FIN.
-assert (clause_bound n = 
+assert (clause_bound n =
                Union
                    (Intersection (clause_bound n)
                        (fun cl => match cl with PureClause _ _ _ _ => True | _ => False end))
-               (Union 
+               (Union
                   (Intersection (clause_bound n)
                            (fun cl => match cl with PosSpaceClause _ _ _ => True | _ => False end))
                 (Intersection (clause_bound n)
@@ -635,7 +635,7 @@ assert (clause_bound n =
  repeat destruct H; auto.
  rewrite H.
  apply Union_preserves_Finite.
- apply Finite_downward_closed 
+ apply Finite_downward_closed
     with  (Im (pures_bound2 n)
                              (fun pi2 : list pure_atom * list pure_atom =>
                                                 mkPureClause (fst pi2) (snd pi2))).
@@ -644,7 +644,7 @@ assert (clause_bound n =
   clear.
   intros x H;  destruct H; unfold In in *; destruct x; try contradiction; simpl in *.
   apply Im_intro with (gamma,delta); auto.
-  simpl. 
+  simpl.
   apply pure_clause_ext.
   apply Union_preserves_Finite.
   apply Finite_downward_closed

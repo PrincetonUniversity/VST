@@ -12,7 +12,7 @@ Require Import hmacfcf.hF.
 Require Import hmacfcf.GHMAC_PRF.
 
 Section HMAC_PRF.
-  
+
   Variable c p : nat.
   Definition b := @b c p.
   Variable h : Bvector c -> Bvector b -> Bvector c.
@@ -21,12 +21,12 @@ Section HMAC_PRF.
   Variable Message : Set.
   Hypothesis Message_EqDec : EqDec Message.
   Variable splitAndPad : Message -> list (Bvector b).
-  
-  Hypothesis splitAndPad_1_1 : 
+
+  Hypothesis splitAndPad_1_1 :
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
       b1 = b2.
-    
+
   Variable fpad : Bvector c -> Bvector p.
   Definition h_star_pad := h_star_pad h fpad.
   Variable opad ipad : Bvector b.
@@ -41,7 +41,7 @@ Section HMAC_PRF.
 
     Definition Y : OracleComp (list (Bvector (HMAC_spec.b c p))) (Bvector c)
     (list (Bvector (HMAC_spec.b c p)) * list (Bvector (HMAC_spec.b c p))) :=
-      [x, _] <--$2 OC_Run _ _ _ Z (fun _ d => r <--$ OC_Query _ d; $ ret ((app_fpad fpad r), tt)) tt; 
+      [x, _] <--$2 OC_Run _ _ _ Z (fun _ d => r <--$ OC_Query _ d; $ ret ((app_fpad fpad r), tt)) tt;
       $ ret x.
 
     Theorem WCR_h_star_pad_impl_h_star :
@@ -89,11 +89,11 @@ Section HMAC_PRF.
       apply eqbBvector_sound in H2.
       unfold HMAC_spec.h_star_pad, HMAC_spec.app_fpad in *.
 
-      Theorem Vector_append_inj_first : 
+      Theorem Vector_append_inj_first :
         forall (A : Set)(a : nat)(a1 a2 : Vector.t A a)(b : nat)(b1 b2 : Vector.t A b),
           Vector.append a1 b1 = Vector.append a2 b2 ->
           a1 = a2.
-        
+
         induction a1; intuition.
         rewrite vector_0 in *.
         trivial.
@@ -101,20 +101,20 @@ Section HMAC_PRF.
         destruct H2.
         subst.
         repeat rewrite <- splitVector.Vector_cons_app_assoc in H.
-        
+
         inversion H.
         apply vector_cons_eq in H.
         f_equal.
         eapply IHa1.
         eauto.
       Qed.
-   
+
       eapply Vector_append_inj_first in H2.
       unfold h_star, NMAC_to_HMAC.h_star.
       rewrite H2.
       eapply eqbBvector_complete.
     Qed.
-      
+
   End h_star_WCR.
 
   Definition HMAC := HMAC h iv splitAndPad fpad opad ipad.
@@ -124,20 +124,20 @@ Section HMAC_PRF.
   Hypothesis A_wf : well_formed_oc A.
 
   Definition A_GHMAC : OracleComp (list (Bvector b)) (Bvector c) bool :=
-    [b, _] <--$2 OC_Run _ _ _ A 
-    (fun _ q => 
+    [b, _] <--$2 OC_Run _ _ _ A
+    (fun _ q =>
       ls <- splitAndPad q;
       r <--$ OC_Query _ ls;
-    $ ret (r, tt)) tt; 
+    $ ret (r, tt)) tt;
     $ ret b.
 
-  Theorem GHMAC_to_HMAC : 
+  Theorem GHMAC_to_HMAC :
     PRF_Advantage (Rnd b) (Rnd c) HMAC _ _ A ==
     PRF_Advantage (Rnd b) (Rnd c) GHMAC _ _ A_GHMAC.
 
     unfold PRF_Advantage.
     eapply ratDistance_eqRat_compat.
-    
+
     unfold PRF_G_A, HMAC, HMAC_spec.HMAC, GHMAC, NMAC_to_HMAC.GHMAC.
     comp_skip.
     unfold A_GHMAC.
@@ -162,11 +162,11 @@ Section HMAC_PRF.
     comp_simp.
     intuition; subst.
     eapply comp_spec_eq_refl.
-   
-    
+
+
     unfold PRF_G_B, A_GHMAC.
     eapply comp_spec_eq_impl_eq.
-    
+
     simpl.
     inline_first.
     comp_skip.
@@ -216,12 +216,12 @@ Section HMAC_PRF.
 
   Qed.
 
-  Theorem HMAC_PRF: 
-    PRF_Advantage (Rnd b) (Rnd c) HMAC _ _ A <= 
+  Theorem HMAC_PRF:
+    PRF_Advantage (Rnd b) (Rnd c) HMAC _ _ A <=
     RKA_Advantage _ _ _  ({ 0 , 1 }^b)
      ({ 0 , 1 }^c) (dual_f h) (BVxor b)
      (HMAC_RKA_A h iv fpad opad ipad A_GHMAC) +
-   (PRF_Advantage ({ 0 , 1 }^c) ({ 0 , 1 }^c) h _ _ 
+   (PRF_Advantage ({ 0 , 1 }^c) ({ 0 , 1 }^c) h _ _
       (PRF_h_A h_star_pad A_GHMAC) +
     cAU.Adv_WCR _ _ h_star
       ({ 0 , 1 }^c) (Y (au_F_A A_GHMAC))).

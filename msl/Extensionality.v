@@ -1,4 +1,4 @@
-Require Export msl.Axioms.
+Require Export VST.msl.Axioms.
 
 (* NO AXIOMS AFTER THIS POINT *)
 
@@ -24,7 +24,7 @@ Module EqdepTh := EqdepTheory EqdepElim.
 Export EqdepTh.
 
 (* Generalize the extensionality tactic from the Coq library. *)
-Tactic Notation "extensionality" := 
+Tactic Notation "extensionality" :=
  let x := fresh "x" in extensionality x.
 
 Tactic Notation "extensionality" ident(x0) ident(x1) :=

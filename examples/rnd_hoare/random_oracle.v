@@ -804,7 +804,7 @@ Require RndHoare.axiom. Import RndHoare.axiom.NatChoice.
 Fixpoint app_fin_inf {ora: RandomOracle} (l: list RandomQA) (f: nat -> RandomQA) :=
   match l with
   | nil => f
-  | qa :: l0 => fun n => 
+  | qa :: l0 => fun n =>
                 match n with
                 | 0 => qa
                 | S m => app_fin_inf l0 f m
@@ -832,7 +832,7 @@ Proof.
     rewrite IHl by (simpl in H; omega).
     f_equal.
 Qed.
-  
+
 (* These three lemmas are copied from veric/assert_lemmas.v and veric/initial_world.v *)
 Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
   -> exists x, nth_error l i = value x.

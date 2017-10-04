@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.logical_compare.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.logical_compare.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
@@ -13,7 +13,7 @@ Definition logical_or_result v1 v2 : int :=
 
 Fixpoint quick_shortcut_logical (s: statement) : option ident :=
 match s with
-| Sifthenelse _ 
+| Sifthenelse _
      (Sset id (Econst_int _ (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |})))
      s2 => match quick_shortcut_logical s2 with None => None | Some id2 =>
                  if ident_eq id id2 then Some id else None
@@ -28,26 +28,26 @@ match s with
 | _ => None
 end.
 
-Fixpoint shortcut_logical (eval: expr -> option val) (tid: ident) (s: statement) 
+Fixpoint shortcut_logical (eval: expr -> option val) (tid: ident) (s: statement)
             : option (int * list expr) :=
 match s with
-| Sifthenelse e1 
+| Sifthenelse e1
      (Sset id (Econst_int one (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |})))
      s2 => if andb (eqb_ident id tid) (Int.eq one Int.one)
                 then match eval e1 with
-                        | Some (Vint v1) => 
+                        | Some (Vint v1) =>
                            match shortcut_logical eval tid s2 with
                            | Some (v2, el) => Some (logical_or_result v1 v2, e1 :: el)
                            | _ => None
-                           end 
-                        | _ => None 
+                           end
+                        | _ => None
                         end
                 else None
 | Sifthenelse e1 s2
      (Sset id (Econst_int zero (Tint I32 Signed {| attr_volatile := false; attr_alignas := None |})))
       => if andb (eqb_ident id tid) (Int.eq zero Int.zero)
             then match eval e1 with
-                     | Some (Vint v1) => 
+                     | Some (Vint v1) =>
                       match shortcut_logical eval tid s2 with
                       | Some (v2, el) => Some (logical_and_result v1 v2, e1 :: el)
                       | _ => None
@@ -56,10 +56,10 @@ match s with
                 end
             else None
 | Sset id (Ecast e (Tint IBool Unsigned {| attr_volatile := false; attr_alignas := None |})) =>
-        if eqb_ident id tid 
+        if eqb_ident id tid
         then match eval (Ecast e tbool) with
                  | Some (Vint v) => Some (v, (Ecast e tbool :: nil))
-                 | _ => None 
+                 | _ => None
                 end
         else None
 | _ => None
@@ -84,7 +84,7 @@ Definition do_or_spec :=
   WITH a: int, b : int
   PRE [ _a OF tbool, _b OF tbool ]
         PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
-  POST [ tbool ]  
+  POST [ tbool ]
         PROP() LOCAL (temp ret_temp (Vint (logical_or_result a b)))
         SEP().
 
@@ -94,7 +94,7 @@ Definition do_and_spec :=
   WITH a: int, b : int
   PRE [ _a OF tbool, _b OF tbool ]
         PROP () LOCAL (temp _a (Vint a); temp _b (Vint b)) SEP ()
-  POST [ tbool ]  
+  POST [ tbool ]
         PROP() LOCAL (temp ret_temp (Vint (logical_and_result a b)))
         SEP().
 
@@ -107,12 +107,12 @@ Definition main_spec :=
 
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
       ltac:(with_library prog [do_or_spec; do_and_spec; main_spec]).
 
-Ltac do_semax_shortcut_logical := 
- eapply semax_shortcut_logical; 
-   [ reflexivity | reflexivity | prove_local2ptree 
+Ltac do_semax_shortcut_logical :=
+ eapply semax_shortcut_logical;
+   [ reflexivity | reflexivity | prove_local2ptree
    | reflexivity | reflexivity
    | unfold fold_right; entailer  ].
 
@@ -141,10 +141,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_do_or.
 semax_func_cons body_do_and.
 semax_func_cons body_main.

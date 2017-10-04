@@ -1,5 +1,5 @@
-Require Import msl.msl_standard.
-Require Import msl.Coqlib2.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.Coqlib2.
 Set Implicit Arguments.
 
 Inductive fold_rel (A: Type) (f: A -> A -> A -> Prop):  A -> list A -> A -> Prop :=
@@ -19,10 +19,10 @@ Inductive list_forall2 {A B} (P: A -> B -> Prop): list A -> list B -> Prop :=
       list_forall2 P (a1 :: al) (b1 :: bl).
 
 Fixpoint replace (A: Type) (l: list A) (n:nat) (new: A) {struct n} : option (list A) :=
-  match (l, n) with 
+  match (l, n) with
     | (nil, n) => None
     | (x :: xs, O) => Some (new :: xs)
-    | (x :: xs, S n) => 
+    | (x :: xs, S n) =>
       match (replace xs n new) with
         |  None => None
         |  Some xs => Some (x :: xs)
@@ -107,8 +107,8 @@ Qed.
 Definition age1_list {A} `{ageable A} := list_forall2 age.
 
 Lemma age1_list_join {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall l (phi phi' phi2: A),  
-        age phi phi' -> 
+  forall l (phi phi' phi2: A),
+        age phi phi' ->
         list_join phi l phi2 ->
         exists l', exists phi2', age1_list l l' /\ age phi2 phi2' /\ list_join phi' l' phi2'.
 Proof.
@@ -228,7 +228,7 @@ Lemma join_comparable'''  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi3 phi1.
 Proof. intros; apply comparable_sym; eapply join_comparable; eauto. Qed.
 
-Lemma joins_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: 
+Lemma joins_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall phi1 phi2: A, joins phi1 phi2 -> comparable phi1 phi2.
 Proof.
   unfold joins; intros.
@@ -236,7 +236,7 @@ Proof.
   eapply join_comparable2; eauto.
 Qed.
 
-Lemma joins_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: 
+Lemma joins_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      forall phi1 phi2: A, joins phi2 phi1 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -245,7 +245,7 @@ apply comparable_sym.
 eapply join_comparable2; eauto.
 Qed.
 
-Lemma join_sub_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: 
+Lemma join_sub_comparable  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall phi1 phi2: A, join_sub phi1 phi2 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -253,7 +253,7 @@ destruct H as [phi3 ?].
 eapply join_comparable; eauto.
 Qed.
 
-Lemma join_sub_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: 
+Lemma join_sub_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      forall phi1 phi2: A, join_sub phi2 phi1 -> comparable phi1 phi2.
 Proof.
 unfold joins; intros.
@@ -262,23 +262,23 @@ apply comparable_sym.
 eapply join_comparable; eauto.
 Qed.
 
-Lemma eq_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:  
+Lemma eq_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
    forall phi1 phi2: A, phi1=phi2 -> comparable phi1 phi2.
 Proof.
 intros; subst; apply comparable_refl.
 Qed.
 
-Lemma eq_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:  
+Lemma eq_comparable2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
    forall phi1 phi2: A, phi2=phi1 -> comparable phi1 phi2.
 Proof.
 intros; subst; apply comparable_refl.
 Qed.
 
-Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
+Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall n (w1 w2 w3 w1': A),
-   join w1 w2 w3 -> 
+   join w1 w2 w3 ->
       ageN n w1 = Some w1' ->
-      exists w2', exists w3', 
+      exists w2', exists w3',
         ageN n w2 = Some w2' /\ ageN n w3 = Some w3' /\ join w1' w2' w3'.
 Proof.
 unfold ageN in *.
@@ -293,11 +293,11 @@ exists w2''; exists w3''. rewrite H3; rewrite H4.
 repeat split; auto.
 Qed.
 
-Lemma ageN_join2 {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
+Lemma ageN_join2 {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall n (w1 w2 w3 w3': A),
-   join w1 w2 w3 -> 
+   join w1 w2 w3 ->
       ageN n w3 = Some w3' ->
-      exists w1', exists w2', 
+      exists w1', exists w2',
         ageN n w1 = Some w1' /\ ageN n w2 = Some w2' /\ join w1' w2' w3'.
 Proof.
 unfold ageN in *.
@@ -366,16 +366,16 @@ Qed.
 
 
 Hint Resolve @join_comparable @join_comparable'  @join_comparable'' @join_comparable'''
-      @join_comparable2 @join_comparable2'  @list_join_comparable @list_join_comparable' 
+      @join_comparable2 @join_comparable2'  @list_join_comparable @list_join_comparable'
       @joins_comparable  @joins_comparable2  @join_sub_comparable  @join_sub_comparable2
       @eq_comparable  @eq_comparable2
   : comparable.
 
 Hint Immediate @comparable_refl  @comparable_sym  : comparable.
 
-Ltac Comp1 phi1 phi2 := 
+Ltac Comp1 phi1 phi2 :=
    solve [ eauto 3 with comparable typeclass_instances |
-  match goal with 
+  match goal with
   | H: comparable phi1 ?phi |- _ => Comp2 H phi1 phi phi2
   | H: comparable ?phi phi1 |- _ => Comp2 H phi1 phi phi2
   | H: join phi1 ?phia ?phib |- _ =>  Comp3 H phi1 phia phib phi2
@@ -391,19 +391,19 @@ Ltac Comp1 phi1 phi2 :=
   | H: ?phi = phi1  |- _ => Comp2 H phi1 phi phi2
  end]
   with Comp2 H phi1 phi phi2 :=
-            solve [apply comparable_trans with phi; 
+            solve [apply comparable_trans with phi;
                          [eauto 3 with comparable  typeclass_instances |clear H; Comp1 phi phi2]
                    | clear H; Comp1 phi1 phi2]
   with Comp3 H phi1 phia phib phi2 :=
-           solve [apply comparable_trans with phia; 
+           solve [apply comparable_trans with phia;
                           [eauto 3 with comparable typeclass_instances |clear H; Comp1 phia phi2]
-                  |apply comparable_trans with phib; 
+                  |apply comparable_trans with phib;
                           [eauto 3 with comparable  typeclass_instances | clear H; Comp1 phib phi2]
                    | clear H; Comp1 phi1 phi2].
 
-Ltac Comp := match goal with 
-                | |- comparable ?phi1 ?phi2 => Comp1 phi1 phi2 
-                | |-  level ?phi1 = level ?phi2 => apply comparable_fashionR; Comp1 phi1 phi2 
+Ltac Comp := match goal with
+                | |- comparable ?phi1 ?phi2 => Comp1 phi1 phi2
+                | |-  level ?phi1 = level ?phi2 => apply comparable_fashionR; Comp1 phi1 phi2
 (*                | |- level _ = level _ => rewrite comparable_level; Comp *)
                 end.
 

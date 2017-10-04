@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
-Require Import msl.subtypes.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.subtypes.
 
 Require Import Coq.Wellfounded.Wellfounded.
 Require Import Coq.funind.Recdef.
@@ -63,8 +63,8 @@ Section HORec.
   specialize (IHj _ x a H).
    rewrite IHj. clear IHj.
   change (S j + n) with (S (j + n)).
-   assert (j + n >= level a) by omega. 
-   clear H; rename H0 into H. 
+   assert (j + n >= level a) by omega.
+   clear H; rename H0 into H.
     remember (j+n) as i; clear Heqi.
 
    assert ((ALL  x : X , (HORec' i x <=> HORec' (S i) x)) (level a)).
@@ -75,7 +75,7 @@ Section HORec.
    intro x.
    specialize (Hcont (fun _ => FF) (HORec' 0)).
    specialize (Hcont O).
-   spec Hcont. repeat (hnf; intros). simpl in *. 
+   spec Hcont. repeat (hnf; intros). simpl in *.
    rewrite laterR_nat in H; elimtype False; omega.
    spec Hcont x.
     simpl in *. auto.
@@ -89,7 +89,7 @@ Section HORec.
 
 End HORec.
 
-Definition HORec {A} `{ag: ageable A}  {X: Type} (f:  (X-> pred A) -> (X -> pred A)) (x: X) : pred A := 
+Definition HORec {A} `{ag: ageable A}  {X: Type} (f:  (X-> pred A) -> (X -> pred A)) (x: X) : pred A :=
      mkPred (fun a : A => app_pred (@HORec' A ag X f (level a) x) a).
 
 Lemma HORec_fold_unfold {A} `{ageable A} : forall X f (H:HOcontractive (X:=X) f),
@@ -103,7 +103,7 @@ Proof.
 
     intro a; simpl.
     case_eq (age1 a); intros.
-    apply age_level in H.  
+    apply age_level in H.
     remember (level a0) as n; clear a0 Heqn.
     destruct
       (@Hcont (HORec' f n) (HORec f) (level a)) with x a; [ | omega | ].
@@ -132,7 +132,7 @@ Proof.
     rewrite H. apply H2.
      clear - H3 H4 Hcont.
     apply (@HORec'_unage _ _ X f Hcont (level a - level x') (level x') x x' (le_refl _)).
-    replace (level a - level x' + level x') with (level a) 
+    replace (level a - level x' + level x') with (level a)
         by (apply necR_level in H3; omega).
     apply pred_nec_hereditary with a; auto.
  (* None  case *)
@@ -143,7 +143,7 @@ Proof.
     repeat (hnf; intros); split; hnf; simpl; intros.
     simpl in H2.  apply laterR_level in H2. elimtype False; omega.
         simpl in H2.  apply laterR_level in H2. clear - H2. simpl in H2.  unfold natLevel in H2; omega.
-     specialize (H1 _ (necR_refl _)). rewrite H0 in H1. simpl in H1.   
+     specialize (H1 _ (necR_refl _)). rewrite H0 in H1. simpl in H1.
      apply H2; auto.
      apply clos_rt_rt1n in H2.
     inv H2; [ | unfold age in H3; congruence].
@@ -173,7 +173,7 @@ Section recursive.
 End recursive.
 
 
-Definition Rec {A} `{ageable A} f : pred A 
+Definition Rec {A} `{ageable A} f : pred A
   := HORec (fun x _ => f (x tt)) tt.
 
 Lemma Rec_fold_unfold : forall {A} `{ageable A} f (H:contractive f),

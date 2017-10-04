@@ -26,7 +26,7 @@ Fixpoint nested_field_type (t: type) (nf: list ident) : type :=
 Fixpoint nested_field_offset (t: type) (nf: list ident) : Z :=
   match nf with
   | nil => 0
-  | f :: nf0 => nested_field_offset t nf0 + gfield_offset (nested_field_type t nf0) f 
+  | f :: nf0 => nested_field_offset t nf0 + gfield_offset (nested_field_type t nf0) f
   end.
 
 Definition legal_field (t: type) (f: ident) :=

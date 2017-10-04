@@ -1,12 +1,51 @@
-Require Export msl.predicates_sl.
-Require Export concurrency.semax_conc_pred.
-Require Export concurrency.semax_conc.
-Require Export floyd.proofauto.
-Require Import floyd.library.
-Require Export floyd.sublist.
+Require Export VST.msl.predicates_sl.
+Require Export VST.concurrency.semax_conc_pred.
+Require Export VST.concurrency.semax_conc.
+Require Export VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Export VST.floyd.sublist.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
+
+Lemma app_cons_assoc : forall {A} l1 (x : A) l2, l1 ++ x :: l2 = (l1 ++ [x]) ++ l2.
+Proof.
+  intros; rewrite <- app_assoc; auto.
+Qed.
+
+Lemma Forall_forall_Znth : forall {A} (P : A -> Prop) l d,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l d).
+Proof.
+  split; intros; [apply Forall_Znth; auto|].
+  induction l; auto.
+  rewrite Zlength_cons in *.
+  constructor.
+  - specialize (H 0); rewrite Znth_0_cons in H; apply H.
+    pose proof (Zlength_nonneg l); omega.
+  - apply IHl; intros.
+    specialize (H (i + 1)).
+    rewrite Znth_pos_cons, Z.add_simpl_r in H by omega.
+    apply H; omega.
+Qed.
+
+Lemma Zmod_smallish : forall x y, y <> 0 -> 0 <= x < 2 * y ->
+  x mod y = x \/ x mod y = x - y.
+Proof.
+  intros.
+  destruct (zlt x y); [left; apply Zmod_small; omega|].
+  rewrite <- Z.mod_add with (b := -1) by auto.
+  right; apply Zmod_small; omega.
+Qed.
+
+Lemma Zmod_plus_inv : forall a b c d (Hc : c > 0) (Heq : (a + b) mod c = (d + b) mod c),
+  a mod c = d mod c.
+Proof.
+  intros; rewrite Zplus_mod, (Zplus_mod d) in Heq.
+  pose proof (Z_mod_lt a c Hc).
+  pose proof (Z_mod_lt b c Hc).
+  pose proof (Z_mod_lt d c Hc).
+  destruct (Zmod_smallish (a mod c + b mod c) c), (Zmod_smallish (d mod c + b mod c) c); omega.
+Qed.
 
 Lemma Znth_app : forall {A} (l1 l2 : list A) i d, Zlength l1 = i -> Znth i (l1 ++ l2) d = Znth 0 l2 d.
 Proof.
@@ -18,9 +57,15 @@ Proof.
   intros; rewrite Znth_app, Znth_0_cons; auto.
 Qed.
 
+Lemma repable_0 : repable_signed 0.
+Proof.
+  split; computable.
+Qed.
+Hint Resolve repable_0.
+
 Definition complete MAX l := l ++ repeat (vint 0) (Z.to_nat MAX - length l).
 
-Lemma upd_complete : forall l x MAX, Zlength l < MAX -> 
+Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).
 Proof.
   intros; unfold complete.
@@ -29,7 +74,7 @@ Proof.
   rewrite Zlength_correct, Z2Nat.inj_lt, Nat2Z.id in H; try omega.
   destruct (Z.to_nat MAX - length l)%nat eqn: Hminus; [omega|].
   replace (Z.to_nat MAX - (length l + 1))%nat with n by omega.
-  unfold upd_Znth, sublist.sublist; simpl.
+  unfold upd_Znth, sublist; simpl.
   rewrite Zlength_cons.
   unfold Z.succ; rewrite Z.add_simpl_r.
   rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
@@ -42,7 +87,7 @@ Proof.
   intros; apply app_Znth1; auto.
 Qed.
 
-Lemma remove_complete : forall l x MAX, Zlength l < MAX -> 
+Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vint 0) = complete MAX l.
 Proof.
   intros; unfold complete.
@@ -58,7 +103,7 @@ Proof.
   rewrite <- app_assoc; auto.
 Qed.
 
-Lemma Forall_app : forall A (P : A -> Prop) l1 l2,
+Lemma Forall_app : forall {A} (P : A -> Prop) l1 l2,
   Forall P (l1 ++ l2) <-> Forall P l1 /\ Forall P l2.
 Proof.
   induction l1; split; auto; intros.
@@ -69,10 +114,21 @@ Proof.
     rewrite IHl1; split; auto.
 Qed.
 
-Lemma repeat_plus : forall A (x : A) i j, repeat x (i + j) = repeat x i ++ repeat x j.
+Lemma Forall_incl : forall {A} (P : A -> Prop) l1 l2 (Hall : Forall P l2) (Hincl : incl l1 l2),
+  Forall P l1.
+Proof.
+  intros; rewrite Forall_forall in *; eauto.
+Qed.
+
+Lemma repeat_plus : forall {A} (x : A) i j, repeat x (i + j) = repeat x i ++ repeat x j.
 Proof.
   induction i; auto; simpl; intro.
   rewrite IHi; auto.
+Qed.
+
+Lemma in_insert_iff : forall {A} (x y : A) l1 l2, In x (l1 ++ y :: l2) <-> x = y \/ In x (l1 ++ l2).
+Proof.
+  intros; rewrite !in_app; split; simpl; intros [|[|]]; auto.
 Qed.
 
 Definition remove_at {A} i (l : list A) := firstn i l ++ skipn (S i) l.
@@ -89,13 +145,6 @@ Lemma Forall_skipn : forall {A} (P : A -> Prop) l i, Forall P l ->
 Proof.
   intros; rewrite Forall_forall in *.
   intros ? Hin; pose proof (skipn_In _ _ _ Hin); auto.
-Qed.
-
-Lemma Forall_sublist : forall {A} (P : A -> Prop) l i j, Forall P l ->
-  Forall P (sublist.sublist i j l).
-Proof.
-  intros; unfold sublist.sublist.
-  apply Forall_firstn; apply Forall_skipn; auto.
 Qed.
 
 Lemma Forall_upd_Znth : forall {A} (P : A -> Prop) x l i, Forall P l -> P x ->
@@ -134,6 +183,68 @@ Proof.
     apply nth_last.
 Qed.
 
+Lemma last_app : forall {A} l1 l2 (d : A), l2 <> [] -> last (l1 ++ l2) d = last l2 d.
+Proof.
+  induction l1; auto; intros.
+  setoid_rewrite last_cons; eauto.
+  intro X; apply app_eq_nil in X; tauto.
+Qed.
+
+Lemma nat_sorted_list_eq : forall d n l (Hl : forall i, (i < n)%nat <-> In i l) (Hlen : length l = n)
+  (Hsorted : forall i j, (i < j < n -> nth i l d < nth j l d)%nat) i (Hi : (i < n)%nat), nth i l d = i.
+Proof.
+  induction n; intros; [omega|].
+  destruct (eq_dec l []); [subst; discriminate|].
+  destruct (exists_last n0) as (l' & x & ?); subst.
+  rewrite app_length in Hlen; simpl in Hlen.
+  assert (length l' = n) by omega.
+  assert (x = n).
+  { assert (x < S n)%nat.
+    { specialize (Hl x); destruct Hl as (_ & Hl); apply Hl.
+      rewrite in_app; simpl; auto. }
+    destruct (lt_dec x n); [|omega].
+    assert (n < S n)%nat as Hlt by omega; rewrite Hl in Hlt.
+    rewrite in_app in Hlt; destruct Hlt as [Hin | [? | ?]]; [| omega | contradiction].
+    apply In_nth with (d := d) in Hin; destruct Hin as (j & ? & ?).
+    exploit (Hsorted j (length l')); [omega|].
+    rewrite app_nth1, app_nth2, minus_diag by auto; simpl; omega. }
+  destruct (eq_dec i n); subst.
+  - rewrite app_nth2, minus_diag by omega; auto.
+  - rewrite app_nth1 by omega; apply IHn; auto; try omega.
+    + intro j; specialize (Hl j); split; intro Hin.
+      * destruct Hl as (Hl & _); exploit Hl; [omega|].
+        rewrite in_app; intros [? | [? | ?]]; [auto | omega | contradiction].
+      * destruct Hl as (_ & Hl); exploit Hl; [rewrite in_app; auto | intro].
+        apply In_nth with (d := d) in Hin; destruct Hin as (i' & ? & ?).
+        exploit (Hsorted i' (length l')); [omega|].
+        rewrite app_nth1, app_nth2, minus_diag by auto; simpl; omega.
+    + intros i' j' ?; exploit (Hsorted i' j'); [omega|].
+      rewrite !app_nth1 by omega; auto.
+Qed.
+
+Lemma Forall2_In_l : forall {A B} (P : A -> B -> Prop) x l1 l2, Forall2 P l1 l2 -> In x l1 ->
+  exists y, In y l2 /\ P x y.
+Proof.
+  induction 1; intro Hin; destruct Hin; simpl.
+  - subst; eauto.
+  - destruct IHForall2 as (? & ? & ?); eauto.
+Qed.
+
+Lemma Forall2_In_r : forall {A B} (P : A -> B -> Prop) x l1 l2, Forall2 P l1 l2 -> In x l2 ->
+  exists y, In y l1 /\ P y x.
+Proof.
+  induction 1; intro Hin; destruct Hin; simpl.
+  - subst; eauto.
+  - destruct IHForall2 as (? & ? & ?); eauto.
+Qed.
+
+Lemma last_snoc : forall {A} (d : A) x l, last (l ++ [x]) d = x.
+Proof.
+  induction l; auto; simpl.
+  destruct (l ++ [x]) eqn: Heq; auto.
+  contradiction (app_cons_not_nil l [] x); auto.
+Qed.
+
 Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
   fold_right sepcon emp l1 * fold_right sepcon emp l2.
 Proof.
@@ -144,6 +255,12 @@ Qed.
 
 Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
   sublist 0 (m - n) l.
+
+Lemma sublist_of_nil : forall {A} i j, sublist i j (@nil A) = [].
+Proof.
+  intros; unfold sublist.
+  rewrite skipn_nil, firstn_nil; auto.
+Qed.
 
 Lemma sublist_0_cons : forall {A} j x (l : list A), j > 0 ->
   sublist 0 j (x :: l) = x :: sublist 0 (j - 1) l.
@@ -168,48 +285,101 @@ Proof.
     rewrite Z2Nat.inj_sub, Hi; simpl; omega.
 Qed.
 
-Lemma upd_rotate : forall {A} i (l : list A) n m x (Hl : Zlength l = m) (Hlt : 0 <= n < m)
+Lemma upd_rotate : forall {A} i (l : list A) n m x (Hl : Zlength l = m) (Hlt : 0 <= n <= m)
   (Hi : 0 <= i < Zlength l),
   upd_Znth i (rotate l n m) x = rotate (upd_Znth ((i - n) mod m) l x) n m.
 Proof.
-  intros; unfold upd_Znth, rotate.
-  subst; autorewrite with sublist.
-  exploit (Z_mod_lt (i - n) (Zlength l)); [omega|].
-  intro; repeat rewrite Zlength_sublist; try omega.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  destruct (Z_lt_dec i n) as [?H | ?H].
-*
-  assert (Heq: (i - n) mod Zlength l = Zlength l + i - n). {
-      rewrite Zmod_eq; [|omega].
-      replace (_ / _) with (-1); try Omega0.
-      replace (_ - _) with (- (n - i)); [|omega].
-      rewrite Z_div_nz_opp_full, Zdiv_small; try omega.
+  intros; unfold rotate.
+  rewrite upd_Znth_Zlength by (subst; apply Z_mod_lt; omega).
+  destruct (zlt i (Zlength l - (m - n))).
+  - rewrite upd_Znth_app1 by (rewrite Zlength_sublist; omega).
+    assert ((i - n) mod m = m + i - n) as Hmod.
+    { rewrite <- Z.mod_add with (b := 1) by omega.
       rewrite Zmod_small; omega. }
-  rewrite Heq; clear Heq.
-  autorewrite with sublist.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite <- app_assoc.
-  f_equal. f_equal; omega.
-  rewrite sublist_0_cons by omega.
-  simpl. f_equal. f_equal.
-  autorewrite with sublist.
-  f_equal. omega. omega.
-*
-  rewrite Zmod_small by omega.
-  autorewrite with sublist.
-  rewrite <- app_assoc.
-  rewrite sublist_S_cons by omega.
-  autorewrite with sublist.
-  f_equal. f_equal; omega.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite sublist_0_cons by omega.
-  autorewrite with sublist.
-  f_equal. f_equal. f_equal; omega.
+    rewrite Hmod, sublist_upd_Znth_lr, sublist_upd_Znth_l by (auto; omega).
+    replace (m + i - n - (m - n)) with i by omega; auto.
+  - rewrite upd_Znth_app2; rewrite ?Zlength_sublist; try omega.
+    assert ((i - n) mod m = i - n) as Hmod.
+    { rewrite Zmod_small; omega. }
+    rewrite Hmod, sublist_upd_Znth_r, sublist_upd_Znth_lr by omega.
+    replace (i - (Zlength l - (m - n))) with (i - n - 0) by omega; auto.
+Qed.
+
+Lemma Znth_cons_eq : forall {A} (d : A) i x l, Znth i (x :: l) d = if eq_dec i 0 then x else Znth (i - 1) l d.
+Proof.
+  intros.
+  destruct (eq_dec i 0); [subst; apply Znth_0_cons|].
+  destruct (zlt i 0); [rewrite !Znth_underflow; auto; omega|].
+  apply Znth_pos_cons; omega.
+Qed.
+
+Lemma Znth_rotate : forall {A} (d : A) i l n, 0 <= n <= Zlength l -> 0 <= i < Zlength l ->
+  Znth i (rotate l n (Zlength l)) d = Znth ((i - n) mod Zlength l) l d.
+Proof.
+  intros; unfold rotate.
+  destruct (zlt i n).
+  - rewrite app_Znth1 by (rewrite Zlength_sublist; omega).
+    rewrite Znth_sublist by omega.
+    rewrite <- Z_mod_plus with (b := 1), Zmod_small by omega.
+    f_equal; omega.
+  - rewrite app_Znth2; (rewrite Zlength_sublist; try omega).
+    rewrite Znth_sublist by omega.
+    rewrite Zmod_small by omega.
+    f_equal; omega.
+Qed.
+
+Lemma rotate_nil : forall {A} n m, rotate (@nil A) n m = [].
+Proof.
+  intros; unfold rotate; rewrite !sublist_of_nil; auto.
+Qed.
+
+Lemma Forall_sublist_le : forall {A} (P : A -> Prop) i j l d
+  (Hrangei : 0 <= i) (Hrangej : j <= Zlength l) (Hi : ~P (Znth i l d)) (Hj : Forall P (sublist 0 j l)),
+  j <= i.
+Proof.
+  intros.
+  destruct (Z_le_dec j i); auto.
+  eapply Forall_Znth with (i0 := i) in Hj; [|rewrite Zlength_sublist; omega].
+  rewrite Znth_sublist, Z.add_0_r in Hj by omega.
+  contradiction Hi; eauto.
+Qed.
+
+Corollary Forall_sublist_first : forall {A} (P : A -> Prop) i j l d
+  (Hrangei : 0 <= i <= Zlength l) (Hi : Forall P (sublist 0 i l)) (Hi' : ~P (Znth i l d))
+  (Hrangej : 0 <= j <= Zlength l) (Hj : Forall P (sublist 0 j l)) (Hj' : ~P (Znth j l d)),
+  i = j.
+Proof.
+  intros.
+  apply Z.le_antisymm; eapply Forall_sublist_le; eauto; omega.
+Qed.
+
+Lemma NoDup_Znth_inj : forall {A} (d : A) l i j (HNoDup : NoDup l)
+  (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l) (Heq : Znth i l d = Znth j l d),
+  i = j.
+Proof.
+  induction l; intros.
+  { rewrite Zlength_nil in *; omega. }
+  inv HNoDup.
+  rewrite Zlength_cons in *.
+  rewrite !Znth_cons_eq in Heq.
+  destruct (eq_dec i 0), (eq_dec j 0); subst; auto.
+  - contradiction H1; apply Znth_In; omega.
+  - contradiction H1; apply Znth_In; omega.
+  - exploit (IHl (i - 1) (j - 1)); auto; omega.
+Qed.
+
+Lemma rotate_In : forall {A} (x : A) n m l, 0 <= m - n <= Zlength l -> In x (rotate l n m) <-> In x l.
+Proof.
+  unfold rotate; intros.
+  replace l with (sublist 0 (m - n) l ++ sublist (m - n) (Zlength l) l) at 4
+    by (rewrite sublist_rejoin, sublist_same; auto; omega).
+  rewrite !in_app; tauto.
+Qed.
+
+Lemma rotate_map : forall {A B} (f : A -> B) n m l, rotate (map f l) n m = map f (rotate l n m).
+Proof.
+  intros; unfold rotate.
+  rewrite !sublist_map, Zlength_map, map_app; auto.
 Qed.
 
 Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->
@@ -217,6 +387,13 @@ Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 
 Proof.
   induction l1; destruct l1'; intros; try discriminate; auto; simpl in *.
   rewrite IHl1; auto.
+Qed.
+
+Lemma combine_app' : forall {A B} (l1 l2 : list A) (l1' l2' : list B), Zlength l1 = Zlength l1' ->
+  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
+Proof.
+  intros; apply combine_app.
+  rewrite !Zlength_correct in *; omega.
 Qed.
 
 Lemma Forall_rotate : forall {A} P (l : list A) n m, Forall P l ->
@@ -295,6 +472,14 @@ Proof.
   destruct a; rewrite IHl; auto.
 Qed.
 
+Lemma signed_inj : forall i1 i2, Int.signed i1 = Int.signed i2 -> i1 = i2.
+Proof.
+  intros.
+  apply int_eq_e.
+  rewrite Int.eq_signed, H.
+  apply zeq_true.
+Qed.
+
 Lemma mods_repr : forall a b, 0 <= a <= Int.max_signed -> 0 < b <= Int.max_signed ->
   Int.mods (Int.repr a) (Int.repr b) = Int.repr (a mod b).
 Proof.
@@ -307,6 +492,12 @@ Qed.
 Lemma repeat_list_repeat : forall {A} n (x : A), repeat x n = list_repeat n x.
 Proof.
   induction n; auto; simpl; intro.
+  rewrite IHn; auto.
+Qed.
+
+Lemma map_repeat : forall {A B} (f : A -> B) x n, map f (repeat x n) = repeat (f x) n.
+Proof.
+  induction n; auto; simpl.
   rewrite IHn; auto.
 Qed.
 
@@ -335,6 +526,15 @@ Proof.
   - apply Znth_nil.
   - destruct (Z_lt_dec i 0); [apply Znth_underflow; auto|].
     destruct (eq_dec i 0); [subst; apply Znth_0_cons | rewrite Znth_pos_cons; eauto; omega].
+Qed.
+
+Lemma Znth_repeat' : forall {A} (d x : A) n i, 0 <= i < Z.of_nat n -> Znth i (repeat x n) d = x.
+Proof.
+  induction n; intros; [simpl in *; omega|].
+  rewrite Nat2Z.inj_succ in H; simpl.
+  destruct (eq_dec i 0).
+  - subst; apply Znth_0_cons.
+  - rewrite Znth_pos_cons by omega; apply IHn; omega.
 Qed.
 
 Lemma rotate_1 : forall v l n m, 0 <= n < m -> Zlength l < m ->
@@ -377,7 +577,23 @@ Proof.
     + f_equal; omega.
 Qed.
 
-Lemma upd_complete' : forall l x n, (length l < n)%nat -> 
+Lemma upd_complete_gen : forall {A} (l : list A) x n y, Zlength l < n ->
+  upd_Znth (Zlength l) (l ++ repeat y (Z.to_nat (n - Zlength l))) x =
+  (l ++ [x]) ++ repeat y (Z.to_nat (n - Zlength (l ++ [x]))).
+Proof.
+  intros.
+  rewrite upd_Znth_app2, Zminus_diag.
+  destruct (Z.to_nat (n - Zlength l)) eqn: Hn.
+  - apply Z2Nat.inj with (m := 0) in Hn; omega.
+  - simpl; rewrite upd_Znth0, Zlength_cons, sublist_1_cons.
+    unfold Z.succ; rewrite Z.add_simpl_r, sublist_same; auto.
+    rewrite <- app_assoc, Zlength_app, Zlength_cons, Zlength_nil; simpl.
+    rewrite Z.sub_add_distr, Z2Nat.inj_sub, Hn by computable; simpl.
+    rewrite Nat.sub_0_r; auto.
+  - pose proof (Zlength_nonneg (repeat y (Z.to_nat (n - Zlength l)))); omega.
+Qed.
+
+Lemma upd_complete' : forall l x n, (length l < n)%nat ->
   upd_Znth (Zlength l) (map Vint (map Int.repr l) ++ repeat Vundef (n - length l)) (Vint (Int.repr x)) =
   map Vint (map Int.repr (l ++ [x])) ++ repeat Vundef (n - length (l ++ [x])).
 Proof.
@@ -467,11 +683,17 @@ Proof.
   rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
+Lemma In_upd_Znth_old : forall {A} i (x y d : A) l, In x l -> x <> Znth i l d -> 0 <= i <= Zlength l ->
+  In x (upd_Znth i l y).
 Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
+  intros.
+  apply In_Znth with (d0 := d) in H; destruct H as (j & ? & ?); subst.
+  unfold upd_Znth.
+  destruct (eq_dec j i); [subst; contradiction|].
+  rewrite in_app; simpl.
+  destruct (zlt j i); [left | right; right].
+  - erewrite <- (Z.add_0_r j), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; auto; omega.
+  - erewrite <- (Z.sub_simpl_r _ (i + 1)), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; omega.
 Qed.
 
 Lemma Znth_combine : forall {A B} i l1 l2 (a : A) (b : B), Zlength l1 = Zlength l2 ->
@@ -514,18 +736,81 @@ Proof.
   simpl plus; omega.
 Qed.
 
-Lemma combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
-  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x) l2 = upd_Znth i (combine l1 l2) (x, Znth i l2 d).
+Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
+  Znth i l d = x -> upd_Znth i l x = l.
+Proof.
+  intros; unfold upd_Znth.
+  setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
+  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; Omega0].
+  unfold sublist.
+  rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
+  setoid_rewrite firstn_same at 2; auto.
+  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
+Qed.
+
+Lemma combine_upd_Znth : forall {A B} (l1 : list A) (l2 : list B) i x1 x2, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x1) (upd_Znth i l2 x2) = upd_Znth i (combine l1 l2) (x1, x2).
 Proof.
   induction l1; simpl; intros; [rewrite Zlength_nil in *; omega|].
   destruct l2; [rewrite Zlength_nil in *; omega|].
   rewrite !Zlength_cons in *.
   destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; try omega; simpl.
-    rewrite Znth_0_cons; auto.
+  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
   - rewrite !upd_Znth_cons; try omega; simpl.
-    erewrite IHl1; try omega.
-    rewrite Znth_pos_cons; auto; omega.
+    rewrite IHl1; auto; omega.
+Qed.
+
+Corollary combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x) l2 = upd_Znth i (combine l1 l2) (x, Znth i l2 d).
+Proof.
+  intros; rewrite <- combine_upd_Znth by auto.
+  erewrite upd_Znth_triv with (l := l2); eauto; omega.
+Qed.
+
+Corollary combine_upd_Znth2 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine l1 (upd_Znth i l2 x) = upd_Znth i (combine l1 l2) (Znth i l1 d, x).
+Proof.
+  intros; rewrite <- combine_upd_Znth by auto.
+  erewrite upd_Znth_triv with (l := l1); eauto; omega.
+Qed.
+
+Lemma in_concat : forall {A} (l : list (list A)) x, In x (concat l) <-> exists l1, In x l1 /\ In l1 l.
+Proof.
+  induction l; simpl; intros.
+  - split; [|intros (? & ? & ?)]; contradiction.
+  - rewrite in_app, IHl; split.
+    + intros [? | (? & ? & ?)]; eauto.
+    + intros (? & ? & [? | ?]); subst; eauto.
+Qed.
+
+Lemma length_concat : forall {A} (l : list (list A)), length (concat l) = fold_right plus O (map (@length A) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite app_length, IHl; auto.
+Qed.
+
+Lemma length_concat_min : forall {A} d (l : list (list A)) i (Hi : 0 <= i < Zlength l),
+  (length (Znth i l d) <= length (concat l))%nat.
+Proof.
+  induction l; simpl; intros; [rewrite Zlength_nil in *; omega|].
+  rewrite app_length; destruct (eq_dec i 0).
+  - subst; rewrite Znth_0_cons; omega.
+  - rewrite Znth_pos_cons by omega.
+    rewrite Zlength_cons in *; etransitivity; [apply IHl|]; omega.
+Qed.
+
+Lemma length_concat_upd : forall {A} d l i (l' : list A) (Hi : 0 <= i < Zlength l),
+  length (concat (upd_Znth i l l')) = (length (concat l) + length l' - length (Znth i l d))%nat.
+Proof.
+  induction l; intros; [rewrite Zlength_nil in *; omega|].
+  destruct (eq_dec i 0).
+  - subst; rewrite upd_Znth0, Znth_0_cons, sublist_1_cons.
+    rewrite Zlength_cons in *; rewrite sublist_same by (auto; omega); simpl.
+    rewrite !app_length; omega.
+  - rewrite upd_Znth_cons, Znth_pos_cons by omega; simpl.
+    rewrite Zlength_cons in *.
+    rewrite !app_length, IHl by omega.
+    exploit (length_concat_min d l (i - 1)); omega.
 Qed.
 
 Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
@@ -540,6 +825,11 @@ Proof.
   repeat intro; contradiction.
 Qed.
 Hint Resolve incl_nil.
+
+Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin); destruct H; auto; subst; contradiction.
+Qed.
 
 Lemma In_upto : forall n i, In i (upto n) <-> 0 <= i < Z.of_nat n.
 Proof.
@@ -600,18 +890,6 @@ Proof.
   rewrite IHn; auto; omega.
 Qed.
 
-Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
-  Znth i l d = x -> upd_Znth i l x = l.
-Proof.
-  intros; unfold upd_Znth.
-  setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
-  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; Omega0].
-  unfold sublist.
-  rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
-  setoid_rewrite firstn_same at 2; auto.
-  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
-Qed.
-
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
 Proof.
   unfold upd_Znth; intros.
@@ -622,6 +900,86 @@ Lemma upd_Znth_In : forall {A} i l (x : A), In x (upd_Znth i l x).
 Proof.
   intros; unfold upd_Znth.
   rewrite in_app; simpl; auto.
+Qed.
+
+Lemma NoDup_Znth_iff : forall {A} (l : list A) d,
+  NoDup l <-> forall i j (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l), Znth i l d = Znth j l d -> i = j.
+Proof.
+  split; intros; [eapply NoDup_Znth_inj; eauto|].
+  induction l; rewrite ?Zlength_cons in *; constructor.
+  - intro Hin; eapply In_Znth in Hin; destruct Hin as (j & ? & Hj).
+    exploit (H 0 (j + 1)); try omega.
+    rewrite !Znth_cons_eq; simpl.
+    if_tac; [omega|].
+    rewrite Z.add_simpl_r; eauto.
+  - apply IHl; intros.
+    exploit (H (i + 1) (j + 1)); try omega.
+    rewrite !Znth_cons_eq, !Z.add_simpl_r.
+    if_tac; [omega|].
+    if_tac; [omega | auto].
+Qed.
+
+Lemma concat_less_incl : forall {A} l i (l1 l2 : list A) (Hi : 0 <= i < Zlength l)
+  (Hless : Znth i l [] = l1 ++ l2), incl (concat (upd_Znth i l l1)) (concat l).
+Proof.
+  intros.
+  intros ? Hin.
+  rewrite in_concat in Hin; rewrite in_concat.
+  destruct Hin as (? & ? & Hin).
+  apply In_upd_Znth in Hin; destruct Hin; eauto; subst.
+  do 2 eexists; [rewrite in_app; left; eauto|].
+  rewrite <- Hless; apply Znth_In; auto.
+Qed.
+
+Lemma NoDup_app : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) ->
+  NoDup l1 /\ NoDup l2 /\ forall x, In x l1 -> ~In x l2.
+Proof.
+  induction l1; intros.
+  - repeat split; auto; constructor.
+  - inv H.
+    exploit IHl1; eauto; intros (? & ? & ?).
+    rewrite in_app in *.
+    repeat split; auto.
+    + constructor; auto.
+    + intros ? [? | ?]; auto; subst; auto.
+Qed.
+
+Lemma NoDup_app_iff : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) <->
+  NoDup l1 /\ NoDup l2 /\ forall x, In x l1 -> ~In x l2.
+Proof.
+  intros; split; [apply NoDup_app|].
+  intros (? & ? & Hsep); induction l1; auto.
+  inv H; simpl; constructor.
+  - rewrite in_app_iff; intros [? | ?]; [contradiction|].
+    eapply Hsep; simpl; eauto.
+  - apply IHl1; auto.
+    intros; apply Hsep; simpl; auto.
+Qed.
+
+Corollary NoDup_app_swap : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) <-> NoDup (l2 ++ l1).
+Proof.
+  intros; rewrite !NoDup_app_iff; split; intros (? & ? & Hsep); repeat split; auto; repeat intro; eapply Hsep;
+    eauto.
+Qed.
+
+Lemma NoDup_concat_less : forall {A} l i (l1 l2 : list A) (Hl : NoDup (concat l))
+  (Hi : 0 <= i < Zlength l) (Hless : Znth i l [] = l1 ++ l2),
+  NoDup (concat (upd_Znth i l l1)).
+Proof.
+  induction l; simpl; intros; [rewrite Zlength_nil in *; omega|].
+  rewrite Zlength_cons in *.
+  destruct (eq_dec i 0).
+  - subst; rewrite upd_Znth0, Zlength_cons, sublist_1_cons, sublist_same by (auto; omega); simpl.
+    rewrite Znth_0_cons in Hless; subst.
+    rewrite <- app_assoc, NoDup_app_swap, <- app_assoc, NoDup_app_iff, NoDup_app_swap in Hl; tauto.
+  - rewrite upd_Znth_cons by omega; simpl.
+    rewrite Znth_pos_cons in Hless by omega.
+    rewrite NoDup_app_iff in Hl; rewrite NoDup_app_iff.
+    destruct Hl as (? & ? & Hsep).
+    split; [auto|]; split.
+    + eapply IHl; eauto; omega.
+    + intros ?? Hin; eapply Hsep; eauto.
+      eapply concat_less_incl; eauto; omega.
 Qed.
 
 Lemma Forall2_Znth : forall {A B} (P : A -> B -> Prop) l1 l2 d1 d2 (Hall : Forall2 P l1 l2) i
@@ -642,14 +1000,6 @@ Proof.
   induction l1; destruct l3; try discriminate; auto; intros.
   inv H; inv Hlen.
   exploit IHl1; eauto; intros (? & ?); split; [constructor|]; auto.
-Qed.
-
-Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= i -> sublist i j l = [].
-Proof.
-  intros; unfold sublist.
-  replace (Z.to_nat (j - i)) with O; auto.
-  destruct (eq_dec (j - i) 0); try Omega0.
-  rewrite Z2Nat_neg; auto; omega.
 Qed.
 
 Lemma Forall2_firstn : forall {A B} (P : A -> B -> Prop) l1 l2 n, Forall2 P l1 l2 ->
@@ -685,16 +1035,153 @@ Proof.
     autorewrite with sublist; auto.
 Qed.
 
-Lemma combine_upd_Znth : forall {A B} (l1 : list A) (l2 : list B) i x1 x2, 0 <= i < Zlength l1 ->
-  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x1) (upd_Znth i l2 x2) = upd_Znth i (combine l1 l2) (x1, x2).
+Lemma Forall2_impl' : forall {A B} (P Q : A -> B -> Prop) l1 l2,
+  (forall a b, In a l1 -> In b l2 -> P a b -> Q a b) -> Forall2 P l1 l2 -> Forall2 Q l1 l2.
 Proof.
-  induction l1; simpl; intros; [rewrite Zlength_nil in *; omega|].
-  destruct l2; [rewrite Zlength_nil in *; omega|].
-  rewrite !Zlength_cons in *.
-  destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
-  - rewrite !upd_Znth_cons; try omega; simpl.
-    rewrite IHl1; auto; omega.
+  induction 2; simpl in *; auto.
+Qed.
+
+Lemma Forall2_impl : forall {A B} (P Q : A -> B -> Prop), (forall a b, P a b -> Q a b) ->
+  forall l1 l2, Forall2 P l1 l2 -> Forall2 Q l1 l2.
+Proof.
+  induction 2; auto.
+Qed.
+
+Lemma map_id_eq : forall {A} (l : list A), map id l = l.
+Proof.
+  induction l; auto.
+  simpl; apply f_equal; auto.
+Qed.
+
+Lemma Forall2_map : forall {A B C D} (P : A -> B -> Prop) (f1 : C -> A) (f2 : D -> B) l1 l2,
+  Forall2 P (map f1 l1) (map f2 l2) <-> Forall2 (fun a b => P (f1 a) (f2 b)) l1 l2.
+Proof.
+  induction l1.
+  - split; intro H.
+    + destruct l2; auto; inv H.
+    + inv H; simpl; auto.
+  - split; intro H.
+    + destruct l2; inv H.
+      rewrite IHl1 in *; constructor; auto.
+    + inv H; simpl; constructor; auto.
+      rewrite IHl1; auto.
+Qed.
+
+Corollary Forall2_map1 : forall {A B C} (P : A -> B -> Prop) (f : C -> A) l1 l2, Forall2 P (map f l1) l2 <->
+  Forall2 (fun a b => P (f a) b) l1 l2.
+Proof.
+  intros; rewrite <- (map_id_eq l2) at 1; apply Forall2_map.
+Qed.
+
+Corollary Forall2_map2 : forall {A B C} (P : A -> B -> Prop) (f : C -> B) l1 l2, Forall2 P l1 (map f l2) <->
+  Forall2 (fun a b => P a (f b)) l1 l2.
+Proof.
+  intros; rewrite <- (map_id_eq l1) at 1; apply Forall2_map.
+Qed.
+
+Lemma sublist_max_length : forall {A} i j (al : list A), Zlength (sublist i j al) <= Zlength al.
+Proof.
+  intros; unfold sublist.
+  rewrite Zlength_firstn, Zlength_skipn.
+  rewrite Z.min_le_iff; right.
+  pose proof (Zlength_nonneg al).
+  apply Z.max_lub; try omega.
+  rewrite <- Z.le_sub_nonneg; apply Z.le_max_l.
+Qed.
+
+Lemma Forall2_sublist : forall {A B} (P : A -> B -> Prop) l1 l2 i j, Forall2 P l1 l2 -> 0 <= i ->
+  Forall2 P (sublist i j l1) (sublist i j l2).
+Proof.
+  intros; revert j; revert dependent i; induction H; intros.
+  - rewrite !sublist_of_nil; constructor.
+  - destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto; constructor|].
+    destruct (eq_dec i 0).
+    + subst; rewrite !sublist_0_cons by omega.
+      constructor; auto.
+    + rewrite !sublist_S_cons by omega.
+      apply IHForall2; omega.
+Qed.
+
+Lemma Forall_last : forall {A} (P : A -> Prop) d l, Forall P l -> P d -> P (last l d).
+Proof.
+  destruct l; auto.
+  exploit (@app_removelast_last _ (a :: l) d); [discriminate | intro Hlast].
+  intros; rewrite Forall_forall in H; apply H.
+  rewrite Hlast at 2; rewrite in_app; simpl; auto.
+Qed.
+
+Lemma last_map : forall {A B} (f : A -> B) d l, f (last l d) = last (map f l) (f d).
+Proof.
+  induction l; auto; simpl.
+  destruct l; auto.
+Qed.
+
+Lemma In_removelast : forall {A} (l : list A) x, In x (removelast l) -> In x l.
+Proof.
+  induction l; auto; simpl; intros.
+  destruct l; auto.
+  destruct H; auto.
+Qed.
+
+Definition nil_dec {A} (l : list A) : {l = []} + {l <> []}.
+Proof.
+  destruct l; auto.
+  right; discriminate.
+Qed.
+
+Lemma Forall2_upd_Znth_l : forall {A B} (P : A -> B -> Prop) l1 l2 i x d, Forall2 P l1 l2 ->
+  P x (Znth i l2 d) -> 0 <= i < Zlength l1 -> Forall2 P (upd_Znth i l1 x) l2.
+Proof.
+  intros.
+  erewrite <- upd_Znth_triv with (l := l2)(i0 := i); eauto.
+  apply Forall2_upd_Znth; eauto; omega.
+  apply mem_lemmas.Forall2_Zlength in H; omega.
+Qed.
+
+Lemma Forall2_upd_Znth_r : forall {A B} (P : A -> B -> Prop) l1 l2 i x d, Forall2 P l1 l2 ->
+  P (Znth i l1 d) x -> 0 <= i < Zlength l1 -> Forall2 P l1 (upd_Znth i l2 x).
+Proof.
+  intros.
+  erewrite <- upd_Znth_triv with (l := l1)(i0 := i) by (eauto; omega).
+  apply Forall2_upd_Znth; eauto.
+  apply mem_lemmas.Forall2_Zlength in H; omega.
+Qed.
+
+Lemma Forall2_eq_upto : forall {A B} (P : A -> B -> Prop) d1 d2 l1 l2, Forall2 P l1 l2 <->
+  Zlength l1 = Zlength l2 /\ Forall (fun i => P (Znth i l1 d1) (Znth i l2 d2)) (upto (Z.to_nat (Zlength l1))).
+Proof.
+  induction l1; destruct l2; rewrite ?Zlength_cons, ?Zlength_nil; try solve [split; intro H; inv H;
+    try (rewrite Zlength_correct in *; omega)]; simpl.
+  - change (upto 0) with (@nil Z); split; auto.
+  - rewrite Z2Nat.inj_succ by (apply Zlength_nonneg).
+    rewrite <- Nat.add_1_l, upto_app, Forall_app, Forall_map.
+    change (upto 1) with [0]; split; intro H.
+    + inversion H as [|????? Hall]; subst.
+      rewrite IHl1 in Hall; destruct Hall as (? & Hall).
+      split; [congruence|].
+      split; auto.
+      rewrite Forall_forall in *; intros ? Hin.
+      specialize (Hall _ Hin); simpl.
+      rewrite In_upto in Hin.
+      rewrite !Znth_pos_cons, Z.add_simpl_l by omega; auto.
+    + destruct H as (? & Ha & Hall); inversion Ha as [|?? HP]; subst.
+      rewrite !Znth_0_cons in HP.
+      constructor; auto.
+      rewrite IHl1; split; [omega|].
+      rewrite Forall_forall in *; intros ? Hin.
+      specialize (Hall _ Hin); simpl in *.
+      rewrite In_upto in Hin.
+      rewrite !Znth_pos_cons, Z.add_simpl_l in Hall by omega; auto.
+Qed.
+
+Lemma Forall2_forall_Znth : forall {A B} (P : A -> B -> Prop) l1 l2 d1 d2,
+  Forall2 P l1 l2 <->
+  Zlength l1 = Zlength l2 /\ (forall i, 0 <= i < Zlength l1 -> P (Znth i l1 d1) (Znth i l2 d2)).
+Proof.
+  intros; rewrite Forall2_eq_upto, Forall_forall.
+  setoid_rewrite In_upto.
+  rewrite Z2Nat.id by (apply Zlength_nonneg).
+  reflexivity.
 Qed.
 
 Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
@@ -772,6 +1259,27 @@ Proof.
     f_equal; omega.
 Qed.
 
+Lemma upd_Znth_diff' : forall {A} i j l (u : A) d, 0 <= j < Zlength l -> i <> j ->
+  Znth i (upd_Znth j l u) d = Znth i l d.
+Proof.
+  intros.
+  destruct (zlt i 0).
+  { rewrite !Znth_underflow; auto. }
+  destruct (zlt i (Zlength l)).
+  apply upd_Znth_diff; auto; omega.
+  { rewrite !Znth_overflow; auto.
+    rewrite upd_Znth_Zlength; auto. }
+Qed.
+
+Lemma list_nth_error_eq : forall {A} (l1 l2 : list A)
+  (Heq : forall j, nth_error l1 j = nth_error l2 j), l1 = l2.
+Proof.
+  induction l1; destruct l2; auto; intros; try (specialize (Heq O); simpl in Heq; discriminate).
+  erewrite IHl1.
+  - specialize (Heq O); inv Heq; eauto.
+  - intro j; specialize (Heq (S j)); auto.
+Qed.
+
 Lemma list_Znth_eq' : forall {A} d (l1 l2 : list A)
   (Hlen : Zlength l1 = Zlength l2)
   (Heq : forall j, 0 <= j < Zlength l1 -> Znth j l1 d = Znth j l2 d), l1 = l2.
@@ -796,7 +1304,7 @@ Proof.
   apply list_Znth_eq' with (d0 := d); auto.
   intros ? Hj; destruct (eq_dec j i).
   - subst; rewrite !upd_Znth_same; auto; omega.
-  - rewrite !upd_Znth_diff; rewrite upd_Znth_Zlength in Hj; auto; omega.
+  - rewrite !upd_Znth_diff'; rewrite upd_Znth_Zlength in Hj; auto; omega.
 Qed.
 
 Lemma upd_Znth_twice : forall {A} i l (x y : A), 0 <= i < Zlength l ->
@@ -824,6 +1332,31 @@ Proof.
   rewrite filter_In; intros (? & ?); contradiction.
 Qed.
 
+Lemma Permutation_Zlength : forall {A} (l1 l2 : list A), Permutation.Permutation l1 l2 ->
+  Zlength l1 = Zlength l2.
+Proof.
+  intros; apply Z2Nat.inj; try apply Zlength_nonneg.
+  rewrite !ZtoNat_Zlength; apply Permutation.Permutation_length; auto.
+Qed.
+
+Lemma Permutation_filter : forall {A} (f : A -> bool) l1 l2, Permutation.Permutation l1 l2 ->
+  Permutation.Permutation (filter f l1) (filter f l2).
+Proof.
+  induction 1; simpl; auto.
+  - if_tac; auto.
+  - if_tac; auto; if_tac; auto.
+    constructor.
+  - etransitivity; eauto.
+Qed.
+
+Lemma NoDup_add : forall {A} l1 l2 (x : A), NoDup (l1 ++ l2) -> ~In x (l1 ++ l2) -> NoDup (l1 ++ x :: l2).
+Proof.
+  induction l1; simpl; intros.
+  - constructor; auto.
+  - inv H; constructor; auto.
+    rewrite in_app in *; simpl; intros [? | [? | ?]]; subst; tauto.
+Qed.
+
 Lemma list_in_count : forall {A} {A_eq : EqDec A} (l l' : list A), NoDup l' ->
   (length (filter (fun x => if in_dec eq_dec x l then true else false) l') <= length l)%nat.
 Proof.
@@ -842,6 +1375,19 @@ Proof.
   destruct (f a); simpl; omega.
 Qed.
 
+Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filter f l1 ++ filter f l2.
+Proof.
+  induction l1; auto; intros; simpl.
+  rewrite IHl1; if_tac; auto.
+Qed.
+
+Lemma filter_concat : forall {A} f (l : list (list A)),
+  filter f (concat l) = concat (map (filter f) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite filter_app, IHl; auto.
+Qed.
+
 Lemma NoDup_upto : forall n, NoDup (upto n).
 Proof.
   induction n; simpl; constructor.
@@ -849,6 +1395,49 @@ Proof.
     intros (? & ? & ?); rewrite In_upto in *; omega.
   - apply FinFun.Injective_map_NoDup; auto.
     intros ???; omega.
+Qed.
+
+Lemma In_remove : forall {A} {A_eq : EqDec A} (x y : A) l, In x (remove A_eq y l) <-> In x l /\ x <> y.
+Proof.
+  induction l; simpl; intros; [tauto|].
+  destruct (A_eq y a); simpl; rewrite IHl; repeat split; try tauto.
+  - destruct H as [[|]]; auto; subst; contradiction.
+  - destruct H as [|[]]; subst; auto.
+Qed.
+
+Lemma remove_NoDup : forall {A} {A_eq : EqDec A} (x : A) l, NoDup l -> NoDup (remove A_eq x l).
+Proof.
+  induction 1; simpl.
+  - constructor.
+  - if_tac; auto.
+    constructor; auto.
+    intro X; apply In_remove in X; destruct X; contradiction.
+Qed.
+
+Lemma remove_out : forall {A} {A_eq : EqDec A} (x : A) l, ~In x l -> remove A_eq x l = l.
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite IHl by auto.
+  if_tac; auto; subst; tauto.
+Qed.
+
+Lemma remove_from_NoDup : forall {A} {A_eq : EqDec A} (x : A) l1 l2, NoDup (l1 ++ x :: l2) ->
+  remove A_eq x (l1 ++ x :: l2) = l1 ++ l2.
+Proof.
+  induction l1; simpl; intros.
+  - if_tac; [|contradiction].
+    inv H; apply remove_out; auto.
+  - inversion H as [|?? Hx]; subst.
+    rewrite IHl1 by auto.
+    if_tac; auto.
+    subst; contradiction Hx; rewrite in_app; simpl; auto.
+Qed.
+
+Lemma incl_remove_add : forall {A} {A_eq : EqDec A} (x : A) l1 l2, incl l1 l2 -> incl l1 (x :: remove A_eq x l2).
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin).
+  simpl; rewrite In_remove.
+  destruct (eq_dec a x); auto.
 Qed.
 
 Lemma list_pigeonhole : forall l n, Zlength l < n -> exists a, 0 <= a < n /\ ~In a l.
@@ -891,7 +1480,7 @@ Proof.
     + rewrite sublist_nil_gen in H; [contradiction | omega].
 Qed.
 
-Lemma incl_cons_iff : forall A (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
+Lemma incl_cons_iff : forall {A} (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
 Proof.
   split; intro.
   - split; [|eapply incl_cons_inv; eauto].
@@ -899,17 +1488,102 @@ Proof.
   - destruct H; intros ? [? | ?]; subst; auto.
 Qed.
 
-Lemma NoDup_app : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) ->
-  NoDup l1 /\ NoDup l2 /\ forall x, In x l1 -> ~In x l2.
+Lemma lt_le_1 : forall i j, i < j <-> i + 1 <= j.
 Proof.
-  induction l1; intros.
-  - repeat split; auto; constructor.
-  - inv H.
-    exploit IHl1; eauto; intros (? & ? & ?).
-    rewrite in_app in *.
-    repeat split; auto.
-    + constructor; auto.
-    + intros ? [? | ?]; auto; subst; auto.
+  intros; omega.
+Qed.
+
+Lemma firstn_all : forall {A} n (l : list A), (length l <= n)%nat -> firstn n l = l.
+Proof.
+  induction n; destruct l; auto; simpl; intros; try omega.
+  rewrite IHn; auto; omega.
+Qed.
+
+Lemma sublist_all : forall {A} i (l : list A), Zlength l <= i -> sublist 0 i l = l.
+Proof.
+  intros; unfold sublist; simpl.
+  apply firstn_all.
+  rewrite Zlength_correct in *; Omega0.
+Qed.
+
+Lemma sublist_prefix : forall {A} i j (l : list A), sublist 0 i (sublist 0 j l) = sublist 0 (Z.min i j) l.
+Proof.
+  intros.
+  destruct (Z_le_dec i 0).
+  { rewrite !sublist_nil_gen; auto.
+    rewrite Z.min_le_iff; auto. }
+  destruct (Z.min_spec i j) as [(? & ->) | (? & ->)].
+  - rewrite sublist_sublist, !Z.add_0_r by omega; auto.
+  - apply sublist_all.
+    destruct (Z_le_dec j 0); [rewrite sublist_nil_gen; auto; rewrite Zlength_nil; omega|].
+    destruct (Z_le_dec j (Zlength l)).
+    rewrite Zlength_sublist; try omega.
+    { pose proof (sublist_max_length 0 j l); omega. }
+Qed.
+
+Lemma sublist_suffix : forall {A} i j (l : list A), 0 <= i -> 0 <= j ->
+  sublist i (Zlength l - j) (sublist j (Zlength l) l) = sublist (i + j) (Zlength l) l.
+Proof.
+  intros.
+  destruct (Z_le_dec (Zlength l - j) i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist by omega.
+  rewrite Z.sub_simpl_r; auto.
+Qed.
+
+Lemma sublist_parts1 : forall {A} i j (l : list A), 0 <= i -> sublist i j l = sublist i j (sublist 0 j l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto. }
+  rewrite sublist_sublist by omega.
+  rewrite !Z.add_0_r; auto.
+Qed.
+
+Lemma sublist_parts2 : forall {A} i j (l : list A), 0 <= i -> j <= Zlength l ->
+  sublist i j l = sublist 0 (j - i) (sublist i (Zlength l) l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist; try omega.
+  rewrite Z.add_0_l, Z.sub_simpl_r; auto.
+Qed.
+
+Lemma Forall_Forall2 : forall {A} (P : A -> Prop) Q l1 l2 (HP : Forall P l1) (HQ : Forall2 Q l1 l2)
+  (Htransfer : forall x y, P x -> Q x y -> P y), Forall P l2.
+Proof.
+  induction 2; auto; intros.
+  inv HP.
+  constructor; eauto.
+Qed.
+
+Lemma Forall_suffix_max : forall {A} (P : A -> Prop) l1 l2 i j
+  (Hi : 0 <= i <= Zlength l1) (Hj : 0 <= j <= Zlength l1)
+  (Hl1 : Forall P (sublist j (Zlength l1) l1))
+  (Hl2 : sublist i (Zlength l1) l1 = sublist i (Zlength l2) l2),
+  Forall P (sublist (Z.max i j) (Zlength l2) l2).
+Proof.
+  intros.
+  destruct (eq_dec i (Zlength l1)).
+  { subst; rewrite sublist_nil in Hl2.
+    rewrite Z.max_l by omega.
+    rewrite <- Hl2; auto. }
+  assert (Zlength l1 = Zlength l2) as Heq.
+  { assert (Zlength (sublist i (Zlength l1) l1) = Zlength (sublist i (Zlength l2) l2)) as Heq by congruence.
+    destruct (Z_le_dec (Zlength l2) i).
+    { rewrite sublist_nil_gen with (l0 := l2), Zlength_nil in Heq; auto.
+      rewrite !Zlength_sublist in Heq; omega. }
+    rewrite !Zlength_sublist in Heq; omega. }
+  intros; destruct (Z.max_spec i j) as [(? & ->) | (? & ->)].
+  - replace (sublist _ _ _) with (sublist (j - i) (Zlength l2 - i) (sublist i (Zlength l2) l2)).
+    rewrite <- Hl2, sublist_sublist, !Z.sub_simpl_r by omega.
+    rewrite <- Heq; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r by omega; auto. }
+  - rewrite <- Hl2.
+    replace (sublist _ _ _) with (sublist (i - j) (Zlength l1 - j) (sublist j (Zlength l1) l1)).
+    apply Forall_sublist; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r; auto; omega. }
 Qed.
 
 Fixpoint extend {A} (l : list A) ls :=
@@ -1082,7 +1756,23 @@ Proof.
   rewrite Zlength_correct in *; Omega0.
 Qed.
 
-Lemma lookup_distinct : forall A B (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
+Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : NoDup (map fst l)),
+  (make_tycontext_s l) ! (fst a) = Some (snd a).
+Proof.
+  intros a l. unfold make_tycontext_s.
+  change (@ptree_set) with (@PTree.set).
+  induction l; simpl; intros. 
+  contradiction.
+  inv Hdistinct. destruct a0. simpl in *.
+  destruct Ha. subst.
+  simpl. rewrite PTree.gss. auto.
+  rewrite PTree.gso.
+  apply IHl; auto.
+  intro; subst.
+  apply H1; apply in_map. auto.
+Qed.
+
+Lemma lookup_distinct : forall {A B} (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
   (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! (fst a) =
   Some (f (snd a)).
 Proof.
@@ -1097,7 +1787,7 @@ Proof.
     contradiction n; auto.
 Qed.
 
-Lemma lookup_out : forall A B (f : A -> B) a l t (Ha : ~In a (map fst l)),
+Lemma lookup_out : forall {A B} (f : A -> B) a l t (Ha : ~In a (map fst l)),
   (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! a = t ! a.
 Proof.
   induction l; simpl; intros; auto.
@@ -1131,7 +1821,7 @@ Proof.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
-        apply lookup_distinct with (f := id); auto.
+        apply lookup_distinct with (f0:=id); auto.
         { apply Hdistinct.
           rewrite in_map_iff; eexists; split; eauto. }
     + intros.
@@ -1142,11 +1832,16 @@ Proof.
   - unfold make_tycontext_s.
     revert dependent G2; induction G; simpl; intros.
     + rewrite PTree.gempty; simpl; auto.
-    + intros.
+    + destruct a; simpl. hnf.
+      change @ptree_set with @PTree.set in * at 1.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.
-      destruct (peq id (fst a)); eauto; subst; simpl.
-      apply lookup_distinct with (f := id); auto.
+      change (@PTree.set) with @ptree_set in IHG.
+      fold make_tycontext_s in *.
+      destruct (peq id i); eauto; subst; simpl.
+      apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
+      destruct ((make_tycontext_s G) ! id); auto.
+      apply IHG; auto. 
 Qed.
 
 (* This lets us use a library as a client. *)
@@ -1176,11 +1871,11 @@ Proof.
   { exists r2; auto. }
   { exists r1; apply sepalg.join_comm; auto. }
   intro; subst.
-  pose proof (sepalg.join_self H); subst.
+  pose proof (sepalg.join_self H) as Hid.
+  apply Hid in H; subst.
   destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  pose proof (sepalg.unit_identity _ H) as Hid.
-  rewrite HYES in Hid; apply compcert_rmaps.RML.YES_not_identity in Hid; contradiction.
+  destruct (compcert_rmaps.RML.resource_at_empty Hid l) as [Hl | [? [? Hl]]];
+    rewrite Hl in HYES; discriminate.
 Qed.
 
 Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
@@ -1220,8 +1915,8 @@ Proof.
   intros ?????? (? & ?) (? & ?) ??; eauto.
 Qed.
 
-Lemma ex_address_mapsto_precise: forall ch rsh sh l,
-  precise (EX v : val, res_predicates.address_mapsto ch v rsh sh l).
+Lemma ex_address_mapsto_precise: forall ch sh l,
+  precise (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
   intros.
   eapply derives_precise, res_predicates.VALspec_range_precise.
@@ -1253,14 +1948,17 @@ Proof.
     omega.
 Qed.
 
-Lemma selflock_precise : forall R sh v, precise R ->
-  precise (selflock R v sh).
+Lemma selflock_precise : forall R sh v, precise R -> precise (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
   apply precise_sepcon; auto.
   apply lock_inv_precise.
 Qed.
+
+(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
+Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_sepcon1 : forall P Q (HP : positive_mpred P),
   positive_mpred (P * Q).
@@ -1296,17 +1994,12 @@ Proof.
   intros ???? (? & ?); auto.
 Qed.
 
-Lemma selflock_positive : forall R sh v, positive_mpred R ->
-  positive_mpred (selflock R v sh).
+Lemma selflock_positive : forall R sh v, positive_mpred (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
-  apply positive_sepcon1; auto.
+  apply positive_sepcon2, lock_inv_positive.
 Qed.
-
-(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_FF : positive_mpred FF.
 Proof.
@@ -1319,10 +2012,10 @@ Proof.
   specialize (Hderives _ H); auto.
 Qed.
 
-Lemma ex_address_mapsto_positive: forall ch rsh sh l,
-  positive_mpred (EX v : val, res_predicates.address_mapsto ch v rsh sh l).
+Lemma ex_address_mapsto_positive: forall ch sh l,
+  positive_mpred (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
-  intros ????? (? & ? & ? & Hp); simpl in Hp.
+  intros ???? (? & ? & ? & Hp); simpl in Hp.
   specialize (Hp l); destruct (adr_range_dec _ _ _).
   destruct Hp; eauto 6.
   { contradiction n; unfold adr_range.
@@ -1460,6 +2153,7 @@ Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_
 Proof.
   intros; apply data_at__isptr.
 Qed.
+Hint Resolve lock_inv_isptr cond_var_isptr : saturate_local.
 
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
@@ -1660,12 +2354,12 @@ Proof.
 Qed.
 
 (* shares *)
-Lemma LKspec_nonunit lock_size :
+Lemma LKspec_readable lock_size :
   0 < lock_size ->
-  forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec lock_size R rsh sh p)
-  (!!(sepalg.nonunit sh)).
+  forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
+  (!!(readable_share sh)).
 Proof.
-  intros pos R rsh sh p a H.
+  intros pos R sh p a H.
   specialize (H p); simpl in H.
   destruct (adr_range_dec p lock_size p).
   destruct (eq_dec p p); [|contradiction n; auto].
@@ -1689,11 +2383,7 @@ Proof.
     rewrite FF_sepcon; auto].
   repeat rewrite prop_true_andp; auto.
   evar (P : mpred); replace (exp _) with P.
-  - subst P; apply res_predicates.LKspec_share_join; auto.
-    + apply readable_share_unrel_Rsh; auto.
-    + apply readable_share_unrel_Rsh; eauto.
-    + apply Share.unrel_join; eauto.
-    + apply Share.unrel_join; eauto.
+  - subst P; apply slice.LKspec_share_join; eauto.
   - subst P.
     erewrite exp_uncurry, exp_congr, <- exp_andp1, exp_prop, prop_true_andp; eauto.
     { instantiate (1 := fun x => Vptr b o = Vptr (fst x) (snd x)); exists (b, o); auto. }
@@ -1704,13 +2394,96 @@ Proof.
     subst; repeat rewrite prop_true_andp; auto.
 Qed.
 
+Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Proof.
+  intro; pose proof (Share.comp1 sh).
+  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
+    rewrite Share.glb_idem, Share.glb_top.
+  - rewrite Share.comp2; auto.
+  - rewrite Share.glb_commute, Share.comp2; auto.
+Qed.
+
+Lemma unreadable_bot : ~readable_share Share.bot.
+Proof.
+  unfold readable_share, nonempty_share, sepalg.nonidentity.
+  rewrite Share.glb_bot; auto.
+Qed.
+Hint Resolve unreadable_bot.
+
+Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  apply lub_bot_e; auto.
+Qed.
+
+Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
+  apply Share.lub_bot.
+Qed.
+
+(* It's often useful to split Tsh in half. *)
+Definition gsh1 := fst (Share.split Tsh).
+Definition gsh2 := snd (Share.split Tsh).
+
+Lemma readable_gsh1 : readable_share gsh1.
+Proof.
+  apply slice.split_YES_ok1; auto.
+Qed.
+
+Lemma readable_gsh2 : readable_share gsh2.
+Proof.
+  apply slice.split_YES_ok2; auto.
+Qed.
+
+Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
+Proof.
+  apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
+Qed.
+
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+
+Lemma gsh1_not_bot : gsh1 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+
+Lemma gsh2_not_bot : gsh2 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+Hint Resolve gsh1_not_bot gsh2_not_bot.
+
+(*
+Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
+  data_at Tsh t v p * data_at sh t v' p |-- FF.
+Proof.
+  intros.
+  assert_PROP (field_compatible t [] p) by entailer!.
+  pose proof (comp_join_top sh).
+  erewrite <- data_at_share_join by eauto.
+  rewrite sepcon_comm, <- sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+  apply data_at_conflict; auto.
+  split; auto.
+  unfold field_compatible in *; tauto.
+Qed.
+*)
+
 Lemma split_readable_share sh :
   readable_share sh ->
   exists sh1, exists sh2,
     readable_share sh1 /\
     readable_share sh2 /\
     sepalg.join sh1 sh2 sh.
-Admitted.
+Proof.
+  intros.
+  pose proof (slice.split_YES_ok1 _ H); pose proof (slice.split_YES_ok2 _ H).
+  destruct (Share.split sh) as (sh1, sh2) eqn: Hsplit.
+  exists sh1, sh2; split; [|split]; auto.
+  apply split_join; auto.
+Qed.
 
 Lemma split_Ews :
   exists sh1, exists sh2,
@@ -1812,8 +2585,32 @@ Proof.
 Qed.
 
 (* These lemmas should probably be in veric. *)
-Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,
-  readable_share sh1 -> readable_share sh2 ->
+Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
+Proof.
+  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+Qed.
+
+Lemma exp_comm : forall {A B} P,
+  (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
+Proof.
+  intros; apply mpred_ext; Intros x y; Exists y x; auto.
+Qed.
+
+Lemma mapsto_value_eq: forall sh1 sh2 t p v1 v2, readable_share sh1 -> readable_share sh2 ->
+  v1 <> Vundef -> v2 <> Vundef -> mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- !!(v1 = v2).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try solve [entailer!].
+  destruct (type_is_volatile t); try solve [entailer!].
+  destruct p; try solve [entailer!].
+  destruct (readable_share_dec sh1); [|contradiction n; auto].
+  destruct (readable_share_dec sh2); [|contradiction n; auto].
+  rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
+  rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
+  apply res_predicates.address_mapsto_value_cohere.
+Qed.
+
+Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
   mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
 Proof.
   intros; unfold mapsto.
@@ -1821,18 +2618,21 @@ Proof.
   destruct (type_is_volatile t); try simple apply derives_refl.
   destruct p; try simple apply derives_refl.
   destruct (readable_share_dec sh1); [|contradiction n; auto].
-  destruct (readable_share_dec sh2); [|contradiction n; auto].
   destruct (eq_dec v1 Vundef).
   - subst; rewrite !prop_false_andp with (P := tc_val t Vundef), !FF_orp, prop_true_andp; auto;
       try apply tc_val_Vundef.
     cancel.
     rewrite prop_true_andp with (P := Vundef = Vundef); auto.
-    apply orp_left; Intros; auto.
-    Exists v2; auto.
+    if_tac.
+    + apply orp_left; Intros; auto.
+      Exists v2; auto.
+    + entailer!.
+      intro X; contradiction X; auto.
   - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
     apply andp_right; [apply prop_right; auto|].
+    if_tac.
     eapply derives_trans with (Q := _ * EX v2' : val,
-      res_predicates.address_mapsto m v2' _ _ _);
+      res_predicates.address_mapsto m v2' _ _);
       [apply sepcon_derives; [apply derives_refl|]|].
     + destruct (eq_dec v2 Vundef).
       * subst; rewrite prop_false_andp with (P := tc_val t Vundef), FF_orp;
@@ -1842,9 +2642,89 @@ Proof.
         Exists v2; auto.
     + Intro v2'.
       assert_PROP (v1 = v2') by (apply res_predicates.address_mapsto_value_cohere).
-      subst; auto.
+      subst; entailer!.
+    + entailer!.
+      intro; auto.
 Qed.
 
+Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 v2
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (IH : Forall (fun it : ident * type => forall v1 v2 (p : val),
+        readable_share sh1 -> readable_share sh2 ->
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v2 p |--
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v1 p) m),
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v2 p |--
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v1 p.
+Proof.
+  intros.
+  revert v1 v2; induction m; auto; intros.
+  destruct a; inv IH.
+  destruct m.
+  - unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+  - rewrite !struct_pred_cons2.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    match goal with |- _ |-- (?P1 * ?Q1) * (?P2 * ?Q2) => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [|cancel] end.
+    apply sepcon_derives; [|auto].
+    unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+Qed.
+
+Lemma data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p |--
+  data_at sh1 t v1 p * data_at sh2 t v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_cohere; auto.
+Qed.
+
+Lemma data_at_array_value_cohere : forall {cs : compspecs} sh1 sh2 t z a v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v2 p |--
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !data_at_rec_eq; simpl.
+  unfold array_pred, aggregate_pred.array_pred; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite Z.sub_0_r in *.
+  erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
+  setoid_rewrite aggregate_pred.rangespec_ext at 2; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+  match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
+    eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
+  eapply derives_trans; [apply sepcon_derives|].
+  - unfold at_offset.
+    rewrite 2by_value_data_at_rec_nonvolatile by auto.
+    apply mapsto_value_cohere; auto.
+  - apply IHn.
+  - unfold at_offset; rewrite 2by_value_data_at_rec_nonvolatile by auto; cancel.
+Qed.
+
+(* This isn't true if the type contains any unions, since in fact the type of the data could be different.
 Lemma data_at_rec_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
   readable_share sh1 -> readable_share sh2 ->
   data_at_rec sh1 t v1 p * data_at_rec sh2 t v2 p |--
@@ -1862,25 +2742,36 @@ Proof.
     rewrite <- (sepcon_assoc _ (at_offset _ _ _)), (sepcon_comm _ (at_offset _ _ _)).
     rewrite !sepcon_assoc, <- !(sepcon_assoc (at_offset _ _ _) (at_offset _ _ _)).
     apply sepcon_derives; unfold at_offset; auto.
-  - admit.
-  - admit.
-Admitted.
+  - apply struct_pred_value_cohere; auto.
+  - 
+Qed.
 
-Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
-  readable_share sh1 -> readable_share sh2 ->
+Corollary field_at_value_cohere : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p, readable_share sh1 ->
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |--
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v1 p.
+Proof.
+  intros; destruct (readable_share_dec sh2).
+  - unfold field_at, at_offset; Intros; entailer'.
+    apply data_at_rec_value_cohere; auto.
+  - assert_PROP (value_fits (nested_field_type t gfs) v1 /\ value_fits (nested_field_type t gfs) v2)
+      by entailer!.
+    setoid_rewrite nonreadable_field_at_eq at 2; eauto; tauto.
+Qed.
+
+Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
   data_at sh1 t v1 p * data_at sh2 t v2 p |--
   data_at sh1 t v1 p * data_at sh2 t v1 p.
 Proof.
-  intros; unfold data_at, field_at, at_offset; Intros; entailer'.
-  apply data_at_rec_value_cohere; auto.
+  intros; apply field_at_value_cohere; auto.
 Qed.
 
-Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p,
-  readable_share sh1 -> readable_share sh2 ->
-  data_at sh1 t v p * data_at_ sh2 t p |--
-  data_at sh1 t v p * data_at sh2 t v p. (* Could this be an equality? *)
+Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p, readable_share sh1 ->
+  data_at sh1 t v p * data_at_ sh2 t p =
+  data_at sh1 t v p * data_at sh2 t v p.
 Proof.
-  intros; rewrite data_at__eq; apply data_at_value_cohere; auto.
+  intros; apply mpred_ext.
+  - rewrite data_at__eq; apply data_at_value_cohere; auto.
+  - entailer!.
 Qed.
 
 Lemma data_at__shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh)
@@ -1893,12 +2784,11 @@ Proof.
     rewrite sepcon_emp; auto.
   - inv Hsplit.
     inv Hreadable.
-    rewrite <- sepcon_assoc; eapply derives_trans; [apply sepcon_derives;
-      [apply data_at__cohere; auto | apply derives_refl]|].
+    rewrite <- sepcon_assoc, data_at__cohere; auto.
     erewrite data_at_share_join; eauto.
     apply IHshs; auto.
     eapply readable_share_join; eauto.
-Qed.
+Qed.*)
 
 Lemma extract_nth_sepcon : forall l i, 0 <= i < Zlength l ->
   fold_right sepcon emp l = Znth i l FF * fold_right sepcon emp (upd_Znth i l emp).
@@ -1951,6 +2841,22 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma semax_extract_later_prop'':
+  forall {CS : compspecs} {Espec: OracleKind},
+    forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
+      P2 |-- !!PP ->
+      (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
+      semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
+Proof.
+  intros.
+  erewrite (add_andp P2) by eauto.
+  apply semax_pre0 with (P' := |>!!PP && PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))).
+  { go_lowerx.
+    rewrite later_andp, <- andp_assoc, andp_comm, corable_andp_sepcon1; auto.
+    apply corable_later; auto. }
+  apply semax_extract_later_prop; auto.
+Qed.
+
 Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
@@ -1958,10 +2864,12 @@ Proof.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
 
-Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
+Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
 Proof.
-  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+  destruct v; simpl; auto.
+  entailer!.
 Qed.
+Hint Resolve valid_pointer_isptr : saturate_local.
 
 Lemma andp_emp_derives_dup : forall (P : mpred),
   predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).
@@ -1980,7 +2888,8 @@ Proof.
 Qed.
 
 Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
-  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
+    (compcert_rmaps.RML.R.approx n Q)).
 Proof.
   intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
   - destruct HP; split; auto.
@@ -1988,12 +2897,90 @@ Proof.
     pose proof (ageable.necR_level _ _ Ha'); omega.
 Qed.
 
-Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
-  compcert_rmaps.R.approx n P.
+Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
+  compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
+        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
+
+Lemma approx_sepcon_list: forall n lP, lP <> [] ->
+  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP) =
+  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP).
+Proof.
+  induction lP; [contradiction | intros].
+  destruct lP; simpl in *.
+  - simpl; rewrite !sepcon_emp; auto.
+  - rewrite approx_sepcon, IHlP; auto; discriminate.
+Qed.
+
+Corollary approx_sepcon_list' : forall n lP P,
+  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP)  * compcert_rmaps.RML.R.approx n P =
+  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP) * compcert_rmaps.RML.R.approx n P.
 Proof.
   intros.
-  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
-  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+  rewrite <- !approx_sepcon, !(sepcon_comm (fold_right _ _ _)).
+  setoid_rewrite approx_sepcon_list with (lP := _ :: _); auto; discriminate.
+Qed.
+
+Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
+Proof.
+  intro; apply predicates_hered.pred_ext; intros ??; try contradiction.
+  destruct H; contradiction.
+Qed.
+
+Lemma later_nonexpansive : nonexpansive (@later mpred _ _).
+Proof.
+  apply contractive_nonexpansive, later_contractive.
+  intros ??; auto.
+Qed.
+
+Lemma eqp_refl : forall (G : Triv) P, G |-- P <=> P.
+Proof.
+  intros; rewrite andp_dup; apply subp_refl.
+Qed.
+
+Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P * Q <=> P' * Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P && Q <=> P' && Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
+    (G : Triv) (B : Type) (X Y : B -> A),
+  (forall x : B, G |-- X x <=> Y x) ->
+  G |-- (EX x : _, X x) <=> (EX x : _, Y x).
+Proof.
+  intros.
+  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
+    intros ? Ha; destruct (H _ Ha); auto.
+Qed.
+
+Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
+  (ALL i : Z, Znth i lP1 FF <=> Znth i lP2 FF) |--
+  fold_right sepcon emp lP1 <=> fold_right sepcon emp lP2.
+Proof.
+  induction lP1; intros.
+  - symmetry in H; apply Zlength_nil_inv in H; subst.
+    apply eqp_refl.
+  - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
+    rewrite !Zlength_cons in H.
+    simpl fold_right; apply eqp_sepcon.
+    + apply allp_left with 0.
+      rewrite !Znth_0_cons; auto.
+    + eapply derives_trans, IHlP1; [|omega].
+      apply allp_right; intro i.
+      apply allp_left with (i + 1).
+      destruct (zlt i 0).
+      { rewrite !(Znth_underflow _ _ _ l); apply eqp_refl. }
+      rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
 Qed.
 
 (* tactics *)
@@ -2013,6 +3000,33 @@ Proof.
   apply malloc_compatible_field_compatible; auto.
 Qed.
 
+Lemma gvar_eval_var: forall i t v rho,
+  gvar_denote i v rho -> eval_var i t rho = v.
+Proof.
+  unfold eval_var, gvar_denote; intros.
+  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction|].
+  destruct (ge_of rho i); auto; contradiction.
+Qed.
+
+Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
+  force_val (sem_cast_neutral v) = v.
+Proof.
+  intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
+  rewrite !Heq; auto.
+Qed.
+
+Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_neutral v) = v.
+Proof.
+  intros; apply force_val_sem_cast_neutral_isptr in H.
+  inversion H as [Heq]; rewrite !Heq; auto.
+Qed.
+
+Lemma gvar_denote_global : forall i v rho, gvar_denote i v rho -> gvar_denote i v (globals_only rho).
+Proof.
+  unfold gvar_denote; intros; simpl.
+  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction | auto].
+Qed.
+
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
    try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |
@@ -2023,6 +3037,17 @@ Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
+
+Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
+  repeat match goal with
+    | |- ?P |-- ?P => apply derives_refl
+    | |- ?P * _ |-- ?P * _ => apply sepcon_derives; [apply derives_refl|]
+    | |- _ |-- ?P * _ => rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc end;
+  try cancel_frame.
+
+Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
+  Intros n; rewrite malloc_compat by (auto; exists (natural_alignment / alignof t); auto); Intros;
+  rewrite memory_block_data_at_ by auto].
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
@@ -2056,7 +3081,7 @@ apply andp_right.
   unfold gvar_denote, eval_var, Map.get.
   destruct H as (_ & _ & DG & DS).
   destruct (DS id _ GS) as [-> | (t & E)]; [ | congruence].
-  destruct (DG id _ GS) as (? & -> & ?); auto.
+  destruct (DG id _ GS) as [? ?]; rewrite H; auto.
 - (* about func_ptr/func_ptr' *)
   unfold func_ptr'.
   rewrite <- andp_left_corable, andp_comm; auto.
@@ -2122,3 +3147,926 @@ Ltac start_dep_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
+
+(* Notations for dependent funspecs *)
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
+     match x with (x1,x2,x3,x4) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
+     match x with (x1,x2,x3,x4) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
+     match x with (x1,x2,x3,x4,x5) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
+     match x with (x1,x2,x3,x4,x5) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
+     match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
+     match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+             x5 at level 0, x6 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             P at level 100, Q at level 100).
+
+(* automation for dependent funspecs *)
+Definition call_setup2'
+  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+  (bl: list expr) (vl : list val)
+  (Qactuals : PTree.t _)
+  (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred)
+  (Frame: list mpred)
+  (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+  (Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc) :=
+ call_setup1 cs Qtemp Qvar a Delta P Q R argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals /\
+  Pre ts witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) /\
+  local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil) /\
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) /\
+  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
+
+Lemma call_setup2'_i:
+ forall  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty cc ts (A: rmaps.TypeTree) Pre Post NEPre NEPost
+  (bl: list expr) (vl : list val)
+  (Qactuals : PTree.t _)
+  (SETUP1: call_setup1 cs Qtemp Qvar a Delta P Q R argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals)
+  (witness': functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred)
+  (Frame: list mpred)
+  (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+  (Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc),
+  Pre ts witness' = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
+  local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var)  ->
+  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
+  call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness' Frame Ppre Qpre Rpre Qpre_temp Qpre_var.
+Proof.
+ intros. split. auto. repeat split; auto.
+Qed.
+
+Ltac check_witness_type' ts A witness :=
+  (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+ ||
+ let TA := constr:(functors.MixVariantFunctor._functor
+     (rmaps.dependent_type_functor_rec ts A) mpred) in
+  let TA' := eval cbv 
+     [functors.MixVariantFunctor._functor
+      functors.MixVariantFunctorGenerator.fpair
+      functors.MixVariantFunctorGenerator.fconst
+      functors.MixVariantFunctorGenerator.fidentity
+      rmaps.dependent_type_functor_rec
+      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+      functors.CovariantFunctorGenerator.fconst
+      functors.CovariantFunctorGenerator.fidentity
+      functors.CovariantBiFunctor._functor
+      functors.CovariantBiFunctorGenerator.Fpair
+      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+      functors.CovariantFunctor._functor
+      functors.MixVariantFunctor.fmap
+      ] in TA
+ in let TA'' := eval simpl in TA'
+  in match type of witness with ?T => 
+       unify T TA''
+      + (fail "Type of witness does not match type required by funspec WITH clause.
+Witness value: " witness "
+Witness type: " T "
+Funspec type: " TA'')
+     end.
+
+Ltac prove_call_setup' ts witness :=
+ prove_call_setup1;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      check_witness_type' ts A witness
+ end;
+ let H := fresh in
+ intro H;
+ let Frame := fresh "Frame" in evar (Frame: list mpred);
+ exploit (call_setup2'_i _ _ _ _ _ _ _ _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ simpl functors.MixVariantFunctor._functor;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | 
+ ]].
+
+Lemma semax_call_aux55:
+ forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t vardesc) (a: expr)
+     Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost 
+    witness Frame bl Ppre Qpre Rpre Qactuals Qpre_temp Qpre_var vl
+ (PTREE : local2ptree Q = (Qtemp, Qvar, nil, nil))
+ (TC0 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta a)
+ (TC1 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+             |-- tc_exprlist Delta (argtypes argsig) bl)
+ (MSUBST : force_list (map (msubst_eval_expr Qtemp Qvar)
+              (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl)
+ (PTREE'' : pTree_from_elements (combine (var_names argsig) vl) = Qactuals)
+ (PRE1 : Pre ts witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
+ (PTREE' : local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil)) 
+ (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+            |-- !! Forall (check_one_temp_spec Qactuals)
+                     (PTree.elements Qpre_temp))
+ (CHECKVAR : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
+ (FRAME : fold_right_sepcon R
+           |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
+ (PPRE : fold_right_and True Ppre),
+ENTAIL Delta,
+(EX v : val,
+ lift0 (func_ptr (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) v) &&
+ local (` (eq v) (eval_expr a))) && PROPx P (LOCALx Q (SEPx R))
+|-- tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl &&
+    (` (Pre ts witness)
+       (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) *
+     ` (func_ptr' (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost))
+       (eval_expr a) * PROPx P (LOCALx Q (SEPx Frame))).
+Proof.
+intros.
+rewrite !exp_andp1. Intros v.
+repeat apply andp_right; auto.
+eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
+eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
+(*
+normalize.
+assert (H0 := @msubst_eval_expr_eq cs P Qtemp Qvar nil R a v).
+assert (H1 := local2ptree_soundness P Q R Qtemp Qvar nil nil PTREE).
+simpl app in H1. rewrite <- H1 in H0. apply H0 in EVAL. 
+clear H0 H1.
+*)
+rewrite PRE1.
+match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
+rewrite sepcon_comm.
+rewrite func_ptr'_func_ptr_lifted.
+apply ENTAIL_trans with
+ (`(func_ptr (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost)) (eval_expr a) &&
+      PROPx P (LOCALx Q (SEPx R))).
+apply andp_left2.
+apply andp_right; [  | apply andp_left2; auto].
+apply andp_left1.
+intro rho; unfold_lift; unfold local, lift0, lift1; simpl. normalize.
+apply andp_right.
+apply andp_left2; apply andp_left1; auto.
+eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl] |].
+ match goal with |- ?D && PROPx ?A ?B |-- ?C =>
+  apply derives_trans with (D && PROPx ((length (argtypes argsig) = length bl) :: A) B);
+    [ rewrite <- insert_prop | ]
+ end.
+ apply andp_right; [apply andp_left1; auto | ].
+ apply andp_right; [| apply andp_left2; auto].
+ eapply derives_trans; [apply TC1 | ].
+ clear. go_lowerx.
+ unfold tc_exprlist.
+ revert bl; induction (argtypes argsig); destruct bl;
+   simpl; try apply @FF_left.
+ apply prop_right; auto.
+ repeat rewrite denote_tc_assert_andp. apply andp_left2.
+ eapply derives_trans; [ apply IHl | ]. normalize.
+apply derives_extract_PROP; intro LEN.
+subst Qactuals. 
+clear - PTREE LEN PTREE' MSUBST CHECKVAR FRAME PPRE CHECKTEMP.
+ progress (autorewrite with norm1 norm2); normalize.
+ eapply derives_trans.
+ apply andp_right. apply andp_right. apply CHECKVAR. apply CHECKTEMP. apply derives_refl.
+ rewrite andp_assoc. apply derives_extract_prop; intro CVAR.
+ apply derives_extract_prop; intro CTEMP.
+ clear CHECKTEMP CHECKVAR.
+rewrite PROP_combine.
+rewrite (andp_comm (local (fold_right _ _ _))).
+apply andp_right.
++
+apply andp_right.
+apply andp_left2.
+apply andp_left1.
+rewrite fold_right_and_app_low.
+apply prop_derives; intros; split; auto.
+ clear - PPRE.
+ revert PPRE; induction Ppre; simpl; intuition.
+apply andp_left2.
+apply andp_left2.
+apply andp_derives.
+apply derives_refl.
+intro rho; unfold SEPx.
+ rewrite fold_right_sepcon_app.
+ assumption.
++
+ apply (local2ptree_soundness P _ R) in PTREE.
+ simpl app in PTREE.
+ apply msubst_eval_exprlist_eq with (P:=P)(R:=R)(Q:=nil) in MSUBST.
+ rewrite PTREE.
+ intro rho.
+ unfold local, lift1. unfold_lift. simpl.
+ apply andp_left2.
+ eapply derives_trans. apply andp_right. apply MSUBST. apply derives_refl.
+ clear MSUBST.
+ apply (local2ptree_soundness nil _ (TT::nil)) in PTREE'.
+ simpl app in PTREE'.
+ rewrite !isolate_LOCAL_lem1 in PTREE'.
+ unfold local at 1, lift1.
+ simpl.
+ apply derives_extract_prop; intro. unfold_lift in H. subst vl.
+ unfold PROPx, LOCALx, SEPx. simpl.
+apply andp_left2. apply andp_left1.
+ assert (LEN': length (var_names argsig) = length (eval_exprlist (argtypes argsig) bl rho)).
+ clear - LEN.
+  revert bl LEN; induction argsig as [ | [? ?]]; destruct bl;
+    simpl; intros; auto.
+ inv LEN.
+ forget (argtypes argsig) as tys.
+ cut (local (fold_right `and `True (map locald_denote (LocalD Qtemp Qvar nil))) rho |--
+            `(local (fold_right `and `True (map locald_denote Qpre)))
+               (fun rho => (make_args (var_names argsig) (eval_exprlist tys bl rho) rho)) rho).
+ intro. eapply derives_trans; [apply H  |].
+ unfold make_args'. simpl @fst. change (map fst argsig) with (var_names argsig).
+ clear.  unfold_lift. unfold local, lift1. apply prop_derives.
+ induction Qpre; simpl; auto.  intros [? ?]. split; auto.
+ rewrite PTREE'. clear PTREE' Qpre.
+ apply prop_derives; intro. forget (var_names argsig) as fl.
+ forget (eval_exprlist tys bl rho) as vl.
+ eapply check_specs_lemma; try eassumption.
+Qed.
+
+Lemma semax_call_id00_wow:
+ forall  
+  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
+   (Frame: list mpred)
+   (bl: list expr)
+   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+   (Qactuals Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc)
+   (vl : list val)
+   (SETUP: call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness Frame Ppre Qpre Rpre Qpre_temp Qpre_var)
+  Espec 
+             (Post2: environ -> mpred)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (Rpost: B -> list mpred)
+   (RETTY: retty = Tvoid)
+   (POST1: Post ts witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
+             (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+    (Scall None a bl)
+    (normal_ret_assert Post2).
+Proof.
+intros.
+destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
+                            [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
+apply SPEC. clear SPEC.
+eapply semax_pre_post; [ | |
+   apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost 
+              ts witness argsig retty cc a bl P Q Frame)].
+*
+eapply semax_call_aux55; eauto.
+*
+ subst.
+ clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
+ intros.
+ unfold normal_ret_assert. normalize.
+ simpl exit_tycon. rewrite POST1; clear POST1.
+ unfold ifvoid.
+ go_lowerx. normalize.
+ apply exp_right with x.
+ apply andp_right.
+ apply prop_right.
+ split; auto.
+ normalize.
+ rewrite fold_right_and_app_low.
+ rewrite prop_true_andp by (split; auto).
+ rewrite fold_right_sepcon_app. auto.
+*
+assumption.
+Qed.
+
+Lemma semax_call_id1_wow:
+ forall  
+  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
+   (Frame: list mpred)
+   (bl: list expr)
+   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+   (Qactuals Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc)
+   (vl : list val)
+   (SETUP: call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness Frame Ppre Qpre Rpre Qpre_temp Qpre_var)
+   ret (Post2: environ -> mpred)  (Qnew: list localdef)
+    (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
+   (TYret: typeof_temp Delta ret = Some retty)
+   (OKretty: check_retty retty)
+   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil)
+                              (SEPx (Rpost vret))))
+   (DELETE: remove_localdef_temp ret Q = Qnew)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
+             (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+    (Scall (Some ret) a bl)
+    (normal_ret_assert Post2).
+Proof.
+intros. 
+destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
+                            [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
+apply SPEC. clear SPEC.
+eapply semax_pre_post; [ | |
+   apply (@semax_call1 Espec cs Delta A Pre Post NEPre NEPost 
+              ts witness ret argsig retty cc a bl P Q Frame)];
+ [ | 
+ | assumption
+ | clear - OKretty; destruct retty; inv OKretty; apply I
+ | hnf; clear - TYret; unfold typeof_temp in TYret;
+      destruct ((temp_types Delta) ! ret) as [[? ?] | ]; inv TYret; auto
+ ].
+*
+eapply semax_call_aux55; eauto.
+*
+ subst.
+ clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
+ intros.
+ unfold normal_ret_assert. normalize.
+ simpl exit_tycon. rewrite POST1; clear POST1.
+ apply derives_trans with
+   (EX  vret : B,
+    `(PROPx (Ppost vret)
+     (LOCAL  (temp ret_temp (F vret))
+      (SEPx (Rpost vret))))%assert (get_result1 ret)
+     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
+ clear.
+ go_lowerx. normalize. apply exp_right with x; normalize.
+ apply exp_left; intro vret. apply exp_right with vret.
+ normalize.
+ progress (autorewrite with norm1 norm2); normalize.
+ rewrite PROP_combine.
+ unfold fold_right.
+ go_lowerx.
+ repeat apply andp_right; try apply prop_right; auto.
+ rewrite !fold_right_and_app_low.
+ rewrite !fold_right_and_app_low in H2. destruct H2; split; auto.
+Qed.
+
+Lemma semax_call_id1_x_wow:
+ forall  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
+   (Frame: list mpred)
+   (bl: list expr)
+   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+   (Qactuals Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc)
+   (vl : list val)
+   (SETUP: call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness Frame Ppre Qpre Rpre Qpre_temp Qpre_var)
+   retty  Espec ret ret'
+             (Post2: environ -> mpred)
+             (Qnew: list localdef)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (F: B -> val)
+             (Rpost: B -> list mpred)
+   (TYret: typeof_temp Delta ret = Some retty)
+   (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
+   (OKretty: check_retty retty)
+   (OKretty': check_retty retty')
+   (NEUTRAL: is_neutral_cast retty' retty = true)
+   (NEret: ret <> ret')
+   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil)
+                              (SEPx (Rpost vret))))
+   (DELETE: remove_localdef_temp ret Q = Qnew)
+   (DELETE' : remove_localdef_temp ret' Q = Q)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+                   (LOCALx (temp ret (F vret) :: Qnew)
+                    (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+   (Ssequence (Scall (Some ret') a bl)
+      (Sset ret (Ecast (Etempvar ret' retty') retty)))
+    (normal_ret_assert Post2).
+Proof.
+intros.
+eapply semax_seq'.
+eapply semax_call_id1_wow; try eassumption; auto.
+  unfold typeof_temp; rewrite RETinit; reflexivity.
+ simpl update_tycon.
+ apply extract_exists_pre; intro vret.
+*
+ eapply semax_pre_post;
+ [ | | apply semax_set_forward].
+ +
+ eapply derives_trans; [ | apply now_later ].
+ instantiate (1:= (PROPx (P ++ Ppost vret)
+  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
+ apply andp_right.
+ apply andp_right.
+ unfold tc_expr.
+ unfold typecheck_expr; simpl.
+ simpl denote_tc_assert.
+ rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+ simpl @fst.
+ replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
+   with true
+  by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    reflexivity).
+ simpl @snd. cbv iota.
+ go_lowerx. simpl.
+ apply neutral_isCastResultType; auto.
+ unfold tc_temp_id, typecheck_temp_id.
+ rewrite <- tycontext.initialized_ne by auto.
+ unfold typeof_temp in TYret.
+ destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+ go_lowerx.
+ repeat rewrite denote_tc_assert_andp.
+ rewrite denote_tc_assert_bool.
+ assert (is_neutral_cast (implicit_deref retty) retty = true)
+  by (destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; simpl; auto;
+        destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; inv NEUTRAL).
+ apply andp_right. apply prop_right; auto.
+ apply neutral_isCastResultType; auto.
+ go_lowerx. normalize. apply andp_right; auto. apply prop_right.
+ subst Qnew; clear - H3. rename H3 into H.
+ induction Q; simpl in *; auto.
+ destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+ hnf in H.
+ if_tac; simpl; auto.
++
+ intros. subst Post2.
+ unfold normal_ret_assert.
+ normalize. simpl exit_tycon.
+ apply exp_right with vret; normalize.
+ autorewrite with subst.
+ go_lowerx.
+ normalize. apply andp_right; auto.
+ apply prop_right; split; auto.
+ hnf. rewrite H0; unfold_lift.
+ assert (eqb_ident ret ret' = false)
+ by (clear - NEret; pose proof (eqb_ident_spec ret ret');
+       destruct (eqb_ident ret ret'); auto;
+      contradiction NEret; intuition).
+ rewrite H4 in *. apply Pos.eqb_neq in H4.
+  unfold_lift in H2.
+  rewrite eval_id_other in H2 by auto.
+ hnf in H2. rewrite H2.
+ assert (tc_val retty' (eval_id ret' rho)).
+ eapply tc_eval_id_i; try eassumption.
+ rewrite <- initialized_ne by auto.
+  rewrite temp_types_same_type'.
+ rewrite RETinit. auto.
+ assert (H7 := expr2.neutral_cast_lemma);
+   unfold eval_cast in H7. rewrite H7 by auto.
+ unfold eval_id, env_set, Map.get. auto.
+ subst Qnew; clear - H3. rename H3 into H.
+ induction Q; simpl in *; auto.
+ destruct a; try now (destruct H; simpl in *; split; auto).
+ if_tac; simpl in *; auto.
+ destruct H; split; auto.
+ hnf in H|-*; subst.
+ rewrite eval_id_other by auto.
+ auto.
+Qed.
+
+Lemma semax_call_id1_y_wow:
+ forall  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
+   (Frame: list mpred)
+   (bl: list expr)
+   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+   (Qactuals Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc)
+   (vl : list val)
+   (SETUP: call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness Frame Ppre Qpre Rpre Qpre_temp Qpre_var)
+    Espec ret ret' (retty: type) 
+             (Post2: environ -> mpred)
+             (Qnew: list localdef)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (F: B -> val)
+             (Rpost: B -> list mpred)
+   (TYret: typeof_temp Delta ret = Some retty)
+   (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
+   (OKretty: check_retty retty)
+   (OKretty': check_retty retty')
+   (NEUTRAL: is_neutral_cast retty' retty = true)
+   (NEret: ret <> ret')
+   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil)
+                              (SEPx (Rpost vret))))
+   (DELETE: remove_localdef_temp ret Q = Qnew)
+   (DELETE' : remove_localdef_temp ret' Q = Q)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+                   (LOCALx (temp ret (F vret) :: Qnew)
+                    (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+   (Ssequence (Scall (Some ret') a bl)
+      (Sset ret (Etempvar ret' retty')))
+    (normal_ret_assert Post2).
+Proof.
+intros.
+eapply semax_seq'.
+eapply semax_call_id1_wow; try eassumption; auto;
+  unfold typeof_temp; rewrite RETinit; reflexivity.
+ simpl update_tycon.
+ apply extract_exists_pre; intro vret.
+*
+ eapply semax_pre_post;
+ [ | | apply semax_set_forward].
+ +
+ eapply derives_trans; [ | apply now_later ].
+ instantiate (1:= (PROPx (P ++ Ppost vret)
+  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
+ apply andp_right.
+ apply andp_right.
+ unfold tc_expr.
+match goal with |- _ |-- ?A =>
+  set (aa:=A); unfold denote_tc_assert in aa; simpl in aa; subst aa
+end.
+ rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+ simpl @fst.
+ replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
+   with true
+  by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    reflexivity).
+ simpl @snd. cbv iota.
+ apply @TT_right.
+ unfold tc_temp_id, typecheck_temp_id.
+ rewrite <- tycontext.initialized_ne by auto.
+ unfold typeof_temp in TYret.
+ destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+ go_lowerx.
+ repeat rewrite denote_tc_assert_andp.
+ rewrite denote_tc_assert_bool.
+ assert (is_neutral_cast (implicit_deref retty') retty = true).
+ replace (implicit_deref retty') with retty'
+ by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
+ auto.
+ apply andp_right. apply prop_right; auto.
+ apply neutral_isCastResultType; auto.
+ go_lowerx. normalize. apply andp_right; auto. apply prop_right.
+ subst Qnew; clear - H3. rename H3 into H.
+ induction Q; simpl in *; auto.
+ destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+ hnf in H.
+ if_tac; simpl; auto.
++
+ intros. subst Post2.
+ unfold normal_ret_assert.
+ normalize. simpl exit_tycon.
+ apply exp_right with vret; normalize.
+ autorewrite with subst.
+ go_lowerx.
+ normalize. apply andp_right; auto.
+ apply prop_right; split; auto.
+ hnf. rewrite H0; unfold_lift.
+ assert (eqb_ident ret ret' = false)
+ by (clear - NEret; pose proof (eqb_ident_spec ret ret');
+       destruct (eqb_ident ret ret'); auto;
+      contradiction NEret; intuition).
+ rewrite H4 in *.  apply Pos.eqb_neq in H4.
+ unfold_lift in H2.
+ rewrite eval_id_other in H2 by auto.
+ hnf in H2. rewrite H2. auto.
+ subst Qnew; clear - H3. rename H3 into H.
+ induction Q; simpl in *; auto.
+ destruct a; try now (destruct H; simpl in *; split; auto).
+ if_tac; simpl in *; auto.
+ destruct H; split; auto.
+ hnf in H|-*; subst.
+ rewrite eval_id_other by auto.
+ auto.
+Qed.
+
+Lemma semax_call_id01_wow:
+ forall  
+  (cs: compspecs) Qtemp Qvar a Delta P Q R  
+   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
+   (Frame: list mpred)
+   (bl: list expr)
+   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
+   (Qactuals Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc)
+   (vl : list val)
+   (SETUP: call_setup2' cs Qtemp Qvar a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+      witness Frame Ppre Qpre Rpre Qpre_temp Qpre_var)
+   Espec
+             (Post2: environ -> mpred)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (F: B -> val)
+             (Rpost: B -> list mpred)
+   (_: check_retty retty)
+         (* this hypothesis is not needed for soundness, just for selectivity *)
+   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil)
+                              (SEPx (Rpost vret))))
+   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx Q
+             (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+    (Scall None a bl)
+    (normal_ret_assert Post2).
+Proof.
+intros.
+destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
+                            [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
+apply SPEC. clear SPEC.
+eapply semax_pre_post;
+   [ |
+   | apply semax_call0 with (A:= A) (ts := ts)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame)
+   ];
+   try eassumption.
+*
+eapply semax_call_aux55; eauto.
+*
+ subst.
+ clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
+ intros.
+ unfold normal_ret_assert. normalize.
+ simpl exit_tycon. rewrite POST1; clear POST1.
+ match goal with |- context [ifvoid retty ?A ?B] =>
+   replace (ifvoid retty A B) with B
+   by (destruct retty; try contradiction; auto)
+ end.
+ go_lowerx. normalize. apply exp_right with x0; normalize.
+ apply andp_right; auto.
+ apply prop_right.
+ rewrite fold_right_and_app_low. split; auto.
+ rename x0 into vret.
+ clear.
+ rewrite fold_right_sepcon_app. auto.
+Qed.
+
+Ltac  forward_call_id1_wow' := 
+let H := fresh in intro H;
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [check_result_type
+ |apply Logic.I
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id1_x_wow' :=
+let H := fresh in intro H;
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ check_result_type | check_result_type
+ | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | (clear; let H := fresh in intro H; inversion H)
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+
+Ltac forward_call_id1_y_wow' :=
+let H := fresh in intro H;
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ check_result_type | check_result_type
+ | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | (clear; let H := fresh in intro H; inversion H)
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id01_wow' :=
+let H := fresh in intro H;
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ apply Coq.Init.Logic.I 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id00_wow'  :=
+let H := fresh in intro H;
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ check_result_type 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0;
+    repeat rewrite exp_unfold;
+    first [reflexivity | extensionality; simpl; reflexivity | give_EX_warning]
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac fwd_call'_dep ts witness :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [prove_call_setup' ts witness;
+     clear_Delta_specs; clear_MORE_POST;
+     [ .. | 
+      lazymatch goal with
+      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+         forward_call_id1_wow'
+      | |- call_setup2' _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+                semax _ _ (Scall None _ _) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow'
+        else forward_call_id01_wow'
+     end]
+   | after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [prove_call_setup' ts witness;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_x_wow' ]
+         |  after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [prove_call_setup' ts witness;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_y_wow' ]
+         |  after_forward_call ]
+| |- _ => rewrite <- seq_assoc; fwd_call'_dep ts witness
+end.
+
+Ltac fwd_call_dep ts witness :=
+ try lazymatch goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end;
+lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+  lazymatch C with context [Scall _ _ _] =>
+         fwd_call'_dep ts witness
+    end
+end.
+
+Tactic Notation "forward_call_dep" constr(ts) constr(witness) := fwd_call_dep ts witness.

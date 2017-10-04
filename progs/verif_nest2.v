@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.nest2.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.nest2.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -11,24 +11,24 @@ Definition t_struct_b := Tstruct _b noattr.
 Definition get_spec :=
  DECLARE _get
   WITH v : reptype' t_struct_b, p : val
-  PRE  [] 
+  PRE  []
         PROP ()
         LOCAL(gvar _p p)
         SEP(data_at Ews t_struct_b (repinj _ v) p)
   POST [ tint ]
-         PROP() 
+         PROP()
          LOCAL (temp 1%positive (Vint (snd (snd v))))
          SEP (data_at Ews t_struct_b (repinj _ v) p).
 
 Definition get_spec' :=
  DECLARE _get
   WITH v : (int * (float * int))%type, p : val
-  PRE  [] 
+  PRE  []
         PROP ()
         LOCAL(gvar _p p)
         SEP(data_at Ews t_struct_b (repinj t_struct_b v) p)
   POST [ tint ]
-         PROP() 
+         PROP()
          LOCAL (temp 1%positive (Vint (snd (snd v))))
          SEP (data_at Ews t_struct_b (repinj t_struct_b v) p).
 
@@ -38,9 +38,9 @@ Definition update22 (i: int) (v: reptype' t_struct_b) : reptype' t_struct_b :=
 Definition set_spec :=
  DECLARE _set
   WITH i : int, v : reptype' t_struct_b, p : val
-  PRE  [ _i OF tint ] 
+  PRE  [ _i OF tint ]
          PROP  ()
-         LOCAL (gvar _p p; 
+         LOCAL (gvar _p p;
                 temp _i (Vint i))
          SEP   (data_at Ews t_struct_b (repinj _ v) p)
   POST [ tvoid ]

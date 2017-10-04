@@ -4,11 +4,11 @@ msl/ageable.v (or this file to msl/) eventually, but we keep it here
 for now to reduce compilation time. *)
 
 Require Import Coq.omega.Omega.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
-Require Import msl.sepalg.
-Require Import msl.age_sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.sepalg_generators.
 
 (* Apply [age1] n times (meaningful when [n <= level x] *)
 
@@ -88,7 +88,7 @@ Proof.
   simpl. unfold age1'. rewrite Y. reflexivity.
 Qed.
 
-Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> P x -> P y) ->
   forall x n, P x -> P (age_by n x).
 Proof.
@@ -101,7 +101,7 @@ Proof.
     eapply IH; eauto.
 Qed.
 
-Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> P x -> P y) ->
   forall x n, P x -> P (age_to n x).
 Proof.
@@ -109,7 +109,7 @@ Proof.
   apply age_by_ind, IH.
 Qed.
 
-Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> n <= level y -> P x -> P y) ->
   forall x, P x -> P (age_to n x).
 Proof.
