@@ -156,8 +156,8 @@ name p _p.
 name ipm _intpair_message.
 start_function.  fold cc_default noattr.
 (* TODO:   "name" tactic doesn't work for function-pointer gvars? *)
-rename gvar1 into des.
-rename gvar0 into ser.
+rename v_intpair_deserialize into des.
+rename v_intpair_serialize into ser.
 make_func_ptr _intpair_deserialize.
 make_func_ptr _intpair_serialize.
 gather_SEP 5 6 7.

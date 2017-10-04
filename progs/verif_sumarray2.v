@@ -83,7 +83,6 @@ forward.  (* return s; *)
     entails the postcondition demanded by the function specification. *)
 entailer!.
 autorewrite with sublist in *.
-autorewrite with sublist.
 reflexivity.
 Qed.
 
