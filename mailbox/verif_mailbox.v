@@ -875,9 +875,9 @@ Proof.
   start_function.
   rewrite <- seq_assoc.
   forward_for_simple_bound B (EX i : Z, PROP ( )
-   LOCAL (lvar _available (tarray tint B) lvar0; gvar _writing writing; gvar _last_given last_given;
+   LOCAL (lvar _available (tarray tint B) v_available; gvar _writing writing; gvar _last_given last_given;
    gvar _last_taken last_taken)
-   SEP (data_at Tsh (tarray tint B) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (B - i))) lvar0;
+   SEP (data_at Tsh (tarray tint B) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (B - i))) v_available;
         data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
         data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
   { unfold B, N; computable. }
@@ -897,10 +897,10 @@ Proof.
     unfold unfold_reptype in *; simpl in *.
     rewrite Zlength_map in *; apply prop_right; auto. }
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (temp _i (vint B); lvar _available (tarray tint B) lvar0;
+   LOCAL (temp _i (vint B); lvar _available (tarray tint B) v_available;
    gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
    SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
-     else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) lvar0;
+     else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
    data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
    data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
   { unfold N; computable. }
@@ -920,10 +920,10 @@ Proof.
   { assert (0 <= i < Zlength lasts) by omega.
     forward.
     forward_if (PROP ( )
-      LOCAL (temp _last (vint (Znth i lasts 0)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) lvar0; 
+      LOCAL (temp _last (vint (Znth i lasts 0)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) v_available; 
              gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
       SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
-             else if in_dec eq_dec x (sublist 0 (i + 1) lasts) then 0 else 1)) (upto (Z.to_nat B))) lvar0;
+             else if in_dec eq_dec x (sublist 0 (i + 1) lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
            data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
            data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     - assert (0 <= Znth i lasts 0 < B) by (apply Forall_Znth; auto).
@@ -971,9 +971,9 @@ Proof.
   forward.
   eapply semax_seq, semax_ff.
   eapply semax_pre with (P' := EX i : Z, PROP (0 <= i <= B; forall j, j < i -> Znth j available (vint 0) = vint 0)
-    LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) lvar0; gvar _writing writing;
+    LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvar _writing writing;
            gvar _last_given last_given; gvar _last_taken last_taken)
-    SEP (field_at Tsh (tarray tint 5) [] available lvar0; data_at_ Ews tint writing;
+    SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint writing;
          data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken)).
   { Exists 0; entailer!.
     intros; apply Znth_underflow; auto. }
@@ -982,9 +982,9 @@ Proof.
     assert (repable_signed i).
     { split; [transitivity 0 | transitivity B]; unfold B, N in *; try computable; try omega. }
     forward_if (PROP (i < B)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) lvar0; gvar _writing writing;
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint 5) [] available lvar0; data_at_ Ews tint writing;
+      SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint writing;
            data_at Ews tint (vint b0) last_given;
            data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     { forward.
@@ -1007,9 +1007,9 @@ Proof.
       rewrite Forall_forall; intros ? Hin.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
     forward_if (PROP (Znth i available (vint 0) = vint 0)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) lvar0; gvar _writing writing;
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint B) [] available lvar0; data_at_ Ews tint writing;
+      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint writing;
            data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     { forward.
       forward.
@@ -1033,9 +1033,9 @@ Proof.
     Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available (vint 0) = vint 0;
       forall j : Z, j < i -> Znth j available (vint 0) = vint 0)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) lvar0; gvar _writing writing;
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint B) [] available lvar0; data_at_ Ews tint writing;
+      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint writing;
            data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
     Exists i; entailer!.
   + Intros i.
