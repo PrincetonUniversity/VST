@@ -77,5 +77,5 @@ jobs:
     - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; travis_wait 30 make -j ${NJOBS} IGNORECOQVERSION=true atomics
+    - cd build; travis_wait 50 make -j ${NJOBS} IGNORECOQVERSION=true atomics
     - echo -en 'travis_fold:end:atomics.build\\r'
