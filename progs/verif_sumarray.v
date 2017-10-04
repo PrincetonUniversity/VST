@@ -111,10 +111,9 @@ Definition four_contents := [1; 2; 3; 4].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name four _four.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
-  (four,Ews,four_contents,4).
+  (v_four,Ews,four_contents,4).
  split3; auto.
    computable.
    repeat constructor; computable.

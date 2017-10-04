@@ -265,6 +265,5 @@ Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
 apply initbodyproof.
 Qed.

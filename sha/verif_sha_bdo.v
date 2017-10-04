@@ -12,7 +12,7 @@ Local Open Scope logic.
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
 start_function.
-rename lvar0 into Xv.
+rename v_X into Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat)
   by (subst regs; apply length_hash_blocks; auto).

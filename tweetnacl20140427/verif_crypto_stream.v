@@ -75,8 +75,7 @@ Lemma crypto_stream_xsalsa20_tweet_xor_ok:
       f_crypto_stream_xsalsa20_tweet_xor_spec.
 Proof.
 start_function.
-abbreviate_semax.
-rename lvar0 into s. rename H into mLen. unfold data_at_, field_at_. simpl.
+rename v_s into s. rename H into mLen. unfold data_at_, field_at_. simpl.
 unfold Sigma_vector.
 forward_call (SV, k, nonce, s,
         default_val (tarray tuchar 32),
