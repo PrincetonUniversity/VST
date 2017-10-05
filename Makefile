@@ -58,7 +58,7 @@ DEPFLAGS:=$(COQFLAGS)
 COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
-COQDOC=$(COQBIN)coqdoc
+COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -463,7 +463,13 @@ $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
 cvfiles: $(CVFILES)
 
+dochtml:
+	mkdir -p doc/html
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
+dochtml-full:
+	mkdir -p doc/html
+	$(COQDOC) $(FILES)
 
 clean_cvfiles:
 	rm $(CVFILES)
@@ -549,7 +555,7 @@ depend-paco:
 
 clean:
 	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo)
-
+	rm -fr doc/html
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
