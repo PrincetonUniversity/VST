@@ -10,12 +10,12 @@ Require Import VST.veric.expr_lemmas.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t < Int.modulus
   | _ => True
   end.
 
 Lemma nonlock_permission_bytes_valid_pointer: forall sh b ofs n i,
-  0 <= ofs /\ ofs + n <= Int.modulus ->
+  0 <= ofs /\ ofs + n < Int.modulus ->
   0 <= i < n ->
   nonidentity sh ->
   nonlock_permission_bytes sh (b, ofs) n |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
@@ -38,7 +38,7 @@ Proof.
 Qed.
 
 Lemma VALspec_range_valid_pointer: forall sh b ofs n i,
-  0 <= ofs /\ ofs + n <= Int.modulus ->
+  0 <= ofs /\ ofs + n < Int.modulus ->
   0 <= i < n ->
   VALspec_range n sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
 Proof.
@@ -60,7 +60,7 @@ Proof.
 Qed.
 
 Lemma address_mapsto_valid_pointer: forall ch v sh b ofs i,
-  0 <= ofs /\ ofs + size_chunk ch <= Int.modulus ->
+  0 <= ofs /\ ofs + size_chunk ch < Int.modulus ->
   0 <= i < size_chunk ch ->
   address_mapsto ch v sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
 Proof.

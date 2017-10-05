@@ -958,7 +958,9 @@ end.
  2: rewrite Int.unsigned_zero; omega.
  Focus 2.
  rewrite Int.unsigned_zero. rewrite Zplus_0_r.
- rewrite Coqlib.nat_of_Z_eq; auto.
+ rewrite Coqlib.nat_of_Z_eq.
+ change (Int.unsigned Int.zero) with 0 in H99.
+ omega.
  pose proof (sizeof_pos ty); omega.
  rewrite Z.sub_0_r.
  unfold memory_block'_alt.
@@ -1159,7 +1161,7 @@ Proof.
   rewrite memory_block'_eq in H3;
   try rewrite Int.unsigned_zero; try omega.
   Focus 2. {
-   rewrite Z.add_0_r; rewrite Z2Nat.id by omega; auto.
+   rewrite Z.add_0_r; rewrite Z2Nat.id by omega. change (Int.unsigned Int.zero) with 0 in H99; omega.
   } Unfocus.
   unfold memory_block'_alt in H3.
   rewrite Int.unsigned_zero in H3.
@@ -1996,7 +1998,7 @@ Lemma juicy_mem_alloc_block:
  forall jm n jm2 b F,
    juicy_mem_alloc jm 0 n = (jm2, b) ->
    app_pred F (m_phi jm)  ->
-   0 <= n <= Int.modulus ->
+   0 <= n < Int.modulus ->
    app_pred (F * memory_block Share.top n (Vptr b Int.zero)) (m_phi jm2).
 Proof.
 intros. rename H1 into Hn.

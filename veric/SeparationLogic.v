@@ -401,7 +401,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Int.unsigned ofs + n <= Int.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Int.unsigned ofs + n < Int.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
 
@@ -418,8 +418,7 @@ Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
   0 <= n ->
   0 <= m ->
-  n + m < Int.modulus ->
-  n + m <= n + m + ofs <= Int.modulus ->
+  n + m <= n + m + ofs < Int.modulus ->
   memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
   memory_block sh n (Vptr b (Int.repr ofs)) *
   memory_block sh m (Vptr b (Int.repr (ofs + n))).
@@ -470,7 +469,7 @@ Definition align_compatible {C: compspecs} t p :=
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t < Int.modulus
   | _ => True
   end.
 
@@ -489,7 +488,7 @@ Proof. exact @memory_block_valid_pointer. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
   0 <= n < Int.modulus ->
-  Int.unsigned ofs+n <= Int.modulus ->
+  Int.unsigned ofs+n < Int.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).
