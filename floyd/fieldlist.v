@@ -101,18 +101,78 @@ Ltac solve_field_offset_type i m :=
   destruct (Ctypes.field_offset cenv_cs i m) as [ofs|?] eqn:Hofs, (Ctypes.field_type i m) as [t|?] eqn:Hty;
     [clear H | inversion H | inversion H | clear H].
 
-Lemma complete_type_field_type: forall id i,
+Lemma complete_legal_cosu_member: forall (cenv : composite_env) (id : ident) (t : type) (m : list (ident * type)),
+  In (id, t) m -> @composite_complete_legal_cosu_type cenv m = true -> @complete_legal_cosu_type cenv t = true.
+Proof.
+  intros.
+  induction m as [| [i0 t0] ?].
+  + inv H.
+  + destruct H.
+    - inv H.
+      simpl in H0.
+      rewrite andb_true_iff in H0; tauto.
+    - apply IHm; auto.
+      simpl in H0.
+      rewrite andb_true_iff in H0; tauto.
+Qed.         
+
+Lemma complete_legal_cosu_type_field_type: forall id i,
   in_members i (co_members (get_co id)) ->
-  complete_type cenv_cs (field_type i (co_members (get_co id))) = true.
+  complete_legal_cosu_type (field_type i (co_members (get_co id))) = true.
 Proof.
   unfold get_co.
   intros.
   destruct (cenv_cs ! id) as [co |] eqn:CO.
   + apply in_members_field_type in H.
-    eapply complete_member; eauto.
-    apply co_consistent_complete.
-    exact (cenv_consistent id co CO).
+    pose proof cenv_legal_su _ _ CO.
+    eapply complete_legal_cosu_member; eauto.
   + inversion H.
+Qed.
+
+Lemma align_compatible_rec_Tstruct_inv': forall id a ofs,
+  align_compatible_rec cenv_cs (Tstruct id a) ofs ->
+  forall i,
+  in_members i (co_members (get_co id)) ->
+  align_compatible_rec cenv_cs (field_type i (co_members (get_co id)))
+    (ofs + field_offset cenv_cs i (co_members (get_co id))).
+Proof.
+  unfold get_co.
+  intros.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + eapply align_compatible_rec_Tstruct_inv with (i0 := i); try eassumption.
+    - unfold field_type.
+      induction (co_members co) as [| [i0 t0] ?].
+      * inv H0.
+      * simpl; if_tac; auto.
+        apply IHm.
+        destruct H0; [simpl in H0; congruence | auto].
+    - unfold field_offset, Ctypes.field_offset.
+      generalize 0 at 1 2.
+      induction (co_members co) as [| [i0 t0] ?]; intros.
+      * inv H0.
+      * simpl; if_tac; auto.
+        apply IHm.
+        destruct H0; [simpl in H0; congruence | auto].
+  + inv H0.
+Qed.
+
+Lemma align_compatible_rec_Tunion_inv': forall id a ofs,
+  align_compatible_rec cenv_cs (Tunion id a) ofs ->
+  forall i,
+  in_members i (co_members (get_co id)) ->
+  align_compatible_rec cenv_cs (field_type i (co_members (get_co id))) ofs.
+Proof.
+  unfold get_co.
+  intros.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + eapply align_compatible_rec_Tunion_inv with (i0 := i); try eassumption.
+    unfold field_type.
+    induction (co_members co) as [| [i0 t0] ?].
+    - inv H0.
+    - simpl; if_tac; auto.
+      apply IHm.
+      destruct H0; [simpl in H0; congruence | auto].
+  + inv H0.
 Qed.
 
 Lemma field_offset_aligned: forall i m,
