@@ -418,7 +418,7 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs hmacdrbg mailbox atomics
+travis: progs hmacdrbg mailbox
 
 all: .loadpath version.vo $(FILES:.v=.vo)
 
