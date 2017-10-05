@@ -11,14 +11,47 @@ Parameter invariant : mpred -> mpred.
 
 Axiom invariant_precise : forall P, precise (invariant P).
 
+Definition timeless P := |>P |-- P || |>FF.
+
+Definition timeless' (P : mpred) := forall (a a' : rmap), predicates_hered.app_pred P a' -> age a a' ->
+  predicates_hered.app_pred P a.
+
+Lemma timeless'_timeless : forall P, timeless' P -> timeless P.
+Proof.
+  unfold timeless; intros.
+  change (_ |-- _) with (predicates_hered.derives (|>P) (P || |>FF)); intros ? HP.
+  destruct (level a) eqn: Ha.
+  - right; intros ? ?%laterR_level; omega.
+  - left.
+    destruct (levelS_age a n) as [b [Hb]]; auto.
+    specialize (HP _ (semax_lemmas.age_laterR Hb)).
+    eapply H; eauto.
+Qed.
+
+Lemma address_mapsto_timeless : forall m v sh p, timeless (res_predicates.address_mapsto m v sh p).
+Proof.
+  intros; apply timeless'_timeless.
+  repeat intro.
+  simpl in *.
+  destruct H as (b & ? & HYES); exists b; split; auto.
+  intro b'; specialize (HYES b').
+  if_tac.
+  - destruct HYES as (rsh & Ha'); exists rsh.
+    erewrite age_to_resource_at.age_resource_at in Ha' by eauto.
+    destruct (a @ b'); try discriminate; inv Ha'.
+    destruct p0; inv H5; simpl.
+    f_equal.
+    apply proof_irr.
+  - rewrite age1_resource_at_identity; eauto.
+Qed.
+(* Iris has a definition of semax such that timeless P -> view_shift |>P P is sound. *)
+
 (* In Iris, invariants are named and impredicative, and so the rules are full of laters. If we forgo
    impredicative invariants, we can drop the laters. The contents of an invariant can still be impredicative
    using HORec or the like. *)
 (* This is not entirely sound, because we can duplicate an invariant and then open it, giving us something of
    the form [P] * P. We can avoid using names only if, whenever we open invariants, we open them all in one
-   step, so that we can't open the same one twice. Names might be the easiest way to get around this, but
-   we'd also need to deal with the difference in laters (in Iris, points-to is timeless, while data_at is
-   certainly not independent of step-index in VST). *)
+   step, so that we can't open the same one twice. Names might be the easiest way to get around this. *)
 
 Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (Q * R) ->
   view_shift (P * invariant R) (Q * invariant R).
@@ -46,7 +79,7 @@ Context {CS : compspecs}.
 (* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
 Parameter objective : mpred -> Prop.
 Axiom emp_objective : objective emp.
-Axiom data_at_objective : forall sh t v p, readable_share sh -> objective (data_at sh t v p).
+Axiom data_at_objective : forall sh t v p, objective (data_at sh t v p).
 Axiom ghost_objective : forall {A} {P : PCM A} (g : A) p, objective (ghost g p).
 Axiom prop_objective : forall P, objective (!!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
@@ -147,13 +180,6 @@ Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstTyp
   (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
   (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
 
-(* For this to work with load_acquire, Q needs to be somehow future-proof: it should be okay even if v wasn't
-   actually the latest value of tgt. Only getting knowledge isn't enough: P' v must be something that still
-   holds even if the actual value at p has been changed from v. *)
-(* GPS's protocols are equivalent to saying that P' can only place one-sided bounds on the values of atomic
-   memory locations, rather than giving ownership of them or precisely constraining them. GPS does part of this
-   by insisting that Q = P * Q', where Q' is persistent. The rest follows from the fact that atomic locations
-   can *only* be the subject of protocol assertions. *)
 Program Definition load_SC_spec := TYPE AL_type
   WITH p : val, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred, Q : Z -> mpred
   PRE [ 1%positive OF tptr tint ]
@@ -322,9 +348,70 @@ Proof.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
+Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
+  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
+  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
+
+Program Definition AEX_SC_spec := TYPE AEX_type
+  WITH p : val, v : Z, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred,
+       Q : Z -> mpred
+  PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
+   PROP (repable_signed v;
+         view_shift (fold_right sepcon emp (map II lI) * P)
+           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
+              data_at sh tint (vint v0) p * P' sh v0);
+         forall sh v0, view_shift (!!(writable_share sh /\ repable_signed v0) &&
+           data_at sh tint (vint v) p * P' sh v0)
+           (fold_right sepcon emp (map II lI) * Q v0))
+   LOCAL (temp 1%positive p; temp 2%positive (vint v))
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
+  POST [ tint ]
+   EX v' : Z,
+   PROP (repable_signed v')
+   LOCAL (temp ret_temp (vint v'))
+   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v').
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
+    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
+  - apply f_equal; f_equal; [|f_equal].
+    + rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
+        erewrite !map_map, map_ext; eauto.
+        intro; simpl; rewrite approx_idem; auto.
+      * rewrite !approx_exp; apply f_equal; extensionality sh.
+        rewrite !approx_exp; apply f_equal; extensionality v0.
+        rewrite !approx_sepcon, approx_idem; auto.
+    + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
+      rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
+      rewrite view_shift_super_non_expansive.
+      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
+      * rewrite !approx_sepcon, approx_idem; auto.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
+        erewrite !map_map, map_ext; eauto.
+        intro; simpl; rewrite approx_idem; auto.
+  - rewrite !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
+    intros; simpl; rewrite invariant_super_non_expansive; auto.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
+Qed.
+
 Section atomicity.
 
-(* The logical atomicity of Iris, with TaDa's private part. *)
+(* The logical atomicity of Iris, with TaDA's private part. *)
 Definition view_shift_iff P Q := view_shift P Q /\ view_shift Q P.
 
 Definition atomic_shift {A B} P (a R : A -> mpred) E (b Q : A -> B -> mpred) :=
@@ -450,6 +537,22 @@ End atomicity.
 
 End atomics.
 
+Ltac prove_objective := repeat
+  match goal with
+  | |-objective(if _ then _ else _) => if_tac
+  | |-objective(exp _) => apply exp_objective; intro
+  | |-objective(ghost_ref _ _) => apply exp_objective; intro
+  | |-objective(_ * _) => apply sepcon_objective
+  | |-objective(_ && _) => apply andp_objective
+  | |-objective(!!_) => apply prop_objective
+  | |-objective(ghost _ _) => apply ghost_objective
+  | |-objective(data_at _ _ _ _) => apply data_at_objective
+  | |-objective(data_at_ _ _ _) => rewrite data_at__eq; apply data_at_objective
+  | |-objective(fold_right sepcon emp _) => apply sepcon_list_objective;
+        rewrite ?Forall_map, Forall_forall; intros; simpl
+  | _ => try apply ghost_objective
+  end.
+
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
@@ -510,3 +613,39 @@ Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_du
 
 Hint Resolve emp_objective data_at_objective ghost_objective prop_objective andp_objective exp_objective
   sepcon_objective sepcon_list_objective : objective.
+
+(* a simpler approach to witnesses for builtin atomics *)
+Lemma wand_view_shifts : forall {T} {CS : compspecs} A P B B' Q,
+  view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) ->
+  view_shift (A * P) (EX x : T, B x * (B' x -* A * Q)) /\
+  forall x, view_shift (B' x * (B' x -* A * Q)) (A * Q).
+Proof.
+  intros; split; auto.
+  intro; apply derives_view_shift, modus_ponens_wand.
+Qed.
+
+Notation store_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
+  fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q, Q).
+
+Lemma wand_view_shifts2 : forall {T1 T2} {CS : compspecs} A P B B' Q,
+  view_shift (A * P) (EX x1 : T1, EX x2 : T2, B x1 x2 * (B' x1 x2 -* A * Q x2)) ->
+  view_shift (A * P) (EX x1 : T1, EX x2 : T2, B x1 x2 * (B' x1 x2 -* A * Q x2)) /\
+  forall x1 x2, view_shift (B' x1 x2 * (B' x1 x2 -* A * Q x2)) (A * Q x2).
+Proof.
+  intros; split; auto.
+  intros; apply derives_view_shift, modus_ponens_wand.
+Qed.
+
+Notation AEX_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
+  fun sh v0 => !!(writable_share sh /\ repable_signed v0) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q v0, Q).
+
+Notation load_SC_witness p P II lI Q := (p, P, II%function, lI%gfield,
+  fun sh v => !!(readable_share sh /\ repable_signed v) && data_at sh tint (vint v) p -*
+  fold_right sepcon emp (map II lI) * Q v, Q).
+
+Notation CAS_SC_witness p c v P II lI Q := (p, c, v%Z, P, II%function, lI%gfield,
+  fun sh v0 => !!(writable_share sh /\ repable_signed v0) &&
+    data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -*
+  fold_right sepcon emp (map II lI) * Q v0, Q).
