@@ -467,7 +467,6 @@ Qed.
 Definition field_compatible t gfs p :=
   isptr p /\
   complete_legal_cosu_type t = true /\
-  sizeof t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field t gfs.
@@ -475,7 +474,6 @@ Definition field_compatible t gfs p :=
 Definition field_compatible0 t gfs p :=
   isptr p /\
   complete_legal_cosu_type t = true /\
-  sizeof t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field0 t gfs.
@@ -488,9 +486,8 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct complete_legal_cosu_type; [left | right]; congruence.
-  + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zlt (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
   + apply align_compatible_dec.
   + apply legal_nested_field_dec.
 Qed.
@@ -503,9 +500,8 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct complete_legal_cosu_type; [left | right]; congruence.
-  + destruct (zlt (sizeof t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zlt (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
   + apply align_compatible_dec.
   + apply legal_nested_field0_dec.
 Qed.
@@ -652,10 +648,10 @@ Lemma field_compatible0_range:
    field_compatible0 t (ArraySubsc i :: gfs) p.
 Proof.
   intros.
-  destruct H0 as [? [? [? [? [? [? ?]]]]]].
-  destruct H1 as [? [? [? [? [? [? ?]]]]]].
+  destruct H0 as [? [? [? [? [? ?]]]]].
+  destruct H1 as [? [? [? [? [? ?]]]]].
   repeat split; auto.
-  hnf in H7, H13|-*.
+  hnf in H6, H11|-*.
   destruct (nested_field_type t gfs); auto.
   omega.
 Qed.
@@ -1209,7 +1205,7 @@ Proof.
     rewrite nested_field_type_nested_field_type.
     omega.
 Qed.
-
+(*
 Lemma size_1_compatible: forall t, sizeof t = 1 -> forall p, size_compatible t p.
 Proof.
   intros.
@@ -1218,7 +1214,7 @@ Proof.
   destruct (Int.unsigned_range i).
   omega.
 Qed.
-
+*)
 Lemma size_0_compatible: forall t, sizeof t = 0 -> forall p, size_compatible t p.
 Proof.
   intros.
@@ -1354,10 +1350,6 @@ Proof.
   repeat split.
   + rewrite isptr_offset_val; tauto.
   + apply nested_field_type_complete_legal_cosu_type; auto; tauto.
-  + pose proof nested_field_offset_in_range t gfs.
-    spec H0; [tauto |].
-    spec H0; [tauto |].
-    omega.
   + apply size_compatible_nested_field; tauto.
   + apply align_compatible_nested_field; tauto.
 Qed.
@@ -1373,11 +1365,6 @@ Proof.
   repeat split.
   + rewrite isptr_offset_val; tauto.
   + apply nested_field_array_type_complete_legal_cosu_type; try tauto.
-  + pose proof nested_field_array_offset_in_range t gfs lo hi.
-    spec H2; [tauto |].
-    spec H2; [tauto |].
-    spec H2; [tauto |].
-    omega.
   + apply size_compatible_nested_field_array; tauto.
   + apply align_compatible_nested_field_array; tauto.
 Qed.
@@ -1531,7 +1518,7 @@ Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_neste
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
   locald_denote (lvar id t v) rho ->
-  sizeof t <= Int.modulus ->
+  sizeof t < Int.modulus ->
   size_compatible t v.
 Proof.
 intros. hnf in H.
@@ -1555,10 +1542,9 @@ Proof.
   destruct (Map.get (ve_of rho) id); try contradiction.
   destruct p. destruct H. subst v t0.
   repeat split; auto.
-  + apply H3; omega.
-  + hnf.
-    apply la_env_cs_sound.
-    auto.
+  hnf.
+  apply la_env_cs_sound.
+  auto.
 Qed.
 
 Lemma gvar_field_compatible:
@@ -1574,10 +1560,9 @@ Proof.
   destruct (ge_of rho i); try contradiction.
   subst s.
   repeat split; auto.
-  + red. rewrite Int.unsigned_zero, Z.add_0_l; omega.
-  + hnf.
-    apply la_env_cs_sound.
-    auto.
+  hnf.
+  apply la_env_cs_sound.
+  auto.
 Qed.
 
 Lemma compute_in_members_e:

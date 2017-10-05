@@ -1209,9 +1209,8 @@ Section MEMORY_BLOCK_AGGREGATE.
 Context {cs: compspecs}.
 
 Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
-  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi <= Int.modulus ->
+  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Int.modulus ->
   0 <= lo <= hi ->
-  sizeof t * (hi - lo) < Int.modulus ->
   Zlength v = hi - lo ->
   array_pred d lo hi
     (fun i _ p => memory_block sh (sizeof t) (offset_val (sizeof t * i) p)) v
@@ -1220,19 +1219,19 @@ Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
 Proof.
   intros.
   unfold array_pred.
-  rewrite prop_true_andp by auto; clear H2.
+  rewrite prop_true_andp by auto; clear H1.
   f_equal.
   remember (Z.to_nat (hi - lo)) as n eqn:HH.
-  revert lo HH H H0 H1 v; induction n; intros.
+  revert lo HH H H0 v; induction n; intros.
   + simpl.
     pose proof arith_aux00 _ _ (proj2 H0) HH.
-    rewrite H2, Z.mul_0_r, memory_block_zero_Vptr.
+    rewrite H1, Z.mul_0_r, memory_block_zero_Vptr.
     reflexivity.
   + simpl.
     pose proof arith_aux01 _ _ _ HH.
     solve_mod_modulus.
     pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
-    rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega | exact v].
+    rewrite IHn; [| apply arith_aux02; auto | omega | omega | exact v].
     replace (ofs + sizeof  t * Z.succ lo) with (ofs + sizeof t * lo + sizeof t) by omega.
     rewrite <- memory_block_split by (auto; omega).
     f_equal.
@@ -1241,8 +1240,7 @@ Qed.
 
 Lemma memory_block_array_pred': forall {A} (d:A)  sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
-  sizeof t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z < Int.modulus ->
   array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof t) (offset_val (sizeof t * i) p))
@@ -1262,7 +1260,7 @@ Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   (m = nil -> sz = 0) ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Int.modulus ->
-  0 <= ofs /\ ofs + sz <= Int.modulus ->
+  0 <= ofs /\ ofs + sz < Int.modulus ->
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
@@ -1779,8 +1777,7 @@ Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 Definition memory_block_array_pred:
   forall {cs: compspecs} (A : Type) (d : A) sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
-  sizeof t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z < Int.modulus ->
   array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof t)
@@ -1794,7 +1791,7 @@ Definition memory_block_struct_pred:
   (m = nil -> sz = 0) ->
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Int.modulus ->
-  0 <= ofs /\ ofs + sz <= Int.modulus ->
+  0 <= ofs /\ ofs + sz < Int.modulus ->
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))

@@ -115,7 +115,7 @@ match p with
 | Vlong _ => True
 | Vfloat _ => True
 | Vsingle _ => True
-| Vptr _ i_ofs => Int.unsigned i_ofs + n <= Int.modulus
+| Vptr _ i_ofs => Int.unsigned i_ofs + n < Int.modulus
 end.
 
 Lemma memory_block_local_facts: forall sh n p, 
@@ -684,7 +684,7 @@ Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
   0 <= lo ->
   0 <= ofs ->
   lo <= hi < Int.modulus ->
-  Int.unsigned i + ofs + hi <= Int.modulus ->
+  Int.unsigned i + ofs + hi < Int.modulus ->
   spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val ofs (Vptr b i)) = memory_block sh hi (offset_val ofs (Vptr b i)).
 Proof.
   intros.

@@ -273,7 +273,7 @@ Proof.
   split.
   + eapply classify_add_add_case_pi; eauto.
   + eapply isBinOpResultType_add_ptr; eauto.
-    destruct H3 as [_ [? [_ [_ [_ ?]]]]].
+    destruct H3 as [_ [? [_ [_ ?]]]].
     eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
     rewrite H2 in H3.
     exact H3.
