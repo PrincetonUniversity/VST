@@ -313,7 +313,7 @@ Definition composite_env_legal_fieldlist env :=
 Section cuof.
 
 Context (cenv: composite_env).
-  
+
 Fixpoint complete_legal_cosu_type t :=
   match t with
   | Tarray t' _ _ => complete_legal_cosu_type t'
@@ -331,6 +331,8 @@ Fixpoint complete_legal_cosu_type t :=
                                 end
                    | _ => false
                    end
+  | Tfunction _ _ _
+  | Tvoid => false
   | _ => true
   end.
 
@@ -345,6 +347,19 @@ Definition composite_env_complete_legal_cosu_type: Prop :=
     cenv ! id = Some co -> composite_complete_legal_cosu_type (co_members co) = true.
   
 End cuof.
+
+Lemma complete_legal_cosu_type_complete_type: forall cenv: composite_env,
+  forall t,
+    complete_legal_cosu_type cenv t = true ->
+    complete_type cenv t = true.
+Proof.
+  intros.
+  induction t; auto.
+  + simpl in *.
+    destruct (cenv ! i); auto.
+  + simpl in *.
+    destruct (cenv ! i); auto.
+Qed.
 
 Class compspecs := mkcompspecs {
   cenv_cs : composite_env;
@@ -368,6 +383,9 @@ Arguments alignof {env} !t / .
 
 Arguments sizeof_pos {env} t _.
 Arguments alignof_pos {env} t.
+
+Arguments complete_legal_cosu_type {cenv} !t / .
+
 (* TODO: handle other part of compspecs like this. *)
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.

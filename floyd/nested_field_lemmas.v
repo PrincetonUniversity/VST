@@ -466,7 +466,7 @@ Qed.
 
 Definition field_compatible t gfs p :=
   isptr p /\
-  complete_legal_cosu_type cenv_cs t = true /\
+  complete_legal_cosu_type t = true /\
   sizeof t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
@@ -474,7 +474,7 @@ Definition field_compatible t gfs p :=
 
 Definition field_compatible0 t gfs p :=
   isptr p /\
-  complete_legal_cosu_type cenv_cs t = true /\
+  complete_legal_cosu_type t = true /\
   sizeof t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
@@ -782,38 +782,44 @@ Proof.
 Qed.
 
 Lemma gfield_type_complete_legal_cosu_type: forall (t: type) (gf: gfield),
-  complete_legal_cosu_type cenv_cs t = true -> complete_legal_cosu_type cenv_cs (gfield_type t gf) = true.
+  legal_field t gf ->
+  complete_legal_cosu_type t = true -> complete_legal_cosu_type (gfield_type t gf) = true.
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; auto;
-  unfold gfield_type in *; simpl in H; unfold get_co in *.
-  + destruct (cenv_cs ! id) eqn:?H; [| inv H].
-    pose proof cenv_legal_su _ _ H0.
+  unfold gfield_type in *; simpl in H, H0; unfold get_co in *.
+  + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
+    pose proof cenv_legal_su _ _ H1.
+    unfold in_members in H.
     induction (co_members c) as [| [i0 t0] ?].
-    - reflexivity.
-    - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
-      apply IHm in H2; auto.
-      simpl.
+    - inv H.
+    - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
+      simpl in H |- *.
       if_tac; auto.
-  + destruct (cenv_cs ! id) eqn:?H; [| inv H].
-    pose proof cenv_legal_su _ _ H0.
+      apply IHm; auto.
+      destruct H; auto; congruence.
+  + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
+    pose proof cenv_legal_su _ _ H1.
+    unfold in_members in H.
     induction (co_members c) as [| [i0 t0] ?].
-    - reflexivity.
-    - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
-      apply IHm in H2; auto.
-      simpl.
+    - inv H.
+    - simpl in H2; rewrite andb_true_iff in H2; destruct H2.
+      simpl in H |- *.
       if_tac; auto.
+      apply IHm; auto.
+      destruct H; auto; congruence.
 Qed.
 
 Lemma gfield_array_type_complete_legal_cosu_type: forall (t: type) lo hi,
-  complete_legal_cosu_type cenv_cs t = true ->
-  complete_legal_cosu_type cenv_cs (gfield_array_type t lo hi) = true.
+  legal_field0 t (ArraySubsc lo) ->
+  complete_legal_cosu_type t = true ->
+  complete_legal_cosu_type (gfield_array_type t lo hi) = true.
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; auto.
 Qed.
 
-Lemma nested_field_type_complete_legal_cosu_type: forall (t: type) (gfs: list gfield), complete_legal_cosu_type cenv_cs t = true -> legal_nested_field t gfs -> complete_legal_cosu_type cenv_cs (nested_field_type t gfs) = true.
+Lemma nested_field_type_complete_legal_cosu_type: forall (t: type) (gfs: list gfield), complete_legal_cosu_type t = true -> legal_nested_field t gfs -> complete_legal_cosu_type (nested_field_type t gfs) = true.
 Proof.
   intros.
   induction gfs; rewrite nested_field_type_ind.
@@ -822,12 +828,12 @@ Proof.
     apply gfield_type_complete_legal_cosu_type; auto.
 Qed.
 
-Lemma nested_field_array_type_complete_legal_cosu_type: forall (t: type) (gfs: list gfield) lo hi, complete_legal_cosu_type cenv_cs t = true -> legal_nested_field t gfs -> complete_legal_cosu_type cenv_cs (nested_field_array_type t gfs lo hi) = true.
+Lemma nested_field_array_type_complete_legal_cosu_type: forall (t: type) (gfs: list gfield) lo hi, complete_legal_cosu_type t = true -> legal_nested_field0 t (ArraySubsc lo :: gfs) -> complete_legal_cosu_type (nested_field_array_type t gfs lo hi) = true.
 Proof.
   intros.
   rewrite nested_field_array_type_ind.
-  simpl in H0.
-  apply gfield_array_type_complete_legal_cosu_type.
+  simpl in H0; destruct H0.
+  apply gfield_array_type_complete_legal_cosu_type; auto.
   apply nested_field_type_complete_legal_cosu_type; auto.
 Qed.
 
@@ -1020,7 +1026,7 @@ Qed.
 *)
 Lemma gfield_offset_in_range: forall t gf,
   legal_field t gf ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= gfield_offset t gf /\ gfield_offset t gf + sizeof (gfield_type t gf) <= sizeof t.
 Proof.
   intros.
@@ -1041,7 +1047,7 @@ Qed.
 Lemma gfield_array_offset_in_range: forall t lo hi,
   legal_field0 t (ArraySubsc lo) ->
   legal_field0 t (ArraySubsc hi) ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= gfield_offset t (ArraySubsc lo) /\
   gfield_offset t (ArraySubsc lo) + sizeof (gfield_array_type t lo hi) <= sizeof t.
 Proof.
@@ -1058,7 +1064,7 @@ Qed.
 
 Lemma gfield0_offset_in_range: forall t gf,
   legal_field0 t gf ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= gfield_offset t gf /\ gfield_offset t gf <= sizeof t.
 Proof.
   intros.
@@ -1081,7 +1087,7 @@ Qed.
 
 Lemma nested_field_offset_in_range: forall t gfs,
   legal_nested_field t gfs ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= nested_field_offset t gfs /\
   (nested_field_offset t gfs) + sizeof (nested_field_type t gfs) <= sizeof t.
 Proof.
@@ -1098,7 +1104,7 @@ Qed.
 Lemma nested_field_array_offset_in_range: forall t gfs lo hi,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= nested_field_offset t (ArraySubsc lo :: gfs) /\
   nested_field_offset t (ArraySubsc lo :: gfs) + sizeof (nested_field_array_type t gfs lo hi) <= sizeof t.
 Proof.
@@ -1114,7 +1120,7 @@ Qed.
 
 Lemma nested_field0_offset_in_range: forall (t : type) (gfs : list gfield),
   legal_nested_field0 t gfs ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   0 <= nested_field_offset t gfs <= sizeof t.
 Proof.
   intros.
@@ -1232,7 +1238,7 @@ Qed.
 *)
 Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
@@ -1252,7 +1258,7 @@ Qed.
 Lemma size_compatible_nested_field_array: forall t gfs lo hi p,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
-  complete_legal_cosu_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_array_type t gfs lo hi)
    (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
@@ -1367,7 +1373,6 @@ Proof.
   repeat split.
   + rewrite isptr_offset_val; tauto.
   + apply nested_field_array_type_complete_legal_cosu_type; try tauto.
-    destruct H0 as [_ [_ [_ [_ [_ [? ?]]]]]]; auto.
   + pose proof nested_field_array_offset_in_range t gfs lo hi.
     spec H2; [tauto |].
     spec H2; [tauto |].
@@ -1539,7 +1544,7 @@ Qed.
 Lemma lvar_field_compatible:
   forall {cs: compspecs} id t v rho,
     locald_denote (lvar id t v) rho ->
-    complete_legal_cosu_type cenv_cs t = true ->
+    complete_legal_cosu_type t = true ->
     is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) 0 = true ->
     sizeof t < Int.modulus ->
     field_compatible t nil v.
@@ -1559,7 +1564,7 @@ Qed.
 Lemma gvar_field_compatible:
   forall {cs: compspecs} i s rho t,
     locald_denote (gvar i s) rho ->
-    complete_legal_cosu_type cenv_cs t = true ->
+    complete_legal_cosu_type t = true ->
     is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) 0 = true ->
     sizeof t < Int.modulus ->
     field_compatible t nil s.

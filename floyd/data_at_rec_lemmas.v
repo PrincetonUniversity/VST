@@ -79,7 +79,7 @@ Definition data_at_rec: forall t, reptype t -> val -> mpred :=
        if type_is_volatile t
        then memory_block sh (sizeof t) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_pred (default_val t) 0 n (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
+    (fun t n a P v => array_pred (default_val t) 0 (Z.max 0 n) (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -95,7 +95,7 @@ Lemma data_at_rec_eq: forall t v,
                       if type_is_volatile t
                       then memory_block sh (sizeof t) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i))
+  | Tarray t0 n a => array_pred (default_val t0) 0 (Z.max 0 n) (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
                         (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof (field_type (fst it) (co_members (get_co id))))
@@ -198,7 +198,6 @@ Qed.
 
 Lemma by_value_data_at_rec_default_val: forall sh t p,
   type_is_by_value t = true ->
-  legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
   data_at_rec sh t (default_val t) p = memory_block sh (sizeof t) p.
@@ -206,7 +205,7 @@ Proof.
   intros.
   destruct (type_is_volatile t) eqn:?H.
   + apply by_value_data_at_rec_volatile; auto.
-  + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H3;
+  + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2;
     symmetry;
     rewrite memory_block_mapsto_ by auto; unfold mapsto_;
     try rewrite if_true by auto; auto.
@@ -214,7 +213,6 @@ Qed.
 
 Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   type_is_by_value t = true ->
-  legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
   ~ readable_share sh ->
@@ -231,9 +229,9 @@ Qed.
 
 Lemma by_value_data_at_rec_default_val2: forall sh t b ofs,
   type_is_by_value t = true ->
-  legal_alignas_type t = true ->
-  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
-  (alignof t | ofs) ->
+  ofs + sizeof t <= Int.modulus ->
+  0 <= ofs < Int.modulus ->
+  align_compatible_rec cenv_cs t ofs ->
   data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
   memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
@@ -245,15 +243,15 @@ Proof.
     omega.
   + unfold align_compatible.
     solve_mod_modulus.
-    pose_size_mult cenv_cs t (0 :: 1 :: nil).
-    apply arith_aux04; auto; omega.
+    rewrite Zmod_small by omega.
+    auto.
 Qed.
 
 Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v,
   type_is_by_value t = true ->
-  legal_alignas_type t = true ->
-  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
-  (alignof t | ofs) ->
+  ofs + sizeof t <= Int.modulus ->
+  0 <= ofs < Int.modulus ->
+  align_compatible_rec cenv_cs t ofs ->
   ~ readable_share sh ->
   tc_val' t (repinject t v) ->
   data_at_rec sh t v (Vptr b (Int.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
@@ -266,8 +264,8 @@ Proof.
     omega.
   + unfold align_compatible.
     solve_mod_modulus.
-    pose_size_mult cenv_cs t (0 :: 1 :: nil).
-    apply arith_aux04; auto; omega.
+    rewrite Zmod_small by omega.
+    auto.
 Qed.
 
 (*
@@ -361,18 +359,10 @@ Proof.
   rewrite Int.repr_unsigned.
   reflexivity.
 Qed.
-
+(*
 Ltac AUTO_IND :=
   match goal with
-  | H: legal_alignas_type (Tarray ?t ?n ?a) = true |- legal_alignas_type ?t = true =>
-    unfold legal_alignas_type in H;
-    apply nested_pred_Tarray in H;
-    exact H
-  | H: legal_cosu_type (Tarray ?t ?n ?a) = true |- legal_cosu_type ?t = true =>
-    unfold legal_cosu_type in H;
-    apply nested_pred_Tarray in H;
-    exact H
-  | H: complete_type ?env (Tarray ?t ?n ?a) = true |- complete_type ?env ?t = true =>
+  | H: complete_legal_cosu_type (Tarray ?t ?n ?a) = true |- complete_legal_cosu_type ?t = true =>
     simpl in H; auto
   | H: (alignof (Tarray ?t ?z ?a) | ?ofs)
     |- (alignof ?t | ?ofs + _) =>
@@ -412,18 +402,7 @@ Ltac AUTO_IND :=
     eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
-
-Lemma legal_alignas_array_size:
-  forall t z a, legal_alignas_type (Tarray t z a) = true -> 0 <= z.
-Proof.
-intros.
-    unfold legal_alignas_type, nested_pred in H. simpl in H.
-    rewrite andb_true_iff in H; destruct H as [H _].
-    unfold local_legal_alignas_type in H; simpl in H.
-    rewrite andb_true_iff in H; destruct H as [_ H].
-    rewrite andb_true_iff in H; destruct H as [_ H].
-    apply Zle_bool_imp_le; auto.
-Qed.
+*)
 
 Lemma nth_list_repeat: forall A i n (x :A),
     nth i (list_repeat n x) x = x.
@@ -440,15 +419,21 @@ Proof.
  apply IHi; auto. omega.
 Qed.
 
+ Lemma Z2Nat_max0: forall z, Z.to_nat (Z.max 0 z) = Z.to_nat z.
+ Proof.
+  intros.
+  rewrite Z.max_comm, <- nat_of_Z_max, Nat2Z.id.
+  auto.
+Qed.
+
 (* We use (Vptr b (Int.repr ofs)) instead of p because size_compatible is more  *)
 (* difficult to use than simple arithmetic in induction proof.                  *)
 Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
-  (LEGAL_ALIGNAS: legal_alignas_type t = true)
-  (LEGAL_COSU: legal_cosu_type t = true)
-  (COMPLETE: complete_type cenv_cs t = true),
-  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
+  (LEGAL_COSU: complete_legal_cosu_type t = true),
+  ofs + sizeof t <= Int.modulus ->
+  0 <= ofs < Int.modulus ->
   sizeof t < Int.modulus -> (* TODO: check why need this *)
-  (alignof t | ofs) ->
+  align_compatible_rec cenv_cs t ofs ->
   data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
     memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
@@ -462,21 +447,29 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat z) (default_val t)); auto.
-    pose proof (legal_alignas_array_size _ _ _ LEGAL_ALIGNAS).
+     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
     rewrite memory_block_array_pred; auto.
-    - unfold sizeof; simpl; rewrite Z.max_r by omega; auto.
-    - simpl in H; rewrite Z.max_r in H by omega; auto.
-    - simpl in H0; rewrite Z.max_r in H0 by omega; auto.
+    - apply Zle_max_l.
+    - simpl in H; omega.
+    - f_equal.
+      f_equal.
+      rewrite Z2Nat_max0; auto.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by omega.
       rewrite nth_list_repeat.
-      unfold sizeof in H, H0; fold @sizeof in H,H0;
-      rewrite Z.max_r in H, H0 by omega.
-      apply IH; try AUTO_IND;
-      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
+      unfold sizeof in H, H1; fold @sizeof in H,H1.
+      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
+      assert (sizeof t = 0 -> sizeof t * i = 0)%Z by (intros HH; rewrite HH, Z.mul_0_l; auto).
+      apply IH; auto;
+        try omega.
+      SearchAbout align_compatible_rec.
+      Locate align_compatible_rec_by_value_inv.
+
+
+  Locate Ltac pose_size_mult.
+      rewrite Zmod_small. by omega. solve_mod_modulus.
   + rewrite default_val_eq.
     rewrite unfold_fold_reptype.
     rewrite struct_pred_ext with

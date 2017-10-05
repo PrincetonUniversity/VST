@@ -188,19 +188,6 @@ Section COMPSPECS.
 
 Context {cs: compspecs}.
 
-(* TODO: move it into veric. *)
-Lemma align_compatible_rec_by_value_inv : forall (t : type) (ch : memory_chunk) (z : Z),
-  access_mode t = By_value ch ->
-  align_compatible_rec cenv_cs t z -> (Memdata.align_chunk ch | z).
-Proof.
-  intros.
-  inv H0.
-  + rewrite H in H1; inv H1; auto.
-  + inv H.
-  + inv H.
-  + inv H.
-Qed.
-
 Lemma memory_block_mapsto_:
   forall sh t p,
    type_is_by_value t = true ->

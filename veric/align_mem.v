@@ -22,6 +22,52 @@ Inductive align_compatible_rec: type -> Z -> Prop :=
 | align_compatible_rec_Tstruct: forall i a co z, cenv ! i = Some co -> (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 -> field_offset cenv i0 (co_members co) = Errors.OK z0 -> align_compatible_rec t0 (z + z0)) -> align_compatible_rec (Tstruct i a) z
 | align_compatible_rec_Tunion: forall i a co z, cenv ! i = Some co -> (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatible_rec t0 z) -> align_compatible_rec (Tunion i a) z.
 
+Lemma align_compatible_rec_by_value_inv : forall t ch z,
+  access_mode t = By_value ch ->
+  align_compatible_rec t z -> (Memdata.align_chunk ch | z).
+Proof.
+  intros.
+  inv H0.
+  + rewrite H in H1; inv H1; auto.
+  + inv H.
+  + inv H.
+  + inv H.
+Qed.
+
+Lemma align_compatible_rec_Tarray_inv: forall t n a z,
+  align_compatible_rec (Tarray t n a) z ->
+  (forall i : Z, 0 <= i < n -> align_compatible_rec t (z + sizeof cenv t * i)).
+Proof.
+  intros.
+  inv H.
+  + inv H1.
+  + auto.
+Qed.
+
+Lemma align_compatible_rec_Tstruct_inv: forall i a co z,
+  cenv ! i = Some co ->
+  align_compatible_rec (Tstruct i a) z ->
+  (forall i0 t0 z0, field_type i0 (co_members co) = Errors.OK t0 -> field_offset cenv i0 (co_members co) = Errors.OK z0 -> align_compatible_rec t0 (z + z0)).
+Proof.
+  intros.
+  inv H0.
+  + inv H3.
+  + rewrite H in H5; inv H5.
+    eauto.
+Qed.
+  
+Lemma align_compatible_rec_Tunion_inv: forall i a co z,
+  cenv ! i = Some co ->
+  align_compatible_rec (Tunion i a) z ->
+  (forall i0 t0, field_type i0 (co_members co) = Errors.OK t0 -> align_compatible_rec t0 z).
+Proof.
+  intros.
+  inv H0.
+  + inv H2.
+  + rewrite H in H4; inv H4.
+    eauto.
+Qed.
+
 End align_compatible_rec.
 
 Lemma align_chunk_1248: forall ch, align_chunk ch = 1 \/ align_chunk ch = 2 \/ align_chunk ch = 4 \/ align_chunk ch = 8.

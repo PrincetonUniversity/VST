@@ -245,13 +245,14 @@ Qed.
 Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
-  complete_type cenv_cs t0 = true ->
+  complete_legal_cosu_type t0 = true ->
   isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
   unfold isBinOpResultType.
   erewrite classify_add_add_case_pi by eauto.
   rewrite tc_andp_TT2.
+  apply complete_legal_cosu_type_complete_type in H1.
   rewrite H1, tc_andp_TT2.
   auto.
 Qed.
@@ -272,8 +273,8 @@ Proof.
   split.
   + eapply classify_add_add_case_pi; eauto.
   + eapply isBinOpResultType_add_ptr; eauto.
-    destruct H3 as [_ [_ [_ [? [_ [_ [_ ?]]]]]]].
-    eapply nested_field_type_complete_type with (gfs0 := gfs) in H3; auto.
+    destruct H3 as [_ [? [_ [_ [_ ?]]]]].
+    eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
     rewrite H2 in H3.
     exact H3.
 Qed.
