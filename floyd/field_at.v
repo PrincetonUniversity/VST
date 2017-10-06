@@ -399,6 +399,7 @@ Proof.
     clear v1.
     cbv iota beta in v1'.
     apply JMeq_eq in H2.
+    rewrite Z.max_r by omega.
     apply array_pred_ext.
     - subst; auto.
     - intros.
@@ -806,6 +807,7 @@ Proof.
     rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
     rewrite unfold_fold_reptype.
+    rewrite Z.max_r by omega.
     eapply array_pred_shift; [reflexivity | omega |].
     intros.
     rewrite at_offset_eq at 1.
@@ -870,14 +872,9 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     apply data_at_rec_data_at_rec_; try tauto.
-    1: omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
+    omega.
   + unfold field_at_, field_at.
     normalize.
 Qed.
@@ -913,13 +910,8 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     rewrite memory_block_data_at_rec_default_val; try tauto; try omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -1076,8 +1068,8 @@ Proof.
   + split.
     - rewrite sizeof_Tunion.
       erewrite co_consistent_sizeof by apply get_co_consistent.
-      rewrite legal_cosu_type_Tunion with (a0 := a)
-        by (rewrite <- H; apply nested_field_type_nest_pred;
+      rewrite complete_legal_cosu_type_Tunion with (a0 := a)
+        by (rewrite <- H; apply nested_field_type_complete_legal_cosu_type;
             unfold field_compatible in *; tauto).
       pose proof align_le (sizeof_composite cenv_cs Union (co_members (get_co id)))
            (co_alignof (get_co id)) (co_alignof_pos _).
@@ -1086,6 +1078,9 @@ Proof.
       omega.
     - rewrite <- H.
       unfold field_compatible in *.
+      unfold size_compatible in *.
+      revert H1; solve_mod_modulus; intros.
+      rewrite Zmod_small in H1 by omega.
       omega.
   + rewrite <- H.
     unfold field_compatible, size_compatible in *.
@@ -1482,10 +1477,16 @@ Lemma field_at_conflict: forall sh t fld p v v',
 Proof.
   intros.
   rewrite field_at_compatible'. normalize.
-  destruct H1 as [? [? [? [? [? [? [? ?]]]]]]].
-  destruct (nested_field_offset_in_range t fld H8 H3).
-  assert (0 < sizeof (nested_field_type t fld) < Int.modulus) by omega.
-  clear - H H2 H11.  
+  destruct H1 as [? [? [? [? ?]]]].
+  destruct (nested_field_offset_in_range t fld H5 H2).
+  assert (0 < sizeof (nested_field_type t fld) < Int.modulus).
+  Focus 1. {
+    destruct p; inv H1.
+    simpl in H3.
+    inv_int i.
+    omega.
+  } Unfocus.
+  clear - H H1 H8.  
   eapply derives_trans.
   + apply sepcon_derives.
     apply field_at_field_at_; try assumption; auto.
@@ -1510,7 +1511,6 @@ Lemma field_at__conflict:
   forall sh t fld p,
   sepalg.nonidentity sh ->
   0 < sizeof (nested_field_type t fld) ->
-  legal_alignas_type t = true ->
         field_at_ sh t fld p
         * field_at_ sh t fld p |-- FF.
 Proof.
@@ -1578,9 +1578,7 @@ Qed.
 
 Lemma var_block_data_at_:
   forall  sh id t,
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
+  complete_legal_cosu_type t = true ->
   Z.ltb (sizeof t) Int.modulus = true ->
   readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
@@ -1589,7 +1587,7 @@ Proof.
  unfold var_block.
   unfold_lift.
   simpl.
-  apply Zlt_is_lt_bool in H2.
+  apply Zlt_is_lt_bool in H0.
   rewrite data_at__memory_block; try auto.
   rewrite memory_block_isptr.
   unfold local, lift1; unfold_lift.
