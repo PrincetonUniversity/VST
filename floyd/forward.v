@@ -76,10 +76,9 @@ Local Open Scope logic.
 Lemma var_block_lvar2:
  forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
    (var_types Delta) ! id = Some t ->
-   legal_alignas_type t = true ->
-   legal_cosu_type t = true ->
-   complete_type cenv_cs t = true ->
+   complete_legal_cosu_type t = true ->
    sizeof t < Int.modulus ->
+   is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
                       * fold_right sepcon emp Vs)
@@ -109,14 +108,12 @@ rewrite memory_block_data_at_.
 cancel.
 split3; auto. apply Coq.Init.Logic.I.
 split3; auto.
-split3; auto.
-split; auto.
-red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
+apply la_env_cs_sound; auto.
 apply Coq.Init.Logic.I.
 split; auto.
 rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
-apply extract_exists_pre.  apply H4.
+apply extract_exists_pre.  apply H3.
 Qed.
 
 Lemma lvar_eval_lvar {cs: compspecs}:
@@ -130,16 +127,15 @@ Qed.
 Lemma var_block_lvar0
      : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) ! id = Some t ->
-       legal_alignas_type t = true ->
-       legal_cosu_type t = true ->
-       complete_type cenv_cs t = true ->
+       complete_legal_cosu_type t = true ->
        sizeof t < Int.modulus ->
+       is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
        tc_environ Delta rho ->
        locald_denote (lvar id t v) rho ->
        data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
 Proof.
 intros.
-hnf in H5.
+hnf in H4.
 assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 unfold var_block.
@@ -147,23 +143,22 @@ simpl @fst; simpl @snd.
 rewrite prop_true_andp
   by (change (Int.max_unsigned) with (Int.modulus-1); omega).
 unfold_lift.
-rewrite (lvar_eval_lvar _ _ _ _ H5).
+rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
-hnf in H5.
+hnf in H4.
 destruct ( Map.get (ve_of rho) id); try contradiction.
 destruct p.
-destruct H5; subst.
+destruct H4; subst.
 repeat split; auto.
-exists 0. rewrite Z.mul_0_l. reflexivity.
+apply la_env_cs_sound; eauto.
 Qed.
 
 Lemma postcondition_var_block:
   forall {cs: compspecs} {Espec: OracleKind} Delta Pre c S1 S2 i t vbs,
        (var_types  Delta) ! i = Some t ->
-       legal_alignas_type t = true ->
-       legal_cosu_type t = true ->
-       complete_type cenv_cs t = true ->
+       complete_legal_cosu_type t = true ->
        sizeof t < Int.modulus ->
+       is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
    semax Delta Pre c (frame_ret_assert S1
      (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
       * fold_right sepcon emp vbs)) ->
@@ -182,10 +177,10 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-clear - H5.
+clear - H4.
 destruct ek; simpl in *; auto.
 unfold tc_environ in *.
-apply expr_lemmas.typecheck_environ_update in H5; auto.
+apply expr_lemmas.typecheck_environ_update in H4; auto.
 Qed.
 
 Ltac process_stackframe_of :=
@@ -2343,7 +2338,7 @@ Ltac solve_return_inner_gen :=
 
 Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
-    (legal_alignas_type t && legal_cosu_type t && complete_type cenv_cs t && (sizeof t <? Int.modulus) = true)%bool ->
+    (complete_legal_cosu_type t && (sizeof t <? Int.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
     msubst_eval_lvar T2 i t = Some p ->
     fn_data_at T2 (i, t) (data_at_ Tsh t p).
 
@@ -2359,7 +2354,7 @@ Proof.
     eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | exact IHForall2]]; clear IHForall2.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
-    rewrite !andb_true_iff in H2; destruct H2 as [[[? ?] ?] ?].
+    rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
     apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
     rewrite <- H in H3; clear H.
     rewrite (add_andp _ _ H3); clear H3.
