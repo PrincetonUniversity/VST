@@ -1666,6 +1666,8 @@ Definition malloc_compatible (n: Z) (p: val) : Prop :=
   | _ => False
   end.
 
+(* TODO: move these definitions and lemmas into a new file. *)
+(* TODO: also move natural_aligned stuff out from compspecs *)
 Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p,
      malloc_compatible (sizeof t) p ->
@@ -1676,9 +1678,10 @@ Proof.
 intros.
 destruct p; simpl in *; try contradiction.
 destruct H.
+eapply na_sound in H1.
+apply H1 in H.
 pose proof (Int.unsigned_range i).
 repeat split; simpl; auto; try omega.
-eapply Zdivides_trans; eauto.
 Qed.
 
 Hint Extern 2 (field_compatible _ nil _) =>
@@ -2152,11 +2155,9 @@ Proof.
     rewrite (Z.mod_small ofs) in * by omega.
     pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
     spec H2; [pose proof Int.modulus_pos; omega |].
+    revert H; solve_mod_modulus; intros.
+    rewrite Zmod_small in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     apply nonreadable_memory_block_data_at_rec; try tauto; try omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -2312,10 +2313,7 @@ Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   isptr p ->
   size_compatible t p ->
   align_compatible t p ->
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
-  sizeof t < Int.modulus ->
+  complete_legal_cosu_type t = true ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.
 Proof.
@@ -2325,7 +2323,7 @@ Proof.
   destruct p; inv H2.
   rewrite int_add_repr_0_r.
   rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H9; apply JMeq_eq in H9.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H6; apply JMeq_eq in H6.
   rewrite prop_true_andp; auto.
   f_equal. auto.
   repeat split; auto.
@@ -2352,20 +2350,16 @@ Qed.
 
 Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
    headptr p ->
-   legal_alignas_type t = true ->
-   legal_cosu_type t = true ->
-   complete_type cenv_cs t = true ->
-   sizeof t < Int.modulus ->
+   complete_legal_cosu_type t = true ->
    legal_nested_field t path ->
+   sizeof t < Int.modulus ->
+   align_compatible_rec cenv_cs t 0 ->
    field_compatible t path p.
 Proof.
  intros.
  destruct H as [b ?]; subst p.
  repeat split; auto.
- simpl. change (Int.unsigned Int.zero) with 0. omega.
- apply Z.divide_0_r.
 Qed.
-
 
 (*
 Lemma headptr_field_compatible' {cs: compspecs}: forall t p,
@@ -2397,7 +2391,7 @@ Qed.
 *)
 
 Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
-  ((type_is_by_value t) && (local_legal_alignas_type cenv_cs t) && (negb (type_is_volatile t)) = true)%bool ->
+  ((type_is_by_value t) && (complete_legal_cosu_type t) && (negb (type_is_volatile t)) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
   readable_share sh ->
   headptr p ->
   JMeq v v' ->
@@ -2405,15 +2399,13 @@ Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
 Proof.
   intros.
   rewrite !andb_true_iff in H.
-  destruct H as [[? ?] ?].
+  destruct H as [[[? ?] ?] ?].
   rewrite negb_true_iff in H4.
   apply mapsto_data_at'; auto.
   apply headptr_field_compatible; auto.
   + destruct t; inv H; simpl; auto.
-  + destruct t; inv H; simpl; auto.
   + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; reflexivity.
-  + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; simpl; computable.
-  + destruct t; inv H; simpl; auto.
+  + apply la_env_cs_sound in H5; auto.
 Qed.
 
 Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
