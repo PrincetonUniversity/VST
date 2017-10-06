@@ -1447,10 +1447,10 @@ R~::=&
 
 In a canonical-form lifted assertion, existentials can occur
 at the outside, or in one of the base-level conjuncts within the
-\lstinline{SEP} clause.  Th left-hand side of this assertion has both:
+\lstinline{SEP} clause.  The left-hand side of this assertion has both:
 
 \begin{lstlisting}
-ENTAIL $\Delta$,
+ENTAIL $\Delta$,   $\qquad$ (* this example in progs/tutorial1.v *)
    EX $x$:Z,
     PROP(0<=$x$) LOCAL(temp _i (Vint (Int.repr $x$)))
     SEP (EX $y$:Z, !!($x<y$) && data_at $\pi$ tint (Vint (Int.repr $y$)) p)
@@ -1569,7 +1569,7 @@ the appropriate range.  Let's assume that \lstinline{_x}
 is a signed integer, i.e. declared in C as \lstinline{int x;}
 then the hypothesis is,
 \begin{lstlisting}
-H: Int.min_signed $\le$ $x$ $\le$ Int.max_signed
+H: Int.min_signed $\le$ $x$ $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 \end{lstlisting}
 If you maintain this hypothesis ``above the line'',
 then Floyd's tactical proof automation
@@ -1578,7 +1578,7 @@ can solve goals such as
 Also, to solve goals such as,
 \begin{lstlisting}
 ...
-H2 : 0 $\le$ n $\le$ Int.max_signed
+H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ...
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n

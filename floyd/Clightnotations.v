@@ -29,8 +29,8 @@ Delimit Scope C_scope with C.
 Delimit Scope Z_scope with Z.
 Delimit Scope camlfloat_of_coqfloat_scope with camlfloat_of_coqfloat.
 Delimit Scope camlfloat_of_coqfloat32_scope with camlfloat_of_coqfloat32.
-Delimit Scope camlint64_of_coqint_scope with camlint64_of_coqint.
-Delimit Scope camlint_of_coqint_scope with camlint_of_coqint.
+Delimit Scope int64_repr_scope with int64_repr.
+Delimit Scope int_repr_scope with int_repr.
 Delimit Scope expr_scope with expr.
 Delimit Scope extern_atom_scope with extern_atom.
 Delimit Scope name_of_external_scope with name_of_external.
@@ -41,7 +41,8 @@ Delimit Scope print_cases_scope with print_cases.
 Delimit Scope print_expr_list_true_scope with print_expr_list_true.
 Delimit Scope print_stmt_for_scope with print_stmt_for.
 
-Notation "x" := (Int.repr x%Z) (only printing, at level 10) : expr_scope.
+Notation "x" := (Int.repr x%Z) (only printing, at level 10) : int_repr_scope.
+Notation "x" := (Int64.repr x%Z) (only printing, at level 10) : int64_repr_scope.
 
 Notation "({ s_val })" := s_val%C (only printing, left associativity, at level 26, format "({  s_val  })") : print_stmt_for_scope.
 Notation "id = 'builtin' ef ( el );" := (Sbuiltin (Some id%positive) ef%name_of_external _ el%print_expr_list_true) (only printing, ef at level 26, el at level 26, left associativity, at level 26, format "'[hv  ' id  =  '/' 'builtin'  ef '/' ( el ); ']'") : print_stmt_for_scope.
@@ -99,12 +100,12 @@ Notation "~ a1" := (Eunop Onotint a1%expr _) (only printing, format "'[hv  ' ~ a
 Notation "! a1" := (Eunop Onotbool a1%expr _) (only printing, format "'[hv  ' ! a1 ']'", at level 30, right associativity) : expr_scope.
 Notation "- a1" := (Eunop Oneg a1%expr _) (only printing, format "'[hv  ' - a1 ']'", at level 35, right associativity) : expr_scope.
 Notation "'__builtin_fabs(' a1 )" := (Eunop Oabsfloat a1%expr _) (only printing, a1 at level 24, right associativity (* XXX Is RtoL the same as right associativity in Coq? *), at level 11, format "'[hv  ' '__builtin_fabs(' a1 ) ']'") : expr_scope.
-Notation "n_val 'LL'" := (Econst_long n_val%camlint64_of_coqint _) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'LL' ']'") : expr_scope.
-Notation "n_val 'LLU'" := (Econst_long n_val%camlint64_of_coqint (Tlong Unsigned _)) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'LLU' ']'") : expr_scope.
+Notation "n_val 'LL'" := (Econst_long n_val%int64_repr _) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'LL' ']'") : expr_scope.
+Notation "n_val 'LLU'" := (Econst_long n_val%int64_repr (Tlong Unsigned _)) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'LLU' ']'") : expr_scope.
 Notation "f_val 'f'" := (Econst_single f_val%camlfloat_of_coqfloat32 _) (only printing, no associativity, at level 10, format "'[hv  ' f_val 'f' ']'") : expr_scope.
 Notation "f_val" := (Econst_float f_val%camlfloat_of_coqfloat _) (only printing, format "'[hv  ' f_val ']'", at level 10) : expr_scope.
-Notation "n_val" := (Econst_int n_val%camlint_of_coqint _) (only printing, format "'[hv  ' n_val ']'", at level 10) : expr_scope.
-Notation "n_val 'U'" := (Econst_int n_val%camlint_of_coqint (Tint I32 Unsigned _)) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'U' ']'") : expr_scope.
+Notation "n_val" := (Econst_int n_val%int_repr _) (only printing, format "'[hv  ' n_val ']'", at level 10) : expr_scope.
+Notation "n_val 'U'" := (Econst_int n_val%int_repr (Tint I32 Unsigned _)) (only printing, no associativity, at level 10, format "'[hv  ' n_val 'U' ']'") : expr_scope.
 Notation "a1 . f_val" := (Efield a1%expr f_val%extern_atom _) (only printing, left associativity (* XXX Is LtoR the same as left associativity in Coq? *), at level 10, format "'[hv  ' a1 . f_val ']'") : expr_scope.
 Notation "* a1" := (Ederef a1%expr _) (only printing, a1 at level 11, right associativity (* XXX Is RtoL the same as right associativity in Coq? *), at level 11, format "'[hv  ' * a1 ']'") : expr_scope.
 Notation "id" := (Etempvar id%positive _) (only printing, format "'[hv  ' id ']'", at level 10) : expr_scope.
@@ -120,5 +121,17 @@ Notation "p_val [ i_val ]" := (Ederef (Ebinop Oadd p_val%expr i_val%expr _) _) (
 Notation "x , .. , y" := (@cons expr x%expr .. (@cons expr y%expr (@nil expr)) .. ) (only printing, at level 26, x at level 24, y at level 24) : print_expr_list_true_scope.
 Notation "'while' ( e_val ) { s1 }" := (Swhile e_val%expr s1%C) (only printing, s1 at level 26, left associativity, at level 26, format "'[v' 'while'  ( e_val )  {  '/  ' s1 '/' } ']'") : C_scope.
 
-Global Open Scope expr_scope.
-Global Open Scope C_scope.
+Undelimit Scope camlfloat_of_coqfloat_scope.
+Undelimit Scope camlfloat_of_coqfloat32_scope.
+Undelimit Scope int64_repr_scope.
+Undelimit Scope int_repr_scope.
+Undelimit Scope extern_atom_scope.
+Undelimit Scope name_of_external_scope.
+Undelimit Scope name_type_scope.
+Undelimit Scope print_case_label_scope.
+Undelimit Scope print_cases_scope.
+Undelimit Scope print_expr_list_true_scope.
+Undelimit Scope print_stmt_for_scope.
+
+(*Global Open Scope expr_scope.*)
+(*Global Open Scope C_scope. *)
