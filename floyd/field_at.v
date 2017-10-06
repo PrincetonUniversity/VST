@@ -1580,18 +1580,18 @@ Lemma var_block_data_at_:
   forall  sh id t,
   complete_legal_cosu_type t = true ->
   Z.ltb (sizeof t) Int.modulus = true ->
+  is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
 Proof.
   intros; extensionality rho.
- unfold var_block.
+  unfold var_block.
   unfold_lift.
   simpl.
   apply Zlt_is_lt_bool in H0.
   rewrite data_at__memory_block; try auto.
   rewrite memory_block_isptr.
   unfold local, lift1; unfold_lift.
-  unfold align_compatible.
   pose proof eval_lvar_spec id t rho.
   destruct (eval_lvar id t rho); simpl in *; normalize.
   subst.
@@ -1601,9 +1601,9 @@ Proof.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
   change (Int.unsigned Int.zero) with 0.
   rewrite Z.add_0_l.
-  pose proof Z.divide_0_r (alignof t).
   assert (sizeof t <= Int.modulus) by omega.
   assert (sizeof t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
+  apply la_env_cs_sound in H1.
   tauto.
 Qed.
 
@@ -1658,6 +1658,7 @@ Ltac data_at_conflict_neq :=
 
 Definition natural_alignment := 8.
 
+(* TODO: change this name to malloc_compatible_ptr and merge the definition of isptr, size_compatible, align_compatible into something like: size_align_compatible_ptr *)
 Definition malloc_compatible (n: Z) (p: val) : Prop :=
   match p with
   | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
@@ -1668,10 +1669,8 @@ Definition malloc_compatible (n: Z) (p: val) : Prop :=
 Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p,
      malloc_compatible (sizeof t) p ->
-     legal_alignas_type t = true ->
-     legal_cosu_type t = true ->
-     complete_type cenv_cs t = true ->
-     (alignof t | natural_alignment) ->
+     complete_legal_cosu_type t = true ->
+     natural_aligned cenv_cs ha_env_cs la_env_cs natural_alignment t = true ->
      field_compatible t nil p.
 Proof.
 intros.

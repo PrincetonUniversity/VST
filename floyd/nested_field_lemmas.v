@@ -1532,7 +1532,7 @@ Lemma lvar_field_compatible:
   forall {cs: compspecs} id t v rho,
     locald_denote (lvar id t v) rho ->
     complete_legal_cosu_type t = true ->
-    is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) 0 = true ->
+    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
     sizeof t < Int.modulus ->
     field_compatible t nil v.
 Proof.
@@ -1551,7 +1551,7 @@ Lemma gvar_field_compatible:
   forall {cs: compspecs} i s rho t,
     locald_denote (gvar i s) rho ->
     complete_legal_cosu_type t = true ->
-    is_aligned (legal_alignas_type cenv_cs ha_env_cs la_env_cs t) (hardware_alignof ha_env_cs t) 0 = true ->
+    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
     sizeof t < Int.modulus ->
     field_compatible t nil s.
 Proof.

@@ -372,7 +372,8 @@ Class compspecs := mkcompspecs {
   la_env_cs: PTree.t legal_alignas_obs;
   la_env_cs_consistent: legal_alignas_env_consistent cenv_cs ha_env_cs la_env_cs;
   la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs;
-  la_env_cs_sound: legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs
+  la_env_cs_sound: legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs;
+  na_sound: natural_aligned_sound cenv_cs ha_env_cs la_env_cs
 }.
 
 Existing Class composite_env.
