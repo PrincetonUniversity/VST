@@ -2850,25 +2850,18 @@ match x with Zpos y => log_base_two_pos y | _ => O end.
 
 Ltac make_composite_env env c :=
  match c with
- | nil => constr:(env) (*refine (  {| cenv_cs := env ;
-    cenv_consistent := _;
-    cenv_legal_fieldlist := _;
-    cenv_legal_su := _;
-    ha_env_cs := _;
-    ha_env_cs_consistent := _;
-    ha_env_cs_complete := _;
-    la_env_cs := _;
-    la_env_cs_consistent := _;
-    la_env_cs_complete := _;
-    la_env_cs_sound := _;
-    na_sound := _|})*)
+ | nil => constr:(env: composite_env)
  | Composite ?id ?su ?m ?a :: ?c' =>
  let t := constr: (PTree.get id env) in
  let t := eval hnf in t in
- constr_eq t (@None composite);
+ match t with
+ | @Some _ _ => fail 1000 "Composite definitions in the programs has duplicates."
+ | _ =>
  let cm := constr: (complete_members env m) in
  let cm := eval hnf in cm in
- constr_eq cm true;
+ match cm with
+ | false => fail 1000 "Members in " id "are not all complete types."
+ | _ =>
  let al := constr:(align_attr a (alignof_composite env m)) in
  let al := eval compute in al in
  let sz := constr:(align (sizeof_composite env su m) al) in
@@ -2889,8 +2882,10 @@ Ltac make_composite_env env c :=
             co_sizeof_alignof := sz_al |}) in
  let env' := constr:(PTree.set id c1 env) in
  let env' := eval simpl in env' in
-  make_composite_env env' c'
-end.
+ make_composite_env env' c'
+ end
+ end
+ end.
 
 Ltac make_composite_env0 prog :=
 let p := constr:(prog_types prog) in
@@ -2937,14 +2932,9 @@ Proof.
   subst.
   apply legal_alignas_env_completeness; auto.
 Qed.
-(* TODO: not yet solved *)
-Print compspecs.
-Check hardware_alignof_completeness.
-Check natural_aligned_sound_aux.
-
 
 Ltac make_compspecs prog :=
-  let cenv := make_composite_env0 prog in pose cenv;
+  let cenv := make_composite_env0 prog in
   let cenv_consistent_ := constr:((composite_env_consistent_i composite_consistent cenv ltac:(repeat constructor)): composite_env_consistent cenv) in
   let cenv_legal_fieldlist_ := constr:((composite_env_consistent_i' composite_legal_fieldlist cenv ltac:(repeat constructor)): composite_env_legal_fieldlist cenv) in
   let cenv_legal_su_ := constr:((composite_env_consistent_i (fun c co => composite_complete_legal_cosu_type c (co_members co) = true) cenv ltac:(repeat constructor)): composite_env_complete_legal_cosu_type cenv) in
