@@ -2464,8 +2464,8 @@ Ltac solve_legal_nested_field_in_entailment :=
 
 Ltac headptr_field_compatible :=
   match goal with H: headptr ?P |- field_compatible _ _ ?P =>
-  apply headptr_field_compatible; 
-   [ apply H | reflexivity | reflexivity | reflexivity | simpl; computable| ];
+  apply headptr_field_compatible;
+        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity];
     apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
     repeat apply Forall_cons; try apply Forall_nil
