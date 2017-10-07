@@ -2850,10 +2850,18 @@ match x with Zpos y => log_base_two_pos y | _ => O end.
 
 Ltac make_composite_env env c :=
  match c with
- | nil => refine (  {| cenv_cs := env;
+ | nil => constr:(env) (*refine (  {| cenv_cs := env ;
     cenv_consistent := _;
-    cenv_legal_alignas := _;
-    cenv_legal_fieldlist := _ |})
+    cenv_legal_fieldlist := _;
+    cenv_legal_su := _;
+    ha_env_cs := _;
+    ha_env_cs_consistent := _;
+    ha_env_cs_complete := _;
+    la_env_cs := _;
+    la_env_cs_consistent := _;
+    la_env_cs_complete := _;
+    la_env_cs_sound := _;
+    na_sound := _|})*)
  | Composite ?id ?su ?m ?a :: ?c' =>
  let t := constr: (PTree.get id env) in
  let t := eval hnf in t in
@@ -2911,15 +2919,57 @@ intros.
 eapply composite_env_consistent_i'; eassumption.
 Qed.
 
+Lemma legal_alignas_env_consistency': forall (cenv : composite_env) (ha_env : PTree.t Z) (la_env: PTree.t legal_alignas_obs),
+  composite_env_consistent cenv ->
+  la_env = legal_alignas_env cenv ha_env ->  
+  legal_alignas_env_consistent cenv ha_env la_env.
+Proof.
+  intros.
+  subst.
+  apply legal_alignas_env_consistency; auto.
+Qed.
+
+Lemma legal_alignas_env_completeness': forall (cenv : composite_env) (ha_env : PTree.t Z) (la_env: PTree.t legal_alignas_obs),
+  la_env = legal_alignas_env cenv ha_env ->  
+  legal_alignas_env_complete cenv la_env.
+Proof.
+  intros.
+  subst.
+  apply legal_alignas_env_completeness; auto.
+Qed.
+(* TODO: not yet solved *)
+Print compspecs.
+Check hardware_alignof_completeness.
+Check natural_aligned_sound_aux.
+
+
 Ltac make_compspecs prog :=
- make_composite_env0 prog;
- [now (red; apply (composite_env_consistent_i composite_consistent);
-          repeat constructor)
- |now (red; apply (composite_env_consistent_i composite_legal_alignas);
-          repeat constructor)
- |now(red; apply (composite_env_consistent_i' composite_legal_fieldlist);
-         repeat constructor)
- ].
+  let cenv := make_composite_env0 prog in pose cenv;
+  let cenv_consistent_ := constr:((composite_env_consistent_i composite_consistent cenv ltac:(repeat constructor)): composite_env_consistent cenv) in
+  let cenv_legal_fieldlist_ := constr:((composite_env_consistent_i' composite_legal_fieldlist cenv ltac:(repeat constructor)): composite_env_legal_fieldlist cenv) in
+  let cenv_legal_su_ := constr:((composite_env_consistent_i (fun c co => composite_complete_legal_cosu_type c (co_members co) = true) cenv ltac:(repeat constructor)): composite_env_complete_legal_cosu_type cenv) in
+  let ha_env := eval cbv in (hardware_alignof_env cenv) in
+  let Hha_env := constr: (eq_refl: ha_env = hardware_alignof_env cenv) in
+  let ha_env_consistent := constr: (hardware_alignof_consistency cenv ha_env cenv_consistent_ Hha_env) in
+  let ha_env_complete := constr: (hardware_alignof_completeness cenv ha_env Hha_env) in
+  let la_env := eval cbv in (legal_alignas_env cenv ha_env) in
+  let Hla_env := constr: (eq_refl: la_env = legal_alignas_env cenv ha_env) in
+  let la_env_consistent := constr: (legal_alignas_env_consistency' cenv ha_env la_env cenv_consistent_ Hla_env) in
+  let la_env_complete := constr: (legal_alignas_env_completeness' cenv ha_env la_env Hla_env) in
+  let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
+  let na_sound_ := constr: (natural_aligned_sound_aux cenv ha_env la_env la_env_sound) in
+  refine (  {| cenv_cs := cenv ;
+    cenv_consistent := cenv_consistent_;
+    cenv_legal_fieldlist := cenv_legal_fieldlist_;
+    cenv_legal_su := cenv_legal_su_;
+    ha_env_cs := ha_env;
+    ha_env_cs_consistent := ha_env_consistent;
+    ha_env_cs_complete := ha_env_complete;
+    la_env_cs := la_env;
+    la_env_cs_consistent := la_env_consistent;
+    la_env_cs_complete := la_env_complete;
+    la_env_cs_sound := la_env_sound;
+    na_sound := na_sound_ |}).
 
 Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   match al with
