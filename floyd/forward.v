@@ -192,9 +192,9 @@ Ltac process_stackframe_of :=
    match goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _)) _ _ =>
      match goal with
      | n: name i |- _ => simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
      | |- _ =>    simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
      end
    end;
  (*

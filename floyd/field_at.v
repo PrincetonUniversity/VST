@@ -1686,10 +1686,7 @@ Qed.
 
 Hint Extern 2 (field_compatible _ nil _) =>
  (apply malloc_compatible_field_compatible;
-  [assumption | reflexivity | reflexivity | reflexivity
-  | apply Zmod_divide;
-     [let Hx := fresh in intro Hx; inversion Hx | reflexivity]
-   ]).
+  [assumption | reflexivity | reflexivity]).
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
@@ -2267,6 +2264,16 @@ rewrite value_fits_eq; simpl.
 if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
 Qed.
+
+Lemma data_at_tuint_tint {cs: compspecs}: forall sh v p, data_at sh tuint v p = data_at sh tint v p.
+Proof.
+  intros.
+  unfold data_at, field_at.
+  f_equal.
+  unfold field_compatible.
+  apply ND_prop_ext.
+  assert (align_compatible tuint p <-> align_compatible tint p); [| tauto].
+Admitted.
 
 Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
   type_is_by_value (nested_field_type t gfs) = true ->
