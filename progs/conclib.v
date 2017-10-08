@@ -2226,8 +2226,8 @@ Proof.
     { rewrite Zlength_correct in *; omega. }
     rewrite data_at_rec_eq in Hp1, Hp2; simpl in *.
     unfold unfold_reptype in *; simpl in *.
-    rewrite split_array_pred with (mid := 1) in Hp1; auto; [|rewrite Zlength_cons; omega].
-    rewrite split_array_pred with (mid := 1) in Hp2; auto; [|rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp1; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp2; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
     destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
     repeat rewrite Z.sub_0_r in *.
     rewrite sublist_one with (d := x1), array_pred_len_1 in Hh1, Hh2; auto; try rewrite Zlength_cons; try omega.
@@ -2236,7 +2236,7 @@ Proof.
     unfold at_offset in Hh1, Hh2.
     assert (Zlength l1 = z - 1) by omega.
     assert (Zlength l2 = z - 1) by omega.
-    rewrite sublist_same in Ht1, Ht2; auto.
+    rewrite sublist_same in Ht1, Ht2; try rewrite Z.max_r by omega; auto.
     inv Hdef1; inv Hdef2.
     exploit (IHl (Zlength l1)); try assumption.
     { subst.
@@ -2245,13 +2245,16 @@ Proof.
       instantiate (2 := offset_val 4 p).
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l1).
-      erewrite array_pred_shift; try simple apply Ht1; auto; try omega.
-      intros; unfold at_offset.
+      erewrite array_pred_shift; try simple apply Ht1;
+      try rewrite !Z.max_r by omega; auto; try omega.
+      intros; unfold at_offset.      
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { rewrite data_at_rec_eq; simpl.
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l2).
-      erewrite array_pred_shift; try simple apply Ht2; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht2;
+      try rewrite !Z.max_r by omega;
+      auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
@@ -2301,8 +2304,8 @@ Proof.
     { rewrite Zlength_correct in *; omega. }
     rewrite data_at_rec_eq in Hp1, Hp2; simpl in *.
     unfold unfold_reptype in *; simpl in *.
-    rewrite split_array_pred with (mid := 1) in Hp1; auto; [|rewrite Zlength_cons; omega].
-    rewrite split_array_pred with (mid := 1) in Hp2; auto; [|rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp1; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp2; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
     destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
     repeat rewrite Z.sub_0_r in *.
     rewrite sublist_one with (d := x1), array_pred_len_1 in Hh1, Hh2; auto; try rewrite Zlength_cons; try omega.
@@ -2311,7 +2314,7 @@ Proof.
     unfold at_offset in Hh1, Hh2.
     assert (Zlength l1 = z - 1) by omega.
     assert (Zlength l2 = z - 1) by omega.
-    rewrite sublist_same in Ht1, Ht2; auto.
+    rewrite sublist_same in Ht1, Ht2; try rewrite Z.max_r by omega; auto.
     inv Hdef1; inv Hdef2.
     exploit (IHl (Zlength l1)); try assumption.
     { subst.
@@ -2320,13 +2323,15 @@ Proof.
       instantiate (2 := offset_val 4 p).
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l1).
-      erewrite array_pred_shift; try simple apply Ht1; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht1;
+      try rewrite !Z.max_r by omega; auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { rewrite data_at_rec_eq; simpl.
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l2).
-      erewrite array_pred_shift; try simple apply Ht2; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht2;
+      try rewrite !Z.max_r by omega; auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
@@ -2713,6 +2718,8 @@ Proof.
   erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
   setoid_rewrite aggregate_pred.rangespec_ext at 2; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
   setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  clear H3 H4.
+  rewrite Z2Nat_max0 in *.
   forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
@@ -2861,7 +2868,7 @@ Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
   intros; entailer!.
-  destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
+  destruct H as (_ & _ & _ & _ & _ & ?); auto.
 Qed.
 
 Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
@@ -2991,9 +2998,9 @@ Proof.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
 Qed.
 
-Lemma malloc_compat : forall {cs : compspecs} sh t p, legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true -> (alignof t | natural_alignment) ->
+Lemma malloc_compat : forall {cs : compspecs} sh t p,
+  complete_legal_cosu_type t = true ->
+  natural_aligned cenv_cs ha_env_cs la_env_cs natural_alignment t = true ->
   malloc_token sh (sizeof t) p = !!field_compatible t [] p && malloc_token sh (sizeof t) p.
 Proof.
   intros; rewrite andp_comm; apply add_andp; entailer!.
@@ -3046,7 +3053,7 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
   try cancel_frame.
 
 Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
-  Intros n; rewrite malloc_compat by (auto; exists (natural_alignment / alignof t); auto); Intros;
+  Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);

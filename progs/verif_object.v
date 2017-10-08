@@ -177,10 +177,22 @@ apply derives_refl'.
 f_equal.
 rewrite !field_compatible_field_address; auto with field_compatible.
 clear - H.
-destruct H as [? [? [? [? [? [SZ [AL ?]]]]]]].
+(* TODO: simplify the following proof. *)
+destruct H as [? [? [SZ [AL ?]]]].
 repeat split; auto.
 hnf in SZ|-*. destruct p; auto; simpl in SZ|-*; omega.
-hnf in AL|-*. destruct p; auto; simpl in AL|-*; omega.
+hnf in AL|-*. destruct p; auto; unfold align_compatible in AL|-*.
+eapply align_compatible_rec_Tstruct; [reflexivity |].
+simpl co_members; intros.
+simpl in H2.
+if_tac in H2; [| inv H2].
+inv H2.
+subst.
+inv H3.
+eapply align_compatible_rec_Tstruct_inv' with (i0 := _mtable) in AL; [| left; auto].
+exact AL.
+simpl.
+left; auto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

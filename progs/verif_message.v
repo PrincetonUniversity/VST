@@ -194,7 +194,7 @@ with (memory_block Tsh (mf_size intpair_message) buf).
 assert_PROP (align_compatible tint buf).
   entailer!.
   destruct HPbuf; subst; simpl.
-  apply Z.divide_0_r.
+  econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
       ((Vint (Int.repr 1), Vint (Int.repr 2)), p, buf, Tsh, Tsh).
   repeat split; auto.
