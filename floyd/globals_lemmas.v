@@ -1015,7 +1015,7 @@ Qed.
 Ltac process_one_globvar :=
  first
   [ simple eapply process_globvar';
-      [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence | ]
   | simple eapply process_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
@@ -1023,7 +1023,7 @@ Ltac process_one_globvar :=
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence |  ]
   | simple eapply process_globvar_star';
-        [reflexivity | reflexivity | split; [| split]; reflexivity
+        [reflexivity | reflexivity | reflexivity
         | reflexivity | compute; split; clear; congruence
        | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
          change (Share.lub extern_retainer Tsh) with Ews
