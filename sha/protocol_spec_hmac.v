@@ -410,7 +410,7 @@ Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC hmac_crypto_spec.
 Proof.
 start_function.
-rename lvar0 into c. rename H into KL. rename H0 into DL.
+rename v_c into c. rename H into KL. rename H0 into DL.
 eapply semax_pre_post.
 Focus 3.
 eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
@@ -425,7 +425,7 @@ Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_reset_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 abbreviate_semax.
 apply semax_pre with (P':=EX h1:hmacabs, 
   (PROP  ()
@@ -451,7 +451,7 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final hmac_final_spec. 
 Proof.
 start_function.
-rename lvar0 into buf.
+rename v_buf into buf.
 unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
@@ -494,7 +494,7 @@ Lemma body_hmac_starts: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_starts_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.

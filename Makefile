@@ -58,7 +58,7 @@ DEPFLAGS:=$(COQFLAGS)
 COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
-COQDOC=$(COQBIN)coqdoc
+COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -222,7 +222,7 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v
+   freezer.v deadvars.v Clightnotations.v
 #real_forward.v
 
 WAND_DEMO_FILES= \
@@ -246,7 +246,7 @@ PROGS_FILES= \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v
+  funcptr.v verif_funcptr.v tutorial1.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -362,31 +362,11 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
- $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
+# $(CCC26x86_FILES:%=ccc26x86/%) \
+# $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
-
-CLEANFILES = \
- $(MSL_FILES:%=msl/.%o.aux) \
- $(SEPCOMP_FILES:%=sepcomp/.%o.aux) \
- $(VERIC_FILES:%=veric/.%o.aux) \
- $(FLOYD_FILES:%=floyd/.%o.aux) \
- $(PROGS_FILES:%=progs/.%o.aux) \
- $(WAND_DEMO_FILES:%=wand_demo/.%o.aux) \
- $(SHA_FILES:%=sha/.%o.aux) \
- $(HMAC_FILES:%=sha/.%o.aux) \
- $(FCF_FILES:%=fcf/.%o.aux) \
- $(HMACFCF_FILES:%=hmacfcf/.%o.aux) \
- $(HMACEQUIV_FILES:%=sha/.%o.aux) \
- $(CCC26x86_FILES:%=ccc26x86/.%o.aux) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/.%o.aux) \
- $(CONCUR_FILES:%=concurrency/.%o.aux) \
- $(HMACDRBG_Files:%=hmacdrbg/.%o.aux)
-# $(DRBG_FILES:%=verifiedDrbg/spec/%)
-
-
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -438,6 +418,8 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
+travis: progs hmacdrbg mailbox
+
 all: .loadpath version.vo $(FILES:.v=.vo)
 
 
@@ -472,7 +454,8 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
 hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: .loadpath mailbox/verif_mailbox.vo
+mailbox: .loadpath mailbox/verif_mailbox_main.vo
+atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT
 
@@ -480,7 +463,13 @@ $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
 cvfiles: $(CVFILES)
 
+dochtml:
+	mkdir -p doc/html
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
+dochtml-full:
+	mkdir -p doc/html
+	$(COQDOC) $(FILES)
 
 clean_cvfiles:
 	rm $(CVFILES)
@@ -565,7 +554,8 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) $(CLEANFILES) version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject
+	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo)
+	rm -fr doc/html
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)

@@ -198,7 +198,9 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename gvar2 into twiddle; rename gvar1 into reset; rename gvar0 into mtable.
+rename v_foo_methods into mtable;
+rename v_foo_twiddle into twiddle;
+rename v_foo_reset into reset.
 fold noattr cc_default.
 
 (* 1. Prove that [mtable] is a proper method-table for foo-objects *)

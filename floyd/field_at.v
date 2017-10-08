@@ -744,6 +744,19 @@ Proof.
   + apply pred_ext; normalize. destruct H0; contradiction.
 Qed.
 
+Lemma field_at_data_at' : forall sh t gfs v p, field_at sh t gfs v p =
+  !!field_compatible t gfs p &&
+  data_at sh (nested_field_type t gfs) v (offset_val (nested_field_offset t gfs) p).
+Proof.
+  intros.
+  rewrite field_at_data_at.
+  unfold field_address.
+  if_tac.
+  - rewrite prop_true_andp; auto.
+  - rewrite prop_false_andp by auto.
+    rewrite data_at_isptr, prop_false_andp; auto.
+Qed.
+
 Lemma field_at__data_at_: forall sh t gfs p,
   field_at_ sh t gfs p =
   data_at_ sh (nested_field_type t gfs) (field_address t gfs p).

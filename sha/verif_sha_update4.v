@@ -200,8 +200,14 @@ assert (Zlength bl = LBLOCKz). {
   assert (Hblocks' := Hblocks_lem Hblocks).
   Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
   assert (DM: Zlength data < Int.modulus).
-  { clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
-    specialize (Zlength_nonneg data); intros; omega. }
+  { (* TODO: simplify this proof. *)
+    clear - FC. red in FC. simpl in FC. destruct d; try tauto.
+    simpl in FC.
+    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; omega).
+    inv_int i.
+    rewrite Z.mul_1_l in FC.
+    omega.
+  }
   set (lo := Zlength blocks * 4 - Zlength frag) in *.
   replace_SEP 2
     (data_block sh (sublist 0 lo data) d *

@@ -1115,7 +1115,7 @@ Ltac process_idstar :=
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>
     match goal with
     | n: name i |- _ => idtac
-    | |- _ => let n := fresh "gvar0" in assert (n: name i) by apply Logic.I
+    | |- _ => let n := fresh "v" i in assert (n: name i) by apply Logic.I
     end;
     match goal with
     | n: name i |- _ => process_one_globvar; clear n; intro n;
@@ -1130,7 +1130,12 @@ Ltac process_idstar :=
       repeat first
         [simple apply move_globfield_into_SEP
         | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ]
-        | simple apply move_globfield_into_SEP'; intros ?gvar0
+        | simple apply move_globfield_into_SEP'; intros ?gvar0;
+          lazymatch goal with
+          | |- semax _ ((PROPx _ (LOCALx (gvar ?A ?B :: _) _)) * _ * _ * _)  _ _ =>
+                 let n := fresh "v" A in rename B into n
+          | |- _ => idtac
+          end
         ];
       simple apply move_globfield_into_SEP0
    | |- _ => idtac
