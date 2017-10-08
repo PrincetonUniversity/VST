@@ -194,8 +194,7 @@ Ltac process_stackframe_of :=
      | n: name i |- _ => simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
      | |- _ =>    simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | 
-       | let n := fresh "v" i in intros n ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
      end
    end;
  (*
