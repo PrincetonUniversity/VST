@@ -157,8 +157,11 @@ The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
 \begin{description}
-\item[Coq 8.6 or 8.6.1,] from coq.inria.fr.  Follow the standard installation instructions.
-\item[CompCert 2.7.2,] from \href{https://github.com/ildyria/CompCert/tree/v2.7.2}{https://github.com/ildyria/CompCert/tree/v2.7.2}. (This is an unofficial release, since no official release of CompCert 2.7 is ported to Coq8.6.)
+\item[Coq 8.6.1,] from coq.inria.fr.  Follow the standard installation instructions.
+\item[CompCert 2.7.2,] from \href{https://github.com/ildyria/CompCert}{https://github.com/ildyria/CompCert}; either unpack the zip file linked from
+  \href{vst.cs.princeton.edu/download}{vst.cs.princeton.edu/download} or
+  clone the repo and then do \lstinline{git checkout v2.7.2}
+ (this is an unofficial release based on the official CompCert 2.7.1 for Coq 8.5, since no official release of CompCert 2.7 is ported to Coq8.6.)
   Build the \emph{clightgen} tool, using these commands:
   \textsf{./configure ia32-linux; make; make clightgen}.  You might replace
   ia32-linux with ia32-macosx or ia32-cygwin.  Verifiable C should work
@@ -169,6 +172,13 @@ You will need to install:
   After unpacking, read the \textsc{build\_organization} file
   (or simply \textsf{make -j}).
 \end{description}
+
+{\small
+  Note on the Windows (cygwin) installation of CompCert:
+  To build CompCert you'll need an up to date version of the
+  \href{http://gallium.inria.fr/~fpottier/menhir/}{menhir parser generator}.
+  To work around a cygwin incompatibility in the menhir build,
+  \lstinline{touch src/.versioncheck} before doing \lstinline{make}.}
 
 \chapter{Workflow, loadpaths}
 \label{refman:workflow}

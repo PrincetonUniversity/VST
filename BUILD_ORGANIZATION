@@ -6,12 +6,15 @@ HOW TO BUILD:
 
 0a. Make sure you have the right version of CompCert.
    VST 1.9 uses CompCert 2.7.2 for Coq 8.6.1 or Coq 8.6.
+   More recent versions use only Coq 8.6.1.
    However, AbsInt.com (the official distributor of CompCert)
    does not support CompCert 2.7 for Coq 8.6 (only for 8.4 and 8.5).
    The version of CompCert 2.7 for Coq 8.6 is this _unofficial_ port:
    https://github.com/ildyria/CompCert/tree/v2.7.2
    For example, you could download and unpack this zip file:
    https://github.com/ildyria/CompCert/archive/ac45b1066c29a0eb6fc04b5a0c28fca83e6735ff.zip
+   OR, git clone https://github.com/ildyria/CompCert and
+   then "git checkout v2.7.2".
 
 METHOD A [recommended]
  This method bases the VST on a copy of certain CompCert specification
@@ -39,6 +42,12 @@ METHOD B [alternate]
 *. [optional, if you're going to explore the program-verification examples]
    make progs
 
+
+Note on the Windows (cygwin) installation of CompCert:
+To build CompCert you'll need an up to date version of the
+menhir parser generator: http://gallium.inria.fr/~fpottier/menhir/ 
+To work around a cygwin incompatibility in the menhir build,
+"touch src/.versioncheck" before doing "make".
 
 ORGANIZATION:
 The Verified Software Toolchain is organized into separate subprojects,
