@@ -14,7 +14,7 @@ git clone https://github.com/PrincetonUniversity/VST.git vst-temp
 cd vst-temp
 bash util/make_version
 rm -r sepcomp/submit*
-mv BUILD_ORGANIZATION HISTORY LICENSE pg README.md VERSION version.v ../vst
+mv BUILD_ORGANIZATION.md HISTORY LICENSE pg README.md VERSION version.v ../vst
 grep -v CONCPROGS <Makefile  >../vst/Makefile
 mv compcert msl sepcomp veric floyd progs examples util ../vst
 mv doc/VC.pdf ../vst/doc
