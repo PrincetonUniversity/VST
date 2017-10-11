@@ -1,22 +1,29 @@
 # HOW TO BUILD:
 
 1.  Make sure you have the right version of Coq.  
-  `grep ^COQVERSION Makefile`  
-  will tell you which versions are compatible.
+  ```sh
+grep ^COQVERSION Makefile
+  ```
+   will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
    VST 1.9 uses CompCert 2.7.2 for Coq 8.6.1 or Coq 8.6.
    More recent versions use only Coq 8.6.1.
+
    However, [AbsInt.com](https://www.absint.com) (the official distributor of
    CompCert) does not support CompCert 2.7 for Coq 8.6 (only for 8.4 and 8.5).
-   The version of CompCert 2.7 for Coq 8.6 is this _unofficial_ port:
-   https://github.com/ildyria/CompCert/tree/v2.7.2
-   For example, you could download and unpack this zip file:
-   https://github.com/ildyria/CompCert/archive/v2.7.2.2.zip
-   OR, `git clone https://github.com/ildyria/CompCert` and
-   then `git checkout v2.7.2`.
 
-## METHOD A [recommended]
+   The version of CompCert 2.7 for Coq 8.6 is this _unofficial_ port:  
+   https://github.com/ildyria/CompCert/tree/v2.7.2  
+   For example, you could download and unpack this zip file:  
+   https://github.com/ildyria/CompCert/archive/v2.7.2.2.zip  
+   OR
+   ```sh
+   git clone https://github.com/ildyria/CompCert;
+   git checkout v2.7.2
+   ```
+
+### METHOD A [recommended]
 
 This method bases the VST on a copy of certain CompCert specification files
 distributed with VST, located in `VST/compcert`.
@@ -28,19 +35,24 @@ distributed with VST, located in `VST/compcert`.
     directory,  
     `make clightgen`
 
-## METHOD B [alternate]
+### METHOD B [alternate]
 
 This method bases the VST on the same specification files
 that the CompCert compiler is built upon (in contrast to method A,
 which uses verbatim copies of them).
 
-1. Unpack CompCert in a sibling directory to VST;
+1. Unpack CompCert in a sibling directory to VST;  
    in that directory, build CompCert according to the instructions
-   (typically:  `./configure -clightgen ia32-linux; make`)
-2. In the VST directory, create a file `CONFIGURE` containing exactly the text:
+   ```sh
+    ./configure -clightgen ia32-linux;
+    make
+    ```
+2. In the VST directory, create a file `CONFIGURE` containing exactly the text:  
    `COMPCERT=../CompCert   # or whatever is your path to compcert`
 3. In the VST directory,  
-   `make`
+   ```sh
+   make
+   ```
 
 Note on the Windows (cygwin) installation of CompCert:
 To build CompCert you'll need an up to date version of the
@@ -80,7 +92,7 @@ instead of `Require Import msl_standard`.  To make this work, the loadpaths
 need to be set up properly; the file `.loadpath` (built by `make .loadpath`)
 shows what -I includes to use.
 
-# USING VST:
+## USING VST:
 
 To use either of these interactive development environments you will
 need to have the right load path.  This can be done by command-line
@@ -93,16 +105,16 @@ when you do "make", in the following files:
 - `_CoqProject-export`: identical to `.loadpath-export`
 - `_CoqProject`: identical to `.loadpath`
 
-### WITH COQIDE
+#### WITH COQIDE
 
 From the VST root directory, run `./coqide` to run coqide with recommended options.
 (Read the script for more info.)
 
-### WITH PROOF GENERAL
+#### WITH PROOF GENERAL
 
 There are three methods in which to configure Proof General.
 
-1. *Obsolete and not maintained.*
+1. **Obsolete and not maintained.**
    On Linux systems, use the provided `VST/pg` script, as follows:  
      `./pg`  
    This script is adapted from the CompCert project. It starts
