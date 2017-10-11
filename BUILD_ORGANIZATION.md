@@ -1,9 +1,9 @@
 # HOW TO BUILD:
 
-1.  Make sure you have the right version of Coq.  
-  ```sh
-grep ^COQVERSION Makefile
-  ```
+1. Make sure you have the right version of Coq.  
+   ```sh
+   grep ^COQVERSION Makefile
+   ```
    will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
@@ -28,12 +28,17 @@ grep ^COQVERSION Makefile
 This method bases the VST on a copy of certain CompCert specification files
 distributed with VST, located in `VST/compcert`.
 
-1. Execute this command:  `make`  
-  (or, if you have a multicore computer,  `make -j`)
+1. Execute this command:
+   ```
+   make
+   ```  
+   (or, if you have a multicore computer,  `make -j`)
 2. *optional, only if you're going to run "clightgen"*  
     Unpack CompCert in the location of your choice (not under VST/), and in that
     directory,  
-    `make clightgen`
+    ```
+    make clightgen
+    ```
 
 ### METHOD B [alternate]
 
@@ -48,7 +53,9 @@ which uses verbatim copies of them).
     make
     ```
 2. In the VST directory, create a file `CONFIGURE` containing exactly the text:  
-   `COMPCERT=../CompCert   # or whatever is your path to compcert`
+   ```
+   COMPCERT=../CompCert   # or whatever is your path to compcert
+   ```
 3. In the VST directory,  
    ```sh
    make
@@ -85,7 +92,7 @@ The dependencies are:
 - `floyd`: msl sepcomp compcert veric
 - `progs`: msl sepcomp compcert veric floyd
 
-In general, we Import using "-Q" (qualified) instead of "-R"
+In general, we Import using `-Q` (qualified) instead of `-R`
 (recursive).  This means modules need to be named using qualified names.
 Thus, in `veric/expr.v` we write `Require Import msl.msl_standard`
 instead of `Require Import msl_standard`.  To make this work, the loadpaths
@@ -114,9 +121,11 @@ From the VST root directory, run `./coqide` to run coqide with recommended optio
 
 There are three methods in which to configure Proof General.
 
-1. **Obsolete and not maintained.**
+1. **Obsolete and not maintained.**  
    On Linux systems, use the provided `VST/pg` script, as follows:  
-     `./pg`  
+   ```
+   ./pg
+   ```  
    This script is adapted from the CompCert project. It starts
    emacs+Proof General with the load path arguments specified in
    the generated `.loadpath` file.
