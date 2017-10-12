@@ -533,7 +533,7 @@ Proof.
     } Unfocus.
     forward. (* ret = * retp *)
     forward. (* return ret *)
-    Exists retp head'.
+    Exists head'.
     entailer!.
     rewrite app_nil_r.
     auto.
