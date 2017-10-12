@@ -220,7 +220,7 @@ Qed.
 
 Lemma setup_globals:
  forall Delta x,
-  (glob_types Delta) ! _three = Some (tarray t_struct_list 3) ->
+  PTree.get _three (glob_types Delta) = Some (tarray t_struct_list 3) ->
   ENTAIL Delta, PROP  ()
    LOCAL  (gvar _three x)
    SEP
@@ -273,15 +273,14 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name three _three.
 start_function.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
-  eapply ENTAIL_trans; [ | apply (setup_globals Delta three); auto ] | ].
+  eapply ENTAIL_trans; [ | apply (setup_globals Delta v_three); auto ] | ].
  entailer!.
 forward_call (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three).
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], v_three).
 Intros r'.
 rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)

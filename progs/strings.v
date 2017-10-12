@@ -70,6 +70,59 @@ Proof.
   apply repable_char_int; auto.
 Qed.
 
+Opaque N.mul.
+
+Lemma N_of_digits_inj : forall l1 l2, length l1 = length l2 ->
+  N_of_digits l1 = N_of_digits l2 -> l1 = l2.
+Proof.
+  induction l1; destruct l2; auto; try discriminate; simpl; intros.
+  rewrite <- N2Z.id in H0.
+  rewrite <- (N2Z.id (_ + _)) in H0.
+  apply Z2N.inj in H0; try apply N2Z.is_nonneg.
+  rewrite !N2Z.inj_add, !N2Z.inj_mul in H0.
+  destruct a, b; simpl in *; try (apply f_equal, IHl1; auto; apply N2Z.inj; omega).
+  - assert (Z.odd (1 + 2 * Z.of_N (N_of_digits l1)) = true) as Hodd.
+    { rewrite Z.odd_add_mul_2; auto. }
+    rewrite H0, Z.odd_add_mul_2 in Hodd; discriminate.
+  - assert (Z.odd (1 + 2 * Z.of_N (N_of_digits l2)) = true) as Hodd.
+    { rewrite Z.odd_add_mul_2; auto. }
+    rewrite <- H0, Z.odd_add_mul_2 in Hodd; discriminate.
+Qed.
+
+Corollary nat_of_ascii_inj : forall a1 a2, nat_of_ascii a1 = nat_of_ascii a2 -> a1 = a2.
+Proof.
+  destruct a1 as (?, ?, ?, ?, ?, ?, ?, ?), a2 as (?, ?, ?, ?, ?, ?, ?, ?).
+  unfold nat_of_ascii; intro X.
+  apply Nnat.N2Nat.inj, N_of_digits_inj in X; auto; congruence.
+Qed.
+
+Lemma N_of_digits_range : forall l, 0 <= Z.of_N (N_of_digits l) < 2 ^ (Zlength l).
+Proof.
+  induction l; simpl; [omega|].
+  rewrite Zlength_cons, N2Z.inj_add, N2Z.inj_mul.
+  unfold Z.succ; rewrite Z.pow_add_r by (pose proof Zlength_nonneg l; omega); simpl.
+  unfold Z.pow_pos; simpl.
+  if_tac; simpl; omega.
+Qed.
+
+Corollary nat_of_ascii_range : forall a, 0 <= Z.of_nat (nat_of_ascii a) < Byte.modulus.
+Proof.
+  destruct a.
+  unfold nat_of_ascii.
+  rewrite N_nat_Z; apply N_of_digits_range.
+Qed.
+
+Lemma string_to_Z_inj : forall s1 s2, string_to_Z s1 = string_to_Z s2 -> s1 = s2.
+Proof.
+  induction s1; destruct s2; auto; try discriminate; simpl; intro X; inv X.
+  rewrite !Byte.signed_repr_eq in *.
+  erewrite (nat_of_ascii_inj _ a0), IHs1; eauto.
+  apply Nat2Z.inj.
+  pose proof (nat_of_ascii_range a); pose proof (nat_of_ascii_range a0).
+  rewrite !Zmod_small in * by auto.
+  destruct (zlt _ _), (zlt _ _); auto; omega.
+Qed.
+
 Section CS.
   Context {CS : compspecs}.
 

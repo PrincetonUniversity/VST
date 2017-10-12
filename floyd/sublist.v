@@ -1042,6 +1042,13 @@ intros.
 symmetry; apply sublist_rejoin; auto.
 Qed.
 
+Lemma sublist_last_1 : forall {A} lo hi (al : list A) d, 0 <= lo <= hi -> hi + 1 <= Zlength al ->
+  sublist lo (hi + 1) al = sublist lo hi al ++ [Znth hi al d].
+Proof.
+  intros.
+  erewrite sublist_split with (mid := hi)(hi0 := hi + 1), sublist_len_1 with (d0 := d); auto; omega.
+Qed.
+
 Lemma Zlen_le_1_rev:
  forall {A} (al: list A),
   Zlength al <= 1 -> rev al = al.

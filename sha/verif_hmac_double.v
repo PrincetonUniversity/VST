@@ -64,7 +64,7 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-rename lvar0 into c.
+rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.

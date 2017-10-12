@@ -1,8 +1,4 @@
-#include <stdlib.h>
-//#include <stdio.h>
-#include "atomic_exchange.h"
-//#include "threads.h"
-//#include <stdatomic.h>
+#include "gen_atomics.h"
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);
@@ -27,7 +23,6 @@ typedef int buf_id;
 
 typedef struct buffer {int data;} buffer;
 buffer *bufs[B];
-lock_t *lock[N];
 buf_id *comm[N];
 
 //registrar function
@@ -47,10 +42,6 @@ void initialize_channels(){
     reading[r] = c;
     c = surely_malloc(sizeof(buf_id));
     last_read[r] = c;
-    lock_t *l = surely_malloc(sizeof(lock_t));
-    lock[r] = l;
-    makelock(l);
-    release(l);
   }
 }
 
@@ -65,10 +56,9 @@ void initialize_reader(int r){
 buf_id start_read(int r){
   buf_id b;
   buf_id *c = comm[r];
-  lock_t *l = lock[r];
   buf_id *rr = reading[r];
   buf_id *lr = last_read[r];
-  b = simulate_atomic_exchange(c, l, Empty);
+  b = atomic_exchange_SC(c, Empty);
   if(b >= 0 && b < B)
     *lr = b;
   else
@@ -122,8 +112,7 @@ void finish_write(){
   buf_id w = writing;
   for(int r = 0; r < N; r++){
     buf_id *c = comm[r];
-    lock_t *l = lock[r];
-    buf_id b = simulate_atomic_exchange(c, l, w);
+    buf_id b = atomic_exchange_SC(c, w);
     if(b == Empty)
       last_taken[r] = last;
   }
@@ -137,7 +126,7 @@ void *reader(void *arg){
   while(1){
     buf_id b = start_read(r);
     buffer *buf = bufs[b];
-    int v = buf->data;
+    int v = load_SC(&buf->data);
     //   printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
@@ -150,7 +139,7 @@ void *writer(void *arg){
   while(1){
     buf_id b = start_write();
     buffer *buf = bufs[b];
-    buf->data = v;
+    store_SC(&buf->data, v);
     finish_write();
     v++;
   }

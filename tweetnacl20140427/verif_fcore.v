@@ -272,10 +272,10 @@ Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
 Proof. unfold core_spec, f_core_POST.
 start_function. abbreviate_semax.
-rename lvar3 into t.
-rename lvar2 into y.
-rename lvar1 into x.
-rename lvar0 into w.
+rename v_t into t.
+rename v_y into y.
+rename v_x into x.
+rename v_w into w.
 freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.

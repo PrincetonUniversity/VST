@@ -38,7 +38,6 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function. fold cc_default noattr tint.
-rename gvar1 into p.
 drop_LOCALs [_a].
 make_func_ptr _myfunc.
 (* TODO: if the C program doesn't have an ampersand in this line, it fails, but probably should work. *)
