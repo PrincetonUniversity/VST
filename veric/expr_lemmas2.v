@@ -121,7 +121,11 @@ destruct H as [H _].
 specialize (H Heqo).
 
 {destruct H.
-rewrite H in *. rewrite eqb_type_refl in *. destruct pt; inv H1; auto.
+rewrite H in *. rewrite eqb_type_refl in *.
+ unfold is_pointer_type in H1.
+ destruct pt; try solve [inv H1; auto].
+ unfold tc_val.
+ if_tac; apply I.
 }
 {remember ((glob_types Delta) ! i). destruct o; try congruence.
 simpl in *. super_unfold_lift.
@@ -133,7 +137,9 @@ symmetry in Heqo0.  specialize (H5 _ _ Heqo0).
 destruct H5. simpl in *. unfold Map.get. rewrite H4.
 unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo0).
 rewrite H5.
-destruct pt; inv H1; reflexivity.
+unfold tc_val; unfold is_pointer_type in H1;
+ destruct pt; try solve [inv H1; reflexivity].
+ if_tac; apply I.
 destruct H4; congruence. inv H0.
 inv H0.
 }
@@ -171,6 +177,7 @@ destruct (typeof e); try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
   destruct t; auto; try inversion H2.
   destruct f; inv H2.
+  red. if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
 Qed.
@@ -205,6 +212,7 @@ destruct (typeof e); try now inv H2.
   destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
   destruct pt; inv H1; auto.
+  red; if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
 Qed.
@@ -318,21 +326,27 @@ simpl eval_expr.
 unfold_lift.
 clear - H2 H0.
 unfold eval_unop, sem_unary_operation, force_val1.
-destruct u; simpl in *;
+destruct u; unfold tc_val in H2; simpl in H0;
 unfold sem_notbool, sem_notint, sem_neg, sem_absfloat in *;
 super_unfold_lift; simpl;
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- simpl in *; try contradiction;
+ simpl in H0; try contradiction;
  try (rewrite denote_tc_assert_andp in H0; destruct H0 as [H0 H0']);
  try contradiction H0;
  simple apply tc_bool_e in H0; try discriminate H0;
- destruct (eval_expr e rho) eqn:?; try solve [contradict H2];
+ destruct (eval_expr e rho) eqn:?; 
+ try match type of H2 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+ try solve [contradict H2];
  try solve [apply tc_val_of_bool_int_type; auto];
  unfold sem_notbool_p; simpl force_val; auto;
- destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H0;
-try reflexivity; auto;
-simpl tc_val; try split; auto;
-rewrite <- Z.leb_le; reflexivity.
+ destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
+  try solve [inv H0;
+             try reflexivity; auto;
+             simpl tc_val; try split; auto;
+             rewrite <- Z.leb_le; reflexivity]. 
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,
@@ -342,7 +356,13 @@ tc_val t1 v ->
 Proof.
 intros. destruct t1; destruct t2;
     try destruct f; try destruct f0; try destruct f1;
+   unfold tc_val in *; 
+ try match type of H0 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
    try solve [inv H]; destruct v; auto.
+inv H0.
 Qed.
 
 Lemma typecheck_temp_sound:

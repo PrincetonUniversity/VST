@@ -435,7 +435,9 @@ destruct (classify_cast (typeof e) t)
     simpl in H3; try discriminate H3; try contradiction;
  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in H3; try discriminate H3; try contradiction;
-  simpl in H2; unfold_lift in H2; simpl in H2;
+  simpl in H2; try rewrite andb_false_r in H2;
+  unfold_lift in H2; simpl in H2;
+  unfold_lift in H2; simpl in H2;
   try (rewrite denote_tc_assert_andp in H2;
         destruct H2 as [H2a H2b];
        unfold denote_tc_assert in H2a,H2b;

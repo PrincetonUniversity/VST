@@ -361,11 +361,18 @@ match ty with
 | _ => false
 end.
 
+Definition log2_sizeof_pointer :=
+  N.log2 (Z.to_N (@sizeof (PTree.empty _) (Tpointer Tvoid noattr))).
+
+Definition int_or_ptr_type : type :=
+  Tpointer Tvoid {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |}.
+
 Definition is_pointer_type ty :=
 match ty with
-| (Tpointer _ _ | Tarray _ _ _
-                   | Tfunction _ _ _ | Tstruct _ _
-                   | Tunion _ _) => true
+| (Tpointer _ _ 
+   | Tarray _ _ _ | Tfunction _ _ _
+   | Tstruct _ _  | Tunion _ _) => 
+    negb (eqb_type ty int_or_ptr_type)
 | _ => false
 end.
 
@@ -648,7 +655,8 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else
-                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
+                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
+                                     (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
@@ -692,6 +700,12 @@ Definition is_pointer_or_null (v: val) :=
  | Vptr _ _ => True
  | _ => False
  end.
+Definition is_pointer_or_integer (v: val) :=
+ match v with
+ | Vint i => True
+ | Vptr _ _ => True
+ | _ => False
+ end.
 
 Definition isptr v :=
    match v with | Vptr _ _ => True | _ => False end.
@@ -702,7 +716,8 @@ Definition tc_val (ty: type) : val -> Prop :=
  | Tlong _ _ => is_long
  | Tfloat F64 _ => is_float
  | Tfloat F32 _ => is_single
- | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ => is_pointer_or_null
+ | Tpointer _ _ => if eqb_type ty int_or_ptr_type then is_pointer_or_integer else is_pointer_or_null
+ | Tarray _ _ _ | Tfunction _ _ _ => is_pointer_or_null
  | Tstruct _ _ => isptr
  | Tunion _ _ => isptr
  | _ => fun _ => False
@@ -724,6 +739,7 @@ intros.
 intro. hnf in H.
 destruct t; try contradiction.
 destruct f; try contradiction.
+if_tac in H; try contradiction.
 Qed.
 
 Lemma tc_val'_Vundef:
@@ -744,8 +760,9 @@ Lemma tc_val_has_type (ty : type) (v : val) :
   tc_val ty v ->
   Val.has_type v (typ_of_type ty).
 Proof.
-  destruct ty, v; simpl; auto.
-  all: destruct f; auto.
+  destruct ty, v; 
+  try solve [simpl; auto; try destruct f; auto];
+  unfold tc_val; if_tac; simpl; auto.
 Qed.
 
 (* A "neutral cast" from t1 to t2 is such that
@@ -764,7 +781,9 @@ Definition is_neutral_cast t1 t2 :=
  | Tlong _ _, Tlong _ _ => true
  | Tfloat F64 _, Tfloat F64 _ => true
  | Tfloat F32 _, Tfloat F32 _ => true
- | Tpointer _ _, Tpointer _ _ => true
+ | Tpointer _ _, Tpointer _ _ => eqb_type t1 t2 
+                    || negb (eqb_type t1 int_or_ptr_type) 
+                     && negb (eqb_type t2 int_or_ptr_type)
  | _, _ => false
  end.
 

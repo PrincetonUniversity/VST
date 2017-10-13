@@ -298,7 +298,11 @@ Inductive tc_val_PM: type -> val -> Prop :=
 | tc_val_PM_Tlong: forall s a v, is_long v -> tc_val_PM (Tlong s a) v
 | tc_val_PM_Tfloat_single: forall a v, is_single v -> tc_val_PM (Tfloat F32 a) v
 | tc_val_PM_Tfloat_double: forall a v, is_float v -> tc_val_PM (Tfloat F64 a) v
-| tc_val_PM_Tpointer: forall t a v, is_pointer_or_null v -> tc_val_PM (Tpointer t a) v
+| tc_val_PM_Tpointer: forall t a v, 
+          (if eqb_type (Tpointer t a) int_or_ptr_type
+           then is_pointer_or_integer
+           else is_pointer_or_null) v -> 
+          tc_val_PM (Tpointer t a) v
 | tc_val_PM_Tarray: forall t n a v, is_pointer_or_null v -> tc_val_PM (Tarray t n a) v
 | tc_val_PM_Tfunction: forall ts t a v, is_pointer_or_null v -> tc_val_PM (Tfunction ts t a) v
 | tc_val_PM_Tstruct: forall i a v, isptr v -> tc_val_PM (Tstruct i a) v
@@ -317,7 +321,12 @@ Inductive tc_val_PM': type -> val -> Prop :=
 | tc_val_PM'_Tlong: forall t0 s a v, stupid_typeconv t0 = Tlong s a -> is_long v -> tc_val_PM' t0 v
 | tc_val_PM'_Tfloat_single: forall t0 a v, stupid_typeconv t0 = Tfloat F32 a -> is_single v -> tc_val_PM' t0 v
 | tc_val_PM'_Tfloat_double: forall t0 a v, stupid_typeconv t0 = Tfloat F64 a -> is_float v -> tc_val_PM' t0 v
-| tc_val_PM'_Tpointer: forall t0 t a v, stupid_typeconv t0 = Tpointer t a -> is_pointer_or_null v -> tc_val_PM' t0 v
+| tc_val_PM'_Tpointer: forall t0 t a v, 
+  stupid_typeconv t0 = Tpointer t a -> 
+  (if eqb_type t0 int_or_ptr_type
+           then is_pointer_or_integer
+           else is_pointer_or_null) v -> 
+  tc_val_PM' t0 v
 | tc_val_PM'_Tstruct: forall t0 i a v, stupid_typeconv t0 = Tstruct i a -> isptr v -> tc_val_PM' t0 v
 | tc_val_PM'_Tunion: forall t0 i a v, stupid_typeconv t0 = Tunion i a -> isptr v -> tc_val_PM' t0 v.
 
@@ -475,7 +484,14 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR].
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    destruct t; try solve [inv IBR1];
+     try solve [simpl; auto].
+    unfold tc_val. 
+    destruct (typeof e1); inv H0.
+    clear H1.
+    if_tac; apply I.  
+    if_tac; apply I.
+    if_tac; apply I.
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
@@ -487,7 +503,9 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR].
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    unfold tc_val.
+    destruct t; try solve [inv IBR1]; try solve [simpl; auto].
+    if_tac; apply I.  
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
@@ -499,7 +517,8 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    destruct t; try solve [inv IBR1]; try solve [simpl; auto].
+    unfold tc_val; if_tac; apply I.  
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
@@ -511,7 +530,8 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    destruct t; try solve [inv IBR1]; try solve [simpl; auto].
+    unfold tc_val; if_tac; apply I.  
   + unfold sem_add_default.
     eapply tc_val_sem_binarith'; eauto.
 Qed.
@@ -542,7 +562,8 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR].
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    destruct t; try solve [inv IBR1]; try solve [simpl; auto].
+    unfold tc_val; if_tac; apply I.
   + simpl in IBR.
     destruct IBR as [[[[[[?IBR ?IBR] ?IBR] ?IBR] ?IBR] ?IBR] ?IBR].
     apply tc_bool_e in IBR2.
@@ -570,7 +591,8 @@ Proof.
     try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR].
-    destruct t; try solve [inv IBR1]; simpl; auto.
+    destruct t; try solve [inv IBR1]; try solve [simpl; auto].
+    unfold tc_val; if_tac; apply I.  
   + unfold sem_sub_default.
     eapply tc_val_sem_binarith'; eauto.
 Qed.
@@ -975,6 +997,13 @@ Proof.
     try solve [inv H];
     destruct OP as [|]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp;
@@ -1003,6 +1032,13 @@ Proof.
     destruct (typeof e2); inv H2;
     simpl force_val1 in IBR.
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp;
@@ -1032,6 +1068,13 @@ Proof.
     destruct (typeof e1); inv H0;
     simpl force_val1 in IBR.
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp;
@@ -1102,6 +1145,13 @@ Proof.
     try solve [inv H];
     destruct OP as [| [| [|]]]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp;
@@ -1125,6 +1175,13 @@ Proof.
     try solve [inv H];
     destruct OP as [| [| [|]]]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp, sem_cmp_pl, cast_out_long;
@@ -1148,6 +1205,13 @@ Proof.
     try solve [inv H];
     destruct OP as [| [| [|]]]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try match type of H3 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J;
+         [apply  eqb_type_true in J | apply eqb_type_false in J]
+    end;
+    try match type of H1 with (if ?A then _ else _) _ => 
+         destruct A eqn:?J
+    end;
     try solve [inv H1 | inv H3];
     destruct t as [| | | | | | | |]; try solve [inv IBR0];
     unfold force_val, op_to_cmp, sem_cmp_lp, cast_out_long;

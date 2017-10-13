@@ -869,15 +869,17 @@ Opaque tc_val.
 intros until 1; rename H into CMP; intros;
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
- destruct v2; inv H0; try rewrite H2;
+ destruct v2; 
+ try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
   Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool.
+ try apply tc_val_of_bool).
 Transparent tc_val.
-Qed.
+all: try solve [hnf in H0; if_tac in H0; inv H0].
+Abort.
 
 Lemma tc_val_cmp_eqne_pi:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
@@ -895,15 +897,16 @@ Opaque tc_val.
 intros until 1; rename H into CMP; intros.
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
- destruct v2; inv H0; try rewrite H2;
+ destruct v2; 
+ try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
   sem_binarith, sem_cast, classify_cast, sem_cmp_pl, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool.
+ try apply tc_val_of_bool).
 Transparent tc_val.
-Qed.
+Abort.
 
 Ltac sem_cmp_solver t1 t2 :=
 match t1 with

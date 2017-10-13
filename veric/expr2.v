@@ -33,7 +33,8 @@ assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
        try change (Int.unsigned Int.one) with 1;
        clear; compute; split; congruence
     end);
- try (destruct H0; subst i; try rewrite Int.eq_true; auto).
+ try (destruct H0; subst i; try rewrite Int.eq_true; auto);
+ if_tac in H0; contradiction H0.
 Qed.
 
 Lemma neutral_cast_subsumption: forall t1 t2 v,
@@ -61,7 +62,27 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
        try change (Int.signed Int.one) with 1;
        try change (Int.unsigned Int.one) with 1;
        clear; compute; try split; congruence
-    end.
+    end;
+ try ( if_tac in H0; contradiction H0).
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ destruct (eqb_type (Tpointer t1 a) int_or_ptr_type) eqn:?H; auto.
+ apply eqb_type_true in H7. inv H7. simpl in *.
+ rewrite orb_false_r in H8. 
+ rewrite andb_true_iff in H8. destruct H8.
+ destruct t2; inv H7.
+ destruct a0.
+ destruct attr_volatile; try solve [inv H8].
+ simpl in H8.
+ destruct attr_alignas; try solve [inv H8].
+ destruct n as [ [ | ] | ]; try solve [inv H8].
+ SearchHead ((_ =? _)%positive = true -> _).
+ apply Peqb_true_eq in H8. subst p.
+ contradiction H. reflexivity.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
 Qed.
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
@@ -270,10 +291,25 @@ Lemma neutral_isCastResultType:
    forall m, denote_tc_assert (isCastResultType t' t v) rho m.
 Proof.
 intros.
-  unfold isCastResultType;
+  unfold isCastResultType.
+  unfold is_neutral_cast in H.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-     inv H; try apply I;
-    simpl; if_tac; apply I.
+   try solve [inv H; try apply I; simpl; if_tac; apply I].
+  apply orb_true_iff in H.  
+  simpl classify_cast. cbv iota.
+  destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H.
+  apply I.
+  destruct H. inv H.
+  apply andb_true_iff in H. destruct H.
+  unfold is_pointer_type.
+ repeat  match goal with |- context [eqb_type ?A int_or_ptr_type] =>
+        let H := fresh in 
+  destruct (eqb_type A int_or_ptr_type) eqn:H;
+   [apply eqb_type_true in H | apply eqb_type_false in H]
+ end; 
+ inv H; inv H1;
+ try solve [simpl; if_tac; apply I].
+ apply I.
 Qed.
 
 Lemma is_true_e: forall b, is_true b -> b=true.
