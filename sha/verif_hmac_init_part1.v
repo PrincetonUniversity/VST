@@ -19,8 +19,13 @@ Lemma change_compspecs_t_struct_SHA256state_st':
   @data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
   @data_at_ CompSpecs Tsh t_struct_SHA256state_st.
 Proof.
-extensionality v.
-reflexivity.
+  extensionality v.
+  change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st v) with
+      (@data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st (default_val _) v).
+  change (@data_at_ CompSpecs Tsh t_struct_SHA256state_st v) with
+      (@data_at CompSpecs Tsh t_struct_SHA256state_st (default_val _) v).
+  rewrite change_compspecs_t_struct_SHA256state_st.
+  auto.
 Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
@@ -164,9 +169,101 @@ Proof. intros. abbreviate_semax.
          FCcb by entailer!. (*3.8*)
 
       freeze [0;2;3] FR3.
+      eapply semax_seq'.
+
+
+      prove_call_setup1.
+      Check call_setup2_i.
+      Set Printing All.
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      check_witness_type A (Vptr cb cofs)
+ end].
+ let H := fresh in
+ intro H;
+ let Frame := fresh "Frame" in evar (Frame: list mpred);
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H (Vptr cb cofs) Frame); clear H].
+ Set Printing All.
+ reflexivity.
+ check_prove_local2ptree.
+ Forall_pTree_from_elements.
+ Forall_pTree_from_elements.
+ unfold fold_right_sepcon at 1 2.
+
+(* FRZL FR3 *
+  (data_at Tsh (Tstruct _SHA256state_st noattr) (default_val (Tstruct _SHA256state_st noattr))
+     (Vptr cb cofs) * emp)
+  |-- data_at_ Tsh t_struct_SHA256state_st (Vptr cb cofs) * emp * fold_right_sepcon Frame *)
+  repeat match goal with |- ?A * _ |-- ?B * _ => 
+     constr_eq A B;  simple apply (cancel_left A)
+  end;
+  match goal with |- ?P |-- _ => qcancel P end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  try match goal with |- ?A |-- ?B => 
+       constr_eq A B; simple apply (derives_refl A)
+  end.
+  match goal with |- ?P |-- _ =>
+   (* The "emp" is a marker to notice when one complete pass has been made *)
+   rewrite <- (emp_sepcon P)
+  end.
+  repeat rewrite <- sepcon_assoc.
+  simple apply cancel1_start.
+  simple apply cancel1_next.
+  simple apply cancel1_last.
+  (*   @derives mpred Nveric
+    (@data_at CompSpecs Tsh (Tstruct _SHA256state_st noattr)
+       (@default_val CompSpecs (Tstruct _SHA256state_st noattr)) (Vptr cb cofs))
+    (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st (Vptr cb cofs)) *)
+  autorewrite with norm.
+  eauto with nocore cancel.
+  Print HintDb cancel.
+    [
+    try match goal with H := _ : list mpred |- _ => clear H end; (*
+      this line is to work around Coq 8.4 bug,
+      Anomaly: undefined_evars_of_term *)
+    solve [eauto with nocore cancel] | ].
+ first [
+   simple apply cancel1_here; [
+    try match goal with H := _ : list mpred |- _ => clear H end; (*
+      this line is to work around Coq 8.4 bug,
+      Anomaly: undefined_evars_of_term *)
+    solve [eauto with nocore cancel]
+   | ]
+ | simple apply cancel1_next; cancel1
+ | simple apply cancel1_last; [
+    try match goal with H := _ : list mpred |- _ => clear H end; (*
+      this line is to work around Coq 8.4 bug,
+      Anomaly: undefined_evars_of_term *)
+    solve [eauto with nocore cancel] | ]
+ ].
+
+  repeat simple apply cancel1_finish1;
+  try simple apply cancel1_finish2.
+
+      
+    [prove_call_setup (Vptr cb cofs);
+     clear_Delta_specs; clear_MORE_POST |].
+
+  let H := fresh in intro H;
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end.
+ check_result_type .
+ cbv beta iota zeta; unfold_post; (* extensionality rho; *)
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0;
+    (* apply equal_f; *)
+    apply exp_congr; intros ?vret;
+    apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+    (reflexivity || fail "The funspec of the function has a POSTcondition
+that is ill-formed.  The LOCALS part of the postcondition
+should be empty, but it is not").
+ unify_postcondition_exps.
+ unfold fold_right_and; repeat rewrite and_True; auto.
 
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
 
+      entailer.
       (*call to SHA256_Update*)
       thaw FR3.
       thaw FR2.

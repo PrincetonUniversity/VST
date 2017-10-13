@@ -110,8 +110,9 @@ Lemma align_compatible_tarray_tuchar:
 Proof.
 intros.
 destruct v; simpl; auto.
-exists (Int.unsigned i).
-symmetry. apply Z.mul_1_r.
+constructor; intros.
+eapply align_compatible_rec_by_value; [reflexivity |].
+apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
@@ -290,17 +291,19 @@ Focus 1. {
 } Unfocus.
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
+(* TODO: simplify this proof. *)
 intuition.
 - hnf in H6|-*. unfold offset_val. destruct md; auto.
   rewrite <- (Int.repr_unsigned i0).
   rewrite add_repr.
   simpl in H6|-*.
+  simpl in H2; inv_int i0.
   rewrite Int.unsigned_repr; try omega.
   rewrite Z.mul_1_l.
   change (Int.max_unsigned) with (Int.modulus-1).
-  pose proof (Int.unsigned_range i0); omega.
+  omega.
 - apply align_compatible_tarray_tuchar.
-- destruct H9; auto.
+- destruct H6; auto.
 +
      split; auto.
       rewrite Zlength_correct; subst bytes.

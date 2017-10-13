@@ -413,8 +413,67 @@ Lemma change_compspecs_t_struct_SHA256state_st:
   @data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
   @data_at CompSpecs Tsh t_struct_SHA256state_st.
 Proof.
-extensionality gfs v.
-reflexivity.
+  extensionality gfs v.
+  (* TODO: simplify this proof. *)
+  unfold data_at, field_at.
+  f_equal.
+  unfold field_compatible.
+  apply ND_prop_ext.
+  assert (@align_compatible spec_sha.CompSpecs t_struct_SHA256state_st v <-> @align_compatible CompSpecs t_struct_SHA256state_st v); [| tauto].
+  destruct v; unfold align_compatible; try tauto.
+  split; intros.
+  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+    intros.
+    eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
+    simpl in H0.
+    if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | inv H0]]]]].
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+    intros.
+    eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
+    simpl in H0.
+    if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | inv H0]]]]].
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
 Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.

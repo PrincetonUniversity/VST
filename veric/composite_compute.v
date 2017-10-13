@@ -527,3 +527,55 @@ Proof.
   apply type_func.Completeness.
   apply composite_reorder.RCT_Permutation.
 Qed.
+
+Section cuof.
+
+Context (cenv: composite_env).
+
+Fixpoint complete_legal_cosu_type t :=
+  match t with
+  | Tarray t' _ _ => complete_legal_cosu_type t'
+  | Tstruct id _ => match cenv ! id with
+                    | Some co => match co_su co with
+                                 | Struct => true
+                                 | Union => false
+                                 end
+                    | _ => false
+                    end
+  | Tunion id _ => match cenv ! id with
+                   | Some co => match co_su co with
+                                | Struct => false
+                                | Union => true
+                                end
+                   | _ => false
+                   end
+  | Tfunction _ _ _
+  | Tvoid => false
+  | _ => true
+  end.
+
+Fixpoint composite_complete_legal_cosu_type (m: members): bool :=
+  match m with
+  | nil => true
+  | (_, t) :: m' => complete_legal_cosu_type t && composite_complete_legal_cosu_type m'
+  end.
+
+Definition composite_env_complete_legal_cosu_type: Prop :=
+  forall (id : positive) (co : composite),
+    cenv ! id = Some co -> composite_complete_legal_cosu_type (co_members co) = true.
+  
+End cuof.
+
+Lemma complete_legal_cosu_type_complete_type: forall cenv: composite_env,
+  forall t,
+    complete_legal_cosu_type cenv t = true ->
+    complete_type cenv t = true.
+Proof.
+  intros.
+  induction t; auto.
+  + simpl in *.
+    destruct (cenv ! i); auto.
+  + simpl in *.
+    destruct (cenv ! i); auto.
+Qed.
+
