@@ -385,26 +385,12 @@ Module LegalAlignasDefsGen (LegalAlignas: LEGAL_ALIGNAS).
 
   Definition is_aligned cenv ha_env la_env (t: type) (ofs: Z): bool := is_aligned_aux (legal_alignas_type cenv ha_env la_env t) (hardware_alignof ha_env t) ofs.
 
-  Definition natural_aligned cenv ha_env la_env (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env t) =? 0) && is_aligned cenv ha_env la_env t 0.
-
   Definition legal_alignas_env_sound (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t legal_alignas_obs): Prop :=
     forall ofs t,
+      complete_legal_cosu_type cenv t = true ->
       is_aligned cenv ha_env la_env t ofs = true ->
       align_compatible_rec cenv t ofs.
 
-  Definition natural_aligned_sound (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t legal_alignas_obs): Prop :=
-    forall na ofs t,
-      natural_aligned cenv ha_env la_env na t = true ->
-      (na | ofs) ->
-      align_compatible_rec cenv t ofs.
-
-  Lemma natural_aligned_sound_aux: forall cenv ha_env la_env,
-    legal_alignas_env_sound cenv ha_env la_env ->
-    natural_aligned_sound cenv ha_env la_env.
-  Proof.
-    intros.
-  Admitted.
-      
 End LegalAlignasDefsGen.
 
 Module Type LEGAL_ALIGNAS_FACTS.
@@ -422,6 +408,7 @@ Module Type LEGAL_ALIGNAS_FACTS.
 
   Axiom legal_alignas_soundness: forall cenv ha_env la_env,
     composite_env_consistent cenv ->
+    composite_env_complete_legal_cosu_type cenv ->
     hardware_alignof_env_consistent cenv ha_env ->
     hardware_alignof_env_complete cenv ha_env ->
     legal_alignas_env_consistent cenv ha_env la_env ->
@@ -628,6 +615,7 @@ Context (cenv: composite_env)
         (ha_env: PTree.t Z)
         (la_env: PTree.t bool)
         (CENV_CONSI: composite_env_consistent cenv)
+        (CENV_COSU: composite_env_complete_legal_cosu_type cenv)
         (HA_ENV_CONSI: hardware_alignof_env_consistent cenv ha_env)
         (HA_ENV_COMPL: hardware_alignof_env_complete cenv ha_env)
         (LA_ENV_CONSI: legal_alignas_env_consistent cenv ha_env la_env)
@@ -666,8 +654,10 @@ Qed.
 Theorem legal_alignas_soundness:
   legal_alignas_env_sound cenv ha_env la_env.
 Proof.
+  pose proof CENV_COSU.
+  clear CENV_COSU H.
   intros.
-  hnf; intros.
+  hnf; intros ? ? _ ?.
   revert ofs H; type_induction t cenv CENV_CONSI; intros.
   + inversion H.
   + eapply by_value_sound; eauto.
@@ -1010,6 +1000,7 @@ Context (cenv: composite_env)
         (ha_env: PTree.t Z)
         (la_env: PTree.t bool)
         (CENV_CONSI: composite_env_consistent cenv)
+        (CENV_COSU: composite_env_complete_legal_cosu_type cenv)
         (HA_ENV_CONSI: hardware_alignof_env_consistent cenv ha_env)
         (HA_ENV_COMPL: hardware_alignof_env_complete cenv ha_env)
         (LA_ENV_CONSI: legal_alignas_env_consistent cenv ha_env la_env)
@@ -1035,8 +1026,8 @@ Theorem legal_alignas_soundness:
 Proof.
   intros.
   hnf; intros.
-  revert ofs H; type_induction t cenv CENV_CONSI; intros.
-  + inversion H.
+  revert ofs H H0; type_induction t cenv CENV_CONSI; intros.
+  + inversion H0.
   + eapply by_value_sound; eauto.
     destruct i, s; eexists; try reflexivity.
   + eapply by_value_sound; eauto.
@@ -1046,76 +1037,84 @@ Proof.
   + eapply by_value_sound; eauto.
     eexists; try reflexivity.
   + apply align_compatible_rec_Tarray; intros.
-    apply IH; clear IH.
-    unfold is_aligned, is_aligned_aux in H |- *.
-    simpl in H |- *.
-    autorewrite with align in H |- *.
-    destruct H as [[? ?] ?].
+    apply IH; clear IH; [auto |].
+    unfold is_aligned, is_aligned_aux in H0 |- *.
+    simpl in H0 |- *.
+    autorewrite with align in H0 |- *.
+    destruct H0 as [[? ?] ?].
     split; auto.
     apply Z.divide_add_r; auto.
     apply Z.divide_mul_l; auto.
   + inv H.
-  + unfold is_aligned, is_aligned_aux in H, IH.
-    Opaque alignof. simpl in H, IH. Transparent alignof.
-    destruct (la_env ! id) as [la |] eqn:?H; [| inv H].
-    pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
-    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
-    rewrite H1 in IH; rewrite H2 in H.
-    rewrite (HA_ENV_CONSI id _ _ H1 H2) in H.
-    rewrite (LA_ENV_CONSI id _ _ H1 H0) in H.
-    autorewrite with align in H |- *.
-    destruct H.
+  + unfold is_aligned, is_aligned_aux in H0, IH.
+    simpl in H, H0, IH.
+    destruct (la_env ! id) as [la |] eqn:?H; [| inv H0].
+    pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H1) as [co ?].
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H2) as [ha ?].
+    pose proof CENV_COSU _ _ H2.
+    rewrite H2 in IH, H; rewrite H3 in H0.
+    rewrite (HA_ENV_CONSI id _ _ H2 H3) in H0.
+    rewrite (LA_ENV_CONSI id _ _ H2 H1) in H0.
+    autorewrite with align in H0 |- *.
+    destruct H0.
+    unfold legal_alignas_composite in H0.
+    destruct (co_su co); [| inv H].
     eapply align_compatible_rec_Tstruct; [eassumption | intros].
-    unfold field_offset in H4.
-    clear H0 H1 H2 H4.
-    induction IH as [| [i t] ?].
-    - inv H3.
-    - Opaque alignof. simpl in H0, H3, H. Transparent alignof.
-      if_tac in H3.
-      * subst i0; inv H3.
-        apply H0; simpl.
-        autorewrite with align in H |- *.
-        destruct H as [[_ [? ?]] [? ?]].
+    unfold field_offset in H7.
+    clear H H1 H2 H3.
+    revert H0 H4 H5 H6 H7; generalize 0;
+    induction IH as [| [i t] ?]; intros.
+    - inv H6.
+    - simpl in H, H0, H4, H5, H6, H7.
+      if_tac in H6.
+      * subst i0; inv H6; inv H7.
+        autorewrite with align in H4, H5, H0 |- *.
+        destruct H0 as [[? ?] ?], H4 as [? ?], H5 as [? ?].
+        apply H; simpl; [tauto |].
+        autorewrite with align.
         split; auto.
         apply Z.divide_add_r; auto.
-        apply legal_alignas_type_divide in H.
-        apply Z.divide_trans with (alignof cenv t0); try eassumption.
-      * apply IHIH; auto.
-        autorewrite with align in H |- *.
-        split; [split |]; tauto.
-  + unfold is_aligned, is_aligned_aux in H, IH.
-    Opaque alignof. simpl in H, IH. Transparent alignof.
-    destruct (la_env ! id) as [la |] eqn:?H.
-    Focus 2. {
-      rewrite (andb_comm _ false) in H.
-      inv H.
-    } Unfocus.
-    pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
-    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
-    rewrite H1 in IH; rewrite H2 in H.
-    rewrite (HA_ENV_CONSI id _ _ H1 H2) in H.
-    rewrite (LA_ENV_CONSI id _ _ H1 H0) in H.
+      * autorewrite with align in H0, H4, H5.
+        destruct H4, H5.
+        apply (IHIH (align z (alignof cenv t) + sizeof cenv t)); auto.
+        tauto.
+  + unfold is_aligned, is_aligned_aux in H0, IH.
+    simpl in H, H0, IH.
+    destruct (la_env ! id) as [la |] eqn:?H; [| inv H0].
+    pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H1) as [co ?].
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H2) as [ha ?].
+    pose proof CENV_COSU _ _ H2.
+    rewrite H2 in IH, H; rewrite H3 in H0.
+    rewrite (HA_ENV_CONSI id _ _ H2 H3) in H0.
+    rewrite (LA_ENV_CONSI id _ _ H2 H1) in H0.
+    autorewrite with align in H0 |- *.
+    destruct H0.
+    unfold legal_alignas_composite in H0.
+    destruct (co_su co); [inv H |].
     eapply align_compatible_rec_Tunion; [eassumption | intros].
-    clear H0 H1 H2.
-    induction IH as [| [i t] ?].
-    - inv H3.
-    - Opaque alignof. simpl in H0, H3, H. Transparent alignof.
-      if_tac in H3.
-      * subst i0; inv H3.
-        apply H0; simpl.
-        autorewrite with align in H |- *.
-        destruct H as [[_ [? ?]] [? ?]].
+    clear H H1 H2 H3.
+    revert H0 H4 H5 H6;
+    induction IH as [| [i t] ?]; intros.
+    - inv H6.
+    - simpl in H, H0, H4, H5, H6.
+      if_tac in H6.
+      * subst i0; inv H6.
+        autorewrite with align in H4, H5, H0 |- *.
+        destruct H0 as [? ?], H4 as [? ?], H5 as [? ?].
+        apply H; simpl; [tauto |].
+        autorewrite with align.
         split; auto.
-      * apply IHIH; auto.
-        autorewrite with align in H |- *.
-        split; [split |]; tauto.
+      * autorewrite with align in H0, H4, H5.
+        destruct H4, H5.
+        apply IHIH; auto.
+        tauto.
 Qed.
 
 End soundness.
 
-End LegalAlignasStrictFacts.
+End LegalAlignasStrongFacts.
 
-Module Export LegalAlignasFacts := LegalAlignasStrictFacts.
+Module Export LegalAlignasFacts := LegalAlignasStrongFacts.
 
 
 

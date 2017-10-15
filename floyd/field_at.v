@@ -1669,6 +1669,21 @@ Ltac data_at_conflict_neq :=
    end
   end.
 
+Definition natural_aligned cenv ha_env la_env (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env t) =? 0) && is_aligned cenv ha_env la_env t 0.
+
+Definition natural_aligned_sound (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t legal_alignas_obs): Prop :=
+    forall na ofs t,
+      natural_aligned cenv ha_env la_env na t = true ->
+      (na | ofs) ->
+      align_compatible_rec cenv t ofs.
+
+Lemma natural_aligned_sound_aux: forall cenv ha_env la_env,
+  legal_alignas_env_sound cenv ha_env la_env ->
+  natural_aligned_sound cenv ha_env la_env.
+Proof.
+  intros.
+Admitted.
+
 Definition natural_alignment := 8.
 
 (* TODO: change this name to malloc_compatible_ptr and merge the definition of isptr, size_compatible, align_compatible into something like: size_align_compatible_ptr *)
