@@ -51,144 +51,6 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
 
-(** Computational version of type_eq **)
-
-Definition eqb_option {A} (f: A -> A -> bool) (x y: option A) : bool :=
-  match x, y with
-  | None, None => true
-  | Some x' , Some y' => f x' y'
- | _, _ => false
-  end.
-
-Definition eqb_attr (a b: attr) : bool :=
- match a, b with
- | mk_attr av an, mk_attr bv bn => eqb av bv && eqb_option N.eqb an bn
- end.
-
-Definition eqb_floatsize (a b: floatsize) : bool :=
- match a , b with
- | F32, F32 => true
- | F64, F64 => true
- | _, _ => false
- end.
-
-Definition eqb_ident : ident -> ident -> bool := Peqb.
-
-Definition eqb_intsize (a b: intsize) : bool :=
- match a , b with
- | I8, I8 => true
- | I16, I16 => true
- | I32, I32 => true
- | IBool, IBool => true
- | _, _ => false
- end.
-
-Definition eqb_signedness (a b : signedness) :=
- match a, b with
- | Signed, Signed => true
- | Unsigned, Unsigned => true
- | _, _ => false
- end.
-
-Definition eqb_calling_convention (a b: calling_convention) :=
- andb (eqb (cc_vararg a) (cc_vararg b))
-     (andb  (eqb (cc_unproto a) (cc_unproto b))
-      (eqb (cc_structret a) (cc_structret b))).
-
-Fixpoint eqb_type (a b: type) {struct a} : bool :=
- match a, b with
- | Tvoid, Tvoid => true
- | Tint ia sa aa, Tint ib sb ab => andb (eqb_intsize ia ib)
-                                                    (andb (eqb_signedness sa sb) (eqb_attr aa ab))
- | Tlong sa aa, Tlong sb ab => andb (eqb_signedness sa sb) (eqb_attr aa ab)
- | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
- | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
- | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb)
-                                                                   (andb (Zeq_bool sa sb) (eqb_attr aa ab))
- | Tfunction sa ta ca, Tfunction sb tb cb =>
-       andb (andb (eqb_typelist sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
- | Tstruct ia aa, Tstruct ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
- | Tunion ia aa, Tunion ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
- | _, _ => false
- end
-with eqb_typelist (a b: typelist)  {struct a}: bool :=
-  match a, b with
-  | Tcons ta ra, Tcons tb rb => andb (eqb_type ta tb) (eqb_typelist ra rb)
-  | Tnil, Tnil => true
-  | _ , _ => false
-  end.
-
-Scheme eqb_type_sch := Induction for type Sort Prop
-  with eqb_typelist_sch := Induction for  typelist Sort Prop.
-
-
-Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
-Proof. destruct i,j; simpl; split; intro; congruence. Qed.
-Lemma eqb_floatsize_spec: forall i j, eqb_floatsize i j = true <-> i=j.
-Proof. destruct i,j; simpl; split; intro; congruence. Qed.
-Lemma eqb_signedness_spec: forall i j, eqb_signedness i j = true <-> i=j.
-Proof. destruct i,j; simpl; split; intro; congruence. Qed.
-Lemma eqb_attr_spec: forall i j, eqb_attr i j = true <-> i=j.
-Proof.
-  destruct i as [[ | ] [ | ]]; destruct j as [[ | ] [ | ]];
-   simpl; split; intro; try rewrite N.eqb_eq in *; try congruence.
-Qed.
-Lemma eqb_ident_spec: forall i j, eqb_ident i j = true <-> i=j.
-Proof.
- intros. unfold eqb_ident.
- apply Pos.eqb_eq.
-Qed.
-
-Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
-Proof.
-apply (eqb_type_sch
-           (fun a => forall b, eqb_type a b = true <-> a=b)
-          (fun a => forall b, eqb_typelist a b = true <-> a=b));
-  destruct b; simpl;
-   split; intro;
-   repeat rewrite andb_true_iff in *;
-   try rewrite eqb_intsize_spec in *;
-   try rewrite eqb_floatsize_spec in *;
-   try rewrite eqb_signedness_spec in *;
-   try rewrite eqb_attr_spec in *;
-   try rewrite eqb_ident_spec in *;
-   try rewrite <- Zeq_is_eq_bool in *;
-   repeat match goal with H: _ /\ _ |- _  => destruct H end;
-   repeat split; subst; f_equal; try  congruence;
-    try solve [apply H; auto];
-    try solve [inv H0; apply H; auto].
-*  apply H0; auto.
-*  clear - H2; destruct c as [[|] [|] [|]]; destruct c0 as [[|] [|] [|]]; inv H2; auto.
-*  inv H1; apply H; auto.
-*  inv H1; apply H0; auto.
-*   inv H1; destruct c0 as [[|] [|] [|]]; reflexivity.
-*  apply H0; auto.
-*   inv H1; apply H; auto.
-*   inv H1; apply H0; auto.
-Qed.
-
-Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
-Proof.
-intros. apply eqb_type_spec; auto.
-Qed.
-
-Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
-Proof.
-intros.
-pose proof (eqb_type_spec a b).
-destruct (eqb_type a b);
-split; intro; try congruence.
-destruct H. rewrite H in H0 by auto. congruence.
-intro; subst.
-destruct H; try congruence.
-spec H1; auto. congruence.
-Qed.
-
-Lemma eqb_type_refl: forall a, eqb_type a a = true.
-Proof.
-intros. apply eqb_type_spec; auto.
-Qed.
-
 (** Functions for evaluating expressions in environments,
 these return vundef if something goes wrong, meaning they always return some value **)
 
@@ -320,7 +182,8 @@ Definition eval_expropt {CS: compspecs} (e: option expr) : environ -> option val
 
 Definition bool_type (t: type) : bool :=
   match t with
-  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true
+  | Tpointer _ _ => negb (eqb_type t int_or_ptr_type)
+  | Tint _ _ _ | Tlong _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ =>  true
   | _ => false
   end.
 
@@ -361,12 +224,6 @@ match ty with
 | _ => false
 end.
 
-Definition log2_sizeof_pointer :=
-  N.log2 (Z.to_N (@sizeof (PTree.empty _) (Tpointer Tvoid noattr))).
-
-Definition int_or_ptr_type : type :=
-  Tpointer Tvoid {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |}.
-
 Definition is_pointer_type ty :=
 match ty with
 | (Tpointer _ _ 
@@ -393,6 +250,7 @@ Inductive tc_error :=
 | invalid_struct_field : ident (* field name *) -> ident (* struct name *) -> tc_error
 | invalid_lvalue : expr -> tc_error
 | wrong_signature : tc_error
+| int_or_ptr_type_error : tc_error
 | miscellaneous_typecheck_error : tc_error.
 
 Inductive tc_assert :=
@@ -547,37 +405,49 @@ match op with
                     end
 end.
 
+Definition tc_int_or_ptr_type (t: type) : tc_assert :=
+ tc_bool (negb (eqb_type t int_or_ptr_type)) int_or_ptr_type_error.
+
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.add_case_pi t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_ip t => tc_andp (tc_andp (tc_isptr a2)
+                    | Cop.add_case_ip t => tc_andp (tc_andp (tc_andp (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl t => tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.add_case_pl t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_lp t => tc_andp (tc_andp (tc_isptr a2)
+                    | Cop.add_case_lp t => tc_andp (tc_andp (tc_andp (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.sub_case_pi t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl t => tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.sub_case_pl t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>
-                             tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
+                             tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp 
+                               (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
+                               (tc_int_or_ptr_type (typeof a1)))
+                               (tc_int_or_ptr_type (typeof a2)))
                                (tc_bool (is_int32_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
@@ -633,21 +503,28 @@ match op with
                     | Cop.bin_default => tc_FF deferr
                    end
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
-                   match Cop.classify_cmp (typeof a1) (typeof a2) with
-                    | Cop.cmp_default =>
+         match Cop.classify_cmp (typeof a1) (typeof a2) with
+              | Cop.cmp_default =>
                            tc_bool (is_numeric_type (typeof a1)
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-	            | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
-                    | Cop.cmp_case_lp => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
-                   end
+	            | Cop.cmp_case_pp => 
+                     tc_andp (tc_andp (tc_int_or_ptr_type (typeof a1)) 
+                                      (tc_int_or_ptr_type (typeof a2)))
+                       (check_pp_int a1 a2 op ty e)
+              | Cop.cmp_case_pl => 
+                     tc_andp (tc_int_or_ptr_type (typeof a1))
+                       (check_pp_int a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e)
+              | Cop.cmp_case_lp => 
+                     tc_andp (tc_int_or_ptr_type (typeof a2))
+                    (check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e)
+              end
   end.
 
 Definition isCastResultType {CS: compspecs} tfrom tto a : tc_assert :=
   (* missing casts from f2s and s2f *)
-match Cop.classify_cast tfrom tto with
+match classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
@@ -798,8 +675,10 @@ end.
 
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
-| (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _),
-   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => true
+| (Tarray _ _ _ | Tfunction _ _ _),
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+     eqb (eqb_type t1 int_or_ptr_type)
+         (eqb_type t2 int_or_ptr_type)
 | (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true
 | _, _ => false
 end.

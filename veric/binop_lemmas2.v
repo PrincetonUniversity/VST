@@ -97,7 +97,8 @@ Proof.
   (destruct (eval_expr e any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
-     auto .. ]); auto.
+     auto .. ]); auto;
+  try (unfold Cop2.sem_cast, Cop2.classify_cast; if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
@@ -653,31 +654,40 @@ let deferr := arg_type e in
 denote_tc_assert
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_isptr a2)
+                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
+                    | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>
-                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
+                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' 
+                              (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
+                               (tc_int_or_ptr_type (typeof a1)))
+                               (tc_int_or_ptr_type (typeof a2)))
                                (tc_bool (is_int32_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
@@ -739,10 +749,16 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
+ 		                | Cop.cmp_case_pp => tc_andp' (tc_andp' (tc_int_or_ptr_type (typeof a1)) 
+                                      (tc_int_or_ptr_type (typeof a2)))
+                              (check_pp_int' a1 a2 op ty e)
+                    | Cop.cmp_case_pl => 
+                         tc_andp' (tc_int_or_ptr_type (typeof a1))
+                            (check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e)
 (*check_pl_long' a2 op ty e*)
-                    | Cop.cmp_case_lp => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_lp => 
+                         tc_andp' (tc_int_or_ptr_type (typeof a2))
+                          (check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e)
 (*check_pl_long' a1 op ty e*)
                    end
   end.

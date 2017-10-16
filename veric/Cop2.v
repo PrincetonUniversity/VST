@@ -18,6 +18,144 @@
 Require Import VST.veric.base.
 Require Import VST.veric.tycontext.
 
+(** Computational version of type_eq **)
+
+Definition eqb_option {A} (f: A -> A -> bool) (x y: option A) : bool :=
+  match x, y with
+  | None, None => true
+  | Some x' , Some y' => f x' y'
+ | _, _ => false
+  end.
+
+Definition eqb_attr (a b: attr) : bool :=
+ match a, b with
+ | mk_attr av an, mk_attr bv bn => eqb av bv && eqb_option N.eqb an bn
+ end.
+
+Definition eqb_floatsize (a b: floatsize) : bool :=
+ match a , b with
+ | F32, F32 => true
+ | F64, F64 => true
+ | _, _ => false
+ end.
+
+Definition eqb_ident : ident -> ident -> bool := Peqb.
+
+Definition eqb_intsize (a b: intsize) : bool :=
+ match a , b with
+ | I8, I8 => true
+ | I16, I16 => true
+ | I32, I32 => true
+ | IBool, IBool => true
+ | _, _ => false
+ end.
+
+Definition eqb_signedness (a b : signedness) :=
+ match a, b with
+ | Signed, Signed => true
+ | Unsigned, Unsigned => true
+ | _, _ => false
+ end.
+
+Definition eqb_calling_convention (a b: calling_convention) :=
+ andb (eqb (cc_vararg a) (cc_vararg b))
+     (andb  (eqb (cc_unproto a) (cc_unproto b))
+      (eqb (cc_structret a) (cc_structret b))).
+
+Fixpoint eqb_type (a b: type) {struct a} : bool :=
+ match a, b with
+ | Tvoid, Tvoid => true
+ | Tint ia sa aa, Tint ib sb ab => andb (eqb_intsize ia ib)
+                                                    (andb (eqb_signedness sa sb) (eqb_attr aa ab))
+ | Tlong sa aa, Tlong sb ab => andb (eqb_signedness sa sb) (eqb_attr aa ab)
+ | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
+ | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
+ | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb)
+                                                                   (andb (Zeq_bool sa sb) (eqb_attr aa ab))
+ | Tfunction sa ta ca, Tfunction sb tb cb =>
+       andb (andb (eqb_typelist sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
+ | Tstruct ia aa, Tstruct ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
+ | Tunion ia aa, Tunion ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
+ | _, _ => false
+ end
+with eqb_typelist (a b: typelist)  {struct a}: bool :=
+  match a, b with
+  | Tcons ta ra, Tcons tb rb => andb (eqb_type ta tb) (eqb_typelist ra rb)
+  | Tnil, Tnil => true
+  | _ , _ => false
+  end.
+
+Scheme eqb_type_sch := Induction for type Sort Prop
+  with eqb_typelist_sch := Induction for  typelist Sort Prop.
+
+
+Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_floatsize_spec: forall i j, eqb_floatsize i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_signedness_spec: forall i j, eqb_signedness i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_attr_spec: forall i j, eqb_attr i j = true <-> i=j.
+Proof.
+  destruct i as [[ | ] [ | ]]; destruct j as [[ | ] [ | ]];
+   simpl; split; intro; try rewrite N.eqb_eq in *; try congruence.
+Qed.
+Lemma eqb_ident_spec: forall i j, eqb_ident i j = true <-> i=j.
+Proof.
+ intros. unfold eqb_ident.
+ apply Pos.eqb_eq.
+Qed.
+
+Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
+Proof.
+apply (eqb_type_sch
+           (fun a => forall b, eqb_type a b = true <-> a=b)
+          (fun a => forall b, eqb_typelist a b = true <-> a=b));
+  destruct b; simpl;
+   split; intro;
+   repeat rewrite andb_true_iff in *;
+   try rewrite eqb_intsize_spec in *;
+   try rewrite eqb_floatsize_spec in *;
+   try rewrite eqb_signedness_spec in *;
+   try rewrite eqb_attr_spec in *;
+   try rewrite eqb_ident_spec in *;
+   try rewrite <- Zeq_is_eq_bool in *;
+   repeat match goal with H: _ /\ _ |- _  => destruct H end;
+   repeat split; subst; f_equal; try  congruence;
+    try solve [apply H; auto];
+    try solve [inv H0; apply H; auto].
+*  apply H0; auto.
+*  clear - H2; destruct c as [[|] [|] [|]]; destruct c0 as [[|] [|] [|]]; inv H2; auto.
+*  inv H1; apply H; auto.
+*  inv H1; apply H0; auto.
+*   inv H1; destruct c0 as [[|] [|] [|]]; reflexivity.
+*  apply H0; auto.
+*   inv H1; apply H; auto.
+*   inv H1; apply H0; auto.
+Qed.
+
+Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
+Proof.
+intros. apply eqb_type_spec; auto.
+Qed.
+
+Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
+Proof.
+intros.
+pose proof (eqb_type_spec a b).
+destruct (eqb_type a b);
+split; intro; try congruence.
+destruct H. rewrite H in H0 by auto. congruence.
+intro; subst.
+destruct H; try congruence.
+spec H1; auto. congruence.
+Qed.
+
+Lemma eqb_type_refl: forall a, eqb_type a a = true.
+Proof.
+intros. apply eqb_type_spec; auto.
+Qed.
+
 (** * Type classification and semantics of operators. *)
 
 (** Most C operators are overloaded (they apply to arguments of various
@@ -198,8 +336,54 @@ Definition sem_cast_s2l si2 (v: val) : option val :=
       | _ => None
       end.
 
+Definition log2_sizeof_pointer : N := 
+  ltac:(let n := eval compute in 
+  (N.log2 (Z.to_N (@sizeof (PTree.empty _) (Tpointer Tvoid noattr))))
+   in exact (n)).
+
+Definition int_or_ptr_type : type :=
+  Tpointer Tvoid {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |}.
+
+Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
+  match tto, tfrom with
+  | Tint I32 si2 _, (Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+     if eqb_type tfrom int_or_ptr_type then cast_case_default else cast_case_neutral
+  | Tint IBool _ _, Tfloat F64 _ => cast_case_f2bool
+  | Tint IBool _ _, Tfloat F32 _ => cast_case_s2bool
+  | Tint IBool _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => cast_case_p2bool
+  | Tint sz2 si2 _, Tint sz1 si1 _ => cast_case_i2i sz2 si2
+  | Tint sz2 si2 _, Tfloat F64 _ => cast_case_f2i sz2 si2
+  | Tint sz2 si2 _, Tfloat F32 _ => cast_case_s2i sz2 si2
+  | Tfloat F64 _, Tfloat F64 _ => cast_case_f2f
+  | Tfloat F32 _, Tfloat F32 _ => cast_case_s2s
+  | Tfloat F64 _, Tfloat F32 _ => cast_case_s2f
+  | Tfloat F32 _, Tfloat F64 _ => cast_case_f2s
+  | Tfloat F64 _, Tint sz1 si1 _ => cast_case_i2f si1
+  | Tfloat F32 _, Tint sz1 si1 _ => cast_case_i2s si1
+  | Tpointer _ _, (Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+          if eqb (eqb_type tto int_or_ptr_type) (eqb_type tfrom int_or_ptr_type)
+               then cast_case_neutral
+               else cast_case_default
+  | Tlong _ _, Tlong _ _ => cast_case_l2l
+  | Tlong _ _, Tint sz1 si1 _ => cast_case_i2l si1
+  | Tint IBool _ _, Tlong _ _ => cast_case_l2bool
+  | Tint sz2 si2 _, Tlong _ _ => cast_case_l2i sz2 si2
+  | Tlong si2 _, Tfloat F64 _ => cast_case_f2l si2
+  | Tlong si2 _, Tfloat F32 _ => cast_case_s2l si2
+  | Tfloat F64 _, Tlong si1 _ => cast_case_l2f si1
+  | Tfloat F32 _, Tlong si1 _ => cast_case_l2s si1
+  | Tpointer _ _, Tlong _ _ => cast_case_l2i I32 Unsigned
+  | Tlong si2 _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => cast_case_i2l si2
+  | Tstruct id2 _, Tstruct id1 _ => cast_case_struct id1 id2
+  | Tunion id2 _, Tunion id1 _ => cast_case_union id1 id2
+  | Tvoid, _ => cast_case_void
+  | _, _ => cast_case_default
+  end.
+
+Arguments classify_cast tfrom tto / .
+
 Definition sem_cast (t1 t2: type): val -> option val :=
-  match Cop.classify_cast t1 t2 with
+  match classify_cast t1 t2 with
   | Cop.cast_case_neutral => sem_cast_neutral
   | Cop.cast_case_i2i sz2 si2 => sem_cast_i2i sz2 si2
   | Cop.cast_case_f2f => sem_cast_f2f

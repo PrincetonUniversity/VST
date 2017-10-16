@@ -361,8 +361,15 @@ intros. destruct t1; destruct t2;
          destruct A eqn:?J;
          [apply  eqb_type_true in J | apply eqb_type_false in J]
     end;
-   try solve [inv H]; destruct v; auto.
-inv H0.
+   try solve [inv H]; destruct v; auto;
+   try solve [inv H0];
+   try solve [if_tac; apply I].
+   unfold same_base_type in H.
+   destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type).
+   apply I. inv H0. reflexivity.
+   unfold same_base_type in H.
+   destruct (eqb_type (Tpointer t2 a) int_or_ptr_type).
+   apply I. inv H0. reflexivity.
 Qed.
 
 Lemma typecheck_temp_sound:
@@ -424,6 +431,10 @@ clear H H5 H4.
 hnf in H3. unfold_lift in H3; hnf in H3.
 unfold_lift.
 destruct (eval_expr e rho); try contradiction.
-destruct pt; inv H1; reflexivity.
+destruct pt; try solve [inv H1; reflexivity].
+unfold tc_val.
+unfold is_pointer_type in H1.
+destruct (eqb_type (Tpointer pt a) int_or_ptr_type); inv H1.
+apply I.
 Qed.
 
