@@ -323,6 +323,15 @@ repeat match goal with
 Qed.
 *)
 
+Lemma valid_pointer_dry0:
+  forall b ofs m, app_pred (valid_pointer (Vptr b ofs)) (m_phi m) ->
+           Mem.valid_pointer (m_dry m) b (Int.unsigned ofs) = true.
+Proof.
+intros.
+rewrite <- (Z.add_0_r (Int.unsigned ofs)).
+apply valid_pointer_dry; auto.
+Qed.
+
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
         (Hcenv: genv_cenv ge = @cenv_cs CS),
@@ -432,9 +441,9 @@ try (erewrite denote_tc_lgt_e by eauto);
 try reflexivity
 ).
 
-*
+xxx.
 
-
+all: try abstract (
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try solve [contradiction TC1];
 destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -458,9 +467,106 @@ cbv beta iota zeta delta [
   sem_binary_operation sem_binary_operation' 
    Cop.sem_add Cop.sem_sub sem_sub Cop.sem_div Cop.sem_cast
    Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift sem_shl sem_shift
-   Cop.sem_shr sem_shr Cop.sem_cmp
-   Cop.sem_binarith
-]; simpl;
+   Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp sem_cmp_pp
+   Cop.sem_binarith classify_cmp
+]; simpl typeconv; cbv beta iota;
+clear - H3 TC1 TC2;
+ try (destruct v2; inv TC2; try contradiction; try reflexivity);
+ try (destruct v1; inv TC1; try contradiction; try reflexivity);
+ try (
+   unfold force_val2, Val.cmpu_bool, true2;
+   destruct H3 as [H H0];
+   hnf in H; try subst i; rewrite Int.eq_true;
+   rewrite weak_valid_pointer_dry by auto;
+   unfold Val.cmp_different_blocks; reflexivity);
+unfold denote_tc_test_eq, cast_out_long in H3;
+unfold force_val2, Val.cmpu_bool, true2;
+unfold test_eq_ptrs, sameblock, proj_sumbool in H3;
+unfold eq_block;
+destruct (peq b0 b); destruct H3;
+ rewrite ?weak_valid_pointer_dry by auto; 
+ rewrite ?valid_pointer_dry0 by auto;
+ try reflexivity).
+
+do 3 red in H.
+
+SearchAbout (app_pred (valid_pointer _ ) _).
+ rewrite ?valid_pointer_try by auto.
+rewrite valid_poi
+simpl.
+
+ | ].
+destruct H3.
+simpl andb.
+SearchA
+ [destruct H3 |].
+ in H3.
+unfold sameblock
+unn
+do 3 red in H3; unfold sameblock in H3.
+destruct (peq b0 b); unfold proj_sumbool in H3;
+ [rewrite !if_true by auto | rewrite !if_false by auto].
+
+ simpl proj_sumbool in H3.
+destruct H3.
+SearchAbout test_eq_ptrs.
+
+do 3 red in H3; unfold cast_out_long in H3.
+red in H3.
+
+S
+do 3 red in H3.
+destruct H3.
+
+
+destruct H3 as [H H0];
+hnf in H; subst i; rewrite (Int.eq_true _ H);
+rewrite weak_valid_pointer_dry by auto;
+unfold Val.cmp_different_blocks; reflexivity.
+
+destruct H3.
+
+
+
+do 3 red in H3. 
+destruct H3;
+hnf in H; subst i; rewrite Int.eq_true;
+rewrite weak_valid_pointer_dry by auto;
+unfold Val.cmp_different_blocks; reflexivity.
+
+ reflexvity.
+SearchAbout (app_pred (weak_valid_pointer _) _).
+admit. admit. admit. admit. admit.
+admit. admit. admit. admit. admit.
+admit. admit. admit. admit. admit.
+admit. admit. admit. admit. admit.
+admit. admit. admit. admit. admit.
+admit. admit. admit. admit. admit.
+
+
+unfold denote_tc_test_eq in H3.
+unfold cast_out_long in H3; try destruct H3.
+
+ simpl.
+clear - H3 TC1 TC2.
+Lemma denote_tc_test_eq_e: forall m v1 v2,
+ app_pred (denote_tc_test_eq v1 v2) (m_phi m) ->
+ option_map Val.of_bool
+  (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) Ceq v1 v2) =
+Some
+  (force_val2
+     (fun v1 v0 : val =>
+      option_map Val.of_bool (Val.cmpu_bool true2 Ceq v1 v0)) 
+     v1 v2).
+Proof.
+intros.
+unfold denote_tc_test_eq in H.
+destruct v1, v2; try contradiction; try reflexivity;
+unfold cast_out_long in H; try destruct H.
+cbv beta iota zeta delta [option_map Val.cmpu_bool].
+unfold Val.cmpu_bool.
+ red in H. red in H.
+
 try match goal with
  | H: app_pred (denote_tc_nonzero _) _ |- _ => 
         first [apply denote_tc_nonzero_e in H
@@ -488,10 +594,37 @@ try (erewrite denote_tc_igt_e by eauto);
 try (erewrite denote_tc_lgt_e by eauto);
 try reflexivity.
 
-SearchAbout denote_tc_test_eq.
-+ 
-erewrite <- test_eq_relate; eauto.
-destruct v2; try contradiction H0; try reflexivity.
+
+Lemma denote_tc_test_eq_e: forall m v1 v2,
+ app_pred (denote_tc_test_eq v1 v2) (m_phi m) ->
+ option_map Val.of_bool
+  (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) Ceq v1 v2) =
+Some
+  (force_val2
+     (fun v1 v0 : val =>
+      option_map Val.of_bool (Val.cmpu_bool true2 Ceq v1 v0)) 
+     v1 v2).
+Proof.
+intros.
+unfold denote_tc_test_eq in H.
+destruct v1, v2; try contradiction; try reflexivity;
+unfold cast_out_long in H; try destruct H.
+cbv beta iota zeta delta [option_map Val.cmpu_bool].
+unfold Val.cmpu_bool.
+ red in H. red in H.
+
+unfold denote_tc_test_eq in H3.
+unfold cast_out_long in H3.
+destruct H3. simpl in H.
+apply weak_valid_pointer_dry in H3.
+Search (app_pred (weak_valid_pointer _) _).
+red in H3.
+SearchHead (app_pred (prop _) _ -> _).
+ apply prop_e in H3.  do 2 red in H3.
+simpl in H3.
+if_tac; try reflexivity. simpl.
+match goal with 
+simpl.
 simpl in H0.
 
 inv H0; try reflexivity.
