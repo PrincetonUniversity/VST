@@ -21,6 +21,7 @@ Require Export VST.veric.tycontext.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
+Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
 Require VST.veric.seplog.

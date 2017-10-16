@@ -1616,8 +1616,7 @@ Proof.
   rewrite Z.add_0_l.
   assert (sizeof t <= Int.modulus) by omega.
   assert (sizeof t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
-  apply la_env_cs_sound in H1.
-  tauto.
+  apply la_env_cs_sound in H1; tauto.
 Qed.
 
 End CENV.
@@ -1669,17 +1668,17 @@ Ltac data_at_conflict_neq :=
    end
   end.
 
-Definition natural_aligned cenv ha_env la_env (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env t) =? 0) && is_aligned cenv ha_env la_env t 0.
+Definition natural_aligned {cs: compspecs} (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env_cs t) =? 0) && is_aligned cenv_cs ha_env_cs la_env_cs t 0.
 
-Definition natural_aligned_sound (cenv: composite_env) (ha_env: PTree.t Z) (la_env: PTree.t legal_alignas_obs): Prop :=
+Definition natural_aligned_sound {cs: compspecs}: Prop :=
     forall na ofs t,
-      natural_aligned cenv ha_env la_env na t = true ->
+      natural_aligned na t = true ->
       (na | ofs) ->
-      align_compatible_rec cenv t ofs.
+      align_compatible_rec cenv_cs t ofs.
 
-Lemma natural_aligned_sound_aux: forall cenv ha_env la_env,
-  legal_alignas_env_sound cenv ha_env la_env ->
-  natural_aligned_sound cenv ha_env la_env.
+Lemma natural_aligned_sound_aux {cs: compspecs}:
+  legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs ->
+  natural_aligned_sound.
 Proof.
   intros.
 Admitted.
@@ -1700,11 +1699,11 @@ Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p,
      malloc_compatible (sizeof t) p ->
      complete_legal_cosu_type t = true ->
-     natural_aligned cenv_cs ha_env_cs la_env_cs natural_alignment t = true ->
+     natural_aligned natural_alignment t = true ->
      field_compatible t nil p.
 Proof.
 intros.
-destruct p; simpl in *; try contradiction.
+destruct p; simpl in *; try contradiction. au
 destruct H.
 eapply na_sound in H1.
 apply H1 in H.

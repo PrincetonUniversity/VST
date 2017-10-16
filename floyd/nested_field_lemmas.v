@@ -1543,8 +1543,7 @@ Proof.
   destruct p. destruct H. subst v t0.
   repeat split; auto.
   hnf.
-  apply la_env_cs_sound.
-  auto.
+  apply la_env_cs_sound; auto.
 Qed.
 
 Lemma gvar_field_compatible:
@@ -1561,8 +1560,7 @@ Proof.
   subst s.
   repeat split; auto.
   hnf.
-  apply la_env_cs_sound.
-  auto.
+  apply la_env_cs_sound; auto.
 Qed.
 
 Lemma compute_in_members_e:

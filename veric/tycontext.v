@@ -3,6 +3,7 @@ Require Import VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Export VST.veric.lift.
 

@@ -273,8 +273,8 @@ Export hardware_alignof_facts.
 
 Lemma hardware_alignof_two_p: forall (cenv: composite_env) (ha_env: PTree.t Z),
   composite_env_consistent cenv ->
-  hardware_alignof_env_consistent cenv ha_env ->  
-  hardware_alignof_env_complete cenv ha_env ->  
+  hardware_alignof_env_consistent cenv ha_env ->
+  hardware_alignof_env_complete cenv ha_env ->
   forall t, exists n,
   hardware_alignof ha_env t = two_power_nat n.
 Proof.
@@ -324,8 +324,8 @@ Qed.
 
 Lemma hardware_alignof_pos: forall (cenv: composite_env) (ha_env: PTree.t Z),
   composite_env_consistent cenv ->
-  hardware_alignof_env_consistent cenv ha_env ->  
-  hardware_alignof_env_complete cenv ha_env ->  
+  hardware_alignof_env_consistent cenv ha_env ->
+  hardware_alignof_env_complete cenv ha_env ->
   forall t,
   hardware_alignof ha_env t > 0.
 Proof.
@@ -337,8 +337,8 @@ Qed.
 
 Lemma hardware_alignof_composite_two_p: forall (cenv: composite_env) (ha_env: PTree.t Z),
   composite_env_consistent cenv ->
-  hardware_alignof_env_consistent cenv ha_env ->  
-  hardware_alignof_env_complete cenv ha_env ->  
+  hardware_alignof_env_consistent cenv ha_env ->
+  hardware_alignof_env_complete cenv ha_env ->
   forall m, exists n,
     hardware_alignof_composite ha_env m = two_power_nat n.
 Proof.
@@ -357,6 +357,64 @@ Hint Resolve alignof_two_p: align.
 Hint Resolve align_chunk_two_p: align.
 Hint Extern 10 (exists n: nat, hardware_alignof _ _ = two_power_nat n) => (eapply hardware_alignof_two_p; eassumption): align.
 Hint Extern 10 (exists n: nat, hardware_alignof_composite _ _ = two_power_nat n) => (eapply hardware_alignof_composite_two_p; eassumption): align.
+
+Lemma hardware_alignof_by_value: forall ha_env t ch,
+  access_mode t = By_value ch ->
+  hardware_alignof ha_env t = align_chunk ch.
+Proof.
+  intros.
+  destruct t as [| [| | |] [|] | [|] | [|] | | | | |]; inv H; auto.
+Qed.
+
+Lemma align_compatible_rec_hardware_alignof_divide: forall cenv ha_env t z1 z2,
+  composite_env_consistent cenv ->
+  hardware_alignof_env_consistent cenv ha_env ->
+  hardware_alignof_env_complete cenv ha_env ->
+  (hardware_alignof ha_env t | z1 - z2) ->
+  (align_compatible_rec cenv t z1 <-> align_compatible_rec cenv t z2).
+Proof.
+  intros ? ? ? ? ? CENV_CONS HA_ENV_CONS HA_ENV_COMPL.
+  revert t z1 z2.
+  assert (BY_VALUE: forall t z1 z2, (exists ch, access_mode t = By_value ch) -> (hardware_alignof ha_env t | z1 - z2) -> align_compatible_rec cenv t z1 <-> align_compatible_rec cenv t z2).
+  Focus 1. {
+    intros ? ? ? [? ?] ?.
+    split; intros.
+    + eapply align_compatible_rec_by_value_inv in H1; eauto.
+      eapply align_compatible_rec_by_value; eauto.
+      replace z2 with (z1 - (z1 - z2)) by omega.
+      erewrite hardware_alignof_by_value in H0 by eauto.
+      apply Z.divide_sub_r; auto.
+    + eapply align_compatible_rec_by_value_inv in H1; eauto.
+      eapply align_compatible_rec_by_value; eauto.
+      replace z1 with (z2 + (z1 - z2)) by omega.
+      erewrite hardware_alignof_by_value in H0 by eauto.
+      apply Z.divide_add_r; auto.
+  } Unfocus.
+  intro t; type_induction t cenv CENV_CONS; intros.
+  + split; intros; inv H0; inv H1.
+  + eapply BY_VALUE; auto.
+    destruct s, i; eexists; reflexivity.
+  + eapply BY_VALUE; auto.
+    destruct s; eexists; reflexivity.
+  + eapply BY_VALUE; auto.
+    destruct f; eexists; reflexivity.
+  + eapply BY_VALUE; auto.
+    eexists; reflexivity.
+  + simpl in H.
+    split; intros; apply align_compatible_rec_Tarray; intros;
+    eapply align_compatible_rec_Tarray_inv in H0; eauto.
+    - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
+      replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
+      tauto.
+    - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
+      replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
+      tauto.
+  + split; intros; inv H0; inv H1; econstructor.
+  + split; intros; eapply align_compatible_rec_Tstruct; intros.
+  + 
+  intros.
+  type_induction cenv t H.
+
 
 Module Type LEGAL_ALIGNAS.
 
