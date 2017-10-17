@@ -881,9 +881,18 @@ Definition sem_cmp_default c t1 t2 :=
 
 Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option val :=
   match Cop.classify_cmp t1 t2 with
-  | Cop.cmp_case_pp => sem_cmp_pp c
-  | Cop.cmp_case_pl => sem_cmp_pl c
-  | Cop.cmp_case_lp => sem_cmp_lp c
+  | Cop.cmp_case_pp => 
+     if orb (eqb_type t1 int_or_ptr_type) (eqb_type t2 int_or_ptr_type) 
+            then (fun _ _ => None)
+     else sem_cmp_pp c
+  | Cop.cmp_case_pl => 
+     if eqb_type t1 int_or_ptr_type
+            then (fun _ _ => None)
+     else sem_cmp_pl c
+  | Cop.cmp_case_lp => 
+     if eqb_type t2 int_or_ptr_type
+            then (fun _ _ => None)
+     else sem_cmp_lp c
   | Cop.cmp_default => sem_cmp_default c t1 t2
   end.
 

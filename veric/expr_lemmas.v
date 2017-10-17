@@ -6,7 +6,9 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 Require Import VST.veric.binop_lemmas2.
+Require Import VST.veric.binop_lemmas3.
 Require Import VST.veric.binop_lemmas.
+Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas2.
 Require Export VST.veric.expr_lemmas3.
 Require Export VST.veric.expr_lemmas4.

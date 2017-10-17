@@ -18,7 +18,8 @@ with eval_lvalue_any:
     v <> Vundef ->
     eval_lvalue e rho = v.
 Proof.
-{ clear eval_expr_any.
+{
+ clear eval_expr_any.
  intros  ? ?.
  induction e; simpl; intros; subst; unfold_lift; try reflexivity;
  unfold_lift in H0;
@@ -51,45 +52,38 @@ Proof.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
-  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
- +destruct b;
+  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ];
+try solve [
+  destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   try reflexivity; destruct (eval_expr e2 any_environ); reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+   try reflexivity;
+   cbv beta iota delta [
+    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    remove_attributes change_attributes 
+   ];
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+  let J := fresh "J" in 
+    destruct (eqb_type A B) eqn:J;
+      [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
+  end;
+  reflexivity].
+all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ];
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
-+destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+   try reflexivity;
+   cbv beta iota delta [
+    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    remove_attributes change_attributes 
+   ];
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+  let J := fresh "J" in 
+    destruct (eqb_type A B) eqn:J;
+      [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
+  end;
    reflexivity.
 *
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
