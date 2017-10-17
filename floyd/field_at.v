@@ -1670,18 +1670,33 @@ Ltac data_at_conflict_neq :=
 
 Definition natural_aligned {cs: compspecs} (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env_cs t) =? 0) && is_aligned cenv_cs ha_env_cs la_env_cs t 0.
 
-Definition natural_aligned_sound {cs: compspecs}: Prop :=
+Definition natural_aligned_soundness {cs: compspecs}: Prop :=
     forall na ofs t,
+      complete_legal_cosu_type t = true ->
       natural_aligned na t = true ->
       (na | ofs) ->
       align_compatible_rec cenv_cs t ofs.
 
-Lemma natural_aligned_sound_aux {cs: compspecs}:
-  legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs ->
-  natural_aligned_sound.
+Lemma natural_aligned_sound {cs: compspecs}:
+  natural_aligned_soundness.
 Proof.
   intros.
-Admitted.
+  hnf.
+  intros.
+  unfold natural_aligned in H0.
+  autorewrite with align in H0.
+    2: eapply hardware_alignof_two_p; [exact cenv_consistent | exact ha_env_cs_consistent | exact ha_env_cs_complete].
+  destruct H0.
+  apply la_env_cs_sound in H2; auto.
+  replace ofs with (ofs - 0) in H1 by omega.
+  eapply align_compatible_rec_hardware_alignof_divide; auto.
+  + exact cenv_consistent.
+  + exact cenv_legal_su.
+  + exact ha_env_cs_consistent.
+  + exact ha_env_cs_complete.
+  + eapply Z.divide_trans; eassumption.
+  + exact H2.
+Qed.
 
 Definition natural_alignment := 8.
 
@@ -1694,7 +1709,6 @@ Definition malloc_compatible (n: Z) (p: val) : Prop :=
   end.
 
 (* TODO: move these definitions and lemmas into a new file. *)
-(* TODO: also move natural_aligned stuff out from compspecs *)
 Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p,
      malloc_compatible (sizeof t) p ->
@@ -1703,10 +1717,9 @@ Lemma malloc_compatible_field_compatible:
      field_compatible t nil p.
 Proof.
 intros.
-destruct p; simpl in *; try contradiction. au
+destruct p; simpl in *; try contradiction.
 destruct H.
-eapply na_sound in H1.
-apply H1 in H.
+eapply natural_aligned_sound in H; eauto.
 pose proof (Int.unsigned_range i).
 repeat split; simpl; auto; try omega.
 Qed.

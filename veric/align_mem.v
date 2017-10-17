@@ -368,12 +368,14 @@ Qed.
 
 Lemma align_compatible_rec_hardware_alignof_divide: forall cenv ha_env t z1 z2,
   composite_env_consistent cenv ->
+  composite_env_complete_legal_cosu_type cenv ->
   hardware_alignof_env_consistent cenv ha_env ->
   hardware_alignof_env_complete cenv ha_env ->
+  complete_legal_cosu_type cenv t = true ->
   (hardware_alignof ha_env t | z1 - z2) ->
   (align_compatible_rec cenv t z1 <-> align_compatible_rec cenv t z2).
 Proof.
-  intros ? ? ? ? ? CENV_CONS HA_ENV_CONS HA_ENV_COMPL.
+  intros ? ? ? ? ? CENV_CONS CENV_COSU HA_ENV_CONS HA_ENV_COMPL.
   revert t z1 z2.
   assert (BY_VALUE: forall t z1 z2, (exists ch, access_mode t = By_value ch) -> (hardware_alignof ha_env t | z1 - z2) -> align_compatible_rec cenv t z1 <-> align_compatible_rec cenv t z2).
   Focus 1. {
@@ -391,7 +393,7 @@ Proof.
       apply Z.divide_add_r; auto.
   } Unfocus.
   intro t; type_induction t cenv CENV_CONS; intros.
-  + split; intros; inv H0; inv H1.
+  + split; intros; inv H1; inv H2.
   + eapply BY_VALUE; auto.
     destruct s, i; eexists; reflexivity.
   + eapply BY_VALUE; auto.
@@ -400,21 +402,132 @@ Proof.
     destruct f; eexists; reflexivity.
   + eapply BY_VALUE; auto.
     eexists; reflexivity.
-  + simpl in H.
+  + simpl in H0.
     split; intros; apply align_compatible_rec_Tarray; intros;
-    eapply align_compatible_rec_Tarray_inv in H0; eauto.
+    eapply align_compatible_rec_Tarray_inv in H1; eauto.
     - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
       replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
       tauto.
     - specialize (IH (z1 + sizeof cenv t0 * i) (z2 + sizeof cenv t0 * i)).
       replace (z1 + sizeof cenv t0 * i - (z2 + sizeof cenv t0 * i)) with (z1 - z2) in IH by omega.
       tauto.
-  + split; intros; inv H0; inv H1; econstructor.
-  + split; intros; eapply align_compatible_rec_Tstruct; intros.
-  + 
-  intros.
-  type_induction cenv t H.
+  + split; intros; inv H1; inv H2; econstructor.
+  + simpl in H, H0.
+    destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
+    destruct (co_su co) eqn:?H; inv H.
+    assert (forall i0 t0 ofs0,
+              field_type i0 (co_members co) = Errors.OK t0 ->
+              field_offset cenv i0 (co_members co) = Errors.OK ofs0 ->
+              (align_compatible_rec cenv t0 (z1 + ofs0) <->
+               align_compatible_rec cenv t0 (z2 + ofs0))) as HH;
+    [ | split; intros; eapply align_compatible_rec_Tstruct; eauto;
+        intros; eapply align_compatible_rec_Tstruct_inv in H; eauto;
+        eapply HH; eauto].
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ co H1) as [ha ?].
+    rewrite H in H0.
+    pose proof HA_ENV_CONS _ _ _ H1 H.
+    rewrite H3 in H0.
+    pose proof CENV_COSU _ _ H1.
+    clear H H1 H2 H3 ha.
+    intros. clear H1.
+    induction IH as [| [i t] ?].
+    - inv H.
+    - simpl in H, H0, H4.
+      autorewrite with align in H0, H4.
+      if_tac in H.
+      * subst i; inv H.
+        apply H1; [simpl; tauto |].
+        replace (z1 + ofs0 - (z2 + ofs0)) with (z1 - z2) by omega; tauto.
+      * apply IHIH; tauto.
+  + simpl in H, H0.
+    destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
+    destruct (co_su co) eqn:?H; inv H.
+    assert (forall i0 t0,
+              field_type i0 (co_members co) = Errors.OK t0 ->
+              (align_compatible_rec cenv t0 z1 <->
+               align_compatible_rec cenv t0 z2)) as HH;
+    [ | split; intros; eapply align_compatible_rec_Tunion; eauto;
+        intros; eapply align_compatible_rec_Tunion_inv in H; eauto;
+        eapply HH; eauto].
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ co H1) as [ha ?].
+    rewrite H in H0.
+    pose proof HA_ENV_CONS _ _ _ H1 H.
+    rewrite H3 in H0.
+    pose proof CENV_COSU _ _ H1.
+    clear H H1 H2 H3 ha.
+    intros.
+    induction IH as [| [i t] ?].
+    - inv H.
+    - simpl in H, H0, H4.
+      autorewrite with align in H0, H4.
+      if_tac in H.
+      * subst i; inv H.
+        apply H1; simpl; tauto.
+      * apply IHIH; tauto.
+Qed.
 
+Lemma align_compatible_rec_hardware_1: forall cenv ha_env t z,
+  composite_env_consistent cenv ->
+  composite_env_complete_legal_cosu_type cenv ->
+  hardware_alignof_env_consistent cenv ha_env ->
+  hardware_alignof_env_complete cenv ha_env ->
+  complete_legal_cosu_type cenv t = true ->
+  hardware_alignof ha_env t = 1 ->
+  align_compatible_rec cenv t z.
+Proof.
+  intros ? ? ? ? CENV_CONS CENV_COSU HA_ENV_CONS HA_ENV_COMPL.
+  revert z; type_induction t cenv CENV_CONS; intros.
+  + inv H.
+  + destruct s, i; inv H0;
+    econstructor; try reflexivity; apply Z.divide_1_l.
+  + destruct s; inv H0.
+  + destruct f; inv H0.
+  + inv H0.
+  + apply align_compatible_rec_Tarray.
+    intros.
+    apply IH; auto.
+  + inv H.
+  + simpl in H, H0.
+    destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
+    destruct (co_su co) eqn:?H; inv H.
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ co H1) as [ha ?].
+    rewrite H in H0.
+    pose proof HA_ENV_CONS _ _ _ H1 H.
+    rewrite H3 in H0.
+    pose proof CENV_COSU _ _ H1.
+    eapply align_compatible_rec_Tstruct; eauto.
+    clear H H1 H2 H3 ha.
+    intros; clear H1.
+    induction IH as [| [i t] ?].
+    - inv H.
+    - simpl in H, H0, H4.
+      autorewrite with align in H0, H4.
+      destruct H0, H4.
+      if_tac in H.
+      * subst i; inv H.
+        apply H1; auto.
+      * apply IHIH; auto.
+  + simpl in H, H0.
+    destruct (cenv ! id) as [co |] eqn:?H; [| inv H].
+    destruct (co_su co) eqn:?H; inv H.
+    pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ co H1) as [ha ?].
+    rewrite H in H0.
+    pose proof HA_ENV_CONS _ _ _ H1 H.
+    rewrite H3 in H0.
+    pose proof CENV_COSU _ _ H1.
+    eapply align_compatible_rec_Tunion; eauto.
+    clear H H1 H2 H3 ha.
+    intros.
+    induction IH as [| [i t] ?].
+    - inv H.
+    - simpl in H, H0, H4.
+      autorewrite with align in H0, H4.
+      destruct H0, H4.
+      if_tac in H.
+      * subst i; inv H.
+        apply H1; auto.
+      * apply IHIH; auto.
+Qed.
 
 Module Type LEGAL_ALIGNAS.
 

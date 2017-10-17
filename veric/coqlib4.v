@@ -101,6 +101,23 @@ Proof.
     tauto.
 Qed.
 
+Lemma two_p_max_1: forall m1 m2, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> (Z.max m1 m2 = 1 <-> m1 = 1 /\ m2 = 1).
+Proof.
+  assert (forall x, (exists n : nat, x = two_power_nat n) -> (x = 1 <-> (x | 1))).
+  + intros.
+    split; intros.
+    - subst.
+      exists 1; auto.
+    - rewrite <- power_nat_divide_le in H0 by (auto; exists 0%nat; auto).
+      destruct H as [n ?]; subst x.
+      pose proof two_power_nat_pos n.
+      omega.
+  + intros m1 m2 Hm1 Hm2.
+    pose proof Z_max_two_p _ _ Hm1 Hm2 as Hmax.
+    rewrite (H _ Hm1), (H _ Hm2), (H _ Hmax).
+    apply two_p_max_divide; auto.
+Qed.
+
 Lemma two_power_nat_0: forall x, (exists n, x = two_power_nat n) -> x <> 0.
 Proof.
   intros.
@@ -115,6 +132,7 @@ Hint Rewrite Z.eqb_eq: align.
 Hint Rewrite power_nat_divide_le using (auto with align): align.
 Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
 Hint Rewrite two_p_max_divide using (auto with align): align.
+Hint Rewrite two_p_max_1 using (auto with align): align.
 Hint Resolve Z_max_two_p: align.
 
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
