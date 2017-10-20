@@ -494,7 +494,10 @@ Lemma mapsto_zeros_memory_block: forall sh n b ofs,
 Proof. exact mapsto_memory_block.mapsto_zeros_memory_block. Qed.
 
 Lemma mapsto_pointer_void:
-  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
+  forall sh t a, 
+    eqb_type (Tpointer t a) int_or_ptr_type = false ->
+    eqb_type (Tpointer Tvoid a) int_or_ptr_type = false ->
+    mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
 Proof. exact mapsto_memory_block.mapsto_pointer_void. Qed.
 
 Lemma mapsto_unsigned_signed:
@@ -573,12 +576,6 @@ Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  | None => True
  | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
  end.
-
-Definition bool_type (t: type) : bool :=
-  match t with
-  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true
-  | _ => false
-  end.
 
 Definition globals_only (rho: environ) : environ :=
     mkEnviron (ge_of rho) (Map.empty _) (Map.empty _).
@@ -866,7 +863,7 @@ Lemma typecheck_lvalue_sound {CS: compspecs} :
 Proof.
 intros.
 intros ? ?.
-eapply expr_lemmas.typecheck_lvalue_sound; eauto.
+eapply expr_lemmas4.typecheck_lvalue_sound; eauto.
 Qed.
 
 Lemma typecheck_expr_sound {CS: compspecs} :
@@ -877,7 +874,7 @@ Proof.
 intros.
 intros ? ?.
 simpl.
-eapply expr_lemmas.typecheck_expr_sound; eauto.
+eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
 (* End misc lemmas *)
@@ -1251,6 +1248,8 @@ forall {Espec: OracleKind}{CS: compspecs} ,
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
     sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax CS Espec Delta
         ( |> ( (tc_expr Delta e1) &&

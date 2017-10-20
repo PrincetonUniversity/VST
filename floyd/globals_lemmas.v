@@ -259,6 +259,12 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     (apply exp_right with (Vptr b' Int.zero); apply andp_right;
       [unfold local, lift1; apply prop_right; auto
       |      unfold offset_val; simpl; try rewrite Int.repr_unsigned, Int.add_zero_l; auto]).
+
+  unfold mapsto. simpl. rewrite !if_true by auto.
+  rewrite andb_false_r. simpl.
+  apply orp_right1.
+  apply orp_left. auto.
+  normalize. inv H0.
 Qed.
 
 Lemma readable_share_readonly2share:

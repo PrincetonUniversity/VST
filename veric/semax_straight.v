@@ -12,10 +12,12 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
+Require Import VST.veric.binop_lemmas4.
 
 Local Open Scope pred.
 
@@ -213,6 +215,8 @@ Lemma pointer_cmp_eval {CS: compspecs}:
    nonidentity sh2 ->
    (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT)%pred (m_phi jm) ->
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
    Cop.sem_binary_operation cenv_cs cmp (eval_expr e1 rho)
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
   Some
@@ -220,7 +224,7 @@ Lemma pointer_cmp_eval {CS: compspecs}:
         (sem_binary_operation' cmp (typeof e1) (typeof e2)
            (eval_expr e1 rho) (eval_expr e2 rho))).
 Proof.
-intros until rho. intros ? ? BM ? N1 N2.  intros.
+intros until rho. intros ? ? BM ? N1 N2 ? ? NE1 NE2.
 unfold Cop.sem_binary_operation, sem_cmp.
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto.
 apply typecheck_expr_sound in H1; auto.
@@ -242,6 +246,7 @@ forget (typeof e1) as t1.
 forget (typeof e2) as t2.
 clear e1 e2 H3 H4.
 unfold Cop.sem_cmp, Cop.sem_binarith; simpl.
+
 rewrite MT_1, MT_2.
 simpl.
 clear MT_1 MT_2.
@@ -255,8 +260,12 @@ clear MT1 MT2.
 destruct t1; try solve [simpl in *; try destruct f; try tauto; congruence].
 destruct t2; try solve [simpl in *; try destruct f; try tauto; congruence].
 simpl.
-destruct cmp; inv H; subst; simpl;
-unfold Cop.sem_cmp, sem_cmp_pp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
+unfold sem_binary_operation', sem_cmp.
+rewrite NE1,NE2.
+destruct cmp; 
+inv H; subst; simpl;
+unfold Cop.sem_cmp, sem_cmp_pp; simpl;
+try rewrite MT_1; try rewrite MT_2; simpl;
 try rewrite if_true by auto;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 Qed.
@@ -273,6 +282,8 @@ Qed.
 Lemma pointer_cmp_no_mem_bool_type {CS: compspecs}:
    forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
    is_comparison cmp = true->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
    forall (rho : environ) phi,
    eval_expr e1 rho = Vptr b1 o1 ->
    eval_expr e2 rho = Vptr b2 o2 ->
@@ -290,7 +301,7 @@ Lemma pointer_cmp_no_mem_bool_type {CS: compspecs}:
            (eval_expr e1 rho)
            (eval_expr e2 rho))).
 Proof.
-intros.
+intros until 1. intros NE1 NE2; intros.
 apply typecheck_both_sound in H4; auto.
 apply typecheck_both_sound in H3; auto.
 rewrite H0 in *.
@@ -308,6 +319,7 @@ destruct (access_mode t2) eqn:?A2;
 destruct t1 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence];
 destruct t2 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp. unfold sem_cmp_pp.
+rewrite NE1,NE2.
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
 if_tac; auto; simpl; try of_bool_destruct; auto;
@@ -343,6 +355,8 @@ Lemma semax_ptr_compare {CS: compspecs} :
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     nonidentity sh1 -> nonidentity sh2 ->
     is_comparison cmp = true  ->
+     eqb_type (typeof e1) int_or_ptr_type = false ->
+    eqb_type (typeof e2) int_or_ptr_type = false ->
     (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec Delta
         (fun rho =>
@@ -359,7 +373,7 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
                      (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
                             subst id old P rho))).
 Proof.
-  intros until sh2. intros N1 N2.
+  intros until sh2. intros N1 N2. intros ? NE1 NE2. revert H.
   replace (fun rho : environ =>
      |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  &&
              !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
@@ -1205,6 +1219,7 @@ split; [split3 | ].
    subst. auto.
 Qed.
 
+
 Lemma semax_cast_load {CS: compspecs}:
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
@@ -1279,13 +1294,15 @@ inv Hid.
 simpl.
 apply TC3.
 split; [split3 | ].
-* simpl.
-   rewrite <- (age_jm_dry H); constructor; auto.
-   apply Clight.eval_Ecast with (v2 rho);
-  [ | clear - HCAST TC3; unfold prop,eval_cast, force_val1 in TC3;
-     rewrite cop2_sem_cast by (intro; try contradiction; admit);
-    destruct (sem_cast (typeof e1) t1 (v2 rho)); try reflexivity; exfalso; revert TC3; apply tc_val_Vundef].
-   apply Clight.eval_Elvalue with b ofs; auto.
+*   rewrite <- (age_jm_dry H); constructor; auto.
+  destruct (sem_cast (typeof e1) t1 (v2 rho)) eqn:EC.
+  2: elimtype False; clear - EC TC3;
+    unfold eval_cast, force_val1 in TC3; rewrite EC in TC3;
+    destruct t1; try destruct f; try if_tac in TC3; contradiction.
+  econstructor.
+  eapply Clight.eval_Elvalue; eauto.
+  2: apply sem_cast_e1; auto;
+      unfold eval_cast, force_val1; rewrite !EC; reflexivity.
    destruct H0 as [H0 _].
    assert ((|> (F rho * P rho))%pred (m_phi jm)).
    rewrite later_sepcon.
@@ -1354,7 +1371,7 @@ split; [split3 | ].
    subst; unfold modifiedvars. simpl.
    unfold insert_idset; rewrite PTree.gss; hnf; auto.
    subst. auto.
-Admitted.
+Qed.
 
 Lemma res_option_core: forall r, res_option (core r) = None.
 Proof.

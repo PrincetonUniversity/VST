@@ -9,7 +9,8 @@ Lemma typed_true_nullptr:
    v=nullval.
 Proof.
  intros.
- destruct v; inv H.
+ simpl in H. rewrite !andb_false_r in H. simpl in H.
+ destruct v; inv H. 
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
@@ -19,7 +20,9 @@ Lemma typed_true_nullptr':
   forall  {cs: compspecs}  t t' v,
     typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
- intros. unfold eval_binop, typed_true in H.
+ intros.
+ simpl in H. unfold sem_binary_operation' in H.
+ simpl in H. rewrite !andb_false_r in H.
  destruct v; inv H; auto.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
@@ -34,6 +37,8 @@ Proof.
 intros.
  intro rho; unfold local, lift1; unfold_lift.
  apply prop_derives; intro.
+ unfold tptr in H; simpl in H. unfold sem_binary_operation' in H.
+ simpl in H. rewrite !andb_false_r in H.
  destruct (v rho); inv H.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
@@ -204,6 +209,8 @@ Proof.
 intros.
  intro rho; unfold local, lift1; unfold_lift.
  apply prop_derives; intro.
+ simpl in H. unfold sem_binary_operation' in H.
+ simpl in H. rewrite !andb_false_r in H.
  destruct (v rho); inv H.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
@@ -218,6 +225,8 @@ Proof.
 intros.
  intro rho; unfold local, lift1; unfold_lift.
  apply prop_derives; intro.
+ simpl in H. unfold sem_binary_operation' in H.
+ simpl in H. rewrite !andb_false_r in H.
  unfold ptr_neq, ptr_eq; simpl; intro.
  destruct (v rho); try contradiction.
  pose proof (Int.eq_spec Int.zero i). destruct H0. rewrite H0 in H1.
@@ -232,6 +241,8 @@ Lemma typed_false_Oeq_nullval:
 Proof.
 intros. subst.
  unfold_lift; intro rho.  unfold local, lift1; apply prop_derives; intro.
+ simpl in H. unfold sem_binary_operation' in H.
+ simpl in H. rewrite !andb_false_r in H.
  intro. apply ptr_eq_e in H0. rewrite <- H0 in H.
  inv H.
 Qed.

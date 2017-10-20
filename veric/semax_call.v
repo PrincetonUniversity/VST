@@ -15,6 +15,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
@@ -414,9 +415,13 @@ Proof.
  clear - IHbl H3 H H0 H1 H2.
  constructor 2 with (eval_expr a (construct_rho (filter_genv psi) vx tx)); auto.
  eapply eval_expr_relate; eauto.
- rewrite cop2_sem_cast'; auto.
- apply (cast_exists Delta a _ _ _ H0 H H2).
-Admitted.
+ pose proof (cast_exists Delta a _ _ _ H0 H H2).
+ forget (force_val
+          (sem_cast (typeof a) t
+             (eval_expr a
+                (construct_rho (filter_genv psi) vx tx)))) as v.
+ eapply cop2_sem_cast''; eauto.
+Qed.
 
 Lemma bind_parameter_temps_excludes :
 forall l1 l2 t id t1,
@@ -624,13 +629,8 @@ generalize dependent bl. generalize dependent te'.
         destruct TC2 as [[? ?] ?].
         rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
         rewrite PTree.gss.
-        exists (force_val
-          (Cop.sem_cast
-             (eval_expr e
-                (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
-             (typeof e) ty (m_dry jm))).
-        split. rewrite cop2_sem_cast' by admit. auto.
-        right. rewrite cop2_sem_cast' by admit; auto. eapply tc_val_sem_cast; eauto.
+        eexists.  split. reflexivity. right.
+        eapply tc_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
@@ -749,7 +749,7 @@ rewrite PTree.gsspec. if_tac. eauto.
 apply IHl1 in H11. destruct H11. auto. right.
 congruence.
 inv H17'. auto. rewrite PTree.gso; auto.
-Admitted.
+Qed.
 
 Lemma free_juicy_mem_level:
   forall jm m b lo hi H H0, level (free_juicy_mem jm m b lo hi H H0) = level jm.

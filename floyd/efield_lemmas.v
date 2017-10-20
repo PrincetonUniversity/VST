@@ -246,14 +246,16 @@ Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
   complete_type cenv_cs t0 = true ->
+  eqb_type (typeof e) int_or_ptr_type = false ->
   isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
   unfold isBinOpResultType.
-  erewrite classify_add_add_case_pi by eauto.
-  rewrite tc_andp_TT2.
+  erewrite classify_add_add_case_pi by eauto.  
   rewrite H1, tc_andp_TT2.
-  auto.
+  simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
+  unfold tc_int_or_ptr_type. rewrite H2.
+  rewrite tc_andp_TT2; auto.
 Qed.
 
 Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
@@ -276,7 +278,8 @@ Proof.
     eapply nested_field_type_complete_type with (gfs0 := gfs) in H3; auto.
     rewrite H2 in H3.
     exact H3.
-Qed.
+  admit.  (* Qinxiang: discuss this with me. -- Andrew *)
+Admitted.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
   legal_nested_efield_rec t_root gfs tts = true ->
@@ -327,6 +330,7 @@ Proof.
       simpl in H2; rewrite <- H2; auto.
     - solve_andp.
     - solve_andp.
+    - rewrite andb_false_r. simpl. apply prop_right; auto.
     - apply prop_right.
       simpl; unfold_lift.
       rewrite <- H3.
