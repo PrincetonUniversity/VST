@@ -240,7 +240,7 @@ Next Obligation.
 Defined.
 
 
-Definition CoreSem_Sum (hb:option nat) (Sems Semt: Semantics_rec ): Semantics_rec:=
-  Build_Semantics_rec  _ _
-                       (EvSemanticsSum hb _ _ _ _ (semSem Sems) (semSem Semt)).
+Definition CoreSem_Sum (hb:option nat) (Sems Semt: Semantics): Semantics:=
+  Build_Semantics  _ _
+                   (EvSemanticsSum hb _ _ _ _ (@semSem Sems) (@semSem Semt)).
 

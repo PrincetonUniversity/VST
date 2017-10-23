@@ -10,7 +10,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 Require Import sepcomp.event_semantics.
 Require Export concurrency.semantics.
-Require Import concurrency.threadPool. Export threadPool.
+Require Import concurrency.threadPool. Import ThreadPool.
 
 Require Import concurrency.machine_semantics.
 Require Import concurrency.permissions.
@@ -23,7 +23,6 @@ Require Import Coq.Program.Program.
 Require Import concurrency.safety.
 
 Require Import concurrency.coinductive_safety.
-
 
 
 Notation EXIT :=
@@ -69,37 +68,18 @@ Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Section HybridMachineSig.
 
+  Context {resources: Resources}.
+  Context {Sem: Semantics}.
+  Notation C:= (semC).
+  Notation G:= (semG).
   
-  Variable Resources: Resources_rec.
-  Notation res:= (recres Resources).
-  Notation lock_info:= (reclock_info Resources).
-
-  Variable Sem: Semantics_rec.
-  Notation C:= (semC Sem).
-  Notation G:= (semG Sem).
+  Context {ThreadPool : ThreadPool.ThreadPool}.
+  Notation thread_pool := t.
   
-  Variable ThreadPool : ThredPool_rec Resources Sem.
-  Notation thread_pool := (t_ ThreadPool).
-  Notation containsThread := (@containsThread_ _ _ ThreadPool).
-  Notation getThreadC:= (@getThreadC_ _ _ ThreadPool).
-  Notation getThreadR:= (getThreadR_ ThreadPool).
-  Notation lockGuts:= (lockGuts_ ThreadPool).
-  Notation lockSet:= (lockSet_ ThreadPool).
-  Notation lockRes:= (lockRes_ ThreadPool).
-  Notation addThread:= (addThread_ ThreadPool).
-  Notation updThreadC:= (@updThreadC_ _ _ ThreadPool).
-  Notation updThreadR:= (updThreadR_ ThreadPool).
-  Notation updThread:= (updThread_ ThreadPool).
-  Notation updLockSet:= (updLockSet_ ThreadPool).
-  Notation remLockSet:= (remLockSet_ ThreadPool).
-  Notation latestThread:= (latestThread_ ThreadPool).
-  Notation lr_valid:= (lr_valid_ ThreadPool).
-  Notation find_thread:= (find_thread_ ThreadPool).
-
   Local Notation ctl := (@ctl C).
   (** Memories*)
 
-  Record MachineSig_rec := {
+  Class MachineSig := {
   richMem: Type
   ; dryMem: richMem -> mem
   ; diluteMem : mem -> mem
@@ -120,8 +100,8 @@ Section HybridMachineSig.
     forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall (j: nat),
-        (exists cntj q, (@getThreadC) j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q')
+        (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q')
   ; syncStep:
     bool -> (* if it's a Coarse machine. Temp solution to propagating changes. *)
     G -> forall {tid0 ms m},
@@ -132,13 +112,13 @@ Section HybridMachineSig.
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q')
+        (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q')
 
   ;  syncstep_not_running:
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall cntj q, ~ @getThreadC i tp cntj = Krun q
+      forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q
 
   ; threadHalted:
     forall {tid0 ms},
@@ -148,7 +128,7 @@ Section HybridMachineSig.
     forall i j, i <> j ->
       forall tp cnt cnti c' cnt',
         (@threadHalted j tp cnt) <->
-        (@threadHalted j (@updThreadC i tp cnti c') cnt') 
+        (@threadHalted j (@updThreadC _ _ _ i tp cnti c') cnt') 
 
   ;  syncstep_equal_halted:
     forall b g i tp m cnti cmpt tp' m' tr,
@@ -164,53 +144,31 @@ Section HybridMachineSig.
         (@threadHalted j tp cnt) ->
         (@threadHalted j tp' cnt') 
 
-
   (*Parameter initial_machine: C -> thread_pool.*)
 
   ; init_mach : option res  -> G -> mem -> val -> list val -> option (thread_pool * option mem)}.
 
 End HybridMachineSig.
 
-
 Section HybridMachine.
 
-  
-  Variable Resources: Resources_rec.
-  Notation res:= (recres Resources).
-  Notation lock_info:= (reclock_info Resources).
+  Context {resources: Resources}.
 
-  Variable Sem: Semantics_rec.
-  Notation C:= (semC Sem).
-  Notation G:= (semG Sem).
+  Context {Sem: Semantics}.
+  Notation C:= (semC).
+  Notation G:= (semG).
   
-  Variable ThreadPool : ThredPool_rec Resources Sem.
-  Notation thread_pool := (t ThreadPool).
-  Notation containsThread := (@containsThread _ _ ThreadPool).
-  Notation getThreadC:= (@getThreadC _ _ ThreadPool).
-  Notation getThreadR:= (getThreadR ThreadPool).
-  Notation lockGuts:= (lockGuts ThreadPool).
-  Notation lockSet:= (lockSet ThreadPool).
-  Notation lockRes:= (lockRes ThreadPool).
-  Notation addThread:= (addThread ThreadPool).
-  Notation updThreadC:= (@updThreadC _ _ ThreadPool).
-  Notation updThreadR:= (updThreadR ThreadPool).
-  Notation updThread:= (updThread ThreadPool).
-  Notation updLockSet:= (updLockSet ThreadPool).
-  Notation remLockSet:= (remLockSet ThreadPool).
-  Notation latestThread:= (latestThread ThreadPool).
-  Notation lr_valid:= (lr_valid ThreadPool).
-  Notation find_thread:= (find_thread ThreadPool).
+  Context {ThreadPool : ThreadPool}.
+  Notation thread_pool := t.
 
-  Variable MachineSig: MachineSig_rec Resources Sem ThreadPool.
+  Context {MachineSig: MachineSig}.
   
   Notation event_trace := (seq machine_event).
   Notation schedule := (seq nat).
-  Notation t:= (@t_ _ _ ThreadPool).
-  
+
   Definition MachState : Type:= (schedule * event_trace * t)%type.
 
-  
-  Record HybridMachine_rec:=
+  Class HybridMachine:=
     {
       MachineSemantics: schedule -> option res ->
                         CoreSemantics G MachState mem
@@ -225,7 +183,7 @@ Section HybridCoarseMachine.
   
 (* Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID :=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module TP:= SIG.ThreadPool  with Module SIG:= SIG. *)
 
-  Variable Resources: Resources_rec.
+  Class Resources: Resources_rec.
   Notation res:= (recres Resources).
   Notation lock_info:= (reclock_info Resources).
 
