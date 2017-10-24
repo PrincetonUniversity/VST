@@ -196,8 +196,10 @@ LINKING_FILES= \
 
 VERIC_FILES= \
   base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
-  tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
+  tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
+  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
+  expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \

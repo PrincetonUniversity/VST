@@ -466,39 +466,30 @@ Ltac findvars :=
     clear H
  end.
 
-Lemma sem_cast_id:
-  forall Delta rho,
-      tc_environ Delta rho ->
-  forall t1 t3 id,
-  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  match (temp_types Delta)!id with Some (Tpointer _ _, true) => true | _ => false end = true ->
-  force_val (sem_cast t1 t3 (eval_id id rho)) = eval_id id rho.
+Lemma is_true_negb:
+ forall a, is_true (negb a) -> a=false.
 Proof.
-intros.
- revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
- destruct p as [t2 ?].
- destruct t2; inv H2.
- destruct b; inv H4.
- pose proof (tc_eval_id_i _ _ _ _ H H1).
- destruct (eval_id id  rho); inv H2.
- destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
- destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
- destruct t1 as [ | | | [ | ] |  | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | ]; inv H0;
-  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+destruct a; auto; try contradiction.
 Qed.
 
 Lemma sem_cast_pointer2':
   forall (v : val) (t1 t2: type),
-  match t1 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
-  match t2 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
+  match t1 with
+  | Tpointer _ _ => is_true (negb (eqb_type t1 int_or_ptr_type))
+  | Tint I32 _ _ => True 
+  | _ => False end ->
+  match t2 with
+  | Tpointer _ _ => is_true (negb (eqb_type t2 int_or_ptr_type))
+  | Tint I32 _ _ => True 
+  | _ => False end ->
   is_pointer_or_null v -> force_val (sem_cast t1 t2 v) = v.
 Proof.
 intros.
 unfold sem_cast, classify_cast.
-subst.
-destruct t1; try contradiction; try destruct i; try contradiction; simpl; auto;
-destruct t2; try contradiction; try destruct i; try contradiction; simpl; auto;
-destruct v; inv H1; simpl; auto.
+destruct t1; try contradiction; try destruct i; try contradiction; auto;
+destruct t2; try contradiction; try destruct i; try contradiction; auto;
+try rewrite (is_true_negb _ H); try rewrite (is_true_negb _ H0);
+destruct v; inv H1; auto.
 Qed.
 
 Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
@@ -512,7 +503,10 @@ Lemma sem_cast_pointer2:
 Proof.
 intros.
 subst.
-hnf in H1. destruct v; inv H1; reflexivity.
+hnf in H1.
+simpl in H1. rewrite andb_false_r in H1.
+unfold sem_cast, classify_cast; simpl; rewrite !andb_false_r.
+destruct v; inv H1; reflexivity.
 Qed.
 
 Lemma force_eval_var_int_ptr :
@@ -624,7 +618,13 @@ Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) ->
        sem_cast_neutral v = Some v.
 Proof.
-intros. destruct H as [t [? ?]]; destruct t,v; inv H0; inv H; reflexivity.
+intros.
+destruct H as [t [? ?]].
+hnf in H.
+unfold is_pointer_type in H0.
+unfold sem_cast_neutral.
+destruct (eqb_type t int_or_ptr_type);
+destruct t,v; inv H0; inv H; reflexivity.
 Qed.
 
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
@@ -647,16 +647,6 @@ Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
-
-Ltac eval_cast_simpl :=
-    try (try unfold eval_cast; simpl Cop.classify_cast; cbv iota);
-     try match goal with H: tc_environ ?Delta ?rho |- _ =>
-       repeat first [
-   rewrite eval_cast_neutral_isptr by auto
-               | rewrite (sem_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               | erewrite sem_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
-               ]
-     end.
 
 Arguments ret_type !Delta /.
 

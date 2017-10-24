@@ -198,7 +198,7 @@ Proof.
 intros. unfold strict_bool_val in *. unfold tc_val.
 destruct (eval_id id rho); try congruence.
 + destruct (Int.eq i Int.zero); try congruence.
-+ simpl; auto.
++ if_tac; simpl; auto.
 Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,

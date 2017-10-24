@@ -15,6 +15,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
@@ -414,8 +415,12 @@ Proof.
  clear - IHbl H3 H H0 H1 H2.
  constructor 2 with (eval_expr a (construct_rho (filter_genv psi) vx tx)); auto.
  eapply eval_expr_relate; eauto.
- rewrite cop2_sem_cast'; auto.
- apply (cast_exists Delta a _ _ _ H0 H H2).
+ pose proof (cast_exists Delta a _ _ _ H0 H H2).
+ forget (force_val
+          (sem_cast (typeof a) t
+             (eval_expr a
+                (construct_rho (filter_genv psi) vx tx)))) as v.
+ eapply cop2_sem_cast''; eauto.
 Qed.
 
 Lemma bind_parameter_temps_excludes :
@@ -624,13 +629,8 @@ generalize dependent bl. generalize dependent te'.
         destruct TC2 as [[? ?] ?].
         rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
         rewrite PTree.gss.
-        exists (force_val
-          (Cop.sem_cast
-             (eval_expr e
-                (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
-             (typeof e) ty (m_dry jm))).
-        split. rewrite cop2_sem_cast'; auto.
-        right. rewrite cop2_sem_cast'; auto. eapply tc_val_sem_cast; eauto.
+        eexists.  split. reflexivity. right.
+        eapply tc_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
@@ -3019,7 +3019,7 @@ Proof.
           super_unfold_lift.
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by auto.
+          rewrite cop2_sem_cast' by (auto; admit).
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
       * fold denote_tc_assert in TC.
@@ -3050,7 +3050,7 @@ Proof.
           destruct H6 as [_ ?].
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by auto.
+          rewrite cop2_sem_cast' by (auto; admit).
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
   + intro.
@@ -3058,6 +3058,6 @@ Proof.
     rewrite call_cont_idem in H13; auto.
     econstructor; try eassumption.
     auto.
-Qed.
+Admitted.
 
 End extensions.

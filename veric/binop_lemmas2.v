@@ -18,7 +18,8 @@ with eval_lvalue_any:
     v <> Vundef ->
     eval_lvalue e rho = v.
 Proof.
-{ clear eval_expr_any.
+{
+ clear eval_expr_any.
  intros  ? ?.
  induction e; simpl; intros; subst; unfold_lift; try reflexivity;
  unfold_lift in H0;
@@ -51,45 +52,38 @@ Proof.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
-  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
- +destruct b;
+  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ];
+try solve [
+  destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   try reflexivity; destruct (eval_expr e2 any_environ); reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+   try reflexivity;
+   cbv beta iota delta [
+    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    remove_attributes change_attributes 
+   ];
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+  let J := fresh "J" in 
+    destruct (eqb_type A B) eqn:J;
+      [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
+  end;
+  reflexivity].
+all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ];
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
-+destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   reflexivity.
- +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
-  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
-   destruct b;
-   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+   try reflexivity;
+   cbv beta iota delta [
+    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    remove_attributes change_attributes 
+   ];
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+  let J := fresh "J" in 
+    destruct (eqb_type A B) eqn:J;
+      [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
+  end;
    reflexivity.
 *
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -97,7 +91,8 @@ Proof.
   (destruct (eval_expr e any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
-     auto .. ]); auto.
+     auto .. ]); auto;
+  try (unfold Cop2.sem_cast, Cop2.classify_cast; if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
@@ -653,31 +648,40 @@ let deferr := arg_type e in
 denote_tc_assert
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_isptr a2)
+                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
+                    | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
+                                            (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>
-                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
+                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' 
+                              (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
+                               (tc_int_or_ptr_type (typeof a1)))
+                               (tc_int_or_ptr_type (typeof a2)))
                                (tc_bool (is_int32_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
@@ -739,10 +743,16 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
+ 		                | Cop.cmp_case_pp => tc_andp' (tc_andp' (tc_int_or_ptr_type (typeof a1)) 
+                                      (tc_int_or_ptr_type (typeof a2)))
+                              (check_pp_int' a1 a2 op ty e)
+                    | Cop.cmp_case_pl => 
+                         tc_andp' (tc_int_or_ptr_type (typeof a1))
+                            (check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e)
 (*check_pl_long' a2 op ty e*)
-                    | Cop.cmp_case_lp => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_lp => 
+                         tc_andp' (tc_int_or_ptr_type (typeof a2))
+                          (check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e)
 (*check_pl_long' a1 op ty e*)
                    end
   end.
@@ -869,15 +879,17 @@ Opaque tc_val.
 intros until 1; rename H into CMP; intros;
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
- destruct v2; inv H0; try rewrite H2;
+ destruct v2; 
+ try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
   Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool.
+ try apply tc_val_of_bool).
 Transparent tc_val.
-Qed.
+all: try solve [hnf in H0; if_tac in H0; inv H0].
+Abort.
 
 Lemma tc_val_cmp_eqne_pi:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
@@ -895,15 +907,16 @@ Opaque tc_val.
 intros until 1; rename H into CMP; intros.
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
- destruct v2; inv H0; try rewrite H2;
+ destruct v2; 
+ try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
   sem_binarith, sem_cast, classify_cast, sem_cmp_pl, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool.
+ try apply tc_val_of_bool).
 Transparent tc_val.
-Qed.
+Abort.
 
 Ltac sem_cmp_solver t1 t2 :=
 match t1 with
