@@ -53,6 +53,23 @@ int_or_ptr maketree(int depth) {
   }
 }
 
+int_or_ptr copytree(int_or_ptr t) {
+  if (test_int_or_ptr(t)) {
+    return t;
+  }
+  else {
+    int_or_ptr r, p,q, *s;
+    s = (int_or_ptr *)int_or_ptr_to_ptr(t);
+    p=copytree(s[0]);
+    q=copytree(s[1]);
+    next[0]=p;
+    next[1]=q;
+    r = ptr_to_int_or_ptr(next);
+    next += 2;
+    return r;
+  }
+}
+
 void print_intx(size_t i) {
   if (i>0) {
     print_intx(i/10);
@@ -84,7 +101,9 @@ void print(int_or_ptr p) {
 }
 
 int main(void) {
-  int_or_ptr p = maketree(3);
+  int_or_ptr p;
+  p = maketree(3);
+  p = copytree(p);
   print(p);
   return 0;
 }

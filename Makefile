@@ -240,8 +240,8 @@ PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
-  revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
-  verif_float.v verif_global.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
@@ -350,7 +350,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -528,6 +528,8 @@ progs/switch.v: progs/switch.c
 progs/object.v: progs/object.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/funcptr.v: progs/funcptr.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/int_or_ptr.v: progs/int_or_ptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
