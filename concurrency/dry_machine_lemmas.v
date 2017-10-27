@@ -22,38 +22,43 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
+Require Import concurrency.HybridMachineSig.
 Require Import concurrency.dry_context.
 Require Import concurrency.semantics.
-Import threadPool.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 (** This file holds various results about the dry machine*)
 (* Find other lemmas in dry_machine_step_lemmas.v        *)
 
-Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := SEM).
-
-  Import Machines DryMachine ThreadPool.
+Module ThreadPoolWF.
+  Import HybridMachine ThreadPool.
+  Module HBS := HybridMachineSig.
+  Module OP := OrdinalPool.
+  Section ThreadPoolWF.
+    Context {Sems Semt : Semantics}.
+    (** Take an instance of the Dry Machine *)
+    Instance dryMach : @HybridMachineSig.MachineSig DryHybridMachine.resources _ _ :=DryHybridMachine.DryHybridMachineSig None.
+    
   Lemma unlift_m_inv :
-    forall tp tid (Htid : tid < (num_threads tp).+1) ord
-      (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
-                       (Ordinal (n:=(num_threads tp).+1)
+    forall tp tid (Htid : tid < (OP.num_threads tp).+1) ord
+      (Hunlift: unlift (ordinal_pos_incr (OP.num_threads tp))
+                       (Ordinal (n:=(OP.num_threads tp).+1)
                                 (m:=tid) Htid)=Some ord),
       nat_of_ord ord = tid.
   Proof.
     intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr (num_threads tp))
-                                 (Ordinal (n:=(num_threads tp).+1)
+    assert (Hcontra: unlift_spec (ordinal_pos_incr (OP.num_threads tp))
+                                 (Ordinal (n:=(OP.num_threads tp).+1)
                                           (m:=tid) Htid) (Some ord)).
     rewrite <- Hunlift.
     apply/unliftP.
     inversion Hcontra; subst.
     inversion H0.
     unfold bump.
-    assert (pf: ord < (num_threads tp))
+    assert (pf: ord < (OP.num_threads tp))
       by (by rewrite ltn_ord).
-    assert (H: (num_threads tp) <= ord = false).
+    assert (H: (OP.num_threads tp) <= ord = false).
     rewrite ltnNge in pf.
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
@@ -121,128 +126,137 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         rewrite Hgeti in Hcontra. destruct Hcontra.
         discriminate.
   Defined. *)
-  Lemma initial_invariant0: forall pmap c,
-              DryMachine.invariant (DryMachine.initial_machine pmap c).
-          Proof. intros pmap c.
-          pose (IM:=(DryMachine.initial_machine pmap c)); fold IM.
-          assert (isZ: forall i, containsThread IM i -> (i = 0)%N).
-          { rewrite /DryMachine.ThreadPool.containsThread /IM /=.
-            move => i; destruct i; first[reflexivity | intros HH; inversion HH].
-          }
-          assert (noLock: forall l rm,
-                     DryMachine.ThreadPool.lockRes IM l = Some rm -> False).
-        { rewrite /DryMachine.ThreadPool.lockRes /IM /=.
-          move => l rm.
-          rewrite /DryMachine.ThreadPool.lockRes
-                  /DryMachine.initial_machine
-                  /empty_lset /= find_empty => HH.
-          inversion HH.
-        }
 
-        constructor.
-          + move => i j0 cnti cntj HH.
-            exfalso; apply HH.
-            move: cnti cntj => /isZ -> /isZ ->; reflexivity.
-          + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra.
-        + move => i l cnt rm /noLock contra; inversion contra.
-        + move=> i cnti; split.
-          * move => j0 cntj.
-            move: (cnti) (cntj) => cnti0 cntj0;
-              move: cnti cntj => /isZ Hi /isZ Hj.
-            subst.
-            eapply permCoh_empty'.
-          * move => l rm /noLock contra; inversion contra.
-        + move => l mr /noLock contra; inversion contra.
-        + move => b ofs.
-          rewrite / IM /= //.
-          Qed.
+  Lemma initial_invariant0: forall pmap c,
+      DryHybridMachine.invariant None (DryHybridMachine.initial_machine None pmap c).
+  Proof.
+    intros pmap c.
+    pose (IM:=DryHybridMachine.initial_machine None pmap c); fold IM.
+    assert (isZ: forall i, OP.containsThread IM i -> (i = 0)%N).
+    { rewrite /containsThread /IM /=.
+      move => i; destruct i; first[reflexivity | intros HH; inversion HH].
+    }
+    assert (noLock: forall l rm,
+               OP.lockRes IM l = Some rm -> False).
+    { rewrite /OP.lockRes /IM /=.
+      move => l rm.
+      rewrite /lockRes
+              /DryHybridMachine.initial_machine
+              /ThreadPool.empty_lset /= ThreadPool.find_empty => HH.
+      inversion HH.
+    }
+
+    constructor.
+    + move => i j0 cnti cntj HH.
+      exfalso; apply HH.
+      move: cnti cntj => /isZ -> /isZ ->; reflexivity.
+    + move=> l1 l2 rm1 rm2 neq /noLock contra; exfalso; now eauto.
+    + move => i l cnt rm /noLock contra; exfalso; now eauto.
+    + move=> i cnti; split.
+      * move => j0 cntj.
+        move: (cnti) (cntj) => cnti0 cntj0;
+                                move: cnti cntj => /isZ Hi /isZ Hj.
+        subst.
+        eapply permCoh_empty'.
+      * move => l rm /noLock contra; exfalso; now eauto.
+    + move => l mr /noLock contra; exfalso; now eauto.
+    + move => b ofs.
+      rewrite / IM /= //.
+    + move =>i cnti ? ? Hcontra; simpl in Hcontra;
+              exfalso; now eauto.
+    + intros i cnti X Hget Hsum.
+      pose proof (isZ _ cnti); subst.
+      unfold DryHybridMachine.initial_machine in IM. simpl in IM.
+      admit. (*impossible *)
+  Admitted.
 
   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
-           invariant ds ->
-           (forall j (cnt: containsThread ds j),
-               i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
-                     permMapsDisjoint pmap.2 (getThreadR cnt).2) ->
-           (forall j (cnt: containsThread ds j),
-               i<>j ->
-               permMapCoherence (getThreadR cnt).1 pmap.2)->
-           (forall j (cnt: containsThread ds j),
-               i<>j ->
-               permMapCoherence pmap.1 (getThreadR cnt).2)->
-           (forall l pmap0, lockRes ds l = Some pmap0 ->
-                       permMapsDisjoint pmap0.1 pmap.1 /\
-                       permMapsDisjoint pmap0.2 pmap.2  ) ->
-           (forall l pmap0, lockRes ds l = Some pmap0 ->
-                       permMapCoherence pmap0.1 pmap.2 /\
-                       permMapCoherence pmap.1 pmap0.2) ->
-           (permMapCoherence pmap#1 pmap#2) ->
-           invariant (updThread cnt c pmap).
-       Proof.
-         intros ds x cnt c pmap INV A A' A'' B B' C.
-         constructor.
-         - intros.
-           destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
-           + subst i.
-             rewrite gssThreadRes.
-             rewrite gsoThreadRes; try solve[assumption].
-             assert (cntj':=cntj).
-             apply cntUpdate' in cntj'.
-             eapply (A); assumption.
-           + subst j.
-             apply permMapsDisjoint2_comm.
-             rewrite gssThreadRes.
-             rewrite gsoThreadRes; try solve[assumption].
-             apply A; assumption.
-           + rewrite gsoThreadRes; try solve[assumption].
-             rewrite gsoThreadRes; try solve[assumption].
-             inversion INV. apply no_race_thr0; assumption.
-         -  intros.
-           rewrite gsoThreadLPool in Hres1.
-           rewrite gsoThreadLPool in Hres2.
-           inversion INV. eapply no_race_lr0; eauto.
-         - intros i laddr cnti rmap.
-           rewrite gsoThreadLPool; intros Hres.
-           destruct (scheduler.NatTID.eq_tid_dec x i).
-           + subst x. rewrite gssThreadRes.
-             apply permMapsDisjoint2_comm.
-             eapply B; eassumption.
-           + rewrite gsoThreadRes; auto.
-             inversion INV. eapply no_race0; eassumption.
-         - intros i cnti.
-           destruct (scheduler.NatTID.eq_tid_dec x i).
-           + subst x; rewrite gssThreadRes; split; intros.
-             * { destruct (scheduler.NatTID.eq_tid_dec i j).
-                 - subst i. rewrite gssThreadRes. assumption.
-                 - rewrite gsoThreadRes; auto. }
-             * rewrite gsoThreadLPool in H.
-               apply B' with (l:= laddr); assumption.
-           + rewrite gsoThreadRes; auto; split ; intros.
-             *
-               { destruct (scheduler.NatTID.eq_tid_dec x j).
-                 - subst j. rewrite gssThreadRes; apply A''; auto.
-                 - rewrite gsoThreadRes; auto.
-                   inversion INV. destruct (thread_data_lock_coh0 i cnti) as [H1 H2].
-                   apply H1.
-               }
-             * rewrite gsoThreadLPool in H.
-               inversion INV. destruct (thread_data_lock_coh0 i cnti) as [H1 H2].
-               eapply H2; eauto.
-         - move => laddr rmap;
-             rewrite gsoThreadLPool => isLock; split.
-           + move => j cntj .
-             { destruct (scheduler.NatTID.eq_tid_dec x j).
-               - subst j. rewrite gssThreadRes.
-                 destruct (B' laddr rmap ltac:(assumption)).  assumption.
-               - rewrite gsoThreadRes; auto.
-                 inversion INV. destruct (locks_data_lock_coh0 laddr rmap ltac:(auto)) as [H1 H2].
-                 apply H1.
-             }
-           + move => laddr' rmap';
-               rewrite gsoThreadLPool => isLock'.
-                 inversion INV. destruct (locks_data_lock_coh0 laddr rmap ltac:(auto)) as [H1 H2].
-                 eapply H2; eauto.
-         - move => b' ofs'; rewrite gsoThreadLPool.
-           inversion INV. apply lockRes_valid0.
-       Qed.
+      HBS.invariant ds ->
+      (forall j (cnt: containsThread ds j),
+          i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
+                permMapsDisjoint pmap.2 (getThreadR cnt).2) ->
+      (forall j (cnt: containsThread ds j),
+          i<>j ->
+          permMapCoherence (getThreadR cnt).1 pmap.2)->
+      (forall j (cnt: containsThread ds j),
+          i<>j ->
+          permMapCoherence pmap.1 (getThreadR cnt).2)->
+      (forall l pmap0, lockRes ds l = Some pmap0 ->
+                  permMapsDisjoint pmap0.1 pmap.1 /\
+                  permMapsDisjoint pmap0.2 pmap.2  ) ->
+      (forall l pmap0, lockRes ds l = Some pmap0 ->
+                  permMapCoherence pmap0.1 pmap.2 /\
+                  permMapCoherence pmap.1 pmap0.2) ->
+      (permMapCoherence pmap#1 pmap#2) ->
+      HBS.invariant (updThread cnt c pmap).
+  Proof.
+    intros ds x cnt c pmap INV A A' A'' B B' C.
+    constructor.
+    - intros.
+      destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
+      + subst i.
+        rewrite gssThreadRes.
+        rewrite gsoThreadRes; try solve[assumption].
+        assert (cntj':=cntj).
+        apply cntUpdate' in cntj'.
+        eapply (A); assumption.
+      + subst j.
+        apply permMapsDisjoint2_comm.
+        rewrite gssThreadRes.
+        rewrite gsoThreadRes; try solve[assumption].
+        apply A; assumption.
+      + rewrite gsoThreadRes; try solve[assumption].
+        rewrite gsoThreadRes; try solve[assumption].
+        inversion INV. apply no_race_thr; assumption.
+    -  intros.
+       rewrite gsoThreadLPool in Hres1.
+       rewrite gsoThreadLPool in Hres2.
+       inversion INV. eapply no_race_lr; eauto.
+    - intros i laddr cnti rmap.
+      rewrite gsoThreadLPool; intros Hres.
+      destruct (scheduler.NatTID.eq_tid_dec x i).
+      + subst x. rewrite gssThreadRes.
+        apply permMapsDisjoint2_comm.
+        eapply B; eassumption.
+      + rewrite gsoThreadRes; auto.
+        inversion INV. eapply no_race; eassumption.
+    - intros i cnti.
+      destruct (scheduler.NatTID.eq_tid_dec x i).
+      + subst x; rewrite gssThreadRes; split; intros.
+        * { destruct (scheduler.NatTID.eq_tid_dec i j).
+            - subst i. rewrite gssThreadRes. assumption.
+            - rewrite gsoThreadRes; auto. }
+        * rewrite gsoThreadLPool in H.
+          apply B' with (l:= laddr); assumption.
+      + rewrite gsoThreadRes; auto; split ; intros.
+        *
+          { destruct (scheduler.NatTID.eq_tid_dec x j).
+            - subst j. rewrite gssThreadRes; apply A''; auto.
+            - rewrite gsoThreadRes; auto.
+              inversion INV. destruct (thread_data_lock_coh i cnti) as [H1 H2].
+              apply H1.
+          }
+        * rewrite gsoThreadLPool in H.
+          inversion INV. destruct (thread_data_lock_coh i cnti) as [H1 H2].
+          eapply H2; eauto.
+    - move => laddr rmap;
+               rewrite gsoThreadLPool => isLock; split.
+      + move => j cntj .
+        { destruct (scheduler.NatTID.eq_tid_dec x j).
+          - subst j. rewrite gssThreadRes.
+            destruct (B' laddr rmap ltac:(assumption)).  assumption.
+          - rewrite gsoThreadRes; auto.
+            inversion INV. destruct (locks_data_lock_coh laddr rmap ltac:(auto)) as [H1 H2].
+            apply H1.
+        }
+      + move => laddr' rmap';
+                 rewrite gsoThreadLPool => isLock'.
+        inversion INV. destruct (locks_data_lock_coh laddr rmap ltac:(auto)) as [H1 H2].
+        eapply H2; eauto.
+    - move => b' ofs'; rewrite gsoThreadLPool.
+      inversion INV. apply lockRes_valid.
+    -
+  Qed.
 
   Lemma invariant_decr:
     forall tp c pmap i (cnti: containsThread tp i)

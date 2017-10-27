@@ -32,13 +32,13 @@ Require Import concurrency.CoreSemantics_sum.
 
 Module DryHybridMachine.
   Import Events ThreadPool.
-  
+
+  Global Instance resources: Resources:=
+    {| res := access_map * access_map;
+       lock_info := access_map * access_map |}.
+
   Section DryHybridMachine.
-    
-    Instance resources: Resources:=
-      {| res := access_map * access_map;
-         lock_info := access_map * access_map |}.
-    
+        
     (* (* Semantics *) *)
     (* Parameter CLN_evsem : (@EvSem genv corestate). *)
     (* Parameter CLN_msem : *)
@@ -51,13 +51,13 @@ Module DryHybridMachine.
     (** Assume some source and target semantics *)
     Context {Sems Semt: Semantics}.
     
-    Instance Sem: Semantics := CoreSem_Sum hb Sems Semt.
+    Global Instance Sem: Semantics := CoreSem_Sum hb Sems Semt.
 
     Notation C:= (@semC Sem).
     Notation G:= (@semG Sem).
     Notation semSem:= (@semSem Sem).
 
-    Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem.
+    Global Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem.
 
     Notation thread_pool := (@t resources Sem).
     (** Memories*)
@@ -574,7 +574,7 @@ Module DryHybridMachine.
         empty_lset.
 
     Definition init_mach (pmap : option res) (genv:G) (m: mem)
-               (v:val)(args:list val):option (thread_pool * option mem) :=
+               (v:val) (args:list val):option (thread_pool * option mem) :=
       match semantics.initial_core semSem 0 genv m v args with
       | Some (c, om) =>
         match pmap with
@@ -705,8 +705,8 @@ Module DryHybridMachine.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)
-    Definition DryHybridMachineSig: HybridMachine.MachineSig :=
-      (@HybridMachine.Build_MachineSig resources Sem ordinalPool
+    Definition DryHybridMachineSig: @HybridMachineSig.MachineSig resources Sem ordinalPool :=
+      (@HybridMachineSig.Build_MachineSig resources Sem ordinalPool
                              richMem
                              dryMem
                              diluteMem
@@ -723,8 +723,8 @@ Module DryHybridMachine.
                              threadStep_not_unhalts
                              init_mach
       ).
+
     
-    (** Building the hybrid machine*)
     (* Instance DryHybridMachine: HybridMachine.HybridMachine := *)
     (*   (HybridMachine.Build_HybridMachine HybridMachine.MachineCoreSemantics new_MachineSemantics _). *)
     

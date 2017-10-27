@@ -125,7 +125,7 @@ footprints of permissions moved  when applicable*)
 
 End Events.
 
-Module HybridMachine.
+Module HybridMachineSig.
   Import Events ThreadPool.
   
   Section HybridMachineSig.
@@ -396,41 +396,8 @@ Module HybridMachine.
       inversion H; subst; split; auto.
     Qed.
 
-      Class HybridMachine:=
-    {
-      MachineSemantics: schedule -> option res ->
-                        CoreSemantics G MachState mem
-      ; ConcurMachineSemantics: schedule -> option res ->
-                                @ConcurSemantics G nat (seq.seq nat) event_trace t mem
-      ; initial_schedule: forall genv m main vals U U' p c tr om n,
-          initial_core (MachineSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
-          U' = U /\ tr = nil (*XXX:this seems wrong *)
-    }.
-
-  End HybridMachineSig.
-
-  (** Definition of the Coarse-grain hybrid machine *)
-  Module HybridCoarseMachine.
-    Section HybridCoarseMachine.
-      Variable n: nat.
-      Context {resources: Resources}
-              {Sem: Semantics}
-              {ThreadPool : ThreadPool.ThreadPool}
-              {machineSig: MachineSig}.
-
-      Instance scheduler : Scheduler :=
-        {| grain := fun x => x |}.
-
-      Notation thread_pool := t.
-      Notation C:= (semC).
-      Notation G:= (semG).
-      Local Notation ctl := (@ctl C).
-      Notation machine_state := thread_pool.
-      Notation schedule := (seq nat).  
-      Notation event_trace := (seq machine_event).
-
       (** The new semantics below makes internal (thread) and external (machine)
-          steps explicit (only for the coarse grained machine for now) *)
+          steps explicit *)
       Inductive internal_step {genv:G}:
         schedule -> machine_state -> mem -> machine_state -> mem -> Prop :=
       | thread_step':
@@ -449,14 +416,14 @@ Module HybridMachine.
                         (Htid: containsThread ms tid)
                         (Hcmpt: mem_compatible ms m)
                         (Htstep: start_thread genv m Htid ms' m'),
-          external_step U tr ms m U tr ms' m'
+          external_step U tr ms m (grain U) tr ms' m'
       | resume_step':
           forall tid U ms ms' m tr
             (HschedN: schedPeek U = Some tid)
             (Htid: containsThread  ms tid)
             (Hcmpt: mem_compatible ms m)
             (Htstep: resume_thread genv m Htid ms'),
-            external_step U tr ms m U tr ms' m
+            external_step U tr ms m (grain U) tr ms' m
       | suspend_step':
           forall tid U U' ms ms' m tr
             (HschedN: schedPeek U = Some tid)
@@ -493,8 +460,8 @@ Module HybridMachine.
       (*Symmetry*)
       (* These steps are basically the same: *)
       Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',
-          @machine_step _ _ _ _ _ ge U tr st m U' tr' st' m' ->
-          (U=U' /\ @internal_step ge U st m st' m') \/
+          @machine_step ge U tr st m U' tr' st' m' ->
+          (U' = grain U /\ @internal_step ge U st m st' m') \/
           @external_step ge U tr st m U' tr' st' m'.
       Proof.
         move=> ge U tr st m U' tr' st' m' ms.
@@ -506,14 +473,14 @@ Module HybridMachine.
       Lemma step_equivalence2: forall ge U st m st' m' tr,
           @internal_step ge U st m st' m' ->
           exists tr',
-            @machine_step _ _ _ _ _ ge U tr st m U tr' st' m'.
+            @machine_step ge U tr st m (grain U) tr' st' m'.
       Proof.
         move=>  ge U st m st' m' tr istp;
                  inversion istp; eexists; solve [econstructor; eauto].
       Qed.
       Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
           @external_step ge U tr st m U' tr' st' m' ->
-          @machine_step _ _ _ _ _ ge U tr st m U' tr' st' m'.
+          @machine_step ge U tr st m U' tr' st' m'.
       Proof. move=>  ge U tr st m U' nil st' m' estp.
              inversion estp;
                [
@@ -543,7 +510,49 @@ Module HybridMachine.
       unfold at_external, halted; try reflexivity.
       - intros. inversion H; subst; rewrite HschedN; reflexivity.
       - intros. inversion H; subst; rewrite HschedN; reflexivity.
-      Defined.
+    Defined.
+
+    (** The class of Hybrid Machines parameterized by:
+        - ThreadWise semantics
+        - Scheduler granularity *)
+    Class HybridMachine:=
+      {
+        MachineSemantics: schedule -> option res ->
+                          CoreSemantics G MachState mem
+        ; ConcurMachineSemantics: schedule -> option res ->
+                                  @ConcurSemantics G nat (seq.seq nat) event_trace t mem
+        ; initial_schedule: forall genv m main vals U U' p c tr om n,
+            initial_core (MachineSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
+            U' = U /\ tr = nil (*XXX:this seems wrong *)
+      }.
+
+  End HybridMachineSig.
+
+  (** Definition of the Coarse-grain hybrid machine *)
+  Module HybridCoarseMachine.
+    Section HybridCoarseMachine.
+      Variable n: nat.
+      Context {resources: Resources}
+              {Sem: Semantics}
+              {ThreadPool : ThreadPool.ThreadPool}
+              {machineSig: MachineSig}.
+
+      Instance scheduler : Scheduler :=
+        {| grain := fun x => x |}.
+
+      Notation thread_pool := t.
+      Notation C:= (semC).
+      Notation G:= (semG).
+      Local Notation ctl := (@ctl C).
+      Notation machine_state := thread_pool.
+      Notation schedule := (seq nat).  
+      Notation event_trace := (seq machine_event).
+
+      Definition HybridCoarseMachine : HybridMachine:=
+        @Build_HybridMachine resources Sem ThreadPool
+                             (MachineCoreSemantics)
+                             (new_MachineSemantics)
+                             (hybrid_initial_schedule).
 
       (** Schedule safety of the coarse-grained machine*)
       Inductive csafe (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
@@ -581,6 +590,12 @@ Module HybridMachine.
       Instance scheduler : Scheduler :=
         {| grain := fun x => schedSkip x |}.
 
+      Definition HybridFineMachine : HybridMachine:=
+        @Build_HybridMachine resources Sem ThreadPool
+                             (MachineCoreSemantics)
+                             (new_MachineSemantics)
+                             (hybrid_initial_schedule).
+
       (** Schedule safety of the fine-grained machine*)
       Inductive fsafe (ge : G) (tp : thread_pool) (m : mem) (U : schedule)
         : nat -> Prop :=
@@ -594,7 +609,7 @@ Module HybridMachine.
     End HybridFineMachine.
 End HybridFineMachine.
 
-End HybridMachine.
+End HybridMachineSig.
 
 (*Module Events <: EventSig
    with Module TID:=NatTID.
