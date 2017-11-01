@@ -52,7 +52,7 @@ jobs:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true
+    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true floyd
     - echo -en 'travis_fold:end:VST.build\\r'
   - stage: test
     script:
