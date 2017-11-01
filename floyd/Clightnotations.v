@@ -54,7 +54,7 @@ Notation "id = e2" := (Sset id%positive e2%expr) (only printing, format "id  =  
 Notation "e1 = e2" := (Sassign e1%expr e2%expr) (only printing, format "e1  =  e2", at level 70) : print_stmt_for_scope.
 Notation "/*nothing*/" := Sskip (only printing, format "/*nothing*/", at level 10) : print_stmt_for_scope.
 Notation "'goto' lbl ;" := (Sgoto lbl%extern_atom) (only printing, lbl at level 26, left associativity, at level 26, format "'goto'  lbl ;") : C_scope.
-Notation "lbl : s1" := (Slabel lbl%extern_atom s1%C) (only printing, s1 at level 26, left associativity, at level 26, format "lbl :  '/' s1") : C_scope.
+Notation "lbl <: s1" := (Slabel lbl%extern_atom s1%C) (only printing, s1 at level 26, left associativity, at level 26, format "lbl <:  '/' s1") : C_scope.
 Notation "'return' e_val ;" := (Sreturn (Some e_val%expr)) (only printing, left associativity, at level 26, format "'return'  e_val ;") : C_scope.
 Notation "return;" := (Sreturn None) (only printing, format "return;", at level 10) : C_scope.
 Notation "'switch' ( e_val ) { cases }" := (Sswitch e_val%expr cases%print_cases) (only printing, cases at level 26, left associativity, at level 26, format "'[v' 'switch'  ( e_val )  {  '/  ' cases '/' } ']'") : C_scope.
@@ -110,8 +110,8 @@ Notation "a1 . f_val" := (Efield a1%expr f_val%extern_atom _) (only printing, le
 Notation "* a1" := (Ederef a1%expr _) (only printing, a1 at level 11, right associativity (* XXX Is RtoL the same as right associativity in Coq? *), at level 11, format "'[hv  ' * a1 ']'") : expr_scope.
 Notation "id" := (Etempvar id%positive _) (only printing, format "'[hv  ' id ']'", at level 10) : expr_scope.
 Notation "id" := (Evar id%extern_atom _) (only printing, format "'[hv  ' id ']'", at level 10) : expr_scope.
-Notation "lbl : s_val rem" := (LScons lbl%print_case_label s_val%C rem%print_cases) (only printing, rem at level 26, left associativity, at level 26, format "'[v  ' lbl :  '/' s_val ']'  '/' rem") : print_cases_scope.
-Notation "lbl : rem" := (LScons lbl%print_case_label Sskip rem%print_cases) (only printing, rem at level 26, left associativity, at level 26, format "lbl :  '/' rem") : print_cases_scope.
+Notation "lbl <: s_val rem" := (LScons lbl%print_case_label s_val%C rem%print_cases) (only printing, rem at level 26, left associativity, at level 26, format "'[v  ' lbl <:  '/' s_val ']'  '/' rem") : print_cases_scope.
+Notation "lbl <: rem" := (LScons lbl%print_case_label Sskip rem%print_cases) (only printing, rem at level 26, left associativity, at level 26, format "lbl <:  '/' rem") : print_cases_scope.
 Notation "" := LSnil (only printing, left associativity, at level 26, format "") : print_cases_scope.
 Notation "'case' lbl" := (Some lbl%Z) (only printing, lbl at level 26, left associativity, at level 26, format "'case'  lbl") : print_case_label_scope.
 Notation "'default'" := None (only printing, format "'default'", at level 10) : print_case_label_scope.
