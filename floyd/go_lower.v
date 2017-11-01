@@ -248,10 +248,10 @@ intro rho;
 first [simple apply quick_finish_lower
 | repeat first
  [ simple eapply lower_one_temp_Vint;
-     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
+     [try reflexivity; eauto | fancy_intro true; intros ?EVAL ]
  | lower_one_temp_Vint'
  | simple eapply lower_one_temp;
-     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
+     [try reflexivity; eauto | fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
      fold_types1; fancy_intro true; intros ?LV
  | simple eapply lower_one_gvar;

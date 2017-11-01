@@ -132,15 +132,6 @@ Proof.
   unfold singleton; intros ??; if_tac; intro X; inv X; auto.
 Qed.
 
-(* up *)
-Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
-Proof.
-  intros.
-  apply mpred_ext, modus_ponens_wand.
-  subst; cancel.
-  rewrite <- wand_sepcon_adjoint; auto.
-Qed.
-
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_atomic_function.

@@ -36,6 +36,8 @@ Require Export VST.floyd.diagnosis.
 Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.Clightnotations.
+Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
+
 Export ListNotations.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.

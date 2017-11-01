@@ -1151,7 +1151,7 @@ Proof.
           admit. (* drop snaps *)
         * rewrite <- sepcon_assoc; etransitivity; [apply view_shift_sepcon2, HP|].
           simpl; unfold k_T at 1; apply derives_view_shift; entailer!. }
-    Intros x; destruct x as (k1, ?); simpl in *; subst.
+    Intros x; destruct x as (k1, ?); simpl fst in *; simpl snd in *.
     pose proof (hash_range k).
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (k1 <> k) (LOCALx Q (SEPx R))) end.
@@ -1201,9 +1201,11 @@ Proof.
           rewrite Znth_map', Znth_upto by (rewrite Zlength_upto in *; omega).
           unfold hashtable_entry.
           rewrite HT1, prop_true_andp; auto. }
-      Intros x H'; destruct x as (v, lvi'); simpl in *.
+      Intros x H'; destruct x as (v, lvi').
       gather_SEP 3 1 5; rewrite <- !sepcon_assoc, replace_nth_sepcon.
       erewrite <- upd_entries_A by (eauto; contradiction).
+      (* forward_return doesn't play well with atomic specs, but the following line fixes it. *)
+      unfold POSTCONDITION, abbreviate; simpl map.
       forward.
       Exists (v, lvi') H' (upd_Znth (i1 mod size) T (k, lvi')); unfold hashtable_A; entailer!.
       split; [etransitivity; eauto; apply table_incl_upd; rewrite ?HTi; auto; try omega; etransitivity; eauto|].
@@ -1221,6 +1223,7 @@ Proof.
         forward_if (PROP (k1 <> 0) (LOCALx Q (SEPx R))) end.
       * subst; simpl; Intro H'.
         gather_SEP 1 4 5; rewrite <- sepcon_assoc, replace_nth_sepcon.
+        unfold POSTCONDITION, abbreviate; simpl map.
         forward.
         Exists (0, lvi) H'; entailer!.
         exploit zero_ord_0_inv; eauto; intro; subst.
@@ -1332,7 +1335,7 @@ Proof.
     { simpl; cancel. }
     { split; simpl; intros; rewrite ?emp_sepcon, ?sepcon_emp; [reflexivity|].
       rewrite sepcon_comm; reflexivity. }
-    unfold k_T at 3; Intros x; destruct x as (k1, ?); simpl in *; subst.
+    unfold k_T at 3; Intros x; destruct x as (k1, ?); simpl fst in *; simpl snd in *; subst.
     pose proof (hash_range k).
     assert (forall x, Zlength (upd_Znth (i1 mod size) T x) = size).
     { intro; rewrite upd_Znth_Zlength; auto; omega. }
@@ -1453,7 +1456,7 @@ Proof.
         * rewrite !sepcon_hoist_if.
           rewrite sepcon_comm, !sepcon_assoc; etransitivity; [apply view_shift_sepcon1, HP|].
           apply derives_view_shift; cancel; if_tac; entailer!. }
-      Intros x; destruct x as (k1, ?); simpl in *.
+      Intros x; destruct x as (k1, ?); simpl fst in *; simpl snd in *.
       gather_SEP 2 3.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP (zero_ord k1 k) ((LOCALx Q) (SEPx (k_state (i1 mod size) lgk pki k ::
@@ -1461,10 +1464,9 @@ Proof.
       * if_tac; [discriminate | Intros; subst].
         forward_call_dep [Z : Type] (load_acq_witness pki k1 zero_ord
           (k_T' (Znth (i1 mod size) lgk Vundef)) emp (k_T Share.bot (Znth (i1 mod size) lgk Vundef))).
-        { simpl; cancel. }
         { split; simpl; intros; rewrite ?emp_sepcon, ?sepcon_emp; [reflexivity|].
           rewrite sepcon_comm; reflexivity. }
-        unfold k_T at 3; Intros x; destruct x as (k2, ?); simpl in *; subst.
+        unfold k_T at 3; Intros x; destruct x as (k2, ?); simpl fst in *; simpl snd in *; subst.
         match goal with H : zero_ord k1 k2 |- _ => destruct H; [contradiction | subst k2] end.
         gather_SEP 2 3; setoid_rewrite ghost_snap_join; [|apply join_refl].
         match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
@@ -1630,9 +1632,10 @@ Proof.
              { split; [|discriminate].
               split; [contradiction | discriminate]. }
              admit. }
-      Intros x H'; destruct x as (v', lvi'); simpl in *.
-      gather_SEP 3 2 5; rewrite <- !sepcon_assoc, replace_nth_sepcon.
+      Intros x H'; destruct x as (v', lvi').
+      gather_SEP 3 2 6; rewrite <- !sepcon_assoc, replace_nth_sepcon.
       erewrite <- upd_entries_A; eauto; try contradiction; try (if_tac; contradiction).
+      unfold POSTCONDITION, abbreviate; simpl map.
       forward.
       Exists (if eq_dec v' 0 then true else false, lvi') H' (upd_Znth (i1 mod size) T (k, lvi')); entailer!.
       split; [etransitivity; eauto; apply table_incl_upd; rewrite ?HTi; auto; try omega; etransitivity; eauto|].
@@ -1839,8 +1842,6 @@ Proof.
   assert (force_val (sem_cast_neutral tid) = tid) as Htid.
   { destruct tid; try contradiction; auto. }
   focus_SEP 4.
-  replace_SEP 0 (data_at Tsh tint (vint t) (force_val (sem_cast_neutral tid))).
-  { rewrite Htid; entailer!. }
   forward.
   rewrite <- lock_struct_array.
   forward.
@@ -1852,7 +1853,7 @@ Proof.
   rewrite !upd_Znth_same by auto.
   forward.
   forward_call (tid, sizeof tint).
-  { rewrite Htid, !sepcon_assoc; apply sepcon_derives; [apply data_at_memory_block | cancel_frame]. }
+  { rewrite !sepcon_assoc; apply sepcon_derives; [apply data_at_memory_block | cancel_frame]. }
   forward_for_simple_bound 3 (EX i : Z, EX ls : list bool,
     PROP (Zlength ls = i)
     LOCAL (temp _total (vint (Zlength (filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
@@ -2229,11 +2230,7 @@ Proof.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 4 1; apply make_inv with (Q := hashtable_inv gh g lgk lgv).
   { unfold hashtable_inv, hashtable; Exists (@empty_map Z (Z -> option Z)) (@nil hashtable_hist_el); entailer!. }
-  { apply exp_objective; intro.
-    apply sepcon_objective; apply exp_objective; unfold ghost_ref; intros; auto with objective.
-    apply sepcon_objective, sepcon_list_objective; auto with objective.
-    rewrite Forall_map, Forall_forall; simpl; intros.
-    unfold hashtable_entry.
+  { unfold hashtable_inv, hashtable, hashtable_entry; prove_objective.
     destruct (Znth _ _ _); auto with objective. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
@@ -2462,8 +2459,8 @@ Proof.
       rewrite data_at__memory_block; Intros; auto. }
     unfold f_lock_inv at 1; Intros b1 b2 b3 hi.
     assert (0 <= i < Zlength shs) by omega.
+    assert (readable_share (Znth i shs Ews)) by (apply Forall_Znth; auto).
     forward.
-    { apply Forall_Znth; auto. }
     { assert (0 <= i < 3) as Hi by auto; clear - Hi; entailer!.
       rewrite upd_Znth_same; auto. }
     rewrite upd_Znth_same by auto.
@@ -2524,8 +2521,11 @@ Proof.
     match goal with H : hist_sub _ _ _ |- _ => unfold hist_sub in H; rewrite eq_dec_refl in H; subst; auto end. }
   Intros.
   match goal with H : exists l HT, _ |- _ => destruct H as (? & ? & ? & ?) end.
-  erewrite add_three; eauto.
+Ltac entailer_for_return ::= idtac.
+  unfold size, hf1; simpl.
+  rewrite (proj2_sig has_size).
   forward.
-  replace 16384 with size by (setoid_rewrite (proj2_sig has_size); auto).
-  Exists values keys; entailer!.
+  { entailer!. }
+  rewrite <- (proj2_sig has_size).
+  entailer!.
 Qed.

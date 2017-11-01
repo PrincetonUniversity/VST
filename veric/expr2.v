@@ -20,6 +20,8 @@ assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
 assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
  destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ unfold eval_cast, sem_cast, classify_cast;
+try solve [
  inversion H; clear H; try reflexivity;
  destruct v; unfold tc_val, is_int in H0; try contradiction;
  simpl; f_equal;
@@ -33,7 +35,20 @@ assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
        try change (Int.unsigned Int.one) with 1;
        clear; compute; split; congruence
     end);
- try (destruct H0; subst i; try rewrite Int.eq_true; auto).
+ try (destruct H0; subst i; try rewrite Int.eq_true; auto)].
+ unfold is_neutral_cast in H.
+ rewrite orb_true_iff in H.
+ destruct H.
+ apply eqb_type_true in H. rewrite <- H in *.
+ unfold tc_val in H0.
+ rewrite eqb_reflx.
+ if_tac in H0; destruct v; inv H0; reflexivity.
+ rewrite andb_true_iff in H. destruct H.
+ destruct (eqb_type (Tpointer t1 a) int_or_ptr_type); inv H.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type); inv H7.
+ simpl.
+ unfold tc_val in H0.
+ if_tac in H0; destruct v; inv H0; reflexivity.
 Qed.
 
 Lemma neutral_cast_subsumption: forall t1 t2 v,
@@ -61,7 +76,26 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
        try change (Int.signed Int.one) with 1;
        try change (Int.unsigned Int.one) with 1;
        clear; compute; try split; congruence
-    end.
+    end;
+ try ( if_tac in H0; contradiction H0).
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ destruct (eqb_type (Tpointer t1 a) int_or_ptr_type) eqn:?H; auto.
+ apply eqb_type_true in H7. inv H7. simpl in *.
+ rewrite orb_false_r in H8. 
+ rewrite andb_true_iff in H8. destruct H8.
+ destruct t2; inv H7.
+ destruct a0.
+ destruct attr_volatile; try solve [inv H8].
+ simpl in H8.
+ destruct attr_alignas; try solve [inv H8].
+ destruct n as [ [ | ] | ]; try solve [inv H8].
+ apply Peqb_true_eq in H8. subst p.
+ contradiction H. reflexivity.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
 Qed.
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
@@ -270,10 +304,28 @@ Lemma neutral_isCastResultType:
    forall m, denote_tc_assert (isCastResultType t' t v) rho m.
 Proof.
 intros.
-  unfold isCastResultType;
+  unfold isCastResultType.
+  unfold is_neutral_cast in H.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-     inv H; try apply I;
-    simpl; if_tac; apply I.
+   try solve [inv H; try apply I; simpl; if_tac; apply I].
+  apply orb_true_iff in H.
+  unfold classify_cast.
+  destruct (eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
+         (eqb_type (Tpointer t' a) int_or_ptr_type)) eqn:J.
+  destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H.
+  apply I.
+  destruct H. inv H.
+  apply andb_true_iff in H. destruct H.
+  rewrite eqb_true_iff in J.
+  unfold is_pointer_type.
+  rewrite <- J in *. apply eqb_type_false in H0.
+  destruct (eqb_type (Tpointer t a0) int_or_ptr_type); inv H.
+  apply I.
+  destruct H.
+  apply eqb_type_true in H. rewrite <- H in *.
+  rewrite eqb_reflx in J. inv J.
+  destruct (eqb_type (Tpointer t' a) int_or_ptr_type),
+     (eqb_type (Tpointer t a0) int_or_ptr_type); inv H; inv J.
 Qed.
 
 Lemma is_true_e: forall b, is_true b -> b=true.

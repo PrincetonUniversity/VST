@@ -416,7 +416,7 @@ Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function. rename H into addlenRange. rename H0 into Haddlen. 
   rename H1 into BOUND. rename H2 into isbt_contents.
-  rename lvar0 into seed.
+  rename v_seed into seed.
   unfold AREP. focus_SEP 2.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
   rewrite extract_exists_in_SEP. Intros i. rename H into WFI. 
@@ -798,7 +798,8 @@ Qed.
 
 Lemma body_hmac_drbg_update_abs: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update drbg_update_abs_spec.
-Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
+Proof. start_function.
+  rename v_K into K. rename v_sep into sep.
   rename H into AL1. rename H0 into HAL. rename H1 into isbtContents.
   unfold AREP. focus_SEP 2.
   rewrite extract_exists_in_SEP. Intros Info.

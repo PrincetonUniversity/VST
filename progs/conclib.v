@@ -2841,6 +2841,58 @@ Proof.
     apply Heq; omega.
 Qed.
 
+(* wand lemmas *)
+Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply mpred_ext, modus_ponens_wand.
+  subst; cancel.
+  rewrite <- wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply mpred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma sepcon_In : forall l P, In P l -> exists Q, fold_right sepcon emp l = P * Q.
+Proof.
+  induction l; [contradiction|].
+  intros ? [|]; simpl; subst; eauto.
+  destruct (IHl _ H) as [? ->].
+  rewrite sepcon_comm, sepcon_assoc; eauto.
+Qed.
+
+Lemma extract_wand_sepcon : forall l P, In P l ->
+  fold_right sepcon emp l = P * (P -* fold_right sepcon emp l).
+Proof.
+  intros.
+  destruct (sepcon_In _ _ H).
+  eapply wand_eq; eauto.
+Qed.
+
+Lemma wand_sepcon_map : forall {A} (R : A -> mpred) l P Q
+  (HR : forall i, In i l -> R i = P i * Q i),
+  fold_right sepcon emp (map R l) = fold_right sepcon emp (map P l) *
+    (fold_right sepcon emp (map P l) -* fold_right sepcon emp (map R l)).
+Proof.
+  intros; eapply wand_eq.
+  erewrite map_ext_in, sepcon_map; eauto.
+  apply HR.
+Qed.
+
+Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint; cancel.
+  rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
@@ -3699,6 +3751,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  go_lowerx. simpl.
@@ -3710,9 +3763,12 @@ eapply semax_call_id1_wow; try eassumption; auto.
  go_lowerx.
  repeat rewrite denote_tc_assert_andp.
  rewrite denote_tc_assert_bool.
- assert (is_neutral_cast (implicit_deref retty) retty = true)
-  by (destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; simpl; auto;
-        destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; inv NEUTRAL).
+ assert (is_neutral_cast (implicit_deref retty) retty = true). {
+  destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
+  destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; 
+  try solve [inv NEUTRAL].
+  unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
+  }
  apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
@@ -3819,6 +3875,7 @@ end.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  apply @TT_right.

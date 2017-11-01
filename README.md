@@ -23,7 +23,7 @@ Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-cert
 
 ## Build:
 
-See the file [BUILD_ORGANIZATION](BUILD_ORGANIZATION) for an explanation of how
+See the file [BUILD_ORGANIZATION](BUILD_ORGANIZATION.md) for an explanation of how
 to build and install the VST.
 
 

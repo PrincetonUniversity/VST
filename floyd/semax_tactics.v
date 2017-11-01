@@ -173,11 +173,6 @@ match goal with
        constr_eq D1 D (* ONLY this case terminates! *)
  | |- semax ?D _ _ _ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
- | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
-     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
-     change e with (@abbreviate (PTree.t funspec) e) in DS;
-     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
-     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
  | Delta := @abbreviate tycontext ?D 
       |- semax ?DD _ _ _ => 
        match DD with

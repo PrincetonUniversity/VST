@@ -1,3 +1,8 @@
+# IF YOU MODIFY THIS FILE to add or remove "make" targets,
+# please also modify the travis: target in the Makefile.
+# They're not automatically coordinated, the reason being that
+# we want to split the Travis build into multiple jobs.
+
 dist: trusty
 sudo: required
 language: ocaml
@@ -29,7 +34,7 @@ branches:
 notifications:
   email:
     recipients:
-    - wmansky@cs.princeton.edu
+    - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
 
@@ -68,3 +73,9 @@ jobs:
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
+#  - script:
+#    - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
+#    - mkdir -p build
+#    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+#    - cd build; travis_wait 50 make -j ${NJOBS} IGNORECOQVERSION=true atomics
+#    - echo -en 'travis_fold:end:atomics.build\\r'

@@ -853,7 +853,16 @@ Proof.
  destruct b; simpl; auto.
 Qed.
 
-Hint Resolve closed_wrt_tc_andp closed_wrt_tc_orp closed_wrt_tc_bool : closed.
+Lemma closed_wrt_tc_int_or_ptr_type:
+  forall {cs: compspecs} S t, 
+  closed_wrt_vars S (denote_tc_assert (tc_int_or_ptr_type t)).
+Proof.
+ intros.
+ apply closed_wrt_tc_bool.
+Qed.
+
+Hint Resolve closed_wrt_tc_andp closed_wrt_tc_orp closed_wrt_tc_bool
+              closed_wrt_tc_int_or_ptr_type : closed.
 
 Lemma closed_wrtl_tc_andp:
   forall {cs: compspecs} S a b,

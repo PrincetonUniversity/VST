@@ -121,7 +121,7 @@ forward_while
      PROP (sigma = rev s1 ++ s2)
      LOCAL (temp _w w; temp _v v)
      SEP (listrep s1 w; listrep s2 v)).
-(** The forward_while tactic leaves five subgoals,
+(** The forward_while tactic leaves four subgoals,
  ** which we mark with * (the Coq "bullet") *)
 * (* Prove that precondition implies loop invariant *)
 Exists (@nil val) sigma nullval p.
@@ -136,7 +136,7 @@ destruct s2 as [ | h r].
    Intros. subst. contradiction.
  - unfold listrep at 2; fold listrep.
    Intros y.
-   forward. (* h = v->tail *)
+   forward. (* t = v->tail *)
    forward. (* v->tail = w; *)
    forward. (* w = v; *)
    forward. (* v = t; *)

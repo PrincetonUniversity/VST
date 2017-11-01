@@ -74,6 +74,7 @@ coqide
 *#
 .#*
 *.aux
+doc/html/
 _CoqProject
 .loadpath-export
 _CoqProject-export

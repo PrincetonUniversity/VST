@@ -259,6 +259,12 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     (apply exp_right with (Vptr b' Int.zero); apply andp_right;
       [unfold local, lift1; apply prop_right; auto
       |      unfold offset_val; simpl; try rewrite Int.repr_unsigned, Int.add_zero_l; auto]).
+
+  unfold mapsto. simpl. rewrite !if_true by auto.
+  rewrite andb_false_r. simpl.
+  apply orp_right1.
+  apply orp_left. auto.
+  normalize. inv H0.
 Qed.
 
 Lemma readable_share_readonly2share:
@@ -1135,7 +1141,7 @@ Ltac process_idstar :=
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>
     match goal with
     | n: name i |- _ => idtac
-    | |- _ => let n := fresh "gvar0" in assert (n: name i) by apply Logic.I
+    | |- _ => let n := fresh "v" i in assert (n: name i) by apply Logic.I
     end;
     match goal with
     | n: name i |- _ => process_one_globvar; clear n; intro n;
@@ -1150,7 +1156,12 @@ Ltac process_idstar :=
       repeat first
         [simple apply move_globfield_into_SEP
         | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ]
-        | simple apply move_globfield_into_SEP'; intros ?gvar0
+        | simple apply move_globfield_into_SEP'; intros ?gvar0;
+          lazymatch goal with
+          | |- semax _ ((PROPx _ (LOCALx (gvar ?A ?B :: _) _)) * _ * _ * _)  _ _ =>
+                 let n := fresh "v" A in rename B into n
+          | |- _ => idtac
+          end
         ];
       simple apply move_globfield_into_SEP0
    | |- _ => idtac

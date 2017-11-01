@@ -199,7 +199,8 @@ Ltac process_stackframe_of :=
      | n: name i |- _ => simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
      | |- _ =>    simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+       | let n := fresh "v" i in intros n ]
      end
    end;
  (*
@@ -218,7 +219,10 @@ Ltac process_stackframe_of :=
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
 Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
-Proof. extensionality t v. destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; simpl; try reflexivity.
+Proof. extensionality t v.
+destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
+unfold tc_option_val, tc_option_val'.
+unfold tc_val. if_tac; reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 

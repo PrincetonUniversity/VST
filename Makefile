@@ -58,7 +58,7 @@ DEPFLAGS:=$(COQFLAGS)
 COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
-COQDOC=$(COQBIN)coqdoc
+COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -196,8 +196,10 @@ LINKING_FILES= \
 
 VERIC_FILES= \
   base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
-  tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
+  tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
+  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
+  expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
@@ -238,15 +240,15 @@ PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
-  revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
-  verif_float.v verif_global.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v
+  funcptr.v verif_funcptr.v tutorial1.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -348,7 +350,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -362,31 +364,11 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
- $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
+# $(CCC26x86_FILES:%=ccc26x86/%) \
+# $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
-
-CLEANFILES = \
- $(MSL_FILES:%=msl/.%o.aux) \
- $(SEPCOMP_FILES:%=sepcomp/.%o.aux) \
- $(VERIC_FILES:%=veric/.%o.aux) \
- $(FLOYD_FILES:%=floyd/.%o.aux) \
- $(PROGS_FILES:%=progs/.%o.aux) \
- $(WAND_DEMO_FILES:%=wand_demo/.%o.aux) \
- $(SHA_FILES:%=sha/.%o.aux) \
- $(HMAC_FILES:%=sha/.%o.aux) \
- $(FCF_FILES:%=fcf/.%o.aux) \
- $(HMACFCF_FILES:%=hmacfcf/.%o.aux) \
- $(HMACEQUIV_FILES:%=sha/.%o.aux) \
- $(CCC26x86_FILES:%=ccc26x86/.%o.aux) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/.%o.aux) \
- $(CONCUR_FILES:%=concurrency/.%o.aux) \
- $(HMACDRBG_Files:%=hmacdrbg/.%o.aux)
-# $(DRBG_FILES:%=verifiedDrbg/spec/%)
-
-
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -407,7 +389,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6 or-else 8.6.1
+COQVERSION= 8.6 or-else 8.6.1 or-else 8.7.0
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -437,6 +419,8 @@ endif
 # 	@
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
+
+travis: progs hmacdrbg mailbox
 
 all: .loadpath version.vo $(FILES:.v=.vo)
 
@@ -472,7 +456,7 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
 hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: .loadpath mailbox/verif_mailbox.vo
+mailbox: .loadpath mailbox/verif_mailbox_main.vo
 atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT
@@ -481,7 +465,13 @@ $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
 cvfiles: $(CVFILES)
 
+dochtml:
+	mkdir -p doc/html
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
+dochtml-full:
+	mkdir -p doc/html
+	$(COQDOC) $(FILES)
 
 clean_cvfiles:
 	rm $(CVFILES)
@@ -539,6 +529,8 @@ progs/object.v: progs/object.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/funcptr.v: progs/funcptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/int_or_ptr.v: progs/int_or_ptr.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
@@ -566,7 +558,8 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) $(CLEANFILES) version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject
+	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo)
+	rm -fr doc/html
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)

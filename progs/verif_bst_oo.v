@@ -475,7 +475,9 @@ Proof.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x. clear H1 H2.
+
         forward. (* return (&p->value) *)
+
         Exists v (offset_val 4 v).
         entailer!.
         rewrite (sepcon_comm (_ * _ * _ * _)); apply wand_sepcon_adjoint.
