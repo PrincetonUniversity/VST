@@ -1091,17 +1091,14 @@ Lemma crypto_stream_salsa20_xor_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       crypto_stream_salsa20_xor_spec.
 Proof. 
 start_function.
-abbreviate_semax.
-rename lvar0 into z.
-rename lvar1 into x.
 rename H into MLEN.
-assert_PROP (isptr z) by entailer!. rename H into isptrZ.
+assert_PROP (isptr v_z) by entailer!. rename H into isptrZ.
 forward_if
   (PROP  (b <> Int64.zero)
-   LOCAL  (lvar _x (tarray tuchar 64) x; lvar _z (tarray tuchar 16) z;
+   LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
    temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
-   SEP  (data_at_ Tsh (tarray tuchar 16) z;
-   data_at_ Tsh (tarray tuchar 64) x; SByte Nonce nonce;
+   SEP  (data_at_ Tsh (tarray tuchar 16) v_z;
+   data_at_ Tsh (tarray tuchar 64) v_x; SByte Nonce nonce;
    data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c; ThirtyTwoByte K k;
    Sigma_vector SV; message_at mCont m
    (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))).
@@ -1134,10 +1131,10 @@ assert_PROP (field_compatible (Tarray tuchar (Int64.unsigned b) noattr) [] c) as
 freeze [1;2;3;4;5;6] FR1.
 forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
-   LOCAL  (lvar _x (tarray tuchar 64) x; lvar _z (tarray tuchar 16) z;
+   LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
    temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
    SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16) && data_at Tsh (tarray tuchar 16) 
-          ((list_repeat (Z.to_nat i) (Vint Int.zero)) ++ l) z))).
+          ((list_repeat (Z.to_nat i) (Vint Int.zero)) ++ l) v_z))).
 { Exists (list_repeat 16 Vundef). entailer!. }
 { rename H into I. Intros l. rename H into LI16.
   forward. Exists (sublist 1 (Zlength l) l). entailer!.
@@ -1159,13 +1156,13 @@ freeze [0;2;3;4;5] FR2.
 unfold SByte.
 forward_for_simple_bound 8 (EX i:Z, 
   (PROP  ()
-   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
-   lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
+   LOCAL  (lvar _x (Tarray tuchar 64 noattr) v_x;
+   lvar _z (Tarray tuchar 16 noattr) v_z; temp _c c; temp _m m;
    temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
    SEP 
    (FRZL FR2; data_at Tsh (Tarray tuchar 16 noattr)
         (sublist 0 i (SixteenByte2ValList Nonce) ++
-         (list_repeat (Z.to_nat (16-i)) (Vint Int.zero))) z;
+         (list_repeat (Z.to_nat (16-i)) (Vint Int.zero))) v_z;
    data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce))).
 { entailer!. }
 { rename H into I.
@@ -1228,7 +1225,7 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
   assert (Int64.max_unsigned = 18446744073709551615) by reflexivity. rename H into I64MAX.
   destruct (SixteenByte2ValList_bytes (N0, N1, ZeroQuadByte, ZeroQuadByte)) as [zbytes [Lzbytes ZBytes]].
   rewrite ZBytes.
-forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont zbytes).
+forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K SV mCont zbytes).
 { (*precondition*)
   Exists O mInit. Exists zbytes (@nil byte).
   destruct (Int64.unsigned_range bInit). 
@@ -1255,7 +1252,7 @@ forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont zbyte
   { apply CONTCONT in CONT. rewrite <- CONT.
     eapply Zlength_ZCont. rewrite Zlength_correct, Lzbytes. reflexivity. }
 
-  forward_call (SV, k, z, x, (d, SIGMA, K)). 
+  forward_call (SV, k, v_z, v_x, (d, SIGMA, K)). 
   { unfold CoreInSEP, SByte, Sigma_vector, tarray. cancel.
     rewrite D; unfold Bl2VL. cancel. }
 Intros snuff. rename H into Snuff.
@@ -1283,7 +1280,7 @@ forward_seq. (*
 mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta.
 eapply semax_extensionality_Delta.*)
-  apply (loop1 Espec (FRZL FR3) x z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
+  apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
     eassumption.
     clear - SRL R64next R64old HRE Heqr64 MLEN. rewrite MLEN. omega. omega.
 
@@ -1297,7 +1294,7 @@ thaw FR3. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
 freeze [1;2;3;4;5;6;7;8] FR4.
 unfold SByte. 
 forward_seq. rewrite D.
-  apply (For_i_8_16_loop Espec (FRZL FR4) x z c m 
+  apply (For_i_8_16_loop Espec (FRZL FR4) v_x v_z c m 
            (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k SV zbytesR).
 freeze [0;1] FR5.
 forward.
@@ -1314,7 +1311,7 @@ forward_if (EX m:_,
      (Vlong
         (Int64.sub (Int64.sub bInit (Int64.repr r64))
            (Int64.repr (Int.signed (Int.repr 64)))));
-   lvar _x (Tarray tuchar 64 noattr) x; lvar _z (Tarray tuchar 16 noattr) z;
+   lvar _x (Tarray tuchar 64 noattr) v_x; lvar _z (Tarray tuchar 16 noattr) v_z;
    temp _m m; temp _n nonce; temp _k k; gvar _sigma SV)  SEP  (FRZL FR5))).
 {  clear H v. apply denote_tc_test_eq_split.
    destruct mInit; simpl in M; try contradiction.
@@ -1411,12 +1408,12 @@ remember (Z.of_nat rounds * 64)%Z as r64.
   { destruct (Int64.unsigned_range_2 bInit).
     unfold Int64.sub.
     repeat rewrite Int64.unsigned_repr; try omega. }
-forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit SV zbytes).
+forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit SV zbytes).
 { rename H into BR.
   destruct (SixteenByte2ValList_exists zbytesR) as [d D].
   { apply CONTCONT in CONT. rewrite <- CONT.
     eapply Zlength_ZCont. rewrite Zlength_correct, Lzbytes. reflexivity. }
-  forward_call (SV, k, z, x, (d, SIGMA, K)). 
+  forward_call (SV, k, v_z, v_x, (d, SIGMA, K)). 
   { unfold CoreInSEP, SByte, Sigma_vector, tarray.
     unfold Bl2VL; rewrite D. cancel. }
   Intros snuff. rename H into Snuff.
@@ -1435,7 +1432,7 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
 (*  eapply semax_extensionality_Delta.*)
   rewrite SNR, <- RR.
   eapply semax_post.
-  2: eapply (loop2 Espec (FRZL FR1) x z c mInit); try eassumption; try omega.
+  2: eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try omega.
   intros. apply andp_left2. unfold POSTCONDITION, abbreviate. 
   rewrite normal_ret_assert_eq. unfold overridePost, IfPost. 
   normalize. rewrite if_true; trivial. old_go_lower.
