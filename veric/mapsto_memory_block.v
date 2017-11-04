@@ -489,8 +489,10 @@ Proof.
   unfold mapsto_, mapsto.
   rewrite H, H0.
   rewrite if_true by auto.
-  assert (!!(tc_val t Vundef) = FF)
-    by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
+  assert (!!(tc_val t Vundef) = FF). {
+    clear; unfold FF; f_equal; apply prop_ext; intuition.
+    apply (tc_val_Vundef _ H).
+  }
   rewrite H1.
 
   rewrite FF_and, HH0.
@@ -1011,12 +1013,16 @@ Proof.
 Qed.
 
 Lemma mapsto_pointer_void:
-  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
+  forall sh t a, 
+   eqb_type (Tpointer t a) int_or_ptr_type = false ->
+   eqb_type (Tpointer Tvoid a) int_or_ptr_type = false ->
+   mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
 Proof.
 intros.
 unfold mapsto.
 extensionality v1 v2.
-simpl. auto.
+unfold tc_val', tc_val. rewrite H, H0.
+reflexivity.
 Qed.
 
 Lemma mapsto_unsigned_signed:
@@ -1210,13 +1216,15 @@ Proof.
 intros.
 unfold mapsto.
 simpl.
+rewrite andb_false_r. simpl.
 destruct p; simpl; auto.
 if_tac; simpl; auto.
 rewrite !prop_true_andp by auto.
 rewrite (prop_true_andp True) by auto.
 reflexivity.
 f_equal. f_equal. f_equal.
-unfold tc_val'.
+unfold tc_val', tc_val. simpl.
+rewrite andb_false_r. simpl.
 apply prop_ext; intuition; hnf; auto.
 Qed.
 
@@ -1268,8 +1276,10 @@ Proof.
   simpl.
   destruct v; auto. f_equal; auto.
   if_tac.
-  + f_equal. f_equal. apply pred_ext; unfold derives; simpl; tauto.
+  + f_equal. f_equal. rewrite andb_false_r.
+   apply pred_ext; unfold derives; simpl; tauto.
   + f_equal. apply pred_ext; unfold derives; simpl;
     unfold tc_val', tc_val, tptr, tint, nullval; simpl;
+    rewrite andb_false_r; simpl;
     tauto.
 Qed.

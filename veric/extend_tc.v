@@ -19,7 +19,7 @@ Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> m
      fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
 
 Definition allowedValCast v tfrom tto :=
-match Cop.classify_cast tfrom tto with
+match classify_cast tfrom tto with
 | Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto)
                           then
                             match v with
@@ -77,6 +77,14 @@ Lemma extend_tc_bool:
 Proof.
 intros.
 destruct A; simpl; apply  extend_prop.
+Qed.
+
+Lemma extend_tc_int_or_ptr_type:
+ forall {CS: compspecs} A rho,
+   boxy extendM (denote_tc_assert (tc_int_or_ptr_type A) rho).
+Proof.
+intros.
+apply  extend_tc_bool.
 Qed.
 
 Lemma extend_tc_Zge:
@@ -204,7 +212,7 @@ Lemma extend_isCastResultType:
 Proof.
 intros.
  unfold isCastResultType;
- destruct (Cop.classify_cast t t');
+ destruct (classify_cast t t');
  repeat apply extend_tc_andp;
  try match goal with |- context [eqb_type _ _] => destruct (eqb_type t t') end;
  repeat match goal with
@@ -309,78 +317,104 @@ simpl. unfold_lift.
 destruct (eval_expr e rho); try apply extend_prop.
 Qed.
 
-(* TODO: improve efficiency. *)
+Lemma extend_tc_andp':
+ forall {CS: compspecs} A B rho,
+   boxy extendM (denote_tc_assert A rho) ->
+   boxy extendM (denote_tc_assert B rho) ->
+   boxy extendM (denote_tc_assert (tc_andp' A B) rho).
+Proof.
+intros.
+apply boxy_andp; auto.
+apply extendM_refl.
+Qed.
+
+Ltac extend_tc_prover := 
+  match goal with
+  | |- _ => solve [immediate]
+  | |- _ => apply extend_prop
+  | |- _ => first
+              [ simple apply extend_tc_bool
+              | simple apply extend_tc_int_or_ptr_type
+              | simple apply extend_tc_andp
+              | simple apply extend_tc_andp'
+              | simple apply extend_tc_Zge
+              | simple apply extend_tc_Zle
+              | simple apply extend_tc_iszero
+              | simple apply extend_tc_nonzero
+              | simple apply extend_tc_nodivover
+              | simple apply extend_tc_samebase
+              | simple apply extend_tc_ilt
+              | simple apply extend_tc_llt
+              | simple apply extend_isCastResultType
+              | simple apply extend_tc_test_eq
+              | simple apply extend_tc_test_order]
+  | |- boxy _ (denote_tc_assert (if ?A then _ else _) _) => destruct A
+  | |- boxy _ (denote_tc_assert match tc_bool ?A _ with _ => _ end _) =>
+             destruct A
+  | |- boxy _ (denote_tc_assert match ?A with Some _ => _ | None => _ end _) =>
+          destruct A
+  end.
+
+Lemma extend_tc_binop: forall {CS: compspecs} Delta e1 e2 b t rho, 
+  boxy extendM (denote_tc_assert (typecheck_expr Delta e1) rho) ->
+  boxy extendM (denote_tc_assert (typecheck_expr Delta e2) rho) ->
+  boxy extendM (denote_tc_assert (isBinOpResultType b e1 e2 t) rho).
+Proof.
+intros.
+destruct b;
+unfold isBinOpResultType, tc_int_or_ptr_type, check_pp_int;
+match goal with
+| |- context [classify_add] => destruct (classify_add (typeof e1) (typeof e2)) eqn:C
+| |- context [classify_sub] => destruct (classify_sub (typeof e1) (typeof e2)) eqn:C
+| |- context [classify_cmp] => destruct (classify_cmp (typeof e1) (typeof e2)) eqn:C
+| |- context [classify_shift] => destruct (classify_shift (typeof e1) (typeof e2)) eqn:C
+| |- _ => idtac
+end;
+repeat extend_tc_prover;
+destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+try inv C; try apply extend_prop;
+unfold binarithType, classify_binarith; repeat extend_tc_prover.
+Qed.
+
 Lemma extend_tc_expr: forall {CS: compspecs} Delta e rho, boxy extendM (tc_expr Delta e rho)
  with extend_tc_lvalue: forall {CS: compspecs} Delta e rho, boxy extendM (tc_lvalue Delta e rho).
 Proof.
 *
  clear extend_tc_expr.
  intros.
-unfold tc_expr.
+ unfold tc_expr.
+ unfold tc_lvalue in extend_tc_lvalue.
   induction e; simpl;
-  destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+  try pose proof (extend_tc_lvalue CS Delta e rho);
+  clear extend_tc_lvalue;
+try solve [
+  repeat extend_tc_prover;
+  try destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
   simpl;
- unfold isBinOpResultType, binarithType;
- try (destruct u; simpl);
- repeat apply extend_tc_andp;
- repeat match goal with
- | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A
- | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
- | |- context [typeof ?e] =>
-      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
-      try apply extend_prop
- end;
- repeat apply extend_tc_andp;
- repeat apply extend_tc_orp;
- repeat apply extend_tc_andp;
- try apply extend_prop;
- try simple apply extend_tc_bool;
- try simple apply extend_tc_Zge;
- try simple apply extend_tc_Zle;
- try simple apply extend_tc_iszero;
- try simple apply extend_tc_nonzero;
- try simple apply extend_tc_nodivover;
- try simple apply extend_tc_samebase;
- try simple apply extend_tc_ilt;
- try simple apply extend_tc_llt;
- try simple apply extend_isCastResultType;
- try simple apply extend_tc_test_eq;
- try simple apply extend_tc_test_order;
- auto;
- try apply extend_tc_lvalue.
+  repeat extend_tc_prover
+ ].
+ + (* unop *)
+   repeat extend_tc_prover.
+   destruct u; simpl; repeat extend_tc_prover;
+   destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+   simpl; repeat extend_tc_prover.
+ + repeat extend_tc_prover. eapply extend_tc_binop; eauto.
+ + 
+  destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+  repeat extend_tc_prover;
+   destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+   simpl; repeat extend_tc_prover.
 *
  clear extend_tc_lvalue.
  intros.
+ unfold tc_expr in *.
  unfold tc_lvalue.
  induction e; simpl;
- try apply extend_prop;
- repeat apply extend_tc_andp;
- repeat match goal with
- | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A
- | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
- | |- context [typeof ?e] =>
-      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
-      try apply extend_prop
- end;
- repeat apply extend_tc_andp;
- repeat apply extend_tc_orp;
- repeat apply extend_tc_andp;
- try apply extend_prop;
- try simple apply extend_tc_bool;
- try simple apply extend_tc_Zge;
- try simple apply extend_tc_Zle;
- try simple apply extend_tc_iszero;
- try simple apply extend_tc_nonzero;
- try simple apply extend_tc_nodivover;
- try simple apply extend_tc_samebase;
- try simple apply extend_tc_ilt;
- try simple apply extend_tc_llt;
- try simple apply extend_isCastResultType;
- try simple apply extend_tc_test_eq;
- try simple apply extend_tc_test_order;
- auto;
- try apply extend_tc_lvalue.
- apply extend_tc_expr.
+ try specialize (extend_tc_expr CS Delta e rho);
+ repeat extend_tc_prover;
+ destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+ simpl; repeat extend_tc_prover.
 Qed.
 
 Lemma extend_tc_exprlist: forall {CS: compspecs} Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).

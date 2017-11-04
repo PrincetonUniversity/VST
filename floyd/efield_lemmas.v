@@ -57,10 +57,26 @@ Fixpoint typecheck_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) 
 
 Definition tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred := denote_tc_assert (typecheck_efield Delta efs).
 
+Definition typeconv' (ty: type): type :=
+match ty with
+| Tvoid => remove_attributes ty
+| Tint I8 _ _ => Tint I32 Signed noattr
+| Tint I16 _ _ => Tint I32 Signed noattr
+| Tint I32 _ _ => remove_attributes ty
+| Tint IBool _ _ => Tint I32 Signed noattr
+| Tlong _ _ => remove_attributes ty
+| Tfloat _ _ => remove_attributes ty
+| Tpointer _ _ => if eqb_type ty int_or_ptr_type then ty else remove_attributes ty
+| Tarray t _ _ => Tpointer t noattr
+| Tfunction _ _ _ => Tpointer ty noattr
+| Tstruct _ _ => remove_attributes ty
+| Tunion _ _ => remove_attributes ty
+end.
+
 (* Null Empty Path situation *)
 Definition type_almost_match e t lr:=
   match typeof e, t, lr with
-  | _, Tarray t1 _ a1, RRRR => eqb_type (typeconv (typeof e)) (Tpointer t1 noattr)
+  | _, Tarray t1 _ a1, RRRR => eqb_type (typeconv' (typeof e)) (Tpointer t1 noattr)
   | _, _, LLLL => eqb_type (typeof e) t
   | _, _, _ => false
   end.
@@ -96,6 +112,14 @@ Proof.
   simpl in H.
   rewrite andb_true_iff in H.
   tauto.
+Qed.
+
+Lemma typeconv_typeconv'_eq: forall t1 t2,
+  typeconv' t1 = typeconv' t2 ->
+  typeconv t1 = typeconv t2.
+Proof.
+  intros.
+  destruct t1 as [| [| | |] | [|] | [|] | | | | |], t2 as [| [| | |] | [|] | [|] | | | | |]; simpl in *; do 2 try if_tac in H; congruence.
 Qed.
 
 Lemma tc_efield_ind: forall {cs: compspecs} (Delta: tycontext) (efs: list efield),
@@ -213,7 +237,7 @@ Lemma weakened_legal_nested_efield_spec: forall t_root e gfs efs tts rho,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   efield_denote efs gfs rho ->
-  typeconv (nested_field_type t_root gfs) = typeconv (typeof (nested_efield e efs tts)).
+  typeconv' (nested_field_type t_root gfs) = typeconv' (typeof (nested_efield e efs tts)).
 Proof.
   intros.
   inversion H1; subst; destruct tts; try solve [inv H].
@@ -221,7 +245,7 @@ Proof.
     simpl typeof.
     unfold type_almost_match in H0.
     destruct (LR_of_type t_root), t_root, (typeof e); try solve [inv H0]; auto;
-    apply eqb_type_spec in H0; rewrite H0; auto.
+    try (apply eqb_type_spec in H0; rewrite H0; auto).
   + f_equal.
     eapply typeof_nested_efield'; eauto.
   + f_equal.
@@ -246,6 +270,7 @@ Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
   complete_legal_cosu_type t0 = true ->
+  eqb_type (typeof e) int_or_ptr_type = false ->
   isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
@@ -254,7 +279,9 @@ Proof.
   rewrite tc_andp_TT2.
   apply complete_legal_cosu_type_complete_type in H1.
   rewrite H1, tc_andp_TT2.
-  auto.
+  simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
+  unfold tc_int_or_ptr_type. rewrite H2.
+  rewrite tc_andp_TT2; auto.
 Qed.
 
 Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
@@ -271,12 +298,28 @@ Proof.
   pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H4).
   rewrite H2 in H5.
   split.
+  (*
   + eapply classify_add_add_case_pi; eauto.
   + eapply isBinOpResultType_add_ptr; eauto.
     destruct H3 as [_ [? [_ [_ ?]]]].
     eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
     rewrite H2 in H3.
     exact H3.
+=======
+  + eapply classify_add_add_case_pi; [auto | apply typeconv_typeconv'_eq; eassumption].
+  + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
+    - destruct H3 as [_ [_ [_ [? [_ [_ [_ ?]]]]]]].
+      eapply nested_field_type_complete_type with (gfs0 := gfs) in H3; auto.
+      rewrite H2 in H3.
+      exact H3.
+    - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];
+      apply eqb_type_false; try (unfold int_or_ptr_type; congruence).
+      Opaque eqb_type. simpl in H5. Transparent eqb_type.
+      destruct (eqb_type (Tpointer t1 a0) int_or_ptr_type) eqn:?H.
+      * apply eqb_type_true in H6.
+        unfold int_or_ptr_type in *; inv H5; inv H6.
+      * apply eqb_type_false in H6; auto.
+*)
 Qed.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
@@ -328,6 +371,7 @@ Proof.
       simpl in H2; rewrite <- H2; auto.
     - solve_andp.
     - solve_andp.
+    - rewrite andb_false_r. simpl. apply prop_right; auto.
     - apply prop_right.
       simpl; unfold_lift.
       rewrite <- H3.
@@ -363,6 +407,7 @@ Proof.
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
+  1: if_tac in H7; inv H7.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.
@@ -425,6 +470,7 @@ Proof.
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
+  1: if_tac in H7; inv H7.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.
@@ -633,9 +679,9 @@ Fixpoint compute_nested_efield_rec {cs:compspecs} e lr_default :=
       | _, _, _ => (e, nil, nil, lr_default)
       end
     | Tpointer t'' _ =>
-      match eqb_type t t'', eqb_type t t', eqb_attr a noattr with
-      | true, true, true => (e', eArraySubsc ei :: nil, t :: nil, RRRR)
-      | _, _, _ => (e, nil, nil, lr_default)
+      match eqb_type t t'', eqb_type t t', eqb_attr a noattr, eqb_type (typeof e') int_or_ptr_type with
+      | true, true, true, false => (e', eArraySubsc ei :: nil, t :: nil, RRRR)
+      | _, _, _, _ => (e, nil, nil, lr_default)
       end
     | _ => (e, nil, nil, lr_default)
     end
@@ -740,7 +786,8 @@ Proof.
     destruct (eqb_type t t0) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
     apply eqb_type_spec in H1;
     destruct (eqb_attr a noattr) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
-    apply eqb_attr_spec in H2.
+    apply eqb_attr_spec in H2;
+    [destruct (eqb_type ((Tpointer t1 a0)) int_or_ptr_type) eqn:HH; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl); apply eqb_type_false in HH |].
     - subst.
       intros.
       inv H1; inv H2.
@@ -749,6 +796,8 @@ Proof.
         rewrite H in H4 |- *; inv H4.
         simpl.
         change (nested_field_type (Tarray t0 n a2) (SUB i)) with t0.
+        apply eqb_type_false in HH.
+        rewrite HH.
         rewrite !eqb_type_spec.
         auto.
       * inv H9.

@@ -42,8 +42,24 @@ Proof.
 intros.
   unfold isCastResultType;
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
+try solve [
      inv H; simpl; try apply @TT_right;
-    simpl; if_tac; apply @TT_right.
+           simpl; if_tac; apply @TT_right].
+unfold classify_cast.
+unfold is_neutral_cast in H.
+rewrite orb_true_iff in H.
+destruct H.
+rewrite (eqb_type_true _ _ H).
+rewrite !eqb_reflx. rewrite eqb_type_refl. apply @TT_right.
+rewrite andb_true_iff in H.
+destruct H.
+rewrite (binop_lemmas.negb_true _ H).
+rewrite (binop_lemmas.negb_true _ H0).
+rewrite eqb_reflx.
+if_tac; try apply @TT_right.
+unfold is_pointer_type.
+rewrite H,H0.
+apply @TT_right.
 Qed.
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.

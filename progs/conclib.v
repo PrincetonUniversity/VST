@@ -3758,6 +3758,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  go_lowerx. simpl.
@@ -3769,9 +3770,12 @@ eapply semax_call_id1_wow; try eassumption; auto.
  go_lowerx.
  repeat rewrite denote_tc_assert_andp.
  rewrite denote_tc_assert_bool.
- assert (is_neutral_cast (implicit_deref retty) retty = true)
-  by (destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; simpl; auto;
-        destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; inv NEUTRAL).
+ assert (is_neutral_cast (implicit_deref retty) retty = true). {
+  destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
+  destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; 
+  try solve [inv NEUTRAL].
+  unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
+  }
  apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
@@ -3878,6 +3882,7 @@ end.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  apply @TT_right.

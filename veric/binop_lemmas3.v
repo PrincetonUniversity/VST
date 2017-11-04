@@ -6,8 +6,318 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.Cop2.
 Require Import VST.veric.binop_lemmas2.
-Require Import VST.veric.binop_lemmas3.
 Import Cop.
+
+Lemma denote_tc_nonzero_e:
+ forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
+Proof.
+simpl; intros . destruct (Int.eq i Int.zero); auto; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e:
+ forall i j m, app_pred (denote_tc_nodivover (Vint i) (Vint j)) m ->
+   Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone = false.
+Proof.
+simpl; intros.
+destruct (Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma denote_tc_nonzero_e64:
+ forall i m, app_pred (denote_tc_nonzero (Vlong i)) m -> Int64.eq i Int64.zero = false.
+Proof.
+simpl; intros . destruct (Int64.eq i Int64.zero); auto; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64_ll:
+ forall i j m, app_pred (denote_tc_nodivover (Vlong i) (Vlong j)) m ->
+   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64_il:
+ forall s i j m, app_pred (denote_tc_nodivover (Vint i) (Vlong j)) m ->
+   Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64_li:
+ forall s i j m, app_pred (denote_tc_nodivover (Vlong i) (Vint j)) m ->
+   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma Int64_eq_repr_signed32_nonzero:
+  forall i, Int.eq i Int.zero = false ->
+             Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
+Proof.
+intros.
+pose proof (Int.eq_spec i Int.zero). rewrite H in H0. clear H.
+rewrite Int64.eq_false; auto.
+contradict H0.
+unfold Int64.zero in H0.
+assert (Int64.signed (Int64.repr (Int.signed i)) = Int64.signed (Int64.repr 0)) by (f_equal; auto).
+rewrite Int64.signed_repr in H.
+rewrite Int64.signed_repr in H.
+rewrite <- (Int.repr_signed i).
+rewrite H. reflexivity.
+pose proof (Int64.signed_range Int64.zero).
+rewrite Int64.signed_zero in H1.
+auto.
+pose proof (Int.signed_range i).
+clear - H1.
+destruct H1.
+split.
+apply Z.le_trans with Int.min_signed; auto.
+compute; congruence.
+apply Z.le_trans with Int.max_signed; auto.
+compute; congruence.
+Qed.
+
+
+Lemma Int64_eq_repr_unsigned32_nonzero:
+  forall i, Int.eq i Int.zero = false ->
+             Int64.eq (Int64.repr (Int.unsigned i)) Int64.zero = false.
+Proof.
+intros.
+pose proof (Int.eq_spec i Int.zero). rewrite H in H0. clear H.
+rewrite Int64.eq_false; auto.
+contradict H0.
+unfold Int64.zero in H0.
+assert (Int64.unsigned (Int64.repr (Int.unsigned i)) = Int64.unsigned (Int64.repr 0)) by (f_equal; auto).
+rewrite Int64.unsigned_repr in H.
+rewrite Int64.unsigned_repr in H.
+rewrite <- (Int.repr_unsigned i).
+rewrite H. reflexivity.
+split; compute; congruence.
+pose proof (Int.unsigned_range i).
+clear - H1.
+destruct H1.
+split; auto.
+unfold Int64.max_unsigned.
+apply Z.le_trans with Int.modulus.
+omega.
+compute; congruence.
+Qed.
+
+Lemma Int64_eq_repr_int_nonzero:
+  forall s i, Int.eq i Int.zero = false ->
+    Int64.eq (cast_int_long s i) Int64.zero = false.
+Proof.
+  intros.
+  destruct s.
+  + apply Int64_eq_repr_signed32_nonzero; auto.
+  + apply Int64_eq_repr_unsigned32_nonzero; auto.
+Qed.
+
+Lemma denote_tc_igt_e:
+  forall m i j, app_pred (denote_tc_igt j (Vint i)) m ->
+        Int.ltu i j = true.
+Proof.
+intros.
+hnf in H. destruct (Int.ltu i j); auto; contradiction.
+Qed.
+
+Lemma denote_tc_lgt_e:
+  forall m i j, app_pred (denote_tc_lgt j (Vlong i)) m ->
+        Int64.ltu i j = true.
+Proof.
+intros.
+hnf in H. destruct (Int64.ltu i j); auto; contradiction.
+Qed.
+
+Lemma denote_tc_iszero_long_e:
+ forall m i,
+  app_pred (denote_tc_iszero (Vlong i)) m ->
+  Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
+Proof.
+intros.
+hnf in H.
+destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
+  auto; contradiction.
+Qed.
+
+Lemma sem_cmp_pp_pp:
+  forall c b i b0 i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
+    tc_val
+      (Tint ii ss aa)
+        match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
+        | Some v' => v'
+        | None => Vundef
+        end.
+Proof.
+intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
++ destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+  destruct ii,ss; simpl; try split; auto;
+  rewrite <- Z.leb_le; reflexivity.
++ destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+  destruct ii,ss; simpl; try split; auto;
+  rewrite <- Z.leb_le; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_pp':
+  forall c b i b0 i0 ii ss aa m
+    (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    (denote_tc_test_order (Vptr b i) (Vptr b0 i0)) m ->
+    tc_val (Tint ii ss aa)
+      match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
+      | Some v' => v'
+      | None => Vundef
+      end.
+Proof.
+  intros; destruct OP as [| [| [|]]]; subst; unfold sem_cmp_pp; simpl;
+  unfold denote_tc_test_order, test_order_ptrs in H; simpl in H.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_ip:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
+  i = Int.zero ->
+ tc_val (Tint ii ss aa)
+  match sem_cmp_pp c (Vint i)  (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end.
+Proof.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_pi:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
+  i = Int.zero ->
+ tc_val (Tint ii ss aa)
+  match sem_cmp_pp c (Vptr b i0)  (Vint i)  with
+  | Some v' => v'
+  | None => Vundef
+  end.
+Proof.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+Qed.
+
+Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
+    is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->
+    (if eq_block b1 b2 then a else b) = a.
+Proof.
+  unfold sameblock, eq_block.
+  intros.
+  apply is_true_e in H.
+  destruct (peq b1 b2); auto.
+  inv H.
+Qed.
+
+Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A),
+    negb (Z.eqb (sizeof t) 0) = true ->
+    Z.leb (sizeof t) Int.max_signed = true ->
+    (if zlt 0 (sizeof t) && zle (sizeof t) Int.max_signed then a else b) = a.
+Proof.
+  intros.
+  rewrite negb_true_iff in H.
+  rewrite Z.eqb_neq in H.
+  pose proof sizeof_pos t.
+  rewrite <- Zle_is_le_bool in H0.
+  destruct (zlt 0 (sizeof t)); [| omega].
+  destruct (zle (sizeof t) Int.max_signed); [| omega]. 
+  reflexivity.
+Qed.
+
+Inductive tc_val_PM: type -> val -> Prop :=
+| tc_val_PM_Tint: forall sz sg a v, is_int sz sg v -> tc_val_PM (Tint sz sg a) v
+| tc_val_PM_Tlong: forall s a v, is_long v -> tc_val_PM (Tlong s a) v
+| tc_val_PM_Tfloat_single: forall a v, is_single v -> tc_val_PM (Tfloat F32 a) v
+| tc_val_PM_Tfloat_double: forall a v, is_float v -> tc_val_PM (Tfloat F64 a) v
+| tc_val_PM_Tpointer: forall t a v, 
+          (if eqb_type (Tpointer t a) int_or_ptr_type
+           then is_pointer_or_integer
+           else is_pointer_or_null) v -> 
+          tc_val_PM (Tpointer t a) v
+| tc_val_PM_Tarray: forall t n a v, is_pointer_or_null v -> tc_val_PM (Tarray t n a) v
+| tc_val_PM_Tfunction: forall ts t a v, is_pointer_or_null v -> tc_val_PM (Tfunction ts t a) v
+| tc_val_PM_Tstruct: forall i a v, isptr v -> tc_val_PM (Tstruct i a) v
+| tc_val_PM_Tunion: forall i a v, isptr v -> tc_val_PM (Tunion i a) v.
+
+Lemma tc_val_tc_val_PM: forall t v, tc_val t v <-> tc_val_PM t v.
+Proof.
+  intros.
+  split; intros.
+  + destruct t as [| | | [ | ] ? | | | | |]; try (inv H); constructor; auto.
+  + inversion H; subst; auto.
+Qed.
+
+Inductive tc_val_PM': type -> val -> Prop :=
+| tc_val_PM'_Tint: forall t0 sz sg a v, stupid_typeconv t0 = Tint sz sg a -> is_int sz sg v -> tc_val_PM' t0 v
+| tc_val_PM'_Tlong: forall t0 s a v, stupid_typeconv t0 = Tlong s a -> is_long v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_single: forall t0 a v, stupid_typeconv t0 = Tfloat F32 a -> is_single v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_double: forall t0 a v, stupid_typeconv t0 = Tfloat F64 a -> is_float v -> tc_val_PM' t0 v
+| tc_val_PM'_Tpointer: forall t0 t a v, 
+  stupid_typeconv t0 = Tpointer t a -> 
+  (if eqb_type t0 int_or_ptr_type
+           then is_pointer_or_integer
+           else is_pointer_or_null) v -> 
+  tc_val_PM' t0 v
+| tc_val_PM'_Tstruct: forall t0 i a v, stupid_typeconv t0 = Tstruct i a -> isptr v -> tc_val_PM' t0 v
+| tc_val_PM'_Tunion: forall t0 i a v, stupid_typeconv t0 = Tunion i a -> isptr v -> tc_val_PM' t0 v.
+
+Lemma tc_val_tc_val_PM': forall t v, tc_val t v <-> tc_val_PM' t v.
+Proof.
+  intros.
+  split; intros.
+  + destruct t as [| | | [ | ] ? | | | | |]; try (inv H).
+    - eapply tc_val_PM'_Tint; eauto; reflexivity.
+    - eapply tc_val_PM'_Tlong; eauto; reflexivity.
+    - eapply tc_val_PM'_Tfloat_single; eauto; reflexivity.
+    - eapply tc_val_PM'_Tfloat_double; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tstruct; eauto; reflexivity.
+    - eapply tc_val_PM'_Tunion; eauto; reflexivity.
+  + inversion H; subst;
+    destruct t as [| | | [ | ] ? | | | | |]; try (inv H0);
+    auto.
+Qed.
 
 Ltac solve_tc_val H :=
   rewrite tc_val_tc_val_PM in H; inv H.

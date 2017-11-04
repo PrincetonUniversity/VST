@@ -196,8 +196,10 @@ LINKING_FILES= \
 
 VERIC_FILES= \
   base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
-  tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
+  tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
+  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
+  expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
@@ -238,8 +240,8 @@ PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
-  revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
-  verif_float.v verif_global.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
@@ -348,7 +350,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -387,7 +389,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6 or-else 8.6.1
+COQVERSION= 8.6 or-else 8.6.1 or-else 8.7.0
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -526,6 +528,8 @@ progs/switch.v: progs/switch.c
 progs/object.v: progs/object.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/funcptr.v: progs/funcptr.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/int_or_ptr.v: progs/int_or_ptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 

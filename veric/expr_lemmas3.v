@@ -43,7 +43,7 @@ Transparent Float32.to_intu.
 Lemma isCastR: forall {CS: compspecs} tfrom tto a,
   denote_tc_assert (isCastResultType tfrom tto a) =
  denote_tc_assert
-match Cop.classify_cast tfrom tto with
+match classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
@@ -411,20 +411,16 @@ Qed.
 Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert (typecheck_expr Delta e) rho m ->
- tc_val (typeof e) (eval_expr e rho)) /\
-(forall pt : type,
- denote_tc_assert (typecheck_lvalue Delta e) rho m ->
- is_pointer_type pt = true -> tc_val pt (eval_lvalue e rho)) ->
+ (denote_tc_assert (typecheck_expr Delta e) rho m ->
+   tc_val (typeof e) (eval_expr e rho))  ->
 denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
 tc_val (typeof (Ecast e t)) (eval_expr (Ecast e t) rho).
 Proof.
-intros until t; intros H IHe H0.
+intros until t; intros H H1 H0.
 simpl in *. unfold_lift.
-destruct IHe as [? _].
 rewrite denote_tc_assert_andp in H0.
 destruct H0.
-specialize (H1 H0).
+specialize (H1 H0); clear H0.
 unfold  sem_cast, force_val1.
 rewrite isCastR in H2.
 destruct (classify_cast (typeof e) t)
@@ -435,20 +431,44 @@ destruct (classify_cast (typeof e) t)
     simpl in H3; try discriminate H3; try contradiction;
  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in H3; try discriminate H3; try contradiction;
-  simpl in H2; unfold_lift in H2; simpl in H2;
+  simpl in H2; 
+  repeat (progress unfold_lift in H2; simpl in H2);
+  repeat match type of H2 with context[eqb_type ?t0 ?t && eqb_attr ?a0 ?a] =>
+            change (eqb_type t0 t && eqb_attr a0 a)
+            with (eqb_type (Tpointer t0 a0) (Tpointer t a)) in H2
+  end;
+  try fold int_or_ptr_type in H2;
+  repeat match type of H3 with context[eqb_type ?t0 ?t && eqb_attr ?a0 ?a] =>
+            change (eqb_type t0 t && eqb_attr a0 a)
+            with (eqb_type (Tpointer t0 a0) (Tpointer t a)) in H3
+  end;
+  try fold int_or_ptr_type in H3;
+  unfold tc_val in *;
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+              let J := fresh "J" in 
+              destruct (eqb_type A B) eqn:J;
+             [apply eqb_type_true in J | apply eqb_type_false in J]
+    end;
+  repeat match goal with H: context [eqb_type ?A ?B] |- _ =>
+              let J := fresh "J" in 
+              destruct (eqb_type A B) eqn:J;
+             [apply eqb_type_true in J | apply eqb_type_false in J]
+    end;
+  try (injection H3; intros; subst);
+  simpl in *;
+  try congruence; clear H3;
   try (rewrite denote_tc_assert_andp in H2;
         destruct H2 as [H2a H2b];
        unfold denote_tc_assert in H2a,H2b;
       unfold_lift in H2a; unfold_lift in H2b;
        simpl in H2a,H2b
     );
-  destruct (eval_expr e rho); simpl in H1; try discriminate H1;
-  try contradiction H2;
+   try (unfold_lift in H2; simpl in H2);
+  destruct (eval_expr e rho);
+  try simpl in H2; simpl;
   try reflexivity; try assumption;
   try (apply (is_true_e _ H2));
-  try (injection H3; clear H3; intros; subst);
-  simpl;
-  try solve [destruct (Int.eq i Int.zero); reflexivity];
+  try solve [try (if_tac; hnf; auto); apply is_true_e, int_eq_e in H2; auto];
   try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
   try rewrite Z.leb_le in H1;
   try rewrite Z.leb_le in H1';
