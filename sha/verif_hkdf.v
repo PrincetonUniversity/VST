@@ -15,12 +15,11 @@ Lemma body_hkdf: semax_body Hkdf_VarSpecs Hkdf_FunSpecs
        f_HKDF HKDF_spec.
 Proof.
 start_function. 
-rename lvar0 into prk. rename lvar1 into plen.
 rename H into lenSalt. rename H0 into lenSecret.
 rename H1 into lenInfoA. rename H2 into lenInfoB. rename H3 into lenInfoC.
 rename H4 into OlenA. rename H5 into OlenB.
-assert_PROP (isptr prk /\ field_compatible (tarray tuchar 64) [] prk) by entailer!. destruct H as [Pprk FCprk].
-assert_PROP (isptr plen /\ field_compatible (tuint) [] plen) by entailer. destruct H as [Pplen FCplen].
+assert_PROP (isptr v_prk /\ field_compatible (tarray tuchar 64) [] v_prk) by entailer!. destruct H as [Pprk FCprk].
+assert_PROP (isptr v_prk_len /\ field_compatible (tuint) [] v_prk_len) by entailer. destruct H as [Pplen FCplen].
 
 unfold data_at_, field_at_.
 rewrite field_at_data_at. simpl.
@@ -36,8 +35,8 @@ normalize. simpl.
 
 freeze [1; 5; 7] FR1.
 idtac "Timing the call to HKDF_extract".
-Time forward_call (prk, plen, secret, SECRET, salt, SALT, kv, Tsh).
-(*Finished transaction in 21.889 secs (21.89u,0.s) (successful)*)
+Time forward_call (v_prk, v_prk_len, secret, SECRET, salt, SALT, kv, Tsh).
+(* Finished transaction in 5.715 secs (3.985u,0.026s) (successful)*)
 { assert (Frame = [FRZL FR1]). subst Frame; reflexivity.
   subst Frame. simpl. cancel.
   rewrite field_address_offset by auto with field_compatible. simpl.
@@ -51,14 +50,14 @@ assert (Zlength (HKDF_extract (CONT SALT) (CONT SECRET))=32) as ZlengthExtract b
 thaw FR1. freeze [1; 2; 5] FR2.
 
 idtac "Timing the call to HKDF_expand".
-Time forward_call (out, olen,  prk,
+Time forward_call (out, olen, v_prk,
               Build_DATA 32 (HKDF_extract (CONT SALT) (CONT SECRET)),
               info, INFO, kv, shmd).
-(*Finished transaction in 23.735 secs (23.734u,0.s) (successful)*)
+(*Finished transaction in 4.185 secs (3.25u,0.016s) (successful)*)
 { simpl. cancel. }
 { simpl. repeat split; try solve [trivial]; omega. }
 
-apply extract_exists_pre. intros x. destruct x. Intros. rename H into EXPAND_RES. simpl in *.
+apply extract_exists_pre. intros x. destruct x. Intros. rename H into EXPAND_RES. (*simpl in *.*)
 unfold expand_out_post, digest_len in EXPAND_RES. rewrite if_false in EXPAND_RES; try omega.
 replace (olen + 32 - 1)%Z with (olen + 31)%Z in EXPAND_RES by omega.
 
@@ -66,19 +65,19 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
 + forward_if
   (PROP ( )
    LOCAL (temp _t'3 (Vint (Int.repr 1));
-   lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) prk; 
+   lvar _prk_len tuint v_prk_len; lvar _prk (Tarray tuchar 64 noattr) v_prk; 
    temp _out_key out; temp _out_len (Vint (Int.repr olen)); temp _salt salt;
    temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
    temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
    temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
    SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
-   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) prk;
-   memory_block shmd olen out; FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen)).
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) v_prk;
+   memory_block shmd olen out; FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) v_prk_len)).
   { congruence. }
   { forward. entailer!. }
 
   forward_if (`FF).
-  { forward. Exists plen. entailer!. Exists prk 0. entailer.
+  { forward. Exists 0. entailer!.
     thaw FR2. cancel. erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
     rewrite field_address_offset by auto with field_compatible. simpl.
     rewrite isptr_offset_val_zero; trivial. cancel.
@@ -88,34 +87,34 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
 
 + forward_if (
   (PROP ( )
-   LOCAL (lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) prk; 
+   LOCAL (lvar _prk_len tuint v_prk_len; lvar _prk (Tarray tuchar 64 noattr) v_prk; 
    temp _out_key out; temp _t'3 (Vint (Int.repr 0)); temp _out_len (Vint (Int.repr olen)); temp _salt salt;
    temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
    temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
    temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
    SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
-   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) prk;
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) v_prk;
    spec_sha.data_block shmd (HKDF_expand (HKDF_extract (CONT SALT) (CONT SECRET)) (CONT INFO) olen) out;
-   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen))). 
+   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) v_prk_len))).
   { congruence. }
   { forward. entailer!. }
 
   forward_if (
   (PROP ( )
-   LOCAL (lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) prk; 
+   LOCAL (lvar _prk_len tuint v_prk_len; lvar _prk (Tarray tuchar 64 noattr) v_prk; 
    temp _out_key out; temp _out_len (Vint (Int.repr olen));
    temp _salt salt; temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
    temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
    temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
    SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
-   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) prk;
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) v_prk;
    spec_sha.data_block shmd (HKDF_expand (HKDF_extract (CONT SALT) (CONT SECRET)) (CONT INFO) olen) out;
-   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen))).
+   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) v_prk_len))).
   { elim H; trivial. }
   { clear H; forward. entailer!. }
-  forward. Exists plen. entailer!. Exists prk 1. entailer!. thaw FR2. cancel.   
+  forward. Exists 1. entailer!. thaw FR2. cancel.
   erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
   rewrite field_address_offset by auto with field_compatible. simpl.
   rewrite isptr_offset_val_zero; trivial. cancel.
   unfold spec_sha.data_block. normalize. rewrite ZlengthExtract. cancel.
-Time Qed. (*Coq8.6: 8.3 secs; Coq8.5pl2: Finished transaction in 16.671 secs (15.484u,0.s) (successful)*)
+Time Qed. (*Coq8.6: 3.2; earlier: 8.3 secs; Coq8.5pl2: Finished transaction in 16.671 secs (15.484u,0.s) (successful)*)
