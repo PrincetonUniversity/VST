@@ -187,8 +187,8 @@ Proof.
         rewrite Nat.leb_le in H5; simpl in H5.
         omega.
       * apply IHl0; auto.
-Qed.    
-    
+Qed.
+
 Theorem RCT_ordered: ordered_composite rebuild_composite_elements.
 Proof.
   pose proof RCT_ordered_and_complete.
@@ -240,7 +240,7 @@ Qed.
 End composite_reorder.
 
 End composite_reorder.
-  
+
 Module type_func.
 Section type_func.
 

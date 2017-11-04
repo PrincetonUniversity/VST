@@ -585,8 +585,15 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    apply prop_right. red.
    destruct (Int.unsigned_range i). simpl.
    repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
-   admit.
-Admitted.
+   (* TODO: abstract this proof. *)
+   eapply align_compatible_rec_hardware_1.
+   + exact cenv_consistent.
+   + exact cenv_legal_su.
+   + exact ha_env_cs_consistent.
+   + exact ha_env_cs_complete.
+   + reflexivity.
+   + reflexivity.
+Qed.
 
 Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Int.modulus):
 memory_block sh n p = !!(@field_compatible cs (tarray tuchar n) nil p) && memory_block sh n p.
@@ -618,8 +625,15 @@ Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p ->
 Proof. intros; red. destruct p; try contradiction.
   repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
   destruct (Int.unsigned_range i); omega.
-  admit.
-Admitted.
+  (* TODO: abstract this proof. *)
+   eapply align_compatible_rec_hardware_1.
+   + exact cenv_consistent.
+   + exact cenv_legal_su.
+   + exact ha_env_cs_consistent.
+   + exact ha_env_cs_complete.
+   + reflexivity.
+   + reflexivity.
+Qed.
 
 Lemma data_at_tuchar_singleton_array {cs} sh v p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
@@ -627,7 +641,17 @@ Proof.
   rewrite data_at_isptr. normalize.
   assert_PROP (field_compatible (tarray tuchar 1) [] p).
   { eapply derives_trans. eapply data_at_local_facts. normalize.
-    admit.
+    destruct p; auto.
+    inv_int i.
+    destruct H as [? [? [? [? ?]]]].
+    repeat split; auto.
+    eapply align_compatible_rec_hardware_1.
+    + exact cenv_consistent.
+    + exact cenv_legal_su.
+    + exact ha_env_cs_consistent.
+    + exact ha_env_cs_complete.
+    + reflexivity.
+    + reflexivity.
   }
   unfold data_at at 2.
   erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
@@ -636,7 +660,7 @@ Proof.
   rewrite field_address_offset; trivial.
     simpl. rewrite isptr_offset_val_zero; trivial.
   eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
-Admitted.
+Qed.
  
 Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
   @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  

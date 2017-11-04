@@ -447,3 +447,32 @@ Proof.
   intros.
   apply H.
 Qed.
+
+Definition eqb_list {A: Type} (eqb_A: A -> A -> bool): list A -> list A -> bool :=
+  fix eqb_list (l1 l2: list A): bool :=
+    match l1, l2 with
+    | nil, nil => true
+    | a1 :: l1, a2 :: l2 => eqb_A a1 a2 && eqb_list l1 l2
+    | _, _ => false
+    end.
+
+Lemma eqb_list_spec: forall {A: Type} (eqb_A: A -> A -> bool),
+  (forall a1 a2, eqb_A a1 a2 = true <-> a1 = a2) ->
+  (forall l1 l2, eqb_list eqb_A l1 l2 = true <-> l1 = l2).
+Proof.
+  intros.
+  revert l2; induction l1 as [| a1 l1]; intros; destruct l2 as [| a2 l2].
+  + simpl.
+    tauto.
+  + simpl.
+    split; intros; congruence.
+  + simpl.
+    split; intros; congruence.
+  + simpl.
+    rewrite andb_true_iff.
+    rewrite  H.
+    rewrite IHl1.
+    split; intros.
+    - destruct H0; subst; auto.
+    - inv H0; auto.
+Qed.

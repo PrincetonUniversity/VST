@@ -2947,7 +2947,6 @@ Ltac make_compspecs prog :=
   let la_env_consistent := constr: (legal_alignas_env_consistency' cenv ha_env la_env cenv_consistent_ Hla_env) in
   let la_env_complete := constr: (legal_alignas_env_completeness' cenv ha_env la_env Hla_env) in
   let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
-  let na_sound_ := constr: (natural_aligned_sound_aux cenv ha_env la_env la_env_sound) in
   refine (  {| cenv_cs := cenv ;
     cenv_consistent := cenv_consistent_;
     cenv_legal_fieldlist := cenv_legal_fieldlist_;
@@ -2958,8 +2957,7 @@ Ltac make_compspecs prog :=
     la_env_cs := la_env;
     la_env_cs_consistent := la_env_consistent;
     la_env_cs_complete := la_env_complete;
-    la_env_cs_sound := la_env_sound;
-    na_sound := na_sound_ |}).
+    la_env_cs_sound := la_env_sound |}).
 
 Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   match al with

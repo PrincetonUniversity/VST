@@ -2305,6 +2305,7 @@ if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
 Qed.
 
+(* TODO: move all change type lemmas into one file. Also those change compspecs lemmas. *)
 Lemma data_at_tuint_tint {cs: compspecs}: forall sh v p, data_at sh tuint v p = data_at sh tint v p.
 Proof.
   intros.
@@ -2313,7 +2314,15 @@ Proof.
   unfold field_compatible.
   apply ND_prop_ext.
   assert (align_compatible tuint p <-> align_compatible tint p); [| tauto].
-Admitted.
+  destruct p; simpl; try tauto.
+  split; intros.
+  + eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+    eapply align_compatible_rec_by_value; [reflexivity |].
+    auto.
+  + eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+    eapply align_compatible_rec_by_value; [reflexivity |].
+    auto.
+Qed.
 
 Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
   type_is_by_value (nested_field_type t gfs) = true ->
