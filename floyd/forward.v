@@ -1857,6 +1857,11 @@ Ltac pre_entailer :=
   | H := @abbreviate ret_assert _ |- _ => clear H
   end.
 
+Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
+
+Ltac check_cast_assignment :=
+   first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
+
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
@@ -1865,7 +1870,7 @@ Ltac forward_setx :=
         eapply semax_PTree_set;
         [ reflexivity
         | reflexivity
-        | reflexivity
+        | check_cast_assignment
         | solve_msubst_eval; reflexivity
         | first [ quick_typecheck3
                 | pre_entailer; try solve [entailer!]]

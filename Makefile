@@ -248,7 +248,8 @@ PROGS_FILES= \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v tutorial1.v
+  funcptr.v verif_funcptr.v tutorial1.v  \
+  verif_int_or_ptr.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -530,7 +531,7 @@ progs/object.v: progs/object.c
 progs/funcptr.v: progs/funcptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/int_or_ptr.v: progs/int_or_ptr.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) ${CGFLAGS}  -normalize $<
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
