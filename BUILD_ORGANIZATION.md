@@ -7,8 +7,7 @@
    will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
-   VST 1.9 uses CompCert 2.7.2 for Coq 8.6.1 or Coq 8.6 or Coq 8.7.
-   More recent versions use only Coq 8.6.1 or 8.7.
+   VST 1.9 uses CompCert 2.7.2 for Coq 8.6.1 or Coq 8.7.
 
    However, [AbsInt.com](https://www.absint.com) (the official distributor of
    CompCert) does not support CompCert 2.7 for Coq 8.6 (only for 8.4 and 8.5).
