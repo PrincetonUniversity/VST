@@ -18,6 +18,7 @@ Require Export VST.msl.alg_seplog.
 Require Export VST.msl.log_normalize.
 Require Export VST.msl.ramification_lemmas.
 Require Export VST.veric.tycontext.
+Require Export VST.veric.change_compspecs.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
