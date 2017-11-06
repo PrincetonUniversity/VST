@@ -1010,8 +1010,12 @@ Ltac do_compute_expr Delta P Q R e v H :=
          => change E with (offset_val ofs E'')
        | _ => change E with E'
        end
-     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
-                                         NotSome "to an expression of the form (Some _)"
+     | |- ?NotSome = Some _ => 
+               fail 1000 "The C-language expression " e 
+                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+(*
+fail 1000 "Please make sure hnf can simplify"
+                                         NotSome "to an expression of the form (Some _)" *)
      end;
      reflexivity]
   )).

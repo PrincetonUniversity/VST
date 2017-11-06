@@ -15,9 +15,12 @@ Fixpoint treerep (t: tree) (p: val) : mpred :=
               * treerep t1 p1 * treerep t2 p2
   end.
 
+Definition POINTER_BOUNDARY : Z := 1024.
+
 Definition valid_int_or_ptr (x: val) :=
  match x with
  | Vint i => Int.testbit i 0 = true
+              \/ Int.unsigned i < POINTER_BOUNDARY
  | Vptr b z => Int.testbit z 0 = false
  | _ => False
  end.
@@ -27,6 +30,7 @@ Lemma valid_int_or_ptr_ii1:
 Proof.
 intros.
 simpl.
+left.
 rewrite Int.unsigned_repr_eq.
 rewrite Zodd_mod.
 apply Zeq_is_eq_bool.
@@ -38,6 +42,19 @@ reflexivity.
 compute; reflexivity.
 exists (Z.div Int.modulus 2).
 reflexivity.
+Qed.
+
+
+Lemma valid_int_or_ptr_i2:
+ forall i, 0 <= i < POINTER_BOUNDARY ->
+   valid_int_or_ptr (Vint (Int.repr i)).
+Proof.
+intros.
+simpl.
+right.
+unfold POINTER_BOUNDARY in *.
+rewrite Int.unsigned_repr by repable_signed.
+repable_signed.
 Qed.
 
 Lemma field_compatible_valid_int_or_ptr:
@@ -58,8 +75,6 @@ clear - H2; simpl in *.
     replace (j*4)%Z with (2*(2*j))%Z by omega.
     apply Zeven_2p.
 Qed.
-
-
 
 
 Lemma treerep_local_facts:
