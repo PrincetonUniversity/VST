@@ -276,7 +276,6 @@ Proof.
   intros.
   unfold isBinOpResultType.
   erewrite classify_add_add_case_pi by eauto.
-  rewrite tc_andp_TT2.
   apply complete_legal_cosu_type_complete_type in H1.
   rewrite H1, tc_andp_TT2.
   simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
@@ -298,18 +297,10 @@ Proof.
   pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H4).
   rewrite H2 in H5.
   split.
-  (*
-  + eapply classify_add_add_case_pi; eauto.
-  + eapply isBinOpResultType_add_ptr; eauto.
-    destruct H3 as [_ [? [_ [_ ?]]]].
-    eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
-    rewrite H2 in H3.
-    exact H3.
-=======
   + eapply classify_add_add_case_pi; [auto | apply typeconv_typeconv'_eq; eassumption].
   + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
-    - destruct H3 as [_ [_ [_ [? [_ [_ [_ ?]]]]]]].
-      eapply nested_field_type_complete_type with (gfs0 := gfs) in H3; auto.
+    - destruct H3 as [_ [? [_ [_ ?]]]].
+      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
       rewrite H2 in H3.
       exact H3.
     - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];
@@ -319,7 +310,6 @@ Proof.
       * apply eqb_type_true in H6.
         unfold int_or_ptr_type in *; inv H5; inv H6.
       * apply eqb_type_false in H6; auto.
-*)
 Qed.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
