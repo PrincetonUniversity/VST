@@ -2949,7 +2949,7 @@ Ltac make_compspecs prog :=
   let Hla_env := constr: (eq_refl: la_env = legal_alignas_env cenv ha_env) in
   let la_env_consistent := constr: (legal_alignas_env_consistency' cenv ha_env la_env cenv_consistent_ Hla_env) in
   let la_env_complete := constr: (legal_alignas_env_completeness' cenv ha_env la_env Hla_env) in
-  let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
+  let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ cenv_legal_su_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
   refine (  {| cenv_cs := cenv ;
     cenv_consistent := cenv_consistent_;
     cenv_legal_fieldlist := cenv_legal_fieldlist_;

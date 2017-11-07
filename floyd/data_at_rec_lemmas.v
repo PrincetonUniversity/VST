@@ -1089,6 +1089,32 @@ Qed.
 
 End CENV.
 
+Lemma data_at_rec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2,
+  JMeq v1 v2 ->
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @data_at_rec cs_from sh t v1 = @data_at_rec cs_to sh t v2.
+Proof.
+  intros sh t.
+  type_induction t; intros.
+  + rewrite !data_at_rec_eq; auto.
+  + rewrite !data_at_rec_eq.
+    change val in v1, v2.
+    apply JMeq_eq in H.
+    subst; auto.
+  + rewrite !data_at_rec_eq.
+    change val in v1, v2.
+    apply JMeq_eq in H.
+    subst; auto.
+  + rewrite !data_at_rec_eq.
+    change val in v1, v2.
+    apply JMeq_eq in H.
+    subst; auto.
+  + rewrite !data_at_rec_eq.
+    change val in v1, v2.
+    apply JMeq_eq in H.
+    subst; auto.
+  + (* Tarray *)
+    rewrite !data_at_rec_eq.
 
 
 (**** tactics for value_fits  ****)
