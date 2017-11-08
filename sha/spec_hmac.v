@@ -7,8 +7,12 @@ Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
+Require Import VST.veric.change_compspecs.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs_Preserve: change_composite_env CompSpecs spec_sha.CompSpecs.
+  make_cs_preserve CompSpecs spec_sha.CompSpecs.
+Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Record TREP := mkTrep { t: type; v: reptype t}.

@@ -300,11 +300,11 @@ Proof.
   rewrite H1; auto; omega.
 Qed.
 
-Lemma array_pred_ext_derives: forall {A} (d: A) lo hi P0 P1 v0 v1 p,
+Lemma array_pred_ext_derives: forall {A B} (dA: A) (dB: B) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p.
+    P0 i (Znth (i-lo) v0 dA) p |-- P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p |-- array_pred dB lo hi P1 v1 p.
 Proof.
   intros.
   unfold array_pred.
@@ -319,11 +319,11 @@ Proof.
     apply H0. omega.
 Qed.
 
-Lemma array_pred_ext: forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+Lemma array_pred_ext: forall {A B} (dA: A) (dB: B) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0 d) p = P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p.
+    P0 i (Znth (i-lo) v0 dA) p = P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p = array_pred dB lo hi P1 v1 p.
 Proof.
   intros; apply pred_ext; apply array_pred_ext_derives; intros; try omega;
   rewrite H0; auto.
@@ -1376,19 +1376,19 @@ Definition array_pred_shift: forall {A} (d:A) lo hi lo' hi' mv P' P v p,
 := @array_pred_shift.
 
 Definition array_pred_ext_derives:
-  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  forall {A B} (dA:A) (dB:B) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-      P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p
+      P0 i (Znth (i-lo) v0 dA) p |-- P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p |-- array_pred dB lo hi P1 v1 p
 := @array_pred_ext_derives.
 
 Definition array_pred_ext:
-  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  forall {A B} (dA:A) (dB:B) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-     P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p
+     P0 i (Znth (i - lo) v0 dA) p = P1 i (Znth (i - lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p = array_pred dB lo hi P1 v1 p
 := @array_pred_ext.
 
 Definition at_offset_array_pred: forall {A} (d:A) lo hi P v ofs p,

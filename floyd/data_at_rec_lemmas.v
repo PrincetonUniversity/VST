@@ -455,7 +455,8 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
+     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t))
+     (dB := (default_val t)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Zle_max_l.
     - f_equal.
@@ -915,7 +916,8 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
+     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t))
+     (dB := (default_val t)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Zle_max_l.
     - rewrite (proj1 H2).
@@ -1115,8 +1117,19 @@ Proof.
     subst; auto.
   + (* Tarray *)
     rewrite !data_at_rec_eq.
-
-
+    extensionality p.
+    apply array_pred_ext.
+    - revert v1 v2 H.
+      unfold unfold_reptype; clear.
+      (* Here: we actually need to know that (@reptype cs_from t = @reptype cs_to t) *)
+      generalize (@reptype_eq cs_from (Tarray t z a)), (@reptype_eq cs_to (Tarray t z a)).
+      generalize (@reptype cs_from (Tarray t z a)), (@reptype cs_to (Tarray t z a)), (@reptype cs_from t), (@reptype cs_to t).
+      intros.
+      subst.
+      simpl.
+      inversion H; clear H0.
+      SearchAbout JMeq fst.
+Abort.
 (**** tactics for value_fits  ****)
 
 Lemma value_fits_Tstruct:
