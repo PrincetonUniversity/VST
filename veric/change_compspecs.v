@@ -24,8 +24,8 @@ Definition test_aux (b: bool) (i: ident): bool :=
 Fixpoint cs_preserve_type (coeq: PTree.t bool) (t: type): bool :=
   match t with
   | Tarray t0 _ _ => cs_preserve_type coeq t0
-  | Tstruct id _ => match coeq ! id with | Some b => test_aux b id | _ => true end
-  | Tunion id _ => match coeq ! id with | Some b => test_aux b id | _ => true end
+  | Tstruct id _ => match coeq ! id with | Some b => test_aux b id | _ => false end
+  | Tunion id _ => match coeq ! id with | Some b => test_aux b id | _ => false end
   | _ => true
   end.
 
@@ -62,20 +62,21 @@ Lemma aux1: forall T co,
      (fun it0 : positive * type =>
       let (i0, t0) := it0 in
       (i0, t0,
-      type_func.F (fun _ : type => true) (fun (b : bool) (_ : type) (_ : Z) (_ : attr) => b)
+      type_func.F (fun t : type => match t with | Tstruct _ _ | Tunion _ _ => false | _ => true end) (fun (b : bool) (_ : type) (_ : Z) (_ : attr) => b)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id) T t0)) (co_members co)) =
   cs_preserve_members T (co_members co).
 Proof.
-  intros; unfold cs_preserve_members, cs_preserve_type.
+  intros; unfold cs_preserve_members, cs_preserve_type, type_func.F.
   induction (co_members co) as [| [i t] ?].
   + auto.
   + simpl.
     f_equal; auto.
+    induction t; auto.
 Qed.
 
 Lemma aux2:
-  type_func.Env (fun _ : type => true) (fun (b : bool) (_ : type) (_ : Z) (_ : attr) => b)
+  type_func.Env (fun t : type => match t with | Tstruct _ _ | Tunion _ _ => false | _ => true end) (fun (b : bool) (_ : type) (_ : Z) (_ : attr) => b)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
         (fun (b : bool) (id : ident) (_ : attr) => test_aux b id)
         (fun _ : struct_or_union =>
@@ -105,7 +106,7 @@ Lemma cs_preserve_env_consisent: forall (coeq: PTree.t bool),
 Proof.
   intros.
   pose proof @composite_reorder_consistent bool (@cenv_cs cs_to)
-             (fun t => true)
+             (fun t : type => match t with | Tstruct _ _ | Tunion _ _ => false | _ => true end)
              (fun b _ _ _ => b)
              (fun b id _ => test_aux b id)
              (fun b id _ => test_aux b id)
@@ -132,7 +133,7 @@ Lemma cs_preserve_completeness: forall (coeq: PTree.t bool),
 Proof.
   intros.
   pose proof @composite_reorder_complete bool (@cenv_cs cs_to)
-             (fun t => true)
+             (fun t : type => match t with | Tstruct _ _ | Tunion _ _ => false | _ => true end)
              (fun b _ _ _ => b)
              (fun b id _ => test_aux b id)
              (fun b id _ => test_aux b id)

@@ -695,6 +695,116 @@ Tactic Notation "unfold_repinj" constr(T) constr(V) :=
   unfold_repinj' T.
 *)
 
+Lemma reptype_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @reptype cs_from t = @reptype cs_to t.
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    rewrite IH; auto.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+      rewrite H1 in H.
+      apply (coeq_consistent _ _ id _ _ H0) in H1.
+      unfold test_aux in H.
+      destruct b; [| inv H].
+      rewrite !H0 in H.
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      simpl in H.
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      unfold get_co; rewrite H0, H2.
+      unfold get_co in IH; rewrite H0 in IH.
+      rewrite <- H in *; clear c H H0.
+      unfold reptype_structlist.
+      f_equal.
+      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
+      Focus 1. {
+        rewrite Forall_forall.
+        intros it ?.
+        apply In_field_type; auto.
+        exact (cenv_legal_fieldlist _ _ H2).
+      } Unfocus.
+      revert H IH.
+      generalize (co_members c0) at 1 3 4 5 7 9; intros.
+      symmetry in H1.
+      induction IH.
+      * reflexivity.
+      * Opaque field_type. simpl. Transparent field_type.
+        destruct x as [i t].
+        simpl in H1.
+        rewrite andb_true_iff in H1.
+        destruct H1.
+        inv H.
+        rewrite IHIH by auto.
+        f_equal.
+        apply H0; auto.
+        rewrite H6.
+        auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+      rewrite H1 in H.
+      apply (coeq_consistent _ _ id _ _ H0) in H1.
+      unfold test_aux in H.
+      destruct b; [| inv H].
+      rewrite !H0 in H.
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      simpl in H.
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      unfold get_co; rewrite H0, H2.
+      unfold get_co in IH; rewrite H0 in IH.
+      rewrite <- H in *; clear c H H0.
+      unfold reptype_unionlist.
+      f_equal.
+      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
+      Focus 1. {
+        rewrite Forall_forall.
+        intros it ?.
+        apply In_field_type; auto.
+        exact (cenv_legal_fieldlist _ _ H2).
+      } Unfocus.
+      revert H IH.
+      generalize (co_members c0) at 1 3 4 5 7 9; intros.
+      symmetry in H1.
+      induction IH.
+      * reflexivity.
+      * Opaque field_type. simpl. Transparent field_type.
+        destruct x as [i t].
+        simpl in H1.
+        rewrite andb_true_iff in H1.
+        destruct H1.
+        inv H.
+        rewrite IHIH by auto.
+        f_equal.
+        apply H0; auto.
+        rewrite H6.
+        auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+Qed.
+
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with
   | O, _ => nil
