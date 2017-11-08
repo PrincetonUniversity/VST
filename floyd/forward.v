@@ -2777,6 +2777,31 @@ Ltac function_types_compatible t1 t2 :=
      first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_neutral]
  end end.
 
+Definition temp_type_ok Delta i v :=
+ match (temp_types Delta) ! i with
+  | Some (t,true) =>  tc_val t v
+  | Some (_,false) => 0 > 1
+  | _ => 0 > 2
+  end.
+
+Ltac check_parameter_vals Delta al :=
+ match al with
+ | temp ?i ?v :: ?al' =>
+    let a := constr:(temp_type_ok Delta i v) in
+    let a := eval compute in a in
+    match a with
+    | False => fail 3 "Local variable" i "cannot hold the value" v "(wrong type)"
+    | 0>1 => fail 3 "Local variable" i "is not initialized, only function-parameters should appear here"
+    | 0>2 => fail 3 "Identifer" i "is not a local variable of this function"
+    | _ => idtac
+    end;
+    check_parameter_vals Delta al'
+ | _ :: ?al' => check_parameter_vals Delta al'
+ | nil => idtac
+ end.
+
+
+
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
@@ -2844,6 +2869,10 @@ Function spec: " S)
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax;
+ lazymatch goal with 
+ | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
+ | _ => idtac
+ end;
  clear_Delta_specs_if_leaf_function.
 
 Opaque sepcon.
