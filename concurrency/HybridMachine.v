@@ -44,15 +44,9 @@ Module DryHybridMachine.
     (* Parameter CLN_msem : *)
     (*   msem CLN_evsem = CLN_memsem. *)
 
-
-    (** *The Hybrid Semantics Build*)
-    Variable hb: option nat.
-
-    (** Assume some source and target semantics *)
-    Context {Sems Semt: Semantics}.
+    (** Assume some threadwise semantics *)
+    Context {Sem: Semantics}.
     
-    Global Instance Sem: Semantics := CoreSem_Sum hb Sems Semt.
-
     Notation C:= (@semC Sem).
     Notation G:= (@semG Sem).
     Notation semSem:= (@semSem Sem).
@@ -67,7 +61,7 @@ Module DryHybridMachine.
     
     (** The state respects the memory*)
     
-    Record mem_compatible' (tp: thread_pool) m : Prop :=
+    Record mem_compatible (tp: thread_pool) m : Prop :=
       { compat_th :> forall {tid} (cnt: containsThread tp tid),
             permMapLt (getThreadR cnt).1 (getMaxPerm m) /\
             permMapLt (getThreadR cnt).2 (getMaxPerm m);
@@ -76,8 +70,6 @@ Module DryHybridMachine.
                                permMapLt pmaps.2 (getMaxPerm m);
         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
                                   Mem.valid_block m l.1}.
-
-    Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
 
     (* should there be something that says that if something is a lock then
@@ -125,16 +117,7 @@ Module DryHybridMachine.
             (forall laddr' rmap',
                 lockRes tp laddr' = Some rmap' ->
                 permMapCoherence rmap'.1 rmap.2);
-        lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*);
-        correct_type_source: forall i (cnti: containsThread tp i) X,
-            getThreadC cnti = Krun X ->
-            ~ lt_op i hb ->
-            exists c, X = SState _ _ c;
-        correct_type_target: forall i (cnti: containsThread tp i) X,
-            getThreadC cnti = Krun X ->
-            (lt_op i hb) ->
-            exists c, X = TState _ _ c
-                            
+        lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
       }.
 
     (** Steps*)

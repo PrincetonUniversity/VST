@@ -4,7 +4,7 @@ Require Import sepcomp.event_semantics.
 
 Require Import concurrency.machine_semantics.
 
-(** *The record version*)
+(** *The typeclass version*)
 Class Semantics:=
   {
     (* semF: Type ;
@@ -20,3 +20,11 @@ Class Resources:=
     res: Type;
     lock_info : Type
   }.
+
+(** The Module version *)
+
+Module Type SEMANTICS.
+  Parameter G : Type.
+  Parameter C : Type.
+  Parameter SEM : @EvSem G C.
+End SEMANTICS.
