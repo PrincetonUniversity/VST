@@ -558,6 +558,48 @@ Defined.
 
 End COMPOSITE_ENV.
 
+Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (field_type (fst it) (co_members (get_co id))) = true) (co_members (get_co id)).
+Proof.
+  intros.
+  destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+  + pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+    rewrite H1 in H.
+    apply (coeq_consistent _ _ id _ _ H0) in H1.
+    unfold test_aux in H.
+    destruct b; [| inv H].
+    rewrite !H0 in H.
+    destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+    simpl in H.
+    rewrite !andb_true_iff in H.
+    unfold get_co.
+    rewrite H0.
+    assert (Forall (fun it: ident * type => field_type (fst it) (co_members c) = snd it) (co_members c)).
+    Focus 1. {
+      rewrite Forall_forall.
+      intros it ?.
+      apply In_field_type; auto.
+      exact (cenv_legal_fieldlist _ _ H0).
+    } Unfocus.
+    clear - H1 H3.
+    revert H3.
+    generalize (co_members c) at 1 3; intros.
+    symmetry in H1.
+    induction H3 as [| [i t] ?].
+    - constructor.
+    - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
+      constructor; auto.
+      rewrite H; auto.
+  + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+    - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+      congruence.
+    - inv H.
+Qed.
+
 Arguments field_type i m / .
 Arguments field_offset env i m / .
 

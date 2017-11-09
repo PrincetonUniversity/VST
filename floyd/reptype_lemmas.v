@@ -717,96 +717,32 @@ Proof.
     reflexivity.
   + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
     simpl in H.
-    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
-    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
-      rewrite H1 in H.
-      apply (coeq_consistent _ _ id _ _ H0) in H1.
-      unfold test_aux in H.
-      destruct b; [| inv H].
-      rewrite !H0 in H.
-      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
-      simpl in H.
-      rewrite !andb_true_iff in H.
-      destruct H as [[? _] _].
-      apply eqb_list_spec in H; [| apply eqb_member_spec].
-      unfold get_co; rewrite H0, H2.
-      unfold get_co in IH; rewrite H0 in IH.
-      rewrite <- H in *; clear c H H0.
-      unfold reptype_structlist.
-      f_equal.
-      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
-      Focus 1. {
-        rewrite Forall_forall.
-        intros it ?.
-        apply In_field_type; auto.
-        exact (cenv_legal_fieldlist _ _ H2).
-      } Unfocus.
-      revert H IH.
-      generalize (co_members c0) at 1 3 4 5 7 9; intros.
-      symmetry in H1.
-      induction IH.
-      * reflexivity.
-      * Opaque field_type. simpl. Transparent field_type.
-        destruct x as [i t].
-        simpl in H1.
-        rewrite andb_true_iff in H1.
-        destruct H1.
-        inv H.
-        rewrite IHIH by auto.
-        f_equal.
-        apply H0; auto.
-        rewrite H6.
-        auto.
-    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
-      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
-        congruence.
-      * inv H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_structlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
   + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
     simpl in H.
-    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
-    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
-      rewrite H1 in H.
-      apply (coeq_consistent _ _ id _ _ H0) in H1.
-      unfold test_aux in H.
-      destruct b; [| inv H].
-      rewrite !H0 in H.
-      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
-      simpl in H.
-      rewrite !andb_true_iff in H.
-      destruct H as [[? _] _].
-      apply eqb_list_spec in H; [| apply eqb_member_spec].
-      unfold get_co; rewrite H0, H2.
-      unfold get_co in IH; rewrite H0 in IH.
-      rewrite <- H in *; clear c H H0.
-      unfold reptype_unionlist.
-      f_equal.
-      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
-      Focus 1. {
-        rewrite Forall_forall.
-        intros it ?.
-        apply In_field_type; auto.
-        exact (cenv_legal_fieldlist _ _ H2).
-      } Unfocus.
-      revert H IH.
-      generalize (co_members c0) at 1 3 4 5 7 9; intros.
-      symmetry in H1.
-      induction IH.
-      * reflexivity.
-      * Opaque field_type. simpl. Transparent field_type.
-        destruct x as [i t].
-        simpl in H1.
-        rewrite andb_true_iff in H1.
-        destruct H1.
-        inv H.
-        rewrite IHIH by auto.
-        f_equal.
-        apply H0; auto.
-        rewrite H6.
-        auto.
-    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
-      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
-        congruence.
-      * inv H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_unionlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
 Qed.
 
 Lemma default_val_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),

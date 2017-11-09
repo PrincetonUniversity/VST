@@ -1134,7 +1134,40 @@ Proof.
       * change (@Znth (@reptype cs_from t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_from t)).
         change (@Znth (@reptype cs_to t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_to t)).
         apply @list_func_JMeq'; auto.
-        
+        apply default_val_change_composite; auto.
+  + rewrite !data_at_rec_eq.
+    auto.
+  + (* Tstruct *)
+    rewrite !data_at_rec_eq.
+    extensionality p.
+    assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
+    Focus 1. {
+      eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
+      + apply (unfold_reptype_JMeq (Tstruct _ _) v1).
+      + apply JMeq_sym, (unfold_reptype_JMeq (Tstruct _ _) v2).
+    } Unfocus.
+    revert H1; clear H.
+    forget (unfold_reptype v1) as v1'.
+    forget (unfold_reptype v2) as v2'.
+    clear v1 v2.
+    intros.
+    simpl in v1', v2', H1.
+    unfold reptype_structlist in *.
+    revert v1' H1.
+    pattern (co_members (@get_co cs_from id)) at 2 4 5.
+    replace (co_members (@get_co cs_from id)) with (co_members (@get_co cs_to id)).
+    intros.
+    apply struct_pred_ext.
+    simpl in H0.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    Focus 2. {
+      simpl in H0.
+      destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H3) as [co ?].
+        congruence.
+      * inv H0.
+    } Unfocus.
+
 Abort.
 (**** tactics for value_fits  ****)
 
