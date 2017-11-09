@@ -46,6 +46,7 @@ install:
 - opam config var root
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
+- file `which coqc`
 
 jobs:
   include:
