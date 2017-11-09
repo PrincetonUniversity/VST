@@ -8,14 +8,36 @@ Definition samerep (v1 v2: val) :=
    Memdata.decode_val Mfloat32 bl = v1 <-> Memdata.decode_val Mint32 bl = v2.
 
 Lemma mapsto_single_int: forall sh v1 v2 p,
+  is_single v1 -> is_int I32 Unsigned v2 ->
   samerep v1 v2 ->
   mapsto sh (Tfloat F32 noattr) p v1 = mapsto sh (Tint I32 Unsigned noattr) p v2.
 Proof.
   intros.
   subst.
-Admitted.
+  unfold mapsto.
+  simpl. destruct p; auto.
+  if_tac.
+*
+    rewrite (prop_true_andp _ _ H).
+    rewrite (prop_true_andp _ _ H0).
+    f_equal.
+ +
+    unfold res_predicates.address_mapsto.
+    apply predicates_hered.pred_ext'. extensionality phi.
+    simpl. apply exists_ext; intro bl.
+    f_equal. f_equal. f_equal.
+    specialize (H1 bl). apply prop_ext. auto.
+ +
+    normalize.
+    apply pred_ext. normalize. apply exp_left; intro bl. apply exp_right with bl.
+    normalize.
+*
+    f_equal. f_equal. f_equal.
+    unfold tc_val'. apply prop_ext. intuition.
+Qed.
 
 Lemma data_at_single_int: forall sh v1 v2 p1 p2,
+  is_single v1 -> is_int I32 Unsigned v2 ->
   samerep v1 v2 ->
   readable_share sh ->
   p1 = p2 ->
@@ -34,57 +56,6 @@ Proof.
     erewrite mapsto_single_int; auto.
 Qed.
 
-Lemma union_conversion:
-forall {CS} (u:ident) sh p (i1 i2: ident) (t1 t2: type),
-  match PTree.get u (@cenv_cs CS) with
-  | Some {| co_su := Union; 
-            co_members := [(i1', t1'); (i2', t2')];
-            co_rank := 0;
-         |}  => i1'=i1 /\ i2'=i2 /\ t1'=t1 /\ t2'=t2
-  | _ => False
-  end ->
-  i1 <> i2 ->
-  forall (x y: val) 
-        (v1 v2: reptype (nested_field_type (Tunion u noattr) [])),
-  reptype t1 = val ->
-  reptype t2 = val ->
-  JMeq v1 (@inl val val x) ->
-  JMeq v2 (@inr val val y) ->
-  samerep x y ->
-  @field_at CS sh (Tunion u noattr) [] v1 p =
-  @field_at CS sh (Tunion u noattr) [] v2 p.
-Proof.
-intros.
-destruct (cenv_cs ! u) eqn:Heq; try contradiction.
-destruct c; try contradiction.
-destruct co_su; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_rank; try contradiction.
-destruct H as [? [? [? ?]]]; subst.
-match type of Heq with _ = Some ?A => 
-  assert (@get_co CS u = A) by (unfold get_co; rewrite Heq; reflexivity)
-end.
-clear Heq.
-unfold field_at. f_equal.
-unfold at_offset.
-simpl nested_field_offset.
-forget (offset_val 0 p) as p'; clear p.
-unfold nested_field_type, nested_field_rec.
-rewrite !data_at_rec_eq.
-rename co_sizeof into sz.
-rename co_alignof into aln.
-simpl in v1,v2,H3,H4.
-assert (H6 := reptype_eq (Tunion u noattr)); simpl in H6.
-rewrite H in H6. simpl in H6.
-unfold reptype_unionlist in H6.
-simpl in H6.
-rewrite if_true in H6 by auto.
-rewrite if_false in H6 by auto.
-rewrite if_true in H6 by auto.
-rewrite H1,H2 in H6.
-Admitted.
 
 Lemma fabs_float32_lemma:
   forall x: float32,
@@ -199,13 +170,15 @@ forward.
 destruct (fabs_float32_lemma x) as [y [H3 H4]].
 unfold_field_at 1%nat.
 rewrite field_at_data_at.
-erewrite data_at_single_int; [| exact H3 | auto | apply union_field_address___125].
+erewrite data_at_single_int with (v2:= Vint y);
+ [ | apply I | apply I | exact H3 | auto | apply union_field_address___125].
 change (Tint I32 Unsigned noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _i]).
 rewrite <- field_at_data_at.
 forward.
 forward.
 rewrite field_at_data_at.
-erewrite <- data_at_single_int; [| exact H4 | auto | apply union_field_address___125].
+erewrite <- data_at_single_int with (v1:= Vsingle (Float32.abs x));
+    [| apply I | apply I | exact H4 | auto | apply union_field_address___125].
 change (Tfloat F32 noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _f]).
 rewrite <- field_at_data_at.
 forward.
@@ -216,29 +189,6 @@ simpl.
 entailer!.
 Qed.
 
-(*
-destruct (fabs_float32_lemma x) as [y [H3 H4]].
-pose proof (union_conversion __125 Tsh v_u _f _i tfloat tuint).
-simpl in H. spec H; [auto |].
-spec H. compute; clear; congruence.
-
-forward.
-rewrite (H (Vsingle x) (Vint y) _ _ (eq_refl _) (eq_refl _)
-               (JMeq_refl _) (JMeq_refl _) H3).
-forward.
-forward.
-forget (Int.and y (Int.repr 2147483647)) as y'.
-forget (Float32.abs x) as x'.
-
-rewrite <- (H (Vsingle x') (Vint y') _ _ (eq_refl _) (eq_refl _)
-               (JMeq_refl _) (JMeq_refl _) H4).
-
-forward.
-forward.
-unfold data_at_.
-cancel.
-Qed.
-*)
 End Single.
 
 Module Float.
