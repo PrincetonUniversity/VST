@@ -1154,21 +1154,12 @@ Proof.
     simpl in v1', v2', H1.
     unfold reptype_structlist in *.
     revert v1' H1.
-    pattern (co_members (@get_co cs_from id)) at 2 4 5.
-    replace (co_members (@get_co cs_from id)) with (co_members (@get_co cs_to id)).
+    rewrite co_members_get_co_change_composite by auto.
     intros.
-    apply struct_pred_ext.
-    simpl in H0.
-    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
-    Focus 2. {
-      simpl in H0.
-      destruct ((coeq cs_from cs_to) ! id) eqn:?H.
-      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H3) as [co ?].
-        congruence.
-      * inv H0.
-    } Unfocus.
-
+    apply members_spec_change_composite in H0.
+    apply struct_pred_ext; [apply get_co_members_no_replicate |].
 Abort.
+
 (**** tactics for value_fits  ****)
 
 Lemma value_fits_Tstruct:
