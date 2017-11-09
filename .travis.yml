@@ -41,7 +41,7 @@ git:
 
 install:
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
-- opam switch ${COMPILER}
+#- opam switch ${COMPILER}
 - eval $(opam config env)
 - opam config list
 - opam config var root
