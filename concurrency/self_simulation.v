@@ -121,18 +121,18 @@ Section SelfSim.
 
   
   Record same_visible (m1 m2: mem):=
-    { same_visible12:
+    { same_cur:
+        forall b ofs p,
+          (Mem.perm m1 b ofs Cur p <->
+                Mem.perm m2 b ofs Cur p);
+      same_visible12:
         forall b ofs,
-          Mem.perm m1 b ofs Cur Nonempty ->
-          (forall p, Mem.perm m1 b ofs Cur p <->
-                Mem.perm m2 b ofs Cur p) /\
+          Mem.perm m1 b ofs Cur Readable ->
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1))) =
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
       same_visible21:
         forall b ofs,
-          Mem.perm m2 b ofs Cur Nonempty ->
-          (forall p, Mem.perm m1 b ofs Cur p <->
-                Mem.perm m2 b ofs Cur p) /\
+          Mem.perm m2 b ofs Cur Readable ->
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1))) =
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
       }.
@@ -154,19 +154,15 @@ Section SelfSim.
     split; trivial.
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b1 ofs PERM.
-      assert (PERM':= PERM).
-      eapply same_visible21 in PERM; eauto.
-      eapply PERM in PERM'. 
-      destruct matchmem0. eapply pimage0 in PERM'.
-      destruct PERM' as (? & ? & ?).
+      apply VIS1 in PERM.
+      eapply (pimage _ _ _ matchmem0) in PERM; eauto.
+      destruct PERM as (? & ? & ?).
       do 2 eexists; eapply INCR; eauto.
     * (*Pre_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b2 ofs_delta PERM.
-      assert (PERM':= PERM).
-      eapply same_visible21 in PERM; eauto.
-      eapply PERM in PERM'. 
-      destruct matchmem0. eapply ppreimage0 in PERM'.
-      destruct PERM' as (? & ? & ? & ? & ? & ?).
+      apply VIS2 in PERM.
+      eapply (ppreimage _ _ _ matchmem0) in PERM; eauto.
+      destruct PERM as (? & ? & ? & ? & ? & ?).
       do 3 eexists; repeat split; try eapply INCR; eauto.
       eapply VIS1; eauto.
   Qed.
