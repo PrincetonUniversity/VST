@@ -1010,8 +1010,12 @@ Ltac do_compute_expr Delta P Q R e v H :=
          => change E with (offset_val ofs E'')
        | _ => change E with E'
        end
-     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
-                                         NotSome "to an expression of the form (Some _)"
+     | |- ?NotSome = Some _ => 
+               fail 1000 "The C-language expression " e 
+                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+(*
+fail 1000 "Please make sure hnf can simplify"
+                                         NotSome "to an expression of the form (Some _)" *)
      end;
      reflexivity]
   )).
@@ -1857,6 +1861,11 @@ Ltac pre_entailer :=
   | H := @abbreviate ret_assert _ |- _ => clear H
   end.
 
+Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
+
+Ltac check_cast_assignment :=
+   first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
+
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
@@ -1865,7 +1874,7 @@ Ltac forward_setx :=
         eapply semax_PTree_set;
         [ reflexivity
         | reflexivity
-        | reflexivity
+        | check_cast_assignment
         | solve_msubst_eval; reflexivity
         | first [ quick_typecheck3
                 | pre_entailer; try solve [entailer!]]
@@ -2768,6 +2777,31 @@ Ltac function_types_compatible t1 t2 :=
      first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_neutral]
  end end.
 
+Definition temp_type_ok Delta i v :=
+ match (temp_types Delta) ! i with
+  | Some (t,true) =>  tc_val t v
+  | Some (_,false) => 0 > 1
+  | _ => 0 > 2
+  end.
+
+Ltac check_parameter_vals Delta al :=
+ match al with
+ | temp ?i ?v :: ?al' =>
+    let a := constr:(temp_type_ok Delta i v) in
+    let a := eval compute in a in
+    match a with
+    | False => fail 3 "Local variable" i "cannot hold the value" v "(wrong type)"
+    | 0>1 => fail 3 "Local variable" i "is not initialized, only function-parameters should appear here"
+    | 0>2 => fail 3 "Identifer" i "is not a local variable of this function"
+    | _ => idtac
+    end;
+    check_parameter_vals Delta al'
+ | _ :: ?al' => check_parameter_vals Delta al'
+ | nil => idtac
+ end.
+
+
+
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
@@ -2835,6 +2869,10 @@ Function spec: " S)
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax;
+ lazymatch goal with 
+ | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
+ | _ => idtac
+ end;
  clear_Delta_specs_if_leaf_function.
 
 Opaque sepcon.
