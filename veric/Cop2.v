@@ -91,6 +91,13 @@ Scheme eqb_type_sch := Induction for type Sort Prop
 Definition eqb_member (it1 it2: ident * type): bool :=
   eqb_ident (fst it1) (fst it2) && eqb_type (snd it1) (snd it2).
 
+Definition eqb_su (su1 su2: struct_or_union): bool :=
+  match su1, su2 with
+  | Struct, Struct
+  | Union, Union => true
+  | _, _ => false
+  end.
+
 Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
 Proof. destruct i,j; simpl; split; intro; congruence. Qed.
 Lemma eqb_floatsize_spec: forall i j, eqb_floatsize i j = true <-> i=j.
@@ -172,7 +179,12 @@ Proof.
     inv H; auto.
 Qed.
 
-  
+Lemma eqb_su_spec: forall a b, eqb_su a b = true <-> a=b.
+Proof.
+  intros.
+  destruct a,b; split; simpl; intros; try congruence.
+Qed.
+
 (** * Type classification and semantics of operators. *)
 
 (** Most C operators are overloaded (they apply to arguments of various

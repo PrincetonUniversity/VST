@@ -84,6 +84,45 @@ Proof.
       simpl; auto.
 Qed.
 
+Lemma compact_prod_gen_JMeq: forall {A} {F1 F2} (gen1: forall a: A, F1 a) (gen2: forall a: A, F2 a)  (l: list A), (forall a, In a l -> JMeq (gen1 a) (gen2 a)) -> JMeq (compact_prod_gen gen1 l) (compact_prod_gen gen2 l).
+Proof.
+  intros.
+  destruct l; auto.
+  revert a H; induction l; intros.
+  + simpl.
+    apply H.
+    simpl; auto.
+  + simpl.
+    apply JMeq_pair; [apply H; left; auto |].
+    apply IHl.
+    intros.
+    apply H.
+    simpl; auto.
+Qed.
+
+Lemma compact_sum_gen_JMeq: forall {A} {F1 F2} (filter: A -> bool) (gen1: forall a: A, F1 a) (gen2: forall a: A, F2 a)  (l: list A), (forall a, In a l -> JMeq (gen1 a) (gen2 a)) -> JMeq (compact_sum_gen filter gen1 l) (compact_sum_gen filter gen2 l).
+Proof.
+  intros.
+  destruct l; auto.
+  revert a H; induction l; intros.
+  + simpl.
+    apply H.
+    simpl; auto.
+  + simpl.
+    if_tac.
+    - apply JMeq_inl.
+      * apply H; left; auto.
+      * apply (@compact_sum_eq A F1 F2 (a :: l)).
+        intros; apply H; right; auto.
+      * apply H; left; auto.
+    - apply JMeq_inr.
+      * apply H; left; auto.
+      * apply (@compact_sum_eq A F1 F2 (a :: l)).
+        intros; apply H; right; auto.
+      * apply IHl.
+        intros; apply H; right; auto.
+Qed.
+
 Lemma aux0: forall {A} {a a0: A}, In a (a0 :: nil) -> a <> a0 -> False.
 Proof.
   intros.

@@ -316,6 +316,17 @@ Proof.
   auto.
 Qed.
 
+Lemma list_func_JMeq': forall {A B} (a: list A) (b: list B) (a': A) (b': B) (f: forall X, list X -> X -> X), JMeq a b -> JMeq a' b' -> JMeq (f A a a') (f B b b').
+Proof.
+  intros.
+  inversion H0.
+  clear H1; subst.
+  apply JMeq_eq in H0.
+  apply JMeq_eq in H.
+  subst.
+  auto.
+Qed.
+
 Lemma JMeq_sigT: forall {A B} (a: A), A = B -> {b: B | JMeq a b}.
 Proof.
   intros.

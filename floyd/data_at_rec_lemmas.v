@@ -1118,17 +1118,23 @@ Proof.
   + (* Tarray *)
     rewrite !data_at_rec_eq.
     extensionality p.
+    assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
+    Focus 1. {
+      eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
+      + apply (unfold_reptype_JMeq (Tarray t z a) v1).
+      + apply JMeq_sym, (unfold_reptype_JMeq (Tarray t z a) v2).
+    } Unfocus.
     apply array_pred_ext.
-    - revert v1 v2 H.
-      unfold unfold_reptype; clear.
-      (* Here: we actually need to know that (@reptype cs_from t = @reptype cs_to t) *)
-      generalize (@reptype_eq cs_from (Tarray t z a)), (@reptype_eq cs_to (Tarray t z a)).
-      generalize (@reptype cs_from (Tarray t z a)), (@reptype cs_to (Tarray t z a)), (@reptype cs_from t), (@reptype cs_to t).
-      intros.
-      subst.
-      simpl.
-      inversion H; clear H0.
-      SearchAbout JMeq fst.
+    - apply list_func_JMeq; [apply reptype_change_composite; auto | auto].
+    - intros.
+      rewrite (IH (Znth (i - 0) (unfold_reptype v1) (default_val t)) (Znth (i - 0) (unfold_reptype v2) (default_val t))); auto.
+      * f_equal.
+        f_equal.
+        apply sizeof_change_composite; auto.
+      * change (@Znth (@reptype cs_from t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_from t)).
+        change (@Znth (@reptype cs_to t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_to t)).
+        apply @list_func_JMeq'; auto.
+        
 Abort.
 (**** tactics for value_fits  ****)
 

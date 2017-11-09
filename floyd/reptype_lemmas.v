@@ -726,6 +726,8 @@ Proof.
       rewrite !H0 in H.
       destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
       simpl in H.
+      rewrite !andb_true_iff in H.
+      destruct H as [[? _] _].
       apply eqb_list_spec in H; [| apply eqb_member_spec].
       unfold get_co; rewrite H0, H2.
       unfold get_co in IH; rewrite H0 in IH.
@@ -770,6 +772,8 @@ Proof.
       rewrite !H0 in H.
       destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
       simpl in H.
+      rewrite !andb_true_iff in H.
+      destruct H as [[? _] _].
       apply eqb_list_spec in H; [| apply eqb_member_spec].
       unfold get_co; rewrite H0, H2.
       unfold get_co in IH; rewrite H0 in IH.
@@ -799,6 +803,120 @@ Proof.
         apply H0; auto.
         rewrite H6.
         auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+Qed.
+
+Lemma default_val_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  JMeq (@default_val cs_from t) (@default_val cs_to t).
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    specialize (IH H).
+    revert IH; generalize (@default_val cs_from t), (@default_val cs_to t).
+    rewrite reptype_change_composite by auto.
+    intros.
+    apply JMeq_eq in IH; subst.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl.
+    simpl in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+      rewrite H1 in H.
+      apply (coeq_consistent _ _ id _ _ H0) in H1.
+      unfold test_aux in H.
+      destruct b; [| inv H].
+      rewrite !H0 in H.
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      simpl in H.
+      rewrite !andb_true_iff in H.
+      destruct H as [[? _] _].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      unfold get_co; rewrite H0, H2.
+      unfold get_co in IH; rewrite H0 in IH.
+      rewrite <- H in *; clear c H H0.
+      unfold struct_default_val.
+      apply compact_prod_gen_JMeq.
+      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
+      Focus 1. {
+        rewrite Forall_forall.
+        intros it ?.
+        apply In_field_type; auto.
+        exact (cenv_legal_fieldlist _ _ H2).
+      } Unfocus.
+      rewrite Forall_forall in IH, H.
+      intros x ?.
+      specialize (IH x H0); specialize (H x H0).
+      apply IH; rewrite H.
+      clear H IH H2; revert x H0.
+      rewrite <- Forall_forall.
+      symmetry in H1.
+      induction (co_members c0) as [| [i t] ?].
+      * constructor.
+      * simpl in H1; rewrite andb_true_iff in H1; destruct H1.
+        constructor; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl.
+    simpl in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+      rewrite H1 in H.
+      apply (coeq_consistent _ _ id _ _ H0) in H1.
+      unfold test_aux in H.
+      destruct b; [| inv H].
+      rewrite !H0 in H.
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      simpl in H.
+      rewrite !andb_true_iff in H.
+      destruct H as [[? _] _].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      unfold get_co; rewrite H0, H2.
+      unfold get_co in IH; rewrite H0 in IH.
+      rewrite <- H in *; clear c H H0.
+      unfold union_default_val.
+      apply compact_sum_gen_JMeq.
+      assert (Forall (fun it: ident * type => field_type (fst it) (co_members c0) = snd it) (co_members c0)).
+      Focus 1. {
+        rewrite Forall_forall.
+        intros it ?.
+        apply In_field_type; auto.
+        exact (cenv_legal_fieldlist _ _ H2).
+      } Unfocus.
+      rewrite Forall_forall in IH, H.
+      intros x ?.
+      specialize (IH x H0); specialize (H x H0).
+      apply IH; rewrite H.
+      clear H IH H2; revert x H0.
+      rewrite <- Forall_forall.
+      symmetry in H1.
+      induction (co_members c0) as [| [i t] ?].
+      * constructor.
+      * simpl in H1; rewrite andb_true_iff in H1; destruct H1.
+        constructor; auto.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
         congruence.

@@ -12,12 +12,9 @@ Section cs_preserve.
 
 Context (cs_from cs_to: compspecs).
 
-Definition eqb_member (it1 it2: ident * type): bool :=
-  Pos.eqb (fst it1) (fst it2) && eqb_type (snd it1) (snd it2).
-
 Definition test_aux (b: bool) (i: ident): bool :=
   b && match (@cenv_cs cs_from) ! i, (@cenv_cs cs_to) ! i with
-       | Some co_from, Some co_to => eqb_list eqb_member (co_members co_from) (co_members co_to)
+       | Some co_from, Some co_to => eqb_list eqb_member (co_members co_from) (co_members co_to) && eqb_su (co_su co_from) (co_su co_to) && eqb_attr (co_attr co_from) (co_attr co_to)
        | _, _ => false
        end.
 
@@ -160,3 +157,141 @@ Ltac make_cs_preserve cs_from cs_to :=
   refine (  {| coeq := coeq0 ;
                coeq_consistent := coeq0_consistent;
                coeq_complete := coeq0_complete |}).
+
+Lemma sizeof_composite_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall su (m: members),
+  Forall
+       (Basics.compose
+          (fun t : type =>
+           cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
+           @sizeof (@cenv_cs cs_from) t = @sizeof (@cenv_cs cs_to) t /\
+           @alignof (@cenv_cs cs_from) t = @alignof (@cenv_cs cs_to) t) snd) m ->
+  true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
+  sizeof_composite (@cenv_cs cs_from) su m = sizeof_composite (@cenv_cs cs_to) su m.
+Proof.
+  intros.
+  symmetry in H0.
+  destruct su; simpl; auto.
+  + generalize 0 as z.
+    induction H as [| [i t] ? ?]; intros; [reflexivity |].
+    simpl.
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct H0.
+    apply H in H0; clear H; simpl in H0; destruct H0.
+    rewrite H, H0.
+    apply (IHForall H2 (align z (alignof t) + sizeof t)).
+  + induction H as [| [i t] ? ?]; intros; [reflexivity |].
+    simpl.
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct H0.
+    apply H in H0; clear H; simpl in H0; destruct H0.
+    f_equal; auto.
+Qed.
+
+Lemma alignof_composite_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (m: members),
+  Forall
+       (Basics.compose
+          (fun t : type =>
+           cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
+           @sizeof (@cenv_cs cs_from) t = @sizeof (@cenv_cs cs_to) t /\
+           @alignof (@cenv_cs cs_from) t = @alignof (@cenv_cs cs_to) t) snd) m ->
+  true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
+  alignof_composite (@cenv_cs cs_from) m = alignof_composite (@cenv_cs cs_to) m.
+Proof.
+  intros.
+  symmetry in H0.
+  induction H as [| [i t] ? ?]; intros; [reflexivity |].
+  simpl.
+  simpl in H0.
+  rewrite andb_true_iff in H0.
+  destruct H0.
+  apply H in H0; clear H; simpl in H0; destruct H0.
+  f_equal; auto.
+Qed.
+
+Lemma sizeof_alignof_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @sizeof (@cenv_cs cs_from) t = @sizeof (@cenv_cs cs_to) t /\
+  @alignof (@cenv_cs cs_from) t = @alignof (@cenv_cs cs_to) t.
+Proof.
+  intros t.
+  type_induction t (@cenv_cs cs_to) (@cenv_consistent cs_to); intros.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + simpl.
+    pose proof IH H as [? ?].
+    split; f_equal; auto.
+  + split; reflexivity.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite (co_consistent_sizeof (@cenv_cs cs_to) c (@cenv_consistent cs_to _ _ H0)).
+      rewrite (co_consistent_sizeof (@cenv_cs cs_from) c0 (@cenv_consistent cs_from _ _ H2)).
+      rewrite (co_consistent_alignof (@cenv_cs cs_to) c (@cenv_consistent cs_to _ _ H0)).
+      rewrite (co_consistent_alignof (@cenv_cs cs_from) c0 (@cenv_consistent cs_from _ _ H2)).
+      simpl in H.
+      rewrite !andb_true_iff in H; destruct H as [[? ?] ?].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      apply eqb_su_spec in H3.
+      apply eqb_attr_spec in H4.
+      apply (coeq_consistent _ _ _ _ _ H0) in H1.
+      rewrite H in *; rewrite H4 in  *; rewrite H3 in *; clear c0 H H0 H2 H3 H4.
+      split; [f_equal; [ | f_equal] | f_equal; f_equal].
+      * apply sizeof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite (co_consistent_sizeof (@cenv_cs cs_to) c (@cenv_consistent cs_to _ _ H0)).
+      rewrite (co_consistent_sizeof (@cenv_cs cs_from) c0 (@cenv_consistent cs_from _ _ H2)).
+      rewrite (co_consistent_alignof (@cenv_cs cs_to) c (@cenv_consistent cs_to _ _ H0)).
+      rewrite (co_consistent_alignof (@cenv_cs cs_from) c0 (@cenv_consistent cs_from _ _ H2)).
+      simpl in H.
+      rewrite !andb_true_iff in H; destruct H as [[? ?] ?].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      apply eqb_su_spec in H3.
+      apply eqb_attr_spec in H4.
+      apply (coeq_consistent _ _ _ _ _ H0) in H1.
+      rewrite H in *; rewrite H4 in  *; rewrite H3 in *; clear c0 H H0 H2 H3 H4.
+      split; [f_equal; [ | f_equal] | f_equal; f_equal].
+      * apply sizeof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+Qed.
+
+Lemma sizeof_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @sizeof (@cenv_cs cs_from) t = @sizeof (@cenv_cs cs_to) t.
+Proof.
+  intros.
+  exact (proj1 (sizeof_alignof_change_composite t H)).
+Qed.
+
+Lemma alignof_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @alignof (@cenv_cs cs_from) t = @alignof (@cenv_cs cs_to) t.
+Proof.
+  intros.
+  exact (proj2 (sizeof_alignof_change_composite t H)).
+Qed.
