@@ -26,7 +26,7 @@ env:
   global:
   - NJOBS=4
   # system is == 4.02.3
-  - COMPILER="system"
+  - COMPILER="4.02.3+32bit"
   - COQ_VERSION="8.7.0"
 branches:
   only:
@@ -44,7 +44,6 @@ install:
 - eval $(opam config env)
 - opam switch list --all
 - opam config var root
-- opam config var arch
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
 
