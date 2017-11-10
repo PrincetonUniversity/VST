@@ -29,7 +29,7 @@ Require Export VST.floyd.local2ptree_eval.
 Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
 Require Export VST.floyd.sc_set_load_store.
-(*Require Export VST.floyd.unfold_data_at.*)
+Require Export VST.floyd.unfold_data_at.
 Require Export VST.floyd.entailer.
 Require Export VST.floyd.globals_lemmas.
 Require Export VST.floyd.diagnosis.
