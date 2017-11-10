@@ -138,6 +138,19 @@ Proof.
     - inv H.
 Qed.
 
+Lemma co_sizeof_get_co_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  co_sizeof (@get_co cs_from id) = co_sizeof (@get_co cs_to id).
+Proof.
+  intros.
+  rewrite <- !sizeof_Tstruct with (a := noattr).
+  apply sizeof_change_composite.
+  auto.
+Qed.
+
 Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1}.
   intros.
   destruct it0, it1.

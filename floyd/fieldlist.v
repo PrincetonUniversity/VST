@@ -558,12 +558,12 @@ Defined.
 
 End COMPOSITE_ENV.
 
-Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+Lemma members_spec_change_composite' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
   match (coeq cs_from cs_to) ! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
-  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (field_type (fst it) (co_members (get_co id))) = true) (co_members (get_co id)).
+  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (snd it) = true) (co_members (get_co id)).
 Proof.
   intros.
   destruct ((@cenv_cs cs_to) ! id) eqn:?H.
@@ -578,26 +578,94 @@ Proof.
     rewrite !andb_true_iff in H.
     unfold get_co.
     rewrite H0.
-    assert (Forall (fun it: ident * type => field_type (fst it) (co_members c) = snd it) (co_members c)).
-    Focus 1. {
-      rewrite Forall_forall.
-      intros it ?.
-      apply In_field_type; auto.
-      exact (cenv_legal_fieldlist _ _ H0).
-    } Unfocus.
-    clear - H1 H3.
-    revert H3.
-    generalize (co_members c) at 1 3; intros.
+    clear - H1.
     symmetry in H1.
-    induction H3 as [| [i t] ?].
+    induction (co_members c) as [| [i t] ?].
     - constructor.
     - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
       constructor; auto.
-      rewrite H; auto.
   + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
     - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
       congruence.
     - inv H.
+Qed.
+
+Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (field_type (fst it) (co_members (get_co id))) = true) (co_members (get_co id)).
+Proof.
+  intros.
+  apply members_spec_change_composite' in H.
+  assert (Forall (fun it: ident * type => field_type (fst it) (co_members (get_co id)) = snd it) (co_members (get_co id))).
+  Focus 1. {
+    rewrite Forall_forall.
+    intros it ?.
+    apply In_field_type; auto.
+    apply get_co_members_no_replicate.
+  } Unfocus.
+  revert H0; generalize (co_members (get_co id)) at 1 3.
+  induction H as [| [i t] ?]; constructor.
+  + inv H1.
+    simpl in *.
+    rewrite H4; auto.
+  + inv H1.
+    auto.
+Qed.
+
+Lemma field_offset_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id i,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  field_offset (@cenv_cs cs_from) i (co_members (@get_co cs_to id)) =
+  field_offset (@cenv_cs cs_to) i (co_members (@get_co cs_to id)).
+Proof.
+  intros.
+  apply members_spec_change_composite' in H.
+  unfold field_offset, Ctypes.field_offset.
+  generalize 0 at 1 3.
+  induction (co_members (get_co id)) as [| [i0 t0] ?]; intros.
+  + auto.
+  + simpl.
+    inv H.
+    if_tac.
+    - f_equal.
+      apply alignof_change_composite; auto.
+    - specialize (IHm H3).
+      rewrite alignof_change_composite, sizeof_change_composite by auto.
+      apply IHm.
+Qed.
+
+Lemma field_offset_next_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id i,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  field_offset_next (@cenv_cs cs_from) i (co_members (get_co id)) (co_sizeof (@get_co cs_from id)) =
+field_offset_next (@cenv_cs cs_to) i (co_members (get_co id)) (co_sizeof (@get_co cs_to id)).
+Proof.
+  intros.
+  rewrite co_sizeof_get_co_change_composite by auto.
+  apply members_spec_change_composite' in H.
+  unfold field_offset_next.
+  generalize 0.
+  destruct H as [| [i0 t0] ? ]; intros; auto.
+  simpl in H, H0.
+  revert i0 t0 H z.
+  induction H0 as [| [i1 t1] ? ]; intros.
+  + reflexivity.
+  + simpl.
+    if_tac; auto.
+    - f_equal; [f_equal |].
+      * apply sizeof_change_composite; auto.
+      * apply alignof_change_composite; auto.
+    - specialize (IHForall i1 t1 H (align (z + sizeof t0) (alignof t1))); simpl in IHForall.
+      rewrite (sizeof_change_composite t0) by auto.
+      rewrite (alignof_change_composite t1) by auto.
+      apply IHForall.
 Qed.
 
 Arguments field_type i m / .

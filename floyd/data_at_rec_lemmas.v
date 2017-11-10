@@ -1154,10 +1154,42 @@ Proof.
     simpl in v1', v2', H1.
     unfold reptype_structlist in *.
     revert v1' H1.
-    rewrite co_members_get_co_change_composite by auto.
+    rewrite co_members_get_co_change_composite in * by auto.
     intros.
+    pose proof (fun i => field_offset_change_composite _ i H0) as HH0.
+    pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.
     apply members_spec_change_composite in H0.
     apply struct_pred_ext; [apply get_co_members_no_replicate |].
+    intros.
+    f_equal; [f_equal | | f_equal ]; auto.
+    - apply sizeof_change_composite; auto.
+      rewrite Forall_forall in H0.
+      apply H0.
+      apply in_members_field_type.
+      auto.
+    - simpl.
+      apply (HH1 i).
+    revert v1' v2' IH H0 H1.
+    simpl fst; simpl snd.
+    generalize (co_members (get_co id)) at 1 3 5 6 7 8 9 10 11 13 15 17 19 20 25 27 32 34; intros.
+    apply in_members_field_type in H.
+    revert H; forget (field_type i (co_members (get_co id))) as t; intros.
+    change i with (fst (i, t)) in *; change t with (snd (i, t)).
+    change ((fst (i, t), t)) with (i, t) in H.
+    change ((fst (i, snd (i, t)))) with (fst (i, t)).
+    revert H.
+    forget (i, t) as it; clear i t; intros.
+    Locate field_offset.
+    Locate field_offset_next.
+    revert it H d0 d1.
+    rewrite <- Forall_forall.
+    induction IH as [| [i t] ?].
+    - constructor.
+    - inv H0.
+      constructor; intros; auto.
+      * simpl.
+      auto.
+      f_equal.
 Abort.
 
 (**** tactics for value_fits  ****)
