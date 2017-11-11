@@ -1167,13 +1167,16 @@ Proof.
       apply H0.
       apply in_members_field_type.
       auto.
-    - simpl.
-      apply (HH1 i).
-    revert v1' v2' IH H0 H1.
-    simpl fst; simpl snd.
-    generalize (co_members (get_co id)) at 1 3 5 6 7 8 9 10 11 13 15 17 19 20 25 27 32 34; intros.
-    apply in_members_field_type in H.
-    revert H; forget (field_type i (co_members (get_co id))) as t; intros.
+    - clear HH0 HH1.
+      simpl fst in *.
+      revert d0 d1 v1' v2' IH H0 H1.
+      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
+      apply in_members_field_type in H.
+      rewrite Forall_forall in IH, H0.
+      specialize (IH _ H); specialize (H0 _ H).
+      apply IH; auto.
+      Locate proj_struct.
+      revert d0 d1 H; forget (field_type i m) as t; intros.
     change i with (fst (i, t)) in *; change t with (snd (i, t)).
     change ((fst (i, t), t)) with (i, t) in H.
     change ((fst (i, snd (i, t)))) with (fst (i, t)).
