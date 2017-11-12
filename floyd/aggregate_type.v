@@ -47,5 +47,3 @@ Proof.
   + apply in_members_field_type; auto.
 Qed.
 
-Check proj_compact_sum_JMeq.
-Check proj_compact_prod_JMeq.

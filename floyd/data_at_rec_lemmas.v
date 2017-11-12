@@ -1171,28 +1171,61 @@ Proof.
       simpl fst in *.
       revert d0 d1 v1' v2' IH H0 H1.
       generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
-      apply in_members_field_type in H.
+      pose proof in_members_field_type _ _ H.
       rewrite Forall_forall in IH, H0.
-      specialize (IH _ H); specialize (H0 _ H).
+      specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
-      Locate proj_struct.
-      revert d0 d1 H; forget (field_type i m) as t; intros.
-    change i with (fst (i, t)) in *; change t with (snd (i, t)).
-    change ((fst (i, t), t)) with (i, t) in H.
-    change ((fst (i, snd (i, t)))) with (fst (i, t)).
-    revert H.
-    forget (i, t) as it; clear i t; intros.
-    Locate field_offset.
-    Locate field_offset_next.
-    revert it H d0 d1.
-    rewrite <- Forall_forall.
-    induction IH as [| [i t] ?].
-    - constructor.
-    - inv H0.
-      constructor; intros; auto.
-      * simpl.
+      apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
+      * intros. apply reptype_change_composite.
+        apply H0.
+        apply in_members_field_type; auto.
+      * apply get_co_members_no_replicate.
+  + (* Tunion *)
+    rewrite !data_at_rec_eq.
+    extensionality p.
+    assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
+    Focus 1. {
+      eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
+      + apply (unfold_reptype_JMeq (Tunion _ _) v1).
+      + apply JMeq_sym, (unfold_reptype_JMeq (Tunion _ _) v2).
+    } Unfocus.
+    revert H1; clear H.
+    forget (unfold_reptype v1) as v1'.
+    forget (unfold_reptype v2) as v2'.
+    clear v1 v2.
+    intros.
+    simpl in v1', v2', H1.
+    unfold reptype_structlist in *.
+    revert v1' H1.
+    rewrite co_members_get_co_change_composite in * by auto.
+    intros.
+    pose proof (fun i => field_offset_change_composite _ i H0) as HH0.
+    pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.
+    apply members_spec_change_composite in H0.
+    apply union_pred_ext; [apply get_co_members_no_replicate | |].
+
+(*    SearchAbout (_ -> (members_union_inj _ _)).
+    intros.
+    f_equal; [f_equal | | f_equal ]; auto.
+    - apply sizeof_change_composite; auto.
+      rewrite Forall_forall in H0.
+      apply H0.
+      apply in_members_field_type.
       auto.
-      f_equal.
+    - clear HH0 HH1.
+      simpl fst in *.
+      revert d0 d1 v1' v2' IH H0 H1.
+      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
+      pose proof in_members_field_type _ _ H.
+      rewrite Forall_forall in IH, H0.
+      specialize (IH _ H2); pose proof (H0 _ H2).
+      apply IH; auto.
+      apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
+      * intros. apply reptype_change_composite.
+        apply H0.
+        apply in_members_field_type; auto.
+      * apply get_co_members_no_replicate.
+*)
 Abort.
 
 (**** tactics for value_fits  ****)
