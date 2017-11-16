@@ -2755,7 +2755,7 @@ Ltac clear_Delta_specs_if_leaf_function :=
  match goal with DS := @abbreviate (PTree.t funspec) _  |- semax _ _ ?S _ =>
    let S' := eval compute in S in
     match S' with 
-    | appcontext [Scall] => idtac
+    | context [Scall] => idtac
     | _ => clearbody DS
     end
  end.
