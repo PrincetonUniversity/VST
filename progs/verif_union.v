@@ -3,20 +3,102 @@ Require Import VST.progs.union.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition samerep (v1 v2: val) :=
+Import Memdata.
+
+Lemma decode_float32_int32:
+  forall (bl: list memval) (x: float32),
+ size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
+ decode_val Mfloat32 bl = Vsingle x ->
+ decode_val Mint32 bl = Vint (Float32.to_bits x).
+Proof.
+intros.
+unfold decode_val,decode_int,rev_if_be in *.
+destruct (proj_bytes bl) eqn:?H.
+inv H0.
+rewrite Float32.to_of_bits. auto.
+inv H0.
+Qed.
+
+
+Lemma NOT_decode_int32_float32:
+ ~ (forall (bl: list memval) (x: float32),
+     size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
+     decode_val Mint32 bl = Vint (Float32.to_bits x) ->
+     decode_val Mfloat32 bl = Vsingle x).
+Proof.
++
+intro.
+set (x := Float32.zero). (* nothing special about zero, any value would do *)
+set (i := Float32.to_bits x).
+set (bl := [Fragment (Vint i) Q32 3; Fragment (Vint i) Q32 2; Fragment (Vint i) Q32 1; Fragment (Vint i) Q32 0]).
+specialize (H bl x).
+specialize (H (eq_refl _)).
+assert (decode_val Mint32 bl = Vint (Float32.to_bits x)).
+unfold decode_val, bl.
+simpl.
+destruct (Val.eq (Vint i) (Vint i)); [ | congruence].
+destruct (quantity_eq Q32 Q32); [ | congruence].
+simpl.
+reflexivity.
+specialize (H H0).
+clear - H. subst bl i.
+unfold decode_val in H.
+simpl in H. inversion H.
+Qed.
+
+
+Lemma decode_float32_iff_int32:
+  forall (bl: list Memdata.memval) (x: float32),
+ Memdata.size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
+ (Memdata.decode_val Mfloat32 bl = Vsingle x <->
+   Memdata.decode_val Mint32 bl = Vint (Float32.to_bits x)).
+Proof.
+Admitted.  (* not provable at present; see https://github.com/AbsInt/CompCert/issues/207
+    for a description of how to solve this problem. *)
+
+Definition samerep (ch1 ch2: memory_chunk) (v1 v2: val) :=
+  Memdata.size_chunk ch1 = Memdata.size_chunk ch2 /\
   forall bl: list Memdata.memval,
-   Memdata.decode_val Mfloat32 bl = v1 <-> Memdata.decode_val Mint32 bl = v2.
+   Memdata.size_chunk ch1 = Z.of_nat (length bl) ->
+   (Memdata.decode_val ch1 bl = v1 <-> Memdata.decode_val ch2 bl = v2).
 
 Lemma mapsto_single_int: forall sh v1 v2 p,
-  samerep v1 v2 ->
+  is_single v1 -> is_int I32 Unsigned v2 ->
+  samerep Mfloat32 Mint32 v1 v2 ->
   mapsto sh (Tfloat F32 noattr) p v1 = mapsto sh (Tint I32 Unsigned noattr) p v2.
 Proof.
   intros.
   subst.
-Admitted.
+  unfold mapsto.
+  simpl. destruct p; auto.
+  if_tac.
+*
+    rewrite (prop_true_andp _ _ H).
+    rewrite (prop_true_andp _ _ H0).
+    f_equal.
+ +
+    unfold res_predicates.address_mapsto.
+    apply predicates_hered.pred_ext'. extensionality phi.
+    simpl. apply exists_ext; intro bl.
+    f_equal.
+    apply and_ext'; auto. intro.
+    destruct H1 as [H1' H1].
+    specialize (H1 bl).
+    f_equal.
+    apply prop_ext.
+    apply H1. rewrite H3. reflexivity.
+ +
+    normalize.
+    apply pred_ext. normalize. apply exp_left; intro bl. apply exp_right with bl.
+    normalize.
+*
+    f_equal. f_equal. f_equal.
+    unfold tc_val'. apply prop_ext. intuition.
+Qed.
 
 Lemma data_at_single_int: forall sh v1 v2 p1 p2,
-  samerep v1 v2 ->
+  is_single v1 -> is_int I32 Unsigned v2 ->
+  samerep Mfloat32 Mint32 v1 v2 ->
   readable_share sh ->
   p1 = p2 ->
   data_at sh (Tfloat F32 noattr) v1 p1 = data_at sh (Tint I32 Unsigned noattr) v2 p2.
@@ -34,64 +116,60 @@ Proof.
     erewrite mapsto_single_int; auto.
 Qed.
 
-Lemma union_conversion:
-forall {CS} (u:ident) sh p (i1 i2: ident) (t1 t2: type),
-  match PTree.get u (@cenv_cs CS) with
-  | Some {| co_su := Union; 
-            co_members := [(i1', t1'); (i2', t2')];
-            co_rank := 0;
-         |}  => i1'=i1 /\ i2'=i2 /\ t1'=t1 /\ t2'=t2
-  | _ => False
-  end ->
-  i1 <> i2 ->
-  forall (x y: val) 
-        (v1 v2: reptype (nested_field_type (Tunion u noattr) [])),
-  reptype t1 = val ->
-  reptype t2 = val ->
-  JMeq v1 (@inl val val x) ->
-  JMeq v2 (@inr val val y) ->
-  samerep x y ->
-  @field_at CS sh (Tunion u noattr) [] v1 p =
-  @field_at CS sh (Tunion u noattr) [] v2 p.
+Lemma float32_to_bits_abs':
+ forall x,
+  Fappli_IEEE_bits.bits_of_b32 (Fappli_IEEE.Babs 24 128 (fun _ pl => (false,pl)) x) =
+   Z.land (Fappli_IEEE_bits.bits_of_b32 x) (2 ^ 31 - 1).
 Proof.
 intros.
-destruct (cenv_cs ! u) eqn:Heq; try contradiction.
-destruct c; try contradiction.
-destruct co_su; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_members as [ | [? ?] ]; try contradiction.
-destruct co_rank; try contradiction.
-destruct H as [? [? [? ?]]]; subst.
-match type of Heq with _ = Some ?A => 
-  assert (@get_co CS u = A) by (unfold get_co; rewrite Heq; reflexivity)
-end.
-clear Heq.
-unfold field_at. f_equal.
-unfold at_offset.
-simpl nested_field_offset.
-forget (offset_val 0 p) as p'; clear p.
-unfold nested_field_type, nested_field_rec.
-rewrite !data_at_rec_eq.
-rename co_sizeof into sz.
-rename co_alignof into aln.
-simpl in v1,v2,H3,H4.
-assert (H6 := reptype_eq (Tunion u noattr)); simpl in H6.
-rewrite H in H6. simpl in H6.
-unfold reptype_unionlist in H6.
-simpl in H6.
-rewrite if_true in H6 by auto.
-rewrite if_false in H6 by auto.
-rewrite if_true in H6 by auto.
-rewrite H1,H2 in H6.
+destruct x,b; try reflexivity.
+* (* nan sign=true *)
+simpl.
+destruct n.
+unfold Fappli_IEEE_bits.join_bits.
+change (0+255) with 255.
+admit.
+* (* nan sign=false*)
+admit.
+* (* finite sign=true *)
+unfold Fappli_IEEE_bits.bits_of_b32, Fappli_IEEE.Babs, Fappli_IEEE_bits.bits_of_binary_float.
 Admitted.
+
+Lemma float32_to_bits_abs: 
+  forall x, Float32.to_bits (Float32.abs x) = Int.and (Float32.to_bits x) (Int.repr (2 ^ 31 - 1)).
+Proof.
+intros.
+Transparent Float32.to_bits.
+unfold Float32.to_bits.
+Opaque Float32.to_bits.
+rewrite and_repr.
+f_equal.
+Transparent Float32.abs.
+unfold Float32.abs.
+Opaque Float32.abs.
+unfold Float32.abs_pl.
+apply float32_to_bits_abs'.
+Qed.
 
 Lemma fabs_float32_lemma:
   forall x: float32,
   exists y: int,
-  samerep (Vsingle x) (Vint y) /\
-  samerep (Vsingle (Float32.abs x)) (Vint (Int.and y (Int.repr 2147483647))).
-Admitted.
+  samerep Mfloat32 Mint32 (Vsingle x) (Vint y) /\
+  samerep Mfloat32 Mint32 (Vsingle (Float32.abs x)) (Vint (Int.and y (Int.repr 2147483647))).
+Proof.
+intros.
+exists (Float32.to_bits x).
+split.
+*
+split; [ reflexivity | ].
+intros.
+apply decode_float32_iff_int32; auto.
+*
+split; [ reflexivity | ].
+intros.
+rewrite <- float32_to_bits_abs.
+apply decode_float32_iff_int32; auto.
+Qed.
 
 Module Single.
 
@@ -105,82 +183,6 @@ Definition fabs_single_spec :=
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [ fabs_single_spec ]).
-
-(* This is not well developped or well tested yet. *)
-Ltac unfold_field_at' :=
- match goal with
- | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
-     let F := fresh "F" in
-       set (F := field_at_mark cs sh t gfs v p);
-       change field_at_mark with @field_at in F;
-     let V := fresh "V" in set (V:=v) in F;
-     let P := fresh "P" in set (P:=p) in F;
-     let T := fresh "T" in set (T:=t) in F;
-     let id := fresh "id" in evar (id: ident);
-     let Heq := fresh "Heq" in
-     assert (Heq: nested_field_type T gfs = Tstruct id noattr)
-           by (unfold id,T; reflexivity);
-     let H := fresh in
-     assert (H:= @field_at_Tstruct cs sh T gfs id noattr
-                          V V P  (eq_refl _) (JMeq_refl _));
-     unfold id in H; clear Heq id;
-     fold F in H; clearbody F;
-     simpl co_members in H;
-     lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
-     change (@field_at cs sh T) with (@field_at cs sh t) in H;
-     hnf in T; subst T;
-     change v with (protect _ v) in V;
-     simpl in H;
-     unfold withspacer in H; simpl in H;
-     change (protect _ v) with v in V;
-     subst V;
-     repeat match type of H with
-     | context[fst (?A,?B)] => change (fst (A,B)) with A in H
-     | context[snd (?A,?B)] => change (snd (A,B)) with B in H
-     end;
-     subst P;
-     subst F;
-     cbv beta;
-     repeat flatten_sepcon_in_SEP;
-     repeat simplify_project_default_val
- | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
-     let F := fresh "F" in
-       set (F := field_at_mark cs sh t gfs v p);
-       change field_at_mark with @field_at in F;
-     let V := fresh "V" in set (V:=v) in F;
-     let P := fresh "P" in set (P:=p) in F;
-     let T := fresh "T" in set (T:=t) in F;
-     let id := fresh "id" in evar (id: ident);
-     let Heq := fresh "Heq" in
-     assert (Heq: nested_field_type T gfs = Tunion id noattr)
-           by (unfold id,T; reflexivity);
-     let H := fresh in
-     assert (H:= @field_at_Tunion cs sh T gfs id noattr
-                          V V P  (eq_refl _) (JMeq_refl _));
-     unfold id in H; clear Heq id;
-     fold F in H; clearbody F;
-     simpl co_members in H;
-     lazy beta iota zeta delta  [nested_ufieldlist_at ] in H;
-     change (@field_at cs sh T) with (@field_at cs sh t) in H;
-     hnf in T; subst T;
-     change v with (protect _ v) in V;
-     simpl in H;
-     unfold withspacer in H; simpl in H;
-     change (protect _ v) with v in V;
-     subst V;
-     repeat match type of H with
-     | context[fst (?A,?B)] => change (fst (A,B)) with A in H
-     | context[snd (?A,?B)] => change (snd (A,B)) with B in H
-     end;
-     subst P;
-     subst F;
-     cbv beta;
-     repeat flatten_sepcon_in_SEP;
-     repeat simplify_project_default_val
- end.
-
-Ltac unfold_field_at N  :=
-  find_field_at N; unfold_field_at'.
 
 Lemma union_field_address___125: forall p,
   field_address (Tunion __125 noattr) [UnionField _f] p = field_address (Tunion __125 noattr) [UnionField _i] p.
@@ -199,13 +201,15 @@ forward.
 destruct (fabs_float32_lemma x) as [y [H3 H4]].
 unfold_field_at 1%nat.
 rewrite field_at_data_at.
-erewrite data_at_single_int; [| exact H3 | auto | apply union_field_address___125].
+erewrite data_at_single_int with (v2:= Vint y);
+ [ | apply I | apply I | exact H3 | auto | apply union_field_address___125].
 change (Tint I32 Unsigned noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _i]).
 rewrite <- field_at_data_at.
 forward.
 forward.
 rewrite field_at_data_at.
-erewrite <- data_at_single_int; [| exact H4 | auto | apply union_field_address___125].
+erewrite <- data_at_single_int with (v1:= Vsingle (Float32.abs x));
+    [| apply I | apply I | exact H4 | auto | apply union_field_address___125].
 change (Tfloat F32 noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _f]).
 rewrite <- field_at_data_at.
 forward.
@@ -215,33 +219,14 @@ unfold_field_at 2%nat.
 simpl.
 entailer!.
 Qed.
-
-(*
-destruct (fabs_float32_lemma x) as [y [H3 H4]].
-pose proof (union_conversion __125 Tsh v_u _f _i tfloat tuint).
-simpl in H. spec H; [auto |].
-spec H. compute; clear; congruence.
-
-forward.
-rewrite (H (Vsingle x) (Vint y) _ _ (eq_refl _) (eq_refl _)
-               (JMeq_refl _) (JMeq_refl _) H3).
-forward.
-forward.
-forget (Int.and y (Int.repr 2147483647)) as y'.
-forget (Float32.abs x) as x'.
-
-rewrite <- (H (Vsingle x') (Vint y') _ _ (eq_refl _) (eq_refl _)
-               (JMeq_refl _) (JMeq_refl _) H4).
-
-forward.
-forward.
-unfold data_at_.
-cancel.
-Qed.
-*)
 End Single.
 
 Module Float.
+
+(* This experiment shows what kind of error message you get
+   if you put the wrong LOCAL precondition.
+   In fact, Vfloat x is wrong, leading to an unsatisfying precondition,
+   it must be Vsingle. *)
 
 Definition fabs_single_spec :=
  DECLARE _fabs_single
