@@ -24,6 +24,10 @@ COMPCERT ?= compcert
 # MATHCOMP=/my/path/to/mathcomp
 # and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
 
+# ANNOTATE=true   # label chatty output from coqc with file name
+ANNOTATE=silent   # suppress chatty output from coqc
+# ANNOTATE=false  # leave chatty output of coqc unchanged
+
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
@@ -385,8 +389,13 @@ ifeq ($(TIMINGS), true)
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else ifeq ($(TIMINGS), simple)
 	@/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
-else
-	@$(COQC) $(COQFLAGS) $*.v 
+else ifeq ($(strip $(ANNOTATE)), true)
+	@$(COQC) $(COQFLAGS) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
+else ifeq ($(strip $(ANNOTATE)), silent)
+	@$(COQC) $(COQFLAGS) $*.v >/dev/null
+else 
+	@$(COQC) $(COQFLAGS) $*.v
+#	@util/annotate $(COQC) $(COQFLAGS) $*.v 
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
@@ -548,14 +557,11 @@ _CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflag
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
-dep:
-	-$(COQDEP) 2>&1 >.depend `find . -name "*.v"` | grep -v Warning:
-
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
 #	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
-	-@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
+	@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
