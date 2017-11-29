@@ -1,0 +1,20 @@
+#!/bin/bash
+
+SINCE=236
+JOBS=`travis history --all | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' `
+mkdir -p logs
+for J in  $JOBS ; do
+ if [ $J -ge $SINCE ]; then
+   if [ -a logs/"$J".1 ]; then
+     echo $J present
+   else
+     echo $J
+     travis logs $J.1 > logs/$J.1
+     travis logs $J.2 > logs/$J.2
+     travis logs $J.3 > logs/$J.3
+     travis logs $J.4 > logs/$J.4
+   fi
+ fi;
+done
+
+cat logs/[0-9]* | awk -f util/process-travis-logs.awk > logs/output.tsv
