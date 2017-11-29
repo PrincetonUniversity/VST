@@ -5,14 +5,16 @@ JOBS=`travis history --all | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' 
 mkdir -p logs
 for J in  $JOBS ; do
  if [ $J -ge $SINCE ]; then
-   if [ -a logs/"$J".1 ]; then
-     echo $J present
+   K="00000"$J
+   K=${K:(-5)}
+   if [ -a logs/"$K".1 ]; then
+     echo $K present
    else
-     echo $J
-     travis logs $J.1 > logs/$J.1
-     travis logs $J.2 > logs/$J.2
-     travis logs $J.3 > logs/$J.3
-     travis logs $J.4 > logs/$J.4
+     echo $K
+     travis logs $J.1 > logs/$K.1
+     travis logs $J.2 > logs/$K.2
+     travis logs $J.3 > logs/$K.3
+     travis logs $J.4 > logs/$K.4
    fi
  fi;
 done
