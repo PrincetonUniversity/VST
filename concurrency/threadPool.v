@@ -27,6 +27,7 @@ Inductive ctl {cT:Type} : Type :=
 Definition EqDec: Type -> Type :=
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
+(* Nth_error for lists*)
 (** * Definition of threadpool*)
 
 Module ThreadPool.
@@ -38,11 +39,13 @@ Module ThreadPool.
     Local Notation ctl := (@ctl semC).
 
     Notation tid:= nat.
+    
     Class ThreadPool :=
       { t : Type;
         containsThread : t -> tid -> Prop;
         getThreadC : forall {tid tp}, containsThread tp tid -> ctl;
         getThreadR : forall {tid tp}, containsThread tp tid -> res;
+        resourceList : t -> seq.seq res;
         lockGuts : t -> AMap.t lock_info;  (* Gets the set of locks + their info    *)
         lockSet : t -> access_map;         (* Gets the permissions for the lock set *)
         lockRes : t -> address -> option lock_info;
@@ -54,8 +57,12 @@ Module ThreadPool.
         remLockSet : t -> address -> t;
         latestThread : t -> tid;
         lr_valid : (address -> option lock_info) -> Prop;
-        (*Find the first thread i, that satisfies (filter i) *)
+        (*Find the first thread i, that satisfiList
+es (filter i) *)
         find_thread_: t -> (ctl -> bool) -> option tid
+        ; resourceList_spec: forall i tp
+            (cnti: containsThread tp i),
+            List.nth_error (resourceList tp) i = Some (getThreadR cnti)          
         ;  containsThread_dec_:
              forall i tp, {containsThread tp i} + { ~ containsThread tp i}
 
@@ -1808,12 +1815,131 @@ Module OrdinalPool.
         by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
     Qed.
 
+    Lemma leq_stepdown:
+      forall {m n},
+        S n <= m -> n <= m.
+    Proof. intros; ssromega. Qed.
+    
+    Lemma lt_sub:
+      forall {m n},
+        S n <= m ->
+        m - (S n) <  m.
+    Proof. intros; ssromega. Qed.
+
+    
+    Fixpoint containsList_upto_n (n m:nat): n <= m -> seq.seq (sigT (fun i => i < m)):=
+      match n with
+      | O => fun _ => nil
+      | S n' => fun (H: S n' <= m) =>
+                 (existT (fun i => i < m) (m-(S n')) (lt_sub H)) ::
+                 (containsList_upto_n n' m) (leq_stepdown H)                                  
+      end.
+
+    Lemma containsList_upto_n_spec:
+      forall m n (H: n <= m)
+        i (cnti:  (fun i => i < m) (m - n + i)),
+        i < n ->
+        nth_error (containsList_upto_n n m H) i = Some (existT _ (m - n + i) (cnti)). 
+    Proof.
+      intros.
+      remember (n - i) as k.
+      assert (HH: n = i + k) by ssromega.
+      clear Heqk.
+      revert m n H cnti H0 HH.
+      induction i.
+      intros.
+      - destruct n; try (exfalso; ssromega).
+        simpl. f_equal.
+        eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
+        ssromega.
+      - intros.
+        assert (n = (n - 1).+1) by ssromega.
+        revert H cnti .
+        dependent rewrite H1.
+        intros H cnti.
+        simpl.
+        rewrite IHi.
+        + ssromega.
+        + intros. f_equal.
+          eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
+          clear - H.
+          ssromega.
+        + ssromega.
+        + ssromega.
+    Qed.
+      
+    Lemma leq_refl: forall n, n <= n. Proof. intros; ssromega. Qed.
+    
+    Definition containsList' (n:nat): seq.seq (sigT (fun i => i < n)):=
+      containsList_upto_n n n (leq_refl n).
+
+    Definition contains_from_ineq (tp:t):
+        {i : tid & i < num_threads tp } -> {i : tid & containsThread tp i}:=
+       fun (H : {i : tid & i < num_threads tp}) =>
+         let (x, i) := H in existT (containsThread tp) x i.
+
+    Definition containsList (tp:t): seq.seq (sigT (containsThread tp)):=
+      map (contains_from_ineq tp) (containsList' (num_threads tp)).
+
+    Lemma containsList'_spec: forall i n
+            (cnti: (fun i => i < n) i),
+            List.nth_error (containsList' n) i = Some (existT _ i (cnti)).
+    Proof.
+      intros.
+      unfold containsList'.
+      - rewrite containsList_upto_n_spec.
+        + simpl in cnti; ssromega.
+        + intros. f_equal.
+          eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
+          simpl in cnti; ssromega.
+        + assumption.
+    Qed.
+
+      
+    Lemma containsList_spec: forall i tp
+            (cnti: containsThread tp i),
+            List.nth_error (containsList tp) i = Some (existT _ i cnti).
+    Proof.
+      intros.
+      unfold containsList. 
+      rewrite list_map_nth containsList'_spec; simpl.
+      reflexivity.
+    Qed.
+      
+    Definition indexed_contains tp:= (fun Ncontained: (sigT (containsThread tp)) =>
+             let (i, cnti) := Ncontained in getThreadR cnti).
+    
+    Definition resourceList (tp:t): seq.seq res:=
+      map (@indexed_contains tp)
+          (containsList tp).
+
+      
+
+      Lemma resourceList_spec: forall i tp
+            (cnti: containsThread tp i),
+            List.nth_error (resourceList tp) i = Some (getThreadR cnti).
+    Proof.
+      intros.
+      unfold containsThread in cnti.
+      destruct tp.
+      destruct num_threads0 as [n ?].
+      unfold getThreadR; simpl.
+      simpl in *.
+      induction n.
+      - exfalso. ssromega.
+      - unfold resourceList.
+        rewrite list_map_nth.
+        rewrite containsList_spec.
+        reflexivity.
+    Qed.
+        
     Definition OrdinalThreadPool: ThreadPool.ThreadPool :=
       (@ThreadPool.Build_ThreadPool _ _
                                     t
                                     containsThread
                                     (@getThreadC) 
                                     (@getThreadR) 
+                                    resourceList
                                     lockGuts
                                     lockSet
                                     (@lockRes) 
@@ -1827,6 +1953,7 @@ Module OrdinalPool.
                                     lr_valid 
                                     (*Find the first thread i, that satisfies (filter i) *)
                                     find_thread
+                                    resourceList_spec
                                     containsThread_dec
                                     (*Proof Irrelevance of contains*)
                                     cnt_irr
