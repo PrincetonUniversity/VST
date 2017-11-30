@@ -430,7 +430,7 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs hmacdrbg mailbox
+travis: progs hmacdrbg sha mailbox
 
 all: .loadpath version.vo $(FILES:.v=.vo)
 
@@ -581,6 +581,12 @@ count:
 
 count-linking:
 	wc $(LINKING_FILES:%.v=linking/%.v)
+
+util/calibrate: util/calibrate.ml
+	cd util; ocamlopt.opt calibrate.ml -o calibrate
+
+calibrate: util/calibrate
+	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

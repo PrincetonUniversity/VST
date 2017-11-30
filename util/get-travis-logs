@@ -1,20 +1,20 @@
 #!/bin/bash
 
 SINCE=236
-JOBS=`travis history --all | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' `
+BUILDS=`travis history --all --no-interactive | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' `
 mkdir -p logs
-for J in  $JOBS ; do
- if [ $J -ge $SINCE ]; then
-   K="00000"$J
+for B in  $BUILDS ; do
+ if [ $B -ge $SINCE ]; then
+   K="00000"$B
    K=${K:(-5)}
    if [ -a logs/"$K".1 ]; then
-     echo $K present
+     echo $B present
    else
-     echo $K
-     travis logs $J.1 > logs/$K.1
-     travis logs $J.2 > logs/$K.2
-     travis logs $J.3 > logs/$K.3
-     travis logs $J.4 > logs/$K.4
+     echo $B
+     JOBS=`travis show $B --no-interactive | awk '$2=="passed:"{A=$1; sub(/#[0-9]+[.]/,"",A); print A;}' `
+     for J in $JOBS ; do
+          travis logs $B.$J > logs/$K.$J
+     done
    fi
  fi;
 done
