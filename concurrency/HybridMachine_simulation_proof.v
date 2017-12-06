@@ -497,6 +497,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * Otherwise, source_match is invariant under changes to non_visible memory.
                    *)
                 Admitted.
+                
                 Lemma match_thread_compiled_same_vis:
                   forall f f' m1 m1' m2 m2' cs ct cd,
                   same_visible m1 m1' ->
@@ -524,7 +525,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    *)
                 Admitted.
 
-                
+            (*mem_steps preserve compatibility*)
             Lemma mem_step_compatible:
                 forall hb1 Sems Semt c m m' code_i i
                   (cnti: containsThread c i) 
@@ -534,7 +535,14 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                                                (updThread cnti
                                                           code_i
                                                           (getCurPerm m', (snd (getThreadR cnti)))) m'.
+                  (* SKETCH:
+                   * mem steps should only change visible parts of memory.
+                   * if a memory location is removed, it had full permission.
+                   * If a memory location is added it has to be fresh.
+                   *)
             Admitted.
+
+            (* restricting to the permission taken from the memory is equivalent. *)
             Lemma gss_restrPermMap:
               forall Sems Semt hb i (tp: t_ (ThreadPool hb Sems Semt)) m c
                 (cnti: containsThread tp i)
@@ -581,6 +589,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                     apply H; auto.
               - reflexivity.
             Qed.
+            
             Lemma concur_stable_thread_step_target:
               forall  cd f (c1:C1) m1 c2 m2 f' ts1' m1' ts2' m2' tid,
               forall (Htid1: containsThread c1 tid)
@@ -597,7 +606,6 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                              (updThread Htid1  (Krun (TState _ _ ts1')) (getCurPerm m1', (snd (getThreadR Htid1))))  m1'
                              (updThread Htid2 (Krun (TState _ _ ts2')) (getCurPerm m2', (snd (getThreadR Htid2)))) m2'.
             Proof.
-              (*Oct 9: Sketching the proof... *)
               intros.
               (*First set up some results *)
               remember (updThread Htid1 (Krun (TState (semC Sems) Asm.regset ts1'))
@@ -676,8 +684,6 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                   
                   eapply match_thread_target_same_vis.
                   
-
-                  
                 {
                 eapply mem_step_same_visible.
                 + eassumption.
@@ -729,6 +735,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
 
                 eapply H6.
             Qed.
+            
             Lemma Asm_mem_semantics:
               forall genv c1 m1 t c2 m2
                 (Astep: Asm.step genv (Asm.State c1 m1) t (Asm.State c2 m2)),
@@ -736,12 +743,11 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
             Proof. intros. 
             Admitted.
             
-            
-                
     Lemma hybrid_thread_diagram:
       forall (U0 : list nat) (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
         machine_semantics.thread_step (HCSem Sems Semt hb1 U) genv U0 st1 m1 st1' m1' ->
-        forall cd (st2 : C2) (mu : meminj) (m2 : mem),
+        forall cd (st2 : C2) (mu : meminj) (m2 : mem)
+          (INV:HybridMachine.invariant hb2 Sems Semt st2), 
           concur_match cd mu st1 m1 st2 m2 ->
           exists (st2' : C2) (m2' : mem) cd' (mu' : meminj),
             concur_match cd' mu' st1' m1' st2' m2' /\
@@ -821,7 +827,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
             eapply machine_semantics_lemmas.thread_step_plus_one.
             econstructor; simpl; eauto.
             econstructor; eauto.
-            -- admit. (*Invariant: going to need to add this to the match relation *)
+             (* -- The invariant is in the hypothesis of the lemma.*)
             -- inversion TINJ; subst.
                econstructor; simpl. 
                instantiate (3 := (memcompat2 H0)).
@@ -844,6 +850,14 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
           simpl in Hcorestep.
           assert (Hcode':= Hcode).
           simpl in Hcode.
+          assert (Htid2 : containsThread_ (ThreadPool hb2 Sems Semt) st2 tid).
+          { inversion H0.
+            Lemma contains_thread_num_threads:
+              s
+            unfold containsThread_.
+            rewrite H0.
+          Htid : containsThread_ (ThreadPool hb1 Sems Semt) st1 tid.
+          
           eapply H0 in EQ. 
           rewrite Hcode in EQ.
           assert (Htid':= contains12 H0 Htid).
@@ -853,7 +867,16 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                           INJsrc & INJcomp & INJtgt &
                           compose).
           
-          
+
+          (*This lemma is composing:
+           * concur_match  
+           * source_match   s1 s1'
+           * compiler_match s1' s2'
+           * target_match s2 s2'
+           * --------------
+           * compiler_match s1 s2 
+
+           *)
           Lemma compiled_thread_diagram:
             forall (U0 : list nat) (st1 : C1) (m1 m1' : mem) (tid : nat)
                    (Htid : containsThread_ (ThreadPool hb1 Sems Semt) st1 tid) (c' : semC (Sem hb1 Sems Semt))
@@ -880,7 +903,24 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                                                            (tid :: U0) st2 m2 st2' m2' /\ option_compiler_order cd' (Some cd0)).
           Proof.
             intros.
+            (*Seems like the target match is backwards*)
+            (*
+exists (updThread_ (ThreadPool hb1 Sems Semt) Htid (Krun c')
+                          (getCurPerm m1', snd (getThreadR_ (ThreadPool hb1 Sems Semt) Htid))).
+
+              
+            do 4 eexists.
+            split.
+            - 
+
+              econstructor.
+              admit. (*should be easy with some lemmas about num_threads*)
+              
+              (*I need the lemma, from the compiler that gives me the step in assembly*)
+            - 
+            unfold concur_match. *)
             
+          Admitted.
           
           
           (*LOOK HERE!!! *)
