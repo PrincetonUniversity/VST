@@ -193,6 +193,15 @@ match v1, v2 with
           | _ , _ => FF
         end.
 
+Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
+ match v1,v2 with
+ | Vint n1, Vint n2 => 
+   prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
+ | Vlong n1, Vlong n2 =>
+   prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | _, _ => FF
+ end.
+
 Definition denote_tc_initialized id ty rho : mpred :=
     prop (exists v, Map.get (te_of rho) id = Some v
                /\ tc_val ty v).
@@ -250,6 +259,7 @@ Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
+  | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
 Lemma and_False: forall x, (x /\ False) = False.

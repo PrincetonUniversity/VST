@@ -109,8 +109,6 @@ Proof.
   { forward.
     destruct (eq_dec b (-1)); [omega|].
     entailer!.
-    simpl.
-    rewrite add_repr.
     destruct (Int.lt (Int.repr b) (Int.repr (3 + 2))) eqn: Hlt; auto.
     apply lt_repr_false in Hlt; auto; unfold repable_signed; try computable.
     unfold B, N in *; omega. }

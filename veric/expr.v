@@ -269,7 +269,8 @@ Inductive tc_assert :=
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
 | tc_nodivover': expr -> expr -> tc_assert
-| tc_initialized: PTree.elt -> type -> tc_assert.
+| tc_initialized: PTree.elt -> type -> tc_assert
+| tc_nosignedover: (Z->Z->Z) -> expr -> expr -> tc_assert.
 
 Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 
@@ -313,6 +314,30 @@ Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
                                      then tc_TT else tc_nodivover' e1 e2
                            | _ , _ => tc_nodivover' e1 e2
                           end.
+
+Definition range_s32 (i: Z) : bool := 
+   andb (Z.leb Int.min_signed i) (Z.leb i Int.max_signed).
+
+Definition range_s64 (i: Z) : bool := 
+   andb (Z.leb Int64.min_signed i) (Z.leb i Int64.max_signed).
+
+Definition if_expr_signed (e: expr) (tc: tc_assert) : tc_assert :=
+ match typeof e with
+ | Tint _ Signed _ => tc
+ | _ => tc_TT
+ end.
+
+Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert :=
+ if_expr_signed e1
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
+ | Vint n1, Vint n2 => 
+    if range_s32 (op (Int.signed n1) (Int.signed n2))
+     then tc_TT else tc_nosignedover Z.add e1 e2
+ | Vlong n1, Vlong n2 => 
+    if range_s64 (op (Int64.signed n1) (Int64.signed n2))
+     then tc_TT else tc_nosignedover op e1 e2
+ | _ , _ => tc_nosignedover op e1 e2
+ end.
 
 Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
 match a1 with
@@ -391,7 +416,13 @@ match op with
                         | Cop.notint_case_l _ => tc_bool (is_long_type ty) (op_result_type a)
                         end
   | Cop.Oneg => match Cop.classify_neg (typeof a) with
-                    | Cop.neg_case_i sg => tc_bool (is_int32_type ty) (op_result_type a)
+                    | Cop.neg_case_i sg => 
+                          tc_andp (tc_bool (is_int32_type ty) (op_result_type a))
+                          match (typeof a) with
+                          | Tint _ Signed _ => tc_nosignedover Z.sub (Econst_int Int.zero (typeof a)) a
+                          | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a
+                          | _ => tc_TT
+                          end
                     | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a)
                     | Cop.neg_case_s => tc_bool (is_single_type ty) (op_result_type a)
                     | _ => tc_FF (op_result_type a)
@@ -430,7 +461,9 @@ match op with
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.add_default => tc_andp 
+                                           (binarithType (typeof a1) (typeof a2) ty deferr reterr)
+                                           (tc_nobinover Z.add a1 a2)
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
                     | Cop.sub_case_pi t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
@@ -454,9 +487,12 @@ match op with
                                  (tc_bool (complete_type cenv_cs t) reterr))
                                    (tc_bool (Z.leb (sizeof t) Int.max_signed)
                                           (pp_compare_size_exceed t))
-                    | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.sub_default => tc_andp 
+                                    (binarithType (typeof a1) (typeof a2) ty deferr reterr)
+                                    (tc_nobinover Z.sub a1 a2)
             end
-  | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
+  | Cop.Omul => tc_andp (binarithType (typeof a1) (typeof a2) ty deferr reterr)
+                                    (tc_nobinover Z.mul a1 a2)
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned =>
                            tc_andp (tc_nonzero a2)

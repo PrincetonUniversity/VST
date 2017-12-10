@@ -1817,7 +1817,11 @@ Require Import hamcdrbg_verif_gen_whilebody.
   freeze [2;3;4;5] FR5. 
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
-  forward. forward. forward.
+  forward.
+  assert (RC1: 0 <= reseed_counter1 < Int.max_signed)
+     by admit.
+  forward.
+  forward.
   Exists (Vint (Int.repr 0)).
   apply andp_right. apply prop_right; split; trivial.
   thaw FIELDS. thaw FR5. thaw StreamOut.
@@ -1847,5 +1851,5 @@ Opaque hmac256drbgabs_generate. rewrite <- Heqr.
     assert (x=Info). admit. subst x. cancel.*)
     destruct r.
     - destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?]. simpl. entailer!. 
-    - simpl. entailer!. 
-Time Qed. (*Desktop:83ss*) 
+    - simpl. entailer!.
+Time Admitted. (*Desktop:83ss*) 

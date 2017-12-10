@@ -20,7 +20,8 @@ Definition sumarray_spec :=
   WITH a: val, sh : share, contents : list Z, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-                     Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents)
+                 Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents;
+                 forall k, Int.min_signed <= sum_Z (sublist 0 k contents) <= Int.max_signed)
           LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
           SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
   POST [ tint ]
@@ -47,6 +48,7 @@ Definition Gprog : funspecs :=
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
+rename H1 into Hprefix.
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* s = 0; *)
@@ -69,6 +71,19 @@ assert_PROP (Zlength contents = size). {
 }
 forward. (* x = a[i] *)
 forward. (* s += x; *)
+ {entailer!.
+  pose proof (Hprefix i).
+  rewrite Int.signed_repr by omega.
+  rewrite Int.signed_repr
+   by (clear - H H1 H0; 
+       apply Forall_Znth with (i0:=i) (d:=0) in H0; omega).
+  clear - Hprefix H1 H.
+  specialize (Hprefix (i+1)).
+  rewrite (sublist_split 0 i) in Hprefix by omega.
+  rewrite (sublist_one i _ _ 0) in Hprefix by omega.
+  rewrite sum_Z_app in Hprefix.
+  simpl sum_Z in Hprefix. omega.
+ }
  (* Now we have reached the end of the loop body, and it's
    time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
@@ -151,7 +166,17 @@ forward_call (*  s = sumarray(four+2,2); *)
  split3.
  auto.
  computable.
- apply Forall_sublist; auto.
+   split.
+   repeat constructor; computable.
+   clear.
+   intro k.
+   assert (k <= 0 \/ k=1 \/ k=2 \/ k=3 \/ k>= 4) by omega.
+   decompose [or] H; clear H;
+    try (subst k; simpl; repable_signed).
+   rewrite sublist_nil_gen by omega; simpl; repable_signed.
+   rewrite sublist_same_gen.
+   simpl; repable_signed. omega.
+   change (k >= 2). omega.
 +
   gather_SEP 1 2.
   erewrite <- (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
@@ -225,6 +250,7 @@ Definition sumarray_PostBody a sh contents size i :=
 Lemma body_sumarray_alt: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
+rename H1 into Hprefix.
 forward.  (* s = 0; *)
 forward_for (sumarray_Inv a sh contents size)
    (sumarray_PostBody a sh contents size).
@@ -239,6 +265,19 @@ assert_PROP (size=Zlength contents)
   by (entailer!; autorewrite with sublist; auto).
 forward. (* x = a[i]; *)
 forward. (* s += x; *)
+ {entailer!.
+  pose proof (Hprefix i).
+  rewrite Int.signed_repr by omega.
+  rewrite Int.signed_repr
+   by (clear - H H2 H1 H0; 
+       apply Forall_Znth with (i0:=i) (d:=0) in H0; omega).
+  clear - Hprefix H1 H H2 H0.
+  specialize (Hprefix (i+1)).
+  rewrite (sublist_split 0 i) in Hprefix by omega.
+  rewrite (sublist_one i _ _ 0) in Hprefix by omega.
+  rewrite sum_Z_app in Hprefix.
+  simpl sum_Z in Hprefix. omega.
+ }
 unfold sumarray_PostBody. Exists i.
 entailer!. clear H5.
      f_equal. f_equal.

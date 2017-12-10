@@ -12,7 +12,7 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 
-Definition cptr_lock_inv ctr := EX z : Z, data_at Ews tint (Vint (Int.repr z)) ctr.
+Definition cptr_lock_inv ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) ctr.
 
 Definition incr_spec :=
  DECLARE _incr
@@ -33,7 +33,7 @@ Definition read_spec :=
          PROP  (readable_share sh)
          LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
          SEP   (lock_inv sh lock (cptr_lock_inv ctr))
-  POST [ tint ] EX z : Z,
+  POST [ tuint ] EX z : Z,
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr z)))
          SEP (lock_inv sh lock (cptr_lock_inv ctr)).

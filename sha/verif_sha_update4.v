@@ -97,6 +97,8 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
+  pose proof CBLOCKz_eq. pose proof (Zlength_nonneg dd). 
+  entailer!.
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data kv).

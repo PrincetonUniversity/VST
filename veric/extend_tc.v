@@ -272,6 +272,33 @@ destruct (eval_expr e1 rho); try apply extend_prop;
 destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
 
+Lemma extend_tc_nosignedover:
+ forall op {CS: compspecs} e1 e2 rho,
+   boxy extendM (denote_tc_assert (tc_nosignedover op e1 e2) rho).
+Proof.
+intros.
+unfold denote_tc_assert.
+unfold_lift.
+unfold denote_tc_nosignedover.
+destruct (eval_expr e1 rho); try apply extend_prop;
+destruct (eval_expr e2 rho); try apply extend_prop.
+Qed.
+
+Lemma extend_tc_nobinover:
+ forall op {CS: compspecs} e1 e2 rho,
+   boxy extendM (denote_tc_assert (tc_nobinover op e1 e2) rho).
+Proof.
+intros.
+unfold tc_nobinover.
+unfold if_expr_signed.
+destruct (typeof e1); try apply extend_prop.
+destruct s; try apply extend_prop.
+destruct (eval_expr e1 any_environ); try apply extend_prop;
+destruct (eval_expr e2 any_environ); try apply extend_prop;
+try apply extend_tc_nosignedover;
+if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+Qed.
+
 Lemma boxy_orp {A} `{H : ageable A}:
      forall (M: modality) , reflexive _ (app_mode M) ->
       forall P Q, boxy M P -> boxy M Q -> boxy M (P || Q).
@@ -342,6 +369,7 @@ Ltac extend_tc_prover :=
               | simple apply extend_tc_iszero
               | simple apply extend_tc_nonzero
               | simple apply extend_tc_nodivover
+              | simple apply extend_tc_nobinover
               | simple apply extend_tc_samebase
               | simple apply extend_tc_ilt
               | simple apply extend_tc_llt
@@ -399,6 +427,10 @@ try solve [
    destruct u; simpl; repeat extend_tc_prover;
    destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
    simpl; repeat extend_tc_prover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
  + repeat extend_tc_prover. eapply extend_tc_binop; eauto.
  + 
   destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
