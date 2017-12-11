@@ -98,7 +98,7 @@ is part of the \emph{Verified Software Toolchain}.
 To use Verifiable C, one must have had some experience using
 Coq, and some familiarity with the basic principles of Hoare logic.
 These can be obtained by studying Pierce's
-\href{https://www.cis.upenn.edu/~bcpierce/sf/}{\emph{Software Foundations}}
+\href{https://softwarefoundations.cis.upenn.edu}{\emph{Software Foundations}}
 interactive textbook, and doing the exercises
 all the way to chapter ``Hoare2.''
 
@@ -468,7 +468,7 @@ The precondition is parameterized by the C-language function parameters,
 and the postcondition is parameterized by a identifier \lstinline{ret_temp},
 which is short for, ``the temporary variable holding the return value.''
 
-Function preconditions, postconditions, and loop invariants are 
+Function preconditions, postconditions, and loop invariants are
 \emph{assertions} about the state of variables and memory
 at a particular program point.
 In an assertion
@@ -671,7 +671,7 @@ do any I/O).  Then \lstinline{a,sh,contents,size}
 
   Below the line we have one proof goal: the Hoare triple
   of the function body.  In general, any C statement $c$
-  might satisfy a Hoare-logic judgment 
+  might satisfy a Hoare-logic judgment
   $\Delta\vdash\triple{P}{c}{R}$ when, in global context $\Delta$,
   started in a state satisfying precondition $P$, statement $c$ is sure
   not to crash and, if it terminates, the final state will satisfy $R$.
@@ -821,10 +821,10 @@ For a function call, use \lstinline|forward_call|
 
 To do forward proof through if-statements, while-loops, and for-loops,
 you need to provide additional information: join-postconditions, loop invariants, etc.  The tactics are
-\lstinline{forward_if}, 
-\lstinline{forward_while}, 
-\lstinline{forward_for}, 
-\lstinline{forward_for_simple_bound}. 
+\lstinline{forward_if},
+\lstinline{forward_while},
+\lstinline{forward_for},
+\lstinline{forward_for_simple_bound}.
 
 If you're not sure which tactic to use, and with how many arguments,
 just use \lstinline{forward}, and the error message will make a suggestion.
@@ -835,7 +835,7 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   Use \lstinline{forward_i$$f $Q$}, where $Q$ is
 \label{refcard:forward-if}
   the \emph{join postcondition}, the precondition of
-  statement $s_3$.  
+  statement $s_3$.
 \item $\mathbf{if}\,e\,\mathbf{then}\,s_1\,\mathbf{else}\,s_2;\}\ldots$
   When the if-statement appears at the end of a block, so the
   postcondition is already known, you can do \lstinline{forward_if.}
@@ -1150,7 +1150,7 @@ and puts it above the line.
 The \emph{second} subgoal is just like the subgoal
 we had before doing \lstinline{assert_PROP},
 but with the new proposition above the line.
-Now that 
+Now that
 \lstinline{H_2: Zlength contents = size} is above the line,
 \lstinline{forward} succeeds on the array subscript.
 
@@ -1288,8 +1288,8 @@ Definition main_spec :=
     PRE  [ ] main_pre prog u
     POST [ tint ]
       (* application-specific postcondition *)
-      PROP() 
-      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
+      PROP()
+      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4))))
       SEP(TT).
 \end{lstlisting}
 The first four lines are always the same for any program.
@@ -2210,7 +2210,7 @@ data_at $\pi$ tint $i$ $p$
 |-- $$ data_at $\pi$ t_struct_b $(i,(f,j))$ $p$
 \end{lstlisting}
 
-\newthought{field\_address vs field\_address0.} 
+\newthought{field\_address vs field\_address0.}
 You use \lstinline{field_address $t$ $\mathit{path}$ $p$} to indicate
 that $p$ points to \textbf{at least one} thing of
 the appropriate field type for $t.\mathit{path}$, that is,
@@ -2938,7 +2938,7 @@ the line by \lstinline{Intros y.}
 We choose values to instantiate the existentials:
 \lstinline{Exists (h::$\sigma_1$,r,v,y).}  (Note that
 \lstinline{forward_while} has uncurried
-the four separate \lstinline{EX} quantifiers 
+the four separate \lstinline{EX} quantifiers
 into a single 4-tuple \lstinline{EX}.)  Then
 \lstinline{entailer!} leaves two subgoals:
 \begin{lstlisting}
@@ -3141,7 +3141,7 @@ through \lstinline{t=v->tail;} there must be a
 \lstinline{data_at} or \lstinline{field_at} in the \lstinline{SEP}
 clause of the precondition that gives a value for
 \lstinline{_tail} field of \lstinline{t}.
-As 
+As
 \autopageref{unroll-the-list}
 describes, a listrep can be unfolded
 to expose such a \lstinline{SEP} conjunct.
@@ -4037,13 +4037,13 @@ The verification, in \file{progs/verif\_funcptr.v}, defines
 \begin{lstlisting}
 Definition myfunc_spec := DECLARE _myfunc myspec.
 \end{lstlisting}
-where \lstinline{myspec} is 
+where \lstinline{myspec} is
 a Definition for a \lstinline{WITH...PRE...POST} specification.
 
 Near the beginning of \lstinline{Lemma body_main},
 notice that we have \linebreak
 \lstinline{LOCAL (gvar _myfunc p)} in the precondition.
-That \lstinline{gvar} is needed by 
+That \lstinline{gvar} is needed by
 the tactic \lstinline{make_func_ptr _myfunc},
 which adds \lstinline{func_ptr' myspec p} to the SEP clause.
 It ``knows'' to use \lstinline{myspec} because it looks
@@ -4061,7 +4061,7 @@ just use \lstinline{forward_call} as usual.  However, in such a case,
 in \lstinline{Delta} as for ordinary function calls.
 
 Note:  Unfortunately, in order to get the \lstinline{gvar _myfunc} into the
-precondition of \lstinline{main}, 
+precondition of \lstinline{main},
 there must be some initialized global variable that refers to
 \lstinline{myfunc}.  That's the purpose of the (otherwise useless)
 array \lstinline{a} in this program.
