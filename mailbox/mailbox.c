@@ -146,7 +146,7 @@ void *reader(void *arg){
 
 void *writer(void *arg){
   initialize_writer();
-  int v = 0;
+  unsigned v = 0;
   while(1){
     buf_id b = start_write();
     buffer *buf = bufs[b];

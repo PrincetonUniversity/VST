@@ -257,10 +257,7 @@ Proof.
     forward. 
     assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
     entailer!.
-    - simpl. rewrite E by computable.
-      rewrite field_compatible_field_address by assumption.
-      rewrite field_compatible_field_address by auto with field_compatible.
-      simpl. rewrite Int.add_assoc. do 2 f_equal. rewrite add_repr. f_equal. clear; omega.
+    - clear. f_equal. simpl. omega. 
     - clear.
       apply derives_refl'. f_equal.
       rewrite update_partially_expanded_key.

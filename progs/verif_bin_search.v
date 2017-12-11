@@ -202,7 +202,14 @@ Proof.
  * entailer!.
  *
   match goal with H : _ <-> _ |- _ => rename H into H_tgt_sublist end.
-  forward.  (* mid =  (lo + hi) >> 1; *)
+  forward.  (* mid =  (lo + hi) >> 1; *) {
+   entailer!.
+   clear - H8 HRE H7.
+   set (j := Int.max_signed / 2) in *; compute in j; subst j.
+   set (j := Int.max_signed) in *; compute in j; subst j.
+   set (j := Int.min_signed) in *; compute in j; subst j.
+   omega.
+ }
   rewrite add_repr, Int.shr_div_two_p.
   change (two_p (Int.unsigned (Int.repr 1))) with 2. 
   assert (Hlo'hi':  lo' + hi' <= Int.max_signed). {

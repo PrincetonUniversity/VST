@@ -58,7 +58,7 @@ Definition sumlist_spec :=
      PROP(readable_share sh)
      LOCAL (temp _p p)
      SEP (lseg LS sh (map Vint contents) p nullval)
-  POST [ tint ]
+  POST [ tuint ]
      PROP()
      LOCAL(temp ret_temp (Vint (sum_int contents)))
      SEP (lseg LS sh (map Vint contents) p nullval).

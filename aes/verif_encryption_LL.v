@@ -149,7 +149,10 @@ Proof.
   rename a into i. forward. Exists (i-1). entailer!.
 * (* after the loop, entailment *)
  assert (a=0) by omega. clear H1 H2; subst a.
- entailer!.
+ change (12 - 2 * Z.to_nat 0)%nat with 12%nat. 
+ rewrite <- HeqS12.
+ change (52 - 0 * 8) with 52. 
+ clear. entailer!.
 * (** AFTER THE LOOP **)
 subst vv.
 abbreviate_semax.

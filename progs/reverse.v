@@ -77,12 +77,12 @@ Definition v_three := {|
 |}.
 
 Definition f_sumlist := {|
-  fn_return := tint;
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _list noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_s, tint) :: (_t, (tptr (Tstruct _list noattr))) ::
-               (_h, tint) :: nil);
+  fn_temps := ((_s, tuint) :: (_t, (tptr (Tstruct _list noattr))) ::
+               (_h, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _s (Econst_int (Int.repr 0) tint))
@@ -95,7 +95,7 @@ Definition f_sumlist := {|
           (Sset _h
             (Efield
               (Ederef (Etempvar _t (tptr (Tstruct _list noattr)))
-                (Tstruct _list noattr)) _head tint))
+                (Tstruct _list noattr)) _head tuint))
           (Ssequence
             (Sset _t
               (Efield
@@ -103,8 +103,8 @@ Definition f_sumlist := {|
                   (Tstruct _list noattr)) _tail
                 (tptr (Tstruct _list noattr))))
             (Sset _s
-              (Ebinop Oadd (Etempvar _s tint) (Etempvar _h tint) tint)))))
-      (Sreturn (Some (Etempvar _s tint))))))
+              (Ebinop Oadd (Etempvar _s tuint) (Etempvar _h tuint) tuint)))))
+      (Sreturn (Some (Etempvar _s tuint))))))
 |}.
 
 Definition f_reverse := {|
@@ -146,8 +146,8 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_r, (tptr (Tstruct _list noattr))) :: (_s, tint) ::
-               (_t'2, tint) :: (_t'1, (tptr (Tstruct _list noattr))) :: nil);
+  fn_temps := ((_r, (tptr (Tstruct _list noattr))) :: (_s, tuint) ::
+               (_t'2, tuint) :: (_t'1, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -161,17 +161,17 @@ Definition f_main := {|
       (Ssequence
         (Scall (Some _t'2)
           (Evar _sumlist (Tfunction
-                           (Tcons (tptr (Tstruct _list noattr)) Tnil) tint
+                           (Tcons (tptr (Tstruct _list noattr)) Tnil) tuint
                            cc_default))
           ((Etempvar _r (tptr (Tstruct _list noattr))) :: nil))
-        (Sset _s (Etempvar _t'2 tint)))
-      (Sreturn (Some (Etempvar _s tint)))))
+        (Sset _s (Etempvar _t'2 tuint)))
+      (Sreturn (Some (Ecast (Etempvar _s tuint) tint)))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
 (Composite _list Struct
-   ((_head, tint) :: (_tail, (tptr (Tstruct _list noattr))) :: nil)
+   ((_head, tuint) :: (_tail, (tptr (Tstruct _list noattr))) :: nil)
    noattr :: nil).
 
 Definition prog : Clight.program := {|

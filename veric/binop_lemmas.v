@@ -158,6 +158,7 @@ Proof.
   ].
   unfold sem_add_default.
   rewrite <- tc_val_tc_val_PM in TV1,TV2|-*.
+  rewrite denote_tc_assert_andp in IBR; destruct IBR.
   eapply tc_val_sem_binarith'; eauto.
 Qed.
 
@@ -218,6 +219,7 @@ Proof.
     try apply I.
  +
   rewrite <- tc_val_tc_val_PM in TV1,TV2|-*.
+  rewrite denote_tc_assert_andp in IBR; destruct IBR.
   eapply tc_val_sem_binarith'; eauto.
 Qed.
 
@@ -234,6 +236,7 @@ Proof.
   rewrite den_isBinOpR in IBR.
   unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mul in IBR |- *.
   unfold force_val2, force_val.
+  rewrite denote_tc_assert_andp in IBR; destruct IBR.
   eapply tc_val_sem_binarith'; eauto.
 Qed.
 

@@ -1191,7 +1191,11 @@ Require Import hamcdrbg_verif_gen_whilebody.
   freeze [2;3;4;5] FR5. 
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
-  forward. forward. forward.
+  forward. 
+  forward. 
+    entailer!.
+    admit.
+  forward.
   Exists (Vint (Int.repr 0)).
   apply andp_right. apply prop_right; split; trivial.
   thaw FIELDS. thaw FR5. thaw StreamOut.  
@@ -1201,4 +1205,4 @@ Require Import hamcdrbg_verif_gen_whilebody.
   eapply derives_trans. apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *. 
   + red in WFI; subst I; simpl in *. apply WFI.
   + normalize. unfold AREP, REP. Exists Info a. normalize.
-Time Qed. (*61s*) 
+Time Admitted. (*61s*) 
