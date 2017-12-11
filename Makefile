@@ -499,9 +499,9 @@ progs/queue.v: progs/queue.c
 progs/queue2.v: progs/queue2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
 progs/sumarray2.v: progs/sumarray2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/object.v: progs/object.c
@@ -534,8 +534,6 @@ progs/merge.v: progs/merge.c
 progs/append.v: progs/append.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/switch.v: progs/switch.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/object.v: progs/object.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/funcptr.v: progs/funcptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

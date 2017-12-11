@@ -18,15 +18,14 @@ Qed.
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
+  PRE [ _a OF (tptr tuint), _n OF tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-                 Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents;
-                 forall k, Int.min_signed <= sum_Z (sublist 0 k contents) <= Int.max_signed)
+          Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
           LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
-  POST [ tint ]
+          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+  POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
-           SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
+           SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
   Then the [Forall] would not be needed in the PROP part of PRE.
@@ -52,7 +51,6 @@ Definition Gprog : funspecs :=
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function. (* Always do this at the beginning of a semax_body proof *)
-rename H1 into Hprefix.
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* i = 0; *)
@@ -67,7 +65,7 @@ forward_while
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)).
 (* forward_while leaves four subgoals; here we label them
    with the * bullet. *)
 * (* Prove that current precondition implies loop invariant *)
@@ -87,26 +85,12 @@ assert_PROP (Zlength contents = size). {
 }
 forward. (* x = a[i] *)
 forward. (* s += x; *)
- {entailer!.
-  pose proof (Hprefix i).
-  rewrite Int.signed_repr by omega.
-  rewrite Int.signed_repr
-   by (clear - HRE H1 H0; 
-       apply Forall_Znth with (i0:=i) (d:=0) in H0; omega).
-  clear - Hprefix H1 HRE.
-  specialize (Hprefix (i+1)).
-  rewrite (sublist_split 0 i) in Hprefix by omega.
-  rewrite (sublist_one i _ _ 0) in Hprefix by omega.
-  rewrite sum_Z_app in Hprefix.
-  simpl sum_Z in Hprefix. omega.
- }
 forward. (* i++; *) 
  (* Now we have reached the end of the loop body, and it's
    time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
  Exists (i+1).
  entailer!.
- clear - H HRE H1.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
@@ -129,18 +113,7 @@ Proof.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
   (v_four,Ews,four_contents,4).
- split3; auto.
-   computable.
-   split.
-   repeat constructor; computable.
-   intro k.
-   assert (k <= 0 \/ k=1 \/ k=2 \/ k=3 \/ k>= 4) by omega.
-   decompose [or] H; clear H;
-    try (subst k; simpl; repable_signed).
-   rewrite sublist_nil_gen by omega; simpl; repable_signed.
-   rewrite sublist_same_gen.
-   simpl; repable_signed. omega.
-   apply H1.
+ split3. auto. computable. repeat constructor; computable.
 forward. (* return s; *)
 Qed.
 
