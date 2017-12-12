@@ -507,7 +507,12 @@ deadvars!.
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
   deadvars!.
   forward.
-  { entailer!. rewrite andb_false_r; simpl; trivial. }
+  { entailer!. rewrite andb_false_r; simpl; trivial.
+    clear H TM WLIST1 H1 H0 H2 WL H3. 
+    rewrite <- and_assoc. split; [| trivial]. unfold Int.mods. 
+    rewrite (Int.signed_repr (j+m)); [| rewrite int_min_signed_eq, int_max_signed_eq; omega]. 
+    rewrite (Int.signed_repr 4); [| rewrite int_min_signed_eq, int_max_signed_eq; omega].
+    rewrite Int.signed_repr; rewrite int_min_signed_eq, int_max_signed_eq; omega. }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).

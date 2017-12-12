@@ -1142,6 +1142,23 @@ assert (isbyte_ARSA_val: Forall isbyteZ (hmac256drbgabs_value after_reseed_state
   destruct should_reseed; trivial.
   apply isbyteZ_hmac256drbgabs_reseed_value; trivial. }
 
+assert (RC_x: 0 <= hmac256drbgabs_reseed_counter after_reseed_state_abs < Int.max_signed).
+{ subst after_reseed_state_abs. unfold hmac256drbgabs_reseed.
+  destruct should_reseed; simpl in *; [|trivial].
+  destruct PRS as [? [? [? [? [? [? [PP [? [? ?]]]]]]]]]. subst. subst I. rewrite PP in *; simpl in *.
+  assert (RS: mbedtls_HMAC256_DRBG_reseed_function =
+          fun (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs)
+           (additional_input: list Z) =>
+  match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
+               let sec_strength:Z := 32 (*not used -- measured in bytes, since that's how the calculations in DRBG_instantiate_function work *) in
+               let state_handle: DRBG_state_handle := ((V, key, reseed_counter), sec_strength, prediction_resistance) in
+               let max_additional_input_length := 256 
+               in HMAC256_DRBG_reseed_function entropy_len entropy_len max_additional_input_length 
+                     entropy_stream state_handle prediction_resistance additional_input
+  end) by reflexivity.
+  rewrite RS in PP; clear RS. Opaque HMAC256_DRBG_reseed_function. simpl in PP.
+  symmetry in PP. apply verif_hmac_drbg_WF.HMAC256_DRBG_reseed_functionWFaux in PP; apply PP. }
+
 set (after_update_state_abs := (if na then hmac256drbgabs_hmac_drbg_update I contents else after_reseed_state_abs)) in *.
 
 assert (ZLength_AUSA_val: Zlength (hmac256drbgabs_value after_update_state_abs) = 32).
@@ -1151,6 +1168,11 @@ assert (ZLength_AUSA_val: Zlength (hmac256drbgabs_value after_update_state_abs) 
 assert (isbyte_AUSA_val: Forall isbyteZ (hmac256drbgabs_value after_update_state_abs)).
 { subst after_update_state_abs.
   destruct na; trivial. apply isbyteZ_hmac256drbgabs_update_value. }
+
+assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.max_signed).
+{ subst after_update_state_abs.
+  destruct na; trivial. subst I; simpl.
+  destruct (HMAC256_DRBG_update contents key V). simpl; trivial. }
 
 thaw FR3.
 set (after_update_Mpred := hmac256drbgabs_common_mpreds after_update_state_abs initial_state (Vptr b i) Info) in *.
@@ -1779,7 +1801,7 @@ Require Import hamcdrbg_verif_gen_whilebody.
   remember (hmac256drbgabs_to_state ABS3 initial_state) as CTX3.
   destruct ABS3. destruct CTX3 as [aa [bb [cc [dd [ee ff]]]]]. normalize.
   unfold hmac256drbgabs_to_state in HeqCTX3. subst initial_state; simpl in HeqCTX3. inv HeqCTX3.
-  
+
   set (ctx3 := (mc1, (mc2, mc3),
           (map Vint (map Int.repr V0),
           (Vint (Int.repr reseed_counter0),
@@ -1813,13 +1835,32 @@ Require Import hamcdrbg_verif_gen_whilebody.
   set (ctx4 := hmac256drbgabs_to_state ABS4 ctx3) in *. rewrite <- HeqABS3 in HeqABS4.
   unfold hmac256drbg_relate.
   subst ctx3. simpl in ctx4. destruct ABS4. simpl in ctx4. subst ctx4. simpl. normalize.
+  assert (RC1: 0 <= reseed_counter1 < Int.max_signed).
+  { clear - RC_x RC_y HeqABS3 HeqABS4. 
+    unfold hmac256drbgabs_hmac_drbg_update in HeqABS4.
+    remember (HMAC256_DRBG_update
+               (contents_with_add additional
+                  after_reseed_add_len contents) key0
+               V0) as z. destruct z. inv HeqABS4.
+    unfold hmac256drbgabs_update_value in HeqABS3.
+    subst after_update_state_abs.
+    destruct na.
+    + subst; simpl in *.
+      remember (HMAC256_DRBG_update contents key V) as q. destruct q.
+      inv HeqABS3. trivial. 
+    + subst; simpl in *. subst after_reseed_state_abs. simpl in *.
+      destruct should_reseed.
+      - simpl in *.
+        remember (hmac256drbgabs_reseed I s
+              (contents_with_add additional (Zlength contents) contents)) as q.
+        destruct q. simpl in *. inv HeqABS3; trivial.
+      - subst I; simpl in *. inv HeqABS3; trivial. } 
+
   unfold hmac256drbgstate_md_info_pointer. simpl.
   freeze [2;3;4;5] FR5. 
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
   forward.
-  assert (RC1: 0 <= reseed_counter1 < Int.max_signed)
-     by admit.
   forward.
   forward.
   Exists (Vint (Int.repr 0)).
@@ -1846,10 +1887,7 @@ Opaque hmac256drbgabs_generate. rewrite <- Heqr.
            prediction_resistance reseed_interval) s out_len
         (contents_with_add additional (Zlength contents) contents))). destruct h. simpl.
     destruct a as [? [? [? [? [? ?]]]]]. normalize.
-(*    apply andp_right. { apply prop_right. repeat split; trivial. }
-    cancel. assert (m = (mc1, (mc2, mc3))). admit. subst m; simpl. cancel.
-    assert (x=Info). admit. subst x. cancel.*)
     destruct r.
     - destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?]. simpl. entailer!. 
     - simpl. entailer!.
-Time Admitted. (*Desktop:83ss*) 
+Time Qed. (*Desktop:83ss*) 
