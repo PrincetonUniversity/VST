@@ -63,7 +63,7 @@ Proof.
   unfold AREP. focus_SEP 2. rewrite extract_exists_in_SEP. Intros Info.
   unfold REP. rewrite extract_exists_in_SEP. Intros a.
   rename H4 into WFI.  
-  assert (Hreseed_counter_in_range: 0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed) by apply WFI.
+  assert (Hreseed_counter_in_range: 0 <= hmac256drbgabs_reseed_counter I < Int.max_signed) by apply WFI.
   assert (Hreseed_interval: RI_range (hmac256drbgabs_reseed_interval I)) by apply WFI.
   assert (isbtV: Forall isbyteZ (hmac256drbgabs_value I)) by apply WFI.
   rename H1 into AddLenC. rename H2 into Hentlen. rename H3 into isbtContents.
@@ -1192,9 +1192,54 @@ Require Import hamcdrbg_verif_gen_whilebody.
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
   forward. 
-  forward. 
-    entailer!.
-    admit.
+assert (RC_x: 0 <= hmac256drbgabs_reseed_counter after_reseed_state_abs < Int.max_signed).
+{ subst after_reseed_state_abs.
+  destruct should_reseed; simpl in *; [|trivial]. simpl.
+  Transparent hmac256drbgabs_reseed. unfold hmac256drbgabs_reseed. Opaque hmac256drbgabs_reseed. simpl.
+  assert (RS: mbedtls_HMAC256_DRBG_reseed_function =
+          fun (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs)
+           (additional_input: list Z) =>
+  match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
+               let sec_strength:Z := 32 (*not used -- measured in bytes, since that's how the calculations in DRBG_instantiate_function work *) in
+               let state_handle: DRBG_state_handle := ((V, key, reseed_counter), sec_strength, prediction_resistance) in
+               let max_additional_input_length := 256 
+               in HMAC256_DRBG_reseed_function entropy_len entropy_len max_additional_input_length 
+                     entropy_stream state_handle prediction_resistance additional_input
+  end) by reflexivity.
+  rewrite RS; clear RS. Opaque HMAC256_DRBG_reseed_function. subst I; simpl.
+  remember (HMAC256_DRBG_reseed_function entropy_len entropy_len 256 s
+      (V, key, reseed_counter, 32, prediction_resistance)
+      prediction_resistance
+      (contents_with_add additional (Zlength contents) contents)) as r.
+  destruct r.  
+  + destruct d as [[[[? ?] ?] ?] ?]. apply verif_hmac_drbg_WF.HMAC256_DRBG_reseed_functionWFaux in Heqr. simpl. apply Heqr.
+  + simpl. trivial. }
+
+assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.max_signed).
+{ subst after_update_state_abs.
+  destruct na; trivial. subst I; simpl.
+  destruct (HMAC256_DRBG_update contents key V). simpl; trivial. }
+  assert (RC1: 0 <= reseed_counter1 < Int.max_signed).
+  { clear - RC_x RC_y HeqABS3 HeqABS4. 
+    unfold hmac256drbgabs_hmac_drbg_update in HeqABS4.
+    remember (HMAC256_DRBG_update
+               (contents_with_add additional
+                  after_reseed_add_len contents) key0
+               V0) as z. destruct z. inv HeqABS4.
+    unfold hmac256drbgabs_update_value in HeqABS3.
+    subst after_update_state_abs.
+    destruct na.
+    + subst; simpl in *.
+      remember (HMAC256_DRBG_update contents key V) as q. destruct q.
+      inv HeqABS3. trivial. 
+    + subst; simpl in *. subst after_reseed_state_abs. simpl in *.
+      destruct should_reseed.
+      - simpl in *.
+        remember (hmac256drbgabs_reseed I s
+              (contents_with_add additional (Zlength contents) contents)) as q.
+        destruct q. simpl in *. inv HeqABS3; trivial.
+      - subst I; simpl in *. inv HeqABS3; trivial. } 
+  forward.
   forward.
   Exists (Vint (Int.repr 0)).
   apply andp_right. apply prop_right; split; trivial.
@@ -1205,4 +1250,4 @@ Require Import hamcdrbg_verif_gen_whilebody.
   eapply derives_trans. apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *. 
   + red in WFI; subst I; simpl in *. apply WFI.
   + normalize. unfold AREP, REP. Exists Info a. normalize.
-Time Admitted. (*61s*) 
+Time Qed. (*61s*) 

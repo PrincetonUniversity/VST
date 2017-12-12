@@ -125,7 +125,7 @@ Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval I)  /\
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed /\
          Forall isbyteZ (hmac256drbgabs_value I).
 
 Definition hmac_drbg_random_spec_simple :=
@@ -185,7 +185,7 @@ Proof.
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
     repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
-    constructor. }
+    constructor.  }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
@@ -312,7 +312,8 @@ Qed.
   assert (r=ENTROPY.success (bytes, J) ss).
   { subst r. apply ASS8. } clear Heqr.
   Exists (hmac256drbgabs_to_state h initial_state). 
-  apply andp_right. admit. 
+  apply andp_right. 
+  admit. OK, is on comment
   entailer. 
   cancel.
   destruct I. destruct J as [[[[? ?] ?] ?] ?].
