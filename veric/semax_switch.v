@@ -181,9 +181,9 @@ spec H1. {
    subst ek'. rewrite ret_type_exit_tycon in *. auto.
  *
  clear - H4.
- destruct ek; unfold frame_ret_assert in *; 
-  simpl switch_ret_assert in H4; auto.
-  normalize in H4; contradiction.
+ rewrite proj_frame_ret_assert in H4|-*.
+ eapply sepcon_derives; try apply H4; auto.
+ subst ek' vl'; destruct ek, R; simpl switch_ret_assert; simpl; auto; normalize.
  *
   clear - H5.
  rewrite funassert_exit_tycon in H5|-*. auto.
@@ -198,7 +198,8 @@ spec H1. {
  econstructor 2.
  2: eassumption.
  subst ek' vl'; destruct ek; simpl in *; auto.
- destruct H4 as [? [? [? [? ?]]]]; contradiction.
+ destruct R; simpl in H4.
+ destruct H4 as [? [? [? [? [? ?]]]]]; contradiction.
 }
 hnf in H1.
 specialize (H1 tx vx w' Hw' _ Hw'').

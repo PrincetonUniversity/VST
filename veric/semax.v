@@ -98,7 +98,7 @@ Definition rguard {CS: compspecs} (Espec : OracleKind)
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in
            !! guard_environ (Delta ek) (current_function ctl) rho &&
-         R ek vl rho && funassert (Delta ek) rho
+         proj_ret_assert R ek vl rho && funassert (Delta ek) rho
            (* && (!! (genv_cenv gx = cenv_cs)) *)
           >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 

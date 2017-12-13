@@ -173,7 +173,8 @@ rename a0 into i.
           [apply Forall_Znth; auto; omega
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
- apply semax_post_flipped with  (normal_ret_assert (Inv 1 (Z.gt n) i)).
+ apply sequential.
+ apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite (sublist_one i (i+1) al 0) by omega.
@@ -188,7 +189,7 @@ rename a0 into i.
  +
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
- unfold normal_ret_assert. normalize. autorewrite with ret_assert.
+ simpl_ret_assert.
  (* TODO: entailer! fails here with a misleading error message *)
  Exists i. apply andp_left2. normalize.
 *

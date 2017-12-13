@@ -317,8 +317,9 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
       data_at Tsh (tarray tuchar 64)
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))).
 Proof. intros. abbreviate_semax.
-eapply semax_post.
-Focus 2.
+apply sequential.
+eapply semax_post_flipped'.
+*
       Time forward_for_simple_bound' 64 (EX i:Z,
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
@@ -373,11 +374,10 @@ Focus 2.
         Time entailer!. (*5.7 versus 9.6*)
         Time (thaw FR2; simpl; rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
-Unfocus.
+*
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
 unfold POSTCONDITION, abbreviate.
 intros; apply andp_left2.
-apply normal_ret_assert_derives'.
 drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
@@ -449,8 +449,8 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): fora
             FR))).
 Proof. intros. abbreviate_semax.
 freeze [0;2] FR1.
-eapply semax_post.
-Focus 2.
+eapply semax_post_flipped'.
+*
       Time forward_for_simple_bound' 64 (EX i:Z,
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
@@ -500,7 +500,7 @@ Focus 2.
         simpl; rewrite Int.add_zero.
         apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
       }
-Unfocus.
+*
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
 thaw' FR1.
 Time entailer!. (*3.4 versus 2.6*)
@@ -508,7 +508,7 @@ subst OPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
 Time Qed. (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)
 
-Lemma init_part2: forall MYPOST
+Lemma init_part2: forall 
 (Espec : OracleKind)
 (c : val)
 (k : val)
@@ -649,7 +649,7 @@ Lemma init_part2: forall MYPOST
                           (tptr t_struct_SHA256state_st);
                        Evar _pad (tarray tuchar 64);
                        Econst_int (Int.repr 64) tint])))))) Sskip)
-    (overridePost PostResetBranch MYPOST)(*     (frame_ret_assert
+    (normal_ret_assert PostResetBranch)(*     (frame_ret_assert
          (function_body_ret_assert tvoid
             (EX  h : hmacabs,
              PROP  (hmacInit key h)
@@ -662,7 +662,7 @@ Lemma init_part2: forall MYPOST
           `(EX  v : val,
            local (lvar _ctx_key (tarray tuchar 64) v) &&
            data_at_ Tsh (tarray tuchar 64) v)))*).
-Proof. intros. abbreviate_semax.
+Proof. intros.
 forward_if PostResetBranch.
   { (* THEN*)
     rename H into r_true.
@@ -741,28 +741,7 @@ Qed.*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
        Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv myPred); try eassumption.
-       subst HMS'. clear - HeqmyPred. Time entailer!; cancel. (*
-      eapply semax_pre. Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
-                      (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
-                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs))).
-                eassumption. eassumption. eassumption.
-       clear HeqPostResetBranch. go_lower. apply andp_right. apply prop_right; trivial.
-            apply andp_right. apply prop_right; intuition.
-       assert (HFR: ?FR = (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
-                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs))). cancel.  apply andp_left2.
-         entailer!. cancel. ; try eassumption.
-      eapply semax_pre_post.
-      Focus 3. remember (data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)) as myFR1. K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
-                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs)) as myFR. (data_at Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs)).
- specialize (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv). eapply  (*HMS' *)
-                         (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
-                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs))). try eassumption.
-      Time entailer!. (*8.7 *) apply derives_refl.
-      intros ? ?. apply andp_left2. apply derives_refl.*)
+       subst HMS'. clear - HeqmyPred. Time entailer!; cancel. 
     }
     subst myPred HMS'.
 
@@ -881,7 +860,4 @@ Qed.*)
        solve [entailer!; cancel] takes 43secs*) 
      Time solve [entailer; cancel]. (*16.9secs*)
    } 
-intros ? ?. apply andp_left2.
-   unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost.
-   apply derives_refl.
 Time Qed. (*60 versus 63*) (*FIXME NOW: 80secs*) (*Coq8.5pl1: 20secs*)

@@ -117,10 +117,7 @@ Proof.
         eapply Forall_impl; [|eauto]; unfold repable_signed; intros.
         split; [transitivity 0 | transitivity B]; unfold B, N in *; try computable; try omega.
       + unfold repable_signed; computable.
-    - intros.
-      unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
-      Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert; entailer!. }
+    - intros. entailer!. }
   rewrite sublist_same; auto.
   set (available := map (fun x => vint (if eq_dec x b0 then 0 else if in_dec eq_dec x lasts then 0 else 1))
          (upto (Z.to_nat B))).
@@ -185,17 +182,14 @@ Proof.
         try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try omega; unfold typed_true in H; simpl in H; inv H end.
       destruct (eq_dec _ _); auto.
       destruct (in_dec _ _ _); auto; discriminate. }
-    intros.
-    unfold exit_tycon, overridePost.
-    destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
-    Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available (vint 0) = vint 0;
       forall j : Z, j < i -> Znth j available (vint 0) = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvar _writing writing;
              gvar _last_given last_given; gvar _last_taken last_taken)
       SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint writing;
            data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
-    Exists i; entailer!.
+    Intros. Exists i; entailer!.
+    Intros i'. Exists i'. entailer!.
   + Intros i.
     forward.
       assert (B < Int.max_signed) by (compute; auto).
@@ -967,12 +961,10 @@ Proof.
         destruct (eq_dec Vundef Empty); [discriminate|].
         destruct (eq_dec (vint b') Empty); auto.
         contradiction n0; apply Empty_inj; auto.
-    + intros.
-      unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
-      Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert.
-      do 2 (apply andp_right; [apply prop_right; auto|]).
+    + 
+      subst.
       Exists (t' ++ [t]) (h' ++ [vint b']).
+      assert (H11 := I).
       go_lower.
       repeat (apply andp_right; [apply prop_right; repeat split; auto; omega|]).
       rewrite lock_struct_array; fast_cancel.

@@ -1347,7 +1347,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (TC3 : guard_environ Delta (current_function k) rho)
  (TC5 : retty = Tvoid -> ret = None)
  (H : closed_wrt_modvars (Scall ret a bl) F0)
- (HR : R EK_normal None =
+ (HR : RA_normal R =
      (fun rho0 : environ =>
       EX  old : val,
       substopt ret old F rho0 * maybe_retval (Q ts x) retty ret rho0))
@@ -1524,7 +1524,8 @@ spec H1.
   change (level jm >= level m')%nat.
   apply age_level in H0. omega.
 }
-unfold frame_ret_assert in H1.
+rewrite proj_frame_ret_assert in H1.
+simpl proj_ret_assert in H1.
 rewrite HR in H1; clear R HR.
 simpl exit_cont in H1.
 do 3 red in H5.
@@ -1645,6 +1646,8 @@ normalize in H15'.
 do 2 red in H1.
 intros Htc.
 rewrite (sepcon_comm (Q _ _ _)) in H15'.
+unfold seplog.sepcon, seplog.LiftSepLog .
+rewrite prop_true_andp by auto.
 rewrite <- exp_sepcon1.
 eapply sepcon_derives; [apply sepcon_derives | | apply H15']; clear H15'.
 
@@ -2154,7 +2157,7 @@ Lemma semax_call_aux:
     guard_environ Delta (current_function k) rho ->
     (snd fsig0 =Tvoid -> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
-    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q ts x) (snd fsig0) ret rho0) ->
+    RA_normal R = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q ts x) (snd fsig0) ret rho0) ->
 (*    Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars (snd fsig)) ->*)
     genv_cenv psi = cenv_cs ->
     rho = construct_rho (filter_genv psi) vx tx ->
@@ -2222,13 +2225,15 @@ spec H19 ; [clear H19 |]. {
  split.
  repeat intro; f_equal.
  intros ek vl te ve.
- unfold frame_ret_assert.
+ rewrite !proj_frame_ret_assert.
+ unfold seplog.sepcon, seplog.LiftSepLog .
  remember ((construct_rho (filter_genv psi) ve te)) as rho'.
  replace (stackframe_of' psi f rho') with (stackframe_of f rho')
    by (rewrite HGG; auto).
+ simpl seplog.sepcon. 
  rewrite <- (sepcon_comm (stackframe_of f rho')).
  unfold function_body_ret_assert.
- destruct ek; try solve [normalize].
+ destruct ek; simpl proj_ret_assert; try solve [normalize].
 (* apply prop_andp_subp; intros _.*)
  rewrite andp_assoc.
  apply prop_andp_subp; intro. simpl in H15.
@@ -2285,8 +2290,10 @@ pose (te2 := match ret with
             | Some rid => PTree.set rid rval tx
             end).
 specialize (H1 EK_normal None te2 vx).
-unfold frame_ret_assert in H1.
+rewrite proj_frame_ret_assert in H1.
+simpl proj_ret_assert in H1.
 rewrite HR in H1; clear R HR. simpl exit_cont in H1.
+unfold seplog.sepcon,  seplog.LiftSepLog  in H1.
 specialize (H1 (m_phi jm2)).
 spec H1.
 clear - FL3 H2 H23.
@@ -2313,8 +2320,9 @@ rewrite <- H0. auto.
 }
 {
  destruct H22 as [H22a H22b].
- rewrite sepcon_comm.
+ rewrite seplog.sepcon_comm.
  rewrite <- exp_sepcon1.
+ simpl seplog.sepcon. rewrite prop_true_andp by auto.
   rewrite <- sepcon_assoc.
  rewrite sepcon_comm in H22a|-*.
   rewrite sepcon_assoc in H22a.
@@ -2771,10 +2779,7 @@ Focus 1. {
 clear TC7.
 eapply semax_call_aux; try eassumption;
  try solve [simpl; assumption].
-unfold normal_ret_assert.
-extensionality rho'.
-rewrite prop_true_andp by auto.
-rewrite prop_true_andp by auto.
+simpl RA_normal.
 auto.
 Qed.
 
@@ -2906,7 +2911,7 @@ Lemma  semax_return  {CS: compspecs}:
    forall Delta R ret,
       semax Espec Delta
                 (fun rho => tc_expropt Delta ret (ret_type Delta) rho &&
-                             R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
+                             RA_return R (cast_expropt ret (ret_type Delta) rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
@@ -2939,7 +2944,7 @@ Proof.
   destruct H3 as [[H3 ?] ?].
   pose proof I.
   remember ((construct_rho (filter_genv psi) ve te)) as rho.
-  assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta') rho) rho))%pred w').
+  assert (H1': ((F rho * proj_ret_assert R EK_return (cast_expropt ret (ret_type Delta') rho) rho))%pred w').
   Focus 1. {
     eapply sepcon_derives; try apply H1; auto.
     apply andp_left2; auto.
@@ -2958,10 +2963,10 @@ Proof.
   spec H0.
   Focus 1. {
     rewrite <- Heqrho.
-    unfold frame_ret_assert.
+    rewrite proj_frame_ret_assert.
     split; auto.
     split; auto.
-    rewrite sepcon_comm; auto.
+    rewrite seplog.sepcon_comm; auto.
   } Unfocus.
   intros ? ? ? ?.
   specialize (H0 ora jm (eq_refl _) H6).
@@ -3019,7 +3024,7 @@ Proof.
           super_unfold_lift.
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by (auto; admit).
+          rewrite cop2_sem_cast' by (auto; admit). (* <> int_or_ptr_type *)
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
       * fold denote_tc_assert in TC.
@@ -3050,7 +3055,7 @@ Proof.
           destruct H6 as [_ ?].
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by (auto; admit).
+          rewrite cop2_sem_cast' by (auto; admit). (* <> int_or_ptr_type *)
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
   + intro.

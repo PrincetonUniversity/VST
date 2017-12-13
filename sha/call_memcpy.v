@@ -370,7 +370,7 @@ pose (Frame :=
              :: array_at shq tq pathq 0 loq (sublist 0 loq vqx) q *
                 array_at shq tq pathq (loq + len) nq
                     (sublist (loq+len) (Zlength vqx) vqx) q :: R').
-eapply semax_pre_post;
+eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
@@ -423,7 +423,7 @@ eapply semax_pre_post;
  rewrite nested_field_type_ind. rewrite H0. simpl.
  rewrite Z.max_r by omega. rewrite Z.mul_1_l. clear; omega.
 *
- intros. apply andp_left2. apply normal_ret_assert_derives'.
+ intros. apply andp_left2.
  go_lowerx. unfold_lift.
  simpl.
  Intros x. rewrite prop_true_andp by auto.
@@ -603,7 +603,7 @@ pose (Frame :=
               (sublist (lop+len) np vpx) p
           :: array_at shp tp pathp 0 lop (sublist 0 lop vpx) p
               :: R').
-eapply semax_pre_post;
+eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
@@ -640,7 +640,7 @@ eapply semax_pre_post;
    rewrite nested_field_type_ind, H0. simpl.
   rewrite Z.max_r by omega. omega.
 *
- intros. apply andp_left2. apply normal_ret_assert_derives'.
+ intros. apply andp_left2.
  unfold ifvoid. unfold tptr at 1.
  Intros v. subst witness. cbv beta zeta iota.
  clear Hpre.
