@@ -51,7 +51,7 @@ Ltac canon_load_result ::= idtac.
 Lemma semax_for_simple_tulongHi_tuintLoop : 
  forall Inv Espec {cs: compspecs} Delta Pre
            (P:  Z -> list Prop) Q1 (Q: Z -> list localdef) (R: Z -> list mpred)
-           _i init hi body Post (*s1*) s2 s3
+           _i init hi body (Post: ret_assert) (*s1*) s2 s3
      (INV: Inv = EX i:Z, local Q1 && PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
 (*     (Thi: typeof hi = Tint I32 s1 noattr)*)
@@ -70,7 +70,7 @@ Lemma semax_for_simple_tulongHi_tuintLoop :
                 PROPx ((0 <= i <= Int.max_unsigned) :: P i)
                 (LOCALx (temp _i (Vint (Int.repr i)) :: (Q i))
                 (SEPx (R i)))
-            |-- Post EK_normal None)    ->
+            |-- RA_normal Post)    ->
      (forall i,
      @semax cs Espec (update_tycon Delta init)
         (local (`(op_Z_ulong Z.lt i) (eval_expr hi)) && local Q1 &&
@@ -137,19 +137,16 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
 + eapply semax_ifthenelse; auto.
   - rewrite andp_comm.
     simpl typeof.
-    eapply semax_post; [ | apply semax_skip].
+    apply sequential'.
+    eapply semax_post'; [ | apply semax_skip].
     intros.
     apply andp_left2.
-    unfold normal_ret_assert; normalize.
-    unfold overridePost. rewrite if_true by auto.
     normalize. autorewrite with norm1 norm2; normalize.
     apply andp_right. apply andp_right. apply andp_left1; auto.
     apply andp_left2; apply andp_left1; auto.
     apply andp_left2; apply andp_left2; auto.
   - rewrite andp_comm.
-    eapply semax_pre_post; [ | intros; apply andp_left2; auto | apply semax_break].
-    unfold overridePost. rewrite if_false by discriminate.
-    unfold loop1_ret_assert.
+    eapply semax_pre; [ | apply semax_break]. autorewrite with ret_assert.
     simpl typeof.
     eapply derives_trans; [ | eassumption].
     apply exp_right with i; auto.
@@ -187,11 +184,13 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
       rewrite Int64.unsigned_repr in H; auto.
       specialize int_max_unsigned_int64_max_unsigned; omega. 
     - intros.
-      apply andp_left2.
-      unfold normal_ret_assert, loop1_ret_assert; normalize.
+      apply andp_left2. simpl_ret_assert. autorewrite with ret_assert.
       intro rho; unfold subst; simpl.
       apply exp_right with i.
       normalize.
+    - autorewrite with ret_assert. auto.
+    - autorewrite with ret_assert. auto.
+    - autorewrite with ret_assert. auto.
 * replace (fun a : environ =>
  EX  x : Z,
  PROPx (P x)
@@ -220,13 +219,12 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
     rewrite TI.
     rewrite denote_tc_assert_andp;
     repeat apply andp_right; apply @TT_right.
-  + unfold loop2_ret_assert.
+  + destruct Post as [?Po ?Po ?Po ?Po]; simpl_ret_assert.
     intro rho.
     rewrite exp_andp2.
     simpl.
     unfold subst.
     apply exp_left; intro i.
-    rewrite prop_true_andp by auto.
     apply exp_right with (i+1).
     simpl.
     repeat rewrite <- insert_local.
@@ -277,7 +275,7 @@ Lemma semax_for_simple_bound_tulongHi_tuintLoop :
        (ENTAIL (update_tycon Delta init),  
            PROPx (P n)
            (LOCALx (temp _i (Vint (Int.repr n)) :: (Q n)) (SEPx (R n)))
-        |-- Post EK_normal None)    ->
+        |-- RA_normal Post)    ->
      (forall i,
      @semax cs Espec (update_tycon Delta init)
         (PROPx ((0 <= i < n) :: P i)
@@ -315,13 +313,12 @@ eapply (semax_for_simple_tulongHi_tuintLoop
   assert (i=n) by omega.
   subst i. entailer!.
 + intro.
-  eapply semax_pre_post; [ | | solve [eauto]].
+  eapply semax_pre_post'; [ | | solve [eauto]].
   - instantiate (1:=i).
     apply andp_left2. go_lowerx; entailer!. 
     rewrite <- H4 in H3; simpl in H3. rewrite Int64.unsigned_repr in H3; trivial. 
   - intros.
     apply andp_left2.
-    apply normal_ret_assert_derives'.
     go_lowerx; entailer!.
 Qed.
 
@@ -925,7 +922,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
           data_at Tsh (Tarray tuchar (Int64.unsigned b) noattr) (Bl2VL l) c))).
 Proof. intros.
 destruct (Int64.unsigned_range_2 b) as [bLo bHi].
-eapply semax_post.
+eapply semax_post'.
 Focus 2.
 { eapply (semax_for_simple_bound_tulongHi_tuintLoop (Int64.unsigned b) 
     (loop2Inv F x z c mInit m (Vlong b) nonce k SV q xbytes mbytes (Int64.unsigned b))).
@@ -1048,8 +1045,7 @@ Focus 2.
       rewrite X; trivial.
   }
 Unfocus.
-intros. apply andp_left2. rewrite Zminus_diag, list_repeat_0. 
-apply assert_lemmas.normal_ret_assert_derives'.
+intros. apply andp_left2. rewrite Zminus_diag, list_repeat_0.
 old_go_lower. normalize. rewrite app_nil_r. Exists l. entailer!.
 Qed.
 
@@ -1093,6 +1089,8 @@ Proof.
 start_function.
 rename H into MLEN.
 assert_PROP (isptr v_z) by entailer!. rename H into isptrZ.
+
+
 forward_if
   (PROP  (b <> Int64.zero)
    LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;

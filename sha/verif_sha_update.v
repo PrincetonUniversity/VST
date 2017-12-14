@@ -223,8 +223,7 @@ forward_if (   PROP  ()
   reflexivity.
  -
  simpl tc_environ.
- subst POSTCONDITION; unfold abbreviate.
- rewrite overridePost_normal'.
+ subst POSTCONDITION; unfold abbreviate. simpl_ret_assert.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
  unfold data_block.  rewrite prop_true_andp by auto.

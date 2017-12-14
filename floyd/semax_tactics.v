@@ -215,11 +215,60 @@ Ltac build_Struct_env :=
  end.
 *)
 
+Ltac is_sequential br co c :=
+ lazymatch c with
+ | Ssequence ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
+ | Sifthenelse _ ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
+ | Sloop ?body ?incr => is_sequential true true body; is_sequential false false incr
+ | Sswitch _ ?LS => is_sequential_ls co LS
+ | Sbreak => constr_eq br true
+ | Scontinue => constr_eq co true
+ | Sreturn _ => fail
+ | Sswitch _ _ => fail
+ | Sgoto _ => fail
+ | Sskip => idtac
+ | Sassign _ _ => idtac
+ | Sset _ _ => idtac
+ | Scall _ _ _ => idtac
+ | Sbuiltin _ _ _ _ => idtac
+ end
+with is_sequential_ls co ls := 
+ lazymatch ls with 
+ | LSnil => idtac
+ | LScons _ ?s ?ls' => is_sequential true co s; is_sequential_ls co ls'
+ end.
+
+Ltac force_sequential :=
+match goal with
+| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ ?P' =>
+    constr_eq P P'
+| P := @abbreviate ret_assert _ |- semax _ _ ?c ?P' =>
+    constr_eq P P'; 
+    try (is_sequential false false c;
+         unfold abbreviate in P; subst P;
+         apply sequential; simpl_ret_assert)
+| P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P;
+      force_sequential
+| |- semax _ _ _ (normal_ret_assert ?P) => 
+       abbreviate (normal_ret_assert P) : ret_assert as POSTCONDITION
+| |- semax _ _ ?c ?P =>
+    tryif (is_sequential false false c)
+    then (apply sequential; simpl_ret_assert;
+          match goal with |- semax _ _ _ ?Q =>
+             abbreviate Q : ret_assert as POSTCONDITION
+          end)
+    else abbreviate P : ret_assert as POSTCONDITION
+end.
+
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ =>
   simplify_Delta;
-  match goal with
+  repeat match goal with
+  | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
+  end;
+  force_sequential;
+(*  match goal with
   | P := @abbreviate ret_assert _ |- semax _ _ _ ?Q => constr_eq P Q
   | |- _ => 
     repeat match goal with
@@ -229,9 +278,7 @@ Ltac abbreviate_semax :=
        abbreviate P : ret_assert as POSTCONDITION
     end
   end;
-  repeat match goal with
-  | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
-  end;
+*)
   match goal with |- semax _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>

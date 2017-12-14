@@ -36,6 +36,9 @@ Time forward. (*8.8*)
 {
   entailer!.
   rewrite H0, H1; simpl; auto.
+  split3; auto.
+  unfold Int.signed.
+  if_tac. repable_signed. repable_signed.
 }
 entailer!.
 assert (W: Int.zwordsize = 32). reflexivity.

@@ -317,7 +317,6 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
       data_at Tsh (tarray tuchar 64)
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))).
 Proof. intros. abbreviate_semax.
-apply sequential.
 eapply semax_post_flipped'.
 *
       Time forward_for_simple_bound' 64 (EX i:Z,
@@ -334,8 +333,7 @@ eapply semax_post_flipped'.
           data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))). (*3.6secs*)
       { (*precondition implies "invariant"*)
-        rewrite sublist_nil, sublist_same; trivial. simpl app.
-        Time entailer!. (*4*)
+        rewrite sublist_nil, sublist_same; trivial.
       }
       { rename H into I.
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Z0 = qb /\ isbyteZ qb).

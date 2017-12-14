@@ -1454,7 +1454,8 @@ Loop test expression:" e
          repeat (apply semax_extract_PROP; intro);
          normalize in HRE
        ]
-    ]; abbreviate_semax; autorewrite with ret_assert.
+    ]; abbreviate_semax; 
+    simpl_ret_assert (*autorewrite with ret_assert*).
 
 
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
@@ -1503,7 +1504,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
             apply derives_extract_PROP; intro HRE; 
             repeat (apply derives_extract_PROP; fancy_intro true);
             do_repr_inj HRE;
-         autorewrite with ret_assert ]        
+         simpl_ret_assert (*autorewrite with ret_assert*) ]        
        | abbreviate_semax;
          repeat (apply semax_extract_PROP; fancy_intro true)
       ].
@@ -1697,6 +1698,26 @@ end.
 Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
 Proof. intros; apply andp_left2; auto. Qed.
 
+Lemma ENTAIL_break_normal:
+ forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Lemma ENTAIL_continue_normal:
+ forall Delta R S, ENTAIL Delta, RA_continue (normal_ret_assert R) |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Lemma ENTAIL_return_normal:
+ forall Delta R v S, ENTAIL Delta, RA_return (normal_ret_assert R) v |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Hint Resolve ENTAIL_refl ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+
 Ltac abbreviate_update_tycon :=
  match goal with
  | D0 := @abbreviate _ _ |- ENTAIL update_tycon ?D1 _, _ |-- _ =>
@@ -1739,10 +1760,14 @@ match goal with
       ]
    | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
      apply semax_seq with post;
-      [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
+      [forward_if'_new 
+      | abbreviate_semax; 
+        simpl_ret_assert (*autorewrite with ret_assert*)]
    | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>
      apply semax_seq with post;
-      [forward_switch' | abbreviate_semax; autorewrite with ret_assert]
+      [forward_switch' 
+      | abbreviate_semax; 
+        simpl_ret_assert (*autorewrite with ret_assert*)]
 end.
 
 Tactic Notation "forward_if" constr(post) :=
@@ -2445,7 +2470,21 @@ Ltac solve_canon_derives_stackframe :=
     | simple apply canonicalize_stackframe_emp
     ].
 
+Ltac fold_frame_function_body :=
+match goal with P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P end;
+match goal with |- semax _ _ _ ?R =>
+ match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ * stackframe_of ?f _) |} =>
+  apply semax_post with (frame_ret_assert (function_body_ret_assert t P) (stackframe_of f));
+   [ simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
+   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; solve [auto]
+   |]
+ end
+end.
+
 Ltac forward_return :=
+  try fold_frame_function_body;
   match goal with
   | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
     match oe with
@@ -2632,7 +2671,7 @@ Ltac derives_after_forward :=
 Ltac forward_break :=
 eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
-  autorewrite with ret_assert.
+  simpl_ret_assert (*autorewrite with ret_assert*).
 
 Ltac simpl_first_temp :=
 try match goal with
