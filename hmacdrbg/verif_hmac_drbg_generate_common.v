@@ -669,7 +669,7 @@ key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0
 (H3 : 0 < hmac256drbgabs_entropy_len I)
 (H4 : hmac256drbgabs_entropy_len I + Zlength contents <= 384)
 (Hreseed_interval : RI_range (hmac256drbgabs_reseed_interval I))
-(Hreseed_counter_in_range : 0 <= hmac256drbgabs_reseed_counter I <=
+(Hreseed_counter_in_range : 0 <= hmac256drbgabs_reseed_counter I <
                            Int.max_signed)
 (H6 : Forall isbyteZ (hmac256drbgabs_value I))
 (Info : md_info_state)
@@ -809,7 +809,7 @@ Opaque HMAC256_DRBG_generate_function.
       remember (HMAC_DRBG_update HMAC256 (l3 ++ contents_with_add additional (Zlength contents) contents) key V) as UPD'.
       destruct UPD'; inversion H0; clear H0. subst z l1 l2. 
       assert (RI: 1 >? reseed_interval = false).
-      { apply Zgt_is_gt_bool_f. simpl in Hreseed_interval. destruct Hreseed_interval; omega. }
+      { apply Zgt_is_gt_bool_f. simpl in Hreseed_interval. destruct Hreseed_interval. omega. }
       destruct prediction_resistance.
       * simpl in HeqMGen'. rewrite RI in *.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 l4 l5 out_len) as GH.
@@ -915,9 +915,9 @@ Opaque HMAC256_DRBG_generate_function.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. normalize. 
            apply andp_right.
            { apply prop_right. destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try omega.
-             apply hmac_common_lemmas.HMAC_Zlength. 
-             2: solve [apply isbyteZ_HMAC256].
+             apply hmac_common_lemmas.HMAC_Zlength.  
              2: solve [apply isbyteZ_HMAC256]. 
+             2: solve [apply isbyteZ_HMAC256].
              clear - Hreseed_interval WFI3 WFI4 H0.
              assert (reseed_counter <= reseed_interval). apply Zgt_is_gt_bool_f; trivial. omega. }
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
@@ -964,7 +964,7 @@ Opaque HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. normalize.
        apply andp_right.
        { apply prop_right. destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try omega.
-         apply hmac_common_lemmas.HMAC_Zlength. 
+         apply hmac_common_lemmas.HMAC_Zlength.  
              2: solve [apply isbyteZ_HMAC256].
              2: apply hmac_common_lemmas.HMAC_Zlength. 
              2: solve [apply isbyteZ_HMAC256].  
@@ -1093,7 +1093,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
 (Hent_len_nonneg : 0 < entropy_len)
 (Hentlen : entropy_len + Zlength contents <= 384)
 (Hreseed_interval : RI_range reseed_interval)
-(Hreseed_counter_in_range : 0 <= reseed_counter <= Int.max_signed)
+(Hreseed_counter_in_range : 0 <= reseed_counter < Int.max_signed)
 (isbyteV : Forall isbyteZ V)
 (isbtContents : Forall isbyteZ contents)
 (I := (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
@@ -1801,7 +1801,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
 (Info : md_info_state)
 (mc1 mc2 mc3 : val)
 (WFI : WF I)
-(Hreseed_counter_in_range : 0 <= hmac256drbgabs_reseed_counter I <=
+(Hreseed_counter_in_range : 0 <= hmac256drbgabs_reseed_counter I <
                            Int.max_signed)
 (Hreseed_interval : RI_range (hmac256drbgabs_reseed_interval I))
 (isbtV : Forall isbyteZ (hmac256drbgabs_value I))

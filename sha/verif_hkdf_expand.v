@@ -429,7 +429,7 @@ forward_for_simple_bound bnd
    destruct (zlt olen (32 * i1 + 32)).
    + entailer!.
      * clear - OLEN2 olenBounded OLEN Hi1 REST l0. unfold Done, digest_len in *. simpl. 
-       rewrite add_repr.
+(*       rewrite add_repr.*)
        destruct (zeq rest 0).
        - subst rest; simpl in *.
          destruct (zlt (i1 + 1) rounds); rewrite Int.unsigned_repr; omega.
@@ -474,7 +474,7 @@ forward_for_simple_bound bnd
 
    + entailer!.
      * clear H H0 H1 H2 H3 H4 H5 (*AC SC*) JMeq_1 LEN. unfold Done, digest_len in *. simpl.
-       rewrite add_repr.
+       (*rewrite add_repr.*)
        destruct (zeq rest 0).
        - subst rest; simpl in *.
          destruct (zlt (i1 + 1) rounds).

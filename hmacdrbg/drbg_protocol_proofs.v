@@ -404,7 +404,7 @@ Proof.
           (Vint (Int.repr entropy_len),
           (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
-  red; simpl. intuition. 
+  red; simpl. intuition.
 Time Qed. (*Coq8.6: 12secs*)
 
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common. 
