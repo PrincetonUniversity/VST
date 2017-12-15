@@ -24,7 +24,7 @@ addons:
     - aspcud
 env:
   global:
-  - NJOBS=4
+  - NJOBS=2
   # system is == 4.02.3
 #  - COMPILER="4.02.3+32bit"
   - COMPILER="system"

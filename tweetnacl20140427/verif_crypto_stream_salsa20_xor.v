@@ -940,7 +940,7 @@ Focus 2.
     destruct mInit; simpl in M; try contradiction.
     destruct M; subst. simpl. trivial.
     simpl. autorewrite with sublist. reflexivity.
-  + intro; cbv beta; simpl update_tycon. old_go_lower. entailer!. 
+  + intro; entailer!. 
   + apply semax_for_resolve_postcondition.
   + intro; cbv beta; simpl update_tycon; abbreviate_semax;
      try (apply semax_extract_PROP; intro).
@@ -1045,8 +1045,10 @@ Focus 2.
       rewrite X; trivial.
   }
 Unfocus.
-intros. apply andp_left2. rewrite Zminus_diag, list_repeat_0.
-old_go_lower. normalize. rewrite app_nil_r. Exists l. entailer!.
+entailer!.
+Intros l; Exists l.
+rewrite Zminus_diag, list_repeat_0, app_nil_r.
+entailer!.
 Qed.
 
 Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=

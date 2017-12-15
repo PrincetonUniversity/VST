@@ -245,7 +245,8 @@ destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
 Time normalize. (*1.4*)
-Exists intsums. old_go_lower. (*TODO: eliminate old_go_lower*)
+ Exists intsums.
+ go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
  Time entailer!; split; auto. (*6.8*)
 Qed.
 
@@ -262,7 +263,8 @@ unfold HFalsePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
-old_go_lower. Time entailer!. (*3.4*) (*TODO: eliminate old_go_lower*)
+go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
+Time entailer!. (*3.4*)
 Intros intsums. Time Exists intsums; entailer!. (*0.8*)
 Qed.
 

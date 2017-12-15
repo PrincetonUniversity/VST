@@ -949,8 +949,6 @@ Proof.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
         auto.
-      destruct (eq_dec (- (1)) (-1)); [|absurd (-1 = -1); auto].
-      apply drop_tc_environ.
     + forward.
       destruct (eq_dec b' (-1)); [subst; absurd (Int.repr (-1) = Int.neg (Int.repr 1)); auto|].
       erewrite upd_Znth_triv with (i0 := i).
