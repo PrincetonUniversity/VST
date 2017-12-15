@@ -91,7 +91,7 @@ Proof.
 intros.
 assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
                       * fold_right sepcon emp Vs).
 unfold var_block,  eval_lvar.
@@ -171,10 +171,10 @@ Lemma postcondition_var_block:
      (S2 * fold_right sepcon emp (var_block Tsh (i,t) :: vbs))).
 Proof.
 intros.
-eapply semax_post; [ | eassumption].
-intros.
-unfold frame_ret_assert.
-go_lowerx.
+destruct S1 as [?R ?R ?R ?R];
+eapply semax_post; try apply H4; clear H4;
+ intros; simpl_ret_assert; go_lowerx.
+*
 apply sepcon_derives; auto.
 rewrite <- !sepcon_assoc.
 apply sepcon_derives; auto.
@@ -182,10 +182,31 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-clear - H5.
-destruct ek; simpl in *; auto.
-unfold tc_environ in *.
-apply expr_lemmas.typecheck_environ_update in H5; auto.
+apply expr_lemmas.typecheck_environ_update in H4; auto.
+*
+apply sepcon_derives; auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply exp_left; intro v.
+normalize.
+eapply var_block_lvar0; try apply H; try eassumption.
+*
+apply sepcon_derives; auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply exp_left; intro v.
+normalize.
+eapply var_block_lvar0; try apply H; try eassumption.
+*
+apply sepcon_derives; auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply exp_left; intro v.
+normalize.
+eapply var_block_lvar0; try apply H; try eassumption.
 Qed.
 
 Ltac process_stackframe_of :=
@@ -1433,7 +1454,8 @@ Loop test expression:" e
          repeat (apply semax_extract_PROP; intro);
          normalize in HRE
        ]
-    ]; abbreviate_semax; autorewrite with ret_assert.
+    ]; abbreviate_semax; 
+    simpl_ret_assert (*autorewrite with ret_assert*).
 
 
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
@@ -1482,7 +1504,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
             apply derives_extract_PROP; intro HRE; 
             repeat (apply derives_extract_PROP; fancy_intro true);
             do_repr_inj HRE;
-         autorewrite with ret_assert ]        
+         simpl_ret_assert (*autorewrite with ret_assert*) ]        
        | abbreviate_semax;
          repeat (apply semax_extract_PROP; fancy_intro true)
       ].
@@ -1673,6 +1695,43 @@ match goal with
   forward_switch'
 end.
 
+Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
+Proof. intros; apply andp_left2; auto. Qed.
+
+Lemma ENTAIL_break_normal:
+ forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Lemma ENTAIL_continue_normal:
+ forall Delta R S, ENTAIL Delta, RA_continue (normal_ret_assert R) |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Lemma ENTAIL_return_normal:
+ forall Delta R v S, ENTAIL Delta, RA_return (normal_ret_assert R) v |-- S.
+Proof.
+intros. simpl_ret_assert. apply andp_left2; apply FF_left.
+Qed.
+
+Hint Resolve ENTAIL_refl ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+
+Ltac abbreviate_update_tycon :=
+ match goal with
+ | D0 := @abbreviate _ _ |- ENTAIL update_tycon ?D1 _, _ |-- _ =>
+   constr_eq D0 D1;
+   subst D0; unfold abbreviate; simpl update_tycon;
+   match goal with |- ENTAIL ?D, _ |-- _ =>
+    let Delta := fresh "Delta" in 
+     let Delta1 := fresh "Delta1" in 
+     set (Delta1 := D);
+     pose (Delta := @abbreviate tycontext Delta1);
+      change Delta1 with Delta; subst Delta1
+  end
+end.
+
 Ltac forward_if_tac post :=
   check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
@@ -1686,14 +1745,29 @@ match goal with
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
-      | try solve [normalize]
+      | abbreviate_update_tycon; 
+        try subst P; unfold abbreviate;
+        simpl_ret_assert;
+        try (match goal with |- ?A => no_evars A end;
+             try apply ENTAIL_refl;
+             try solve [normalize])
+      | intros; try subst P; unfold abbreviate;
+        simpl_ret_assert;
+        try (match goal with |- ?A => no_evars A end;
+             try apply ENTAIL_refl; 
+             try solve [normalize])
+        .. 
       ]
    | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
      apply semax_seq with post;
-      [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
+      [forward_if'_new 
+      | abbreviate_semax; 
+        simpl_ret_assert (*autorewrite with ret_assert*)]
    | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>
      apply semax_seq with post;
-      [forward_switch' | abbreviate_semax; autorewrite with ret_assert]
+      [forward_switch' 
+      | abbreviate_semax; 
+        simpl_ret_assert (*autorewrite with ret_assert*)]
 end.
 
 Tactic Notation "forward_if" constr(post) :=
@@ -1751,17 +1825,6 @@ Ltac ensure_normal_ret_assert :=
  | |- semax _ _ _ _ => apply sequential
  end.
 
-Lemma sequential': forall Espec {cs: compspecs} Delta Pre c R Post,
-  @semax cs Espec Delta Pre c (normal_ret_assert R) ->
-  @semax cs Espec Delta Pre c (overridePost R Post).
-Proof.
-intros.
-eapply semax_post0; [ | apply H].
-unfold normal_ret_assert; intros ek vl rho; simpl; normalize; subst.
-unfold overridePost. rewrite if_true by auto.
-normalize.
-Qed.
-
 Ltac ensure_open_normal_ret_assert :=
  try simple apply sequential';
  match goal with
@@ -1799,11 +1862,7 @@ Lemma semax_post3:
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
- intros. eapply semax_post; [ | apply H0].
- intros. unfold local,lift1, normal_ret_assert.
- intro rho; normalize. renormalize.
- eapply derives_trans; [ | apply H].
- simpl; apply andp_right; auto. apply prop_right; auto.
+ intros. eapply semax_post'; [ | apply H0]. auto.
 Qed.
 
 Lemma semax_post_flipped3:
@@ -2292,12 +2351,14 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold exit_tycon, update_tycon, Post; clear Post ]
   end.
 
+(*
 Lemma normal_ret_assert_derives'':
   forall P Q R, P |-- R ->  normal_ret_assert (local Q && P) |-- normal_ret_assert R.
 Proof.
   intros. intros ek vl rho. apply normal_ret_assert_derives.
  simpl. apply andp_left2. apply H.
 Qed.
+*)
 
 Lemma drop_tc_environ:
  forall Delta R, local (tc_environ Delta) && R |-- R.
@@ -2305,21 +2366,25 @@ Proof.
 intros. apply andp_left2; auto.
 Qed.
 
+(*
 Lemma frame_ret_assert_derives P Q: P |-- Q -> frame_ret_assert P |-- frame_ret_assert Q.
 Proof. intros.
  unfold frame_ret_assert. intros ? ? ?. apply sepcon_derives; trivial. apply H. Qed.
+*)
 
 Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
   destruct t; trivial. simpl; intros. apply H.
 Qed.
 
+(*
 Lemma function_body_ret_assert_derives t P Q: P |-- Q ->
       function_body_ret_assert t P |-- function_body_ret_assert t Q.
 Proof. intros. intros ek v.
   destruct ek; simpl; trivial.
   intros. apply bind_ret_derives; trivial.
 Qed.
+*)
 
 Ltac entailer_for_return := entailer.
 
@@ -2405,7 +2470,21 @@ Ltac solve_canon_derives_stackframe :=
     | simple apply canonicalize_stackframe_emp
     ].
 
+Ltac fold_frame_function_body :=
+match goal with P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P end;
+match goal with |- semax _ _ _ ?R =>
+ match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ * stackframe_of ?f _) |} =>
+  apply semax_post with (frame_ret_assert (function_body_ret_assert t P) (stackframe_of f));
+   [ simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
+   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; solve [auto]
+   |]
+ end
+end.
+
 Ltac forward_return :=
+  try fold_frame_function_body;
   match goal with
   | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sreturn ?oe) _ =>
     match oe with
@@ -2585,14 +2664,14 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
 Ltac derives_after_forward :=
              first [ simple apply derives_refl
                      | simple apply drop_tc_environ
-                     | simple apply normal_ret_assert_derives''
-                     | simple apply normal_ret_assert_derives'
+(*                     | simple apply normal_ret_assert_derives'' 
+                     | simple apply normal_ret_assert_derives' *)
                      | idtac].
 
 Ltac forward_break :=
 eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
-  autorewrite with ret_assert.
+  simpl_ret_assert (*autorewrite with ret_assert*).
 
 Ltac simpl_first_temp :=
 try match goal with
@@ -2716,9 +2795,7 @@ intros.
 apply semax_seq with FF; [  | apply semax_ff].
 replace (overridePost FF Post) with Post; auto.
 subst; clear.
-extensionality ek vl rho.
-unfold overridePost, frame_ret_assert, function_body_ret_assert.
-destruct ek; normalize.
+reflexivity.
 Qed.
 
 Lemma eliminate_extra_return':
@@ -2732,9 +2809,7 @@ intros.
 apply semax_seq with FF; [  | apply semax_ff].
 replace (overridePost FF Post) with Post; auto.
 subst; clear.
-extensionality ek vl rho.
-unfold overridePost, frame_ret_assert, function_body_ret_assert.
-destruct ek; normalize.
+simpl; f_equal. extensionality rho; normalize.
 Qed.
 
 Ltac change_mapsto_gvar_to_data_at :=
@@ -2879,7 +2954,7 @@ Opaque sepcon.
 Opaque emp.
 Opaque andp.
 
-Arguments overridePost Q R !ek !vl / _ .
+Arguments overridePost Q R / .
 Arguments eq_dec A EqDec / a a' .
 Arguments EqDec_exitkind !a !a'.
 

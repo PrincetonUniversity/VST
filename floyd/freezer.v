@@ -45,7 +45,7 @@ Lemma freeze1_SEP':
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros. subst.
-eapply semax_pre_post. 3: eassumption. 2: intros; apply andp_left2; auto.
+eapply semax_pre; try apply H.
 apply andp_left2.
 go_lowerx; entailer!.  clear.
 generalize dependent R.
@@ -100,7 +100,7 @@ Lemma freeze_SEP':
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros. subst.
-eapply semax_pre_post. 3: eassumption. 2: intros; go_lowerx; entailer.
+eapply semax_pre; try eassumption.
 apply andp_left2. unfold PROPx. normalize.
 unfold LOCALx. apply derives_refl'.
 f_equal. unfold SEPx. rewrite FRZL_ax. clear - H.

@@ -168,7 +168,9 @@ Qed.
 
 Lemma semax'_post:
  forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) && 
+                proj_ret_assert R' ek vl rho 
+         |-- proj_ret_assert R ek vl rho) ->
    semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
 Proof.
 intros.
@@ -194,14 +196,31 @@ destruct H3 as [[? ?] ?].
 split; auto.
 split; auto.
 specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
-destruct H4 as [w1 [w2 [? [? ?]]]].
-exists w1; exists w2; split3; auto.
-apply H; split; auto.
 destruct H3 as [H3 _].
-do 3 red.
-eapply typecheck_environ_sub; eauto.
-apply exit_tycon_sub.
-auto.
+rewrite prop_true_andp in H 
+  by (eapply typecheck_environ_sub; eauto; apply exit_tycon_sub; auto).
+forget (construct_rho (filter_genv psi) ve te) as rho.
+clear - H H4.
+destruct ek; simpl in *; intuition.
+*
+ destruct R; simpl in *; intuition.
+ rewrite !prop_true_andp in H by auto.
+ destruct R'; simpl in *; intuition.
+ destruct H1 as [w1 [w2 [? [? ?]]]]; specialize (H w1); exists w1,w2; intuition.
+*
+ destruct R; simpl in *; intuition.
+ rewrite !prop_true_andp in H by auto.
+ destruct R'; simpl in *; intuition.
+ destruct H1 as [w1 [w2 [? [? ?]]]]; specialize (H w1); exists w1,w2; intuition.
+*
+ destruct R; simpl in *; intuition.
+ rewrite !prop_true_andp in H by auto.
+ destruct R'; simpl in *; intuition.
+ destruct H1 as [w1 [w2 [? [? ?]]]]; specialize (H w1); exists w1,w2; intuition.
+*
+ destruct R; simpl in *; intuition.
+ destruct R'; simpl in *; intuition.
+ destruct H4 as [w1 [w2 [? [? ?]]]]; specialize (H w1); exists w1,w2; intuition.
 Qed.
 
 Lemma semax'_pre:
@@ -236,7 +255,9 @@ Lemma semax'_pre_post:
  forall
       {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) &&   R ek vl rho |-- R' ek vl rho) ->
+   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+                       &&  proj_ret_assert R ek vl rho 
+                    |-- proj_ret_assert R' ek vl rho) ->
    semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
 Proof.
 intros.
@@ -251,7 +272,7 @@ Hint Resolve cl_corestep_fun'.
 
 Lemma derives_skip:
   forall {CS: compspecs} p Delta (R: ret_assert),
-      (forall rho, p rho |-- R EK_normal None rho) ->
+      (forall rho, p rho |-- proj_ret_assert R EK_normal None rho) ->
         semax Espec Delta p Clight.Sskip R.
 Proof.
 intros ? ? ? ?; intros.
@@ -273,9 +294,11 @@ revert w H0.
 apply imp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-repeat intro. simpl exit_tycon.
-unfold frame_ret_assert.
+repeat intro. (* simpl exit_tycon. *)
+simpl.
+specialize (H rho). destruct R; simpl in H. simpl tycontext.RA_normal.
 rewrite sepcon_comm.
+split; auto. rewrite prop_true_andp in H by auto.
 eapply sepcon_derives; try apply H0; auto.
 
 repeat intro.
@@ -390,10 +413,11 @@ eapply H; eauto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma semax_post {CS: compspecs}:
+Lemma semax_post' {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho
-                        |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+                      &&  proj_ret_assert R' ek vl rho
+                        |-- proj_ret_assert R ek vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -401,6 +425,28 @@ intros.
 spec H0 n. revert n H0.
 apply semax'_post.
 auto.
+Qed.
+
+Lemma semax_post {CS: compspecs}:
+ forall (R': ret_assert) Delta (R: ret_assert) P c,
+   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+                      &&  RA_normal R' rho |-- RA_normal R rho) ->
+   (forall rho, !! (typecheck_environ Delta rho) 
+                      && RA_break R' rho |-- RA_break R rho) ->
+   (forall rho, !! (typecheck_environ Delta rho) 
+                      && RA_continue R' rho |-- RA_continue R rho) ->
+   (forall vl rho, !! (typecheck_environ Delta rho) 
+                      && RA_return R' vl rho |-- RA_return R vl rho) ->
+   semax Espec Delta P c R' ->  semax Espec Delta P c R.
+Proof.
+unfold semax.
+intros.
+spec H3 n. revert n H3.
+apply semax'_post.
+intros; destruct ek; simpl;
+repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
+specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl rho);
+rewrite prop_true_andp in * by auto; auto.
 Qed.
 
 Lemma semax_pre {CS: compspecs}:
@@ -419,7 +465,14 @@ Qed.
 Lemma semax_pre_post {CS: compspecs}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-   (forall ek vl rho , !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+                      &&  RA_normal R' rho |-- RA_normal R rho) ->
+   (forall rho, !! (typecheck_environ Delta rho) 
+                      && RA_break R' rho |-- RA_break R rho) ->
+   (forall rho, !! (typecheck_environ Delta rho) 
+                      && RA_continue R' rho |-- RA_continue R rho) ->
+   (forall vl rho, !! (typecheck_environ Delta rho) 
+                      && RA_return R' vl rho |-- RA_return R vl rho) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
 intros.
@@ -433,8 +486,7 @@ Proof.
 intros.
 apply derives_skip.
 intros.
-unfold normal_ret_assert.
-rewrite prop_true_andp by auto.
+simpl.
 rewrite prop_true_andp by auto.
 auto.
 Qed.
@@ -468,19 +520,21 @@ destruct H4 as [[TC [x H5]] ?].
 (*destruct H4 as [[[TC [x H5]] ?] ?].*)
 specialize (H x).
 specialize (H psi Delta' w TS HGG Prog_OK k F H0).
-spec H.
-clear - H1.
-unfold rguard in *.
-intros ek vl tx vx. specialize (H1 ek vl tx vx).
-red in H1.
-eapply subp_trans'; [| apply H1 ].
-apply derives_subp.
-apply andp_derives; auto.
-apply andp_derives; auto.
-(* apply later_derives. *)
-apply sepcon_derives; auto.
-intros ? ?.
-exists x; auto.
+spec H. {
+ clear - H1.
+ unfold rguard in *.
+ intros ek vl tx vx. specialize (H1 ek vl tx vx).
+ red in H1.
+ eapply subp_trans'; [| apply H1 ].
+ apply derives_subp.
+ apply andp_derives; auto.
+ apply andp_derives; auto.
+ clear.
+ destruct (R x) eqn:?, ek; simpl;
+ try (apply andp_derives; [auto | ]);
+ (apply sepcon_derives; [ apply exp_right with x; rewrite Heqr; auto| auto]).
+}
+intros ? ? ?.
 eapply H; eauto.
 split; auto.
 split; auto.
@@ -494,9 +548,8 @@ Lemma extract_exists_pre {CS: compspecs}:
        semax Espec Delta (fun rho => exp (fun x => P x rho)) c R.
 Proof.
 intros.
-apply semax_post with (existential_ret_assert (fun _:A => R)).
-intros ek vl rho w ?.
-simpl in H0. destruct H0. destruct H1; auto.
+apply semax_post with (existential_ret_assert (fun _:A => R));
+try (intros; apply normalize.derives_extract_prop; intro; apply exp_left; auto).
 apply extract_exists; auto.
 Qed.
 
@@ -570,13 +623,23 @@ Proof.
   tauto.
 Qed.
 
+Lemma proj_frame_ret_assert:
+ forall (R: ret_assert) (F: assert) ek vl,
+  proj_ret_assert (frame_ret_assert R F) ek vl = 
+  seplog.sepcon (proj_ret_assert R ek vl) F.
+Proof.
+intros; extensionality rho; destruct R, ek; simpl;
+rewrite ?sepcon_andp_prop1; auto.
+Qed.
+
 Lemma semax_extensionality0 {CS: compspecs}:
        TT |--
       ALL Delta:tycontext, ALL Delta':tycontext,
       ALL P:assert, ALL P':assert,
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
        ((!! tycontext_sub Delta Delta'
-       &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+       &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
+               (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
 Proof.
 apply loeb.
@@ -599,7 +662,8 @@ apply (H9 b b0 b1 b2 y H10 a' H11).
 destruct H12; split; auto; clear H13.
 pose proof I.
 destruct H12; split; auto.
-unfold frame_ret_assert in H14|-*.
+(* unfold frame_ret_assert in H14|-*. *)
+rewrite proj_frame_ret_assert in H14|-*.
 clear H12 H13.
 revert a' H11 H14.
 apply sepcon_subp' with (level w2).
@@ -627,7 +691,8 @@ Qed.
 Lemma semax_extensionality1 {CS: compspecs}:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
        tycontext_sub Delta Delta' ->
-       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
+          (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
 Proof.
 intros.
@@ -651,23 +716,32 @@ rewrite semax_unfold in H.
 intros.
 pose (F0F := fun rho => F0 rho * F rho).
 specialize (H psi Delta' w TS HGG Prog_OK k F0F).
-spec H.
-unfold F0F.
-clear - H0 CL.
-hnf in *; intros; simpl in *.
-rewrite <- CL. rewrite <- H0. auto.
-intuition.
-intuition.
+spec H. {
+ unfold F0F.
+ clear - H0 CL.
+ hnf in *; intros; simpl in *.
+ rewrite <- CL. rewrite <- H0. auto.
+ intuition.
+ intuition.
+}
 replace (fun rho : environ => F0 rho * (P rho * F rho))
   with  (fun rho : environ => F0F rho * P rho).
+*
 apply H.
 unfold F0F; clear - H1.
 intros ek vl tx vx; specialize (H1 ek vl tx vx).
 red in H1.
 remember ((construct_rho (filter_genv psi) vx tx)) as rho.
-unfold frame_ret_assert in *.
-rewrite (sepcon_comm (F0 rho)).
-rewrite <- sepcon_assoc; auto.
+red.
+hnf; intros. specialize (H1 _ H).
+hnf; intros. apply H1; auto.
+destruct H2; split; auto. destruct H2; split; auto.
+rewrite proj_frame_ret_assert in H4|-*.
+rewrite proj_frame_ret_assert.
+rewrite seplog.sepcon_assoc.
+eapply sepcon_derives; try apply H4; auto. simpl.
+rewrite sepcon_comm; auto.
+*
 unfold F0F.
 extensionality rho.
 rewrite sepcon_assoc.

@@ -80,7 +80,14 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
 Time forward. (*8.8*)  
 {
   entailer!.
+<<<<<<< HEAD
+  rewrite H0, H1; simpl; auto.
+  split3; auto.
+  unfold Int.signed.
+  if_tac. repable_signed. repable_signed.
+=======
   rewrite H0, H1; simpl; auto. intuition. omega.
+>>>>>>> master
 }
 entailer!.
 assert (W: Int.zwordsize = 32). reflexivity.

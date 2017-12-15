@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.semax_tactics.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
@@ -233,11 +234,15 @@ apply prop_right; auto.
 Qed.
 
 Ltac go_lower :=
+try match goal with |- ENTAIL (exit_tycon _ _ _), _ |-- _ =>
+      simpl exit_tycon; simplify_Delta
+  end;
 clear_Delta_specs;
 intros;
 match goal with
- | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+(* | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
        apply ENTAIL_normal_ret_assert; fancy_intros true
+*)
  | |- local _ && _ |-- _ => idtac
  | |- ENTAIL _, _ |-- _ => idtac
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"

@@ -508,11 +508,11 @@ deadvars!.
   deadvars!.
   forward.
   { entailer!. rewrite andb_false_r; simpl; trivial.
-    clear H TM WLIST1 H1 H0 H2 WL H3. 
-    rewrite <- and_assoc. split; [| trivial]. unfold Int.mods. 
-    rewrite (Int.signed_repr (j+m)); [| rewrite int_min_signed_eq, int_max_signed_eq; omega]. 
-    rewrite (Int.signed_repr 4); [| rewrite int_min_signed_eq, int_max_signed_eq; omega].
-    rewrite Int.signed_repr; rewrite int_min_signed_eq, int_max_signed_eq; omega. }
+   clear H1. clear WLIST1. clear TM. clear H.
+   rewrite and_True.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by repable_signed.
+   change (Int.signed (Int.repr 4)) with 4. 
+   rewrite Int.signed_repr by repable_signed. repable_signed.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).

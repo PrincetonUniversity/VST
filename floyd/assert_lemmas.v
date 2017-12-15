@@ -5,6 +5,29 @@ Local Open Scope logic.
 (* no "semax" in this file, just assertions. *)
 Global Transparent Int.repr.
 
+Definition loop1x_ret_assert (Inv : environ -> mpred) (R : ret_assert) :=
+  {| RA_normal := Inv; RA_break := FF; RA_continue := Inv; RA_return := R.(RA_return) |}.
+
+Lemma loop1x_ret_assert_EK_normal:
+ forall Inv R, RA_normal (loop1x_ret_assert Inv R) = Inv.
+Proof. reflexivity. Qed.
+Hint Rewrite loop1x_ret_assert_EK_normal: ret_assert.
+
+
+Definition loop1y_ret_assert (Inv : environ -> mpred) :=
+  {| RA_normal := Inv; RA_break := FF; RA_continue := Inv; RA_return := FF |}.
+
+Ltac simpl_ret_assert := 
+ cbn [RA_normal RA_break RA_continue RA_return 
+      normal_ret_assert overridePost loop1_ret_assert
+      loop2_ret_assert function_body_ret_assert frame_ret_assert
+      switch_ret_assert loop1x_ret_assert loop1y_ret_assert].
+
+Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
+  forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
+Proof. destruct R; reflexivity. Qed.
+Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
+
 Lemma liftTrue: forall rho, `True rho.
 Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
 Hint Resolve liftTrue.
@@ -12,35 +35,7 @@ Hint Resolve liftTrue.
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
 Proof.
-intros; unfold overridePost, normal_ret_assert.
-extensionality ek vl.
-if_tac; normalize.
-subst ek.
-rewrite (prop_true_andp (EK_normal = _)) by auto.
-auto.
-apply pred_ext; normalize.
-Qed.
-
-Lemma normal_ret_assert_derives:
- forall (P Q: environ->mpred) rho,
-  P rho |-- Q rho ->
-  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
-Proof.
- intros.
- unfold normal_ret_assert; intros; normalize.
- simpl.
- apply andp_derives.
- apply derives_refl.
- apply andp_derives.
- apply derives_refl.
- auto.
-Qed.
-Hint Resolve normal_ret_assert_derives : norm.
-
-Lemma normal_ret_assert_FF:
-  forall ek vl, normal_ret_assert FF ek vl = FF.
-Proof.
-unfold normal_ret_assert. intros. normalize.
+reflexivity.
 Qed.
 
 Lemma frame_normal:
@@ -48,9 +43,9 @@ Lemma frame_normal:
    frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P * F).
 Proof.
 intros.
-extensionality ek vl.
-unfold frame_ret_assert, normal_ret_assert.
-normalize.
+unfold normal_ret_assert; simpl.
+f_equal; try solve [extensionality rho; normalize].
+extensionality vl rho; normalize.
 Qed.
 
 Lemma frame_for1:
@@ -59,9 +54,7 @@ Lemma frame_for1:
    loop1_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl.
-unfold frame_ret_assert, loop1_ret_assert.
-destruct ek; normalize.
+destruct R; simpl; normalize.
 Qed.
 
 Lemma frame_loop1:
@@ -70,13 +63,12 @@ Lemma frame_loop1:
    loop2_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl.
-unfold frame_ret_assert, loop2_ret_assert.
-destruct ek; normalize.
+destruct R; simpl.
+f_equal; try solve [extensionality rho; normalize].
 Qed.
 
 
-Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
+Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
 Hint Resolve @TT_right.
 
@@ -84,17 +76,14 @@ Lemma overridePost_overridePost:
  forall P Q R, overridePost P (overridePost Q R) = overridePost P R.
 Proof.
 intros.
-unfold overridePost.
-extensionality ek vl; simpl.
-if_tac; auto.
+destruct R; reflexivity.
 Qed.
 Hint Rewrite overridePost_overridePost : ret_assert.
 
 Lemma overridePost_normal':
-  forall P R, overridePost P R EK_normal None = P.
+  forall P R, RA_normal (overridePost P R) = P.
 Proof.
- intros. unfold overridePost. rewrite if_true by auto.
- apply prop_true_andp. auto.
+ intros. destruct R; reflexivity. 
 Qed.
 Hint Rewrite overridePost_normal' : ret_assert.
 
@@ -221,29 +210,29 @@ Proof. reflexivity. Qed.
 Hint Rewrite local_lift0_True : norm2.
 
 Lemma overridePost_EK_return:
-  forall Q P, overridePost Q P EK_return = P EK_return.
-Proof. unfold overridePost; intros.
-  extensionality vl rho; rewrite if_false by congruence. auto.
+  forall Q P, RA_return (overridePost Q P) = RA_return P.
+Proof.
+ destruct P; reflexivity.
 Qed.
 Hint Rewrite overridePost_EK_return : ret_assert.
 
 Lemma frame_ret_assert_emp:
   forall P, frame_ret_assert P emp = P.
 Proof. intros.
- extensionality ek. extensionality vl. extensionality rho.
- unfold frame_ret_assert.
- rewrite sepcon_emp. auto.
+ destruct P; simpl; f_equal; extensionality; try extensionality; normalize.
 Qed.
 
 (*Hint Rewrite frame_ret_assert_emp : ret_assert.*)
 
 Lemma frame_ret_assert_EK_return:
- forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.
-Proof. reflexivity. Qed.
+ forall P Q vl, RA_return (frame_ret_assert P Q) vl =  RA_return P vl * Q.
+Proof.
+ destruct P; simpl; reflexivity.
+Qed.
 Hint Rewrite frame_ret_assert_EK_return : ret_assert.
 
 Lemma function_body_ret_assert_EK_return:
-  forall t P vl, function_body_ret_assert t P EK_return vl = bind_ret vl t P.
+  forall t P vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
 Hint Rewrite function_body_ret_assert_EK_return : ret_assert.
 
@@ -260,45 +249,29 @@ Proof.
 Qed.
 Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
 
-Lemma normal_ret_assert_derives':
-  forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.
-Proof.
-  intros. intros ek vl rho. apply normal_ret_assert_derives. apply H.
-Qed.
-
-Lemma normal_ret_assert_eq:
-  forall P ek vl, normal_ret_assert P ek vl =
-             (!! (ek=EK_normal) && (!! (vl=None) && P)).
-Proof. reflexivity. Qed.
-(* Hint Rewrite normal_ret_assert_eq: ret_assert.  NO! *)
-
 Lemma normal_ret_assert_elim:
- forall P, normal_ret_assert P EK_normal None = P.
+ forall P, RA_normal (normal_ret_assert P) = P.
 Proof.
-intros. unfold normal_ret_assert.
-repeat rewrite prop_true_andp by auto.
-auto.
+reflexivity.
 Qed.
 
 Lemma overridePost_EK_break:
- forall P Q, overridePost P Q EK_break None = Q EK_break None.
-Proof. intros. unfold overridePost.
- rewrite if_false; congruence.
+ forall P Q, RA_break (overridePost P Q) = RA_break Q.
+Proof. destruct Q; reflexivity.
 Qed.
 
 Lemma loop1_ret_assert_EK_break:
- forall P Q, loop1_ret_assert P Q EK_break None = Q EK_normal None.
-Proof. intros. reflexivity.
+ forall P Q, RA_break (loop1_ret_assert P Q) = RA_normal Q.
+Proof. destruct Q;   reflexivity.
 Qed.
 
 Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
   normal_ret_assert_elim : ret_assert.
 
 Lemma loop1_ret_assert_normal:
-  forall P Q, loop1_ret_assert P Q EK_normal None = P.
+  forall P Q, RA_normal (loop1_ret_assert P Q) = P.
 Proof. 
-  intros.
- unfold loop1_ret_assert. normalize.
+  destruct Q; reflexivity.
 Qed.
 Hint Rewrite loop1_ret_assert_normal: ret_assert.
 

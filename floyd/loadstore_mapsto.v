@@ -36,7 +36,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
 Proof.
   intros.
   rename H1 into H_READABLE; rename H2 into H1.
-  eapply semax_pre_post; [ | | apply semax_load with sh t2; auto].
+  eapply semax_pre_post'; [ | | apply semax_load with sh t2; auto].
   + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
@@ -53,7 +53,7 @@ Proof.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
   +
-    intros. apply andp_left2. apply normal_ret_assert_derives'.
+    intros. apply andp_left2.
     eapply derives_trans.
     - apply exp_derives; intro old.
       apply andp_derives; [| apply derives_refl].
@@ -90,7 +90,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
-  eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
+  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
   + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
@@ -106,7 +106,7 @@ Proof.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
   +
-    intros. apply andp_left2. apply normal_ret_assert_derives'.
+    intros. apply andp_left2.
     eapply derives_trans.
     - apply exp_derives; intro old.
       apply andp_derives; [| apply derives_refl].

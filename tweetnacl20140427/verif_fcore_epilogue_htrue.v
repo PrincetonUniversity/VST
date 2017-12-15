@@ -767,14 +767,8 @@ destruct data as ((Nonce, C), K).
 forward_seq. apply HTrue_loop2.
 drop_LOCAL 0%nat. (*VST: deadvars fails*)
 thaw FR2. freeze [0;2;3] FR3.
-eapply semax_post. 2: apply HTrue_loop3.
-intros ? ?. apply andp_left2.
-apply normal_ret_assert_derives'.
-Exists intsums.
-clear - HSums1 SL.
-(*Opaque ThirtyTwoByte.*) Opaque hPosLoop2. Opaque hPosLoop3.
-old_go_lower. (*TODO: eliminate*)
-Time entailer!. (*5 versus 6.6*)
+eapply semax_post_flipped'.  apply HTrue_loop3.
+Exists intsums. entailer!.
   intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.

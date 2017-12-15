@@ -432,7 +432,7 @@ endif
 
 travis: progs hmacdrbg sha mailbox
 
-all: .loadpath version.vo $(FILES:.v=.vo)
+all: .loadpath version.vo $(FILES:.v=.vo) travis
 
 
 # ifeq ($(COMPCERT), compcert)

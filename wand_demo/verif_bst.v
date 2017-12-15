@@ -590,8 +590,6 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-    apply andp_left2.
-    unfold loop2_ret_assert. rewrite prop_true_andp by auto.
     auto.
 Qed.
 

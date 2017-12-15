@@ -1606,3 +1606,9 @@ rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
 rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
 Qed.
 
+Record ret_assert : Type := {
+ RA_normal: environ->mpred;
+ RA_break: environ->mpred;
+ RA_continue: environ->mpred;
+ RA_return: option val -> environ->mpred
+}.

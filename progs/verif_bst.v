@@ -622,9 +622,7 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-    apply andp_left2.
-    unfold loop2_ret_assert. rewrite prop_true_andp by auto.
-    auto.
+    apply andp_left2; auto.
 Qed.
 
 Definition delete_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
@@ -720,8 +718,7 @@ Proof.
         apply modus_ponens_wand'.
         auto.
   * (* After the loop *)
-    forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize. 
+    forward. apply andp_left2; auto. 
 Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.

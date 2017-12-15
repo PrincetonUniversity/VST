@@ -119,10 +119,10 @@ remember (EX shaStates:_ ,
   as PostResetBranch.
 clear FR1.
 eapply semax_seq. instantiate (1:=PostResetBranch).
-{ eapply semax_pre_post.
+{ apply sequential'.
+  eapply semax_pre_post'.
   Focus 3 . apply init_part2; try eassumption.
-  apply andp_left2. apply derives_refl.
-  intros ? ?. apply andp_left2. apply derives_refl. }
+  apply andp_left2. apply derives_refl. apply ENTAIL_refl. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.

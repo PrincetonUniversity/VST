@@ -314,10 +314,9 @@ Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 Lemma overridePost_normal_right:
   forall P Q R,
    P |-- Q ->
-   P |-- overridePost Q R EK_normal None.
-Proof. intros.
-  intro rho; unfold overridePost; simpl.
-  normalize.
+   P |-- RA_normal (overridePost Q R).
+Proof. intros. 
+  destruct R; simpl; auto.
 Qed.
 
 Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
@@ -783,6 +782,7 @@ eapply derives_trans; [ | apply H; auto].
 normalize.
 Qed.
 
+(*
 Lemma ENTAIL_normal_ret_assert:
   forall Delta P Q ek vl,
  (ek = EK_normal -> vl = None -> ENTAIL Delta, P |-- Q) ->
@@ -791,6 +791,7 @@ Proof.
 intros.
 unfold normal_ret_assert. normalize.
 Qed.
+*)
 
 Lemma local_andp_prop:  forall P Q, local P && prop Q = prop Q && local P.
 Proof. intros. apply andp_comm. Qed.

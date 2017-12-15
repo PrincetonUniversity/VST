@@ -383,21 +383,27 @@ Ltac qcancel P :=
  | sepcon ?A ?B => 
      match goal with |- _ |-- ?Q =>
        try match Q with context [A] =>
-         rewrite ?(pull_left_special0 A), ?(pull_left_special A);
-         apply cancel_left
+        let a := fresh "A" in set (a:=A);
+         rewrite ?(pull_left_special0 a), ?(pull_left_special a);
+         apply cancel_left;
+         clear a
        end;
        qcancel B
      end
  | ?A => 
      try match goal with |- _ |-- ?Q =>
        lazymatch Q with context [A] =>
+        let a := fresh "A" in set (a:=A);
+         rewrite ?(pull_left_special0 a), ?(pull_left_special a);
          rewrite ?(pull_left_special0 A), ?(pull_left_special A);
-         apply cancel_left
+         apply cancel_left;
+         clear a
       end
      end
  end.
 
 Ltac cancel :=
+  rewrite ?sepcon_assoc;
   repeat match goal with |- ?A * _ |-- ?B * _ => 
      constr_eq A B;  simple apply (cancel_left A)
   end;

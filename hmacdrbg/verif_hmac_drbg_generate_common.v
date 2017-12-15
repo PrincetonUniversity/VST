@@ -1257,7 +1257,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
                     (Sset _left
                        (Ebinop Osub (Etempvar _left tuint)
                           (Etempvar _use_len tuint) tuint))))))))
-  (loop1_ret_assert
+  (normal_ret_assert
      (EX a : Z,
       PROP (0 <= a <= out_len; is_multiple a 32 \/ a = out_len)
       LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
@@ -1276,6 +1276,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
       data_at Tsh (tarray tuchar out_len)
         (map Vint (map Int.repr (sublist 0 a (snd (HLP a)))) ++
          list_repeat (Z.to_nat (out_len - a)) Vundef) output; K_vector kv))%assert
+(*
      (overridePost
         (EX a : Z,
          PROP (typed_false tint
@@ -1326,7 +1327,8 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
                    Stream
                      (get_stream_result
                         (mbedtls_HMAC256_DRBG_generate_function s I out_len
-                           contents')) * K_vector kv))) a)))).
+                           contents')) * K_vector kv))) a)))
+*)).
 Proof. intros.
     rename H into Hdone.
     destruct H0 as [Hmultiple | Hcontra]; [| subst done; elim HRE; f_equal; omega].
@@ -1725,18 +1727,6 @@ Proof. intros.
       (*Rest as with "ideal proof"*) 
       unfold md_full. simpl. normalize.
       replace H256 with (fst (HLP (n * 32 + Z.min 32 (out_len - n * 32))))%Z.
-(*(*      replace (HMAC256 (fst (HMAC_DRBG_generate_helper_Z HMAC256 key0 V0 (n * 32)%Z))
-              key0) with (fst (HMAC_DRBG_generate_helper_Z HMAC256 key0 V0 (n * 32 + Z.min 32 (out_len - n * 32))))%Z.*)
-      simpl.
-      apply andp_right. apply prop_right; repeat split; trivial.
-      { subst HLP. apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial.
-        rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega.
-        apply hmac_common_lemmas.HMAC_Zlength. }
-      { subst HLP.
-        apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial.
-          rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega. 
-          apply isbyteZ_HMAC256. } 
-      unfold md_full. simpl. cancel. *)
       rewrite app_assoc.
       replace (map Vint
         (map Int.repr
@@ -1753,7 +1743,6 @@ Proof. intros.
                  (HLP ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z))))))).
       replace (out_len - (n * 32)%Z - Z.min 32 (out_len - (n * 32)%Z)) with (out_len - ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z))) by omega.
       cancel. 
-      (*reflexivity.*) (*entailer!.*)
       rewrite <- map_app.
       rewrite sublist_map.
       rewrite <- map_app.
@@ -1972,7 +1961,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
                     (Sset _left
                        (Ebinop Osub (Etempvar _left tuint)
                           (Etempvar _use_len tuint) tuint))))))))
-  (loop1_ret_assert
+  (normal_ret_assert
      (EX a0 : Z,
       PROP (0 <= a0 <= out_len; is_multiple a0 32 \/ a0 = out_len)
       LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
@@ -1991,6 +1980,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
       data_at Tsh (tarray tuchar out_len)
         (map Vint (map Int.repr (sublist 0 a0 (snd (HLP a0)))) ++
          list_repeat (Z.to_nat (out_len - a0)) Vundef) output; K_vector kv))%assert
+(*
      (overridePost
         (EX a0 : Z,
          PROP (typed_false tint
@@ -2039,42 +2029,13 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
                        (mbedtls_HMAC256_DRBG_generate_function s I out_len
                           contents')) *
                   AREP kv (hmac256drbgabs_generate I s out_len contents')
-                    (Vptr b i))))%assert))).
+                    (Vptr b i))))%assert))*)).
 Proof. intros.
-eapply semax_post. 2: apply (loopbody_explicit StreamAdd); try assumption. 
-    2: subst I; red in WFI; simpl in *; omega.
-intros. old_go_lower. clear H1. unfold loop1_ret_assert. 
-destruct ek; Intros; [ normalize | normalize | normalize |].
-unfold overridePost; Intros. simpl. destruct vl; Intros; trivial.
-unfold AREP, REP, hmac256drbgabs_common_mpreds; subst I contents'. simpl in *.
-replace (eval_id ret_temp (env_set (globals_only rho) ret_temp v)) with v by reflexivity. 
-Exists v Info.
-Exists (hmac256drbgabs_to_state
-         (hmac256drbgabs_generate
-            (HMAC256DRBGabs key V reseed_counter entropy_len
-               prediction_resistance reseed_interval) s out_len
-            (contents_with_add additional add_len contents))
-         (mc1, (mc2, mc3),
-         (map Vint (map Int.repr V),
-         (Vint (Int.repr reseed_counter),
-         (Vint (Int.repr entropy_len),
-         (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))).
-normalize. apply andp_right; [ apply prop_right | cancel]. 
-split. repeat split; trivial.
-specialize (hmac256drbgabs_generateWF (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
-        reseed_interval) s out_len (contents_with_add additional add_len contents)); simpl in *; intros HGWF.
-Transparent hmac256drbgabs_generate.
-unfold  hmac256drbgabs_generate in *.
-Opaque hmac256drbgabs_generate.
-remember (mbedtls_HMAC256_DRBG_generate_function s
-           (HMAC256DRBGabs key V reseed_counter entropy_len
-              prediction_resistance reseed_interval) out_len
-           (contents_with_add additional add_len contents)).
-unfold return_value_relate_result in H2. clear Heqr. destruct r; simpl; trivial.
-destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?].
-destruct (HGWF l1 l0 z entropy_len b0 reseed_interval) as [? [? ?]]; trivial; try omega.
-split; trivial. split; trivial. red in Hreseed_interval; omega.
-red; red in WFI; simpl in *. split; trivial. split; trivial. apply WFI. split. apply WFI. split; trivial.
+eapply semax_post_flipped'.
+apply (loopbody_explicit StreamAdd); try assumption;
+    subst I; red in WFI; simpl in *; omega.
+apply andp_left2.
+go_lowerx.
 Time Qed. (*2s*)
 (*explicit proof
     rename H into Hdone.

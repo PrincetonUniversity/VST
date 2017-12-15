@@ -1185,15 +1185,15 @@ Proof.
       apply same_glob_funassert.
       reflexivity.
     + intros ek vl tx' vx'.
-      unfold normal_ret_assert, frame_ret_assert.
+      cbv zeta. rewrite proj_frame_ret_assert. simpl seplog.sepcon.
       subst post'. cbv beta.
-      normalize.
+      destruct ek; simpl proj_ret_assert; normalize.
       apply derives_subp.
       normalize. intro rv.
       simpl.
       intros ? ? ? ? _ ?.
       destruct H8 as [[? [H10 [H11 ?]]] ?].
-      hnf in H10, H11. subst ek vl.
+      hnf in H10, H11.
       destruct H8.
       subst a.
       change Clight_new.true_expr with true_expr.
@@ -1473,9 +1473,11 @@ Proof.
 
   (* safety: we conclude as we add an infinite loop at the end *)
   intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert] ora jm0 Heq <-.
-  simpl in FrameRA.
-  destruct FrameRA as (? & ? & ? & (-> & -> & ?) & WOB).
-  now apply safe_loop_skip.
+  rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.
+  destruct ek; simpl proj_ret_assert in FrameRA;
+   try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [[? ?] ?]]]]; contradiction];
+   try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [? ?]]]]; contradiction].
+  apply safe_loop_skip.
 
   (* equivalence between Q and Q' *)
   intros vl; split; apply derives_imp; apply derives_refl'; reflexivity.
