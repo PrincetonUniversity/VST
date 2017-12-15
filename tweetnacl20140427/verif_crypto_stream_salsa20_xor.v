@@ -1105,16 +1105,6 @@ forward_if
   specialize (Int64.eq_spec b Int64.zero). intros.
   destruct (Int64.eq b Int64.zero); simpl in *. 2: inv H.
   clear H.
-(*Check 
-Ltac mkConciseDelta V G F Delta :=
-  let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
-    let inits := (eval simpl in vv) in
-    change Delta with (initialized_list inits (func_tycontext F V G)). (*;
-    refold_temp_names F;
-  clear Delta.*)*)
-(*
-mkConciseDelta SalsaVarSpecs SalsaFunSpecs
-      f_crypto_stream_salsa20_tweet_xor Delta. *)
   forward. entailer!. 
   unfold crypto_stream_xor_postsep. 
   rewrite Int64.eq_true. cancel. }
@@ -1182,8 +1172,6 @@ forward_for_simple_bound 8 (EX i:Z,
   simpl.
   forward; rewrite V.
   { entailer!. }
-(*  simpl; rewrite zero_ext_inrange. 
-  2: rewrite Int.unsigned_repr; trivial; omega.*)
   forward.
   rewrite NB.
   entailer!.
@@ -1333,29 +1321,29 @@ forward_if (EX m:_,
 { forward. Exists m. entailer!. destruct mInit; simpl in M; try contradiction.
   simpl. apply M. inv M. }
 intros.
-apply andp_left2. unfold overridePost. if_tac. 2: trivial.
-normalize. destruct cInit; simpl in Heqc; rewrite Heqc in C; try contradiction.
-subst ek.
-unfold POSTCONDITION, abbreviate. old_go_lower. entailer!. 
 thaw FR5. thaw FR4.
-  Exists (S rounds, eval_id _m rho, snd (ZZ (ZCont rounds zbytes) 8), srbytes ++ xorlist).
-  entailer!. rewrite  Nat2Z.inj_succ, <- Zmult_succ_l_reverse.
-  rewrite (*<- Heqr64,*) INT64SUB, H1, H0. repeat split; try trivial. 
-
-  specialize (CONTCONT _ _ _ _ _ _ _ _ CONT); intros; subst zbytesR.
-  apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
+Intros x.
+destruct cInit; simpl in Heqc; rewrite Heqc in C; try contradiction.
+Exists (S rounds, x, snd (ZZ (ZCont rounds zbytes) 8), srbytes ++ xorlist).
+unfold fst, snd.
+rewrite  Nat2Z.inj_succ, <- Zmult_succ_l_reverse.
+entailer!.
+rewrite (*<- Heqr64,*) INT64SUB.
+split; auto.
+specialize (CONTCONT _ _ _ _ _ _ _ _ CONT); intros; subst zbytesR.
+apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
     _ _ _ Snuff SNR XOR).
-  
   unfold Int.min_signed, Int.max_signed; simpl.
   unfold SByte, Sigma_vector.
   cancel.
   rewrite (CONTCONT _ _ _ _ _ _ _ _ CONT). cancel.
 
-  assert (Zlength xorlist = 64).
+  assert (Zlength xorlist = 64). {
      unfold bxorlist in XOR; destruct (combinelist_Zlength _ _ _ _ _ XOR).
-     autorewrite with sublist in H5. rewrite H20. unfold bytes_at.
-  destruct mInit; autorewrite with sublist; trivial.
-  assert (Zlength (Bl2VL xorlist) = 64). rewrite Zlength_Bl2VL; omega.
+     rewrite H15. unfold bytes_at. 
+    destruct mInit; autorewrite with sublist; trivial.
+  }
+  assert (Zlength (Bl2VL xorlist) = 64) by (rewrite Zlength_Bl2VL; omega).
   remember (Z.of_nat rounds * 64)%Z as r64.
   apply CONT_Zlength in CONT.
 
@@ -1364,12 +1352,12 @@ thaw FR5. thaw FR4.
 
   erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit - r64) (Zlength (Bl2VL xorlist))).
   2: omega. 2: rewrite Zlength_app; autorewrite with sublist; omega.
-  autorewrite with sublist. rewrite H21.
+  autorewrite with sublist. rewrite H16.
   rewrite field_address0_clarify; simpl.
   Focus 2. unfold field_address0; simpl. rewrite if_true; trivial.
            auto with field_compatible.
-  rewrite Pos2Z.inj_mul, Zpos_P_of_succ_nat, <- Zmult_succ_l_reverse. 
   assert (II:Int64.unsigned bInit - (Z.of_nat rounds * 64 + 64) = Int64.unsigned bInit - (Z.of_nat rounds * 64) - 64). omega.
+  rewrite Heqr64.
   rewrite II, Int.add_assoc, add_repr. entailer!.
 
   unfold Bl2VL. repeat rewrite map_app.
@@ -1385,7 +1373,7 @@ thaw FR5. thaw FR4.
   assert (XX: Z.of_nat rounds * 64 + 64 - Z.of_nat rounds * 64 = 64) by omega.
   rewrite XX, sublist_app2; repeat rewrite Zlength_map. 2: omega.
   rewrite sublist_same. 2: omega. 2: repeat rewrite Zlength_map; omega.
-  clear H25 H26. repeat rewrite Zlength_map in *. rewrite CONT in *.
+  repeat rewrite Zlength_map in *. rewrite CONT in *.
   apply derives_refl'. f_equal.
   rewrite field_address0_clarify; simpl. rewrite Zplus_0_l, Z.mul_1_l; trivial.
   unfold field_address0; simpl. rewrite if_true; trivial.
@@ -1429,13 +1417,13 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
       f_crypto_stream_salsa20_tweet_xor Delta.*)
 (*  eapply semax_extensionality_Delta.*)
   rewrite SNR, <- RR.
-  eapply semax_post.
-  2: eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try omega.
-  intros. apply andp_left2. unfold POSTCONDITION, abbreviate. 
-  rewrite normal_ret_assert_eq. unfold overridePost, IfPost. 
-  normalize. rewrite if_true; trivial. old_go_lower.
+  eapply semax_post_flipped'.
+  eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try omega.
+  unfold IfPost.
   entailer!.
-  unfold typed_true in BR. inversion BR; clear BR. rewrite RR in *. eapply negb_true_iff in H8. 
+  unfold typed_true in BR. inversion BR; clear BR.
+   rename H3 into H8.
+  rewrite RR in *. eapply negb_true_iff in H8. 
   unfold Int64.eq in H8. rewrite RR in H8. unfold Int64.zero in H8.
   rewrite Int64.unsigned_repr in H8. 2: omega.
   if_tac in H8. inv H8. clear H8. thaw FR1.
@@ -1476,7 +1464,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
     rewrite (*Heqc, *)Zplus_0_l, Z.mul_1_l; trivial.
     unfold field_address0; simpl.
     rewrite Zplus_0_l, Z.mul_1_l, if_true; trivial. 
-    apply field_compatible_isptr in H18. 
+    apply field_compatible_isptr in H16. 
     destruct cInit; simpl in *; try contradiction; trivial.
     auto with field_compatible.
 }

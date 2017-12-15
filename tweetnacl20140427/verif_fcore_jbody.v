@@ -507,7 +507,12 @@ deadvars!.
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
   deadvars!.
   forward.
-  { entailer!. rewrite andb_false_r; simpl; trivial. }
+  { entailer!. rewrite andb_false_r; simpl; trivial.
+   clear H1. clear WLIST1. clear TM. clear H.
+   rewrite and_True.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by repable_signed.
+   change (Int.signed (Int.repr 4)) with 4. 
+   rewrite Int.signed_repr by repable_signed. repable_signed.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).

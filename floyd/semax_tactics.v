@@ -1,6 +1,5 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
-Require Import VST.floyd.forward_lemmas.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -163,18 +162,7 @@ Ltac compute_in_Delta :=
            cbv beta iota zeta delta - [abbreviate] in Delta
  end.
 
-(* This tactic is carefully tuned to avoid proof blowups,
-  both in execution and in Qed *)
-Ltac simplify_Delta :=
-match goal with
- | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
- | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
- | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
-       constr_eq D1 D (* ONLY this case terminates! *)
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- _ => simplify_func_tycontext; simplify_Delta
- | Delta := @abbreviate tycontext ?D 
-      |- semax ?DD _ _ _ => 
+Ltac simplify_Delta' Delta D DD := 
        match DD with
        | context [update_tycon Delta ?c] =>
            let C := fresh "C" in set (C:=c);
@@ -195,13 +183,34 @@ match goal with
            replace (with_Delta_specs DS Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
-       end; simplify_Delta
- | |- semax ?DD _ _ _ => 
+       end.
+
+Ltac simplify_Delta'' DD := 
        match DD with
        | context [initialized_list _ _] => unfold initialized_list
        | context [initialized _ ?D] => try (revert D; fail 1); unfold D
        | context [update_tycon ?D _] => try (revert D; fail 1); unfold D
-       end; simplify_Delta
+       end.
+
+(* This tactic is carefully tuned to avoid proof blowups,
+  both in execution and in Qed *)
+Ltac simplify_Delta :=
+match goal with
+ | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
+ | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
+ | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+ | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
+ | |- semax ?DD _ _ _ =>  simplify_Delta'' DD; simplify_Delta
+ | |- ENTAIL ?DD, _ |-- _ =>  simplify_Delta'' DD; simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -220,6 +229,9 @@ Ltac is_sequential br co c :=
  | Ssequence ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
  | Sifthenelse _ ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
  | Sloop ?body ?incr => is_sequential true true body; is_sequential false false incr
+ | Sfor ?init _ ?body ?incr => is_sequential br co init;
+       is_sequential true true body; is_sequential false false incr
+ | Swhile _ ?body => is_sequential true true body
  | Sswitch _ ?LS => is_sequential_ls co LS
  | Sbreak => constr_eq br true
  | Scontinue => constr_eq co true
@@ -231,6 +243,9 @@ Ltac is_sequential br co c :=
  | Sset _ _ => idtac
  | Scall _ _ _ => idtac
  | Sbuiltin _ _ _ _ => idtac
+ | ?c => match goal with M := @abbreviate statement ?c' |- _ =>
+               constr_eq c M; is_sequential br co c'
+             end
  end
 with is_sequential_ls co ls := 
  lazymatch ls with 

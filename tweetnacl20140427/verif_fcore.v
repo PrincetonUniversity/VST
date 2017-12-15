@@ -313,8 +313,8 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [2;3;5] FR4.
     remember [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4] as xInit.
     forward_seq.
-    eapply semax_post.
-    2: apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
+    eapply semax_post_flipped'.
+    apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
     intros. apply andp_left2. apply derives_refl.
     Intros snuffleRes. rename H into RES.
 
@@ -324,14 +324,12 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     - (*apply typed_true_tint_Vint in H.*)
       assert (HOUTLEN: OutLen h = 32). unfold OutLen. rewrite Int.eq_false; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [3;4] FR6.
-      eapply semax_post.
-      2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h
+      force_sequential.
+      eapply semax_post_flipped'.
+      eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h
                      OUT snuffleRes (map littleendian xInit)
                      (((N1, N2, N3, N4), (C1, C2, C3, C4)), (K1, K2, K3, K4, (L1, L2, L3, L4)))).
-      intros ? ?. apply andp_left2.
-        unfold POSTCONDITION, abbreviate.
-        rewrite overridePost_overridePost, normal_ret_assert_eq.
-        Intros. subst ek vl. rewrite overridePost_normal'.
+        apply andp_left2.
         apply HTruePOST; trivial. rewrite Int.eq_false; trivial.
         subst xInit; reflexivity.
         thaw FR6. cancel.
@@ -339,18 +337,12 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
       assert (HOUTLEN: OutLen h = 64). unfold OutLen; rewrite H; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [1;3;4] FR6.
       drop_LOCAL 0%nat.
-      eapply semax_post.
-      2: apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6)
+      eapply semax_post_flipped'.
+      apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6)
             t y x w nonce out c k h OUT).
-      intros ? ?. apply andp_left2.
-        unfold POSTCONDITION, abbreviate.
-        rewrite overridePost_overridePost, normal_ret_assert_eq.
-        Intros. subst ek vl. rewrite overridePost_normal'.
+      apply andp_left2.
         apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
         thaw FR6. cancel.
-    - intros ? ?. apply andp_left2.
-      unfold POSTCONDITION, abbreviate.
-      rewrite overridePost_overridePost. apply derives_refl.
   + unfold fcore_EpiloguePOST.
     destruct data as [[Nonce C] [Key1 Key2]].
     abbreviate_semax.

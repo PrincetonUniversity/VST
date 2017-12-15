@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.semax_tactics.
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
@@ -233,6 +234,9 @@ apply prop_right; auto.
 Qed.
 
 Ltac go_lower :=
+try match goal with |- ENTAIL (exit_tycon _ _ _), _ |-- _ =>
+      simpl exit_tycon; simplify_Delta
+  end;
 clear_Delta_specs;
 intros;
 match goal with
