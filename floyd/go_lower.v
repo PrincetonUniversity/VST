@@ -288,7 +288,8 @@ repeat match goal with
 end
 ];
 clear_Delta;
-try clear dependent rho.
+try clear dependent rho;
+simpl.
 
 Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
   match l with

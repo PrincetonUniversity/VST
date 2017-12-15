@@ -18,14 +18,13 @@ Qed.
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-                     Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents)
+  PRE [ _a OF (tptr tuint), _n OF tint ]
+          PROP  (readable_share sh; 0 <= size <= Int.max_signed)
           LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
-  POST [ tint ]
+          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+  POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
-           SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
+           SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
@@ -57,7 +56,7 @@ forward_for_simple_bound size
           (*temp _i (Vint (Int.repr i)); *)
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)).
 
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
@@ -130,14 +129,14 @@ start_function.
 change [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4] with (map Int.repr four_contents).
 set (contents :=  map Vint (map Int.repr four_contents)).
 assert (Zlength contents = 4) by (subst contents; reflexivity).
-assert_PROP (field_compatible (tarray tint 4) [] four) by entailer!.
+assert_PROP (field_compatible (tarray tuint 4) [] four) by entailer!.
 assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_contents)
   by (repeat constructor; computable).
  rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
     by now autorewrite with sublist.
 erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
 forward_call (*  s = sumarray(four+2,2); *)
-  (field_address0 (tarray tint 4) [ArraySubsc 2] four, Ews,
+  (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
 +
  clear - GV. unfold gvar_denote, eval_var in *.
@@ -148,10 +147,7 @@ forward_call (*  s = sumarray(four+2,2); *)
  rewrite field_address0_offset. reflexivity.
  auto with field_compatible.
 +
- split3.
- auto.
- computable.
- apply Forall_sublist; auto.
+ split. auto. computable.
 +
   gather_SEP 1 2.
   erewrite <- (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
@@ -209,7 +205,7 @@ Definition sumarray_Inv a sh contents size i :=
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 Definition sumarray_PostBody a sh contents size i :=
    PROP  (0 <= i < size)
@@ -217,7 +213,7 @@ Definition sumarray_PostBody a sh contents size i :=
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 (i+1) contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* . . . and now you can see how these assertions are used
    in the proof, using the semax_loop rule. *)
@@ -240,7 +236,7 @@ assert_PROP (size=Zlength contents)
 forward. (* x = a[i]; *)
 forward. (* s += x; *)
 unfold sumarray_PostBody. Exists i.
-entailer!. clear H5.
+entailer!.
      f_equal. f_equal.
      rewrite (sublist_split 0 i (i+1)) by omega.
      rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.

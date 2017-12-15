@@ -664,7 +664,9 @@ match op with
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.add_default => tc_andp 
+                                           (binarithType' (typeof a1) (typeof a2) ty deferr reterr)
+                                           (tc_nobinover Z.add a1 a2)
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
                     | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
@@ -688,9 +690,12 @@ match op with
                                  (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (Z.leb (sizeof t) Int.max_signed)
                                          (pp_compare_size_exceed t))
-                    | Cop.sub_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.sub_default => tc_andp 
+                                        (binarithType' (typeof a1) (typeof a2) ty deferr reterr)
+                                        (tc_nobinover Z.sub a1 a2)
             end
-  | Cop.Omul => binarithType' (typeof a1) (typeof a2) ty deferr reterr
+  | Cop.Omul => tc_andp (binarithType' (typeof a1) (typeof a2) ty deferr reterr)
+                   (tc_nobinover Z.mul a1 a2)
   | Cop.Omod => match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned =>
                            tc_andp' (tc_nonzero' a2)

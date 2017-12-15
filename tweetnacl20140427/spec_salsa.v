@@ -138,7 +138,7 @@ Definition L32_spec :=
   DECLARE _L32
    WITH x : int, c: int
    PRE [ _x OF tuint, _c OF tint ]
-      PROP (0 < Int.unsigned c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
+      PROP (0 < Int.signed c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
       LOCAL (temp _x (Vint x); temp _c (Vint c))
       SEP ()
   POST [ tuint ]

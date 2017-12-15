@@ -404,7 +404,7 @@ Proof.
           (Vint (Int.repr entropy_len),
           (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
-  red; simpl. intuition. 
+  red; simpl. intuition.
 Time Qed. (*Coq8.6: 12secs*)
 
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common. 
@@ -463,7 +463,6 @@ Proof.
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite add_repr.
       rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.

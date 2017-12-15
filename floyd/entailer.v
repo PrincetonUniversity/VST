@@ -212,7 +212,7 @@ Arguments denote_tc_Zle z !v .
 Arguments denote_tc_samebase !v1 !v2 .
 Arguments denote_tc_nodivover !v1 !v2 .
 Arguments denote_tc_initialized id ty rho / .
-
+Arguments denote_tc_nosignedover op v1 v2 / .
 Ltac simpl_denote_tc :=
  simpl denote_tc_isptr;
  simpl denote_tc_iszero;
@@ -222,7 +222,8 @@ Ltac simpl_denote_tc :=
  simpl denote_tc_Zle;
  simpl denote_tc_samebase;
  simpl denote_tc_nodivover;
- simpl denote_tc_initialized.
+ simpl denote_tc_initialized;
+ simpl denote_tc_nosignedover.
 
 Lemma valid_pointer_weak:
  forall a, valid_pointer a |-- weak_valid_pointer a.
@@ -405,6 +406,14 @@ Ltac splittable :=
  | |- _ /\ _ => idtac
  end.
 
+Ltac prove_signed_range :=
+  match goal with
+  | |- Int.min_signed <= _ <= Int.max_signed => 
+           normalize; repable_signed
+  | |- Int64.min_signed <= _ <= Int64.max_signed => 
+           normalize; repable_signed
+  end.
+
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
 Proof.
 destruct x; simpl; intros; try contradiction.
@@ -423,6 +432,7 @@ Ltac prove_it_now :=
         | apply Coq.Init.Logic.I
         | reflexivity
         | Omega0
+        | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;

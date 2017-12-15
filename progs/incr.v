@@ -87,7 +87,7 @@ Definition v_thread_lock := {|
 |}.
 
 Definition v_ctr := {|
-  gvar_info := tint;
+  gvar_info := tuint;
   gvar_init := (Init_space 4 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
@@ -98,7 +98,7 @@ Definition f_incr := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: (_t, tint) :: nil);
+  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: (_t, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
@@ -110,11 +110,11 @@ Definition f_incr := {|
       ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
        nil))
     (Ssequence
-      (Sset _t (Evar _ctr tint))
+      (Sset _t (Evar _ctr tuint))
       (Ssequence
-        (Sassign (Evar _ctr tint)
-          (Ebinop Oadd (Etempvar _t tint) (Econst_int (Int.repr 1) tint)
-            tint))
+        (Sassign (Evar _ctr tuint)
+          (Ebinop Oadd (Etempvar _t tuint) (Econst_int (Int.repr 1) tint)
+            tuint))
         (Scall None
           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                            cc_default))
@@ -123,11 +123,11 @@ Definition f_incr := {|
 |}.
 
 Definition f_read := {|
-  fn_return := tint;
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_t, tint) :: nil);
+  fn_temps := ((_t, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -136,14 +136,14 @@ Definition f_read := {|
        (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
          (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
   (Ssequence
-    (Sset _t (Evar _ctr tint))
+    (Sset _t (Evar _ctr tuint))
     (Ssequence
       (Scall None
         (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
         ((Ecast
            (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
              (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
-      (Sreturn (Some (Etempvar _t tint))))))
+      (Sreturn (Some (Etempvar _t tuint))))))
 |}.
 
 Definition f_thread_func := {|
@@ -165,7 +165,9 @@ Definition f_thread_func := {|
                           cc_default))
         ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
          nil))
-      (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
+      (Sreturn (Some (Ecast
+                       (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
+                       (tptr tvoid)))))))
 |}.
 
 Definition f_main := {|
@@ -174,12 +176,12 @@ Definition f_main := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_lockc, (tptr (Tstruct _lock_t noattr))) ::
-               (_lockt, (tptr (Tstruct _lock_t noattr))) :: (_t, tint) ::
-               (_t'1, tint) :: nil);
+               (_lockt, (tptr (Tstruct _lock_t noattr))) :: (_t, tuint) ::
+               (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Sassign (Evar _ctr tint) (Econst_int (Int.repr 0) tint))
+    (Sassign (Evar _ctr tuint) (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Sset _lockc
         (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
@@ -221,8 +223,8 @@ Definition f_main := {|
                                             (tptr tvoid) cc_default))
                        (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
                                (tptr tvoid) cc_default))) (tptr tvoid)) ::
-                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
-                   nil))
+                   (Ecast (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
+                     (tptr tvoid)) :: nil))
                 (Ssequence
                   (Scall None (Evar _incr (Tfunction Tnil tvoid cc_default))
                     nil)
@@ -236,8 +238,8 @@ Definition f_main := {|
                     (Ssequence
                       (Ssequence
                         (Scall (Some _t'1)
-                          (Evar _read (Tfunction Tnil tint cc_default)) nil)
-                        (Sset _t (Etempvar _t'1 tint)))
+                          (Evar _read (Tfunction Tnil tuint cc_default)) nil)
+                        (Sset _t (Etempvar _t'1 tuint)))
                       (Ssequence
                         (Scall None
                           (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
@@ -261,9 +263,10 @@ Definition f_main := {|
                               ((Ecast
                                  (Etempvar _lockc (tptr (Tstruct _lock_t noattr)))
                                  (tptr tvoid)) :: nil))
-                            (Sreturn (Some (Etempvar _t tint))))))))))))))))
+                            (Sreturn (Some (Etempvar _t tuint))))))))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
+
 
 Definition composites : list composite_definition :=
 (Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
@@ -557,4 +560,3 @@ prog_types := composites;
 prog_comp_env := make_composite_env composites;
 prog_comp_env_eq := refl_equal _
 |}.
-

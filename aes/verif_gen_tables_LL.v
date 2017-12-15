@@ -80,39 +80,39 @@ Proof.
   - rewrite andb_false_r. exact I.
 Qed.
 
-Definition rcon_loop_inv00(i: Z)(lvar0 lvar1 tables: val)(frozen: list mpred) : environ -> mpred :=
+Definition rcon_loop_inv00(i: Z)(v_pow v_log tables: val)(frozen: list mpred) : environ -> mpred :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
-            lvar _log (tarray tint 256) lvar1;
-            lvar _pow (tarray tint 256) lvar0;
+            lvar _log (tarray tint 256) v_log;
+            lvar _pow (tarray tint 256) v_pow;
             gvar _tables tables)
      SEP (FRZL frozen;
           field_at Ews t_struct_tables [StructField _RCON]
                    ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
                    tables).
 
-Definition rcon_loop_inv0(lvar0 lvar1 tables: val)(frozen: list mpred) :=  EX i: Z,
-  rcon_loop_inv00 i lvar0 lvar1 tables frozen.
+Definition rcon_loop_inv0(v_pow v_log tables: val)(frozen: list mpred) :=  EX i: Z,
+  rcon_loop_inv00 i v_pow v_log tables frozen.
 
 (* TODO floyd if I inline inv00 into inv0, why doesn't this typecheck?
-Definition rcon_loop_inv(lvar0 lvar1 tables: val) :=
+Definition rcon_loop_inv(v_pow v_log tables: val) :=
   EX i: Z,
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
-            lvar _log (tarray tint 256) lvar1;
-            lvar _pow (tarray tint 256) lvar0;
+            lvar _log (tarray tint 256) v_log;
+            lvar _pow (tarray tint 256) v_pow;
             gvar _tables tables)
      SEP (field_at Ews t_struct_tables [StructField _RCON]
                    ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
                    tables).
 *)
 
-Definition gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen :=
+Definition gen_sbox_inv00 i v_pow v_log tables log pow frozen :=
     PROP ( )
-    LOCAL (lvar _log (tarray tint 256) lvar1;
-           lvar _pow (tarray tint 256) lvar0;
+    LOCAL (lvar _log (tarray tint 256) v_log;
+           lvar _pow (tarray tint 256) v_pow;
            gvar _tables tables)
-    SEP (FRZL frozen; data_at Tsh (tarray tint 256) log lvar1; data_at Tsh (tarray tint 256) pow lvar0;
+    SEP (FRZL frozen; data_at Tsh (tarray tint 256) log v_log; data_at Tsh (tarray tint 256) pow v_pow;
          EX fsb : list val,
            !!(Zlength fsb = 256) &&
            !!(forall j, 0 <= j < i -> Znth j fsb Vundef = Vint (Znth j FSb Int.zero)) &&
@@ -125,8 +125,8 @@ Definition gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen :=
            !!(Znth 99 rsb Vundef = Vint Int.zero)
            && field_at Ews t_struct_tables [StructField _RSb] rsb tables).
 
-Definition gen_sbox_inv0 lvar0 lvar1 tables log pow frozen :=
-  EX i: Z, gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen.
+Definition gen_sbox_inv0 v_pow v_log tables log pow frozen :=
+  EX i: Z, gen_sbox_inv00 i v_pow v_log tables log pow frozen.
 
 (* TODO floyd put in sublist? *)
 Lemma list_equiv: forall {T: Type} (l1 l2: list T) (d: T) (n: Z),
@@ -150,13 +150,13 @@ Proof.
         assumption.
 Qed.
 
-Definition gen_ftrt_inv00 i lvar0 lvar1 tables log pow :=
+Definition gen_ftrt_inv00 i v_pow v_log tables log pow :=
     PROP ( )
-    LOCAL (lvar _log (tarray tint 256) lvar1;
-           lvar _pow (tarray tint 256) lvar0;
+    LOCAL (lvar _log (tarray tint 256) v_log;
+           lvar _pow (tarray tint 256) v_pow;
            gvar _tables tables)
-    SEP (data_at Tsh (tarray tint 256) pow lvar0;
-         data_at Tsh (tarray tint 256) log lvar1;
+    SEP (data_at Tsh (tarray tint 256) pow v_pow;
+         data_at Tsh (tarray tint 256) log v_log;
          field_at Ews t_struct_tables [StructField _FSb] (map Vint FSb) tables;
          field_at Ews t_struct_tables [StructField _FT0] (partially_filled i 256 calc_FT0) tables;
          field_at Ews t_struct_tables [StructField _FT1] (partially_filled i 256 calc_FT1) tables;
@@ -169,8 +169,39 @@ Definition gen_ftrt_inv00 i lvar0 lvar1 tables log pow :=
          field_at Ews t_struct_tables [StructField _RT3] (partially_filled i 256 calc_RT3) tables;
          field_at Ews t_struct_tables [StructField _RCON] (map Vint RCON) tables).
 
-Definition gen_ftrt_inv0 lvar0 lvar1 tables log pow :=
-  EX i: Z, gen_ftrt_inv00 i lvar0 lvar1 tables log pow.
+Definition gen_ftrt_inv0 v_pow v_log tables log pow :=
+  EX i: Z, gen_ftrt_inv00 i v_pow v_log tables log pow.
+
+Lemma add_no_overflow: forall n i log
+  (Hn: 1 <= n < 256)
+  (Hlog : forall j : Z, 1 <= j < 256 -> Znth j log 0 = log3 (Int.repr j))
+  (H1: forall i : Z, Int.unsigned (Znth i RSb Int.zero) <= Byte.max_unsigned)
+  (H3 : (if Int.eq (Znth i RSb Int.zero) Int.zero
+             then Int.zero else Int.one) <> Int.zero),
+ Int.min_signed <=
+   Int.signed (Int.repr (Znth n log 0)) +
+   Int.signed (Int.repr (Znth (Int.unsigned (Znth i RSb Int.zero)) log 0))
+   <= Int.max_signed.
+Proof. intros.
+        destruct (Int.eq (Znth i RSb Int.zero)) eqn:?; try congruence.
+        apply int_eq_false_e in Heqb.
+        change Byte.max_unsigned with 255 in H1. clear H3.
+        assert (Int.unsigned (Znth i RSb Int.zero) <> 0).
+           contradict Heqb. rewrite <- (Int.repr_unsigned (Znth _ _ _)).
+           rewrite Heqb. reflexivity.
+        rewrite Hlog by auto.
+        assert (H2 := log3range n). spec H2; auto.
+        specialize (H1 i).
+        pose proof (Int.unsigned_range (Znth i RSb Int.zero)).
+        assert (H4 := log3range (Int.unsigned (Znth i RSb Int.zero))).
+        spec H4; [omega|].
+        rewrite Hlog.
+        rewrite Int.signed_repr by repable_signed.
+        rewrite Int.signed_repr.
+        repable_signed.
+        repable_signed.
+        omega.
+Qed.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
@@ -184,8 +215,8 @@ Proof.
         (* TODO documentation should say that I don't need to do this *)
         (* TODO floyd: tactic should tell me so *)
         (* temp _i (Vint (Int.repr i)); *)
-           lvar _log (tarray tint 256) lvar1;
-           lvar _pow (tarray tint 256) lvar0;
+           lvar _log (tarray tint 256) v_log;
+           lvar _pow (tarray tint 256) v_pow;
            gvar _tables tables)
     SEP (EX log : list val,
            !!(Zlength log = 256) &&
@@ -196,11 +227,11 @@ Proof.
            !!(forall j, 1 <= j < i -> Vint (Int.repr j)
                 = Znth (Int.unsigned (pow3 j)) log Vundef) &&
            !!(Znth 0 log Vundef = Vundef)
-           && data_at Tsh (tarray tint 256) log lvar1;
+           && data_at Tsh (tarray tint 256) log v_log;
          EX pow : list val,
            !!(Zlength pow = 256) &&
            !!(forall j, 0 <= j < i -> Znth j pow Vundef = Vint (pow3 j))
-           && data_at Tsh (tarray tint 256) pow lvar0;
+           && data_at Tsh (tarray tint 256) pow v_pow;
          tables_uninitialized tables)).
   { (* init *)
     forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
@@ -273,7 +304,7 @@ Proof.
   unfold_data_at 3%nat.
   freeze [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11] Fr.
 
-  forward_for_simple_bound 10 (rcon_loop_inv0 lvar0 lvar1 tables Fr).
+  forward_for_simple_bound 10 (rcon_loop_inv0 v_pow v_log tables Fr).
   { (* init *)
     forward. forward. Exists 0. entailer!.
   }
@@ -369,7 +400,7 @@ Proof.
   freeze [3; 4; 5; 6; 8; 9; 10; 11; 12] Fr.
   forward.
   forward.
-  forward_for_simple_bound 256 (gen_sbox_inv0 lvar0 lvar1 tables (map Z_to_val log) (map Vint pow) Fr).
+  forward_for_simple_bound 256 (gen_sbox_inv0 v_pow v_log tables (map Z_to_val log) (map Vint pow) Fr).
   { (* loop invariant holds initially: *)
     entailer!.
     Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
@@ -498,7 +529,7 @@ Proof.
   clear H H0 H1 H2 H3 H4 H5.
 
   (* generate the forward and reverse tables *)
-  forward_for_simple_bound 256 (gen_ftrt_inv0 lvar0 lvar1 tables (map Z_to_val log) (map Vint pow)).
+  forward_for_simple_bound 256 (gen_ftrt_inv0 v_pow v_log tables (map Z_to_val log) (map Vint pow)).
   { (* loop invariant holds initially: *)
     entailer!.
   }
@@ -605,7 +636,10 @@ Proof.
        (* We have to show that we're not in the case "INT_MIN % -1", because that's undefined behavior.
           TODO floyd: Make sure floyd can solve this automatically, also in solve_efield_denote, so
           that we don't have to factor out the modulo, but can use it directly as the array index. *)
+        split.
         apply mod255_condition.
+        clear - Hlog H1 H3.
+      apply add_no_overflow; auto; computable.
       }
       assert (0 <= Znth 14 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
@@ -640,7 +674,13 @@ Proof.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
       }
       pose proof (RSb_range i).
-      forward. forward. forward. { entailer!. apply mod255_condition. }
+      forward. forward. 
+      forward. { 
+         entailer!.
+         split.
+         apply mod255_condition.
+         apply add_no_overflow; auto; computable.
+      }
       assert (0 <= Znth 9 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 9).
@@ -674,7 +714,13 @@ Proof.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
       }
       pose proof (RSb_range i).
-      forward. forward. forward. { entailer!. apply mod255_condition. }
+      forward. forward. 
+      forward. { 
+         entailer!. 
+         split. 
+         apply mod255_condition.
+         apply add_no_overflow; auto; computable.
+      }
       assert (0 <= Znth 13 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 13).
@@ -708,7 +754,13 @@ Proof.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
       }
       pose proof (RSb_range i).
-      forward. forward. forward. { entailer!. apply mod255_condition. }
+      forward. forward.
+      forward. { 
+         entailer!.
+         split.
+         apply mod255_condition.
+         apply add_no_overflow; auto; computable.
+      }
       assert (0 <= Znth 11 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 11).

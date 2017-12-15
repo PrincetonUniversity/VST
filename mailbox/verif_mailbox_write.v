@@ -198,6 +198,8 @@ Proof.
     Exists i; entailer!.
   + Intros i.
     forward.
+      assert (B < Int.max_signed) by (compute; auto).
+      entailer!.
     unfold loop2_ret_assert.
     Exists (i + 1); entailer!.
     intros; destruct (eq_dec j i); subst; auto.

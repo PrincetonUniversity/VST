@@ -1515,6 +1515,38 @@ Proof.
 Qed.
 Hint Resolve closed_wrt_tc_nodivover : closed.
 
+Lemma closed_wrt_tc_nosignedover:
+  forall op {CS: compspecs} S e1 e2,
+  closed_wrt_vars S (eval_expr e1) ->
+  closed_wrt_vars S (eval_expr e2) ->
+  closed_wrt_vars S (denote_tc_assert (tc_nosignedover op e1 e2)).
+Proof.
+intros; hnf; intros.
+simpl. unfold_lift.
+rewrite <- H; auto.
+rewrite <- H0; auto.
+Qed.
+Hint Resolve closed_wrt_tc_nosignedover : closed.
+
+Lemma closed_wrt_tc_nobinover:
+  forall op {CS: compspecs} S e1 e2,
+  closed_wrt_vars S (eval_expr e1) ->
+  closed_wrt_vars S (eval_expr e2) ->
+  closed_wrt_vars S (denote_tc_assert (tc_nobinover op e1 e2)).
+Proof.
+intros.
+unfold tc_nobinover.
+unfold if_expr_signed.
+destruct (typeof e1); auto with closed.
+destruct s; auto with closed.
+destruct (eval_expr e1 any_environ); auto with closed;
+destruct (eval_expr e2 any_environ); auto with closed.
+if_tac; auto with closed.
+if_tac; auto with closed.
+Qed.
+
+Hint Resolve closed_wrt_tc_nobinover : closed.
+
 Lemma closed_wrt_tc_expr:
   forall {cs: compspecs} Delta j e, closed_eval_expr j e = true ->
              closed_wrt_vars (eq j) (tc_expr Delta e)
@@ -1577,6 +1609,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  destruct (classify_sub (typeof e1) (typeof e2)); auto 50 with closed.
  destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
  destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+
 +
  apply closed_wrt_tc_andp; auto with closed.
  specialize (IHe H).

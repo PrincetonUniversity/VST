@@ -50,21 +50,20 @@ Definition ___i64_umod : ident := 23%positive.
 Definition ___i64_utod : ident := 17%positive.
 Definition ___i64_utof : ident := 19%positive.
 Definition _a : ident := 49%positive.
-Definition _four : ident := 55%positive.
+Definition _four : ident := 54%positive.
 Definition _i : ident := 51%positive.
-Definition _main : ident := 56%positive.
+Definition _main : ident := 55%positive.
 Definition _n : ident := 50%positive.
 Definition _s : ident := 52%positive.
-Definition _sumarray : ident := 54%positive.
-Definition _x : ident := 53%positive.
-Definition _t'1 : ident := 57%positive.
+Definition _sumarray : ident := 53%positive.
+Definition _t'1 : ident := 56%positive.
 
 Definition f_sumarray := {|
-  fn_return := tint;
+  fn_return := tuint;
   fn_callconv := cc_default;
-  fn_params := ((_a, (tptr tint)) :: (_n, tint) :: nil);
+  fn_params := ((_a, (tptr tuint)) :: (_n, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_s, tint) :: (_x, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_s, tuint) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -74,21 +73,21 @@ Definition f_sumarray := {|
       (Swhile
         (Ebinop Olt (Etempvar _i tint) (Etempvar _n tint) tint)
         (Ssequence
-          (Sset _x
-            (Ederef
-              (Ebinop Oadd (Etempvar _a (tptr tint)) (Etempvar _i tint)
-                (tptr tint)) tint))
           (Ssequence
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Etempvar _a (tptr tuint)) (Etempvar _i tint)
+                  (tptr tuint)) tuint))
             (Sset _s
-              (Ebinop Oadd (Etempvar _s tint) (Etempvar _x tint) tint))
-            (Sset _i
-              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-                tint)))))
-      (Sreturn (Some (Etempvar _s tint))))))
+              (Ebinop Oadd (Etempvar _s tuint) (Etempvar _t'1 tuint) tuint)))
+          (Sset _i
+            (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+              tint))))
+      (Sreturn (Some (Etempvar _s tuint))))))
 |}.
 
 Definition v_four := {|
-  gvar_info := (tarray tint 4);
+  gvar_info := (tarray tuint 4);
   gvar_init := (Init_int32 (Int.repr 1) :: Init_int32 (Int.repr 2) ::
                 Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 4) :: nil);
   gvar_readonly := false;
@@ -100,18 +99,18 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_s, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_s, tuint) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
-        (Evar _sumarray (Tfunction (Tcons (tptr tint) (Tcons tint Tnil)) tint
-                          cc_default))
-        ((Evar _four (tarray tint 4)) :: (Econst_int (Int.repr 4) tint) ::
+        (Evar _sumarray (Tfunction (Tcons (tptr tuint) (Tcons tint Tnil))
+                          tuint cc_default))
+        ((Evar _four (tarray tuint 4)) :: (Econst_int (Int.repr 4) tint) ::
          nil))
-      (Sset _s (Etempvar _t'1 tint)))
-    (Sreturn (Some (Etempvar _s tint))))
+      (Sset _s (Etempvar _t'1 tuint)))
+    (Sreturn (Some (Ecast (Etempvar _s tuint) tint))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
