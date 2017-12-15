@@ -219,12 +219,11 @@ unfold_field_at 2%nat.
 simpl.
 entailer!.
 Qed.
-
 End Single.
 
 Module Float.
 
- (* This experiment shows what kind of error message you get
+(* This experiment shows what kind of error message you get
    if you put the wrong LOCAL precondition.
    In fact, Vfloat x is wrong, leading to an unsatisfying precondition,
    it must be Vsingle. *)
