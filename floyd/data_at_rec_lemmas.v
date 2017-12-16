@@ -1201,26 +1201,68 @@ Proof.
     intros.
     pose proof (fun i => field_offset_change_composite _ i H0) as HH0.
     pose proof (fun i => field_offset_next_change_composite _ i H0) as HH1.
+    pose proof H0 as H0'.
     apply members_spec_change_composite in H0.
-    apply union_pred_ext; [apply get_co_members_no_replicate | |].
-
-(*    SearchAbout (_ -> (members_union_inj _ _)).
+    apply union_pred_ext.
+    { apply get_co_members_no_replicate. }
+    {
+      apply members_union_inj_JMeq; auto.
+      2: apply get_co_members_no_replicate.
+      intros.
+      apply reptype_change_composite; auto.
+      apply in_members_field_type in H.
+      rewrite Forall_forall in H0.
+      apply (H0 _ H).
+    }
     intros.
-    f_equal; [f_equal | | f_equal ]; auto.
+    clear H. (* should not clear H and H2 *)
+    assert (in_members i (co_members (get_co id))).
+    {
+      apply compact_sum_inj_in in H2.
+      apply (in_map fst) in H2.
+      auto.
+    }
+    clear H2.
+    f_equal.
     - apply sizeof_change_composite; auto.
       rewrite Forall_forall in H0.
       apply H0.
       apply in_members_field_type.
       auto.
+    - apply co_sizeof_get_co_change_composite.
+      auto.
     - clear HH0 HH1.
       simpl fst in *.
       revert d0 d1 v1' v2' IH H0 H1.
+      unfold reptype_unionlist.
+(*
+forall (d0 d1 : reptype (field_type i (co_members (get_co id))))
+  (v1'
+   v2' : compact_prod
+           (map (fun it : ident * type => reptype (field_type (fst it) (co_members (get_co id))))
+              (co_members (get_co id)))),
+Forall
+  (fun it : ident * type =>
+   forall v1 v2 : reptype (field_type (fst it) (co_members (get_co id))),
+   JMeq v1 v2 ->
+   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) (field_type (fst it) (co_members (get_co id))) =
+   true ->
+   data_at_rec sh (field_type (fst it) (co_members (get_co id))) v1 =
+   data_at_rec sh (field_type (fst it) (co_members (get_co id))) v2) (co_members (get_co id)) ->
+Forall
+  (fun it : ident * type =>
+   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) (field_type (fst it) (co_members (get_co id))) =
+   true) (co_members (get_co id)) ->
+JMeq v1' v2' ->
+data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v1' d0) =
+data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v2' d1)
+*)
       generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
       pose proof in_members_field_type _ _ H.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
-      apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
+      apply (@proj_union_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
       * intros. apply reptype_change_composite.
         apply H0.
         apply in_members_field_type; auto.
