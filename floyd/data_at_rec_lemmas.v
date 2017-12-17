@@ -1215,6 +1215,7 @@ Proof.
       apply (H0 _ H).
     }
     intros.
+    (*
     clear H. (* should not clear H and H2 *)
     assert (in_members i (co_members (get_co id))).
     {
@@ -1223,17 +1224,20 @@ Proof.
       auto.
     }
     clear H2.
+    *)
     f_equal.
     - apply sizeof_change_composite; auto.
       rewrite Forall_forall in H0.
       apply H0.
       apply in_members_field_type.
+      apply compact_sum_inj_in in H.
+      apply (in_map fst) in H.
       auto.
     - apply co_sizeof_get_co_change_composite.
       auto.
     - clear HH0 HH1.
       simpl fst in *.
-      revert d0 d1 v1' v2' IH H0 H1.
+      revert d0 d1 v1' v2' IH H0 H1 H H2.
       unfold reptype_unionlist.
 (*
 forall (d0 d1 : reptype (field_type i (co_members (get_co id))))
@@ -1257,8 +1261,12 @@ JMeq v1' v2' ->
 data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v1' d0) =
 data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v2' d1)
 *)
-      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 21 23 24 26; intros.
-      pose proof in_members_field_type _ _ H.
+Check @members_union_inj.
+
+      generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 22 25 27 29 30 32; intros.
+      apply compact_sum_inj_in in H2.
+      apply (in_map fst) in H2.
+      apply in_members_field_type in H2.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
@@ -1267,9 +1275,7 @@ data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_member
         apply H0.
         apply in_members_field_type; auto.
       * apply get_co_members_no_replicate.
-*)
-Abort.
-
+Qed.
 (**** tactics for value_fits  ****)
 
 Lemma value_fits_Tstruct:
