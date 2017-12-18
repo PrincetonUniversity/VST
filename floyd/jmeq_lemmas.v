@@ -352,10 +352,10 @@ Lemma JMeq_func: forall (A: Type) (B: Type) (C: Type) (D: Type) (f: A -> B) (g: 
 Proof.
   intros.
   exists H.
-  destruct H0.
-  destruct H, x0.
-  apply JMeq_eq in H1.
-  rewrite <- e, H1.
+  destruct H0 as [?H ?H], H1 as [?H ?H].
+  destruct H, H0.
+  rewrite <- eq_rect_eq in H3.
+  rewrite H3, <- H2.
   apply eq_refl.
 Qed.
 
