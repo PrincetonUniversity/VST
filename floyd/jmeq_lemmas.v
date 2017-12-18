@@ -250,8 +250,8 @@ Proof.
   subst.
   apply JMeq_refl.
 Qed.
-*)(*
-Lemma JMeq_fst: forall A B C D (x: A*B) (y: C*D), A = C -> B = D -> JMeq x y -> JMeq (fst x) (fst y).
+
+Lemma JMeq_fst: forall (A: Type) (B: Type) (C: Type) (D: Type) (x: A*B) (y: C*D), @eq Type A C -> @eq Type B D -> JMeq x y -> JMeq (fst x) (fst y).
 Proof.
   intros.
   subst.
@@ -260,7 +260,7 @@ Proof.
   apply JMeq_refl.
 Qed.
 
-Lemma JMeq_snd: forall A B C D (x: A*B) (y: C*D), A = C -> B = D -> JMeq x y -> JMeq (snd x) (snd y).
+Lemma JMeq_snd: forall (A: Type) (B: Type) (C: Type) (D: Type) (x: A*B) (y: C*D), @eq Type A C -> @eq Type B D -> JMeq x y -> JMeq (snd x) (snd y).
 Proof.
   intros.
   subst.
@@ -269,38 +269,44 @@ Proof.
   apply JMeq_refl.
 Qed.
 
-Lemma JMeq_pair: forall A B C D (a: A) (b: B) (c: C) (d: D), JMeq a b -> JMeq c d -> JMeq (a, c) (b, d).
+Lemma JMeq_pair: forall (A: Type) (B: Type) (C: Type) (D: Type) (a: A) (b: B) (c: C) (d: D), JMeq a b -> JMeq c d -> JMeq (a, c) (b, d).
 Proof.
   intros.
-  inversion H; subst.
-  inversion H0; subst.
-  apply JMeq_refl.
+  destruct H as [?H ?H], H0 as [?H ?H].
+  pose (f_equal2 := 
+          fun (A1 : Type) (A2 : Type) (B : Type) (f : forall (_ : A1) (_ : A2), B) 
+            (x1 y1 : A1) (x2 y2 : A2) (H : @eq A1 x1 y1) =>
+          match H in (eq _ y) return (forall _ : @eq A2 x2 y2, @eq B (f x1 x2) (f y y2)) with
+          | eq_refl => fun H0 : @eq A2 x2 y2 => match H0 in (eq _ y) return (@eq B (f x1 x2) (f x1 y)) with
+                                                | eq_refl => @eq_refl B (f x1 x2)
+                                                end
+          end).
+  exists (f_equal2 _ _ _ prod _ _ _ _ H H0).
+  destruct H, H0.
+  rewrite <- H1, <- H2.
+  unfold f_equal2.
+  simpl.
+  apply eq_refl.
 Qed.
 
 Lemma eq_rect_r_eq_rect_r_eq_sym: forall {T} {A B: T} F x (H: A = B),
   eq_rect_r F (eq_rect_r F x H) (eq_sym H) = x.
 Proof.
   intros.
-  apply JMeq_eq.
-  apply JMeq_sym.
-  apply @JMeq_sym; eapply JMeq_trans.
-  + apply eq_rect_r_JMeq.
-  + apply eq_rect_r_JMeq.
+  destruct H.
+  reflexivity.
 Qed.
 
 Lemma eq_rect_r_eq_rect_r_eq_sym': forall {T} {A B: T} F x (H: B = A),
   eq_rect_r F (eq_rect_r F x (eq_sym H)) H = x.
 Proof.
   intros.
-  apply JMeq_eq.
-  apply JMeq_sym.
-  apply @JMeq_sym; eapply JMeq_trans.
-  + apply eq_rect_r_JMeq.
-  + apply eq_rect_r_JMeq.
+  destruct H.
+  reflexivity.
 Qed.
 
-Lemma JMeq_func: forall A B C D (f: A -> B) (g: C -> D) x y,
-  A = C -> B = D ->
+Lemma JMeq_func: forall (A: Type) (B: Type) (C: Type) (D: Type) (f: A -> B) (g: C -> D) x y,
+  @eq Type A C -> @eq Type B D ->
   JMeq x y -> JMeq f g -> JMeq (f x) (g y).
 Proof.
   intros.
@@ -315,7 +321,7 @@ Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
 Proof. intros. subst. apply JMeq_refl.
 Qed.
 
-Lemma list_func_JMeq: forall {A B C} (a: list A) (b: list B) (f: forall X, list X -> C), A = B -> JMeq a b -> f A a = f B b.
+Lemma list_func_JMeq: forall {A: Type} {B: Type} {C: Type} (a: list A) (b: list B) (f: forall X, list X -> C), @eq Type A B -> JMeq a b -> f A a = f B b.
 Proof.
   intros; subst.
   apply JMeq_eq in H0.
@@ -323,23 +329,24 @@ Proof.
   auto.
 Qed.
 
-Lemma list_func_JMeq': forall {A B} (a: list A) (b: list B) (a': A) (b': B) (f: forall X, list X -> X -> X), JMeq a b -> JMeq a' b' -> JMeq (f A a a') (f B b b').
+Lemma list_func_JMeq': forall {A: Type} {B: Type} (a: list A) (b: list B) (a': A) (b': B) (f: forall X, list X -> X -> X), JMeq a b -> JMeq a' b' -> JMeq (f A a a') (f B b b').
 Proof.
   intros.
-  inversion H0.
-  clear H1; subst.
-  apply JMeq_eq in H0.
-  apply JMeq_eq in H.
-  subst.
-  auto.
+  destruct H as [?H ?H], H0 as [?H ?H].
+  exists H0.
+  rewrite <- H1, <- H2.
+  destruct H0.
+  simpl.
+  rewrite <- eq_rect_eq.
+  apply eq_refl.
 Qed.
 
-Lemma JMeq_sigT: forall {A B} (a: A), A = B -> {b: B | JMeq a b}.
+Lemma JMeq_sigT: forall {A: Type} {B: Type} (a: A), @eq Type A B -> {b: B | JMeq a b}.
 Proof.
   intros.
   subst.
   exists a.
   apply JMeq_refl.
 Qed.
-*)
+
 Arguments JMeq_eq {A} {x y} _.
