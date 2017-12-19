@@ -1176,7 +1176,8 @@ Proof.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
       apply (@proj_struct_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
-      * intros. apply reptype_change_composite.
+      * intros. 
+        rewrite reptype_change_composite; [reflexivity |].
         apply H0.
         apply in_members_field_type; auto.
       * apply get_co_members_no_replicate.
@@ -1209,22 +1210,12 @@ Proof.
       apply members_union_inj_JMeq; auto.
       2: apply get_co_members_no_replicate.
       intros.
-      apply reptype_change_composite; auto.
+      rewrite reptype_change_composite; [reflexivity |].
       apply in_members_field_type in H.
       rewrite Forall_forall in H0.
       apply (H0 _ H).
     }
     intros.
-    (*
-    clear H. (* should not clear H and H2 *)
-    assert (in_members i (co_members (get_co id))).
-    {
-      apply compact_sum_inj_in in H2.
-      apply (in_map fst) in H2.
-      auto.
-    }
-    clear H2.
-    *)
     f_equal.
     - apply sizeof_change_composite; auto.
       rewrite Forall_forall in H0.
@@ -1247,7 +1238,8 @@ Proof.
       specialize (IH _ H2); pose proof (H0 _ H2).
       apply IH; auto.
       apply (@proj_union_JMeq i (co_members (@get_co cs_to id)) (fun it : ident * type => @reptype cs_from (field_type (@fst ident type it) m)) (fun it : ident * type => @reptype cs_to (field_type (@fst ident type it) m))); auto.
-      * intros. apply reptype_change_composite.
+      * intros.
+        rewrite reptype_change_composite; [reflexivity |].
         apply H0.
         apply in_members_field_type; auto.
       * apply get_co_members_no_replicate.

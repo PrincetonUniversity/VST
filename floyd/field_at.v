@@ -535,7 +535,7 @@ Proof.
       rewrite nested_field_type_ind.
       simpl; rewrite H.
       auto.
-    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ _ _ (unfold_reptype v1) v2); auto.
+    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ (unfold_reptype v1) v2); auto.
       * intros.
         rewrite nested_field_type_ind, H.
         unfold gfield_type.
@@ -621,7 +621,7 @@ Proof.
       simpl; rewrite H.
       auto.
     - unfold proj_union.
-      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) _ _ d0 d1 (unfold_reptype v1) v2); auto.
+      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) d0 d1 (unfold_reptype v1) v2); auto.
       * intros (i0, t0) ?.
         rewrite nested_field_type_ind, H.
         simpl.
