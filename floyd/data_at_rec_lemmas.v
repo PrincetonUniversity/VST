@@ -1239,30 +1239,6 @@ Proof.
       simpl fst in *.
       revert d0 d1 v1' v2' IH H0 H1 H H2.
       unfold reptype_unionlist.
-(*
-forall (d0 d1 : reptype (field_type i (co_members (get_co id))))
-  (v1'
-   v2' : compact_prod
-           (map (fun it : ident * type => reptype (field_type (fst it) (co_members (get_co id))))
-              (co_members (get_co id)))),
-Forall
-  (fun it : ident * type =>
-   forall v1 v2 : reptype (field_type (fst it) (co_members (get_co id))),
-   JMeq v1 v2 ->
-   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) (field_type (fst it) (co_members (get_co id))) =
-   true ->
-   data_at_rec sh (field_type (fst it) (co_members (get_co id))) v1 =
-   data_at_rec sh (field_type (fst it) (co_members (get_co id))) v2) (co_members (get_co id)) ->
-Forall
-  (fun it : ident * type =>
-   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) (field_type (fst it) (co_members (get_co id))) =
-   true) (co_members (get_co id)) ->
-JMeq v1' v2' ->
-data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v1' d0) =
-data_at_rec sh (field_type i (co_members (get_co id))) (proj_struct i (co_members (get_co id)) v2' d1)
-*)
-Check @members_union_inj.
-
       generalize (co_members (get_co id)) at 1 2 3 5 7 8 9 10 11 12 13 15 17 19 22 25 27 29 30 32; intros.
       apply compact_sum_inj_in in H2.
       apply (in_map fst) in H2.
@@ -1276,6 +1252,7 @@ Check @members_union_inj.
         apply in_members_field_type; auto.
       * apply get_co_members_no_replicate.
 Qed.
+
 (**** tactics for value_fits  ****)
 
 Lemma value_fits_Tstruct:
@@ -1294,7 +1271,21 @@ f_equal.
 apply JMeq_eq in H1. auto.
 Qed.
 
-(* TODO: value_fits_Tunion *)
+Lemma value_fits_Tunion:
+  forall {cs: compspecs} t (v: reptype t) i a m v2 r,
+  t = Tunion i a ->
+  m = co_members (get_co i)  ->
+  JMeq (@unfold_reptype cs t v) v2 ->
+  r =union_Prop m
+          (fun it => value_fits (field_type (fst it) m))  v2 ->
+  value_fits t v = r.
+Proof.
+intros.
+subst.
+rewrite value_fits_eq; simpl.
+f_equal.
+apply JMeq_eq in H1. auto.
+Qed.
 
 Lemma value_fits_by_value_defined:
   forall {cs: compspecs} t t' v r,

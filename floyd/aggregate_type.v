@@ -27,7 +27,7 @@ Definition upd_union (i : ident) (m : members) {A: ident * type -> Type} (v: com
   upd_compact_sum _ v (i, field_type i m) v0 member_dec.
 
 Lemma proj_struct_JMeq: forall (i: ident) (m : members) {A1 A2: ident * type -> Type} (v1: compact_prod (map A1 m)) (v2: compact_prod (map A2 m)) (d1: A1 (i, field_type i m)) (d2: A2 (i, field_type i m)),
-  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
+  (forall i, in_members i m -> @eq Type (A1 (i, field_type i m)) (A2 (i, field_type i m))) ->
   members_no_replicate m = true ->
   in_members i m ->
   JMeq v1 v2 ->
@@ -48,7 +48,7 @@ Proof.
 Qed.
 
 Lemma members_union_inj_JMeq: forall (m : members) {A1 A2: ident * type -> Type} (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)),
-  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
+  (forall i, in_members i m -> @eq Type (A1 (i, field_type i m)) (A2 (i, field_type i m))) ->
   members_no_replicate m = true ->
   JMeq v1 v2 ->
   (forall it, members_union_inj v1 it <-> members_union_inj v2 it).
@@ -68,7 +68,7 @@ Proof.
 Qed.
 
 Lemma proj_union_JMeq: forall (i: ident) (m : members) {A1 A2: ident * type -> Type} (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)) (d1: A1 (i, field_type i m)) (d2: A2 (i, field_type i m)),
-  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
+  (forall i, in_members i m -> @eq Type (A1 (i, field_type i m)) (A2 (i, field_type i m))) ->
   members_no_replicate m = true ->
   members_union_inj v1 (i, field_type i m) ->
   JMeq v1 v2 ->
@@ -86,4 +86,5 @@ Proof.
     apply List.in_map with (f := fst) in H1.
     auto.
 Qed.
+
 
