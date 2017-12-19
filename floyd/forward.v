@@ -167,7 +167,7 @@ Lemma postcondition_var_block:
 Proof.
 intros.
 destruct S1 as [?R ?R ?R ?R];
-eapply semax_post; try apply H4; clear H4;
+eapply semax_post; try apply H3; clear H3;
  intros; simpl_ret_assert; go_lowerx.
 *
 apply sepcon_derives; auto.
@@ -177,7 +177,7 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-apply expr_lemmas.typecheck_environ_update in H4; auto.
+apply expr_lemmas.typecheck_environ_update in H3; auto.
 *
 apply sepcon_derives; auto.
 rewrite <- !sepcon_assoc.
@@ -202,10 +202,6 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-clear - H4.
-destruct ek; simpl in *; auto.
-unfold tc_environ in *.
-apply expr_lemmas.typecheck_environ_update in H4; auto.
 Qed.
 
 Ltac process_stackframe_of :=
