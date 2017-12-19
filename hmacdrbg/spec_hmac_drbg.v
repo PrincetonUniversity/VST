@@ -518,7 +518,7 @@ else
           Stream (get_stream_result g) *
           K_vector kv).
 
-Definition  RI_range (z:Z): Prop:= 0 < z < Int.max_signed.
+Definition  RI_range (z:Z): Prop:= 0 < z /\ z+1 < Int.max_signed. (*Here*)
 
 Definition hmac_drbg_generate_spec :=
   DECLARE _mbedtls_hmac_drbg_random_with_add
@@ -539,7 +539,7 @@ Definition hmac_drbg_generate_spec :=
          hmac256drbgabs_entropy_len I + Zlength contents <= 384;
 (*         hmac256drbgabs_reseed_interval I = 10000;*)
          RI_range (hmac256drbgabs_reseed_interval I) /\
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed;
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed; (*Here*)
          Forall isbyteZ (hmac256drbgabs_value I);
          Forall isbyteZ contents
        )
@@ -666,7 +666,7 @@ Definition hmac_drbg_random_spec :=
          Zlength (hmac256drbgabs_value I) = 32 (*Z.of_nat SHA256.DigestLength*);
          0 < hmac256drbgabs_entropy_len I <= 384;
          RI_range (hmac256drbgabs_reseed_interval I);
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed;
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed;
          Forall isbyteZ (hmac256drbgabs_value I))
        LOCAL (temp _p_rng ctx; temp _output output;
               temp _out_len (Vint (Int.repr out_len)); gvar sha._K256 kv)

@@ -673,7 +673,7 @@ Definition f_reader := {|
                                        cc_default))
                   ((Etempvar _r tint) :: nil))))))
         Sskip)
-      (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
+      (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
 |}.
 
 Definition f_writer := {|
@@ -681,7 +681,7 @@ Definition f_writer := {|
   fn_callconv := cc_default;
   fn_params := ((_arg, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_v, tint) :: (_b, tint) ::
+  fn_temps := ((_v, tuint) :: (_b, tint) ::
                (_buf, (tptr (Tstruct _buffer noattr))) :: (_t'1, tint) ::
                nil);
   fn_body :=
@@ -712,16 +712,16 @@ Definition f_writer := {|
                   (Efield
                     (Ederef (Etempvar _buf (tptr (Tstruct _buffer noattr)))
                       (Tstruct _buffer noattr)) _data tint)
-                  (Etempvar _v tint))
+                  (Etempvar _v tuint))
                 (Ssequence
                   (Scall None
                     (Evar _finish_write (Tfunction Tnil tvoid cc_default))
                     nil)
                   (Sset _v
-                    (Ebinop Oadd (Etempvar _v tint)
-                      (Econst_int (Int.repr 1) tint) tint)))))))
+                    (Ebinop Oadd (Etempvar _v tuint)
+                      (Econst_int (Int.repr 1) tint) tuint)))))))
         Sskip)
-      (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
+      (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
 |}.
 
 Definition f_main := {|
@@ -749,7 +749,7 @@ Definition f_main := {|
                              cc_default))
              (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid)
                      cc_default))) (tptr tvoid)) ::
-         (Econst_int (Int.repr 0) tint) :: nil))
+         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) :: nil))
       (Ssequence
         (Ssequence
           (Sset _i (Econst_int (Int.repr 0) tint))
@@ -1092,4 +1092,3 @@ prog_types := composites;
 prog_comp_env := make_composite_env composites;
 prog_comp_env_eq := refl_equal _
 |}.
-

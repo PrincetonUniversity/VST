@@ -371,8 +371,8 @@ left; auto.
 clear - HGG H0 H1 H2.
 intros ek vl.
 intros tx vx.
-unfold overridePost, frame_ret_assert.
-if_tac.
+rewrite proj_frame_ret_assert.
+destruct (eq_dec ek EK_normal).
 *
 subst.
 unfold exit_cont.
@@ -415,6 +415,7 @@ apply derives_subp. apply andp_derives; auto.
 rewrite sepcon_comm;
 apply sepcon_derives; auto.
 apply andp_left2; auto.
+destruct R; simpl; auto.
 rewrite funassert_exit_tycon. auto.
 *
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
@@ -429,6 +430,9 @@ replace (exit_tycon (Ssequence h t) Delta' ek) with Delta'
 eapply subp_trans'; [ | apply H2].
 apply derives_subp.
 apply andp_derives; auto.
+apply andp_derives; auto.
+rewrite proj_frame_ret_assert.
+destruct R, ek; simpl; auto. contradiction n; auto.
 Qed.
 
 Lemma control_as_safe_refl psi n k : control_as_safe Espec psi n k k.
@@ -624,7 +628,7 @@ Proof.
     specialize (H0 psi _ (level jm') (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
     spec H0.
     Focus 1. {
-      intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
+      intros ek2 vl2 tx2 vx2.
       destruct ek2; simpl exit_tycon in *.
       + unfold exit_cont.
         apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
@@ -640,15 +644,21 @@ Proof.
             eapply typecheck_environ_update; eauto.
             simpl in H12|-*. rewrite ret_type_update_tycon in H12; auto.
           * simpl exit_cont.
-            unfold frame_ret_assert. normalize.
-            rewrite sepcon_comm. auto.
-      + unfold frame_ret_assert. normalize.
-      + unfold frame_ret_assert. normalize.
-      + unfold frame_ret_assert.
+            rewrite proj_frame_ret_assert. simpl proj_ret_assert. simpl seplog.sepcon.
+            normalize.
+            rewrite sepcon_comm. destruct POST; simpl; auto.
+      + rewrite proj_frame_ret_assert. simpl seplog.sepcon.
+        destruct POST; simpl tycontext.RA_break. cbv zeta. normalize.
+      + rewrite proj_frame_ret_assert. simpl seplog.sepcon.
+        destruct POST; simpl tycontext.RA_continue. cbv zeta. normalize.
+      + rewrite proj_frame_ret_assert.
         change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
           with (exit_cont EK_return vl2 k).
         eapply subp_trans'; [ | apply H3'].
-        auto.
+        rewrite proj_frame_ret_assert.
+        clear. simpl exit_tycon. simpl current_function. simpl proj_ret_assert.
+        destruct POST; simpl tycontext.RA_return.
+        apply subp_refl'.
     } Unfocus.
     intros tx2 vx2.
     apply (assert_safe_adj' Espec) with (k:= Kseq incr :: Kloop2 body incr :: k); auto.
@@ -668,20 +678,20 @@ Proof.
       * simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
     - simpl exit_cont.
       simpl exit_tycon.
-      rewrite sepcon_comm.
-      unfold loop1_ret_assert.
-      intros tx3 vx3.
-      auto. normalize in vx3; auto.
+      rewrite sepcon_comm. destruct POST; simpl proj_ret_assert. normalize.
   + intros tx3 vx3.
-    unfold loop1_ret_assert, frame_ret_assert.
+    rewrite proj_frame_ret_assert. simpl proj_ret_assert.
+    simpl seplog.sepcon. cbv zeta.
     eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
-    simpl exit_tycon.
-    apply derives_subp.
-    auto.
+    simpl exit_tycon. rewrite proj_frame_ret_assert. simpl current_function.
+    destruct POST; simpl tycontext.RA_break; simpl proj_ret_assert.
+    apply derives_subp. simpl seplog.sepcon.
+    apply andp_derives; auto. apply andp_derives; auto. normalize.
   + simpl exit_tycon. simpl exit_cont.
-    unfold loop1_ret_assert, frame_ret_assert.
+    rewrite proj_frame_ret_assert.
+    intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
+    destruct POST; simpl tycontext.RA_continue.
     rewrite semax_unfold in H0.
-    intros tx2 vx2.
     eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
     Focus 1. {
       apply derives_subp.
@@ -710,31 +720,29 @@ Proof.
       * unfold exit_cont, loop2_ret_assert; normalize.
         specialize (H3' EK_return vl2 tx2 vx2). simpl exit_tycon in H3'.
         intros tx4 vx4.
-        unfold frame_ret_assert in H3', vx4.
+        rewrite proj_frame_ret_assert in H3', vx4.
+        simpl seplog.sepcon in H3',vx4. cbv zeta in H3', vx4.
+        normalize in vx4.        
         rewrite sepcon_comm; auto.
-        normalize in vx4; auto.
-    - intros tx4 vx4.
-      unfold frame_ret_assert in H3', vx4|-*.
+    - intros tx4 vx4. simpl frame_ret_assert in *. simpl proj_ret_assert in *.
+      normalize. 
       unfold loop2_ret_assert. normalize.
       repeat intro; normalize.
-    - unfold frame_ret_assert in H3'|-*.
-      unfold loop2_ret_assert. normalize.
-    - unfold frame_ret_assert in H3'|-*.
-      unfold loop2_ret_assert.
+    - simpl proj_ret_assert in H3'|-*. cbv zeta. normalize.
+    - simpl proj_ret_assert in H3'|-*. cbv zeta. 
       simpl exit_tycon.
       specialize (H3' EK_return vl2).
       eapply subp_trans'; [ | eapply H3'; eauto].
       auto.
-  + unfold frame_ret_assert, loop1_ret_assert.
-    intros tx4 vx4.
+  + intros tx4 vx4. cbv zeta.
     eapply subp_trans'; [ | eapply (H3' EK_return) ; eauto].
      simpl exit_tycon.
-    unfold loop1_ret_assert.
-    auto.
+    simpl proj_ret_assert. destruct POST; simpl tycontext.RA_return.
+    apply subp_refl'.
 Qed.
 
 Lemma semax_break {CS: compspecs}:
-   forall Delta Q,        semax Espec Delta (Q EK_break None) Sbreak Q.
+   forall Delta Q,        semax Espec Delta (RA_break Q) Sbreak Q.
 Proof.
   intros.
   rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
@@ -747,7 +755,8 @@ Proof.
   apply imp_derives; auto.
   apply andp_derives; auto.
   repeat intro. simpl exit_tycon.
-  unfold frame_ret_assert.
+  rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
+  rewrite (prop_true_andp (None=None)) by auto.
   rewrite sepcon_comm.
   eapply andp_derives; try apply H0; auto.
   repeat intro.
@@ -764,7 +773,7 @@ Proof.
 Qed.
 
 Lemma semax_continue {CS: compspecs}:
-   forall Delta Q,        semax Espec Delta (Q EK_continue None) Scontinue Q.
+   forall Delta Q,        semax Espec Delta (RA_continue Q) Scontinue Q.
 Proof.
  intros.
  rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
@@ -777,7 +786,8 @@ Proof.
 apply imp_derives; auto.
 apply andp_derives; auto.
 repeat intro. simpl exit_tycon.
-unfold frame_ret_assert.
+  rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
+  rewrite (prop_true_andp (None=None)) by auto.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 repeat intro.

@@ -77,7 +77,7 @@ simpl.
 forward. (* n++; *)
 eapply semax_seq'.
 *
-eapply semax_post_flipped.
+eapply semax_post_flipped'.
 change Delta with Delta_final_if1.
 match goal with |- context [Sifthenelse _ ?c _] => change c with Body_final_if1 end.
 rewrite add_repr.
@@ -135,7 +135,7 @@ assert_PROP (force_val
  }
  simpl (temp _p _).
  rewrite H2. clear H2.
- eapply semax_pre_post; [ | |
+ eapply semax_pre_post; [ | | | | |
   change Delta with Delta_final_if1;
   apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md);
   try eassumption; try Omega1; try apply s256a_hashed_divides].
@@ -154,11 +154,16 @@ autorewrite with sublist.
 cancel.
 rewrite array_at_data_at_rec; auto; omega.
 +
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
++
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
++
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
++
 intros.
-subst POSTCONDITION; unfold abbreviate.
-autorewrite with ret_assert.
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 rewrite hashed_data_recombine by auto.
-apply andp_left2; auto.
+apply ENTAIL_refl.
 +
 symmetry; rewrite <- hashed_data_recombine at 1; auto.
 unfold s256a_len.

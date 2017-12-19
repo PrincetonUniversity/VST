@@ -703,7 +703,7 @@ Lemma process_globvar:
      c Post.
 Proof.
 intros.
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q)
           (SEPx R)) * (init_data2pred' Delta idata
@@ -758,7 +758,7 @@ Lemma process_globvar':
      c Post.
 Proof.
 intros.
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q)
           (SEPx R)) * id2pred_star Delta
@@ -829,7 +829,7 @@ Lemma process_globvar_array:
      c Post.
 Proof.
 intros.
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX  v : val,
            PROPx P (LOCALx (gvar i v :: Q)
           (SEPx ((data_at
@@ -888,7 +888,7 @@ Lemma process_globvar_star':
      c Post.
 Proof.
 intros.
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q)
           (SEPx R))
@@ -946,7 +946,7 @@ Lemma process_globvar_star:
      c Post.
 Proof.
 intros.
-eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+eapply semax_pre.
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q)
           (SEPx R)) * ((id2pred_star Delta

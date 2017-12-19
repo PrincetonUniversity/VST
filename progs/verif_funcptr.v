@@ -9,7 +9,7 @@ Local Open Scope logic.
 Definition myspec :=
   WITH i: Z
   PRE [ _i OF tint ]
-          PROP ()
+          PROP (Int.min_signed <= i < Int.max_signed)
           LOCAL (temp _i (Vint (Int.repr i)))
           SEP ()
   POST [ tint ]
@@ -45,5 +45,6 @@ forward.
 drop_LOCALs [_myfunc].
 
 forward_call 3.
+  computable.
 forward.
 Qed.

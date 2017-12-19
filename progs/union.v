@@ -1,6 +1,7 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
+Definition __125 : ident := 3%positive.
 Definition ___builtin_annot : ident := 6%positive.
 Definition ___builtin_annot_intval : ident := 7%positive.
 Definition ___builtin_bswap : ident := 30%positive.
@@ -49,130 +50,38 @@ Definition ___i64_udiv : ident := 24%positive.
 Definition ___i64_umod : ident := 26%positive.
 Definition ___i64_utod : ident := 20%positive.
 Definition ___i64_utof : ident := 22%positive.
-Definition _h : ident := 56%positive.
-Definition _head : ident := 1%positive.
-Definition _list : ident := 2%positive.
-Definition _main : ident := 62%positive.
-Definition _p : ident := 53%positive.
-Definition _r : ident := 61%positive.
-Definition _reverse : ident := 60%positive.
-Definition _s : ident := 54%positive.
-Definition _sumlist : ident := 57%positive.
-Definition _t : ident := 55%positive.
-Definition _tail : ident := 3%positive.
-Definition _three : ident := 52%positive.
-Definition _v : ident := 59%positive.
-Definition _w : ident := 58%positive.
-Definition _t'1 : ident := 63%positive.
-Definition _t'2 : ident := 64%positive.
+Definition _f : ident := 1%positive.
+Definition _fabs_single : ident := 54%positive.
+Definition _i : ident := 2%positive.
+Definition _main : ident := 55%positive.
+Definition _u : ident := 53%positive.
+Definition _x : ident := 52%positive.
+Definition _t'1 : ident := 56%positive.
+Definition _t'2 : ident := 57%positive.
 
-Definition v_three := {|
-  gvar_info := (tarray (Tstruct _list noattr) 3);
-  gvar_init := (Init_int32 (Int.repr 1) :: Init_addrof _three (Int.repr 8) ::
-                Init_int32 (Int.repr 2) ::
-                Init_addrof _three (Int.repr 16) ::
-                Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) :: nil);
-  gvar_readonly := false;
-  gvar_volatile := false
-|}.
-
-Definition f_sumlist := {|
-  fn_return := tuint;
+Definition f_fabs_single := {|
+  fn_return := tfloat;
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _list noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_s, tuint) :: (_t, (tptr (Tstruct _list noattr))) ::
-               (_h, tuint) :: nil);
+  fn_params := ((_x, tfloat) :: nil);
+  fn_vars := ((_u, (Tunion __125 noattr)) :: nil);
+  fn_temps := ((_t'2, tuint) :: (_t'1, tfloat) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _s (Econst_int (Int.repr 0) tint))
-  (Ssequence
-    (Sset _t (Etempvar _p (tptr (Tstruct _list noattr))))
-    (Ssequence
-      (Swhile
-        (Etempvar _t (tptr (Tstruct _list noattr)))
-        (Ssequence
-          (Sset _h
-            (Efield
-              (Ederef (Etempvar _t (tptr (Tstruct _list noattr)))
-                (Tstruct _list noattr)) _head tuint))
-          (Ssequence
-            (Sset _t
-              (Efield
-                (Ederef (Etempvar _t (tptr (Tstruct _list noattr)))
-                  (Tstruct _list noattr)) _tail
-                (tptr (Tstruct _list noattr))))
-            (Sset _s
-              (Ebinop Oadd (Etempvar _s tuint) (Etempvar _h tuint) tuint)))))
-      (Sreturn (Some (Etempvar _s tuint))))))
-|}.
-
-Definition f_reverse := {|
-  fn_return := (tptr (Tstruct _list noattr));
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _list noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_w, (tptr (Tstruct _list noattr))) ::
-               (_t, (tptr (Tstruct _list noattr))) ::
-               (_v, (tptr (Tstruct _list noattr))) :: nil);
-  fn_body :=
-(Ssequence
-  (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-  (Ssequence
-    (Sset _v (Etempvar _p (tptr (Tstruct _list noattr))))
-    (Ssequence
-      (Swhile
-        (Etempvar _v (tptr (Tstruct _list noattr)))
-        (Ssequence
-          (Sset _t
-            (Efield
-              (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
-                (Tstruct _list noattr)) _tail (tptr (Tstruct _list noattr))))
-          (Ssequence
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
-                  (Tstruct _list noattr)) _tail
-                (tptr (Tstruct _list noattr)))
-              (Etempvar _w (tptr (Tstruct _list noattr))))
-            (Ssequence
-              (Sset _w (Etempvar _v (tptr (Tstruct _list noattr))))
-              (Sset _v (Etempvar _t (tptr (Tstruct _list noattr))))))))
-      (Sreturn (Some (Etempvar _w (tptr (Tstruct _list noattr))))))))
-|}.
-
-Definition f_main := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := ((_r, (tptr (Tstruct _list noattr))) :: (_s, tuint) ::
-               (_t'2, tuint) :: (_t'1, (tptr (Tstruct _list noattr))) :: nil);
-  fn_body :=
-(Ssequence
+  (Sassign (Efield (Evar _u (Tunion __125 noattr)) _f tfloat)
+    (Etempvar _x tfloat))
   (Ssequence
     (Ssequence
-      (Scall (Some _t'1)
-        (Evar _reverse (Tfunction (Tcons (tptr (Tstruct _list noattr)) Tnil)
-                         (tptr (Tstruct _list noattr)) cc_default))
-        ((Evar _three (tarray (Tstruct _list noattr) 3)) :: nil))
-      (Sset _r (Etempvar _t'1 (tptr (Tstruct _list noattr)))))
+      (Sset _t'2 (Efield (Evar _u (Tunion __125 noattr)) _i tuint))
+      (Sassign (Efield (Evar _u (Tunion __125 noattr)) _i tuint)
+        (Ebinop Oand (Etempvar _t'2 tuint)
+          (Econst_int (Int.repr 2147483647) tint) tuint)))
     (Ssequence
-      (Ssequence
-        (Scall (Some _t'2)
-          (Evar _sumlist (Tfunction
-                           (Tcons (tptr (Tstruct _list noattr)) Tnil) tuint
-                           cc_default))
-          ((Etempvar _r (tptr (Tstruct _list noattr))) :: nil))
-        (Sset _s (Etempvar _t'2 tuint)))
-      (Sreturn (Some (Ecast (Etempvar _s tuint) tint)))))
-  (Sreturn (Some (Econst_int (Int.repr 0) tint))))
+      (Sset _t'1 (Efield (Evar _u (Tunion __125 noattr)) _f tfloat))
+      (Sreturn (Some (Etempvar _t'1 tfloat))))))
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _list Struct
-   ((_head, tuint) :: (_tail, (tptr (Tstruct _list noattr))) :: nil)
-   noattr :: nil).
+(Composite __125 Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil).
 
 Definition prog : Clight.program := {|
 prog_defs :=
@@ -403,26 +312,23 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_three, Gvar v_three) :: (_sumlist, Gfun(Internal f_sumlist)) ::
- (_reverse, Gfun(Internal f_reverse)) :: (_main, Gfun(Internal f_main)) ::
- nil);
+ (_fabs_single, Gfun(Internal f_fabs_single)) :: nil);
 prog_public :=
-(_main :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
- ___builtin_nop :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
- ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_fsqrt :: ___builtin_ctzll ::
- ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
- ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
- ___builtin_bswap :: ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod ::
- ___i64_smod :: ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof ::
- ___i64_utod :: ___i64_stod :: ___i64_dtou :: ___i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+(_fabs_single :: ___builtin_debug :: ___builtin_nop ::
+ ___builtin_write32_reversed :: ___builtin_write16_reversed ::
+ ___builtin_read32_reversed :: ___builtin_read16_reversed ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_fsqrt :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
+ ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;

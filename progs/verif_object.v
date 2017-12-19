@@ -23,7 +23,8 @@ Definition reset_spec (instance: object_invariant) :=
 Definition twiddle_spec (instance: object_invariant) :=
   WITH self: val, i: Z, history: list Z
   PRE [ _self OF tobject, _i OF tint]
-          PROP (0 < i)
+          PROP (0 < i <= Int.max_signed / 4;
+                0 <= fold_right Z.add 0 history <= Int.max_signed / 4)
           LOCAL (temp _self self; temp _i (Vint (Int.repr i)))
           SEP (instance history self)
   POST [ tint ]
@@ -102,8 +103,14 @@ unfold foo_twiddle_spec, foo_invariant, twiddle_spec.
 start_function.
 Intros.
 forward.  (* d = self->data; *)
-forward.  (* self -> data = d+2*i; *)
+forward.  (* self -> data = d+2*i; *) 
+ set (j:= Int.max_signed / 4) in *; compute in j; subst j.
+ forget (fold_right Z.add 0 history) as h.
+ entailer!. repable_signed. 
 forward.  (* return d+i; *)
+ set (j:= Int.max_signed / 4) in *; compute in j; subst j.
+ forget (fold_right Z.add 0 history) as h.
+ entailer!.
 Exists (2 * fold_right Z.add 0 history + i).
 rewrite Z.mul_add_distr_l, Z.add_comm.
 entailer!.
@@ -265,7 +272,7 @@ Intros sh r0 t0.
 forward.   (* p_twiddle = mtable->twiddle; *)
 forward_call (* i = p_twiddle(p,3); *)
       (p, 3, @nil Z).
-  computable.
+  simpl. computable.
 Intros i.
 simpl in H0.
 (* Finish the method-call by regathering the object p back together *)

@@ -62,8 +62,6 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric C
 
 Hint Resolve any_environ : typeclass_instances.
 
-Definition ret_assert := exitkind -> option val -> environ -> mpred.
-
 Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
@@ -199,6 +197,15 @@ Definition denote_tc_test_order v1 v2 : mpred :=
  | _, _ => FF
  end.
 
+Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
+ match v1,v2 with
+ | Vint n1, Vint n2 => 
+   prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
+ | Vlong n1, Vlong n2 =>
+   prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | _, _ => FF
+ end.
+
 Definition typecheck_error (e: tc_error) : Prop := False.
 Global Opaque typecheck_error.
 
@@ -220,6 +227,7 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
+  | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
@@ -622,21 +630,37 @@ Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -
      end.
 
 Definition overridePost  (Q: environ->mpred)  (R: ret_assert) :=
-     fun ek vl => if eq_dec ek EK_normal then (!! (vl=None) && Q) else R ek vl.
+ match R with 
+  {| RA_normal := _; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
+ end.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
-  fun ek vl  => EX x:A, R x ek vl .
+  {| RA_normal := fun rho => EX x:A, (R x).(RA_normal) rho;
+     RA_break := fun rho => EX x:A, (R x).(RA_break) rho;
+     RA_continue := fun rho => EX x:A, (R x).(RA_continue) rho;
+     RA_return := fun vl rho => EX x:A, (R x).(RA_return) vl rho
+   |}.
 
 Definition normal_ret_assert (Q: environ->mpred) : ret_assert :=
-   fun ek vl => !!(ek = EK_normal) && (!! (vl = None) && Q).
+  {| RA_normal := Q; RA_break := seplog.FF; RA_continue := seplog.FF; RA_return := fun _ => seplog.FF |}.
+
+Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := n * F; 
+     RA_break := b * F; 
+     RA_continue := c * F;
+     RA_return := fun vl => r vl * F |}
+ end.
 
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => seplog.FF
- | EK_break => R EK_normal None
- | EK_continue => R EK_continue None
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := FF; 
+     RA_break := n; 
+     RA_continue := c;
+     RA_return := r |}
  end.
 
 Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
@@ -660,33 +684,29 @@ Definition all_initializers_aligned (prog: program) :=
                                  (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
                       (prog_vars prog) = true.
 
-Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert :=
-      fun ek vl => R ek vl * F.
-
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => !! (vl=None) && Inv
- | EK_break => R EK_normal None
- | EK_continue => !! (vl=None) && Inv
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := Inv;
+     RA_return := r |}
  end.
 
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => !! (vl=None) && Inv
- | EK_break => fun _ => FF
- | EK_continue => fun _ => FF
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := seplog.FF; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
  end.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert :=
-   fun (ek : exitkind) (vl : option val) =>
-     match ek with
-     | EK_return => bind_ret vl ret Q
-     | _ => FF
-     end.
+ {| RA_normal := seplog.FF;
+    RA_break := seplog.FF; 
+    RA_continue := seplog.FF;
+    RA_return := fun vl => bind_ret vl ret Q |}.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
@@ -1152,11 +1172,11 @@ Axiom semax_skip_seq:
 
 Axiom semax_break:
   forall {Espec: OracleKind}{CS: compspecs},
-   forall Delta Q,    @semax CS Espec Delta (Q EK_break None) Sbreak Q.
+   forall Delta Q,    @semax CS Espec Delta (RA_break Q) Sbreak Q.
 
 Axiom semax_continue:
   forall {Espec: OracleKind}{CS: compspecs},
-   forall Delta Q,    @semax CS Espec Delta (Q EK_continue None) Scontinue Q.
+   forall Delta Q,    @semax CS Espec Delta (RA_continue Q) Scontinue Q.
 
 Axiom semax_loop :
   forall {Espec: OracleKind}{CS: compspecs} ,
@@ -1209,7 +1229,7 @@ Axiom  semax_return :
    forall Delta (R: ret_assert) ret ,
       @semax CS Espec Delta
                 ( (tc_expropt Delta ret (ret_type Delta)) &&
-                `(R EK_return : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
+                `(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R.
 
@@ -1341,7 +1361,10 @@ Axiom semax_pre_post:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 (**************** END OF stuff from semax_rules ***********)

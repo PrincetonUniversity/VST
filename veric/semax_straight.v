@@ -78,9 +78,8 @@ spec Hsafe; [clear Hsafe| ].
 split; auto.
 split; auto.
 subst rho'; auto.
-unfold normal_ret_assert.
-unfold frame_ret_assert in *.
-rewrite prop_true_andp by auto.
+rewrite proj_frame_ret_assert.
+simpl seplog.sepcon.
 rewrite prop_true_andp by auto.
 rewrite sepcon_comm; subst rho'; auto.
 replace (funassert (exit_tycon c Delta' EK_normal)) with (funassert Delta'); auto.

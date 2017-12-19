@@ -18,14 +18,14 @@ Qed.
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
+  PRE [ _a OF (tptr tuint), _n OF tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-                     Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents)
+          Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
           LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
-  POST [ tint ]
+          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+  POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
-           SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
+           SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
   Then the [Forall] would not be needed in the PROP part of PRE.
@@ -65,7 +65,7 @@ forward_while
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
-   SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+   SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)).
 (* forward_while leaves four subgoals; here we label them
    with the * bullet. *)
 * (* Prove that current precondition implies loop invariant *)
@@ -85,13 +85,12 @@ assert_PROP (Zlength contents = size). {
 }
 forward. (* x = a[i] *)
 forward. (* s += x; *)
-forward. (* i++; *)
+forward. (* i++; *) 
  (* Now we have reached the end of the loop body, and it's
    time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
  Exists (i+1).
  entailer!.
- clear - H HRE H1.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
@@ -114,9 +113,7 @@ Proof.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
   (v_four,Ews,four_contents,4).
- split3; auto.
-   computable.
-   repeat constructor; computable.
+ split3. auto. computable. repeat constructor; computable.
 forward. (* return s; *)
 Qed.
 

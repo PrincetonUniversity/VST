@@ -18,7 +18,7 @@ Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval I) /\
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed /\
          Forall isbyteZ (hmac256drbgabs_value I).
 
 Definition REP kv (Info:md_info_state) (A:hmac256drbgabs) (v: val): mpred :=
@@ -43,7 +43,7 @@ Definition seedbufREP kv (Info:md_info_state) (info:val) (A:hmac256drbgabs) (v: 
   EX a:hmac256drbgstate,
      !! (0 < hmac256drbgabs_entropy_len A <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval A) /\
-         0 <= hmac256drbgabs_reseed_counter A <= Int.max_signed)
+         0 <= hmac256drbgabs_reseed_counter A < Int.max_signed)
      && data_at Tsh t_struct_hmac256drbg_context_st a v
           * hmac256drbg_relate A a
           * data_at Tsh t_struct_mbedtls_md_info Info info

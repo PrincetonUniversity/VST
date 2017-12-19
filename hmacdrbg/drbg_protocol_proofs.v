@@ -404,7 +404,7 @@ Proof.
           (Vint (Int.repr entropy_len),
           (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
-  red; simpl. intuition. 
+  red; simpl. intuition.
 Time Qed. (*Coq8.6: 12secs*)
 
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common. 
@@ -463,7 +463,6 @@ Proof.
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite add_repr.
       rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
@@ -644,7 +643,7 @@ Proof.
 (*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   eapply semax_pre_post.
-  Focus 3. 
+  Focus 6. 
     eapply (@reseed_REST Espec contents additional add_len ctx md_ctx'
               V' reseed_counter' entropy_len' prediction_resistance' reseed_interval' key V
               reseed_counter entropy_len prediction_resistance reseed_interval kv Info s seed
@@ -652,9 +651,14 @@ Proof.
     subst contents'; try omega.
     subst contents'; trivial.
     solve [eassumption].
-  solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ]. 
-  intros. unfold POSTCONDITION, abbreviate. old_go_lower.
-  destruct ek; trivial. (* [normalize | normalize | normalize | ].*)
+
+  solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ].
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+ 
+  intros.
+  unfold POSTCONDITION, abbreviate.  simpl_ret_assert. old_go_lower.
   unfold reseedPOST; destruct vl; trivial. simpl. Intros.
   apply andp_right. apply prop_right;  trivial.
   apply sepcon_derives; [ normalize; simpl; Intros | apply derives_refl].

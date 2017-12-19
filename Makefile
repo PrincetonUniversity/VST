@@ -24,6 +24,10 @@ COMPCERT ?= compcert
 # MATHCOMP=/my/path/to/mathcomp
 # and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
 
+# ANNOTATE=true   # label chatty output from coqc with file name
+ANNOTATE=silent   # suppress chatty output from coqc
+# ANNOTATE=false  # leave chatty output of coqc unchanged
+
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
@@ -224,7 +228,7 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v Clightnotations.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v
 #real_forward.v
 
 WAND_DEMO_FILES= \
@@ -248,7 +252,8 @@ PROGS_FILES= \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
-  funcptr.v verif_funcptr.v tutorial1.v
+  funcptr.v verif_funcptr.v tutorial1.v  \
+  verif_int_or_ptr.v verif_union.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -350,7 +355,7 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c union.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -380,16 +385,21 @@ FILES = \
 ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
 	echo true timings
-	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else ifeq ($(TIMINGS), simple)
-	@/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
-else
-	@$(COQC) $(COQFLAGS) $*.v 
+	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
+else ifeq ($(strip $(ANNOTATE)), true)
+	@$(COQC) $(COQFLAGS) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
+else ifeq ($(strip $(ANNOTATE)), silent)
+	@$(COQC) $(COQFLAGS) $*.v >/dev/null
+else 
+	@$(COQC) $(COQFLAGS) $*.v
+#	@util/annotate $(COQC) $(COQFLAGS) $*.v 
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6 or-else 8.6.1 or-else 8.7.0
+COQVERSION= 8.6.1 or-else 8.7.0 or-else 8.7.1
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -420,9 +430,9 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs hmacdrbg mailbox
+travis: progs hmacdrbg sha mailbox
 
-all: .loadpath version.vo $(FILES:.v=.vo)
+all: .loadpath version.vo $(FILES:.v=.vo) travis
 
 
 # ifeq ($(COMPCERT), compcert)
@@ -489,9 +499,9 @@ progs/queue.v: progs/queue.c
 progs/queue2.v: progs/queue2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
 progs/sumarray2.v: progs/sumarray2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/object.v: progs/object.c
@@ -525,12 +535,12 @@ progs/append.v: progs/append.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/switch.v: progs/switch.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/object.v: progs/object.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/funcptr.v: progs/funcptr.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/int_or_ptr.v: progs/int_or_ptr.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) ${CGFLAGS}  -normalize $<
+progs/union.v: progs/union.c
+	$(CLIGHTGEN) ${CGFLAGS}  -normalize $<
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
@@ -545,14 +555,11 @@ _CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflag
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
-dep:
-	-$(COQDEP) 2>&1 >.depend `find . -name "*.v"` | grep -v Warning:
-
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
 #	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
-	-@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
+	@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
@@ -572,6 +579,12 @@ count:
 
 count-linking:
 	wc $(LINKING_FILES:%.v=linking/%.v)
+
+util/calibrate: util/calibrate.ml
+	cd util; ocamlopt.opt calibrate.ml -o calibrate
+
+calibrate: util/calibrate
+	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

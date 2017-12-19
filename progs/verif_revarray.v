@@ -155,7 +155,7 @@ forward. (* t = a[lo]; *)
 forward.  (* s = a[hi-1]; *)
 {
   entailer!.
-  clear - H0 HRE.
+  clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
   rewrite Znth_map with (d':=Int.zero)
@@ -167,7 +167,6 @@ forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
-
 (* Prove postcondition of loop body implies loop invariant *)
  Exists (Zsucc j).
  entailer!.

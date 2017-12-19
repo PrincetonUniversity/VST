@@ -17,6 +17,51 @@ Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
 start_function.
+assert (M1: Int.modulus = 4294967296) by reflexivity.
+assert (HM1: Int.half_modulus = 2147483648) by reflexivity.
+assert (iWS:Int.iwordsize = Int.repr 32) by reflexivity.
+assert (X: Int.unsigned (Int.repr 32) = 32). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
+assert (zWS: Int.zwordsize = 32) by reflexivity.
+specialize (Int.unsigned_range c); intros Y.
+destruct (Int.ltu c Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H0.
+    change (Int.unsigned Int.iwordsize) with 32 in H0.
+    unfold Int.signed in H.
+    destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+  } Unfocus.
+destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H1.
+    unfold Int.sub in H1.
+    change (Int.unsigned (Int.repr 32)) with 32 in H1.
+    change (Int.unsigned Int.iwordsize) with 32 in H1.
+    unfold Int.signed in H.
+    rewrite Int.unsigned_repr in H1.
+    + destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+    + rewrite int_max_unsigned_eq.
+      destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+  } Unfocus.
+Time forward. (*8.8*)   
+{
+  entailer!.
+  rewrite H0, H1; simpl; auto.
+}
+unfold Int.signed in H.
+destruct (zlt (Int.unsigned c) Int.half_modulus); [| omega].
+entailer!.
+unfold sem_shift; simpl. rewrite H0, H1; simpl.
+unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
+rewrite Z.mod_small; simpl; try omega.
+unfold Int.sub.
+rewrite Int.and_mone, X, Int.unsigned_repr; trivial.
+rewrite int_max_unsigned_eq; omega.
+Time Qed. (*0.1*)
+(*
+Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
+       f_L32 L32_spec.
+Proof.
+start_function. forward.
 destruct (Int.ltu c Int.iwordsize) eqn:?H.
   Focus 2. {
     apply ltu_false_inv in H0.
@@ -35,7 +80,14 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
 Time forward. (*8.8*)  
 {
   entailer!.
+<<<<<<< HEAD
   rewrite H0, H1; simpl; auto.
+  split3; auto.
+  unfold Int.signed.
+  if_tac. repable_signed. repable_signed.
+=======
+  rewrite H0, H1; simpl; auto. intuition. omega.
+>>>>>>> master
 }
 entailer!.
 assert (W: Int.zwordsize = 32). reflexivity.
@@ -49,7 +101,7 @@ change (Int.unsigned (Int.repr 32)) with 32.
 rewrite Int.unsigned_repr by repable_signed.
 auto.
 Time Qed. (*0.9*)
-
+*)
 Lemma ld32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ld32 ld32_spec.
 Proof.

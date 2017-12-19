@@ -8,6 +8,9 @@ typedef void  * int_or_ptr
 
 extern int putchar(int);
 
+extern void exit(int);
+
+
 /* The following 5 functions should (in practice) compile correctly in CompCert,
    but the CompCert correctness specification does not _require_ that
    they compile correctly:  their semantics is "undefined behavior" in
@@ -31,9 +34,21 @@ extern int_or_ptr ptr_to_int_or_ptr(void *x) /* precondition: is aligned */
 
 int leaf=0;
 
-int_or_ptr arena[1000];
+struct tree {int_or_ptr left, right;};
 
-int_or_ptr *next=arena;
+struct tree arena[1000];
+
+struct tree *next=arena;
+
+
+struct tree *makenode(int_or_ptr left, int_or_ptr right) {
+  if (next < arena+1000-1) {
+    next->left=left;
+    next->right=right;
+    return next++;
+  }
+  else exit(1);
+}
 
 int_or_ptr maketree(int depth) {
   int_or_ptr r;
@@ -42,14 +57,10 @@ int_or_ptr maketree(int depth) {
     return r;
   }
   else {
-    int_or_ptr p,q, *s;
+    int_or_ptr p,q;
     p=maketree(depth-1);
     q=maketree(depth-1);
-    next[0]=p;
-    next[1]=q;
-    r = ptr_to_int_or_ptr(next);
-    next += 2;
-    return r;
+    return ptr_to_int_or_ptr(makenode(p,q));
   }
 }
 
@@ -58,15 +69,12 @@ int_or_ptr copytree(int_or_ptr t) {
     return t;
   }
   else {
-    int_or_ptr r, p,q, *s;
-    s = (int_or_ptr *)int_or_ptr_to_ptr(t);
-    p=copytree(s[0]);
-    q=copytree(s[1]);
-    next[0]=p;
-    next[1]=q;
-    r = ptr_to_int_or_ptr(next);
-    next += 2;
-    return r;
+    int_or_ptr p,q;
+    struct tree *s;
+    s = (struct tree *)int_or_ptr_to_ptr(t);
+    p=copytree(s->left);
+    q=copytree(s->right);
+    return ptr_to_int_or_ptr(makenode(p,q));
   }
 }
 
@@ -88,10 +96,11 @@ void print(int_or_ptr p) {
     size_t i = int_or_ptr_to_int(p);
     print_int(i>>1);
   } else {
-    int_or_ptr a,b, *q;
-    q=(int_or_ptr*)int_or_ptr_to_ptr(p);
-    a=q[0];
-    b=q[1];
+    struct tree *q; 
+    int_or_ptr a,b;
+    q=(struct tree*)int_or_ptr_to_ptr(p);
+    a=q->left;
+    b=q->right;
     putchar('(');
     print(a);
     putchar(',');

@@ -131,11 +131,11 @@ Proof.
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
   change Delta with (encryption_loop_body_Delta Delta_specs).
   fold encryption_loop_body.
-  eapply semax_post_flipped.
+  (*eapply semax_post_flipped.*)
   simple eapply encryption_loop_body_proof; eauto.
   (* the next few lines should not be necessary if the statement
-    of encryption_loop_body_proof is adjusted. *)
-  clear.
+    of encryption_loop_body_proof is adjusted. 
+  clear. 
   intros. match goal with |- 
      context [loop1_ret_assert ?PP (normal_ret_assert ?QQ)] =>
      set (P:=PP); set (Q := QQ)
@@ -143,13 +143,16 @@ Proof.
   apply andp_left2.
   unfold loop1_ret_assert, normal_ret_assert, overridePost; destruct ek; auto.
   rewrite if_true by auto. rewrite !prop_true_andp by auto.
-  subst Q.  solve [auto].
-  apply derives_extract_prop; intro Hx; inv Hx.
+  subst Q. solve [auto].
+  apply derives_extract_prop; intro Hx; inv Hx.*)
 * (* loop decr *)
   rename a into i. forward. Exists (i-1). entailer!.
 * (* after the loop, entailment *)
  assert (a=0) by omega. clear H1 H2; subst a.
- entailer!.
+ change (12 - 2 * Z.to_nat 0)%nat with 12%nat. 
+ rewrite <- HeqS12.
+ change (52 - 0 * 8) with 52. 
+ clear. entailer!.
 * (** AFTER THE LOOP **)
 subst vv.
 abbreviate_semax.

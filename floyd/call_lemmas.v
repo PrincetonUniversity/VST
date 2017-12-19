@@ -52,7 +52,7 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
 Proof.
   intros. rename H1 into Hret.
   rewrite argtypes_eq.
-  eapply semax_pre_post ; [ | |
+  eapply semax_pre_post'; [ | |
     apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
   Focus 3. {
     clear - H0.
@@ -71,7 +71,6 @@ Proof.
     apply derives_refl.
   + intros.
     autorewrite with ret_assert.
-    repeat rewrite normal_ret_assert_eq.
     normalize.
     destruct ret.
     - eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply remove_localdef_temp_PROP]].
@@ -129,7 +128,7 @@ Lemma semax_call0: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
 Proof.
 intros.
 rewrite argtypes_eq.
-eapply semax_pre_post ; [ | |
+eapply semax_pre_post'; [ | |
    apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) None argsig retty cc a bl H)].
  Focus 3.
  split; intros; congruence.
@@ -143,7 +142,6 @@ rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
 apply andp_left2.
-apply normal_ret_assert_derives'.
 normalize.
 unfold SeparationLogic.maybe_retval.
 autorewrite with subst norm ret_assert.
@@ -166,7 +164,8 @@ Lemma semax_fun_id':
 Proof.
 intros.
 apply (semax_fun_id id f Delta); auto.
-eapply semax_pre_post; try apply H1.
+eapply semax_pre_post; try apply H1;
+ try (apply andp_left2; apply derives_refl).
 rewrite <- !andp_assoc.
 rewrite (andp_comm (local _)).
 rewrite !andp_assoc.
@@ -1177,7 +1176,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post; [ | |
+eapply semax_pre_post' ; [ | |
    apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost 
               nil witness argsig retty cc a bl P Q Frame)].
 *
@@ -1185,19 +1184,17 @@ eapply semax_call_aux55; eauto.
 *
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
- intros.
- unfold normal_ret_assert. normalize.
+ intros. normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  unfold ifvoid.
  go_lowerx. normalize.
  apply exp_right with x.
+ rewrite fold_right_and_app_low.
+ rewrite fold_right_sepcon_app.
  apply andp_right.
  apply prop_right.
  split; auto.
  normalize.
- rewrite fold_right_and_app_low.
- rewrite prop_true_andp by (split; auto).
- rewrite fold_right_sepcon_app. auto.
 *
 assumption.
 Qed.
@@ -1233,7 +1230,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post; [ | |
+eapply semax_pre_post'; [ | |
    apply (@semax_call1 Espec cs Delta A Pre Post NEPre NEPost 
               nil witness ret argsig retty cc a bl P Q Frame)];
  [ | 
@@ -1248,7 +1245,7 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
  intros.
- unfold normal_ret_assert. normalize.
+ normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  apply derives_trans with
    (EX  vret : B,
@@ -1314,7 +1311,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  simpl update_tycon.
  apply extract_exists_pre; intro vret.
 *
- eapply semax_pre_post;
+ eapply semax_pre_post';
  [ | | apply semax_set_forward].
  +
  eapply derives_trans; [ | apply now_later ].
@@ -1359,7 +1356,6 @@ eapply semax_call_id1_wow; try eassumption; auto.
  if_tac; simpl; auto.
 +
  intros. subst Post2.
- unfold normal_ret_assert.
  normalize. simpl exit_tycon.
  apply exp_right with vret; normalize.
  autorewrite with subst.
@@ -1438,7 +1434,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  simpl update_tycon.
  apply extract_exists_pre; intro vret.
 *
- eapply semax_pre_post;
+ eapply semax_pre_post';
  [ | | apply semax_set_forward].
  +
  eapply derives_trans; [ | apply now_later ].
@@ -1480,7 +1476,6 @@ end.
  if_tac; simpl; auto.
 +
  intros. subst Post2.
- unfold normal_ret_assert.
  normalize. simpl exit_tycon.
  apply exp_right with vret; normalize.
  autorewrite with subst.
@@ -1540,7 +1535,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post;
+eapply semax_pre_post';
    [ |
    | apply semax_call0 with (A:= A) (ts := nil)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame)
    ];
@@ -1551,7 +1546,7 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
  intros.
- unfold normal_ret_assert. normalize.
+ normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  match goal with |- context [ifvoid retty ?A ?B] =>
    replace (ifvoid retty A B) with B

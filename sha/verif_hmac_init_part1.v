@@ -688,13 +688,10 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
       apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
       rewrite Int.signed_repr in ge_64_l. trivial. rewrite int_min_signed_eq; omega.
     }
-   intros ek vl.
-   unfold POSTCONDITION, abbreviate.
-   unfold overridePost, initPostKeyNullConditional.
-   if_tac;  [| apply andp_left2; trivial].
-   Time normalize. (*0.8*)
    subst.
-   Exists cb cofs 1. Time entailer; cancel. (*7.3 versus 8.1*)
+   unfold PostKeyNull, initPostKeyNullConditional.
+   Exists cb cofs 1.
+   Time entailer; cancel. (* 1.115 sec;  was: 7.3 versus 8.1*)
   }
   { (*key == NULL*)
      rename H into Hk; rewrite Hk in *.
@@ -706,11 +703,4 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
         apply isptrD in Pctx'; destruct Pctx' as [cb [cofs CTX']].
         Exists cb cofs 0. rewrite if_true; trivial.
         Exists r v. Time entailer!. (*6.9*) }
-  { (*side condition of forward_if key != NULL*)
-    intros. unfold POSTCONDITION, abbreviate, overridePost.
-    if_tac.
-    + apply andp_left2; normalize. subst. unfold normal_ret_assert.
-       normalize.
-    + apply andp_left2; apply derives_refl. (* should have an ENTAIL_refl  ? *)
-   }
 Time Qed. (*14.8 versus 17.8*)

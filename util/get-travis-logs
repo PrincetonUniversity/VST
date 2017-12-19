@@ -1,0 +1,22 @@
+#!/bin/bash
+
+SINCE=236
+BUILDS=`travis history --all --no-interactive | awk '$2=="passed:"{A=$1; sub(/#/,"",A); print A;}' `
+mkdir -p logs
+for B in  $BUILDS ; do
+ if [ $B -ge $SINCE ]; then
+   K="00000"$B
+   K=${K:(-5)}
+   if [ -a logs/"$K".1 ]; then
+     echo $B present
+   else
+     echo $B
+     JOBS=`travis show $B --no-interactive | awk '$2=="passed:"{A=$1; sub(/#[0-9]+[.]/,"",A); print A;}' `
+     for J in $JOBS ; do
+          travis logs $B.$J > logs/$K.$J
+     done
+   fi
+ fi;
+done
+
+cat logs/[0-9]* | awk -f util/process-travis-logs.awk > logs/output.tsv

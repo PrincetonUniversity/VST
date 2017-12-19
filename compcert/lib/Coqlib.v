@@ -21,6 +21,7 @@ Require Export ZArith.
 Require Export Znumtheory.
 Require Export List.
 Require Export Bool.
+Require Export FunInd.
 
 Global Set Asymmetric Patterns.
 
