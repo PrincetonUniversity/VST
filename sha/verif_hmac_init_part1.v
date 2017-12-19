@@ -172,24 +172,21 @@ Proof. intros. abbreviate_semax.
       eapply semax_seq'.
 
 
-      prove_call_setup1.
+      prove_call_setup1. (* change compspec should be done here *)
       Check call_setup2_i.
-      Set Printing All.
- [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
-      check_witness_type A (Vptr cb cofs)
- end].
+      Locate Ltac prove_call_setup1.
  let H := fresh in
  intro H;
  let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H (Vptr cb cofs) Frame); clear H].
- Set Printing All.
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H (Vptr cb cofs) Frame); clear H.
+
  reflexivity.
  check_prove_local2ptree.
  Forall_pTree_from_elements.
  Forall_pTree_from_elements.
  unfold fold_right_sepcon at 1 2.
-
+ cancel_for_forward_call.
+Print Ltac  cancel_for_forward_call.
 (* FRZL FR3 *
   (data_at Tsh (Tstruct _SHA256state_st noattr) (default_val (Tstruct _SHA256state_st noattr))
      (Vptr cb cofs) * emp)
