@@ -6,7 +6,6 @@ Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.align_compatible_dec.
 Open Scope Z.
 
-
 (************************************************
 
 Definition of nested_field_type2, nested_field_offset2
@@ -1514,6 +1513,19 @@ Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
 Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption).
+
+Lemma field_compatible_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  forall gfs p, @field_compatible cs_from t gfs p <-> @field_compatible cs_to t gfs p.
+Proof.
+  intros.
+  unfold field_compatible.
+  apply and_iff_compat_l.
+  Locate complete_legal_cosu_type.
+  Locate change_composite_env.
+  apply and_iff_compat_l.
+  SearchAbout and iff.
+  apply 
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,

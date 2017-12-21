@@ -5,6 +5,7 @@ Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
+Require Import VST.veric.align_mem.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Cop2.
 
@@ -294,4 +295,167 @@ Lemma alignof_change_composite {cs_from cs_to} {CCE: change_composite_env cs_fro
 Proof.
   intros.
   exact (proj2 (sizeof_alignof_change_composite t H)).
+Qed.
+
+Lemma complete_legal_cosu_type_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @complete_legal_cosu_type (@cenv_cs cs_from) t = @complete_legal_cosu_type (@cenv_cs cs_to) t.
+Proof.
+  intros t.
+  type_induction t (@cenv_cs cs_to) (@cenv_consistent cs_to); intros.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + split; reflexivity.
+  + simpl.
+    apply IH; auto.
+  + split; reflexivity.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
+      apply eqb_su_spec in H3.
+      rewrite H3; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
+      apply eqb_su_spec in H3.
+      rewrite H3; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+Qed.
+
+Lemma align_compatible_rec_field_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (m: members),
+  true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
+  Forall
+    (Basics.compose
+       (fun t : type =>
+          cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
+          forall ofs : Z, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs) snd)
+    m ->
+  forall i t,
+    field_type i m = Errors.OK t ->
+    forall ofs : Z, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs.
+Proof.
+  intros.
+  induction H0 as [| [i0 t0] m]; [inv H1 |].
+  simpl in H1.
+  if_tac in H1.
+  + subst.
+    inv H1.
+    apply H0.
+    simpl in H.
+    symmetry in H.
+    rewrite andb_true_iff in H.
+    tauto.
+  + apply IHForall; auto.
+    simpl in H.
+    symmetry in H |- *.
+    rewrite andb_true_iff in H.
+    tauto.
+Qed.
+
+Lemma align_compatible_rec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  (forall ofs, @align_compatible_rec (@cenv_cs cs_from) t ofs <-> @align_compatible_rec (@cenv_cs cs_to) t ofs).
+Proof.
+  intros t.
+  type_induction t (@cenv_cs cs_to) (@cenv_consistent cs_to); intros.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + simpl.
+    split; intros.
+    - inv H0.
+      1: inv H1.
+      constructor.
+      intros.
+      apply IH; auto.
+      rewrite <- sizeof_change_composite by auto.
+      apply (H5 i); auto.
+    - inv H0.
+      1: inv H1.
+      constructor.
+      intros.
+      apply IH; auto.
+      rewrite sizeof_change_composite by auto.
+      apply (H5 i); auto.
+  + split; intros;
+    inv H0; econstructor; eauto.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
+      apply eqb_su_spec in H3.
+      apply eqb_attr_spec in H4.
+      apply (coeq_consistent _ _ _ _ _ H0) in H1.
+      pose proof align_compatible_rec_field_change_composite _ H1 IH.
+      split; intros.
+      * inv H6.
+        1: inv H7.
+        eapply align_compatible_rec_Tstruct; eauto.
+        rewrite H2 in H9; inv H9.
+        intros.
+        rewrite <- H5 by eauto.
+        rewrite <- H in H6, H7.
+        eapply H11; eauto.
+SearchAbout field_offset. change_composite_env.
+
+        
+        eapply align_compatible_rec_field_change_composite; eauto.
+      rewrite H in *; rewrite H4 in  *; rewrite H3 in *; clear c0 H H0 H2 H3 H4.
+      split; [f_equal; [ | f_equal] | f_equal; f_equal].
+      * apply sizeof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.
+      * apply alignof_composite_change_composite; auto.SearchAbout cs_preserve_members.
+
+        SearchAbout Forall members.
+        eapply H10.
+        econstructor.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
+  + simpl in *.
+    unfold test_aux in H.
+    destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+    - pose proof proj1 (coeq_complete _ _ _) (ex_intro _ _ H0) as [b ?H].
+      rewrite H1 in H.
+      destruct b; [| inv H].
+      destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+      rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
+      apply eqb_su_spec in H3.
+      rewrite H3; auto.
+    - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+      * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+        congruence.
+      * inv H.
 Qed.
