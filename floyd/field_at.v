@@ -17,7 +17,8 @@ Local Open Scope logic.
 Definition of nested_reptype_structlist, field_at, array_at, data_at, nested_sfieldlist_at
 
 ************************************************)
-
+Print field_compatible.
+SearchAbout change_composite_env. complete_legal_cosu_type.
 Section CENV.
 
 Context {cs: compspecs}.

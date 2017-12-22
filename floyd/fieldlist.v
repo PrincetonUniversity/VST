@@ -615,6 +615,7 @@ Proof.
     auto.
 Qed.
 
+(* TODO: we have already proved a related field_offset lemma in veric/change_compspecs.v. But it seems not clear how to use that in an elegant way. *)
 Lemma field_offset_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id i,
   match (coeq cs_from cs_to) ! id with
   | Some b => test_aux cs_from cs_to b id

@@ -1514,6 +1514,13 @@ Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption).
 
+Lemma legal_nested_field_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  forall gfs, @legal_nested_field cs_from t gfs <-> @legal_nested_field cs_to t gfs.
+Proof.
+  intros.
+Admitted.
+
 Lemma field_compatible_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
   forall gfs p, @field_compatible cs_from t gfs p <-> @field_compatible cs_to t gfs p.
@@ -1521,11 +1528,17 @@ Proof.
   intros.
   unfold field_compatible.
   apply and_iff_compat_l.
-  Locate complete_legal_cosu_type.
-  Locate change_composite_env.
+  rewrite complete_legal_cosu_type_change_composite by auto.
   apply and_iff_compat_l.
-  SearchAbout and iff.
-  apply 
+  apply Morphisms_Prop.and_iff_morphism; [| apply Morphisms_Prop.and_iff_morphism].
+  + unfold size_compatible.
+    rewrite sizeof_change_composite by auto.
+    reflexivity.
+  + unfold align_compatible.
+    destruct p; try reflexivity.
+    apply align_compatible_rec_change_composite; auto.
+  + apply legal_nested_field_change_compspecs; auto.
+Qed.
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,

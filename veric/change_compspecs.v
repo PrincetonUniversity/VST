@@ -341,6 +341,29 @@ Proof.
       * inv H.
 Qed.
 
+Lemma field_offset_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall i m,
+  true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
+  field_offset (@cenv_cs cs_from) i m = field_offset (@cenv_cs cs_to) i m.
+Proof.
+  intros.
+  unfold field_offset.
+  generalize 0.
+  symmetry in H.
+  induction m as [| [i0 t0] m]; [auto |].
+  intros.
+  simpl in *.
+  rewrite andb_true_iff in H.
+  destruct H.
+  if_tac.
+  + subst.
+    f_equal.
+    f_equal.
+    apply alignof_change_composite; auto.
+  + rewrite alignof_change_composite by auto.
+    rewrite sizeof_change_composite by auto.
+    apply IHm; auto.
+Qed.
+
 Lemma align_compatible_rec_field_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (m: members),
   true = cs_preserve_members cs_from cs_to (coeq cs_from cs_to) m ->
   Forall
@@ -418,28 +441,29 @@ Proof.
       apply eqb_attr_spec in H4.
       apply (coeq_consistent _ _ _ _ _ H0) in H1.
       pose proof align_compatible_rec_field_change_composite _ H1 IH.
+      pose proof fun i => field_offset_change_composite i _ H1.
       split; intros.
-      * inv H6.
-        1: inv H7.
+      * inv H7.
+        1: inv H8.
         eapply align_compatible_rec_Tstruct; eauto.
-        rewrite H2 in H9; inv H9.
+        rewrite H2 in H10; inv H10.
         intros.
         rewrite <- H5 by eauto.
-        rewrite <- H in H6, H7.
-        eapply H11; eauto.
-SearchAbout field_offset. change_composite_env.
-
-        
-        eapply align_compatible_rec_field_change_composite; eauto.
-      rewrite H in *; rewrite H4 in  *; rewrite H3 in *; clear c0 H H0 H2 H3 H4.
-      split; [f_equal; [ | f_equal] | f_equal; f_equal].
-      * apply sizeof_composite_change_composite; auto.
-      * apply alignof_composite_change_composite; auto.
-      * apply alignof_composite_change_composite; auto.SearchAbout cs_preserve_members.
-
-        SearchAbout Forall members.
-        eapply H10.
-        econstructor.
+        rewrite <- H in H7, H8.
+        eapply H12; eauto.
+        rewrite <- H8, H.
+        apply H6.
+      * inv H7.
+        1: inv H8.
+        eapply align_compatible_rec_Tstruct; eauto.
+        rewrite H0 in H10; inv H10.
+        intros.
+        rewrite H in H7, H8.
+        rewrite H5 by eauto.
+        eapply H12; eauto.
+        rewrite <- H8.
+        symmetry.
+        apply H6.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
         congruence.
@@ -452,8 +476,28 @@ SearchAbout field_offset. change_composite_env.
       destruct b; [| inv H].
       destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
       rewrite !andb_true_iff in H. destruct H as [_ [[? ?] ?]].
+      apply eqb_list_spec in H; [| apply eqb_member_spec].
       apply eqb_su_spec in H3.
-      rewrite H3; auto.
+      apply eqb_attr_spec in H4.
+      apply (coeq_consistent _ _ _ _ _ H0) in H1.
+      pose proof align_compatible_rec_field_change_composite _ H1 IH.
+      split; intros.
+      * inv H6.
+        1: inv H7.
+        eapply align_compatible_rec_Tunion; eauto.
+        rewrite H2 in H9; inv H9.
+        intros.
+        rewrite <- H5 by eauto.
+        rewrite <- H in H6.
+        eapply H11; eauto.
+      * inv H6.
+        1: inv H7.
+        eapply align_compatible_rec_Tunion; eauto.
+        rewrite H0 in H9; inv H9.
+        intros.
+        rewrite H in H6.
+        rewrite H5 by eauto.
+        eapply H11; eauto.
     - destruct ((coeq cs_from cs_to) ! id) eqn:?H.
       * pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
         congruence.
