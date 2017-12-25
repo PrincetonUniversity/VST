@@ -590,6 +590,21 @@ Proof.
     - inv H.
 Qed.
 
+Lemma members_spec_change_composite'' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  forall i, cs_preserve_type cs_from cs_to (coeq _ _) (field_type i (co_members (get_co id))) = true.
+Proof.
+  intros.
+  unfold field_type.
+  apply members_spec_change_composite' in H.
+  induction H as [| [i0 t0] ?]; auto.
+  simpl.
+  if_tac; auto.
+Qed.
+
 Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
   match (coeq cs_from cs_to) ! id with
   | Some b => test_aux cs_from cs_to b id

@@ -1514,12 +1514,70 @@ Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption).
 
+Lemma nested_field_type_preserves_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  forall gfs, cs_preserve_type cs_from cs_to (coeq cs_from cs_to) (@nested_field_type cs_to t gfs) = true.
+Proof.
+  intros.
+  induction gfs; auto.
+  rewrite (@nested_field_type_ind cs_to).
+  revert IHgfs; generalize (@nested_field_type cs_to t gfs) as T; clear; intros.
+  destruct a.
+  + destruct T; auto.
+  + destruct T; auto.
+    unfold gfield_type.
+    apply members_spec_change_composite''; auto.
+  + destruct T; auto.
+    unfold gfield_type.
+    apply members_spec_change_composite''; auto.
+Qed.
+
+Lemma nested_field_type_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  forall gfs, @nested_field_type cs_from t gfs = @nested_field_type cs_to t gfs.
+Proof.
+  intros.
+  induction gfs; auto.
+  rewrite (@nested_field_type_ind cs_from).
+  rewrite (@nested_field_type_ind cs_to).
+  rewrite IHgfs.
+  clear IHgfs.
+  generalize (nested_field_type_preserves_change_compspecs _ H gfs).
+  generalize (@nested_field_type cs_to t gfs) as T; clear; intros.
+    destruct a.
+    - destruct T; auto.
+    - destruct T; auto.
+      unfold gfield_type.
+      rewrite co_members_get_co_change_composite; auto.
+    - destruct T; auto.
+      unfold gfield_type.
+      rewrite co_members_get_co_change_composite; auto.
+Qed.
+
 Lemma legal_nested_field_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
   forall gfs, @legal_nested_field cs_from t gfs <-> @legal_nested_field cs_to t gfs.
 Proof.
   intros.
-Admitted.
+  revert t H; induction gfs; intros.
+  + simpl.
+    tauto.
+  + simpl.
+    apply Morphisms_Prop.and_iff_morphism; [apply IHgfs; auto |].
+    rewrite nested_field_type_change_compspecs by auto.
+    generalize (nested_field_type_preserves_change_compspecs _ H gfs).
+    generalize (@nested_field_type cs_to t gfs) as T; clear; intros.
+    destruct a.
+    - destruct T; try tauto.
+    - destruct T; try tauto.
+      simpl.
+      rewrite co_members_get_co_change_composite by auto.
+      tauto.
+    - destruct T; try tauto.
+      simpl.
+      rewrite co_members_get_co_change_composite by auto.
+      tauto.
+Qed.
 
 Lemma field_compatible_change_compspecs: forall {cs_from cs_to} {CCE: change_composite_env cs_from cs_to} (t: type),
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
