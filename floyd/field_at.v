@@ -17,8 +17,7 @@ Local Open Scope logic.
 Definition of nested_reptype_structlist, field_at, array_at, data_at, nested_sfieldlist_at
 
 ************************************************)
-Print field_compatible.
-SearchAbout change_composite_env. complete_legal_cosu_type.
+
 Section CENV.
 
 Context {cs: compspecs}.
@@ -2470,6 +2469,38 @@ Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
   JMeq v1 v2 ->
   @data_at cs sh t1 v1 = data_at sh t2 v2.
 Proof. intros. subst. apply JMeq_eq in H0. subst v2. reflexivity. Qed.
+
+Lemma field_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) gfs v1 v2,
+  JMeq v1 v2 ->
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @field_at cs_from sh t gfs v1 = @field_at cs_to sh t gfs v2.
+Proof.
+  intros.
+  unfold field_at.
+  extensionality p.
+  SearchAbout (!! _ && _ = !! _ && _).
+  apply andp_prop_ext.
+  + apply field_compatible_change_composite; auto.
+  + intros.
+    pose proof H1.
+    rewrite field_compatible_change_composite in H2 by auto.
+    f_equal.
+    - revert v1 H;
+      rewrite nested_field_type_change_composite by auto.
+      intros.
+      apply data_at_rec_change_composite; auto.
+      apply nested_field_type_preserves_change_composite; auto.
+    - apply nested_field_offset_change_composite; auto.
+Qed.
+
+Lemma data_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2,
+  JMeq v1 v2 ->
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @data_at cs_from sh t v1 = @data_at cs_to sh t v2.
+Proof.
+  intros.
+  apply field_at_change_composite; auto.
+Qed.
 
 (* TODO: rename and clean up all array_at_data_at lemmas. *)
 Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
