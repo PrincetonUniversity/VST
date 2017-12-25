@@ -169,98 +169,7 @@ Proof. intros. abbreviate_semax.
          FCcb by entailer!. (*3.8*)
 
       freeze [0;2;3] FR3.
-      eapply semax_seq'.
-
-
-      prove_call_setup1. (* change compspec should be done here *)
-      Check call_setup2_i.
-      Locate Ltac prove_call_setup1.
- let H := fresh in
- intro H;
- let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H (Vptr cb cofs) Frame); clear H.
-
- reflexivity.
- check_prove_local2ptree.
- Forall_pTree_from_elements.
- Forall_pTree_from_elements.
- unfold fold_right_sepcon at 1 2.
- cancel_for_forward_call.
-Print Ltac  cancel_for_forward_call.
-(* FRZL FR3 *
-  (data_at Tsh (Tstruct _SHA256state_st noattr) (default_val (Tstruct _SHA256state_st noattr))
-     (Vptr cb cofs) * emp)
-  |-- data_at_ Tsh t_struct_SHA256state_st (Vptr cb cofs) * emp * fold_right_sepcon Frame *)
-  repeat match goal with |- ?A * _ |-- ?B * _ => 
-     constr_eq A B;  simple apply (cancel_left A)
-  end;
-  match goal with |- ?P |-- _ => qcancel P end;
-  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
-  try match goal with |- ?A |-- ?B => 
-       constr_eq A B; simple apply (derives_refl A)
-  end.
-  match goal with |- ?P |-- _ =>
-   (* The "emp" is a marker to notice when one complete pass has been made *)
-   rewrite <- (emp_sepcon P)
-  end.
-  repeat rewrite <- sepcon_assoc.
-  simple apply cancel1_start.
-  simple apply cancel1_next.
-  simple apply cancel1_last.
-  (*   @derives mpred Nveric
-    (@data_at CompSpecs Tsh (Tstruct _SHA256state_st noattr)
-       (@default_val CompSpecs (Tstruct _SHA256state_st noattr)) (Vptr cb cofs))
-    (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st (Vptr cb cofs)) *)
-  autorewrite with norm.
-  eauto with nocore cancel.
-  Print HintDb cancel.
-    [
-    try match goal with H := _ : list mpred |- _ => clear H end; (*
-      this line is to work around Coq 8.4 bug,
-      Anomaly: undefined_evars_of_term *)
-    solve [eauto with nocore cancel] | ].
- first [
-   simple apply cancel1_here; [
-    try match goal with H := _ : list mpred |- _ => clear H end; (*
-      this line is to work around Coq 8.4 bug,
-      Anomaly: undefined_evars_of_term *)
-    solve [eauto with nocore cancel]
-   | ]
- | simple apply cancel1_next; cancel1
- | simple apply cancel1_last; [
-    try match goal with H := _ : list mpred |- _ => clear H end; (*
-      this line is to work around Coq 8.4 bug,
-      Anomaly: undefined_evars_of_term *)
-    solve [eauto with nocore cancel] | ]
- ].
-
-  repeat simple apply cancel1_finish1;
-  try simple apply cancel1_finish2.
-
-      
-    [prove_call_setup (Vptr cb cofs);
-     clear_Delta_specs; clear_MORE_POST |].
-
-  let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
- clear H;
- lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end.
- check_result_type .
- cbv beta iota zeta; unfold_post; (* extensionality rho; *)
-    repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    (* apply equal_f; *)
-    apply exp_congr; intros ?vret;
-    apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
-    (reflexivity || fail "The funspec of the function has a POSTcondition
-that is ill-formed.  The LOCALS part of the postcondition
-should be empty, but it is not").
- unify_postcondition_exps.
- unfold fold_right_and; repeat rewrite and_True; auto.
-
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
-
-      entailer.
       (*call to SHA256_Update*)
       thaw FR3.
       thaw FR2.
@@ -364,7 +273,7 @@ should be empty, but it is not").
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
-       Time solve [cancel]. (*0.1*)
+       change_compspecs CompSpecs. Time entailer!. (*0.1*)
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
@@ -483,8 +392,7 @@ Proof. intros.
      rewrite XX(*, HeqKCONT*).
      repeat rewrite map_list_repeat.
      rewrite sublist_same; trivial. (*subst l64 l.*)
-     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
-     with (@data_at CompSpecs Tsh (tarray tuchar SF)).
+     change_compspecs' CompSpecs spec_sha.CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
@@ -610,7 +518,7 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!.
-     entailer!. apply sepcon_valid_pointer2. apply data_block_valid_pointer. auto.
+     entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
      red in H3. omega.
      apply valid_pointer_null. }
   { (* THEN*)

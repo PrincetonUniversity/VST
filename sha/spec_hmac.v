@@ -10,8 +10,8 @@ Require Import sha.hmac.
 Require Import VST.veric.change_compspecs.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Instance CompSpecs_Preserve: change_composite_env CompSpecs spec_sha.CompSpecs.
-  make_cs_preserve CompSpecs spec_sha.CompSpecs.
+Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+  make_cs_preserve spec_sha.CompSpecs CompSpecs.
 Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -413,6 +413,32 @@ Definition HmacFunSpecs : funspecs :=
 
 Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
 
+Lemma change_compspecs_data_block: forall sh v,
+  @data_block spec_sha.CompSpecs sh v =
+  @data_block CompSpecs sh v.
+Proof.
+  intros.
+  unfold data_block.
+  f_equal.
+  apply data_at_change_composite; auto.
+Qed.
+
+Ltac change_compspecs' cs cs' ::=
+  match goal with
+  | |- context [@data_block cs'] => rewrite change_compspecs_data_block
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
+  | |- context [?A cs'] => change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
+ end.
+
+(* TODO: maybe this lemma is not needed any more. *)
 Lemma change_compspecs_t_struct_SHA256state_st:
   @data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
   @data_at CompSpecs Tsh t_struct_SHA256state_st.

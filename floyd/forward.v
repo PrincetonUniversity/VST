@@ -522,6 +522,10 @@ first [ reflexivity
 
 Ltac change_compspecs' cs cs' :=
   match goal with
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
   | |- context [?A cs'] => change (A cs') with (A cs)
   | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
@@ -530,6 +534,7 @@ Ltac change_compspecs' cs cs' :=
   | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
  end.
 
+(* TODO: use CCE as arguments to gain CS' *)
 Ltac change_compspecs cs :=
  match goal with |- context [?cs'] =>
    match type of cs' with compspecs =>
@@ -580,14 +585,9 @@ Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 Ltac check_funspec_precondition :=
    first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
-Ltac lookup_spec_and_change_compspecs CS id :=
+Ltac lookup_spec id :=
  tryif apply f_equal_Some
  then
-   (match goal with |- ?A = ?B =>
-      let x := fresh "x" in set (x := A);
-      let y := fresh "y" in set (y := B);
-      hnf in x; subst x; try change_compspecs CS; subst y
-   end;
    match goal with
    | |- ?fs = _ => check_canonical_funspec (id,fs);
       first [reflexivity |
@@ -597,7 +597,7 @@ Ltac lookup_spec_and_change_compspecs CS id :=
            | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
-   end)
+   end
  else elimtype  (Cannot_find_function_spec_in_Delta id).
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
@@ -870,7 +870,7 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
     [check_prove_local2ptree
     | apply can_assume_funcptr2;
       [ check_function_name
-      | lookup_spec_and_change_compspecs CS id
+      | lookup_spec id
       | find_spec_in_globals'
       | reflexivity  (* function-id type in AST matches type in funspec *)
       ]
@@ -903,15 +903,17 @@ Ltac prove_call_setup witness :=
  end;
  let H := fresh in
  intro H;
+ match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
  exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | 
- ]].
+ | unfold fold_right_sepcon at 1 2; try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end].
 
 Ltac fwd_call' witness :=
 lazymatch goal with

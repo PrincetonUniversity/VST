@@ -2493,6 +2493,17 @@ Proof.
     - apply nested_field_offset_change_composite; auto.
 Qed.
 
+Lemma field_at__change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) gfs,
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @field_at_ cs_from sh t gfs = @field_at_ cs_to sh t gfs.
+Proof.
+  intros.
+  apply field_at_change_composite; auto.
+  rewrite nested_field_type_change_composite by auto.
+  apply default_val_change_composite.
+  apply nested_field_type_preserves_change_composite; auto.
+Qed.
+
 Lemma data_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2,
   JMeq v1 v2 ->
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
@@ -2500,6 +2511,14 @@ Lemma data_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_fro
 Proof.
   intros.
   apply field_at_change_composite; auto.
+Qed.
+
+Lemma data_at__change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @data_at_ cs_from sh t = @data_at_ cs_to sh t.
+Proof.
+  intros.
+  apply field_at__change_composite; auto.
 Qed.
 
 (* TODO: rename and clean up all array_at_data_at lemmas. *)
