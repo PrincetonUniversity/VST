@@ -1455,7 +1455,7 @@ Lemma control_suffix_safe :
   simpl in H6. unfold cl_halted in H6. congruence.
 Qed.
 
-Lemma guard_safe_adj {CS: compspecs}:
+Lemma guard_safe_adj:
  forall
    psi Delta P k1 k2,
    current_function k1 = current_function k2 ->
@@ -1494,7 +1494,7 @@ Proof.
  auto.
 Qed.
 
-Lemma rguard_adj {CS: compspecs}:
+Lemma rguard_adj:
   forall ge Delta R k k',
       current_function k = current_function k' ->
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
