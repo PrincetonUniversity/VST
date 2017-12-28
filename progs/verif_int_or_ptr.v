@@ -63,19 +63,25 @@ Lemma field_compatible_valid_int_or_ptr:
   valid_int_or_ptr p.
 Proof.
 intros.
-destruct H as [H1 [_ [_ [_ [_ [_ [H2 _]]]]]]].
+destruct H as [H1 [_ [_ [H2 _]]]].
 destruct p; try contradiction.
 clear - H2; simpl in *.
     rewrite Zodd_even_bool.
     apply negb_false_iff.
     apply Zeven_bool_iff.
-    change (4 | Int.unsigned i) in H2.
-    destruct H2 as [j H2].
-    rewrite H2; clear.
+    inv H2.
+    1: inv H.
+    inv H1.
+    specialize (H4 _left _ _ eq_refl eq_refl).
+    inv H4.
+    inv H.
+    simpl in H0.
+    destruct H0 as [j H].
+    rewrite Z.add_0_r in H.
+    rewrite H; clear.
     replace (j*4)%Z with (2*(2*j))%Z by omega.
     apply Zeven_2p.
 Qed.
-
 
 Lemma treerep_local_facts:
   forall t p,

@@ -615,7 +615,7 @@ Proof.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
           simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
-      rewrite Zplus_minus. cbv; trivial.
+      rewrite Zplus_minus.
       assert (Int.unsigned i >= 0) by (pose proof (Int.unsigned_range i); omega).
       split. omega.
       clear - Hfield. red in Hfield; simpl in Hfield. omega.
@@ -1275,4 +1275,4 @@ Proof.
   simpl; entailer!. 
   + red; simpl. red in H0; simpl in H0. intuition.
   + unfold_data_at 1%nat; thaw FR; cancel. 
-Time Qed. (*1.8s*) 
+Time Qed. (*1.8s*)

@@ -3052,7 +3052,7 @@ Qed.
 
 Lemma malloc_compat : forall {cs : compspecs} sh t p,
   complete_legal_cosu_type t = true ->
-  natural_aligned cenv_cs ha_env_cs la_env_cs natural_alignment t = true ->
+  natural_aligned natural_alignment t = true ->
   malloc_token sh (sizeof t) p = !!field_compatible t [] p && malloc_token sh (sizeof t) p.
 Proof.
   intros; rewrite andp_comm; apply add_andp; entailer!.
