@@ -348,6 +348,26 @@ Lemma lock_struct_array : forall sh z (v : list val) p,
 Proof.
   intros.
   unfold data_at, field_at, at_offset; rewrite !data_at_rec_eq; simpl; f_equal.
+  apply ND_prop_ext.
+  split; intros [? [? [? [? ?]]]]; (split; [| split; [| split; [| split]]]); auto.
+  + destruct p; auto.
+    inv H2.
+    1: inv H4.
+    constructor.
+    intros.
+    apply H8 in H2; clear H8.
+    inv H2. inv H4.
+    econstructor; [reflexivity |].
+    exact H5.
+  + destruct p; auto.
+    inv H2.
+    1: inv H4.
+    constructor.
+    intros.
+    apply H8 in H2; clear H8.
+    inv H2. inv H4.
+    econstructor; [reflexivity |].
+    exact H5.
 Qed.
 
 Lemma Empty_inj : forall i, vint i = Empty -> repable_signed i -> i = -1.

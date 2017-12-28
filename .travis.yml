@@ -32,7 +32,6 @@ env:
 branches:
   only:
   - master
-  - align
 notifications:
   email:
     recipients:

@@ -51,16 +51,16 @@ Proof.
       { rewrite Z.max_r; auto; omega. }
       setoid_rewrite Hsize; Intros; apply andp_right; [|simpl; apply derives_refl].
       apply prop_right; match goal with H : field_compatible _ _ _ |- _ =>
-        destruct H as (? & ? & ? & ? & ? & ? & ? & ?) end; repeat split; simpl; auto.
-      + unfold legal_alignas_type, tarray, nested_pred, local_legal_alignas_type; simpl.
-        rewrite andb_true_r, Z.leb_le; omega.
-      + setoid_rewrite Hsize; auto.
+        destruct H as (? & ? & ? & ? & ?) end; repeat split; simpl; auto.
       + unfold size_compatible in *; simpl.
         destruct p; try contradiction.
         setoid_rewrite Hsize; auto.
       + unfold align_compatible in *; simpl.
         unfold align_attr in *; simpl.
         destruct p; try contradiction.
+        constructor; intros.
+        econstructor; [reflexivity |].
+        apply
         etransitivity; eauto.
     - rewrite data_at__eq.
       unfold default_val, reptype_gen; simpl.
