@@ -250,12 +250,12 @@ apply age_to_necR.
 spec H.
 do 3 red. 
 rewrite level_age_to; auto.
-apply necR_level in H0.
-admit.
+apply necR_level in H0. apply H0.
 do 3 red in H.
 rewrite level_age_to in H; auto.
-admit.
-Admitted.
+apply necR_level in H0.
+apply H0.
+Qed.
 
 Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q: pred nat),
   (@unfash A agA (andp P Q) = andp (@unfash A agA P) (@unfash A agA Q)).
@@ -278,6 +278,17 @@ intros ? [? ?].
 eapply H0; auto.
 Qed.
 
+Lemma andp_imp_e':
+  forall (A : Type) (agA : ageable A) (P Q : pred A),
+   P && (P --> Q) |-- P && Q.
+Proof.
+intros.
+apply andp_right.
+apply andp_left1; auto.
+intros ? [? ?].
+eapply H0; auto.
+Qed.
+
 Lemma switch_rguard:
  forall (Espec : OracleKind) (a : expr)
   (sl : labeled_statements)
@@ -294,8 +305,11 @@ Lemma switch_rguard:
    (Kswitch :: k)).
 Proof.
 intros.
-intros w H3.
- intros ek vl tx' vx'.
+unfold rguard.
+apply allp_right; intro ek.
+apply allp_right; intro vl.
+apply allp_right; intro tx'.
+apply allp_right; intro vx'.
  pose (ek' := match ek with 
                     | EK_normal => EK_normal
                     | EK_break => EK_normal
@@ -308,25 +322,17 @@ intros w H3.
                     | EK_continue => None
                     | EK_return => vl
                     end).
- specialize (H3 ek' vl' tx' vx').
+ apply allp_left with ek'.
+ apply allp_left with vl'.
+ apply allp_left with tx'.
+ apply allp_left with vx'.
  simpl current_function.
- cbv beta in *.
  set (rho' := construct_rho (filter_genv psi) vx' tx') in *.
- cbv beta zeta in *.
-
- apply subp_trans' with (
-     proj_ret_assert (frame_ret_assert (switch_ret_assert R) F) ek vl rho'
-   &&  assert_safe Espec psi vx' tx' (exit_cont ek' vl' k) rho')%pred.
- *
- apply andp_subp'_right.
- apply derives_subp.
- apply andp_left1; apply andp_left2. auto.
- eapply subp_trans'; try eassumption. clear H3.
- apply derives_subp.
- repeat simple apply andp_derives.
- -
-   apply prop_derives.
-   clear; intros [? ?]; split.
+ rewrite !andp_assoc.
+ simple apply prop_andp_subp'; intro.
+ rewrite prop_true_andp.
+Focus 2. {
+ destruct H; split; auto.
    +
     subst ek'.
     destruct ek; simpl in *; auto.
@@ -336,30 +342,16 @@ intros w H3.
     destruct (current_function k); auto.
     destruct H0; split; auto. rewrite <- H1.
     subst ek'. rewrite !ret_type_exit_tycon. auto.
-  -
-   rewrite !proj_frame_ret_assert.
-   apply sepcon_derives; auto.
-   subst ek' vl'.
-    destruct R as [?R ?R ?R ?R]; destruct ek; simpl proj_ret_assert;
-    auto; apply andp_derives; auto; 
-    try simple apply prop_derives; auto.
-    intros ? ?; contradiction.
-  -
-   rewrite !funassert_exit_tycon. auto.
- *
-  clear.
-  apply derives_subp. 
-  intros w' [H3 H4] ora jm ? ?.
-  specialize (H4 ora jm H H0).
-  clear - H3 H4.
-  hnf in H4|-*.
-  destruct (level w') eqn:?; [ constructor | ].
-  inv H4; [ | inv H0 | inv H].
- econstructor 2; [ | eassumption].
- subst ek' vl'; destruct ek; simpl in *; auto.
- destruct H3.
- destruct R as [?R ?R ?R ?R]; simpl RA_normal in H2. normalize in H2.
- contradiction.
+  } Unfocus.
+ rewrite !funassert_exit_tycon.
+ forget (funassert Delta' rho') as FDR.
+ rewrite !proj_frame_ret_assert.
+ simpl.
+ apply fash_derives.
+ destruct R as [?R ?R ?R ?R]; destruct ek; subst ek' vl'; simpl; auto.
+* apply imp_right. normalize.
+*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
+*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
 Qed.
 
 Lemma unfash_fash_imp:
@@ -373,7 +365,6 @@ do 3 red in H.
 apply (H a'); auto.
 apply necR_level; auto.
 Qed.
-
 
 Lemma assert_safe_step_nostore:
   forall Espec psi vx vx2 tx tx2 k1 k2 SideCond,
@@ -527,8 +518,6 @@ fold rho.
 rewrite Heqv, Heqt.
 reflexivity.
 Qed.
-
-
 
 Lemma semax_switch_orig: 
   forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
