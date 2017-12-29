@@ -961,7 +961,7 @@ Require Import VST.sepcomp.step_lemmas.
   forall dryspec (prog: Clight.program) b q m h,
   initial_core Clight_new.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Int.zero) nil = Some q ->
+          (Vptr b Ptrofs.zero) nil = Some q ->
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_new.cl_core_sem 
@@ -970,7 +970,7 @@ Require Import VST.sepcomp.step_lemmas.
   exists q', 
   initial_core Clight_core.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Int.zero) nil = Some q' /\
+          (Vptr b Ptrofs.zero) nil = Some q' /\
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_core.cl_core_sem 
@@ -987,7 +987,7 @@ rewrite Heqo.
 eexists; split; [reflexivity|].
 intro.
 remember (State empty_env
-          (PTree.Node PTree.Leaf (Some (Vptr b Int.zero)) PTree.Leaf)
+          (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)
           (Kseq
              (Scall None (Etempvar 1%positive (type_of_fundef f))
                 (map (fun x : ident * type => Etempvar (fst x) (snd x))
@@ -998,7 +998,7 @@ remember (Clight_core.CC_core_State Clight_core.empty_function
         (map (fun x : ident * type => Etempvar (fst x) (snd x))
            (Clight_core.params_of_types 2 (Clight_core.params_of_fundef f))))
      (Clight.Kseq (Sloop Sskip Sskip) Kstop) empty_env
-     (PTree.Node PTree.Leaf (Some (Vptr b Int.zero)) PTree.Leaf)) as q'.
+     (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)) as q'.
 assert (match_states q q'). {
  subst q q'. constructor. simpl. auto. simpl.
   constructor. simpl. constructor. simpl. constructor.

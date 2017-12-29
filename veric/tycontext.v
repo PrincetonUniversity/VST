@@ -1336,14 +1336,14 @@ Qed.
 Definition binop_stable cenv op a1 a2 : bool :=
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => complete_type cenv t
-                    | Cop.add_case_ip t => complete_type cenv t
+                    | Cop.add_case_pi t _ => complete_type cenv t
+                    | Cop.add_case_ip _ t => complete_type cenv t
                     | Cop.add_case_pl t => complete_type cenv t
                     | Cop.add_case_lp t => complete_type cenv t
                     | Cop.add_default => true
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => complete_type cenv t
+                    | Cop.sub_case_pi t _ => complete_type cenv t
                     | Cop.sub_case_pl t => complete_type cenv t
                     | Cop.sub_case_pp t => complete_type cenv t
                     | Cop.sub_default => true
@@ -1370,6 +1370,20 @@ Proof.
      auto.
 Qed.
 
+Lemma Cop_Sem_add_ptr_int_stable ty si u v (H:complete_type env ty = true):
+  Cop.sem_add_ptr_int env ty si u v =
+  Cop.sem_add_ptr_int env' ty si u v.
+Proof. unfold Cop.sem_add_ptr_int.
+  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
+Qed.
+
+Lemma Cop_Sem_add_ptr_long_stable ty u v (H:complete_type env ty = true):
+  Cop.sem_add_ptr_long env ty u v =
+  Cop.sem_add_ptr_long env' ty u v.
+Proof. unfold Cop.sem_add_ptr_long.
+  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
+Qed.
+
 Lemma Cop_sem_binary_operation_stable:
   forall b v1 e1 v2 e2 m,
   binop_stable env b e1 e2 = true ->
@@ -1382,6 +1396,9 @@ Proof.
   + simpl.
     unfold Cop.sem_add.
     destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2;
+    try (erewrite <- Cop_Sem_add_ptr_int_stable; eauto);
+    try (erewrite <- Cop_Sem_add_ptr_long_stable; eauto);
+(*    try (eapply (complete_type_stable env env'); eauto);*)
     try erewrite <- sizeof_stable; eauto.
   + simpl.
     unfold Cop.sem_sub.

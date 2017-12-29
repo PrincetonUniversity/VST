@@ -90,7 +90,7 @@ Definition params_of_fundef (f: fundef) : list type :=
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
   match v with
     Vptr b i =>
-    if Int.eq_dec i Int.zero then
+    if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
         Some (CC_core_State empty_function 
@@ -198,5 +198,5 @@ apply Build_MemSem with (csem := cl_core_sem).
   inversion H0;
     try do 2 match goal with
     | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H
-             end; subst; try apply mem_step_refl; trivial.
+             end; subst; try apply mem_step_refl; trivial. 
 Admitted.

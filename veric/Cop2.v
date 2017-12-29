@@ -344,6 +344,8 @@ Definition log2_sizeof_pointer : N :=
 Definition int_or_ptr_type : type :=
   Tpointer Tvoid {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |}.
 
+Definition classify_cast (tfrom tto: type) : classify_cast_cases :=cast_case_default.
+(*LENB: obeove definition is dummy
 Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   match tto, tfrom with
   | Tint I32 si2 _, (Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
@@ -378,10 +380,12 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tunion id2 _, Tunion id1 _ => cast_case_union id1 id2
   | Tvoid, _ => cast_case_void
   | _, _ => cast_case_default
-  end.
+  end.*)
 
 Arguments classify_cast tfrom tto / .
 
+Definition sem_cast (t1 t2: type): val -> option val := fun _ => None.
+(*LENB: abve definition is dummy
 Definition sem_cast (t1 t2: type): val -> option val :=
   match classify_cast t1 t2 with
   | Cop.cast_case_neutral => sem_cast_neutral
@@ -412,6 +416,7 @@ Definition sem_cast (t1 t2: type): val -> option val :=
   | Cop.cast_case_default =>
       fun v => None
   end.
+*)
 
 (** The following describes types that can be interpreted as a boolean:
   integers, floats, pointers.  It is used for the semantics of
@@ -458,7 +463,7 @@ Definition bool_val (t: type) : val -> option bool :=
   | Cop.bool_case_i => bool_val_i
   | Cop.bool_case_s => bool_val_s
   | Cop.bool_case_f => bool_val_f
-  | Cop.bool_case_p => bool_val_p
+(*LENB: case removed  | Cop.bool_case_p => bool_val_p*)
   | Cop.bool_case_l => bool_val_l
   | bool_default => fun v => None
   end.
@@ -506,7 +511,7 @@ Definition sem_notbool (t: type) : val -> option val :=
   | Cop.bool_case_i => sem_notbool_i
   | Cop.bool_case_f => sem_notbool_f
   | Cop.bool_case_s => sem_notbool_s
-  | Cop.bool_case_p => sem_notbool_p
+(*LENB: case removed  | Cop.bool_case_p => sem_notbool_p*)
   | Cop.bool_case_l => sem_notbool_l
   | bool_default => fun v => None
   end.
@@ -613,13 +618,15 @@ Definition both_float (f: float -> float -> option val) (cast1 cast2: val -> opt
 Definition both_single (f: float32 -> float32 -> option val) (cast1 cast2: val -> option val) (v1 v2: val) :=
  match cast1 v1, cast2 v2 with Some (Vsingle v1'), Some (Vsingle v2') => f v1' v2' | _, _ => None end.
 
+
 Definition sem_binarith
     (sem_int: signedness -> int -> int -> option val)
     (sem_long: signedness -> int64 -> int64 -> option val)
     (sem_float: float -> float -> option val)
     (sem_single: float32 -> float32 -> option val)
     (t1: type) (t2: type)
-   : forall (v1: val) (v2: val), option val :=
+   : forall (v1: val) (v2: val), option val := fun _ _ => None.
+(*LENB -- fun _ _ => None. is dummy -- 
   let c := Cop.classify_binarith t1 t2 in
   let t := Cop.binarith_type c in
   match c with
@@ -628,11 +635,16 @@ Definition sem_binarith
   | Cop.bin_case_s => both_single (sem_single) (sem_cast t1 t) (sem_cast t2 t)
   | Cop.bin_case_l sg => both_long (sem_long sg) (sem_cast t1 t) (sem_cast t2 t)
   | bin_default => fun _ _ => None
-  end.
+  end.*)
 
 (** *** Addition *)
-
-Definition sem_add_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
+Definition sem_add_pi {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_add_ip  {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_add_pl {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_add_lp {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_add_default (t1 t2:type) (v1 v2 : val) : option val := None.
+(*LENB: above definitions are dummies
+Definition sem_add_pi {CS: compspecs} ty (v1 v2 : val) : option val
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 =>
         Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
@@ -679,18 +691,26 @@ sem_binarith
         (fun n1 n2 => Some(Vsingle(Float32.add n1 n2)))
         t1 t2
         v1 v2.
+*)
 
+(*LENB: TODO: add treatment of ptr*)
 Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
   match Cop.classify_add t1 t2 with
-  | Cop.add_case_pi ty =>  sem_add_pi ty
-  | Cop.add_case_ip ty => sem_add_ip ty   (**r integer plus pointer *)
+  | Cop.add_case_pi ty (*LENB: si NEW*)si =>  sem_add_pi ty 
+  | Cop.add_case_ip (*LENB: si NEW*)si ty=> sem_add_ip ty   (**r integer plus pointer *)
   | Cop.add_case_pl ty => sem_add_pl ty   (**r pointer plus long *)
   | Cop.add_case_lp ty => sem_add_lp ty   (**r long plus pointer *)
   | add_default => sem_add_default t1 t2
   end.
 
+
 (** *** Subtraction *)
 
+Definition sem_sub_pi {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_sub_pl {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_sub_pp {CS: compspecs} (ty:type) (v1 v2 : val) : option val := None.
+Definition sem_sub_default (t1 t2:type) (v1 v2 : val) : option val := None.
+(*LENB: above 4 definitions are dummies
 Definition sem_sub_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 =>
@@ -730,10 +750,10 @@ Definition sem_sub_default t1 t2 (v1 v2 : val) : option val :=
         (fun n1 n2 => Some(Vfloat(Float.sub n1 n2)))
         (fun n1 n2 => Some(Vsingle(Float32.sub n1 n2)))
         t1 t2 v1 v2.
-
+*)
 Definition sem_sub {CS: compspecs} (t1:type) (t2:type) : val -> val -> option val :=
   match Cop.classify_sub t1 t2 with
-  | Cop.sub_case_pi ty => sem_sub_pi  ty  (**r pointer minus integer *)
+  | Cop.sub_case_pi ty (*LENB: si NEW*)si=> sem_sub_pi  ty  (**r pointer minus integer *)
   | Cop.sub_case_pl ty => sem_sub_pl  ty  (**r pointer minus long *)
   | Cop.sub_case_pp ty => sem_sub_pp ty       (**r pointer minus pointer *)
   | sub_default => sem_sub_default t1 t2
@@ -741,6 +761,13 @@ Definition sem_sub {CS: compspecs} (t1:type) (t2:type) : val -> val -> option va
 
 (** *** Multiplication, division, modulus *)
 
+Definition sem_mul (t1:type) (t2:type) (v1:val)  (v2: val)  : option val := None.
+Definition sem_div (t1:type) (t2:type) (v1:val)  (v2: val) : option val := None.
+Definition sem_mod (t1:type) (t2:type) (v1:val)  (v2: val) : option val := None.
+Definition sem_and (t1:type) (t2:type) (v1:val) (v2: val) : option val := None.
+Definition sem_or (t1:type) (t2:type) (v1:val)  (v2: val) : option val := None.
+Definition sem_xor (t1:type) (t2:type) (v1:val)  (v2: val) : option val := None.
+(*LENB: above 6 definitions are dummies
 Definition sem_mul (t1:type) (t2:type) (v1:val)  (v2: val)  : option val :=
   sem_binarith
     (fun sg n1 n2 => Some(Vint(Int.mul n1 n2)))
@@ -788,7 +815,7 @@ Definition sem_xor (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
     (fun n1 n2 => None)
     (fun n1 n2 => None)
     t1 t2 v1 v2.
-
+*)
 (** *** Shifts *)
 
 (** Shifts do not perform the usual binary conversions.  Instead,
@@ -879,6 +906,8 @@ Definition sem_cmp_default c t1 t2 :=
             Some(Val.of_bool(Float32.cmp c n1 n2)))
         t1 t2 .
 
+Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option val := fun _ _ =>None.
+(*LENB: Above definition is dummy
 Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option val :=
   match Cop.classify_cmp t1 t2 with
   | Cop.cmp_case_pp => 
@@ -895,7 +924,7 @@ Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option 
      else sem_cmp_lp c
   | Cop.cmp_default => sem_cmp_default c t1 t2
   end.
-
+*)
 
 (** * Combined semantics of unary and binary operators *)
 
@@ -909,6 +938,10 @@ Definition sem_unary_operation
   end.
 
 (*Removed memory from sem_cmp calls/args*)
+Definition sem_binary_operation'
+    {CS: compspecs} (op: Cop.binary_operation)
+    (t1:type) (t2: type) : val -> val -> option val := fun _ _ => None.
+(*LENB: Above definition is dummy
 Definition sem_binary_operation'
     {CS: compspecs} (op: Cop.binary_operation)
     (t1:type) (t2: type) : val -> val -> option val :=
@@ -930,8 +963,11 @@ Definition sem_binary_operation'
   | Cop.Ole => sem_cmp Cle t1 t2
   | Cop.Oge => sem_cmp Cge t1 t2
   end.
+*)
 
-(*
+Definition sem_binary_operation {CS: compspecs} (op: Cop.binary_operation)
+    (t1:type) (t2: type) (m : mem) : val -> val -> option val := fun _ _ => None.
+(*Lenb: above definition is dummy
 Definition sem_binary_operation {CS: compspecs} (op: Cop.binary_operation)
     (t1:type) (t2: type) (m : mem) : val -> val -> option val :=
 sem_binary_operation' op t1 t2 (Mem.valid_pointer m).
