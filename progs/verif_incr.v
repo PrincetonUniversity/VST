@@ -66,7 +66,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
 Lemma ctr_inv_precise : forall p,
   precise (cptr_lock_inv p).
 Proof.
-  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
+  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tuint); auto.
   intros ? (? & H); apply data_at_data_at_ in H; eauto.
 Qed.
 Hint Resolve ctr_inv_precise.

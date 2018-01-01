@@ -217,14 +217,14 @@ Local Open Scope Z.
 
 Local Open Scope logic.
 
-Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
+Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
 Proof. unfold data_block. simpl; intros.
   apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
   rewrite Z.max_r, Z.mul_1_l; omega.
 Qed.
 
-Lemma data_block_isbyteZ:
+Lemma data_block_isbyteZ {cs: compspecs}:
  forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
 Proof.
 unfold data_block; intros.

@@ -269,13 +269,14 @@ Qed.
 Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
-  complete_type cenv_cs t0 = true ->
+  complete_legal_cosu_type t0 = true ->
   eqb_type (typeof e) int_or_ptr_type = false ->
   isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
   unfold isBinOpResultType.
-  erewrite classify_add_add_case_pi by eauto.  
+  erewrite classify_add_add_case_pi by eauto.
+  apply complete_legal_cosu_type_complete_type in H1.
   rewrite H1, tc_andp_TT2.
   simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
   unfold tc_int_or_ptr_type. rewrite H2.
@@ -298,8 +299,8 @@ Proof.
   split.
   + eapply classify_add_add_case_pi; [auto | apply typeconv_typeconv'_eq; eassumption].
   + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
-    - destruct H3 as [_ [_ [_ [? [_ [_ [_ ?]]]]]]].
-      eapply nested_field_type_complete_type with (gfs0 := gfs) in H3; auto.
+    - destruct H3 as [_ [? [_ [_ ?]]]].
+      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
       rewrite H2 in H3.
       exact H3.
     - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];

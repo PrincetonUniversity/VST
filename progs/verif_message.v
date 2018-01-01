@@ -114,6 +114,15 @@ change (mf_size intpair_message) with (sizeof (tarray tint 2)).
 assert_PROP (field_compatible (tarray tint 2) [] buf).
   entailer!.
   hnf in H; decompose[and] H; repeat split; auto.
+  (* TODO: abstract the following proof. *)  
+  unfold align_compatible in H0 |- *.
+  destruct buf; auto.
+  constructor.
+  intros.
+  eapply align_compatible_rec_by_value_inv in H0; [| reflexivity].
+  econstructor; [reflexivity |].
+  apply Z.divide_add_r; auto.
+  exists i0; rewrite Z.mul_comm; auto.
 rewrite memory_block_data_at_; auto.
 change (data_at_ sh' (tarray tint 2) buf) with
    (data_at sh' (tarray tint 2) [Vundef;Vundef] buf).
@@ -185,7 +194,7 @@ with (memory_block Tsh (mf_size intpair_message) buf).
 assert_PROP (align_compatible tint buf).
   entailer!.
   destruct HPbuf; subst; simpl.
-  apply Z.divide_0_r.
+  econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
       ((Vint (Int.repr 1), Vint (Int.repr 2)), p, buf, Tsh, Tsh).
   repeat split; auto.

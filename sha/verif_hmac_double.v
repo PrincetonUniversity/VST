@@ -157,8 +157,15 @@ rewrite memory_block_data_at_ by auto.
 cancel.
 
 assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
-  red. intuition. apply Z.divide_1_l.
-
+{
+  red. intuition.
+  simpl.
+  constructor.
+  intros.
+  econstructor.
+  + reflexivity.
+  + apply Z.divide_1_l.
+}
 rewrite (split2_data_block 32 _ (dig2 ++ dig2))
  by (autorewrite with sublist; omega).
 autorewrite with sublist.

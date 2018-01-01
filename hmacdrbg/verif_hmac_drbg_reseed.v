@@ -210,7 +210,7 @@ Proof.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
           simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
-      rewrite Zplus_minus. cbv; trivial.
+      rewrite Zplus_minus.
       assert (Int.unsigned i >= 0) by (pose proof (Int.unsigned_range i); omega).
       split. omega.
       clear - Hfield. red in Hfield; simpl in Hfield. omega.
