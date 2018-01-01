@@ -88,6 +88,15 @@ with eqb_typelist (a b: typelist)  {struct a}: bool :=
 Scheme eqb_type_sch := Induction for type Sort Prop
   with eqb_typelist_sch := Induction for  typelist Sort Prop.
 
+Definition eqb_member (it1 it2: ident * type): bool :=
+  eqb_ident (fst it1) (fst it2) && eqb_type (snd it1) (snd it2).
+
+Definition eqb_su (su1 su2: struct_or_union): bool :=
+  match su1, su2 with
+  | Struct, Struct
+  | Union, Union => true
+  | _, _ => false
+  end.
 
 Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
 Proof. destruct i,j; simpl; split; intro; congruence. Qed.
@@ -154,6 +163,26 @@ Qed.
 Lemma eqb_type_refl: forall a, eqb_type a a = true.
 Proof.
 intros. apply eqb_type_spec; auto.
+Qed.
+
+Lemma eqb_member_spec: forall a b, eqb_member a b = true <-> a=b.
+Proof.
+  intros.
+  unfold eqb_member.
+  rewrite andb_true_iff.
+  rewrite eqb_ident_spec.
+  rewrite eqb_type_spec.
+  destruct a, b; simpl.
+  split.
+  + intros [? ?]; subst; auto.
+  + intros.
+    inv H; auto.
+Qed.
+
+Lemma eqb_su_spec: forall a b, eqb_su a b = true <-> a=b.
+Proof.
+  intros.
+  destruct a,b; split; simpl; intros; try congruence.
 Qed.
 
 (** * Type classification and semantics of operators. *)

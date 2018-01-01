@@ -9,6 +9,9 @@ Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
+  make_cs_preserve verif_atomic_exchange.CompSpecs CompSpecs.
+Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (* import funspecs from concurrency library *)
@@ -33,7 +36,7 @@ Definition memset_spec :=
  DECLARE _memset
   WITH sh : share, t : type, p : val, c : Z, n : Z
   PRE [ _s OF tptr tvoid, _c OF tint, _n OF tuint ]
-   PROP (writable_share sh; sizeof t = (4 * n)%Z; 4 * n <= Int.max_unsigned; (4 | alignof t))
+   PROP (writable_share sh; sizeof t = (4 * n)%Z; align_compatible tint p)
    LOCAL (temp _s p; temp _c (vint c); temp _n (vint (4 * n)%Z))
    SEP (data_at_ sh t p)
   POST [ tptr tvoid ]
@@ -348,6 +351,26 @@ Lemma lock_struct_array : forall sh z (v : list val) p,
 Proof.
   intros.
   unfold data_at, field_at, at_offset; rewrite !data_at_rec_eq; simpl; f_equal.
+  apply ND_prop_ext.
+  split; intros [? [? [? [? ?]]]]; (split; [| split; [| split; [| split]]]); auto.
+  + destruct p; auto.
+    inv H2.
+    1: inv H4.
+    constructor.
+    intros.
+    apply H8 in H2; clear H8.
+    inv H2. inv H4.
+    econstructor; [reflexivity |].
+    exact H5.
+  + destruct p; auto.
+    inv H2.
+    1: inv H4.
+    constructor.
+    intros.
+    apply H8 in H2; clear H8.
+    inv H2. inv H4.
+    econstructor; [reflexivity |].
+    exact H5.
 Qed.
 
 Lemma Empty_inj : forall i, vint i = Empty -> repable_signed i -> i = -1.

@@ -74,6 +74,7 @@ Proof.
   forward.
 
   (* prove the post condition *)
+  change_compspecs CompSpecs.
   unfold spec_sha.data_block.
   unfold md_relate (*; unfold convert_abs*).
   entailer!.
@@ -96,6 +97,7 @@ Proof.
   forward_call (data, key, internal_r, md, shmd, kv).
 
   (* return 0 *)
+  change_compspecs CompSpecs.
   unfold spec_sha.data_block.
   forward.
   cancel.

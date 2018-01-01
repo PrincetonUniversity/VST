@@ -34,7 +34,7 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name g _g.
 start_function.
-change (data_at Ews tuint) with (data_at Ews tint).
+rewrite data_at_tuint_tint.
 forward_call g.
 forward.
 Qed.

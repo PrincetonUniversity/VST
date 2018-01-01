@@ -19,8 +19,13 @@ Lemma change_compspecs_t_struct_SHA256state_st':
   @data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
   @data_at_ CompSpecs Tsh t_struct_SHA256state_st.
 Proof.
-extensionality v.
-reflexivity.
+  extensionality v.
+  change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st v) with
+      (@data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st (default_val _) v).
+  change (@data_at_ CompSpecs Tsh t_struct_SHA256state_st v) with
+      (@data_at CompSpecs Tsh t_struct_SHA256state_st (default_val _) v).
+  rewrite change_compspecs_t_struct_SHA256state_st.
+  auto.
 Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
@@ -164,9 +169,7 @@ Proof. intros. abbreviate_semax.
          FCcb by entailer!. (*3.8*)
 
       freeze [0;2;3] FR3.
-
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
-
       (*call to SHA256_Update*)
       thaw FR3.
       thaw FR2.
@@ -270,7 +273,7 @@ Proof. intros. abbreviate_semax.
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
-       Time solve [cancel]. (*0.1*)
+       change_compspecs CompSpecs. Time entailer!. (*0.1*)
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
@@ -389,8 +392,7 @@ Proof. intros.
      rewrite XX(*, HeqKCONT*).
      repeat rewrite map_list_repeat.
      rewrite sublist_same; trivial. (*subst l64 l.*)
-     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
-     with (@data_at CompSpecs Tsh (tarray tuchar SF)).
+     change_compspecs' CompSpecs spec_sha.CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
@@ -516,7 +518,7 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!.
-     entailer!. apply sepcon_valid_pointer2. apply data_block_valid_pointer. auto.
+     entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
      red in H3. omega.
      apply valid_pointer_null. }
   { (* THEN*)

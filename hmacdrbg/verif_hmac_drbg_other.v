@@ -57,10 +57,10 @@ Proof.
               entailer. rewrite data_at__memory_block.
               apply andp_right. apply prop_right. unfold field_compatible in *; simpl in *.
                  repeat split; trivial. omega.
-                 unfold align_attr . simpl. apply Z.divide_1_l.
+                 unfold align_attr . simpl. constructor. intros. econstructor; [reflexivity |]. apply Z.divide_1_l.
               simpl. specialize (memory_block_split Tsh b (Int.unsigned i) 12 48); simpl.
               rewrite Int.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
-              cancel. 2: rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
+              cancel.
               Focus 2. unfold field_compatible in *. simpl in *.
                 destruct (Int.unsigned_range i). omega.
               thaw FR. destruct (Int.unsigned_range i).  eapply derives_trans.
@@ -80,13 +80,9 @@ Proof.
                specialize (memory_block_split Tsh b (Int.unsigned i + 52) 4 4); simpl. rewrite <- add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Int.repr_unsigned. cancel.
                rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- add_repr. rewrite Int.repr_unsigned. cancel.
-               rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
                destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
                right; simpl. right; right; right. right; left; trivial.

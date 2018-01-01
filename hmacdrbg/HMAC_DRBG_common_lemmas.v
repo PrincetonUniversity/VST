@@ -147,6 +147,6 @@ Proof.
   reflexivity.
   rewrite field_address0_offset.
   simpl. replace (0 + 1 * Zlength A) with (Zlength A) by omega. reflexivity.
-  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 [Hfield5 [Hfield6 [Hfield7 Hfield8]]]]]]].
+  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 Hfield5]]]].
   unfold field_compatible0; repeat split; try assumption; auto; omega.
 Qed.

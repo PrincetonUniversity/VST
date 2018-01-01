@@ -109,11 +109,25 @@ Proof.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; auto.
+    - destruct H3 as [? [? [? [? ?]]]].
+      split; [| split; [| split; [| split]]]; auto.
+      destruct p2; auto.
+      inv H7. econstructor.
+      * reflexivity.
+      * inv H9.
+        exact H10.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; auto.
+    - destruct H3 as [? [? [? [? ?]]]].
+      split; [| split; [| split; [| split]]]; auto.
+      destruct p2; auto.
+      inv H7. econstructor.
+      * reflexivity.
+      * inv H9.
+        exact H10.
 Qed.
 
 Lemma float32_to_bits_abs':

@@ -94,7 +94,8 @@ apply semax_pre with (P':=
      data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i);
      data_block Tsh (SHA256.SHA_256 ctx) buf;
      memory_block shmd 32 md))).
-{ Time entailer!. (*5.2versus 11.7*)
+{ change_compspecs CompSpecs.
+  Time entailer!. (*5.2versus 11.7*)
       unfold_data_at 1%nat. thaw FR1.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
@@ -158,6 +159,7 @@ thaw FR6.
 thaw FR5.
 (*change_compspecs CompSpecs.*)
 unfold data_block. simpl. rewrite SFL.
+change_compspecs CompSpecs.
 Time (normalize; cancel). (*5.5*)
 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.

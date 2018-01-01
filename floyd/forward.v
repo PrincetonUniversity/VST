@@ -76,10 +76,9 @@ Local Open Scope logic.
 Lemma var_block_lvar2:
  forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
    (var_types Delta) ! id = Some t ->
-   legal_alignas_type t = true ->
-   legal_cosu_type t = true ->
-   complete_type cenv_cs t = true ->
+   complete_legal_cosu_type t = true ->
    sizeof t < Int.modulus ->
+   is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
                       * fold_right sepcon emp Vs)
@@ -109,14 +108,12 @@ rewrite memory_block_data_at_.
 cancel.
 split3; auto. apply Coq.Init.Logic.I.
 split3; auto.
-split3; auto.
-split; auto.
-red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
+apply la_env_cs_sound; auto.
 apply Coq.Init.Logic.I.
 split; auto.
 rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
-apply extract_exists_pre.  apply H4.
+apply extract_exists_pre.  apply H3.
 Qed.
 
 Lemma lvar_eval_lvar {cs: compspecs}:
@@ -130,16 +127,15 @@ Qed.
 Lemma var_block_lvar0
      : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) ! id = Some t ->
-       legal_alignas_type t = true ->
-       legal_cosu_type t = true ->
-       complete_type cenv_cs t = true ->
+       complete_legal_cosu_type t = true ->
        sizeof t < Int.modulus ->
+       is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
        tc_environ Delta rho ->
        locald_denote (lvar id t v) rho ->
        data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
 Proof.
 intros.
-hnf in H5.
+hnf in H4.
 assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 unfold var_block.
@@ -147,23 +143,22 @@ simpl @fst; simpl @snd.
 rewrite prop_true_andp
   by (change (Int.max_unsigned) with (Int.modulus-1); omega).
 unfold_lift.
-rewrite (lvar_eval_lvar _ _ _ _ H5).
+rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
-hnf in H5.
+hnf in H4.
 destruct ( Map.get (ve_of rho) id); try contradiction.
 destruct p.
-destruct H5; subst.
+destruct H4; subst.
 repeat split; auto.
-exists 0. rewrite Z.mul_0_l. reflexivity.
+apply la_env_cs_sound; eauto.
 Qed.
 
 Lemma postcondition_var_block:
   forall {cs: compspecs} {Espec: OracleKind} Delta Pre c S1 S2 i t vbs,
        (var_types  Delta) ! i = Some t ->
-       legal_alignas_type t = true ->
-       legal_cosu_type t = true ->
-       complete_type cenv_cs t = true ->
+       complete_legal_cosu_type t = true ->
        sizeof t < Int.modulus ->
+       is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
    semax Delta Pre c (frame_ret_assert S1
      (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
       * fold_right sepcon emp vbs)) ->
@@ -172,7 +167,7 @@ Lemma postcondition_var_block:
 Proof.
 intros.
 destruct S1 as [?R ?R ?R ?R];
-eapply semax_post; try apply H4; clear H4;
+eapply semax_post; try apply H3; clear H3;
  intros; simpl_ret_assert; go_lowerx.
 *
 apply sepcon_derives; auto.
@@ -182,7 +177,7 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-apply expr_lemmas.typecheck_environ_update in H4; auto.
+apply expr_lemmas.typecheck_environ_update in H3; auto.
 *
 apply sepcon_derives; auto.
 rewrite <- !sepcon_assoc.
@@ -218,10 +213,9 @@ Ltac process_stackframe_of :=
    match goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _)) _ _ =>
      match goal with
      | n: name i |- _ => simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
      | |- _ =>    simple apply var_block_lvar2;
-       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-       | let n := fresh "v" i in intros n ]
+       [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
      end
    end;
  (*
@@ -528,6 +522,10 @@ first [ reflexivity
 
 Ltac change_compspecs' cs cs' :=
   match goal with
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
   | |- context [?A cs'] => change (A cs') with (A cs)
   | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
@@ -536,6 +534,7 @@ Ltac change_compspecs' cs cs' :=
   | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
  end.
 
+(* TODO: use CCE as arguments to gain CS' *)
 Ltac change_compspecs cs :=
  match goal with |- context [?cs'] =>
    match type of cs' with compspecs =>
@@ -586,14 +585,9 @@ Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 Ltac check_funspec_precondition :=
    first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
-Ltac lookup_spec_and_change_compspecs CS id :=
+Ltac lookup_spec id :=
  tryif apply f_equal_Some
  then
-   (match goal with |- ?A = ?B =>
-      let x := fresh "x" in set (x := A);
-      let y := fresh "y" in set (y := B);
-      hnf in x; subst x; try change_compspecs CS; subst y
-   end;
    match goal with
    | |- ?fs = _ => check_canonical_funspec (id,fs);
       first [reflexivity |
@@ -603,7 +597,7 @@ Ltac lookup_spec_and_change_compspecs CS id :=
            | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
-   end)
+   end
  else elimtype  (Cannot_find_function_spec_in_Delta id).
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
@@ -876,7 +870,7 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
     [check_prove_local2ptree
     | apply can_assume_funcptr2;
       [ check_function_name
-      | lookup_spec_and_change_compspecs CS id
+      | lookup_spec id
       | find_spec_in_globals'
       | reflexivity  (* function-id type in AST matches type in funspec *)
       ]
@@ -909,15 +903,17 @@ Ltac prove_call_setup witness :=
  end;
  let H := fresh in
  intro H;
+ match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
  exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | 
- ]].
+ | unfold fold_right_sepcon at 1 2; try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end].
 
 Ltac fwd_call' witness :=
 lazymatch goal with
@@ -2421,7 +2417,7 @@ Ltac solve_return_inner_gen :=
 
 Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
-    (legal_alignas_type t && legal_cosu_type t && complete_type cenv_cs t && (sizeof t <? Int.modulus) = true)%bool ->
+    (complete_legal_cosu_type t && (sizeof t <? Int.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
     msubst_eval_lvar T2 i t = Some p ->
     fn_data_at T2 (i, t) (data_at_ Tsh t p).
 
@@ -2437,7 +2433,7 @@ Proof.
     eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | exact IHForall2]]; clear IHForall2.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
-    rewrite !andb_true_iff in H2; destruct H2 as [[[? ?] ?] ?].
+    rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
     apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
     rewrite <- H in H3; clear H.
     rewrite (add_andp _ _ H3); clear H3.
@@ -2972,17 +2968,18 @@ match x with Zpos y => log_base_two_pos y | _ => O end.
 
 Ltac make_composite_env env c :=
  match c with
- | nil => refine (  {| cenv_cs := env;
-    cenv_consistent := _;
-    cenv_legal_alignas := _;
-    cenv_legal_fieldlist := _ |})
+ | nil => constr:(env: composite_env)
  | Composite ?id ?su ?m ?a :: ?c' =>
  let t := constr: (PTree.get id env) in
  let t := eval hnf in t in
- constr_eq t (@None composite);
+ match t with
+ | @Some _ _ => fail 1000 "Composite definitions in the programs has duplicates."
+ | _ =>
  let cm := constr: (complete_members env m) in
  let cm := eval hnf in cm in
- constr_eq cm true;
+ match cm with
+ | false => fail 1000 "Members in " id "are not all complete types."
+ | _ =>
  let al := constr:(align_attr a (alignof_composite env m)) in
  let al := eval compute in al in
  let sz := constr:(align (sizeof_composite env su m) al) in
@@ -3003,8 +3000,10 @@ Ltac make_composite_env env c :=
             co_sizeof_alignof := sz_al |}) in
  let env' := constr:(PTree.set id c1 env) in
  let env' := eval simpl in env' in
-  make_composite_env env' c'
-end.
+ make_composite_env env' c'
+ end
+ end
+ end.
 
 Ltac make_composite_env0 prog :=
 let p := constr:(prog_types prog) in
@@ -3033,15 +3032,50 @@ intros.
 eapply composite_env_consistent_i'; eassumption.
 Qed.
 
+Lemma legal_alignas_env_consistency': forall (cenv : composite_env) (ha_env : PTree.t Z) (la_env: PTree.t legal_alignas_obs),
+  composite_env_consistent cenv ->
+  la_env = legal_alignas_env cenv ha_env ->  
+  legal_alignas_env_consistent cenv ha_env la_env.
+Proof.
+  intros.
+  subst.
+  apply legal_alignas_env_consistency; auto.
+Qed.
+
+Lemma legal_alignas_env_completeness': forall (cenv : composite_env) (ha_env : PTree.t Z) (la_env: PTree.t legal_alignas_obs),
+  la_env = legal_alignas_env cenv ha_env ->  
+  legal_alignas_env_complete cenv la_env.
+Proof.
+  intros.
+  subst.
+  apply legal_alignas_env_completeness; auto.
+Qed.
+
 Ltac make_compspecs prog :=
- make_composite_env0 prog;
- [now (red; apply (composite_env_consistent_i composite_consistent);
-          repeat constructor)
- |now (red; apply (composite_env_consistent_i composite_legal_alignas);
-          repeat constructor)
- |now(red; apply (composite_env_consistent_i' composite_legal_fieldlist);
-         repeat constructor)
- ].
+  let cenv := make_composite_env0 prog in
+  let cenv_consistent_ := constr:((composite_env_consistent_i composite_consistent cenv ltac:(repeat constructor)): composite_env_consistent cenv) in
+  let cenv_legal_fieldlist_ := constr:((composite_env_consistent_i' composite_legal_fieldlist cenv ltac:(repeat constructor)): composite_env_legal_fieldlist cenv) in
+  let cenv_legal_su_ := constr:((composite_env_consistent_i (fun c co => composite_complete_legal_cosu_type c (co_members co) = true) cenv ltac:(repeat constructor)): composite_env_complete_legal_cosu_type cenv) in
+  let ha_env := eval cbv in (hardware_alignof_env cenv) in
+  let Hha_env := constr: (eq_refl: ha_env = hardware_alignof_env cenv) in
+  let ha_env_consistent := constr: (hardware_alignof_consistency cenv ha_env cenv_consistent_ Hha_env) in
+  let ha_env_complete := constr: (hardware_alignof_completeness cenv ha_env Hha_env) in
+  let la_env := eval cbv in (legal_alignas_env cenv ha_env) in
+  let Hla_env := constr: (eq_refl: la_env = legal_alignas_env cenv ha_env) in
+  let la_env_consistent := constr: (legal_alignas_env_consistency' cenv ha_env la_env cenv_consistent_ Hla_env) in
+  let la_env_complete := constr: (legal_alignas_env_completeness' cenv ha_env la_env Hla_env) in
+  let la_env_sound := constr: (legal_alignas_soundness cenv ha_env la_env cenv_consistent_ cenv_legal_su_ ha_env_consistent ha_env_complete la_env_consistent la_env_complete) in
+  refine (  {| cenv_cs := cenv ;
+    cenv_consistent := cenv_consistent_;
+    cenv_legal_fieldlist := cenv_legal_fieldlist_;
+    cenv_legal_su := cenv_legal_su_;
+    ha_env_cs := ha_env;
+    ha_env_cs_consistent := ha_env_consistent;
+    ha_env_cs_complete := ha_env_complete;
+    la_env_cs := la_env;
+    la_env_cs_consistent := la_env_consistent;
+    la_env_cs_complete := la_env_complete;
+    la_env_cs_sound := la_env_sound |}).
 
 Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   match al with
