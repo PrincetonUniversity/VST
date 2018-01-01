@@ -284,9 +284,7 @@ Lemma unpack_globvar  {cs: compspecs}:
   forall Delta i t gv idata,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-  (legal_alignas_type (gvar_info gv) = true /\
-   legal_cosu_type (gvar_info gv) = true /\
-   complete_type cenv_cs (gvar_info gv) = true) ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0 = true)%bool ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = idata :: nil ->
@@ -320,13 +318,13 @@ rewrite H10.
  apply derives_trans with
     (init_data2pred' Delta idata (Share.lub extern_retainer sh) t
       (offset_val 0 x) rho).
- + eapply init_data2pred_rejigger; destruct H1; eauto.
++ rewrite andb_true_iff in H1; destruct H1.
+  eapply init_data2pred_rejigger; eauto.
    - clear H10 H8 x. inv H9.
       split; simpl; auto.
        change Int.max_unsigned with (Int.modulus-1) in H6.
-       destruct a.
-      split3; auto. split3; auto.
-      omega. split3; auto. omega. apply Z.divide_0_r.
+      split3; auto.
+      omega. split; auto. apply la_env_cs_sound in H11; auto.
    - omega.
    - omega.
    - apply Z.divide_0_r.
@@ -365,9 +363,7 @@ Lemma unpack_globvar_star  {cs: compspecs}:
   forall Delta i gv,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
-  (legal_alignas_type (gvar_info gv) = true /\
-   legal_cosu_type (gvar_info gv) = true /\
-   complete_type cenv_cs (gvar_info gv) = true) ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)% bool = true ->
    gvar_volatile gv = false ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
@@ -409,10 +405,10 @@ revert ofs H9 H10 H11 H12.
 clear dependent gv. clear H H0 H6.
 induction idata; simpl; auto; intros.
 apply sepcon_derives.
-* eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
-  split3; simpl; auto. destruct a0; split3; auto.
+* rewrite andb_true_iff in H1.
+  eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
+  split3; simpl; auto.
   change Int.max_unsigned with (Int.modulus-1) in H12.
- split3; auto. omega.
   admit.
  pose proof (init_data_list_size_pos idata); omega.
 * specialize (IHidata (ofs + init_data_size a)).
@@ -430,9 +426,7 @@ Lemma tc_globalvar_sound_space {cs: compspecs} :
   forall Delta i t gv rho,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-  (legal_alignas_type (gvar_info gv) = true /\
-   legal_cosu_type (gvar_info gv) = true /\
-   complete_type cenv_cs (gvar_info gv) = true) ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = Init_space (sizeof t) :: nil ->
@@ -457,10 +451,11 @@ rewrite Int.unsigned_zero in H9.
 apply andp_right.
 + normalize.
   apply prop_right. subst t.
-  destruct Hno as [? [? ?]]. split3; simpl; auto.
+  rewrite andb_true_iff in Hno.
+  destruct Hno as [? ?]. split3; simpl; auto.
   split3; auto.
   change Int.max_unsigned with (Int.modulus-1) in H5.
- split3. omega. omega. split; auto.
+  omega.
 + apply H9.
   pose (sizeof_pos t).
   - unfold Int.max_unsigned in H5. omega.
@@ -642,17 +637,10 @@ Proof.
     right; split; auto. rewrite <- H1; auto.
    } Unfocus.
   eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
-*
+* rewrite andb_true_iff.
   split; rewrite H1.
-  assert (((0 <=? n) && true)%bool = true).
-  rewrite Zle_imp_le_bool; [reflexivity | ]; rewrite Zlength_correct in H4; omega.
-unfold legal_alignas_type.
-rewrite nested_pred_eq. simpl.
-rewrite nested_pred_eq.
-unfold local_legal_alignas_type.
-simpl.  destruct sz; auto.
-split. destruct sz; reflexivity.
- split; cbv; destruct n, sz, sign; reflexivity.
+  reflexivity.
+  admit.
 *
   rewrite H1. (* rewrite H3.*)  rewrite H5.
   normalize. apply exp_right with s.
@@ -670,7 +658,7 @@ Transparent sizeof.
     rewrite H8.
     unfold align_compatible.
     simpl.
-    apply Z.divide_0_r.
+    admit.
   } 
   assert (offset_in_range (sizeof (Tint sz sign noattr) * n)
            (eval_var i (tarray (Tint sz sign noattr) n) rho)). {
@@ -691,16 +679,14 @@ Transparent sizeof.
   subst s.
   rewrite H8 in *.
   split3; auto.
-Qed.
+Admitted.
 
 Lemma process_globvar:
   forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
           gv gvs SF c Post (idata : init_data) t,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some t ->
-       legal_alignas_type (gvar_info gv) = true /\
-       legal_cosu_type (gvar_info gv) = true /\
-       complete_type cenv_cs (gvar_info gv) = true ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
        gvar_info gv = t ->
        gvar_init gv = (idata::nil) ->
@@ -755,9 +741,7 @@ Lemma process_globvar':
           gv gvs SF c Post (idata : init_data) t,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some t ->
-       legal_alignas_type (gvar_info gv) = true /\
-       legal_cosu_type (gvar_info gv) = true /\
-       complete_type cenv_cs (gvar_info gv) = true ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
        gvar_info gv = t ->
        gvar_init gv = (idata::nil) ->
@@ -886,9 +870,7 @@ Lemma process_globvar_star':
           gv gvs SF c Post,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some (gvar_info gv) ->
-       legal_alignas_type (gvar_info gv) = true /\
-       legal_cosu_type (gvar_info gv) = true /\
-       complete_type cenv_cs (gvar_info gv) = true ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
        init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
        Int.max_unsigned ->
@@ -946,9 +928,7 @@ Lemma process_globvar_star:
           gv gvs SF c Post,
        (var_types Delta) ! i = None ->
        (glob_types Delta) ! i = Some (gvar_info gv) ->
-       legal_alignas_type (gvar_info gv) = true /\
-       legal_cosu_type (gvar_info gv) = true /\
-       complete_type cenv_cs (gvar_info gv) = true ->
+  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
        init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
        Int.max_unsigned ->
@@ -1041,7 +1021,7 @@ Qed.
 Ltac process_one_globvar :=
  first
   [ simple eapply process_globvar';
-      [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence | ]
   | simple eapply process_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
@@ -1049,7 +1029,7 @@ Ltac process_one_globvar :=
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence |  ]
   | simple eapply process_globvar_star';
-        [reflexivity | reflexivity | split; [| split]; reflexivity
+        [reflexivity | reflexivity | reflexivity
         | reflexivity | compute; split; clear; congruence
        | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
          change (Share.lub extern_retainer Tsh) with Ews

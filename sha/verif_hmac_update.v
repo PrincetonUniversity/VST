@@ -62,8 +62,7 @@ rewrite sublist_same; trivial.
 freeze [0;1;2] FR1.
 Time forward. (*12 versus 12.4*)
 thaw FR1.
-change (@data_block spec_sha.CompSpecs Tsh data d)
-     with (@data_block CompSpecs Tsh data d). Time cancel. (*0.2*)
+change_compspecs CompSpecs.
 unfold hmacstate_, sha256state_, hmac_relate.
 Intros r.  Exists (r,(iCtx ST, oCtx ST)).
 Time entailer!. (*2.1*)

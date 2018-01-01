@@ -468,7 +468,7 @@ Qed.
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!!(Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
+ | Vptr b ofs => (!!(Int.unsigned ofs + n < Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
 
@@ -533,7 +533,7 @@ Lemma mapsto__memory_block: forall sh b ofs t ch,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
   (align_chunk ch | Int.unsigned ofs) ->
-  Int.unsigned ofs + size_chunk ch <= Int.modulus ->
+  Int.unsigned ofs + size_chunk ch < Int.modulus ->
   mapsto_ sh t (Vptr b ofs) = memory_block sh (size_chunk ch) (Vptr b ofs).
 Proof.
   intros.
@@ -569,7 +569,7 @@ Lemma nonreadable_memory_block_mapsto: forall sh b ofs t ch v,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
   (align_chunk ch | Int.unsigned ofs) ->
-  Int.unsigned ofs + size_chunk ch <= Int.modulus ->
+  Int.unsigned ofs + size_chunk ch < Int.modulus ->
   tc_val' t v ->
   memory_block sh (size_chunk ch) (Vptr b ofs) = mapsto sh t (Vptr b ofs) v.
 Proof.
@@ -767,8 +767,8 @@ Proof.
   rewrite sepcon_andp_prop2.
   apply normalize.derives_extract_prop; intros.
   apply normalize.derives_extract_prop; intros.
-  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
-  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i0; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | apply Clight_lemmas.Nat2Z_add_le; omega].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i0; omega | apply Clight_lemmas.Nat2Z_add_le; omega].
   unfold memory_block'_alt.
   if_tac.
   + clear H2.
@@ -854,7 +854,7 @@ Proof.
   replace (nat_of_Z n) with (0%nat) by (symmetry; apply nat_of_Z_neg; auto).
   unfold memory_block'.
   pose proof Int.unsigned_range z.
-  assert (Int.unsigned z + n <= Int.modulus) by omega.
+  assert (Int.unsigned z + n < Int.modulus) by omega.
   apply pred_ext; normalize.
   apply andp_right; auto.
   intros ? _; simpl; auto.
@@ -868,7 +868,7 @@ Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
   0 <= n < Int.modulus ->
-  Int.unsigned ofs+n <= Int.modulus ->
+  Int.unsigned ofs+n < Int.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).
@@ -942,8 +942,7 @@ Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
   0 <= n ->
   0 <= m ->
-  n + m < Int.modulus ->
-  n + m <= n + m + ofs <= Int.modulus ->
+  n + m <= n + m + ofs < Int.modulus ->
   memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
   memory_block sh n (Vptr b (Int.repr ofs)) *
   memory_block sh m (Vptr b (Int.repr (ofs + n))).
@@ -994,7 +993,7 @@ Proof.
     rewrite emp_sepcon; auto.
   } Unfocus.
   unfold memory_block.
-  destruct (zle (Int.unsigned i + n) Int.modulus).
+  destruct (zlt (Int.unsigned i + n) Int.modulus).
   + rewrite !prop_true_andp by auto.
     repeat (rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | rewrite Coqlib.nat_of_Z_eq; omega]).
     unfold memory_block'_alt.

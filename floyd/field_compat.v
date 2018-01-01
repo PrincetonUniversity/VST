@@ -53,30 +53,25 @@ Lemma field_compatible_array_smaller0:
 Proof.
 intros until 1. pose proof I. intros.
 hnf in H|-*.
-destruct H as [? [? [? [? [? [? [? ?]]]]]]].
+destruct H as [? [? [? [? ?]]]].
 unfold sizeof in *; fold (sizeof t) in *.
-rewrite Z.max_r in * by omega.
 assert (sizeof t * n <= sizeof t * n')
   by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
 repeat split; auto.
 *
-unfold legal_alignas_type in *.
-rewrite nested_pred_eq in H2|-*.
-rewrite andb_true_iff in *; destruct H2; split; auto.
-unfold local_legal_alignas_type in H2|-*.
-rewrite andb_true_iff in *; destruct H2; split; auto.
-rewrite andb_true_iff in *; destruct H11; split; auto.
-apply Z.leb_le. tauto.
-*
-omega.
-*
-hnf in H6|-*.
+hnf in H3|-*.
 destruct d; auto.
 unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
 omega.
+*
+destruct d; auto.
+hnf in H4 |- *.
+constructor.
+intros.
+eapply align_compatible_rec_Tarray_inv; eauto.
+omega.
 Qed.
-
 
 Lemma field_compatible0_array_smaller0:
   forall {cs: compspecs} t n n' d,
@@ -86,27 +81,23 @@ Lemma field_compatible0_array_smaller0:
 Proof.
 intros until 1. pose proof I. intros.
 hnf in H|-*.
-destruct H as [? [? [? [? [? [? [? ?]]]]]]].
+destruct H as [? [? [? [? ?]]]].
 unfold sizeof in *; fold (sizeof t) in *.
-rewrite Z.max_r in * by omega.
 assert (sizeof t * n <= sizeof t * n')
   by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
 repeat split; auto.
 *
-unfold legal_alignas_type in *.
-rewrite nested_pred_eq in H2|-*.
-rewrite andb_true_iff in *; destruct H2; split; auto.
-unfold local_legal_alignas_type in H2|-*.
-rewrite andb_true_iff in *; destruct H2; split; auto.
-rewrite andb_true_iff in *; destruct H11; split; auto.
-apply Z.leb_le. omega.
-*
-omega.
-*
-hnf in H6|-*.
+hnf in H3|-*.
 destruct d; auto.
 unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
+omega.
+*
+destruct d; auto.
+hnf in H4 |- *.
+constructor.
+intros.
+eapply align_compatible_rec_Tarray_inv; eauto.
 omega.
 Qed.
 
@@ -138,27 +129,21 @@ hnf in H0|-*.
   pose proof (sizeof_pos t); omega.
 intuition.
  *
-  unfold legal_alignas_type in H0|-*; simpl in H0|-*.
-  rewrite nested_pred_eq in H0.
-  rewrite nested_pred_eq.
-  rewrite andb_true_iff in *. destruct H0; split; auto.
-  clear - H1 H2 H0.
-  unfold local_legal_alignas_type in *.
-  rewrite andb_true_iff in *. destruct H0; split; auto.
-  rewrite andb_true_iff in *. destruct H0; split; auto.
-  eapply Zle_is_le_bool. omega.
- *
-  unfold sizeof in H6|-*; fold (sizeof t) in *.
-  rewrite Z.max_r in * by omega.
-  eapply Z.le_lt_trans; eassumption.
- *
-  destruct p; try contradiction; red in H7|-*.
-  unfold sizeof in H7|-*; fold (sizeof t) in *.
+  destruct p; try contradiction; red in H4|-*.
+  unfold sizeof in H4|-*; fold (sizeof t) in *.
   rewrite Z.max_r in * by omega.
   omega.
  *
-  destruct H10; split; auto.
-  simpl in H10|-*. omega.
+destruct p; auto.
+hnf in H5 |- *.
+constructor.
+intros.
+eapply align_compatible_rec_Tarray_inv; eauto.
+omega.
+ * destruct H7.
+   split; auto.
+   simpl in H7 |- *.
+   omega.
 Qed.
 
 Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
@@ -209,47 +194,23 @@ decompose [and] H0; clear H0.
 destruct d; try contradiction.
 repeat split; auto.
 *
-clear - H3 H SP SL SL' ST.
-unfold legal_alignas_type in H3|-*.
-rewrite nested_pred_eq, andb_true_iff in H3|-*.
-destruct H3; split; auto.
-unfold local_legal_alignas_type in H0|-*.
-rewrite andb_true_iff in H0|-*; destruct H0.
-rewrite andb_true_iff in H2 |-*; destruct H2.
-split; auto.
-split; auto.
-apply Z.leb_le; auto. omega.
-*
-unfold sizeof in H5|-*. fold sizeof in H5|-*.
-rewrite Z.max_r in H5|-* by omega.
+unfold size_compatible in H2|-*.
+unfold sizeof in H2|-*. fold sizeof in H2 |-*.
+rewrite Z.max_r in H2|-* by omega.
 omega.
 *
-unfold size_compatible in H6|-*.
-unfold sizeof in H6|-*. fold sizeof in H6 |-*.
-rewrite Z.max_r in H6|-* by omega.
+hnf in H4 |- *.
+constructor.
+intros.
+eapply align_compatible_rec_Tarray_inv; eauto.
 omega.
 *
-clear - H3 H SP SL SL' ST.
-unfold legal_alignas_type in H3|-*.
-rewrite nested_pred_eq, andb_true_iff in H3|-*.
-destruct H3; split; auto.
-unfold local_legal_alignas_type in H0|-*.
-rewrite andb_true_iff in H0|-*; destruct H0.
-rewrite andb_true_iff in H2 |-*; destruct H2.
-split; auto.
-split; auto.
-apply Z.leb_le; auto. omega.
-*
-unfold sizeof in H5|-*. fold sizeof in H5|-*.
-rewrite Z.max_r in H5|-* by omega.
-omega.
-*
-unfold size_compatible in H6|-*.
+unfold size_compatible in H2|-*.
 unfold offset_val.
 rewrite <- (Int.repr_unsigned i0).
 rewrite add_repr.
-unfold sizeof in H6|-*. fold sizeof in H6 |-*.
-rewrite Z.max_r in H6|-* by omega.
+unfold sizeof in H2|-*. fold sizeof in H2 |-*.
+rewrite Z.max_r in H2|-* by omega.
 pose proof (Int.unsigned_range i0).
 destruct (zeq (Int.unsigned i0 + sizeof t * i) Int.modulus).
 rewrite e.
@@ -264,31 +225,19 @@ omega.
 change Int.max_unsigned with (Int.modulus-1).
 omega.
 *
-unfold align_compatible in H7|-*.
-unfold offset_val.
+hnf in H4 |- *.
+constructor.
+intros.
 rewrite <- (Int.repr_unsigned i0).
 rewrite add_repr.
-destruct (zeq (Int.unsigned i0 + sizeof t * i) Int.modulus).
-rewrite e.
-change (Int.unsigned (Int.repr Int.modulus)) with 0.
-apply Z.divide_0_r.
-rewrite Int.unsigned_repr.
-apply Z.divide_add_r; auto.
-unfold alignof. fold alignof.
-unfold attr_of_type, noattr, align_attr, attr_alignas.
-apply Z.divide_mul_l; auto.
-clear - H3.
-apply (legal_alignas_type_Tarray _ _ _ H3).
-unfold legal_alignas_type in H3.
-rewrite nested_pred_eq in H3.
-unfold legal_alignas_type.
-rewrite andb_true_iff in H3; destruct H3; auto.
-pose proof (Int.unsigned_range i0).
-split; try omega.
-unfold size_compatible in H6.
-unfold sizeof in H6. fold sizeof in H6.
-rewrite Z.max_r in H6 by omega.
-change Int.max_unsigned with (Int.modulus-1).
+simpl in H2.
+rewrite Z.max_r in H2 by omega.
+solve_mod_modulus.
+pose_size_mult cenv_cs t (0 :: i :: i + i1 :: i + i1 + 1 :: n :: nil).
+inv_int i0.
+rewrite Zmod_small by omega.
+rewrite <- Z.add_assoc, <- H8.
+eapply align_compatible_rec_Tarray_inv. eauto.
 omega.
 *
 omega.
@@ -492,22 +441,10 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   hnf in H|-*.
   intuition.
   *
-  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
-  rewrite nested_pred_eq in H1.
-  rewrite nested_pred_eq.
-  rewrite andb_true_iff in *. destruct H1; split; auto.
-  unfold local_legal_alignas_type in *.
-  rewrite andb_true_iff in *. destruct H1; split; auto.
-  rewrite andb_true_iff in *. destruct H12; split; auto.
-  eapply Zle_is_le_bool. omega.
-  *
-  unfold sizeof in H7|-*; fold (sizeof t) in *.
-  rewrite Z.max_r in * by omega. omega.
-  *
   destruct p; try contradiction.
-  clear - SP SS SS' H H4 H0 H5 H7 H8 Hni Hii.
-  red in H8|-*.
-  simpl in H7,H8|-*. rewrite Z.max_r in H7,H8|-* by omega.
+  clear - SP SS SS' H H4 H0 H5 H3 H8 Hni Hii.
+  red in H3|-*.
+  simpl in H3,H8|-*. rewrite Z.max_r in H3|-* by omega.
   rename i0 into j.
    pose proof (Int.unsigned_range j).
    assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
@@ -518,34 +455,27 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   unfold Int.add.
   rewrite (Int.unsigned_repr (_ * _))
     by (change Int.max_unsigned with (Int.modulus -1); omega).
-   rewrite Int.unsigned_repr_eq.
-  apply Z.le_trans with
-    ((Int.unsigned j + sizeof t * (i' - i))+ sizeof t * n ).
-   apply Zplus_le_compat_r.
-   apply Zmod_le. computable.
-   omega.
-  rewrite <- Z.add_assoc. rewrite <- Z.mul_add_distr_l. omega.
+  rewrite Int.unsigned_repr_eq.
+  rewrite Zmod_small by omega.
+  pose proof Z.mul_add_distr_l (sizeof t) (i' - i) n.
+  omega.
  *
-  destruct p; try contradiction.
-  clear H1 H3 H6 H7 H11.
-  simpl in H8,H9|-*. rewrite Z.max_r in * by omega.
-    unfold align_attr, noattr in *. simpl in *.
-  apply (sizeof_alignof_compat cenv_cs) in NA.
+   destruct p; try contradiction.
+   simpl in H3, H6 |- *.
+   rewrite Z.max_r in H3 by omega.
+   constructor; intros.
   unfold Int.add.
    rewrite !Int.unsigned_repr_eq.
   assert (Int.modulus <> 0) by computable.
   rewrite Z.add_mod by auto.
   rewrite Z.mod_mod by auto.
   rewrite <- Z.add_mod by auto.
-  apply arith_aux04.
-  rename i0 into j.
-   pose proof (Int.unsigned_range j).
-   assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
-   split. apply Z.mul_nonneg_nonneg; omega.
-   apply Zmult_le_compat_l. omega. omega.
-   omega.
-  apply Z.divide_add_r; auto.
-  apply Z.divide_mul_l; auto.
+  inv_int i0.
+  pose_size_mult cenv_cs t (0 :: i' - i :: i' - i + i1 ::  n' :: nil).
+  rewrite Zmod_small by omega.
+  rewrite <- Z.add_assoc, <- H14.
+  eapply align_compatible_rec_Tarray_inv; [eassumption |].
+  omega.
 Qed.
 
 (*
@@ -655,9 +585,14 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    apply prop_right. red.
    destruct (Int.unsigned_range i). simpl.
    repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
-    unfold legal_alignas_type, nested_pred, local_legal_alignas_type; simpl.
-      rewrite Zle_imp_le_bool; trivial; omega.
-    unfold align_attr; simpl. apply Z.divide_1_l.
+   (* TODO: abstract this proof. *)
+   eapply align_compatible_rec_hardware_1.
+   + exact cenv_consistent.
+   + exact cenv_legal_su.
+   + exact ha_env_cs_consistent.
+   + exact ha_env_cs_complete.
+   + reflexivity.
+   + reflexivity.
 Qed.
 
 Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Int.modulus):
@@ -690,15 +625,34 @@ Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p ->
 Proof. intros; red. destruct p; try contradiction.
   repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
   destruct (Int.unsigned_range i); omega.
-  apply Z.divide_1_l. 
-Qed. 
+  (* TODO: abstract this proof. *)
+   eapply align_compatible_rec_hardware_1.
+   + exact cenv_consistent.
+   + exact cenv_legal_su.
+   + exact ha_env_cs_consistent.
+   + exact ha_env_cs_complete.
+   + reflexivity.
+   + reflexivity.
+Qed.
 
 Lemma data_at_tuchar_singleton_array {cs} sh v p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
 Proof. 
   rewrite data_at_isptr. normalize.
   assert_PROP (field_compatible (tarray tuchar 1) [] p).
-  { eapply derives_trans. eapply data_at_local_facts. normalize. }
+  { eapply derives_trans. eapply data_at_local_facts. normalize.
+    destruct p; auto.
+    inv_int i.
+    destruct H as [? [? [? [? ?]]]].
+    repeat split; auto.
+    eapply align_compatible_rec_hardware_1.
+    + exact cenv_consistent.
+    + exact cenv_legal_su.
+    + exact ha_env_cs_consistent.
+    + exact ha_env_cs_complete.
+    + reflexivity.
+    + reflexivity.
+  }
   unfold data_at at 2.
   erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
   erewrite array_at_len_1. 2: apply JMeq_refl.

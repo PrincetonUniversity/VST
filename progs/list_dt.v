@@ -48,7 +48,7 @@ Class listspec {cs: compspecs} (list_structid: ident) (list_link: ident) (token:
    list_fields: members;
    list_struct := Tstruct list_structid noattr;
    list_members_eq: list_fields = co_members (get_co list_structid);
-   list_struct_alignas_legal: legal_alignas_type list_struct = true;
+   list_struct_complete_legal_cosu: complete_legal_cosu_type list_struct = true; (* TODO: maybe this line not useful? *)
    list_link_type: nested_field_type list_struct (StructField list_link :: nil) = Tpointer list_struct noattr;
    list_token := token
 }.

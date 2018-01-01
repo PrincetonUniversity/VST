@@ -295,6 +295,8 @@ Ltac pose_upd_reptype CS t gfs v v0 H :=
 
 Module Type TestType.
 End TestType.
+
+(*
 Module Test : TestType.
 
 Definition _f1 := 1%positive.
@@ -379,3 +381,4 @@ Qed.
 
 End Test.
 
+*)

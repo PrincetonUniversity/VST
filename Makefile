@@ -199,7 +199,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
+  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
   binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
@@ -216,7 +216,7 @@ FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
    base2.v go_lower.v \
    library.v proofauto.v computable_theorems.v \
-   type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
+   type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
