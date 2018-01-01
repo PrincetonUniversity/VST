@@ -9,6 +9,9 @@ Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
+  make_cs_preserve verif_atomic_exchange.CompSpecs CompSpecs.
+Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (* import funspecs from concurrency library *)
@@ -33,7 +36,7 @@ Definition memset_spec :=
  DECLARE _memset
   WITH sh : share, t : type, p : val, c : Z, n : Z
   PRE [ _s OF tptr tvoid, _c OF tint, _n OF tuint ]
-   PROP (writable_share sh; sizeof t = (4 * n)%Z; 4 * n <= Int.max_unsigned; (4 | alignof t))
+   PROP (writable_share sh; sizeof t = (4 * n)%Z; align_compatible tint p)
    LOCAL (temp _s p; temp _c (vint c); temp _n (vint (4 * n)%Z))
    SEP (data_at_ sh t p)
   POST [ tptr tvoid ]

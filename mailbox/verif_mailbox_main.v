@@ -35,8 +35,17 @@ Proof.
   rewrite data_at__isptr; Intros.
   rewrite sem_cast_neutral_ptr; auto.
   pose proof (sizeof_pos t).
-  assert (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
-  { unfold sem_div; simpl.
+  assert_PROP (sizeof t <= Int.max_unsigned).
+  { entailer!.
+    destruct H3 as [? [_ [? _]]].
+    destruct p; inv H3.
+    simpl in H4.
+    pose proof Int.unsigned_range i.
+    repable_signed.
+  }
+  assert_PROP (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
+  { entailer!.
+    unfold sem_div; simpl.
     unfold Int.divu.
     rewrite !Int.unsigned_repr; auto; try (split; auto; try computable; omega).
     rewrite Z.mul_comm, Z_div_mult; auto; computable. }
@@ -55,13 +64,14 @@ Proof.
       + unfold size_compatible in *; simpl.
         destruct p; try contradiction.
         setoid_rewrite Hsize; auto.
-      + unfold align_compatible in *; simpl.
-        unfold align_attr in *; simpl.
-        destruct p; try contradiction.
+      + destruct p; try contradiction.
         constructor; intros.
         econstructor; [reflexivity |].
-        apply
-        etransitivity; eauto.
+        inv H0.
+        inv H11.
+        apply Z.divide_add_r; auto.
+        apply Z.divide_mul_l.
+        exists 1; auto.
     - rewrite data_at__eq.
       unfold default_val, reptype_gen; simpl.
       rewrite repeat_list_repeat, Z.sub_0_r; apply derives_refl. }
@@ -96,10 +106,11 @@ Proof.
     Intros b bufs.
     rewrite malloc_compat; auto; Intros.
     rewrite memory_block_data_at_; auto.
-    assert_PROP (field_compatible tbuffer [] b) by entailer!.
+    assert_PROP (field_compatible tint [] b) by entailer!.
     forward_call (Tsh, tbuffer, b, 0, 1).
     { repeat split; simpl; auto; try computable.
-      apply Z.divide_refl. }
+      destruct H4 as [? [? [? [? ?]]]]; auto. }
+    clear H4.
     forward.
     rewrite upd_init; auto; try omega.
     entailer!.
@@ -108,7 +119,23 @@ Proof.
     rewrite !data_at_rec_eq; unfold withspacer; simpl.
     unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl.
     entailer!.
-    { exists 2; auto. } }
+    { destruct H as [? [? [? [? ?]]]].
+      split; [| split; [| split; [| split]]]; auto.
+      destruct b; inv H.
+      inv H2. inv H.
+      specialize (H7 0 ltac:(omega)).
+      simpl.
+      eapply align_compatible_rec_Tstruct; [reflexivity |].
+      intros.
+      inv H.
+      if_tac in H5; [| inv H5].
+      subst i0; inv H5; inv H2.
+      econstructor.
+      1: reflexivity.
+      inv H7.
+      inv H.
+      rewrite Z.mul_0_r in H2.
+      auto. } }
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
     LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
@@ -184,6 +211,7 @@ Proof.
       rewrite !sepcon_andp_prop', !sepcon_andp_prop, !sepcon_andp_prop'; apply andp_right;
         [apply prop_right; auto|].
       apply andp_right; [apply prop_right; repeat (split; auto); computable|].
+      change_compspecs CompSpecs.
       Exists 0; fast_cancel.
       rewrite <- emp_sepcon at 1; apply sepcon_derives.
       { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
