@@ -4,6 +4,7 @@ Require Import compcert.lib.Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Lists.List.
+Require Import Coq.Sorting.Permutation.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.
 
