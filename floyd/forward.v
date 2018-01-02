@@ -817,6 +817,9 @@ Ltac after_forward_call :=
         | |- semax _ _ _ _ => idtac
         | |- unit -> semax _ _ _ _ => intros _
     end;
+    match goal with
+        | |- @semax ?CS _ _ _ _ _ => try change_compspecs CS
+    end;
     repeat (apply semax_extract_PROP; intro);
     cleanup_no_post_exists;
     abbreviate_semax;

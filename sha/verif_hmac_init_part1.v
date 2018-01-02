@@ -170,7 +170,7 @@ Proof. intros. abbreviate_semax.
 
       freeze [0;2;3] FR3.
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
-      (*call to SHA256_Update*)
+       (*call to SHA256_Update*)
       thaw FR3.
       thaw FR2.
       thaw FR1.
@@ -211,7 +211,7 @@ Proof. intros. abbreviate_semax.
      thaw FR6.
      freeze [0;4] FR7.
      Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*3.3.versus 4.3*)
-
+       
      (*call memset*)
      thaw FR7.
      unfold tarray.
@@ -266,14 +266,14 @@ Proof. intros. abbreviate_semax.
        Time cancel. (*0.6*)
        thaw FR8. Time cancel.
        unfold data_block, SHA256.Hash, tarray. rewrite functional_prog.SHA_256'_eq, SFL. simpl.
-       change_compspecs CompSpecs. Time entailer!. (*2.1*)
+       Time entailer!. (*2.1*)
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.
        unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
-       change_compspecs CompSpecs. Time entailer!. (*0.1*)
+       Time entailer!. (*0.1*)
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
@@ -392,7 +392,6 @@ Proof. intros.
      rewrite XX(*, HeqKCONT*).
      repeat rewrite map_list_repeat.
      rewrite sublist_same; trivial. (*subst l64 l.*)
-     change_compspecs' CompSpecs spec_sha.CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
