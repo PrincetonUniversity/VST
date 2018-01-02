@@ -938,7 +938,7 @@ subst; auto.
 Qed.
 *)
 Definition val2address (v: val) : option AV.address := 
-  match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
+  match v with Vptr b ofs => Some (b, Ptrofs.signed ofs) | _ => None end.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
 

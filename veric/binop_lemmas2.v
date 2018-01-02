@@ -49,6 +49,7 @@ Proof.
    try reflexivity
   | rewrite (IHe _ (eq_refl _)) by congruence; auto ..
   ].
+  simpl. unfold Cop2.bool_val; if_tac; reflexivity.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
@@ -67,7 +68,8 @@ try solve [
     destruct (eqb_type A B) eqn:J;
       [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
   end;
-  reflexivity].
+  try reflexivity;
+  destruct (eval_expr e2 any_environ); reflexivity].
 all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ];
@@ -92,7 +94,7 @@ all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
      auto .. ]); auto;
-  try (unfold Cop2.sem_cast, Cop2.classify_cast; if_tac; reflexivity).
+  try (unfold Cop2.sem_cast, Cop2.classify_cast; repeat if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
@@ -408,37 +410,40 @@ Proof.
   intros; extensionality rho.
   unfold tc_test_eq.
   simpl; unfold_lift;  unfold denote_tc_test_eq.
-  destruct (eval_expr a rho) eqn:Ha;
-  destruct (eval_expr a any_environ) eqn:Ha';
-  simpl; unfold_lift;  unfold denote_tc_test_eq;
-  rewrite ?Ha, ?Ha'; simpl; auto;
-  try solve [
-    rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
-    inv Ha].
-  destruct (eval_expr b rho) eqn:Hb;
-  destruct (eval_expr b any_environ) eqn:Hb';
-  simpl; unfold_lift;  unfold denote_tc_test_eq;
-  rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
-  rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
-  destruct (Int.eq_dec i Int.zero).
-  + subst. rewrite Int.eq_true.
-    destruct (Int.eq_dec i1 Int.zero).
-    - subst. rewrite Int.eq_true.
-      simpl.
-      rewrite !prop_true_andp by auto.
-      super_unfold_lift.
-      unfold TT. f_equal. apply prop_ext; intuition.
-    - rewrite Int.eq_false by auto. simpl.
-      simpl; unfold_lift;  unfold denote_tc_test_eq.
-      rewrite (eval_expr_any rho a _ Ha')  by congruence.
-      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-      auto.
-  + rewrite Int.eq_false by auto. simpl.
-    simpl; unfold_lift;  unfold denote_tc_test_eq.
-    rewrite (eval_expr_any rho a _ Ha')  by congruence.
-    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-    auto.
+ destruct (Val.eq (eval_expr a any_environ) Vundef);
+   [rewrite e; reflexivity | ].
+ rewrite <- (eval_expr_any rho _ _ (eq_refl _) n).
+ destruct (Val.eq (eval_expr b any_environ) Vundef).
+ rewrite e; destruct (eval_expr a rho) eqn:Ha; simpl; unfold_lift; rewrite Ha; reflexivity.
+ rewrite <- (eval_expr_any rho _ _ (eq_refl _) n0).
+ clear n n0.
+ destruct (eval_expr a rho) eqn:Ha; simpl; unfold_lift; try rewrite Ha;
+  try reflexivity;
+ destruct (eval_expr b rho) eqn:Hb; simpl; unfold_lift; 
+   rewrite ?Ha, ?Hb;
+  try reflexivity.
+*
+  destruct Archi.ptr64 eqn:Hp; simpl; unfold_lift.
+  +
+  rewrite Ha,Hb; simpl; rewrite Hp; reflexivity.
+  +
+  pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero).
+  pose proof (Int.eq_spec i0 Int.zero); destruct (Int.eq i0 Int.zero).
+  simpl. rewrite !prop_true_andp by auto.
+  unfold_lift. unfold TT. apply f_equal. apply prop_ext; intuition.
+  simpl. unfold_lift. rewrite Ha,Hb. simpl. rewrite Hp. auto.
+  simpl. unfold_lift. rewrite Ha,Hb. simpl. rewrite Hp. auto.
+*
+  destruct Archi.ptr64 eqn:Hp; simpl; unfold_lift.
+  +
+  pose proof (Int64.eq_spec i Int64.zero); destruct (Int64.eq i Int64.zero).
+  pose proof (Int64.eq_spec i0 Int64.zero); destruct (Int64.eq i0 Int64.zero).
+  simpl. rewrite !prop_true_andp by auto.
+  unfold_lift. unfold TT. apply f_equal. apply prop_ext; intuition.
+  simpl. unfold_lift. rewrite Ha,Hb. simpl. rewrite Hp. auto.
+  simpl. unfold_lift. rewrite Ha,Hb. simpl. rewrite Hp. auto.
+ +
+  rewrite Ha,Hb; simpl; rewrite Hp; reflexivity.
 Qed.
 
 Lemma denote_tc_assert_test_order':
@@ -455,15 +460,25 @@ Proof.
   rewrite ?Ha, ?Ha'; simpl; auto;
   try solve [
     rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
-    inv Ha].
+    inv Ha];
   destruct (eval_expr b rho) eqn:Hb;
   destruct (eval_expr b any_environ) eqn:Hb';
   simpl; unfold_lift;  unfold denote_tc_test_eq;
   rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
+  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb;
   rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
+*
+  destruct Archi.ptr64 eqn:Hp.
+ +
+  simpl. unfold_lift.
+  rewrite (eval_expr_any rho b _ Hb') by congruence;
+  rewrite (eval_expr_any rho a _ Ha') by congruence.
+  simpl. rewrite Hp. auto.
+ +
+  simpl. {
   destruct (Int.eq_dec i Int.zero).
-  + subst. rewrite Int.eq_true.
+   +
+    subst. rewrite Int.eq_true.
     destruct (Int.eq_dec i1 Int.zero).
     - subst. rewrite Int.eq_true.
       simpl.
@@ -480,6 +495,38 @@ Proof.
     rewrite (eval_expr_any rho a _ Ha')  by congruence.
     rewrite (eval_expr_any rho _ _ Hb')  by congruence.
     auto.
+  }
+*
+  destruct Archi.ptr64 eqn:Hp.
+ +
+  simpl. {
+  destruct (Int64.eq_dec i Int64.zero).
+   +
+    subst. rewrite Int64.eq_true.
+    destruct (Int64.eq_dec i1 Int64.zero).
+    - subst. rewrite Int64.eq_true.
+      simpl.
+      rewrite !prop_true_andp by auto.
+      super_unfold_lift.
+      unfold TT. f_equal. apply prop_ext; intuition.
+    - rewrite Int64.eq_false by auto. simpl.
+      simpl; unfold_lift;  unfold denote_tc_test_eq.
+      rewrite (eval_expr_any rho a _ Ha')  by congruence.
+      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+      simpl. rewrite Hp.
+      auto.
+  + rewrite Int64.eq_false by auto. simpl.
+    simpl; unfold_lift;  unfold denote_tc_test_eq.
+    rewrite (eval_expr_any rho a _ Ha')  by congruence.
+    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    simpl. rewrite Hp.
+    auto.
+  }
+ +
+  simpl. unfold_lift.
+  rewrite (eval_expr_any rho b _ Hb') by congruence;
+  rewrite (eval_expr_any rho a _ Ha') by congruence.
+  simpl. rewrite Hp. auto.
 Qed.
 
 Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
@@ -495,6 +542,7 @@ Definition stupid_typeconv ty :=
 match ty with
 | Tarray t _ a => Tpointer t a
 | Tfunction _ _ _ => Tpointer ty noattr
+| Tint _ _ _ => typeconv ty
 | _ => ty
 end.
 
@@ -502,7 +550,7 @@ Definition classify_sub' ty1 ty2 :=
 match stupid_typeconv ty1 with
 | Tpointer ty a =>
     match stupid_typeconv ty2 with
-    | Tint _ _ _ => sub_case_pi ty
+    | Tint _ si _ => sub_case_pi ty si
     | Tlong _ _ => sub_case_pl ty
     | Tpointer _ _ => sub_case_pp ty
     | _ => sub_default
@@ -513,7 +561,7 @@ end.
 Lemma classify_sub_eq : classify_sub = classify_sub'.
 Proof.
 unfold classify_sub, classify_sub'; extensionality t1 t2.
-destruct t1,t2; simpl; auto;
+destruct t1, t2; simpl; auto;
 try destruct i,s; auto;
 try destruct i0,s0; auto.
 Qed.
@@ -521,8 +569,8 @@ Qed.
 Definition classify_cmp' ty1 ty2 :=
   match stupid_typeconv ty1, stupid_typeconv ty2 with
   | Tpointer _ _ , Tpointer _ _ => cmp_case_pp
-  | Tpointer _ _ , Tint _ _ _ => cmp_case_pp
-  | Tint _ _ _, Tpointer _ _ => cmp_case_pp
+  | Tpointer _ _ , Tint _ si _ => cmp_case_pi si
+  | Tint _ si _, Tpointer _ _ => cmp_case_ip si
   | Tpointer _ _ , Tlong _ _ => cmp_case_pl
   | Tlong _ _ , Tpointer _ _ => cmp_case_lp
   | _, _ => cmp_default
@@ -538,9 +586,9 @@ Qed.
 
 Definition classify_add' ty1 ty2 :=
  match stupid_typeconv ty1 with
- | Tint _ _ _ =>
+ | Tint _ si _ =>
     match stupid_typeconv ty2 with
-    | Tpointer ty a => add_case_ip ty
+    | Tpointer ty a => add_case_ip si ty
     |  _ => add_default
     end
 | Tlong _ _ =>
@@ -550,7 +598,7 @@ Definition classify_add' ty1 ty2 :=
     end
 | Tpointer ty a =>
     match stupid_typeconv ty2 with
-    | Tint _ _ _ => add_case_pi ty
+    | Tint _ si _ => add_case_pi ty si
     | Tlong _ _ => add_case_pl ty
     | _ => add_default
     end
@@ -648,11 +696,11 @@ let deferr := arg_type e in
 denote_tc_assert
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.add_case_pi t _ => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
+                    | Cop.add_case_ip _ t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
@@ -669,7 +717,7 @@ match op with
                                            (tc_nobinover Z.add a1 a2)
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
+                    | Cop.sub_case_pi t _ => tc_andp' (tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
@@ -751,14 +799,18 @@ match op with
  		                | Cop.cmp_case_pp => tc_andp' (tc_andp' (tc_int_or_ptr_type (typeof a1)) 
                                       (tc_int_or_ptr_type (typeof a2)))
                               (check_pp_int' a1 a2 op ty e)
-                    | Cop.cmp_case_pl => 
-                         tc_andp' (tc_int_or_ptr_type (typeof a1))
-                            (check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e)
-(*check_pl_long' a2 op ty e*)
-                    | Cop.cmp_case_lp => 
-                         tc_andp' (tc_int_or_ptr_type (typeof a2))
-                          (check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e)
-(*check_pl_long' a1 op ty e*)
+                   | Cop.cmp_case_pi si =>
+                          tc_andp' (tc_int_or_ptr_type (typeof a1))
+                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                   | Cop.cmp_case_ip si => 
+                          tc_andp' (tc_int_or_ptr_type (typeof a2))
+                           (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
+                   | Cop.cmp_case_pl => 
+                          tc_andp' (tc_int_or_ptr_type (typeof a1))
+                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                   | Cop.cmp_case_lp => 
+                          tc_andp' (tc_int_or_ptr_type (typeof a2))
+                          (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
                    end
   end.
 Proof.

@@ -100,7 +100,7 @@ Definition always {A B: Type} (b: B) (a: A) := b.
 
 Definition offset_val (ofs: Z) (v: val) : val :=
   match v with
-  | Vptr b z => Vptr b (Int.add z (Int.repr ofs))
+  | Vptr b z => Vptr b (Ptrofs.add z (Ptrofs.repr ofs))
   | _ => Vundef
  end.
 
@@ -126,11 +126,11 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
 Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                          match Map.get (ve_of rho) id with
                          | Some (b,ty') => if eqb_type ty ty'
-                                                    then Vptr b Int.zero
+                                                    then Vptr b Ptrofs.zero
                                                     else Vundef
                          | None =>
                             match (ge_of rho) id with
-                            | Some b => Vptr b Int.zero
+                            | Some b => Vptr b Ptrofs.zero
                             | None => Vundef
                             end
                         end.
@@ -290,14 +290,22 @@ Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert :=
 
 Definition tc_test_eq {CS: compspecs} (e1 e2: expr) : tc_assert :=
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
- | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
+ | Vint i, Vint j => if andb (negb Archi.ptr64)
+                             (andb (Int.eq i Int.zero) (Int.eq j Int.zero))
+                             then tc_TT else tc_test_eq' e1 e2
+ | Vlong i, Vlong j => if andb Archi.ptr64
+                             (andb (Int64.eq i Int64.zero) (Int64.eq j Int64.zero))
                              then tc_TT else tc_test_eq' e1 e2
  | _, _ => tc_test_eq' e1 e2
  end.
 
 Definition tc_test_order {CS: compspecs} (e1 e2: expr) : tc_assert :=
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
- | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
+ | Vint i, Vint j => if  andb (negb Archi.ptr64)
+                                  (andb (Int.eq i Int.zero) (Int.eq j Int.zero))
+                             then tc_TT else tc_test_order' e1 e2
+ | Vlong i, Vlong j => if  andb Archi.ptr64
+                                  (andb (Int64.eq i Int64.zero) (Int64.eq j Int64.zero))
                              then tc_TT else tc_test_order' e1 e2
  | _, _ => tc_test_order' e1 e2
  end.
@@ -401,14 +409,22 @@ Definition tc_llt {CS: compspecs} (e: expr) (j: int64) :=
     | _ => tc_llt' e j
     end.
 
+Definition tc_int_or_ptr_type (t: type) : tc_assert :=
+ tc_bool (negb (eqb_type t int_or_ptr_type)) int_or_ptr_type_error.
+
 Definition isUnOpResultType {CS: compspecs} op a ty : tc_assert :=
 match op with
-  | Cop.Onotbool => match Cop.classify_bool (typeof a) with
-                        | Cop.bool_default => tc_FF (op_result_type a)
-                        | Cop.bool_case_p =>
-                           tc_andp (tc_bool (is_int_type ty) (op_result_type a))
-                                         (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
-                        | _ => tc_bool (is_int_type ty) (op_result_type a)
+  | Cop.Onotbool => match typeof a with
+                        | Tint _ _ _ | Tlong _ _ | Tfloat _ _ =>
+                                        tc_bool (is_int_type ty) (op_result_type a)
+                        | Tpointer _ _ => 
+                             tc_andp (tc_int_or_ptr_type (typeof a))
+                             (tc_andp (tc_bool (is_int_type ty) (op_result_type a))
+                              (tc_test_eq a 
+                                (if Archi.ptr64 
+                                 then Econst_long Int64.zero (Tlong Signed noattr)
+                                 else Econst_int Int.zero (Tint I32 Signed noattr))))
+                        | _ => tc_FF (op_result_type a)
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
                         | Cop.notint_default => tc_FF (op_result_type a)
@@ -436,8 +452,7 @@ match op with
                     end
 end.
 
-Definition tc_int_or_ptr_type (t: type) : tc_assert :=
- tc_bool (negb (eqb_type t int_or_ptr_type)) int_or_ptr_type_error.
+Definition intptr_t := if Archi.ptr64 then Tlong Unsigned noattr else Tint I32 Unsigned noattr.
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -445,11 +460,11 @@ let reterr := op_result_type e in
 let deferr := arg_type e in
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.add_case_pi t si => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_ip t => tc_andp (tc_andp (tc_andp (tc_isptr a2)
+                    | Cop.add_case_ip si t => tc_andp (tc_andp (tc_andp (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a2)))
                                             (tc_bool (is_pointer_type ty) reterr)
@@ -466,7 +481,7 @@ match op with
                                            (tc_nobinover Z.add a1 a2)
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => tc_andp (tc_andp (tc_andp (tc_isptr a1)
+                    | Cop.sub_case_pi t si => tc_andp (tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_int_or_ptr_type (typeof a1)))
                                             (tc_bool (is_pointer_type ty) reterr)
@@ -549,12 +564,18 @@ match op with
                      tc_andp (tc_andp (tc_int_or_ptr_type (typeof a1)) 
                                       (tc_int_or_ptr_type (typeof a2)))
                        (check_pp_int a1 a2 op ty e)
+              | Cop.cmp_case_pi si =>
+                     tc_andp (tc_int_or_ptr_type (typeof a1))
+                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+              | Cop.cmp_case_ip si => 
+                     tc_andp (tc_int_or_ptr_type (typeof a2))
+                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
               | Cop.cmp_case_pl => 
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e)
+                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
               | Cop.cmp_case_lp => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e)
+                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
               end
   end.
 
@@ -567,16 +588,21 @@ match classify_cast tfrom tto with
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else
-                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
-                                     (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
-                                else tc_iszero a)
+| Cop.cast_case_pointer  => 
+           if eqb_type tfrom tto then tc_TT else
+           (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
+                       (if Archi.ptr64
+                        then (andb (is_long_type tto) (is_long_type tfrom)) 
+                        else (andb (is_int_type tto) (is_int_type tfrom)))
+              then tc_TT
+              else tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool => tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
+(*| Cop.cast_case_p2bool => tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
+*)
       (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | _ => match tto with
@@ -607,15 +633,19 @@ Definition is_float (v: val) :=
  match v with Vfloat i => True | _ => False end.
 Definition is_single (v: val) :=
  match v with Vsingle i => True | _ => False end.
+
 Definition is_pointer_or_null (v: val) :=
  match v with
- | Vint i => i = Int.zero
+ | Vint i => if Archi.ptr64 then False else  i = Int.zero
+ | Vlong i => if Archi.ptr64 then i=Int64.zero else False
  | Vptr _ _ => True
  | _ => False
  end.
+
 Definition is_pointer_or_integer (v: val) :=
  match v with
- | Vint i => True
+ | Vint i => if Archi.ptr64 then False else True
+ | Vlong i => if Archi.ptr64 then True else False
  | Vptr _ _ => True
  | _ => False
  end.
@@ -673,9 +703,13 @@ Lemma tc_val_has_type (ty : type) (v : val) :
   tc_val ty v ->
   Val.has_type v (typ_of_type ty).
 Proof.
-  destruct ty, v; 
+  destruct ty eqn:?, v eqn:?;
   try solve [simpl; auto; try destruct f; auto];
-  unfold tc_val; if_tac; simpl; auto.
+  try solve [unfold tc_val, is_pointer_or_null;
+    try if_tac; try solve [simpl; auto; intros; contradiction];
+    simpl; unfold Tptr; intros; try subst i;
+    destruct Archi.ptr64; try contradiction; subst; auto];
+  simpl; unfold Tptr; destruct Archi.ptr64; auto.
 Qed.
 
 (* A "neutral cast" from t1 to t2 is such that
@@ -1190,7 +1224,7 @@ Program Definition valid_pointer' (p: val) (d: Z) : mpred :=
  | Vint i => prop (i = Int.zero)
  | Vptr b ofs =>
   fun m =>
-    match m @ (b, Int.unsigned ofs + d) with
+    match m @ (b, Ptrofs.unsigned ofs + d) with
     | YES _ _ _ pp => True
     | NO sh _ => nonidentity sh
     | _ => False
@@ -1202,7 +1236,7 @@ split; intros; congruence.
 Qed.
 Next Obligation.
 hnf; simpl; intros.
-destruct (a@(b,Int.unsigned ofs + d)) eqn:?; try contradiction.
+destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
 rewrite (necR_NO a a') in Heqr.
 rewrite Heqr; auto.
 constructor; auto.

@@ -5,8 +5,6 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
 
-
-
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true ->
   tc_val t1 v -> eval_cast t1 t2 v = v.
@@ -20,8 +18,10 @@ assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
 assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
  destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- unfold eval_cast, sem_cast, classify_cast;
+ unfold eval_cast, sem_cast, classify_cast,
+  sem_cast_pointer, sem_cast_i2bool, sem_cast_l2bool;
 try solve [
+ try match goal with |- context [Archi.ptr64] => destruct Archi.ptr64 end;
  inversion H; clear H; try reflexivity;
  destruct v; unfold tc_val, is_int in H0; try contradiction;
  simpl; f_equal;
@@ -220,20 +220,28 @@ Definition test_order_ptrs v1 v2 : mpred :=
   else FF.
 
 Definition denote_tc_test_eq v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => 
+     if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => 
+     if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vint i, Vptr _ _ =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+ | Vlong i, Vptr _ _ =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v2) else FF
  | Vptr _ _, Vint i =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+ | Vptr _ _, Vlong i =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v1) else FF
  | Vptr _ _, Vptr _ _ =>
       test_eq_ptrs v1 v2
  | _, _ => FF
  end.
 
 Definition denote_tc_test_order v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vptr _ _, Vptr _ _ =>
       test_order_ptrs v1 v2
  | _, _ => FF
@@ -315,9 +323,12 @@ Lemma neutral_isCastResultType:
 Proof.
 intros.
   unfold isCastResultType.
-  unfold is_neutral_cast in H.
+  unfold is_neutral_cast in H; simpl classify_cast.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-   try solve [inv H; try apply I; simpl; if_tac; apply I].
+   try solve [inv H; try apply I; simpl; if_tac; apply I];
+  try solve [unfold eval_cast, sem_cast, classify_cast,
+     sem_cast_pointer, sem_cast_i2bool, sem_cast_l2bool;
+      destruct Archi.ptr64; simpl; try if_tac; try apply I].
   apply orb_true_iff in H.
   unfold classify_cast.
   destruct (eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
