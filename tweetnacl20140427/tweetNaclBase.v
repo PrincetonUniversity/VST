@@ -4,7 +4,7 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
-Require Import tweetnacl20140427.split_array_lemmas.
+(*Require Import tweetnacl20140427.split_array_lemmas.*)
 Require Import ZArith.
 
 Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
