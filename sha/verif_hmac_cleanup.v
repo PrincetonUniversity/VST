@@ -30,7 +30,6 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
-change_compspecs CompSpecs.
  entailer!; auto.
  apply Forall_list_repeat; hnf; clear; omega.
 Qed.
@@ -66,7 +65,6 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
-change_compspecs CompSpecs.
  entailer!; auto.
 apply Forall_list_repeat; hnf; clear; omega.
 Qed.
