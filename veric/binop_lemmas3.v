@@ -5,8 +5,8 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.Cop2.
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.binop_lemmas2.
-Import Cop.
 
 Lemma denote_tc_nonzero_e:
  forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
@@ -142,6 +142,7 @@ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
   auto; contradiction.
 Qed.
 
+(*
 Lemma sem_cmp_pp_pp:
   forall c b i b0 i0 ii ss aa
     (OP: c = Ceq \/ c = Cne),
@@ -223,6 +224,7 @@ Proof.
     destruct ii,ss; simpl; try split; auto;
     rewrite <- Z.leb_le; reflexivity.
 Qed.
+*)
 
 Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
     is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->
@@ -336,49 +338,13 @@ Proof.
   unfold Cop2.sem_binarith.
   rewrite classify_binarith_eq.
   destruct (classify_binarith' t1 t2) eqn:?H;
-  try solve [inv H]; apply tc_bool_e in H.
-  + (* bin_case_i *)
-
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-  try solve [inv H0];
-   destruct t as [| [| | |] ? ? | | | | | | |]; inv H; simpl; auto;
- try solve [destruct sz, sg, s; inv H0].
- destruct sz,sg;
-  destruct v1; try solve [contradiction H1];
-  try destruct sz0, sg0;
-  try (destruct v2; try solve [contradiction H2]);
- unfold Cop2.sem_cast, Cop2.classify_cast;
- destruct Archi.ptr64; simpl; try apply I;
-  try destruct s; try apply I.
-
-  + (* bin_case_l *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H0];
-    destruct t as [| [| | |] ? ? | | | | | | |]; inv H; simpl; auto;
-    try solve [try destruct sz, sg; try destruct sz0,sg0; try destruct s; inv H0];
-    destruct v1; try solve [inv H1];
-    destruct v2; try solve [inv H2];
-    try (destruct t as [| [| | |] ? ? | | | | | | |]; inv H; simpl; auto);
-    unfold sem_cast_i2l, both_long, Cop2.sem_cast, Cop2.classify_cast, sem_cast_pointer;
-    destruct Archi.ptr64; apply I.
-  + (* bin_case_f *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H0];
-    destruct v1; try solve [inv H1];
-    destruct v2; try if_tac in H2; try solve [inv H2];
-    destruct t as [| [| | |] ? ? | | [|] | | | | |]; inv H; simpl; auto.
-  all: try  destruct sz,sg; inv H0.
-  + (* bin_case_s *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H0];
-    destruct v1; try solve [inv H1];
-    destruct v2; try if_tac in H2; try solve [inv H2];
-    destruct t as [| [| | |] ? ? | | [|] | | | | |]; inv H; simpl; auto.
-  all: try  destruct sz,sg; inv H0.
+  try solve [inv H]; apply tc_bool_e in H;
+  destruct t1 as [|  [| | |] [|] | | [ | ] ? | | | | |]; try discriminate H0;
+  destruct t2 as [|  [| | |] [|] | | [ | ] ? | | | | |]; try inv H0;
+  try contradiction;
+  destruct v1; try solve [inv TV1];
+  destruct v2; try solve [inv TV2];
+  destruct t as [| [| | |] [|] ? | | [|] | | | | |]; inv H; simpl; auto; apply I.
 Qed.
 
 Lemma tc_val_sem_cmp_binarith': forall sem_int sem_long sem_float sem_single t1 t2 t v1 v2
@@ -401,43 +367,18 @@ Proof.
   unfold Cop2.sem_binarith.
   rewrite classify_binarith_eq.
   destruct (classify_binarith' t1 t2) eqn:?H.
-  + (* bin_case_i *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H1];
-    destruct v1; try solve [inv H2];
-    destruct v2; try solve [inv H3];
-    try apply tc_val_of_bool.
-  all: destruct sz,sg; inv H1.
-  + (* bin_case_l *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H1];
-    destruct v1; try solve [inv H2];
-    destruct v2; try solve [inv H3];
-    try apply tc_val_of_bool.
-  all: destruct sz,sg; inv H1.
-  + (* bin_case_f *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H1];
-    destruct v1; try solve [inv H2];
-    destruct v2; try if_tac in H3; try solve [inv H3];
-    try apply tc_val_of_bool.
-  all: destruct sz,sg; inv H1.
-  + (* bin_case_s *)
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    try solve [inv H1];
-    destruct v1; try solve [inv H2];
-    destruct v2; try if_tac in H3; try solve [inv H3];
-    try apply tc_val_of_bool.
-  all: destruct sz,sg; inv H1.
-  + unfold classify_binarith' in H1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    inv H1; inv H; inv H0.
-all: destruct sz, sg; try destruct sz0,sg0; inv H5.
+1,2,3,4:
+  destruct t1 as [|  [| | |] [|] | | [ | ] ? | | | | |]; try discriminate H0;
+  destruct t2 as [|  [| | |] [|] | | [ | ] ? | | | | |]; try inv H0;
+  try contradiction;
+  destruct v1; try solve [inv TV1];
+  destruct v2; try solve [inv TV2];
+  inv H1;
+  simpl;
+  apply tc_val_of_bool; auto.
+  destruct t1 as [|  [| | |] [|] | | [ | ] ? | | | | |]; inv H;
+  destruct t2 as [|  [| | |] [|] | | [ | ] ? | | | | |]; inv H0;
+  inv H1.
 Qed.
 
 Lemma negb_true: forall a, negb a = true -> a = false.
@@ -890,445 +831,5 @@ Proof.
       rewrite classify_binarith_eq, H;
       simpl;
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
-Qed.
-
-Lemma denote_tc_test_eq_Vint_l: forall m i v,
-  (denote_tc_test_eq (Vint i) v) m ->
-  i = Int.zero.
-Proof.
-  intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct Archi.ptr64, v; try solve [inv H]; simpl in H; tauto.
-Qed.
-
-Lemma denote_tc_test_eq_Vint_r: forall m i v,
-  (denote_tc_test_eq v (Vint i)) m ->
-  i = Int.zero.
-Proof.
-  intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct Archi.ptr64, v; try solve [inv H]; simpl in H; tauto.
-Qed.
-
-Lemma int_type_tc_val_Vtrue:
-  forall t, is_int_type t = true -> tc_val t Vtrue.
-Proof.
-intros.
-    destruct t as [| [| | |] [|] | | | | | | |]; 
- try discriminate; hnf; auto.
-change (Int.signed Int.one) with 1.
-change Byte.min_signed with (-128).
-change Byte.max_signed with 127.
-clear. omega.
-clear.
-simpl. 
-change (Int.signed Int.one) with 1.
-omega.
-Qed.
-
-Lemma int_type_tc_val_Vfalse:
-  forall t, is_int_type t = true -> tc_val t Vfalse.
-Proof.
-intros.
-    destruct t as [| [| | |] [|] | | | | | | |]; 
- try discriminate; hnf; auto;
-change (Int.signed Int.zero) with 0.
-change Byte.min_signed with (-128).
-change Byte.max_signed with 127.
-clear. omega.
-clear. simpl. omega.
-Qed.
-
-
-Lemma int_type_tc_val_of_bool:
-  forall t b, is_int_type t = true -> tc_val t (Val.of_bool b).
-Proof.
-intros.
-    destruct t as [| [| | |] [|] | | | | | | |]; 
- try discriminate; hnf; auto; clear H;
- destruct b; simpl; auto;
-change (Int.signed Int.one) with 1;
-change (Int.signed Int.zero) with 0;
-change (Int.unsigned Int.one) with 1;
-change (Int.unsigned Int.zero) with 0;
-change Byte.min_signed with (-128);
-change Byte.max_signed with 127;
-change Byte.max_unsigned with 255;
-try omega.
-Qed.
-
-Lemma typecheck_Otest_eq_sound:
- forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
-   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
-   (TV1: tc_val (typeof e1) (eval_expr e1 rho))
-   (OP: op = Oeq \/ op = One),
-   tc_val t
-     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
-Proof.
-  intros.
-  replace
-    ((denote_tc_assert (isBinOpResultType op e1 e2 t) rho) m)
-  with
-    ((denote_tc_assert
-           match classify_cmp' (typeof e1) (typeof e2) with
-              | Cop.cmp_default =>
-                           tc_bool (is_numeric_type (typeof e1)
-                                         && is_numeric_type (typeof e2)
-                                          && is_int_type t)
-                                             (arg_type (Ebinop op e1 e2 t))
-	            | Cop.cmp_case_pp => 
-                     tc_andp' (tc_andp' (tc_int_or_ptr_type (typeof e1)) 
-                                      (tc_int_or_ptr_type (typeof e2)))
-                       (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
-              | Cop.cmp_case_pi si =>
-                     tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
-              | Cop.cmp_case_ip si => 
-                     tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
-              | Cop.cmp_case_pl => 
-                     tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
-              | Cop.cmp_case_lp => 
-                     tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
-           end rho) m)
-  in IBR
-  by (rewrite den_isBinOpR; destruct OP as [|]; subst; auto).
-  replace
-    (tc_val t (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)))
-  with
-    (tc_val t
-      (force_val
-        (match classify_cmp' (typeof e1) (typeof e2) with
-         | Cop.cmp_case_pp => if orb (eqb_type (typeof e1) int_or_ptr_type)
-                                 (eqb_type (typeof e2) int_or_ptr_type) 
-                      then (fun _ _ => None)
-                      else sem_cmp_pp (op_to_cmp op)
-         | cmp_case_pi si => if eqb_type (typeof e1) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_pi si (op_to_cmp op)
-         | cmp_case_ip si => if eqb_type (typeof e2) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_ip si (op_to_cmp op)
-         | cmp_case_pl => if eqb_type (typeof e1) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_pl (op_to_cmp op)
-         | cmp_case_lp => if eqb_type (typeof e2) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_lp (op_to_cmp op)
-         | cmp_default => sem_cmp_default (op_to_cmp op) (typeof e1) (typeof e2)
-         end (eval_expr e1 rho) (eval_expr e2 rho))))
-  by (destruct OP as [|]; subst; rewrite <- classify_cmp_eq; auto).
-  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_add in IBR |- *.
-  unfold force_val;
-  rewrite tc_val_tc_val_PM in TV1,TV2.
-  replace (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_eq' e1 e2)
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP; subst; auto).
-  replace (check_pp_int' e1 (Ecast e2 (Tint I32 Unsigned noattr)) op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_eq' e1 (Ecast e2 (Tint I32 Unsigned noattr)))
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP; subst; auto).
-  replace (check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_eq' (Ecast e1 (Tint I32 Unsigned noattr)) e2)
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP; subst; auto).
-  destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
-
-*
-  assert (Hp: Archi.ptr64 = false) by reflexivity.  (* Archi.ptr64 DEPENDENCY *)
-  simpl in IBR; unfold_lift in IBR;
-    repeat match goal with
-    | H: _ /\ _ |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
-    | H: negb (eqb_type ?A ?B) = true |- _ =>
-             let J := fresh "J" in
-              destruct (eqb_type A B) eqn:J; [inv H | clear H]              
-    end;
-    destruct (typeof e1) as [| [| | |] [|] | | | | | | |]; inv TV1; 
-    destruct (typeof e2) as [| [| | |] [|] | | | | | | |]; inv TV2;
-    simpl in H; inv H;
-    try (rewrite J in *; clear J);
-    try (rewrite J0 in *; clear J0);
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try contradiction.
-all:  simpl in *;
-  rewrite ?Hp in *;
-  repeat match goal with 
-  | H: app_pred (andp _ _) _ |- _ => destruct H
-  | H: app_pred (prop _) _ |- _ => hnf in H
-  | H: app_pred (weak_valid_pointer _) _ |- _ => clear H
- end;
-  subst;
-  try contradiction;
- destruct OP; subst; simpl;
-  unfold sem_cmp_pp; simpl; rewrite Hp;
-  simpl; rewrite ?Int.eq_true; simpl; try (if_tac; simpl);
-  try (apply int_type_tc_val_Vtrue; auto);
-  try (apply int_type_tc_val_Vfalse; auto);
-  try (apply int_type_tc_val_of_bool; auto).
-*
-  assert (Hp: Archi.ptr64 = false) by reflexivity.  (* Archi.ptr64 DEPENDENCY *)
-  simpl in IBR; unfold_lift in IBR;
-    repeat match goal with
-    | H: _ /\ _ |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
-    | H: negb (eqb_type ?A ?B) = true |- _ =>
-             let J := fresh "J" in
-              destruct (eqb_type A B) eqn:J; [inv H | clear H]   
-   end;
-    destruct (typeof e1) as [| [| | |] [|] | | | | | | |]; inv TV1; 
-    destruct (typeof e2) as [| [| | |] [|] | | | | | | |]; inv TV2;
-    simpl in H; inv H;
-    try (rewrite J in *; clear J);
-    try (rewrite J0 in *; clear J0);
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try contradiction.
-
-all:  simpl in *; unfold Vptrofs;
-  rewrite ?Hp in *;
-  repeat match goal with 
-  | H: app_pred (andp _ _) _ |- _ => destruct H
-  | H: app_pred (prop _) _ |- _ => hnf in H
-  | H: app_pred (weak_valid_pointer _) _ |- _ => clear H
- end;
-  subst;
-  try contradiction;
- destruct OP; subst; simpl in *;
-  repeat match goal with 
-  | H: _ /\ _  |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
- end;
-  unfold sem_cmp_pi, sem_cmp_ip, sem_cmp_pl, sem_cmp_lp, sem_cmp_pp; simpl; rewrite Hp;
-  simpl; rewrite ?Int.eq_true; simpl; try (if_tac; simpl);
-  try solve [apply int_type_tc_val_Vtrue; auto
-              |apply int_type_tc_val_Vfalse; auto
-              |apply int_type_tc_val_of_bool; auto].
-
-
-unfold Vptrofs; rewrite Hp.
-
-
-
-Search tc_val is_int_type.
-
-simpl.
-
-try solve [     simpl in *;
-     rewrite ?Hp in *;
-    repeat match goal with H: _ /\ _ |- _ => destruct H end;
-    subst;
-    destruct t as [| [| | |] [|] | | | | | | |];
-    try solve [inv H2];
-    try apply tc_val_of_bool;
-    try solve [apply sem_cmp_pp_ip; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pi; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pp; auto; destruct OP; subst; auto]]
-
-    subst.
-apply sem_cmp_pp_ip; auto; destruct OP; subst; auto.
-
-  simpl in IBR; unfold_lift in IBR;
-   repeat match goal with
-    | H: _ /\ _ |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
-    | H: negb (eqb_type ?A ?B) = true |- _ =>
-             let J := fresh "J" in
-              destruct (eqb_type A B) eqn:J; [inv H | clear H]              
-    end.
-    simpl.
-    destruct (typeof e1) as [| [| | |] [|] | | | | | | |]; inv TV1; 
-    destruct (typeof e2) as [| [| | |] [|] | | | | | | |]; inv TV2;
-    simpl in H; inv H;
-    try (rewrite J in *; clear J);
-    try (rewrite J0 in *; clear J0);
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try contradiction;
-    simpl in *;
-    unfold sem_cmp_pp;
-    destruct Archi.ptr64; try contradiction;
-    simpl in *;
-    repeat match goal with H: _ /\ _ |- _ => destruct H end;
-    subst.
-all:    destruct t as [| [| | |] [|] | | | | | | |];
-    try solve [inv H2];
-    try apply tc_val_of_bool.
-
-    try solve [apply sem_cmp_pp_ip; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pi; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pp; auto; destruct OP; subst; auto].
-
-
-
-
-1,2,3:
-  simpl in IBR; unfold_lift in IBR;
-    repeat match goal with
-    | H: _ /\ _ |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
-    | H: negb (eqb_type ?A ?B) = true |- _ =>
-             let J := fresh "J" in
-              destruct (eqb_type A B) eqn:J; [inv H | clear H]              
-    end;
-    destruct (typeof e1) as [| [| | |] [|] | | | | | | |]; inv TV1; 
-    destruct (typeof e2) as [| [| | |] [|] | | | | | | |]; inv TV2;
-    simpl in H; inv H;
-    try (rewrite J in *; clear J);
-    try (rewrite J0 in *; clear J0);
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-     simpl in *; try contradiction;
-    repeat match goal with H: _ /\ _ |- _ => destruct H end;
-    subst;
-    destruct t as [| [| | |] [|] | | | | | | |];
-    try solve [inv H2];
-    try apply tc_val_of_bool;
-    try solve [apply sem_cmp_pp_ip; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pi; auto; destruct OP; subst; auto];
-    try solve [apply sem_cmp_pp_pp; auto; destruct OP; subst; auto].
-
-  unfold sem_cmp_default.
-  apply tc_bool_e in IBR.
-  rewrite !andb_true_iff in IBR.
-    destruct IBR as [[?IBR ?IBR] ?IBR].
-  rewrite <- tc_val_tc_val_PM in TV1,TV2.
-   apply tc_val_sem_cmp_binarith'; auto.
-Qed.
-
-Lemma typecheck_Otest_order_sound:
- forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
-   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
-   (TV1: tc_val (typeof e1) (eval_expr e1 rho))
-   (OP: op = Ole \/ op = Olt \/ op = Oge \/ op = Ogt),
-   tc_val t
-     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
-Proof.
-  intros.
-  replace
-    ((denote_tc_assert (isBinOpResultType op e1 e2 t) rho) m)
-  with
-    ((denote_tc_assert
-            match classify_cmp' (typeof e1) (typeof e2) with
-              | cmp_default =>
-                           tc_bool (is_numeric_type (typeof e1)
-                                         && is_numeric_type (typeof e2)
-                                          && is_int_type t)
-                                             (arg_type (Ebinop op e1 e2 t))
-	            | cmp_case_pp => 
-                     tc_andp' (tc_andp' (tc_int_or_ptr_type (typeof e1)) 
-                                      (tc_int_or_ptr_type (typeof e2)))
-                       (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
-              | cmp_case_pl => 
-                     tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 (Tint I32 Unsigned noattr)) op t (Ebinop op e1 e2 t))
-              | cmp_case_lp => 
-                     tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t))
-              end rho) m)
-  in IBR
-  by (rewrite den_isBinOpR; destruct OP as [| [| [|]]]; subst; auto).
-  replace
-    (tc_val t (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)))
-  with
-    (tc_val t
-      (force_val
-        (match classify_cmp' (typeof e1) (typeof e2) with
-         | cmp_case_pp => if orb (eqb_type (typeof e1) int_or_ptr_type)
-                                 (eqb_type (typeof e2) int_or_ptr_type) 
-            then (fun _ _ => None)
-            else sem_cmp_pp (op_to_cmp op)
-         | cmp_case_pl => if eqb_type (typeof e1) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_pl (op_to_cmp op)
-         | cmp_case_lp => if eqb_type (typeof e2) int_or_ptr_type
-            then (fun _ _ => None)
-            else sem_cmp_lp (op_to_cmp op)
-         | cmp_default => sem_cmp_default (op_to_cmp op) (typeof e1) (typeof e2)
-         end (eval_expr e1 rho) (eval_expr e2 rho))))
-  by (destruct OP as [| [| [|]]]; subst; rewrite <- classify_cmp_eq; auto).
-  unfold tc_int_or_ptr_type in IBR.
-    replace (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_order' e1 e2)
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP as [| [| [|]]]; subst; auto).
-    replace (check_pp_int' e1 (Ecast e2 (Tint I32 Unsigned noattr)) op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_order' e1 (Ecast e2 (Tint I32 Unsigned noattr)))
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP as [| [| [|]]]; subst; auto).
-    replace (check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t))
-    with (tc_andp' (tc_test_order' (Ecast e1 (Tint I32 Unsigned noattr)) e2)
-                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
-    in IBR
-    by (unfold check_pp_int'; destruct OP as [| [| [|]]]; subst; auto).
-  destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
-1,2,3:  
-    simpl in IBR; unfold_lift in IBR;
-    repeat match goal with
-    | H: _ /\ _ |- _ => destruct H
-    | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
-                      apply tc_bool_e in H
-    | H: negb (eqb_type ?A ?B) = true |- _ =>
-             let J := fresh "J" in
-              destruct (eqb_type A B) eqn:J; [inv H | clear H]              
-    end;
-    rewrite tc_val_tc_val_PM in TV1,TV2;
-    destruct (typeof e1) as [| [| | |] [|] | | | | | | |];
-    destruct (typeof e2) as [| [| | |] [|] | | | | | | |];
-    simpl in H; inv H;
-    inv TV1; inv TV2;
-    try (rewrite J in *; clear J);
-    try (rewrite J0 in *; clear J0);
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    simpl in *; try contradiction;
-    repeat match goal with H: _ /\ _ |- _ => destruct H end;
-    subst;
-    destruct t as [| [| | |] [|] | | | | | | |];
-    try solve [inv H2];
-    try apply tc_val_of_bool;
-    try solve [apply sem_cmp_pp_ip; auto; destruct OP as [| [| [|]]]; subst; auto];
-    try solve [apply sem_cmp_pp_pi; auto; destruct OP as [| [| [|]]]; subst; auto];
-    try solve [apply sem_cmp_pp_pp; auto; destruct OP as [| [| [|]]]; subst; auto];
-    try solve [eapply sem_cmp_pp_pp'; eauto; destruct OP as [| [| [|]]]; subst; auto].
-
-    unfold sem_cmp_default.
-    apply tc_bool_e in IBR.
-    rewrite !andb_true_iff in IBR.
-    destruct IBR as [[?IBR ?IBR] ?IBR].
-    apply tc_val_sem_cmp_binarith'; auto.
-Qed.
-
-Lemma typecheck_binop_sound:
-forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
-   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
-   (TV1: tc_val (typeof e1) (eval_expr e1 rho)),
-   tc_val t
-     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
-Proof.
-  intros.
-  destruct op;
-  first
-    [ eapply typecheck_Oadd_sound; eauto
-    | eapply typecheck_Osub_sound; eauto
-    | eapply typecheck_Omul_sound; eauto
-    | eapply typecheck_Odiv_sound; eauto
-    | eapply typecheck_Omod_sound; eauto
-    | eapply typecheck_Oshift_sound; solve [eauto]
-    | eapply typecheck_Obin_sound; solve [eauto]
-    | eapply typecheck_Otest_eq_sound; solve [eauto]
-    | eapply typecheck_Otest_order_sound; solve [eauto]].
 Qed.
 
