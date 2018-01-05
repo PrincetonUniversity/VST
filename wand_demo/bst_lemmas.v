@@ -308,3 +308,77 @@ Proof.
 Qed.
 
 End PartialTreeboxRep_WandQFrame.
+
+Module PartialTreeboxRep_WandQFrame'.
+
+Definition partial_treebox_rep (pt: tree val -> tree val) (p_root p_in: val): mpred :=
+  ALL t: tree val, treebox_rep t p_in -* treebox_rep (pt t) p_root.
+
+Lemma partial_treebox_rep_singleton_left: forall (t2: tree val) k (v p b: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr (Z.of_nat k))) p *
+  field_at Tsh t_struct_tree [StructField _value] v p *
+  treebox_rep t2 (field_address t_struct_tree [StructField _right] p)
+  |-- partial_treebox_rep (fun t1 => T t1 k v t2) b (field_address t_struct_tree [StructField _left] p).
+Proof.
+  intros.
+  unfold partial_treebox_rep.
+  apply allp_right; intros t1.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite (treebox_rep_spec (T t1 k v t2)).
+  Exists p.
+  entailer!.
+Qed.
+
+Lemma partial_treebox_rep_singleton_right: forall (t1: tree val) k (v p b: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr (Z.of_nat k))) p *
+  field_at Tsh t_struct_tree [StructField _value] v p *
+  treebox_rep t1 (field_address t_struct_tree [StructField _left] p)
+  |-- partial_treebox_rep (fun t2 => T t1 k v t2) b (field_address t_struct_tree [StructField _right] p).
+Proof.
+  intros.
+  unfold partial_treebox_rep.
+  apply allp_right; intros t2.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite (treebox_rep_spec (T t1 k v t2)).
+  Exists p.
+  entailer!.
+Qed.
+
+Lemma partial_treebox_rep_partial_treebox_rep: forall pt12 pt23 p1 p2 p3,
+  partial_treebox_rep pt12 p2 p1 * partial_treebox_rep pt23 p3 p2 |-- partial_treebox_rep (Basics.compose pt23 pt12) p3 p1.
+Proof.
+  intros.
+  unfold partial_treebox_rep.
+  sep_apply (wandQ_frame_refine _ _ (fun t => treebox_rep t p2 -* treebox_rep (pt23 t) p3) pt12).
+  rewrite sepcon_comm.
+  apply wandQ_frame_ver.
+Qed.
+
+Lemma emp_partial_treebox_rep_H: forall p,
+  emp |-- partial_treebox_rep (fun t => t) p p.
+Proof.
+  intros.
+  apply allp_right; intros.
+  apply wand_sepcon_adjoint.
+  normalize.
+Qed.
+
+Lemma treebox_rep_partial_treebox_rep: forall t pt p q,
+  treebox_rep t p * partial_treebox_rep pt q p |-- treebox_rep (pt t) q.
+Proof.
+  intros.
+  unfold partial_treebox_rep.
+  change (treebox_rep (pt t) q)
+    with ((fun t => treebox_rep (pt t) q) t).
+  change (treebox_rep t p)
+    with ((fun t => treebox_rep t p) t).
+  apply wandQ_frame_elim.
+Qed.
+
+End PartialTreeboxRep_WandQFrame'.
