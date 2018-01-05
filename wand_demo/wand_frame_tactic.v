@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import wand_demo.wand_frame.
+Require Import WandDemo.wand_frame.
 
 Ltac pull_left_wand :=
    match goal with

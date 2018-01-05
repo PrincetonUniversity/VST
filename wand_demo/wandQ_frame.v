@@ -1,7 +1,7 @@
 Require Import VST.msl.seplog.
 Require Import VST.msl.alg_seplog.
 Require Import VST.msl.log_normalize.
-Require Import wand_demo.wand_frame.
+Require Import WandDemo.wand_frame.
 Local Open Scope logic.
 
 Lemma wandQ_frame_refine {A} {ND: NatDed A} {SL: SepLog A}: forall B C (P: B -> A) (f: C -> B),

@@ -231,11 +231,6 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v
 #real_forward.v
 
-WAND_DEMO_FILES= \
-  wand_frame.v wandQ_frame.v wand_frame_tactic.v \
-  list.v list_lemmas.v verif_list.v \
-  bst.v verif_bst.v
-
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
 CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
