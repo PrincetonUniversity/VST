@@ -172,6 +172,22 @@ Proof.
   cancel.
 Qed.
 
+Lemma treebox_rep_internal: forall l x v r b p,
+  Int.min_signed <= Z.of_nat x <= Int.max_signed ->
+  tc_val (tptr Tvoid) v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr (Z.of_nat x))) p *
+  field_at Tsh t_struct_tree [StructField _value] v p *
+  treebox_rep l (field_address t_struct_tree [StructField _left] p) *
+  treebox_rep r (field_address t_struct_tree [StructField _right] p) |--
+  treebox_rep (T l x v r) b.
+Proof.
+  intros.
+  rewrite (treebox_rep_spec (T _ _ _ _)).
+  Exists p.
+  entailer!.
+Qed.
+
 Module PartialTreeboxRep_WandFrame.
 
 Lemma partial_treebox_rep_singleton_left: forall (t1' t2: tree val) k (v p b: val),
