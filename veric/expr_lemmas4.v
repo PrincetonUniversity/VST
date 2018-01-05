@@ -853,14 +853,8 @@ rewrite eqb_type_spec in H2.
 subst.
 unfold eval_expr.
 unfold_lift; simpl.
-replace (Vint (Int.repr (sizeof t))) with (Vptrofs (Ptrofs.repr (sizeof t))).
 rewrite <- Hcenv.
 apply Clight.eval_Esizeof.
-unfold Vptrofs.
-assert (Archi.ptr64 = false) by reflexivity.  (* Archi.ptr64 DEPENDENCY *)
-simpl.
-rewrite H.
-rewrite Ptrofs_to_int_repr by auto. auto.
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -869,14 +863,8 @@ apply tc_bool_e in H1.
 apply tc_bool_e in H2.
 unfold eval_expr.
 unfold_lift; simpl.
-replace (Vint (Int.repr (alignof t))) with (Vptrofs (Ptrofs.repr (alignof t))).
 unfold alignof; rewrite <- Hcenv.
 constructor.
-unfold Vptrofs.
-assert (Archi.ptr64 = false) by reflexivity.  (* Archi.ptr64 DEPENDENCY *)
-simpl.
-rewrite H3.
-rewrite Ptrofs_to_int_repr by auto. auto.
 Qed.
 
 Lemma eval_expr_relate:

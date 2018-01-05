@@ -60,6 +60,8 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
              if Int.eq n Int.zero then Some false else None
+   | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
+            if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
    | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
    | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
@@ -156,8 +158,8 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  | Evar id ty => eval_var id ty (* typecheck ensure by-reference *)
  | Ederef a ty => eval_expr a (* typecheck ensure by-reference and isptr *)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) (* typecheck ensure by-reference *)
- | Esizeof t ty => `(Vint (Int.repr (sizeof t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof t)))
+ | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t)))
+ | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t)))
  end
 
  with eval_lvalue {CS: compspecs} (e: expr) : environ -> val :=
