@@ -103,7 +103,7 @@ Qed.
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
+         | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
          | _ => FF
          end.
 
@@ -324,8 +324,10 @@ Proof.
 intros.
   unfold isCastResultType.
   unfold is_neutral_cast in H; simpl classify_cast.
-  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |],
+   t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
    try solve [inv H; try apply I; simpl; if_tac; apply I];
+  try (rewrite denote_tc_assert_andp; split);
   try solve [unfold eval_cast, sem_cast, classify_cast,
      sem_cast_pointer, sem_cast_i2bool, sem_cast_l2bool;
       destruct Archi.ptr64; simpl; try if_tac; try apply I].

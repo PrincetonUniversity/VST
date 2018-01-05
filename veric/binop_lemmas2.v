@@ -275,7 +275,7 @@ Lemma denote_tc_assert_iszero: forall {CS: compspecs} e rho,
   denote_tc_assert (tc_iszero e) rho =
   match (eval_expr e rho) with
   | Vint i => prop (is_true (Int.eq i Int.zero))
-  | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
+  | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
    | _ => FF end.
 Proof.
  intros.
@@ -283,7 +283,7 @@ Proof.
  destruct (eval_expr e any_environ) eqn:?; simpl; auto;
  rewrite (eval_expr_any rho e _ Heqv) by congruence.
  destruct (Int.eq i Int.zero); reflexivity.
- destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero); reflexivity.
+ destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero); reflexivity.
 Qed.
 
 Lemma denote_tc_assert_iszero': forall {CS: compspecs} e,
@@ -925,7 +925,7 @@ Lemma tc_val_cmp_eqne_ip:
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
  | Vint i, Tint _ _ _ => Int.eq i Int.zero = true
- | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
+ | Vlong i, Tlong _ _ => Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true
  | _, _ => False
  end ->
  tc_val (Tpointer t0 a0) v2 ->
@@ -953,7 +953,7 @@ Lemma tc_val_cmp_eqne_pi:
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
  | Vint i, Tint _ _ _ => Int.eq i Int.zero = true
- | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
+ | Vlong i, Tlong _ _ => Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true
  | _, _ => False
  end ->
 tc_val (Tpointer t0 a0) v2 ->

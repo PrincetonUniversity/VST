@@ -134,11 +134,11 @@ Qed.
 Lemma denote_tc_iszero_long_e:
  forall m i,
   app_pred (denote_tc_iszero (Vlong i)) m ->
-  Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
+  Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true.
 Proof.
 intros.
 hnf in H.
-destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
+destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero);
   auto; contradiction.
 Qed.
 

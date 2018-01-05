@@ -427,15 +427,14 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tfloat F32 _, Tfloat F64 _ => cast_case_f2s
   (* To pointer types *)
   | Tpointer _ _, Tint _ _ _ =>
-      if Archi.ptr64 then cast_case_i2l Unsigned 
-      else if eqb_type tto int_or_ptr_type then cast_case_default
+      if eqb_type tto int_or_ptr_type 
+      then cast_case_default 
+      else if Archi.ptr64 then cast_case_i2l Unsigned 
       else cast_case_pointer
   | Tpointer _ _, Tlong _ _ =>
-      if Archi.ptr64 
-      then if eqb_type tto int_or_ptr_type 
-              then cast_case_default 
-              else cast_case_pointer 
-      else cast_case_l2i I32 Unsigned
+      if eqb_type tto int_or_ptr_type 
+      then cast_case_default 
+      else if Archi.ptr64 then cast_case_pointer else cast_case_l2i I32 Unsigned
   | Tpointer _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
        if eqb (eqb_type tto int_or_ptr_type) (eqb_type tfrom int_or_ptr_type)
        then cast_case_pointer

@@ -277,7 +277,7 @@ Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
-  | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Vlong i => if Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
@@ -587,7 +587,9 @@ match classify_cast tfrom tto with
 | Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_i2l _ => 
+           tc_andp (tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto))
+             (if is_pointer_type tto then tc_iszero a else tc_TT)
 | Cop.cast_case_pointer  => 
            if eqb_type tfrom tto then tc_TT else
            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
@@ -604,7 +606,14 @@ match classify_cast tfrom tto with
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
 *)
       (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
-| Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_l2bool => 
+      if is_pointer_type tfrom
+      then tc_test_eq a (Econst_long Int64.zero (Tlong Unsigned noattr))
+      else tc_TT
+| Cop.cast_case_i2bool =>
+      if is_pointer_type tfrom
+      then tc_test_eq a (Econst_int Int.zero (Tint I32 Unsigned noattr))
+      else tc_TT
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
       | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
