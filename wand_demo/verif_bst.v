@@ -119,13 +119,15 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb := first [ rewrite if_trueb by (apply NPeano.Nat.ltb_lt; rewrite Nat2Z.inj_lt; omega)
                           | rewrite if_falseb by (apply NPeano.Nat.ltb_nlt; rewrite Nat2Z.inj_lt; omega)].
 
+Module insert_by_WandFrame.
+
+Import PartialTreeboxRep_WandFrame.
+
 Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpred :=
   EX p: val, EX t: tree val,
   PROP()
   LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
   SEP(treebox_rep t p;  (treebox_rep (insert x v t) p -* treebox_rep (insert x v t0) p0)).
-
-Import PartialTreeRep_WandFrame.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -140,7 +142,7 @@ Proof.
     unfold insert_inv.
     Intros p t.
     forward. (* Sskip *)
-    unfold treebox_rep at 1. Intros q.
+    rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
     + (* then clause *)
@@ -156,60 +158,140 @@ Proof.
       forward. (* q->right=NULL; *)
       assert_PROP (t = (@E _)).
         1: entailer!.
-      subst t. simpl tree_rep. rewrite !prop_true_andp by auto.
+      subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
-      apply modus_ponens_wand'.
-      apply treebox_rep_leaf; auto.
+      sep_apply (treebox_rep_leaf x q p v); auto.
+      apply treebox_rep_partial_treebox_rep.
     + (* else clause *)
-      destruct t.
-        { simpl tree_rep. normalize. }
-      simpl tree_rep.
-      Intros qa qb. clear H1.
+      destruct t; rewrite tree_rep_treebox_rep.
+      { normalize. }
+      Intros. clear H1.
       forward. (* y=q->key; *)
       forward_if; [ | forward_if ].
       - (* Inner if, then clause: x<k *)
         forward. (* p=&q->left *)
         unfold insert_inv.
-        Exists (offset_val 8 q) t1.
+        Exists (field_address t_struct_tree [StructField _left] q) t1.
         entailer!.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 8 q)
-          with (field_address t_struct_tree [StructField _left] q)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-        sep_apply (partial_treebox_rep_singleton_left t1 (insert x v t1) t2 k v0 qa qb q p); auto.
+        sep_apply (partial_treebox_rep_singleton_left (insert x v t1) t2 k v0 q p); auto.
         cancel; apply partial_treebox_rep_partial_tree_rep.
       - (* Inner if, second branch:  k<x *)
         forward. (* p=&q->right *)
         unfold insert_inv.
-        Exists (offset_val 12 q) t2.
+        Exists (field_address t_struct_tree [StructField _right] q) t2.
         entailer!.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 12 q)
-          with (field_address t_struct_tree [StructField _right] q)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply partial_treebox_rep_singleton_right; auto.
+        sep_apply (partial_treebox_rep_singleton_right t1 (insert x v t2) k v0 q p); auto.
+        cancel; apply partial_treebox_rep_partial_tree_rep.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x. clear H H1 H4.
         forward. (* q->value=value *)
         forward. (* return *)
-        (* TODO: SIMPLY THIS LINE *)
-        simpl_compb.
-        simpl_compb.
+        simpl_compb; simpl_compb.
         apply modus_ponens_wand'.
-        unfold treebox_rep. Exists q.
-        simpl tree_rep. Exists qa qb. entailer!.
+        rewrite (treebox_rep_spec (T _ _ _ _)).
+        Exists q; entailer!.
   * (* After the loop *)
     forward.
     unfold loop2_ret_assert. apply andp_left2. normalize. 
 Qed.
+
+End insert_by_WandFrame.
+
+Module insert_by_WandQFrame.
+
+Import PartialTreeboxRep_WandQFrame.
+
+Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpred :=
+  EX p: val, EX t: tree val, EX pt: partial_tree val,
+  PROP(partial_tree_tree pt (insert x v t) = (insert x v t0))
+  LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
+  SEP(treebox_rep t p;  partial_treebox_rep pt p0 p).
+
+Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
+Proof.
+  start_function.
+  eapply semax_pre; [
+    | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
+  * (* Precondition *)
+    unfold insert_inv.
+    Exists p0 t0 (@SearchTree_ext.H val). entailer.
+    cancel.
+    apply emp_partial_treebox_rep_H.
+  * (* Loop body *)
+    unfold insert_inv.
+    Intros p t pt.
+    forward. (* Sskip *)
+    rewrite treebox_rep_tree_rep at 1. Intros q.
+    forward. (* q = * p; *)
+    forward_if.
+    + (* then clause *)
+      subst q.
+      forward_call (sizeof t_struct_tree).
+        1: simpl; repable_signed.
+      Intros q.
+      rewrite memory_block_data_at_ by auto.
+      forward. (* q->key=x; *)
+      simpl.
+      forward. (* q->value=value; *)
+      forward. (* q->left=NULL; *)
+      forward. (* q->right=NULL; *)
+      assert_PROP (t = (@E _)).
+        1: entailer!.
+      subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
+      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+      forward. (* * p = q; *)
+      forward. (* return; *)
+      sep_apply (treebox_rep_leaf x q p v); auto.
+      rewrite <- H1. apply treebox_rep_partial_treebox_rep.
+    + (* else clause *)
+      destruct t; rewrite tree_rep_treebox_rep.
+      { normalize. }
+      Intros. clear H2.
+      forward. (* y=q->key; *)
+      forward_if; [ | forward_if ].
+      - (* Inner if, then clause: x<k *)
+        forward. (* p=&q->left *)
+        unfold insert_inv.
+        Exists (field_address t_struct_tree [StructField _left] q) t1 (partial_tree_partial_tree pt (SearchTree_ext.L SearchTree_ext.H k v0 t2)).
+        entailer!.
+       ** rewrite partial_tree_partial_tree_tree.
+          rewrite <- H1.
+          simpl; simpl_compb; auto.
+       ** sep_apply (partial_treebox_rep_singleton_left t2 k v0 q p); auto.
+          apply partial_treebox_rep_partial_tree_rep.
+      - (* Inner if, second branch:  k<x *)
+        forward. (* p=&q->right *)
+        unfold insert_inv.
+        Exists (field_address t_struct_tree [StructField _right] q) t2 (partial_tree_partial_tree pt (SearchTree_ext.R t1 k v0 SearchTree_ext.H)).
+        entailer!.
+       ** rewrite partial_tree_partial_tree_tree.
+          rewrite <- H1.
+          simpl; simpl_compb; simpl_compb; auto.
+       ** sep_apply (partial_treebox_rep_singleton_right t1 k v0 q p); auto.
+          cancel; apply partial_treebox_rep_partial_tree_rep.
+      - (* Inner if, third branch: x=k *)
+        assert (x=k) by omega.
+        subst x. clear H H2 H6.
+        forward. (* q->value=value *)
+        forward. (* return *)
+        rewrite <- H1.
+        simpl insert.
+        simpl_compb; simpl_compb.
+        Check partial_treebox_rep_partial_tree_rep. 
+        apply modus_ponens_wand'.
+        rewrite <- (treebox_rep_spec (T _ _ _ _)).
+        Exists q; entailer!.
+  * (* After the loop *)
+    forward.
+    unfold loop2_ret_assert. apply andp_left2. normalize. 
+Qed.
+
+
 
 Definition lookup_inv (q0: val) (t0: tree val) (x: Z): environ -> mpred :=
   EX q: val, EX t: tree val, 

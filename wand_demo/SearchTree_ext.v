@@ -1,4 +1,5 @@
 Require Import Perm.
+Require Import FunctionalExtensionality.
 Require Import VFA.SearchTree.
 
 Arguments E {V}.
@@ -54,7 +55,24 @@ Fixpoint partial_tree_partial_tree (pt: partial_tree): partial_tree -> partial_t
   | R t1 k v pt2 => fun pt0 => R t1 k v (partial_tree_partial_tree pt2 pt0)
   end.
 
+Lemma partial_tree_partial_tree_tree: forall pt1 pt2,
+  partial_tree_tree (partial_tree_partial_tree pt1 pt2) = Basics.compose (partial_tree_tree pt1) (partial_tree_tree pt2).
+Proof.
+  intros.
+  extensionality t.
+  unfold Basics.compose.
+  induction pt1.
+  + reflexivity.
+  + simpl.
+    rewrite IHpt1; auto.
+  + simpl.
+    rewrite IHpt1; auto.
+Qed.
+
 End PARTIAL_TREES.
 
+Arguments H {V}.
+Arguments L {V} _ _ _ _.
+Arguments R {V} _ _ _ _.
 Arguments partial_tree_tree {V} _ _.
 Arguments partial_tree_partial_tree {V} _ _.
