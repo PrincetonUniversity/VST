@@ -1,8 +1,10 @@
 Require Import VST.floyd.proofauto.
 Require Import VFA.Maps.
 Require Import VFA.SearchTree.
+Require Import WandDemo.SearchTree_ext.
 Require Import WandDemo.bst.
 Require Import WandDemo.bst_lemmas.
+Require Import WandDemo.VST_lemmas.
 
 Definition mallocN_spec :=
  DECLARE _mallocN
@@ -29,11 +31,11 @@ Definition freeN_spec :=
 
 Definition insert_spec :=
  DECLARE _insert
-  WITH p0: val, x: Z, v: val, t0: tree val
+  WITH p0: val, x: nat, v: val, t0: tree val
   PRE  [ _p OF (tptr (tptr t_struct_tree)), _x OF tint,
         _value OF (tptr Tvoid)   ]
-    PROP( Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-    LOCAL(temp _p p0; temp _x (Vint (Int.repr x)); temp _value v)
+    PROP( Int.min_signed <= Z.of_nat x <= Int.max_signed; is_pointer_or_null v)
+    LOCAL(temp _p p0; temp _x (Vint (Int.repr (Z.of_nat x))); temp _value v)
     SEP (treebox_rep t0 p0)
   POST [ Tvoid ] 
     PROP()
@@ -42,10 +44,10 @@ Definition insert_spec :=
 
 Definition lookup_spec :=
  DECLARE _lookup
-  WITH p0: val, x: Z, v: val, t0: tree val
+  WITH p0: val, x: nat, v: val, t0: tree val
   PRE  [ _p OF (tptr (tptr t_struct_tree)), _x OF tint  ]
-    PROP( Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _p p0; temp _x (Vint (Int.repr x)))
+    PROP( Int.min_signed <= Z.of_nat x <= Int.max_signed)
+    LOCAL(temp _p p0; temp _x (Vint (Int.repr (Z.of_nat x))))
     SEP (treebox_rep t0 p0)
   POST [ tptr Tvoid ]
     PROP()
@@ -54,33 +56,33 @@ Definition lookup_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
+  WITH ta: tree val, x: nat, vx: val, tb: tree val, y: nat, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
   PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
         _l OF (tptr (Tstruct _tree noattr)),
         _r OF (tptr (Tstruct _tree noattr))]
-    PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
+    PROP(Int.min_signed <= Z.of_nat x <= Int.max_signed; is_pointer_or_null vx)
     LOCAL(temp __l b; temp _l l; temp _r r)
     SEP (data_at Tsh (tptr t_struct_tree) l b;
-         data_at Tsh t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
+         data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat x)), (vx, (pa, r))) l;
          tree_rep ta pa;
          tree_rep (T tb y vy tc) r)
   POST [ Tvoid ] 
     EX pc: val,
-    PROP(Int.min_signed <= y <= Int.max_signed; is_pointer_or_null vy)
+    PROP(Int.min_signed <= Z.of_nat y <= Int.max_signed; is_pointer_or_null vy)
     LOCAL()
     SEP (data_at Tsh (tptr t_struct_tree) r b;
-         data_at Tsh t_struct_tree (Vint (Int.repr y), (vy, (l, pc))) r;
+         data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat y)), (vy, (l, pc))) r;
          tree_rep (T ta x vx tb) l;
          tree_rep tc pc).
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
-  WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val
+  WITH ta: tree val, x: nat, v: val, tb: tree val, b: val, p: val
   PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
-    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
+    PROP(Int.min_signed <= Z.of_nat x <= Int.max_signed; tc_val (tptr Tvoid) v)
     LOCAL(temp _t b)
     SEP (data_at Tsh (tptr t_struct_tree) p b;
-         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
+         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr (Z.of_nat x))) p;
          field_at Tsh t_struct_tree [StructField _value] v p;
          treebox_rep ta (field_address t_struct_tree [StructField _left] p);
          treebox_rep tb (field_address t_struct_tree [StructField _right] p))
@@ -91,10 +93,10 @@ Definition pushdown_left_spec :=
 
 Definition delete_spec :=
  DECLARE _delete
-  WITH b: val, x: Z, t: tree val
+  WITH b: val, x: nat, t: tree val
   PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint]
-    PROP( Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    PROP( Int.min_signed <= Z.of_nat x <= Int.max_signed)
+    LOCAL(temp _t b; temp _x (Vint (Int.repr (Z.of_nat x))))
     SEP (treebox_rep t b)
   POST [ Tvoid ] 
     PROP()
@@ -108,45 +110,22 @@ Definition Gprog : funspecs :=
     turn_left_spec; pushdown_left_spec; delete_spec
   ]).
 
-Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
-  P |-- P * (Q -* Q).
-Proof.
-  intros.
-  apply RAMIF_PLAIN.solve with emp.
-  + rewrite sepcon_emp; auto.
-  + rewrite emp_sepcon; auto.
-Qed.
-
-Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
-Proof.
-  intros.
-  destruct p; try contradiction; reflexivity.
-Qed.
-
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
-Proof.
-  intros.
-  eapply derives_trans; [| apply modus_ponens_wand].
-  apply sepcon_derives; [| apply derives_refl].
-  auto.
-Qed.
-
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
 Proof. intros; subst; auto. Qed.
 
 Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
 Proof. intros; subst; auto. Qed.
 
-Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
-                          | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+Ltac simpl_compb := first [ rewrite if_trueb by (apply NPeano.Nat.ltb_lt; rewrite Nat2Z.inj_lt; omega)
+                          | rewrite if_falseb by (apply NPeano.Nat.ltb_nlt; rewrite Nat2Z.inj_lt; omega)].
 
-Definition insert_inv (p0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
+Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpred :=
   EX p: val, EX t: tree val,
   PROP()
-  LOCAL(temp _p p; temp _x (Vint (Int.repr x));   temp _value v)
+  LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
   SEP(treebox_rep t p;  (treebox_rep (insert x v t) p -* treebox_rep (insert x v t0) p0)).
+
+Import PartialTreeRep_WandFrame.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -201,8 +180,8 @@ Proof.
           with (field_address t_struct_tree [StructField _left] q)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply bst_left_entail; auto.
+        sep_apply (partial_treebox_rep_singleton_left t1 (insert x v t1) t2 k v0 qa qb q p); auto.
+        cancel; apply partial_treebox_rep_partial_tree_rep.
       - (* Inner if, second branch:  k<x *)
         forward. (* p=&q->right *)
         unfold insert_inv.
@@ -215,7 +194,7 @@ Proof.
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
         apply RAMIF_PLAIN.trans'.
-        apply bst_right_entail; auto.
+        apply partial_treebox_rep_singleton_right; auto.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x. clear H H1 H4.

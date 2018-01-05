@@ -111,7 +111,9 @@ Proof.
   unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
 Qed.
 
-Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
+Module PartialTreeboxRep_WandFrame.
+
+Lemma partial_treebox_rep_singleton_left: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= Z.of_nat k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Tsh (tptr t_struct_tree) p b *
@@ -140,7 +142,7 @@ Proof.
   cancel.
 Qed.
 
-Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
+Lemma partial_treebox_rep_singleton_right: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
   Int.min_signed <= Z.of_nat k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Tsh (tptr t_struct_tree) p b *
@@ -169,4 +171,77 @@ Proof.
   cancel.
 Qed.
 
+Lemma partial_treebox_rep_partial_tree_rep: forall t1 t2 t3 p1 p2 p3,
+  (treebox_rep t1 p1 -* treebox_rep t2 p2) * (treebox_rep t2 p2 -* treebox_rep t3 p3) |-- treebox_rep t1 p1 -* treebox_rep t3 p3.
+Proof.
+  intros.
+  apply wand_frame_ver.
+Qed.
 
+End PartialTreeboxRep_WandFrame.
+
+Module PartialTreeboxRep_WandQFrame.
+
+Definition partial_treebox_rep (pt: partial_tree val) (p_root p_in: val): mpred :=
+  ALL t: tree val, treebox_rep t p_in -* treebox_rep (partial_tree_tree pt t) p_root.
+
+Lemma partial_treebox_rep_singleton_left: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat k)), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
+       (treebox_rep t1'
+         (field_address t_struct_tree [StructField _left] p) -*
+        treebox_rep (T t1' k v t2) b).
+Proof.
+  intros.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  unfold treebox_rep at 1. Exists p1. cancel.
+
+  rewrite <- wand_sepcon_adjoint.
+  clear p1.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p1.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  cancel.
+Qed.
+
+Lemma partial_treebox_rep_singleton_right: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat k)), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
+       (treebox_rep t2'
+         (field_address t_struct_tree [StructField _right] p) -*
+        treebox_rep (T t1 k v t2') b).
+Proof.
+  intros.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  unfold treebox_rep at 1. Exists p2. cancel.
+
+  rewrite <- wand_sepcon_adjoint.
+  clear p2.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p2.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  cancel.
+Qed.
+
+Lemma partial_treebox_rep_partial_tree_rep: forall t1 t2 t3 p1 p2 p3,
+  (treebox_rep t1 p1 -* treebox_rep t2 p2) * (treebox_rep t2 p2 -* treebox_rep t3 p3) |-- treebox_rep t1 p1 -* treebox_rep t3 p3.

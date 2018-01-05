@@ -55,3 +55,6 @@ Fixpoint partial_tree_partial_tree (pt: partial_tree): partial_tree -> partial_t
   end.
 
 End PARTIAL_TREES.
+
+Arguments partial_tree_tree {V} _ _.
+Arguments partial_tree_partial_tree {V} _ _.
