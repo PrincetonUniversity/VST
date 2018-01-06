@@ -411,11 +411,11 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tlong si2 _, Tfloat F64 _ => cast_case_f2l si2
   | Tlong si2 _, Tfloat F32 _ => cast_case_s2l si2
   | Tlong si2 _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
-      if Archi.ptr64 
-      then if eqb_type tfrom int_or_ptr_type 
+      if eqb_type tfrom int_or_ptr_type 
               then cast_case_default 
-              else cast_case_pointer 
-      else cast_case_i2l si2
+      else if Archi.ptr64 
+         then cast_case_pointer 
+         else cast_case_i2l si2
   (* To [float] *)
   | Tfloat F64 _, Tint sz1 si1 _ => cast_case_i2f si1
   | Tfloat F32 _, Tint sz1 si1 _ => cast_case_i2s si1

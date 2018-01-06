@@ -43,63 +43,53 @@ rewrite semax_unfold in H0, H1 |- *.
 intros.
 specialize (H0 psi _ _ TS HGG Prog_OK k F).
 specialize (H1 psi _ _ TS HGG Prog_OK k F).
-spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
-left; clear - H5.
-unfold modifiedvars. simpl.
+spec H0.  {
+  intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
+  left; clear - H5.
+ unfold modifiedvars. simpl.
  apply modifiedvars'_union. left; apply H5.
-spec H1. intros i te' ?.  apply H2; simpl; auto.
+}
+spec H1. {
+ intros i te' ?.  apply H2; simpl; auto.
  clear - H4; intros i0; destruct (H4 i0); intuition.
  left.
  unfold modifiedvars. simpl.
  apply modifiedvars'_union. right; apply H.
+}
 assert (H3then: app_pred
-       (rguard Espec psi (exit_tycon c Delta')  (frame_ret_assert R F) k) w).
-clear - H3.
-intros ek vl tx vx; specialize (H3 ek vl tx vx).
-cbv beta in H3.
-eapply subp_trans'; [ | apply H3].
-apply derives_subp; apply andp_derives; auto.
-(*Focus 2. {
-  unfold exit_tycon; destruct ek; auto; simpl.
-  intro; simpl.
-  rewrite join_tycon_guard_genv.
-  auto.
-} Unfocus.
-*)
-apply andp_derives; auto.
-unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? [? ?]; split; auto.
-apply typecheck_environ_join1; auto.
-repeat rewrite var_types_update_tycon. auto.
-repeat rewrite glob_types_update_tycon. auto.
-destruct (current_function k); destruct H0; split; auto.
-rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
-repeat rewrite funassert_exit_tycon in *; auto.
+       (rguard Espec psi (exit_tycon c Delta')  (frame_ret_assert R F) k) w). {
+ clear - H3.
+ intros ek vl tx vx; specialize (H3 ek vl tx vx).
+ cbv beta in H3.
+ eapply subp_trans'; [ | apply H3].
+ apply derives_subp; apply andp_derives; auto.
+ apply andp_derives; auto.
+ unfold exit_tycon; simpl. destruct ek; simpl; auto.
+ intros ? [? ?]; split; auto.
+ apply typecheck_environ_join1; auto.
+ repeat rewrite var_types_update_tycon. auto.
+ repeat rewrite glob_types_update_tycon. auto.
+ destruct (current_function k); destruct H0; split; auto.
+ rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
+ repeat rewrite funassert_exit_tycon in *; auto.
+}
 assert (H3else: app_pred
-       (rguard Espec psi (exit_tycon d Delta') (frame_ret_assert R F) k) w).
-clear - H3.
-intros ek vl tx vx; specialize (H3 ek vl tx vx).
-eapply subp_trans'; [ | apply H3].
-apply derives_subp; apply andp_derives; auto.
-(*
-Focus 2. {
-  unfold exit_tycon; destruct ek; auto; simpl.
-  intro; simpl.
-  rewrite join_tycon_guard_genv.
-  rewrite !update_tycon_guard_genv.
-  auto.
-} Unfocus.
-*)
-apply andp_derives; auto.
-unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? [? ?]; split; auto.
-apply typecheck_environ_join2 with Delta'; auto;
+       (rguard Espec psi (exit_tycon d Delta') (frame_ret_assert R F) k) w). {
+ clear - H3.
+ intros ek vl tx vx; specialize (H3 ek vl tx vx).
+ eapply subp_trans'; [ | apply H3].
+ apply derives_subp; apply andp_derives; auto.
+ apply andp_derives; auto.
+ unfold exit_tycon; simpl. destruct ek; simpl; auto.
+ intros ? [? ?]; split; auto.
+ apply typecheck_environ_join2 with Delta'; auto;
   apply tycontext_evolve_update_tycon.
-repeat rewrite var_types_update_tycon. auto.
-repeat rewrite glob_types_update_tycon. auto.
-destruct (current_function k); destruct H0; split; auto.
-rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
-repeat rewrite funassert_exit_tycon in *; auto.
+ repeat rewrite var_types_update_tycon. auto.
+ repeat rewrite glob_types_update_tycon. auto.
+ destruct (current_function k); destruct H0; split; auto.
+ rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
+ repeat rewrite funassert_exit_tycon in *; auto.
+}
 specialize (H0 H3then).
 specialize (H1 H3else).
 clear Prog_OK H3 H3then H3else.
@@ -112,23 +102,21 @@ revert a'.
 apply fash_derives.
 intros w [? ?].
 intros ?w ? [[?TC  ?] ?].
-assert (typecheck_environ Delta rho) as TC_ENV.
-Focus 1. {
+assert (typecheck_environ Delta rho) as TC_ENV. {
   destruct TC as [TC _].
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 apply extend_sepcon_andp in H4; auto.
 destruct H4 as [TC2 H4].
 pose proof TC2 as TC2'.
 apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
-(*hnf in TC2'.*)
 destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
-assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2'). {
+assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2').
  unfold tc_expr in TC2'.
  simpl in TC2'.
  rewrite denote_tc_assert_andp in TC2'.
@@ -139,11 +127,19 @@ clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
  unfold Cop.bool_val;
  destruct (eval_expr b rho) eqn:H15;
  simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
-    intuition; simpl in *; try rewrite TCS; eauto;
+    intuition; simpl in *; try rewrite TCS; eauto.
+all: 
+rewrite denote_tc_assert_andp in TC2'; destruct TC2' as [TC2'' TC2'];
  rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
- simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2';
- subst; rewrite tc_test_eq0; eauto.
-} clear TCS.
+ simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2'.
+all: destruct Archi.ptr64 eqn:Hp; try contradiction;
+simpl in TC2'; destruct TC2'; subst; eauto;
+ rewrite tc_test_eq0; eauto;
+ try (eexists; reflexivity).
+ simpl; rewrite Hp.
+split; auto.
+}
+clear TCS.
 (* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.
@@ -164,6 +160,7 @@ replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H10; omega).
 eapply @age_safe; try apply H10.
 rewrite <- Hge in *.
 destruct b'.
+*
 eapply H0; auto.
 split; auto.
 split; auto.
@@ -175,16 +172,20 @@ unfold tc_expr in TC2.
  destruct TC2 as [TC2 TC2a].
 rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
-clear - H9 TC2.
+eapply typecheck_expr_sound in TC2a; eauto.
+clear - H9 TC2 TC2a.
 unfold typed_true, strict_bool_val.
-destruct (eval_expr b rho) eqn:H16,
- (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
- simpl in *; inv H9; auto;
- rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
- simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_test_eq in TC2;
- rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2;
- subst; rewrite Int.eq_true; reflexivity.
+ unfold Cop.bool_val;
+ destruct (eval_expr b rho) eqn:H16;
+ simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+   try contradiction;
+    intuition; simpl in *; try rewrite TCS; eauto;
+try (rewrite denote_tc_assert_andp in TC2; destruct TC2 as [TC2'' TC2]);
+ try (rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
+ simpl in TC2; unfold_lift in TC2; rewrite H16 in TC2);
+ destruct Archi.ptr64 eqn:Hp; try contradiction.
+simpl in TC2; rewrite Hp in TC2; simpl in TC2; destruct TC2; subst; eauto.
+*
 eapply H1; auto.
 split; auto.
 split; auto.
@@ -195,20 +196,25 @@ unfold tc_expr in TC2.
  simpl in TC2.
  rewrite denote_tc_assert_andp in TC2.
  destruct TC2 as [TC2 TC2a].
-clear - H9 TC2.
-unfold typed_false, strict_bool_val.
-destruct (eval_expr b rho) eqn:H16,
- (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
- simpl in *; inv H9; auto;
- try (rewrite negb_false_iff in H0; rewrite H0); auto.
- rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
- simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_test_eq in TC2;
- rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2.
- unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
- unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
- unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
-}
+eapply typecheck_expr_sound in TC2a; eauto.
+clear - H9 TC2 TC2a.
+unfold typed_true, strict_bool_val.
+ unfold Cop.bool_val;
+ destruct (eval_expr b rho) eqn:H16;
+ simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+   try contradiction;
+    intuition; simpl in *; try rewrite TCS; eauto;
+try (rewrite denote_tc_assert_andp in TC2; destruct TC2 as [TC2'' TC2]);
+ try (rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
+ simpl in TC2; unfold_lift in TC2; rewrite H16 in TC2);
+ destruct Archi.ptr64 eqn:Hp; try contradiction.
+simpl in TC2; rewrite Hp in TC2; simpl in TC2; destruct TC2; subst; eauto.
+unfold Cop.bool_val in H9.
+unfold typed_false.
+unfold classify_bool in H9.
+simpl in H9.
+rewrite Hp in H9.
+if_tac in H9; inv H9.
 Qed.
 (*
 Lemma seq_assoc1:

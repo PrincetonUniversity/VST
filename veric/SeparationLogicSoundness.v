@@ -41,7 +41,7 @@ Axiom semax_prog_rule :
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
@@ -57,7 +57,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  exp (fun b: block => andp (prop (v = Vptr b Int.zero)) (func_at f (b, 0))).
+  exp (fun b: block => andp (prop (v = Vptr b Ptrofs.zero)) (func_at f (b, 0))).
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 

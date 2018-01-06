@@ -178,20 +178,28 @@ Definition test_order_ptrs v1 v2 : mpred :=
   else FF.
 
 Definition denote_tc_test_eq v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => 
+     if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => 
+     if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vint i, Vptr _ _ =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+ | Vlong i, Vptr _ _ =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v2) else FF
  | Vptr _ _, Vint i =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+ | Vptr _ _, Vlong i =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v1) else FF
  | Vptr _ _, Vptr _ _ =>
       test_eq_ptrs v1 v2
  | _, _ => FF
  end.
 
 Definition denote_tc_test_order v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vptr _ _, Vptr _ _ =>
       test_order_ptrs v1 v2
  | _, _ => FF
@@ -233,6 +241,12 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
 (* END from expr2.v *)
+
+Definition cast_pointer_to_bool t1 t2 :=
+ match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+           match t2 with Tint IBool _ _ => true | _ => false end
+ | _ => false
+end.
 
 Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : option ident :=
  match dl with
@@ -309,10 +323,10 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
      | Vptr b ofs =>
        if readable_share_dec sh
        then (!!tc_val t v2 &&
-             res_predicates.address_mapsto ch v2 sh (b, Int.unsigned ofs)) ||
+             res_predicates.address_mapsto ch v2 sh (b, Ptrofs.unsigned ofs)) ||
             (!! (v2 = Vundef) &&
-             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Int.unsigned ofs))
-       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Int.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
+             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))
+       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Ptrofs.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -325,7 +339,7 @@ Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n)
-                          (b, Int.unsigned z)
+                          (b, Ptrofs.unsigned z)
   | _ => TT
   end.
 
@@ -384,7 +398,7 @@ Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
   | Some b => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Int.zero) rho
+                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Ptrofs.zero) rho
  end.
 
 Definition globvars2pred (vl: list (ident * globvar type)) : environ->mpred :=
@@ -411,7 +425,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Int.unsigned ofs + n < Int.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 
@@ -429,9 +443,9 @@ Lemma memory_block_split:
   0 <= n ->
   0 <= m ->
   n + m <= n + m + ofs < Int.modulus ->
-  memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
-  memory_block sh n (Vptr b (Int.repr ofs)) *
-  memory_block sh m (Vptr b (Int.repr (ofs + n))).
+  memory_block sh (n + m) (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh n (Vptr b (Ptrofs.repr ofs)) *
+  memory_block sh m (Vptr b (Ptrofs.repr (ofs + n))).
 Proof. exact mapsto_memory_block.memory_block_split. Qed.
 
 Lemma mapsto_share_join:
@@ -463,7 +477,7 @@ Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
   sepalg.nonunit sh ->
-  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
 intros.
@@ -473,13 +487,13 @@ Qed.
 (* TODO: merge size_compatible and align_compatible *)
 Definition align_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Int.unsigned i_ofs)
+  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Ptrofs.unsigned i_ofs)
   | _ => True
   end.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t < Int.modulus
+  | Vptr b i_ofs => Ptrofs.unsigned i_ofs + sizeof t < Ptrofs.modulus
   | _ => True
   end.
 
@@ -497,8 +511,8 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
 Proof. exact @memory_block_valid_pointer. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Int.modulus ->
-  Int.unsigned ofs+n < Int.modulus ->
+  0 <= n < Ptrofs.modulus ->
+  Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).
@@ -547,18 +561,19 @@ Proof. exact mapsto_memory_block.mapsto_mapsto__int32. Qed.
 
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
+       Archi.ptr64 = false ->
              mapsto sh tint v nullval =
              mapsto sh (tptr t) v nullval.
 Proof. exact mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
-| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
 | None => Vundef
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) : environ -> mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (sizeof (snd idt) <= Ptrofs.max_unsigned) &&
   `(memory_block sh (sizeof (snd idt)))
              (eval_lvar (fst idt) (snd idt)).
 
@@ -681,7 +696,7 @@ Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
                       (prog_vars prog) = true.
 
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
@@ -754,7 +769,7 @@ Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 =>
   if peq b b1 then
-    Val.of_bool (Int.cmpu c o o1)
+    Val.of_bool (Ptrofs.cmpu c o o1)
   else
     match Val.cmp_different_blocks c with
     | Some b => Val.of_bool b
@@ -979,14 +994,14 @@ apply H0; auto.
 
 Lemma rel_lvalue_local: forall {CS: compspecs} id ty b P rho,
                  P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
-                 P |-- rel_lvalue (Evar id ty) (Vptr  b Int.zero) rho.
+                 P |-- rel_lvalue (Evar id ty) (Vptr  b Ptrofs.zero) rho.
 Proof.
 intros. intros ? ?. constructor.  specialize (H _ H0). apply H.
 Qed.
 
 Lemma rel_lvalue_global: forall {CS: compspecs} id ty b P rho,
               P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
-              P |-- rel_lvalue (Evar id ty) (Vptr b Int.zero) rho.
+              P |-- rel_lvalue (Evar id ty) (Vptr b Ptrofs.zero) rho.
 Proof.
 intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
 Qed.
@@ -1001,7 +1016,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
                cenv_cs ! id = Some co ->
                field_offset cenv_cs i (co_members co) = Errors.OK delta ->
                P |-- rel_lvalue a (Vptr b z) rho ->
-               P |-- rel_lvalue (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
+               P |-- rel_lvalue (Efield a i ty) (Vptr b (Ptrofs.add z (Ptrofs.repr delta))) rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
@@ -1207,7 +1222,7 @@ Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Int.zero) && seplog.func_at f (b, 0).
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
 
 Axiom semax_call :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -1308,7 +1323,7 @@ Axiom semax_cast_load :
   forall {Espec: OracleKind}{CS: compspecs},
 forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
-    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
+   cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
     local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax CS Espec Delta

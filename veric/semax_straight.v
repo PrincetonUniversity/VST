@@ -95,8 +95,8 @@ Qed.
 Definition force_valid_pointers m v1 v2 :=
 match v1, v2 with
 | Vptr b1 ofs1, Vptr b2 ofs2 =>
-    (Mem.valid_pointer m b1 (Int.unsigned ofs1) &&
-    Mem.valid_pointer m b2 (Int.unsigned ofs2))%bool
+    (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs1) &&
+    Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2))%bool
 | _, _ => false
 end.
 
@@ -131,7 +131,7 @@ Qed.
 Lemma mapsto_valid_pointer : forall b o sh t jm,
  nonidentity sh ->
 (mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
-Mem.valid_pointer (m_dry jm) b (Int.unsigned o) = true.
+Mem.valid_pointer (m_dry jm) b (Ptrofs.unsigned o) = true.
 intros. rename H into N.
 
 destruct H0. destruct H. destruct H. destruct H0.
@@ -141,24 +141,24 @@ destruct (readable_share_dec sh) as [H2 | H2].
 rename H2 into RS.
 destruct (access_mode t); try solve [ inv H0].
 destruct (type_is_volatile t) eqn:VOL; try contradiction.
-assert (exists v,  address_mapsto m v sh (b, Int.unsigned o) x).
+assert (exists v,  address_mapsto m v sh (b, Ptrofs.unsigned o) x).
 destruct H0.
 econstructor; apply H0. destruct H0 as [_ [v2' H0]]; exists v2'; apply H0.
 clear H0; destruct H2 as [x1 H0].
 
-pose proof mapsto_core_load m x1 sh (b, Int.unsigned o) (m_phi jm). 
+pose proof mapsto_core_load m x1 sh (b, Ptrofs.unsigned o) (m_phi jm). 
 
 destruct H2. simpl; eauto.
 simpl in H2.
 destruct H2.
-specialize (H3 (b, Int.unsigned o)).
+specialize (H3 (b, Ptrofs.unsigned o)).
 if_tac in H3.
 destruct H3.  destruct H3. 
 
 rewrite valid_pointer_nonempty_perm.
 unfold perm.
 
-assert (JMA := juicy_mem_access jm (b, Int.unsigned o)).
+assert (JMA := juicy_mem_access jm (b, Ptrofs.unsigned o)).
 unfold access_at in *. simpl in JMA.
 unfold perm_of_res in *.
 rewrite H3 in JMA. simpl in JMA.
@@ -173,19 +173,19 @@ destruct m; simpl; omega.
 destruct (access_mode t) eqn:?; try contradiction.
 if_tac in H0; [inversion H0 |].
 destruct H0 as [_ ?].
-specialize (H0 (b, Int.unsigned o)).
+specialize (H0 (b, Ptrofs.unsigned o)).
 simpl in H0.
 rewrite if_true in H0
  by (split; auto; pose proof (size_chunk_pos m); omega).
 clear H1.
-pose proof (resource_at_join _ _ _ (b, Int.unsigned o) H).
+pose proof (resource_at_join _ _ _ (b, Ptrofs.unsigned o) H).
 unfold resource_share in H0.
-rewrite <- (Z.add_0_r (Int.unsigned o)).
+rewrite <- (Z.add_0_r (Ptrofs.unsigned o)).
 apply (valid_pointer_dry b o 0 jm).
 hnf.
 rewrite Z.add_0_r.
 destruct H0.
-destruct  (x @ (b, Int.unsigned o)); inv H0; inv H1; simpl; auto.
+destruct  (x @ (b, Ptrofs.unsigned o)); inv H0; inv H1; simpl; auto.
 intro.
 apply split_identity in RJ; auto.
 Qed.
@@ -245,7 +245,7 @@ forget (typeof e1) as t1.
 forget (typeof e2) as t2.
 clear e1 e2 H3 H4.
 unfold Cop.sem_cmp, Cop.sem_binarith; simpl.
-
+unfold  cmp_ptr, Val.cmpu_bool, Val.cmplu_bool.
 rewrite MT_1, MT_2.
 simpl.
 clear MT_1 MT_2.
@@ -263,10 +263,12 @@ unfold sem_binary_operation', sem_cmp.
 rewrite NE1,NE2.
 destruct cmp; 
 inv H; subst; simpl;
-unfold Cop.sem_cmp, sem_cmp_pp; simpl;
+unfold Cop.sem_cmp, sem_cmp_pp, cmp_ptr, Val.cmpu_bool, Val.cmplu_bool; simpl;
 try rewrite MT_1; try rewrite MT_2; simpl;
+destruct Archi.ptr64  eqn:Hp;
 try rewrite if_true by auto;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
+all: simpl; destruct (eq_block x3 x5); try reflexivity.
 Qed.
 
 Lemma is_int_of_bool:
@@ -317,18 +319,16 @@ destruct (access_mode t2) eqn:?A2;
  try solve [simpl in H6; contradiction].
 destruct t1 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence];
 destruct t2 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
-unfold sem_cmp. unfold sem_cmp_pp.
+unfold sem_cmp, sem_cmp_pp, cmp_ptr, Val.cmpu_bool, Val.cmplu_bool.
 rewrite NE1,NE2.
+destruct Archi.ptr64 eqn:Hp;
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
 if_tac; auto; simpl; try of_bool_destruct; auto;
 try apply is_int_of_bool.
 
 Transparent Int.repr.
-destruct i3,s3; simpl; auto;
-compute; try split; congruence.
-destruct i3,s3; simpl; auto;
-compute; try split; congruence.
+all: destruct i3,s3; simpl; auto; compute; try split; congruence.
 Opaque Int.repr.
 Qed.
 
@@ -1169,7 +1169,7 @@ split; [split3 | ].
    destruct (type_is_volatile (typeof e1)); try contradiction.
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; exfalso; revert TC3; apply tc_val_Vundef].
-   assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
+   assert (core_load ch  (b, Ptrofs.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
@@ -1222,7 +1222,8 @@ Qed.
 Lemma semax_cast_load {CS: compspecs}:
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
-   classify_cast (typeof e1) t1 <> cast_case_p2bool ->
+   cast_pointer_to_bool (typeof e1) t1 = false ->
+(*   classify_cast (typeof e1) t1 <> cast_case_p2bool -> *)
     readable_share sh ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
     semax Espec Delta
@@ -1292,27 +1293,29 @@ unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
 simpl.
 apply TC3.
+(*
+assert (Tv2: tc_val (typeof e1) (v2 rho)). {
+ clear - H99' 
+ *)
 split; [split3 | ].
 *   rewrite <- (age_jm_dry H); constructor; auto.
   destruct (sem_cast (typeof e1) t1 (v2 rho)) eqn:EC.
   2: elimtype False; clear - EC TC3;
     unfold eval_cast, force_val1 in TC3; rewrite EC in TC3;
     destruct t1; try destruct f; try if_tac in TC3; contradiction.
-  econstructor.
-  eapply Clight.eval_Elvalue; eauto.
-  2: apply sem_cast_e1; auto;
-      unfold eval_cast, force_val1; rewrite !EC; reflexivity.
-   destruct H0 as [H0 _].
-   assert ((|> (F rho * P rho))%pred (m_phi jm)).
-   rewrite later_sepcon.
-   eapply sepcon_derives; try apply H0; auto.
-   specialize (H3 _ (age_laterR (age_jm_phi H))).
-   rewrite sepcon_comm in H3.
-   assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
-   rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
-   eapply sepcon_derives; try apply H3; auto.
-   eapply derives_trans; [ | apply H99'].
-   apply andp_right; auto. intros ? _ ; do 3 red. destruct TC'; auto.
+  destruct H0 as [H0 _].
+   assert ((|> (F rho * P rho))%pred (m_phi jm)). {
+    rewrite later_sepcon.
+    eapply sepcon_derives; try apply H0; auto.
+  }
+  specialize (H3 _ (age_laterR (age_jm_phi H))).
+  rewrite sepcon_comm in H3.
+  assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)). {
+    rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
+    eapply sepcon_derives; try apply H3; auto.
+    eapply derives_trans; [ | apply H99'].
+    apply andp_right; auto. intros ? _ ; do 3 red. destruct TC'; auto.
+ }
    clear H3; rename H4 into H3.
    destruct H3 as [m1 [m2 [? [? _]]]].
    unfold mapsto in H4.
@@ -1323,7 +1326,11 @@ split; [split3 | ].
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; exfalso; revert TC3; apply tc_val_Vundef].
-   assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
+   apply Clight.eval_Ecast with (v2 rho).
+  2: apply sem_cast_e1; auto;
+      unfold eval_cast, force_val1; rewrite !EC; reflexivity.
+   eapply Clight.eval_Elvalue; eauto.
+   assert (core_load ch  (b, Ptrofs.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
@@ -1389,15 +1396,15 @@ Lemma writable_lub_retainer_Rsh:
 Qed.
 
 Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable_share sh) b ofs v' my,
-       (address_mapsto ch v sh (b, Int.unsigned ofs) * exactly my)%pred (m_phi jm) ->
+       (address_mapsto ch v sh (b, Ptrofs.unsigned ofs) * exactly my)%pred (m_phi jm) ->
        decode_val ch (encode_val ch v') = v' ->
        exists m',
-       {H: Mem.store ch (m_dry jm) b (Int.unsigned ofs) v' = Some m'|
-       (address_mapsto ch v' sh (b, Int.unsigned ofs) * exactly my)%pred 
+       {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
+       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * exactly my)%pred 
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
 intros. rename H0 into DE.
-destruct (mapsto_can_store ch v sh wsh b (Int.unsigned ofs) jm v') as [m' STORE]; auto.
+destruct (mapsto_can_store ch v sh wsh b (Ptrofs.unsigned ofs) jm v') as [m' STORE]; auto.
 eapply sepcon_derives; eauto.
 exists m'.
 exists STORE.
@@ -1405,7 +1412,7 @@ pose proof I.
 destruct H as [m1 [m2 [? [? Hmy]]]].
 do 3 red in Hmy.
 assert (H2 := I); assert (H3 := I).
-forget (Int.unsigned ofs) as i. clear ofs.
+forget (Ptrofs.unsigned ofs) as i. clear ofs.
 pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
                       then YES (Share.lub (res_retain (m1 @ loc)) Share.Rsh) 
                                (readable_share_lub (writable_readable_share writable_Rsh))
@@ -1529,6 +1536,7 @@ simpl in *; (*try destruct i; try destruct s; try destruct f;*)
  destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
  try solve [inv H];
 unfold Cop.sem_cast; simpl;
+destruct Archi.ptr64 eqn:Hp;
 try destruct (Float.to_int f);
 try destruct (Float.to_intu f);
 try destruct (Float.to_long f);
@@ -1541,6 +1549,8 @@ try destruct (Float32.to_longu f);
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto].
+
+all: inversion Hp.  (* Archi.ptr64 DEPENDENCY *)
 Qed.
 
 
@@ -1600,16 +1610,16 @@ destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 rewrite if_true in H4 by auto.
 assert (exists v, address_mapsto ch v 
              sh (*(Share.lub (retainer_part sh) Share.Rsh)*)
-        (b0, Int.unsigned i) w1)
+        (b0, Ptrofs.unsigned i) w1)
        by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].
 
 assert (H11': (res_predicates.address_mapsto ch v3 sh
-        (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
+        (b0, Ptrofs.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
 assert (H11: (res_predicates.address_mapsto ch v3  sh
-        (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 sh (b0,Int.unsigned i)); unfold precise; intro.
+        (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
+generalize (address_mapsto_precise ch v3 sh (b0,Ptrofs.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].
@@ -1644,7 +1654,8 @@ unfold tc_lvalue in TC1. simpl in TC1.
 auto.
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm)))).
 rewrite (age_jm_dry Hage).
-rewrite cop2_sem_cast' by (auto; admit).
+rewrite cop2_sem_cast'; auto.
+2: eapply typecheck_expr_sound; eauto.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
 apply Hmode.
@@ -1697,18 +1708,22 @@ destruct TC4 as [TC4 _].
 
 rewrite Hmode.
 rewrite He1'. 
-rewrite cop2_sem_cast' by (auto; admit).
+*
+rewrite cop2_sem_cast'; auto.
+2: eapply typecheck_expr_sound; eauto.
 rewrite NONVOL.
 rewrite if_true by auto.
 apply orp_right1.
 apply andp_right.
-intros ? ?. eapply tc_val_sem_cast; eauto; admit.
+intros ? ?.
+eapply tc_val_sem_cast; eauto.
 intros ? ?. apply H2.
+*
 intros ? ?.
 do 3 red in H2.
 destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
-Admitted.
+Qed.
 
 Require Import VST.veric.expr_rel.
 
@@ -1845,7 +1860,7 @@ destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 destruct v1; try contradiction.
 rename i into z. rename b into b0.
 rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v sh (b0, Int.unsigned z) w1)
+assert (exists v, address_mapsto ch v sh (b0, Ptrofs.unsigned z) w1)
   by (destruct H4 as [[? H4] | [_ [? ?]]]; eauto).
 clear v0 H4; destruct H2 as [v3 H4].
 assert (He1 := rel_lvalue_relate ge te ve rho e1 _ _ _ HGG' Hge E1).
@@ -1854,11 +1869,11 @@ assert (He2 := rel_expr_relate ge te ve rho _ _ _ HGG' Hge E2).
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 
 assert (H11': (res_predicates.address_mapsto ch v3 sh
-        (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
+        (b0, Ptrofs.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
 assert (H11: (res_predicates.address_mapsto ch v3  sh
-        (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 sh (b0,Int.unsigned i)); unfold precise; intro.
+        (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
+generalize (address_mapsto_precise ch v3 sh (b0,Ptrofs.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].

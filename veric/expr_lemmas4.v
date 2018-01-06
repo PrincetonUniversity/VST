@@ -324,15 +324,20 @@ try rewrite (proj2 (eqb_type_false _ _) H);
 reflexivity.
 Qed.
 
+Definition cast_pointer_to_bool t1 t2 :=
+ match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+           match t2 with Tint IBool _ _ => true | _ => false end
+ | _ => false
+end.
 
 Lemma sem_cast_e1:
  forall t t1 v1 v m,
-   match v with Vptr b ofs => Mem.weak_valid_pointer m b (Ptrofs.unsigned ofs) = true| _ => True end ->
    sem_cast t t1 v = Some v1 ->
-   classify_cast t t1 <> cast_case_i2bool ->
+   cast_pointer_to_bool t t1 = false ->
+   tc_val t v ->
    Cop.sem_cast v t t1 m = Some v1.
 Proof.
-intros ? ? ? ? ? Hv ? ?.
+intros.
 destruct (eqb_type t int_or_ptr_type) eqn:J;
  [apply eqb_type_true in J; subst t
  | apply eqb_type_false in J];
@@ -341,18 +346,18 @@ destruct (eqb_type t int_or_ptr_type) eqn:J;
  | apply eqb_type_false in J0]).
 * auto.
 *
-unfold sem_cast in H.
+unfold sem_cast, classify_cast in H.
+rewrite eqb_type_refl in H.
 destruct t1; auto.
 destruct i,s; auto; try solve [destruct v; inv H];
 destruct (classify_cast int_or_ptr_type (Tint IBool Signed a)) eqn:J;
  try congruence; inv J. (* contradiction H0. reflexivity. *)
+inv H.
 destruct f; inv H.
 clear H0.
-unfold classify_cast in H.
 unfold int_or_ptr_type at 1 in H.
 rewrite (proj2 (eqb_type_false _ _) J0) in H.
-rewrite eqb_type_refl in H.
-unfold eqb in H. inv H.
+inv H.
 *
 unfold sem_cast in H.
 destruct t; try solve [inv H].
@@ -363,60 +368,53 @@ rewrite (proj2 (eqb_type_false _ _) J) in H.
 inv H.
 *
 rewrite <- H.
-clear - J J0 H0 Hv.
+clear - J J0 H0 H1.
 unfold Cop.sem_cast, sem_cast.
-unfold Cop.classify_cast, classify_cast, sem_cast_pointer, sem_cast_l2bool, sem_cast_i2bool.
+unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
+ sem_cast_l2bool, sem_cast_i2bool.
 rewrite ?(proj2 (eqb_type_false _ _) J);
 rewrite ?(proj2 (eqb_type_false _ _) J0).
-destruct t; auto; destruct t1; auto;
- try destruct i; try destruct s; auto; 
- try destruct i0; try destruct s0; auto;
- try destruct f; auto; try destruct f0; auto;
-auto; try (contradiction H0; reflexivity).
-destruct v; auto.
-rewrite Hv.
-auto.
-destruct v; auto.
-rewrite Hv.
-auto.
+destruct t1   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminate H0;
+ auto;
+ destruct Archi.ptr64 eqn:Hp; auto;
+ destruct v; auto; try contradiction.
 Qed.
 
 Lemma cop2_sem_cast' :
     forall {CS: compspecs} t2 e rho m,
  (denote_tc_assert (isCastResultType (typeof e) t2 e) rho) (m_phi m) ->
-  typeof e <> int_or_ptr_type ->
-  t2 <> int_or_ptr_type ->
   tc_val (typeof e) (eval_expr e rho) ->
  Cop.sem_cast (eval_expr e rho) (typeof e) t2 (m_dry m) =
  sem_cast (typeof e) t2 (eval_expr e rho).
-
 Proof.
 intros.
-unfold Cop.sem_cast, sem_cast.
-assert (H6: Cop.classify_cast (typeof e) t2 = classify_cast (typeof e) t2). {
-  clear - H0 H1.
-  apply eqb_type_false in H0.
-  apply eqb_type_false in H1.
-  destruct (typeof e); auto; destruct t2; auto;
-  unfold Cop.classify_cast, classify_cast; auto; rewrite ?H0,?H1; auto.
-}
-rewrite H6 in *; clear H6.
 rewrite isCastR in H.
-destruct (classify_cast (typeof e) t2) eqn:CC;
-destruct (eval_expr e rho) eqn:Hv; try reflexivity.
-destruct (is_pointer_type (typeof e)) eqn:PT.
-rewrite denote_tc_assert_test_eq' in H.
-simpl in H. unfold denote_tc_test_eq in H. unfold_lift in H.
-rewrite Hv in H.
-destruct Archi.ptr64 eqn:Hp; auto; try contradiction.
-destruct H as [_ H].
-apply weak_valid_pointer_dry in H.
-unfold Mem.weak_valid_pointer.
-rewrite H. reflexivity.
-destruct (typeof e); try destruct f; try discriminate PT; try contradiction.
-unfold is_pointer_type in PT.
-rewrite <- eqb_type_false in H0. rewrite H0 in PT. inv PT.
-Qed. 
+destruct (typeof e)   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; 
+try contradiction.
+all: try solve [ destruct (eval_expr e rho); try contradiction; reflexivity].
+all: (*try solve [*)
+unfold classify_cast, is_pointer_type in H;
+unfold sem_cast, classify_cast;
+unfold tc_val, is_pointer_or_null in H0;
+repeat match type of H with context [eqb_type ?A int_or_ptr_type] =>
+  destruct (eqb_type A int_or_ptr_type) eqn:?J; try contradiction
+end;
+simpl; destruct Archi.ptr64 eqn:Hp; simpl in H;
+destruct (eval_expr e rho) eqn:?; try contradiction; subst; try reflexivity.
+all: simpl.
+all: try solve [
+
+rewrite denote_tc_assert_test_eq' in H;
+simpl in H;
+unfold_lift in H;
+unfold denote_tc_test_eq in H;
+rewrite Heqv, Hp in H; destruct H;
+apply weak_valid_pointer_dry in H1;
+unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
+all: rewrite Hp; auto.
+Qed.
 
 (*
 Lemma cop2_sem_cast'': 
@@ -424,9 +422,46 @@ Lemma cop2_sem_cast'':
  app_pred (denote_tc_assert (isCastResultType (typeof e) t e) rho)
   (m_phi m) ->
  sem_cast (typeof e) t (eval_expr e rho) = Some v ->
+ t <> Tvoid ->
  Cop.sem_cast (eval_expr e rho) (typeof e) t (m_dry m) = Some v.
 Proof.
 intros.
+rewrite isCastR in H.
+unfold sem_cast, classify_cast, is_pointer_type, sem_cast_i2bool, sem_cast_l2bool in H0, H.
+destruct (typeof e)   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; 
+try contradiction.
+
+destruct (eval_expr e rho); try discriminate; try reflexivity; simpl; auto.
+destruct Archi.ptr64; auto.
+
+unfold classify_ca
+
+all: try solve [ destruct (eval_expr e rho); try discriminate; reflexivity].
+all: (*try solve [*)
+unfold classify_cast, is_pointer_type in H;
+unfold sem_cast, classify_cast;
+unfold tc_val, is_pointer_or_null in H0;
+repeat match type of H with context [eqb_type ?A int_or_ptr_type] =>
+  destruct (eqb_type A int_or_ptr_type) eqn:?J; try contradiction
+end;
+simpl; destruct Archi.ptr64 eqn:Hp; simpl in H;
+destruct (eval_expr e rho) eqn:?; try contradiction; subst; try reflexivity.
+all: simpl.
+all: try solve [
+
+rewrite denote_tc_assert_test_eq' in H;
+simpl in H;
+unfold_lift in H;
+unfold denote_tc_test_eq in H;
+rewrite Heqv, Hp in H; destruct H;
+apply weak_valid_pointer_dry in H1;
+unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
+all: rewrite Hp; auto.
+
+
+
+
 destruct (eqb_type (typeof e) int_or_ptr_type) eqn:J;
  [apply eqb_type_true in J; rewrite J in *
  | apply eqb_type_false in J];
@@ -435,7 +470,25 @@ destruct (eqb_type (typeof e) int_or_ptr_type) eqn:J;
  | apply eqb_type_false in J0]).
 * auto.
 *
-destruct t; auto.
+elimtype False.
+clear - H0 J J0 H1.
+unfold sem_cast  in H0.
+unfold classify_cast in H0.
+rewrite eqb_type_refl in H0.
+rewrite <- eqb_type_false in J0.
+rewrite J0 in H0.
+unfold int_or_ptr_type in H0.
+destruct Archi.ptr64 eqn:Hp;
+destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+try discriminate.
+unfold sem_cast_i2l in H0.
+destruct t eqn:?; try discriminate H0.
+congruence.
+all: try congruence.
+rewrite eqb_type_false in H0 by auto.
+unfo
+rewrite isCastR in H.
+destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto.
 destruct i,s; auto; try solve [destruct (eval_expr e rho); inv H0].
 unfold isCastResultType in H.
 simpl classify_cast in H.

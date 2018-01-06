@@ -36,7 +36,7 @@ Definition dryspec : ext_spec unit :=
        initial_core cl_core_sem 
            0 (*additional temporary argument - TODO (Santiago): FIXME*)
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
- (Vptr b Int.zero) nil = Some q /\
+ (Vptr b Ptrofs.zero) nil = Some q /\
        forall n,
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
@@ -81,13 +81,13 @@ Axiom module_sequential_safety : (*TODO*)
      @semax_prog spec CS prog V G ->
      fun_id ext_link f = Some f_id ->
      Genv.find_symbol ge f_id = Some f_b ->
-     Genv.find_funct  ge (Vptr f_b Int.zero) = Some f_body ->
+     Genv.find_funct  ge (Vptr f_b Ptrofs.zero) = Some f_body ->
      forall x : ext_spec_type (@OK_spec spec) f,
      ext_spec_pre (@OK_spec spec) f x (Genv.genv_symb ge) tys args ora m ->
      exists q,
        initial_core sem 
          0 (*additional temporary argument - TODO (Santiago): FIXME*)
          (Build_genv ge (prog_comp_env prog))
-              (Vptr f_b Int.zero) args = Some q /\
+              (Vptr f_b Ptrofs.zero) args = Some q /\
        forall n, safeN (@Genv.genv_symb _ _) (coresem_extract_cenv sem (prog_comp_env prog))
 (upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.
