@@ -319,32 +319,6 @@ Abort.
 
 Require Import compcert.exportclight.Clightdefs.
 
-Lemma verif_sumarray_example3:
-forall (sum_int: list int -> int) (sh : share) (contents : list int) (size a1 : Z) (a : val) (x s : int),
-(forall (contents0 : list int) (i : Z) (x0 : int),
- Znth i (map Vint contents0) Vundef = Vint x0 ->
- 0 <= i ->
- sum_int (sublist 0 (Z.succ i) contents0) =
- Int.add (sum_int (sublist 0 i contents0)) x0) ->
-readable_share sh ->
-0 <= size <= Int.max_signed ->
-a1 < size ->
-0 <= a1 <= size ->
-is_pointer_or_null a ->
-force_val
-  (sem_add_default tint tint (Vint (sum_int (sublist 0 a1 contents)))
-     (Znth a1 (map Vint contents) Vundef)) = Vint s ->
-Znth a1 (map Vint contents) Vundef = Vint x ->
-Zlength (map Vint contents) = size ->
-0 <= Z.succ a1 /\
-(Z.succ a1 <= size /\ True) /\
-a = a /\
-Vint (Int.repr (Z.succ a1)) = Vint (Int.repr (a1 + 1)) /\
-Vint (Int.repr size) = Vint (Int.repr size) /\
-Vint (sum_int (sublist 0 (Z.succ a1) contents)) = Vint s /\ True.
-Abort.
-
-
 Require Import VST.veric.Clight_lemmas.  (* just for nullval? *)
 
 Lemma verif_reverse_example1:

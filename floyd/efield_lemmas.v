@@ -20,7 +20,7 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   | _, nil => e
   | cons ef efs', cons t0 tts' =>
     match ef with
-    | eArraySubsc ei => Ederef (Ebinop Oadd (nested_efield e efs' tts') ei (tptr t0)) t0
+    | eArraySubsc ei => Ederef (Ebinop Cop.Oadd (nested_efield e efs' tts') ei (tptr t0)) t0
     | eStructField i => Efield (nested_efield e efs' tts') i t0
     | eUnionField i => Efield (nested_efield e efs' tts') i t0
     end
@@ -175,16 +175,20 @@ Proof.
   + eapply typeof_nested_efield'; eauto.
 Qed.
 
-Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
+Lemma offset_val_sem_add_pi: forall ofs t0 si e rho i,
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
    offset_val ofs
-     (force_val (sem_add_pi t0 (eval_expr e rho) (Vint (Int.repr i)))) =
+     (force_val (Cop.sem_add_ptr_int _ t0 si (eval_expr e rho) (Vint (Int.repr i)))) =
    offset_val ofs
      (offset_val (sizeof t0 * i) (eval_expr e rho)).
 Proof.
   intros.
   destruct (eval_expr e rho); try reflexivity.
-  rewrite sem_add_pi_ptr by (simpl; auto).
-  reflexivity.
+  rewrite sem_add_pi_ptr; auto.
+  apply I.
 Qed.
 
 Lemma By_reference_eval_expr: forall Delta e rho,
@@ -257,7 +261,7 @@ Qed.
 Lemma classify_add_add_case_pi: forall ei ty t n a,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t n a) = typeconv ty ->
-  classify_add ty (typeof ei) = add_case_pi t.
+  Cop.classify_add ty (typeof ei) = add_case_pi t.
 Proof.
   intros.
   destruct (typeof ei); try solve [inversion H].

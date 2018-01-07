@@ -24,6 +24,8 @@ some operators.
 *)
 
 Require Import Clightdefs.
+From Coq Require Import String List ZArith.
+From compcert Require Import Integers Floats Maps Errors AST Ctypes Cop Clight.
 
 Delimit Scope None_scope with None.
 Delimit Scope C_scope with C.

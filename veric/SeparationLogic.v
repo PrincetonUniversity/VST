@@ -442,7 +442,7 @@ Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
   0 <= n ->
   0 <= m ->
-  n + m <= n + m + ofs < Int.modulus ->
+  n + m <= n + m + ofs < Ptrofs.modulus ->
   memory_block sh (n + m) (Vptr b (Ptrofs.repr ofs)) =
   memory_block sh n (Vptr b (Ptrofs.repr ofs)) *
   memory_block sh m (Vptr b (Ptrofs.repr (ofs + n))).

@@ -433,13 +433,13 @@ Proof.
 Qed.
 
 Inductive pointer_val : Type :=
-  | ValidPointer: block -> int -> pointer_val
+  | ValidPointer: block -> Ptrofs.int -> pointer_val
   | NullPointer.
 
 Lemma PV_eq_dec: forall x y: pointer_val, {x = y} + {x <> y}.
 Proof.
   intros; destruct x, y; [| right | right | left]; try congruence.
-  destruct (block_eq_dec b b0), (Int.eq_dec i i0); [left | right | right | right]; congruence.
+  destruct (block_eq_dec b b0), (Ptrofs.eq_dec i i0); [left | right | right | right]; congruence.
 Qed.
 
 Lemma zero_in_range : (-1 < 0 < Int.modulus)%Z.

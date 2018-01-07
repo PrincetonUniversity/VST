@@ -54,15 +54,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Int_unsigned_repr_le: forall a, 0 <= a -> Int.unsigned (Int.repr a) <= a.
-Proof.
-  intros.
-  rewrite Int.unsigned_repr_eq.
-  apply Z.mod_le; auto.
-  cbv.
-  auto.
-Qed.
-
 Lemma arith_aux00: forall a b, b <= a -> 0%nat = nat_of_Z (a - b) -> a - b = 0.
 Proof.
   intros.
@@ -153,11 +144,20 @@ Ltac inv_int i :=
   let H := fresh "H" in
   let H0 := fresh "H" in
   let H1 := fresh "H" in
+ match type of i with
+ | int => 
   pose proof Int.repr_unsigned i as H;
   pose proof Int.unsigned_range i as H0;
   remember (Int.unsigned i) as ofs eqn:H1;
   rewrite <- H in *;
-  clear H H1; try clear i.
+  clear H H1; try clear i
+ | ptrofs => 
+  pose proof Ptrofs.repr_unsigned i as H;
+  pose proof Ptrofs.unsigned_range i as H0;
+  remember (Ptrofs.unsigned i) as ofs eqn:H1;
+  rewrite <- H in *;
+  clear H H1; try clear i
+end.
 
 (**************************************************
 
@@ -165,16 +165,16 @@ Solve_mod_modulus
 
 **************************************************)
 
-Definition modm x := x mod Int.modulus.
+Definition int_modm x := x mod Int.modulus.
 
-Lemma modm_mod_eq: forall x y, Int.eqmod Int.modulus x y -> x mod Int.modulus = modm y.
+Lemma int_modm_mod_eq: forall x y, Int.eqmod Int.modulus x y -> x mod Int.modulus = int_modm y.
 Proof.
   intros.
   apply Int.eqmod_mod_eq; auto.
   apply Int.modulus_pos.
 Qed.
 
-Lemma modm_mod_elim: forall x y, Int.eqmod Int.modulus x y -> Int.eqmod Int.modulus (x mod Int.modulus) y.
+Lemma int_modm_mod_elim: forall x y, Int.eqmod Int.modulus x y -> Int.eqmod Int.modulus (x mod Int.modulus) y.
 Proof.
   intros.
   eapply Int.eqmod_trans; eauto.
@@ -182,61 +182,143 @@ Proof.
   apply Int.modulus_pos.
 Qed.
 
-Definition reprm := Int.repr.
+Definition int_reprm := Int.repr.
 
-Lemma modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = reprm y.
+Lemma int_modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = int_reprm y.
 Proof.
   intros.
   apply Int.eqm_samerepr; auto.
 Qed.
 
-Ltac simpl_mod A H :=
+Ltac int_simpl_mod A H :=
   let H0 := fresh "H" in
   let H1 := fresh "H" in
   match A with
   | (?B + ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_add Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B - ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_sub Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B * ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_mult Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (- ?B)%Z =>
-    simpl_mod B H0;
+    int_simpl_mod B H0;
     pose proof Int.eqmod_neg Int.modulus _ _ H0 as H;
     clear H0
   | ?B mod Int.modulus =>
-    simpl_mod B H0;
-    pose proof modm_mod_elim B _ H0 as H;
+    int_simpl_mod B H0;
+    pose proof int_modm_mod_elim B _ H0 as H;
     clear H0
-  | modm ?B =>
-    simpl_mod B H0;
-    pose proof modm_mod_elim B _ H0 as H;
+  | int_modm ?B =>
+    int_simpl_mod B H0;
+    pose proof int_modm_mod_elim B _ H0 as H;
     clear H0
   | _ =>
     pose proof Int.eqmod_refl Int.modulus A as H
   end.
 
+
+Definition ptrofs_modm x := x mod Ptrofs.modulus.
+
+Lemma ptrofs_modm_mod_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> x mod Ptrofs.modulus = ptrofs_modm y.
+Proof.
+  intros.
+  apply Ptrofs.eqmod_mod_eq; auto.
+  apply Ptrofs.modulus_pos.
+Qed.
+
+Lemma ptrofs_modm_mod_elim: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.eqmod Ptrofs.modulus (x mod Ptrofs.modulus) y.
+Proof.
+  intros.
+  eapply Ptrofs.eqmod_trans; eauto.
+  apply Ptrofs.eqmod_sym, Ptrofs.eqmod_mod.
+  apply Ptrofs.modulus_pos.
+Qed.
+
+Definition ptrofs_reprm := Ptrofs.repr.
+
+Lemma ptrofs_modm_repr_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.repr x = ptrofs_reprm y.
+Proof.
+  intros.
+  apply Ptrofs.eqm_samerepr; auto.
+Qed.
+
+Ltac ptrofs_simpl_mod A H :=
+  let H0 := fresh "H" in
+  let H1 := fresh "H" in
+  match A with
+  | (?B + ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_add Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (?B - ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_sub Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (?B * ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_mult Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (- ?B)%Z =>
+    ptrofs_simpl_mod B H0;
+    pose proof Ptrofs.eqmod_neg Ptrofs.modulus _ _ H0 as H;
+    clear H0
+  | ?B mod Ptrofs.modulus =>
+    ptrofs_simpl_mod B H0;
+    pose proof ptrofs_modm_mod_elim B _ H0 as H;
+    clear H0
+  | ptrofs_modm ?B =>
+    ptrofs_simpl_mod B H0;
+    pose proof ptrofs_modm_mod_elim B _ H0 as H;
+    clear H0
+  | _ =>
+    pose proof Ptrofs.eqmod_refl Ptrofs.modulus A as H
+  end.
+
 Ltac solve_mod_modulus :=
-  try unfold Int.add; try rewrite !Int.unsigned_repr_eq;
+  unfold Int.add; rewrite ?Int.unsigned_repr_eq;
+  unfold Ptrofs.add; rewrite ?Ptrofs.unsigned_repr_eq;
   repeat
   match goal with
   | |- context [?A mod Int.modulus] =>
-         let H := fresh "H" in simpl_mod A H;
-         rewrite (modm_mod_eq A _ H);
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_mod_eq A _ H);
          clear H
   | |- context [Int.repr ?A] =>
-         let H := fresh "H" in simpl_mod A H;
-         rewrite (modm_repr_eq A _ H);
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_mod_eq A _ H);
+         clear H
+  | |- context [Int.repr ?A] =>
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_mod_eq A _ H);
+         clear H
+  | |- context [Ptrofs.repr ?A] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_mod_eq A _ H);
+         clear H
+  | |- context [Ptrofs.repr ?A] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_repr_eq A _ H);
          clear H
   end;
-  try unfold modm in *;
-  try unfold reprm in *.
+  unfold int_modm, int_reprm, ptrofs_modm, ptrofs_reprm in *.  
 
 (**************************************************
 
@@ -270,6 +352,34 @@ Proof.
  apply Int.eqm_samerepr.
  unfold Int.eqm.
  apply Int.eqm_sub; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
+Qed.
+
+Lemma ptrofs_add_repr: forall i j, Ptrofs.add (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i+j).
+Proof. intros.
+  rewrite Ptrofs.add_unsigned.
+ apply Ptrofs.eqm_samerepr.
+ unfold Ptrofs.eqm.
+ apply Ptrofs.eqm_add; apply Ptrofs.eqm_sym; apply Ptrofs.eqm_unsigned_repr.
+Qed.
+
+Lemma ptrofs_mul_repr:
+ forall x y, Ptrofs.mul (Ptrofs.repr x) (Ptrofs.repr y) = Ptrofs.repr (x * y).
+Proof.
+intros. unfold Ptrofs.mul.
+apply Ptrofs.eqm_samerepr.
+repeat rewrite Ptrofs.unsigned_repr_eq.
+apply Ptrofs.eqm_mult; unfold Ptrofs.eqm; apply Ptrofs.eqmod_sym;
+apply Ptrofs.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma ptrofs_sub_repr: forall i j,
+  Ptrofs.sub (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i-j).
+Proof.
+  intros.
+ unfold Ptrofs.sub.
+ apply Ptrofs.eqm_samerepr.
+ unfold Ptrofs.eqm.
+ apply Ptrofs.eqm_sub; apply Ptrofs.eqm_sym; apply Ptrofs.eqm_unsigned_repr.
 Qed.
 
 Lemma Zland_two_p:
@@ -312,6 +422,7 @@ Proof.
 Qed.
 
 Arguments Int.unsigned n : simpl never.
+Arguments Ptrofs.unsigned n : simpl never.
 Arguments Pos.to_nat !x / .
 
 Lemma align_0: forall z,

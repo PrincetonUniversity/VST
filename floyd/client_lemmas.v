@@ -211,6 +211,9 @@ Proof.
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
  simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
+ pose proof (Int.eq_spec i j).
+ revert H H0; case_eq (Int.eq i j); intros; auto.
+ simpl in H0; unfold Vfalse in H0. inv H0.
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -222,10 +225,16 @@ Proof.
  destruct t; try contradiction. clear H.
  apply prop_ext; split; intros.
  destruct v; simpl in H; try discriminate.
- apply bool_val_int_eq_e in H. subst; auto.
- unfold Cop.sem_notbool, Cop.bool_val in H; simpl in H.
- destruct (Memory.Mem.weak_valid_pointer m b (Int.unsigned i)) eqn:?;
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. inv H.
+ destruct (Int.eq i Int.zero) eqn:?; inv H.
+  apply int_eq_e in Heqb. subst; reflexivity.
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. 
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
+  simpl in H; inv H. 
  subst. simpl. unfold Cop.bool_val; simpl. reflexivity.
 Qed.
 
@@ -331,8 +340,10 @@ Lemma typed_true_isptr:
 Proof.
 intros. extensionality x; apply prop_ext.
 destruct t; try contradiction; unfold typed_true, strict_bool_val;
-destruct x; intuition; try congruence;
-destruct (Int.eq i Int.zero); inv H0.
+destruct x; intuition; try congruence.
+all: try match type of H0 with context [Archi.ptr64] => destruct Archi.ptr64 eqn:?; inv H0 end.
+all: try solve [destruct (Int.eq i Int.zero); inv H0].
+all: try solve [destruct (Int64.eq i Int64.zero); inv H2].
 Qed.
 
 Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
@@ -615,13 +626,13 @@ Hint Rewrite isptr_match : norm1.
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) ->
-       sem_cast_neutral v = Some v.
+       sem_cast_pointer v = Some v.
 Proof.
 intros.
 destruct H as [t [? ?]].
 hnf in H.
 unfold is_pointer_type in H0.
-unfold sem_cast_neutral.
+unfold sem_cast_pointer.
 destruct (eqb_type t int_or_ptr_type);
 destruct t,v; inv H0; inv H; reflexivity.
 Qed.
@@ -629,19 +640,19 @@ Qed.
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
 Lemma eval_cast_neutral_is_pointer_or_null:
-   forall v, is_pointer_or_null v -> sem_cast_neutral v = Some v.
+   forall v, is_pointer_or_null v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
 Lemma is_pointer_or_null_eval_cast_neutral:
-  forall v, is_pointer_or_null (force_val (sem_cast_neutral v)) = is_pointer_or_null v.
+  forall v, is_pointer_or_null (force_val (sem_cast_pointer v)) = is_pointer_or_null v.
 Proof. destruct v; reflexivity. Qed.
 Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
 
 Lemma eval_cast_neutral_isptr:
-   forall v, isptr v -> sem_cast_neutral v = Some v.
+   forall v, isptr v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
