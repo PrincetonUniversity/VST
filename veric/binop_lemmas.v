@@ -9,6 +9,7 @@ Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas3.
 Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.binop_lemmas5.
+Require Import VST.veric.binop_lemmas6.
 Import Cop.
 
 Lemma typecheck_binop_sound:

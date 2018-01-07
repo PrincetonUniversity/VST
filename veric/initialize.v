@@ -288,7 +288,7 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
   | Init_float64 n =>
       Mem.load Mfloat64 m b p = Some(Vfloat n)
   | Init_addrof symb ofs =>
-      Mem.load Mint32 m b p = Some
+      Mem.load Mptr m b p = Some
              match Genv.find_symbol ge symb with
                 | Some b' => Vptr b' ofs
                 | None => Vint Int.zero
@@ -956,18 +956,14 @@ if_tac; auto.
   inv H5.
   left. split; [apply I | ].
   rewrite H4 in H.
- exists  (getN (size_chunk_nat Mint32) z (mem_contents m3) !! b).
+ exists  (getN (size_chunk_nat Mptr) z (mem_contents m3) !! b).
  repeat split; auto.
- clear - H.  unfold Mptr.
- change Archi.ptr64 with false.  (* Archi.ptr64 DEPENDENCY *)
+ clear - H. 
  cbv iota. congruence.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl init_data_size in H2.
-   change Archi.ptr64 with false in H2.  (* Archi.ptr64 DEPENDENCY *)
-  cbv iota in H2.
-  unfold Mptr.
- change Archi.ptr64 with false.  (* Archi.ptr64 DEPENDENCY *)
-   simpl size_chunk.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
  if_tac; [ | apply H2].
   exists READABLE. hnf. 
   destruct H2.

@@ -142,89 +142,85 @@ destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero);
   auto; contradiction.
 Qed.
 
-(*
-Lemma sem_cmp_pp_pp:
-  forall c b i b0 i0 ii ss aa
-    (OP: c = Ceq \/ c = Cne),
-    tc_val
-      (Tint ii ss aa)
-        match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
-        | Some v' => v'
-        | None => Vundef
-        end.
+Lemma int_type_tc_val_Vtrue:
+  forall t, is_int_type t = true -> tc_val t Vtrue.
 Proof.
-intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
-+
- destruct Archi.ptr64; simpl;
- (destruct (eq_block b b0); [ destruct (Ptrofs.eq i i0) |];
-  destruct ii,ss; simpl; try split; auto;
-  rewrite <- Z.leb_le; reflexivity).
-+
- destruct Archi.ptr64; simpl;
- (destruct (eq_block b b0); [ destruct (Ptrofs.eq i i0) |];
-  destruct ii,ss; simpl; try split; auto;
-  rewrite <- Z.leb_le; reflexivity).
+intros.
+    destruct t as [| [| | |] [|] | | | | | | |]; 
+ try discriminate; hnf; auto.
+change (Int.signed Int.one) with 1.
+change Byte.min_signed with (-128).
+change Byte.max_signed with 127.
+clear. omega.
+clear.
+simpl. 
+change (Int.signed Int.one) with 1.
+omega.
 Qed.
 
-Lemma sem_cmp_pp_pp':
-  forall c b i b0 i0 ii ss aa m
-    (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
-    (denote_tc_test_order (Vptr b i) (Vptr b0 i0)) m ->
-    tc_val (Tint ii ss aa)
-      match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
-      | Some v' => v'
-      | None => Vundef
-      end.
+Lemma int_type_tc_val_Vfalse:
+  forall t, is_int_type t = true -> tc_val t Vfalse.
 Proof.
-  intros; destruct OP as [| [| [|]]]; subst; unfold sem_cmp_pp; simpl;
-  unfold denote_tc_test_order, test_order_ptrs in H; simpl in H;
-    destruct Archi.ptr64; simpl;
-    (unfold eq_block;
-    destruct (peq b b0); [subst | inv H];
-    simpl;
-    match goal with |- context [Ptrofs.ltu ?A ?B] => destruct (Ptrofs.ltu A B) end;
-    destruct ii,ss; simpl; try split; auto;
-    rewrite <- Z.leb_le; reflexivity).
+intros.
+    destruct t as [| [| | |] [|] | | | | | | |]; 
+ try discriminate; hnf; auto;
+change (Int.signed Int.zero) with 0.
+change Byte.min_signed with (-128).
+change Byte.max_signed with 127.
+clear. omega.
+clear. simpl. omega.
 Qed.
 
-Lemma sem_cmp_pp_ip:
-  forall c b i i0 ii ss aa
-    (OP: c = Ceq \/ c = Cne),
-  i = Ptrofs.zero ->
- tc_val (Tint ii ss aa)
-  match sem_cmp_pp c (Vptrofs i)  (Vptr b i0)  with
-  | Some v' => v'
-  | None => Vundef
-  end.
+
+Lemma int_type_tc_val_of_bool:
+  forall t b, is_int_type t = true -> tc_val t (Val.of_bool b).
 Proof.
-  unfold Vptrofs.
-  intros; destruct OP; subst; unfold sem_cmp_pp; simpl;
-  unfold Val.cmplu_bool, Val.cmpu_bool;
-   destruct Archi.ptr64;
-   rewrite ?Int64.eq_true, ?Int.eq_true; simpl;
-    destruct ii,ss; simpl; try split; auto;
-    rewrite <- Z.leb_le; reflexivity.
+intros.
+    destruct t as [| [| | |] [|] | | | | | | |]; 
+ try discriminate; hnf; auto; clear H;
+ destruct b; simpl; auto;
+change (Int.signed Int.one) with 1;
+change (Int.signed Int.zero) with 0;
+change (Int.unsigned Int.one) with 1;
+change (Int.unsigned Int.zero) with 0;
+change Byte.min_signed with (-128);
+change Byte.max_signed with 127;
+change Byte.max_unsigned with 255;
+try omega.
 Qed.
 
-Lemma sem_cmp_pp_pi:
-  forall c b i i0 ii ss aa
-    (OP: c = Ceq \/ c = Cne),
-  i = Ptrofs.zero ->
- tc_val (Tint ii ss aa)
-  match sem_cmp_pp c (Vptr b i0)  (Vptrofs i)  with
-  | Some v' => v'
-  | None => Vundef
-  end.
+Lemma Ptrofs_to_of64_lemma:
+ Archi.ptr64 = false -> 
+ forall i, Ptrofs.to_int (Ptrofs.of_int64 i) = Int.repr (Int64.unsigned i).
 Proof.
-  unfold Vptrofs.
-  intros; destruct OP; subst; unfold sem_cmp_pp; simpl;
-  unfold Val.cmplu_bool, Val.cmpu_bool;
-   destruct Archi.ptr64;
-   rewrite ?Int64.eq_true, ?Int.eq_true; simpl;
-    destruct ii,ss; simpl; try split; auto;
-    rewrite <- Z.leb_le; reflexivity.
+intros.
+unfold Ptrofs.of_int64, Ptrofs.to_int.
+pose proof (Ptrofs.agree32_repr H (Int64.unsigned i)).
+red in H0.
+rewrite H0.
+apply Int.repr_unsigned.
 Qed.
-*)
+
+
+Lemma Int64repr_Intsigned_zero:
+  forall i, Int64.repr (Int.signed i) = Int64.zero -> i=Int.zero.
+Proof.
+intros.
+destruct (Int.eq i Int.zero) eqn:?.
+apply int_eq_e; auto.
+apply Int64_eq_repr_signed32_nonzero in Heqb.
+rewrite H in Heqb. inv Heqb.
+Qed.
+
+Lemma Int64repr_Intunsigned_zero:
+  forall i, Int64.repr (Int.unsigned i) = Int64.zero -> i=Int.zero.
+Proof.
+intros.
+destruct (Int.eq i Int.zero) eqn:?.
+apply int_eq_e; auto.
+apply Int64_eq_repr_unsigned32_nonzero in Heqb.
+rewrite H in Heqb. inv Heqb.
+Qed.
 
 Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
     is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->

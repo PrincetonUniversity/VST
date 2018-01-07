@@ -1519,21 +1519,25 @@ end.
 
 
 Lemma load_cast {CS: compspecs}:
- forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho phi m,
+ forall (t: type) (e2 : expr) (ch : memory_chunk) rho phi m,
    tc_val (typeof e2) (eval_expr e2 rho) ->
-   denote_tc_assert (isCastResultType (typeof e2) (typeof e1) e2)
+   denote_tc_assert (isCastResultType (typeof e2) t e2)
      rho phi ->
-   access_mode (typeof e1) = By_value ch ->
+   access_mode t = By_value ch ->
    Val.load_result ch
-     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) m)) =
-   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) m).
+     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) t m)) =
+   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) t m).
 Proof.
 intros.
+assert (size_chunk ch = sizeof t). {
+  clear - H1.
+  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ], ch; inv H1; reflexivity.
+}
 destruct ch;
- destruct (typeof  e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1];
+ destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1];
 simpl in *; (*try destruct i; try destruct s; try destruct f;*)
  try solve [inv H1]; clear H1; destruct (eval_expr e2 rho);
- destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+ destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] ;
  try solve [inv H];
 unfold Cop.sem_cast; simpl;
 destruct Archi.ptr64 eqn:Hp;
@@ -1549,8 +1553,6 @@ try destruct (Float32.to_longu f);
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto].
-
-all: inversion Hp.  (* Archi.ptr64 DEPENDENCY *)
 Qed.
 
 
@@ -1630,7 +1632,7 @@ apply address_mapsto_can_store
    with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
 Focus 2. {
-  clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode.
+(*  clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode. *)
   unfold typecheck_store in *.
   destruct TC4 as [TC4 _].
   simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.

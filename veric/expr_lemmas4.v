@@ -9,6 +9,7 @@ Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.binop_lemmas5.
+Require Import VST.veric.binop_lemmas6.
 Require Import VST.veric.expr_lemmas2.
 Require Export VST.veric.expr_lemmas3.
 Require Import VST.veric.juicy_mem.
