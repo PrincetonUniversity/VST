@@ -258,33 +258,54 @@ Proof.
     eapply typeof_nested_efield'; eauto.
 Qed.
 
-Lemma classify_add_add_case_pi: forall ei ty t n a,
-  is_int_type (typeof ei) = true ->
+
+Lemma classify_add_typeconv: forall t n a ty,
   typeconv (Tarray t n a) = typeconv ty ->
-  Cop.classify_add ty (typeof ei) = add_case_pi t.
+  Cop.classify_add ty = Cop.classify_add (Tpointer t a).
+Proof.
+intros.
+simpl in H.
+extensionality t2.
+destruct ty; inv H.
+destruct i; inv H1.
+all: simpl; destruct (typeconv t2); auto.
+Qed.
+
+(*
+Lemma classify_add_add_case_pi: forall ei ty t n a si,
+  match typeof ei with Tint _ si' _ => si=si' | _ => False end ->
+  typeconv (Tarray t n a) = typeconv ty ->
+  Cop.classify_add ty (typeof ei) = Cop.add_case_pi t si.
 Proof.
   intros.
-  destruct (typeof ei); try solve [inversion H].
+  destruct (typeof ei) eqn:?; inv H.
+  simpl in *. rewrite <- H0.
+  destruct i;auto.
+  subst.
   simpl.
-  rewrite <- H0.
-  destruct i; reflexivity.
+  rewrite <- H0; clear H0.
+  simpl.
+  destruct i; try reflexivity.
 Qed.
+*)
 
 Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
   complete_legal_cosu_type t0 = true ->
   eqb_type (typeof e) int_or_ptr_type = false ->
-  isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
+  isBinOpResultType Cop.Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
   unfold isBinOpResultType.
-  erewrite classify_add_add_case_pi by eauto.
+  rewrite (classify_add_typeconv _ _ _ _ H0).
+  destruct (typeof ei); inv H.
+(*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
-  rewrite H1, tc_andp_TT2.
-  simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
-  unfold tc_int_or_ptr_type. rewrite H2.
-  rewrite tc_andp_TT2; auto.
+  simpl.
+  destruct i; rewrite H1; simpl tc_bool; cbv iota;
+  rewrite andb_false_r; simpl; rewrite tc_andp_TT2;
+  unfold tc_int_or_ptr_type; rewrite H2; simpl; auto.
 Qed.
 
 Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
