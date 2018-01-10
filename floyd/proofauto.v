@@ -38,7 +38,7 @@ Require Export VST.floyd.deadvars.
 Require Export VST.floyd.Clightnotations.
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 
-Export ListNotations.
+Export ListNotations String.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
 Arguments deref_noload ty v / .

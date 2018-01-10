@@ -101,7 +101,7 @@ destruct (ve_of rho id) as [[? ?] | ] eqn:?.
 destruct (eqb_type t t0) eqn:?.
 apply eqb_type_true in Heqb0.
 subst t0.
-apply exp_right with (Vptr b Int.zero).
+apply exp_right with (Vptr b Ptrofs.zero).
 unfold size_compatible.
 rewrite prop_true_andp. rewrite TT_andp.
 rewrite memory_block_data_at_.
@@ -128,7 +128,7 @@ Lemma var_block_lvar0
      : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) ! id = Some t ->
        complete_legal_cosu_type t = true ->
-       sizeof t < Int.modulus ->
+       sizeof t < Ptrofs.modulus ->
        is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
        tc_environ Delta rho ->
        locald_denote (lvar id t v) rho ->
@@ -136,12 +136,12 @@ Lemma var_block_lvar0
 Proof.
 intros.
 hnf in H4.
-assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
- by (rewrite Int.unsigned_zero; omega).
+assert (Ptrofs.unsigned Ptrofs.zero + sizeof t <= Ptrofs.modulus)
+ by (rewrite Ptrofs.unsigned_zero; omega).
 unfold var_block.
 simpl @fst; simpl @snd.
 rewrite prop_true_andp
-  by (change (Int.max_unsigned) with (Int.modulus-1); omega).
+  by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); omega).
 unfold_lift.
 rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
@@ -157,7 +157,7 @@ Lemma postcondition_var_block:
   forall {cs: compspecs} {Espec: OracleKind} Delta Pre c S1 S2 i t vbs,
        (var_types  Delta) ! i = Some t ->
        complete_legal_cosu_type t = true ->
-       sizeof t < Int.modulus ->
+       sizeof t < Ptrofs.modulus ->
        is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
    semax Delta Pre c (frame_ret_assert S1
      (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
@@ -380,7 +380,7 @@ Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumpti
 Lemma force_val_sem_cast_neutral_isptr:
   forall v,
   isptr v ->
-  Some (force_val (sem_cast_neutral v)) = Some v.
+  Some (force_val (sem_cast_pointer v)) = Some v.
 Proof.
 intros.
  destruct v; try contradiction; reflexivity.
@@ -389,7 +389,7 @@ Qed.
 Lemma force_val_sem_cast_neutral_lvar :
   forall i t v rho,
   locald_denote (lvar i t v) rho ->
-  Some (force_val (sem_cast_neutral v)) = Some v.
+  Some (force_val (sem_cast_pointer v)) = Some v.
 Proof.
 intros.
  apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
@@ -398,7 +398,7 @@ Qed.
 Lemma force_val_sem_cast_neutral_gvar:
   forall i v rho,
   locald_denote (gvar i v) rho ->
-  Some (force_val (sem_cast_neutral v)) = Some v.
+  Some (force_val (sem_cast_pointer v)) = Some v.
 Proof.
 intros.
  apply gvar_isptr in H; destruct v; try contradiction; reflexivity.
@@ -407,7 +407,7 @@ Qed.
 Lemma force_val_sem_cast_neutral_sgvar:
   forall i v rho,
   locald_denote (sgvar i v) rho ->
-  Some (force_val (sem_cast_neutral v)) = Some v.
+  Some (force_val (sem_cast_pointer v)) = Some v.
 Proof.
 intros.
  apply sgvar_isptr in H; destruct v; try contradiction; reflexivity.
@@ -1022,7 +1022,7 @@ Ltac do_compute_expr Delta P Q R e v H :=
          | Vlong _ => Vundef
          | Vfloat _ => Vundef
          | Vsingle _ => Vundef
-         | Vptr _ _ => Vptr _ (Int.add _ (Int.repr ?ofs))
+         | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
          end)
          => change E with (offset_val ofs E'')
        | _ => change E with E'
@@ -1056,7 +1056,7 @@ Ltac solve_msubst_eval :=
          | Vlong _ => Vundef
          | Vfloat _ => Vundef
          | Vsingle _ => Vundef
-         | Vptr _ _ => Vptr _ (Int.add _ (Int.repr ?ofs))
+         | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
          end)
          => change E with (offset_val ofs E'')
        | _ => change E with E'
@@ -1166,14 +1166,25 @@ Ltac do_compute_expr1 Delta Pre e :=
    by (do_compute_expr_helper Delta Q v)
  end.
 
+Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
+Proof.
+intros.
+pose proof (Int64.eq_spec i Int64.zero). rewrite H in H0; auto.
+Qed.
+
 Lemma typed_true_nullptr3:
   forall p,
   typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
   p=nullval.
 Proof.
+unfold nullval.
+simpl; unfold strict_bool_val, sem_cmp_pp, Val.cmplu_bool, Val.cmpu_bool.
 intros.
-hnf in H.
-destruct p; inversion H.
+destruct Archi.ptr64 eqn:Hp; simpl in H;
+destruct p; inversion H;
+unfold strict_bool_val in H1.
+destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
+apply int64_eq_e in Heqb. subst; reflexivity.
 destruct (Int.eq i Int.zero) eqn:?; inv H1.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
@@ -1184,11 +1195,12 @@ Lemma typed_false_nullptr3:
   p<>nullval.
 Proof.
 intros.
+intro. subst p.
 hnf in H.
-destruct p; inversion H.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_false_e in Heqb. contradict Heqb. inv Heqb; auto.
-unfold nullval; congruence.
+unfold sem_cmp_pp, nullval in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+rewrite Int64.eq_true in H. inv H.
+inv H.
 Qed.
 
 Lemma typed_true_nullptr4:
@@ -1197,11 +1209,12 @@ Lemma typed_true_nullptr4:
   p <> nullval.
 Proof.
 intros.
+intro. subst p.
 hnf in H.
-destruct p; inversion H.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_false_e in Heqb. unfold nullval; congruence.
-intro Hx; inv Hx.
+unfold sem_cmp_pp, nullval in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+rewrite Int64.eq_true in H. inv H.
+inv H.
 Qed.
 
 Lemma typed_false_nullptr4:
@@ -1211,7 +1224,11 @@ Lemma typed_false_nullptr4:
 Proof.
 intros.
 hnf in H.
+unfold sem_cmp_pp, nullval in *.
+destruct Archi.ptr64 eqn:Hp; simpl in H;
 destruct p; inversion H.
+destruct (Int64.eq i Int64.zero) eqn:?; inv H1.
+apply int64_eq_e in Heqb. subst; reflexivity.
 destruct (Int.eq i Int.zero) eqn:?; inv H1.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
@@ -2834,7 +2851,7 @@ Ltac clear_Delta_specs_if_leaf_function :=
 Ltac type_lists_compatible al bl :=
  match al with
  | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
-                 unify (classify_cast a b) cast_case_neutral;
+                 unify (classify_cast a b) cast_case_pointer;
                  type_lists_compatible al' bl'
                 end
  | Tnil => match bl with Tnil => idtac end
@@ -2845,7 +2862,7 @@ Ltac function_types_compatible t1 t2 :=
  | Tfunction ?al1 ?r1 _ =>
   match t2 with Tfunction ?al2 ?r2 _ =>
      type_lists_compatible al1 al2;
-     first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_neutral]
+     first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_pointer]
  end end.
 
 Definition temp_type_ok Delta i v :=

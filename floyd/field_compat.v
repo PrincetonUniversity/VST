@@ -583,7 +583,7 @@ memory_block sh n p |-- !! @field_compatible cs (tarray tuchar n) nil p.
 Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    destruct p; try solve [apply FF_left]. normalize.
    apply prop_right. red.
-   destruct (Int.unsigned_range i). simpl.
+   destruct (Ptrofs.unsigned_range i). simpl.
    repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
    (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
@@ -595,13 +595,13 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    + reflexivity.
 Qed.
 
-Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Int.modulus):
+Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Ptrofs.modulus):
 memory_block sh n p = !!(@field_compatible cs (tarray tuchar n) nil p) && memory_block sh n p.
 Proof. apply pred_ext. apply andp_right; trivial. apply memory_block_field_compatible_tarraytuchar_ent; trivial.
 normalize.
 Qed. 
 
-Lemma memory_block_data_at__tarray_tuchar {cs} sh p n (N: 0<=n < Int.modulus):
+Lemma memory_block_data_at__tarray_tuchar {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p |-- @data_at_ cs sh (tarray tuchar n) p.
 Proof. 
   rewrite memory_block_field_compatible_tarraytuchar, memory_block_isptr; trivial. 
@@ -610,10 +610,10 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Int.add_zero, sizeof_tarray_tuchar; trivial; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; trivial; omega.
 Qed.
 
-Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Int.modulus):
+Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
@@ -624,7 +624,7 @@ Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p ->
       @field_compatible cs (tarray tuchar 0) nil p.
 Proof. intros; red. destruct p; try contradiction.
   repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
-  destruct (Int.unsigned_range i); omega.
+  destruct (Ptrofs.unsigned_range i); omega.
   (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
    + exact cenv_consistent.

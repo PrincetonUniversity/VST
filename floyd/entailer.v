@@ -264,8 +264,8 @@ Lemma valid_pointer_null:
   forall P, P |-- valid_pointer nullval.
 Proof.
   intros. unfold nullval, valid_pointer, valid_pointer'. 
-  destruct Archi.ptr64 eqn:Hp; simpl valid_pointer.
- change predicates_hered.prop with prop. (* delete me *)
+  destruct Archi.ptr64 eqn:Hp; simpl;
+ change predicates_hered.prop with prop; (* delete me *)
  normalize.
 Qed.
 
@@ -418,7 +418,7 @@ Ltac prove_signed_range :=
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
 Proof.
 destruct x; simpl; intros; try contradiction.
-split; auto. apply Int.eq_true.
+split; auto. apply Ptrofs.eq_true.
 Qed.
 Hint Resolve ptr_eq_refl : prove_it_now.
 
@@ -688,7 +688,7 @@ intros.
 subst.
 destruct p; try contradiction.
 simpl. rewrite Z.mul_0_r.
-rewrite Int.add_zero.
+rewrite Ptrofs.add_zero.
 apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.
