@@ -9,7 +9,7 @@ Require Import VST.floyd.sublist.
 Local Open Scope logic.
 
 Lemma isptr_force_val_sem_cast_neutral :
-  forall p, isptr p -> isptr (force_val (sem_cast_neutral p)).
+  forall p, isptr p -> isptr (force_val (sem_cast_pointer p)).
 Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
@@ -263,7 +263,8 @@ Qed.
 Lemma valid_pointer_null:
   forall P, P |-- valid_pointer nullval.
 Proof.
-  intros. simpl valid_pointer.
+  intros. unfold nullval, valid_pointer, valid_pointer'. 
+  destruct Archi.ptr64 eqn:Hp; simpl valid_pointer.
  change predicates_hered.prop with prop. (* delete me *)
  normalize.
 Qed.

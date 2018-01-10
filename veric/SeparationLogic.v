@@ -369,7 +369,7 @@ Definition init_data_size (i: init_data) : Z :=
   | Init_int64 _ => 8
   | Init_float32 _ => 4
   | Init_float64 _ => 8
-  | Init_addrof _ _ => 4
+  | Init_addrof _ _ => if Archi.ptr64 then 8 else 4
   | Init_space n => Zmax n 0
   end.
 

@@ -218,8 +218,8 @@ Arithmetic properties with nested_pred assumption.
 
 Ltac pose_mod_le A :=
   let H := fresh "H" in
-  pose proof Z.mod_le A Int.modulus;
-  spec H; [try omega | spec H; [pose Int.modulus_pos; omega |]].
+  pose proof Z.mod_le A Ptrofs.modulus;
+  spec H; [try omega | spec H; [pose Ptrofs.modulus_pos; omega |]].
 
 Ltac pose_mul_distr_l l r :=
   match r with

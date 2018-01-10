@@ -676,7 +676,7 @@ Qed.
 Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
   0 <= lo ->
   0 <= ofs ->
-  lo <= hi < Int.modulus ->
+  lo <= hi < Ptrofs.modulus ->
   Ptrofs.unsigned i + ofs + hi < Ptrofs.modulus ->
   spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val ofs (Vptr b i)) = memory_block sh hi (offset_val ofs (Vptr b i)).
 Proof.

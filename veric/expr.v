@@ -1232,7 +1232,8 @@ Qed.
 
 Program Definition valid_pointer' (p: val) (d: Z) : mpred :=
  match p with
- | Vint i => prop (i = Int.zero)
+ | Vint i => if Archi.ptr64 then FF else prop (i = Int.zero)
+ | Vlong i => if Archi.ptr64 then prop (i=Int64.zero) else FF
  | Vptr b ofs =>
   fun m =>
     match m @ (b, Ptrofs.unsigned ofs + d) with
@@ -1257,16 +1258,13 @@ rewrite Heqr.
 auto.
 Qed.
 Next Obligation.
-split; intros; congruence.
+split3; intros; congruence.
 Qed.
 Next Obligation.
-split; intros; congruence.
+split3; intros; congruence.
 Qed.
 Next Obligation.
-split; intros; congruence.
-Qed.
-Next Obligation.
-split; intros; congruence.
+split3; intros; congruence.
 Qed.
 
 Definition valid_pointer (p: val) : mpred :=

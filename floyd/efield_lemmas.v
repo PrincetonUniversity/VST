@@ -315,14 +315,18 @@ Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
   nested_field_type t_root gfs = Tarray t n a ->
   field_compatible t_root gfs p ->
   efield_denote efs gfs rho ->
-  classify_add (typeof (nested_efield e efs tts)) (typeof ei) = add_case_pi t /\
-  isBinOpResultType Oadd (nested_efield e efs tts) ei (tptr t0) = tc_isptr (nested_efield e efs tts).
+  (exists si, Cop.classify_add (typeof (nested_efield e efs tts)) (typeof ei) = Cop.add_case_pi t si) /\
+  isBinOpResultType Cop.Oadd (nested_efield e efs tts) ei (tptr t0) = tc_isptr (nested_efield e efs tts).
 Proof.
   intros.
   pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H4).
   rewrite H2 in H5.
   split.
-  + eapply classify_add_add_case_pi; [auto | apply typeconv_typeconv'_eq; eassumption].
+  +
+    erewrite classify_add_typeconv
+         by (apply typeconv_typeconv'_eq; eassumption).
+   destruct (typeof ei); inv H1.
+   destruct i; simpl; eexists; reflexivity.
   + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
       eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
@@ -335,6 +339,32 @@ Proof.
       * apply eqb_type_true in H6.
         unfold int_or_ptr_type in *; inv H5; inv H6.
       * apply eqb_type_false in H6; auto.
+Qed.
+
+
+Lemma Ptrofs_repr_Int_signed_special:
+  Archi.ptr64=false -> forall i, Ptrofs.repr (Int.signed (Int.repr i)) = Ptrofs.repr i.
+Admitted.
+
+Lemma Ptrofs_repr_Int_unsigned_special:
+  Archi.ptr64=false -> forall i, Ptrofs.repr (Int.unsigned (Int.repr i)) = Ptrofs.repr i.
+Admitted.
+
+Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
+Proof. reflexivity. Qed.
+
+Lemma sem_add_pi_ptr_special:
+   forall {cs: compspecs}  t p i si,
+    isptr p ->
+    Cop.sem_add_ptr_int cenv_cs t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros. destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  apply (Ptrofs_repr_Int_signed_special Archi_ptr64_DEPENDENCY).
+  apply (Ptrofs_repr_Int_unsigned_special Archi_ptr64_DEPENDENCY).
 Qed.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
@@ -371,8 +401,9 @@ Proof.
     rewrite <- H3.
     unfold force_val2, force_val.
     unfold sem_add.
+    destruct CLASSIFY_ADD as [si CLASSIFY_ADD].
     rewrite CLASSIFY_ADD.
-    rewrite sem_add_pi_ptr.
+    rewrite sem_add_pi_ptr_special.
     2: simpl in H2; rewrite <- H2; auto.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
@@ -683,7 +714,7 @@ Fixpoint compute_nested_efield_rec {cs:compspecs} e lr_default :=
       else (e, nil, nil, lr_default)
     | _ => (e, nil, nil, lr_default)
     end
-  | Ederef (Ebinop Oadd e' ei (Tpointer t a)) t' =>
+  | Ederef (Ebinop Cop.Oadd e' ei (Tpointer t a)) t' =>
     match typeof e' with
     | Tarray t'' _ _ =>
       match eqb_type t t'', eqb_type t t', eqb_attr a noattr with
