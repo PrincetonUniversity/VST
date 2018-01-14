@@ -29,6 +29,18 @@ Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 Import Cop.
+Import Cop2.
+
+Lemma isptr_force_sem_add_ptr_int:
+  forall {cs: compspecs}  t si p i,
+ isptr p ->
+ isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
+Proof.
+intros.
+rewrite sem_add_pi_ptr_special; auto.
+destruct p; try contradiction; auto.
+Qed.
+Hint Resolve isptr_force_sem_add_ptr_int : prove_it_now.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :
@@ -2102,14 +2114,14 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
     end
   |].
 
-Lemma sem_add_ptr_int:
+Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    isptr v ->
    Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite @sem_add_ptr_int using assumption : norm1.
+Hint Rewrite @sem_add_ptr_int_lem using assumption : norm1.
 
 Arguments field_type i m / .
 Arguments nested_field_type {cs} t gfs / .

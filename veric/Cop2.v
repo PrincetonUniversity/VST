@@ -660,20 +660,29 @@ Definition sem_binarith
   | bin_default => fun _ _ => None
   end.
 
-Definition sem_add_int_ptr cenv ty si v1 v2 := sem_add_ptr_int cenv ty si v2 v1.
-Definition sem_add_long_ptr cenv ty v1 v2 := sem_add_ptr_long cenv ty v2 v1.
+Definition sem_add_ptr_int {CS: compspecs} ty si v1 v2 :=
+ Cop.sem_add_ptr_int cenv_cs ty si v1 v2.
+
+Definition sem_add_int_ptr {CS: compspecs} ty si v1 v2 :=
+ Cop.sem_add_ptr_int cenv_cs ty si v2 v1.
+
+Definition sem_add_ptr_long {CS: compspecs} ty v1 v2 :=
+ Cop.sem_add_ptr_long cenv_cs ty v1 v2.
+
+Definition sem_add_long_ptr {CS: compspecs} ty v1 v2 :=
+ Cop.sem_add_ptr_long cenv_cs ty v2 v1.
 
 (** *** Addition *)
 Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
   match classify_add t1 t2 with
   | add_case_pi ty si =>             (**r pointer plus integer *)
-      sem_add_ptr_int cenv_cs ty si
+      sem_add_ptr_int ty si
   | add_case_pl ty =>                (**r pointer plus long *)
-      sem_add_ptr_long cenv_cs ty
+      sem_add_ptr_long ty
   | add_case_ip si ty =>             (**r integer plus pointer *)
-      sem_add_int_ptr cenv_cs ty si
+      sem_add_int_ptr ty si
   | add_case_lp ty =>                (**r long plus pointer *)
-      sem_add_long_ptr cenv_cs ty
+      sem_add_long_ptr ty
   | add_default =>
       sem_binarith
         (fun sg n1 n2 => Some(Vint(Int.add n1 n2)))

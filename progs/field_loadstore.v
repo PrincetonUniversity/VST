@@ -153,7 +153,7 @@ Definition composites : list composite_definition :=
    ((_y1, tint) :: (_y2, (tarray (Tstruct _a noattr) 3)) :: nil)
    noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

@@ -138,8 +138,8 @@ Definition f_intpair_deserialize := {|
 Definition v_intpair_message := {|
   gvar_info := (Tstruct _message noattr);
   gvar_init := (Init_int32 (Int.repr 8) ::
-                Init_addrof _intpair_serialize (Int.repr 0) ::
-                Init_addrof _intpair_deserialize (Int.repr 0) :: nil);
+                Init_addrof _intpair_serialize (Ptrofs.repr 0) ::
+                Init_addrof _intpair_deserialize (Ptrofs.repr 0) :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -229,7 +229,7 @@ Definition composites : list composite_definition :=
    noattr ::
  Composite _intpair Struct ((_x, tint) :: (_y, tint) :: nil) noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

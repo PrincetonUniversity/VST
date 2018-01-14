@@ -354,11 +354,13 @@ Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
 Proof. reflexivity. Qed.
 
 Lemma sem_add_pi_ptr_special:
-   forall {cs: compspecs}  t p i si,
+   forall t p i si,
     isptr p ->
-    Cop.sem_add_ptr_int cenv_cs t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+    sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
-  intros. destruct p; try contradiction.
+  intros.
+ unfold sem_add_ptr_int.
+  destruct p; try contradiction.
   unfold offset_val, Cop.sem_add_ptr_int.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.

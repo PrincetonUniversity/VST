@@ -1429,7 +1429,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | now (clear; let H := fresh in intro H; inversion H)
+  | reflexivity
   | solve_msubst_eval_lvalue
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1451,7 +1451,7 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | now (clear; let H := fresh in intro H; inversion H)
+  | reflexivity
   | solve_msubst_eval_LR
   | solve_msubst_efield_denote
   | econstructor

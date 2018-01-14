@@ -116,8 +116,8 @@ Definition f_foo_twiddle := {|
 
 Definition v_foo_methods := {|
   gvar_info := (Tstruct _methods noattr);
-  gvar_init := (Init_addrof _foo_reset (Int.repr 0) ::
-                Init_addrof _foo_twiddle (Int.repr 0) :: nil);
+  gvar_init := (Init_addrof _foo_reset (Ptrofs.repr 0) ::
+                Init_addrof _foo_twiddle (Ptrofs.repr 0) :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -252,7 +252,7 @@ Definition composites : list composite_definition :=
    ((_mtable, (tptr (Tstruct _methods noattr))) :: (_data, tint) :: nil)
    noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

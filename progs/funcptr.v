@@ -74,7 +74,7 @@ Definition f_myfunc := {|
 
 Definition v_a := {|
   gvar_info := (tarray (tptr tvoid) 1);
-  gvar_init := (Init_addrof _myfunc (Int.repr 0) :: nil);
+  gvar_init := (Init_addrof _myfunc (Ptrofs.repr 0) :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -105,7 +105,7 @@ Definition f_main := {|
 Definition composites : list composite_definition :=
 nil.
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

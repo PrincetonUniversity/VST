@@ -87,7 +87,7 @@ Definition f_fabs_single := {|
 Definition composites : list composite_definition :=
 (Composite __133 Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

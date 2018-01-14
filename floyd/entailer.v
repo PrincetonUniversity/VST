@@ -422,6 +422,16 @@ split; auto. apply Ptrofs.eq_true.
 Qed.
 Hint Resolve ptr_eq_refl : prove_it_now.
 
+Lemma ptr_eq_nullval: ptr_eq nullval nullval.
+Proof.
+Transparent Archi.ptr64.
+unfold ptr_eq, nullval; simpl.
+split3; auto.
+Opaque Archi.ptr64.
+Qed.
+
+Hint Resolve ptr_eq_nullval : prove_it_now.
+
 Hint Extern 4 (value_fits _ _ _) =>
    (rewrite ?proj_sumbool_is_true by auto;
     rewrite ?proj_sumbool_is_false by auto;

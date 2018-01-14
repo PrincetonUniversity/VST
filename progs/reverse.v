@@ -72,9 +72,9 @@ Definition _t'2 : ident := 67%positive.
 
 Definition v_three := {|
   gvar_info := (tarray (Tstruct _list noattr) 3);
-  gvar_init := (Init_int32 (Int.repr 1) :: Init_addrof _three (Int.repr 8) ::
+  gvar_init := (Init_int32 (Int.repr 1) :: Init_addrof _three (Ptrofs.repr 8) ::
                 Init_int32 (Int.repr 2) ::
-                Init_addrof _three (Int.repr 16) ::
+                Init_addrof _three (Ptrofs.repr 16) ::
                 Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) :: nil);
   gvar_readonly := false;
   gvar_volatile := false
@@ -178,7 +178,7 @@ Definition composites : list composite_definition :=
    ((_head, tuint) :: (_tail, (tptr (Tstruct _list noattr))) :: nil)
    noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
