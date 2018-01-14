@@ -7,6 +7,7 @@ Require Export VST.floyd.sublist.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
+Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
 
 Lemma app_cons_assoc : forall {A} l1 (x : A) l2, l1 ++ x :: l2 = (l1 ++ [x]) ++ l2.
 Proof.
@@ -63,7 +64,7 @@ Proof.
 Qed.
 Hint Resolve repable_0.
 
-Definition complete MAX l := l ++ repeat (vint 0) (Z.to_nat MAX - length l).
+Definition complete MAX l := l ++ repeat (vptrofs 0) (Z.to_nat MAX - length l).
 
 Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).

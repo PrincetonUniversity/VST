@@ -134,7 +134,7 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
     (EX b : block, EX ofs : _,
       !!(v = Vptr b ofs) &&
       LKspec LKSIZE
-        R sh (b, Int.unsigned ofs))%logic.
+        R sh (b, Ptrofs.unsigned ofs))%logic.
 
 Definition rec_inv sh v (Q R: mpred): Prop :=
   (R = Q * lock_inv sh v (|> R))%logic.
