@@ -93,7 +93,7 @@ Definition hmac_reset_spec :=
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
                        body of your wrapper function is a call to hmac_init with the nonnull key*)
-   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:ptrofs
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -156,7 +156,7 @@ Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, b:block, i:int
+        kv:val, shmd: share, b:block, i:ptrofs
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -315,7 +315,7 @@ Definition hmac_reset_spec :=
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:ptrofs
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -378,7 +378,7 @@ Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, b:block, i:int
+        kv:val, shmd: share, b:block, i:ptrofs
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,

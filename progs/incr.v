@@ -554,7 +554,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_thread_func, Gfun(Internal f_thread_func)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _thread_func :: _read :: _incr :: _ctr :: _thread_lock ::
  _ctr_lock :: _spawn :: _release2 :: _freelock2 :: _release :: _acquire ::
  _freelock :: _makelock :: ___builtin_debug :: ___builtin_nop ::

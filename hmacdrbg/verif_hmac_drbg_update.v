@@ -781,7 +781,7 @@ Proof. intros.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
       {
         (* prove the PROP clause matches *)
-        repeat split; [omega | omega | | assumption].
+        repeat split; [omega | repable_signed | | assumption].
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.
@@ -855,7 +855,9 @@ Proof. intros.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9 *)
     {
       (* prove the function parameters match up *)
-      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. split; reflexivity.
+      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction.
+      split; try reflexivity.
+      simpl. rewrite FA_ctx_MDCTX. rewrite ptrofs_add_repr_0_r; auto.
     }
     {
       (* prove the PROP clauses *)

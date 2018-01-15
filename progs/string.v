@@ -434,7 +434,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) (tptr tvoid) cc_default)) ::
  (_strcspn_kmp, Gfun(Internal f_strcspn_kmp)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_strcspn_kmp :: _mallocN :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

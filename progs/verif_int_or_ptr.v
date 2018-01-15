@@ -21,7 +21,7 @@ Definition valid_int_or_ptr (x: val) :=
  match x with
  | Vint i => Int.testbit i 0 = true
               \/ Int.unsigned i < POINTER_BOUNDARY
- | Vptr b z => Int.testbit z 0 = false
+ | Vptr b z => Ptrofs.testbit z 0 = false
  | _ => False
  end.
 

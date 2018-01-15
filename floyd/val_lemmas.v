@@ -677,14 +677,37 @@ Proof.
     reflexivity.
 Qed.
 
-(* Equality proofs for all constants from the Compcert Int module: *)
-Definition int_wordsize_eq : Int.wordsize = 32%nat := eq_refl.
-Definition int_zwordsize_eq : Int.zwordsize = 32 := eq_refl.
-Definition int_modulus_eq : Int.modulus = 4294967296 := eq_refl.
-Definition int_half_modulus_eq : Int.half_modulus = 2147483648 := eq_refl.
-Definition int_max_unsigned_eq : Int.max_unsigned = 4294967295 := eq_refl.
-Definition int_max_signed_eq : Int.max_signed = 2147483647 := eq_refl.
-Definition int_min_signed_eq : Int.min_signed = -2147483648 := eq_refl.
+(* Equality proofs for all constants from the Compcert Int, Int64, Ptrofs modules: *)
+
+Ltac const_equation x :=
+  let y := eval compute in x
+   in exact (x = y).
+
+Transparent Archi.ptr64.
+Definition int_wordsize_eq : ltac:(const_equation Int.wordsize) := eq_refl.
+Definition int_zwordsize_eq : ltac:(const_equation Int.zwordsize) := eq_refl.
+Definition int_modulus_eq :  ltac:(const_equation Int.modulus) := eq_refl.
+Definition int_half_modulus_eq :  ltac:(const_equation Int.half_modulus) := eq_refl.
+Definition int_max_unsigned_eq :  ltac:(const_equation Int.max_unsigned) := eq_refl.
+Definition int_max_signed_eq :  ltac:(const_equation Int.max_signed) := eq_refl.
+Definition int_min_signed_eq :  ltac:(const_equation Int.min_signed) := eq_refl.
+
+Definition int64_wordsize_eq : ltac:(const_equation Int64.wordsize) := eq_refl.
+Definition int64_zwordsize_eq : ltac:(const_equation Int64.zwordsize) := eq_refl.
+Definition int64_modulus_eq :  ltac:(const_equation Int64.modulus) := eq_refl.
+Definition int64_half_modulus_eq :  ltac:(const_equation Int64.half_modulus) := eq_refl.
+Definition int64_max_unsigned_eq :  ltac:(const_equation Int64.max_unsigned) := eq_refl.
+Definition int64_max_signed_eq :  ltac:(const_equation Int64.max_signed) := eq_refl.
+Definition int64_min_signed_eq :  ltac:(const_equation Int64.min_signed) := eq_refl.
+
+Definition ptrofs_wordsize_eq : ltac:(const_equation Ptrofs.wordsize) := eq_refl.
+Definition ptrofs_zwordsize_eq : ltac:(const_equation Ptrofs.zwordsize) := eq_refl.
+Definition ptrofs_modulus_eq :  ltac:(const_equation Ptrofs.modulus) := eq_refl.
+Definition ptrofs_half_modulus_eq :  ltac:(const_equation Ptrofs.half_modulus) := eq_refl.
+Definition ptrofs_max_unsigned_eq :  ltac:(const_equation Ptrofs.max_unsigned) := eq_refl.
+Definition ptrofs_max_signed_eq :  ltac:(const_equation Ptrofs.max_signed) := eq_refl.
+Definition ptrofs_min_signed_eq :  ltac:(const_equation Ptrofs.min_signed) := eq_refl.
+Opaque Archi.ptr64.
 
 Ltac repable_signed := 
    pose proof int_wordsize_eq;
@@ -694,6 +717,23 @@ Ltac repable_signed :=
    pose proof int_max_unsigned_eq;
    pose proof int_max_signed_eq;
    pose proof int_min_signed_eq;
+ 
+   pose proof int64_wordsize_eq;
+   pose proof int64_zwordsize_eq;
+   pose proof int64_modulus_eq;
+   pose proof int64_half_modulus_eq;
+   pose proof int64_max_unsigned_eq;
+   pose proof int64_max_signed_eq;
+   pose proof int64_min_signed_eq;
+ 
+   pose proof ptrofs_wordsize_eq;
+   pose proof ptrofs_zwordsize_eq;
+   pose proof ptrofs_modulus_eq;
+   pose proof ptrofs_half_modulus_eq;
+   pose proof ptrofs_max_unsigned_eq;
+   pose proof ptrofs_max_signed_eq;
+   pose proof ptrofs_min_signed_eq;
+
    unfold repable_signed in *;
    omega.
 

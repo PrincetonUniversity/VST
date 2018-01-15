@@ -399,7 +399,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_sub2, Gfun(Internal f_sub2)) :: (_sub3, Gfun(Internal f_sub3)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _sub3 :: _sub2 :: _sub1 :: _p :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::

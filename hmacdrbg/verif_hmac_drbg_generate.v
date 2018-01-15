@@ -547,7 +547,7 @@ Definition CTXeq (c:reptype t_struct_hmac256drbg_context_st)
 Definition is_multiple (multiple base: Z) : Prop := exists i, multiple = (i * base)%Z.
 *)
 Lemma entailment1: forall (contents : list Z) (additional output : val)
-  (out_len : Z) (b : block) (i : int) (mc1 mc2 mc3 : val) (key V : list Z)
+  (out_len : Z) (b : block) (i : ptrofs) (mc1 mc2 mc3 : val) (key V : list Z)
   (reseed_counter entropy_len : Z) (prediction_resistance : bool)
   (reseed_interval : Z) (kv : val) (info_contents : md_info_state)
   (s : ENTROPY.stream)
@@ -669,7 +669,7 @@ else s'=s /\ K'=K /\ ctx'=IS.
 
 Definition POSTUPDATE (b:bool) additional c key V (mc:mdstate) RC EL PR RI ctx1 key1 K' (ctx':reptype t_struct_hmac256drbg_context_st): Prop :=
   if b 
-  then (exists (bb : block), exists (ii : int), exists (UVal : list Z),
+  then (exists (bb : block), exists (ii : ptrofs), exists (UVal : list Z),
         additional = Vptr bb ii /\
         (K', UVal) =
            HMAC256_DRBG_update
@@ -943,11 +943,11 @@ Proof.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
     { simpl in *. repeat split; trivial; try omega.
-      change Int.modulus with 4294967296. omega. 
+      repable_signed.
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      change Int.modulus with 4294967296; omega. 
-      change Int.modulus with 4294967296; omega. 
+      repable_signed.
+      repable_signed.
     }
      
     Intros return_value.

@@ -114,7 +114,7 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
-  forward_call (@inl _ (val * Z * list Z * val * block * Int.int) (internal_r, 32, key, kv)). 
+  forward_call (@inl _ (val * Z * list Z * val * block * Ptrofs.int) (internal_r, 32, key, kv)). 
   forward.
 
   unfold md_relate; simpl. cancel.

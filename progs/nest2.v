@@ -359,7 +359,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_p, Gvar v_p) :: (_get, Gfun(Internal f_get)) ::
  (_set, Gfun(Internal f_set)) :: (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _set :: _get :: _p :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

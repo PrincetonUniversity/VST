@@ -604,7 +604,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_make_elem, Gfun(Internal f_make_elem)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _make_elem :: _fifo_get :: _fifo_empty :: _fifo_put :: _fifo_new ::
  _surely_malloc :: _exit :: _free :: _malloc :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::

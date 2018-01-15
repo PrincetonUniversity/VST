@@ -72,7 +72,8 @@ Definition _t'2 : ident := 67%positive.
 
 Definition v_three := {|
   gvar_info := (tarray (Tstruct _list noattr) 3);
-  gvar_init := (Init_int32 (Int.repr 1) :: Init_addrof _three (Ptrofs.repr 8) ::
+  gvar_init := (Init_int32 (Int.repr 1) ::
+                Init_addrof _three (Ptrofs.repr 8) ::
                 Init_int32 (Int.repr 2) ::
                 Init_addrof _three (Ptrofs.repr 16) ::
                 Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) :: nil);
@@ -424,7 +425,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_reverse, Gfun(Internal f_reverse)) :: (_main, Gfun(Internal f_main)) ::
  nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::

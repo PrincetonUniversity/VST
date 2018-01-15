@@ -476,7 +476,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_intpair_message, Gvar v_intpair_message) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _intpair_message :: _intpair_deserialize :: _intpair_serialize ::
  ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::

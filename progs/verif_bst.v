@@ -295,8 +295,8 @@ Qed.
 
 Hint Resolve tree_rep_nullval: saturate_local.
 
-Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+Lemma is_pointer_or_null_force_val_sem_cast_pointer: forall p,
+  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
 Proof.
   intros.
   destruct p; try contradiction; reflexivity.
@@ -417,7 +417,7 @@ Proof.
       assert_PROP (t1= (@E _)).
         1: entailer!.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+      rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
       forward. (* *t = p; *)
       forward. (* return; *)
       apply modus_ponens_wand'.
@@ -543,13 +543,13 @@ Proof.
   forward. (* mid=r->left *)
   forward. (* l->right=mid *)
   assert_PROP (is_pointer_or_null pb) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   forward. (* r->left=l *)
   assert_PROP (is_pointer_or_null l) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   forward. (* _l = r *)
   assert_PROP (is_pointer_or_null r) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   Opaque tree_rep. forward. Transparent tree_rep. (* return *)
   (* TODO: simplify the following proof *)
   Exists pc.

@@ -7,20 +7,7 @@
    will tell you which versions are compatible.
 
 2. Make sure you have the right version of CompCert.
-   VST 1.9 uses CompCert 2.7.2 for Coq 8.6.1 or Coq 8.7.
-
-   However, [AbsInt.com](https://www.absint.com) (the official distributor of
-   CompCert) does not support CompCert 2.7 for Coq 8.6 (only for 8.4 and 8.5).
-
-   The version of CompCert 2.7 for Coq 8.6/8.7 is this _unofficial_ port:  
-   https://github.com/ildyria/CompCert/tree/v2.7.2  
-   For example, you could download and unpack this zip file:  
-   https://github.com/ildyria/CompCert/archive/v2.7.2.3.zip  
-   OR
-   ```sh
-   git clone https://github.com/ildyria/CompCert;
-   git checkout v2.7.2
-   ```
+   VST 2.0 uses CompCert 3.2 for Coq 8.7.1 (or Coq 8.7 should work).
 
 ### METHOD A [recommended]
 
@@ -36,7 +23,8 @@ distributed with VST, located in `VST/compcert`.
     Unpack CompCert in the location of your choice (not under VST/), and in that
     directory,  
     ```
-    make clightgen
+    ./configure -clightgen x86_32-linux
+    make
     ```
 
 ### METHOD B [alternate]
@@ -48,7 +36,7 @@ which uses verbatim copies of them).
 1. Unpack CompCert in a sibling directory to VST;  
    in that directory, build CompCert according to the instructions
    ```sh
-    ./configure -clightgen ia32-linux;
+    ./configure -clightgen x86_32-linux;
     make
     ```
 2. In the VST directory, create a file `CONFIGURE` containing exactly the text:  

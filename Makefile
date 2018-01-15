@@ -332,7 +332,7 @@ HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
-  mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
+  hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   drbg_protocol_specs.v \
@@ -343,6 +343,7 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
   drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
+#  mocked_md.v mocked_md_compspecs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -499,7 +500,7 @@ clean_cvfiles:
 
 ifdef CLIGHTGEN
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c # sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/even.v: progs/even.c progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $^

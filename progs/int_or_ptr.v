@@ -769,7 +769,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_print_int, Gfun(Internal f_print_int)) ::
  (_print, Gfun(Internal f_print)) :: (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _print :: _print_int :: _print_intx :: _copytree :: _maketree ::
  _makenode :: _next :: _arena :: _leaf :: _ptr_to_int_or_ptr ::
  _int_to_int_or_ptr :: _int_or_ptr_to_ptr :: _int_or_ptr_to_int ::

@@ -47,7 +47,7 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
 simpl @nested_field_type.
 make_Vptr c.
-simpl. rewrite Int.add_zero.
+simpl. rewrite Ptrofs.add_zero.
 Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv). (*6 versus 21 *)
   { unfold sha256state_. Exists (fst ST).
     rewrite prop_true_andp by auto.
@@ -72,7 +72,7 @@ destruct ST as [ST1 [ST2 ST3]]. simpl in *.
 Time cancel. (*0.5*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
-simpl. rewrite Int.add_zero. apply derives_refl.
+simpl. rewrite Ptrofs.add_zero. apply derives_refl.
 Time Qed. (*9.5 versus 20.3*)
 
 Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs

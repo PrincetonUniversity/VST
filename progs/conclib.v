@@ -568,10 +568,10 @@ Proof.
     replace (Z.to_nat m - length l)%nat with (Z.to_nat m - S (length l) + 1)%nat; [|omega].
     rewrite repeat_plus, app_assoc; simpl.
     repeat rewrite Zlength_app.
-    assert (m - 1 = Zlength l + Zlength (repeat (vint 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
+    assert (m - 1 = Zlength l + Zlength (repeat (vptrofs 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
     { rewrite Zlength_repeat, Nat2Z.inj_sub, Z2Nat.id, Nat2Z.inj_succ, <- Zlength_correct; omega. }
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
+    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); rewrite ?Zlength_app; try omega.
+    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); try rewrite Zlength_app; try omega.
     f_equal; f_equal; try omega.
     + rewrite app_Znth2, Zlength_app, Heq, Zminus_diag, Znth_0_cons; auto.
       rewrite Zlength_app; omega.
@@ -1939,7 +1939,7 @@ Proof.
   repeat intro.
   destruct H as (b & o & Hv & Hlock).
   simpl in Hlock.
-  specialize (Hlock (b, Int.unsigned o)).
+  specialize (Hlock (b, Ptrofs.unsigned o)).
   if_tac [r|nr] in Hlock.
   - if_tac [e|ne] in Hlock.
     + destruct Hlock; eauto 6.
@@ -2093,7 +2093,7 @@ Hint Resolve mapsto_precise.
 Corollary memory_block_precise : forall sh n v, precise (memory_block sh n v).
 Proof.
   destruct v; auto; apply precise_andp2.
-  forget (Int.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
+  forget (Ptrofs.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
   - apply precise_emp.
   - apply precise_sepcon; auto.
     apply mapsto_precise.
@@ -3069,13 +3069,13 @@ Proof.
 Qed.
 
 Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
-  force_val (sem_cast_neutral v) = v.
+  force_val (sem_cast_pointer v) = v.
 Proof.
   intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
   rewrite !Heq; auto.
 Qed.
 
-Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_neutral v) = v.
+Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_pointer v) = v.
 Proof.
   intros; apply force_val_sem_cast_neutral_isptr in H.
   inversion H as [Heq]; rewrite !Heq; auto.

@@ -108,7 +108,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
 {apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
- make_Vptr c. simpl. normalize.
+ make_Vptr c. simpl. unfold Ptrofs.of_intu, Ptrofs.of_int. normalize.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -122,7 +122,7 @@ cancel.
 
 forward.  (* p += SHA_CBLOCK-8; *)
 assert_PROP (force_val
-         (sem_add_pi tuchar
+         (sem_add_ptr_int tuchar Signed
             (field_address t_struct_SHA256state_st [StructField _data] c)
             (Vint (Int.sub (Int.mul (Int.repr 16) (Int.repr 4))
                         (Int.repr 8))))
@@ -131,7 +131,7 @@ assert_PROP (force_val
   entailer!.
   make_Vptr c.
   rewrite !field_address_offset by auto with field_compatible.
-  simpl. normalize.
+  simpl. normalize. auto with norm.
  }
  simpl (temp _p _).
  rewrite H2. clear H2.

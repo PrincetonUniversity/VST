@@ -330,7 +330,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) :: (_odd, Gfun(Internal f_odd)) ::
  nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_odd :: _even :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

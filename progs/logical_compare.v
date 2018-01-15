@@ -348,7 +348,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_do_or, Gfun(Internal f_do_or)) :: (_do_and, Gfun(Internal f_do_and)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _do_and :: _do_or :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

@@ -831,7 +831,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_pushdown_left, Gfun(Internal f_pushdown_left)) ::
  (_delete, Gfun(Internal f_delete)) :: (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _delete :: _pushdown_left :: _turn_left :: _get :: _set ::
  _subscr :: _treebox_free :: _tree_free :: _treebox_new :: _freeN ::
  _mallocN :: ___builtin_debug :: ___builtin_nop ::

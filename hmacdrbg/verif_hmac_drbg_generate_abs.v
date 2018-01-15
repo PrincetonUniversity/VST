@@ -42,7 +42,7 @@ else s'=s /\ K'=K /\ ctx'=IS.
 
 Definition POSTUPDATE (b:bool) additional c key V (mc:mdstate) RC EL PR RI ctx1 key1 K' (ctx':reptype t_struct_hmac256drbg_context_st): Prop :=
   if b 
-  then (exists (bb : block), exists (ii : int), exists (UVal : list Z),
+  then (exists (bb : block), exists (ii : ptrofs), exists (UVal : list Z),
         additional = Vptr bb ii /\
         (K', UVal) =
            HMAC256_DRBG_update
@@ -320,12 +320,11 @@ Proof.
     { subst I aaa; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { red in WFI; simpl in *. repeat split; trivial; try omega.
-      change Int.modulus with 4294967296. omega. 
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega. 
+    { red in WFI; simpl in *. repeat split; trivial; try repable_signed.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; repable_signed. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      change Int.modulus with 4294967296; omega. 
-      change Int.modulus with 4294967296; omega. 
+      repable_signed.
+      repable_signed.
     }
      
     Intros return_value.
@@ -703,7 +702,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
   { subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
-    split. destruct should_reseed; omega.
+    split. destruct should_reseed; repable_signed.
     split. assumption.
     split. destruct should_reseed; omega.
     split. assumption. assumption. }

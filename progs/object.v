@@ -506,7 +506,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_make_foo, Gfun(Internal f_make_foo)) :: (_main, Gfun(Internal f_main)) ::
  nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _make_foo :: _foo_methods :: _foo_twiddle :: _foo_reset :: _exit ::
  _malloc :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::

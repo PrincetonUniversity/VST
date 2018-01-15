@@ -520,7 +520,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_multi_command, Gfun(Internal f_multi_command)) ::
  (_multi_command_s, Gfun(Internal f_multi_command_s)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_multi_command_s :: _multi_command :: _set :: _get :: _p7 :: _p6 :: _p5 ::
  _p4 :: _p3 :: _p2 :: _p1 :: _p0 :: _p :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::

@@ -31,14 +31,16 @@ Require Import VST.floyd.nested_pred_lemmas.
 Import Cop.
 Import Cop2.
 
+Global Opaque denote_tc_test_eq.
+
+Hint Rewrite @sem_add_pi_ptr_special using auto : norm.
+
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
  isptr p ->
  isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
 Proof.
-intros.
-rewrite sem_add_pi_ptr_special; auto.
-destruct p; try contradiction; auto.
+intros. normalize.
 Qed.
 Hint Resolve isptr_force_sem_add_ptr_int : prove_it_now.
 

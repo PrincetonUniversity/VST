@@ -19,14 +19,13 @@ Lemma mapsto_tc_val:
   mapsto sh t p v = !! tc_val t v && mapsto sh t p v .
 Proof.
 intros.
-apply pred_ext.
+apply pred_ext; [ | normalize].
 apply andp_right; auto.
 unfold mapsto; simpl.
 destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
+destruct (attr_volatile (attr_of_type t)); try apply FF_left.
 destruct p; try apply FF_left.
 if_tac; try contradiction. apply orp_left.
-normalize.
 normalize.
 normalize.
 Qed.

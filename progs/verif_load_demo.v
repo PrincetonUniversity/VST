@@ -161,13 +161,8 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
     destruct p; inversion P. simpl.
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
-    rewrite Ptrofs.add_assoc. 
-    f_equal. f_equal.
-    (* FIXME:  The next two lines should be better automated, and for the Signed case too  *)
-    unfold Ptrofs.of_intu, Ptrofs.of_int.
-    rewrite Ptrofs_repr_Int_unsigned_special by auto.
-    rewrite ptrofs_mul_repr, ptrofs_add_repr.
-    f_equal. omega.
+    rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
+    f_equal. f_equal. f_equal. omega.
   }
   forward.
   forward.
@@ -193,8 +188,6 @@ Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.
  assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
    = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
    entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-   simpl.
-  rewrite sem_add_pi_ptr_special by auto.  (* FIXME: this should be automated *)
   simpl. normalize.
  }
  (* int res = p->snd; *)
@@ -218,9 +211,7 @@ assert_PROP (
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl.
-  rewrite sem_add_pi_ptr_special by auto.  (* FIXME: this should be automated *)
-  normalize. simpl. f_equal. omega.
+  simpl. f_equal. omega.
 }
 (* int res = p->snd; *)
 forward.
@@ -240,7 +231,6 @@ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
   simpl.
-  rewrite sem_add_pi_ptr_special by auto.  (* FIXME: this should be automated *)
   normalize.
 }
 rewrite E. clear E.

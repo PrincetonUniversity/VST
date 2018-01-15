@@ -366,7 +366,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_sumarray, Gfun(Internal f_sumarray)) :: (_four, Gvar v_four) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_main :: _four :: _sumarray :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

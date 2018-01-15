@@ -140,6 +140,9 @@ Proof. reflexivity. Qed.
 Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
 Proof. reflexivity. Qed.
 
+Lemma ptrofs_max_unsigned_eq: Ptrofs.max_unsigned = 4294967295.
+Proof. reflexivity. Qed.
+
 Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
 
 Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) ->

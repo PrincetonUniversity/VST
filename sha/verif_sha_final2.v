@@ -235,6 +235,7 @@ evar (V: list val).
  rewrite field_address_offset by auto with field_compatible.
  simpl. normalize.
 }
+  auto with norm.  (* TODO:  why didn't "normalize" do this too? *)
  abbreviate_semax.
 replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; omega).
 change 64 with CBLOCKz.
