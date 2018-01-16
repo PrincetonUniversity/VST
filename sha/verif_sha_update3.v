@@ -303,7 +303,6 @@ forward_if.
   rewrite !field_address0_offset by (subst k; auto with field_compatible).
   simpl.
   normalize.
-  auto with norm.  (* TODO:  why didn't "normalize" do this too? *)
   *
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   subst k.
@@ -405,7 +404,6 @@ forward_if.
   rewrite field_address0_offset by
    (subst k; auto with field_compatible).
   rewrite offset_offset_val; simpl. rewrite Z.mul_1_l; auto.
-  auto with norm.  (* TODO:  why didn't "normalize" do this too? *)
   unfold_data_at 1%nat. cancel.
   abbreviate_semax.
   autorewrite with sublist.

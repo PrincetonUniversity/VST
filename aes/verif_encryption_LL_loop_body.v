@@ -43,7 +43,7 @@ Definition encryption_loop_body_proof_statement :=
   (Eq : forall i : Z,
      0 <= i < 60 ->
      force_val
-       (sem_add_pi tuint
+       (sem_add_ptr_int tuint Signed
           (field_address t_struct_aesctx [ArraySubsc i; StructField _buf] ctx)
           (Vint (Int.repr 1))) =
      field_address t_struct_aesctx [ArraySubsc (i + 1); StructField _buf] ctx)

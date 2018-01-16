@@ -173,7 +173,7 @@ Proof.
     entailer!. }
   { (* loop body preserves invariant: *)
     assert_PROP (forall j, 0 <= j < 16 -> force_val
-      (sem_add_pi tuint (offset_val (i * 32) (field_address t_struct_aesctx [StructField _buf] ctx))
+      (sem_add_ptr_int tuint Signed (offset_val (i * 32) (field_address t_struct_aesctx [StructField _buf] ctx))
       (Vint (Int.repr j)))
       = field_address t_struct_aesctx [ArraySubsc (i*8+j); StructField _buf] ctx) as E. {
       assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
@@ -181,7 +181,7 @@ Proof.
       intros j B.
       rewrite field_compatible_field_address by assumption.
       rewrite field_compatible_field_address by auto with field_compatible.
-      simpl. rewrite Int.add_assoc. rewrite add_repr. do 4 f_equal. omega.
+      simpl. rewrite Ptrofs.add_assoc. rewrite ptrofs_add_repr. do 4 f_equal. omega.
     }
 
     (* TODO floyd: In these two tactics, entailer! does not solve everything, but entailer works *)

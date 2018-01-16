@@ -29,15 +29,15 @@ Proof.
     subst. rewrite Zlength_app. rewrite H0. reflexivity.
   }
 
-  assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
+  assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_ptr_int tuint Signed
        (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
      = (field_address t_struct_aesctx [ArraySubsc (i+1); StructField _buf] ctx)) as Eq. {
     entailer!. intros.
     do 2 rewrite field_compatible_field_address by auto with field_compatible.
     simpl. destruct ctx; inversion PNctx; try reflexivity.
-    simpl. f_equal. rewrite Int.add_assoc.
-    change (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4).
-    rewrite add_repr. f_equal. f_equal.  clear; omega.
+    simpl. f_equal. rewrite Ptrofs.add_assoc.
+    change (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))) with (Ptrofs.repr 4).
+    rewrite ptrofs_add_repr. f_equal. f_equal.  clear; omega.
   }
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
