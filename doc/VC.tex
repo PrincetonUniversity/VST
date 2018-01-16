@@ -38,7 +38,7 @@ Applying the Verified Software Toolchain\\
 to C programs}%
 
 \vskip50pt
-  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.9 \\ \today}
+  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 2.0 \\ \today}
 \vskip100pt
 \par
 \vskip10pt
@@ -157,16 +157,15 @@ The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
 \begin{description}
-\item[Coq 8.6.1,] from coq.inria.fr.  Follow the standard installation instructions.
-\item[CompCert 2.7.2,] from \href{https://github.com/ildyria/CompCert}{https://github.com/ildyria/CompCert}; either unpack the zip file linked from
-  \href{vst.cs.princeton.edu/download}{vst.cs.princeton.edu/download} or
-  clone the repo and then do \lstinline{git checkout v2.7.2}
- (this is an unofficial release based on the official CompCert 2.7.1 for Coq 8.5, since no official release of CompCert 2.7 is ported to Coq8.6.)
+\item[Coq 8.7.1,] from coq.inria.fr.  Follow the standard installation instructions.
+\item[CompCert 3.2,] from \href{http://compcert.inria.fr/download.html}{http://compcert.inria.fr/download.html}.
   Build the \emph{clightgen} tool, using these commands:
-  \textsf{./configure ia32-linux; make; make clightgen}.  You might replace
-  ia32-linux with ia32-macosx or ia32-cygwin.  Verifiable C should work
+  \textsf{./configure -clightgen x86\_32-linux; make}.  You might replace
+  x86\_32-linux with x86\_32-macosx or x86\_32-cygwin.  Verifiable C should work
   on other 32-bit architectures as well, but has not been extensively tested.
-\item[VST 1.9,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
+  Verifiable C has not been tested on 64-bit architectures, but
+  a near-future release will support these.
+\item[VST 2.0,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
   or else an appropriate
   version from \href{https://github.com/PrincetonUniversity/VST}{https://github.com/PrincetonUniversity/VST}.
   After unpacking, read the \textsc{build\_organization} file
@@ -186,7 +185,7 @@ Within VST, the \file{progs} directory contains some sample C programs
 with their verifications.  The workflow is:
 \begin{itemize}
 \item Write a C program $F$.c.
-\item Run \lstinline{clightgen $F$.c} to translate it into a Coq
+\item Run \lstinline{clightgen -normalize $F$.c} to translate it into a Coq
 file $F$.v.
 \item Write a verification of $F$.v in a file such as
 \lstinline{verif_$F$.v}.  That latter file must import
@@ -493,7 +492,7 @@ type is defined by CompCert as,
 
 \begin{lstlisting}
 Inductive val: Type :=  Vundef: val  | Vint: int -> val | Vlong: int64 -> val
-     | Vfloat: float -> val | Vsingle: float32 -> val | Vptr: block -> int -> val.
+     | Vfloat: float -> val | Vsingle: float32 -> val | Vptr: block -> ptrofs -> val.
 \end{lstlisting}
 
 The \lstinline{SEP} conjuncts $\vec{R}$ are
@@ -1594,7 +1593,7 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{repable_signed} tactic,
+you can use the \lstinline{rep_omega} tactic,
 which is basically just \lstinline{omega} with
 knowledge of the values of
 \lstinline{Int.min_signed},
@@ -1621,6 +1620,50 @@ as a nonnegative signed integer,
 and each element of \lstinline{contents}
 is representable as an unsigned.
 
+\chapter{Int, Int8, Int16, Int64, Ptrofs}
+
+C programs use signed and unsigned integers of various sizes:
+8-bit (signed char, unsigned char), 16-bit (signed short, unsigned short),
+32-bit (int, unsigned int), 64-bit (long, unsigned long).
+
+A C compiler may be ``32-bit'' in which case
+\lstinline{sizeof(void*)=4} or
+``64-bit'' in which case
+\lstinline{sizeof(void*)=8}.  The macro \lstinline{size_t} is defined
+in the C standard library as a typedef for the appropriate signed
+integer, typically \lstinline{unsigned int} on a 32-bit system
+and \lstinline{unsigned long} on a 64-bit system.
+
+To talk about integer \emph{values} in all of these sizes,
+which have $n$-bit modular arithmetic (if unsigned)
+or $n$-bit twos-complement arithmetic (if signed),
+CompCert has several instantiations of the \lstinline{Integers} module:
+
+\begin{description}
+\item[\textsf{Int8}] for char (signed or unsigned)
+\item[\textsf{Int16}] for short (signed or unsigned)
+\item[\textsf{Int}] for int  (signed or unsigned)
+\item[\textsf{Int64}] for long  (signed or unsigned)
+\item[\textsf{Ptrofs}] for size\_t
+\end{description}
+where Ptrofs is isomorphic to the Int module (in 32-bit systems)
+and to the Int64 module (in 64-bit systems).  You pronounce
+``Ptrofs'' as ``pointer offset'' because it is frequently used to indicate
+the distance between two pointers into the same object.
+
+The following definitions are used for shorthand:
+
+\begin{lstlisting}
+Definition int = Int.int.
+Definition int64 = Int64.int.
+Definition ptrofs = Ptrofs.int.
+\end{lstlisting}
+
+
+  
+  
+  
+
 \chapter{Values: {\upshape\textsf{Vint,Vptr}}}
 
 \begin{lstlisting}
@@ -1632,7 +1675,7 @@ Inductive val: Type :=
   | Vlong: int64 -> val
   | Vfloat: float -> val
   | Vsingle: float32 -> val
-  | Vptr: block -> int -> val.
+  | Vptr: block -> ptrofs -> val.
 \end{lstlisting}
 \lstinline{Vundef} is the \emph{undefined} value---found, for example,
 in an uninitialized local variable.

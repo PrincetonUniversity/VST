@@ -344,7 +344,7 @@ Lemma semax_SC_field_cast_load_to_use:
     typeof e1 = nested_field_type t_root gfs ->
     typeof_temp Delta id = Some t ->
     type_is_by_value (nested_field_type t_root gfs) = true ->
-    classify_cast (nested_field_type t_root gfs) t <> cast_case_p2bool ->
+    cast_pointer_to_bool (nested_field_type t_root gfs) t = false ->
     type_is_volatile (nested_field_type t_root gfs) = false ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
        local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
@@ -394,7 +394,7 @@ Lemma semax_SC_field_cast_load:
       (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
-      classify_cast (typeof (nested_efield e1 efs tts)) t <> cast_case_p2bool ->
+      cast_pointer_to_bool (typeof (nested_efield e1 efs tts)) t = false ->
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
@@ -1063,7 +1063,7 @@ Lemma semax_PTree_field_cast_load_no_hint:
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof e) = true ->
       type_is_volatile (typeof e) = false ->
-      classify_cast (typeof e) t <> cast_case_p2bool ->
+      cast_pointer_to_bool (typeof e) t = false ->
       msubst_eval_LR T1 T2 e_root lr = Some p_from_e ->
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
@@ -1174,7 +1174,7 @@ Lemma semax_PTree_field_cast_load_with_hint:
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof e) = true ->
       type_is_volatile (typeof e) = false ->
-      classify_cast (typeof e) t <> cast_case_p2bool ->
+      cast_pointer_to_bool (typeof e) t = false ->
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
@@ -1429,7 +1429,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | now (clear; let H := fresh in intro H; inversion H)
+  | reflexivity
   | solve_msubst_eval_lvalue
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1451,7 +1451,7 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | now (clear; let H := fresh in intro H; inversion H)
+  | reflexivity
   | solve_msubst_eval_LR
   | solve_msubst_efield_denote
   | econstructor

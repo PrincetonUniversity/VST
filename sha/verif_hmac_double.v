@@ -100,16 +100,16 @@ remember (hmacInit key) as h0.
 forward_call (h0, c, d, dl, data, kv).
   { rewrite H0_len512. assumption. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
-assert (GTmod64: 64 < Int.modulus).
-  rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+assert (GTmod64: 64 < Ptrofs.modulus).
+  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
 rewrite H (*_ GTmod64)*); clear H.
 normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
-specialize (memory_block_split shmd b (Int.unsigned i) 32 32); intros XX.
-  rewrite Int.repr_unsigned in XX.
+specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
+  rewrite Ptrofs.repr_unsigned in XX.
   assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
   rewrite XX; trivial; clear XX.
-2: destruct (Int.unsigned_range i); omega.
+2: destruct (Ptrofs.unsigned_range i); omega.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
@@ -133,7 +133,7 @@ forward_call (hmacInit key, c, d, dl, data, kv).
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).
-forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv).
+forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, kv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
 destruct RND2 as [h5 dig2].
 simpl.

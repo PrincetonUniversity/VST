@@ -24,14 +24,7 @@ Proof.
   pose proof (H p).
   pose proof (H Vundef).
   destruct p; simpl in *; apply pred_ext; normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
+all: try solve [eapply derives_trans; [eassumption | normalize]].
 Qed.
 
 (******************************************
@@ -115,7 +108,7 @@ match p with
 | Vlong _ => True
 | Vfloat _ => True
 | Vsingle _ => True
-| Vptr _ i_ofs => Int.unsigned i_ofs + n < Int.modulus
+| Vptr _ i_ofs => Ptrofs.unsigned i_ofs + n < Int.modulus
 end.
 
 Lemma memory_block_local_facts: forall sh n p, 
@@ -546,12 +539,12 @@ Proof.
   rewrite at_offset_eq.
   unfold offset_val.
   destruct p; auto.
-  rewrite int_add_assoc1.
+  rewrite ptrofs_add_assoc1.
   reflexivity.
 Qed.
 
 Lemma at_offset_eq3: forall P z b ofs,
-  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
+  at_offset P z (Vptr b (Ptrofs.repr ofs)) = P (Vptr b (Ptrofs.repr (ofs + z))).
 Proof.
   intros.
   rewrite at_offset_eq.
@@ -637,7 +630,7 @@ Proof.
           (offset_val be (offset_val pos p)).
   reflexivity.
   destruct p; simpl; try reflexivity.
-  rewrite int_add_assoc1.
+  rewrite ptrofs_add_assoc1.
   reflexivity.
 Qed.
 
@@ -683,15 +676,15 @@ Qed.
 Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
   0 <= lo ->
   0 <= ofs ->
-  lo <= hi < Int.modulus ->
-  Int.unsigned i + ofs + hi < Int.modulus ->
+  lo <= hi < Ptrofs.modulus ->
+  Ptrofs.unsigned i + ofs + hi < Ptrofs.modulus ->
   spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val ofs (Vptr b i)) = memory_block sh hi (offset_val ofs (Vptr b i)).
 Proof.
   intros.
   rewrite spacer_memory_block by (simpl; auto).
   simpl offset_val.
   inv_int i.
-  rewrite !add_repr.
+  rewrite !ptrofs_add_repr.
   rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by omega.
   f_equal.
   omega.

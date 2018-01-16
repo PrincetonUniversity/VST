@@ -210,7 +210,7 @@ Definition believe_internal_
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,
-   prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+   prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
@@ -227,7 +227,7 @@ Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) 
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
   exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\
-    exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
+    exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
@@ -258,7 +258,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,
-   prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+   prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))

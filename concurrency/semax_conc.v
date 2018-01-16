@@ -24,6 +24,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_conc_pred.
+Import String.
 
 Set Bullet Behavior "Strict Subproofs".
 

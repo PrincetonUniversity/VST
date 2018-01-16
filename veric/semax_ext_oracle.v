@@ -135,6 +135,7 @@ intros a' Hage; auto.
 Qed.
 
 End funspecsOracle2jspec.
+Import String.
 
 Fixpoint add_funspecsOracle_rec (ext_link: string -> ident) Z (Espec : juicy_ext_spec Z) (fs : list (ident * funspecOracle Z)) :=
   match fs with

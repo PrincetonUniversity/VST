@@ -506,7 +506,7 @@ Qed.
 
 Definition StoreEffect (tv:val)(vl : list memval) (b:Values.block) (z:Z):bool :=
   match tv with Vptr bb ofs => eq_block bb b &&
-             zle (Int.unsigned ofs) z && zlt z (Int.unsigned ofs + Z.of_nat (length vl))
+             zle (Ptrofs.unsigned ofs) z && zlt z (Ptrofs.unsigned ofs + Z.of_nat (length vl))
          | _ => false
   end.
 
@@ -526,23 +526,23 @@ Proof. intros.
   destruct (eq_block b b0); subst; simpl in *.
     rewrite PMap.gss. apply andb_false_iff in H.
     apply Mem.setN_outside.
-    destruct H. destruct (zle (Int.unsigned i) ofs ); simpl in *. inv H.
+    destruct H. destruct (zle (Ptrofs.unsigned i) ofs ); simpl in *. inv H.
                 left. xomega.
     right. remember (Z.of_nat (length (encode_val chunk tv'))).
-       destruct (zlt ofs (Int.unsigned i + z)); simpl in *. inv H. apply g.
+       destruct (zlt ofs (Ptrofs.unsigned i + z)); simpl in *. inv H. apply g.
   rewrite PMap.gso. trivial. intros N; subst. elim n; trivial.
 Qed.
 
 Lemma StoreEffectD: forall vaddr v b ofs
       (STE: StoreEffect vaddr v b ofs = true),
       exists i, vaddr = Vptr b i /\
-        (Int.unsigned i) <= ofs < (Int.unsigned i + Z.of_nat (length v)).
+        (Ptrofs.unsigned i) <= ofs < (Ptrofs.unsigned i + Z.of_nat (length v)).
 Proof. intros.
   unfold StoreEffect in STE. destruct vaddr; inv STE.
   destruct (eq_block b0 b); inv H0.
   exists i.
-  destruct (zle (Int.unsigned i) ofs); inv H1.
-  destruct (zlt ofs (Int.unsigned i + Z.of_nat (length v))); inv H0.
+  destruct (zle (Ptrofs.unsigned i) ofs); inv H1.
+  destruct (zlt ofs (Ptrofs.unsigned i + Z.of_nat (length v))); inv H0.
   intuition.
 Qed.
 

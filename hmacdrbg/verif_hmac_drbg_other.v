@@ -41,7 +41,7 @@ Proof.
       unfold_data_at 1%nat.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
       destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
-      unfold field_address. rewrite if_true. simpl. rewrite Int.add_zero. 2: trivial.
+      unfold field_address. rewrite if_true. simpl. rewrite Ptrofs.add_zero. 2: trivial.
       unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
@@ -55,45 +55,40 @@ Proof.
       replace_SEP 0 (data_at_ Tsh (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
-              apply andp_right. apply prop_right. unfold field_compatible in *; simpl in *.
-                 repeat split; trivial. omega.
-                 unfold align_attr . simpl. constructor. intros. econstructor; [reflexivity |]. apply Z.divide_1_l.
-              simpl. specialize (memory_block_split Tsh b (Int.unsigned i) 12 48); simpl.
-              rewrite Int.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
+              apply andp_right. apply prop_right.
+              hnf in FC_mdctx, FC |- *.
+              decompose [and] FC_mdctx; clear FC_mdctx FC.
+               split3; auto. split3; auto.
+              apply align_compatible_rec_Tarray. intros.
+              eapply align_compatible_rec_by_value. reflexivity. simpl. apply Z.divide_1_l.
+              simpl. specialize (memory_block_split Tsh b (Ptrofs.unsigned i) 12 48); simpl.
+              rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
               cancel.
               Focus 2. unfold field_compatible in *. simpl in *.
-                destruct (Int.unsigned_range i). omega.
-              thaw FR. destruct (Int.unsigned_range i).  eapply derives_trans.
+                destruct (Ptrofs.unsigned_range i). omega.
+              thaw FR. destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_. apply derives_refl.
                repeat rewrite field_at__memory_block. simpl.
-               unfold field_address. repeat rewrite if_true. simpl. rewrite  <- add_repr.
-               specialize (memory_block_split Tsh b (Int.unsigned i + 12) 32 16); simpl.  rewrite <- add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Int.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
-               specialize (memory_block_split Tsh b (Int.unsigned i + 44) 4 12); simpl. rewrite <- add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Int.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
-               specialize (memory_block_split Tsh b (Int.unsigned i + 48) 4 8); simpl. rewrite <- add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Int.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
-               specialize (memory_block_split Tsh b (Int.unsigned i + 52) 4 4); simpl. rewrite <- add_repr.
-               intros XX; rewrite XX; clear XX; try omega. rewrite Int.repr_unsigned. cancel.
-               rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- add_repr. rewrite Int.repr_unsigned. cancel.
+               unfold field_address. repeat rewrite if_true. simpl. rewrite  <- ptrofs_add_repr.
+               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
+               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
+               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
+               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
+               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
+               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
+               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
+               intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel.
+               rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- ptrofs_add_repr. rewrite Ptrofs.repr_unsigned. cancel.
                destruct FC; simpl in *; omega.
                destruct FC; simpl in *; omega.
                destruct FC; simpl in *; omega.
                destruct FC; simpl in *; omega.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
-               right; simpl. right; right; right. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
-               right; simpl. right; right; right. left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
-               right; simpl. right; right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
-               right; simpl. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
-               right; simpl. left; trivial.
+               all: hnf in FC; decompose [and] FC; clear FC; split3; auto; split3; auto; split; auto;
+                       repeat first [left; solve [trivial] | right].
             }
       clear FR1. clear FR.
       forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i).
@@ -180,7 +175,7 @@ Proof.
                 I, kv, info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    repeat (split; try assumption; try rep_omega).
     constructor.  }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
@@ -425,7 +420,7 @@ Proof.
     - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
       assert (NK: n = k).
       { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
-        do 2 rewrite Int.unsigned_repr in H1; try omega. }
+        do 2 rewrite Int.unsigned_repr in H1; try rep_omega. }
       subst k; clear H1 K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.
@@ -435,13 +430,14 @@ Proof.
     - forward. forward.
       assert (KN: 0 <= k < n) by omega.
       (*forward.  The 2 properties mentioned in the error message are equal*)
-      assert_PROP (Vptr b (Int.add i (Int.repr k)) = field_address (tarray tuchar n) [ArraySubsc k] (Vptr b i)) as Addrk.
+      assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr k)) = field_address (tarray tuchar n) [ArraySubsc k] (Vptr b i)) as Addrk.
       { rewrite field_address_offset.
         + simpl. rewrite Z.mul_1_l, Z.add_0_l; entailer!.
         + apply (@field_compatible_cons_Tarray hmac_drbg_compspecs.CompSpecs k (tarray tuchar n) tuchar n noattr
                   [] (Vptr b i) (eq_refl _) FC KN). }
       forward.
-      Exists (k+1). rewrite ! Z.sub_add_distr. entailer!. 
+      Exists (k+1). rewrite ! Z.sub_add_distr. entailer!.
+      unfold Ptrofs.of_ints, Ptrofs.of_int; normalize. 
       rewrite upd_Znth_app2 by (rewrite ! Zlength_list_repeat; omega).
       rewrite Zlength_list_repeat, Zminus_diag by omega.
       assert (X: list_repeat (Z.to_nat k) (Vint Int.zero) ++

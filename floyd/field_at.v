@@ -513,12 +513,12 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   } Unfocus.
@@ -598,12 +598,12 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   } Unfocus.
@@ -998,10 +998,10 @@ Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 
@@ -1010,10 +1010,10 @@ Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 *)
@@ -1097,7 +1097,7 @@ Proof.
       omega.
   + rewrite <- H.
     unfold field_compatible, size_compatible in *.
-    rewrite Int.unsigned_repr in * by (unfold Int.max_unsigned; omega).
+    rewrite Ptrofs.unsigned_repr in * by (unfold Ptrofs.max_unsigned; omega).
     omega.
 Qed.
 
@@ -1258,10 +1258,10 @@ Proof.
   normalize.
   destruct p; try tauto.
   inv_int i.
-  replace (Vptr b (Int.repr ofs)) with (offset_val 0 (Vptr b (Int.repr ofs))) at 2.
+  replace (Vptr b (Ptrofs.repr ofs)) with (offset_val 0 (Vptr b (Ptrofs.repr ofs))) at 2.
   + apply memory_block_valid_pointer with (i := 0); auto; omega.
   + simpl.
-    rewrite add_repr, Z.add_0_r.
+    rewrite ptrofs_add_repr, Z.add_0_r.
     auto.
 Qed.
 
@@ -1492,7 +1492,7 @@ Proof.
   rewrite field_at_compatible'. normalize.
   destruct H1 as [? [? [? [? ?]]]].
   destruct (nested_field_offset_in_range t fld H5 H2).
-  assert (0 < sizeof (nested_field_type t fld) < Int.modulus).
+  assert (0 < sizeof (nested_field_type t fld) < Ptrofs.modulus).
   Focus 1. {
     destruct p; inv H1.
     simpl in H3.
@@ -1507,7 +1507,7 @@ Proof.
   + fold (field_at_ sh t fld p).
     rewrite field_at__memory_block by auto.
     normalize.
-    apply memory_block_conflict; try  (unfold Int.max_unsigned; omega).
+    apply memory_block_conflict; try  (unfold Ptrofs.max_unsigned; omega).
     apply sepalg.nonidentity_nonunit; auto.
 Qed.
 
@@ -1578,7 +1578,7 @@ Qed.
 Lemma eval_lvar_spec: forall id t rho,
   match eval_lvar id t rho with
   | Vundef => True
-  | Vptr b ofs => ofs = Int.zero
+  | Vptr b ofs => ofs = Ptrofs.zero
   | _ => False
   end.
 Proof.
@@ -1592,7 +1592,7 @@ Qed.
 Lemma var_block_data_at_:
   forall  sh id t,
   complete_legal_cosu_type t = true ->
-  Z.ltb (sizeof t) Int.modulus = true ->
+  Z.ltb (sizeof t) Ptrofs.modulus = true ->
   is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
@@ -1612,10 +1612,10 @@ Proof.
   apply ND_prop_ext.
   unfold field_compatible.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
-  change (Int.unsigned Int.zero) with 0.
+  change (Ptrofs.unsigned Ptrofs.zero) with 0.
   rewrite Z.add_0_l.
-  assert (sizeof t <= Int.modulus) by omega.
-  assert (sizeof t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
+  assert (sizeof t <= Ptrofs.modulus) by omega.
+  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; omega).
   apply la_env_cs_sound in H1; tauto.
 Qed.
 
@@ -1703,8 +1703,8 @@ Definition natural_alignment := 8.
 (* TODO: change this name to malloc_compatible_ptr and merge the definition of isptr, size_compatible, align_compatible into something like: size_align_compatible_ptr *)
 Definition malloc_compatible (n: Z) (p: val) : Prop :=
   match p with
-  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
-                           Int.unsigned ofs + n < Int.modulus
+  | Vptr b ofs => (natural_alignment | Ptrofs.unsigned ofs) /\
+                           Ptrofs.unsigned ofs + n < Ptrofs.modulus
   | _ => False
   end.
 
@@ -1720,7 +1720,7 @@ intros.
 destruct p; simpl in *; try contradiction.
 destruct H.
 eapply natural_aligned_sound in H; eauto.
-pose proof (Int.unsigned_range i).
+pose proof (Ptrofs.unsigned_range i).
 repeat split; simpl; auto; try omega.
 Qed.
 
@@ -2190,8 +2190,8 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    pose proof Zmod_le (ofs + nested_field_offset t gfs) Ptrofs.modulus.
+    spec H2; [pose proof Ptrofs.modulus_pos; omega |].
     revert H; solve_mod_modulus; intros.
     rewrite Zmod_small in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     apply nonreadable_memory_block_data_at_rec; try tauto; try omega.
@@ -2377,7 +2377,7 @@ Proof.
   unfold data_at, field_at, at_offset, offset_val.
   simpl.
   destruct p; inv H2.
-  rewrite int_add_repr_0_r.
+  rewrite ptrofs_add_repr_0_r.
   rewrite by_value_data_at_rec_nonvolatile by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H6; apply JMeq_eq in H6.
   rewrite prop_true_andp; auto.
@@ -2401,14 +2401,14 @@ Proof.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H3; apply JMeq_eq in H3.
   f_equal; auto.
   destruct H2. destruct p; try contradiction.
-  rewrite int_add_repr_0_r. auto.
+  rewrite ptrofs_add_repr_0_r. auto.
 Qed.
 
 Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
    headptr p ->
    complete_legal_cosu_type t = true ->
    legal_nested_field t path ->
-   sizeof t < Int.modulus ->
+   sizeof t < Ptrofs.modulus ->
    align_compatible_rec cenv_cs t 0 ->
    field_compatible t path p.
 Proof.
@@ -2422,7 +2422,7 @@ Lemma headptr_field_compatible' {cs: compspecs}: forall t p,
   headptr p ->
   legal_alignas_type t = true ->
   legal_cosu_type t = true ->
-  sizeof t < Int.modulus ->
+  sizeof t < Ptrofs.modulus ->
   complete_type cenv_cs t = true ->
   field_compatible t nil p.
 Proof.
@@ -2435,11 +2435,11 @@ Proof.
   + auto.
   + destruct H as [b ?]; subst.
     simpl.
-    change (Int.unsigned Int.zero) with 0.
+    change (Ptrofs.unsigned Ptrofs.zero) with 0.
     omega.
   + destruct H as [b ?]; subst.
     simpl.
-    change (Int.unsigned Int.zero) with 0.
+    change (Ptrofs.unsigned Ptrofs.zero) with 0.
     apply Z.divide_0_r.
   + simpl.
     auto.

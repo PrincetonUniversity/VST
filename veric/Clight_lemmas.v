@@ -1,6 +1,7 @@
 Require Import VST.veric.base.
 Require Import compcert.cfrontend.Clight.
-Definition nullval : val := Vint Int.zero.
+Definition nullval : val := 
+  if Archi.ptr64 then Vlong Int64.zero else Vint Int.zero.
 
 Definition val_to_bool (v: val) : option bool :=
   match v with
@@ -332,18 +333,6 @@ Qed.
 
 Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
 Proof. exact (Coqlib.peq). Qed.
-
-Lemma Nat2Z_add_le: forall n i, Int.unsigned i + n <= Int.modulus ->
-  Z.of_nat (nat_of_Z n) + Int.unsigned i <= Int.modulus.
-Proof.
-  intros.
-  destruct (zle 0 n).
-  + rewrite Coqlib.nat_of_Z_eq by omega. omega.
-  + rewrite nat_of_Z_neg by omega.
-    pose proof Int.unsigned_range i.
-    simpl.
-    omega.
-Qed.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with

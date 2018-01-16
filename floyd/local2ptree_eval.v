@@ -52,8 +52,8 @@ Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc
 
   | Ederef a ty => msubst_eval_expr T1 T2 a
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
-  | Esizeof t _ => Some (Vint (Int.repr (sizeof t)))
-  | Ealignof t _ => Some (Vint (Int.repr (alignof t)))
+  | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t)))
+  | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t)))
   end
   with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
   match e with
@@ -322,8 +322,9 @@ Ltac solve_msubst_eval_lvar :=
 
 (**********************************************************)
 (* Continuation *)
-
+(*
 Require Import VST.veric.xexpr_rel.
+
 
 Inductive l_cont : Type :=
   | LC_deref : r_cont -> l_cont
@@ -392,7 +393,7 @@ with fill_l_cont (e: l_cont) (v: val): l_value :=
   | LC_field a ta i => L_field (fill_l_cont a v) ta i
   end.
 
-(*
+
 Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
   (forall e v,
     compute_r_cont T1 T2 e = Some (inl v) ->

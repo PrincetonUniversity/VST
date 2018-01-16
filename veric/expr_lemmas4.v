@@ -8,6 +8,8 @@ Require Export VST.veric.environ_lemmas.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
+Require Import VST.veric.binop_lemmas5.
+Require Import VST.veric.binop_lemmas6.
 Require Import VST.veric.expr_lemmas2.
 Require Export VST.veric.expr_lemmas3.
 Require Import VST.veric.juicy_mem.
@@ -185,10 +187,10 @@ Qed.
 
 Lemma valid_pointer_dry0:
   forall b ofs m, app_pred (valid_pointer (Vptr b ofs)) (m_phi m) ->
-           Mem.valid_pointer (m_dry m) b (Int.unsigned ofs) = true.
+           Mem.valid_pointer (m_dry m) b (Ptrofs.unsigned ofs) = true.
 Proof.
 intros.
-rewrite <- (Z.add_0_r (Int.unsigned ofs)).
+rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
 apply valid_pointer_dry; auto.
 Qed.
 
@@ -255,7 +257,7 @@ Opaque tc_andp.
 Lemma tc_test_eq0:
   forall b i m,
   (denote_tc_test_eq (Vptr b i) (Vint Int.zero)) (m_phi m) ->
-  Mem.weak_valid_pointer (m_dry m) b (Int.unsigned i) = true.
+  Mem.weak_valid_pointer (m_dry m) b (Ptrofs.unsigned i) = true.
 Proof.
 intros.
 destruct H.
@@ -265,11 +267,12 @@ Qed.
 
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
- (classify_cast t1 t2 = cast_case_p2bool ->
+ (classify_cast t1 t2 = cast_case_i2bool ->
    denote_tc_test_eq v (Vint Int.zero) (m_phi m) )->
   t1 <> int_or_ptr_type ->
   t2 <> int_or_ptr_type ->
  Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
+Proof.
 intros.
  unfold Cop.sem_cast, sem_cast.
 assert (Cop.classify_cast t1 t2 = classify_cast t1 t2). {
@@ -280,10 +283,15 @@ assert (Cop.classify_cast t1 t2 = classify_cast t1 t2). {
   unfold Cop.classify_cast, classify_cast; auto; rewrite ?H0,?H1; auto.
 }
 rewrite <- H2 in *.
-destruct (Cop.classify_cast t1 t2);
+rewrite H2.
+destruct (classify_cast t1 t2);
 destruct v; try reflexivity.
-specialize (H (eq_refl _)).
-do 4 red in H. destruct H as [_ H].
+unfold sem_cast_i2bool.
+destruct Archi.ptr64 eqn:Hp; auto.
+specialize (H H2).
+do 3 red in H.
+rewrite Hp in H.
+red in H. destruct H as [_ H].
 apply weak_valid_pointer_dry in H.
 unfold Mem.weak_valid_pointer.
 rewrite H. reflexivity.
@@ -317,11 +325,17 @@ try rewrite (proj2 (eqb_type_false _ _) H);
 reflexivity.
 Qed.
 
+Definition cast_pointer_to_bool t1 t2 :=
+ match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+           match t2 with Tint IBool _ _ => true | _ => false end
+ | _ => false
+end.
 
 Lemma sem_cast_e1:
  forall t t1 v1 v m,
    sem_cast t t1 v = Some v1 ->
-   classify_cast t t1 <> cast_case_p2bool ->
+   cast_pointer_to_bool t t1 = false ->
+   tc_val t v ->
    Cop.sem_cast v t t1 m = Some v1.
 Proof.
 intros.
@@ -333,22 +347,21 @@ destruct (eqb_type t int_or_ptr_type) eqn:J;
  | apply eqb_type_false in J0]).
 * auto.
 *
-unfold sem_cast in H.
+unfold sem_cast, classify_cast in H.
+rewrite eqb_type_refl in H.
 destruct t1; auto.
 destruct i,s; auto; try solve [destruct v; inv H];
 destruct (classify_cast int_or_ptr_type (Tint IBool Signed a)) eqn:J;
- try congruence; inv J. contradiction H0. reflexivity.
+ try congruence; inv J. (* contradiction H0. reflexivity. *)
+inv H.
 destruct f; inv H.
 clear H0.
-unfold classify_cast in H.
 unfold int_or_ptr_type at 1 in H.
 rewrite (proj2 (eqb_type_false _ _) J0) in H.
-rewrite eqb_type_refl in H.
-unfold eqb in H. inv H.
+inv H.
 *
 unfold sem_cast in H.
 destruct t; try solve [inv H].
-inv H; destruct v; reflexivity.
 unfold classify_cast in H.
 unfold int_or_ptr_type at 1 in H.
 rewrite eqb_type_refl in H.
@@ -356,42 +369,100 @@ rewrite (proj2 (eqb_type_false _ _) J) in H.
 inv H.
 *
 rewrite <- H.
-clear - J J0 H0.
-unfold sem_cast.
-unfold classify_cast.
-destruct t; auto; destruct t1; auto;
- try destruct i; try destruct s; auto; 
- try destruct i0; try destruct s0; auto;
- try destruct f; auto; try destruct f0; auto;
-try rewrite (proj2 (eqb_type_false _ _) J);
-try rewrite (proj2 (eqb_type_false _ _) J0);
-auto; try (contradiction H0; reflexivity).
+clear - J J0 H0 H1.
+unfold Cop.sem_cast, sem_cast.
+unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
+ sem_cast_l2bool, sem_cast_i2bool.
+rewrite ?(proj2 (eqb_type_false _ _) J);
+rewrite ?(proj2 (eqb_type_false _ _) J0).
+destruct t1   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminate H0;
+ auto;
+ destruct Archi.ptr64 eqn:Hp; auto;
+ destruct v; auto; try contradiction.
 Qed.
 
 Lemma cop2_sem_cast' :
     forall {CS: compspecs} t2 e rho m,
  (denote_tc_assert (isCastResultType (typeof e) t2 e) rho) (m_phi m) ->
-  typeof e <> int_or_ptr_type ->
-  t2 <> int_or_ptr_type ->
+  tc_val (typeof e) (eval_expr e rho) ->
  Cop.sem_cast (eval_expr e rho) (typeof e) t2 (m_dry m) =
  sem_cast (typeof e) t2 (eval_expr e rho).
-
 Proof.
 intros.
-apply cop2_sem_cast; auto.
-intro.
-rewrite isCastR,H2,denote_tc_assert_andp, denote_tc_assert_test_eq' in H.
-apply H.
+rewrite isCastR in H.
+destruct (typeof e)   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; 
+try contradiction.
+all: try solve [ destruct (eval_expr e rho); try contradiction; reflexivity].
+all: (*try solve [*)
+unfold classify_cast, is_pointer_type in H;
+unfold sem_cast, classify_cast;
+unfold tc_val, is_pointer_or_null in H0;
+repeat match type of H with context [eqb_type ?A int_or_ptr_type] =>
+  destruct (eqb_type A int_or_ptr_type) eqn:?J; try contradiction
+end;
+simpl; destruct Archi.ptr64 eqn:Hp; simpl in H;
+destruct (eval_expr e rho) eqn:?; try contradiction; subst; try reflexivity.
+all: simpl.
+all: try solve [
+
+rewrite denote_tc_assert_test_eq' in H;
+simpl in H;
+unfold_lift in H;
+unfold denote_tc_test_eq in H;
+rewrite Heqv, Hp in H; destruct H;
+apply weak_valid_pointer_dry in H1;
+unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
+all: rewrite Hp; auto.
 Qed.
 
+(*
 Lemma cop2_sem_cast'': 
   forall (CS: compspecs) (rho: environ) e t m v,
  app_pred (denote_tc_assert (isCastResultType (typeof e) t e) rho)
   (m_phi m) ->
  sem_cast (typeof e) t (eval_expr e rho) = Some v ->
+ t <> Tvoid ->
  Cop.sem_cast (eval_expr e rho) (typeof e) t (m_dry m) = Some v.
 Proof.
 intros.
+rewrite isCastR in H.
+unfold sem_cast, classify_cast, is_pointer_type, sem_cast_i2bool, sem_cast_l2bool in H0, H.
+destruct (typeof e)   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; 
+try contradiction.
+
+destruct (eval_expr e rho); try discriminate; try reflexivity; simpl; auto.
+destruct Archi.ptr64; auto.
+
+unfold classify_ca
+
+all: try solve [ destruct (eval_expr e rho); try discriminate; reflexivity].
+all: (*try solve [*)
+unfold classify_cast, is_pointer_type in H;
+unfold sem_cast, classify_cast;
+unfold tc_val, is_pointer_or_null in H0;
+repeat match type of H with context [eqb_type ?A int_or_ptr_type] =>
+  destruct (eqb_type A int_or_ptr_type) eqn:?J; try contradiction
+end;
+simpl; destruct Archi.ptr64 eqn:Hp; simpl in H;
+destruct (eval_expr e rho) eqn:?; try contradiction; subst; try reflexivity.
+all: simpl.
+all: try solve [
+
+rewrite denote_tc_assert_test_eq' in H;
+simpl in H;
+unfold_lift in H;
+unfold denote_tc_test_eq in H;
+rewrite Heqv, Hp in H; destruct H;
+apply weak_valid_pointer_dry in H1;
+unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
+all: rewrite Hp; auto.
+
+
+
+
 destruct (eqb_type (typeof e) int_or_ptr_type) eqn:J;
  [apply eqb_type_true in J; rewrite J in *
  | apply eqb_type_false in J];
@@ -400,7 +471,25 @@ destruct (eqb_type (typeof e) int_or_ptr_type) eqn:J;
  | apply eqb_type_false in J0]).
 * auto.
 *
-destruct t; auto.
+elimtype False.
+clear - H0 J J0 H1.
+unfold sem_cast  in H0.
+unfold classify_cast in H0.
+rewrite eqb_type_refl in H0.
+rewrite <- eqb_type_false in J0.
+rewrite J0 in H0.
+unfold int_or_ptr_type in H0.
+destruct Archi.ptr64 eqn:Hp;
+destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+try discriminate.
+unfold sem_cast_i2l in H0.
+destruct t eqn:?; try discriminate H0.
+congruence.
+all: try congruence.
+rewrite eqb_type_false in H0 by auto.
+unfo
+rewrite isCastR in H.
+destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto.
 destruct i,s; auto; try solve [destruct (eval_expr e rho); inv H0].
 unfold isCastResultType in H.
 simpl classify_cast in H.
@@ -434,6 +523,7 @@ inv H0.
 *
 rewrite cop2_sem_cast'; auto.
 Qed.
+*)
 
 
 Lemma isBinOpResultType_binop_stable: forall {CS: compspecs} b e1 e2 t rho phi,
@@ -460,6 +550,87 @@ Proof.
     auto.
 Qed.
 
+Lemma eval_unop_relate:
+ forall {CS: compspecs} Delta (ge: genv) te ve rho u e t m 
+ (Hcenv : genv_cenv ge = @cenv_cs CS)
+ (H : rho = construct_rho (filter_genv ge) ve te)
+ (H0 : typecheck_environ Delta rho)
+ (H1 : (denote_tc_assert (typecheck_expr Delta e) rho) (m_phi m) ->
+     Clight.eval_expr ge ve te (m_dry m) e (eval_expr e rho))
+ (H2 : (denote_tc_assert (typecheck_lvalue Delta e) rho) (m_phi m) ->
+     exists (b : block) (ofs : ptrofs),
+       Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
+       eval_lvalue e rho = Vptr b ofs)
+ (H3 : (denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho)
+       (m_phi m)),
+Clight.eval_expr ge ve te (m_dry m) (Eunop u e t)
+  (eval_expr (Eunop u e t) rho).
+Proof.
+intros.
+simpl in *.
+super_unfold_lift.
+rewrite denote_tc_assert_andp in H3; destruct H3.
+intuition. clear H2.
+unfold eval_unop in *. unfold force_val1, force_val.
+remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
+eapply Clight.eval_Eunop. eapply H5.  rewrite Heqo.
+
+unfold sem_unary_operation. unfold Cop.sem_unary_operation.
+apply typecheck_expr_sound in H4; auto.
+destruct u;
+  simpl in H3;
+  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; simpl;
+  hnf in H4; try contradiction;
+  repeat match goal with
+       | H: app_pred (denote_tc_assert (tc_andp _ _) _) _ |- _ => 
+          rewrite denote_tc_assert_andp in H; destruct H
+       | H: app_pred (denote_tc_assert (if ?A then _ else _) _) _ |- _ =>
+           first [change A with false in H | change A with true in H]; cbv iota in H
+       | H: app_pred (denote_tc_assert (tc_iszero _) _) _ |- _ =>
+                   rewrite denote_tc_assert_iszero in H
+       | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => apply tc_bool_e in H
+       end;
+  destruct (eval_expr e rho) eqn:?;
+  try if_tac in H4; try contradiction; try reflexivity;
+ unfold Cop.sem_notbool; simpl;
+ unfold Cop.bool_val, bool_val;
+ apply tc_bool_e in H1; apply negb_true_iff in H1; rewrite H1;
+ try reflexivity;
+ unfold classify_bool, typeconv, remove_attributes, change_attributes;
+ rewrite denote_tc_assert_test_eq' in H3;
+ simpl in H3; unfold denote_tc_test_eq in H3; unfold_lift in H3; rewrite Heqv in H3.
+*
+ destruct Archi.ptr64 eqn:Hp; simpl eval_expr in H3; unfold_lift in H3; destruct H3;
+ apply weak_valid_pointer_dry in H6;
+ simpl; unfold Mem.weak_valid_pointer; rewrite H6; reflexivity.
+*
+ destruct Archi.ptr64 eqn:Hp; simpl eval_expr in H3; unfold_lift in H3; destruct H3;
+ apply weak_valid_pointer_dry in H6;
+ simpl; unfold Mem.weak_valid_pointer; rewrite H6; reflexivity.
+Qed.
+
+Lemma eqb_type_sym: forall a b, eqb_type a b = eqb_type b a.
+Proof.
+intros.
+destruct (eqb_type a b) eqn:?.
+rewrite -> eqb_type_spec in Heqb0. subst; symmetry; apply eqb_type_refl.
+apply eqb_type_false in Heqb0.
+assert (b<>a) by congruence.
+rewrite <- eqb_type_spec in H.
+destruct (eqb_type b a); auto.
+Qed.
+
+Lemma Ptrofs_to_int_repr: 
+  Archi.ptr64=false -> 
+  forall i, Ptrofs.to_int (Ptrofs.repr i) = Int.repr i.
+Proof.
+intros.
+unfold Ptrofs.to_int.
+apply Int.eqm_samerepr.
+change Int.eqm with Ptrofs.eqm.
+apply Ptrofs.eqm_sym.
+apply Ptrofs.eqm_unsigned_repr.
+Qed.
 
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
@@ -492,7 +663,7 @@ remember (Map.get (ve_of rho) i); destruct o; try destruct p;
 try rewrite eqb_type_eq in *; simpl in *.
 destruct (type_eq t t0); simpl in *; [| exfalso; eapply tc_val_Vundef; eauto].
 subst t0.
-apply Clight.eval_Elvalue with b Int.zero;
+apply Clight.eval_Elvalue with b Ptrofs.zero;
   [ | constructor; simpl; rewrite MODE; auto].
 apply eval_Evar_local.
 subst rho.
@@ -512,7 +683,7 @@ rewrite H3.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold tc_bool in H2.
 if_tac in H2; try contradiction.
-apply Clight.eval_Elvalue with b Int.zero; [  | econstructor 2; apply MODE].
+apply Clight.eval_Elvalue with b Ptrofs.zero; [  | econstructor 2; apply MODE].
 apply Clight.eval_Evar_global; auto.
 
 * (* eval_lvalue Evar *)
@@ -527,14 +698,14 @@ apply Clight.eval_Evar_global; auto.
  destruct ((var_types Delta)!i) eqn:?; inv Heqo.
  +
  apply H0 in Heqo0. destruct Heqo0 as [b ?];
- exists b; exists Int.zero; split; auto.
+ exists b; exists Ptrofs.zero; split; auto.
  constructor; auto.
  unfold eval_var; simpl. rewrite H.
  rewrite eqb_type_refl. reflexivity.
  +
  destruct ((glob_types Delta)!i) eqn:?; inv H3.
  destruct (H1 _ _ Heqo) as [b ?];
- exists b; exists Int.zero; split; auto.
+ exists b; exists Ptrofs.zero; split; auto.
  specialize (H2 _ _ Heqo).
  simpl in H2.
  destruct H2.
@@ -603,31 +774,7 @@ destruct H2 as [b [? ?]]. destruct H10 as [base [ofs ?]].  simpl in *.
 intuition. rewrite H11 in *. constructor. inv H8. auto.
 
 * (*unop*)
-
-simpl in *.
-super_unfold_lift.
-rewrite denote_tc_assert_andp in H3; destruct H3.
-intuition. clear H2.
-unfold eval_unop in *. unfold force_val1, force_val.
-remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
-eapply Clight.eval_Eunop. eapply H5.  rewrite Heqo.
-
-unfold sem_unary_operation. unfold Cop.sem_unary_operation.
-apply typecheck_expr_sound in H4; auto.
-destruct u; auto;
-  simpl in H3;
-  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; simpl;
-  hnf in H4; try contradiction;
-  try (simpl in H3; rewrite denote_tc_assert_andp in H3; destruct H3 as [H3 H6]);
-  destruct (eval_expr e rho) eqn:?;
-  try if_tac in H4; try contradiction; try reflexivity;
- unfold Cop.sem_notbool; simpl;
- unfold tc_test_eq in H6; simpl in H6;
- destruct (eval_expr e any_environ) eqn:?;
- simpl in H6; unfold_lift in H6;
-  try solve [apply (eval_expr_any rho) in Heqv0; congruence];
-  rewrite Heqv in H6;
-  try (rewrite tc_test_eq0; auto).
+ eapply eval_unop_relate; eauto.
 * (*binop*)
   eapply eval_binop_relate; eauto.
 * (*Cast*)
@@ -635,6 +782,7 @@ assert (TC := typecheck_expr_sound _ _ _ _ H0 H3).
 simpl in *.
 rewrite denote_tc_assert_andp in H3.
 destruct H3.
+assert (TC' := typecheck_expr_sound _ _ _ _ H0 H3).
 unfold force_val1, force_val in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply H5; auto.
@@ -642,7 +790,50 @@ destruct (sem_cast (typeof e) t (eval_expr e rho)) eqn:?H;
  [ | contradiction (tc_val_Vundef t)].
 revert H1.
 revert H4.
-apply cop2_sem_cast''.
+intros.
+destruct (eqb_type (typeof e) t) eqn:Heq.
++
+apply eqb_type_true in Heq. subst t.
+destruct (eqb_type (typeof e) int_or_ptr_type) eqn:Heq'.
+apply eqb_type_true in Heq'. rewrite Heq' in *.
+apply H1.
+apply eqb_type_false in Heq'.
+rewrite cop2_sem_cast'; auto.
++
+assert (Heq2 := Heq).
+apply eqb_type_false in Heq.
+destruct (eqb_type t int_or_ptr_type) eqn:Heq'.
+apply eqb_type_true in Heq'. subst t.
+elimtype False; clear - Heq Heq2 H1.
+unfold sem_cast, classify_cast in H1.
+rewrite Heq2 in H1.
+rewrite eqb_type_refl in H1.
+unfold int_or_ptr_type at 1 in H1.
+change (eqb true false) with false in H1. cbv iota in H1.
+destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:Tx, (eval_expr e rho); 
+  simpl in H1;   try discriminate H1.
+destruct (eqb_type (typeof e) int_or_ptr_type) eqn:Heq''.
+apply eqb_type_true in Heq''. rewrite Heq'' in *.
+clear - H1 TC' Heq2.
+destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:Tx, (eval_expr e rho); 
+  simpl in H1;   try discriminate H1; try contradiction TC'; inv H1; simpl; auto.
+rewrite H0.
+unfold sem_cast in *. 
+unfold classify_cast in H0. unfold int_or_ptr_type at 1 in H0.
+ rewrite eqb_type_refl in H0. 
+rewrite eqb_type_sym in Heq2.
+rewrite Heq2 in H0.
+change (eqb false true) with false in H0.
+cbv iota in H0. inv H0.
+unfold sem_cast, classify_cast, int_or_ptr_type at 1 in H0.
+rewrite eqb_type_sym in Heq2.
+rewrite Heq2 in H0.
+rewrite eqb_type_refl in H0.
+change (eqb false true) with false in H0.
+cbv iota in H0. inv H0.
+apply eqb_type_false in Heq''.
+apply eqb_type_false in Heq'.
+rewrite cop2_sem_cast'; auto.
 * (*Field*)
  assert (TC := typecheck_expr_sound _ _ _ _ H0 H3).
  clear H1; rename H3 into H1.
@@ -692,7 +883,7 @@ rewrite H4 in TC|-*.
 destruct (cenv_cs ! i0) as [co |] eqn:Hco; try solve [inv H3].
 +
 destruct (field_offset cenv_cs i (co_members co)) eqn:?; try contradiction.
-exists b. exists (Int.add ofs (Int.repr z)).
+exists b. exists (Ptrofs.add ofs (Ptrofs.repr z)).
 intuition.
  eapply Clight.eval_Efield_struct; auto; try eassumption.
 eapply Clight.eval_Elvalue in H2. apply H2.
@@ -717,7 +908,7 @@ subst.
 unfold eval_expr.
 unfold_lift; simpl.
 rewrite <- Hcenv.
-constructor.
+apply Clight.eval_Esizeof.
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.

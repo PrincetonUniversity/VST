@@ -18,7 +18,7 @@ Proof.
   intros.
   unfold field_compatible.
   destruct p; simpl; try tauto.
-  rewrite !int_add_repr_0_r.
+  rewrite !ptrofs_add_repr_0_r.
   tauto.
 Qed.
 
@@ -207,29 +207,29 @@ omega.
 *
 unfold size_compatible in H2|-*.
 unfold offset_val.
-rewrite <- (Int.repr_unsigned i0).
-rewrite add_repr.
+rewrite <- (Ptrofs.repr_unsigned i0).
+rewrite ptrofs_add_repr.
 unfold sizeof in H2|-*. fold sizeof in H2 |-*.
 rewrite Z.max_r in H2|-* by omega.
-pose proof (Int.unsigned_range i0).
-destruct (zeq (Int.unsigned i0 + sizeof t * i) Int.modulus).
+pose proof (Ptrofs.unsigned_range i0).
+destruct (zeq (Ptrofs.unsigned i0 + sizeof t * i) Ptrofs.modulus).
 rewrite e.
-change (Int.unsigned (Int.repr Int.modulus)) with 0.
+change (Ptrofs.unsigned (Ptrofs.repr Ptrofs.modulus)) with 0.
 rewrite Z.add_0_l.
 omega.
-rewrite Int.unsigned_repr.
+rewrite Ptrofs.unsigned_repr.
 assert (sizeof t * i + sizeof t * (n - i)  =  sizeof t * n)%Z.
 rewrite <- Z.mul_add_distr_l.
 f_equal. omega.
 omega.
-change Int.max_unsigned with (Int.modulus-1).
+change Ptrofs.max_unsigned with (Ptrofs.modulus-1).
 omega.
 *
 hnf in H4 |- *.
 constructor.
 intros.
-rewrite <- (Int.repr_unsigned i0).
-rewrite add_repr.
+rewrite <- (Ptrofs.repr_unsigned i0).
+rewrite ptrofs_add_repr.
 simpl in H2.
 rewrite Z.max_r in H2 by omega.
 solve_mod_modulus.
@@ -446,16 +446,16 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   red in H3|-*.
   simpl in H3,H8|-*. rewrite Z.max_r in H3|-* by omega.
   rename i0 into j.
-   pose proof (Int.unsigned_range j).
+   pose proof (Ptrofs.unsigned_range j).
    assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
    split. apply Z.mul_nonneg_nonneg; omega.
    apply Zmult_le_compat_l. omega. omega.
   assert (sizeof t * (i'-i+n) <= sizeof t * n').
    apply Zmult_le_compat_l. omega. omega.
-  unfold Int.add.
-  rewrite (Int.unsigned_repr (_ * _))
-    by (change Int.max_unsigned with (Int.modulus -1); omega).
-  rewrite Int.unsigned_repr_eq.
+  unfold Ptrofs.add.
+  rewrite (Ptrofs.unsigned_repr (_ * _))
+    by (change Ptrofs.max_unsigned with (Ptrofs.modulus -1); omega).
+  rewrite Ptrofs.unsigned_repr_eq.
   rewrite Zmod_small by omega.
   pose proof Z.mul_add_distr_l (sizeof t) (i' - i) n.
   omega.
@@ -464,9 +464,9 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
    simpl in H3, H6 |- *.
    rewrite Z.max_r in H3 by omega.
    constructor; intros.
-  unfold Int.add.
-   rewrite !Int.unsigned_repr_eq.
-  assert (Int.modulus <> 0) by computable.
+  unfold Ptrofs.add.
+   rewrite !Ptrofs.unsigned_repr_eq.
+  assert (Ptrofs.modulus <> 0) by computable.
   rewrite Z.add_mod by auto.
   rewrite Z.mod_mod by auto.
   rewrite <- Z.add_mod by auto.
@@ -578,12 +578,12 @@ Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed.
 Opaque sizeof.
 Import ListNotations.
 
-Lemma memory_block_field_compatible_tarraytuchar_ent {cs} sh n p (N:0<=n < Int.modulus):
+Lemma memory_block_field_compatible_tarraytuchar_ent {cs} sh n p (N:0<=n < Ptrofs.modulus):
 memory_block sh n p |-- !! @field_compatible cs (tarray tuchar n) nil p.
 Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    destruct p; try solve [apply FF_left]. normalize.
    apply prop_right. red.
-   destruct (Int.unsigned_range i). simpl.
+   destruct (Ptrofs.unsigned_range i). simpl.
    repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
    (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
@@ -595,13 +595,13 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    + reflexivity.
 Qed.
 
-Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Int.modulus):
+Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Ptrofs.modulus):
 memory_block sh n p = !!(@field_compatible cs (tarray tuchar n) nil p) && memory_block sh n p.
 Proof. apply pred_ext. apply andp_right; trivial. apply memory_block_field_compatible_tarraytuchar_ent; trivial.
 normalize.
 Qed. 
 
-Lemma memory_block_data_at__tarray_tuchar {cs} sh p n (N: 0<=n < Int.modulus):
+Lemma memory_block_data_at__tarray_tuchar {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p |-- @data_at_ cs sh (tarray tuchar n) p.
 Proof. 
   rewrite memory_block_field_compatible_tarraytuchar, memory_block_isptr; trivial. 
@@ -610,10 +610,10 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Int.add_zero, sizeof_tarray_tuchar; trivial; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; trivial; omega.
 Qed.
 
-Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Int.modulus):
+Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
@@ -624,7 +624,7 @@ Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p ->
       @field_compatible cs (tarray tuchar 0) nil p.
 Proof. intros; red. destruct p; try contradiction.
   repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
-  destruct (Int.unsigned_range i); omega.
+  destruct (Ptrofs.unsigned_range i); omega.
   (* TODO: abstract this proof. *)
    eapply align_compatible_rec_hardware_1.
    + exact cenv_consistent.

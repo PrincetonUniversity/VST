@@ -258,7 +258,7 @@ Qed.
 Hint Resolve tree_rep_nullval: saturate_local.
 
 Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
 Proof.
   intros.
   destruct p; try contradiction; reflexivity.
@@ -374,7 +374,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)

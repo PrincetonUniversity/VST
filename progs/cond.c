@@ -1,6 +1,8 @@
 #include "threads.h"
 //#include <stdio.h>
-#include <stdlib.h>
+//#include <stdlib.h>
+
+#define NULL 0
 
 lock_t mutex, tlock;
 cond_t cond;

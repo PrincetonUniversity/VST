@@ -176,7 +176,7 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
@@ -198,7 +198,7 @@ Proof.
     entailer!. thaw FR0. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v. clear Hv. simpl. forward. entailer!. }
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
@@ -222,7 +222,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -233,7 +233,7 @@ Proof.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
@@ -244,7 +244,7 @@ Proof.
   replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
-    rewrite int_add_repr_0_r.
+    rewrite ptrofs_add_repr_0_r.
     cancel.
   }
   thaw FIELDS1. forward.
@@ -301,7 +301,7 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite int_max_unsigned_eq.
+  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite ptrofs_max_unsigned_eq.
     split. omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
@@ -463,7 +463,7 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
@@ -486,7 +486,7 @@ Proof.
     entailer!. thaw FR0. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v. clear Hv. simpl. forward. entailer!. }
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
@@ -508,7 +508,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -519,7 +519,7 @@ Proof.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
@@ -530,7 +530,7 @@ Proof.
   replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
-    rewrite int_add_repr_0_r.
+    rewrite ptrofs_add_repr_0_r.
     cancel.
   }
   deadvars!.
@@ -589,13 +589,13 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split. omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) omega.
+    split. rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }
@@ -791,7 +791,7 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
   Intros v. rename H into Hv.
@@ -813,7 +813,7 @@ Proof.
     entailer!. thaw FR0. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v. clear Hv. simpl. forward. entailer!. }
   Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
@@ -835,20 +835,20 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Int.add i (Int.repr 12)).
-  { rewrite ZL_VV, int_add_repr_0_r; simpl.
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
+  { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq, ZL_VV.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
+    split. trivial. split. omega. rewrite two_power_pos_equiv. 
+    change (2^64) with 18446744073709551616. omega.
   }
   Intros.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite ZL_VV; entailer!.
   }
   { rewrite sepcon_comm. apply sepcon_derives.
@@ -863,7 +863,7 @@ Proof.
   replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
-    rewrite int_add_repr_0_r.
+    rewrite ptrofs_add_repr_0_r.
     cancel.
   }
   thaw FIELDS1. forward.
@@ -924,13 +924,13 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split. omega. (* rewrite int_max_unsigned_eq; omega.*)
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) omega.
+    split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }

@@ -148,14 +148,14 @@ Lemma and_mod_15_lem:
 Proof.
 intro n.
 unfold Int.and.
-rewrite (Int.unsigned_repr 15) by repable_signed.
+rewrite (Int.unsigned_repr 15) by rep_omega.
 change 15%Z with (Z.ones 4).
 assert (0 <= Z.land (Int.unsigned (Int.repr n)) (Z.ones 4) < 16)%Z.
 rewrite Z.land_ones.
 apply Z.mod_bound_pos.
 apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
-repable_signed.
+rep_omega.
 Qed.
 
 Definition Delta_loop1 : tycontext :=

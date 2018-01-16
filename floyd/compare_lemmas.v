@@ -10,28 +10,38 @@ Lemma typed_true_nullptr:
 Proof.
  intros.
  simpl in H. rewrite !andb_false_r in H. simpl in H.
- destruct v; inv H. 
- pose proof (Int.eq_spec i Int.zero).
+ destruct v; inv H;
+ unfold sem_cmp_pp, strict_bool_val in H1.
+ destruct Archi.ptr64  eqn:Hp.
+ pose proof (Int.eq_spec i Int.zero);
  destruct (Int.eq i Int.zero); inv H1.
- reflexivity.
+ simpl in H1.
+ pose proof (Int.eq_spec i Int.zero);
+ destruct (Int.eq i Int.zero); inv H1. reflexivity. 
 Qed.
 
 Lemma typed_true_nullptr':
   forall  {cs: compspecs}  t t' v,
-    typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
+    typed_true tint (eval_binop Cop.Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
  intros.
  simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
  destruct v; inv H; auto.
- pose proof (Int.eq_spec i Int.zero).
+ unfold sem_cmp_pp, strict_bool_val in H1.
+ destruct Archi.ptr64  eqn:Hp; simpl in H1.
+ inv H1.
+ unfold nullval in H1. rewrite Hp in H1.
+ simpl in H1.
+ pose proof (Int.eq_spec i Int.zero);
  destruct (Int.eq i Int.zero); inv H1.
+ unfold nullval. rewrite Hp.
  reflexivity.
 Qed.
 
 Lemma typed_true_Oeq_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_true tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(eq nullval) v).
 Proof.
 intros.
@@ -40,19 +50,23 @@ intros.
  unfold tptr in H; simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
  destruct (v rho); inv H.
+ unfold sem_cmp_pp, strict_bool_val in H1.
+ destruct Archi.ptr64  eqn:Hp; simpl in H1.
+ inv H1.
  pose proof (Int.eq_spec i Int.zero).
+ unfold nullval in *; rewrite Hp in *.
  destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
 Qed.
 
-Definition  binary_operation_to_comparison (op: binary_operation) :=
+Definition  binary_operation_to_comparison (op: Cop.binary_operation) :=
  match op with
- | Oeq => Some (@eq Z)
+ | Cop.Oeq => Some (@eq Z)
  | Cop.One => Some Zne
- | Olt => Some Z.lt
- | Ole => Some Z.le
- | Ogt => Some Z.gt
- | Oge => Some Z.ge
+ | Cop.Olt => Some Z.lt
+ | Cop.Ole => Some Z.le
+ | Cop.Ogt => Some Z.gt
+ | Cop.Oge => Some Z.ge
  | _ => None
  end.
 
@@ -122,14 +136,14 @@ destruct (zlt (Int.signed i) (Int.signed i0)); auto; try omega; contradict H4; a
 Qed.
 *)
 
-Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
+Definition  binary_operation_to_opp_comparison (op: Cop.binary_operation) :=
  match op with
- | Oeq => Some Zne
+ | Cop.Oeq => Some Zne
  | Cop.One => Some (@eq Z)
- | Olt => Some Z.ge
- | Ole => Some Z.gt
- | Ogt => Some Z.le
- | Oge => Some Z.lt
+ | Cop.Olt => Some Z.ge
+ | Cop.Ole => Some Z.gt
+ | Cop.Ogt => Some Z.le
+ | Cop.Oge => Some Z.lt
  | _ => None
  end.
 
@@ -211,7 +225,12 @@ intros.
  apply prop_derives; intro.
  simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
+ unfold sem_cmp_pp, nullval in *.
+ destruct Archi.ptr64 eqn:Hp;
  destruct (v rho); inv H.
+ pose proof (Int64.eq_spec i Int64.zero).
+ destruct (Int64.eq i Int64.zero); inv H1.
+ reflexivity.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
@@ -227,16 +246,20 @@ intros.
  apply prop_derives; intro.
  simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
- unfold ptr_neq, ptr_eq; simpl; intro.
+ unfold sem_cmp_pp, ptr_neq, ptr_eq, nullval in *; simpl; intro.
  destruct (v rho); try contradiction.
- pose proof (Int.eq_spec Int.zero i). destruct H0. rewrite H0 in H1.
+ simpl in *.
+ destruct Archi.ptr64 eqn:?; auto.
+ destruct H0 as [? [? ?]].
+ pose proof (Int.eq_spec Int.zero i). destruct H0. 
+ rewrite H1 in H3. 
  subst. inv H.
 Qed.
 
 
 Lemma typed_false_Oeq_nullval:
  forall  {cs: compspecs} v t t',
-   local (`(typed_false tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros. subst.
@@ -317,7 +340,7 @@ Definition compare_pp op p q :=
             | Vptr b z =>
                match q with
                | Vptr b' z' => if eq_block b b'
-                              then Vint (if Int.cmpu op z z' then Int.one else Int.zero)
+                              then Vint (if Ptrofs.cmpu op z z' then Int.one else Int.zero)
                               else Vundef
                | _ => Vundef
                end
@@ -337,18 +360,31 @@ Proof.
 intros.
 destruct p; try contradiction.
 destruct q; try contradiction.
-unfold sem_cmp_pp.
+clear.
+unfold sem_cmp_pp, compare_pp, Ptrofs.cmpu, Val.cmplu_bool.
+destruct Archi.ptr64 eqn:Hp.
 destruct op; simpl; auto.
-if_tac. if_tac. inv H2. rewrite Int.eq_true; reflexivity.
-rewrite Int.eq_false by congruence; reflexivity.
+if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
+rewrite Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H2. rewrite Int.eq_true by auto. reflexivity.
-rewrite Int.eq_false by congruence; reflexivity.
+if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true by auto. reflexivity.
+rewrite Ptrofs.eq_false by congruence; reflexivity.
 rewrite if_false by congruence. reflexivity.
-if_tac; [destruct (Int.ltu i i0); reflexivity | reflexivity].
-if_tac; [destruct (Int.ltu i0 i); reflexivity | reflexivity].
-if_tac; [destruct (Int.ltu i0 i); reflexivity | reflexivity].
-if_tac; [destruct (Int.ltu i i0); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
+destruct op; simpl; auto; rewrite Hp.
+if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
+rewrite Ptrofs.eq_false by congruence; reflexivity.
+if_tac. congruence. reflexivity.
+if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true by auto. reflexivity.
+rewrite Ptrofs.eq_false by congruence; reflexivity.
+rewrite if_false by congruence. reflexivity.
+if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 Qed.
 
 Hint Rewrite force_sem_cmp_pp using (now auto) : norm.

@@ -172,7 +172,7 @@ Proof.
   unfold inject_id in *.
   f_equal. congruence.
   replace delta with 0%Z by congruence.
-  symmetry; apply Int.add_zero.
+  symmetry; apply Ptrofs.add_zero.
 Qed.
 
 Lemma memval_lessdef_antisym v1 v2 : memval_lessdef v1 v2 -> memval_lessdef v2 v1 -> v1 = v2.
@@ -311,6 +311,7 @@ Lemma unaryop_mem_lessaloc {op u t m v m2}
       sem_unary_operation op u t m2 = Some v.
 Proof. destruct op; simpl; inv V; try econstructor.
 unfold sem_notbool.
+unfold bool_val.
 remember (classify_bool t) as c.
 destruct c; trivial.
 destruct u; trivial.
@@ -328,12 +329,10 @@ Qed.
 
 Lemma sem_cmp_mem_lessalloc {f v1 t1 v2 t2 m m2} (M : mem_lessalloc m m2):
       sem_cmp f v1 t1 v2 t2 m2 = sem_cmp f v1 t1 v2 t2 m.
-Proof. unfold sem_cmp.
-  destruct (classify_cmp t1 t2).
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - unfold sem_binarith.
+Proof. unfold sem_cmp, cmp_ptr.
+  destruct (classify_cmp t1 t2);
+  try solve [destruct Archi.ptr64; rewrite (valid_pointer_lessalloc M); trivial].
+ unfold sem_binarith.
     do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
 Qed.
 
@@ -377,12 +376,10 @@ Proof. destruct op; simpl; inv V; try econstructor; clear -M.
 + unfold sem_xor.
   unfold sem_binarith.
   do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
-+ unfold sem_cmp.
-  destruct (classify_cmp t1 t2).
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - rewrite (valid_pointer_lessalloc M); trivial.
-  - unfold sem_binarith.
++ unfold sem_cmp, cmp_ptr.
+  destruct (classify_cmp t1 t2);
+  try solve [destruct Archi.ptr64; rewrite (valid_pointer_lessalloc M); trivial].
+ unfold sem_binarith.
     do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
 + apply (sem_cmp_mem_lessalloc M).
 + apply (sem_cmp_mem_lessalloc M).
@@ -395,7 +392,7 @@ Lemma eval_expr_eval_lvalue_mem_lessalloc ge ve te m:
      (forall (e : expr) (v : val),
         eval_expr ge ve te m e v ->
         forall m2 : mem, mem_lessalloc m m2 -> eval_expr ge ve te m2 e v) /\
-     (forall (e : expr) (b : block) (i : int),
+     (forall (e : expr) (b : block) (i : ptrofs),
         eval_lvalue ge ve te m e b i ->
         forall m2 : mem, mem_lessalloc m m2 -> eval_lvalue ge ve te m2 e b i).
 Proof. apply eval_expr_lvalue_ind; intros; try solve [econstructor; eauto].

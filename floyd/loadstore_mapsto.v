@@ -76,7 +76,7 @@ Lemma semax_cast_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
-    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
+     cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
@@ -177,7 +177,7 @@ Lemma semax_cast_load_nth_ram :
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
-    classify_cast t1 t2 <> cast_case_p2bool ->
+    cast_pointer_to_bool t1 t2 = false ->
     readable_share sh ->
     Pre |-- mapsto sh t1 p v * TT ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--

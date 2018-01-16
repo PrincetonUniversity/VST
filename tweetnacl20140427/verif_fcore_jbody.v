@@ -510,9 +510,9 @@ deadvars!.
   { entailer!. rewrite andb_false_r; simpl; trivial.
    clear H1. clear WLIST1. clear TM. clear H.
    rewrite and_True.
-   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by repable_signed.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
    change (Int.signed (Int.repr 4)) with 4. 
-   rewrite Int.signed_repr by repable_signed. repable_signed.  }
+   rewrite Int.signed_repr by rep_omega. rep_omega.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).

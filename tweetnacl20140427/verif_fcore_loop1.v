@@ -339,11 +339,10 @@ Time forward_for_simple_bound 4 (EX i:Z,
 
   freeze [1;2;3] FR11.
   Time forward_call (Vptr kb
-           (Int.add (Int.add koff (Int.repr 16)) (Int.repr (4 * Zlength Front_K2))),
+           (Ptrofs.add (Ptrofs.add koff (Ptrofs.repr 16)) (Ptrofs.repr (4 * Zlength Front_K2))),
                  Select16Q Key2 i). (*8.9 versus 20.5 SLOW*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
-     apply prop_right; simpl. rewrite Z.mul_1_l.
-     trivial. }
+     apply prop_right; simpl. unfold Ptrofs.of_ints; simpl; normalize. }
 
   thaw FR11.
   apply semax_pre with (P':=
@@ -363,7 +362,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
     erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption.
     + unfold QByte, Select_at. simpl. repeat rewrite app_nil_r. cancel.
       rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
-      rewrite  QuadChunk2ValList_ZLength. rewrite Int.add_assoc. rewrite add_repr. cancel.
+      rewrite  QuadChunk2ValList_ZLength. rewrite Ptrofs.add_assoc. rewrite ptrofs_add_repr. cancel.
     + rewrite <- K2_16; assumption.
     + rewrite <- K2_16; cbv; trivial. }
 

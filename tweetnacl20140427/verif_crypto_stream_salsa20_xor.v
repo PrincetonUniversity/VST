@@ -46,7 +46,7 @@ Qed.
 (* TODO remove this line and update proof (should become simpler) *)
 Ltac canon_load_result ::= idtac.
 
-(*Hint Rewrite op_Z_ulong_Vint_repr using ???(repable_signed) : norm.*)
+(*Hint Rewrite op_Z_ulong_Vint_repr using ???(rep_omega) : norm.*)
 
 Lemma semax_for_simple_tulongHi_tuintLoop : 
  forall Inv Espec {cs: compspecs} Delta Pre
@@ -1223,7 +1223,7 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K SV mCont z
   normalize. entailer!. 
   split. + destruct mInit; simpl in *; try contradiction.
            subst i; split; trivial.
-           rewrite Int.add_zero; trivial. 
+           rewrite Ptrofs.add_zero; trivial. 
          + constructor. 
 }
 { entailer!. }
@@ -1293,7 +1293,7 @@ forward_if (EX m:_,
    LOCAL 
    (temp _c
       (force_val
-         (sem_add_pi tuchar (offset_val r64 cInit)
+         (sem_add_ptr_int tuchar Signed (offset_val r64 cInit)
             (Vint (Int.repr 64))));
    temp _b
      (Vlong
@@ -1316,10 +1316,10 @@ forward_if (EX m:_,
         apply top_share_nonidentity.
      apply valid_pointer_null.
 }
-{ forward. Exists (force_val (sem_add_pi tuchar m (Vint (Int.repr 64)))). entailer!.
+{ forward. Exists (force_val (sem_add_ptr_int tuchar Signed m (Vint (Int.repr 64)))). entailer!.
   destruct mInit; simpl in M; try contradiction.
   destruct M as [II M]; rewrite M in *. contradiction. 
-  rewrite M in *.  simpl. rewrite Int.add_assoc, add_repr. trivial. }
+  rewrite M in *.  simpl. rewrite Ptrofs.add_assoc, ptrofs_add_repr. trivial. }
 { forward. Exists m. entailer!. destruct mInit; simpl in M; try contradiction.
   simpl. apply M. inv M. }
 intros.
@@ -1360,7 +1360,7 @@ apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
            auto with field_compatible.
   assert (II:Int64.unsigned bInit - (Z.of_nat rounds * 64 + 64) = Int64.unsigned bInit - (Z.of_nat rounds * 64) - 64). omega.
   rewrite Heqr64.
-  rewrite II, Int.add_assoc, add_repr. entailer!.
+  rewrite II, Ptrofs.add_assoc, ptrofs_add_repr. entailer!.
 
   unfold Bl2VL. repeat rewrite map_app.
   erewrite (split2_data_at_Tarray_tuchar Tsh (Z.of_nat rounds * 64 + 64) (Z.of_nat rounds * 64)).

@@ -232,17 +232,17 @@ Proof.
     }
     flatten_sepcon_in_SEP. rewrite data_at_isptr with (p:=seed); Intros.
     apply isptrD in Pseed; destruct Pseed as [b [i SEED]]; rewrite SEED in *.
-    change (offset_val entropy_len (Vptr b i)) with (Vptr b (Int.add i (Int.repr entropy_len))).
+    change (offset_val entropy_len (Vptr b i)) with (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))).
     assert_PROP (field_compatible (Tarray tuchar (384 - entropy_len) noattr)
-          [] (Vptr b (Int.add i (Int.repr entropy_len)))) as FC_el by entailer!.
+          [] (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) as FC_el by entailer!.
     simpl in *.
     replace_SEP 1 (
       (data_at Tsh (tarray tuchar (Zlength contents))
-         (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Int.add i (Int.repr entropy_len)))) *
+         (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) *
       (data_at Tsh (tarray tuchar (384 - entropy_len - Zlength contents))
-         (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))))).
+         (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))))).
     { 
-      remember (Vptr b (Int.add i (Int.repr entropy_len))) as seed'.
+      remember (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))) as seed'.
       clear Heqseed'.
       (*entailer!*) go_lower.
       apply derives_refl'.
@@ -256,11 +256,11 @@ Proof.
     }
 
     flatten_sepcon_in_SEP.
-    replace_SEP 1 (memory_block Tsh (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))).
+    replace_SEP 1 (memory_block Tsh (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))).
     { entailer!. replace (Zlength contents) with (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents))) at 2.
       apply data_at_memory_block. simpl. rewrite Zmax0r; omega.
     }
-    forward_call ((Tsh, Tsh), (Vptr b (Int.add i (Int.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
+    forward_call ((Tsh, Tsh), (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
     {
       (* type checking *)
       red in LV.
@@ -269,8 +269,7 @@ Proof.
     }
     {
       (* match up function parameter *)
-      rewrite XH1; simpl.
-      apply prop_right; trivial.
+      rewrite XH1; simpl. normalize.
     }
     {
       (* match up SEP clauses *)
@@ -284,7 +283,7 @@ Proof.
     }
     {
       (* prove the PROP clauses *)
-      repeat split; auto; omega.
+      repeat split; auto; try omega. rep_omega.
     }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
@@ -326,12 +325,12 @@ Proof.
     erewrite data_at_complete_split with (AB:=map Vint (map Int.repr contents) ++
        list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
          (Vint Int.zero))
-      (p:=(Vptr b (Int.add i (Int.repr entropy_len))))
+      (p:=(Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))))
       (A:= map Vint (map Int.repr contents)).
     7: reflexivity. 3: reflexivity. 5: reflexivity.
     3: reflexivity. 3: solve [rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega].
 
-    unfold offset_val. rewrite Int.add_assoc, add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
+    unfold offset_val. rewrite Ptrofs.add_assoc, ptrofs_add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
     repeat rewrite Zlength_map. rewrite Zlength_list_repeat; try omega.
     apply derives_refl.
     rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega. rewrite X; assumption.
@@ -404,7 +403,7 @@ Proof.
   {
     (* prove the PROP clauses *)
     simpl in *. repeat split; trivial; try omega. (*
-    rewrite H2 in *;*) rewrite int_max_unsigned_eq. omega.
+    rewrite H2 in *;*) rewrite ptrofs_max_unsigned_eq. omega.
     left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption.
       eapply get_bytes_isbyteZ; eauto.

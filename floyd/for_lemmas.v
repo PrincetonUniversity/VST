@@ -7,7 +7,7 @@ Require Import VST.floyd.compare_lemmas.
 Require Import VST.floyd.semax_tactics.
 Require Import VST.floyd.forward_lemmas.
 Require Import VST.floyd.entailer.
-
+Import Cop.
 Local Open Scope logic.
 
 Definition op_Z_int (op: Z->Z->Prop) (x: Z) (y: val) :=
@@ -126,15 +126,22 @@ apply exp_right with i; auto.
 simpl eval_expr.
 go_lowerx.
 repeat apply andp_right; try apply prop_right; auto.
-unfold_lift in H3.
-rewrite <- H7 in H3. rewrite Thi in H3. simpl in H3.
-destruct (eval_expr hi rho); simpl in H3; try solve [inv H3].
-hnf in H3. red.
-unfold Int.lt in H3.
-if_tac in H3; inv H3.
-rewrite Int.signed_repr in H9; auto.
-apply exp_right with x; auto.
-repeat apply andp_right; try apply prop_right; auto.
+ -
+  unfold_lift in H3.
+  rewrite <- H7 in H3. rewrite Thi in H3.
+  clear - H3 H5. red. hnf in H3.
+ simpl in H3. 
+ destruct (eval_expr hi rho); simpl in H3; try solve [inv H3].
+ unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H3.
+ destruct Archi.ptr64 eqn:Hp; simpl in H3.
+  unfold Int.lt in H3. if_tac in H3; inv H3.
+  rewrite Int.signed_repr in H; auto.
+  rewrite Hp in H3. simpl in H3.
+  unfold Int.lt in H3. if_tac in H3; inv H3.
+  rewrite Int.signed_repr in H; auto.
+ -
+    apply exp_right with x; auto.
+    repeat apply andp_right; try apply prop_right; auto.
 +
 simpl update_tycon.
 apply semax_extensionality_Delta with (update_tycon Delta init).
@@ -147,10 +154,13 @@ eapply semax_pre0; [ | apply (H2 i)].
 go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 rewrite Thi in H. unfold_lift in H. rewrite <- H6 in H.
 destruct (eval_expr hi rho); simpl in H; try solve [inv H].
-hnf in H. red.
-unfold Int.lt in H.
-if_tac in H; inv H.
-rewrite Int.signed_repr in H8; auto.
+ unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+  unfold Int.lt in H. if_tac in H; inv H.
+  rewrite Int.signed_repr in H8; auto.
+  rewrite Hp in H. simpl in H.
+  unfold Int.lt in H. if_tac in H; inv H.
+  rewrite Int.signed_repr in H8; auto.
 auto.
 auto.
 all: autorewrite with ret_assert; simpl_ret_assert;
@@ -209,7 +219,7 @@ repeat apply andp_right; try apply @TT_right.
 simpl. unfold_lift. rewrite <- H3.
 clear - RANGE; unfold denote_tc_nosignedover.
 apply prop_right.
-rewrite !Int.signed_repr by repable_signed.
+rewrite !Int.signed_repr by rep_omega.
 omega.
 rewrite TI. apply @TT_right.
 unfold tc_temp_id, typecheck_temp_id.
@@ -241,10 +251,14 @@ apply andp_right.
 apply andp_left1.
 unfold locald_denote; simpl.
  autorewrite with norm1 norm2; normalize.
-rewrite <- H. simpl.  normalize.
+rewrite <- H. simpl. 
+unfold force_val, both_int, Cop2.sem_cast; simpl.
+ destruct Archi.ptr64 eqn:Hp; simpl; normalize; rewrite Hp;
+ autorewrite with norm1 norm2; normalize.
+
 normalize;
  autorewrite with norm1 norm2; normalize.
-apply andp_right; auto.
+ apply andp_right; auto.
 apply prop_right.
 split; auto.
 clear - H3; omega.
@@ -361,16 +375,21 @@ apply exp_right with i; auto.
 simpl eval_expr.
 go_lowerx.
 repeat apply andp_right; try apply prop_right; auto.
-rename H5 into H5'; rename H3 into H5.
-unfold_lift in H5.
-rewrite <- H7 in H5. rewrite Thi in H5. simpl in H5.
-destruct (eval_expr hi rho); simpl in H5; try solve [inv H5].
-hnf in H5. red.
-unfold Int.ltu in H5.
-if_tac in H5; inv H5.
-rewrite Int.unsigned_repr in H3; auto.
-apply exp_right with x; auto.
-repeat apply andp_right; try apply prop_right; auto.
+ -
+ rename H5 into H5'; rename H3 into H5.
+ unfold_lift in H5.
+ rewrite <- H7 in H5. rewrite Thi in H5. simpl in H5.
+ destruct (eval_expr hi rho); simpl in H5; try solve [inv H5].
+ hnf in H5. red.
+ unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H5.
+ destruct Archi.ptr64 eqn:Hp; simpl in H5;
+  unfold Int.ltu in H5; if_tac in H5; inv H5.
+  rewrite Int.unsigned_repr in H3; auto.
+  if_tac in H9; inv H9.
+  rewrite Int.unsigned_repr in H3; auto.
+ -
+  apply exp_right with x; auto.
+  repeat apply andp_right; try apply prop_right; auto.
 +
 simpl update_tycon.
 apply semax_extensionality_Delta with (update_tycon Delta init).
@@ -387,9 +406,12 @@ rename H4 into H4'; rename H into H4.
 rewrite Thi in H4. unfold_lift in H4. rewrite <- H6 in H4.
 destruct (eval_expr hi rho); simpl in H4; try solve [inv H4].
 hnf in H4. red.
-unfold Int.ltu in H4.
-if_tac in H4; inv H4.
-rewrite Int.unsigned_repr in H; auto.
+ unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H4.
+ destruct Archi.ptr64 eqn:Hp; simpl in H4;
+  unfold Int.ltu in H4; if_tac in H4; inv H4.
+  rewrite Int.unsigned_repr in H; auto.
+ if_tac in H8; inv H8.
+  rewrite Int.unsigned_repr in H; auto.
 *
 replace (fun a : environ =>
  EX  i:Z, EX x:A,
@@ -443,7 +465,11 @@ apply andp_right.
 apply andp_left1.
 unfold locald_denote; simpl.
  autorewrite with norm1 norm2; normalize.
-rewrite <- H. simpl.  normalize.
+ unfold force_val2, both_int; rewrite <- H; simpl.
+ unfold Cop2.sem_cast, Cop2.classify_cast. simpl.
+ destruct Archi.ptr64 eqn:Hp; simpl.
+ normalize.
+ rewrite Hp; simpl; normalize.
 normalize;
  autorewrite with norm1 norm2; normalize.
 apply andp_right; auto.
@@ -460,7 +486,7 @@ Proof.
  unfold op_Z_int. rewrite Int.signed_repr by auto.
  auto.
 Qed.
-Hint Rewrite op_Z_int_Vint_repr using repable_signed : norm.
+Hint Rewrite op_Z_int_Vint_repr using rep_omega : norm.
 
 Lemma op_Z_uint_Vint_repr:
   forall op i n,
@@ -471,7 +497,7 @@ Proof.
  unfold op_Z_uint. rewrite Int.unsigned_repr by auto.
  auto.
 Qed.
-Hint Rewrite op_Z_uint_Vint_repr using repable_signed : norm.
+Hint Rewrite op_Z_uint_Vint_repr using rep_omega : norm.
 
 Lemma semax_for_simple_bound_ex :
  forall n Inv Espec {cs: compspecs} Delta Pre (A: Type)
@@ -1379,7 +1405,7 @@ Ltac forward_for_simple_bound' n Pre :=
          | eapply (semax_for_const_bound_const_init_u n Pre); [reflexivity|..]
          | eapply (semax_for_const_bound_const_init_ex n Pre); [reflexivity|..]
          | eapply (semax_for_const_bound_const_init_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
+  [try rep_omega | try rep_omega | reflexivity | try reflexivity; omega
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon
   | intro; cbv beta; simpl update_tycon; try solve [entailer!]
@@ -1390,7 +1416,7 @@ Ltac forward_for_simple_bound' n Pre :=
          | eapply (semax_for_simple_bound_const_init_u n Pre); [reflexivity|..]
          | eapply (semax_for_simple_bound_const_init_ex n Pre); [reflexivity|..]
          | eapply (semax_for_simple_bound_const_init_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | try repable_signed | reflexivity | reflexivity
+  [try rep_omega | try rep_omega | reflexivity | reflexivity
   | auto 50 with closed
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon
@@ -1402,7 +1428,7 @@ Ltac forward_for_simple_bound' n Pre :=
          |eapply (semax_for_simple_bound_u n Pre); [reflexivity|..]
          |eapply (semax_for_simple_bound_ex n Pre); [reflexivity|..]
          |eapply (semax_for_simple_bound_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | reflexivity | reflexivity
+  [try rep_omega | reflexivity | reflexivity
   | auto 50 with closed
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon

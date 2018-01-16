@@ -72,13 +72,13 @@ forward. {
   entailer!.
   assert (0 <= Znth 2 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
   change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; repable_signed.
+  rewrite Int.unsigned_repr; rep_omega.
 }
 forward. {
   entailer!.
   assert (0 <= Znth 3 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
   change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; repable_signed.
+  rewrite Int.unsigned_repr; rep_omega.
 }
 (* return: *)
 forward.
@@ -116,13 +116,13 @@ assert (N0: 0 <= n). {
 assert_PROP (isptr p) as P by entailer!.
 
 (* forward fails, but tells us to prove this: *)
-assert_PROP (force_val (sem_add_pi tuint p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)). {
   entailer!.
   destruct p; inversion P. simpl.
   rewrite field_compatible_field_address by auto with field_compatible.
   simpl.
-  rewrite int_add_repr_0_r. reflexivity.
+  rewrite ptrofs_add_repr_0_r. reflexivity.
 }
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
@@ -150,18 +150,19 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   )
   SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents)))
           (offset_val (- sizeof tuint) p))).
-- pose proof (Int.unsigned_range (Int.shru (Int.repr tag) (Int.repr 10))). repable_signed.
+- pose proof (Int.unsigned_range (Int.shru (Int.repr tag) (Int.repr 10))). rep_omega.
 - (* precondition implies invariant: *)
   entailer!. f_equal. apply Int.repr_unsigned.
 - (* body preserves invariant: *)
   (* forward fails, but tells us to prove this: *)
-  assert_PROP (force_val (sem_add_pi tuint p (Vint (Int.repr i)))
+  assert_PROP (force_val (sem_add_ptr_int tuint Unsigned p (Vint (Int.repr i)))
     = field_address (tarray tuint (1 + n)) [ArraySubsc (1 + i)] (offset_val (- sizeof tuint) p)). {
     entailer!.
     destruct p; inversion P. simpl.
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
-    rewrite Int.add_assoc. rewrite add_repr. do 3 f_equal. omega.
+    rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
+    f_equal. f_equal. f_equal. omega.
   }
   forward.
   forward.
@@ -183,11 +184,11 @@ Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.
  (* int_pair_t* p = &pps[i].right; *)
  forward.
  simpl (temp _p _).
- 
  (* Assert_PROP what forward asks us for (only for the root expression "p"):  *)
- assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
+ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
    = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
-   entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
+   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
+  simpl. normalize.
  }
  (* int res = p->snd; *)
  forward.
@@ -206,7 +207,7 @@ simpl (temp _p _).
 (* Assert_PROP what forward asks us for (for the full expression "p->snd"): *)
 assert_PROP (
   offset_val 4 (offset_val 8 (force_val
-    (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i)))))
+    (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))))
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
@@ -226,9 +227,11 @@ forward.
 simpl (temp _p _).
 
 (* Alternative: Make p nice enough so that no hint is required: *)
-assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
+assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
-  entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
+  entailer!. rewrite field_compatible_field_address by auto with field_compatible.
+  simpl.
+  normalize.
 }
 rewrite E. clear E.
 (* int res = p->snd; *)

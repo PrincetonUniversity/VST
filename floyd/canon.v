@@ -52,7 +52,7 @@ Inductive localdef : Type :=
 
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
-         | Some (b, ty') => t=ty' /\ v = Vptr b Int.zero
+         | Some (b, ty') => t=ty' /\ v = Vptr b Ptrofs.zero
          | None => False
          end.
 
@@ -61,14 +61,14 @@ Definition gvar_denote (i: ident) (v: val) rho :=
          | Some (b, ty') => False
          | None =>
              match ge_of rho i with
-             | Some b => v = Vptr b Int.zero
+             | Some b => v = Vptr b Ptrofs.zero
              | None => False
              end
          end.
 
 Definition sgvar_denote (i: ident) (v: val) rho :=
          match ge_of rho i with
-             | Some b => v = Vptr b Int.zero
+             | Some b => v = Vptr b Ptrofs.zero
              | None => False
          end.
 

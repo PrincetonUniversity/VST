@@ -20,13 +20,13 @@ Arguments Z.max !n !m / .
 
 Definition offset_in_range ofs p :=
   match p with
-  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs <= Int.modulus
+  | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs <= Ptrofs.modulus
   | _ => True
   end.
 
 Definition offset_strict_in_range ofs p :=
   match p with
-  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs < Int.modulus
+  | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs < Ptrofs.modulus
   | _ => True
   end.
 
@@ -229,10 +229,10 @@ Qed.
 
 Lemma by_value_data_at_rec_default_val2: forall sh t b ofs,
   type_is_by_value t = true ->
-  0 <= ofs /\ ofs + sizeof t < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
-  memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
+  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   apply by_value_data_at_rec_default_val; auto.
@@ -249,11 +249,11 @@ Qed.
 
 Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v,
   type_is_by_value t = true ->
-  0 <= ofs /\ ofs + sizeof t < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   ~ readable_share sh ->
   tc_val' t (repinject t v) ->
-  data_at_rec sh t v (Vptr b (Int.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   apply by_value_data_at_rec_nonreachable; auto.
@@ -353,10 +353,10 @@ Qed.
 Lemma offset_val_zero_Vptr: forall b i, offset_val 0 (Vptr b i) = Vptr b i.
 Proof.
   intros.
-  unfold offset_val, Int.add.
-  change (Int.unsigned (Int.repr 0)) with 0.
+  unfold offset_val, Ptrofs.add.
+  change (Ptrofs.unsigned (Ptrofs.repr 0)) with 0.
   rewrite Z.add_0_r.
-  rewrite Int.repr_unsigned.
+  rewrite Ptrofs.repr_unsigned.
   reflexivity.
 Qed.
 (*
@@ -440,10 +440,10 @@ Qed.
 (* difficult to use than simple arithmetic in induction proof.                  *)
 Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
-  0 <= ofs /\ ofs + sizeof t < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
-    memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
+  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) =
+    memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
@@ -572,8 +572,8 @@ Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   alignof t = 1%Z ->
-  (sizeof t < Int.modulus)%Z ->
-  memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
+  (sizeof t < Ptrofs.modulus)%Z ->
+  memory_block sh (Ptrofs.repr (sizeof t)) = data_at_ sh t.
 Proof.
   intros.
   extensionality p.
@@ -607,9 +607,9 @@ simpl.
 
 Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
-  0 <= ofs /\ ofs + sizeof t < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t v (Vptr b (Int.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
@@ -894,18 +894,18 @@ Qed.
 Lemma nonreadable_memory_block_data_at_rec:
   forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
-  0 <= ofs /\ ofs + sizeof t < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   ~ readable_share sh ->
   value_fits t v ->
-  memory_block sh (sizeof t) (Vptr b (Int.repr ofs)) = data_at_rec sh t v (Vptr b (Int.repr ofs)).
+  memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)) = data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   symmetry.
   revert v ofs LEGAL_COSU H H0 H1 H2;
-  pattern t; type_induction t; intros;
+  pattern t; type_induction t; (* try destruct i; try destruct s; *) intros;
     try inversion LEGAL_COSU;
-    rewrite value_fits_eq in H2; simpl in H2;
+    rewrite value_fits_eq in H2; cbv beta zeta in H2;
     try match type of H2 with
         | context [type_is_volatile ?t] =>
             destruct (type_is_volatile t) eqn:?;

@@ -294,13 +294,13 @@ hnf in COMPAT |- *.
 (* TODO: simplify this proof. *)
 intuition.
 - hnf in H6|-*. unfold offset_val. destruct md; auto.
-  rewrite <- (Int.repr_unsigned i0).
-  rewrite add_repr.
+  rewrite <- (Ptrofs.repr_unsigned i0).
+  rewrite ptrofs_add_repr.
   simpl in H6|-*.
   simpl in H2; inv_int i0.
-  rewrite Int.unsigned_repr; try omega.
+  rewrite Ptrofs.unsigned_repr; try omega.
   rewrite Z.mul_1_l.
-  change (Int.max_unsigned) with (Int.modulus-1).
+  change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1).
   omega.
 - apply align_compatible_tarray_tuchar.
 - destruct H6; auto.
@@ -459,7 +459,7 @@ Proof.
 
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
-  make_Vptr c. simpl. normalize.
+  make_Vptr c. simpl. unfold Ptrofs.of_ints. normalize.
   split; auto.  clear; compute; congruence.
 
   match goal with |- context [SEPx (?A :: _)] =>
@@ -512,8 +512,8 @@ Proof.
      replace X with  (field_address t_struct_SHA256state_st [StructField _data] c)
       by (pose proof CBLOCKz_eq;
             rewrite !field_address_offset by auto with field_compatible;
-           make_Vptr c;  simpl;  rewrite Int.sub_add_opp;
-           rewrite !Int.add_assoc; normalize)
+           make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
+           rewrite !Ptrofs.add_assoc; normalize)
    end.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
   change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).

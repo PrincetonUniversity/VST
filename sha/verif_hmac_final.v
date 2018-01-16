@@ -98,7 +98,7 @@ apply semax_pre with (P':=
       unfold_data_at 1%nat. thaw FR1.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
-      simpl. rewrite Int.add_zero. Time cancel. (*0.9*)
+      simpl. rewrite Ptrofs.add_zero. Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
 
@@ -109,14 +109,14 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
 rewrite field_address_offset by auto with field_compatible.
 unfold offset_val; simpl.
-rewrite Int.add_zero.
+rewrite Ptrofs.add_zero.
 replace_SEP 1 (memory_block Tsh 108 (Vptr b i)).
   { Time entailer!. (*1.3 versus 1.6*)
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ Tsh _ _ H). apply derives_refl.
   }
 freeze [0;2] FR3.
-Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)),
+Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Ptrofs.add i (Ptrofs.repr 216)),
               mkTrep t_struct_SHA256state_st oCTX, 108). (*5 versus 8.7*)
 Time solve [simpl; cancel]. (*0.1 versus 1*)
 

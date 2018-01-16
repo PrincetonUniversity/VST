@@ -1,3 +1,5 @@
+From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
+Export Cop.
 Require Export VST.floyd.base2.
 Require Export VST.floyd.sublist.
 Require Export VST.floyd.client_lemmas.
@@ -37,8 +39,8 @@ Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.Clightnotations.
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
-
 Export ListNotations.
+Export Cop2.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
 Arguments deref_noload ty v / .
@@ -49,3 +51,4 @@ Arguments Z.mul !x !y.
 Arguments Z.sub !m !n.
 Arguments Z.add !x !y.
 Global Transparent peq.
+Global Transparent Archi.ptr64.

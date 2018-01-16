@@ -201,9 +201,9 @@ LINKING_FILES= \
 VERIC_FILES= \
   base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
-  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v \
+  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v binop_lemmas5.v binop_lemmas6.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
-  expr_rel.v xexpr_rel.v extend_tc.v \
+  expr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
@@ -332,7 +332,7 @@ HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
-  mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
+  hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   drbg_protocol_specs.v \
@@ -343,6 +343,7 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
   drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
+#  mocked_md.v mocked_md_compspecs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -355,7 +356,16 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c funcptr.c store_demo.c floyd_tests.c int_or_ptr.c union.c
+# SINGLE_C_FILES are those that can be clightgen'd individually
+# NORMAL_C_FILES are those to be clightgen'd individually with -normalize flag
+# LINKED_C_FILES are those that need to be clightgen'd in a batch with others
+
+SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c
+
+NORMAL_C_FILES = sumarray.c sumarray2.c int_or_ptr.c union.c 
+
+LINKED_C_FILES = even.c odd.c
+C_FILES = $(SINGLE_C_FILES) $(NORMAL_C_FILES) $(LINKED_C_FILES)
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -473,6 +483,8 @@ CGFLAGS =  -DCOMPCERT
 
 $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
+CVFILES = $(patsubst %.c,progs/%.v,$(C_FILES))
+
 cvfiles: $(CVFILES)
 
 dochtml:
@@ -487,60 +499,19 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-# Is there a way to generate the next 5 rules automatically from C_FILES? 
-progs/revarray.v: progs/revarray.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/reverse.v: progs/reverse.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/queue.v: progs/queue.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/queue2.v: progs/queue2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/sumarray.v: progs/sumarray.c
-	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
-progs/sumarray2.v: progs/sumarray2.c
-	$(CLIGHTGEN) -normalize ${CGFLAGS} $<
-progs/message.v: progs/message.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/object.v: progs/object.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/insertionsort.v: progs/insertionsort.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/float.v: progs/float.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/global.v: progs/global.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/logical_compare.v: progs/logical_compare.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/nest2.v: progs/nest2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/nest3.v: progs/nest3.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/ptr_compare.v: progs/ptr_compare.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/dotprod.v: progs/dotprod.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/string.v: progs/string.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+# SPECIAL-CASE RULES FOR LINKED_C_FILES:
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c # sha/hkdf.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/even.v: progs/even.c progs/odd.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/odd.v: progs/even.v
-progs/field_loadstore.v: progs/field_loadstore.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/merge.v: progs/merge.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/append.v: progs/append.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/switch.v: progs/switch.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/funcptr.v: progs/funcptr.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/int_or_ptr.v: progs/int_or_ptr.c
-	$(CLIGHTGEN) ${CGFLAGS}  -normalize $<
-progs/union.v: progs/union.c
-	$(CLIGHTGEN) ${CGFLAGS}  -normalize $<
+mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+# GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
+$(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+$(patsubst %.c,progs/%.v, $(NORMAL_C_FILES)): progs/%.v: progs/%.c
+	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
@@ -565,7 +536,7 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo)
+	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
 	rm -fr doc/html
 
 clean-concur:

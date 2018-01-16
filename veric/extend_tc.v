@@ -18,24 +18,6 @@ Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: li
 Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
      fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
 
-Definition allowedValCast v tfrom tto :=
-match classify_cast tfrom tto with
-| Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto)
-                          then
-                            match v with
-                              | Vint i => (Int.eq i Int.zero)
-                              | _ => false
-                            end
-                          else if eqb (is_int_type tfrom)
-                                      (is_int_type tto)
-                               then true else false
-| Cop.cast_case_i2i _ _ => true
-| Cop.cast_case_l2l => true
-| Cop.cast_case_f2f => true
-| Cop.cast_case_s2s => true
-| _  => false
-end.
-
 Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
   (Delta : tycontext) (e : expr) : environ -> mpred  :=
      fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
@@ -128,7 +110,7 @@ apply extendM_refl.
 unfold valid_pointer' in *.
 simpl in *.
 destruct a; simpl in *; auto.
-forget (b0, Int.unsigned i + b) as p.
+forget (b0, Ptrofs.unsigned i + b) as p.
 destruct (w @ p) eqn:?H; try contradiction.
 destruct H as [w2 ?].
 apply (resource_at_join _ _ _ p) in H.
@@ -140,6 +122,24 @@ destruct H as [w2 ?].
 apply (resource_at_join _ _ _ p) in H.
 rewrite H1 in H.
 inv H; auto.
+Qed.
+
+Lemma extend_andp: forall P Q, 
+  boxy extendM P -> boxy extendM Q -> boxy extendM (andp P Q).
+Proof.
+ intros.
+ apply boxy_i; intros.
+ apply extendM_refl.
+ destruct H2; split; eapply boxy_e; eauto.
+Qed.
+
+Lemma extend_orp: forall P Q, 
+  boxy extendM P -> boxy extendM Q -> boxy extendM (orp P Q).
+Proof.
+ intros.
+ apply boxy_i; intros.
+ apply extendM_refl.
+ destruct H2; [left|right]; eapply boxy_e; eauto.
 Qed.
 
 Lemma extend_tc_test_eq:
@@ -161,24 +161,11 @@ destruct (eval_expr e2 rho); auto.
 + destruct H0; split; auto.
   destruct H1 as [H1|H1]; [left|right];
   apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-+ destruct H0; split; auto.
-  destruct H1 as [H1|H1]; [left|right];
-  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-+ destruct H0; split; auto.
-  destruct H1 as [H1|H1]; [left|right];
-  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-+ unfold test_eq_ptrs in *.
-  simpl cast_out_long in H0 |- *.
-  cbv iota beta in H0 |- *.
-  if_tac.
-  - destruct H0; split.
-    * destruct H0 as [?|?]; [left|right];
-      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-    * destruct H1 as [?|?]; [left|right];
-      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-  - destruct H0; split.
-    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++
+ unfold test_eq_ptrs in *.
+ if_tac;
+ (eapply boxy_e;
+  [apply extend_andp; try apply extend_orp; apply extend_valid_pointer' | apply H | apply H0]).
 Qed.
 
 Lemma extend_tc_test_order:
@@ -195,15 +182,9 @@ unfold denote_tc_test_order in *.
 destruct (eval_expr e1 rho); auto;
 destruct (eval_expr e2 rho); auto.
 + unfold test_order_ptrs in *.
-  simpl cast_out_long in H0 |- *.
-  cbv iota beta in H0 |- *.
-  if_tac.
-  - destruct H0; split.
-    * destruct H0 as [?|?]; [left|right];
-      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-    * destruct H1 as [?|?]; [left|right];
-      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-  - auto.
+  if_tac; auto.
+ eapply boxy_e;
+  [apply extend_andp; eapply extend_orp; apply extend_valid_pointer' | apply H | apply H0].
 Qed.
 
 Lemma extend_isCastResultType:

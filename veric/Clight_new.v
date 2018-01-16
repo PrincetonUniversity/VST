@@ -272,7 +272,7 @@ Definition params_of_fundef (f: fundef) : list type :=
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate :=
   match v with
     Vptr b i =>
-    if Int.eq_dec i Int.zero then
+    if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
         Some (State empty_env (temp_bindings 1%positive (v::args))
