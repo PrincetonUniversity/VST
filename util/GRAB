@@ -2,7 +2,7 @@
 # Run this script to copy over all the files of a (new) CompCert
 # version into the vst repository.
 #
-# Usage:  cd vst/compcert; ./GRAB ~/compcert
+# Usage:  cd vst/compcert; ../util/GRAB ~/compcert
 # assuming it is ~/compcert where you have done the svn checkout
 # of the compcert distribution (or repository)
 #
@@ -11,9 +11,9 @@
 #
 #
 if [ -e "$1" -a ./GRAB ]; then
-  rm -f */*.v flocq/*/*.v Makefile
-  cp $1/Makefile $1/LICENSE $1/README.md $1/VERSION .
-  cp $1/ia32/Archi.v ia32
+  rm -f */*.v flocq/*/*.v
+  cp $1/LICENSE $1/README.md $1/VERSION .
+  cp $1/x86_32/Archi.v x86_32
   cp $1/lib/*.v lib
   cp $1/common/*.v common
   cp $1/cfrontend/{Clight,ClightBigstep,Cop,Csem,Cstrategy,Csyntax,Ctypes}.v cfrontend
