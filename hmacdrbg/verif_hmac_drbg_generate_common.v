@@ -1428,7 +1428,7 @@ Proof. intros.
       simpl; simpl in HZlength_V; rewrite HZlength_V. 
       change Int.max_unsigned with 4294967295.
       change (two_power_pos 61) with 2305843009213693952.
-      repeat split; try repable_signed.
+      repeat split; try rep_omega.
       apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; auto; try omega.
       apply isbyteZ_HMAC256. 
     }
@@ -1578,7 +1578,7 @@ Proof. intros.
     }
     { simpl. rewrite sublist_map. cancel. }
     { repeat split; auto;
-      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try repable_signed.
+      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_omega.
     }
 
     simpl.

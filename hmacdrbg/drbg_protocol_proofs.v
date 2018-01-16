@@ -181,7 +181,7 @@ Proof.
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) repable_signed.
+    split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
        unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
     split. apply IB1. split; omega.
@@ -384,7 +384,7 @@ Proof.
   forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. 
   }
-  { subst ABS; simpl. repeat split; trivial; try repable_signed. apply IB1. split; omega.
+  { subst ABS; simpl. repeat split; trivial; try rep_omega. apply IB1. split; omega.
   }
 
   freeze [0;1;2;3;4] ALLSEP.
@@ -467,7 +467,7 @@ Proof.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
       + clear - H WFI addlenRange.
-        repable_signed.
+        rep_omega.
   }
 
   forward_if (PROP  (add_len_too_high = false)
@@ -535,7 +535,7 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;5;7] FR4.
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try repable_signed.
+  { split. split; try rep_omega.
     apply writable_share_top.
   }
   Intros vret. rename H1 into ENT.
@@ -712,7 +712,7 @@ Proof.
                 I, kv, Info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try repable_signed).
+    repeat (split; try assumption; try rep_omega).
     constructor. }
   Intros v. forward. unfold HMAC256_DRBG_bridge_to_FCF.mbedtls_generate in M.
   remember (mbedtls_HMAC256_DRBG_generate_function s I n []) as q; destruct q; try discriminate. 
@@ -756,7 +756,7 @@ Proof.
                 I, kv, Info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try repable_signed).
+    repeat (split; try assumption; try rep_omega).
     constructor. }
   Intros v. forward. destruct J as [[[[V K] RC] x] PR].
   unfold generatePOST, contents_with_add; simpl. 
@@ -1062,7 +1062,7 @@ Proof. start_function.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
       {
         (* prove the PROP clause matches *)
-        repeat split; [omega | repable_signed | | assumption].
+        repeat split; [omega | rep_omega | | assumption].
         rewrite Zlength_app; rewrite H4.
         simpl. remember (Zlength contents) as n; clear - AL1.
         destruct AL1. rewrite <- Zplus_assoc.

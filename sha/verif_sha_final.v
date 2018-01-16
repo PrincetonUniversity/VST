@@ -131,7 +131,7 @@ assert_PROP (force_val
   entailer!.
   make_Vptr c.
   rewrite !field_address_offset by auto with field_compatible.
-  simpl. normalize. auto with norm.
+  simpl. normalize.
  }
  simpl (temp _p _).
  rewrite H2. clear H2.

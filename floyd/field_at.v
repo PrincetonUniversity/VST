@@ -998,10 +998,10 @@ Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 
@@ -1010,10 +1010,10 @@ Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 *)

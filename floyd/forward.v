@@ -1304,15 +1304,15 @@ Ltac cleanup_repr H :=
 rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
  | _ (Int.signed (Int.repr ?A)) (Int.signed (Int.repr ?B)) =>
-    try (rewrite (Int.signed_repr A) in H by repable_signed);
-    try (rewrite (Int.signed_repr B) in H by repable_signed)
+    try (rewrite (Int.signed_repr A) in H by rep_omega);
+    try (rewrite (Int.signed_repr B) in H by rep_omega)
  | _ (Int.unsigned (Int.repr ?A)) (Int.unsigned (Int.repr ?B)) =>
-    try (rewrite (Int.unsigned_repr A) in H by repable_signed);
-    try (rewrite (Int.unsigned_repr B) in H by repable_signed)
+    try (rewrite (Int.unsigned_repr A) in H by rep_omega);
+    try (rewrite (Int.unsigned_repr B) in H by rep_omega)
  | context [Int.signed (Int.repr ?A) ] =>
-    try (rewrite (Int.signed_repr A) in H by repable_signed)
+    try (rewrite (Int.signed_repr A) in H by rep_omega)
  | context [Int.unsigned (Int.repr ?A) ] =>
-    try (rewrite (Int.unsigned_repr A) in H by repable_signed)
+    try (rewrite (Int.unsigned_repr A) in H by rep_omega)
 end.
 
 Lemma typed_true_ptr_e:
@@ -1347,10 +1347,10 @@ Ltac do_repr_inj H :=
           | Int.eq _ _ = false => apply int_eq_false_e in H
           | _ => idtac
   end;
-  first [ simple apply repr_inj_signed in H; [ | repable_signed | repable_signed ]
-         | simple apply repr_inj_unsigned in H; [ | repable_signed | repable_signed ]
-         | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
-         | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
+  first [ simple apply repr_inj_signed in H; [ | rep_omega | rep_omega ]
+         | simple apply repr_inj_unsigned in H; [ | rep_omega | rep_omega ]
+         | simple apply repr_inj_signed' in H; [ | rep_omega | rep_omega ]
+         | simple apply repr_inj_unsigned' in H; [ | rep_omega | rep_omega ]
          | match type of H with
             | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
                                     apply typed_true_nullptr3 in H
@@ -1362,12 +1362,12 @@ Ltac do_repr_inj H :=
                                     apply typed_false_nullptr4 in H
           end
          | apply typed_false_nullptr4 in H
-         | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
-         | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
+         | simple apply ltu_repr in H; [ | rep_omega | rep_omega]
+         | simple apply ltu_repr_false in H; [ | rep_omega | rep_omega]
          | simple apply ltu_inv in H; cleanup_repr H
          | simple apply ltu_false_inv in H; cleanup_repr H
-         | simple apply lt_repr in H; [ | repable_signed | repable_signed]
-         | simple apply lt_repr_false in H; [ | repable_signed | repable_signed]
+         | simple apply lt_repr in H; [ | rep_omega | rep_omega]
+         | simple apply lt_repr_false in H; [ | rep_omega | rep_omega]
          | simple apply lt_inv in H; cleanup_repr H
          | simple apply lt_false_inv in H; cleanup_repr H
          | idtac
@@ -1710,12 +1710,12 @@ match goal with
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by repable_signed;
+       try rewrite Int.signed_repr in HRE by rep_omega;
        abbreviate_semax
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by repable_signed;
+       try rewrite Int.signed_repr in HRE by rep_omega;
        abbreviate_semax
      ]
 | |- semax _ _ (Sswitch _ _) _ =>

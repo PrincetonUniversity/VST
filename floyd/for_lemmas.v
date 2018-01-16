@@ -219,7 +219,7 @@ repeat apply andp_right; try apply @TT_right.
 simpl. unfold_lift. rewrite <- H3.
 clear - RANGE; unfold denote_tc_nosignedover.
 apply prop_right.
-rewrite !Int.signed_repr by repable_signed.
+rewrite !Int.signed_repr by rep_omega.
 omega.
 rewrite TI. apply @TT_right.
 unfold tc_temp_id, typecheck_temp_id.
@@ -486,7 +486,7 @@ Proof.
  unfold op_Z_int. rewrite Int.signed_repr by auto.
  auto.
 Qed.
-Hint Rewrite op_Z_int_Vint_repr using repable_signed : norm.
+Hint Rewrite op_Z_int_Vint_repr using rep_omega : norm.
 
 Lemma op_Z_uint_Vint_repr:
   forall op i n,
@@ -497,7 +497,7 @@ Proof.
  unfold op_Z_uint. rewrite Int.unsigned_repr by auto.
  auto.
 Qed.
-Hint Rewrite op_Z_uint_Vint_repr using repable_signed : norm.
+Hint Rewrite op_Z_uint_Vint_repr using rep_omega : norm.
 
 Lemma semax_for_simple_bound_ex :
  forall n Inv Espec {cs: compspecs} Delta Pre (A: Type)
@@ -1405,7 +1405,7 @@ Ltac forward_for_simple_bound' n Pre :=
          | eapply (semax_for_const_bound_const_init_u n Pre); [reflexivity|..]
          | eapply (semax_for_const_bound_const_init_ex n Pre); [reflexivity|..]
          | eapply (semax_for_const_bound_const_init_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
+  [try rep_omega | try rep_omega | reflexivity | try reflexivity; omega
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon
   | intro; cbv beta; simpl update_tycon; try solve [entailer!]
@@ -1416,7 +1416,7 @@ Ltac forward_for_simple_bound' n Pre :=
          | eapply (semax_for_simple_bound_const_init_u n Pre); [reflexivity|..]
          | eapply (semax_for_simple_bound_const_init_ex n Pre); [reflexivity|..]
          | eapply (semax_for_simple_bound_const_init_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | try repable_signed | reflexivity | reflexivity
+  [try rep_omega | try rep_omega | reflexivity | reflexivity
   | auto 50 with closed
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon
@@ -1428,7 +1428,7 @@ Ltac forward_for_simple_bound' n Pre :=
          |eapply (semax_for_simple_bound_u n Pre); [reflexivity|..]
          |eapply (semax_for_simple_bound_ex n Pre); [reflexivity|..]
          |eapply (semax_for_simple_bound_ex_u n Pre); [reflexivity|..]];
-  [try repable_signed | reflexivity | reflexivity
+  [try rep_omega | reflexivity | reflexivity
   | auto 50 with closed
   | intro; unfold map at 1; auto 50 with closed
   | cbv beta; simpl update_tycon

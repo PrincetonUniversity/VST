@@ -18,7 +18,7 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
 * normalize.
   forward_call (z-1, tt).
   (* Prove that PROP precondition is OK *)
-  repable_signed.
+  rep_omega.
   (* After the call *)
   forward.
   entailer!.
@@ -30,7 +30,7 @@ Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 forward_call (42).
-repable_signed.
+rep_omega.
 forward.
 Qed.
 

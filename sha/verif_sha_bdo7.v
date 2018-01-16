@@ -306,7 +306,7 @@ rewrite <- H1; clear H1.
 unfold rnd_function, nthi; simpl.
 repeat split; try reflexivity.
  +
-  repable_signed.
+  rep_omega.
  +
   f_equal.
   rewrite <- Int.add_assoc; symmetry; rewrite <- Int.add_assoc.

@@ -360,7 +360,7 @@ AES_FILES = \
 # NORMAL_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c
+SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c
 
 NORMAL_C_FILES = sumarray.c sumarray2.c int_or_ptr.c union.c 
 
@@ -505,6 +505,8 @@ sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacd
 progs/even.v: progs/even.c progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/odd.v: progs/even.v
+mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
 $(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
 	$(CLIGHTGEN) ${CGFLAGS} $^

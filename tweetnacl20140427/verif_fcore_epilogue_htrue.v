@@ -251,7 +251,7 @@ Proof. intros. abbreviate_semax.
     flatten_sepcon_in_SEP.
     freeze [0;1;3] FR2.
     freeze [0;2] FR3. 
-    Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
+    Time forward_call ((Vptr cb (Ptrofs.add coff (Ptrofs.repr (4 * i)))),
                       Select16Q C i). (*2.4 versus 10.3*)
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
@@ -290,9 +290,8 @@ Proof. intros. abbreviate_semax.
       flatten_sepcon_in_SEP.
 
       freeze [0;2] FR4.
-      Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
+      Time forward_call (Vptr nb (Ptrofs.add noff (Ptrofs.repr (4 * i))),
                      Select16Q Nonce i). (*3 versus 14.8*)
-
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
@@ -332,7 +331,7 @@ Proof. intros. abbreviate_semax.
      + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
        rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible.
-       simpl. rewrite Int.add_zero.
+       simpl. rewrite Ptrofs.add_zero.
 (*       rewrite isptr_offset_val_zero by trivial. *)
        apply data_at_ext.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
@@ -578,7 +577,7 @@ deadvars!.
     repeat flatten_sepcon_in_SEP.
 
     freeze [0;1;3] FR6.
-    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*3.1 versus 11.2*)
+    Time forward_call (Vptr ob (Ptrofs.add ooff (Ptrofs.repr (16 + 4 * i))), zi). (*3.1 versus 11.2*)
 (*    { entailer!. (*Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero))).*)
       autorewrite with sublist. rewrite Z.add_assoc. 
       Time entailer!. (*1.2 versus 13.5*) }*)

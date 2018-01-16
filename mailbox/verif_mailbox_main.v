@@ -40,8 +40,8 @@ Proof.
     destruct H3 as [? [_ [? _]]].
     destruct p; inv H3.
     simpl in H4.
-    pose proof Int.unsigned_range i.
-    repable_signed.
+    pose proof Ptrofs.unsigned_range i.
+    rep_omega.
   }
   assert_PROP (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
   { entailer!.
@@ -255,7 +255,7 @@ Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
   start_function.
   rewrite (data_at_isptr _ tint); Intros.
-  replace_SEP 0 (data_at Tsh tint (vint r) (force_val (sem_cast_neutral arg))).
+  replace_SEP 0 (data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg))).
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
   forward_call (r, reading, last_read, reads, lasts, sh1).
@@ -267,7 +267,7 @@ Proof.
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at Tsh tint Empty (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
-         data_at Tsh tint (vint r) (force_val (sem_cast_neutral arg)); malloc_token Tsh (sizeof tint) arg;
+         data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh (sizeof tint) arg;
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr tlock) N) locks lock;
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;

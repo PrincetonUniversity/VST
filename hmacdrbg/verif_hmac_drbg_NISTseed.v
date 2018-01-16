@@ -589,13 +589,13 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split. repable_signed. (* rewrite int_max_unsigned_eq; omega.*)
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. repable_signed.
+    split. rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. repable_signed. rewrite Zlength_nil; repable_signed.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }
@@ -924,13 +924,13 @@ Proof.
     subst ST; simpl. cancel.
   }
   { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
-    split. repable_signed. (* rewrite int_max_unsigned_eq; omega.*)
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) repable_signed.
+    split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. repable_signed. rewrite Zlength_nil; repable_signed.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }

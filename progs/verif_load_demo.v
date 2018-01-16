@@ -72,13 +72,13 @@ forward. {
   entailer!.
   assert (0 <= Znth 2 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
   change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; repable_signed.
+  rewrite Int.unsigned_repr; rep_omega.
 }
 forward. {
   entailer!.
   assert (0 <= Znth 3 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
   change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; repable_signed.
+  rewrite Int.unsigned_repr; rep_omega.
 }
 (* return: *)
 forward.
@@ -150,7 +150,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   )
   SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents)))
           (offset_val (- sizeof tuint) p))).
-- pose proof (Int.unsigned_range (Int.shru (Int.repr tag) (Int.repr 10))). repable_signed.
+- pose proof (Int.unsigned_range (Int.shru (Int.repr tag) (Int.repr 10))). rep_omega.
 - (* precondition implies invariant: *)
   entailer!. f_equal. apply Int.repr_unsigned.
 - (* body preserves invariant: *)

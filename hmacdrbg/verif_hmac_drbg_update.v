@@ -781,7 +781,7 @@ Proof. intros.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
       {
         (* prove the PROP clause matches *)
-        repeat split; [omega | repable_signed | | assumption].
+        repeat split; [omega | rep_omega | | assumption].
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.

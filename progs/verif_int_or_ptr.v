@@ -53,8 +53,8 @@ intros.
 simpl.
 right.
 unfold POINTER_BOUNDARY in *.
-rewrite Int.unsigned_repr by repable_signed.
-repable_signed.
+rewrite Int.unsigned_repr by rep_omega.
+rep_omega.
 Qed.
 
 Lemma field_compatible_valid_int_or_ptr:

@@ -131,7 +131,7 @@ Proof.
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
       rewrite <- Int.mul_pow2 with (n := (Int.repr 4)) by reflexivity.
-      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. repable_signed.
+      rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_omega.
     }
     forward. 
     assert (Int.unsigned (Int.repr 1) = 1) by reflexivity.

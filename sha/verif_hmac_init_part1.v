@@ -379,7 +379,7 @@ Proof. intros.
        rewrite field_address0_offset by auto with field_compatible.
        simpl. rewrite Z.add_0_l, Z.mul_1_l; trivial.
        apply Z.max_r. omega. }
-     { split; auto. repable_signed. }
+     { split; auto. rep_omega. }
 
      subst PostIf_j_Len.
      Time entailer!. (*3.5 versus 6.2*)

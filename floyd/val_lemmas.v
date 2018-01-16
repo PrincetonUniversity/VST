@@ -709,7 +709,7 @@ Definition ptrofs_max_signed_eq :  ltac:(const_equation Ptrofs.max_signed) := eq
 Definition ptrofs_min_signed_eq :  ltac:(const_equation Ptrofs.min_signed) := eq_refl.
 Opaque Archi.ptr64.
 
-Ltac repable_signed := 
+Ltac rep_omega := 
    pose proof int_wordsize_eq;
    pose proof int_zwordsize_eq;
    pose proof int_modulus_eq;
@@ -736,6 +736,9 @@ Ltac repable_signed :=
 
    unfold repable_signed in *;
    omega.
+
+Ltac repable_signed := 
+  idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.
 
 Lemma typed_false_ptr:
   forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.

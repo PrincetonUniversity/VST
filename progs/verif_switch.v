@@ -24,7 +24,7 @@ Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
 forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
- repable_signed.
+ rep_omega.
 repeat forward; entailer!.
 repeat forward; entailer!.
 repeat forward; entailer!.

@@ -175,7 +175,7 @@ Proof.
                 I, kv, info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try repable_signed).
+    repeat (split; try assumption; try rep_omega).
     constructor.  }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
@@ -420,7 +420,7 @@ Proof.
     - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
       assert (NK: n = k).
       { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
-        do 2 rewrite Int.unsigned_repr in H1; try repable_signed. }
+        do 2 rewrite Int.unsigned_repr in H1; try rep_omega. }
       subst k; clear H1 K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.

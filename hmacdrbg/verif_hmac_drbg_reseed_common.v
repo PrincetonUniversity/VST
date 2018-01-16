@@ -269,8 +269,7 @@ Proof.
     }
     {
       (* match up function parameter *)
-      rewrite XH1; simpl.
-      apply prop_right; trivial. unfold Ptrofs.of_intu, Ptrofs.of_int; simpl. normalize.
+      rewrite XH1; simpl. normalize.
     }
     {
       (* match up SEP clauses *)
@@ -284,7 +283,7 @@ Proof.
     }
     {
       (* prove the PROP clauses *)
-      repeat split; auto; try omega. repable_signed.
+      repeat split; auto; try omega. rep_omega.
     }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.

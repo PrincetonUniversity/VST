@@ -73,7 +73,7 @@ Proof.
       rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
-      + repable_signed.
+      + rep_omega.
   }
 
   forward_if (PROP  (add_len_too_high = false)

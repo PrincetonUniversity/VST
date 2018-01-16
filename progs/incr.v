@@ -169,9 +169,7 @@ Definition f_thread_func := {|
                           cc_default))
         ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
          nil))
-      (Sreturn (Some (Ecast
-                       (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
-                       (tptr tvoid)))))))
+      (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
 |}.
 
 Definition f_main := {|
@@ -227,8 +225,8 @@ Definition f_main := {|
                                             (tptr tvoid) cc_default))
                        (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
                                (tptr tvoid) cc_default))) (tptr tvoid)) ::
-                   (Ecast (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
-                     (tptr tvoid)) :: nil))
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
+                   nil))
                 (Ssequence
                   (Scall None (Evar _incr (Tfunction Tnil tvoid cc_default))
                     nil)

@@ -245,7 +245,7 @@ Lemma isbyte_value_fits_tuchar:
   forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
 Proof.
 intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed.
+simpl. rewrite Int.unsigned_repr by rep_omega.
   change Byte.max_unsigned with 255%Z. omega.
 Qed.
 

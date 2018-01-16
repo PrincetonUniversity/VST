@@ -406,7 +406,7 @@ Proof.
     + (* then clause *)
       subst p1.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)

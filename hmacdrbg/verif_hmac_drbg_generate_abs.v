@@ -320,11 +320,11 @@ Proof.
     { subst I aaa; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { red in WFI; simpl in *. repeat split; trivial; try repable_signed.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; repable_signed. 
+    { red in WFI; simpl in *. repeat split; trivial; try rep_omega.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      repable_signed.
-      repable_signed.
+      rep_omega.
+      rep_omega.
     }
      
     Intros return_value.
@@ -702,7 +702,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
   { subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
-    split. destruct should_reseed; repable_signed.
+    split. destruct should_reseed; rep_omega.
     split. assumption.
     split. destruct should_reseed; omega.
     split. assumption. assumption. }
