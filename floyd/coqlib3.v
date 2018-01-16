@@ -4,6 +4,7 @@ Require Import compcert.lib.Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Lists.List.
+Require Import Coq.Sorting.Permutation.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.coqlib4.
 
@@ -421,6 +422,64 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma add64_repr: forall i j, Int64.add (Int64.repr i) (Int64.repr j) = Int64.repr (i+j).
+Proof. intros.
+  rewrite Int64.add_unsigned.
+ apply Int64.eqm_samerepr.
+ unfold Int64.eqm.
+ apply Int64.eqm_add; apply Int64.eqm_sym; apply Int64.eqm_unsigned_repr.
+Qed.
+
+Lemma mul64_repr:
+ forall x y, Int64.mul (Int64.repr x) (Int64.repr y) = Int64.repr (x * y).
+Proof.
+intros. unfold Int64.mul.
+apply Int64.eqm_samerepr.
+repeat rewrite Int64.unsigned_repr_eq.
+apply Int64.eqm_mult; unfold Int64.eqm; apply Int64.eqmod_sym;
+apply Int64.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma sub64_repr: forall i j,
+  Int64.sub (Int64.repr i) (Int64.repr j) = Int64.repr (i-j).
+Proof.
+ intros. unfold Int64.sub.
+ apply Int64.eqm_samerepr.
+ unfold Int64.eqm.
+ apply Int64.eqm_sub; apply Int64.eqm_sym; apply Int64.eqm_unsigned_repr.
+Qed.
+
+Lemma and64_repr
+     : forall i j : Z, Int64.and (Int64.repr i) (Int64.repr j) = Int64.repr (Z.land i j).
+Proof.
+  intros.
+  unfold Int64.and.
+  rewrite <- (Int64.repr_unsigned (Int64.repr (Z.land i j))).
+  rewrite !Int64.unsigned_repr_eq.
+  change Int64.modulus with (2 ^ 64).
+  rewrite <- !Zland_two_p by omega.
+  f_equal.
+  rewrite <- !Z.land_assoc.
+  f_equal.
+  rewrite (Z.land_comm (Z.ones 64)).
+  rewrite <- !Z.land_assoc.
+  f_equal.
+Qed.
+
+Lemma or64_repr
+     : forall i j : Z, Int64.or (Int64.repr i) (Int64.repr j) = Int64.repr (Z.lor i j).
+Proof.
+  intros.
+  unfold Int64.or.
+  rewrite <- (Int64.repr_unsigned (Int64.repr (Z.lor i j))).
+  rewrite !Int64.unsigned_repr_eq.
+  change Int64.modulus with (2 ^ 64).
+  rewrite <- !Zland_two_p by omega.
+  f_equal.
+  rewrite <- Z.land_lor_distr_l.
+  reflexivity.
+Qed.
+
 Arguments Int.unsigned n : simpl never.
 Arguments Ptrofs.unsigned n : simpl never.
 Arguments Pos.to_nat !x / .
@@ -473,6 +532,22 @@ Lemma nil_or_non_nil: forall {A} (a: list A), {a = nil} + {a <> nil}.
 Proof.
   intros.
   destruct a; [left | right]; congruence.
+Qed.
+
+Lemma Permutation_concat: forall {A} (P Q: list (list A)),
+  Permutation P Q ->
+  Permutation (concat P) (concat Q).
+Proof.
+  intros.
+  induction H.
+  + apply Permutation_refl.
+  + simpl.
+    apply Permutation_app_head; auto.
+  + simpl.
+    rewrite !app_assoc.
+    apply Permutation_app_tail.
+    apply Permutation_app_comm.
+  + eapply Permutation_trans; eauto.
 Qed.
 
 Lemma proj_sumbool_is_false:

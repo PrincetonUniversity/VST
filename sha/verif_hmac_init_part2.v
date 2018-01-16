@@ -808,7 +808,6 @@ Qed.*)
     { (*opad loop*)
       eapply semax_pre.
       2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FRZL FR4) IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
-      change_compspecs CompSpecs.
       entailer!.
     }
 
