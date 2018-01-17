@@ -7,7 +7,7 @@ with contributions from
 [Robert Dockins](http://rwd.rdockins.name/),
 [Josiah Dodds](http://www.cs.princeton.edu/~jdodds/),
 [Aquinas Hobor](http://www.comp.nus.edu.sg/~hobor/),
-[Gordon Stewart] (http://www.cs.princeton.edu/~jsseven/),
+[Gordon Stewart](http://www.cs.princeton.edu/~jsseven/),
 Qinxiang Cao, and others.
 
 The [LICENSE](LICENSE) file has information about copyright, licensing, and permissions.
@@ -16,6 +16,10 @@ The [LICENSE](LICENSE) file has information about copyright, licensing, and perm
 
 [Our webpage](http://vst.cs.princeton.edu) describes the goals of the project
 and has links to many related publications.
+
+For an introduction to how to use Verifiable C,
+[read the manual](https://github.com/PrincetonUniversity/VST/raw/master/doc/VC.pdf),
+which has tutorial case studies.
 
 Program Logics for Certified Compilers, by Andrew W. Appel et al.,
 Cambridge University Press, 2014.
