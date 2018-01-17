@@ -64,6 +64,10 @@ Definition _s1 : ident := 53%positive.
 Definition _s2 : ident := 54%positive.
 Definition _strcspn_kmp : ident := 60%positive.
 Definition _t'1 : ident := 62%positive.
+Definition _t'2 : ident := 63%positive.
+Definition _t'3 : ident := 64%positive.
+Definition _t'4 : ident := 65%positive.
+Definition _t'5 : ident := 66%positive.
 
 Definition f_strcspn_kmp := {|
   fn_return := tint;
@@ -72,7 +76,8 @@ Definition f_strcspn_kmp := {|
                 (_n1, tint) :: (_n2, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_j, tint) :: (_next, (tptr tint)) ::
-               (_t'1, (tptr tvoid)) :: nil);
+               (_t'1, (tptr tvoid)) :: (_t'5, tschar) :: (_t'4, tschar) ::
+               (_t'3, tschar) :: (_t'2, tschar) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -93,46 +98,51 @@ Definition f_strcspn_kmp := {|
         (Ssequence
           (Swhile
             (Ebinop Olt (Etempvar _i tint) (Etempvar _n2 tint) tint)
-            (Sifthenelse (Ebinop Oeq
-                           (Ederef
-                             (Ebinop Oadd (Etempvar _s2 (tptr tschar))
-                               (Ebinop Oadd (Etempvar _i tint)
-                                 (Econst_int (Int.repr 1) tint) tint)
-                               (tptr tschar)) tschar)
-                           (Ederef
-                             (Ebinop Oadd (Etempvar _s2 (tptr tschar))
-                               (Ebinop Oadd (Etempvar _j tint)
-                                 (Econst_int (Int.repr 1) tint) tint)
-                               (tptr tschar)) tschar) tint)
-              (Ssequence
-                (Sset _i
-                  (Ebinop Oadd (Etempvar _i tint)
-                    (Econst_int (Int.repr 1) tint) tint))
-                (Ssequence
-                  (Sset _j
-                    (Ebinop Oadd (Etempvar _j tint)
-                      (Econst_int (Int.repr 1) tint) tint))
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _next (tptr tint))
-                        (Etempvar _i tint) (tptr tint)) tint)
-                    (Etempvar _j tint))))
-              (Sifthenelse (Ebinop Oeq (Etempvar _j tint)
-                             (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-                             tint)
-                (Ssequence
-                  (Sset _i
+            (Ssequence
+              (Sset _t'4
+                (Ederef
+                  (Ebinop Oadd (Etempvar _s2 (tptr tschar))
                     (Ebinop Oadd (Etempvar _i tint)
-                      (Econst_int (Int.repr 1) tint) tint))
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _next (tptr tint))
-                        (Etempvar _i tint) (tptr tint)) tint)
-                    (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
-                (Sset _j
+                      (Econst_int (Int.repr 1) tint) tint) (tptr tschar))
+                  tschar))
+              (Ssequence
+                (Sset _t'5
                   (Ederef
-                    (Ebinop Oadd (Etempvar _next (tptr tint))
-                      (Etempvar _j tint) (tptr tint)) tint)))))
+                    (Ebinop Oadd (Etempvar _s2 (tptr tschar))
+                      (Ebinop Oadd (Etempvar _j tint)
+                        (Econst_int (Int.repr 1) tint) tint) (tptr tschar))
+                    tschar))
+                (Sifthenelse (Ebinop Oeq (Etempvar _t'4 tschar)
+                               (Etempvar _t'5 tschar) tint)
+                  (Ssequence
+                    (Sset _i
+                      (Ebinop Oadd (Etempvar _i tint)
+                        (Econst_int (Int.repr 1) tint) tint))
+                    (Ssequence
+                      (Sset _j
+                        (Ebinop Oadd (Etempvar _j tint)
+                          (Econst_int (Int.repr 1) tint) tint))
+                      (Sassign
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _next (tptr tint))
+                            (Etempvar _i tint) (tptr tint)) tint)
+                        (Etempvar _j tint))))
+                  (Sifthenelse (Ebinop Oeq (Etempvar _j tint)
+                                 (Eunop Oneg (Econst_int (Int.repr 1) tint)
+                                   tint) tint)
+                    (Ssequence
+                      (Sset _i
+                        (Ebinop Oadd (Etempvar _i tint)
+                          (Econst_int (Int.repr 1) tint) tint))
+                      (Sassign
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _next (tptr tint))
+                            (Etempvar _i tint) (tptr tint)) tint)
+                        (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
+                    (Sset _j
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _next (tptr tint))
+                          (Etempvar _j tint) (tptr tint)) tint)))))))
           (Ssequence
             (Sset _i (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
             (Ssequence
@@ -140,45 +150,52 @@ Definition f_strcspn_kmp := {|
               (Ssequence
                 (Swhile
                   (Ebinop Olt (Etempvar _i tint) (Etempvar _n1 tint) tint)
-                  (Sifthenelse (Ebinop Oeq
-                                 (Ederef
-                                   (Ebinop Oadd (Etempvar _s1 (tptr tschar))
-                                     (Ebinop Oadd (Etempvar _i tint)
-                                       (Econst_int (Int.repr 1) tint) tint)
-                                     (tptr tschar)) tschar)
-                                 (Ederef
-                                   (Ebinop Oadd (Etempvar _s2 (tptr tschar))
-                                     (Ebinop Oadd (Etempvar _j tint)
-                                       (Econst_int (Int.repr 1) tint) tint)
-                                     (tptr tschar)) tschar) tint)
+                  (Ssequence
+                    (Sset _t'2
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _s1 (tptr tschar))
+                          (Ebinop Oadd (Etempvar _i tint)
+                            (Econst_int (Int.repr 1) tint) tint)
+                          (tptr tschar)) tschar))
                     (Ssequence
-                      (Sset _i
-                        (Ebinop Oadd (Etempvar _i tint)
-                          (Econst_int (Int.repr 1) tint) tint))
-                      (Ssequence
-                        (Sset _j
-                          (Ebinop Oadd (Etempvar _j tint)
-                            (Econst_int (Int.repr 1) tint) tint))
+                      (Sset _t'3
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _s2 (tptr tschar))
+                            (Ebinop Oadd (Etempvar _j tint)
+                              (Econst_int (Int.repr 1) tint) tint)
+                            (tptr tschar)) tschar))
+                      (Sifthenelse (Ebinop Oeq (Etempvar _t'2 tschar)
+                                     (Etempvar _t'3 tschar) tint)
+                        (Ssequence
+                          (Sset _i
+                            (Ebinop Oadd (Etempvar _i tint)
+                              (Econst_int (Int.repr 1) tint) tint))
+                          (Ssequence
+                            (Sset _j
+                              (Ebinop Oadd (Etempvar _j tint)
+                                (Econst_int (Int.repr 1) tint) tint))
+                            (Sifthenelse (Ebinop Oeq (Etempvar _j tint)
+                                           (Ebinop Osub (Etempvar _n2 tint)
+                                             (Econst_int (Int.repr 1) tint)
+                                             tint) tint)
+                              (Sreturn (Some (Ebinop Oadd
+                                               (Ebinop Osub
+                                                 (Etempvar _i tint)
+                                                 (Etempvar _n2 tint) tint)
+                                               (Econst_int (Int.repr 1) tint)
+                                               tint)))
+                              Sskip)))
                         (Sifthenelse (Ebinop Oeq (Etempvar _j tint)
-                                       (Ebinop Osub (Etempvar _n2 tint)
+                                       (Eunop Oneg
                                          (Econst_int (Int.repr 1) tint) tint)
                                        tint)
-                          (Sreturn (Some (Ebinop Oadd
-                                           (Ebinop Osub (Etempvar _i tint)
-                                             (Etempvar _n2 tint) tint)
-                                           (Econst_int (Int.repr 1) tint)
-                                           tint)))
-                          Sskip)))
-                    (Sifthenelse (Ebinop Oeq (Etempvar _j tint)
-                                   (Eunop Oneg (Econst_int (Int.repr 1) tint)
-                                     tint) tint)
-                      (Sset _i
-                        (Ebinop Oadd (Etempvar _i tint)
-                          (Econst_int (Int.repr 1) tint) tint))
-                      (Sset _j
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _next (tptr tint))
-                            (Etempvar _j tint) (tptr tint)) tint)))))
+                          (Sset _i
+                            (Ebinop Oadd (Etempvar _i tint)
+                              (Econst_int (Int.repr 1) tint) tint))
+                          (Sset _j
+                            (Ederef
+                              (Ebinop Oadd (Etempvar _next (tptr tint))
+                                (Etempvar _j tint) (tptr tint)) tint)))))))
                 (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint)
                                  tint)))))))))))
 |}.

@@ -164,20 +164,22 @@ Definition f_get_little_endian := {|
   fn_params := ((_input, (tptr tuchar)) :: nil);
   fn_vars := nil;
   fn_temps := ((_b0, tuint) :: (_b1, tuint) :: (_b2, tuint) ::
-               (_b3, tuint) :: nil);
+               (_b3, tuint) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _b0
-    (Ecast
+  (Ssequence
+    (Sset _t'2
       (Ederef
         (Ebinop Oadd (Etempvar _input (tptr tuchar))
-          (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar) tuint))
+          (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar))
+    (Sset _b0 (Ecast (Etempvar _t'2 tuchar) tuint)))
   (Ssequence
-    (Sset _b1
-      (Ecast
+    (Ssequence
+      (Sset _t'1
         (Ederef
           (Ebinop Oadd (Etempvar _input (tptr tuchar))
-            (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar) tuint))
+            (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar))
+      (Sset _b1 (Ecast (Etempvar _t'1 tuchar) tuint)))
     (Ssequence
       (Sset _b2
         (Ederef

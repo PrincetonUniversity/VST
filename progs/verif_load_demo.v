@@ -63,24 +63,27 @@ Definition get_little_endian_spec :=
 Definition Gprog : funspecs := ltac:(with_library prog
   [get22_spec; fiddle_spec; get_little_endian_spec]).
 
+
+Ltac solve_arr_range H := 
+ match goal with |- context [Znth ?i _ 0] => 
+   specialize (H i); spec H; [ computable | ];
+   rewrite Int.unsigned_repr; rep_omega
+ end.
+
 Lemma body_get_little_endian: semax_body Vprog Gprog f_get_little_endian get_little_endian_spec.
 Proof.
 start_function.
+assert (BMU: Byte.max_unsigned=255) by reflexivity.
+forward.
+entailer!. solve_arr_range H0.
 forward.
 forward.
-forward. {
-  entailer!.
-  assert (0 <= Znth 2 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
-  change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; rep_omega.
-}
-forward. {
-  entailer!.
-  assert (0 <= Znth 3 arr 0 <= Byte.max_unsigned) by (apply H0; omega).
-  change Byte.max_unsigned with 255 in *.
-  rewrite Int.unsigned_repr; rep_omega.
-}
-(* return: *)
+entailer!. solve_arr_range H0.
+forward.
+forward.
+entailer!. solve_arr_range H0.
+forward.
+entailer!. solve_arr_range H0.
 forward.
 Qed.
 

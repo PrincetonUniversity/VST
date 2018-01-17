@@ -62,6 +62,8 @@ Definition _y : ident := 2%positive.
 Definition _y1 : ident := 57%positive.
 Definition _y2 : ident := 59%positive.
 Definition _z : ident := 3%positive.
+Definition _t'1 : ident := 61%positive.
+Definition _t'2 : ident := 62%positive.
 
 Definition v_s := {|
   gvar_info := (Tstruct _foo noattr);
@@ -77,17 +79,20 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_y1, tdouble) :: (_x1, tint) :: (_y2, tint) :: nil);
+  fn_temps := ((_y1, tdouble) :: (_x1, tint) :: (_y2, tint) ::
+               (_t'2, tfloat) :: (_t'1, tfloat) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Sset _y1
-      (Ecast (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat) tdouble))
+    (Ssequence
+      (Sset _t'2 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
+      (Sset _y1 (Ecast (Etempvar _t'2 tfloat) tdouble)))
     (Ssequence
       (Sset _x1 (Efield (Evar _s (Tstruct _foo noattr)) _x tint))
       (Ssequence
-        (Sset _y2
-          (Ecast (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat) tint))
+        (Ssequence
+          (Sset _t'1 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
+          (Sset _y2 (Ecast (Etempvar _t'1 tfloat) tint)))
         (Ssequence
           (Sset _y1 (Efield (Evar _s (Tstruct _foo noattr)) _z tdouble))
           (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))

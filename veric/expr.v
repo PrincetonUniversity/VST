@@ -226,6 +226,13 @@ match ty with
 | _ => false
 end.
 
+Definition is_anyfloat_type ty :=
+match ty with
+| Tfloat F64 _ => true
+| Tfloat F32 _ => true
+| _ => false
+end.
+
 Definition is_pointer_type ty :=
 match ty with
 | (Tpointer _ _ 
@@ -618,8 +625,8 @@ match classify_cast tfrom tto with
       else tc_TT
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F64 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F32 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.

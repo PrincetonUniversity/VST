@@ -66,6 +66,7 @@ Definition _x1 : ident := 1%positive.
 Definition _x2 : ident := 2%positive.
 Definition _y1 : ident := 4%positive.
 Definition _y2 : ident := 5%positive.
+Definition _t'1 : ident := 65%positive.
 
 Definition v_p := {|
   gvar_info := (Tstruct _b noattr);
@@ -98,18 +99,18 @@ Definition f_sub2 := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_i, tschar) :: nil);
+  fn_temps := ((_i, tschar) :: (_t'1, tschar) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _i
-    (Ecast
+  (Ssequence
+    (Sset _t'1
       (Efield
         (Ederef
           (Ebinop Oadd
             (Efield (Evar _p (Tstruct _b noattr)) _y2
               (tarray (Tstruct _a noattr) 3)) (Econst_int (Int.repr 1) tint)
-            (tptr (Tstruct _a noattr))) (Tstruct _a noattr)) _x2 tschar)
-      tschar))
+            (tptr (Tstruct _a noattr))) (Tstruct _a noattr)) _x2 tschar))
+    (Sset _i (Ecast (Etempvar _t'1 tschar) tschar)))
   (Sassign (Efield (Evar _p (Tstruct _b noattr)) _y1 tint)
     (Etempvar _i tschar)))
 |}.
@@ -119,18 +120,18 @@ Definition f_sub3 := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_i, tschar) :: (_j, tint) :: nil);
+  fn_temps := ((_i, tschar) :: (_j, tint) :: (_t'1, tschar) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _i
-    (Ecast
+  (Ssequence
+    (Sset _t'1
       (Efield
         (Ederef
           (Ebinop Oadd
             (Efield (Evar _p (Tstruct _b noattr)) _y2
               (tarray (Tstruct _a noattr) 3)) (Econst_int (Int.repr 1) tint)
-            (tptr (Tstruct _a noattr))) (Tstruct _a noattr)) _x2 tschar)
-      tschar))
+            (tptr (Tstruct _a noattr))) (Tstruct _a noattr)) _x2 tschar))
+    (Sset _i (Ecast (Etempvar _t'1 tschar) tschar)))
   (Ssequence
     (Sset _j (Etempvar _i tschar))
     (Sassign (Efield (Evar _p (Tstruct _b noattr)) _y1 tint)

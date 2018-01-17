@@ -74,8 +74,8 @@ match classify_cast tfrom tto with
 | Cop.cast_case_void => tc_noproof
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F64 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F32 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
