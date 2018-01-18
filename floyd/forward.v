@@ -819,29 +819,36 @@ Ltac cleanup_no_post_exists :=
  end
  || unfold eq_no_post.
 
-Lemma remove_localdef_temp_remove_localdef i: forall l,
-remove_localdef_temp i l = remove_localdef (temp i Vundef) l.
-Proof. induction l; trivial. simpl. rewrite IHl.
-  destruct a; trivial.
-  destruct (ident_eq i i0). subst; rewrite Pos.eqb_refl; trivial.
-  apply Pos.eqb_neq in n; rewrite n; trivial.
-Qed.
+Ltac factor_out_v L :=
+ match L with
+ | temp _ ?v :: ?L' => factor_out_v' v L'
+ | lvar _ _ ?v :: ?L' => factor_out_v' v L'
+ | gvar _ ?v :: ?L' => factor_out_v' v L'
+ | sgvar _ ?v :: ?L' => factor_out_v' v L'
+ | localprop ?v ?L' => factor_out_v' v L'
+ | _ => constr:(@nil val)
+ end
+ with factor_out_v' v L' := let x := fresh "v" in set (x:=v); 
+                                let y :=factor_out_v L'
+                                 in constr:(x::y).
 
-Lemma remove_localdef_cons j i (N: Pos.eqb i j = false) v l:
-remove_localdef (temp i Vundef) (temp j v::l) = temp j v:: remove_localdef (temp i Vundef) l.
-Proof. simpl. rewrite N; trivial. Qed.
+Ltac factor_back L :=
+  match L with
+  | ?x :: ?y => subst x; factor_back y
+  | nil => idtac
+ end.
 
-Lemma remove_localdef_temp_cons j i (N: Pos.eqb i j = false) v l:
-remove_localdef_temp i (temp j v::l) = temp j v:: remove_localdef_temp i l.
-Proof. simpl. apply Pos.eqb_neq in N. rewrite if_false; trivial. Qed.
+Ltac simplify_remove_localdef_temp :=
+match goal with |- context [remove_localdef_temp ?i ?L]  =>
+let L' := factor_out_v L in
+  simpl remove_localdef_temp;
+  factor_back L'
+end.
 
 Ltac after_forward_call := 
-    repeat (rewrite remove_localdef_temp_cons by reflexivity);
-    cbv beta iota delta [remove_localdef_temp];
-    simpl ident_eq; cbv beta iota zeta;
-    repeat match goal with |- context [eq_rec_r ?A ?B ?C] =>
-              change (eq_rec_r A B C) with B; cbv beta iota zeta
-            end; 
+    try match goal with |- context [remove_localdef_temp] =>
+              simplify_remove_localdef_temp
+     end;
     unfold_app; 
     try (apply extract_exists_pre; intros _); 
     match goal with
