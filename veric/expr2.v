@@ -190,6 +190,10 @@ match v1, v2 with
           | Vlong n1, Vlong n2 => prop (is_true (negb
                                    (Int64.eq n1 (Int64.repr Int64.min_signed)
                                     && Int64.eq n2 Int64.mone)))
+          | Vint n1, Vlong n2 => TT
+          | Vlong n1, Vint n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int.eq n2 Int.mone)))
           | _ , _ => FF
         end.
 
@@ -199,6 +203,10 @@ Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
    prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
  | Vlong n1, Vlong n2 =>
    prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | Vint n1, Vlong n2 =>
+   prop (Int64.min_signed <= op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | Vlong n1, Vint n2 =>
+   prop (Int64.min_signed <= op (Int64.signed n1) (Int.signed n2) <= Int64.max_signed)
  | _, _ => FF
  end.
 

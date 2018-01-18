@@ -43,6 +43,10 @@ Export ListNotations.
 Export Cop2.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
+Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
+Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
+Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
+
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .
 Arguments nested_field_type {cs} t gfs / .  (* redundant? *)

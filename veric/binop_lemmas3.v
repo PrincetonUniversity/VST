@@ -41,7 +41,49 @@ Lemma denote_tc_nodivover_e64_il:
    Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
 Proof.
 simpl; intros.
-destruct (Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+pose proof (Int64.eq_spec (cast_int_long s i) (Int64.repr Int64.min_signed)).
+destruct (Int64.eq (cast_int_long s i)); unfold cast_int_long in *; try reflexivity.
+simpl.
+elimtype False.
+destruct s.
+*
+pose proof (@f_equal _ _ Int64.signed _ _ H0).
+rewrite Int64.signed_repr in H1.
+rewrite Int64.signed_repr in H1.
+pose proof (Int.signed_range i).
+rewrite H1 in H2.
+destruct H2.
+compute in H2. apply H2; auto.
+compute; split; congruence.
+pose proof (Int.signed_range i).
+clear - H2. forget (Int.signed i) as a.
+destruct H2.
+split; eapply Z.le_trans; try eassumption.
+compute; congruence.
+compute; congruence.
+*
+pose proof (@f_equal _ _ Int64.unsigned _ _ H0).
+rewrite Int64.unsigned_repr in H1.
+replace (Int64.repr Int64.min_signed) 
+  with (Int64.repr (Int64.modulus + Int64.min_signed)) in H1.
+rewrite Int64.unsigned_repr in H1.
+pose proof (Int.unsigned_range i).
+rewrite H1 in H2.
+destruct H2.
+compute in H2. apply H2; auto.
+compute; split; congruence.
+apply Int64.eqm_samerepr.
+rewrite <- Z.add_0_l.
+apply Int64.eqm_add.
+unfold Int64.eqm.
+exists 1. reflexivity.
+apply Int64.eqm_refl.
+clear.
+pose proof (Int.unsigned_range i).
+destruct H; split; auto.
+assert (Int.modulus < Int64.max_unsigned).
+compute; auto.
+omega.
 Qed.
 
 Lemma denote_tc_nodivover_e64_li:
@@ -49,7 +91,50 @@ Lemma denote_tc_nodivover_e64_li:
    Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false.
 Proof.
 simpl; intros.
-destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone); try reflexivity; contradiction.
+destruct (Int64.eq i (Int64.repr Int64.min_signed)); try reflexivity.
+simpl in H.
+unfold cast_int_long.
+simpl.
+destruct (Int.eq j Int.mone) eqn:?; inv H.
+destruct s.
+*
+pose proof (Int.eq_spec j Int.mone). rewrite Heqb in H. clear Heqb.
+pose proof (Int64.eq_spec  (Int64.repr (Int.signed j)) Int64.mone).
+destruct (Int64.eq (Int64.repr (Int.signed j)) Int64.mone); auto.
+contradiction H; clear H.
+unfold Int64.mone in H0.
+pose proof (@f_equal _ _ Int64.signed _ _ H0).
+clear H0.
+rewrite Int64.signed_repr in H.
+change (Int.signed j = -1) in H.
+rewrite <- (Int.repr_signed j).
+rewrite H. reflexivity.
+clear H.
+pose proof (Int.signed_range j).
+destruct H.
+split; eapply Z.le_trans; try eassumption.
+compute. congruence. compute. congruence.
+*
+pose proof (Int.eq_spec j Int.mone). rewrite Heqb in H. clear Heqb.
+pose proof (Int64.eq_spec  (Int64.repr (Int.unsigned j)) Int64.mone).
+destruct (Int64.eq (Int64.repr (Int.unsigned j)) Int64.mone); auto.
+contradiction H; clear H.
+unfold Int64.mone in H0.
+pose proof (@f_equal _ _ Int64.signed _ _ H0).
+clear H0.
+rewrite Int64.signed_repr in H.
+change (Int.unsigned j = -1) in H.
+pose proof (Int.unsigned_range j).
+rewrite H in H0.
+destruct H0. compute in H0. congruence.
+pose proof (Int.unsigned_range j).
+destruct H0.
+split.
+eapply Z.le_trans; try eassumption.
+compute. congruence.
+assert (Int.modulus < Int64.max_signed).
+compute. auto.
+omega.
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero:

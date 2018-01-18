@@ -599,6 +599,9 @@ match classify_cast tfrom tto with
 | Cop.cast_case_i2l _ => 
            tc_andp (tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto))
              (if is_pointer_type tto then tc_iszero a else tc_TT)
+| Cop.cast_case_l2i _ _ => 
+           tc_andp (tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto))
+             (if is_pointer_type tto then tc_iszero a else tc_TT)
 | Cop.cast_case_pointer  => 
            if eqb_type tfrom tto then tc_TT else
            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))

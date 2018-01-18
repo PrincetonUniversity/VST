@@ -52,6 +52,9 @@ match classify_cast tfrom tto with
 | Cop.cast_case_i2l _ =>
            tc_andp (tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto))
              (if is_pointer_type tto then tc_iszero a else tc_TT)
+| Cop.cast_case_l2i _ _ => 
+           tc_andp (tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto))
+             (if is_pointer_type tto then tc_iszero a else tc_TT)
 | Cop.cast_case_pointer  => 
            if eqb_type tfrom tto then tc_TT else
            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
@@ -418,6 +421,24 @@ intros.
  pose proof (Int.zero_ext_range n x H); omega.
 Qed.
 
+Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
+Proof.
+intros.
+pose proof (Int64.eq_spec i Int64.zero). rewrite H in H0; auto.
+Qed.
+
+Lemma long_int_zero_lem:
+  forall i, Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true ->
+    Int.repr (Int64.unsigned i) = Int.zero.
+Proof.
+ intros.
+ apply int64_eq_e in H.
+unfold Int.zero.
+rewrite Int64.repr_unsigned in H.
+subst.
+reflexivity.
+Qed.
+
 Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
@@ -510,5 +531,6 @@ all:   try match goal with
       apply (zero_ext_range' n x); compute; try split; congruence
    end.
 all: try apply I.
-all: rewrite Hp; hnf; auto.
+all: rewrite ?Hp; hnf; auto.
+all: apply long_int_zero_lem; auto.
 Qed.

@@ -1015,6 +1015,8 @@ destruct (classify_cast (implicit_deref t) t0) eqn:?;
  if_tac; auto with closed.
 * 
  if_tac; auto with closed.
+*
+ if_tac; auto with closed.
  apply closed_wrt_tc_test_eq; auto with closed.
  hnf; intros. reflexivity.
 Qed.
@@ -1058,6 +1060,8 @@ destruct (classify_cast (implicit_deref t) t0) eqn:?;
  destruct si2; auto with closed.
 * (* cast_case s2i *)
  destruct si2; auto with closed.
+* 
+ if_tac; auto with closed.
 * 
  if_tac; auto with closed.
 * 
@@ -1637,6 +1641,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  if_tac; auto with closed.
  destruct si2; auto with closed.
  destruct si2; auto with closed.
+ if_tac; auto with closed.
  if_tac; auto with closed.
  if_tac; auto with closed.
  if_tac; auto with closed.

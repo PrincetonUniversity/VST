@@ -141,11 +141,12 @@ Proof. intros; unfold offset_val.
 Qed.
 Hint Rewrite offset_offset_val: norm.
 
-Hint Rewrite add_repr ptrofs_add_repr : norm.
-Hint Rewrite mul_repr ptrofs_mul_repr : norm.
-Hint Rewrite sub_repr ptrofs_sub_repr : norm.
-Hint Rewrite and_repr : norm.
-Hint Rewrite or_repr : norm.
+Hint Rewrite add_repr add64_repr ptrofs_add_repr : norm.
+Hint Rewrite mul_repr mul64_repr ptrofs_mul_repr : norm.
+Hint Rewrite sub_repr sub64_repr ptrofs_sub_repr : norm.
+Hint Rewrite and_repr and64_repr : norm.
+Hint Rewrite or_repr or64_repr : norm.
+Hint Rewrite neg_repr neg64_repr : norm.
 
 Lemma ltu_repr: forall i j,
  (0 <= i <= Int.max_unsigned ->

@@ -127,15 +127,7 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
   simpl.
   rewrite ptrofs_add_repr_0_r. reflexivity.
 }
-(* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
-{ entailer!.
-  change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
-  rewrite H.
-  apply isptr_field_address_lemma.
-  auto with field_compatible.
-}
-
 (* sum = tagword & 0xff; *)
 forward.
 (* size = tagword >> 10; *)

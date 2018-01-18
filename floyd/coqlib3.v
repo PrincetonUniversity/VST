@@ -480,6 +480,24 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma neg_repr: forall i, Int.neg (Int.repr i) = Int.repr (-i).
+Proof.
+intros. unfold Int.neg.
+apply Int.eqm_samerepr.
+apply Int.eqm_neg.
+apply Int.eqm_unsigned_repr_l.
+apply Int.eqm_refl.
+Qed.
+
+Lemma neg64_repr: forall i, Int64.neg (Int64.repr i) = Int64.repr (-i).
+Proof.
+intros. unfold Int64.neg.
+apply Int64.eqm_samerepr.
+apply Int64.eqm_neg.
+apply Int64.eqm_unsigned_repr_l.
+apply Int64.eqm_refl.
+Qed.
+
 Arguments Int.unsigned n : simpl never.
 Arguments Ptrofs.unsigned n : simpl never.
 Arguments Pos.to_nat !x / .

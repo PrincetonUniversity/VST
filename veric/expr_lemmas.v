@@ -213,7 +213,8 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
     [ eexists; reflexivity
     | split; [apply Z.leb_le | apply Z.geb_le]; apply is_true_e; assumption ]].
  all: try (unfold is_pointer_or_null in H; rewrite Hp in H; contradiction).
-all:  rewrite Hp; eexists; reflexivity.
+all:  try (rewrite Hp; eexists; reflexivity).
+all: inv Hp.  (* Archi.ptr64 DEPENDENCY *)
 *
 destruct (eqb_type t int_or_ptr_type) eqn:J.
  +

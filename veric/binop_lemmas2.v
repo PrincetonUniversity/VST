@@ -337,6 +337,9 @@ simpl.  unfold_lift. destruct (eval_expr e rho); simpl; auto.
 + destruct (Int64.eq i Int64.zero); reflexivity.
 Qed.
 
+
+
+
 Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
   denote_tc_assert (tc_nodivover e1 e2) rho =
          match eval_expr e1 rho, eval_expr e2 rho with
@@ -346,6 +349,10 @@ Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
                            | Vlong n1, Vlong n2 => prop (is_true (negb
                                    (Int64.eq n1 (Int64.repr Int64.min_signed)
                                     && Int64.eq n2 Int64.mone)))
+                          | Vint n1, Vlong n2 => TT
+                          | Vlong n1, Vint n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int.eq n2 Int.mone)))
                            | _ , _ => FF
                           end.
 Proof.

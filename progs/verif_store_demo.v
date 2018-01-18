@@ -61,12 +61,14 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
+(*
 { entailer!.
   change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
-  rewrite H.
+  rewrite H0.
   apply isptr_field_address_lemma.
   auto with field_compatible.
 }
+*)
 forward.
 rewrite upd_Znth0. rewrite sublist_1_cons. rewrite Zlength_cons.
 rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
