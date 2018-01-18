@@ -295,8 +295,8 @@ intros.
  simpl. rewrite Ptrofs.to_int64_of_int64; auto.
  simpl.
  f_equal.
-admit.  (* clearly true *)
-Admitted.
+ rewrite Ptrofs_to_of64_lemma; auto.
+Qed.
 
 Lemma test_order_relate':
   forall v1 v2 op m,
@@ -335,7 +335,7 @@ intros.
  unfold Ptrofs.to_int64.
  unfold Ptrofs.of_ints.
  f_equal.
- admit.
+ rewrite (Ptrofs.agree64_repr Hp), Int64.repr_unsigned. auto.
  f_equal.
  unfold Ptrofs.to_int64.
  unfold Ptrofs.of_intu. unfold Ptrofs.of_int.
@@ -350,8 +350,9 @@ intros.
  f_equal.
  unfold ptrofs_of_int. destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto.
  unfold Ptrofs.of_ints. unfold Ptrofs.to_int.
- admit.
-Admitted.
+ rewrite (Ptrofs.agree32_repr Hp). rewrite Int.repr_unsigned, Int.repr_signed.
+ auto.
+Qed.
 
 Lemma test_eq_fiddle_signed_xx:
  forall si si' v i phi, 
@@ -369,7 +370,8 @@ hnf in H0|-*.
 destruct si; auto.
 unfold Ptrofs.of_ints in *.
 unfold Ptrofs.to_int in *.
-assert (i = Int.zero) by admit.
+rewrite (Ptrofs.agree32_repr Hp), Int.repr_unsigned  in H0.
+assert (i = Int.zero) by (rewrite <- (Int.repr_signed i); auto).
 subst i.
 destruct si'; auto.
 destruct si'; auto.
@@ -381,29 +383,98 @@ rewrite Int.signed_zero.
 unfold Ptrofs.to_int.
 rewrite Ptrofs.unsigned_repr.
 reflexivity.
-admit.
+unfold Ptrofs.max_unsigned. rewrite (Ptrofs.modulus_eq32 Hp).
+compute; split; congruence.
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
 destruct si, si'; auto.
-unfold Ptrofs.of_ints in *.
-admit.
-admit.
+*
+unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
+unfold Ptrofs.to_int64 in H.
+rewrite (Ptrofs.agree64_repr Hp) in H.
+rewrite Int64.repr_unsigned in H.
+apply Int64repr_Intsigned_zero in H. subst.
+reflexivity.
+*
+unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
+unfold Ptrofs.to_int64, Ptrofs.of_int in H.
+rewrite (Ptrofs.agree64_repr Hp) in H.
+rewrite Int64.repr_unsigned in H.
+apply Int64repr_Intunsigned_zero in H. subst.
+reflexivity.
+*
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
-destruct si, si'; auto.
-unfold Ptrofs.of_ints in *.
-admit.
-admit.
-Admitted.
+destruct si, si'; auto;
+unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+rewrite (Ptrofs.agree32_repr Hp) in H;
+rewrite (Ptrofs.agree32_repr Hp);
+rewrite Int.repr_unsigned in *;
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+Qed.
 
 Lemma test_eq_fiddle_signed_yy:
  forall si si' v i phi, 
 app_pred (denote_tc_test_eq (Vptrofs (ptrofs_of_int si i)) v) phi ->
 app_pred (denote_tc_test_eq (Vptrofs (ptrofs_of_int si' i)) v) phi.
-Admitted.
-
+Proof.
+intros.
+unfold denote_tc_test_eq in *.
+unfold Vptrofs, ptrofs_of_int in *.
+destruct v; try contradiction;
+destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
+destruct H; split; auto.
+clear H0.
+hnf in H|-*.
+destruct si; auto.
+unfold Ptrofs.of_ints in *.
+unfold Ptrofs.to_int in *.
+rewrite (Ptrofs.agree32_repr Hp), Int.repr_unsigned  in H.
+assert (i = Int.zero) by (rewrite <- (Int.repr_signed i); auto).
+subst i.
+destruct si'; auto.
+destruct si'; auto.
+unfold Ptrofs.of_intu in H.
+rewrite Ptrofs.to_int_of_int in H by auto.
+subst.
+unfold Ptrofs.of_ints.
+rewrite Int.signed_zero.
+unfold Ptrofs.to_int.
+rewrite Ptrofs.unsigned_repr.
+reflexivity.
+unfold Ptrofs.max_unsigned. rewrite (Ptrofs.modulus_eq32 Hp).
+compute; split; congruence.
+destruct H.
+split; auto.
+hnf in H|-*. clear H0.
+destruct si, si'; auto.
+*
+unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
+unfold Ptrofs.to_int64 in H.
+rewrite (Ptrofs.agree64_repr Hp) in H.
+rewrite Int64.repr_unsigned in H.
+apply Int64repr_Intsigned_zero in H. subst.
+reflexivity.
+*
+unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
+unfold Ptrofs.to_int64, Ptrofs.of_int in H.
+rewrite (Ptrofs.agree64_repr Hp) in H.
+rewrite Int64.repr_unsigned in H.
+apply Int64repr_Intunsigned_zero in H. subst.
+reflexivity.
+*
+destruct H.
+split; auto.
+hnf in H|-*. clear H0.
+destruct si, si'; auto;
+unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+rewrite (Ptrofs.agree32_repr Hp) in H;
+rewrite (Ptrofs.agree32_repr Hp);
+rewrite Int.repr_unsigned in *;
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+Qed.
 
 Lemma test_order_fiddle_signed_xx:
  forall si si' v i phi, 
@@ -418,9 +489,13 @@ destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
 destruct H; split; auto.
 clear H.
 hnf in H0|-*.
-destruct si, si'; auto.
-Admitted.
-
+destruct si, si'; auto;
+unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+rewrite (Ptrofs.agree32_repr Hp) in H0;
+rewrite (Ptrofs.agree32_repr Hp);
+rewrite Int.repr_unsigned in *;
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+Qed.
 
 Lemma test_order_fiddle_signed_yy:
  forall si si' v i phi, 
@@ -435,9 +510,13 @@ destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
 destruct H; split; auto.
 clear H0.
 hnf in H|-*.
-destruct si, si'; auto.
-Admitted.
-
+destruct si, si'; auto;
+unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+rewrite (Ptrofs.agree32_repr Hp) in H;
+rewrite (Ptrofs.agree32_repr Hp);
+rewrite Int.repr_unsigned in *;
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+Qed.
 
 Lemma eval_binop_relate':
  forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
