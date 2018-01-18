@@ -103,7 +103,7 @@ Definition _extr1 : ident := 198%positive.
 Definition _extr2 : ident := 200%positive.
 Definition _f : ident := 68%positive.
 Definition _fragment : ident := 88%positive.
-Definition _free : ident := 127%positive.
+Definition _free : ident := 128%positive.
 Definition _g : ident := 69%positive.
 Definition _get_entropy : ident := 150%positive.
 Definition _h : ident := 1%positive.
@@ -129,7 +129,7 @@ Definition _ll : ident := 91%positive.
 Definition _m : ident := 111%positive.
 Definition _m__1 : ident := 114%positive.
 Definition _main : ident := 95%positive.
-Definition _malloc : ident := 128%positive.
+Definition _malloc : ident := 127%positive.
 Definition _mbedtls_hmac_drbg_context : ident := 125%positive.
 Definition _mbedtls_hmac_drbg_free : ident := 182%positive.
 Definition _mbedtls_hmac_drbg_init : ident := 153%positive.
@@ -485,7 +485,7 @@ Definition composites : list composite_definition :=
     (_o_ctx, (Tstruct _SHA256state_st noattr)) :: nil)
    noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -768,7 +768,7 @@ Definition global_definitions :=
  (_HKDF_expand, Gfun(Internal f_HKDF_expand)) ::
  (_HKDF, Gfun(Internal f_HKDF)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_HKDF :: _HKDF_expand :: _HKDF_extract :: _HMAC :: _HMAC_cleanup ::
  _HMAC_Final :: _HMAC_Update :: _HMAC_Init :: _memcpy :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
