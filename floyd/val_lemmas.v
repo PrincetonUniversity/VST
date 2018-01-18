@@ -1,5 +1,63 @@
 Require Import VST.floyd.base.
 
+Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial].
+destruct i.
++ destruct s.
+    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) Byte.max_signed). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; omega. right; omega.
++ destruct s.
+    * destruct (zle (-32768) (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) 32767). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) 65535). left; omega. right; omega.
++ left; trivial.
++ destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
+    destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
+    right. intros N; destruct N; contradiction.
+Defined.
+
+Lemma is_long_dec v: {is_long v} + {~ is_long v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_single_dec v: {is_single v} + {~ is_single v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_float_dec v: {is_float v} + {~ is_float v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_pointer_or_integer_dec v: {is_pointer_or_integer v} + {~ is_pointer_or_integer v}.
+Proof. 
+unfold is_pointer_or_integer.
+destruct Archi.ptr64 eqn:Hp;
+destruct v; simpl; try solve [right; intros N; trivial]; left; trivial.
+Defined.
+
+Lemma is_pointer_or_null_dec v: {is_pointer_or_null v} + {~ is_pointer_or_null v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; try solve [left; trivial].
+  apply Int.eq_dec. 
+Defined.
+
+Lemma isptr_dec v: {isptr v} + {~ isptr v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma tc_val_dec t v: {tc_val t v} + {~ tc_val t v}.
+Proof. destruct t; simpl.
++ right; intros N; trivial.
++ apply is_int_dec.
++ apply is_long_dec.
++ destruct f. apply is_single_dec. apply is_float_dec.
++ destruct ((eqb_type t Tvoid &&
+    eqb_attr a
+      {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
+  apply is_pointer_or_integer_dec.
+  apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply isptr_dec.
++ apply isptr_dec.
+Defined.
+
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.

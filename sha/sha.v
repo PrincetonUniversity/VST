@@ -1485,7 +1485,7 @@ Definition composites : list composite_definition :=
     (_data, (tarray tuchar 64)) :: (_num, tuint) :: nil)
    noattr :: nil).
 
-Definition global_definitions : list (ident * globdef fundef type) :=
+Definition global_definitions :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -1746,7 +1746,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_SHA256_Final, Gfun(Internal f_SHA256_Final)) ::
  (_SHA256, Gfun(Internal f_SHA256)) :: nil).
 
-Definition public_idents : list ident :=
+Definition public_idents :=
 (_SHA256 :: _SHA256_Final :: _SHA256_Update :: _SHA256_addlength ::
  _SHA256_Init :: _sha256_block_data_order :: _memset :: _memcpy ::
  ___builtin_write32_reversed :: ___builtin_read32_reversed ::

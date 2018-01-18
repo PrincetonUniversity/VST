@@ -2745,7 +2745,7 @@ Ltac fwd_result :=
 Ltac check_precondition :=
   lazymatch goal with
   | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
-    lazymatch R with context [sepcon _ _] =>
+    lazymatch R with context [sepcon _ _ :: _] =>
         fail "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition or using a freezer"
@@ -2899,30 +2899,35 @@ Ltac function_types_compatible t1 t2 :=
      first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_pointer]
  end end.
 
-Definition temp_type_ok Delta i v :=
- match (temp_types Delta) ! i with
-  | Some (t,true) =>  tc_val t v
-  | Some (_,false) => 0 > 1
-  | _ => 0 > 2
-  end.
-
 Ltac check_parameter_vals Delta al :=
+ (* Work very carefully here to avoid simplifying or computing v,
+    in case v contains something that will blow up *)
  match al with
  | temp ?i ?v :: ?al' =>
-    let a := constr:(temp_type_ok Delta i v) in
-    let a := eval compute in a in
-    match a with
-    | False => fail 3 "Local variable" i "cannot hold the value" v "(wrong type)"
-    | 0>1 => fail 3 "Local variable" i "is not initialized, only function-parameters should appear here"
-    | 0>2 => fail 3 "Identifer" i "is not a local variable of this function"
-    | _ => idtac
+    let ti := constr:((temp_types Delta) ! i) in
+    let ti := eval compute in ti in 
+    match ti with
+    | Some (?t,true) =>
+        let w := constr:(tc_val_dec t v) in
+        let y := eval cbv beta iota delta [is_int_dec is_long_dec 
+                         is_float_dec is_single_dec is_pointer_or_integer_dec
+                         is_pointer_or_null_dec isptr_dec tc_val_dec] in w in
+        match y with
+          | right _ => fail 4 "Local variable" i "cannot hold the value" v "(wrong type)"
+          | left _ => idtac
+(*  optionally, give warning
+          | _ => let W := fresh "Warning_could_not_prove_this_if_its_false_then_the_caller_wont_be_able_satisfy_the_function_precondition" in 
+                       pose (W := tc_val t v)
+*)
+          | _ => idtac (* no optional warning *)
+        end
+    | Some (_,false) => fail 3 "Local variable" i "is not initialized, only function-parameters should appear here"
+    | None => fail 3 "Identifer" i "is not a local variable of this function"
     end;
     check_parameter_vals Delta al'
  | _ :: ?al' => check_parameter_vals Delta al'
  | nil => idtac
  end.
-
-
 
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>

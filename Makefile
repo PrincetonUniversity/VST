@@ -497,7 +497,7 @@ clean_cvfiles:
 
 ifdef CLIGHTGEN
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c # sha/hkdf.c
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/even.v: progs/even.c progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $^

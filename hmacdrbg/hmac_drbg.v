@@ -1929,7 +1929,7 @@ Definition composites : list composite_definition :=
    noattr ::
  Composite _mbedtls_md_info_t Struct ((_dummy, tint) :: nil) noattr :: nil).
 
-Definition global_definitions : list (ident * globdef fundef type) :=
+Definition global_definitions :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -2238,7 +2238,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_mbedtls_hmac_drbg_free, Gfun(Internal f_mbedtls_hmac_drbg_free)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
-Definition public_idents : list ident :=
+Definition public_idents :=
 (_main :: _mbedtls_hmac_drbg_free :: _mbedtls_hmac_drbg_random ::
  _mbedtls_hmac_drbg_random_with_add ::
  _mbedtls_hmac_drbg_set_reseed_interval ::
