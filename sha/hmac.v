@@ -612,7 +612,7 @@ Definition composites : list composite_definition :=
     (_o_ctx, (Tstruct _SHA256state_st noattr)) :: nil)
    noattr :: nil).
 
-Definition global_definitions :=
+Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -889,7 +889,7 @@ Definition global_definitions :=
  (_HMAC, Gfun(Internal f_HMAC)) :: (_m__1, Gvar v_m__1) ::
  (_HMAC2, Gfun(Internal f_HMAC2)) :: nil).
 
-Definition public_idents :=
+Definition public_idents : list ident :=
 (_HMAC2 :: _HMAC :: _HMAC_cleanup :: _HMAC_Final :: _HMAC_Update ::
  _HMAC_Init :: _SHA256_Final :: _SHA256_Update :: _SHA256_Init :: _memset ::
  _memcpy :: ___builtin_debug :: ___builtin_nop ::
