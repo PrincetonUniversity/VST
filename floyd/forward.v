@@ -913,9 +913,9 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
       [ check_function_name
       | lookup_spec id
       | find_spec_in_globals'
-      | reflexivity  (* function-id type in AST matches type in funspec *)
+      | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
       ]
-    | reflexivity  (* function-id type in AST matches type in funspec *)
+    | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
     |check_typecheck
     |check_typecheck
     |check_cast_params

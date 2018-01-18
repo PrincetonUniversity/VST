@@ -823,13 +823,18 @@ Proof.
     auto.
 Qed.
 
+Ltac field_address_assumption := 
+match goal with
+ |  H: ?a = field_address _ _ _ |- ?b = _ => constr_eq a b; simple eapply H
+end.
+
 Ltac solve_field_address_gen :=
   solve [
     repeat
       first
       [ simple apply field_address_gen_nil; [reflexivity |]
       | simple apply field_address_gen_app; [reflexivity |]
-      | simple eapply field_address_gen_assu; [eassumption |]
+      | simple eapply field_address_gen_assu; [field_address_assumption |]
       | simple apply field_address_gen_refl
       ]
   ].
