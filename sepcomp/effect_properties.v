@@ -80,24 +80,24 @@ Proof. intros.
           destruct (local_DomRng _ WD _ _ _ LOC).
             congruence.
       rewrite encode_val_length in Hoff. rewrite <- size_chunk_conv in Hoff.
-      assert (Arith: Int.unsigned ofs1 <= ofs - delta < Int.unsigned ofs1 + size_chunk chunk).
-         assert (DD: delta >= 0 /\ 0 <= Int.unsigned ofs1 + delta <= Int.max_unsigned).
+      assert (Arith: Ptrofs.unsigned ofs1 <= ofs - delta < Ptrofs.unsigned ofs1 + size_chunk chunk).
+         assert (DD: delta >= 0 /\ 0 <= Ptrofs.unsigned ofs1 + delta <= Ptrofs.max_unsigned).
                  eapply INJ. apply H. left.
                  apply Mem.store_valid_access_3 in ST.
                  eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
          destruct DD as [DD1 DD2].
-         specialize (Int.unsigned_range ofs1); intros I.
-         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
-            apply Int.unsigned_repr. split. omega. omega.
+         specialize (Ptrofs.unsigned_range ofs1); intros I.
+         assert (URdelta: Ptrofs.unsigned (Ptrofs.repr delta) = delta).
+            apply Ptrofs.unsigned_repr. split. omega. omega.
 
-         rewrite Int.add_unsigned in Hoff. rewrite URdelta in Hoff.
-         rewrite (Int.unsigned_repr _ DD2) in Hoff. omega.
+         rewrite Ptrofs.add_unsigned in Hoff. rewrite URdelta in Hoff.
+         rewrite (Ptrofs.unsigned_repr _ DD2) in Hoff. omega.
 
       split. unfold StoreEffect.
         destruct (eq_block b1 b1); try congruence. simpl; clear e.
         destruct Arith. rewrite encode_val_length . rewrite <- size_chunk_conv.
-        destruct (zle (Int.unsigned ofs1) (ofs - delta)); try omega.
-          destruct (zlt (ofs - delta) (Int.unsigned ofs1 + size_chunk chunk)); try omega. trivial.
+        destruct (zle (Ptrofs.unsigned ofs1) (ofs - delta)); try omega.
+          destruct (zlt (ofs - delta) (Ptrofs.unsigned ofs1 + size_chunk chunk)); try omega. trivial.
       apply Mem.store_valid_access_3 in ST.
             eapply Mem.perm_implies.
             eapply Mem.perm_max. eapply ST. eassumption. constructor.
@@ -1812,7 +1812,7 @@ Theorem alloc_left_mapped_sm_inject:
   Mem.alloc m1 lo hi = (m1', b1) ->
   Mem.valid_block m2 b2 ->
   0 <= delta <= Int.max_unsigned ->
-  (forall ofs k p, Mem.perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
+  (forall ofs k p, Mem.perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Ptrofs.max_unsigned) ->
   (forall ofs k p, lo <= ofs < hi -> Mem.perm m2 b2 (ofs + delta) k p) ->
   Mem.inj_offset_aligned delta (hi-lo) ->
   (forall b delta' ofs k p,
@@ -1901,10 +1901,10 @@ Proof.
     injection H9; intros; subst b' delta0. clear H9; destruct H10.
     exploit Mem.perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
     exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
-    generalize (Int.unsigned_range_2 ofs). omega.
+    generalize (Ptrofs.unsigned_range_2 ofs). omega.
    exploit Mem.perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
    exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
-   generalize (Int.unsigned_range_2 ofs). omega.
+   generalize (Ptrofs.unsigned_range_2 ofs). omega.
   rewrite alloc_left_sm_as_inj_other in H9; trivial.
   eapply mi_representable; try eassumption.
   destruct H10; eauto using Mem.perm_alloc_4.
@@ -2075,7 +2075,7 @@ Proof.
   eapply Mem.alloc_right_inject; eauto.
   eauto.
   instantiate (1 := b2). eauto with mem.
-  instantiate (1 := 0). unfold Int.max_unsigned. generalize Int.modulus_pos; omega.
+  instantiate (1 := 0). unfold Ptrofs.max_unsigned. generalize Ptrofs.modulus_pos; omega.
   auto.
   intros. apply Mem.perm_implies with Freeable; auto with mem.
   eapply Mem.perm_alloc_2; eauto. omega.

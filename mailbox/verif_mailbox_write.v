@@ -106,17 +106,13 @@ Proof.
       intros; rewrite In_upto in *; simpl in *.
       destruct (eq_dec a b0); auto.
       erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1 with (d := 0); auto; try omega.
-      match goal with H : Int.repr _ = Int.neg _ |- _ => apply repr_inj_signed in H end.
+(*      match goal with H : Int.repr _ = Int.neg _ |- _ => apply repr_inj_signed in H end. *)
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts 0])); rewrite in_app in *.
       + destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         destruct i0 as [? | [? | ?]]; subst; try contradiction.
-        rewrite Int.unsigned_repr in *; try computable; omega.
+        apply repr_inj_signed in H4; rep_omega.
       + destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         contradiction n0; auto.
-      + apply Forall_Znth; auto.
-        eapply Forall_impl; [|eauto]; unfold repable_signed; intros.
-        split; [transitivity 0 | transitivity B]; unfold B, N in *; try computable; try omega.
-      + unfold repable_signed; computable.
     - intros. entailer!. }
   rewrite sublist_same; auto.
   set (available := map (fun x => vint (if eq_dec x b0 then 0 else if in_dec eq_dec x lasts then 0 else 1))

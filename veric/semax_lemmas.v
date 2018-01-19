@@ -1606,38 +1606,6 @@ End extensions.
 Definition Cnot (e: Clight.expr) : Clight.expr :=
    Clight.Eunop Cop.Onotbool e type_bool.
 
-Lemma bool_val_Cnot {CS: compspecs}:
-  forall rho a b,
-    bool_type (typeof a) = true ->
-    strict_bool_val (eval_expr a rho) (typeof a) = Some b ->
-    strict_bool_val (eval_expr (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
-Proof.
- intros.
- unfold Cnot. simpl.
- unfold eval_unop, force_val1; super_unfold_lift; simpl.
- destruct (eval_expr a rho); simpl in *; try congruence.
- destruct (typeof a); simpl in *; try congruence.
- inv H0.  rewrite  negb_involutive.
- unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
- destruct i0; simpl; auto; destruct (Int.eq i Int.zero); auto;
- destruct s; simpl; auto.
-  destruct (Int.eq i Int.zero);  inv H0; reflexivity.
- destruct (Int.eq i Int.zero);  inv H0; reflexivity.
- destruct (Int.eq i Int.zero);  inv H0; reflexivity.
- destruct (typeof a); inv H0; simpl.
- destruct (Int64.eq i Int64.zero); reflexivity.
- destruct (typeof a); inv H0; simpl.
- destruct f0; inv H2.
- simpl.
- destruct ((Float.cmp Ceq f Float.zero)); reflexivity.
- destruct (typeof a); inv H0; simpl.
- destruct f0; inv H2.
- simpl.
- destruct ((Float32.cmp Ceq f Float32.zero)); reflexivity.
- destruct (typeof a); inv H0; simpl;
- rewrite Int.eq_true; reflexivity.
-Qed.
-
 (* Mutually recursive induction scheme for [statement] and [labeled_statements] *)
 Section statement_rect.
   Variable P : statement -> Type.

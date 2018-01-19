@@ -51,8 +51,8 @@ Lemma repr_inj_signed:
     repable_signed i -> repable_signed j -> Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.signed_repr i) by repable_signed.
-rewrite <- (Int.signed_repr j) by repable_signed.
+rewrite <- (Int.signed_repr i) by rep_omega.
+rewrite <- (Int.signed_repr j) by rep_omega.
 congruence.
 Qed.
 
@@ -63,8 +63,8 @@ Lemma repr_inj_unsigned:
     Int.repr i = Int.repr j -> i=j.
 Proof.
 intros.
-rewrite <- (Int.unsigned_repr i) by repable_signed.
-rewrite <- (Int.unsigned_repr j) by repable_signed.
+rewrite <- (Int.unsigned_repr i) by rep_omega.
+rewrite <- (Int.unsigned_repr j) by rep_omega.
 congruence.
 Qed.
 

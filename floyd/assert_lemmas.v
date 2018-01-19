@@ -4,6 +4,7 @@ Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)
 Global Transparent Int.repr.
+Global Transparent Ptrofs.repr.
 
 Definition loop1x_ret_assert (Inv : environ -> mpred) (R : ret_assert) :=
   {| RA_normal := Inv; RA_break := FF; RA_continue := Inv; RA_return := R.(RA_return) |}.
@@ -135,7 +136,7 @@ Lemma tc_eval_gvar_zero:
   forall Delta t i rho, tc_environ Delta rho ->
             (var_types Delta) ! i = None ->
             (glob_types Delta) ! i = Some t ->
-            exists b, eval_var i t rho = Vptr b Int.zero.
+            exists b, eval_var i t rho = Vptr b Ptrofs.zero.
 Proof.
  intros. unfold eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
@@ -414,7 +415,7 @@ Lemma globvar_eval_var:
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  t ->
-     exists b,  eval_var id t rho = Vptr b Int.zero
+     exists b,  eval_var id t rho = Vptr b Ptrofs.zero
             /\ ge_of rho id = Some b.
 Proof.
 intros.

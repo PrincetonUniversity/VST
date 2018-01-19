@@ -1,8 +1,11 @@
-#include <stdlib.h>
+//#include <stdlib.h>
+#include "stdlib.h"
 //#include <stdio.h>
 #include "atomic_exchange.h"
 //#include "threads.h"
 //#include <stdatomic.h>
+
+
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);

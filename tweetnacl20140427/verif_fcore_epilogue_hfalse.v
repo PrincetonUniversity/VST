@@ -105,7 +105,7 @@ eapply semax_post_flipped'.
     freeze [0;1;3] FR4.
     rewrite Znth_map with (d':= Int.zero) in Xi, Yi; try omega. 
     inv Xi; inv Yi.
-    Time forward_call (Vptr b (Int.add z (Int.repr (1 * (4 * i)))), Int.add (Znth i xs Int.zero) (Znth i ys Int.zero)). (*3.6*)
+    Time forward_call (Vptr b (Ptrofs.add z (Ptrofs.repr (1 * (4 * i)))), Int.add (Znth i xs Int.zero) (Znth i ys Int.zero)). (*3.6*)
     { replace (4 + 4 * i - 4 * i) with 4 by omega. cancel. }
     entailer.
 
@@ -143,9 +143,9 @@ eapply semax_post_flipped'.
        rewrite field_address0_offset by auto with field_compatible.
           repeat rewrite Z.mul_1_l. cancel.
           replace (offset_val (nested_field_offset (Tarray tuchar 64 noattr) [ArraySubsc (4 * i)]) (Vptr b z))
-          with (Vptr b (Int.add z (Int.repr (4 * i)))). 2: simpl; do 3 f_equal; omega.
+          with (Vptr b (Ptrofs.add z (Ptrofs.repr (4 * i)))). 2: simpl; do 3 f_equal; omega.
           replace (offset_val (nested_field_offset (Tarray tuchar 64 noattr) [ArraySubsc (4 + 4 * i)]) (Vptr b z))
-          with (Vptr b (Int.add z (Int.repr (4 + 4 * i)))). 2: simpl; do 3 f_equal; omega.
+          with (Vptr b (Ptrofs.add z (Ptrofs.repr (4 + 4 * i)))). 2: simpl; do 3 f_equal; omega.
           apply sepcon_derives; apply data_at_ext.
           + rewrite sublist_app1. rewrite sublist_same; trivial. omega. rewrite <- QuadByteValList_ZLength; omega.
           + rewrite 2 sublist_app2; try rewrite <- QuadByteValList_ZLength; rewrite ! Zlength_sublist; try omega. 

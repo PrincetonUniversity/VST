@@ -40,8 +40,8 @@ Proof.
     destruct H3 as [? [_ [? _]]].
     destruct p; inv H3.
     simpl in H4.
-    pose proof Int.unsigned_range i.
-    repable_signed.
+    pose proof Ptrofs.unsigned_range i.
+    rep_omega.
   }
   assert_PROP (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
   { entailer!.
@@ -255,7 +255,7 @@ Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
   start_function.
   rewrite (data_at_isptr _ tint); Intros.
-  replace_SEP 0 (data_at Tsh tint (vint r) (force_val (sem_cast_neutral arg))).
+  replace_SEP 0 (data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg))).
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
   forward_call (r, reading, last_read, reads, lasts, sh1).
@@ -267,14 +267,14 @@ Proof.
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at Tsh tint Empty (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
-         data_at Tsh tint (vint r) (force_val (sem_cast_neutral arg)); malloc_token Tsh (sizeof tint) arg;
+         data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh (sizeof tint) arg;
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr tlock) N) locks lock;
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
          ghost_var gsh1 (vint b0) g0)).
-  { Exists 1 ([] : hist); entailer!.
+  { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.
     unfold latest_read; auto. }
   eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros b0 h.
@@ -316,7 +316,7 @@ Proof.
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    { split; [repeat constructor; computable | omega]. }
+    { split. unfold B, N.  computable. split; try omega. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].

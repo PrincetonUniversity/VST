@@ -201,7 +201,7 @@ assert (Zlength bl = LBLOCKz). {
   unfold sha_update_loop_body.
   assert (Hblocks' := Hblocks_lem Hblocks).
   Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
-  assert (DM: Zlength data < Int.modulus).
+  assert (DM: Zlength data < Ptrofs.modulus).
   { (* TODO: simplify this proof. *)
     clear - FC. red in FC. simpl in FC. destruct d; try tauto.
     simpl in FC.

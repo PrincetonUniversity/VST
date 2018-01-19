@@ -243,6 +243,7 @@ intros until 2.
   rewrite Z2Nat.id by omega. apply H2.
 Qed.
 
+
 Lemma add_s:
   forall (regs atoh: list int),
    Datatypes.length regs = 8%nat ->
@@ -252,9 +253,10 @@ Lemma add_s:
     i' = Z.of_nat i ->
    upd_Znth i' (map Vint (add_upto i regs atoh))
        (force_val
-              (sem_cast_neutral
+              (sem_cast_pointer
                  (force_val
-                    (sem_add_default tuint tuint
+                    (both_int (fun n1 n2 : int => Some (Vint (Int.add n1 n2)))
+                       sem_cast_pointer sem_cast_pointer
                        (Znth i' (map Vint (add_upto i regs atoh)) Vundef)
                        (Vint (nthi atoh i')))))) =
      map Vint (add_upto (S i) regs atoh).
@@ -335,6 +337,7 @@ Ltac canon_load_result ::= idtac.
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
+simpl upd_Znth.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).

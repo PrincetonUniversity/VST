@@ -47,7 +47,7 @@ Inductive res (A: Type) : Type :=
 | OK: A -> res A
 | Error: errmsg -> res A.
 
-Arguments Error [A] _.
+Arguments Error [A].
 
 (** To automate the propagation of errors, we use a monadic style
   with the following [bind] operation. *)

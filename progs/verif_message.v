@@ -129,7 +129,7 @@ change (data_at_ sh' (tarray tint 2) buf) with
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 (* TODO: perhaps the assert_PROP shouldn't even be necessary... *)
- assert_PROP (force_val (sem_cast_neutral buf) = field_address (tarray tint 2) nil buf).
+ assert_PROP (force_val (sem_cast_pointer buf) = field_address (tarray tint 2) nil buf).
   entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (*  ((int * )buf)[0]=x; *)
 forward. (*  ((int * )buf)[1]=y; *)
@@ -148,7 +148,7 @@ simpl. Intros. subst len.
 destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction.
 clear H H1 H2.
 
-assert_PROP (force_val (sem_cast_neutral buf) = field_address (tarray tint 2) nil buf).
+assert_PROP (force_val (sem_cast_pointer buf) = field_address (tarray tint 2) nil buf).
    entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (* x = ((int * )buf)[0]; *)
 forward. (* y = ((int * )buf)[1]; *)

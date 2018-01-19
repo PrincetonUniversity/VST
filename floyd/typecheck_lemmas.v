@@ -45,6 +45,19 @@ intros.
 try solve [
      inv H; simpl; try apply @TT_right;
            simpl; if_tac; apply @TT_right].
+*
+unfold classify_cast.
+destruct Archi.ptr64 eqn:Hp.
+apply @TT_right.
+rewrite if_true by auto.
+destruct (eqb_type _ _); apply @TT_right.
+*
+unfold classify_cast.
+destruct Archi.ptr64 eqn:Hp.
+apply @TT_right.
+rewrite if_true by auto.
+destruct (eqb_type _ _); apply @TT_right.
+*
 unfold classify_cast.
 unfold is_neutral_cast in H.
 rewrite orb_true_iff in H.
@@ -53,8 +66,7 @@ rewrite (eqb_type_true _ _ H).
 rewrite !eqb_reflx. rewrite eqb_type_refl. apply @TT_right.
 rewrite andb_true_iff in H.
 destruct H.
-rewrite (binop_lemmas.negb_true _ H).
-rewrite (binop_lemmas.negb_true _ H0).
+rewrite negb_true_iff in H, H0. rewrite H,H0.
 rewrite eqb_reflx.
 if_tac; try apply @TT_right.
 unfold is_pointer_type.

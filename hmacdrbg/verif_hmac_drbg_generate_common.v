@@ -549,7 +549,7 @@ Definition mkSTREAM1 (should_reseed:bool) s key V reseed_counter entropy_len pre
 Definition is_multiple (multiple base: Z) : Prop := exists i, multiple = (i * base)%Z.
 
 Lemma entailment1: forall (contents : list Z) (additional output : val)
-  (out_len : Z) (b : block) (i : int) (mc1 mc2 mc3 : val) (key V : list Z)
+  (out_len : Z) (b : block) (i : ptrofs) (mc1 mc2 mc3 : val) (key V : list Z)
   (reseed_counter entropy_len : Z) (prediction_resistance : bool)
   (reseed_interval : Z) (kv : val) (Info : md_info_state)
   (s : ENTROPY.stream)
@@ -656,7 +656,7 @@ key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0
 (additional output : val)
 (out_len : Z)
 (b : block)
-(i : int)
+(i : ptrofs)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
 (prediction_resistance : bool)
@@ -1076,7 +1076,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
 (output : val)
 (out_len : Z)
 (b : block)
-(i : int)
+(i : ptrofs)
 (mc1 mc2 mc3 : val)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
@@ -1419,7 +1419,7 @@ Proof. intros.
                   @nil Z, (fst (HLP done)), kv).
 
     { simpl. apply prop_right. rewrite HZlength_V, field_address_offset; trivial.
-      split; simpl; trivial. 
+      split; simpl; auto. normalize. 
     }
     { simpl; simpl in HZlength_V; rewrite HZlength_V (*, <- Hmultiple*).
       cancel.
@@ -1428,7 +1428,7 @@ Proof. intros.
       simpl; simpl in HZlength_V; rewrite HZlength_V. 
       change Int.max_unsigned with 4294967295.
       change (two_power_pos 61) with 2305843009213693952.
-      repeat split; try omega.
+      repeat split; try rep_omega.
       apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; auto; try omega.
       apply isbyteZ_HMAC256. 
     }
@@ -1578,8 +1578,7 @@ Proof. intros.
     }
     { simpl. rewrite sublist_map. cancel. }
     { repeat split; auto;
-      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try omega.
-      rewrite e; change (Int.max_unsigned) with 4294967295; omega.
+      subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_omega.
     }
 
     simpl.
@@ -1784,7 +1783,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
 (output : val)
 (out_len : Z)
 (b : block)
-(i : int)
+(i : ptrofs)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
 (prediction_resistance : bool)

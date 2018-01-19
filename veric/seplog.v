@@ -25,7 +25,7 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   end.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Int.zero) && func_at f (b, 0).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).
 
 Definition NDmk_funspec (f: base.funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
@@ -83,7 +83,7 @@ Definition fun_assert:
 *)
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
-| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
 | None => Vundef
 end.
 

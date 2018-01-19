@@ -198,7 +198,7 @@ Proof.
           cancel; apply partial_treebox_rep_partial_treebox_rep.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H2 H6.
+        subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
         Exists (insert k v t0).
@@ -387,7 +387,7 @@ Proof.
           cancel; apply partial_treebox_rep_partial_treebox_rep.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H2 H6.
+        subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
         Exists (insert k v t0).
@@ -442,7 +442,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)
@@ -488,7 +488,7 @@ Proof.
           cancel; apply partial_treebox_rep_partial_treebox_rep.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H2 H6.
+        subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
         Exists (insert k v t0).
@@ -554,7 +554,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists qa qb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by omega. subst x. clear H H4 H3.
       forward. (* v=q->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.

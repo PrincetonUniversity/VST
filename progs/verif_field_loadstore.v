@@ -83,6 +83,7 @@ Proof.
   forward.
   forward.
   forward.
+  forward.
 Qed.
 
 Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
@@ -93,5 +94,5 @@ Proof.
   forward.
   forward.
   forward.
+  forward.
 Qed.
-

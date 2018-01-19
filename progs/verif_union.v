@@ -198,11 +198,17 @@ Definition fabs_single_spec :=
 Definition Gprog : funspecs :=
     ltac:(with_library prog [ fabs_single_spec ]).
 
-Lemma union_field_address___125: forall p,
-  field_address (Tunion __125 noattr) [UnionField _f] p = field_address (Tunion __125 noattr) [UnionField _i] p.
+Lemma union_field_address: forall id,
+  composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
+ forall p,
+  field_address (Tunion id noattr) [UnionField _f] p = field_address (Tunion id noattr) [UnionField _i] p.
 Proof.
   intros.
-  assert (field_compatible (Tunion __125 noattr) [UnionField _f] p <-> field_compatible (Tunion __125 noattr) [UnionField _i] p); [|unfold field_address; if_tac; if_tac; auto; tauto].
+  inversion H.
+  assert (field_compatible (Tunion id noattr) [UnionField _f] p 
+               <-> field_compatible (Tunion id noattr) [UnionField _i] p).
+2: subst id;  unfold field_address; if_tac; if_tac; auto; tauto.
+subst id.
   rewrite !field_compatible_cons; simpl.
   unfold in_members; simpl.
   tauto.
@@ -216,15 +222,19 @@ destruct (fabs_float32_lemma x) as [y [H3 H4]].
 unfold_field_at 1%nat.
 rewrite field_at_data_at.
 erewrite data_at_single_int with (v2:= Vint y);
- [ | apply I | apply I | exact H3 | auto | apply union_field_address___125].
-change (Tint I32 Unsigned noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _i]).
+ [ | apply I | apply I | exact H3 | auto | apply (union_field_address _ (eq_refl _))].
+match goal with |- context [Tunion ?structid] =>
+ change (Tint I32 Unsigned noattr) with (nested_field_type (Tunion structid noattr) [UnionField _i])
+end.
 rewrite <- field_at_data_at.
 forward.
 forward.
 rewrite field_at_data_at.
 erewrite <- data_at_single_int with (v1:= Vsingle (Float32.abs x));
-    [| apply I | apply I | exact H4 | auto | apply union_field_address___125].
-change (Tfloat F32 noattr) with (nested_field_type (Tunion __125 noattr) [UnionField _f]).
+    [| apply I | apply I | exact H4 | auto | apply (union_field_address _ (eq_refl _))].
+match goal with |- context [Tunion ?structid] =>
+  change (Tfloat F32 noattr) with (nested_field_type (Tunion structid noattr) [UnionField _f])
+end.
 rewrite <- field_at_data_at.
 forward.
 forward.

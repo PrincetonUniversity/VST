@@ -46,14 +46,14 @@ destruct ((var_types Delta) ! i) eqn:?H;
 + apply tc_bool_e in H2.
   apply H0 in H.
   destruct H as [b ?].
-  exists b, Int.zero.
+  exists b, Ptrofs.zero.
   rewrite H, H2.
   auto.
 + apply tc_bool_e in H2.
   apply (typecheck_var_environ_None _ _ H0) in H.
   apply H1 in H3.
   destruct H3 as [b ?].
-  exists b, Int.zero.
+  exists b, Ptrofs.zero.
   rewrite H, H3.
   auto.
 + inv H2.
@@ -308,7 +308,6 @@ Qed.
 Lemma typecheck_unop_sound:
  forall {CS: compspecs} Delta rho m u e t
  (H: typecheck_environ Delta rho)
-(* (Ht: t =unOp_result_type u (typeof e)) *)
  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho m ->
           tc_val (typeof e) (eval_expr e rho)) /\
           (forall pt : type,
@@ -327,26 +326,31 @@ unfold_lift.
 clear - H2 H0.
 unfold eval_unop, sem_unary_operation, force_val1.
 destruct u; unfold tc_val in H2; simpl in H0;
-unfold sem_notbool, sem_notint, sem_neg, sem_absfloat in *;
+unfold sem_notbool, sem_notint, sem_neg, sem_absfloat, bool_val in *;
 super_unfold_lift; simpl;
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- simpl in H0; try contradiction;
- try (rewrite denote_tc_assert_andp in H0; destruct H0 as [H0 H0']);
- try contradiction H0;
- simple apply tc_bool_e in H0; try discriminate H0;
- destruct (eval_expr e rho) eqn:?; 
- try match type of H2 with (if ?A then _ else _) _ => 
-         destruct A eqn:?J;
-         [apply  eqb_type_true in J | apply eqb_type_false in J]
-    end;
- try solve [contradict H2];
- try solve [apply tc_val_of_bool_int_type; auto];
- unfold sem_notbool_p; simpl force_val; auto;
- destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
-  try solve [inv H0;
-             try reflexivity; auto;
+ try contradiction;
+ repeat match goal with
+ | H:  app_pred (denote_tc_assert (tc_andp _ _) _) _ |- _ =>
+        rewrite denote_tc_assert_andp in H; destruct H
+ | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => 
+      apply tc_bool_e in H
+ | H: app_pred (denote_tc_assert (tc_int_or_ptr_type _) _) _ |- _ => 
+      apply tc_bool_e in H
+| H: (if eqb_type ?T1 ?T2 then _ else _) _ |- _ =>
+   let J := fresh "J" in
+   destruct (eqb_type T1 T2) eqn:J;
+   [apply eqb_type_true in J | apply eqb_type_false in J]
+end;
+ destruct (eval_expr e rho) eqn:?; try contradiction;
+ try discriminate;
+ try solve [apply tc_val_of_bool_int_type; auto].
+all: try solve [
+  destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
+  match goal with H: _ _ = true |- _ => inv H end;
+            try reflexivity; auto;
              simpl tc_val; try split; auto;
-             rewrite <- Z.leb_le; reflexivity]. 
+             rewrite <- Z.leb_le; reflexivity].
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,

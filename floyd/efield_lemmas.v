@@ -20,7 +20,7 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   | _, nil => e
   | cons ef efs', cons t0 tts' =>
     match ef with
-    | eArraySubsc ei => Ederef (Ebinop Oadd (nested_efield e efs' tts') ei (tptr t0)) t0
+    | eArraySubsc ei => Ederef (Ebinop Cop.Oadd (nested_efield e efs' tts') ei (tptr t0)) t0
     | eStructField i => Efield (nested_efield e efs' tts') i t0
     | eUnionField i => Efield (nested_efield e efs' tts') i t0
     end
@@ -175,16 +175,20 @@ Proof.
   + eapply typeof_nested_efield'; eauto.
 Qed.
 
-Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
+Lemma offset_val_sem_add_pi: forall ofs t0 si e rho i,
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
    offset_val ofs
-     (force_val (sem_add_pi t0 (eval_expr e rho) (Vint (Int.repr i)))) =
+     (force_val (Cop.sem_add_ptr_int _ t0 si (eval_expr e rho) (Vint (Int.repr i)))) =
    offset_val ofs
      (offset_val (sizeof t0 * i) (eval_expr e rho)).
 Proof.
   intros.
   destruct (eval_expr e rho); try reflexivity.
-  rewrite sem_add_pi_ptr by (simpl; auto).
-  reflexivity.
+  rewrite sem_add_pi_ptr; auto.
+  apply I.
 Qed.
 
 Lemma By_reference_eval_expr: forall Delta e rho,
@@ -254,33 +258,54 @@ Proof.
     eapply typeof_nested_efield'; eauto.
 Qed.
 
-Lemma classify_add_add_case_pi: forall ei ty t n a,
-  is_int_type (typeof ei) = true ->
+
+Lemma classify_add_typeconv: forall t n a ty,
   typeconv (Tarray t n a) = typeconv ty ->
-  classify_add ty (typeof ei) = add_case_pi t.
+  Cop.classify_add ty = Cop.classify_add (Tpointer t a).
+Proof.
+intros.
+simpl in H.
+extensionality t2.
+destruct ty; inv H.
+destruct i; inv H1.
+all: simpl; destruct (typeconv t2); auto.
+Qed.
+
+(*
+Lemma classify_add_add_case_pi: forall ei ty t n a si,
+  match typeof ei with Tint _ si' _ => si=si' | _ => False end ->
+  typeconv (Tarray t n a) = typeconv ty ->
+  Cop.classify_add ty (typeof ei) = Cop.add_case_pi t si.
 Proof.
   intros.
-  destruct (typeof ei); try solve [inversion H].
+  destruct (typeof ei) eqn:?; inv H.
+  simpl in *. rewrite <- H0.
+  destruct i;auto.
+  subst.
   simpl.
-  rewrite <- H0.
-  destruct i; reflexivity.
+  rewrite <- H0; clear H0.
+  simpl.
+  destruct i; try reflexivity.
 Qed.
+*)
 
 Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
   complete_legal_cosu_type t0 = true ->
   eqb_type (typeof e) int_or_ptr_type = false ->
-  isBinOpResultType Oadd e ei (tptr t) = tc_isptr e.
+  isBinOpResultType Cop.Oadd e ei (tptr t) = tc_isptr e.
 Proof.
   intros.
   unfold isBinOpResultType.
-  erewrite classify_add_add_case_pi by eauto.
+  rewrite (classify_add_typeconv _ _ _ _ H0).
+  destruct (typeof ei); inv H.
+(*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
-  rewrite H1, tc_andp_TT2.
-  simpl tc_bool. rewrite andb_false_r. rewrite tc_andp_TT2.
-  unfold tc_int_or_ptr_type. rewrite H2.
-  rewrite tc_andp_TT2; auto.
+  simpl.
+  destruct i; rewrite H1; simpl tc_bool; cbv iota;
+  rewrite andb_false_r; simpl; rewrite tc_andp_TT2;
+  unfold tc_int_or_ptr_type; rewrite H2; simpl; auto.
 Qed.
 
 Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
@@ -290,14 +315,18 @@ Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
   nested_field_type t_root gfs = Tarray t n a ->
   field_compatible t_root gfs p ->
   efield_denote efs gfs rho ->
-  classify_add (typeof (nested_efield e efs tts)) (typeof ei) = add_case_pi t /\
-  isBinOpResultType Oadd (nested_efield e efs tts) ei (tptr t0) = tc_isptr (nested_efield e efs tts).
+  (exists si, Cop.classify_add (typeof (nested_efield e efs tts)) (typeof ei) = Cop.add_case_pi t si) /\
+  isBinOpResultType Cop.Oadd (nested_efield e efs tts) ei (tptr t0) = tc_isptr (nested_efield e efs tts).
 Proof.
   intros.
   pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H4).
   rewrite H2 in H5.
   split.
-  + eapply classify_add_add_case_pi; [auto | apply typeconv_typeconv'_eq; eassumption].
+  +
+    erewrite classify_add_typeconv
+         by (apply typeconv_typeconv'_eq; eassumption).
+   destruct (typeof ei); inv H1.
+   destruct i; simpl; eexists; reflexivity.
   + eapply isBinOpResultType_add_ptr; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
       eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
@@ -310,6 +339,34 @@ Proof.
       * apply eqb_type_true in H6.
         unfold int_or_ptr_type in *; inv H5; inv H6.
       * apply eqb_type_false in H6; auto.
+Qed.
+
+
+Lemma Ptrofs_repr_Int_signed_special:
+  Archi.ptr64=false -> forall i, Ptrofs.repr (Int.signed (Int.repr i)) = Ptrofs.repr i.
+Admitted.
+
+Lemma Ptrofs_repr_Int_unsigned_special:
+  Archi.ptr64=false -> forall i, Ptrofs.repr (Int.unsigned (Int.repr i)) = Ptrofs.repr i.
+Admitted.
+
+Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
+Proof. reflexivity. Qed.
+
+Lemma sem_add_pi_ptr_special:
+   forall t p i si,
+    isptr p ->
+    sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros.
+ unfold sem_add_ptr_int.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  apply (Ptrofs_repr_Int_signed_special Archi_ptr64_DEPENDENCY).
+  apply (Ptrofs_repr_Int_unsigned_special Archi_ptr64_DEPENDENCY).
 Qed.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
@@ -346,8 +403,9 @@ Proof.
     rewrite <- H3.
     unfold force_val2, force_val.
     unfold sem_add.
+    destruct CLASSIFY_ADD as [si CLASSIFY_ADD].
     rewrite CLASSIFY_ADD.
-    rewrite sem_add_pi_ptr.
+    rewrite sem_add_pi_ptr_special.
     2: simpl in H2; rewrite <- H2; auto.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
@@ -658,7 +716,7 @@ Fixpoint compute_nested_efield_rec {cs:compspecs} e lr_default :=
       else (e, nil, nil, lr_default)
     | _ => (e, nil, nil, lr_default)
     end
-  | Ederef (Ebinop Oadd e' ei (Tpointer t a)) t' =>
+  | Ederef (Ebinop Cop.Oadd e' ei (Tpointer t a)) t' =>
     match typeof e' with
     | Tarray t'' _ _ =>
       match eqb_type t t'', eqb_type t t', eqb_attr a noattr with

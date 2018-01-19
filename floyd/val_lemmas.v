@@ -1,5 +1,63 @@
 Require Import VST.floyd.base.
 
+Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial].
+destruct i.
++ destruct s.
+    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) Byte.max_signed). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; omega. right; omega.
++ destruct s.
+    * destruct (zle (-32768) (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) 32767). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) 65535). left; omega. right; omega.
++ left; trivial.
++ destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
+    destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
+    right. intros N; destruct N; contradiction.
+Defined.
+
+Lemma is_long_dec v: {is_long v} + {~ is_long v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_single_dec v: {is_single v} + {~ is_single v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_float_dec v: {is_float v} + {~ is_float v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma is_pointer_or_integer_dec v: {is_pointer_or_integer v} + {~ is_pointer_or_integer v}.
+Proof. 
+unfold is_pointer_or_integer.
+destruct Archi.ptr64 eqn:Hp;
+destruct v; simpl; try solve [right; intros N; trivial]; left; trivial.
+Defined.
+
+Lemma is_pointer_or_null_dec v: {is_pointer_or_null v} + {~ is_pointer_or_null v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; try solve [left; trivial].
+  apply Int.eq_dec. 
+Defined.
+
+Lemma isptr_dec v: {isptr v} + {~ isptr v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. Defined.
+
+Lemma tc_val_dec t v: {tc_val t v} + {~ tc_val t v}.
+Proof. destruct t; simpl.
++ right; intros N; trivial.
++ apply is_int_dec.
++ apply is_long_dec.
++ destruct f. apply is_single_dec. apply is_float_dec.
++ destruct ((eqb_type t Tvoid &&
+    eqb_attr a
+      {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
+  apply is_pointer_or_integer_dec.
+  apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply isptr_dec.
++ apply isptr_dec.
+Defined.
+
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
@@ -9,19 +67,26 @@ Hint Resolve isptr_offset_val': norm.
 Lemma offset_val_force_ptr:
   offset_val 0 = force_ptr.
 Proof. extensionality v. destruct v; try reflexivity.
-simpl. rewrite Int.add_zero; auto.
+simpl. rewrite Ptrofs.add_zero; auto.
 Qed.
 Hint Rewrite <- offset_val_force_ptr : norm.
 
 Lemma sem_add_pi_ptr:
-   forall {cs: compspecs}  t p i,
+   forall {cs: compspecs}  t p i si,
     isptr p ->
-    sem_add_pi t p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+    match si with
+    | Signed => Int.min_signed <= i <= Int.max_signed
+    | Unsigned => 0 <= i <= Int.max_unsigned
+    end ->
+    Cop.sem_add_ptr_int cenv_cs t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros. destruct p; try contradiction.
-  unfold offset_val.
-  rewrite <- mul_repr.
-  reflexivity.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  rewrite Int.signed_repr by omega; auto.
+  rewrite Int.unsigned_repr by omega; auto.
 Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -42,12 +107,12 @@ Proof. reflexivity. Qed.
 Hint Rewrite force_val_e: norm.
 
 Lemma sem_cast_neutral_ptr:
-  forall p, isptr p -> sem_cast_neutral p = Some p.
+  forall p, isptr p -> sem_cast_pointer p = Some p.
 Proof. intros. destruct p; try contradiction; reflexivity. Qed.
 Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
 
 Lemma sem_cast_neutral_Vint: forall v,
-  sem_cast_neutral (Vint v) = Some (Vint v).
+  sem_cast_pointer (Vint v) = Some (Vint v).
 Proof.
   intros. reflexivity.
 Qed.
@@ -69,7 +134,7 @@ Hint Resolve is_int_I32_Vint.
 
 Lemma sem_cast_neutral_int: forall v,
   isVint v ->
-  sem_cast_neutral v = Some v.
+  sem_cast_pointer v = Some v.
 Proof.
 destruct v; simpl; intros; try contradiction; auto.
 Qed.
@@ -87,6 +152,7 @@ Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 Hint Rewrite eval_id_same : norm.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
+Hint Rewrite Ptrofs.sub_idem Ptrofs.sub_zero_l  Ptrofs.add_neg_zero : norm.
 
 Lemma eval_expr_Etempvar:
   forall {cs: compspecs}  i t, eval_expr (Etempvar i t) = eval_id i.
@@ -112,6 +178,7 @@ Qed.
 Hint Resolve  @eval_expr_Etempvar'.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
+Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
 
 Lemma eval_var_env_set:
   forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
@@ -127,15 +194,17 @@ Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
 Lemma offset_offset_val:
   forall v i j, offset_val j (offset_val i v) = offset_val (i + j) v.
 Proof. intros; unfold offset_val.
- destruct v; auto. rewrite <- add_repr, Int.add_assoc; auto.
+ destruct v; auto.
+ f_equal. rewrite Ptrofs.add_assoc. f_equal. apply ptrofs_add_repr.
 Qed.
 Hint Rewrite offset_offset_val: norm.
 
-Hint Rewrite add_repr : norm.
-Hint Rewrite mul_repr : norm.
-Hint Rewrite sub_repr : norm.
-Hint Rewrite and_repr : norm.
-Hint Rewrite or_repr : norm.
+Hint Rewrite add_repr add64_repr ptrofs_add_repr : norm.
+Hint Rewrite mul_repr mul64_repr ptrofs_mul_repr : norm.
+Hint Rewrite sub_repr sub64_repr ptrofs_sub_repr : norm.
+Hint Rewrite and_repr and64_repr : norm.
+Hint Rewrite or_repr or64_repr : norm.
+Hint Rewrite neg_repr neg64_repr : norm.
 
 Lemma ltu_repr: forall i j,
  (0 <= i <= Int.max_unsigned ->
@@ -164,6 +233,14 @@ intros.
 rewrite Int.add_assoc. f_equal. apply add_repr.
 Qed.
 Hint Rewrite int_add_assoc1 : norm.
+
+Lemma ptrofs_add_assoc1:
+  forall z i j, Ptrofs.add (Ptrofs.add z (Ptrofs.repr i)) (Ptrofs.repr j) = Ptrofs.add z (Ptrofs.repr (i+j)).
+Proof.
+intros.
+rewrite Ptrofs.add_assoc. f_equal. apply ptrofs_add_repr.
+Qed.
+Hint Rewrite ptrofs_add_assoc1 : norm.
 
 Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
 Proof.
@@ -199,9 +276,10 @@ Hint Rewrite deref_noload_Tarray : norm.
 
 Definition ptr_eq (v1 v2: val) : Prop :=
       match v1,v2 with
-      | Vint n1, Vint n2 =>  Int.cmpu Ceq n1 n2 = true  /\ Int.cmpu Ceq n1 (Int.repr 0) = true
+      | Vint n1, Vint n2 =>  Archi.ptr64 = false /\ Int.cmpu Ceq n1 n2 = true  /\ Int.cmpu Ceq n1 (Int.repr 0) = true
+      | Vlong n1, Vlong n2 =>  Archi.ptr64 = true /\ Int64.cmpu Ceq n1 n2 = true  /\ Int64.cmpu Ceq n1 (Int64.repr 0) = true
       | Vptr b1 ofs1,  Vptr b2 ofs2  =>
-            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
+            b1=b2 /\ Ptrofs.cmpu Ceq ofs1 ofs2 = true
       | _,_ => False
       end.
 
@@ -210,18 +288,23 @@ Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 Lemma ptr_eq_e: forall v1 v2, ptr_eq v1 v2 -> v1=v2.
 Proof.
 intros. destruct v1; destruct v2; simpl in H; try contradiction.
-pose proof (Int.eq_spec i i0). destruct H.
+*
+pose proof (Int.eq_spec i i0). destruct H as [Hp [? ?]].
 rewrite H in H0. subst; auto.
+*
+pose proof (Int64.eq_spec i i0). destruct H as [Hp [? ?]].
+rewrite H in H0. subst; auto.
+*
 destruct H; subst.
 f_equal.
-pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
+pose proof (Ptrofs.eq_spec i i0). rewrite H0 in H; auto.
 Qed.
 
 Lemma ptr_eq_True':
    forall p, isptr p -> ptr_eq p p = True.
 Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
+ rewrite Ptrofs.eq_true. auto.
 Qed.
 (* Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
 
@@ -229,7 +312,7 @@ Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.
 Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
+ rewrite Ptrofs.eq_true. auto.
 Qed.
 Hint Rewrite ptr_eq_True using solve[auto] : norm.
 
@@ -237,10 +320,12 @@ Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
 Proof.
   intros.
   unfold ptr_eq, is_pointer_or_null in *.
-  destruct x; destruct y; try tauto.
-  destruct H as [_ ?].
+  destruct x; destruct y; try tauto;
+  destruct H as [Hp [_ ?]]; rewrite Hp.
   unfold Int.cmpu in H.
   exact (binop_lemmas2.int_eq_true _ _ (eq_sym H)).
+  unfold Int64.cmpu in H.
+  pose proof (Int64.eq_spec i (Int64.repr 0)). rewrite H in H0. auto.
 Qed.
 
 Lemma ptr_eq_sym: forall x y, ptr_eq x y -> ptr_eq y x.
@@ -289,19 +374,9 @@ Proof.
  left; split; omega.
 Defined.
 
-Definition add_ptr_int'  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
-  if repable_signed_dec (sizeof ty * i)
-   then match v with
-      | Vptr b ofs =>
-           Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
-      | Vint n1 =>
-           Vint (Int.add n1 (Int.repr (sizeof ty * i)))
-      | _ => Vundef
-      end
-  else Vundef.
 
 Definition add_ptr_int  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
-           eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
+           eval_binop Cop.Oadd (tptr ty) tint v (Vint (Int.repr i)).
 
 Lemma repable_signed_mult2:
   forall i j, i<>0 -> (j <= Int.max_signed \/ i <> -1) ->
@@ -357,41 +432,11 @@ intros.
  apply repable_signed_mult2 in H0; auto.
 Qed.
 
-Lemma add_ptr_int_eq:
-  forall  {cs: compspecs}  ty v i,
-       repable_signed (sizeof ty * i) ->
-       add_ptr_int' ty v i = add_ptr_int ty v i.
-Proof.
- intros.
- unfold add_ptr_int, add_ptr_int'.
- rewrite if_true by auto.
- destruct v; simpl; auto;
- rewrite mul_repr; auto.
-Qed.
-
-
 Lemma add_ptr_int_offset:
   forall  {cs: compspecs}  t v n,
   repable_signed (sizeof t) ->
   repable_signed n ->
   add_ptr_int t v n = offset_val (sizeof t * n) v.
-Proof.
- unfold add_ptr_int; intros.
- unfold eval_binop, force_val2; destruct v; simpl; auto.
- rewrite Int.mul_signed.
- rewrite Int.signed_repr by auto.
-  rewrite Int.signed_repr by auto.
- auto.
-Abort. (* broken in CompCert 2.7 *)
-
-Lemma add_ptr_int'_offset:
-  forall  {cs: compspecs}  t v n,
-  repable_signed (sizeof t * n) ->
-  add_ptr_int' t v n = offset_val (sizeof t * n) v.
-Proof.
- intros.
- unfold add_ptr_int'.
- rewrite if_true by auto. destruct v; simpl; auto.
 Abort. (* broken in CompCert 2.7 *)
 
 Lemma typed_false_cmp:
@@ -401,9 +446,13 @@ Lemma typed_false_cmp:
 Proof.
 intros.
 unfold sem_cmp in H.
-unfold classify_cmp in H. simpl in H.
+unfold Cop.classify_cmp in H. simpl in H.
 rewrite Int.negate_cmp.
-destruct (Int.cmp op i j); auto. inv H.
+unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+destruct (Int.cmp op i j); inv H; auto.
+rewrite Hp in H.
+destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
 Lemma typed_true_cmp:
@@ -413,8 +462,12 @@ Lemma typed_true_cmp:
 Proof.
 intros.
 unfold sem_cmp in H.
-unfold classify_cmp in H. simpl in H.
-destruct (Int.cmp op i j); auto. inv H.
+unfold Cop.classify_cmp in H. simpl in H.
+unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+destruct (Int.cmp op i j); inv H; auto.
+rewrite Hp in H.
+destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
 Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
@@ -502,7 +555,7 @@ Hint Rewrite isptr_deref_noload using reflexivity : norm.
 
 Lemma isptr_offset_val_zero:
   forall v, isptr v -> offset_val 0 v = v.
-Proof. intros. destruct v; inv H; subst; simpl.  rewrite Int.add_zero; reflexivity.
+Proof. intros. destruct v; inv H; subst; simpl.  rewrite Ptrofs.add_zero; reflexivity.
 Qed.
 
 Hint Rewrite isptr_offset_val_zero using solve [auto] : norm.
@@ -551,20 +604,35 @@ Ltac putable x :=
  | Zmod ?x ?y => putable x; putable y
  | Z.max ?x ?y => putable x; putable y
  | Z.opp ?x => putable x
+ | Ceq => idtac
+ | Cne => idtac
+ | Clt => idtac
+ | Cle => idtac
+ | Cgt => idtac
+ | Cge => idtac
+ | ?x /\ ?y => putable x; putable y
+ | two_power_nat ?x => putable x
  | Int.eq ?x ?y => putable x; putable y
- | Int.lt ?x ?y => putable x; putable y
- | Int.ltu ?x ?y => putable x; putable y
- | Int.add ?x ?y => putable x; putable y
- | Int.sub ?x ?y => putable x; putable y
- | Int.mul ?x ?y => putable x; putable y
- | Int.neg ?x => putable x
  | Int64.eq ?x ?y => putable x; putable y
+ | Ptrofs.eq ?x ?y => putable x; putable y
+ | Int.lt ?x ?y => putable x; putable y
  | Int64.lt ?x ?y => putable x; putable y
+ | Ptrofs.lt ?x ?y => putable x; putable y
+ | Int.ltu ?x ?y => putable x; putable y
  | Int64.ltu ?x ?y => putable x; putable y
+ | Ptrofs.ltu ?x ?y => putable x; putable y
+ | Int.add ?x ?y => putable x; putable y
  | Int64.add ?x ?y => putable x; putable y
+ | Ptrofs.add ?x ?y => putable x; putable y
+ | Int.sub ?x ?y => putable x; putable y
  | Int64.sub ?x ?y => putable x; putable y
+ | Ptrofs.sub ?x ?y => putable x; putable y
+ | Int.mul ?x ?y => putable x; putable y
  | Int64.mul ?x ?y => putable x; putable y
+ | Ptrofs.mul ?x ?y => putable x; putable y
+ | Int.neg ?x => putable x
  | Int64.neg ?x => putable x
+ | Ptrofs.neg ?x => putable x
  | Ceq => idtac
  | Cne => idtac
  | Clt => idtac
@@ -572,24 +640,36 @@ Ltac putable x :=
  | Cgt => idtac
  | Cge => idtac
  | Int.cmp ?op ?x ?y => putable op; putable x; putable y
+ | Int64.cmp ?op ?x ?y => putable op; putable x; putable y
+ | Ptrofs.cmp ?op ?x ?y => putable op; putable x; putable y
  | Int.cmpu ?op ?x ?y => putable op; putable x; putable y
+ | Int64.cmpu ?op ?x ?y => putable op; putable x; putable y
+ | Ptrofs.cmpu ?op ?x ?y => putable op; putable x; putable y
  | Int.repr ?x => putable x
- | Int.signed ?x => putable x
- | Int.unsigned ?x => putable x
  | Int64.repr ?x => putable x
+ | Ptrofs.repr ?x => putable x
+ | Int.signed ?x => putable x
  | Int64.signed ?x => putable x
+ | Ptrofs.signed ?x => putable x
+ | Int.unsigned ?x => putable x
  | Int64.unsigned ?x => putable x
+ | Ptrofs.unsigned ?x => putable x
  | two_power_nat ?x => putable x
  | Int.max_unsigned => idtac
- | Int.min_signed => idtac
- | Int.max_signed => idtac
- | Int.modulus => idtac
  | Int64.max_unsigned => idtac
+ | Ptrofs.max_unsigned => idtac
+ | Int.min_signed => idtac
  | Int64.min_signed => idtac
+ | Ptrofs.min_signed => idtac
+ | Int.max_signed => idtac
  | Int64.max_signed => idtac
+ | Ptrofs.max_signed => idtac
+ | Int.modulus => idtac
  | Int64.modulus => idtac
- | ?x /\ ?y => putable x; putable y
+ | Ptrofs.modulus => idtac
  | Int.zwordsize => idtac
+ | Int64.zwordsize => idtac
+ | Ptrofs.zwordsize => idtac
 end.
 
 Ltac computable := match goal with |- ?x =>
@@ -634,7 +714,7 @@ Proof. reflexivity. Qed.
 Hint Rewrite force_signed_int_e : norm.
 
 Definition headptr (v: val): Prop :=
-  exists b,  v = Vptr b Int.zero.
+  exists b,  v = Vptr b Ptrofs.zero.
 
 Lemma headptr_isptr: forall v,
   headptr v -> isptr v.
@@ -654,25 +734,48 @@ Proof.
   + destruct H as [b ?]; subst.
     destruct v; try solve [inv H].
     simpl in H.
-    remember (Int.add i (Int.repr 0)).
+    remember (Ptrofs.add i (Ptrofs.repr 0)).
     inversion H; subst.
-    rewrite Int.add_zero in H2; subst.
+    rewrite Ptrofs.add_zero in H2; subst.
     hnf; eauto.
   + destruct H as [b ?]; subst.
     exists b.
     reflexivity.
 Qed.
 
-(* Equality proofs for all constants from the Compcert Int module: *)
-Definition int_wordsize_eq : Int.wordsize = 32%nat := eq_refl.
-Definition int_zwordsize_eq : Int.zwordsize = 32 := eq_refl.
-Definition int_modulus_eq : Int.modulus = 4294967296 := eq_refl.
-Definition int_half_modulus_eq : Int.half_modulus = 2147483648 := eq_refl.
-Definition int_max_unsigned_eq : Int.max_unsigned = 4294967295 := eq_refl.
-Definition int_max_signed_eq : Int.max_signed = 2147483647 := eq_refl.
-Definition int_min_signed_eq : Int.min_signed = -2147483648 := eq_refl.
+(* Equality proofs for all constants from the Compcert Int, Int64, Ptrofs modules: *)
 
-Ltac repable_signed := 
+Ltac const_equation x :=
+  let y := eval compute in x
+   in exact (x = y).
+
+Transparent Archi.ptr64.
+Definition int_wordsize_eq : ltac:(const_equation Int.wordsize) := eq_refl.
+Definition int_zwordsize_eq : ltac:(const_equation Int.zwordsize) := eq_refl.
+Definition int_modulus_eq :  ltac:(const_equation Int.modulus) := eq_refl.
+Definition int_half_modulus_eq :  ltac:(const_equation Int.half_modulus) := eq_refl.
+Definition int_max_unsigned_eq :  ltac:(const_equation Int.max_unsigned) := eq_refl.
+Definition int_max_signed_eq :  ltac:(const_equation Int.max_signed) := eq_refl.
+Definition int_min_signed_eq :  ltac:(const_equation Int.min_signed) := eq_refl.
+
+Definition int64_wordsize_eq : ltac:(const_equation Int64.wordsize) := eq_refl.
+Definition int64_zwordsize_eq : ltac:(const_equation Int64.zwordsize) := eq_refl.
+Definition int64_modulus_eq :  ltac:(const_equation Int64.modulus) := eq_refl.
+Definition int64_half_modulus_eq :  ltac:(const_equation Int64.half_modulus) := eq_refl.
+Definition int64_max_unsigned_eq :  ltac:(const_equation Int64.max_unsigned) := eq_refl.
+Definition int64_max_signed_eq :  ltac:(const_equation Int64.max_signed) := eq_refl.
+Definition int64_min_signed_eq :  ltac:(const_equation Int64.min_signed) := eq_refl.
+
+Definition ptrofs_wordsize_eq : ltac:(const_equation Ptrofs.wordsize) := eq_refl.
+Definition ptrofs_zwordsize_eq : ltac:(const_equation Ptrofs.zwordsize) := eq_refl.
+Definition ptrofs_modulus_eq :  ltac:(const_equation Ptrofs.modulus) := eq_refl.
+Definition ptrofs_half_modulus_eq :  ltac:(const_equation Ptrofs.half_modulus) := eq_refl.
+Definition ptrofs_max_unsigned_eq :  ltac:(const_equation Ptrofs.max_unsigned) := eq_refl.
+Definition ptrofs_max_signed_eq :  ltac:(const_equation Ptrofs.max_signed) := eq_refl.
+Definition ptrofs_min_signed_eq :  ltac:(const_equation Ptrofs.min_signed) := eq_refl.
+Opaque Archi.ptr64.
+
+Ltac rep_omega := 
    pose proof int_wordsize_eq;
    pose proof int_zwordsize_eq;
    pose proof int_modulus_eq;
@@ -680,8 +783,28 @@ Ltac repable_signed :=
    pose proof int_max_unsigned_eq;
    pose proof int_max_signed_eq;
    pose proof int_min_signed_eq;
+ 
+   pose proof int64_wordsize_eq;
+   pose proof int64_zwordsize_eq;
+   pose proof int64_modulus_eq;
+   pose proof int64_half_modulus_eq;
+   pose proof int64_max_unsigned_eq;
+   pose proof int64_max_signed_eq;
+   pose proof int64_min_signed_eq;
+ 
+   pose proof ptrofs_wordsize_eq;
+   pose proof ptrofs_zwordsize_eq;
+   pose proof ptrofs_modulus_eq;
+   pose proof ptrofs_half_modulus_eq;
+   pose proof ptrofs_max_unsigned_eq;
+   pose proof ptrofs_max_signed_eq;
+   pose proof ptrofs_min_signed_eq;
+
    unfold repable_signed in *;
    omega.
+
+Ltac repable_signed := 
+  idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.
 
 Lemma typed_false_ptr:
   forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
@@ -741,9 +864,9 @@ Lemma typed_true_tint:
 Proof.
 intros.
  hnf in H. destruct v; inv H.
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
- unfold nullval; intro. inv H.
- rewrite Int.eq_true in Heqb. inv Heqb.
+ intro. unfold nullval in H.
+ destruct Archi.ptr64; inv H.
+ rewrite Int.eq_true in H1. inv H1.
 Qed.
 
 Lemma typed_false_tint_Vint:

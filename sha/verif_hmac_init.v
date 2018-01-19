@@ -170,7 +170,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      freeze [0; 3] FR3.
      Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-             Vptr cb (Int.add cofs (Int.repr 108)),
+             Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
      (*5.9 versus 13*)
@@ -197,7 +197,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       rewrite field_address_offset by auto with field_compatible.
-      simpl; rewrite Int.add_zero.
+      simpl; rewrite Ptrofs.add_zero.
       change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       thaw FR4. thaw FR3. thaw FR2.
       Time cancel. (*1.6 versus 0.7*)
@@ -224,11 +224,11 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
-    simpl; rewrite Int.add_zero.
+    simpl; rewrite Ptrofs.add_zero.
 
     Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-             Vptr cb (Int.add cofs (Int.repr 108)),
+             Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
     (* 4.7 versus 14.7 *)
@@ -254,7 +254,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
-    simpl; rewrite Int.add_zero.
+    simpl; rewrite Ptrofs.add_zero.
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
     Time cancel. (*1.7 versus 1.2 penalty when melting*)
   }

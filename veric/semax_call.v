@@ -223,7 +223,7 @@ Proof.
   specialize (SAME _ _ H).
   destruct SAME as [SAME | [t SAME]]; [ | congruence].
   destruct H0 as [b ?].
-  specialize (H7 (Vptr b Int.zero) fsig0 cc A P' Q' _ (necR_refl _)).
+  specialize (H7 (Vptr b Ptrofs.zero) fsig0 cc A P' Q' _ (necR_refl _)).
   spec H7.
   Focus 1. {
     exists id, NEP', NEQ'.
@@ -420,7 +420,8 @@ Proof.
           (sem_cast (typeof a) t
              (eval_expr a
                 (construct_rho (filter_genv psi) vx tx)))) as v.
- eapply cop2_sem_cast''; eauto.
+ rewrite cop2_sem_cast'; auto.
+ eapply typecheck_expr_sound; eauto.
 Qed.
 
 Lemma bind_parameter_temps_excludes :
@@ -955,11 +956,11 @@ end.
   rename H6 into H99.
  normalize. (* don't know why we cannot do normalize at first *)
  rewrite memory_block'_eq.
- 2: rewrite Int.unsigned_zero; omega.
+ 2: rewrite Ptrofs.unsigned_zero; omega.
  Focus 2.
- rewrite Int.unsigned_zero. rewrite Zplus_0_r.
+ rewrite Ptrofs.unsigned_zero. rewrite Zplus_0_r.
  rewrite Coqlib.nat_of_Z_eq.
- change (Int.unsigned Int.zero) with 0 in H99.
+ change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99.
  omega.
  pose proof (sizeof_pos ty); omega.
  rewrite Z.sub_0_r.
@@ -1159,12 +1160,12 @@ Proof.
   simpl in H3; destruct H3 as [H99 H3].
   change nat_of_Z with Z.to_nat in H3.
   rewrite memory_block'_eq in H3;
-  try rewrite Int.unsigned_zero; try omega.
+  try rewrite Ptrofs.unsigned_zero; try omega.
   Focus 2. {
-   rewrite Z.add_0_r; rewrite Z2Nat.id by omega. change (Int.unsigned Int.zero) with 0 in H99; omega.
+   rewrite Z.add_0_r; rewrite Z2Nat.id by omega. change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99; omega.
   } Unfocus.
   unfold memory_block'_alt in H3.
-  rewrite Int.unsigned_zero in H3.
+  rewrite Ptrofs.unsigned_zero in H3.
   rewrite Z2Nat.id in H3 by omega.
   rewrite if_true in H3 by apply readable_share_top.
   assert (join_sub phi1 (m_phi jm)) as H7
@@ -1355,7 +1356,7 @@ forall (Delta : tycontext) (A : TypeTree)
       substopt ret old F rho0 * maybe_retval (Q ts x) retty ret rho0))
  (HGG:  genv_cenv psi = cenv_cs)
  (H0 : rho = construct_rho (filter_genv psi) vx tx)
- (H3 : eval_expr a rho = Vptr b Int.zero)
+ (H3 : eval_expr a rho = Vptr b Ptrofs.zero)
  (H4 : (funassert Delta rho) (m_phi jm))
  (H1 : (rguard Espec psi (exit_tycon (Scall ret a bl) Delta)
         (frame_ret_assert R F0) k) (level (m_phi jm)))
@@ -1366,7 +1367,7 @@ forall (Delta : tycontext) (A : TypeTree)
                (eval_exprlist (map snd params) bl rho) rho))) (m_phi jm))
  (n : nat)
  (H2 : level (m_phi jm) = S n)
- (H15 : (believe_external Espec psi (Vptr b Int.zero) (params, retty) cc A P Q')
+ (H15 : (believe_external Espec psi (Vptr b Ptrofs.zero) (params, retty) cc A P Q')
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
   jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
@@ -1382,7 +1383,7 @@ assert (H21 := eval_exprlist_relate Delta (params,retty) bl psi vx tx _
 rewrite snd_split in TC2.
 
 unfold believe_external in H15.
-destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
+destruct (Genv.find_funct psi (Vptr b Ptrofs.zero)) eqn:H22; try (contradiction H15).
 destruct f eqn:Ef; try (contradiction H15).
 
 destruct H15 as [[H5 H15] Hretty]. hnf in H5.
@@ -1571,7 +1572,7 @@ split; [split; [split |] |].
  unfold tx' in *; clear tx'. simpl in TC3.
  assert (Hu: exists u, opttyp_of_type t = Some u).
  { clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   simpl; eauto.
+   try (eexists; reflexivity).
    spec TC5; [auto | congruence].
  }
  destruct Hu as [u Hu]. (*rewrite Hu in *.*) clear TC5.
@@ -1599,11 +1600,11 @@ split; [split; [split |] |].
  auto.
  inversion Hty. subst t b0. simpl.
  assert (ty = Tvoid). { destruct ty; auto; inv Hretty. } subst ty.
- simpl in Hu. congruence.
+ simpl in Hu. inv Hu.
  + rewrite <-initialized_ne with (id2 := i) in Hty; auto. destruct ret0.
  rewrite <-map_ptree_rel, Map.gso; auto.
  assert (t = Tvoid). { destruct t; auto; inv Hretty. } subst t.
- simpl in Hu. congruence.
+ simpl in Hu. inv Hu.
 }
 *
  destruct (current_function k); auto.
@@ -2001,8 +2002,8 @@ Lemma juicy_mem_alloc_block:
  forall jm n jm2 b F,
    juicy_mem_alloc jm 0 n = (jm2, b) ->
    app_pred F (m_phi jm)  ->
-   0 <= n < Int.modulus ->
-   app_pred (F * memory_block Share.top n (Vptr b Int.zero)) (m_phi jm2).
+   0 <= n < Ptrofs.modulus ->
+   app_pred (F * memory_block Share.top n (Vptr b Ptrofs.zero)) (m_phi jm2).
 Proof.
 intros. rename H1 into Hn.
 inv H.
@@ -2053,9 +2054,9 @@ subst phi4.
 exists (m_phi jm), phi3; split3; auto.
 split.
 do 3 red.
-rewrite Int.unsigned_zero.
+rewrite Ptrofs.unsigned_zero.
 omega.
-rewrite Int.unsigned_zero.
+rewrite Ptrofs.unsigned_zero.
 rewrite memory_block'_eq; try omega.
 2: rewrite Coqlib.nat_of_Z_eq; omega.
 unfold memory_block'_alt.
@@ -2083,7 +2084,7 @@ Lemma alloc_juicy_variables_lem2:
   forall {CS: compspecs} jm f (ge: genv) ve te jm' (F: pred rmap)
       (HGG:  genv_cenv ge = cenv_cs)
       (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
-      (Hsize: Forall (fun var => @sizeof ge (snd var) <= Int.max_unsigned) (fn_vars f)),
+      (Hsize: Forall (fun var => @sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
       list_norepet (map fst (fn_vars f)) ->
       alloc_juicy_variables ge empty_env jm (fn_vars f) = (ve, jm') ->
       app_pred F (m_phi jm) ->
@@ -2132,12 +2133,12 @@ rewrite H3. rewrite eqb_type_refl.
 simpl in Hsize'.
 rewrite <- HGG.
 rewrite prop_true_andp by auto.
-assert (0 <= @sizeof ge ty <= Int.max_unsigned) by (pose proof (@sizeof_pos ge ty); omega).
+assert (0 <= @sizeof ge ty <= Ptrofs.max_unsigned) by (pose proof (@sizeof_pos ge ty); omega).
 simpl.
 forget (@sizeof ge ty) as n.
 clear - H2 H1 H4.
 eapply juicy_mem_alloc_block; eauto.
-unfold Int.max_unsigned in H4; omega.
+unfold Ptrofs.max_unsigned in H4; omega.
 Qed.
 
 Lemma semax_call_aux:
@@ -2164,7 +2165,7 @@ Lemma semax_call_aux:
     genv_cenv psi = cenv_cs ->
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
-    eval_expr a rho = Vptr b Int.zero ->
+    eval_expr a rho = Vptr b Ptrofs.zero ->
     (funassert Delta rho) (m_phi jm) ->
     (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
@@ -2184,7 +2185,7 @@ pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
 assert (Prog_OK' := Prog_OK).
-specialize (Prog_OK' (Vptr b Int.zero) fsig cc A P Q' _ (necR_refl _)).
+specialize (Prog_OK' (Vptr b Ptrofs.zero) fsig cc A P Q' _ (necR_refl _)).
 (*************************************************)
 case_eq (level (m_phi jm)); [solve [simpl; constructor] | intros n H2].
 simpl.
@@ -3026,7 +3027,8 @@ Proof.
           super_unfold_lift.
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by (auto; admit). (* <> int_or_ptr_type *)
+          rewrite cop2_sem_cast'; auto.
+          2: eapply typecheck_expr_sound; eauto.
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
       * fold denote_tc_assert in TC.
@@ -3057,7 +3059,8 @@ Proof.
           destruct H6 as [_ ?].
           rewrite !denote_tc_assert_andp in TC.
           destruct TC as [TC1 TC2]. rewrite H6 in TC2.
-          rewrite cop2_sem_cast' by (auto; admit). (* <> int_or_ptr_type *)
+          rewrite cop2_sem_cast'; auto.
+          2: eapply typecheck_expr_sound; eauto.
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
   + intro.
@@ -3065,6 +3068,6 @@ Proof.
     rewrite call_cont_idem in H13; auto.
     econstructor; try eassumption.
     auto.
-Admitted.
+Qed.
 
 End extensions.

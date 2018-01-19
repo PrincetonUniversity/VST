@@ -486,7 +486,7 @@ Proof.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct complete_legal_cosu_type; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zlt (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zlt (Ptrofs.unsigned i + sizeof t) Ptrofs.modulus); [left | right]; omega.
   + apply align_compatible_dec.
   + apply legal_nested_field_dec.
 Qed.
@@ -500,7 +500,7 @@ Proof.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct complete_legal_cosu_type; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zlt (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zlt (Ptrofs.unsigned i + sizeof t) Ptrofs.modulus); [left | right]; omega.
   + apply align_compatible_dec.
   + apply legal_nested_field0_dec.
 Qed.
@@ -1210,7 +1210,7 @@ Proof.
   intros.
   destruct p; simpl; auto.
   rewrite H.
-  destruct (Int.unsigned_range i).
+  destruct (Ptrofs.unsigned_range i).
   omega.
 Qed.
 *)
@@ -1219,7 +1219,7 @@ Proof.
   intros.
   destruct p; simpl; auto.
   rewrite H.
-  destruct (Int.unsigned_range i).
+  destruct (Ptrofs.unsigned_range i).
   omega.
 Qed.
 (*
@@ -1231,6 +1231,7 @@ Proof.
   apply Z.divide_1_l.
 Qed.
 *)
+
 Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
   complete_legal_cosu_type t = true ->
@@ -1243,8 +1244,8 @@ Proof.
   solve_mod_modulus.
   inv_int i.
   pose proof nested_field_offset_in_range t gfs H H0.
-  pose proof Zmod_le (ofs + nested_field_offset t gfs) (Int.modulus).
-  spec H4; [pose proof Int.modulus_pos; omega |].
+  pose proof Zmod_le (ofs + nested_field_offset t gfs) (Ptrofs.modulus).
+  spec H4; [pose proof Ptrofs.modulus_pos; omega |].
   spec H4; [omega |].
   pose proof nested_field_offset_in_range t gfs H H0.
   omega.
@@ -1264,8 +1265,8 @@ Proof.
   solve_mod_modulus.
   inv_int i.
   pose proof nested_field_array_offset_in_range t gfs lo hi H H0 H1.
-  pose proof Zmod_le (ofs + nested_field_offset t (ArraySubsc lo :: gfs)) (Int.modulus).
-  spec H5; [pose proof Int.modulus_pos; omega |].
+  pose proof Zmod_le (ofs + nested_field_offset t (ArraySubsc lo :: gfs)) (Ptrofs.modulus).
+  spec H5; [pose proof Ptrofs.modulus_pos; omega |].
   spec H5; [omega |].
   pose proof nested_field_offset_in_range t gfs (proj1 H) H1.
   simpl in H3.
@@ -1290,9 +1291,9 @@ Lemma align_compatible_nested_field0: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
-  unfold Int.unsigned; simpl.
-  unfold Int.unsigned at 2; simpl.
-  repeat rewrite Int.Z_mod_modulus_eq.
+  unfold Ptrofs.unsigned; simpl.
+  unfold Ptrofs.unsigned at 2; simpl.
+  repeat rewrite Ptrofs.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
   inv_int i.
 Admitted.
@@ -1307,10 +1308,8 @@ Admitted.
   + rewrite nested_field_type_ind.
     rewrite nested_field_offset_ind by auto.
     
-    Searc
-      hAbout  =
     SearchAbout Z.modulo.
-  repeat rewrite Int.Z_mod_modulus_eq.
+  repeat rewrite Ptrofs.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
 Qed.
 *)
@@ -1641,7 +1640,7 @@ intros. hnf in H.
 destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
 destruct H; subst.
 red.
-rewrite Int.unsigned_zero. rewrite Z.add_0_l; auto.
+rewrite Ptrofs.unsigned_zero. rewrite Z.add_0_l; auto.
 Qed.
 
 Lemma lvar_field_compatible:

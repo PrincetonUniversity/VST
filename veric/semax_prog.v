@@ -213,7 +213,7 @@ Lemma semax_func_cons_aux:
   Genv.find_symbol psi id = Some b ->
   ~ In id (map (fst (A:=ident) (B:=fundef)) fs) ->
    match_fdecs fs G'  ->
-   claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 cc1 A1 P1 Q1 NEP1 NEQ1) :: G')) (Vptr b Int.zero) fsig2 cc2 A2 P2 Q2 ->
+   claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 cc1 A1 P1 Q1 NEP1 NEQ1) :: G')) (Vptr b Ptrofs.zero) fsig2 cc2 A2 P2 Q2 ->
     fsig1=fsig2 /\ cc1 = cc2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
 Proof.
 intros until fs. intros H Hin Hmf; intros.
@@ -296,8 +296,8 @@ destruct H0 as [b [? ?]]; [left; auto |].
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
 apply negb_true_iff in Hni.
 apply id_in_list_false in Hni.
-destruct (eq_dec  (Vptr b Int.zero) v) as [?H|?H].
-* (* Vptr b Int.zero = v *)
+destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [?H|?H].
+* (* Vptr b Ptrofs.zero = v *)
 subst v.
 right.
 exists b; exists f.
@@ -361,7 +361,7 @@ unfold bind_args.
 apply andp_left2; auto.
 destruct (Hpclos ts x).
 apply close_precondition_e; auto.
-* (***   Vptr b Int.zero <> v'  ********)
+* (***   Vptr b Ptrofs.zero <> v'  ********)
 apply (Hf n v fsig cc' A' P' Q'); auto.
 destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
 simpl in H1.
@@ -456,7 +456,7 @@ generalize (H0 id (External ef argsig retsig cc)); clear H0; intro H0.
 destruct H0 as [b [? ?]].
 left; auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
-destruct (eq_dec  (Vptr b Int.zero) v') as [?H|?H].
+destruct (eq_dec  (Vptr b Ptrofs.zero) v') as [?H|?H].
 subst v'.
 left.
 specialize (H n).
@@ -477,7 +477,7 @@ split; auto.
 split; auto. split; auto.
 intros ts x ret phi Hlev Hx Hnec. apply Hretty.
 
-(* **   Vptr b Int.zero <> v'  ********)
+(* **   Vptr b Ptrofs.zero <> v'  ********)
 apply (Hf n v' fsig' cc' A' P' Q'); auto.
 destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
 simpl in H1.
@@ -491,7 +491,7 @@ Qed.
 Definition main_params (ge: genv) start : Prop :=
   exists b, exists func,
     Genv.find_symbol ge start = Some b /\
-        Genv.find_funct ge (Vptr b Int.zero) = Some (Internal func) /\
+        Genv.find_funct ge (Vptr b Ptrofs.zero) = Some (Internal func) /\
         func.(fn_params) = nil.
 
 Lemma in_prog_funct'_in {F V}:
@@ -969,7 +969,7 @@ Lemma semax_prog_typecheck_aux:
    match_fdecs (prog_funct prog) G ->
    typecheck_environ
       (Delta1 vs G) (construct_rho (filter_genv (globalenv prog)) empty_env
-        (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))) .
+        (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val))) .
 Proof.
 unfold Delta1; intros.
 unfold construct_rho.
@@ -986,7 +986,7 @@ unfold make_tenv.
 unfold Map.get.
 intros.
 rewrite PTree.gsspec in *. if_tac. inv H2.
-+ exists (Vptr b Int.zero); split; auto. right; simpl; auto.
++ exists (Vptr b Ptrofs.zero); split; auto. right; simpl; auto.
 + rewrite PTree.gempty in H2. congruence.
 *
 unfold var_types.
@@ -1061,7 +1061,7 @@ Lemma semax_prog_rule {CS: compspecs} :
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -1146,7 +1146,7 @@ Proof.
     unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
     pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
     pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
-                           (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
+                           (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     intros z.
     pose (post' := fun rho => TT * EX rv:val, post nil tt (env_set (globals_only rho) ret_temp rv)).
     eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
@@ -1154,7 +1154,7 @@ Proof.
               nil tt (fun _ => TT) (fun _ => TT)
               None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
-                 (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
+                 (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
     + simpl snd.
@@ -1267,7 +1267,7 @@ Lemma semax_prog_typecheck_aux_types:
      (Delta_types vs G (map snd typed_args))
      (construct_rho
         (filter_genv (globalenv prog)) empty_env
-        (PTree.set 1 (Vptr b Int.zero)
+        (PTree.set 1 (Vptr b Ptrofs.zero)
                    (temp_bindings 2 (map fst typed_args)))).
 Proof.
   intros vs G C prog b typed_args NR MG MF TYP.
@@ -1285,7 +1285,7 @@ Proof.
     rewrite <-map_ptree_rel, Map.gsspec.
     if_tac; if_tac in Found; subst; try tauto.
     + injection Found as <- <- .
-      exists (Vptr b Int.zero); split; auto.
+      exists (Vptr b Ptrofs.zero); split; auto.
       right; simpl; auto.
     + revert Found; generalize (2%positive).
       induction typed_args; intros p Found.
@@ -1334,20 +1334,20 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
   let rho0 : environ :=
       construct_rho
         (filter_genv (globalenv prog)) empty_env
-        (PTree.set 1 (Vptr b Int.zero)
+        (PTree.set 1 (Vptr b Ptrofs.zero)
                    (PTree.set id_arg arg (PTree.empty val))) in
 
   (* initial environment without the function => to check jm |= P a *)
   let rho1 : environ :=
       construct_rho
         (filter_genv (globalenv prog)) empty_env
-        ((* PTree.set 1 (Vptr b Int.zero) *)
+        ((* PTree.set 1 (Vptr b Ptrofs.zero) *)
           (PTree.set id_arg arg (PTree.empty val))) in
 
   { q : corestate |
     semantics.initial_core
       (juicy_core_sem cl_core_sem) h
-      (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
+      (globalenv prog) (Vptr b Ptrofs.zero) (arg :: nil) = Some q /\
 
     forall (jm : juicy_mem) ts a,
       app_pred (P ts a rho1) (m_phi jm) ->
@@ -1367,7 +1367,7 @@ Proof.
   simpl glob_specs in Believe.
   rewrite <-find_id_maketycontext_s in id_in_G.
 
-  specialize (Believe (Vptr b Int.zero)
+  specialize (Believe (Vptr b Ptrofs.zero)
                       ((id_arg, Tpointer Tvoid noattr) :: nil, tptr Tvoid)
                       cc_default A P Q _ (necR_refl _)).
   spec Believe.
@@ -1425,7 +1425,7 @@ Proof.
   pose (rho3 :=
           construct_rho
             (filter_genv (globalenv prog)) empty_env
-            (PTree.set 1 (Vptr b Int.zero)
+            (PTree.set 1 (Vptr b Ptrofs.zero)
                        (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
 
   pose proof I.
@@ -1493,7 +1493,7 @@ Proof.
   simpl.
   f_equal.
   extensionality i; destruct i; reflexivity.
-  unfold make_tenv, force_val, sem_cast_neutral, eval_id.
+  unfold make_tenv, force_val, sem_cast_pointer, eval_id.
   extensionality i.
   rewrite PTree.gsspec.
   unfold Map.set.

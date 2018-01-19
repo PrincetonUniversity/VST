@@ -117,6 +117,8 @@ Proof.
 * (* void *)
   constructor.
 * (* int *)
+  destruct Archi.ptr64 eqn:Hp. 
+  inversion Hp. (* Archi.ptr64=false DEPENDENCY *)
   destruct i; destruct ty as [ | | | [ | ] | | | | | ];
    simpl in H; try discriminate; destruct v; inv H;
    try now constructor.
@@ -124,25 +126,40 @@ Proof.
   constructor. apply (cast_int_int_idem I8 s).
   destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I8 s).
   destruct (cast_float_int s f); inv H1.   constructor. apply (cast_int_int_idem I8 s).
+  constructor. apply (cast_int_int_idem I8 s).
+  constructor. apply (cast_int_int_idem I8 s).
+  constructor. apply (cast_int_int_idem I8 s).
   constructor. apply (cast_int_int_idem I16 s).
   constructor. apply (cast_int_int_idem I16 s).
   destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s).
-  destruct (cast_float_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s).
+  destruct (cast_float_int s f); inv H1.
+       constructor. apply (cast_int_int_idem I16 s).
+       constructor. apply (cast_int_int_idem I16 s).
+       constructor. apply (cast_int_int_idem I16 s).
+       constructor. apply (cast_int_int_idem I16 s).
   destruct (cast_single_int s f); inv H1. constructor. auto.
   destruct (cast_float_int s f); inv H1. constructor. auto.
   constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
+(*
   constructor. simpl. destruct (Int64.eq i Int64.zero); auto.
   constructor. simpl. destruct (Float32.cmp Ceq f Float32.zero); auto.
   constructor. simpl. destruct (Float.cmp Ceq f Float.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
-    constructor. simpl. destruct (Int.eq i Int.zero); auto.
+*)
+  destruct (Mem.weak_valid_pointer m b (Ptrofs.unsigned i0)); inv H1.
+    constructor. reflexivity.
+  constructor. destruct (Int64.eq i Int64.zero); reflexivity.
+  constructor. destruct (Float32.cmp Ceq f Float32.zero); reflexivity.
+  constructor. destruct (Float.cmp Ceq f Float.zero); reflexivity.
+  constructor. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Ptrofs.unsigned i)); inv H1.
+    constructor. reflexivity.
+  constructor. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Ptrofs.unsigned i)); inv H1.
+    constructor. reflexivity.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
-    constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
-    constructor. simpl. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Ptrofs.unsigned i)); inv H1.
+    constructor. reflexivity.
 * (* long *)
   destruct ty as [ | | | [ | ] | | | | | ]; try discriminate.
   destruct v; inv H. constructor.
@@ -198,8 +215,12 @@ Qed.
 Lemma cast_val_casted:
   forall v ty m, val_casted v ty -> sem_cast v ty ty m = Some v.
 Proof.
-  intros. inversion H; clear H; subst v ty; unfold sem_cast; simpl; auto.
-  destruct sz; congruence.
+  intros.
+  unfold sem_cast, classify_cast.
+  destruct Archi.ptr64 eqn:Hp. 
+  inversion Hp. (* Archi.ptr64=false DEPENDENCY *)
+  inversion H; clear H; subst v ty; unfold sem_cast; simpl; auto.
+  destruct sz; simpl; try destruct si; simpl in *; try congruence.
   unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
   unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
 Qed.
@@ -321,7 +342,7 @@ destruct t; auto; try inversion 1.
 destruct t; auto; try inversion 1.
 destruct t; auto; try solve[inversion 1].
 destruct t; auto. inversion 1. inversion 1. inversion 1.
-destruct t; auto. inversion 1. inversion 1. inversion 1.
+destruct t; auto. inversion 1. inversion 1.
 Qed.
 
 Fixpoint val_has_type_list_func (vl : list val) (tyl : list typ) : bool :=

@@ -267,8 +267,7 @@ Proof.
 
   rewrite mapsto_tuint_tptr_nullval; auto.
   rewrite @lseg_nil_eq.
-  rewrite prop_true_andp; auto.
-  split; reflexivity.
+  entailer!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

@@ -155,9 +155,9 @@ forward_if
   entailer!. } 
 { forward.
   Exists (Val.of_bool (Int.ltu (Int.repr 255) (Int.repr ((olen + 32 - 1) / 32)))).
-  rewrite if_false; trivial.
-  entailer!. unfold sem_cast; simpl. 
-  rewrite sem_cast_i2i_correct_range; [| apply semax_straight.is_int_of_bool]; simpl; trivial. }
+  rewrite if_false; trivial. 
+  entailer!. unfold sem_cast, sem_cast_i2bool, Val.of_bool; simpl.
+  destruct (Int.ltu (Int.repr 255) (Int.repr ((olen + 32 - 1) / 32))); simpl; reflexivity. }
 apply extract_exists_pre. intros v. Intros. rename H into HV.
 unfold Int.ltu in HV.
 rewrite Int.unsigned_repr in HV; [| rewrite int_max_unsigned_eq; omega].
@@ -203,7 +203,7 @@ replace_SEP 1 (HMAC_SPEC.EMPTY v_hmac).
 { entailer!. eapply HMAC_SPEC.mkEmpty; trivial. }
 idtac "Timing the call to _HMAC_Init".
 Time forward_call (@inr (val * Z * list Z * val) _ (v_hmac, spec_hmac.LEN PRK, CONT PRK, kv, prk)).
-(*Finished transaction in 13.389 secs (12.203u,0.s) (successful)*)
+(*Finished transaction in 1.717 secs (1.371u,0.017s) (successful)*)
 
 remember ((olen + 32 - 1) / 32) as bnd.
 thaw FR1.
@@ -227,7 +227,7 @@ normalize. simpl.
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite isptr_offset_val_zero; trivial. (* rewrite Int.add_zero.*)
 rewrite field_address0_offset by auto with field_compatible. simpl.
-rewrite memory_block_field_compatible_tarraytuchar by (rewrite <- initialize.max_unsigned_modulus; omega).
+rewrite memory_block_field_compatible_tarraytuchar by rep_omega.
 Intros. rename H into FCout. 
 
 freeze [1;3] FR0. 
@@ -309,7 +309,7 @@ forward_for_simple_bound bnd
      freeze [0;2;4;6] FR1.
      idtac "Timing the call to _HMAC_Init".
      Time forward_call (@inl _ (val * Z * list Z * val * val) (v_hmac,0,CONT PRK,kv)).
-     (* Finished transaction in 2.432 secs (2.43u,0.s) (successful)*)
+     (* Finished transaction in 1.73 secs (1.472u,0.011s) (successful)*)
      destruct (PREV_isbyteZ PRK INFO i1) as [prev [Hprev BTprev]]. omega. rewrite Hprev.
      assert (Zlength_prev: Zlength prev = 32).
      { specialize (PREV_len PRK INFO i1). rewrite Hprev.
@@ -317,8 +317,9 @@ forward_for_simple_bound bnd
 
      idtac "Timing the first call to _HMAC_Update".
      Time forward_call (CONT PRK, v_hmac, v_previous, @nil Z, prev, kv).
-     (*Finished transaction in 3.311 secs (3.276u,0.008s)(successful)*)
-     * rewrite Zlength_prev; apply prop_right; trivial. 
+     (*Finished transaction in 2.55 secs (2.048u,0.005s) (successful)*)
+     * rewrite Zlength_prev, sem_cast_neutral_ptr; trivial. 
+       apply prop_right; split; trivial. 
      * assert (Frame = [FRZL FR1]). subst Frame; reflexivity. simpl; cancel.
        unfold data_block. normalize. rewrite Zlength_prev; trivial.
      * rewrite Zlength_prev, Zlength_nil.
@@ -333,8 +334,9 @@ forward_for_simple_bound bnd
 
    idtac "Timing the second call to _HMAC_Update".
    Time forward_call (CONT PRK, v_hmac, info, l, CONT INFO, kv).
-   (* Finished transaction in 3.092 secs (3.092u,0.s) (successful)*)
-   { rewrite LEN_INFO1; apply prop_right; reflexivity. }
+   (* Finished transaction in 2.659 secs (2.094u,0.014s) (successful)*) 
+   { rewrite LEN_INFO1, sem_cast_neutral_ptr; trivial. 
+     apply prop_right. split; reflexivity. }
    { split. omega.
      destruct (zeq i1 0).
      + subst i1 l. rewrite Zlength_nil, Zplus_0_r. omega.
@@ -361,7 +363,7 @@ forward_for_simple_bound bnd
    idtac "Timing the third call to _HMAC_Update".
    Time forward_call (CONT PRK, v_hmac, v_ctr, l++CONT INFO, 
         [Int.unsigned (Int.zero_ext 8 (Int.add (Int.repr i1) (Int.repr 1)))], kv).
-   (* Finished transaction in 2.722 secs (2.722u,0.s) (successful)*)
+   (* Finished transaction in 2.64 secs (2.057u,0.004s) (successful)*)
    { assert (Frame = [FRZL FR3]). subst Frame; reflexivity. subst Frame. simpl. cancel.
      unfold data_block. simpl. rewrite Int.repr_unsigned, LEN. entailer!. }
    { rewrite LEN. rewrite int_max_unsigned_eq, Zlength_app. split. omega.
@@ -376,7 +378,7 @@ forward_for_simple_bound bnd
    idtac "Timing the call to _HMAC_Final".
    Time forward_call (((l ++ CONT INFO) ++ [Int.unsigned (Int.zero_ext 8 (Int.repr (i1 + 1)))]),
                  CONT PRK, v_hmac, v_previous, Tsh, kv).
-   (* Finished transaction in 2.546 secs (2.535u,0.s) (successful)*)
+   (* Finished transaction in 2.64 secs (2.057u,0.004s) (successful)*)
    unfold data_block. normalize. focus_SEP 2. erewrite (extract_prop_in_SEP 0); simpl. 2: reflexivity.
    Intros. rename H into isBT_app. (*VST TODO: why does normalize/Intros need the explicit extract_prop_in_SEP???*)
    rewrite HMAC_Zlength.
@@ -417,7 +419,7 @@ forward_for_simple_bound bnd
              if zlt olen (32 * i1 + 32)
              then olen - 32 * i1
              else 32, map Int.repr CONTRIB).
-   (* Finished transaction in 4.719 secs (4.716u,0.004s) (successful) *)
+   (* Finished transaction in 4.255 secs (3.485u,0.006s) (successful)*)
    { destruct (zlt olen (32 * i1 + 32)); simpl; entailer!. }
    { simpl; cancel. }
    { simpl. split. apply readable_share_top. split; trivial.
@@ -561,10 +563,11 @@ forward_for_simple_bound bnd
   
   idtac "Timing the call to _HMAC_cleanup".
   Time forward_call (CONT PRK, v_hmac).
-  (* Finished transaction in 1.978 secs (1.977u,0.s) (successful)*)
+  (* Finished transaction in 1.589 secs (1.371u,0.004s) (successful)*)
     { assert (Frame = [FRZL FR6]). subst Frame; reflexivity.
       subst Frame; simpl. cancel.
       destruct (zeq bnd 0); trivial. apply HMAC_SPEC.REP_FULL. }
+  forward. forward. (*
     forward_if (
   (PROP ( )
    LOCAL (temp _ret (Vint (Int.repr 1)); temp _i (Vint (Int.repr bnd));
@@ -580,7 +583,7 @@ forward_for_simple_bound bnd
      { forward. entailer!. } 
      { forward. entailer!. }
 
-  forward. 
+  forward. *)
      Exists (expand_out_post shmd (CONT PRK) (CONT INFO) (32 * rounds + rest) out).
      Time entailer!.
      + unfold expand_out_post, digest_len.

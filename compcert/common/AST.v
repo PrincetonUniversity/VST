@@ -18,6 +18,7 @@
 
 Require Import String.
 Require Import Coqlib Maps Errors Integers Floats.
+Require Archi.
 
 Set Implicit Arguments.
 
@@ -50,6 +51,8 @@ Definition opt_typ_eq: forall (t1 t2: option typ), {t1=t2} + {t1<>t2}
 Definition list_typ_eq: forall (l1 l2: list typ), {l1=l2} + {l1<>l2}
                      := list_eq_dec typ_eq.
 
+Definition Tptr : typ := if Archi.ptr64 then Tlong else Tint.
+
 Definition typesize (ty: typ) : Z :=
   match ty with
   | Tint => 4
@@ -62,6 +65,9 @@ Definition typesize (ty: typ) : Z :=
 
 Lemma typesize_pos: forall ty, typesize ty > 0.
 Proof. destruct ty; simpl; omega. Qed.
+
+Lemma typesize_Tptr: typesize Tptr = if Archi.ptr64 then 8 else 4.
+Proof. unfold Tptr; destruct Archi.ptr64; auto. Qed.
 
 (** All values of size 32 bits are also of type [Tany32].  All values
   are of type [Tany64].  This corresponds to the following subtyping
@@ -150,6 +156,8 @@ Definition chunk_eq: forall (c1 c2: memory_chunk), {c1=c2} + {c1<>c2}.
 Proof. decide equality. Defined.
 Global Opaque chunk_eq.
 
+Definition Mptr : memory_chunk := if Archi.ptr64 then Mint64 else Mint32.
+
 (** The type (integer/pointer or float) of a chunk. *)
 
 Definition type_of_chunk (c: memory_chunk) : typ :=
@@ -166,6 +174,9 @@ Definition type_of_chunk (c: memory_chunk) : typ :=
   | Many64 => Tany64
   end.
 
+Lemma type_of_Mptr: type_of_chunk Mptr = Tptr.
+Proof. unfold Mptr, Tptr; destruct Archi.ptr64; auto. Qed.
+
 (** The chunk that is appropriate to store and reload a value of
   the given type, without losing information. *)
 
@@ -179,6 +190,9 @@ Definition chunk_of_type (ty: typ) :=
   | Tany64 => Many64
   end.
 
+Lemma chunk_of_Tptr: chunk_of_type Tptr = Mptr.
+Proof. unfold Mptr, Tptr; destruct Archi.ptr64; auto. Qed.
+
 (** Initialization data for global variables. *)
 
 Inductive init_data: Type :=
@@ -189,7 +203,7 @@ Inductive init_data: Type :=
   | Init_float32: float32 -> init_data
   | Init_float64: float -> init_data
   | Init_space: Z -> init_data
-  | Init_addrof: ident -> int -> init_data.  (**r address of symbol + offset *)
+  | Init_addrof: ident -> ptrofs -> init_data.  (**r address of symbol + offset *)
 
 Definition init_data_size (i: init_data) : Z :=
   match i with
@@ -199,8 +213,8 @@ Definition init_data_size (i: init_data) : Z :=
   | Init_int64 _ => 8
   | Init_float32 _ => 4
   | Init_float64 _ => 8
-  | Init_addrof _ _ => 4
-  | Init_space n => Zmax n 0
+  | Init_addrof _ _ => if Archi.ptr64 then 8 else 4
+  | Init_space n => Z.max n 0
   end.
 
 Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
@@ -212,7 +226,7 @@ Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
 Lemma init_data_size_pos:
   forall i, init_data_size i >= 0.
 Proof.
-  destruct i; simpl; xomega.
+  destruct i; simpl; try xomega. destruct Archi.ptr64; omega.
 Qed.
 
 Lemma init_data_list_size_pos:
@@ -246,8 +260,8 @@ Inductive globdef (F V: Type) : Type :=
   | Gfun (f: F)
   | Gvar (v: globvar V).
 
-Arguments Gfun [F V] _.
-Arguments Gvar [F V] _.
+Arguments Gfun [F V].
+Arguments Gvar [F V].
 
 Record program (F V: Type) : Type := mkprogram {
   prog_defs: list (ident * globdef F V);
@@ -437,11 +451,11 @@ Inductive external_function : Type :=
          Produces no observable event. *)
   | EF_memcpy (sz: Z) (al: Z)
      (** Block copy, of [sz] bytes, between addresses that are [al]-aligned. *)
-  | EF_annot (text: string) (targs: list typ)
+  | EF_annot (kind: positive) (text: string) (targs: list typ)
      (** A programmer-supplied annotation.  Takes zero, one or several arguments,
          produces an event carrying the text and the values of these arguments,
          and returns no value. *)
-  | EF_annot_val (text: string) (targ: typ)
+  | EF_annot_val (kind: positive) (text: string) (targ: typ)
      (** Another form of annotation that takes one argument, produces
          an event carrying the text and the value of this argument,
          and returns the value of the argument. *)
@@ -463,13 +477,13 @@ Definition ef_sig (ef: external_function): signature :=
   | EF_external name sg => sg
   | EF_builtin name sg => sg
   | EF_runtime name sg => sg
-  | EF_vload chunk => mksignature (Tint :: nil) (Some (type_of_chunk chunk)) cc_default
-  | EF_vstore chunk => mksignature (Tint :: type_of_chunk chunk :: nil) None cc_default
-  | EF_malloc => mksignature (Tint :: nil) (Some Tint) cc_default
-  | EF_free => mksignature (Tint :: nil) None cc_default
-  | EF_memcpy sz al => mksignature (Tint :: Tint :: nil) None cc_default
-  | EF_annot text targs => mksignature targs None cc_default
-  | EF_annot_val text targ => mksignature (targ :: nil) (Some targ) cc_default
+  | EF_vload chunk => mksignature (Tptr :: nil) (Some (type_of_chunk chunk)) cc_default
+  | EF_vstore chunk => mksignature (Tptr :: type_of_chunk chunk :: nil) None cc_default
+  | EF_malloc => mksignature (Tptr :: nil) (Some Tptr) cc_default
+  | EF_free => mksignature (Tptr :: nil) None cc_default
+  | EF_memcpy sz al => mksignature (Tptr :: Tptr :: nil) None cc_default
+  | EF_annot kind text targs => mksignature targs None cc_default
+  | EF_annot_val kind text targ => mksignature (targ :: nil) (Some targ) cc_default
   | EF_inline_asm text sg clob => sg
   | EF_debug kind text targs => mksignature targs None cc_default
   end.
@@ -486,8 +500,8 @@ Definition ef_inline (ef: external_function) : bool :=
   | EF_malloc => false
   | EF_free => false
   | EF_memcpy sz al => true
-  | EF_annot text targs => true
-  | EF_annot_val text targ => true
+  | EF_annot kind text targs => true
+  | EF_annot_val kind Text rg => true
   | EF_inline_asm text sg clob => true
   | EF_debug kind text targs => true
   end.
@@ -496,7 +510,7 @@ Definition ef_inline (ef: external_function) : bool :=
 
 Definition ef_reloads (ef: external_function) : bool :=
   match ef with
-  | EF_annot text targs => false
+  | EF_annot kind text targs => false
   | EF_debug kind text targs => false
   | _ => true
   end.
@@ -516,7 +530,7 @@ Inductive fundef (F: Type): Type :=
   | Internal: F -> fundef F
   | External: external_function -> fundef F.
 
-Arguments External [F] _.
+Arguments External [F].
 
 Section TRANSF_FUNDEF.
 
@@ -609,11 +623,12 @@ Inductive builtin_arg (A: Type) : Type :=
   | BA_long (n: int64)
   | BA_float (f: float)
   | BA_single (f: float32)
-  | BA_loadstack (chunk: memory_chunk) (ofs: int)
-  | BA_addrstack (ofs: int)
-  | BA_loadglobal (chunk: memory_chunk) (id: ident) (ofs: int)
-  | BA_addrglobal (id: ident) (ofs: int)
-  | BA_splitlong (hi lo: builtin_arg A).
+  | BA_loadstack (chunk: memory_chunk) (ofs: ptrofs)
+  | BA_addrstack (ofs: ptrofs)
+  | BA_loadglobal (chunk: memory_chunk) (id: ident) (ofs: ptrofs)
+  | BA_addrglobal (id: ident) (ofs: ptrofs)
+  | BA_splitlong (hi lo: builtin_arg A)
+  | BA_addptr (a1 a2: builtin_arg A).
 
 Inductive builtin_res (A: Type) : Type :=
   | BR (x: A)
@@ -625,6 +640,7 @@ Fixpoint globals_of_builtin_arg (A: Type) (a: builtin_arg A) : list ident :=
   | BA_loadglobal chunk id ofs => id :: nil
   | BA_addrglobal id ofs => id :: nil
   | BA_splitlong hi lo => globals_of_builtin_arg hi ++ globals_of_builtin_arg lo
+  | BA_addptr a1 a2 => globals_of_builtin_arg a1 ++ globals_of_builtin_arg a2
   | _ => nil
   end.
 
@@ -635,6 +651,7 @@ Fixpoint params_of_builtin_arg (A: Type) (a: builtin_arg A) : list A :=
   match a with
   | BA x => x :: nil
   | BA_splitlong hi lo => params_of_builtin_arg hi ++ params_of_builtin_arg lo
+  | BA_addptr a1 a2 => params_of_builtin_arg a1 ++ params_of_builtin_arg a2
   | _ => nil
   end.
 
@@ -661,6 +678,8 @@ Fixpoint map_builtin_arg (A B: Type) (f: A -> B) (a: builtin_arg A) : builtin_ar
   | BA_addrglobal id ofs => BA_addrglobal id ofs
   | BA_splitlong hi lo =>
       BA_splitlong (map_builtin_arg f hi) (map_builtin_arg f lo)
+  | BA_addptr a1 a2 =>
+      BA_addptr (map_builtin_arg f a1) (map_builtin_arg f a2)
   end.
 
 Fixpoint map_builtin_res (A B: Type) (f: A -> B) (a: builtin_res A) : builtin_res B :=
@@ -677,17 +696,5 @@ Inductive builtin_arg_constraint : Type :=
   | OK_default
   | OK_const
   | OK_addrstack
-  | OK_addrglobal
-  | OK_addrany
+  | OK_addressing
   | OK_all.
-
-Definition builtin_arg_ok
-       (A: Type) (ba: builtin_arg A) (c: builtin_arg_constraint) :=
-  match ba, c with
-  | (BA _ | BA_splitlong (BA _) (BA _)), _ => true
-  | (BA_int _ | BA_long _ | BA_float _ | BA_single _), OK_const => true
-  | BA_addrstack _, (OK_addrstack | OK_addrany) => true
-  | BA_addrglobal _ _, (OK_addrglobal | OK_addrany) => true
-  | _, OK_all => true
-  | _, _ => false
-  end.

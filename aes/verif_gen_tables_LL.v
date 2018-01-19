@@ -29,7 +29,7 @@ Proof.
   - rewrite (Hlog _ Bx). rewrite (Hlog _ Cy).
     destruct (Int.eq (Int.repr x)) eqn: D.
     + apply int_eq_e in D. change Int.zero with (Int.repr 0) in D.
-      apply repr_inj_unsigned in D; repable_signed.
+      apply repr_inj_unsigned in D; rep_omega.
     + destruct (Int.eq (Int.repr y) Int.zero).
       * reflexivity.
       * simpl.
@@ -196,10 +196,10 @@ Proof. intros.
         assert (H4 := log3range (Int.unsigned (Znth i RSb Int.zero))).
         spec H4; [omega|].
         rewrite Hlog.
-        rewrite Int.signed_repr by repable_signed.
+        rewrite Int.signed_repr by rep_omega.
         rewrite Int.signed_repr.
-        repable_signed.
-        repable_signed.
+        rep_omega.
+        rep_omega.
         omega.
 Qed.
 
@@ -371,7 +371,7 @@ Proof.
         pose proof (log3range j A).
         rewrite pow3log3 in H2 by assumption.
         rewrite <- H2 by assumption.
-        rewrite Int.unsigned_repr by repable_signed. unfold Z_to_val.
+        rewrite Int.unsigned_repr by rep_omega. unfold Z_to_val.
         destruct (zeq (log3 (Int.repr j)) (-1)) as [E | E]; [ | reflexivity ].
         rewrite E in H4. omega.
     - intros. autorewrite with sublist.
@@ -379,7 +379,7 @@ Proof.
       pose proof (log3range j H3).
       rewrite pow3log3 in H2 by assumption.
       rewrite <- H2 by assumption.
-      rewrite Int.unsigned_repr by repable_signed.
+      rewrite Int.unsigned_repr by rep_omega.
       reflexivity.
   }
   destruct E as [log [E Hlog]]. subst log0. clear H2. rewrite Zlength_map in H1. rename H1 into Llog.
@@ -469,7 +469,7 @@ Proof.
               apply FSb_inj in HH; omega.
           }
           { subst j. rewrite upd_Znth_same.
-            - repeat rewrite zero_ext_nop; try reflexivity; rewrite Int.unsigned_repr; repable_signed.
+            - repeat rewrite zero_ext_nop; try reflexivity; rewrite Int.unsigned_repr; rep_omega.
             - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
           }
         + rewrite upd_Znth_diff.

@@ -211,6 +211,9 @@ Proof.
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
  simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
+ pose proof (Int.eq_spec i j).
+ revert H H0; case_eq (Int.eq i j); intros; auto.
+ simpl in H0; unfold Vfalse in H0. inv H0.
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -222,10 +225,16 @@ Proof.
  destruct t; try contradiction. clear H.
  apply prop_ext; split; intros.
  destruct v; simpl in H; try discriminate.
- apply bool_val_int_eq_e in H. subst; auto.
- unfold Cop.sem_notbool, Cop.bool_val in H; simpl in H.
- destruct (Memory.Mem.weak_valid_pointer m b (Int.unsigned i)) eqn:?;
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. inv H.
+ destruct (Int.eq i Int.zero) eqn:?; inv H.
+  apply int_eq_e in Heqb. subst; reflexivity.
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. 
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
+  simpl in H; inv H. 
  subst. simpl. unfold Cop.bool_val; simpl. reflexivity.
 Qed.
 
@@ -331,8 +340,10 @@ Lemma typed_true_isptr:
 Proof.
 intros. extensionality x; apply prop_ext.
 destruct t; try contradiction; unfold typed_true, strict_bool_val;
-destruct x; intuition; try congruence;
-destruct (Int.eq i Int.zero); inv H0.
+destruct x; intuition; try congruence.
+all: try match type of H0 with context [Archi.ptr64] => destruct Archi.ptr64 eqn:?; inv H0 end.
+all: try solve [destruct (Int.eq i Int.zero); inv H0].
+all: try solve [destruct (Int64.eq i Int64.zero); inv H2].
 Qed.
 
 Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
@@ -615,13 +626,13 @@ Hint Rewrite isptr_match : norm1.
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) ->
-       sem_cast_neutral v = Some v.
+       sem_cast_pointer v = Some v.
 Proof.
 intros.
 destruct H as [t [? ?]].
 hnf in H.
 unfold is_pointer_type in H0.
-unfold sem_cast_neutral.
+unfold sem_cast_pointer.
 destruct (eqb_type t int_or_ptr_type);
 destruct t,v; inv H0; inv H; reflexivity.
 Qed.
@@ -629,19 +640,19 @@ Qed.
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
 Lemma eval_cast_neutral_is_pointer_or_null:
-   forall v, is_pointer_or_null v -> sem_cast_neutral v = Some v.
+   forall v, is_pointer_or_null v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
 Lemma is_pointer_or_null_eval_cast_neutral:
-  forall v, is_pointer_or_null (force_val (sem_cast_neutral v)) = is_pointer_or_null v.
+  forall v, is_pointer_or_null (force_val (sem_cast_pointer v)) = is_pointer_or_null v.
 Proof. destruct v; reflexivity. Qed.
 Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
 
 Lemma eval_cast_neutral_isptr:
-   forall v, isptr v -> sem_cast_neutral v = Some v.
+   forall v, isptr v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1256,14 +1267,41 @@ Proof.
 intros. apply prop_ext; apply and_assoc.
 Qed.
 
+Ltac splittablex_tac A :=
+ match A with
+ | _ <= _ < _ => fail 1
+ | _ < _ <= _ => fail 1
+ | _ <= _ <= _ => fail 1
+ | _ < _ < _ => fail 1
+ | _ <-> _ => fail 1
+ | _ /\ _ => apply Logic.I
+ end.
+
+Definition splittablex (A: Prop) := True.
+
+Lemma and_assoc_splittablex {T}{NT: NatDed T}: forall A B C: Prop,
+    splittablex (A /\ B) ->
+  !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
+Proof.
+intros. rewrite and_assoc'; auto.
+Qed.
+
 Lemma and_assoc'' {T}{NT: NatDed T}: forall A B C: Prop,
   !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
 Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
 
+
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : normalize.
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
+
+(*
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm1.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
+*)
 
 Ltac hoist_later_left :=
    match goal with

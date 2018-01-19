@@ -123,14 +123,14 @@ Definition f_insert := {|
                     (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
                       (Tstruct _tree noattr)) _left
                     (tptr (Tstruct _tree noattr)))
-                  (Econst_int (Int.repr 0) tint))
+                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
                 (Ssequence
                   (Sassign
                     (Efield
                       (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
                         (Tstruct _tree noattr)) _right
                       (tptr (Tstruct _tree noattr)))
-                    (Econst_int (Int.repr 0) tint))
+                    (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
                   (Ssequence
                     (Sassign
                       (Ederef
@@ -211,7 +211,7 @@ Definition f_lookup := {|
                   (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
                     (Tstruct _tree noattr)) _value (tptr tvoid)))
               (Sreturn (Some (Etempvar _v (tptr tvoid)))))))))
-    (Sreturn (Some (Econst_int (Int.repr 0) tint)))))
+    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))))
 |}.
 
 Definition f_turn_left := {|

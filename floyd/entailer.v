@@ -8,8 +8,18 @@ Require Import VST.floyd.sublist.
 
 Local Open Scope logic.
 
+Lemma ptrofs_of_ints_unfold: 
+  forall x, Ptrofs.of_ints x = Ptrofs.repr (Int.signed x).
+Proof. reflexivity. Qed.
+Hint Rewrite ptrofs_of_ints_unfold : norm.
+
+Lemma ptrofs_of_intu_unfold: 
+  forall x, Ptrofs.of_intu x = Ptrofs.repr (Int.unsigned x).
+Proof. reflexivity. Qed.
+Hint Rewrite ptrofs_of_intu_unfold : norm.
+
 Lemma isptr_force_val_sem_cast_neutral :
-  forall p, isptr p -> isptr (force_val (sem_cast_neutral p)).
+  forall p, isptr p -> isptr (force_val (sem_cast_pointer p)).
 Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
@@ -161,9 +171,9 @@ Ltac simpl_compare :=
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
-                            [ | repable_signed ..]; simpl in H
+                            [ | rep_omega ..]; simpl in H
                           | apply (int_cmp_repr Ceq) in H;
-                             [ | repable_signed ..]; simpl in H
+                             [ | rep_omega ..]; simpl in H
                           | idtac ]
                  | discriminate H
                  | idtac ]
@@ -172,28 +182,28 @@ Ltac simpl_compare :=
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;
-                            [ | repable_signed ..]; simpl in H
+                            [ | rep_omega ..]; simpl in H
                           | apply (int_cmp_repr' Ceq) in H;
-                            [ | repable_signed ..]; simpl in H
+                            [ | rep_omega ..]; simpl in H
                           | idtac]
                  | discriminate H
                  | idtac ]
  | H : Int.lt _ _ = false |- _ =>
          revert H; simpl_compare; intro H;
          try (apply (int_cmp_repr' Clt) in H ;
-                    [ | repable_signed ..]; simpl in H)
+                    [ | rep_omega ..]; simpl in H)
  | H : Int.lt _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Clt) in H ;
-                    [ | repable_signed ..]; simpl in H)
+                    [ | rep_omega ..]; simpl in H)
  | H : Int.eq _ _ = false |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr' Ceq) in H ;
-                    [ | repable_signed ..]; simpl in H)
+                    [ | rep_omega ..]; simpl in H)
  | H : Int.eq _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Ceq) in H ;
-                    [ | repable_signed ..]; simpl in H)
+                    [ | rep_omega ..]; simpl in H)
  | |- _ => idtac
 end.
 
@@ -263,8 +273,9 @@ Qed.
 Lemma valid_pointer_null:
   forall P, P |-- valid_pointer nullval.
 Proof.
-  intros. simpl valid_pointer.
- change predicates_hered.prop with prop. (* delete me *)
+  intros. unfold nullval, valid_pointer, valid_pointer'. 
+  destruct Archi.ptr64 eqn:Hp; simpl;
+ change predicates_hered.prop with prop; (* delete me *)
  normalize.
 Qed.
 
@@ -409,17 +420,27 @@ Ltac splittable :=
 Ltac prove_signed_range :=
   match goal with
   | |- Int.min_signed <= _ <= Int.max_signed => 
-           normalize; repable_signed
+           normalize; rep_omega
   | |- Int64.min_signed <= _ <= Int64.max_signed => 
-           normalize; repable_signed
+           normalize; rep_omega
   end.
 
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
 Proof.
 destruct x; simpl; intros; try contradiction.
-split; auto. apply Int.eq_true.
+split; auto. apply Ptrofs.eq_true.
 Qed.
 Hint Resolve ptr_eq_refl : prove_it_now.
+
+Lemma ptr_eq_nullval: ptr_eq nullval nullval.
+Proof.
+Transparent Archi.ptr64.
+unfold ptr_eq, nullval; simpl.
+split3; auto.
+Opaque Archi.ptr64.
+Qed.
+
+Hint Resolve ptr_eq_nullval : prove_it_now.
 
 Hint Extern 4 (value_fits _ _ _) =>
    (rewrite ?proj_sumbool_is_true by auto;
@@ -637,8 +658,10 @@ Ltac aggressive :=
 
 (**** try this out here, for now ****)
 
-Hint Rewrite Int.signed_repr using repable_signed : norm.
-Hint Rewrite Int.unsigned_repr using repable_signed : norm.
+Hint Rewrite Int.signed_repr using rep_omega : norm.
+Hint Rewrite Int.unsigned_repr using rep_omega : norm.
+Hint Rewrite Int64.signed_repr using rep_omega : norm.
+Hint Rewrite Int64.unsigned_repr using rep_omega : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -687,7 +710,7 @@ intros.
 subst.
 destruct p; try contradiction.
 simpl. rewrite Z.mul_0_r.
-rewrite Int.add_zero.
+rewrite Ptrofs.add_zero.
 apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.

@@ -108,7 +108,8 @@ Proof. reflexivity. Qed.
 Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
 Proof. reflexivity. Qed.
 
-Ltac repable_signed :=
+
+Ltac rep_omega' :=
    pose proof int_min_signed_eq;
    pose proof int_max_signed_eq;
    pose proof int_max_unsigned_eq;
@@ -127,7 +128,7 @@ Hint Rewrite Z.ones_spec_high using omega : testbit.
 Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
-Hint Rewrite Int.unsigned_repr using repable_signed : testbit.
+Hint Rewrite Int.unsigned_repr using rep_omega' : testbit.
 
 Lemma Ztest_Inttest:
  forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
@@ -180,7 +181,7 @@ unfold Z_to_Int, Shr; simpl.
 change 255%Z with (Z.ones 8).
 repeat f_equal; auto;
 match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
-   [f_equal | apply Int.unsigned_repr; repable_signed]
+   [f_equal | apply Int.unsigned_repr; rep_omega']
 end;
 apply Int.same_bits_eq; intros;
 autorewrite with testbit.
@@ -374,7 +375,7 @@ Lemma Forall_isbyteZ_unsigned_repr:
  forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
 Proof. induction 1. constructor.
 constructor. rewrite Int.unsigned_repr; auto.
-unfold isbyteZ in H; repable_signed.
+unfold isbyteZ in H; rep_omega'.
 apply IHForall.
 Qed.
 

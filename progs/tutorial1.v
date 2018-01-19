@@ -26,7 +26,7 @@ Exists b.
 entailer!.
 Qed.
 
-(* These examples of [repable_signed] are from is from the "Integers: nat, Z, int" chapter of the Verifiable C Reference Manual *)
+(* These examples of [rep_omega] are from is from the "Integers: nat, Z, int" chapter of the Verifiable C Reference Manual *)
 Lemma exercise2:
   forall x,
   Int.min_signed <= x <= Int.max_signed ->
@@ -34,7 +34,7 @@ Lemma exercise2:
 Proof.
 intros x H.
 (* Notice that the premise H is needed for the next line *)
-rewrite Int.signed_repr by repable_signed.
+rewrite Int.signed_repr by rep_omega.
 auto.
 Qed.
 
@@ -43,10 +43,10 @@ Lemma exercise3:
   Int.min_signed <= 0 <= n.
 Proof.
 intros.
-repable_signed.
+rep_omega.
 Qed.
 
-Print Ltac repable_signed.
+Print Ltac rep_omega.
 
 
 

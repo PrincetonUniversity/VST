@@ -6,7 +6,7 @@ Require Import WandDemo.list.
 Require Import WandDemo.list_lemmas.
 
 Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
 Proof.
   intros.
   destruct p; try contradiction; reflexivity.

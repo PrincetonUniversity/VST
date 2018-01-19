@@ -73,7 +73,7 @@ destruct (Int.ltu c Int.iwordsize) eqn:?H.
     apply ltu_false_inv in H1.
     unfold Int.sub in H1.
     change (Int.unsigned (Int.repr 32)) with 32 in H1.
-    rewrite Int.unsigned_repr in H1 by repable_signed.
+    rewrite Int.unsigned_repr in H1 by rep_omega.
     change (Int.unsigned Int.iwordsize) with 32 in H1.
     omega.
   } Unfocus.
@@ -84,7 +84,7 @@ Time forward. (*8.8*)
   rewrite H0, H1; simpl; auto.
   split3; auto.
   unfold Int.signed.
-  if_tac. repable_signed. repable_signed.
+  if_tac. rep_omega. repable_signed.
 =======
   rewrite H0, H1; simpl; auto. intuition. omega.
 >>>>>>> master
@@ -98,7 +98,7 @@ rewrite Z.mod_small, W; simpl; try omega.
 unfold Int.sub.
 rewrite Int.and_mone.
 change (Int.unsigned (Int.repr 32)) with 32.
-rewrite Int.unsigned_repr by repable_signed.
+rewrite Int.unsigned_repr by rep_omega.
 auto.
 Time Qed. (*0.9*)
 *)
