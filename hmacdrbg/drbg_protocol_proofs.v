@@ -280,7 +280,7 @@ Proof.
   rename H into HDlen1; rename H0 into HDlen2; rename H1 into HData.
   unfold seedbufREP.
   rewrite extract_exists_in_SEP. Intros Ctx.
-  rename H into WF1. rename H0 into WF2. rename H1 into WF3. rename H2 into WF4. 
+  rename H into WF1. rename H0 into WF2. rename H1 into WF3.
   rewrite data_at_isptr with (p:=ctx). Intros.
   destruct ctx; try contradiction; clear Pctx.
   unfold_data_at 1%nat.

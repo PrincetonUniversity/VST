@@ -92,9 +92,7 @@ apply andp_right; [ | apply andp_left2; auto].
 repeat rewrite exp_andp2. apply exp_left; intro i.
 repeat rewrite exp_andp2. apply exp_left; intro x.
 eapply derives_trans; [ | apply (H0 i x)].
-go_lowerx; normalize. apply andp_right; auto. apply prop_right; repeat (split; auto).
-destruct H4; auto.
-destruct H4; auto.
+go_lowerx; normalize.
 *
 rewrite exp_andp2.
 apply extract_exists_pre. intro i.
@@ -261,7 +259,7 @@ normalize;
  apply andp_right; auto.
 apply prop_right.
 split; auto.
-clear - H3; omega.
+clear - H3 H4; omega.
 Qed.
 
 Lemma semax_for_simple_u :
@@ -342,9 +340,7 @@ apply andp_right; [ | apply andp_left2; auto].
 repeat rewrite exp_andp2. apply exp_left; intro i.
 repeat rewrite exp_andp2. apply exp_left; intro x.
 eapply derives_trans; [ | apply (H0 i x)].
-go_lowerx; normalize. apply andp_right; auto. apply prop_right; repeat (split; auto).
-destruct H4; auto.
-destruct H4; auto.
+go_lowerx; normalize. 
 *
 rewrite exp_andp2.
 apply extract_exists_pre. intro i.
@@ -562,7 +558,7 @@ instantiate (1:=i).
 go_lowerx. normalize. apply andp_right; auto.
 apply prop_right.
 split; [omega | ].
-split. split; auto. split; auto.
+split; auto.
 +
 apply exp_left; intro i.
 rewrite exp_andp2.
@@ -585,8 +581,9 @@ instantiate (1:=i).
 apply andp_left2. go_lowerx; normalize.
 apply andp_right; auto.
 apply prop_right.
-split; auto. omega. split; auto. split; auto.
+split; auto.
 rewrite <- H4 in H3; normalize in H3.
+omega.
 intros.
 apply andp_left2.
 go_lowerx; normalize.
@@ -595,7 +592,7 @@ normalize.
 apply andp_right; auto.
 apply prop_right.
 split; auto. omega. split; auto. split; auto.
-omega. split; auto. omega.
+omega.
 Qed.
 
 Lemma semax_for_simple_bound :
@@ -719,7 +716,7 @@ instantiate (1:=i).
 go_lowerx. normalize. apply andp_right; auto.
 apply prop_right.
 split; [omega | ].
-split. split; auto. split; auto.
+split; auto.
 +
 apply exp_left; intro i.
 rewrite exp_andp2.
@@ -740,8 +737,9 @@ instantiate (1:=i).
 apply andp_left2. go_lowerx; normalize.
 apply andp_right; auto.
 apply prop_right.
-split; auto. omega. split; auto. split; auto.
+split; auto.
 rewrite <- H4 in H3; normalize in H3.
+omega.
 intros.
 apply andp_left2.
 rewrite exp_andp2. apply exp_derives; intro x0.
@@ -749,7 +747,7 @@ go_lowerx; normalize.
 apply andp_right; auto.
 apply prop_right.
 split; auto. omega. split; auto. split; auto.
-omega. split; auto. omega.
+omega.
 Qed.
 
 Lemma semax_for_simple_bound_u :
@@ -890,9 +888,8 @@ autorewrite with subst.
 Exists lo x.
 go_lowerx. normalize. apply andp_right; auto.
 apply prop_right.
-split; [omega  |].
 split.
-split. omega. split; auto. omega.
+split; [omega  | auto].
 unfold_lift; split; auto.
 *
 intros i x.
@@ -928,7 +925,6 @@ apply exp_right with x0; normalize.
 apply andp_right; [apply prop_right | auto].
 split; [omega | ].
 split; auto.
-split; [omega | ].
 split; [omega | ].
 auto.
 Qed.
@@ -1071,9 +1067,8 @@ autorewrite with subst.
 Exists lo x.
 go_lowerx. normalize. apply andp_right; auto.
 apply prop_right.
-split; [omega  |].
-split.
-split. omega. split; auto. omega.
+split. 
+split; [omega  | auto].
 unfold_lift; split; auto.
 *
 intros i x.
@@ -1107,7 +1102,6 @@ apply exp_right with x0; normalize.
 apply andp_right; [apply prop_right | auto].
 split; [omega | ].
 split; auto.
-split; [omega | ].
 split; [omega | ].
 auto.
 Qed.

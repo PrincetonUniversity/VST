@@ -106,7 +106,7 @@ forward.  (* d = self->data; *)
 forward.  (* self -> data = d+2*i; *) 
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.
- entailer!. rep_omega. 
+ entailer!.
 forward.  (* return d+i; *)
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.

@@ -425,7 +425,7 @@ Proof.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H1 H4.
+        subst x. clear H H1 H3.
         forward. (* q->value=value *)
         forward. (* return *)
         (* TODO: SIMPLY THIS LINE *)
@@ -487,7 +487,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists qa qb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by omega. subst x. clear H H4 H3.
       forward. (* v=q->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.

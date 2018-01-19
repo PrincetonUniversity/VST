@@ -123,9 +123,7 @@ replace (fun a : environ =>
 apply andp_right; [ | apply andp_left2; auto].
 repeat rewrite exp_andp2. apply exp_left; intro i. 
 eapply derives_trans; [ | apply (H0 i)].
-go_lowerx; normalize. apply andp_right; auto. apply prop_right; repeat (split; auto).
-destruct H4; auto.
-destruct H4; auto.
+go_lowerx; normalize.
 *
 rewrite exp_andp2.
 apply extract_exists_pre. intro i.
@@ -315,8 +313,8 @@ eapply (semax_for_simple_tulongHi_tuintLoop
 + intro.
   eapply semax_pre_post'; [ | | solve [eauto]].
   - instantiate (1:=i).
-    apply andp_left2. go_lowerx; entailer!. 
-    rewrite <- H4 in H3; simpl in H3. rewrite Int64.unsigned_repr in H3; trivial. 
+    apply andp_left2. go_lowerx; entailer!.
+    rewrite <- H4 in H3; simpl in H3. rewrite Int64.unsigned_repr in H3; trivial. omega. 
   - intros.
     apply andp_left2.
     go_lowerx; entailer!.

@@ -1267,14 +1267,41 @@ Proof.
 intros. apply prop_ext; apply and_assoc.
 Qed.
 
+Ltac splittablex_tac A :=
+ match A with
+ | _ <= _ < _ => fail 1
+ | _ < _ <= _ => fail 1
+ | _ <= _ <= _ => fail 1
+ | _ < _ < _ => fail 1
+ | _ <-> _ => fail 1
+ | _ /\ _ => apply Logic.I
+ end.
+
+Definition splittablex (A: Prop) := True.
+
+Lemma and_assoc_splittablex {T}{NT: NatDed T}: forall A B C: Prop,
+    splittablex (A /\ B) ->
+  !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
+Proof.
+intros. rewrite and_assoc'; auto.
+Qed.
+
 Lemma and_assoc'' {T}{NT: NatDed T}: forall A B C: Prop,
   !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
 Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
 
+
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : normalize.
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
+
+(*
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm1.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
+*)
 
 Ltac hoist_later_left :=
    match goal with

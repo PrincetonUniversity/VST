@@ -660,6 +660,8 @@ Ltac aggressive :=
 
 Hint Rewrite Int.signed_repr using rep_omega : norm.
 Hint Rewrite Int.unsigned_repr using rep_omega : norm.
+Hint Rewrite Int64.signed_repr using rep_omega : norm.
+Hint Rewrite Int64.unsigned_repr using rep_omega : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 

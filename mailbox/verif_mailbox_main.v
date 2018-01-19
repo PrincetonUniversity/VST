@@ -274,7 +274,7 @@ Proof.
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
          ghost_var gsh1 (vint b0) g0)).
-  { Exists 1 ([] : hist); entailer!.
+  { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.
     unfold latest_read; auto. }
   eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros b0 h.
@@ -316,7 +316,7 @@ Proof.
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    { split; [repeat constructor; computable | omega]. }
+    { split. unfold B, N.  computable. split; try omega. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
