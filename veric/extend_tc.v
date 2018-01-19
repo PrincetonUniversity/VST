@@ -278,6 +278,11 @@ destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
 try apply extend_tc_nosignedover;
 if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+destruct (eval_expr e1 any_environ); try apply extend_prop;
+destruct (eval_expr e2 any_environ); try apply extend_prop;
+try apply extend_tc_nosignedover;
+if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+all: if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
 Qed.
 
 Lemma boxy_orp {A} `{H : ageable A}:

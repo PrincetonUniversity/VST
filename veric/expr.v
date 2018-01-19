@@ -329,6 +329,11 @@ Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
                                    (Int64.eq n1 (Int64.repr Int64.min_signed)
                                     && Int64.eq n2 Int64.mone))
                                      then tc_TT else tc_nodivover' e1 e2
+                           | Vint n1, Vlong n2 => tc_TT
+                           | Vlong n1, Vint n2 => if (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int.eq n2 Int.mone))
+                                     then tc_TT else tc_nodivover' e1 e2
                            | _ , _ => tc_nodivover' e1 e2
                           end.
 
@@ -341,6 +346,7 @@ Definition range_s64 (i: Z) : bool :=
 Definition if_expr_signed (e: expr) (tc: tc_assert) : tc_assert :=
  match typeof e with
  | Tint _ Signed _ => tc
+ | Tlong Signed _ => tc
  | _ => tc_TT
  end.
 
@@ -352,6 +358,12 @@ Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert 
      then tc_TT else tc_nosignedover Z.add e1 e2
  | Vlong n1, Vlong n2 => 
     if range_s64 (op (Int64.signed n1) (Int64.signed n2))
+     then tc_TT else tc_nosignedover op e1 e2
+ | Vint n1, Vlong n2 =>
+    if range_s64 (op (Int.signed n1) (Int64.signed n2))
+     then tc_TT else tc_nosignedover op e1 e2
+ | Vlong n1, Vint n2 =>
+    if range_s64 (op (Int64.signed n1) (Int.signed n2))
      then tc_TT else tc_nosignedover op e1 e2
  | _ , _ => tc_nosignedover op e1 e2
  end.

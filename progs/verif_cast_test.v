@@ -27,20 +27,17 @@ Proof.
 start_function.
 (* i64 n, b, c;  u8 d *)
 forward.  (* b = n * 2; *)
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  c = 2 * n; *)
-entailer!.
-rewrite Int64.signed_repr by rep_omega.
-rep_omega.
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  b = b + 4; *)
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  b = (-4) + b; *)
-entailer!.
-rewrite Int64.signed_repr by rep_omega.
-rep_omega.
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  c = c - 4; *)
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  c = 4 - c; *)
-entailer!.
-rewrite Int64.signed_repr by rep_omega.
-rep_omega.
+entailer!. rewrite Int64.signed_repr; rep_omega.
 forward.  (*  b = b >> 8; *)
 forward.  (*  c = c << 8; *)
 forward.  (*  d = c & 0xff; *)

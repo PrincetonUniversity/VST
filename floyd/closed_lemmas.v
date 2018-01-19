@@ -1561,8 +1561,10 @@ destruct (typeof e1); auto with closed.
 destruct s; auto with closed.
 destruct (eval_expr e1 any_environ); auto with closed;
 destruct (eval_expr e2 any_environ); auto with closed.
-if_tac; auto with closed.
-if_tac; auto with closed.
+all: if_tac; auto with closed.
+destruct (eval_expr e1 any_environ); auto with closed;
+destruct (eval_expr e2 any_environ); auto with closed.
+all: if_tac; auto with closed.
 Qed.
 
 Hint Resolve closed_wrt_tc_nobinover : closed.

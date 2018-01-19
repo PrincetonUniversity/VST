@@ -369,6 +369,17 @@ Proof.
       rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
       rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
       simpl. rewrite Heqb. reflexivity.
+  +  rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+   reflexivity.
+  + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+    destruct (negb (Int64.eq i (Int64.repr Int64.min_signed) && Int.eq i0 Int.mone)) eqn:?.
+    - simpl; reflexivity.
+    - simpl. unfold_lift.
+      rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+      rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+      simpl. rewrite Heqb. reflexivity.
   + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
     rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
     destruct (negb (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq i0 Int64.mone)) eqn:?.
