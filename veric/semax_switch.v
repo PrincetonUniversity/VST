@@ -144,6 +144,7 @@ intros w ? ? ? ?.
 apply H; auto. eapply pred_nec_hereditary; eauto.
 Qed.
 
+(*Moved to semax_lemmas
 Lemma semax_eq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
   semax Espec Delta P c R = 
@@ -161,7 +162,7 @@ intros.
 extensionality w.
 rewrite semax_fold_unfold.
 apply prop_ext; intuition.
-Qed.
+Qed.*)
 
 Lemma imp_right:
  forall A (agA: ageable A) (P Q R : pred A),

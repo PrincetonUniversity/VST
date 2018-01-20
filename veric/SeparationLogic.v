@@ -1390,6 +1390,11 @@ Axiom semax_pre_post:
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
+Axiom semax_label:
+   forall {Espec: OracleKind} {cs:compspecs},
+     forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
+
 (**************** END OF stuff from semax_rules ***********)
 
 Axiom semax_frame:
