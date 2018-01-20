@@ -42,6 +42,7 @@ git:
 
 install:
 - opam --version
+- opam update && opam upgrade
 - "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
 #- opam switch ${COMPILER}
 - eval $(opam config env)
