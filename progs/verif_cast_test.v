@@ -37,11 +37,12 @@ forward.  (*  c = c << 8; *)
 forward.  (*  d = c & 0xff; *)
 forward.  (*  d = d & b; *)
 forward.  (* return d *)
-entailer!. clear- H. f_equal.
-rewrite Int.zero_ext_idem by computable.
-replace  (- (4) + (n * 2 + 4))%Z with (n*2)%Z by omega.
-replace (4 - (2*n-4)) with (8-(n*2)) by omega.
-admit.  (* might be fine . . . *)
-Admitted.
+entailer!. clear.
+rewrite <- Int64.mul_pow2 with (n:= Int64.repr 256) by reflexivity.
+normalize.
+rewrite (Z.land_ones _ 8) by computable.
+rewrite Z_mod_mult.
+reflexivity.
+Qed.
 
 
