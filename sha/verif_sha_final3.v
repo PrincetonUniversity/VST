@@ -168,10 +168,10 @@ Proof.
   {
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
         by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
-    Time saturate_local.
     change (memory_block Tsh 64) with (memory_block Tsh (sizeof (tarray tuchar 64))).
+    entailer!.
     rewrite memory_block_data_at_ by auto.
-    Time cancel.
+    cancel.
   }
  gather_SEP 0 1 3 4 5.
  replace_SEP 0 (data_at Tsh t_struct_SHA256state_st

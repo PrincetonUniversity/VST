@@ -107,7 +107,6 @@ forward_for_simple_bound 16
        data_block sh (intlist_to_Zlist b) data)).
 * (* precondition of loop entails the loop invariant *)
  rewrite Round_equation. rewrite if_true by (compute; auto).
- change 16 with LBLOCKz.
  entailer!.
 * (* loop body & loop condition preserves loop invariant *)
 assert_PROP (data_block sh (intlist_to_Zlist b) data =
@@ -198,7 +197,7 @@ do 8 forward.
 entailer!.
 unfold nthi; simpl nth.
 split3.
-+ rewrite Z.mul_add_distr_r; reflexivity.
++ f_equal. omega.
 + f_equal.  f_equal.
   rewrite rearrange_aux. rewrite rearrange_aux. auto.
 + f_equal. f_equal.
