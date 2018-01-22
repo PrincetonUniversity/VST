@@ -309,6 +309,8 @@ try apply initialized_tycontext_evolve.
 eapply tycontext_evolve_trans; [ apply IHc1 | apply IHc2].
 apply tycontext_evolve_join; auto.
 auto.
+auto.
+
 clear tycontext_evolve_join_labeled.
 induction l; simpl; auto; intros.
 apply tycontext_evolve_refl.

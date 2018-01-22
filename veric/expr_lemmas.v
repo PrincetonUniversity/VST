@@ -69,7 +69,12 @@ destruct H. exists x1. split. destruct H. auto. left. auto.
 *
  edestruct (update_labeled_te_same l Delta id).  apply H0.
  edestruct H. apply H1.
-destruct H2. exists x0. split; auto. destruct b; simpl; auto.
+ destruct H2. exists x0. split; auto. destruct b; simpl; auto.
+* destruct (update_tycon_te_same c _ _ _ _ H0) as [bb HH].
+  simpl in HH.
+  destruct (H _ _ _ HH) as [v [AA BB]]. exists v; split; trivial.
+  destruct BB. 2: right; trivial.
+  destruct b; simpl in *. contradiction. left; trivial.
 *
 intros. destruct l; simpl in *.
 exists b; assumption.
@@ -84,14 +89,14 @@ typecheck_var_environ (ve_of rho) (var_types Delta).
 Proof.
 intros.
 intros id t; specialize (H id t).
-destruct c; simpl in *; try apply H;
+induction c; simpl in *; try apply H;
 try destruct o; try rewrite set_temp_ve in *;
  try apply H.
 repeat rewrite update_tycon_same_ve in *; auto.
 rewrite var_types_update_dist, update_tycon_same_ve in H; auto.
 rewrite update_le_same_ve in H; auto.
+auto.
 Qed.
-
 
 
 Lemma typecheck_environ_update_ge : forall (rho : environ) (c : statement) (Delta : tycontext),

@@ -400,7 +400,7 @@ match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
 match tycon2 with  mk_tycontext te2 _ _ _ _ =>
   mk_tycontext (join_te te1 te2) ve1 r vl1 g1
 end end.
-
+Print Clight.statement.
 (** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
  match c with
@@ -413,6 +413,7 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Sloop _ _ => Delta
  | Sswitch e ls => join_tycon_labeled ls Delta
  | Scall (Some id) _ _ => (initialized id Delta)
+ | Slabel _ s => update_tycon Delta s
  | _ => Delta  (* et cetera *)
 end
 
@@ -615,10 +616,12 @@ rewrite var_types_update_tycon. apply var_types_update_tycon.
 rewrite var_types_update_dist. apply var_types_update_tycon.
 apply var_types_join_labeled.
 
+apply var_types_update_tycon.
+
 intros. destruct l. simpl. auto.
+
 simpl. rewrite var_types_update_dist.
 rewrite var_types_update_tycon. reflexivity.
-
 Qed.
 
 Lemma glob_types_update_tycon:
@@ -640,6 +643,8 @@ auto.
 simpl.  rewrite glob_types_update_dist. auto.
 
 auto.
+
+simpl; auto.
 
 clear glob_types_join_labeled.
 intros. simpl.
@@ -667,6 +672,8 @@ auto.
 simpl.  rewrite glob_specs_update_dist. auto.
 
 auto.
+
+simpl; auto.
 
 clear glob_specs_join_labeled.
 intros. simpl.
@@ -710,6 +717,7 @@ Proof.
   auto.
   simpl.  rewrite func_tycontext'_update_dist. auto.
   apply func_tycontext'_join_labeled.
+  simpl; auto.
 + clear func_tycontext'_join_labeled.
   intros. simpl.
   destruct l. simpl. auto.
@@ -760,6 +768,8 @@ erewrite join_te_eqv;
 eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
 
 apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*)
+
+simpl; auto.
 
 intros. destruct ls. simpl. exists false.
 rewrite H. f_equal. f_equal. destruct b; reflexivity.
@@ -818,6 +828,8 @@ rewrite update_tycon_eqv_ve. auto.
 
 erewrite update_le_eqv_ve. auto.
 
+auto.
+ 
 intros.
  destruct l. simpl in *. auto.
  simpl in *. rewrite var_types_update_dist.
@@ -842,6 +854,8 @@ rewrite ret_type_update_dist.
 rewrite update_tycon_eqv_ret. auto.
 
 rewrite update_le_eqv_ret. auto.
+
+auto.
 
 intros.
  destruct l. simpl in *.
@@ -885,6 +899,8 @@ rewrite glob_types_update_dist.
 rewrite update_tycon_eqv_ge. auto.
 erewrite update_le_eqv_ge. auto.
 
+auto. 
+
 intros.
  destruct l. simpl in *.
 auto.
@@ -910,6 +926,8 @@ rewrite update_tycon_eqv_gs. apply update_tycon_eqv_gs.
 rewrite glob_specs_update_dist.
 rewrite update_tycon_eqv_gs. auto.
 erewrite update_le_eqv_gs. auto.
+
+auto.
 
 intros.
  destruct l. simpl in *.
@@ -1547,3 +1565,19 @@ Record ret_assert : Type := {
  RA_continue: environ->mpred;
  RA_return: option val -> environ->mpred
 }.
+
+Lemma update_tycon_Slabel Delta l c: update_tycon Delta (Slabel l c) = update_tycon Delta c.
+Proof. reflexivity. Qed. 
+
+Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.
+Proof. reflexivity. Qed.
+
+Lemma exit_tycon_Slabel l c Delta b: 
+   exit_tycon (Slabel l c) Delta b = exit_tycon c Delta b.
+Proof. unfold exit_tycon. destruct b; trivial. Qed.
+
+Lemma exit_typcon_Slabel' l c Delta: 
+   exit_tycon (Slabel l c) Delta = exit_tycon c Delta.
+Proof. extensionality b. rewrite exit_tycon_Slabel. trivial. Qed.
+
+
