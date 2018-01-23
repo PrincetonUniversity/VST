@@ -189,10 +189,47 @@ Proof.
   entailer!.
 Qed.
 
+Module PartialTree_WandQFrame_Func_Hole.
+
+Definition partialT (rep: tree val -> val -> mpred) (pt: tree val -> tree val) (p_root p_in: val): mpred :=
+  ALL t: tree val, rep t p_in -* rep (pt t) p_root.
+
+Lemma partialT_rep_partialT_rep: forall rep pt12 pt23 p1 p2 p3,
+  partialT rep pt12 p2 p1 * partialT rep pt23 p3 p2 |-- partialT rep (Basics.compose pt23 pt12) p3 p1.
+Proof.
+  intros.
+  unfold partialT.
+  sep_apply (wandQ_frame_refine _ _ (fun t => rep t p2 -* rep (pt23 t) p3) pt12).
+  rewrite sepcon_comm.
+  apply wandQ_frame_ver.
+Qed.
+
+Lemma emp_partialT_rep_H: forall rep p,
+  emp |-- partialT rep (fun t => t) p p.
+Proof.
+  intros.
+  apply allp_right; intros.
+  apply wand_sepcon_adjoint.
+  normalize.
+Qed.
+
+Lemma rep_partialT_rep: forall rep t pt p q,
+  rep t p * partialT rep pt q p |-- rep (pt t) q.
+Proof.
+  intros.
+  unfold partialT.
+  change (rep (pt t) q) with ((fun t => rep (pt t) q) t).
+  change (rep t p) with ((fun t => rep t p) t).
+  apply wandQ_frame_elim.
+Qed.
+
+End PartialTree_WandQFrame_Func_Hole.
+
 Module PartialTreeboxRep_WandQFrame_Func_Hole.
 
-Definition partial_treebox_rep (pt: tree val -> tree val) (p_root p_in: val): mpred :=
-  ALL t: tree val, treebox_rep t p_in -* treebox_rep (pt t) p_root.
+Export PartialTree_WandQFrame_Func_Hole.
+
+Definition partial_treebox_rep := partialT treebox_rep.
 
 Lemma partial_treebox_rep_singleton_left: forall (t2: tree val) k (v p b: val),
   Int.min_signed <= Z.of_nat k <= Int.max_signed ->
@@ -204,7 +241,7 @@ Lemma partial_treebox_rep_singleton_left: forall (t2: tree val) k (v p b: val),
   |-- partial_treebox_rep (fun t1 => T t1 k v t2) b (field_address t_struct_tree [StructField _left] p).
 Proof.
   intros.
-  unfold partial_treebox_rep.
+  unfold partial_treebox_rep, partialT.
   apply allp_right; intros t1.
   rewrite <- wand_sepcon_adjoint.
   rewrite (treebox_rep_spec (T t1 k v t2)).
@@ -222,7 +259,7 @@ Lemma partial_treebox_rep_singleton_right: forall (t1: tree val) k (v p b: val),
   |-- partial_treebox_rep (fun t2 => T t1 k v t2) b (field_address t_struct_tree [StructField _right] p).
 Proof.
   intros.
-  unfold partial_treebox_rep.
+  unfold partial_treebox_rep, partialT.
   apply allp_right; intros t2.
   rewrite <- wand_sepcon_adjoint.
   rewrite (treebox_rep_spec (T t1 k v t2)).
@@ -232,34 +269,15 @@ Qed.
 
 Lemma partial_treebox_rep_partial_treebox_rep: forall pt12 pt23 p1 p2 p3,
   partial_treebox_rep pt12 p2 p1 * partial_treebox_rep pt23 p3 p2 |-- partial_treebox_rep (Basics.compose pt23 pt12) p3 p1.
-Proof.
-  intros.
-  unfold partial_treebox_rep.
-  sep_apply (wandQ_frame_refine _ _ (fun t => treebox_rep t p2 -* treebox_rep (pt23 t) p3) pt12).
-  rewrite sepcon_comm.
-  apply wandQ_frame_ver.
-Qed.
+Proof. apply partialT_rep_partialT_rep. Qed.
 
 Lemma emp_partial_treebox_rep_H: forall p,
   emp |-- partial_treebox_rep (fun t => t) p p.
-Proof.
-  intros.
-  apply allp_right; intros.
-  apply wand_sepcon_adjoint.
-  normalize.
-Qed.
+Proof. apply emp_partialT_rep_H. Qed.
 
 Lemma treebox_rep_partial_treebox_rep: forall t pt p q,
   treebox_rep t p * partial_treebox_rep pt q p |-- treebox_rep (pt t) q.
-Proof.
-  intros.
-  unfold partial_treebox_rep.
-  change (treebox_rep (pt t) q)
-    with ((fun t => treebox_rep (pt t) q) t).
-  change (treebox_rep t p)
-    with ((fun t => treebox_rep t p) t).
-  apply wandQ_frame_elim.
-Qed.
+Proof. apply rep_partialT_rep. Qed.
 
 End PartialTreeboxRep_WandQFrame_Func_Hole.
 
@@ -504,4 +522,27 @@ Qed.
 End PartialTreeboxRep_Ind_Pred_Ind_Hole.
 
 Definition Map_rep (m: total_map val) (p: val): mpred :=
-  EX t: tree val, !! (Abs val nullval t m /\ SearchTree val t) && treebox_rep t p.
+  EX t: tree val, !! (Abs val nullval t m /\ SearchTree val t) && tree_rep t p.
+
+Definition Mapbox_rep (m: total_map val) (p: val): mpred :=
+  EX q: val, data_at Tsh (tptr t_struct_tree) q p * Map_rep m q.
+
+Lemma Mapbox_rep_unfold: forall (m: total_map val) (p: val),
+  Mapbox_rep m p = EX t: tree val, !! (Abs val nullval t m /\ SearchTree val t) && treebox_rep t p.
+Proof.
+  intros.
+  apply pred_ext.
+  + unfold Mapbox_rep, Map_rep; Intros q t.
+    Exists t.
+    rewrite treebox_rep_tree_rep.
+    Exists q.
+    entailer!.
+  + Intros t.
+    rewrite treebox_rep_tree_rep.
+    Intros q.
+    unfold Mapbox_rep, Map_rep; Exists q t.
+    entailer!.
+Qed.
+
+Opaque Map_rep.
+Arguments Map_rep: simpl never.

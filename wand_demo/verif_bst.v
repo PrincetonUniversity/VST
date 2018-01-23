@@ -36,11 +36,11 @@ Definition insert_spec :=
         _value OF (tptr Tvoid)   ]
     PROP( Int.min_signed <= Z.of_nat x <= Int.max_signed; is_pointer_or_null v)
     LOCAL(temp _p p0; temp _x (Vint (Int.repr (Z.of_nat x))); temp _value v)
-    SEP (Map_rep m0 p0)
+    SEP (Mapbox_rep m0 p0)
   POST [ Tvoid ] 
     PROP()
     LOCAL()
-    SEP (Map_rep (t_update m0 x v) p0).
+    SEP (Mapbox_rep (t_update m0 x v) p0).
 
 Definition lookup_spec :=
  DECLARE _lookup
@@ -132,7 +132,7 @@ Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpr
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold Map_rep.
+  rewrite Mapbox_rep_unfold.
   Intros t0.
   rename H1 into ABS, H2 into ST.
   pose proof insert_relate _ _ x v _ _ ABS as ABS'.
@@ -168,6 +168,7 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
+      rewrite Mapbox_rep_unfold.
       Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
@@ -201,6 +202,7 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
+        rewrite Mapbox_rep_unfold.
         Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
@@ -228,7 +230,7 @@ Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpr
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold Map_rep.
+  rewrite Mapbox_rep_unfold.
   Intros t0.
   rename H1 into ABS, H2 into ST.
   pose proof insert_relate _ _ x v _ _ ABS as ABS'.
@@ -263,6 +265,7 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
+      rewrite Mapbox_rep_unfold.
       Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
@@ -294,6 +297,7 @@ Proof.
         subst x. clear H H1 H4.
         forward. (* q->value=value *)
         forward. (* return *)
+        rewrite Mapbox_rep_unfold.
         Exists (insert k v t0).
         entailer!.
         simpl_compb; simpl_compb.
@@ -319,7 +323,7 @@ Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpr
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold Map_rep.
+  rewrite Mapbox_rep_unfold.
   Intros t0.
   rename H1 into ABS, H2 into ST.
   pose proof insert_relate _ _ x v _ _ ABS as ABS'.
@@ -355,6 +359,7 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
+      rewrite Mapbox_rep_unfold.
       Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
@@ -390,6 +395,7 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
+        rewrite Mapbox_rep_unfold.
         Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
@@ -420,7 +426,7 @@ Arguments partial_treebox_rep: simpl never.
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold Map_rep.
+  rewrite Mapbox_rep_unfold.
   Intros t0.
   rename H1 into ABS, H2 into ST.
   pose proof insert_relate _ _ x v _ _ ABS as ABS'.
@@ -456,6 +462,7 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
+      rewrite Mapbox_rep_unfold.
       Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
@@ -491,6 +498,7 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
+        rewrite Mapbox_rep_unfold.
         Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
