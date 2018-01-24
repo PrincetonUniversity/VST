@@ -124,7 +124,7 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
  generate_and_pad msg = hashed++lastblock ->
 semax
   (initialized _cNl (initialized _cNh (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))))
   (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
@@ -375,7 +375,7 @@ intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
 semax
   (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))
   (PROP  ()
       LOCAL
       (temp _p
@@ -557,5 +557,5 @@ Proof.
   * apply Zlength_Zlist_to_intlist.
      rewrite Zlength_map; assumption.
   * eapply generate_and_pad_lemma1; eassumption.
-Time Qed. (*58.4 *)
+Time Qed. (*VST2.0: 3.1s *)
 

@@ -1069,10 +1069,10 @@ Axiom semax_extensionality_Delta:
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
-    forall Espec ts x,
-      @semax C Espec (func_tycontext f V G)
+    forall Espec ts x, (*exists Ann,*)
+      @semax C Espec (func_tycontext f V G nil (*Ann*))
           (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
@@ -1111,7 +1111,7 @@ Axiom semax_func_cons:
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
        precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ) ->
+      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs)
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
@@ -1390,10 +1390,16 @@ Axiom semax_pre_post:
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
-Axiom semax_label:
+Axiom semax_Slabel:
    forall {Espec: OracleKind} {cs:compspecs},
      forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
    @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
+
+Axiom semax_seq_Slabel:
+   forall {Espec: OracleKind} {cs:compspecs},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
 
 (**************** END OF stuff from semax_rules ***********)
 

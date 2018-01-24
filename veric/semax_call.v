@@ -192,14 +192,14 @@ Proof.
   assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig0 cc A P' Q' NEP' NEQ')).
   Focus 1. {
     clear - H HT TS.
-    destruct TS as [_ [_ [_ [SUB SUBsp]]]].
+    destruct TS as [_ [_ [_ [SUB [SUBsp _]]]]].
     specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
   } Unfocus.
   assert (H'': (glob_types Delta') ! id =
     Some (type_of_funspec (mk_funspec fsig0 cc A P' Q' NEP' NEQ'))).
   Focus 1. {
     clear - H HT TS.
-    destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
+    destruct TS as [_ [_ [_ [SUB [SUBsp _]]]]]. specialize (SUB id).
     hnf in SUB; rewrite H in SUB; auto.
   } Unfocus.
   clear H HT TS. rename H'' into H.
@@ -420,8 +420,8 @@ Proof.
           (sem_cast (typeof a) t
              (eval_expr a
                 (construct_rho (filter_genv psi) vx tx)))) as v.
- rewrite cop2_sem_cast'; auto.
- eapply typecheck_expr_sound; eauto.
+ rewrite cop2_sem_cast'; try eassumption.
+ eapply typecheck_expr_sound; eassumption.
 Qed.
 
 Lemma bind_parameter_temps_excludes :
@@ -597,7 +597,7 @@ Lemma semax_call_typecheck_environ:
     (mk_tycontext
       (make_tycontext_t (fn_params f) (fn_temps f))
       (make_tycontext_v (fn_vars f))
-      (fn_return f)  (glob_types Delta) (glob_specs Delta))
+      (fn_return f)  (glob_types Delta) (glob_specs Delta) (annotations Delta))
      (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 Proof.
  intros.

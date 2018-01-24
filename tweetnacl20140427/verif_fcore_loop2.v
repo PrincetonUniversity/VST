@@ -17,7 +17,7 @@ Definition Y_content (y: list val)
 
 Lemma f_core_loop2: forall (Espec : OracleKind) FR c k h nonce out w x y t
   (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-  (Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (xInit : list val)
   (XInit : xInit = upd_upto data 4 (list_repeat 16 Vundef)),
 @semax CompSpecs Espec
@@ -106,4 +106,4 @@ Proof. intros. abbreviate_semax.
         + (*rewrite <- APP1.*) thaw FR2. Time cancel. (*0.1*)  }
   }
   apply andp_left2; apply derives_refl.
-Time Qed. (*13*)
+Time Qed. (*VST 2.0: 0.6s *) (*13s*)

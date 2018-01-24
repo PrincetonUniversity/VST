@@ -168,7 +168,7 @@ Definition Delta_loop1 : tycontext :=
                           (initialized _b
                              (initialized _a
                                 (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
+     (func_tycontext f_sha256_block_data_order Vprog Gtot nil)))))))))).
 
 Definition c64 := 64%nat.  Global Opaque c64.
 Definition c48 := 48%nat.  Global Opaque c48.

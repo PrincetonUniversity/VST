@@ -4,9 +4,6 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result ::= idtac.
-
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
 Require Import tweetnacl20140427.tweetNaclBase.
@@ -15,6 +12,9 @@ Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
 Require Import VST.floyd.library.
+
+(*TODO: eliminate*)
+Ltac canon_load_result ::= idtac.
 
 Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data.
@@ -106,7 +106,7 @@ Definition array_copy1_statement :=
 Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
   (J:0<=j<4),
  semax (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j));
    lvar _t (tarray tuint 4) t;
@@ -364,7 +364,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3):
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -555,5 +555,5 @@ simpl in *.
 subst.
 rewrite <- Z0, <- Z1, <- Z2, <- Z3.
 reflexivity.
-Time Qed. (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
+Time Qed. (*VST 2.0: 4.9s*) (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
 

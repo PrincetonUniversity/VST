@@ -114,7 +114,7 @@ Definition Delta_update_inner_if : tycontext :=
   (initialized _fragment
      (initialized _p
         (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))).
+           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot nil))))).
 
 Lemma data_block_data_field:
  forall sh dd dd' c,
@@ -255,14 +255,7 @@ semax Delta_update_inner_if
                  sha256state_ a' c; data_block sh data d)))
       emp)).
 Proof.
-intros.
-name c' _c.
-name data_ _data_.
-name len' _len.
-name data' _data.
-name p _p.
-name n _n.
-name fragment_ _fragment.
+intros. 
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
  set (k := 64-Zlength dd).

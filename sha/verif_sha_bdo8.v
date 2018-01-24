@@ -36,7 +36,7 @@ Lemma sha256_block_load8:
    (H5 : length r_h = 8%nat),
      semax
       (initialized _data
-         (func_tycontext f_sha256_block_data_order Vprog Gtot))
+         (func_tycontext f_sha256_block_data_order Vprog Gtot nil))
   (PROP  ()
    LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
                 gvar  _K256 kv)

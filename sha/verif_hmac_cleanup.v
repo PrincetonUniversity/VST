@@ -36,7 +36,7 @@ Qed.
 
 (*Here's the proof for the alternative specification:*)
 Lemma cleanupbodyproof1 Espec c h :
-@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))

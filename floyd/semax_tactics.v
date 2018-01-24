@@ -53,14 +53,14 @@ Fixpoint initialized_list ids D :=
  | i::il => initialized_list il (initialized i D)
  end.
 
-Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
+Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 ann d',
     initialized_list il
       match a1 ! i with
        | Some (ty, _) =>
-          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5
-       | None => mk_tycontext a1 a2 a3 a4 a5
+          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5 ann
+       | None => mk_tycontext a1 a2 a3 a4 a5 ann
        end = d' ->
-    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5) = d'.
+    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5 ann) = d'.
 Proof. intros; subst; reflexivity.
 Qed.
 
@@ -94,17 +94,18 @@ end.
 
 Ltac check_ground_Delta :=
 match goal with
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _) |- _ =>
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _ ?Ann) |- _ =>
    first [check_ground_ptree A | fail 99 "Temps component of Delta not a ground PTree"];
    first [check_ground_ptree B | fail 99 "Local Vars component of Delta not a ground PTree"];
-   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"]
+   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"];
+   first [check_ground_ptree Ann | fail 99 "Annotation component of Delta not a ground PTree"]
 end;
 match goal with
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
    DS' := @abbreviate (PTree.t funspec) ?E  |- _ =>
    constr_eq DS DS';
    first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
    DS' : (PTree.t funspec) |- _ =>
    constr_eq DS DS'
 end.
@@ -112,11 +113,11 @@ end.
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
 Ltac simplify_func_tycontext' DD :=
-  match DD with context [(func_tycontext ?f ?V ?G)] =>
+  match DD with context [(func_tycontext ?f ?V ?G ?A)] =>
    ensure_no_augment_funspecs G;
     let D1 := fresh "D1" in let Delta := fresh "Delta" in
-    pose (Delta := @abbreviate tycontext (func_tycontext f V G));
-    change (func_tycontext f V G) with Delta;
+    pose (Delta := @abbreviate tycontext (func_tycontext f V G A));
+    change (func_tycontext f V G A) with Delta;
     unfold func_tycontext, make_tycontext in Delta;
     let DS := fresh "Delta_specs" in let DS1 := fresh "DS1" in 
     pose (DS1 := make_tycontext_s G);
@@ -151,7 +152,7 @@ Ltac simplify_Delta_at DS Delta D :=
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
-    mk_tycontext a b c d _ => mk_tycontext a b c d DS
+    mk_tycontext a b c d _ ann => mk_tycontext a b c d DS ann
   end.
 
 Ltac compute_in_Delta :=
@@ -388,17 +389,17 @@ Ltac initialized_temps_of_fundec F Delta :=
      let v2 := (eval simpl in vv) in
         v2.
 
-Ltac mkConciseDelta V G F Delta :=
+Ltac mkConciseDelta V G F Ann Delta :=
   let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
     let inits := (eval simpl in vv) in
-    change Delta with (initialized_list inits (func_tycontext F V G))(*;
+    change Delta with (initialized_list inits (func_tycontext F V G Ann))(*;
     refold_temp_names F;
   clear Delta*).
 
-Ltac semax_subcommand V G F :=
+Ltac semax_subcommand V G F Ann :=
   abbreviate_semax;
   match goal with |- semax ?Delta _ _ _ =>
-      mkConciseDelta V G F Delta;
+      mkConciseDelta V G F Ann Delta;
       repeat
          match goal with
           | P := @abbreviate statement _ |- _ => unfold abbreviate in P; subst P

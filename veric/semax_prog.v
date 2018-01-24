@@ -54,10 +54,10 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q _ _) =>
-    forall Espec ts x,
-      semax Espec (func_tycontext f V G)
+    forall Espec ts x, 
+      semax Espec (func_tycontext f V G nil)
           (fun rho => P ts x rho * stackframe_of f rho)
            (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
@@ -332,8 +332,8 @@ subst A' fsig cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
-specialize (H3 Espec ts x).
-rename H3 into H4.
+specialize (H3 Espec ts x). 
+rename H3 into H4. (* destruct H3 as [Ann H4].*)
 pose proof I.
 specialize (H4 n).
 apply now_later.
@@ -344,6 +344,18 @@ revert n H4.
 apply allp_derives; intro gx.
 apply allp_derives; intro Delta'.
 apply imp_derives; auto.
+(*{ unfold func_tycontext, func_tycontext'. simpl.
+  apply prop_derives. intros [AA BB]; split; trivial.
+  eapply tycontext_sub_trans. 2: eassumption.
+  unfold make_tycontext; simpl.
+  repeat split; simpl; intros.
+  + destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id ); trivial.
+    destruct p. rewrite orb_comm, orb_negb_r; split; trivial.
+  + apply sub_option_refl.
+  + apply sub_option_refl.
+  + rewrite PTree.gempty.
+    unfold Annotation_sub; simpl. destruct (PTree.get id (make_tycontext_a Ann)); trivial. destruct a; trivial.
+} *)
 apply imp_derives; auto.
 apply allp_derives; intro k.
 apply allp_derives; intro F.
@@ -746,7 +758,7 @@ if_tac.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
-  make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G.
+  make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
 
 Lemma match_globvars_in':
   forall i t vl vs,
@@ -1255,7 +1267,7 @@ Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext :=
   make_tycontext
     (params_of_types
        1 ((Tfunction (type_of_params (params_of_types 2 tys)) Tvoid cc_default) :: tys))
-    nil nil Tvoid V G.
+    nil nil Tvoid V G nil.
 
 Lemma semax_prog_typecheck_aux_types:
   forall vs G {C: compspecs} (prog: program) b (typed_args : list (val * type)),

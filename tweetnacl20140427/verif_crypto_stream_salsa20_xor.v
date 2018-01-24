@@ -550,7 +550,7 @@ Sfor (Sset _i (Econst_int (Int.repr 8) tint))
 Lemma For_i_8_16_loop Espec F x z c m b nonce k SV zbytes:
 @semax CompSpecs Espec 
   (initialized_list [_u; _i]
-     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _u (Vint (Int.repr 1)); lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
@@ -696,7 +696,7 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
       (Q: 0 <= q <= (Zlength mbytes) - 64) (CL: 64 <= cLen):
 @semax CompSpecs Espec 
   (initialized_list [_i]
-     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
@@ -892,7 +892,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
 @semax CompSpecs Espec
 
   (initialized_list [_i]
-     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil))
 
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;

@@ -1804,9 +1804,9 @@ Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
 Qed.
 
-Lemma func_tycontext_sub : forall f V G V2 G2 (HV : incl V V2) (HG : incl G G2)
+Lemma func_tycontext_sub : forall f V G A V2 G2 (HV : incl V V2) (HG : incl G G2)
   (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
-  tycontext_sub (func_tycontext f V G) (func_tycontext f V2 G2).
+  tycontext_sub (func_tycontext f V G A) (func_tycontext f V2 G2 A).
 Proof.
   intros.
   unfold func_tycontext, make_tycontext, tycontext_sub; simpl.
@@ -1841,8 +1841,9 @@ Proof.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
       apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
-      destruct ((make_tycontext_s G) ! id); auto.
-      apply IHG; auto. 
+      destruct ((make_tycontext_s G) ! id); auto. 
+      apply IHG; auto.
+  - apply Annotation_sub_refl.
 Qed.
 
 (* This lets us use a library as a client. *)
