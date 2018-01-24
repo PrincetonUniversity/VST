@@ -18,7 +18,7 @@ Require Import sha.verif_hmac_init_part1.
 Require Import sha.verif_hmac_init_part2.
 
 Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
-@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
            lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
@@ -259,7 +259,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     Time cancel. (*1.7 versus 1.2 penalty when melting*)
   }
 }
-Time Qed. (*25 versus 49*)
+Time Qed. (*VST 2.0: 10.7s*) (*25 versus 49*)
 
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.

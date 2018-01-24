@@ -23,7 +23,7 @@ Qed.
 
 Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
       (SH : writable_share shmd):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md;
            temp _ctx c; gvar sha._K256 kv)
@@ -175,7 +175,7 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite field_at_data_at.
 rewrite field_address_offset by auto with field_compatible. simpl. trivial.
-Time Qed. (*25 versus 38*)
+Time Qed. (*VST 2.0: 6s*) 
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final HMAC_Final_spec.

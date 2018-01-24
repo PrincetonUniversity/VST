@@ -15,7 +15,7 @@ Require Import sha.spec_hmac.
 
 Lemma updatebodyproof Espec c d len data kv (h1 : hmacabs)
       (H : has_lengthD (s256a_len (absCtxt h1)) len data):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c; temp _data d;
            temp _len (Vint (Int.repr len)); gvar sha._K256 kv)
@@ -71,8 +71,8 @@ destruct ST as [ST1 [ST2 ST3]]. simpl in *.
 Time cancel. (*0.5*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
-simpl. rewrite Ptrofs.add_zero. apply derives_refl.
-Time Qed. (*9.5 versus 20.3*)
+simpl. rewrite Ptrofs.add_zero. apply derives_refl. 
+Time Qed. (*1.8*)
 
 Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Update HMAC_Update_spec.

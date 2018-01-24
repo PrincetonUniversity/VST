@@ -89,7 +89,7 @@ Definition HMAC_crypto :=
 Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
       (SH : writable_share shmd) (KL: has_lengthK (LEN KEY) (CONT KEY))
       (DL: has_lengthD 512 (LEN MSG) (CONT MSG)):
-@semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
      temp _key k; temp _key_len (Vint (Int.repr (LEN KEY)));

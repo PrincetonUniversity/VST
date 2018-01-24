@@ -1156,7 +1156,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
      [_ctx; _md_len; _left; _out; _info; _prediction_resistance;
      _reseed_counter; _reseed_interval; _t'5; _t'4; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_random_with_add HmacDrbgVarSpecs
-        HmacDrbgFunSpecs))
+        HmacDrbgFunSpecs nil))
   (PROP ( )
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
@@ -1859,7 +1859,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
      [_ctx; _md_len; _left; _out; _info; _prediction_resistance;
      _reseed_counter; _reseed_interval; _t'5; _t'4; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_random_with_add HmacDrbgVarSpecs
-        HmacDrbgFunSpecs))
+        HmacDrbgFunSpecs nil))
   (PROP ( )
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));

@@ -16,7 +16,7 @@ Require Import sha.hmac_common_lemmas.
 
 Require Import sha.verif_hmac_init_part1.
 
-(* TODO remove this line and update proof (should become simpler) *)
+(*TODO: eliminate*)
 Ltac canon_load_result ::= idtac.
 
 Lemma isbyte_zeroExt8: forall x, isbyteZ x -> Int.repr x = (Int.zero_ext 8 (Int.repr x)).
@@ -273,7 +273,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
       64)
 (isbyte_key : Forall isbyteZ key),
 @semax CompSpecs Espec
-  (initialized _reset (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+  (initialized _reset (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -379,7 +379,7 @@ intros; apply andp_left2.
 drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
-Time Qed. (*11.1 versus 16.8*) (*FIXME NOW 39*)
+Time Qed. (*VST 2.0: 0.4s*) (*11.1 versus 16.8*) (*FIXME NOW 39*)
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): forall
 (IPADcont : list val)
@@ -404,7 +404,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): fora
 (*Delta := abbreviate : tycontext*)
 (ipadSHAabs : s256abs),
 @semax CompSpecs Espec
-  (initialized_list [_reset; _i] (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+  (initialized_list [_reset; _i] (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -504,7 +504,7 @@ thaw' FR1.
 Time entailer!. (*3.4 versus 2.6*)
 subst OPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
-Time Qed. (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)
+Time Qed. (*VST 2.0: 0.4s*) (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)
 
 Lemma init_part2: forall 
 (Espec : OracleKind)
@@ -541,7 +541,7 @@ Lemma init_part2: forall
                 initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
                 K_vector kv)),
 @semax CompSpecs Espec (*Delta*) (initialized _reset
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr r));
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); lvar _pad (tarray tuchar 64) pad;
@@ -860,9 +860,9 @@ Qed.*)
   }
   { (*ELSE*)
     Time forward. (*0.2*)
-    subst. unfold initPostKeyNullConditional. Time entailer!.  (*6.5*)
-    destruct R; subst; [ |discriminate].
-    simpl; clear H. Time destruct k; try solve[entailer]. (*2.9*)
+    subst. unfold initPostKeyNullConditional. go_lower. (*Time entailer!.  (*6.5*)*)
+    destruct R; subst; [clear H |discriminate]. 
+    Time destruct k; try solve[entailer]. (*2.9*)
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Time if_tac; [ | entailer!].
     Intros v x. destruct h1.
@@ -870,11 +870,6 @@ Qed.*)
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-    rewrite !prop_true_andp by (auto; intuition). 
-    (* 04/21/17: Script used to say cancel (*0.7secs*).
-       But cancel now takes 43 secs.
-       solve [entailer; cancel] takes 16.9secs
-       solve [entailer!; cancel] takes 43secs*) 
-     Time solve [entailer; cancel]. (*16.9secs*)
+    rewrite !prop_true_andp by (auto; intuition). cancel.
    } 
-Time Qed. (*60 versus 63*) (*FIXME NOW: 80secs*) (*Coq8.5pl1: 20secs*)
+Time Qed. (*VST 2.0: 3s*) (*60 versus 63*) (*FIXME NOW: 80secs*) (*Coq8.5pl1: 20secs*)

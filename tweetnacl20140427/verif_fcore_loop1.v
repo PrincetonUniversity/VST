@@ -51,7 +51,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *):
 @semax CompSpecs Espec
-  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (*Delta*)
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil) (*Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
            lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -385,7 +385,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   thaw FR11. Time cancel. (*0.3*)
  }
 apply andp_left2; apply derives_refl.
-Time Qed. (* 19.046 secs (17.109u,0.015s) (successful)*)
+Time Qed. (*VST 20.: 5.5s*) (* 19.046 secs (17.109u,0.015s) (successful)*)
 
 Lemma XX data l: X_content data 4 l ->
   l = match data with ((Nonce, C), (Key1, Key2)) =>

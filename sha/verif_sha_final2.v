@@ -90,7 +90,7 @@ Qed.
 
 Definition Delta_final_if1 :=
  (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot))).
+     (func_tycontext f_SHA256_Final Vprog Gtot nil))).
 
 Definition Body_final_if1 :=
   (Ssequence

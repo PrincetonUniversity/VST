@@ -1957,7 +1957,8 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
      (PTree.empty _)
      (ret_type Delta)
      (glob_types Delta)
-     (glob_specs Delta).
+     (glob_specs Delta)
+     (annotations Delta).
 
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
            t = ret_type Delta ->
@@ -2018,11 +2019,11 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
+  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Definition ret1_tycon (Delta: tycontext): tycontext :=
   mk_tycontext (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _))
-    (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
+    (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Lemma make_args0_tc_environ: forall rho Delta,
   tc_environ Delta rho ->

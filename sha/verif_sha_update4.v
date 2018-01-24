@@ -63,7 +63,7 @@ Lemma update_outer_if_proof:
    (Hlen : len <= Int.max_unsigned),
 semax
   (initialized_list [_data; _p; _n]
-     (func_tycontext f_SHA256_Update Vprog Gtot))
+     (func_tycontext f_SHA256_Update Vprog Gtot nil))
   (PROP  ()
    LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -147,7 +147,7 @@ Lemma update_while_proof:
   (Hlen : len <= Int.max_unsigned),
  semax
      (initialized_list [_p; _n; _data]
-       (func_tycontext f_SHA256_Update Vprog Gtot))
+       (func_tycontext f_SHA256_Update Vprog Gtot nil))
   (sha_update_inv sh hashed len c d dd data kv false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)
@@ -270,4 +270,4 @@ assert (Zlength bl = LBLOCKz). {
  forward.
  Exists blocks'.
  Time entailer!. (*2.9*)
-Time Qed. (*31.3 *)
+Time Qed. (*VST2.0: 1.7s *)
