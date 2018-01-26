@@ -1,5 +1,5 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 Import ListNotations.
 
 (* In any of these functions, whenever there is a [list ident],
@@ -207,7 +207,8 @@ Ltac locals_of_assert P :=
  | emp => constr:(@nil ident)
  | andp ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
-                    constr:(a++b)
+                  constr:(a++b)
+ | stackframe_of _ => constr:(@nil ident)
  | local (`(eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
  | @exp _ _ ?T ?F =>

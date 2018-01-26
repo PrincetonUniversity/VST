@@ -8,12 +8,12 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
 
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 (********************* Lemmas and definitions related to mem_step ********)
 
@@ -549,7 +549,7 @@ destruct H.
 rewrite size_chunk_conv in H.
 clear - H perm_le_cont.
 forget (size_chunk_nat ch) as n.
-forget (Int.unsigned i) as j.
+forget (Ptrofs.unsigned i) as j.
 revert j H; induction n; intros; simpl; f_equal.
 apply perm_le_cont.
 apply (H j).
@@ -580,15 +580,15 @@ destruct v1; try discriminate.
 Transparent Mem.store.
 unfold Mem.store in *.
 Opaque Mem.store.
-destruct (Mem.valid_access_dec m ch b (Int.unsigned i)  Writable); inv H.
-destruct (Mem.valid_access_dec m1 ch b (Int.unsigned i)
+destruct (Mem.valid_access_dec m ch b (Ptrofs.unsigned i)  Writable); inv H.
+destruct (Mem.valid_access_dec m1 ch b (Ptrofs.unsigned i)
       Writable).
 *
 eexists; split; [ | reflexivity].
 destruct PLE.
 constructor; simpl; auto.
 intros. unfold Mem.perm in H. simpl in H.
-forget (Int.unsigned i) as z.
+forget (Ptrofs.unsigned i) as z.
 destruct (eq_block b0 b). subst.
 rewrite !PMap.gss.
 forget (encode_val ch v2) as vl.

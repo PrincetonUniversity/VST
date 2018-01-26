@@ -1,7 +1,7 @@
-Require Import sepcomp.semantics.
-(* Require Import sepcomp.simulations. *)
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.simulations.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
 
 Inductive cont': Type :=
@@ -78,13 +78,13 @@ Inductive corestate :=
 Fixpoint strip_skip (k: cont) : cont :=
  match k with Kseq Sskip :: k' => strip_skip k' | _ => k end.
 
-Definition cl_at_external (ge: genv) (c: corestate) (m: mem) : option (external_function * list val) :=
+Definition cl_at_external (c: corestate) : option (external_function * list val) :=
   match c with
   | State _ _ k => None
   | ExtCall ef args lid ve te k => Some (ef, args)
  end.
 
-Definition cl_after_external (ge: genv) (vret: option val) (c: corestate) : option corestate :=
+Definition cl_after_external (vret: option val) (c: corestate) : option corestate :=
   match vret, c with
   | Some v, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id v te) k)
   | None, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id Vundef te) k)
@@ -269,10 +269,10 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : option (corestate * option mem) :=
+Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate :=
   match v with
     Vptr b i =>
-    if Int.eq_dec i Int.zero then
+    if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
         Some (State empty_env (temp_bindings 1%positive (v::args))
@@ -281,15 +281,14 @@ Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : optio
                                  (map (fun x => Etempvar (fst x) (snd x))
                                       (params_of_types 2%positive
                                                        (params_of_fundef f)))) ::
-                          Kseq (Sloop Sskip Sskip) :: nil),
-                   None)
+                          Kseq (Sloop Sskip Sskip) :: nil))
       | _ => None end
     else None
   | _ => None
   end.
 
 Lemma cl_corestep_not_at_external:
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external ge q m = None.
+  forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
 Proof.
   intros.
   destruct q; simpl; auto. inv H.
@@ -302,7 +301,6 @@ Proof.
   simpl; auto.
 Qed.
 
-(*
 Lemma cl_after_at_external_excl :
   forall retv q q', cl_after_external retv q = Some q' -> cl_at_external q' = None.
 Proof.
@@ -312,7 +310,6 @@ destruct retv; destruct q; try congruence.
 destruct lid; try congruence; inv H; auto.
 destruct lid; try congruence; inv H; auto.
 Qed.
-*)
 
 Program Definition cl_core_sem :
   @CoreSemantics genv corestate mem :=
@@ -344,3 +341,78 @@ destruct optid. destruct H2,H13. subst. auto. destruct H13,H2; subst; auto.
  inversion2 H H7.
  destruct optid. destruct H2,H13; congruence. destruct H2,H13. subst. auto.
 Qed.
+
+(* NO LONGER NEEDED? *)
+(* Lemma free_list_allowed_core_mod : forall m1 l m2, *)
+(*   Mem.free_list m1 l = Some m2 -> *)
+(*   allowed_core_modification m1 m2. *)
+(* Proof. *)
+(*   intros m1 l m2; revert m1; induction l; simpl; intros. *)
+(*   inv H;   eauto with allowed_mod. *)
+(*   destruct a; destruct p; invSome; eauto with allowed_mod. *)
+(* Qed. *)
+
+(* Hint Resolve free_list_allowed_core_mod : allowed_mod. *)
+
+(* Lemma storebytes_allowed_core_modification: forall l m m' b z  *)
+(*   (H: Mem.storebytes m b z l = Some m'), allowed_core_modification m m'. *)
+(* Proof.  *)
+(* intros. *)
+(* split; intros. *)
+(* intros k K1. split; intros.   *)
+(* eapply Mem.storebytes_valid_block_1; eassumption. *)
+(* eapply Mem.perm_storebytes_2; eassumption. *)
+(* split; intros.  left. eapply Mem.perm_storebytes_1; eassumption. *)
+(* split; intros. eapply Mem.perm_storebytes_2; eassumption.  *)
+(* destruct (zle n 0). *)
+(* assert (Y:= Mem.loadbytes_empty m b0 ofs' n z0).  *)
+(*   rewrite Y in H0. inv H0. *)
+(* left.  apply Mem.loadbytes_empty. assumption.  *)
+(* assert (NGEZ: n >= 0).  apply Zle_ge.  apply Zgt_lt in z0.   *)
+(*   apply ZOrderedType.Z_as_OT.le_lteq. left; assumption. *)
+(* destruct (eq_block b0 b); subst. *)
+(* Focus 2. left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _  H b0 ofs' n);  *)
+(*   try assumption.   *)
+(* left; assumption. *)
+(* destruct (zle (ofs' + n)  z). *)
+(* (*<=*) left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ H); try assumption.  *)
+(*   right. left. assumption. *)
+(* (*>*)  destruct (zle (z +Z_of_nat (length l)) ofs'). *)
+(* (*<=*)  left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ H); try assumption.  *)
+(*   right. right. assumption. *)
+(* (*>*)  destruct (zle z ofs').  *)
+(* (*<=*) assert (ZZ:= Mem.storebytes_range_perm _ _ _ _ _ H). *)
+(* right. exists ofs'. split. split.  apply Zle_refl.   *)
+(*   assert (qq:= Zplus_le_lt_compat ofs' ofs' 0 n). rewrite Zplus_0_r in qq. apply qq.   *)
+(*   apply Zle_refl. apply Zgt_lt. apply z0. *)
+(* apply ZZ. split; try assumption. apply Zgt_lt. assumption. *)
+(* (*>*)  destruct (zlt 0 (Z_of_nat (length l))); simpl in *. *)
+(* right. exists z. split. omega. *)
+(* eapply (Mem.storebytes_range_perm _ _ _ _ _ H). split. apply Zle_refl. omega. *)
+(* destruct l; simpl in *. ad mit. (*case l= nil still unproven*) *)
+(* rewrite Zpos_P_of_succ_nat in z4. exfalso. clear - z4.  *)
+(*   remember (length l) as xx. clear Heqxx l.  destruct (intro_Z xx).  *)
+(*   destruct H. rewrite H in z4.  clear H. omega.  *)
+(* Qed. *)
+
+(* Hint Resolve  storebytes_allowed_core_modification: allowed_mod. *)
+
+(* Lemma cl_allowed_modifications : forall ge c m c' m', *)
+(*   cl_step ge c m c' m' -> allowed_core_modification m m'. *)
+(* Proof. *)
+(*   intros. *)
+(*   induction H; eauto with allowed_mod. *)
+(*   inv H3; eauto with allowed_mod. *)
+(*   (*eapply storebytes_allowed_core_modification; eauto.  *)
+(*    LENB: storebytes_allowed_core_modification is now in allowed_mod hint database*) *)
+(*   apply allowed_core_modification_trans with m1. *)
+(*     clear - H5. *)
+(*     (*forget (fn_params f ++ fn_vars f) as l.*) *)
+(*     induction H5; eauto with allowed_mod. *)
+(*     forget (fn_params f) as l. *)
+(*     clear - H6; induction H6; eauto with allowed_mod. *)
+(* Qed. *)
+
+(* Definition cl_core_sem' :  *)
+(*   CompcertCoreSem (Genv.t fundef type) corestate (list (ident*globdef fundef type)) := *)
+(*   Build_CompcertCoreSem _ _ _ cl_core_sem cl_corestep_fun cl_allowed_modifications. *)

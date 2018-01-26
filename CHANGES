@@ -1,0 +1,8 @@
+Changes from 1.9 to current master branch
+=========================================
+
+- The C statement in the "semax" goal is now pretty-printed
+- Upon function entry, better variable names are chosen by default.
+  Instead of LOCAL(gvar _a gvar0; lvar _b lvar0; lvar _c lvar1)
+  you'll get LOCAL(gvar _a v_a; lvar _b v_b; lvar _c v_c).
+  Therefore it should no longer be necessary to use the "name" tactic.

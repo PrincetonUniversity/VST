@@ -12,11 +12,11 @@
 
 Require Import String.
 Require Import compcert.lib.Coqlib.
-Require Import ccc26x86.Decidableplus.
+Require Import VST.ccc26x86.Decidableplus.
 Require Import compcert.lib.Maps.
 Require Import compcert.common.AST.
 Require Import compcert.lib.Integers.
-Require Import ccc26x86.Op.
+Require Import VST.ccc26x86.Op.
 
 (** ** Machine registers *)
 

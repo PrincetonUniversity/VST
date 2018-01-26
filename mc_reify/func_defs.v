@@ -10,7 +10,7 @@ Require MirrorCore.syms.SymEnv.
 Require MirrorCore.syms.SymSum.
 Require Import MirrorCore.Subst.FMapSubst.
 (*Require Import MirrorCharge.RTac.ReifyLemma.*)
-Require Import floyd_funcs.
+Require Import VST.floyd_funcs.
 Require Export MirrorCore.Lambda.Expr.
 Require Export mc_reify.types.
 Require Export mc_reify.func_eq.

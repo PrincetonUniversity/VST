@@ -1,6 +1,6 @@
 Load loadpath.
-Require Import msl.base msl.sepalg msl.psepalg msl.predicates_sl msl.functors
-               msl.sepalg_functors msl.sepalg_generators.
+Require Import VST.msl.base VST.msl.sepalg VST.msl.psepalg VST.msl.predicates_sl VST.msl.functors
+               VST.msl.sepalg_functors VST.msl.sepalg_generators.
 Require Import veristar.variables veristar.model_type.
 
 Module BarebonesStates.

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -6,7 +6,6 @@ Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_update3.
 Local Open Scope Z.
 Local Open Scope logic.
-
 
 Lemma Hblocks_lem:
  forall {blocks: list int} {frag: list Z} {data},
@@ -64,7 +63,7 @@ Lemma update_outer_if_proof:
    (Hlen : len <= Int.max_unsigned),
 semax
   (initialized_list [_data; _p; _n]
-     (func_tycontext f_SHA256_Update Vprog Gtot))
+     (func_tycontext f_SHA256_Update Vprog Gtot nil))
   (PROP  ()
    LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -83,12 +82,14 @@ semax
      data_block sh data d))
   update_outer_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
+    (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (K_vector kv;
-                 sha256state_ a' c; data_block sh data d)))).
+                 sha256state_ a' c; data_block sh data d)))
+    emp)).
 Proof.
 intros.
 unfold update_outer_if.
@@ -96,6 +97,8 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
+  pose proof CBLOCKz_eq. pose proof (Zlength_nonneg dd). 
+  entailer!.
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data kv).
@@ -144,7 +147,7 @@ Lemma update_while_proof:
   (Hlen : len <= Int.max_unsigned),
  semax
      (initialized_list [_p; _n; _data]
-       (func_tycontext f_SHA256_Update Vprog Gtot))
+       (func_tycontext f_SHA256_Update Vprog Gtot nil))
   (sha_update_inv sh hashed len c d dd data kv false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)
@@ -198,9 +201,15 @@ assert (Zlength bl = LBLOCKz). {
   unfold sha_update_loop_body.
   assert (Hblocks' := Hblocks_lem Hblocks).
   Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
-  assert (DM: Zlength data < Int.modulus).
-  { clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
-    specialize (Zlength_nonneg data); intros; omega. }
+  assert (DM: Zlength data < Ptrofs.modulus).
+  { (* TODO: simplify this proof. *)
+    clear - FC. red in FC. simpl in FC. destruct d; try tauto.
+    simpl in FC.
+    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; omega).
+    inv_int i.
+    rewrite Z.mul_1_l in FC.
+    omega.
+  }
   set (lo := Zlength blocks * 4 - Zlength frag) in *.
   replace_SEP 2
     (data_block sh (sublist 0 lo data) d *
@@ -261,4 +270,4 @@ assert (Zlength bl = LBLOCKz). {
  forward.
  Exists blocks'.
  Time entailer!. (*2.9*)
-Time Qed. (*31.3 *)
+Time Qed. (*VST2.0: 1.7s *)

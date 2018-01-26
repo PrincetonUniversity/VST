@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -12,7 +12,7 @@ Qed.
 (****************************************************************************)
 
 
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import sha.spec_sha.
 Require Import sha.protocol_spec_hmac.

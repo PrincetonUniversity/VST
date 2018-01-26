@@ -2,11 +2,14 @@
 * text=auto
 
 make_version text eol=lf
+coqflags text eol=lf
 coqide text eol=lf
 PACKAGE text eol=lf
 VERSION text eol=lf
 Makefile text eol=lf
 format-timings eol=lf
+get-travis-logs eol=lf
+process-travis-logs.awk eol=lf
 
 # Explicitly declare text files you want to always be normalized and converted
 # to native line endings on checkout.

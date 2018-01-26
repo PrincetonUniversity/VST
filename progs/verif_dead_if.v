@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.dead_if.
-Require Import floyd.deadvars.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.dead_if.
+Require Import VST.floyd.deadvars.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.

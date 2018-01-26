@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -8,7 +8,7 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.verif_salsa_base.
 
 Require Import tweetnacl20140427.spec_salsa.
-Require Import veric.expr_lemmas3.
+Require Import VST.veric.expr_lemmas3.
 
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data.
 Opaque fcore_result.
@@ -16,32 +16,92 @@ Opaque fcore_result.
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
-start_function. 
+start_function.
+assert (M1: Int.modulus = 4294967296) by reflexivity.
+assert (HM1: Int.half_modulus = 2147483648) by reflexivity.
+assert (iWS:Int.iwordsize = Int.repr 32) by reflexivity.
+assert (X: Int.unsigned (Int.repr 32) = 32). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
+assert (zWS: Int.zwordsize = 32) by reflexivity.
+specialize (Int.unsigned_range c); intros Y.
+destruct (Int.ltu c Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H0.
+    change (Int.unsigned Int.iwordsize) with 32 in H0.
+    unfold Int.signed in H.
+    destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+  } Unfocus.
+destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H1.
+    unfold Int.sub in H1.
+    change (Int.unsigned (Int.repr 32)) with 32 in H1.
+    change (Int.unsigned Int.iwordsize) with 32 in H1.
+    unfold Int.signed in H.
+    rewrite Int.unsigned_repr in H1.
+    + destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+    + rewrite int_max_unsigned_eq.
+      destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+  } Unfocus.
+Time forward. (*8.8*)   
+{
+  entailer!.
+  rewrite H0, H1; simpl; auto.
+}
+unfold Int.signed in H.
+destruct (zlt (Int.unsigned c) Int.half_modulus); [| omega].
+entailer!.
+unfold sem_shift; simpl. rewrite H0, H1; simpl.
+unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
+rewrite Z.mod_small; simpl; try omega.
+unfold Int.sub.
+rewrite Int.and_mone, X, Int.unsigned_repr; trivial.
+rewrite int_max_unsigned_eq; omega.
+Time Qed. (*0.1*)
+(*
+Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
+       f_L32 L32_spec.
+Proof.
+start_function. forward.
+destruct (Int.ltu c Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H0.
+    change (Int.unsigned Int.iwordsize) with 32 in H0.
+    omega.
+  } Unfocus.
+  destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
+  Focus 2. {
+    apply ltu_false_inv in H1.
+    unfold Int.sub in H1.
+    change (Int.unsigned (Int.repr 32)) with 32 in H1.
+    rewrite Int.unsigned_repr in H1 by rep_omega.
+    change (Int.unsigned Int.iwordsize) with 32 in H1.
+    omega.
+  } Unfocus.
 Time forward. (*8.8*)  
-Time entailer!. (*0.8*)
+{
+  entailer!.
+<<<<<<< HEAD
+  rewrite H0, H1; simpl; auto.
+  split3; auto.
+  unfold Int.signed.
+  if_tac. rep_omega. repable_signed.
+=======
+  rewrite H0, H1; simpl; auto. intuition. omega.
+>>>>>>> master
+}
+entailer!.
 assert (W: Int.zwordsize = 32). reflexivity.
-assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
-remember (Int.ltu c Int.iwordsize) as d. symmetry in Heqd.
-destruct d; simpl.
-{ clear Heqd.
-  remember (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) as z. symmetry in Heqz.
-  destruct z.
-  - simpl; split; trivial. split. 2: split; trivial.
-    apply ltu_inv in Heqz. unfold Int.sub in *.
-    rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
-    rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
-    unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
-    rewrite Z.mod_small, W; simpl; try omega.
-    rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-    rewrite Int.and_mone. trivial.
-  - apply ltu_false_inv in Heqz. rewrite U in *.
-    unfold Int.sub in Heqz.
-    rewrite (Int.unsigned_repr 32), Int.unsigned_repr in Heqz. omega.
-    rewrite int_max_unsigned_eq; omega.
-    rewrite int_max_unsigned_eq; omega. }
-{ apply ltu_false_inv in Heqd. rewrite U in *. omega. }
+assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
+unfold sem_shift; simpl. rewrite H0, H1; simpl.
+unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
+rewrite Z.mod_small, W; simpl; try omega.
+unfold Int.sub.
+rewrite Int.and_mone.
+change (Int.unsigned (Int.repr 32)) with 32.
+rewrite Int.unsigned_repr by rep_omega.
+auto.
 Time Qed. (*0.9*)
-
+*)
 Lemma ld32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ld32 ld32_spec.
 Proof.
@@ -156,8 +216,6 @@ Proof. destruct (Byte.unsigned_range_2 b).
   unfold Byte.max_unsigned in H0; simpl in H0; omega.
 Qed. 
 
-Axiom myadmit: False.
-
 Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_dl64 dl64_spec.
 Proof.
@@ -185,7 +243,6 @@ forward_for_simple_bound 8 (EX i:Z,
   + entailer!. rewrite HH. 
     rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
   + simpl; rewrite HH. forward.
-    entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
     rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).

@@ -1,12 +1,12 @@
-Require Import msl.Coqlib2.
-Require Import msl.sepalg.
-Require Import msl.shares.
-Require Import msl.pshares.
-Require Import veric.coqlib4.
-Require Import veric.shares.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_ops.
-Require Import concurrency.permjoin_def.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.shares.
+Require Import VST.msl.pshares.
+Require Import VST.veric.coqlib4.
+Require Import VST.veric.shares.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_ops.
+Require Import VST.concurrency.permjoin_def.
 Import Memtype.
 
   Lemma perm_of_glb_not_Freeable: forall sh,

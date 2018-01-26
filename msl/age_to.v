@@ -4,11 +4,11 @@ msl/ageable.v (or this file to msl/) eventually, but we keep it here
 for now to reduce compilation time. *)
 
 Require Import Coq.omega.Omega.
-Require Import msl.ageable.
-Require Import msl.predicates_hered.
-Require Import msl.sepalg.
-Require Import msl.age_sepalg.
-Require Import msl.sepalg_generators.
+Require Import VST.msl.ageable.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.sepalg_generators.
 
 (* Apply [age1] n times (meaningful when [n <= level x] *)
 

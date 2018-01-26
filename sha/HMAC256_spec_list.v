@@ -1,5 +1,5 @@
 
-Require Import msl.Axioms. (*for extensionality*)
+Require Import VST.msl.Axioms. (*for extensionality*)
 Require Import Arith.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.

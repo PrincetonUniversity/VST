@@ -1,8 +1,8 @@
-Require Import progs.conclib.
-Require Import progs.ghost.
-(*Require Import progs.list_dt. Import LsegSpecial.*)
-Require Import floyd.library.
-Require Import progs.lock_coupling.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+(*Require Import VST.progs.list_dt. Import LsegSpecial.*)
+Require Import VST.floyd.library.
+Require Import VST.progs.lock_coupling.
 Require Import Sorting.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -370,10 +370,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons_ext.

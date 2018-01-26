@@ -2,10 +2,10 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -21,14 +21,14 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.SC_erasure.
-Require Import concurrency.x86_context.
-Require Import compcert.ia32.Asm concurrency.Asm_core.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.SC_erasure.
+Require Import VST.concurrency.x86_context.
+Require Import VST.ccc26x86.Asm ccc26x86.Asm_coop.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".

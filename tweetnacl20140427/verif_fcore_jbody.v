@@ -1,11 +1,8 @@
 Require Import Recdef.
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -14,8 +11,10 @@ Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
-Require Import floyd.library.
-Require Import floyd.deadvars.
+Require Import VST.floyd.library.
+
+(*TODO: eliminate*)
+Ltac canon_load_result ::= idtac.
 
 Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data.
@@ -107,7 +106,7 @@ Definition array_copy1_statement :=
 Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
   (J:0<=j<4),
  semax (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j));
    lvar _t (tarray tuint 4) t;
@@ -146,7 +145,14 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-    forward. 
+    forward.
+    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
+      rewrite ! Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite Z.rem_mod_nonneg; try omega.
+      rewrite Int.unsigned_repr. omega. 
+      rewrite int_max_unsigned_eq; omega. }
     { unfold Int.mods. 
       rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -155,14 +161,6 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
       entailer!. 
       rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
-    clear H_Denote.
-    { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr. omega. 
-      rewrite int_max_unsigned_eq; omega. }
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -366,7 +364,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3):
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -509,7 +507,12 @@ deadvars!.
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
   deadvars!.
   forward.
-  { entailer!. rewrite andb_false_r; simpl; trivial. }
+  { entailer!. rewrite andb_false_r; simpl; trivial.
+   clear H1. clear WLIST1. clear TM. clear H.
+   rewrite and_True.
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
+   change (Int.signed (Int.repr 4)) with 4. 
+   rewrite Int.signed_repr by rep_omega. rep_omega.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
@@ -552,5 +555,5 @@ simpl in *.
 subst.
 rewrite <- Z0, <- Z1, <- Z2, <- Z3.
 reflexivity.
-Time Qed. (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
+Time Qed. (*VST 2.0: 4.9s*) (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
 

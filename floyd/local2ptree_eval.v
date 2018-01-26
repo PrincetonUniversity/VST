@@ -1,8 +1,7 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.closed_lemmas.
-Require Import floyd.local2ptree_denote.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.local2ptree_denote.
 
 Local Open Scope logic.
 
@@ -21,6 +20,16 @@ Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
                     | Some (vardesc_shadowed_global _) =>
                           None
                     | None => None
+                    end.
+
+Definition eval_lvardesc (ty: type) (vd: option vardesc) : option val :=
+                    match  vd with
+                    | Some (vardesc_local_global ty' v _)
+                    | Some (vardesc_local ty' v) =>
+                      if eqb_type ty ty'
+                      then Some v
+                      else None
+                    | _ => None
                     end.
 
 Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
@@ -43,8 +52,8 @@ Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc
 
   | Ederef a ty => msubst_eval_expr T1 T2 a
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
-  | Esizeof t _ => Some (Vint (Int.repr (sizeof t)))
-  | Ealignof t _ => Some (Vint (Int.repr (alignof t)))
+  | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t)))
+  | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t)))
   end
   with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
   match e with
@@ -54,6 +63,15 @@ Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc
                               (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
   end.
+
+Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
+  match lr with
+  | LLLL => msubst_eval_lvalue T1 T2 e
+  | RRRR => msubst_eval_expr T1 T2 e
+  end.
+
+Definition msubst_eval_lvar {cs: compspecs} T2 i t :=
+  eval_lvardesc t (PTree.get i T2).
 
 Lemma msubst_eval_expr_eq_aux:
   forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
@@ -155,6 +173,36 @@ Proof.
      - inv H0.
 Qed.
 
+Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
+  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho ->
+  (forall i t v, eval_lvardesc t (T2 ! i) = Some v ->
+      eval_lvar i t rho = v).
+Proof.
+  intros.
+  unfold eval_lvar.
+  unfold eval_lvardesc in H0.
+  destruct (T2 ! i) as [ [?|?|?|?] | ] eqn:?H; simpl in *.
+  + destruct (eqb_type t t0) eqn:?H; inv H0.
+    apply eqb_type_true in H2; subst t0.
+    assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 Q)))
+      by ( apply  in_map; apply LocalD_sound; eauto 50).
+    assert (H3 := local_ext _ _ _ H0 H). clear - H3.
+    hnf in H3.
+    destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
+    destruct H3; subst. rewrite eqb_type_refl. auto.
+  + destruct (eqb_type t t0) eqn:?H; inv H0.
+    apply eqb_type_true in H2; subst t0.
+    assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 Q)))
+      by ( apply  in_map; apply LocalD_sound; eauto 50).
+    assert (H3 := local_ext _ _ _ H0 H). clear - H3.
+    hnf in H3.
+    destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
+    destruct H3; subst. rewrite eqb_type_refl. auto.
+  + inv H0.
+  + inv H0.
+  + inv H0.
+Qed.
+
 Lemma msubst_eval_expr_eq: forall {cs: compspecs} P T1 T2 Q R e v,
   msubst_eval_expr T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
@@ -185,6 +233,17 @@ Proof.
       autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
   apply eq_sym, (msubst_eval_lvalue_eq_aux T1 T2); auto.
+Qed.
+
+Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_LR e lr)).
+Proof.
+  intros.
+  destruct lr.
+  + apply msubst_eval_lvalue_eq; auto.
+  + apply msubst_eval_expr_eq; auto.
 Qed.
 
 Lemma msubst_eval_exprlist_eq:
@@ -222,10 +281,50 @@ revert tys vl H; induction el; destruct tys, vl; intros;
  auto.
 Qed.
 
+Lemma msubst_eval_lvar_eq: forall {cs: compspecs} P T1 T2 Q R i t v,
+  msubst_eval_lvar T2 i t = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_lvar i t)).
+Proof.
+  intros.
+  apply andp_left2.
+  apply andp_left1.
+  simpl; intro rho.
+  simpl in H.
+  normalize; intros.
+      autorewrite with subst norm1 norm2; normalize.
+  pose proof (msubst_eval_lvar_eq_aux _ _ _ _ H0).
+  apply eq_sym.
+  apply H1; auto.
+Qed.
+  
+Ltac solve_msubst_eval_lvalue :=
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
+
+Ltac solve_msubst_eval_expr :=
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
+
+Ltac solve_msubst_eval_LR :=
+  unfold msubst_eval_LR;
+  simpl;
+  cbv beta iota zeta delta [force_val2 force_val1];
+  rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+  reflexivity.
+
+Ltac solve_msubst_eval_lvar :=
+  unfold msubst_eval_lvar; reflexivity.
+
 (**********************************************************)
 (* Continuation *)
+(*
+Require Import VST.veric.xexpr_rel.
 
-Require Import veric.xexpr_rel.
 
 Inductive l_cont : Type :=
   | LC_deref : r_cont -> l_cont
@@ -294,7 +393,7 @@ with fill_l_cont (e: l_cont) (v: val): l_value :=
   | LC_field a ta i => L_field (fill_l_cont a v) ta i
   end.
 
-(*
+
 Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
   (forall e v,
     compute_r_cont T1 T2 e = Some (inl v) ->

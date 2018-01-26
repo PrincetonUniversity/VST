@@ -3,13 +3,13 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.age_sepalg.
-Require Import msl.predicates_hered.
-Require Import msl.cross_split.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.cross_split.
 
 Definition compareR {A} {JA: Join A}{SA: Sep_alg A}{AG: ageable A} : relation A
    := comparable.
@@ -197,20 +197,19 @@ Proof.
   eapply H; eauto.
 Qed.
 
-Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
+Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
   (emp * P = P)%pred.
 Proof.
   intros; apply pred_ext; hnf; intros.
   destruct H as [x [y [? [? ?]]]].
   simpl in H0.
   replace a with y; auto.
-  destruct (join_ex_units a) as [u ?].
-  exists u; exists a. split; auto. split; auto.
-  simpl.
-  eapply unit_identity; eauto.
+  destruct (join_ex_identities a) as [u [Hu [? Hj]]].
+  exists u; exists a. split; auto.
+  specialize (Hu _ _ Hj); subst; auto.
 Qed.
 
-Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}  : forall (P:pred A),
+Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}  : forall (P:pred A),
   (P * emp = P)%pred.
 Proof.
   intros.
@@ -612,13 +611,13 @@ Proof.
 intros; intro; intros; eauto.
 Qed.
 
-Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}: precise emp.
+Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: precise emp.
 Proof.
-intros.
-rewrite precise_eq.
-intros.
-repeat rewrite emp_sepcon.
-auto.
+repeat intro.
+eapply join_sub_same_identity with (a := w1)(c := w); auto.
+apply identity_unit'; auto.
+eapply join_sub_unit_for; eauto.
+apply identity_unit'; auto.
 Qed.
 
 Definition superprecise {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} (P: pred A) :=
@@ -704,7 +703,7 @@ Qed.
 
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
 
-Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
       forall P, ewand emp P = P.
 Proof.
 intros.
@@ -713,10 +712,10 @@ destruct H as [w1 [w2 [? [? ?]]]].
 replace w with w2; auto.
 eapply join_eq; eauto.
 eapply identity_unit; eauto.
-destruct (join_ex_units w) as [e ?].
+destruct (join_ex_identities w) as [e [He [? Hj]]].
 exists e; exists w.
-split; auto. split; auto.
-simpl; eapply unit_identity; eauto.
+split; auto.
+specialize (He _ _ Hj); subst; auto.
 Qed.
 
 
@@ -746,11 +745,7 @@ destruct (CrA _ _ _ _ _ H2 H3) as [[[[w24 w25] w34] w35] [? [? [? ?]]]].
 assert (identity w24).
   destruct (join_assoc (join_comm H9) H4) as [f [? ?]].
   destruct (join_assoc (join_comm H6) (join_comm H11)) as [g [? ?]].
-  generalize (join_self H13); intro.
-  subst g.
-  generalize (join_canc H14 (join_comm H11)); intro.
-  subst w25.
-  eapply unit_identity; eauto.
+  eapply join_self; eauto.
 assert (w34=w4). eapply join_eq; [eapply identity_unit; eauto | auto ].
 subst w34.
 assert (w25 = w2). eapply join_eq; [eapply identity_unit; eauto | auto ].
@@ -772,30 +767,23 @@ Qed.
 Definition wk_split {A} {JA: Join A} :=
       forall a b c d e : A, join a b c -> join d e c -> joins a d -> join_sub d b.
 
-Lemma crosssplit_wkSplit {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma crosssplit_wkSplit {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
     wk_split.
 Proof.
-unfold wk_split.
-pose proof I; pose proof I. intros.
-destruct (CrA _ _ _ _ _ H1 H2) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]]. clear H0.
-destruct H3 as [x H_x].
-assert (exists X, join ad X be).
-Focus 2. destruct H0 as [X HX]. exists X.
+unfold wk_split; intros.
+destruct (CrA _ _ _ _ _ H H0) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]].
+destruct H1 as [x H_x].
+assert (exists X, join ad X be) as [X HX].
+Focus 2. exists X.
                destruct (join_assoc (join_comm HX) (join_comm myH2)) as [y [myH5 myH6]].
                assert (y=d) by apply (join_eq myH5 myH3).  subst y.
                apply (join_comm myH6).
-assert (exists X, join a X e).
-Focus 2. destruct H0 as [X HX]. exists X.
-               destruct (join_assoc (join_comm myH1) HX) as [y [myH5 myH6]].
-               assert (y=be) by apply (join_canc (join_comm myH6) (join_comm  myH4)).  subst y. assumption.
-exists be.
 destruct (join_assoc (join_comm myH1) H_x) as [y [myH5 myH6]].
-destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [z [myH7 myH8]].
-assert (ad=z) by apply (join_self myH7). subst ad.
-assert (d=bd) by apply(join_canc (join_comm myH5) myH8).  subst d.
-assert (bd=y) by apply(join_eq myH3 myH5).  subst bd.
-assert (ae=a) by apply(join_canc  myH6 H_x).  subst ae.
-assumption.
+destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [? [Had ?]].
+apply join_self in Had.
+pose proof (Had _ _ myH1); subst.
+destruct (join_assoc (join_comm myH1) myH4) as [? [Hbe ?]].
+specialize (Had _ _ Hbe); subst; eauto.
 Qed.
 
 Lemma wk_pry_apart {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -858,7 +846,7 @@ subst w4.
 destruct (CrA _ _ _ _ _ H0 H2) as [[[[a b] c] d] [? [? [? ?]]]].
 destruct (join_assoc H5 H) as [f [? ?]].
 destruct (join_assoc H7 (join_comm H8)) as [g [? ?]].
-generalize (join_self H10); intro.
+generalize (join_self' H10); intro.
 subst g.
 assert (identity d).
 eapply unit_identity; eauto.

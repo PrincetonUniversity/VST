@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -18,10 +18,12 @@ Fixpoint Xarray' (b: list int) (i k: nat) : list int :=
 
 Definition Xarray (b: list int) (i: nat) := Xarray' b i 16.
 
+
 Lemma Xarray_simpl:
-   forall b, length b = 16%nat -> Xarray b 16 = b.
+   forall b, Zlength b = 16 -> Xarray b 16 = b.
 Proof.
 intros.
+apply Zlength_length in H; [ simpl in H | computable].
 assert (forall n, (n<=16)%nat -> Xarray' b 16 n = skipn (16-n) b);
  [ | apply H0; auto ].
 induction n; intros.
@@ -72,7 +74,7 @@ reflexivity.
 Qed.
 
 Lemma length_Xarray:
-  forall b i, length (Xarray b i) = 16%nat.
+  forall b i, Zlength (Xarray b i) = 16.
 Proof.
 intros. reflexivity.
 Qed.
@@ -96,7 +98,7 @@ Qed.
 
 Lemma extract_from_b:
   forall b i n,
-    length b = 16%nat ->
+    Zlength b = 16 ->
     (16 <= i < 64) ->
     (0 <= n < 16) ->
     nthi (Xarray b (Z.to_nat i)) ((i + n) mod 16) = W (nthi b) (i - 16 + n).
@@ -237,13 +239,12 @@ forward. (* skip; *)
 Exists 16.
 entailer!.
 rewrite Xarray_simpl; auto.
-apply Zlength_length in H; auto.
 *
 Intros.
 destruct H0 as [_ H2].
 assert (H0: LBLOCKz <= i < 64) by (change LBLOCKz with 16%Z; omega).
 clear H2 H1.
-assert (H': length b = 16%nat) by (apply Zlength_length in H; auto).
+(*assert (H': length b = 16%nat) by (apply Zlength_length in H; auto). *)
 assert (LBE := LBLOCK_zeq).
 change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
@@ -306,7 +307,8 @@ rewrite <- H1; clear H1.
 unfold rnd_function, nthi; simpl.
 repeat split; try reflexivity.
  +
-  repable_signed.
+  rep_omega.
+ + omega.
  +
   f_equal.
   rewrite <- Int.add_assoc; symmetry; rewrite <- Int.add_assoc.

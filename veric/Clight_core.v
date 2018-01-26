@@ -1,14 +1,15 @@
-Require Import sepcomp.semantics.
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.simulations.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.cfrontend.Clight.
 
 (*To prove memsem*)
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
 
 Inductive CC_core : Type :=
     CC_core_State : function ->
@@ -86,10 +87,10 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : option (CC_core * option mem) :=
+Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
   match v with
     Vptr b i =>
-    if Int.eq_dec i Int.zero then
+    if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
         Some (CC_core_State empty_function 
@@ -100,20 +101,19 @@ Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : optio
                                                        (params_of_fundef f))))
                      (Kseq (Sloop Sskip Sskip) Kstop)
              empty_env
-             (temp_bindings 1%positive (v::args)),
-             None)
+             (temp_bindings 1%positive (v::args)))
       | _ => None end
     else None
   | _ => None
   end.
 
-Definition cl_at_external (ge: genv) (c: CC_core) (m: mem) : option (external_function * list val) :=
+Definition cl_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
   | CC_core_Callstate (External ef _ _ _) args _ => Some (ef, args)
   | _ => None
 end.
 
-Definition cl_after_external (ge: genv) (vret: option val) (c: CC_core) : option CC_core :=
+Definition cl_after_external (vret: option val) (c: CC_core) : option CC_core :=
    match c with
    | CC_core_Callstate (External ef _ _ _) _ k => 
         Some (CC_core_Returnstate (match vret with Some v => v | _ => Vundef end) k)
@@ -121,13 +121,13 @@ Definition cl_after_external (ge: genv) (vret: option val) (c: CC_core) : option
    end.
 
 Definition cl_step ge (q: CC_core) (m: mem) (q': CC_core) (m': mem) : Prop :=
-    cl_at_external ge q m = None /\ 
+    cl_at_external q = None /\ 
      Clight.step ge (Clight.function_entry2 ge)
       (CC_core_to_CC_state q m) Events.E0 (CC_core_to_CC_state q' m').
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', 
-          cl_step ge q m q' m' -> cl_at_external ge q m = None.
+          cl_step ge q m q' m' -> cl_at_external q = None.
 Proof.
   intros.
   unfold cl_step in H. destruct H; auto.  
@@ -138,6 +138,14 @@ Lemma cl_corestep_not_halted :
 Proof.
   intros.
   simpl; auto.
+Qed.
+
+Lemma cl_after_at_external_excl :
+  forall retv q q', cl_after_external retv q = Some q' -> cl_at_external q' = None.
+Proof.
+intros until q'; intros H.
+unfold cl_after_external in H.
+destruct q; inv H. destruct f; inv H1. reflexivity.
 Qed.
 
 Program Definition cl_core_sem :
@@ -190,5 +198,5 @@ apply Build_MemSem with (csem := cl_core_sem).
   inversion H0;
     try do 2 match goal with
     | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H
-             end; subst; try apply mem_step_refl; trivial.
+             end; subst; try apply mem_step_refl; trivial. 
 Admitted.

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
@@ -127,7 +127,7 @@ forall FR c k h nonce out
        (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -405,7 +405,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 Lemma f_core_loop3: forall (Espec : OracleKind) FR
 c k h nonce out w x y t (xI:list int),
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -465,12 +465,10 @@ Time forward_for_simple_bound 20 (EX i:Z,
       rewrite RZL; apply Z_mod_lt; omega.
     destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16) Vundef) as [t3 T3].
       rewrite RZL; apply Z_mod_lt; omega. 
-    eapply semax_post.
-    2: apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
-    intros; apply andp_left2.
-    unfold POSTCONDITION, abbreviate.
-    apply assert_lemmas.normal_ret_assert_derives'.
-    Intros W. Exists W. old_go_lower. Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
+    eapply semax_post_flipped'.
+    apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
+    Intros W. Exists W.
+    Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
     rewrite Z.add_comm, Z2Nat.inj_add; try omega.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption.
@@ -481,18 +479,15 @@ Time forward_for_simple_bound 20 (EX i:Z,
   Intros wlist. rename H into HW.
   destruct (WWI _ _ HW RZL) as [wints [WI SNUFF]]. subst wlist.
   freeze [0;1] FR2.
-  eapply semax_post.
-  Focus 2. apply (array_copy3 _ (FRZL FR2) c k h nonce out
+  eapply semax_post_flipped'.
+  apply (array_copy3 _ (FRZL FR2) c k h nonce out
                   i w x y t (map Vint r) (map Vint wints)); trivial.
            intros. apply Znth_mapVint.
               destruct (snuffleRound_length _ _ SNUFF) as [WL _].
               rewrite Zlength_correct, WL; simpl; omega.
-  intros ? ?. apply andp_left2.
-    unfold POSTCONDITION, abbreviate.
-    apply assert_lemmas.normal_ret_assert_derives'.
   Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try omega.
-  old_go_lower. Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
+  Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
-apply andp_left2; apply derives_refl. 
+ auto.
 Time Qed. (*June4th, 2017 (laptop): Finished transaction in 1.781 secs (1.072u,0.028s) (successful)*)

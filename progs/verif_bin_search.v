@@ -1,5 +1,5 @@
-Require Import floyd.proofauto. (* Import the Verifiable C system *)
-Require Import progs.bin_search. (* Import the AST of this C program *)
+Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
+Require Import VST.progs.bin_search. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -202,7 +202,14 @@ Proof.
  * entailer!.
  *
   match goal with H : _ <-> _ |- _ => rename H into H_tgt_sublist end.
-  forward.  (* mid =  (lo + hi) >> 1; *)
+  forward.  (* mid =  (lo + hi) >> 1; *) {
+   entailer!.
+   clear - H8 HRE H7.
+   set (j := Int.max_signed / 2) in *; compute in j; subst j.
+   set (j := Int.max_signed) in *; compute in j; subst j.
+   set (j := Int.min_signed) in *; compute in j; subst j.
+   omega.
+ }
   rewrite add_repr, Int.shr_div_two_p.
   change (two_p (Int.unsigned (Int.repr 1))) with 2. 
   assert (Hlo'hi':  lo' + hi' <= Int.max_signed). {
@@ -266,10 +273,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_search.
 semax_func_cons body_main.
 Qed.

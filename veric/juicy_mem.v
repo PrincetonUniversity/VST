@@ -1,5 +1,5 @@
-Require Import veric.juicy_base.
-Require Import veric.shares.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.shares.
 Import cjoins.
 
 Definition dec_share_nonidentity (sh: Share.t) : {~identity sh}+{identity sh} :=
@@ -187,7 +187,7 @@ Lemma perm_of_res_op2:
   forall r,
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
-  destruct r; simpl.
+  destruct r; simpl; auto.
   - if_tac; constructor.
   - destruct k; try solve [destruct (perm_of_sh sh); constructor].
    +
@@ -216,10 +216,8 @@ Proof.
     unfold readable_share. rewrite glb_twice; auto.
     contradict H. unfold writable_share in *. eapply join_sub_trans; eauto.
     apply leq_join_sub. apply Share.glb_lower2.
- -
-  auto.
 Qed.
-    
+
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).
 

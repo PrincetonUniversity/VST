@@ -1,19 +1,22 @@
 Require Import mailbox.verif_atomic_exchange.
-Require Import veric.rmaps.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.veric.rmaps.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.lock.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* standard VST prelude *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+(* import funspecs from concurrency library *)
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 
+(* encoding a lock invariant in terms of an atomic exchange invariant *)
 Definition lock_R R (h : list AE_hist_el) v := EX z : Z, !!(repable_signed z /\ v = vint z) &&
   (weak_precise_mpred R && emp) * (weak_positive_mpred R && emp) * if eq_dec z 0 then R else emp.
 
@@ -54,6 +57,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'
 
 Definition lock_sig := (ProdType (ConstType (share * val * val * val)) Mpred).
 
+(* funspecs for acquire and release *)
 Program Definition my_acquire_spec :=
  DECLARE _my_acquire TYPE lock_sig
   WITH sh : share, l : val, p : val, g : val, R : mpred
@@ -146,6 +150,8 @@ Proof.
       destruct H' as (? & H'); specialize (H _ _ H'); subst end.
     eapply sepalg.same_unit; eauto.
 Qed.
+
+(* proofs of correctnes of the lock functions *)
 
 Lemma body_my_acquire : semax_body Vprog Gprog f_my_acquire my_acquire_spec.
 Proof.

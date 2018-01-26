@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -68,7 +68,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
 @semax hmac_drbg_compspecs.CompSpecs Espec
   (initialized_list [_entropy_len; _t'2; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
-        HmacDrbgFunSpecs))
+        HmacDrbgFunSpecs nil))
   (PROP ( )
    LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
@@ -130,18 +130,15 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
               (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))
  (frame_ret_assert
      (function_body_ret_assert tint
-        (fun a : environ =>
-         EX x : val,
+       (EX x : val,
          (PROP ( )
           LOCAL (temp ret_temp x)
           SEP (reseedPOST x contents additional add_len s
                  (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
                  info_contents kv
                  (md_ctx',
-                 (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))))) a))
-     (fun a : environ =>
-      EX x : val,
-      local (lvar_denote _seed (tarray tuchar 384) x) a && ` (data_at_ Tsh (tarray tuchar 384) x) a)).
+                 (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))))))
+     (stackframe_of f_mbedtls_hmac_drbg_reseed)).
 Proof.
   intros.
   assert (ZLbytes: Zlength entropy_bytes = entropy_len).
@@ -235,17 +232,17 @@ Proof.
     }
     flatten_sepcon_in_SEP. rewrite data_at_isptr with (p:=seed); Intros.
     apply isptrD in Pseed; destruct Pseed as [b [i SEED]]; rewrite SEED in *.
-    change (offset_val entropy_len (Vptr b i)) with (Vptr b (Int.add i (Int.repr entropy_len))).
+    change (offset_val entropy_len (Vptr b i)) with (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))).
     assert_PROP (field_compatible (Tarray tuchar (384 - entropy_len) noattr)
-          [] (Vptr b (Int.add i (Int.repr entropy_len)))) as FC_el by entailer!.
+          [] (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) as FC_el by entailer!.
     simpl in *.
     replace_SEP 1 (
       (data_at Tsh (tarray tuchar (Zlength contents))
-         (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Int.add i (Int.repr entropy_len)))) *
+         (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))) *
       (data_at Tsh (tarray tuchar (384 - entropy_len - Zlength contents))
-         (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))))).
+         (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))))).
     { 
-      remember (Vptr b (Int.add i (Int.repr entropy_len))) as seed'.
+      remember (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))) as seed'.
       clear Heqseed'.
       (*entailer!*) go_lower.
       apply derives_refl'.
@@ -259,11 +256,11 @@ Proof.
     }
 
     flatten_sepcon_in_SEP.
-    replace_SEP 1 (memory_block Tsh (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))).
+    replace_SEP 1 (memory_block Tsh (Zlength contents) (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len)))).
     { entailer!. replace (Zlength contents) with (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents))) at 2.
       apply data_at_memory_block. simpl. rewrite Zmax0r; omega.
     }
-    forward_call ((Tsh, Tsh), (Vptr b (Int.add i (Int.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
+    forward_call ((Tsh, Tsh), (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
     {
       (* type checking *)
       red in LV.
@@ -272,8 +269,7 @@ Proof.
     }
     {
       (* match up function parameter *)
-      rewrite XH1; simpl.
-      apply prop_right; trivial.
+      rewrite XH1; simpl. normalize.
     }
     {
       (* match up SEP clauses *)
@@ -287,7 +283,7 @@ Proof.
     }
     {
       (* prove the PROP clauses *)
-      repeat split; auto; omega.
+      repeat split; auto; try omega. rep_omega.
     }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
@@ -329,12 +325,12 @@ Proof.
     erewrite data_at_complete_split with (AB:=map Vint (map Int.repr contents) ++
        list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
          (Vint Int.zero))
-      (p:=(Vptr b (Int.add i (Int.repr entropy_len))))
+      (p:=(Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))))
       (A:= map Vint (map Int.repr contents)).
     7: reflexivity. 3: reflexivity. 5: reflexivity.
     3: reflexivity. 3: solve [rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega].
 
-    unfold offset_val. rewrite Int.add_assoc, add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
+    unfold offset_val. rewrite Ptrofs.add_assoc, ptrofs_add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
     repeat rewrite Zlength_map. rewrite Zlength_list_repeat; try omega.
     apply derives_refl.
     rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega. rewrite X; assumption.
@@ -407,7 +403,7 @@ Proof.
   {
     (* prove the PROP clauses *)
     simpl in *. repeat split; trivial; try omega. (*
-    rewrite H2 in *;*) rewrite int_max_unsigned_eq. omega.
+    rewrite H2 in *;*) rewrite ptrofs_max_unsigned_eq. omega.
     left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption.
       eapply get_bytes_isbyteZ; eauto.
@@ -462,7 +458,7 @@ Proof.
 
   (* return 0 *)
   idtac "Timing a forward (goal: 5secs)". Time forward. (*5 secs*)
-  Exists seed (Vint (Int.repr 0)). normalize.
+  Exists (Vint (Int.repr 0)). normalize.
   entailer!.
 
   assert (ZL1: Zlength (contents_with_add additional (Zlength contents) contents) >? 256 = false).

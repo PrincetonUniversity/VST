@@ -1,5 +1,6 @@
-(* This probably doesn't belong in progs. Talk to Santiago about where it should go. *)
-Require Import progs.conclib.
+Require Import VST.progs.conclib.
+
+(* Axiomatization of view shifts, PCMs, and ghost state *)
 
 Class PCM (A : Type) :=
   { join : A -> A -> A -> Prop;
@@ -10,10 +11,6 @@ Class PCM (A : Type) :=
 Section Ghost.
 
 Context {CS : compspecs}.
-
-Section PCM.
-
-Context `{M : PCM}.
 
 (* This is an overapproximation of IRIS's concept of view shift. *)
 Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
@@ -119,12 +116,17 @@ Qed.
 
 End ViewShift.
 
+(* General PCM-based ghost state *)
+
+Parameter ghost : forall {A} {P : PCM A} (g : A) (p : val), mpred.
+
+Section PCM.
+
+Context `{M : PCM}.
+
 Definition joins a b := exists c, join a b c.
 
 Definition update a b := forall c, joins a c -> joins b c.
-
-(* General PCM-based ghost state *)
-Parameter ghost : forall (g : A) (p : val), mpred.
 
 (* subject to change *)
 (* We need to make sure we can't allocate invalid ghost state (which would immediately entail False). *)
@@ -162,6 +164,37 @@ Proof.
   intros.
   eapply derives_precise, ex_ghost_precise.
   intros ??; exists g; eauto.
+Qed.
+
+Lemma ghost_list_alloc : forall lg P g, Forall (fun g => exists g', joins g g') lg ->
+  view_shift P (EX lp : list val, !!(Zlength lp = Zlength lg) &&
+    fold_right sepcon emp (map (fun i => ghost (Znth i lg g) (Znth i lp Vundef)) (upto (Z.to_nat (Zlength lg)))) * P).
+Proof.
+  induction 1.
+  - apply derives_view_shift; Exists (@nil val); entailer!.
+  - etransitivity; eauto.
+    apply view_shift_exists; intro lp.
+    etransitivity; [apply ghost_alloc; eauto|].
+    apply derives_view_shift; Intros p.
+    Exists (p :: lp); rewrite !Zlength_cons, Z2Nat.inj_succ by apply Zlength_nonneg.
+    rewrite (upto_app 1), map_app, sepcon_app; simpl.
+    rewrite !Znth_0_cons; entailer!.
+    erewrite map_map, map_ext_in; eauto; intros; simpl.
+    rewrite In_upto in *; rewrite !Znth_pos_cons by omega.
+    rewrite Z.add_comm, Z.add_simpl_r; auto.
+Qed.
+
+Corollary ghost_list_alloc' : forall g i P, 0 <= i -> (exists g', joins g g') ->
+  view_shift P (EX lp : list val, !!(Zlength lp = i) &&
+    fold_right sepcon emp (map (fun i => ghost g (Znth i lp Vundef)) (upto (Z.to_nat i))) * P).
+Proof.
+  intros.
+  etransitivity; [apply ghost_list_alloc with (lg := repeat g (Z.to_nat i))|].
+  { apply Forall_repeat; auto. }
+  apply derives_view_shift; Intros lp; Exists lp.
+  rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto; entailer!.
+  erewrite map_ext_in; eauto; intros; simpl.
+  rewrite Znth_repeat; auto.
 Qed.
 
 End PCM.
@@ -205,6 +238,12 @@ Proof.
   - intros ????? [(? & ?) | (? & ?)]; subst; eauto.
 Defined.
 
+Lemma exclusive_update : forall v v' p, view_shift (ghost (Some v) p) (ghost (Some v') p).
+Proof.
+  intros; apply ghost_update; intros ? (? & [[]|[]]); try discriminate; subst.
+  eexists; simpl; eauto.
+Qed.
+
 End Ops.
 
 Global Instance share_PCM : PCM share := { join := sepalg.join }.
@@ -220,6 +259,40 @@ Class PCM_order `{P : PCM} (ord : A -> A -> Prop) := { ord_refl :> RelationClass
   ord_lub : forall a b c, ord a c -> ord b c -> exists c', join a b c' /\ ord c' c;
   join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
 
+Class lub_ord {A} (ord : A -> A -> Prop) := { lub_ord_refl :> RelationClasses.Reflexive ord;
+  lub_ord_trans :> RelationClasses.Transitive ord;
+  has_lub : forall a b c, ord a c -> ord b c -> exists c', ord a c' /\ ord b c' /\
+    forall d, ord a d -> ord b d -> ord c' d }.
+
+Global Instance ord_PCM `{lub_ord} : PCM A := { join a b c := ord a c /\ ord b c /\
+  forall c', ord a c' -> ord b c' -> ord c c' }.
+Proof.
+  - intros ??? (? & ? & ?); eauto.
+  - intros ????? (? & ? & Hc) (? & ? & He).
+    destruct (has_lub b d e) as (c' & ? & ? & Hlub); try solve [etransitivity; eauto].
+    exists c'; repeat split; auto.
+    + etransitivity; eauto.
+    + apply Hlub; auto; transitivity c; auto.
+    + intros.
+      apply He.
+      * apply Hc; auto; etransitivity; eauto.
+      * etransitivity; eauto.
+Defined.
+
+Global Instance ord_PCM_ord `{lub_ord} : PCM_order ord.
+Proof.
+  constructor.
+  - apply lub_ord_refl.
+  - apply lub_ord_trans.
+  - intros ??? Ha Hb.
+    destruct (has_lub _ _ _ Ha Hb) as (c' & ? & ? & ?).
+    exists c'; simpl; eauto.
+  - simpl; intros; tauto.
+  - intros; simpl.
+    repeat split; auto.
+    reflexivity.
+Defined.
+
 (* Instances of ghost state *)
 Section Snapshot.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
@@ -232,9 +305,25 @@ Proof.
   intros; apply ord_join; reflexivity.
 Qed.
 
+Lemma join_compat : forall v1 v2 v' v'', join v2 v' v'' -> ord v1 v2 -> exists v0, join v1 v' v0 /\ ord v0 v''.
+Proof.
+  intros.
+  destruct (join_ord _ _ _ H).
+  apply ord_lub; auto; etransitivity; eauto.
+Qed.
+
+Lemma join_ord_eq : forall a b, ord a b <-> exists c, join a c b.
+Proof.
+  split.
+  - intros; exists b.
+    apply ord_join in H.
+    apply join_comm; auto.
+  - intros (? & H); apply join_ord in H; tauto.
+Qed.
+
 (* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
    an authoritative writer and an up-to-date invariant. *)
-(* Does this generalize both ghost_var and master-snapshot? *)
+(* This generalizes both ghost_var and master-snapshot. *)
 
 Global Instance snap_PCM : PCM (share * A) :=
   { join a b c := sepalg.join (fst a) (fst b) (fst c) /\
@@ -352,16 +441,14 @@ Proof.
     apply derives_view_shift; entailer!.
 Qed.
 
-Lemma ghost_snap_forget : forall v1 v2 p
-  (Hcompat : forall v' v'', join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
-  ord v1 v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
+Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
 Proof.
   intros; apply ghost_update.
   intros (shc, c) [(shx, x) [? Hj]]; simpl in *.
   rewrite eq_dec_refl in Hj.
   assert (shx = shc) by (eapply sepalg.join_eq; eauto); subst.
   unfold share in Hj; destruct (eq_dec shc Share.bot); subst.
-  - destruct (Hcompat _ _ Hj) as [x' []].
+  - destruct (join_compat _ _ _ _ Hj H) as [x' []].
     exists (Share.bot, x'); simpl.
     rewrite !eq_dec_refl; auto.
   - destruct Hj; subst.
@@ -371,9 +458,7 @@ Proof.
     etransitivity; eauto.
 Qed.
 
-Lemma ghost_snap_choose : forall v1 v2 p
-  (Hcompat : forall v2 v' v'', ord v1 v2 -> join v2 v' v'' -> exists v0, join v1 v' v0 /\ ord v0 v''),
-  view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
+Lemma ghost_snap_choose : forall v1 v2 p, view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
 Proof.
   intros.
   eapply view_shift_assert.
@@ -382,6 +467,35 @@ Proof.
   rewrite !eq_dec_refl in Hj.
   erewrite ghost_snap_join by eauto; apply join_ord in Hj; destruct Hj.
   apply ghost_snap_forget; eauto.
+Qed.
+
+Lemma master_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
+  ghost (sh1, v) p * ghost (sh2, v) p = ghost (sh, v) p.
+Proof.
+  intros; apply ghost_join; simpl; split; auto.
+  if_tac; if_tac; try split; auto; try apply ord_refl; apply join_refl.
+Qed.
+
+Lemma master_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  ghost (sh1, v1) p * ghost (sh2, v2) p |-- !!(v1 = v2).
+Proof.
+  intros.
+  eapply derives_trans; [apply ghost_conflict|].
+  apply prop_left; intros ((?, ?) & Hj); simpl in Hj.
+  destruct (eq_dec sh1 Share.bot); [subst; contradiction unreadable_bot|].
+  destruct (eq_dec sh2 Share.bot); [subst; contradiction unreadable_bot|].
+  destruct Hj as [? []]; subst; apply prop_right; auto.
+Qed.
+
+Lemma master_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  ghost (sh1, v1) p * ghost (sh2, v2) p = !!(v1 = v2) && ghost (sh, v2) p.
+Proof.
+  intros; apply mpred_ext.
+  - assert_PROP (v1 = v2) by (apply master_inj; auto).
+    subst; erewrite master_share_join; eauto; entailer!.
+  - Intros; subst.
+    erewrite master_share_join; eauto.
 Qed.
 
 (* useful when we only want to deal with full masters *)
@@ -426,30 +540,20 @@ Definition ghost_var (sh : share) (v : A) p := ghost (sh, v) p.
 Lemma ghost_var_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   ghost_var sh1 v p * ghost_var sh2 v p = ghost_var sh v p.
 Proof.
-  intros; apply ghost_join; simpl; split; auto.
-  if_tac; if_tac; auto.
+  apply master_share_join.
 Qed.
 
 Lemma ghost_var_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   ghost_var sh1 v1 p * ghost_var sh2 v2 p |-- !!(v1 = v2).
 Proof.
-  intros.
-  eapply derives_trans; [apply ghost_conflict|].
-  apply prop_left; intros ((?, ?) & Hj); simpl in Hj.
-  destruct (eq_dec sh1 Share.bot); [subst; contradiction unreadable_bot|].
-  destruct (eq_dec sh2 Share.bot); [subst; contradiction unreadable_bot|].
-  destruct Hj as [? []]; subst; apply prop_right; auto.
+  apply master_inj.
 Qed.
 
 Lemma ghost_var_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->
   ghost_var sh1 v1 p * ghost_var sh2 v2 p = !!(v1 = v2) && ghost_var sh v2 p.
 Proof.
-  intros; apply mpred_ext.
-  - assert_PROP (v1 = v2) by (apply ghost_var_inj; auto).
-    subst; erewrite ghost_var_share_join; eauto; entailer!.
-  - Intros; subst.
-    erewrite ghost_var_share_join; eauto.
+  apply master_share_join'.
 Qed.
 
 Lemma ghost_var_update : forall v p v', view_shift (ghost_var Tsh v p) (ghost_var Tsh v' p).
@@ -459,8 +563,8 @@ Qed.
 
 Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
 Proof.
-  intros; eapply derives_precise, ex_ghost_precise.
-  intros ? (x & ?); exists (sh, x); eauto.
+  intros; apply derives_precise' with (EX g : share * A, ghost g p), ex_ghost_precise.
+  Intro v; Exists (sh, v); auto.
 Qed.
 
 Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).
@@ -589,22 +693,6 @@ Lemma snap_master_update' : forall (v1 v2 : Z) p v', v2 <= v' ->
   view_shift (ghost_snap v1 p * ghost_master v2 p) (ghost_snap v' p * ghost_master v' p).
 Proof.
   intros; apply snap_master_update1; auto.
-Qed.
-
-Lemma ghost_snap_le : forall v1 v2 p, v1 <= v2 -> view_shift (ghost_snap v2 p) (ghost_snap v1 p).
-Proof.
-  intros; apply ghost_snap_forget; auto; simpl; intros; subst.
-  do 2 eexists; eauto.
-  apply Z.max_le_compat_r; auto.
-Qed.
-
-Lemma ghost_snap_choose' : forall (v1 v2 : Z) p,
-  view_shift (ghost_snap v1 p * ghost_snap v2 p) (ghost_snap v1 p).
-Proof.
-  intros.
-  apply ghost_snap_choose; simpl; intros; subst.
-  do 2 eexists; eauto.
-  apply Z.max_le_compat_r; auto.
 Qed.
 
 End PVar.

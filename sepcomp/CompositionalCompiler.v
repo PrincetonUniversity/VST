@@ -20,13 +20,13 @@ Require Import Globalenvs.
 Require Import Smallstep.
 
 Require Import compcert.cfrontend.Clight.
-(*WE NEED THIS: Require Import sepcomp.Clight_eff.*)
+(*WE NEED THIS: Require Import VST.sepcomp.Clight_eff.*)
 
-Require Import ccc26x86.Asm.
-Require Import ccc26x86.Asm_eff.
+Require Import VST.ccc26x86.Asm.
+Require Import VST.ccc26x86.Asm_eff.
 
-Require Import sepcomp.simulations.
-Require Import sepcomp.effect_semantics.
+Require Import VST.sepcomp.simulations.
+Require Import VST.sepcomp.effect_semantics.
 
 Axiom transf_clight_program : Clight.program -> res Asm.program.
 

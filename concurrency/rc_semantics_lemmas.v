@@ -4,12 +4,12 @@ Require Import BinPos.
 
 Require Import Axioms.
 
-Require Import concurrency.compcert_imports. Import CompcertCommon.
+Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp.arguments.
 
-Require Import concurrency.rc_semantics.
+Require Import VST.concurrency.rc_semantics.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.

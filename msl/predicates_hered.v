@@ -3,8 +3,8 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.ageable.
+Require Import VST.msl.base.
+Require Import VST.msl.ageable.
 
 Delimit Scope pred with pred.
 Local Open Scope pred.

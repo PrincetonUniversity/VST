@@ -1,6 +1,6 @@
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.predicates_sa.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.predicates_sa.
 
 Local Open Scope pred.
 

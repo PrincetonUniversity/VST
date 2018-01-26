@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,7 +10,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.entropy_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 
@@ -18,7 +18,7 @@ Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval I) /\
-         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed /\
          Forall isbyteZ (hmac256drbgabs_value I).
 
 Definition REP kv (Info:md_info_state) (A:hmac256drbgabs) (v: val): mpred :=
@@ -43,7 +43,7 @@ Definition seedbufREP kv (Info:md_info_state) (info:val) (A:hmac256drbgabs) (v: 
   EX a:hmac256drbgstate,
      !! (0 < hmac256drbgabs_entropy_len A <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval A) /\
-         0 <= hmac256drbgabs_reseed_counter A <= Int.max_signed)
+         0 <= hmac256drbgabs_reseed_counter A < Int.max_signed)
      && data_at Tsh t_struct_hmac256drbg_context_st a v
           * hmac256drbg_relate A a
           * data_at Tsh t_struct_mbedtls_md_info Info info
@@ -116,7 +116,10 @@ Definition drbg_setPredictionResistance_spec_abs :=
        PROP ( )
        LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))
        SEP (AREP kv A ctx)
-    POST [ tvoid ] SEP (AREP kv (setPR_ABS r A) ctx).
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (AREP kv (setPR_ABS r A) ctx).
 
 
 Definition drbg_setEntropyLen_spec_abs :=
@@ -128,6 +131,8 @@ Definition drbg_setEntropyLen_spec_abs :=
        LOCAL (temp _ctx ctx; temp _len (Vint (Int.repr l)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setEL_ABS l A) ctx).
 
 Definition drbg_setReseedInterval_spec_abs :=
@@ -139,6 +144,8 @@ Definition drbg_setReseedInterval_spec_abs :=
        LOCAL (temp _ctx ctx; temp _interval (Vint (Int.repr ri)))
        SEP (AREP kv A ctx)
     POST [ tvoid ]
+       PROP ()
+       LOCAL ()
        SEP (AREP kv (setRI_ABS ri A) ctx).
 
 Definition drbg_update_abs_spec :=

@@ -7,11 +7,11 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.simulations.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.simulations.
 
 Module CompilerCorrectness.
 

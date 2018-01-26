@@ -9,12 +9,12 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.effect_simulations.
 
 Definition FLIP mu :=
   match mu with

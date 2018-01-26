@@ -9,13 +9,13 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Errors.
 Require Import compcert.common.Globalenvs.
 (*Require Import Cminor.*)
-Require Import ccc26x86.Op.
+Require Import VST.ccc26x86.Op.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import msl.Axioms.
-Require Import sepcomp.globalSep.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.msl.Axioms.
+Require Import VST.sepcomp.globalSep.
 
   (** * Axiomatization of the helper functions *)
 
@@ -62,7 +62,7 @@ Definition sig_ii_l := mksignature (Tint :: Tint :: nil) (Some Tlong) cc_default
 
 
 (** Setting up the helper functions *)
-Require Import ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)
+Require Import VST.ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)
 Definition globdef := AST.globdef Cminor.fundef unit.
 
 Definition globdef_of_interest (gd: globdef) : bool :=

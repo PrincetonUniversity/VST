@@ -1,12 +1,12 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.closed_lemmas.
-Require Import floyd.canonicalize.
-Require Import floyd.forward_lemmas.
-Require Import floyd.call_lemmas.
-Require Import floyd.extcall_lemmas.
-Require Import floyd.type_id_env.
+Require Import VST.floyd.base.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.assert_lemmas.
+Require Import VST.floyd.closed_lemmas.
+Require Import VST.floyd.canonicalize.
+Require Import VST.floyd.forward_lemmas.
+Require Import VST.floyd.call_lemmas.
+Require Import VST.floyd.extcall_lemmas.
+Require Import VST.floyd.type_id_env.
 
 Local Open Scope logic.
 

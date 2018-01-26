@@ -1,6 +1,6 @@
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms.
-Require Import msl.predicates_sa.
+Require Import VST.msl.Axioms.
+Require Import VST.msl.predicates_sa.
 Require Import veristar.variables veristar.datatypes veristar.clauses
                veristar.list_denote veristar.heapresolve
                veristar.model_type veristar.model.

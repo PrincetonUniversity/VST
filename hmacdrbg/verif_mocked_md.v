@@ -1,11 +1,11 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_free md_free_spec.
@@ -112,7 +112,7 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
-  forward_call (@inl _ (val * Z * list Z * val * block * Int.int) (internal_r, 32, key, kv)). 
+  forward_call (@inl _ (val * Z * list Z * val * block * Ptrofs.int) (internal_r, 32, key, kv)). 
   forward.
 
   unfold md_relate; simpl. cancel.

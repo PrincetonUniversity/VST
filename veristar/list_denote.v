@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import Coq.Lists.List Permutation veric.Coqlib2.
-Require Import msl.Axioms msl.sepalg msl.predicates_sa msl.base
+Require Import VST.msl.Axioms msl.sepalg VST.msl.predicates_sa msl.base
                veristar.variables veristar.datatypes
                veristar.clauses veristar.basic veristar.compare.
 

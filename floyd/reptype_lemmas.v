@@ -1,9 +1,8 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-Require Export floyd.compact_prod_sum.
-Require Import floyd.fieldlist.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.type_induction.
+Require Export VST.floyd.compact_prod_sum.
+Require Import VST.floyd.fieldlist.
+Require Import VST.floyd.sublist.
 
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
@@ -434,13 +433,13 @@ Proof.
 Qed.
 
 Inductive pointer_val : Type :=
-  | ValidPointer: block -> int -> pointer_val
+  | ValidPointer: block -> Ptrofs.int -> pointer_val
   | NullPointer.
 
 Lemma PV_eq_dec: forall x y: pointer_val, {x = y} + {x <> y}.
 Proof.
   intros; destruct x, y; [| right | right | left]; try congruence.
-  destruct (block_eq_dec b b0), (Int.eq_dec i i0); [left | right | right | right]; congruence.
+  destruct (block_eq_dec b b0), (Ptrofs.eq_dec i i0); [left | right | right | right]; congruence.
 Qed.
 
 Lemma zero_in_range : (-1 < 0 < Int.modulus)%Z.
@@ -593,6 +592,12 @@ Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
 Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
+Lemma ptrofs_add_repr_0_l: forall i, Ptrofs.add (Ptrofs.repr 0) i = i.
+Proof. intros. apply Ptrofs.add_zero_l. Qed.
+Lemma ptrofs_add_repr_0_r: forall i, Ptrofs.add i (Ptrofs.repr 0) = i.
+Proof. intros. apply Ptrofs.add_zero. Qed.
+Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
+
 Definition repinject (t: type) : reptype t -> val :=
   match t as t0 return reptype t0 -> val with
   | Tint _ _ _ => fun v => v
@@ -695,6 +700,114 @@ Tactic Notation "unfold_repinj" constr(T) constr(V) :=
    pattern (repinj T V);
   unfold_repinj' T.
 *)
+
+Lemma reptype_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @reptype cs_from t = @reptype cs_to t.
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    rewrite IH; auto.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_structlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_unionlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
+Qed.
+
+Lemma default_val_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  JMeq (@default_val cs_from t) (@default_val cs_to t).
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    specialize (IH H).
+    revert IH; generalize (@default_val cs_from t), (@default_val cs_to t).
+    rewrite reptype_change_composite by auto.
+    intros.
+    apply JMeq_eq in IH; subst.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    unfold struct_default_val.
+    apply compact_prod_gen_JMeq.
+    rewrite <- Forall_forall.
+    revert H IH.
+    generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
+    induction H as [| [i t] ?].
+    - constructor.
+    - inv IH.
+      constructor; auto.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    unfold union_default_val.
+    apply compact_sum_gen_JMeq.
+    rewrite <- Forall_forall.
+    revert H IH.
+    generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
+    induction H as [| [i t] ?].
+    - constructor.
+    - inv IH.
+      constructor; auto.
+Qed.
 
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with

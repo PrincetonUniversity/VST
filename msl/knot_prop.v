@@ -3,17 +3,17 @@
  *
  *)
 
-Require Import msl.base.
-Require Import msl.knot.
-Require Import msl.ageable.
-Require Import msl.sepalg.
-Require Import msl.sepalg_generators.
-Require Import msl.sepalg_functors.
-Require Import msl.age_sepalg.
-Require Import msl.knot_lemmas.
-Require Import msl.functors.
-Require Import msl.sepalg_functors.
-Require Import msl.knot_hered.
+Require Import VST.msl.base.
+Require Import VST.msl.knot.
+Require Import VST.msl.ageable.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.age_sepalg.
+Require Import VST.msl.knot_lemmas.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_functors.
+Require Import VST.msl.knot_hered.
 
 Import CovariantFunctor.
 Import CovariantFunctorLemmas.

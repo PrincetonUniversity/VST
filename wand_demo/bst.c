@@ -7,50 +7,44 @@ struct tree {int key; void *value; struct tree *left, *right;};
 
 typedef struct tree **treebox;
 
-treebox treebox_new(void) {
-  treebox p = (treebox) mallocN(sizeof (*p));
-  *p=NULL;
-  return p;
-}
-
-void tree_free(struct tree *p) {
-  struct tree *pa, *pb;
-  if (p!=NULL) {
-    pa=p->left;
-    pb=p->right;
-    freeN(p, sizeof (*p));
-    tree_free(pa);
-    tree_free(pb);
-  }
-}
-
-void treebox_free(treebox b) {
-  struct tree *t = *b;
-  tree_free(t);
-  freeN(b, sizeof (*b));
-}
-
-void insert (treebox t, int x, void *value) {
-  struct tree *p;
+void insert (treebox p, int x, void *value) {
+  struct tree *q;
   for(;;) {
-    p = *t;
-    if (p==NULL) {
-      p = (struct tree *) mallocN (sizeof *p);
-      p->key=x; p->value=value; p->left=NULL; p->right=NULL;
-      *t=p;
+    q = * p;
+    if (q == NULL) {
+      q = (struct tree *) mallocN (sizeof * q);
+      q -> key = x; q -> value = value; q -> left = NULL; q -> right = NULL;
+      * p = q;
       return;
     } else {
-      int y = p->key;
-      if (x<y)
-	t= &p->left;
+      int y = q -> key;
+      if (x < y)
+	p = & q -> left;
       else if (y<x)
-	t= &p->right;
+	p = & q -> right;
       else {
-	p->value=value;
+	q -> value = value;
 	return;
       }
     }
   }
+}
+
+void *lookup (treebox p, int x) {
+  struct tree * q; void * v;
+  q = * p;
+  while (q != NULL) {
+    int y = q -> key;
+    if (x < y)
+      q = q -> left;
+    else if (y<x)
+      q = q -> right;
+    else {
+      v = q -> value;
+      return v;
+    }
+  }
+  return NULL;
 }
 
 void turn_left(treebox _l, struct tree * l, struct tree * r) {
@@ -96,34 +90,5 @@ void delete (treebox t, int x) {
       }
     }
   }
-}
-
-void *lookup (treebox t, int x) {
-  struct tree *p; void *v;
-  p = *t;
-  while (p!=NULL) {
-    int y = p->key;
-    if (x<y)
-      p=p->left;
-    else if (y<x)
-      p=p->right;
-    else {
-      v = p->value;
-      return v;
-    }
-  }
-  return NULL;
-}
-
-
-int main (void) {
-  treebox p;
-  p = treebox_new();
-  insert(p,3,"three");
-  insert(p,1,"one");
-  insert(p,4,"four");
-  insert(p,1,"ONE");
-  treebox_free(p);
-  return 0;
 }
 

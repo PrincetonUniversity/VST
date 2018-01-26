@@ -3,7 +3,7 @@
   hmac twice, (on the same message, using the same key) and puts the resulting
   (identical) digests side by side in a suitably large array.*)
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
@@ -64,10 +64,10 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-rename lvar0 into c.
+rename v_c into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
-destruct MSG as [dl data]. simpl in *.
+destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
 rewrite memory_block_isptr. normalize.
 rename H into KL. rename H0 into DL.
 
@@ -100,16 +100,16 @@ remember (hmacInit key) as h0.
 forward_call (h0, c, d, dl, data, kv).
   { rewrite H0_len512. assumption. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
-assert (GTmod64: 64 < Int.modulus).
-  rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+assert (GTmod64: 64 < Ptrofs.modulus).
+  rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
 rewrite H (*_ GTmod64)*); clear H.
 normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
-specialize (memory_block_split shmd b (Int.unsigned i) 32 32); intros XX.
-  rewrite Int.repr_unsigned in XX.
+specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
+  rewrite Ptrofs.repr_unsigned in XX.
   assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
   rewrite XX; trivial; clear XX.
-2: destruct (Int.unsigned_range i); omega.
+2: destruct (Ptrofs.unsigned_range i); omega.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
@@ -133,7 +133,7 @@ forward_call (hmacInit key, c, d, dl, data, kv).
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).
-forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv).
+forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, kv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
 destruct RND2 as [h5 dig2].
 simpl.
@@ -142,14 +142,13 @@ forward_call (h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
   change A with (list_repeat (Z.to_nat n324) 0)
 end.
-
 forward.
 clear H2.
 pose proof (HMAC_Zlength data key).
 rewrite <- (hmac_sound key data) in *. unfold hmac in *.
 rewrite <- HeqRND2 in HeqRND1. inv HeqRND1.
 rewrite <- HeqRND2 in *. simpl in *.
-Exists c dig2.
+Exists dig2.
 unfold data_block at 1. simpl. entailer!.
 rewrite <- memory_block_data_at_ by auto.
 change (sizeof (Tstruct _hmac_ctx_st noattr))
@@ -158,8 +157,15 @@ rewrite memory_block_data_at_ by auto.
 cancel.
 
 assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
-  red. intuition. apply Z.divide_1_l.
-
+{
+  red. intuition.
+  simpl.
+  constructor.
+  intros.
+  econstructor.
+  + reflexivity.
+  + apply Z.divide_1_l.
+}
 rewrite (split2_data_block 32 _ (dig2 ++ dig2))
  by (autorewrite with sublist; omega).
 autorewrite with sublist.

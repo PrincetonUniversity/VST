@@ -1,9 +1,9 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Import veric.tycontext.
-Require Import veric.expr2.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
 
 Lemma eqb_type_eq: forall t1 t2, eqb_type t1 t2 = proj_sumbool (type_eq t1 t2).
 Proof.
@@ -198,7 +198,11 @@ Proof.
 intros. unfold strict_bool_val in *. unfold tc_val.
 destruct (eval_id id rho); try congruence.
 + destruct (Int.eq i Int.zero); try congruence.
-+ simpl; auto.
++ unfold is_pointer_or_integer, is_pointer_or_null.
+  destruct Archi.ptr64; inv H1;   if_tac; simpl; auto.
+  destruct (Int64.eq i Int64.zero); try congruence.
++
+   if_tac; simpl; auto.
 Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
@@ -305,6 +309,8 @@ try apply initialized_tycontext_evolve.
 eapply tycontext_evolve_trans; [ apply IHc1 | apply IHc2].
 apply tycontext_evolve_join; auto.
 auto.
+auto.
+
 clear tycontext_evolve_join_labeled.
 induction l; simpl; auto; intros.
 apply tycontext_evolve_refl.

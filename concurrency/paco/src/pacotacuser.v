@@ -1,4 +1,4 @@
-Require Export concurrency.paco.src.paconotation concurrency.paco.src.pacotac concurrency.paco.src.pacodef.
+Require Export VST.concurrency.paco.src.paconotation VST.concurrency.paco.src.pacotac VST.concurrency.paco.src.pacodef.
 Set Implicit Arguments.
 
 (** ** Type Class for acc, mult, fold and unfold
@@ -81,7 +81,7 @@ Tactic Notation "pcofix" ident(CIH) := pcofix CIH with r.
 Ltac pclearbot :=
   let X := fresh "_X" in
   repeat match goal with
-  | [H: appcontext[pacoid] |- _] => red in H; destruct H as [H|X]; [|contradiction X]
+  | [H: context[pacoid] |- _] => red in H; destruct H as [H|X]; [|contradiction X]
   end.
 
 (** ** [pdestruct H] and [pinversion H]

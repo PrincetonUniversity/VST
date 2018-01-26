@@ -1,7 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
-Require Import floyd.sublist.
+Require Import VST.floyd.sublist.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.general_lemmas.
@@ -17,7 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 
 Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec.
@@ -32,7 +32,7 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS. 
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
@@ -53,7 +53,7 @@ Proof.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!. thaw FR0. cancel. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v; clear Hv. rewrite if_true; trivial.
     forward. entailer!.
   }
@@ -74,7 +74,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   (*{ rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }*)
@@ -88,7 +88,7 @@ Proof.
   forward_call tt.
 
   freeze [0;1;3;4] FR3. rewrite lenV.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
     eapply derives_trans. apply data_at_memory_block. cancel.
   }
@@ -111,7 +111,7 @@ Proof.
   { entailer. unfold_data_at 1%nat.
     thaw INI.
     rewrite field_at_data_at. unfold field_address. rewrite if_true. 2: assumption.
-    simpl. rewrite int_add_repr_0_r.
+    simpl. rewrite ptrofs_add_repr_0_r.
     unfold t_struct_md_ctx_st. cancel.
     clear OTHER. thaw FIELDS1. cancel.
     rewrite field_at_data_at. simpl.

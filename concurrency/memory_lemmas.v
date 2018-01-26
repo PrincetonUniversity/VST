@@ -1,7 +1,7 @@
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values. (*for val*)
-Require Import concurrency.permissions.
+Require Import VST.concurrency.permissions.
 Require Import Coq.ZArith.ZArith.
 Require Import compcert.lib.Coqlib.
 

@@ -8,12 +8,12 @@ Require Import compcert.common.Values.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.mem_wd.
-(*Require Import sepcomp.mem_well_defined.*)
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_wd.
+(*Require Import VST.sepcomp.mem_well_defined.*)
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.reach.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -178,10 +178,10 @@ Lemma valid_genv_fwd F V (ge : Genv.t F V) m m' :
   valid_genv ge m'.
 Proof.
 intros H fwd. inv H; constructor; intros.
-{ cut (val_valid (Vptr b Int.zero) m).
+{ cut (val_valid (Vptr b Ptrofs.zero) m).
 + intros H2; apply (val_valid_fwd H2 fwd).
 + eauto. }
-{ cut (val_valid (Vptr b Int.zero) m).
+{ cut (val_valid (Vptr b Ptrofs.zero) m).
 + intros H2; apply (val_valid_fwd H2 fwd).
 + eauto. }
 Qed.

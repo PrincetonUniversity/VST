@@ -1,18 +1,18 @@
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
-Require Import veric.Clight_lemmas.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.juicy_safety.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -62,13 +62,12 @@ Lemma guard_environ_e1:
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
-Definition guard  {CS: compspecs} (Espec : OracleKind)
+Definition guard  (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
           !! guard_environ Delta (current_function ctl) rho
                   && P rho && funassert Delta rho
-                (*  && (!! (genv_cenv gx = cenv_cs)) *)
              >=> assert_safe Espec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
@@ -93,13 +92,12 @@ match vl, id with
 | _,_ => tx
 end.
 
-Definition rguard {CS: compspecs} (Espec : OracleKind)
+Definition rguard (Espec : OracleKind)
     (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in
            !! guard_environ (Delta ek) (current_function ctl) rho &&
-         R ek vl rho && funassert (Delta ek) rho
-           (* && (!! (genv_cenv gx = cenv_cs)) *)
+         proj_ret_assert R ek vl rho && funassert (Delta ek) rho
           >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
@@ -212,7 +210,7 @@ Definition believe_internal_
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,
-   prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+   prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
@@ -229,7 +227,7 @@ Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) 
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
   exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\
-    exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
+    exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
@@ -260,7 +258,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,
-   prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+   prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))

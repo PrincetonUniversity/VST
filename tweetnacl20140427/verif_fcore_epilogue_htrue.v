@@ -1,8 +1,7 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import floyd.deadvars.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
@@ -14,8 +13,8 @@ Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.spec_salsa.
 Opaque Snuffle.Snuffle. Opaque prepare_data.
 
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result Hresult ::= idtac.
+(*TODO: eliminate*)
+Ltac canon_load_result ::= idtac.
 
 Definition HTrue_inv1 l i ys xs : Prop :=
       Zlength l = 16 /\ exists ints, l=map Vint ints /\
@@ -49,7 +48,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h xs ys:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -190,7 +189,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
 
 Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
      lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -252,7 +251,7 @@ Proof. intros. abbreviate_semax.
     flatten_sepcon_in_SEP.
     freeze [0;1;3] FR2.
     freeze [0;2] FR3. 
-    Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
+    Time forward_call ((Vptr cb (Ptrofs.add coff (Ptrofs.repr (4 * i)))),
                       Select16Q C i). (*2.4 versus 10.3*)
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
@@ -291,9 +290,8 @@ Proof. intros. abbreviate_semax.
       flatten_sepcon_in_SEP.
 
       freeze [0;2] FR4.
-      Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
+      Time forward_call (Vptr nb (Ptrofs.add noff (Ptrofs.repr (4 * i))),
                      Select16Q Nonce i). (*3 versus 14.8*)
-
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
@@ -333,7 +331,7 @@ Proof. intros. abbreviate_semax.
      + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
        rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible.
-       simpl. rewrite Int.add_zero.
+       simpl. rewrite Ptrofs.add_zero.
 (*       rewrite isptr_offset_val_zero by trivial. *)
        apply data_at_ext.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
@@ -478,7 +476,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h OUT xs (*ys Nonce C K*):
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -579,7 +577,7 @@ deadvars!.
     repeat flatten_sepcon_in_SEP.
 
     freeze [0;1;3] FR6.
-    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*3.1 versus 11.2*)
+    Time forward_call (Vptr ob (Ptrofs.add ooff (Ptrofs.repr (16 + 4 * i))), zi). (*3.1 versus 11.2*)
 (*    { entailer!. (*Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero))).*)
       autorewrite with sublist. rewrite Z.add_assoc. 
       Time entailer!. (*1.2 versus 13.5*) }*)
@@ -746,7 +744,7 @@ Definition epilogue_htrue_statement:=
 
 Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs ys data:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -768,14 +766,8 @@ destruct data as ((Nonce, C), K).
 forward_seq. apply HTrue_loop2.
 drop_LOCAL 0%nat. (*VST: deadvars fails*)
 thaw FR2. freeze [0;2;3] FR3.
-eapply semax_post. 2: apply HTrue_loop3.
-intros ? ?. apply andp_left2.
-apply normal_ret_assert_derives'.
-Exists intsums.
-clear - HSums1 SL.
-(*Opaque ThirtyTwoByte.*) Opaque hPosLoop2. Opaque hPosLoop3.
-old_go_lower. (*TODO: eliminate*)
-Time entailer!. (*5 versus 6.6*)
+eapply semax_post_flipped'.  apply HTrue_loop3.
+Exists intsums. entailer!.
   intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.

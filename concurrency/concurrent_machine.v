@@ -5,24 +5,24 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
-Require Import sepcomp.semantics.
-Require Import sepcomp.event_semantics.
-Require Export concurrency.semantics.
-Require Import concurrency.threadPool. Export threadPool.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.event_semantics.
+Require Export VST.concurrency.semantics.
+Require Import VST.concurrency.threadPool. Export threadPool.
 
-Require Import concurrency.machine_semantics.
-Require Import concurrency.permissions.
-Require Import concurrency.bounded_maps.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.machine_semantics.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.bounded_maps.
+Require Import VST.concurrency.addressFiniteMap.
 
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.scheduler.
 Require Import Coq.Program.Program.
 
-Require Import concurrency.safety.
+Require Import VST.concurrency.safety.
 
-Require Import concurrency.coinductive_safety.
+Require Import VST.concurrency.coinductive_safety.
 
 
 Notation EXIT :=

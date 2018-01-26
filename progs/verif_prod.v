@@ -1,5 +1,5 @@
-Require Import progs.prod.
-Require Import floyd.proofauto.
+Require Import VST.progs.prod.
+Require Import VST.floyd.proofauto.
 
 Definition bound_int (v : val) (b : Z) :=
   match v with

@@ -7,21 +7,21 @@ Require Export compcert.lib.Maps.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Locations.
-Require Import ccc26x86.Stacklayout.
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Stacklayout.
+Require Import VST.ccc26x86.Conventions.
 
 (*LENB: again, in Compcomp we imported the modified Asm_comp*)
-Require Import ccc26x86.Asm.
-Require Import ccc26x86.Asm_coop.
+Require Import VST.ccc26x86.Asm.
+Require Import VST.ccc26x86.Asm_coop.
 
-Require Import sepcomp.mem_lemmas. (*for mem_forward*)
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
-Require Import ccc26x86.BuiltinEffects.
-Require Import ccc26x86.load_frame.
+Require Import VST.sepcomp.mem_lemmas. (*for mem_forward*)
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.ccc26x86.load_frame.
 
-Require Import msl.Extensionality.
+Require Import VST.msl.Extensionality.
 
 Notation SP := ESP (only parsing).
 

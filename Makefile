@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: .loadpath version.vo msl veric floyd
+default_target: .loadpath version.vo msl veric floyd progs
 
 COMPCERT ?= compcert
 -include CONFIGURE
@@ -9,10 +9,6 @@ COMPCERT ?= compcert
 #   COMPCERT=../compcert
 # if, for example, you want to build from a compcert distribution
 # that is sitting in a sister directory to vst.
-# One might think that one could change this to  COMPCERT=/home/appel/compcert
-# if there is a compcert build at that pathname, but in cygwin
-# at least, coqdep is confused by the absolute pathname while
-# it works fine with the relative pathname
 #
 # One can also add in CONFIGURE the line
 #   COQBIN=/path/to/bin/
@@ -26,15 +22,17 @@ COMPCERT ?= compcert
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
 # MATHCOMP=/my/path/to/mathcomp
+# and on Windows, it might be   MATHCOMP=c:/Coq/lib/user-contrib/mathcomp
+
+# ANNOTATE=true   # label chatty output from coqc with file name
+ANNOTATE=silent   # suppress chatty output from coqc
+# ANNOTATE=false  # leave chatty output of coqc unchanged
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox concurrency
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
-#Replace the INCLUDE above with the following in order to build the linking target:
-#INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
-#  -R $(MATHCOMP)/theories -as MathComp
-# $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
+VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
+OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox
+DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
 CV1=$(shell cat compcert/VERSION)
@@ -58,17 +56,13 @@ ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
-
-ifdef LIBPREFIX
- COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(LIBPREFIX).$(d))) $(EXTFLAGS)
-endif
 
 COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
-COQDOC=$(COQBIN)coqdoc
+COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -93,33 +87,43 @@ SEPCOMP_FILES = \
   Address.v \
   step_lemmas.v \
   extspec.v \
-  mem_lemmas.v \
+  rg_lemmas.v \
+  FiniteMaps.v \
+  mem_lemmas.v mem_wd.v \
+  nucular_semantics.v \
   semantics.v semantics_lemmas.v \
   globalSep.v simulations.v \
-  effect_semantics.v \
+  simulations_lemmas.v \
+  structured_injections.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   effect_properties.v \
   event_semantics.v \
-  compcert.v \
+  full_composition.v \
+  closed_safety.v compcert.v \
+  val_casted.v \
+  reach.v \
+  arguments.v \
+  internal_diagram_trans.v \
+  wholeprog_simulations.v \
+  wholeprog_lemmas.v
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
 CONCUR_FILES= \
-  SantiagosTactics.v MemoryEquivalences.v \
-  Asm_core.v Asm_event.v load_frame.v I64Helpers.v BuiltinEffects.v \
-  Clight_new2core.v \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
-  concurrent_machine.v dry_context.v dry_machine.v \
+  concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
   dry_machine_lemmas.v dry_machine_step_lemmas.v \
   Clight_bounds.v enums_equality.v\
-  ClightSemantincsForMachines.v ClightCoreSemantincsForMachines.v \
-  JuicyMachineModule.v DryMachineSource.v DryMachineSourceCore.v\
+  ClightSemantincsForMachines.v Clight_coreSemantincsForMachines.v \
+  JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
-  fineConc_safe.v juicy_machine.v \
+  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
-  mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
+  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
+  rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
@@ -140,14 +144,14 @@ CONCUR_FILES= \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v \
   konig.v safety.v \
-  lifting_safety.v \
+	reestablish.v \
+	lifting.v lifting_safety.v \
+linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  concursim_safety.v \
   coinductive_safety.v CoreSemantics_sum.v \
-  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v\
-  concurrent_machine_rec.v HybridMachine.v HybridMachine_simulation.v \
-  HybridMachine_simulation_proof.v \
-  Clight_safety.v main_safety.v main.v  
+  concurrent_machine_rec.v HybridMachine.v
+
+#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
 PACO_FILES= \
   hpattern.v\
@@ -195,10 +199,12 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
-  tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
-  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clightcore_coop.v Clight_sim.v \
+  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
+  tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
+  binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v binop_lemmas5.v binop_lemmas6.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
+  expr_rel.v extend_tc.v \
+  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_switch.v semax_congruence.v \
@@ -207,11 +213,13 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v library.v proofauto.v computable_theorems.v \
-   type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
-   nested_pred_lemmas.v compact_prod_sum.v zlist.v \
+   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
+   base2.v go_lower.v \
+   library.v proofauto.v computable_theorems.v \
+   type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
+   nested_pred_lemmas.v compact_prod_sum.v \
    sublist.v smt_test.v extract_smt.v \
-   client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
+   client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
@@ -220,30 +228,32 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v
 #real_forward.v
 
 WAND_DEMO_FILES= \
   wand_frame.v wandQ_frame.v wand_frame_tactic.v \
   list.v list_lemmas.v verif_list.v \
-  bst.v
+  bst.v verif_bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
-CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v
+CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
-  revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
-  verif_float.v verif_global.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
-  verif_sumarray2.v verif_switch.v verif_message.v 
+  verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
+  funcptr.v verif_funcptr.v tutorial1.v  \
+  verif_int_or_ptr.v verif_union.v verif_cast_test.v
 # verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
@@ -322,10 +332,10 @@ HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
-  mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
+  hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
-  hmacdrbg_test_noPredRes_noReseed.v drbg_protocol_specs.v \
+  drbg_protocol_specs.v \
   verif_hmac_drbg_update_common.v verif_hmac_drbg_update.v \
   verif_hmac_drbg_reseed_common.v verif_hmac_drbg_WF.v \
   verif_hmac_drbg_generate_common.v \
@@ -333,6 +343,7 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
   drbg_protocol_proofs.v verif_hmac_drbg_generate_abs.v
+#  mocked_md.v mocked_md_compspecs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -345,7 +356,13 @@ AES_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c object.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c switch.c
+# SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
+# LINKED_C_FILES are those that need to be clightgen'd in a batch with others
+
+SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c
+
+LINKED_C_FILES = even.c odd.c
+C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -359,10 +376,10 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
- $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
+# $(CCC26x86_FILES:%=ccc26x86/%) \
+# $(CONCUR_FILES:%=concurrency/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -375,20 +392,29 @@ FILES = \
 ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
 	echo true timings
-	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else ifeq ($(TIMINGS), simple)
-	@/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
-else
-	@$(COQC) $(COQFLAGS) $*.v 
+	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
+else ifeq ($(strip $(ANNOTATE)), true)
+	@$(COQC) $(COQFLAGS) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
+else ifeq ($(strip $(ANNOTATE)), silent)
+	@$(COQC) $(COQFLAGS) $*.v >/dev/null
+else 
+	@$(COQC) $(COQFLAGS) $*.v
+#	@util/annotate $(COQC) $(COQFLAGS) $*.v 
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6 or-else 8.6.1
+COQVERSION= 8.6.1 or-else 8.7.0 or-else 8.7.1
 COQV=$(shell $(COQC) -v)
-ifeq ("$(filter $(COQVERSION),$(COQV))","")
- $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ifeq ($(IGNORECOQVERSION),true)
+else
+ ifeq ("$(filter $(COQVERSION),$(COQV))","")
+  $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ endif
 endif
+
 
 
 #  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
@@ -411,7 +437,9 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-all: .loadpath version.vo $(FILES:.v=.vo)
+travis: progs hmacdrbg sha mailbox
+
+all: .loadpath version.vo $(FILES:.v=.vo) travis
 
 
 # ifeq ($(COMPCERT), compcert)
@@ -445,92 +473,66 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
 hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
+mailbox: .loadpath mailbox/verif_mailbox_main.vo
+atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT
 
 $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
+CVFILES = $(patsubst %.c,progs/%.v,$(C_FILES))
+
 cvfiles: $(CVFILES)
 
+dochtml:
+	mkdir -p doc/html
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
+dochtml-full:
+	mkdir -p doc/html
+	$(COQDOC) $(FILES)
 
 clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
+# SPECIAL-CASE RULES FOR LINKED_C_FILES:
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
-# Is there a way to generate the next 5 rules automatically from C_FILES? 
-progs/revarray.v: progs/revarray.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/reverse.v: progs/reverse.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/queue.v: progs/queue.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/queue2.v: progs/queue2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/sumarray.v: progs/sumarray.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/sumarray2.v: progs/sumarray2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/message.v: progs/message.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/object.v: progs/object.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/insertionsort.v: progs/insertionsort.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/float.v: progs/float.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/global.v: progs/global.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/logical_compare.v: progs/logical_compare.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/nest2.v: progs/nest2.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/nest3.v: progs/nest3.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/ptr_compare.v: progs/ptr_compare.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/dotprod.v: progs/dotprod.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/string.v: progs/string.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/even.v: progs/even.c progs/odd.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+	$(CLIGHTGEN) ${CGFLAGS} $^
 progs/odd.v: progs/even.v
-progs/field_loadstore.v: progs/field_loadstore.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/merge.v: progs/merge.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/append.v: progs/append.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
+	$(CLIGHTGEN) ${CGFLAGS} $^
+# GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
+$(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
+	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject: Makefile
-	echo $(COQFLAGS) >_CoqProject
-
-.loadpath: Makefile _CoqProject
+_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflags 
 	echo $(COQFLAGS) > .loadpath
+	util/coqflags > .loadpath-export
+	cp .loadpath-export _CoqProject-export
+	cp .loadpath _CoqProject
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
-dep:
-	-$(COQDEP) 2>&1 >.depend `find . -name "*.v"` | grep -v Warning:
-
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
-	$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
+#	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
+	@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
+	rm -fr doc/html
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
@@ -543,6 +545,12 @@ count:
 
 count-linking:
 	wc $(LINKING_FILES:%.v=linking/%.v)
+
+util/calibrate: util/calibrate.ml
+	cd util; ocamlopt.opt calibrate.ml -o calibrate
+
+calibrate: util/calibrate
+	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

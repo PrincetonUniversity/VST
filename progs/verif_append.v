@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.list_dt. Import LsegSpecial.
-Require Import progs.append.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.list_dt. Import LsegSpecial.
+Require Import VST.progs.append.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance LS: listspec _list _tail (fun _ _ => emp).
@@ -30,12 +30,14 @@ Definition append_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
+Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
+Proof. intros; apply andp_left2; auto. Qed.
+
 Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 forward_if (PROP (False) LOCAL () SEP ()).
 *
- subst x. normalize.
  forward.
  Exists y.
  entailer!.
@@ -84,9 +86,5 @@ forward_if (PROP (False) LOCAL () SEP ()).
     cancel.
    apply (list_append_null LS).
 *
-  intros.
-  unfold POSTCONDITION, abbreviate, overridePost.
-  if_tac; normalize.
   entailer!.
-  apply andp_left2. apply derives_refl.
 Qed.

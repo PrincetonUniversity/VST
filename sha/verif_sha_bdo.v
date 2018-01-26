@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -12,7 +12,7 @@ Local Open Scope logic.
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
 start_function.
-rename lvar0 into Xv.
+rename v_X into Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat)
   by (subst regs; apply length_hash_blocks; auto).
@@ -65,7 +65,6 @@ eapply seq_assocN with (cs := add_them_back). {
 }
 simpl; abbreviate_semax.
 forward. (* return; *)
-Exists Xv.
 fold (hash_block  (hash_blocks init_registers hashed) b).
 rewrite hash_blocks_last by auto.
 entailer!.

@@ -1,5 +1,5 @@
 (*Processing time: 18mins. (master: 5min)*)
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
@@ -23,7 +23,7 @@ Qed.
 
 Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
       (SH : writable_share shmd):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md;
            temp _ctx c; gvar sha._K256 kv)
@@ -36,9 +36,7 @@ Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
          LOCAL ()
          SEP  (K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
                data_block shmd (snd (hmacFinal h1)) md)))
-     (EX  v : val,
-      local (locald_denote (lvar _buf (tarray tuchar 32) v)) &&
-      `(data_at_ Tsh (tarray tuchar 32) v))%assert).
+     (stackframe_of f_HMAC_Final)%assert).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
@@ -100,7 +98,7 @@ apply semax_pre with (P':=
       unfold_data_at 1%nat. thaw FR1.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
-      simpl. rewrite Int.add_zero. Time cancel. (*0.9*)
+      simpl. rewrite Ptrofs.add_zero. Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
 
@@ -111,14 +109,14 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
 rewrite field_address_offset by auto with field_compatible.
 unfold offset_val; simpl.
-rewrite Int.add_zero.
+rewrite Ptrofs.add_zero.
 replace_SEP 1 (memory_block Tsh 108 (Vptr b i)).
   { Time entailer!. (*1.3 versus 1.6*)
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ Tsh _ _ H). apply derives_refl.
   }
 freeze [0;2] FR3.
-Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)),
+Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Ptrofs.add i (Ptrofs.repr 216)),
               mkTrep t_struct_SHA256state_st oCTX, 108). (*5 versus 8.7*)
 Time solve [simpl; cancel]. (*0.1 versus 1*)
 
@@ -153,7 +151,6 @@ Time forward_call (updSha, md, Vptr b i, shmd, kv). (*4.2 versus 21 SLOW*)
 
 freeze [0;1;2;3] FR6.
 Time forward. (*Sreturn None; 2.7 versus 10.2*)
-Exists buf.
 thaw FR6.
 (*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
      with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
@@ -178,7 +175,7 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite field_at_data_at.
 rewrite field_address_offset by auto with field_compatible. simpl. trivial.
-Time Qed. (*25 versus 38*)
+Time Qed. (*VST 2.0: 6s*) 
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final HMAC_Final_spec.

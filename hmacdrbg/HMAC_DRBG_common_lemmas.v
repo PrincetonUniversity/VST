@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -143,10 +143,10 @@ Proof.
   rewrite split2_data_at_Tarray_tuchar with (n1:=Zlength A); [|split; omega|rewrite Zlength_app; reflexivity].
   rewrite sublist_app_exact1, sublist_app_exact2.
   replace (Zlength A + Zlength B - Zlength A) with (Zlength B) by omega.
-  replace (field_address0 (Tarray tuchar (Zlength A + Zlength B) noattr) [ArraySubsc (Zlength A)] (Vptr b i)) with (Vptr b (Int.add i (Int.repr (Zlength A)))).
+  replace (field_address0 (Tarray tuchar (Zlength A + Zlength B) noattr) [ArraySubsc (Zlength A)] (Vptr b i)) with (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength A)))).
   reflexivity.
   rewrite field_address0_offset.
   simpl. replace (0 + 1 * Zlength A) with (Zlength A) by omega. reflexivity.
-  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 [Hfield5 [Hfield6 [Hfield7 Hfield8]]]]]]].
+  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 Hfield5]]]].
   unfold field_compatible0; repeat split; try assumption; auto; omega.
 Qed.

@@ -5,11 +5,11 @@
 
 (* A portion of this file was developed by Le Xuan Bach *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
-Require Import msl.functors.
-Require Import msl.sepalg_generators.
-Require Import msl.sepalg_functors.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
+Require Import VST.msl.functors.
+Require Import VST.msl.sepalg_generators.
+Require Import VST.msl.sepalg_functors.
 
 Import MixVariantFunctor.
 Import MixVariantFunctorLemmas.
@@ -45,7 +45,7 @@ Proof with auto.
   apply join_comm...
 Qed.
 
-Lemma ijoin_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} : forall a b c d e,
+Lemma ijoin_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A} : forall a b c d e,
   ijoin a b d ->
   ijoin d c e ->
   {f : ijoinable A | ijoin b c f /\ ijoin a f e}.
@@ -81,7 +81,7 @@ Proof with auto.
   eapply join_canc; eauto.
 Qed.
 
-Lemma ijoin_identity1 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}: forall a b,
+Lemma ijoin_identity1 {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Disj_alg A}: forall a b,
   ijoin a b b ->
   False.
 Proof with auto.
@@ -92,17 +92,14 @@ Proof with auto.
   apply H.
 Qed.
 
-Lemma ijoin_identity2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}: forall a b,
+Lemma ijoin_identity2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{DA: Disj_alg A}: forall a b,
   ijoin a a b ->
   False.
 Proof with auto.
   intros.
   icase a. icase b.
   destruct m; destruct m0.
-  assert (x=x0). apply join_self. apply H. subst x0.
-  assert (join x x x) by (apply H).
-  apply unit_identity in H0.
-  contradiction.
+  red in H; apply join_self in H; contradiction.
 Qed.
 
 Section CombineJoin.
@@ -112,6 +109,7 @@ Variable JA: Join A.
 Variable pa_A : Perm_alg A.
 Variable sa_A : Sep_alg A.
 Variable ca_A : Canc_alg A.
+Variable da_A : Disj_alg A.
 
 (* We either need an explicit top witness or some kind of axiom of choice
     (if not here, then in sa_fun or somesuch).  It is a little ugly this way but
@@ -283,18 +281,22 @@ Proof with auto.
    constructor...
 Qed.
 
+Lemma combineJ_self' {DA: Disj_alg A}:
+  forall a b : combiner, join a a b -> identity a.
+Proof.
+  repeat intro.
+  icase a; icase b; inv H.
+  - icase a0; icase b0; inv H0; auto.
+  - apply ijoin_identity2 in H1; contradiction.
+  - clear - DA H2 A_top_full.
+    icase sh. red in H2. simpl in H2.
+    apply join_self in H2; destruct m; contradiction.
+Qed.
+
 Lemma combineJ_self {DA: Disj_alg A}:
         forall a b : combiner, join a a b -> a = b.
 Proof.
-  intros.
-  icase a;icase b; inv H.
-  destruct (ijoin_identity2 _ _ H0).
-  elimtype False. clear - DA H1 A_top_full.
-  icase sh. red in H1. simpl in H1.
-  generalize (join_self H1); intro.
-  subst x.
-  unfold midObj in *.
-  tauto.
+  intros; eapply combineJ_self'; eauto.
 Qed.
 
 Instance Perm_combiner : Perm_alg combiner.
@@ -336,7 +338,7 @@ Qed.
 
 Instance Disj_combiner {D1: Disj_alg A}: Disj_alg combiner.
 Proof.
- repeat intro. eapply combineJ_self; eauto.
+ intro; apply combineJ_self'.
 Qed.
 
 (* Usefull facts about combiners *)
@@ -425,6 +427,7 @@ Section ParameterizedCombiner.
   Variable pa_S : Perm_alg S.
   Variable sa_S : Sep_alg S.
   Variable ca_S : Canc_alg S.
+  Variable da_S : Disj_alg S.
 
   Variable T1 : functor.
   Variable J1: forall A, Join (T1 A).

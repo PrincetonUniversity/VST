@@ -1,12 +1,13 @@
-Require Export msl.predicates_sl.
-Require Export concurrency.semax_conc_pred.
-Require Export concurrency.semax_conc.
-Require Export floyd.proofauto.
-Require Import floyd.library.
-Require Export floyd.sublist.
+Require Export VST.msl.predicates_sl.
+Require Export VST.concurrency.semax_conc_pred.
+Require Export VST.concurrency.semax_conc.
+Require Export VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Export VST.floyd.sublist.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
+Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
 
 Lemma app_cons_assoc : forall {A} l1 (x : A) l2, l1 ++ x :: l2 = (l1 ++ [x]) ++ l2.
 Proof.
@@ -63,7 +64,7 @@ Proof.
 Qed.
 Hint Resolve repable_0.
 
-Definition complete MAX l := l ++ repeat (vint 0) (Z.to_nat MAX - length l).
+Definition complete MAX l := l ++ repeat (vptrofs 0) (Z.to_nat MAX - length l).
 
 Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).
@@ -353,13 +354,6 @@ Proof.
   apply Z.le_antisymm; eapply Forall_sublist_le; eauto; omega.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
-Qed.
-
 Lemma NoDup_Znth_inj : forall {A} (d : A) l i j (HNoDup : NoDup l)
   (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l) (Heq : Znth i l d = Znth j l d),
   i = j.
@@ -574,10 +568,10 @@ Proof.
     replace (Z.to_nat m - length l)%nat with (Z.to_nat m - S (length l) + 1)%nat; [|omega].
     rewrite repeat_plus, app_assoc; simpl.
     repeat rewrite Zlength_app.
-    assert (m - 1 = Zlength l + Zlength (repeat (vint 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
+    assert (m - 1 = Zlength l + Zlength (repeat (vptrofs 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
     { rewrite Zlength_repeat, Nat2Z.inj_sub, Z2Nat.id, Nat2Z.inj_succ, <- Zlength_correct; omega. }
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
+    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); rewrite ?Zlength_app; try omega.
+    rewrite (sublist_app1 _ _ _ (_ ++ _)%list); try rewrite Zlength_app; try omega.
     f_equal; f_equal; try omega.
     + rewrite app_Znth2, Zlength_app, Heq, Zminus_diag, Znth_0_cons; auto.
       rewrite Zlength_app; omega.
@@ -1007,14 +1001,6 @@ Proof.
   induction l1; destruct l3; try discriminate; auto; intros.
   inv H; inv Hlen.
   exploit IHl1; eauto; intros (? & ?); split; [constructor|]; auto.
-Qed.
-
-Lemma sublist_nil_gen : forall {A} (l : list A) i j, j <= i -> sublist i j l = [].
-Proof.
-  intros; unfold sublist.
-  replace (Z.to_nat (j - i)) with O; auto.
-  destruct (eq_dec (j - i) 0); try Omega0.
-  rewrite Z2Nat_neg; auto; omega.
 Qed.
 
 Lemma Forall2_firstn : forall {A B} (P : A -> B -> Prop) l1 l2 n, Forall2 P l1 l2 ->
@@ -1818,9 +1804,9 @@ Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
 Qed.
 
-Lemma func_tycontext_sub : forall f V G V2 G2 (HV : incl V V2) (HG : incl G G2)
+Lemma func_tycontext_sub : forall f V G A V2 G2 (HV : incl V V2) (HG : incl G G2)
   (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
-  tycontext_sub (func_tycontext f V G) (func_tycontext f V2 G2).
+  tycontext_sub (func_tycontext f V G A) (func_tycontext f V2 G2 A).
 Proof.
   intros.
   unfold func_tycontext, make_tycontext, tycontext_sub; simpl.
@@ -1855,8 +1841,9 @@ Proof.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
       apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
-      destruct ((make_tycontext_s G) ! id); auto.
-      apply IHG; auto. 
+      destruct ((make_tycontext_s G) ! id); auto. 
+      apply IHG; auto.
+  - apply Annotation_sub_refl.
 Qed.
 
 (* This lets us use a library as a client. *)
@@ -1886,11 +1873,11 @@ Proof.
   { exists r2; auto. }
   { exists r1; apply sepalg.join_comm; auto. }
   intro; subst.
-  pose proof (sepalg.join_self H); subst.
+  pose proof (sepalg.join_self H) as Hid.
+  apply Hid in H; subst.
   destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  pose proof (sepalg.unit_identity _ H) as Hid.
-  rewrite HYES in Hid; apply compcert_rmaps.RML.YES_not_identity in Hid; contradiction.
+  destruct (compcert_rmaps.RML.resource_at_empty Hid l) as [Hl | [? [? Hl]]];
+    rewrite Hl in HYES; discriminate.
 Qed.
 
 Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
@@ -1953,7 +1940,7 @@ Proof.
   repeat intro.
   destruct H as (b & o & Hv & Hlock).
   simpl in Hlock.
-  specialize (Hlock (b, Int.unsigned o)).
+  specialize (Hlock (b, Ptrofs.unsigned o)).
   if_tac [r|nr] in Hlock.
   - if_tac [e|ne] in Hlock.
     + destruct Hlock; eauto 6.
@@ -2107,7 +2094,7 @@ Hint Resolve mapsto_precise.
 Corollary memory_block_precise : forall sh n v, precise (memory_block sh n v).
 Proof.
   destruct v; auto; apply precise_andp2.
-  forget (Int.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
+  forget (Ptrofs.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
   - apply precise_emp.
   - apply precise_sepcon; auto.
     apply mapsto_precise.
@@ -2241,8 +2228,8 @@ Proof.
     { rewrite Zlength_correct in *; omega. }
     rewrite data_at_rec_eq in Hp1, Hp2; simpl in *.
     unfold unfold_reptype in *; simpl in *.
-    rewrite split_array_pred with (mid := 1) in Hp1; auto; [|rewrite Zlength_cons; omega].
-    rewrite split_array_pred with (mid := 1) in Hp2; auto; [|rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp1; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp2; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
     destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
     repeat rewrite Z.sub_0_r in *.
     rewrite sublist_one with (d := x1), array_pred_len_1 in Hh1, Hh2; auto; try rewrite Zlength_cons; try omega.
@@ -2251,7 +2238,7 @@ Proof.
     unfold at_offset in Hh1, Hh2.
     assert (Zlength l1 = z - 1) by omega.
     assert (Zlength l2 = z - 1) by omega.
-    rewrite sublist_same in Ht1, Ht2; auto.
+    rewrite sublist_same in Ht1, Ht2; try rewrite Z.max_r by omega; auto.
     inv Hdef1; inv Hdef2.
     exploit (IHl (Zlength l1)); try assumption.
     { subst.
@@ -2260,13 +2247,16 @@ Proof.
       instantiate (2 := offset_val 4 p).
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l1).
-      erewrite array_pred_shift; try simple apply Ht1; auto; try omega.
-      intros; unfold at_offset.
+      erewrite array_pred_shift; try simple apply Ht1;
+      try rewrite !Z.max_r by omega; auto; try omega.
+      intros; unfold at_offset.      
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { rewrite data_at_rec_eq; simpl.
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l2).
-      erewrite array_pred_shift; try simple apply Ht2; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht2;
+      try rewrite !Z.max_r by omega;
+      auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
@@ -2316,8 +2306,8 @@ Proof.
     { rewrite Zlength_correct in *; omega. }
     rewrite data_at_rec_eq in Hp1, Hp2; simpl in *.
     unfold unfold_reptype in *; simpl in *.
-    rewrite split_array_pred with (mid := 1) in Hp1; auto; [|rewrite Zlength_cons; omega].
-    rewrite split_array_pred with (mid := 1) in Hp2; auto; [|rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp1; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
+    rewrite split_array_pred with (mid := 1) in Hp2; auto; [| rewrite Z.max_r by omega; auto | rewrite Z.max_r by omega; rewrite Zlength_cons; omega].
     destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
     repeat rewrite Z.sub_0_r in *.
     rewrite sublist_one with (d := x1), array_pred_len_1 in Hh1, Hh2; auto; try rewrite Zlength_cons; try omega.
@@ -2326,7 +2316,7 @@ Proof.
     unfold at_offset in Hh1, Hh2.
     assert (Zlength l1 = z - 1) by omega.
     assert (Zlength l2 = z - 1) by omega.
-    rewrite sublist_same in Ht1, Ht2; auto.
+    rewrite sublist_same in Ht1, Ht2; try rewrite Z.max_r by omega; auto.
     inv Hdef1; inv Hdef2.
     exploit (IHl (Zlength l1)); try assumption.
     { subst.
@@ -2335,13 +2325,15 @@ Proof.
       instantiate (2 := offset_val 4 p).
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l1).
-      erewrite array_pred_shift; try simple apply Ht1; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht1;
+      try rewrite !Z.max_r by omega; auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { rewrite data_at_rec_eq; simpl.
       setoid_rewrite at_offset_array_pred.
       instantiate (2 := l2).
-      erewrite array_pred_shift; try simple apply Ht2; auto; try omega.
+      erewrite array_pred_shift; try simple apply Ht2;
+      try rewrite !Z.max_r by omega; auto; try omega.
       intros; unfold at_offset.
       rewrite offset_offset_val; do 2 f_equal; omega. }
     { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
@@ -2437,6 +2429,38 @@ Proof.
   rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
   apply Share.lub_bot.
 Qed.
+
+(* It's often useful to split Tsh in half. *)
+Definition gsh1 := fst (Share.split Tsh).
+Definition gsh2 := snd (Share.split Tsh).
+
+Lemma readable_gsh1 : readable_share gsh1.
+Proof.
+  apply slice.split_YES_ok1; auto.
+Qed.
+
+Lemma readable_gsh2 : readable_share gsh2.
+Proof.
+  apply slice.split_YES_ok2; auto.
+Qed.
+
+Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
+Proof.
+  apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
+Qed.
+
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+
+Lemma gsh1_not_bot : gsh1 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+
+Lemma gsh2_not_bot : gsh2 <> Share.bot.
+Proof.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+Qed.
+Hint Resolve gsh1_not_bot gsh2_not_bot.
 
 (*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
@@ -2696,6 +2720,8 @@ Proof.
   erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
   setoid_rewrite aggregate_pred.rangespec_ext at 2; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
   setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  clear H3 H4.
+  rewrite Z2Nat_max0 in *.
   forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
@@ -2824,6 +2850,58 @@ Proof.
     apply Heq; omega.
 Qed.
 
+(* wand lemmas *)
+Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply mpred_ext, modus_ponens_wand.
+  subst; cancel.
+  rewrite <- wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply mpred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma sepcon_In : forall l P, In P l -> exists Q, fold_right sepcon emp l = P * Q.
+Proof.
+  induction l; [contradiction|].
+  intros ? [|]; simpl; subst; eauto.
+  destruct (IHl _ H) as [? ->].
+  rewrite sepcon_comm, sepcon_assoc; eauto.
+Qed.
+
+Lemma extract_wand_sepcon : forall l P, In P l ->
+  fold_right sepcon emp l = P * (P -* fold_right sepcon emp l).
+Proof.
+  intros.
+  destruct (sepcon_In _ _ H).
+  eapply wand_eq; eauto.
+Qed.
+
+Lemma wand_sepcon_map : forall {A} (R : A -> mpred) l P Q
+  (HR : forall i, In i l -> R i = P i * Q i),
+  fold_right sepcon emp (map R l) = fold_right sepcon emp (map P l) *
+    (fold_right sepcon emp (map P l) -* fold_right sepcon emp (map R l)).
+Proof.
+  intros; eapply wand_eq.
+  erewrite map_ext_in, sepcon_map; eauto.
+  apply HR.
+Qed.
+
+Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint; cancel.
+  rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
 Lemma semax_extract_later_prop'':
   forall {CS : compspecs} {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
@@ -2844,7 +2922,7 @@ Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
   intros; entailer!.
-  destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
+  destruct H as (_ & _ & _ & _ & _ & ?); auto.
 Qed.
 
 Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
@@ -2974,9 +3052,9 @@ Proof.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
 Qed.
 
-Lemma malloc_compat : forall {cs : compspecs} sh t p, legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true -> (alignof t | natural_alignment) ->
+Lemma malloc_compat : forall {cs : compspecs} sh t p,
+  complete_legal_cosu_type t = true ->
+  natural_aligned natural_alignment t = true ->
   malloc_token sh (sizeof t) p = !!field_compatible t [] p && malloc_token sh (sizeof t) p.
 Proof.
   intros; rewrite andp_comm; apply add_andp; entailer!.
@@ -2992,13 +3070,13 @@ Proof.
 Qed.
 
 Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
-  force_val (sem_cast_neutral v) = v.
+  force_val (sem_cast_pointer v) = v.
 Proof.
   intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
   rewrite !Heq; auto.
 Qed.
 
-Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_neutral v) = v.
+Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_pointer v) = v.
 Proof.
   intros; apply force_val_sem_cast_neutral_isptr in H.
   inversion H as [Heq]; rewrite !Heq; auto.
@@ -3029,7 +3107,7 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
   try cancel_frame.
 
 Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
-  Intros n; rewrite malloc_compat by (auto; exists (natural_alignment / alignof t); auto); Intros;
+  Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
@@ -3053,8 +3131,8 @@ Lemma semax_fun_id'' id f Espec {cs} Delta P Q R Post c :
 Proof.
 intros V G GS SA.
 apply (semax_fun_id id f Delta); auto.
-eapply semax_pre_post; try apply SA; [ clear SA |
-  intros; simpl; unfold local, lift1; entailer! ].
+eapply semax_pre_post; try apply SA; clear SA;
+ intros; try apply ENTAIL_refl.
 go_lowerx.
 apply exp_right with (eval_var id (type_of_funspec f) rho).
 entailer.
@@ -3064,7 +3142,7 @@ apply andp_right.
   unfold gvar_denote, eval_var, Map.get.
   destruct H as (_ & _ & DG & DS).
   destruct (DS id _ GS) as [-> | (t & E)]; [ | congruence].
-  destruct (DG id _ GS) as (? & -> & ?); auto.
+  destruct (DG id _ GS) as [? ?]; rewrite H; auto.
 - (* about func_ptr/func_ptr' *)
   unfold func_ptr'.
   rewrite <- andp_left_corable, andp_comm; auto.
@@ -3249,6 +3327,28 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
              P at level 100, Q at level 100).
 
 (* automation for dependent funspecs *)
@@ -3507,7 +3607,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post; [ | |
+eapply semax_pre_post'; [ | |
    apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost 
               ts witness argsig retty cc a bl P Q Frame)].
 *
@@ -3516,17 +3616,15 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
  intros.
- unfold normal_ret_assert. normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  unfold ifvoid.
  go_lowerx. normalize.
  apply exp_right with x.
  apply andp_right.
  apply prop_right.
+ rewrite fold_right_and_app_low.
  split; auto.
  normalize.
- rewrite fold_right_and_app_low.
- rewrite prop_true_andp by (split; auto).
  rewrite fold_right_sepcon_app. auto.
 *
 assumption.
@@ -3563,7 +3661,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post; [ | |
+eapply semax_pre_post'; [ | |
    apply (@semax_call1 Espec cs Delta A Pre Post NEPre NEPost 
               ts witness ret argsig retty cc a bl P Q Frame)];
  [ | 
@@ -3578,7 +3676,6 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
  intros.
- unfold normal_ret_assert. normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  apply derives_trans with
    (EX  vret : B,
@@ -3644,7 +3741,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  simpl update_tycon.
  apply extract_exists_pre; intro vret.
 *
- eapply semax_pre_post;
+ eapply semax_pre_post';
  [ | | apply semax_set_forward].
  +
  eapply derives_trans; [ | apply now_later ].
@@ -3660,6 +3757,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  go_lowerx. simpl.
@@ -3671,9 +3769,12 @@ eapply semax_call_id1_wow; try eassumption; auto.
  go_lowerx.
  repeat rewrite denote_tc_assert_andp.
  rewrite denote_tc_assert_bool.
- assert (is_neutral_cast (implicit_deref retty) retty = true)
-  by (destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; simpl; auto;
-        destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; inv NEUTRAL).
+ assert (is_neutral_cast (implicit_deref retty) retty = true). {
+  destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
+  destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; 
+  try solve [inv NEUTRAL].
+  unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
+  }
  apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
@@ -3683,9 +3784,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  hnf in H.
  if_tac; simpl; auto.
 +
- intros. subst Post2.
- unfold normal_ret_assert.
- normalize. simpl exit_tycon.
+ intros. subst Post2. simpl exit_tycon.
  apply exp_right with vret; normalize.
  autorewrite with subst.
  go_lowerx.
@@ -3763,7 +3862,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  simpl update_tycon.
  apply extract_exists_pre; intro vret.
 *
- eapply semax_pre_post;
+ eapply semax_pre_post';
  [ | | apply semax_set_forward].
  +
  eapply derives_trans; [ | apply now_later ].
@@ -3780,6 +3879,7 @@ end.
  replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
    with true
   by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
+    unfold is_neutral_cast; rewrite ?eqb_type_refl;
     reflexivity).
  simpl @snd. cbv iota.
  apply @TT_right.
@@ -3803,9 +3903,7 @@ end.
  hnf in H.
  if_tac; simpl; auto.
 +
- intros. subst Post2.
- unfold normal_ret_assert.
- normalize. simpl exit_tycon.
+ intros. subst Post2. simpl exit_tycon.
  apply exp_right with vret; normalize.
  autorewrite with subst.
  go_lowerx.
@@ -3864,7 +3962,7 @@ intros.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR FRAME]]]]].
 apply SPEC. clear SPEC.
-eapply semax_pre_post;
+eapply semax_pre_post';
    [ |
    | apply semax_call0 with (A:= A) (ts := ts)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame)
    ];
@@ -3875,7 +3973,6 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
  intros.
- unfold normal_ret_assert. normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  match goal with |- context [ifvoid retty ?A ?B] =>
    replace (ifvoid retty A B) with B

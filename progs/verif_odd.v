@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.odd.
-Require Import progs.verif_evenodd_spec.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.odd.
+Require Import VST.progs.verif_evenodd_spec.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Definition Gprog : funspecs :=
@@ -31,10 +31,11 @@ Qed.
 Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) Gprog.
 Existing Instance Espec.
 
+(* Can't prove   prog_correct: semax_prog prog Vprog Gprog
+  because there is no _main function, so prove all_funcs_correct instead. *)
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-(*unfold Gprog at 2, prog, prog_funct; simpl. *)
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons body_odd.

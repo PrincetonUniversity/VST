@@ -1,39 +1,39 @@
 Require Import compcert.common.Memory.
 
 
-Require Import veric.compcert_rmaps.
-Require Import veric.juicy_mem.
-Require Import veric.res_predicates.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.res_predicates.
 
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
-Require Import concurrency.scheduler.
-Require Import concurrency.TheSchedule.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.juicy_machine. Import Concur.
-Require Import concurrency.dry_machine. Import Concur.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.lksize.
-Require Import concurrency.permissions.
-Require Import concurrency.sync_preds.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.TheSchedule.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.juicy_machine. Import Concur.
+Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.sync_preds.
 
 (*SSReflect*)
 From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
-Require Import concurrency.ssromega. (*omega in ssrnat *)
+Require Import VST.concurrency.ssromega. (*omega in ssrnat *)
 
 (*The simulations*)
-Require Import sepcomp.wholeprog_simulations.
+Require Import VST.sepcomp.wholeprog_simulations.
 
 (*The semantics*)
-Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.DryMachineSource.
+Require Import VST.concurrency.JuicyMachineModule.
+Require Import VST.concurrency.DryMachineSource.
 
 (*General erasure*)
-Require Import concurrency.erasure_signature.
+Require Import VST.concurrency.erasure_signature.
 
 From mathcomp.ssreflect Require Import ssreflect seq.
 

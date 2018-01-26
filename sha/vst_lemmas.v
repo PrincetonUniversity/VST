@@ -1,6 +1,6 @@
 (* Additional lemmas / proof rules about VST stack *)
 
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Export sha.general_lemmas.
 Require Import sha.common_lemmas.
 Local Open Scope logic.

@@ -1,14 +1,14 @@
-Require Import msl.msl_standard.
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_lemmas.
-Require Export veric.lift.
-Require Export veric.Cop2.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.base.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lift.
+Require Export VST.veric.Cop2.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
 
 Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty,
@@ -41,10 +41,10 @@ Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> P
                  rel_expr' rho phi (Ecast a ty) v
  | rel_expr'_sizeof: forall t ty,
                  complete_type cenv_cs t = true ->
-                 rel_expr' rho phi (Esizeof t ty) (Vint (Int.repr (sizeof t)))
+                 rel_expr' rho phi (Esizeof t ty) (Vptrofs (Ptrofs.repr (sizeof t)))
  | rel_expr'_alignof: forall t ty,
                  complete_type cenv_cs t = true ->
-                 rel_expr' rho phi (Ealignof t ty) (Vint (Int.repr (alignof t)))
+                 rel_expr' rho phi (Ealignof t ty) (Vptrofs (Ptrofs.repr (alignof t)))
  | rel_expr'_lvalue_By_value: forall a ch sh v1 v2,
                  access_mode (typeof a) = By_value ch ->
                  rel_lvalue' rho phi a v1 ->
@@ -59,11 +59,11 @@ Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> P
 with rel_lvalue' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_local: forall id ty b,
                  Map.get (ve_of rho) id = Some (b,ty) ->
-                 rel_lvalue' rho phi (Evar id ty) (Vptr  b Int.zero)
+                 rel_lvalue' rho phi (Evar id ty) (Vptr  b Ptrofs.zero)
  | rel_expr'_global: forall id ty b,
                  Map.get (ve_of rho) id = None ->
                  Map.get (ge_of rho) id = Some b ->
-                 rel_lvalue' rho phi (Evar id ty) (Vptr b Int.zero)
+                 rel_lvalue' rho phi (Evar id ty) (Vptr b Ptrofs.zero)
  | rel_lvalue'_deref: forall a b z ty,
                  rel_expr' rho phi a (Vptr b z) ->
                  rel_lvalue' rho phi (Ederef a ty) (Vptr b z)
@@ -72,7 +72,7 @@ with rel_lvalue' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop
                  typeof a = Tstruct id att ->
                  cenv_cs ! id = Some co ->
                  field_offset cenv_cs i (co_members co) = Errors.OK delta ->
-                 rel_lvalue' rho phi (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))).
+                 rel_lvalue' rho phi (Efield a i ty) (Vptr b (Ptrofs.add z (Ptrofs.repr delta))).
 
 Scheme rel_expr'_sch := Minimality for rel_expr' Sort Prop
   with rel_lvalue'_sch := Minimality for  rel_lvalue' Sort Prop.
@@ -108,8 +108,8 @@ Program Definition rel_lvalue {CS: compspecs}  (e: expr) (v: val) (rho: environ)
     fun phi => rel_lvalue' rho phi e v.
 Next Obligation. intros. apply rel_lvalue'_hered. Defined.
 
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.expr_lemmas.
 
 Definition rel_lvalue'_expr'_sch CS rho phi P P0 :=
   fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 =>
@@ -146,7 +146,7 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   econstructor; eauto.
   rewrite H. auto.
 * (* Esizeof *)
-  unfold sizeof; rewrite <- H. constructor.
+  rewrite <- H.  constructor.
 * (* Ealignof *)
   unfold alignof; rewrite <- H. constructor.
 * (* lvalue *)
@@ -227,7 +227,10 @@ inv H; try reflexivity;
  simpl in H0; try discriminate;
  destruct v1; inv H0;
   try invSome;
- simpl;
+  unfold cast_int_int;
+  destruct Archi.ptr64 eqn:Hp;
+  try discriminate;
+  simpl;
  try match goal with
   | H: (if Mem.weak_valid_pointer ?M ?B ?X then _ else _) = _ |- _ =>
       destruct (Mem.weak_valid_pointer M B X); inv H
@@ -256,36 +259,26 @@ Proof.
 intros.
 destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  inv H0; inversion2 H H1; inv H; unfold Mem.loadv in *;
- apply Mem.load_result in H2; subst; simpl;
+ apply Mem.load_result in H2; subst;
+ unfold Val.load_result, Mptr; 
+ destruct Archi.ptr64 eqn:Hp; 
+simpl Mem.getN; 
  match goal with
   | |- context [decode_val _ (?x :: nil)] => destruct x; try reflexivity
   | |- context [decode_val _ (?x :: ?y :: nil)] => destruct x,y; try reflexivity
-  | |- context [decode_val ?ch ?a] => destruct (decode_val ch a) eqn:?; try reflexivity
-  | |- _ => idtac
+  | |- context [decode_val _ (?a :: ?b :: ?c :: ?d :: nil)] => destruct a,b,c,d; try reflexivity
+  | |- context [decode_val _ (?a :: ?b :: ?c :: ?d :: ?e :: ?f :: ?g :: ?h :: nil)] => 
+                destruct a,b,c,d,e,f,g,h; try reflexivity
  end;
-  simpl;
+  unfold decode_val, proj_bytes;
   try rewrite Int.sign_ext_idem by omega;
   try rewrite Int.zero_ext_idem by omega;
-  try reflexivity;
- try match type of Heqv with
-  | decode_val _ (?a :: ?b :: ?c :: ?d :: nil) = _ =>
-    destruct a; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct b; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct c; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct d; try solve [unfold decode_val in Heqv; inv Heqv];
-   unfold decode_val in Heqv; inv Heqv;
-  try (if_tac in H0; inv H0)
- | decode_val _ (?a :: ?b :: ?c :: ?d :: ?e :: ?f :: ?g :: ?h :: nil) = _ =>
-    destruct a; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct b; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct c; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct d; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct e; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct f; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct g; try solve [unfold decode_val in Heqv; inv Heqv];
-    destruct h; try solve [unfold decode_val in Heqv; inv Heqv]
- end;
- try solve [destruct v; inv H1; auto].
+  try reflexivity; simpl;
+  rewrite ?Hp; simpl; try reflexivity;
+  repeat match goal with n: nat |- _ =>
+     destruct n; try (rewrite !andb_false_r; reflexivity)
+   end;
+ try solve [if_tac; destruct v; auto].
 Qed.
 
 Lemma rel_LR'_fun:
@@ -353,7 +346,7 @@ apply (rel_LR'_sch _ rho w
       (fun e v => forall w', extendM w w' -> rel_expr' rho w' e v)
       (fun e v => forall w', extendM w w' -> rel_lvalue' rho w' e v)); auto; intros;
   try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
-  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+  try solve [match goal with H: forall w': rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
 end].
 *
 eapply rel_expr'_lvalue_By_value; eauto.

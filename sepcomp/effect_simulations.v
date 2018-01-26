@@ -10,13 +10,13 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
 
 Module SM_simulation. Section SharedMemory_simulation_inject.
 
@@ -214,7 +214,7 @@ Record SM_simulation_inject :=
           after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Lemma core_diagram (SMI: SM_simulation_inject):
       forall st1 m1 st1' m1',

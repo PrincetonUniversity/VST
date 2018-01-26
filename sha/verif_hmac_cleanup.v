@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
@@ -30,13 +30,13 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
- entailer!.
-apply Forall_list_repeat; hnf; clear; omega.
+ entailer!; auto.
+ apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
 Lemma cleanupbodyproof1 Espec c h :
-@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))
@@ -65,7 +65,7 @@ forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
- entailer!.
+ entailer!; auto.
 apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -93,7 +93,7 @@ Definition hmac_reset_spec :=
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
                        body of your wrapper function is a call to hmac_init with the nonnull key*)
-   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:ptrofs
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -156,7 +156,7 @@ Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, b:block, i:int
+        kv:val, shmd: share, b:block, i:ptrofs
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -315,7 +315,7 @@ Definition hmac_reset_spec :=
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:ptrofs
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -378,7 +378,7 @@ Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, b:block, i:int
+        kv:val, shmd: share, b:block, i:ptrofs
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -410,22 +410,28 @@ Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC hmac_crypto_spec.
 Proof.
 start_function.
-rename lvar0 into c. rename H into KL. rename H0 into DL.
+rename v_c into c. rename H into KL. rename H0 into DL.
 eapply semax_pre_post.
-Focus 3.
-eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
+6: eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
 entailer!.
-intros ? ?. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. normalize. Exists digest.
-  old_go_lower.
-  entailer!.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+intros.
+apply andp_left2.
+apply sepcon_derives; auto.
+apply bind_ret_derives.
+unfold initPostKey.
+Intros digest; Exists digest.
+old_go_lower; entailer!.
 Qed.
 
 Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init hmac_reset_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 abbreviate_semax.
 apply semax_pre with (P':=EX h1:hmacabs, 
   (PROP  ()
@@ -438,9 +444,16 @@ apply semax_pre with (P':=EX h1:hmacabs,
 { unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
 eapply semax_post.
-2: apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey).
-  intros. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives.
+5: apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey).
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+
+  intros.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+apply andp_left2.
+apply sepcon_derives; auto.
+apply bind_ret_derives.
   old_go_lower.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
@@ -451,16 +464,21 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final hmac_final_spec. 
 Proof.
 start_function.
-rename lvar0 into buf.
+rename v_buf into buf.
 unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
-  3: apply (finalbodyproof Espec c md shmd kv buf (hmacUpdate data (hmacInit key)) SH).
+  6: apply (finalbodyproof Espec c md shmd kv buf (hmacUpdate data (hmacInit key)) SH).
   
   apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
 
-  intros. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives.
+  intros. apply andp_left2.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+  apply sepcon_derives; auto.
+  apply bind_ret_derives.
   rewrite <- hmac_sound. unfold FULL.
   change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
   Exists (fst (hmac key data)). old_go_lower. entailer!.
@@ -473,12 +491,17 @@ Proof.
 start_function.
 destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
-  3: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
+  6: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
 
   apply andp_left2. old_go_lower. entailer!.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
 
-  intros. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. 
+  intros. apply andp_left2.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+  apply sepcon_derives; auto.
+  apply bind_ret_derives.
   rewrite hmacUpdate_app. old_go_lower. entailer!.
 
   split; trivial. split; trivial. simpl.
@@ -494,14 +517,22 @@ Lemma body_hmac_starts: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_starts_spec. 
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
+rename v_pad into pad. rename v_ctx_key into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.
-Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey).
-  apply andp_left2. old_go_lower. entailer!.
-  intros. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. old_go_lower. entailer!. 
+6: apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey).
+
+ entailer!.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+
+  intros. apply andp_left2.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+  apply sepcon_derives; auto.
+  apply bind_ret_derives.
+  old_go_lower. entailer!.
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. rewrite hmacUpdate_nil. assumption.
 Qed.
@@ -514,11 +545,18 @@ unfold FULL. Intros h.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 { unfold hmacstate_PreInitNull. Intros r v. entailer!. }
 eapply semax_pre_post.
-  3: apply (cleanupbodyproof1 Espec c h).
+  6: apply (cleanupbodyproof1 Espec c h).
   Exists key. apply andp_left2. apply derives_refl. 
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
+simpl_ret_assert; normalize.
 
-  intros. apply andp_left2.  apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. old_go_lower. entailer!.
+  intros. apply andp_left2.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+  apply sepcon_derives; auto.
+  apply bind_ret_derives.
+  old_go_lower. entailer!.
+
   unfold EMPTY. 
   rewrite <- memory_block_data_at_. simpl. unfold data_block.
   clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.

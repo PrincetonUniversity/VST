@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.revarray.
-Require Import floyd.sublist.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.revarray.
+Require Import VST.floyd.sublist.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -155,7 +155,7 @@ forward. (* t = a[lo]; *)
 forward.  (* s = a[hi-1]; *)
 {
   entailer!.
-  clear - H0 HRE.
+  clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
   rewrite Znth_map with (d':=Int.zero)
@@ -167,7 +167,6 @@ forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
-
 (* Prove postcondition of loop body implies loop invariant *)
  Exists (Zsucc j).
  entailer!.
@@ -212,11 +211,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-

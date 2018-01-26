@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.incr.
+Require Import VST.progs.conclib.
+Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -12,7 +12,7 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 
-Definition cptr_lock_inv ctr := EX z : Z, data_at Ews tint (Vint (Int.repr z)) ctr.
+Definition cptr_lock_inv ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) ctr.
 
 Definition incr_spec :=
  DECLARE _incr
@@ -33,7 +33,7 @@ Definition read_spec :=
          PROP  (readable_share sh)
          LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
          SEP   (lock_inv sh lock (cptr_lock_inv ctr))
-  POST [ tint ] EX z : Z,
+  POST [ tuint ] EX z : Z,
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr z)))
          SEP (lock_inv sh lock (cptr_lock_inv ctr)).
@@ -66,7 +66,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
 Lemma ctr_inv_precise : forall p,
   precise (cptr_lock_inv p).
 Proof.
-  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
+  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tuint); auto.
   intros ? (? & H); apply data_at_data_at_ in H; eauto.
 Qed.
 Hint Resolve ctr_inv_precise.
@@ -195,10 +195,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons_ext.

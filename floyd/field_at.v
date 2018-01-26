@@ -1,15 +1,14 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.reptype_lemmas.
-Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.reptype_lemmas.
+Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.sublist.
 
 Local Open Scope logic.
 
@@ -400,6 +399,7 @@ Proof.
     clear v1.
     cbv iota beta in v1'.
     apply JMeq_eq in H2.
+    rewrite Z.max_r by omega.
     apply array_pred_ext.
     - subst; auto.
     - intros.
@@ -513,12 +513,12 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   } Unfocus.
@@ -535,7 +535,7 @@ Proof.
       rewrite nested_field_type_ind.
       simpl; rewrite H.
       auto.
-    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ _ _ (unfold_reptype v1) v2); auto.
+    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ (unfold_reptype v1) v2); auto.
       * intros.
         rewrite nested_field_type_ind, H.
         unfold gfield_type.
@@ -598,12 +598,12 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   } Unfocus.
@@ -621,7 +621,7 @@ Proof.
       simpl; rewrite H.
       auto.
     - unfold proj_union.
-      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) _ _ d0 d1 (unfold_reptype v1) v2); auto.
+      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) d0 d1 (unfold_reptype v1) v2); auto.
       * intros (i0, t0) ?.
         rewrite nested_field_type_ind, H.
         simpl.
@@ -744,6 +744,19 @@ Proof.
   + apply pred_ext; normalize. destruct H0; contradiction.
 Qed.
 
+Lemma field_at_data_at' : forall sh t gfs v p, field_at sh t gfs v p =
+  !!field_compatible t gfs p &&
+  data_at sh (nested_field_type t gfs) v (offset_val (nested_field_offset t gfs) p).
+Proof.
+  intros.
+  rewrite field_at_data_at.
+  unfold field_address.
+  if_tac.
+  - rewrite prop_true_andp; auto.
+  - rewrite prop_false_andp by auto.
+    rewrite data_at_isptr, prop_false_andp; auto.
+Qed.
+
 Lemma field_at__data_at_: forall sh t gfs p,
   field_at_ sh t gfs p =
   data_at_ sh (nested_field_type t gfs) (field_address t gfs p).
@@ -807,6 +820,7 @@ Proof.
     rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
     rewrite unfold_fold_reptype.
+    rewrite Z.max_r by omega.
     eapply array_pred_shift; [reflexivity | omega |].
     intros.
     rewrite at_offset_eq at 1.
@@ -871,14 +885,9 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     apply data_at_rec_data_at_rec_; try tauto.
-    1: omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
+    omega.
   + unfold field_at_, field_at.
     normalize.
 Qed.
@@ -914,13 +923,8 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     rewrite memory_block_data_at_rec_default_val; try tauto; try omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -994,10 +998,10 @@ Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 
@@ -1006,10 +1010,10 @@ Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
        [reflexivity
        | rewrite ?sizeof_Tarray by omega;
          rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         repable_signed
+         rep_omega
        | try apply f_equal_Int_repr;
          rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
        ])
     : cancel.
 *)
@@ -1077,8 +1081,8 @@ Proof.
   + split.
     - rewrite sizeof_Tunion.
       erewrite co_consistent_sizeof by apply get_co_consistent.
-      rewrite legal_cosu_type_Tunion with (a0 := a)
-        by (rewrite <- H; apply nested_field_type_nest_pred;
+      rewrite complete_legal_cosu_type_Tunion with (a0 := a)
+        by (rewrite <- H; apply nested_field_type_complete_legal_cosu_type;
             unfold field_compatible in *; tauto).
       pose proof align_le (sizeof_composite cenv_cs Union (co_members (get_co id)))
            (co_alignof (get_co id)) (co_alignof_pos _).
@@ -1087,10 +1091,13 @@ Proof.
       omega.
     - rewrite <- H.
       unfold field_compatible in *.
+      unfold size_compatible in *.
+      revert H1; solve_mod_modulus; intros.
+      rewrite Zmod_small in H1 by omega.
       omega.
   + rewrite <- H.
     unfold field_compatible, size_compatible in *.
-    rewrite Int.unsigned_repr in * by (unfold Int.max_unsigned; omega).
+    rewrite Ptrofs.unsigned_repr in * by (unfold Ptrofs.max_unsigned; omega).
     omega.
 Qed.
 
@@ -1251,10 +1258,10 @@ Proof.
   normalize.
   destruct p; try tauto.
   inv_int i.
-  replace (Vptr b (Int.repr ofs)) with (offset_val 0 (Vptr b (Int.repr ofs))) at 2.
+  replace (Vptr b (Ptrofs.repr ofs)) with (offset_val 0 (Vptr b (Ptrofs.repr ofs))) at 2.
   + apply memory_block_valid_pointer with (i := 0); auto; omega.
   + simpl.
-    rewrite add_repr, Z.add_0_r.
+    rewrite ptrofs_add_repr, Z.add_0_r.
     auto.
 Qed.
 
@@ -1483,10 +1490,16 @@ Lemma field_at_conflict: forall sh t fld p v v',
 Proof.
   intros.
   rewrite field_at_compatible'. normalize.
-  destruct H1 as [? [? [? [? [? [? [? ?]]]]]]].
-  destruct (nested_field_offset_in_range t fld H8 H3).
-  assert (0 < sizeof (nested_field_type t fld) < Int.modulus) by omega.
-  clear - H H2 H11.  
+  destruct H1 as [? [? [? [? ?]]]].
+  destruct (nested_field_offset_in_range t fld H5 H2).
+  assert (0 < sizeof (nested_field_type t fld) < Ptrofs.modulus).
+  Focus 1. {
+    destruct p; inv H1.
+    simpl in H3.
+    inv_int i.
+    omega.
+  } Unfocus.
+  clear - H H1 H8.  
   eapply derives_trans.
   + apply sepcon_derives.
     apply field_at_field_at_; try assumption; auto.
@@ -1494,7 +1507,7 @@ Proof.
   + fold (field_at_ sh t fld p).
     rewrite field_at__memory_block by auto.
     normalize.
-    apply memory_block_conflict; try  (unfold Int.max_unsigned; omega).
+    apply memory_block_conflict; try  (unfold Ptrofs.max_unsigned; omega).
     apply sepalg.nonidentity_nonunit; auto.
 Qed.
 
@@ -1511,7 +1524,6 @@ Lemma field_at__conflict:
   forall sh t fld p,
   sepalg.nonidentity sh ->
   0 < sizeof (nested_field_type t fld) ->
-  legal_alignas_type t = true ->
         field_at_ sh t fld p
         * field_at_ sh t fld p |-- FF.
 Proof.
@@ -1566,7 +1578,7 @@ Qed.
 Lemma eval_lvar_spec: forall id t rho,
   match eval_lvar id t rho with
   | Vundef => True
-  | Vptr b ofs => ofs = Int.zero
+  | Vptr b ofs => ofs = Ptrofs.zero
   | _ => False
   end.
 Proof.
@@ -1579,22 +1591,20 @@ Qed.
 
 Lemma var_block_data_at_:
   forall  sh id t,
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
-  Z.ltb (sizeof t) Int.modulus = true ->
+  complete_legal_cosu_type t = true ->
+  Z.ltb (sizeof t) Ptrofs.modulus = true ->
+  is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
 Proof.
   intros; extensionality rho.
- unfold var_block.
+  unfold var_block.
   unfold_lift.
   simpl.
-  apply Zlt_is_lt_bool in H2.
+  apply Zlt_is_lt_bool in H0.
   rewrite data_at__memory_block; try auto.
   rewrite memory_block_isptr.
   unfold local, lift1; unfold_lift.
-  unfold align_compatible.
   pose proof eval_lvar_spec id t rho.
   destruct (eval_lvar id t rho); simpl in *; normalize.
   subst.
@@ -1602,12 +1612,11 @@ Proof.
   apply ND_prop_ext.
   unfold field_compatible.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
-  change (Int.unsigned Int.zero) with 0.
+  change (Ptrofs.unsigned Ptrofs.zero) with 0.
   rewrite Z.add_0_l.
-  pose proof Z.divide_0_r (alignof t).
-  assert (sizeof t <= Int.modulus) by omega.
-  assert (sizeof t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
-  tauto.
+  assert (sizeof t <= Ptrofs.modulus) by omega.
+  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; omega).
+  apply la_env_cs_sound in H1; tauto.
 Qed.
 
 End CENV.
@@ -1659,38 +1668,65 @@ Ltac data_at_conflict_neq :=
    end
   end.
 
+Definition natural_aligned {cs: compspecs} (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env_cs t) =? 0) && is_aligned cenv_cs ha_env_cs la_env_cs t 0.
+
+Definition natural_aligned_soundness {cs: compspecs}: Prop :=
+    forall na ofs t,
+      complete_legal_cosu_type t = true ->
+      natural_aligned na t = true ->
+      (na | ofs) ->
+      align_compatible_rec cenv_cs t ofs.
+
+Lemma natural_aligned_sound {cs: compspecs}:
+  natural_aligned_soundness.
+Proof.
+  intros.
+  hnf.
+  intros.
+  unfold natural_aligned in H0.
+  autorewrite with align in H0.
+    2: eapply hardware_alignof_two_p; [exact cenv_consistent | exact ha_env_cs_consistent | exact ha_env_cs_complete].
+  destruct H0.
+  apply la_env_cs_sound in H2; auto.
+  replace ofs with (ofs - 0) in H1 by omega.
+  eapply align_compatible_rec_hardware_alignof_divide; auto.
+  + exact cenv_consistent.
+  + exact cenv_legal_su.
+  + exact ha_env_cs_consistent.
+  + exact ha_env_cs_complete.
+  + eapply Z.divide_trans; eassumption.
+  + exact H2.
+Qed.
+
 Definition natural_alignment := 8.
 
+(* TODO: change this name to malloc_compatible_ptr and merge the definition of isptr, size_compatible, align_compatible into something like: size_align_compatible_ptr *)
 Definition malloc_compatible (n: Z) (p: val) : Prop :=
   match p with
-  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
-                           Int.unsigned ofs + n < Int.modulus
+  | Vptr b ofs => (natural_alignment | Ptrofs.unsigned ofs) /\
+                           Ptrofs.unsigned ofs + n < Ptrofs.modulus
   | _ => False
   end.
 
+(* TODO: move these definitions and lemmas into a new file. *)
 Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p,
      malloc_compatible (sizeof t) p ->
-     legal_alignas_type t = true ->
-     legal_cosu_type t = true ->
-     complete_type cenv_cs t = true ->
-     (alignof t | natural_alignment) ->
+     complete_legal_cosu_type t = true ->
+     natural_aligned natural_alignment t = true ->
      field_compatible t nil p.
 Proof.
 intros.
 destruct p; simpl in *; try contradiction.
 destruct H.
-pose proof (Int.unsigned_range i).
+eapply natural_aligned_sound in H; eauto.
+pose proof (Ptrofs.unsigned_range i).
 repeat split; simpl; auto; try omega.
-eapply Zdivides_trans; eauto.
 Qed.
 
 Hint Extern 2 (field_compatible _ nil _) =>
  (apply malloc_compatible_field_compatible;
-  [assumption | reflexivity | reflexivity | reflexivity
-  | apply Zmod_divide;
-     [let Hx := fresh in intro Hx; inversion Hx | reflexivity]
-   ]).
+  [assumption | reflexivity | reflexivity]).
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
@@ -2154,13 +2190,11 @@ Proof.
     spec H1; [tauto |].
     spec H1; [tauto |].
     rewrite (Z.mod_small ofs) in * by omega.
-    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
-    spec H2; [pose proof Int.modulus_pos; omega |].
+    pose proof Zmod_le (ofs + nested_field_offset t gfs) Ptrofs.modulus.
+    spec H2; [pose proof Ptrofs.modulus_pos; omega |].
+    revert H; solve_mod_modulus; intros.
+    rewrite Zmod_small in H by (pose proof sizeof_pos (nested_field_type t gfs); omega).
     apply nonreadable_memory_block_data_at_rec; try tauto; try omega.
-    apply Z.divide_add_r.
-    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
-      apply alignof_nested_field_type_divide_alignof; tauto.
-    - apply nested_field_offset_type_divide; tauto.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     apply pred_ext; normalize.
@@ -2271,6 +2305,25 @@ if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
 Qed.
 
+(* TODO: move all change type lemmas into one file. Also those change compspecs lemmas. *)
+Lemma data_at_tuint_tint {cs: compspecs}: forall sh v p, data_at sh tuint v p = data_at sh tint v p.
+Proof.
+  intros.
+  unfold data_at, field_at.
+  f_equal.
+  unfold field_compatible.
+  apply ND_prop_ext.
+  assert (align_compatible tuint p <-> align_compatible tint p); [| tauto].
+  destruct p; simpl; try tauto.
+  split; intros.
+  + eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+    eapply align_compatible_rec_by_value; [reflexivity |].
+    auto.
+  + eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+    eapply align_compatible_rec_by_value; [reflexivity |].
+    auto.
+Qed.
+
 Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
   type_is_by_value (nested_field_type t gfs) = true ->
   type_is_volatile (nested_field_type t gfs) = false ->
@@ -2316,11 +2369,7 @@ Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   isptr p ->
   size_compatible t p ->
   align_compatible t p ->
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
-  sizeof t < Int.modulus ->
-  (v <> Vundef -> tc_val t v) ->
+  complete_legal_cosu_type t = true ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.
 Proof.
@@ -2328,12 +2377,91 @@ Proof.
   unfold data_at, field_at, at_offset, offset_val.
   simpl.
   destruct p; inv H2.
-  rewrite int_add_repr_0_r.
+  rewrite ptrofs_add_repr_0_r.
   rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H10; apply JMeq_eq in H10.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H6; apply JMeq_eq in H6.
   rewrite prop_true_andp; auto.
   f_equal. auto.
   repeat split; auto.
+Qed.
+
+Lemma mapsto_data_at' {cs: compspecs} sh t v v' p:
+  type_is_by_value t = true ->
+  type_is_volatile t = false ->
+  readable_share sh ->
+  field_compatible t nil p ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  unfold data_at, field_at, at_offset, offset_val.
+  simpl.
+  rewrite prop_true_andp by auto.
+  rewrite by_value_data_at_rec_nonvolatile by auto.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H3; apply JMeq_eq in H3.
+  f_equal; auto.
+  destruct H2. destruct p; try contradiction.
+  rewrite ptrofs_add_repr_0_r. auto.
+Qed.
+
+Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
+   headptr p ->
+   complete_legal_cosu_type t = true ->
+   legal_nested_field t path ->
+   sizeof t < Ptrofs.modulus ->
+   align_compatible_rec cenv_cs t 0 ->
+   field_compatible t path p.
+Proof.
+ intros.
+ destruct H as [b ?]; subst p.
+ repeat split; auto.
+Qed.
+
+(*
+Lemma headptr_field_compatible' {cs: compspecs}: forall t p,
+  headptr p ->
+  legal_alignas_type t = true ->
+  legal_cosu_type t = true ->
+  sizeof t < Ptrofs.modulus ->
+  complete_type cenv_cs t = true ->
+  field_compatible t nil p.
+Proof.
+  intros.
+  split; [| split; [| split; [| split; [| split; [| split; [| split]]]]]].
+  + apply headptr_isptr; auto.
+  + auto.
+  + auto.
+  + auto.
+  + auto.
+  + destruct H as [b ?]; subst.
+    simpl.
+    change (Ptrofs.unsigned Ptrofs.zero) with 0.
+    omega.
+  + destruct H as [b ?]; subst.
+    simpl.
+    change (Ptrofs.unsigned Ptrofs.zero) with 0.
+    apply Z.divide_0_r.
+  + simpl.
+    auto.
+Qed.
+*)
+
+Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
+  ((type_is_by_value t) && (complete_legal_cosu_type t) && (negb (type_is_volatile t)) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
+  readable_share sh ->
+  headptr p ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  rewrite !andb_true_iff in H.
+  destruct H as [[[? ?] ?] ?].
+  rewrite negb_true_iff in H4.
+  apply mapsto_data_at'; auto.
+  apply headptr_field_compatible; auto.
+  + destruct t; inv H; simpl; auto.
+  + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; reflexivity.
+  + apply la_env_cs_sound in H5; auto.
 Qed.
 
 Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
@@ -2341,6 +2469,57 @@ Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
   JMeq v1 v2 ->
   @data_at cs sh t1 v1 = data_at sh t2 v2.
 Proof. intros. subst. apply JMeq_eq in H0. subst v2. reflexivity. Qed.
+
+Lemma field_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) gfs v1 v2,
+  JMeq v1 v2 ->
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @field_at cs_from sh t gfs v1 = @field_at cs_to sh t gfs v2.
+Proof.
+  intros.
+  unfold field_at.
+  extensionality p.
+  SearchAbout (!! _ && _ = !! _ && _).
+  apply andp_prop_ext.
+  + apply field_compatible_change_composite; auto.
+  + intros.
+    pose proof H1.
+    rewrite field_compatible_change_composite in H2 by auto.
+    f_equal.
+    - revert v1 H;
+      rewrite nested_field_type_change_composite by auto.
+      intros.
+      apply data_at_rec_change_composite; auto.
+      apply nested_field_type_preserves_change_composite; auto.
+    - apply nested_field_offset_change_composite; auto.
+Qed.
+
+Lemma field_at__change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) gfs,
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @field_at_ cs_from sh t gfs = @field_at_ cs_to sh t gfs.
+Proof.
+  intros.
+  apply field_at_change_composite; auto.
+  rewrite nested_field_type_change_composite by auto.
+  apply default_val_change_composite.
+  apply nested_field_type_preserves_change_composite; auto.
+Qed.
+
+Lemma data_at_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2,
+  JMeq v1 v2 ->
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @data_at cs_from sh t v1 = @data_at cs_to sh t v2.
+Proof.
+  intros.
+  apply field_at_change_composite; auto.
+Qed.
+
+Lemma data_at__change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @data_at_ cs_from sh t = @data_at_ cs_to sh t.
+Proof.
+  intros.
+  apply field_at__change_composite; auto.
+Qed.
 
 (* TODO: rename and clean up all array_at_data_at lemmas. *)
 Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
@@ -2360,3 +2539,43 @@ Proof. intros; subst. trivial. Qed.
 
 Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p = @data_at cs sh t v' q.
 Proof. intros; subst. trivial. Qed.
+
+(* does not simplify array indices, because that might be too expensive *)
+Ltac simpl_compute_legal_nested_field :=
+  repeat match goal with
+  | |- context [ compute_legal_nested_field ?T ?L ] =>
+    let r := eval hnf in (compute_legal_nested_field T L) in
+    change (compute_legal_nested_field T L) with r
+  end.
+
+Ltac solve_legal_nested_field_in_entailment :=
+   match goal with
+   | |- _ |-- !! legal_nested_field ?t_root ?gfs =>
+     try unfold t_root;
+     try unfold gfs;
+     try match gfs with
+     | (?gfs1 ++ ?gfs0) => try unfold gfs1; try unfold gfs0
+     end
+  end;
+  first
+  [ apply prop_right; apply compute_legal_nested_field_spec';
+    simpl_compute_legal_nested_field;
+    repeat constructor; omega
+  |
+  apply compute_legal_nested_field_spec;
+  simpl_compute_legal_nested_field;
+  repeat constructor;
+  try solve [apply prop_right; auto; omega];
+  try solve [normalize; apply prop_right; auto; omega]
+  ].
+
+Ltac headptr_field_compatible :=
+  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
+  apply headptr_field_compatible;
+        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity];
+    apply compute_legal_nested_field_spec';
+    simpl_compute_legal_nested_field;
+    repeat apply Forall_cons; try apply Forall_nil
+  end.
+
+Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.

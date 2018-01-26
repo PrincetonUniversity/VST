@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -484,7 +484,7 @@ Lemma BDY_update: forall
 (H3 : Forall general_lemmas.isbyteZ contents),
 @semax hmac_drbg_compspecs.CompSpecs Espec
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
-        HmacDrbgFunSpecs)
+        HmacDrbgFunSpecs nil)
   (PROP ( )
    LOCAL (lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep;
    temp _ctx ctx; temp _additional additional;
@@ -508,12 +508,7 @@ Lemma BDY_update: forall
                 initial_state ctx info_contents;
          da_emp Tsh (tarray tuchar (Zlength contents))
            (map Vint (map Int.repr contents)) additional; K_vector kv)))
-     ((EX v : val,
-       local (locald_denote (lvar _sep (tarray tuchar 1) v)) &&
-       ` (data_at_ Tsh (tarray tuchar 1) v))%assert *
-      (EX v : val,
-       local (locald_denote (lvar _K (tarray tuchar 32) v)) &&
-       ` (data_at_ Tsh (tarray tuchar 32) v))%assert)).
+     (stackframe_of f_mbedtls_hmac_drbg_update)).
 Proof. intros.
   destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
   rewrite da_emp_isptrornull.
@@ -786,7 +781,7 @@ Proof. intros.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
       {
         (* prove the PROP clause matches *)
-        repeat split; [omega | omega | | assumption].
+        repeat split; [omega | rep_omega | | assumption].
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.
@@ -860,7 +855,9 @@ Proof. intros.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9 *)
     {
       (* prove the function parameters match up *)
-      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. split; reflexivity.
+      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction.
+      split; try reflexivity.
+      simpl. rewrite FA_ctx_MDCTX. rewrite ptrofs_add_repr_0_r; auto.
     }
     {
       (* prove the PROP clauses *)
@@ -918,12 +915,12 @@ Proof. intros.
   forward.
  
   (* prove function post condition *)
-  Exists K sep; entailer!. 
+  entailer!. 
 Time Qed. (*Coq8.6: 31secs*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
 Proof. start_function. apply BDY_update; trivial. Qed.
   
-Require Import floyd.ASTsize.
+Require Import VST.floyd.ASTsize.
 Eval compute in (ASTsize (fn_body f_mbedtls_hmac_drbg_update)).

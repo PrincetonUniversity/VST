@@ -5,14 +5,14 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
-Require Import sepcomp.semantics.
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.event_semantics.
 
-Require Import concurrency.machine_semantics.
-Require Import concurrency.permissions.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.machine_semantics.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.addressFiniteMap.
 
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.scheduler.
 Require Import Coq.Program.Program.
 
 Module Type Semantics.

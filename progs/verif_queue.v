@@ -1,7 +1,7 @@
-Require Import floyd.proofauto.
-Require Import floyd.library.
-Require Import progs.list_dt. Import Links.
-Require Import progs.queue.
+Require Import VST.floyd.proofauto.
+Require Import VST.floyd.library.
+Require Import VST.progs.list_dt. Import Links.
+Require Import VST.progs.queue.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -260,7 +260,8 @@ Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  POST [ tint ]
+       PROP() LOCAL (temp ret_temp (Vint (Int.repr (1+10)))) SEP(TT).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog
@@ -320,11 +321,18 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
+entailer!.
+{
+unfold fifo, fifo_body.
+destruct (isnil contents).
++ normalize; auto with valid_pointer.
++ entailer!.
+  destruct hd; inv PNhd; entailer!.
+}
 unfold fifo, fifo_body.
 Exists (hd,tl).
 destruct (isnil contents).
 * entailer!.
-  apply andp_right; auto with valid_pointer.
 * Intros prefix.
 Exists prefix.
   assert_PROP (isptr hd).
@@ -332,9 +340,8 @@ Exists prefix.
     rewrite lseg_cons_eq by auto. Intros y. subst v.
     entailer.
  destruct hd; try contradiction.
- entailer!. entailer!.
+ entailer!.
 Qed.
-
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
@@ -516,10 +523,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
 semax_func_cons body_exit.

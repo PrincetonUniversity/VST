@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import wand_demo.wand_frame.
 Require Import wand_demo.wand_frame_tactic.
 Require Import wand_demo.wandQ_frame.
@@ -6,7 +6,7 @@ Require Import wand_demo.list.
 Require Import wand_demo.list_lemmas.
 
 Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
 Proof.
   intros.
   destruct p; try contradiction; reflexivity.
@@ -448,7 +448,7 @@ Qed.
 Lemma body_append2: semax_body Vprog Gprog f_append2 append2_spec.
 Proof.
   start_function.
-  rename lvar0 into retp.
+  rename v_head into retp.
   rename x into head.
   replace_SEP 0
     (data_at_ sh (tptr t_struct_list) retp * ALL v: val, data_at sh (tptr t_struct_list) v retp -* data_at Tsh (tptr t_struct_list) v retp).
@@ -533,7 +533,7 @@ Proof.
     } Unfocus.
     forward. (* ret = * retp *)
     forward. (* return ret *)
-    Exists retp head'.
+    Exists head'.
     entailer!.
     rewrite app_nil_r.
     auto.

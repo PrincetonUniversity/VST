@@ -1,8 +1,8 @@
-Require Import veric.expr.
-Require Import veric.SeparationLogic.
-Require Import floyd.local2ptree.
-Require Import floyd.client_lemmas.
-Require Import floyd.efield_lemmas.
+Require Import VST.veric.expr.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.floyd.local2ptree.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.efield_lemmas.
 Require Import Coq.Bool.Bool.
 Require Import Coq.Lists.List.
 Require Import mc_reify.clight_expr_eq.

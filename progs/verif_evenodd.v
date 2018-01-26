@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.evenodd.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.evenodd.
 Local Open Scope logic.
 
 Inductive repr : Z -> val -> Prop :=
@@ -106,10 +106,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_odd.
 semax_func_cons body_even.
 semax_func_cons body_main.

@@ -2,8 +2,8 @@
     May 2013, October 2013, March 2014 *)
 
 Require Recdef.
-Require Import floyd.coqlib3.
-Require Import floyd.sublist.
+Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.sublist.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.

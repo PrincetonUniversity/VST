@@ -1,18 +1,18 @@
 (** * Instantiating the dry and erased machine for X86*)
 
-Require Import concurrency.dry_machine.
-Require Import concurrency.erased_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.permissions.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.dry_context.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.Asm_core.
-Require Import concurrency.Asm_event.
+Require Import VST.concurrency.dry_machine.
+Require Import VST.concurrency.erased_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.ccc26x86.Asm_coop.
+Require Import VST.ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -23,17 +23,10 @@ Module X86SEM <: Semantics.
   Definition F := Asm.fundef.
   Definition V := unit.
   Definition G := Asm.genv.
-  Definition C := Asm.regset.
+  Definition C := state.
   Definition Sem := Asm_EvSem.
   Definition getEnv (g: G) := g.
 End X86SEM.
-
-Definition X86SEM_rec: Semantics_rec:=
-  {| semG:= X86SEM.G;
-     semC:= X86SEM.C;
-     semSem:= X86SEM.Sem
-  |}.
-     
 
 (** The DryConc, FineConc and SC machines instantiated for X86*)
 Module X86Machines <: (MachinesSig with Module SEM := X86SEM).
@@ -43,8 +36,6 @@ Module X86Machines <: (MachinesSig with Module SEM := X86SEM).
   Module ErasedMachine := ErasedMachineShell X86SEM.
 
   Module DryConc := CoarseMachine mySchedule DryMachine.
-  Notation new_DMachineSem:= DryConc.new_MachineSemantics.
-  
   Module FineConc := FineMachine mySchedule DryMachine.
   Module SC := FineMachine mySchedule ErasedMachine.
 
@@ -82,7 +73,7 @@ End X86Context.
 
 Module X86SEMAxioms <: SemanticsAxioms X86SEM.
 
-  Import Asm Asm_core event_semantics semantics_lemmas
+  Import Asm Asm_coop event_semantics semantics_lemmas
          X86SEM Memory.
 
   Lemma corestep_det: corestep_fun Sem.
@@ -95,13 +86,9 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       | H: ?A, H': ?A |- _ => clear H'
       end;
     try congruence; try now (split; auto).
-   assert (vargs0=vargs) by (eapply Events.eval_builtin_args_determ; eauto).
-   subst vargs0; clear H10.
-   assert (t0=t) by (eapply builtin_event_determ; eauto). subst t0. clear H11.
-   destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H7 H13).
-  specialize (H0 (eq_refl _)). destruct H0; subst m'' vres0.
-  auto.
-Qed.
+    pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
+    subst args0; auto.
+  Qed.
 
   Lemma mem_step_decay:
     forall m m',

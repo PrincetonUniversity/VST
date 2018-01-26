@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.merge.
-Require Import progs.list_dt. Import LsegSpecial.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.merge.
+Require Import VST.progs.list_dt. Import LsegSpecial.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -86,7 +86,7 @@ Proof.
   f_equal; apply IHl.
 Qed.
 
-Definition merge_invariant _cond sh init_a init_b ret_ :=
+Definition merge_invariant _cond sh init_a init_b v_ret :=
  (EX cond: int, EX a: list int, EX b: list int, EX merged: list int,
   EX a_: val, EX b_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b;
@@ -94,13 +94,13 @@ Definition merge_invariant _cond sh init_a init_b ret_ :=
        )
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_;
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret;
          temp _cond (Vint cond)
         )
   SEP (lseg LS sh (map Vint a) a_ nullval;
          lseg LS sh (map Vint b) b_ nullval;
-         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         data_at Tsh tlist (if merged then Vundef else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
    ))%assert.
@@ -155,7 +155,6 @@ Qed.
 
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
-name ret_ _ret.
 start_function.
 forward.
 
@@ -172,12 +171,12 @@ forward.
    It is converted into an if, so we need to establish the
    postcondition ourselves *)
 match goal with [|-context[Sset ?tempvar _] ] =>
-   forward_if (merge_invariant tempvar sh a b ret_)
+   forward_if (merge_invariant tempvar sh a b v_ret)
 end.
 * (* First branch of the if: [a_ <> nullval] *)
 forward.
 Exists (if Val.eq b_ nullval then Int.zero else Int.one)
- a b (@nil int) a_ b_ ret_ ret_.
+ a b (@nil int) a_ b_ v_ret v_ret.
  simpl map. rewrite @lseg_nil_eq.
 Time entailer!.  (* 1.65 sec *)
  destruct b_; inv PNb_; simpl.
@@ -185,7 +184,7 @@ Time entailer!.  (* 1.65 sec *)
   rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
 * (* a_ = null *)
 forward.
-Exists Int.zero a b (@nil int) a_ b_ ret_ ret_.
+Exists Int.zero a b (@nil int) a_ b_ v_ret v_ret.
  simpl map. rewrite @lseg_nil_eq.
 entailer!. intuition.
 * (* finally the [condition] is given the value of the temporary variable 67. *)
@@ -199,7 +198,7 @@ Intros cond a b merged a_ b_ c_ begin.
  forward.
 
 (* The loop *)
-forward_while (merge_invariant _cond sh init_a init_b ret_).
+forward_while (merge_invariant _cond sh init_a init_b v_ret).
 
 (*  [[[[[[[cond0 a0] b0] merged0] a_0] b_0] c_0] begin0]. *)
 + (* Loop: precondition => invariant *)
@@ -246,12 +245,12 @@ forward_if (
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret
         )
   SEP (lseg LS sh (map Vint a) a_ nullval;
          lseg LS sh (map Vint b) b_ nullval;
-         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         data_at Tsh tlist (if merged then Vundef else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
    ))%assert.
@@ -263,7 +262,6 @@ forward. (* COMMAND : [*x = a] *)
 forward. (* COMMAND : [x = &(a->tail)] *)
 forward. (* COMMAND : [a = a -> tail] *)
 Exists a' (vb::b') [va] a_' b_ a_ a_.
-name ret__ _ret.
 {
 
 rewrite !@lseg_nil_eq.
@@ -316,7 +314,7 @@ clear -SH.
 (* TODO-LTAC I had no idea why this command failed -- we should tell "remove existential first", maybe *)
 Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
-forward_if (merge_invariant tempvar sh init_a init_b ret_)
+forward_if (merge_invariant tempvar sh init_a init_b v_ret)
 end.
 forward.
 
@@ -360,7 +358,6 @@ forward.
 forward. (* COMMAND : [x = &(b->tail)] *)
 forward. (* COMMAND : [b = b -> tail] *)
 Exists (va::a') b' [vb] a_ b_' b_ b_.
-name ret__ _ret.
 simpl map. rewrite @lseg_cons_eq.
 Exists a_'.
 rewrite list_cell_field_at.
@@ -408,7 +405,7 @@ cancel.
 clear -SH.
 Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
-forward_if (merge_invariant tempvar sh init_a init_b ret_)
+forward_if (merge_invariant tempvar sh init_a init_b v_ret)
 end.
 forward.
 
@@ -451,11 +448,11 @@ forward_if (
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret
         )
   SEP (lseg LS sh (map Vint (merge a b)) ab_ nullval;
-         data_at Tsh tlist (if merged then ab_ else begin) ret_;
+         data_at Tsh tlist (if merged then ab_ else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), ab_) c_
    ))%assert.
@@ -526,19 +523,18 @@ forward.
 now destruct merged; entailer!.
 
 (* return statement *)
-name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
 forward.
 destruct merged as [|hmerge tmerge].
 (* when merged = [] *)
 assert (begin = c_) by intuition. subst c_.
-Exists ret_ ab_; entailer!.
+Exists ab_; entailer!.
 rewrite H; auto.
 
 (* when merged <> [] *)
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-Exists ret_ begin; entailer.
+Exists begin; entailer.
 
 (* to match the specification from the invariant, we split it into three parts: *)
 

@@ -1,6 +1,6 @@
 Require Import Clight.
 Require Import Ctypes.
-Require Import veric.expr.
+Require Import VST.veric.expr.
 Require Import mc_reify.clight_expr_eq.
 Require Import compcert.common.AST.
 Require Import ExtLib.Core.RelDec.

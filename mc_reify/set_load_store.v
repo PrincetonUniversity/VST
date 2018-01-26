@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import mc_reify.bool_funcs.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.

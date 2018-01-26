@@ -1,5 +1,5 @@
-Require Import progs.conclib.
-Require Import progs.cond_queue.
+Require Import VST.progs.conclib.
+Require Import VST.progs.cond_queue.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -593,10 +593,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity|]).
 semax_func_cons_ext.
 semax_func_cons_ext.

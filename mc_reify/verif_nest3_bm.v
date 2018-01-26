@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.nest3.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.nest3.
 
 Local Open Scope logic.
 

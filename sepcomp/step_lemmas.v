@@ -4,9 +4,9 @@ Require Import compcert.lib.Maps.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 
-Require Import sepcomp.extspec.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Definition has_opttyp (v : option val) (t : option typ) :=
   match v, t with

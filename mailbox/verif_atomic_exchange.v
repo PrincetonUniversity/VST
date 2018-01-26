@@ -1,20 +1,23 @@
-Require Import veric.rmaps.
-Require Import progs.conclib.
-Require Import progs.ghost.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.veric.rmaps.
+Require Import VST.progs.conclib.
+Require Import VST.progs.ghost.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 Require Import mailbox.atomic_exchange.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* standard VST prelude *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+(* import funspecs from concurrency library *)
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 
 Notation hist := (list (nat * AE_hist_el)).
 
+(* the lock invariant used to encode an atomic invariant *)
 Definition AE_inv x g i R := EX h : list AE_hist_el, EX v : val,
   !!(apply_hist i h = Some v /\ tc_val tint v) &&
   (data_at Tsh tint v x * ghost_ref h g * R h v * (weak_precise_mpred (R h v) && emp)).
@@ -87,8 +90,7 @@ Proof.
   rewrite AE_inv_super_non_expansive; auto.
 Qed.
 
-(* Can we always provide a clunky function such that P and Q are a single function? *)
-(* Compare and contrast with magic wand proof of bin tree *)
+(* This predicate describes the valid pre- and postconditions for a given atomic invariant R. *)
 Definition AE_spec i P R Q := forall hc hx vc vx (Hvx : apply_hist i hx = Some vx) (Hhist : hist_incl hc hx),
   view_shift (R hx vx * P hc vc)
   (R (hx ++ [AE vx vc]) vc * (weak_precise_mpred (R (hx ++ [AE vx vc]) vc) && emp) *
@@ -100,7 +102,7 @@ Definition AE_type := ProdType (ProdType (ProdType
   (ArrowType (ConstType (list AE_hist_el)) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)).
 
-(* It would be nice to be able to store any kind of data in the location, but that won't typecheck. *)
+(* specification of atomic exchange *)
 Program Definition atomic_exchange_spec := DECLARE _simulate_atomic_exchange
   TYPE AE_type WITH lsh : share, tgt : val, g : val, l : val,
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
@@ -148,6 +150,7 @@ Qed.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; atomic_exchange_spec]).
 
+(* proof of the lock-based implementation of atomic exchange *)
 Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange atomic_exchange_spec.
 Proof.
   start_dep_function.
@@ -179,8 +182,8 @@ Proof.
     Exists (h' ++ [AE v' v]) v; entailer!.
     cancel. }
   forward.
-  Exists (length h') (Vint v'); unfold AE_loc; entailer!.
-  - rewrite Forall_forall; intros (?, ?) Hin.
+  Exists (length h') (Vint v'). unfold AE_loc; entailer!.
+  - rewrite Forall_forall. intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
   - apply andp_left2; auto.

@@ -1,30 +1,30 @@
-Require Import veric.base.
-Require Import msl.normalize.
-Require Import veric.compcert_rmaps.
-Require Import msl.msl_standard.
-Require Import veric.res_predicates.
-Require Import veric.seplog.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
+Require Import VST.veric.base.
+Require Import VST.msl.normalize.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.msl.msl_standard.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.seplog.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | Vptr b i_ofs => Ptrofs.unsigned i_ofs + sizeof t < Ptrofs.modulus
   | _ => True
   end.
 
 Lemma nonlock_permission_bytes_valid_pointer: forall sh b ofs n i,
-  0 <= ofs /\ ofs + n <= Int.modulus ->
+  0 <= ofs /\ ofs + n < Ptrofs.modulus ->
   0 <= i < n ->
   nonidentity sh ->
-  nonlock_permission_bytes sh (b, ofs) n |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
+  nonlock_permission_bytes sh (b, ofs) n |-- valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros.
   unfold nonlock_permission_bytes, valid_pointer.
   intros w ?.
   simpl in H2 |- *.
-  rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
   rewrite Z.add_0_r.
   specialize (H2 (b, ofs + i)).
   if_tac in H2.
@@ -38,15 +38,15 @@ Proof.
 Qed.
 
 Lemma VALspec_range_valid_pointer: forall sh b ofs n i,
-  0 <= ofs /\ ofs + n <= Int.modulus ->
+  0 <= ofs /\ ofs + n < Ptrofs.modulus ->
   0 <= i < n ->
-  VALspec_range n sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
+  VALspec_range n sh (b, ofs) |-- valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros.
   unfold VALspec_range, valid_pointer.
   intros w ?.
   simpl in H1 |- *.
-  rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
   rewrite Z.add_0_r.
   specialize (H1 (b, ofs + i)).
   if_tac in H1.
@@ -60,9 +60,9 @@ Proof.
 Qed.
 
 Lemma address_mapsto_valid_pointer: forall ch v sh b ofs i,
-  0 <= ofs /\ ofs + size_chunk ch <= Int.modulus ->
+  0 <= ofs /\ ofs + size_chunk ch < Ptrofs.modulus ->
   0 <= i < size_chunk ch ->
-  address_mapsto ch v sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
+  address_mapsto ch v sh (b, ofs) |-- valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros.
   eapply derives_trans; [apply address_mapsto_VALspec_range |].
@@ -85,28 +85,28 @@ Proof.
     - simpl in H.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
-      pose proof Int.unsigned_range i0.
+      pose proof Ptrofs.unsigned_range i0.
       apply address_mapsto_valid_pointer.
       * omega.
-      * rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
         omega.
     - apply exp_left; intro.
       simpl in H.
       erewrite size_chunk_sizeof in H by eauto.
       erewrite size_chunk_sizeof in H0 by eauto.
-      pose proof Int.unsigned_range i0.
+      pose proof Ptrofs.unsigned_range i0.
       apply address_mapsto_valid_pointer.
       * omega.
-      * rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+      * rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
         omega.
   + simpl in H.
     erewrite size_chunk_sizeof in H by eauto.
     erewrite size_chunk_sizeof in H0 by eauto.
-    pose proof Int.unsigned_range i0.
+    pose proof Ptrofs.unsigned_range i0.
     apply andp_left2.
     apply nonlock_permission_bytes_valid_pointer.
     - omega.
-    - rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
       omega.
     - auto.
 Qed.
@@ -120,7 +120,7 @@ Proof.
   unfold memory_block.
   destruct p; auto.
   normalize.
-  pose proof Int.unsigned_range i0.
+  pose proof Ptrofs.unsigned_range i0.
   rewrite memory_block'_eq.
   2: omega.
   2: rewrite Z2Nat.id; omega.
@@ -129,11 +129,11 @@ Proof.
   destruct (readable_share_dec sh).
   + apply VALspec_range_valid_pointer.
     - omega.
-    - rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
       auto.
   + apply nonlock_permission_bytes_valid_pointer.
     - omega.
-    - rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    - rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
       omega.
     - auto.
 Qed.

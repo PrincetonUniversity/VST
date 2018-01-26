@@ -9,27 +9,27 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import ccc26x86.Locations.
-Require Import ccc26x86.Stacklayout.
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Locations.
+Require Import VST.ccc26x86.Stacklayout.
+Require Import VST.ccc26x86.Conventions.
 
-Require Import sepcomp.val_casted.
-Require Import ccc26x86.BuiltinEffects.
-Require Import ccc26x86.load_frame.
+Require Import VST.sepcomp.val_casted.
+Require Import VST.ccc26x86.BuiltinEffects.
+Require Import VST.ccc26x86.load_frame.
 
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
 (*Require Import mem_welldefined.*)
-Require Import sepcomp.mem_wd.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.reach.
-Require Import sepcomp.nucular_semantics.
+Require Import VST.sepcomp.mem_wd.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.nucular_semantics.
 
 (*LENB: Again, in POPL-compcomp we didn't import CompCert's original Asm.v,
 but the modified one*)
 (*Require Import Asm_comp.*)
-Require Import ccc26x86.Asm.
-Require Import ccc26x86.Asm_coop.
+Require Import VST.ccc26x86.Asm.
+Require Import VST.ccc26x86.Asm_coop.
 Notation SP := ESP (only parsing).
 
 (** * CompCert IA32 Asm is [nucular] *)

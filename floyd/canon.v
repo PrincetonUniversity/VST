@@ -1,28 +1,7 @@
-Require Import Coq.Sorting.Permutation.
-Require Import floyd.base.
+Require Export Coq.Sorting.Permutation.
+Require Import VST.floyd.base2.
+
 Local Open Scope logic.
-
-Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
-Proof.
-intros.
-apply derives_trans with (|> (A && B)).
-rewrite later_andp.
-apply andp_derives; auto.
-apply now_later.
-apply later_derives; assumption.
-Qed.
-
-(* is this lemma useful? *)
-Lemma exp_prop: forall A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
-Proof.
-  intros.
-  apply pred_ext; normalize; intros.
-  + apply prop_right; exists x; auto.
-  + destruct H as [x ?].
-    apply (exp_right x).
-    normalize.
-Qed.
 
 (*
 
@@ -73,7 +52,7 @@ Inductive localdef : Type :=
 
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
-         | Some (b, ty') => t=ty' /\ v = Vptr b Int.zero
+         | Some (b, ty') => t=ty' /\ v = Vptr b Ptrofs.zero
          | None => False
          end.
 
@@ -82,14 +61,14 @@ Definition gvar_denote (i: ident) (v: val) rho :=
          | Some (b, ty') => False
          | None =>
              match ge_of rho i with
-             | Some b => v = Vptr b Int.zero
+             | Some b => v = Vptr b Ptrofs.zero
              | None => False
              end
          end.
 
 Definition sgvar_denote (i: ident) (v: val) rho :=
          match ge_of rho i with
-             | Some b => v = Vptr b Int.zero
+             | Some b => v = Vptr b Ptrofs.zero
              | None => False
          end.
 
@@ -417,6 +396,15 @@ Qed.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
 
+Lemma sgvar_gvar: forall i v, local (locald_denote (gvar i v)) |-- local (locald_denote (sgvar i v)).
+Proof.
+  intros.
+  unfold local, lift1; intro rho; apply prop_derives.
+  intros.
+  hnf in H |- *.
+  destruct (Map.get (ve_of rho) i) as [[? ?] |]; tauto.
+Qed.
+
 Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.
 intros. unfold PROPx. simpl. extensionality rho.
@@ -432,8 +420,7 @@ Lemma insert_local': forall (Q1: localdef) P Q R,
 Proof.
 intros. extensionality rho.
 unfold PROPx, LOCALx, local; super_unfold_lift. simpl.
-apply pred_ext; autorewrite with gather_prop; normalize;
-decompose [and] H; clear H.
+apply pred_ext; autorewrite with gather_prop; normalize.
 repeat apply andp_right; auto.
 apply prop_right; repeat split; auto.
 apply andp_right; auto.
@@ -629,8 +616,6 @@ Proof.
 intros.
 induction Q1; simpl; auto.
 apply prop_ext; intuition.
-normalize.
-apply Coq.Init.Logic.I.
 unfold_lift in IHQ1. unfold_lift.
 rewrite IHQ1.
 clear; apply prop_ext; intuition.
@@ -647,7 +632,7 @@ f_equal; auto.
 Qed.
 
 Lemma grab_indexes_SEP :
-  forall (ns: list Z) xs,   SEPx xs = SEPx (grab_indexes ns xs).
+  forall (ns: list Z) xs, SEPx xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
 unfold SEPx; extensionality rho.
@@ -749,6 +734,7 @@ Qed.
 
 *)
 
+(*
 Lemma semax_post0:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
    (R' |-- R) ->
@@ -759,6 +745,7 @@ apply andp_left2; auto.
 intros. apply andp_left2; auto.
 apply H.
 Qed.
+*)
 
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
@@ -800,7 +787,7 @@ Lemma semax_pre:
      ENTAIL Delta , P |-- P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
-intros; eapply semax_pre_post; eauto.
+intros; eapply semax_pre_post; eauto;
 intros; apply andp_left2; auto.
 Qed.
 
@@ -832,16 +819,18 @@ Proof.
 intros.
 replace (PROPx P (LOCALx (Q++Q2) (SEPx (R1 ++ R2))))
    with (PROPx P (LOCALx Q (SEPx (R1))) * (LOCALx Q2 (SEPx R2))).
-eapply semax_post0; [ | apply semax_frame; try eassumption].
-intros ek vl rho.
-unfold frame_ret_assert, normal_ret_assert.
-normalize.
+eapply semax_pre_post; try (apply semax_frame; try eassumption).
+apply andp_left2; auto.
+apply andp_left2. intro rho; simpl; normalize.
  unfold PROPx, SEPx, LOCALx, local, lift1.
 normalize.
 rewrite fold_right_sepcon_app.
 normalize; autorewrite with norm1 norm2; normalize.
 rewrite prop_true_andp; auto.
 rewrite map_app. rewrite fold_right_and_app; split; auto.
+apply andp_left2; simpl; normalize.
+apply andp_left2; simpl; normalize.
+intro; apply andp_left2; simpl; normalize.
 clear.
 extensionality rho.
 simpl.
@@ -849,10 +838,8 @@ unfold PROPx, LOCALx, local, lift1, SEPx.
 rewrite fold_right_sepcon_app.
 simpl. normalize.
 f_equal.
-rewrite <- andp_assoc.
-f_equal.
 rewrite map_app. rewrite fold_right_and_app.
-apply pred_ext; normalize. destruct H; normalize.
+apply pred_ext; normalize.
 Qed.
 
 Lemma semax_frame1:
@@ -875,19 +862,25 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (forall ek vl, ENTAIL (exit_tycon c Delta ek), R' ek vl |-- R ek vl) ->
+   ENTAIL (update_tycon Delta c), RA_normal R' |-- RA_normal R ->
+   ENTAIL Delta, RA_break R' |-- RA_break R ->
+   ENTAIL Delta, RA_continue R' |-- RA_continue R ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- RA_return R vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post; try eassumption.
 apply andp_left2; auto.
 Qed.
 
+
 Lemma semax_post_flipped:
   forall (R' : ret_assert) Espec {cs: compspecs} (Delta : tycontext) (R : ret_assert)
          (P : environ->mpred) (c : statement),
-        @semax cs Espec Delta P c R' ->
-       (forall (ek : exitkind) (vl : option val),
-        ENTAIL (exit_tycon c Delta ek), R' ek vl |-- R ek vl) ->
+   @semax cs Espec Delta P c R' ->
+   ENTAIL (update_tycon Delta c), RA_normal R' |-- RA_normal R ->
+   ENTAIL Delta, RA_break R' |-- RA_break R ->
+   ENTAIL Delta, RA_continue R' |-- RA_continue R ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- RA_return R vl) ->
        @semax cs Espec Delta P c R.
 Proof. intros; eapply semax_post; eassumption. Qed.
 
@@ -896,9 +889,21 @@ Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
            ENTAIL (update_tycon Delta c), R' |-- R ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
-Proof. intros. eapply semax_post; eauto. intros.
- unfold normal_ret_assert.
- normalize.
+Proof. intros. eapply semax_post; eauto.
+ simpl RA_normal; auto.
+ simpl RA_break; normalize.
+ simpl RA_continue; normalize.
+ intro vl; simpl RA_return; normalize.
+Qed.
+
+Lemma semax_pre_post': forall P' R' Espec {cs: compspecs} Delta R P c,
+      ENTAIL Delta, P |-- P' ->
+      ENTAIL (update_tycon Delta c), R' |-- R ->
+      @semax cs Espec Delta P' c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c (normal_ret_assert R).
+Proof. intros.
+ eapply semax_pre; eauto.
+ eapply semax_post'; eauto.
 Qed.
 
 (* OLD VERSION: 
@@ -914,12 +919,11 @@ Qed.
 
 Lemma sequential:
   forall Espec {cs: compspecs} Delta P c Q,
-        @semax cs Espec Delta P c (normal_ret_assert (Q EK_normal None)) ->
+        @semax cs Espec Delta P c (normal_ret_assert (RA_normal Q)) ->
           @semax cs Espec Delta P c Q.
-intros. eapply semax_post; eauto.
- intros. intro rho. unfold local,lift1; simpl.
- unfold normal_ret_assert; simpl.
- normalize.
+intros.
+ destruct Q as [?Q ?Q ?Q ?Q].
+ eapply semax_post; eauto; intros; apply andp_left2; simpl; auto; normalize.
 Qed.
 
 Lemma sequential':
@@ -928,12 +932,9 @@ Lemma sequential':
                @semax cs Espec Delta P c (overridePost Q R).
 Proof.
 intros.
-apply semax_post with (normal_ret_assert Q); auto.
-intros.
-unfold normal_ret_assert, overridePost.
-normalize.
-rewrite if_true; auto.
-apply andp_left2; auto.
+apply semax_post with (normal_ret_assert Q); auto; simpl; intros;
+ apply andp_left2; simpl; normalize.
+destruct R; simpl; auto.
 Qed.
 
 Lemma semax_seq':
@@ -975,13 +976,16 @@ Proof.
 intros.
 eapply derives_trans; [ | eapply derives_trans].
 2: apply sepcon_derives; [ apply H | apply (derives_refl  (fun _ => (fold_right sepcon emp R2)))].
-clear H.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
@@ -1173,7 +1177,8 @@ simpl in *; unfold_lift; unfold_lift in H.
 normalize.
 rewrite !prop_true_andp in H by auto.
 rewrite sepcon_emp in H.
-
+apply andp_right; auto.
+apply prop_right; auto.
 revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
@@ -1192,8 +1197,9 @@ unfold local, lift1 in *.
 simpl in *; unfold_lift; unfold_lift in H.
 normalize.
 rewrite !prop_true_andp in H by auto.
-clear - H.
 rewrite sepcon_emp in H.
+apply andp_right; auto.
+apply prop_right; auto.
 revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
@@ -1226,8 +1232,7 @@ intros.
 apply semax_pre_simple with (PROPx P QR); auto.
 clear.
 intro rho; unfold PROPx in *; simpl. normalize.
-destruct H; normalize.
- autorewrite with norm1 norm2; normalize.
+autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma semax_extract_PROP:
@@ -1238,8 +1243,9 @@ Proof.
 intros.
 apply semax_pre_simple with (!!PP && PROPx P QR).
 intro rho; unfold PROPx in *; simpl; normalize.
-destruct H0; normalize.
 autorewrite with norm1 norm2; normalize.
+apply andp_right; auto.
+apply prop_right; auto.
 apply semax_extract_prop.
 auto.
 Qed.
@@ -1294,8 +1300,10 @@ Proof.
  unfold_lift.
  simpl.
  apply pred_ext; normalize.
- destruct H0. repeat rewrite prop_true_andp by auto; auto.
- destruct H.  repeat rewrite prop_true_andp by auto; auto.
+apply andp_right; auto.
+apply prop_right; auto.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Ltac extract_prop_from_LOCAL :=
@@ -1323,11 +1331,8 @@ Lemma extract_exists_pre:
        @semax cs Espec Delta (exp (fun x => P x)) c R.
 Proof.
 intros.
-apply semax_post with (existential_ret_assert (fun _:A => R)).
-intros ek vl.
-unfold existential_ret_assert.
-apply andp_left2.
-apply exp_left; auto.
+apply semax_post with (existential_ret_assert (fun _:A => R));
+intros; try (apply andp_left2; simpl; intro;  apply exp_left; auto).
 apply extract_exists; auto.
 Qed.
 
@@ -1338,14 +1343,8 @@ Lemma extract_exists_post:
   semax Delta P c (normal_ret_assert (exp R)).
 Proof.
 intros.
-eapply semax_pre_post; try apply H.
-apply andp_left2; auto.
-intros ek vl rho.
-unfold local, lift1, existential_ret_assert.
-simpl.
-apply andp_left2.
-unfold normal_ret_assert.
-normalize. autorewrite with norm1 norm2; normalize.
+eapply semax_pre_post; try apply H; 
+intros; apply andp_left2; auto.
 apply exp_right with x; normalize.
 Qed.
 
@@ -1447,9 +1446,8 @@ Lemma semax_ff:
    @semax cs Espec Delta FF c R.
 Proof.
 intros.
-apply semax_pre_post with (FF && FF) R.
+apply semax_pre with (FF && FF).
 apply andp_left2. apply andp_right; auto.
-intros; apply andp_left2; auto.
 apply semax_extract_prop. intros; contradiction.
 Qed.
 
@@ -1466,8 +1464,6 @@ apply pred_ext; normalize.
 * match goal with |- _ |-- !! ?PP && _ => replace PP with P1
    by (apply prop_ext; intuition)
   end.
-  rewrite (prop_true_andp _ _ H1).
- clear H1 Q H0 P.
   clear - H.
   revert R H; induction n; destruct R; simpl; intros.
   apply andp_right; auto.
@@ -1479,7 +1475,7 @@ apply pred_ext; normalize.
   rewrite <- sepcon_andp_prop.
   apply sepcon_derives; auto.
 *
-  destruct H0; repeat rewrite prop_true_andp by auto.
+  rewrite prop_true_andp by auto.
  clear - H H0.
   revert R H; induction n; destruct R; simpl; intros; auto.
   subst m. rewrite prop_true_andp; auto.
@@ -1799,86 +1795,18 @@ apply pred_ext; apply andp_derives; auto;
 Qed.
 Hint Rewrite split_first_PROP using not_conj_notation : norm1.
 
-Require Import Coq.Sorting.Permutation.
-
 Lemma perm_derives:
   forall Delta P Q R P' Q' R',
     Permutation P P' ->
     Permutation Q Q' ->
     Permutation R R' ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P' (LOCALx Q' (SEPx R')).
-Proof.
-intros.
-apply andp_left2.
-apply andp_derives.
-apply prop_derives.
-clear - H.
-induction H; simpl; intuition.
-apply andp_derives.
-clear- H0.
-intro rho.
-unfold local,lift1.
-apply prop_derives.
-induction H0; simpl; intuition.
-destruct H; split; auto.
-destruct H as [? [? ?]]. split3; auto.
-clear- H1.
-unfold SEPx.
-intro rho; simpl.
-induction H1; intuition.
-unfold fold_right_sepcon; fold fold_right_sepcon. apply sepcon_derives; auto.
-unfold fold_right_sepcon; fold fold_right_sepcon.
-rewrite <- sepcon_assoc.
-rewrite (sepcon_comm y).
-rewrite sepcon_assoc; auto.
-eapply derives_trans; eassumption.
-Qed.
-
-Lemma perm_search:
-  forall {A} (a b: A) r s t,
-     Permutation (a::t) s ->
-     Permutation (b::t) r ->
-     Permutation (a::r) (b::s).
-Proof.
-intros.
-eapply perm_trans.
-apply perm_skip.
-apply Permutation_sym.
-apply H0.
-eapply perm_trans.
-apply perm_swap.
-apply perm_skip.
-apply H.
-Qed.
-
-
-Lemma Permutation_app_comm_trans:
- forall (A: Type) (a b c : list A),
-   Permutation (b++a) c ->
-   Permutation (a++b) c.
-Proof.
-intros.
-eapply Permutation_trans.
-apply Permutation_app_comm.
-auto.
-Qed.
-
-Ltac solve_perm :=
-    (* solves goals of the form (R ++ ?i = S)
-          where R and S are lists, and ?i is a unification variable *)
-  try match goal with
-       | |-  Permutation (?A ++ ?B) _ =>
-            is_evar A; first [is_evar B; fail 1| idtac];
-            apply Permutation_app_comm_trans
-       end;
-  repeat first [ apply Permutation_refl
-       | apply perm_skip
-       | eapply perm_search
-       ].
-
-Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
-eexists.
-solve_perm.
+Proof.  
+  intros.
+  erewrite PROPx_Permutation by eauto.
+  erewrite LOCALx_Permutation by eauto.
+  erewrite SEPx_Permutation by eauto.
+  apply andp_left2; auto.
 Qed.
 
 Lemma semax_frame_perm:
@@ -1913,9 +1841,9 @@ Lemma semax_post_flipped' :
        @semax cs Espec Delta P c (normal_ret_assert R') ->
        ENTAIL (exit_tycon c Delta EK_normal), R' |-- R ->
        @semax cs Espec Delta P c (normal_ret_assert R).
- Proof. intros; eapply semax_post; [ | eassumption].
- intros. unfold normal_ret_assert.
- normalize.
+ Proof. intros; eapply semax_post_flipped; [ eassumption | .. ];
+ auto;
+ intros; apply andp_left2; simpl; normalize.
 Qed.
 
 Tactic Notation "semax_frame" constr(Qframe) constr(Rframe) :=
@@ -1965,7 +1893,11 @@ Proof.
   simpl.
   apply pred_ext.
   + normalize.
+    apply andp_right; auto.
+    apply prop_right; auto.
   + normalize.
+    apply andp_right; auto.
+    apply prop_right; auto.
 Qed.
 
 Lemma semax_frame': forall {Espec: OracleKind}{CS: compspecs},
@@ -1984,13 +1916,8 @@ Proof.
   + rewrite sepcon_comm.
     apply semax_frame; auto.
     hnf. intros; auto.
-  + extensionality ek v rho.
-    unfold frame_ret_assert, normal_ret_assert; simpl.
-    rewrite sepcon_andp_prop'.
-    f_equal.
-    rewrite sepcon_andp_prop'.
-    f_equal.
-    apply sepcon_comm.
+  +
+    rewrite frame_normal. f_equal. apply sepcon_comm.
 Qed.
 
 Lemma semax_frame'': forall {Espec: OracleKind}{CS: compspecs},
@@ -2011,16 +1938,12 @@ Proof.
   + rewrite sepcon_comm.
     apply semax_frame; auto.
     hnf. intros; auto.
-  + extensionality ek v rho.
-    unfold frame_ret_assert, normal_ret_assert, function_body_ret_assert; simpl.
-    destruct ek; [apply pred_ext; normalize .. |].
-    destruct v; simpl.
-    - normalize.
-      f_equal.
-      apply sepcon_comm.
-    - destruct t; [| apply pred_ext; normalize .. ].
-      normalize.
-      apply sepcon_comm.
+  + 
+    simpl. f_equal; extensionality; try extensionality; normalize.
+    rewrite sepcon_comm.
+    unfold bind_ret; unfold_lift;
+    destruct x; simpl; normalize.
+    destruct t; simpl; normalize.
 Qed.
 
 Definition is_void_type (ty: type) : bool :=
@@ -2034,7 +1957,8 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
      (PTree.empty _)
      (ret_type Delta)
      (glob_types Delta)
-     (glob_specs Delta).
+     (glob_specs Delta)
+     (annotations Delta).
 
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
            t = ret_type Delta ->
@@ -2043,15 +1967,13 @@ Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
       @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
 Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   intros.
-  intro rho; unfold frame_ret_assert.
-  unfold function_body_ret_assert.
-  destruct ek; autorewrite with norm1 norm2; normalize.
-  unfold exit_tycon in H.
-(*  replace Delta with (ret_tycon Delta) in H1 by admit.  *)
-  unfold local, lift1 in H.
-  simpl andp in H.
-  unfold exit_tycon in H0.
-assert (H8: typecheck_var_environ (ve_of (globals_only rho))
+  all: try solve [intro rho; simpl; normalize].
+  intro vl.
+  intro rho; simpl in H0|-*; normalize.
+  clear H1.
+  unfold local, lift1 in *. normalize.
+  subst t. rename H0 into H. rename H1 into H0.
+  assert (H8: typecheck_var_environ (ve_of (globals_only rho))
                (var_types (ret_tycon Delta))). {
    clear - H0.
   unfold ret_tycon, var_types.
@@ -2097,11 +2019,11 @@ assert (H8: typecheck_var_environ (ve_of (globals_only rho))
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
+  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Definition ret1_tycon (Delta: tycontext): tycontext :=
   mk_tycontext (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _))
-    (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
+    (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Lemma make_args0_tc_environ: forall rho Delta,
   tc_environ Delta rho ->
@@ -2165,10 +2087,8 @@ Lemma semax_post_ret1: forall P' R' Espec {cs: compspecs} Delta P v R Pre c,
       (PROPx P (LOCAL (temp ret_temp v) (SEPx R)))) emp).
 Proof.
   intros.
-  eapply semax_post; eauto.
-  intros.
-  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
-  destruct ek; autorewrite with norm1 norm2; try solve [normalize].
+  eapply semax_post; eauto; try solve [intro rho; simpl; normalize].
+  intros vl rho; simpl. unfold local, lift1.
   simpl; rewrite !sepcon_emp.
   unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize ; try congruence.
   eapply derives_trans; [| apply (H0 _)].
@@ -2189,11 +2109,10 @@ Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,
       (PROPx P (LOCALx nil (SEPx R)))) emp).
 Proof.
   intros.
-  eapply semax_post; eauto.
+  eapply semax_post; eauto; try solve [intro rho; simpl; normalize].
   intros.
   intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
-  destruct ek; autorewrite with norm1 norm2; try solve [normalize].
-  simpl; rewrite !sepcon_emp.
+  simpl; rewrite !sepcon_emp. unfold local, lift1.
   unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize.
   + rewrite H in H3.
     inversion H3.
@@ -2201,4 +2120,189 @@ Proof.
     Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
     apply prop_right.
     apply make_args0_tc_environ; auto.
+Qed.
+
+Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
+| return_outer_gen_refl: forall P t sf,
+    return_outer_gen
+      (frame_ret_assert (function_body_ret_assert t P) sf)
+      (frame_ret_assert (function_body_ret_assert t P) sf)
+| return_outer_gen_switch: forall P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (switch_ret_assert P) Q
+| return_outer_gen_post: forall post P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (overridePost post P) Q
+| return_outer_gen_loop1: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop1_ret_assert inv P) Q
+| return_outer_gen_loop2: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop2_ret_assert inv P) Q.
+
+Lemma return_outer_gen_spec: forall P Q,
+  return_outer_gen P Q ->
+  RA_return P = RA_return Q.
+Proof.
+  intros.
+  destruct P as [?P ?P ?P ?P]; destruct Q as [?Q ?Q ?Q ?Q].
+  induction H; simpl in *; auto; rewrite <- IHreturn_outer_gen;
+  destruct P3; auto.
+Qed.
+
+Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| return_inner_gen_main: forall ov_gen P ts u,
+    return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
+| return_inner_gen_canon_nil:
+    forall ov_gen P R,
+      return_inner_gen S ov_gen
+        (PROPx P (LOCALx nil (SEPx R)))
+        (PROPx P (LOCALx nil (SEPx (R ++ S))))
+| return_inner_gen_canon_Some:
+    forall P v R v_gen,
+      return_inner_gen S (Some v_gen)
+        (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R)))
+        (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx (R ++ S))))
+| return_inner_gen_EX':
+    forall ov_gen (A: Type) (post1 post2: A -> environ -> mpred),
+      (forall a: A, return_inner_gen S ov_gen (post1 a) (post2 a)) ->
+      return_inner_gen S ov_gen (exp post1) (exp post2).
+
+Lemma return_inner_gen_EX: forall S ov_gen A post1 post2,
+  (forall a: A, exists P, return_inner_gen S ov_gen (post1 a) P /\ P = post2 a) ->
+  return_inner_gen S ov_gen (exp post1) (exp post2).
+Proof.
+  intros.
+  apply return_inner_gen_EX'.
+  intro a; specialize (H a).
+  destruct H as [? [? ?]]; subst.
+  auto.
+Qed.
+
+Lemma return_inner_gen_None_spec: forall S post1 post2,
+  return_inner_gen S None post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args nil nil rho)) * SEPx S.
+Proof.
+  intros.
+  remember None eqn:?H.
+  revert H0; induction H; intros; subst.
+  + unfold main_post.
+    go_lowerx.
+  + rewrite gather_SEP.
+    go_lowerx.
+  + inversion H0.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a eq_refl)).
+    intro rho.
+    simpl.
+    apply sepcon_derives; auto.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma return_inner_gen_Some_spec: forall S v_gen post1 post2,
+  return_inner_gen S (Some v_gen) post1 post2 ->
+  post2 |-- (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)) * SEPx S.
+Proof.
+  intros.
+  remember (Some v_gen) eqn:?H.
+  revert v_gen H0; induction H; intros; subst.
+  + unfold main_post.
+    go_lowerx.
+  + rewrite gather_SEP.
+    go_lowerx.
+  + erewrite PROPx_Permutation by apply Permutation_app_comm.
+    rewrite gather_SEP.
+    go_lowerx.
+    unfold_lift.
+    apply sepcon_derives; auto.
+    apply andp_right; auto.
+    apply prop_right; split; auto.
+    subst.
+    inversion H0.
+    unfold globals_only, eval_id, env_set, te_of.
+    rewrite Map.gss; auto.
+  + apply exp_left; intro a.
+    apply (derives_trans _ _ _ (H0 a _ eq_refl)).
+    intro rho.
+    simpl.
+    apply sepcon_derives; auto.
+    apply (exp_right a); auto.
+Qed.
+
+Lemma semax_return_None: forall {cs Espec} Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3,
+  ret_type Delta = Tvoid ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx SEPsf)) |-- sf ->
+  return_inner_gen SEPsf None post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn None) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H0.
+  rewrite H0; clear Post1 H0.
+  apply return_inner_gen_None_spec in H2.
+  apply andp_right.
+  + unfold tc_expropt.
+    unfold_lift; intros rho; apply prop_right; auto.
+  + unfold cast_expropt, id.
+    apply (derives_trans _ _ _ H3) in H2; clear H3.
+    revert H1 H2; unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift.
+    simpl; intros ? ? rho.
+    specialize (H1 rho); specialize (H2 rho).
+    normalize.
+    normalize in H1.
+    normalize in H2.
+    eapply derives_trans; [exact H2 |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H1] |].
+    unfold frame_ret_assert, function_body_ret_assert, bind_ret, make_args.
+    rewrite H.
+    unfold_lift; simpl.
+    auto.
+Qed.
+
+Lemma semax_return_Some: forall {cs Espec} Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3 ret v_gen,
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- tc_expr Delta (Ecast ret (ret_type Delta)) ->
+  return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx SEPsf)) |-- sf ->
+  return_inner_gen SEPsf (Some v_gen) post2 post3 ->
+  ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post3 ->
+  @semax cs Espec Delta (PROPx Ppre (LOCALx Qpre (SEPx Rpre))) (Sreturn (Some ret)) Post1.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_return].
+  apply return_outer_gen_spec in H1.
+  rewrite H1; clear Post1 H1.
+  apply andp_right; [exact H0 |].
+  apply return_inner_gen_Some_spec in H3.
+  assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
+            |-- ` (RA_return (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) (Some v_gen)) id).
+  + unfold frame_ret_assert, function_body_ret_assert, bind_ret, cast_expropt.
+    apply (derives_trans _ _ _ H4) in H3; clear H4.
+    revert H H0 H2 H3.
+    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift.
+    simpl; intros ? ? ? ? rho.
+    specialize (H rho); specialize (H0 rho).
+    specialize (H2 rho); specialize (H3 rho).
+    normalize.
+    normalize in H.
+    normalize in H0.
+    normalize in H2.
+    normalize in H3.
+    rewrite (add_andp _ _ H); normalize; clear H.
+    apply andp_right.
+    - apply (derives_trans _ _ _ H0).
+      eapply derives_trans; [apply typecheck_expr_sound; auto |].
+      unfold_lift; auto.
+    - apply (derives_trans _ _ _ H3).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H2] |].
+      unfold_lift; auto.
+  + rewrite (add_andp _ _ H1), (add_andp _ _ H).
+    rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+    apply andp_left2.
+    go_lowerx.
+    subst.
+    unfold id.
+    normalize.
 Qed.

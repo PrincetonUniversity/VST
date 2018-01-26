@@ -1,5 +1,5 @@
-Require Import floyd.proofauto.
-Require Import progs.dotprod.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.dotprod.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
@@ -200,7 +200,7 @@ apply (semax_for_simple_bound_const_init n
                  replace_nth sx R
                    (`(array_at tdouble Tsh (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else fx j) 0 n x))
                ));
-  try reflexivity; try auto with closed; try repable_signed.
+  try reflexivity; try auto with closed; try rep_omega.
 *
 apply andp_left2.
 replace (array_at tdouble Tsh
@@ -317,7 +317,7 @@ Ltac forward_vector_add :=
  forward_seq;
  [eapply semax_vector_add;
  [reflexivity | auto 50 with closed | auto 50 with closed
-   | repable_signed
+   | rep_omega
    | solve_nth_error | solve_nth_error | solve_nth_error
    | solve_nth_error | solve_nth_error | solve_nth_error
   | computable | computable ]

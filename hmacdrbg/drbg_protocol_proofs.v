@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -10,10 +10,9 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.entropy_lemmas.
-Require Import floyd.library.
+Require Import VST.floyd.library.
 Require Import hmacdrbg.drbg_protocol_specs.
 Require Import hmacdrbg.verif_hmac_drbg_WF.
-Require Import floyd.deadvars.
 
 Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
   ENTROPY.success (bytes, J) ss ->
@@ -50,7 +49,7 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
@@ -75,7 +74,7 @@ Proof.
     entailer!.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v. clear Hv. simpl. forward. entailer!. }
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
@@ -97,18 +96,18 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, HMAC_DRBG_algorithms.initial_key, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, HMAC_DRBG_algorithms.initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
+    change (2^64) with 18446744073709551616. omega.
     apply isbyteZ_initialKey.
   }
   Intros. clear H.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
@@ -119,7 +118,7 @@ Proof.
   replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
-    rewrite int_add_repr_0_r.
+    rewrite ptrofs_add_repr_0_r.
     cancel.
   }
   thaw FIELDS1. forward.
@@ -177,12 +176,12 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite int_max_unsigned_eq.
+  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite ptrofs_max_unsigned_eq.
     split. omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) omega.
+    split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
        unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
     split. apply IB1. split; omega.
@@ -203,7 +202,6 @@ Proof.
    SEP (reseedPOST v Data data (Zlength Data) s
           myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
-    apply andp_right. apply prop_right; trivial.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
 
@@ -251,7 +249,6 @@ Proof.
   forward. forward.
  
   Exists Int.zero. simpl.
-  apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial. 
   Exists p. Exists (M1, (M2, M3)).
   thaw ALLSEP. thaw OLD_MD.
@@ -283,7 +280,7 @@ Proof.
   rename H into HDlen1; rename H0 into HDlen2; rename H1 into HData.
   unfold seedbufREP.
   rewrite extract_exists_in_SEP. Intros Ctx.
-  rename H into WF1. rename H0 into WF2. rename H1 into WF3. rename H2 into WF4. 
+  rename H into WF1. rename H0 into WF2. rename H1 into WF3.
   rewrite data_at_isptr with (p:=ctx). Intros.
   destruct ctx; try contradiction; clear Pctx.
   unfold_data_at 1%nat.
@@ -291,7 +288,7 @@ Proof.
   destruct mds as [M1 [M2 M3]]. 
   freeze [1;2;3;4;5] FIELDS. unfold hmac256drbgstate_md_info_pointer; simpl.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
   time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
@@ -314,7 +311,7 @@ Proof.
     Exists (M1, (M2, M3), (V, (RC, (EL, (PR, RI))))); unfold hmac256drbgstate_md_info_pointer; simpl.
     entailer!. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
   { subst v; clear Hv. rewrite if_true; trivial.
     forward. entailer!.
   }
@@ -335,18 +332,18 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { rewrite lenV; simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq, lenV.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616 by reflexivity. omega.
+    change (2^64) with 18446744073709551616. omega.
   }
   Intros.
 
   forward_call tt.
 
   freeze [0;1;3;4] FR3. rewrite lenV.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
     eapply derives_trans. apply data_at_memory_block. cancel.
   }
@@ -369,7 +366,7 @@ Proof.
   { entailer. unfold_data_at 1%nat.
     thaw INI.
     rewrite field_at_data_at. unfold field_address. rewrite if_true. 2: assumption.
-    simpl. rewrite int_add_repr_0_r.
+    simpl. rewrite ptrofs_add_repr_0_r.
     unfold t_struct_md_ctx_st. cancel.
     clear OTHER. thaw FIELDS1. cancel.
     rewrite field_at_data_at. simpl.
@@ -387,7 +384,7 @@ Proof.
   forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. 
   }
-  { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
+  { subst ABS; simpl. repeat split; trivial; try rep_omega. apply IB1. split; omega.
   }
 
   freeze [0;1;2;3;4] ALLSEP.
@@ -407,7 +404,7 @@ Proof.
           (Vint (Int.repr entropy_len),
           (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
-  red; simpl. intuition. 
+  red; simpl. intuition.
 Time Qed. (*Coq8.6: 12secs*)
 
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common. 
@@ -419,14 +416,14 @@ Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function. rename H into addlenRange. rename H0 into Haddlen. 
   rename H1 into BOUND. rename H2 into isbt_contents.
-  rename lvar0 into seed.
+  rename v_seed into seed.
   unfold AREP. focus_SEP 2.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
   rewrite extract_exists_in_SEP. Intros i. rename H into WFI. 
   destruct I.
   destruct i as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
-  Intros. simpl in *.
+  Intros. simpl in BOUND.
   rename H into XH1.
   rename H0 into XH2.
   rename H1 into XH3.
@@ -439,7 +436,6 @@ Proof.
   Intros.
 
   (* entropy_len = ctx->entropy_len *)
-  simpl in *.
   remember (contents_with_add additional add_len contents) as contents'.
   assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
     { subst contents'. unfold contents_with_add.
@@ -467,12 +463,11 @@ Proof.
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite add_repr.
       rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
       + clear - H WFI addlenRange.
-        rewrite <-initialize.max_unsigned_modulus, int_max_unsigned_eq; omega.
+        rep_omega.
   }
 
   forward_if (PROP  (add_len_too_high = false)
@@ -483,7 +478,9 @@ Proof.
       SEP (FRZL FR2)
   ).
   { rewrite H in *. subst add_len_too_high. forward.
-    Exists seed (Vint (Int.neg (Int.repr 5))). unfold AREP. Exists Info.
+    Exists (Vint (Int.neg (Int.repr 5))). unfold AREP.
+    rewrite <- Heqadd_len_too_high.
+    Exists Info.
     unfold REP. entailer!.
     thaw FR2.
     Exists (md_ctx',
@@ -538,7 +535,7 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;5;7] FR4.
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try omega. rewrite int_max_unsigned_eq. omega.
+  { split. split; try rep_omega.
     apply writable_share_top.
   }
   Intros vret. rename H1 into ENT.
@@ -572,12 +569,13 @@ Proof.
   ).
   { (* != 0 case *)
     forward. 
-    Exists seed (Vint (Int.neg (Int.repr (9)))). (*entailer!.
+    Exists (Vint (Int.neg (Int.repr (9)))). (*entailer!.
     Exists (mbedtls_HMAC256_DRBG_reseed_function s
            (HMAC256DRBGabs key V reseed_counter entropy_len
               prediction_resistance reseed_interval)
               (contents_with_add additional (Zlength contents) contents)).*)
     unfold AREP, REP.
+    simpl.
     Exists Info
       (md_ctx',
          (map Vint (map Int.repr V),
@@ -609,16 +607,16 @@ Proof.
       thaw FR4. cancel.
       rewrite data_at__memory_block. entailer!.
       destruct seed; inv Pseed. unfold offset_val.
-      rewrite <- repr_unsigned with (i:=i). 
+      rewrite <- Ptrofs.repr_unsigned with (i:=i). 
       assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)).
       { simpl. omega. }
       rewrite XX.
-      rewrite (memory_block_split Tsh b (Int.unsigned i) entropy_len (384 - entropy_len)), add_repr; try omega.
+      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
           simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
-      rewrite Zplus_minus. cbv; trivial.
-      assert (Int.unsigned i >= 0) by (pose proof (Int.unsigned_range i); omega).
+      rewrite Zplus_minus.
+      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
       split. omega.
       clear - Hfield. red in Hfield; simpl in Hfield. omega.
   }
@@ -645,7 +643,7 @@ Proof.
 (*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   eapply semax_pre_post.
-  Focus 3. 
+  Focus 6. 
     eapply (@reseed_REST Espec contents additional add_len ctx md_ctx'
               V' reseed_counter' entropy_len' prediction_resistance' reseed_interval' key V
               reseed_counter entropy_len prediction_resistance reseed_interval kv Info s seed
@@ -653,9 +651,14 @@ Proof.
     subst contents'; try omega.
     subst contents'; trivial.
     solve [eassumption].
-  solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ]. 
-  intros. unfold POSTCONDITION, abbreviate. old_go_lower.
-  destruct ek; trivial. (* [normalize | normalize | normalize | ].*)
+
+  solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ].
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+ 
+  intros.
+  unfold POSTCONDITION, abbreviate.  simpl_ret_assert. old_go_lower.
   unfold reseedPOST; destruct vl; trivial. simpl. Intros.
   apply andp_right. apply prop_right;  trivial.
   apply sepcon_derives; [ normalize; simpl; Intros | apply derives_refl].
@@ -709,7 +712,7 @@ Proof.
                 I, kv, Info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    repeat (split; try assumption; try rep_omega).
     constructor. }
   Intros v. forward. unfold HMAC256_DRBG_bridge_to_FCF.mbedtls_generate in M.
   remember (mbedtls_HMAC256_DRBG_generate_function s I n []) as q; destruct q; try discriminate. 
@@ -753,7 +756,7 @@ Proof.
                 I, kv, Info, s).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    repeat (split; try assumption; try rep_omega).
     constructor. }
   Intros v. forward. destruct J as [[[[V K] RC] x] PR].
   unfold generatePOST, contents_with_add; simpl. 
@@ -799,7 +802,8 @@ Qed.
 
 Lemma body_hmac_drbg_update_abs: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update drbg_update_abs_spec.
-Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
+Proof. start_function.
+  rename v_K into K. rename v_sep into sep.
   rename H into AL1. rename H0 into HAL. rename H1 into isbtContents.
   unfold AREP. focus_SEP 2.
   rewrite extract_exists_in_SEP. Intros Info.
@@ -1058,7 +1062,7 @@ Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
       {
         (* prove the PROP clause matches *)
-        repeat split; [omega | omega | | assumption].
+        repeat split; [omega | rep_omega | | assumption].
         rewrite Zlength_app; rewrite H4.
         simpl. remember (Zlength contents) as n; clear - AL1.
         destruct AL1. rewrite <- Zplus_assoc.
@@ -1132,7 +1136,7 @@ Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9 *)
     {
       (* prove the function parameters match up *)
-      rewrite H4, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. split; reflexivity.
+      rewrite H4, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. normalize.
     }
     {
       (* prove the PROP clauses *)
@@ -1190,7 +1194,7 @@ Proof. start_function. rename lvar1 into K. rename lvar0 into sep.
   forward.
  
   (* prove function post condition *)
-  Exists K sep; entailer!. simpl in *.
+  entailer!. simpl in *.
   Exists Info (hmac256drbgabs_to_state (*final_state_abs*)
       (hmac256drbgabs_hmac_drbg_update I (contents_with_add additional add_len contents))
      (IS1a, (IS1b, IS1c), (IS2, (IS3, (IS4, (IS5, IS6)))))).
@@ -1271,4 +1275,4 @@ Proof.
   simpl; entailer!. 
   + red; simpl. red in H0; simpl in H0. intuition.
   + unfold_data_at 1%nat; thaw FR; cancel. 
-Time Qed. (*1.8s*) 
+Time Qed. (*1.8s*)

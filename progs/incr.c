@@ -1,22 +1,24 @@
 #include "threads.h"
-/*#include <stdio.h>*/
-#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+
+#define NULL 0
 
 lock_t ctr_lock;
 lock_t thread_lock;
-int ctr;
+unsigned ctr;
 
 void incr() {
   lock_t *l = &ctr_lock;
   acquire((void*)l);
-  int t = ctr;
+  unsigned t = ctr;
   ctr = t + 1;
   release((void*)l);
 }
 
-int read() {
+unsigned read() {
   acquire( (void*)&ctr_lock );
-  int t = ctr;
+  unsigned t = ctr;
   release ( (void*)&ctr_lock );
   return t;
 }
@@ -46,7 +48,7 @@ int main(void)
 
   /*JOIN */
   acquire((void*)lockt);
-  int t = read();
+  unsigned t = read();
   acquire((void*)lockc);
   /* free the locks */
   freelock2((void*)lockt);

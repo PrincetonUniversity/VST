@@ -9,8 +9,8 @@
     the trivial unit and void separation algrbras.
 *)
 
-Require Import msl.base.
-Require Import msl.sepalg.
+Require Import VST.msl.base.
+Require Import VST.msl.sepalg.
 
 (** The trivial separation algebra over the unit type.  This SA
     is the identity of the product SA operator, up to isomorphism.
@@ -37,7 +37,7 @@ Require Import msl.sepalg.
   Proof. repeat intro. auto. hnf; destruct a1; destruct a2; auto. Qed.
 
   Instance Disj_unit: Disj_alg unit.
-  Proof. repeat intro. hnf; destruct a; destruct b;  auto. Qed.
+  Proof. repeat intro. destruct a0, b0;  auto. Qed.
 
   Instance Cross_unit: Cross_alg unit.
   Proof. repeat intro. exists (tt,tt,tt,tt). repeat split; constructor. Qed.
@@ -98,7 +98,7 @@ Require Import msl.sepalg.
   Proof. repeat intro. inv H; inv H0; hnf; auto. Qed.
 
   Instance Disj_bool: Disj_alg bool.
-  Proof. repeat intro. inv H; hnf; auto. Qed.
+  Proof. repeat intro. inv H; inv H0; auto. Qed.
 
   Instance Cross_bool: Cross_alg bool.
   Proof. repeat intro.
@@ -139,7 +139,7 @@ Section JOIN_EQUIV.
   Proof. repeat intro. destruct H; destruct H0; subst; reflexivity. Qed.
 
   Instance Disj_equiv (A: Type): Disj_alg A.
-  Proof. repeat intro. destruct H; subst; reflexivity. Qed.
+  Proof. repeat intro. inv H0; auto. Qed.
 
   Instance Cross_equiv (A: Type): Cross_alg A.
   Proof. repeat intro. destruct H; destruct H0; subst.
@@ -217,7 +217,8 @@ Section SepAlgProp.
   Instance Disj_prop {DA: Disj_alg A}: Disj_alg (sig P).
   Proof. intros [a Ha][b Hb].
     unfold join, Join_prop; simpl; intros.
-    apply exist_ext. apply join_self; auto.
+    intros [] [] Hj.
+    eapply exist_ext, join_self; eauto.
   Qed.
 
 (*  Instance CS_prop {CS: Cross_alg A}: Cross_alg (sig P). ... not true ...
@@ -276,7 +277,7 @@ Section SepAlgFun.
  Proof. repeat intro. extensionality x; apply (join_canc (H0 x) (H1 x)). Qed.
 
  Instance Disj_fun: Disj_alg t' -> Disj_alg (key -> t').
- Proof.  repeat intro. extensionality x;  apply H. apply H0. Qed.
+ Proof.  repeat intro. extensionality x. eapply join_self; eauto. Qed.
 End SepAlgFun.
 
 Existing Instance Join_fun.
@@ -325,7 +326,7 @@ Section SepAlgPi.
   Proof. repeat intro. extensionality i; apply (join_canc (H0 i) (H1 i)). Qed.
 
   Instance Disj_pi: (forall i, Disj_alg (Pi i)) -> Disj_alg P.
-  Proof. repeat intro. extensionality i; apply (join_self (H0 i)). Qed.
+  Proof. repeat intro. extensionality i; apply (join_self (H0 i)); auto. Qed.
 
 End SepAlgPi.
 Existing Instance Join_pi.
@@ -435,12 +436,13 @@ Section SepAlgSigma.
   Proof. repeat intro.
     destruct a as [ia a]; destruct b as [ib b].
   (* Some weird bug in Coq requires this two-stage inversion process *)
-    red in H0. generalize H0; intro. inv H1.
-     apply inj_pair2 in H7; apply inj_pair2 in H4; apply inj_pair2 in H5;
+    red in H0. generalize H0; intro. inv H2.
+     apply inj_pair2 in H8; apply inj_pair2 in H5; apply inj_pair2 in H6;
      subst. inv H0.
-     apply inj_pair2 in H4; apply inj_pair2 in H5; apply inj_pair2 in H6;
+     apply inj_pair2 in H7; apply inj_pair2 in H5; apply inj_pair2 in H6;
      subst.
-    f_equal;  apply (join_self H2).
+    inv H1. apply inj_pair2 in H5; subst.
+    f_equal; eapply join_self; eauto.
  Qed.
 End SepAlgSigma.
 
@@ -500,8 +502,8 @@ Section SepAlgProd.
   Qed.
 
   Instance Disj_prod {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A*B).
-  Proof. intros  [? ?]  [? ?] [? ?].
-   f_equal; simpl in *; eapply join_self;eauto.
+  Proof. intros  [? ?]  [? ?] [? ?] [] [] Hj.
+   f_equal; simpl in *; inv Hj; eapply join_self; eauto.
   Qed.
 
 End SepAlgProd.
@@ -568,7 +570,7 @@ Section SepAlgSum.
   Qed.
 
   Instance Disj_sum {DAa: Disj_alg A} {DAb:  Disj_alg B}: Disj_alg (A+B).
-  Proof. repeat intro.  hnf in H|-*; icase a; icase b; simpl; f_equal; eapply join_self;eauto.
+  Proof. repeat intro. icase a; icase b; icase a0; icase b0; eapply f_equal, join_self; eauto.
   Qed.
 
 End SepAlgSum.
@@ -638,8 +640,8 @@ Section sa_list.
   Qed.
 
   Instance Disj_list {DAa: Disj_alg A} : Disj_alg (list A).
-  Proof. intro. induction a; intros; inv H; auto.
-    f_equal; auto.
+  Proof. intro. induction a; repeat intro; inv H; inv H0; auto.
+    f_equal; [eapply join_self; eauto | eapply IHa; eauto].
   Qed.
 
 End sa_list.
@@ -802,7 +804,8 @@ Section SepAlgBijection.
   Instance  Disj_bij {DAa: Disj_alg A} : Disj_alg B.
   Proof. repeat intro. do 2 red in H.
     apply join_self in H.
-   rewrite <- (bij_fg _ _ bij a). rewrite <- (bij_fg _ _ bij b). rewrite H; auto.
+    specialize (H _ _ H0).
+    eapply bij_g_inj; eauto.
   Qed.
 
 End SepAlgBijection.

@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -9,6 +9,7 @@ Require Import sha.call_memcpy.
 Local Open Scope Z.
 Local Open Scope logic.
 
+(*
 Lemma overridePost_derives:
   forall D F F' G G' ek vl,
      D && F |-- F'  ->
@@ -23,21 +24,24 @@ auto.
 Qed.
 
 Lemma function_body_ret_assert_derives:
-  forall F F' t ek vl,
+  forall F F' sf t ek vl,
     F |-- F' ->
-  function_body_ret_assert t F ek vl
-    |-- function_body_ret_assert t F' ek vl.
+  frame_ret_assert (function_body_ret_assert t F) sf ek vl
+    |-- frame_ret_assert (function_body_ret_assert t F') sf ek vl.
 Proof.
 intros.
-unfold function_body_ret_assert.
+unfold frame_ret_assert, function_body_ret_assert.
 destruct ek; auto.
 unfold bind_ret.
 destruct vl; auto.
+apply sepcon_derives; auto.
 apply andp_derives; auto.
 unfold_lift. intro rho. apply H.
 destruct t; auto.
+apply sepcon_derives; auto.
 intro rho. apply H.
 Qed.
+*)
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
 Proof.
@@ -117,9 +121,9 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
 rewrite <- H0.
 clear H0; pose (H0:=True).
 apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
-*
- semax_subcommand Vprog Gtot  f_SHA256_Update.
+* semax_subcommand Vprog Gtot f_SHA256_Update (@nil (ident * Annotation)).
  eapply semax_post_flipped.
++
  assert (BLEN: bitlength (s256a_hashed a) (s256a_data a) = s256a_len a)
    by (rewrite bitlength_eq, S256abs_recombine; auto).
  pattern (s256a_len a + len * 8); rewrite <- BLEN at 1.
@@ -127,20 +131,21 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
  apply s256a_data_Zlength_less.
  apply Forall_sublist; auto.
  apply s256a_hashed_divides.
- intros.
- rewrite S256abs_recombine.
- apply overridePost_derives.
- apply andp_left2; auto.
- apply andp_left2.  (* this should be done a better way *)
- apply function_body_ret_assert_derives.
++ simpl_ret_assert; apply ENTAIL_refl.
++ simpl_ret_assert; apply ENTAIL_refl.
++ simpl_ret_assert; apply ENTAIL_refl.
++ intros; simpl_ret_assert.
+ rewrite S256abs_recombine by auto.
+ apply andp_left2.
+ normalize.
+ apply bind_ret_derives.
  Intros a'.
  apply derives_extract_PROP'; intro. (* this should be done a better way *)
  rewrite H1. auto.
- auto.
 * (* after if (n!=0) *)
  eapply semax_seq' with
      (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv true).
- semax_subcommand Vprog Gtot  f_SHA256_Update.
+ semax_subcommand Vprog Gtot  f_SHA256_Update (@nil (ident * Annotation)).
 simple apply update_while_proof; try assumption; try omega; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.
@@ -217,8 +222,7 @@ forward_if (   PROP  ()
   reflexivity.
  -
  simpl tc_environ.
- subst POSTCONDITION; unfold abbreviate.
- rewrite overridePost_normal'.
+ subst POSTCONDITION; unfold abbreviate. simpl_ret_assert.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
  unfold data_block.  rewrite prop_true_andp by auto.

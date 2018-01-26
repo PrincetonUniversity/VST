@@ -1,4 +1,4 @@
-Require Import veric.base.
+Require Import VST.veric.base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
@@ -8,27 +8,30 @@ Require Export compcert.common.AST.
 Require Export compcert.common.Values.
 Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
-Require Export sepcomp.Address.
-Require Export msl.eq_dec.
-Require Export msl.shares.
-Require Export msl.predicates_rec.
-Require Export msl.contractive.
-Require Export msl.seplog.
-Require Export msl.alg_seplog.
-Require Export msl.log_normalize.
-Require Export msl.ramification_lemmas.
-Require Export veric.tycontext.
-Require Export veric.expr.
-Require Export veric.expr_rel.
-Require Export veric.Clight_lemmas.
-Require Export veric.shares.
-Require veric.seplog.
-Require veric.assert_lemmas.
-Require Import msl.Coqlib2.
-Require Import veric.juicy_extspec.
-Require Import veric.valid_pointer.
-Require veric.semax_prog.
-Require veric.semax_ext.
+Require Export VST.sepcomp.Address.
+Require Export VST.msl.eq_dec.
+Require Export VST.msl.shares.
+Require Export VST.msl.predicates_rec.
+Require Export VST.msl.contractive.
+Require Export VST.msl.seplog.
+Require Export VST.msl.alg_seplog.
+Require Export VST.msl.log_normalize.
+Require Export VST.msl.ramification_lemmas.
+Require Export VST.veric.tycontext.
+Require Export VST.veric.change_compspecs.
+Require Export VST.veric.expr.
+Require Export VST.veric.expr_rel.
+Require Export VST.veric.Clight_lemmas.
+Require Export VST.veric.composite_compute.
+Require Export VST.veric.align_mem.
+Require Export VST.veric.shares.
+Require VST.veric.seplog.
+Require VST.veric.assert_lemmas.
+Require Import VST.msl.Coqlib2.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.valid_pointer.
+Require VST.veric.semax_prog.
+Require VST.veric.semax_ext.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -59,8 +62,6 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric C
 
 Hint Resolve any_environ : typeclass_instances.
 
-Definition ret_assert := exitkind -> option val -> environ -> mpred.
-
 Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
@@ -69,7 +70,7 @@ Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIv
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
+         | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
          | _ => FF
          end.
 
@@ -82,6 +83,12 @@ Definition denote_tc_nonzero v : mpred :=
 Definition denote_tc_igt i v : mpred :=
      match v with
      | Vint i1 => prop (is_true (Int.ltu i1 i))
+     | _ => FF
+     end.
+
+Definition denote_tc_lgt l v : mpred :=
+     match v with
+     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
      | _ => FF
      end.
 
@@ -150,8 +157,25 @@ match v1, v2 with
           | Vlong n1, Vlong n2 => prop (is_true (negb
                                    (Int64.eq n1 (Int64.repr Int64.min_signed)
                                     && Int64.eq n2 Int64.mone)))
+          | Vint n1, Vlong n2 => TT
+          | Vlong n1, Vint n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int.eq n2 Int.mone)))
           | _ , _ => FF
         end.
+
+Definition denote_tc_nosignedover (op: Z->Z->Z) v1 v2 : mpred :=
+ match v1,v2 with
+ | Vint n1, Vint n2 => 
+   prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
+ | Vlong n1, Vlong n2 =>
+   prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | Vint n1, Vlong n2 =>
+   prop (Int64.min_signed <= op (Int.signed n1) (Int64.signed n2) <= Int64.max_signed)
+ | Vlong n1, Vint n2 =>
+   prop (Int64.min_signed <= op (Int64.signed n1) (Int.signed n2) <= Int64.max_signed)
+ | _, _ => FF
+ end.
 
 Definition denote_tc_initialized id ty rho : mpred :=
     prop (exists v, Map.get (te_of rho) id = Some v
@@ -171,20 +195,28 @@ Definition test_order_ptrs v1 v2 : mpred :=
   else FF.
 
 Definition denote_tc_test_eq v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => 
+     if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => 
+     if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vint i, Vptr _ _ =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+ | Vlong i, Vptr _ _ =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v2) else FF
  | Vptr _ _, Vint i =>
-      andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+ | Vptr _ _, Vlong i =>
+      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v1) else FF
  | Vptr _ _, Vptr _ _ =>
       test_eq_ptrs v1 v2
  | _, _ => FF
  end.
 
 Definition denote_tc_test_order v1 v2 : mpred :=
- match cast_out_long v1, cast_out_long v2 with
- | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ match v1, v2 with
+ | Vint i, Vint j => if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vlong i, Vlong j => if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
  | Vptr _ _, Vptr _ _ =>
       test_order_ptrs v1 v2
  | _, _ => FF
@@ -204,17 +236,25 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
   | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_llt' e i => `(denote_tc_lgt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
   | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
+  | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
 (* END from expr2.v *)
+
+Definition cast_pointer_to_bool t1 t2 :=
+ match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+           match t2 with Tint IBool _ _ => true | _ => false end
+ | _ => false
+end.
 
 Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : option ident :=
  match dl with
@@ -291,10 +331,10 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
      | Vptr b ofs =>
        if readable_share_dec sh
        then (!!tc_val t v2 &&
-             res_predicates.address_mapsto ch v2 sh (b, Int.unsigned ofs)) ||
+             res_predicates.address_mapsto ch v2 sh (b, Ptrofs.unsigned ofs)) ||
             (!! (v2 = Vundef) &&
-             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Int.unsigned ofs))
-       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Int.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
+             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))
+       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Ptrofs.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -307,7 +347,7 @@ Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n)
-                          (b, Int.unsigned z)
+                          (b, Ptrofs.unsigned z)
   | _ => TT
   end.
 
@@ -337,7 +377,7 @@ Definition init_data_size (i: init_data) : Z :=
   | Init_int64 _ => 8
   | Init_float32 _ => 4
   | Init_float64 _ => 8
-  | Init_addrof _ _ => 4
+  | Init_addrof _ _ => if Archi.ptr64 then 8 else 4
   | Init_space n => Zmax n 0
   end.
 
@@ -366,7 +406,7 @@ Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
   | Some b => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Int.zero) rho
+                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Ptrofs.zero) rho
  end.
 
 Definition globvars2pred (vl: list (ident * globvar type)) : environ->mpred :=
@@ -393,7 +433,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Int.unsigned ofs + n <= Int.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 
@@ -410,11 +450,10 @@ Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
   0 <= n ->
   0 <= m ->
-  n + m < Int.modulus ->
-  n + m <= n + m + ofs <= Int.modulus ->
-  memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
-  memory_block sh n (Vptr b (Int.repr ofs)) *
-  memory_block sh m (Vptr b (Int.repr (ofs + n))).
+  n + m <= n + m + ofs < Ptrofs.modulus ->
+  memory_block sh (n + m) (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh n (Vptr b (Ptrofs.repr ofs)) *
+  memory_block sh m (Vptr b (Ptrofs.repr (ofs + n))).
 Proof. exact mapsto_memory_block.memory_block_split. Qed.
 
 Lemma mapsto_share_join:
@@ -446,22 +485,23 @@ Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
   sepalg.nonunit sh ->
-  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
 intros.
 apply mapsto_memory_block.memory_block_conflict; auto.
 Qed.
 
+(* TODO: merge size_compatible and align_compatible *)
 Definition align_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Ptrofs.unsigned i_ofs)
   | _ => True
   end.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | Vptr b i_ofs => Ptrofs.unsigned i_ofs + sizeof t < Ptrofs.modulus
   | _ => True
   end.
 
@@ -479,15 +519,18 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
 Proof. exact @memory_block_valid_pointer. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Int.modulus ->
-  Int.unsigned ofs+n <= Int.modulus ->
+  0 <= n < Ptrofs.modulus ->
+  Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).
 Proof. exact mapsto_memory_block.mapsto_zeros_memory_block. Qed.
 
 Lemma mapsto_pointer_void:
-  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
+  forall sh t a, 
+    eqb_type (Tpointer t a) int_or_ptr_type = false ->
+    eqb_type (Tpointer Tvoid a) int_or_ptr_type = false ->
+    mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
 Proof. exact mapsto_memory_block.mapsto_pointer_void. Qed.
 
 Lemma mapsto_unsigned_signed:
@@ -526,18 +569,19 @@ Proof. exact mapsto_memory_block.mapsto_mapsto__int32. Qed.
 
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
+       Archi.ptr64 = false ->
              mapsto sh tint v nullval =
              mapsto sh (tptr t) v nullval.
 Proof. exact mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
-| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
 | None => Vundef
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) : environ -> mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (sizeof (snd idt) <= Ptrofs.max_unsigned) &&
   `(memory_block sh (sizeof (snd idt)))
              (eval_lvar (fst idt) (snd idt)).
 
@@ -566,12 +610,6 @@ Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  | None => True
  | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
  end.
-
-Definition bool_type (t: type) : bool :=
-  match t with
-  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true
-  | _ => false
-  end.
 
 Definition globals_only (rho: environ) : environ :=
     mkEnviron (ge_of rho) (Map.empty _) (Map.empty _).
@@ -615,21 +653,37 @@ Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -
      end.
 
 Definition overridePost  (Q: environ->mpred)  (R: ret_assert) :=
-     fun ek vl => if eq_dec ek EK_normal then (!! (vl=None) && Q) else R ek vl.
+ match R with 
+  {| RA_normal := _; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
+ end.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
-  fun ek vl  => EX x:A, R x ek vl .
+  {| RA_normal := fun rho => EX x:A, (R x).(RA_normal) rho;
+     RA_break := fun rho => EX x:A, (R x).(RA_break) rho;
+     RA_continue := fun rho => EX x:A, (R x).(RA_continue) rho;
+     RA_return := fun vl rho => EX x:A, (R x).(RA_return) vl rho
+   |}.
 
 Definition normal_ret_assert (Q: environ->mpred) : ret_assert :=
-   fun ek vl => !!(ek = EK_normal) && (!! (vl = None) && Q).
+  {| RA_normal := Q; RA_break := seplog.FF; RA_continue := seplog.FF; RA_return := fun _ => seplog.FF |}.
+
+Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := n * F; 
+     RA_break := b * F; 
+     RA_continue := c * F;
+     RA_return := fun vl => r vl * F |}
+ end.
 
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => seplog.FF
- | EK_break => R EK_normal None
- | EK_continue => R EK_continue None
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := FF; 
+     RA_break := n; 
+     RA_continue := c;
+     RA_return := r |}
  end.
 
 Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
@@ -650,36 +704,32 @@ Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
                       (prog_vars prog) = true.
 
-Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert :=
-      fun ek vl => R ek vl * F.
-
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => !! (vl=None) && Inv
- | EK_break => R EK_normal None
- | EK_continue => !! (vl=None) && Inv
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := Inv;
+     RA_return := r |}
  end.
 
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => !! (vl=None) && Inv
- | EK_break => fun _ => FF
- | EK_continue => fun _ => FF
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := seplog.FF; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
  end.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert :=
-   fun (ek : exitkind) (vl : option val) =>
-     match ek with
-     | EK_return => bind_ret vl ret Q
-     | _ => FF
-     end.
+ {| RA_normal := seplog.FF;
+    RA_break := seplog.FF; 
+    RA_continue := seplog.FF;
+    RA_return := fun vl => bind_ret vl ret Q |}.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
@@ -727,7 +777,7 @@ Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 =>
   if peq b b1 then
-    Val.of_bool (Int.cmpu c o o1)
+    Val.of_bool (Ptrofs.cmpu c o o1)
   else
     match Val.cmp_different_blocks c with
     | Some b => Val.of_bool b
@@ -768,8 +818,14 @@ Definition main_pre (prog: program) : list Type -> unit -> environ->mpred :=
 Definition main_post (prog: program) : list Type -> unit -> environ->mpred :=
   (fun nil tt => TT).
 
+Definition main_spec' (prog: program) 
+    (post: list Type -> unit -> environ -> mpred): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (rmaps.ConstType unit) (main_pre prog) post
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 Definition main_spec (prog: program): funspec :=
-  mk_funspec (nil,Tvoid) cc_default
+  mk_funspec (nil, tint) cc_default
      (rmaps.ConstType unit) (main_pre prog) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
@@ -779,8 +835,7 @@ Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool 
  | (id,t)::V' => match gvs with
                        | nil => false
                        | (j,g)::gvs' => if eqb_ident id j
-                                              then andb (is_pointer_type t)
-                                                       (andb (eqb_type t (gvar_info g)) (match_globvars gvs' V'))
+                                              then andb (eqb_type t (gvar_info g)) (match_globvars gvs' V')
                                               else match_globvars gvs' V
                       end
   end.
@@ -834,7 +889,7 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
 
 Definition  funspecs_norepeat (fs : funspecs) := list_norepet (map fst fs).
 
-Require veric.semax_ext.
+Require VST.veric.semax_ext.
 
 Definition add_funspecs (Espec : OracleKind)
          (ext_link: Strings.String.string -> ident)
@@ -854,7 +909,7 @@ Lemma typecheck_lvalue_sound {CS: compspecs} :
 Proof.
 intros.
 intros ? ?.
-eapply expr_lemmas.typecheck_lvalue_sound; eauto.
+eapply expr_lemmas4.typecheck_lvalue_sound; eauto.
 Qed.
 
 Lemma typecheck_expr_sound {CS: compspecs} :
@@ -865,7 +920,7 @@ Proof.
 intros.
 intros ? ?.
 simpl.
-eapply expr_lemmas.typecheck_expr_sound; eauto.
+eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
 (* End misc lemmas *)
@@ -947,14 +1002,14 @@ apply H0; auto.
 
 Lemma rel_lvalue_local: forall {CS: compspecs} id ty b P rho,
                  P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
-                 P |-- rel_lvalue (Evar id ty) (Vptr  b Int.zero) rho.
+                 P |-- rel_lvalue (Evar id ty) (Vptr  b Ptrofs.zero) rho.
 Proof.
 intros. intros ? ?. constructor.  specialize (H _ H0). apply H.
 Qed.
 
 Lemma rel_lvalue_global: forall {CS: compspecs} id ty b P rho,
               P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
-              P |-- rel_lvalue (Evar id ty) (Vptr b Int.zero) rho.
+              P |-- rel_lvalue (Evar id ty) (Vptr b Ptrofs.zero) rho.
 Proof.
 intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
 Qed.
@@ -969,7 +1024,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
                cenv_cs ! id = Some co ->
                field_offset cenv_cs i (co_members co) = Errors.OK delta ->
                P |-- rel_lvalue a (Vptr b z) rho ->
-               P |-- rel_lvalue (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
+               P |-- rel_lvalue (Efield a i ty) (Vptr b (Ptrofs.add z (Ptrofs.repr delta))) rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
@@ -1014,10 +1069,10 @@ Axiom semax_extensionality_Delta:
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
-    forall Espec ts x,
-      @semax C Espec (func_tycontext f V G)
+    forall Espec ts x, (*exists Ann,*)
+      @semax C Espec (func_tycontext f V G nil (*Ann*))
           (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
@@ -1035,7 +1090,10 @@ Definition semax_prog
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), main_spec prog) G.
+  match initial_world.find_id prog.(prog_main) G with
+  | Some s => exists post, s = main_spec' prog post
+  | None => False
+  end.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C, @semax_func Espec V G C nil nil.
@@ -1053,7 +1111,7 @@ Axiom semax_func_cons:
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
        precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ) ->
+      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs)
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
@@ -1137,11 +1195,11 @@ Axiom semax_skip_seq:
 
 Axiom semax_break:
   forall {Espec: OracleKind}{CS: compspecs},
-   forall Delta Q,    @semax CS Espec Delta (Q EK_break None) Sbreak Q.
+   forall Delta Q,    @semax CS Espec Delta (RA_break Q) Sbreak Q.
 
 Axiom semax_continue:
   forall {Espec: OracleKind}{CS: compspecs},
-   forall Delta Q,    @semax CS Espec Delta (Q EK_continue None) Scontinue Q.
+   forall Delta Q,    @semax CS Espec Delta (RA_continue Q) Scontinue Q.
 
 Axiom semax_loop :
   forall {Espec: OracleKind}{CS: compspecs} ,
@@ -1172,7 +1230,7 @@ Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Int.zero) && seplog.func_at f (b, 0).
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
 
 Axiom semax_call :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -1194,7 +1252,7 @@ Axiom  semax_return :
    forall Delta (R: ret_assert) ret ,
       @semax CS Espec Delta
                 ( (tc_expropt Delta ret (ret_type Delta)) &&
-                `(R EK_return : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
+                `(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R.
 
@@ -1236,6 +1294,8 @@ forall {Espec: OracleKind}{CS: compspecs} ,
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
     sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax CS Espec Delta
         ( |> ( (tc_expr Delta e1) &&
@@ -1271,7 +1331,7 @@ Axiom semax_cast_load :
   forall {Espec: OracleKind}{CS: compspecs},
 forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
-    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
+   cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
     local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax CS Espec Delta
@@ -1324,8 +1384,22 @@ Axiom semax_pre_post:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+
+Axiom semax_Slabel:
+   forall {Espec: OracleKind} {cs:compspecs},
+     forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
+
+Axiom semax_seq_Slabel:
+   forall {Espec: OracleKind} {cs:compspecs},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
 
 (**************** END OF stuff from semax_rules ***********)
 

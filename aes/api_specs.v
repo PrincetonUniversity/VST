@@ -1,5 +1,5 @@
-Require Export floyd.proofauto.
-Require Export floyd.reassoc_seq.
+Require Export VST.floyd.proofauto.
+Require Export VST.floyd.reassoc_seq.
 Require Export aes.aes.
 Require Export aes.GF_ops_LL.
 Require Export aes.tablesLL.

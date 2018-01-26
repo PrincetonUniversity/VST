@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
@@ -18,7 +18,7 @@ Require Import sha.verif_hmac_init_part1.
 Require Import sha.verif_hmac_init_part2.
 
 Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
-@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
            lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
@@ -32,12 +32,7 @@ Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
         (PROP  ()
          LOCAL ()
          SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv)))
-     ((EX  v : val,
-       local (locald_denote (lvar _pad (tarray tuchar 64) v)) &&
-       `(data_at_ Tsh (tarray tuchar 64) v))%assert *
-      (EX  v : val,
-       local (locald_denote (lvar _ctx_key (tarray tuchar 64) v)) &&
-       `(data_at_ Tsh (tarray tuchar 64) v))%assert)).
+     (stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
 freeze [1; 2; 3] FR1. simpl.
 Time forward. (*0.8 versus 1.3*)
@@ -124,10 +119,10 @@ remember (EX shaStates:_ ,
   as PostResetBranch.
 clear FR1.
 eapply semax_seq. instantiate (1:=PostResetBranch).
-{ eapply semax_pre_post.
+{ apply sequential'.
+  eapply semax_pre_post'.
   Focus 3 . apply init_part2; try eassumption.
-  apply andp_left2. apply derives_refl.
-  intros ? ?. apply andp_left2. apply derives_refl. }
+  apply andp_left2. apply derives_refl. apply ENTAIL_refl. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
@@ -175,7 +170,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      freeze [0; 3] FR3.
      Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-             Vptr cb (Int.add cofs (Int.repr 108)),
+             Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
      (*5.9 versus 13*)
@@ -190,7 +185,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
      freeze [0; 1; 2] FR4.
      Time forward. (*return*) (* 3 versus 13*) (*Issue : leaves a somewhat messy subgoal*)
-     Exists (Vptr ckb ckoff) pad.
      unfold hmacInit.
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
      Time entailer!. (*1.6 versus 7.4*)
@@ -203,7 +197,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       rewrite field_address_offset by auto with field_compatible.
-      simpl; rewrite Int.add_zero.
+      simpl; rewrite Ptrofs.add_zero.
       change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       thaw FR4. thaw FR3. thaw FR2.
       Time cancel. (*1.6 versus 0.7*)
@@ -230,11 +224,11 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
-    simpl; rewrite Int.add_zero.
+    simpl; rewrite Ptrofs.add_zero.
 
     Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-             Vptr cb (Int.add cofs (Int.repr 108)),
+             Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
     (* 4.7 versus 14.7 *)
@@ -245,7 +239,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     }
     freeze [0; 1; 2] FR8.
     Time forward. (*return*) (*3.4 versus 17*) (*Issue: leaves messy subgoal*)
-    Exists (Vptr ckb ckoff) pad.
     Time entailer!. (* 1.2 versus 9*)
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
@@ -261,17 +254,16 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
-    simpl; rewrite Int.add_zero.
+    simpl; rewrite Ptrofs.add_zero.
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
     Time cancel. (*1.7 versus 1.2 penalty when melting*)
   }
 }
-Time Qed. (*25 versus 49*)
+Time Qed. (*VST 2.0: 10.7s*) (*25 versus 49*)
 
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.
 Proof.
 start_function.
-rename lvar0 into pad. rename lvar1 into ctxkey.
 apply initbodyproof.
 Qed.

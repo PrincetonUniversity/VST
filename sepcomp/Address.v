@@ -4,7 +4,7 @@ Require Import compcert.lib.Floats.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 
-Require Import msl.eq_dec.
+Require Import VST.msl.eq_dec.
 
 Definition address : Type := (block * Z)%type.
 
@@ -30,7 +30,7 @@ Proof.
  apply Int64.eq_dec.
  apply Float.eq_dec.
  apply Float32.eq_dec.
- apply Int.eq_dec.
+ apply Ptrofs.eq_dec. (* apply Int.eq_dec.*)
  apply eq_block.
 Qed.
 
@@ -86,7 +86,8 @@ Definition range_overlap (base1: address) (sz1: Z) (base2: address) (sz2: Z) : P
 Definition adr_add (loc: address) (ofs: Z) : address := (fst loc, snd loc + ofs).
 
 Definition val2adr (v: val) (l: address) : Prop :=
-     match v with Vptr b ofs => l = (b, Int.unsigned ofs) | _ => False end.
+(*     match v with Vptr b ofs => l = (b, Int.unsigned ofs) | _ => False end.*)
+     match v with Vptr b ofs => l = (b, Ptrofs.unsigned ofs) | _ => False end.
 
 Lemma adr_range_non_zero: forall l1 n l2, adr_range l1 n l2 -> n > 0.
 Proof.

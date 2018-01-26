@@ -1,17 +1,16 @@
 (* TODO: remove this file. Not useful at all. *)
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.type_induction.
-Require Import floyd.reptype_lemmas.
-Require Import floyd.aggregate_type.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.nested_field_lemmas.
+Require Import VST.floyd.type_induction.
+Require Import VST.floyd.reptype_lemmas.
+Require Import VST.floyd.aggregate_type.
 
 (*
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.data_at_rec_lemmas.
-Require Import floyd.entailer.
-Require Import floyd.closed_lemmas.
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.entailer.
+Require Import VST.floyd.closed_lemmas.
 *)
 Local Open Scope logic.
 

@@ -1,6 +1,6 @@
-Require Import floyd.proofauto.
-Require Import progs.list_dt.
-Require Import progs.queue.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.list_dt.
+Require Import VST.progs.queue.
 
 Local Open Scope logic.
 
@@ -309,9 +309,10 @@ Proof.
 apply semax_func_nil.
 Qed.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gtot (prog_funct prog) Gtot.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
+prove_semax_prog.
  next_module builtins_correct.
  next_module extern_correct.
  next_module (module_fifo.(mf_funs_correct)).

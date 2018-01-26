@@ -10,13 +10,13 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Export sepcomp.globalSep.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Export VST.sepcomp.globalSep.
+Require Import VST.sepcomp.semantics_lemmas.
 
 (** * Structured Simulations *)
 
@@ -34,7 +34,67 @@ Context
   (Sem2 : @EffectSem (Genv.t F2 V2) C2)
   (ge1 : Genv.t F1 V1)
   (ge2 : Genv.t F2 V2).
+ (* (CS1_RDO: forall c m c' m', corestep Sem1 ge1 c m c' m' ->
+                  (*mem_respects_readonly ge1 m ->*)
+                  (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge1))
+  (CS2_RDO: forall c m c' m', corestep Sem2 ge2 c m c' m' ->
+                  (*mem_respects_readonly ge2 m ->*)
+                  (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge2)).
 
+Require Import VST.sepcomp.semantics_lemmas.
+Lemma CS1_RDO_N: forall n c m c' m', corestepN Sem1 ge1 n c m c' m' ->
+                  (*mem_respects_readonly ge1 m ->*)
+                  (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge1).
+Proof.
+  induction n; simpl; intros; red; intros.
+  inv H. apply readonly_refl.
+  destruct H as [cc [mm [CS CSN]]].
+  specialize (corestep_fwd _ _ _ _ _ _ CS). intros.
+  apply CS1_RDO in CS; trivial.
+  eapply readonly_trans. eapply CS. eassumption.
+  eapply IHn; try eassumption.
+  intros. apply H. eauto.
+  (*eapply mem_respects_readonly_forward'; eassumption.*)
+Qed.
+
+Lemma CS1_RDO_plus: forall c m c' m', corestep_plus Sem1 ge1 c m c' m' ->
+                  (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge1).
+Proof. intros. destruct H. eapply CS1_RDO_N; eassumption. Qed.
+
+Lemma CS1_RDO_star: forall c m c' m', corestep_star Sem1 ge1 c m c' m' ->
+                  (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge1).
+Proof. intros. destruct H. eapply CS1_RDO_N; eassumption. Qed.
+
+Lemma CS2_RDO_N: forall n c m c' m', corestepN Sem2 ge2 n c m c' m' ->
+                  (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge2).
+Proof.
+  induction n; simpl; intros; red; intros.
+  inv H. apply readonly_refl.
+  destruct H as [cc [mm [CS CSN]]].
+  specialize (corestep_fwd _ _ _ _ _ _ CS). intros.
+  apply CS2_RDO in CS; trivial.
+  eapply readonly_trans. eapply CS. eassumption.
+  eapply IHn; try eassumption.
+  intros. apply H. eauto.
+  (*eapply mem_respects_readonly_forward'; eassumption.*)
+Qed.
+
+Lemma CS2_RDO_plus: forall c m c' m', corestep_plus Sem2 ge2 c m c' m' ->
+                  (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge2).
+Proof. intros. destruct H. eapply CS2_RDO_N; eassumption. Qed.
+
+Lemma CS2_RDO_star: forall c m c' m', corestep_star Sem2 ge2 c m c' m' ->
+                  (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge2).
+Proof. intros. destruct H. eapply CS2_RDO_N; eassumption. Qed.
+*)
 Record SM_simulation_inject := {
   (** The type of auxiliary data used to model stuttering. *)
   core_data : Type
@@ -71,6 +131,15 @@ Record SM_simulation_inject := {
     match_state d mu c1 m1 c2 m2 ->
     REACH_closed m1 (vis mu)
 
+  (** [match_state] is closed under restriction to reach-closed supersets of
+      the visible blocks. REMOVED in jan. 2015*)
+(*; match_restrict:
+    forall d mu c1 m1 c2 m2,
+      match_state d mu c1 m1 c2 m2 ->
+      forall X, (forall b, vis mu b = true -> X b = true) ->
+                REACH_closed m1 X ->
+      match_state d (restrict_sm mu X) c1 m1 c2 m2*)
+
 
   (** The blocks in the domain/range of [mu] are valid in [m1]/[m2]. *)
 ; match_validblocks :
@@ -81,7 +150,7 @@ Record SM_simulation_inject := {
   (** The clause that relates initial states. *)
 ; core_initial :
     forall v vals1 c1 m1 j vals2 m2 DomS DomT,
-    initial_core Sem1 0 ge1 m1 v vals1 = Some (c1, None) ->
+    initial_core Sem1 0 ge1 v vals1 = Some c1 ->
     Mem.inject j m1 m2 ->
     Forall2 (val_inject j) vals1 vals2 ->
     meminj_preserves_globals ge1 j ->
@@ -101,7 +170,7 @@ Record SM_simulation_inject := {
     (forall b, DomT b = true -> Mem.valid_block m2 b) ->
 
     exists cd, exists c2,
-    initial_core Sem2 0 ge2 m2 v vals2 = Some (c2, None)
+    initial_core Sem2 0 ge2 v vals2 = Some c2
     /\ match_state cd
          (initial_SM DomS DomT
            (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
@@ -148,12 +217,12 @@ Record SM_simulation_inject := {
 ; core_at_external :
     forall cd mu c1 m1 c2 m2 e vals1,
     match_state cd mu c1 m1 c2 m2 ->
-    at_external Sem1 ge1 c1 m1 = Some (e,vals1) ->
+    at_external Sem1 c1 = Some (e,vals1) ->
     Mem.inject (as_inj mu) m1 m2
     /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2
     /\ exists vals2,
        Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2
-       /\ at_external Sem2 ge2 c2 m2 = Some (e,vals2)
+       /\ at_external Sem2 c2 = Some (e,vals2)
 
     /\ forall
        (pubSrc' pubTgt' : block -> bool)
@@ -172,7 +241,7 @@ Record SM_simulation_inject := {
     forall cd mu st1 st2 m1 e vals1 m2 vals2 e'
       (MemInjMu: Mem.inject (as_inj mu) m1 m2)
       (MatchMu: match_state cd mu st1 m1 st2 m2)
-      (AtExtSrc: at_external Sem1 ge1 st1 m1 = Some (e,vals1))
+      (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
         (** We include the clause [AtExtTgt] to ensure that [vals2] is uniquely
          determined. We have [e=e'] and [ef_sig=ef_sig'] by the [at_external]
@@ -182,7 +251,7 @@ Record SM_simulation_inject := {
          which the left value is [Vundef] ([Vundef]s can be refined under memory
          injections to arbitrary values). *)
 
-      (AtExtTgt: at_external Sem2 ge2 st2 m2 = Some (e',vals2))
+      (AtExtTgt: at_external Sem2 st2 = Some (e',vals2))
       (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
 
       pubSrc'
@@ -236,8 +305,8 @@ Record SM_simulation_inject := {
          (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
 (** Derive an effectless internal step diagram clause from the effectful diagram

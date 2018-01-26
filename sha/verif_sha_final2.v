@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -90,7 +90,7 @@ Qed.
 
 Definition Delta_final_if1 :=
  (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot))).
+     (func_tycontext f_SHA256_Final Vprog Gtot nil))).
 
 Definition Body_final_if1 :=
   (Ssequence
@@ -227,7 +227,7 @@ evar (V: list val).
    (*src*) Int.zero
    (*len*) (CBLOCKz - (ddlen+1))
         Frame); try reflexivity; try omega; auto.
- split; try omega. change CBLOCKz with 64; repable_signed.
+ split; try omega. change CBLOCKz with 64; rep_omega.
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
@@ -314,7 +314,7 @@ split.
  f_equal.
  clear - DDbytes; induction dd; simpl; auto.
  inv DDbytes; f_equal; auto.
- apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
+ apply Int.unsigned_repr; unfold isbyteZ in H1; rep_omega.
  rewrite map_list_repeat. reflexivity.
 *
  rewrite Zlength_nil, Z.sub_0_r.

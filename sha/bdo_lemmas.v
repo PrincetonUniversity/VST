@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.sha.
 Require Import sha.spec_sha.
@@ -148,14 +148,14 @@ Lemma and_mod_15_lem:
 Proof.
 intro n.
 unfold Int.and.
-rewrite (Int.unsigned_repr 15) by repable_signed.
+rewrite (Int.unsigned_repr 15) by rep_omega.
 change 15%Z with (Z.ones 4).
 assert (0 <= Z.land (Int.unsigned (Int.repr n)) (Z.ones 4) < 16)%Z.
 rewrite Z.land_ones.
 apply Z.mod_bound_pos.
 apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
-repable_signed.
+rep_omega.
 Qed.
 
 Definition Delta_loop1 : tycontext :=
@@ -168,7 +168,7 @@ Definition Delta_loop1 : tycontext :=
                           (initialized _b
                              (initialized _a
                                 (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
+     (func_tycontext f_sha256_block_data_order Vprog Gtot nil)))))))))).
 
 Definition c64 := 64%nat.  Global Opaque c64.
 Definition c48 := 48%nat.  Global Opaque c48.

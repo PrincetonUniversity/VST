@@ -1,4 +1,4 @@
-Require Import msl.base.
+Require Import VST.msl.base.
 
 Program Definition sig_sig_iff {A: Type} {P Q: A -> Prop}
   (H: forall a, P a <-> Q a) (x: sig P): sig Q := x.

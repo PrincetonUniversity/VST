@@ -12,59 +12,58 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
-Require Import msl.Coqlib2.
-Require Import msl.eq_dec.
-Require Import veric.initial_world.
-Require Import veric.juicy_mem.
-Require Import veric.juicy_mem_lemmas.
-Require Import veric.semax_prog.
-Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
-Require Import veric.semax.
-Require Import veric.semax_ext.
-Require Import veric.juicy_extspec.
-Require Import veric.initial_world.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.semax_ext.
-Require Import veric.coqlib4.
-Require Import sepcomp.semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.semax_conc_pred.
-Require Import concurrency.semax_conc.
-Require Import concurrency.juicy_machine.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap.
-Require Import concurrency.permissions.
-Require Import concurrency.dry_machine_lemmas.
+Require Import VST.msl.Coqlib2.
+Require Import VST.msl.eq_dec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.coqlib4.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy_machine.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.dry_machine_lemmas.
 
-Require Import concurrency.semax_invariant.
-Require Import concurrency.semax_initial.
-Require Import concurrency.semax_to_juicy_machine.
+Require Import VST.concurrency.semax_invariant.
+Require Import VST.concurrency.semax_initial.
+(* Require Import VST.concurrency.semax_to_juicy_machine. *)
 
 (** ** Erasure Imports*)
-Require Import concurrency.erasure_signature.
-Require Import concurrency.erasure_proof.
-Require Import concurrency.erasure_safety.
+Require Import VST.concurrency.erasure_signature.
+Require Import VST.concurrency.erasure_proof.
+Require Import VST.concurrency.erasure_safety.
 
-(* Require Import concurrency.fineConc_safe. *)
+(* Require Import VST.concurrency.fineConc_safe. *)
 
 (** ** Compiler simulation*)
-Require Import concurrency.lifting.
-Require Import concurrency.lifting_safety.
+Require Import VST.concurrency.lifting.
+Require Import VST.concurrency.lifting_safety.
 
 (** ** Target machine*)
-Require Import concurrency.x86_context.
+Require Import VST.concurrency.x86_context.
 
-Require Import concurrency.executions.
-Require Import concurrency.spinlocks.
-
-Require Import concurrency.fineConc_x86.
-Require Import concurrency.x86_safe.
-Require Import concurrency.SC_erasure.
+Require Import VST.concurrency.executions.
+Require Import VST.concurrency.spinlocks.
+Require Import VST.concurrency.fineConc_x86.
+Require Import VST.concurrency.x86_safe.
+Require Import VST.concurrency.SC_erasure.
 
 Module MainSafety .
 
@@ -78,7 +77,7 @@ Module MainSafety .
 
 
   (*Module lifting_this := lifting ErasureProof.SEM.*)
-  Module lifting_safety_this:= lifting_safety. (* X86SEM X86Machines. *)
+  Module lifting_safety_this:= lifting_safety X86SEM X86Machines.
   Import lifting_safety_this.
   (*Module lifting_this:= lifting X86SEM X86Machines. *)
   (*Lifting_this is imported as lftng. *)
@@ -118,9 +117,9 @@ Module MainSafety .
     Definition dry_initial_perm :=
       getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
 
-    (*Definition dry_initial_core:=
+    Definition dry_initial_core:=
       initial_core (juicy_core_sem cl_core_sem)
-                   (globalenv genv) (Vptr x Int.zero) nil.*)
+                   (globalenv prog) (Vptr x Int.zero) nil.
 
     Definition initial_cstate :=
       initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
@@ -157,7 +156,7 @@ Module MainSafety .
              unfold spr in *.
              remember
               (semax_prog_rule (Concurrent_Espec unit CS ext_link) V G
-                       prog (proj1_sig (init_mem prog init_mem_not_none)) 0 all_safe
+                       prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
                        (proj2_sig (init_mem prog init_mem_not_none))) as spr.
              unfold init_mem in *.
              rewrite <- Heqspr in Heqcm.
@@ -189,7 +188,7 @@ Module MainSafety .
                move=> rm l /( _ l).
                destruct (rm @ l); eauto.
                destruct k; eauto;
-               move=> /(_ sh r z p) [] A B; exfalso.
+               move=> /(_ t0 p z p0) [] A B; exfalso.
                - apply A; auto.
                - apply B; auto.
              Qed.
@@ -510,7 +509,7 @@ Module MainSafety .
         auto.
     Qed.
 
-    Require Import concurrency.dry_context.
+    Require Import VST.concurrency.dry_context.
     (*Definition dry_initial_core_2:=
       initial_core (coarse_semantics)
                    (the_ge) (Vptr x Int.zero) nil.
@@ -520,7 +519,7 @@ Module MainSafety .
                                  init_perm ge
                                  (Vptr x Int.zero) nil. *)
 
-    Definition compiled_machine_simulation:= lifting.concur_sim.
+    Definition compiled_machine_simulation:= lftng.concur_sim.
 
     Definition gTx86 := X86Context.the_ge.
     Parameter b: Values.block.
@@ -529,9 +528,8 @@ Module MainSafety .
       Some (dry_initial_perm, empty_map).
     Parameter sch : X86Machines.SC.Sch.
 
-    (*
     Definition this_simulation:=
-      compiled_machine_simulation  prog gTx86 (globalenv prog) main p X86Context.init_perm sch.
+      compiled_machine_simulation gTx86 (globalenv prog) main p X86Context.init_perm sch.
 
       (*destruct this_simulation.*)
       (*assert (HH:= wholeprog_simulations.Wholeprog_sim.match_state
@@ -540,7 +538,7 @@ Module MainSafety .
       Definition compiler_match:=
         machine_simulation.Machine_sim.match_state
           _ _ _ _ _ _ _ _
-          this_simulation.*)
+          this_simulation.
 
       Definition initial_target_state :=
         initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
@@ -552,13 +550,12 @@ Module MainSafety .
                                  dry_initial_perm initial_corestate.*)
 
         (** *The comiler preserves safety*)
-      (*Definition core_init:=
+      Definition core_init:=
         machine_simulation.Machine_sim.core_initial
           _ _ _ _ _ _ _ _
-          this_simulation. *)
+          this_simulation.
 
-      (*
-       Lemma compilation_safety_step:
+      Lemma compilation_safety_step:
         forall p U Sg Tg Sds Sm Tds Tm cd j,
           (match_st Tg Sg main p X86Context.init_perm U cd j Sds Sm Tds Tm) ->
        (forall sch : ErasureProof.DryMachine.Sch,
@@ -566,13 +563,11 @@ Module MainSafety .
           (sch, [::], Sds) ->
         DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.safe_new_step
           Sg (sch, [::], Sds) Sm) ->
-       forall sch : DryMachineSourceCore.DMS.SC.Sch,
+       forall sch : foo.SC.Sch,
        X86Machines.DryConc.valid (sch, [::], Tds) ->
        X86Machines.DryConc.safe_new_step Tg (sch, [::], Tds) Tm.
-      Proof. intros. eapply safety_preservation; eauto. Qed.*)
+      Proof. intros. eapply safety_preservation; eauto. Qed.
 
-      Parameter GT: MainSafety.ErasureProof.SEM.G.
-      Parameter GT': lifting_safety_this.GT.
       Lemma compilation_safety_preservation_aux:
         forall j (c1 : ErasureProof.dstate)
           (vals2 : seq.seq val)
@@ -581,18 +576,18 @@ Module MainSafety .
          (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
             sch p) (globalenv prog) main nil =
        Some c1 ->
-       init_inv j (globalenv prog) nil initial_memory (*gTx86*) GT vals2 m2 ->
+       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
        exists
-       (c2 : X86Machines.FineConc.machine_state),
+       (c2 : foo.FineConc.machine_state),
          machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) (*gTx86*) GT' main
+           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
            vals2 = Some c2 /\
-         forall sch : DryMachineSourceCore.DMS.SC.Sch,
+         forall sch : foo.SC.Sch,
            X86Machines.DryConc.valid (sch, nil, c2) ->
            X86Machines.DryConc.safe_new_step gTx86 (sch, nil, c2) m2.
       Proof.
         move=> ? c1 vals2 ? /= INIT.
-        move: (INIT). => HH /HH [] cd [] c2 [] AA MATCH.
+        move: (INIT)=> /core_init HH /HH [] cd [] c2 [] AA MATCH.
         move: (MATCH)=> /compilation_safety_step BB.
         exists c2; split; [assumption|].
         intros sch; eapply compilation_safety_step; eauto.

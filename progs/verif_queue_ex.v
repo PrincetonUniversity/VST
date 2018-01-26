@@ -1,8 +1,8 @@
-Require Import progs.conc_queue_specs.
-Require Import progs.conclib.
-Require Import progs.queue_ex.
-Require Import floyd.library.
-Require Import floyd.sublist.
+Require Import VST.progs.conc_queue_specs.
+Require Import VST.progs.conclib.
+Require Import VST.progs.queue_ex.
+Require Import VST.floyd.library.
+Require Import VST.floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -766,10 +766,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_free.
 repeat semax_func_cons_ext.
 { clear H. rewrite exp_unfold. Intros p.

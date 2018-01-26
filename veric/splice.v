@@ -1,6 +1,6 @@
-Require Import msl.msl_standard.
-Require Import msl.Coqlib2.
-Require Import veric.shares.
+Require Import VST.msl.msl_standard.
+Require Import VST.msl.Coqlib2.
+Require Import VST.veric.shares.
 
 Section UNPROVABLE.
 

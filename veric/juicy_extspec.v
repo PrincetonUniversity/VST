@@ -1,11 +1,11 @@
-Require Import veric.juicy_base.
-Require Import sepcomp.semantics.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.shares.
-Require Import veric.juicy_safety.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.initial_world.
+Require Import VST.veric.juicy_base.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.shares.
+Require Import VST.veric.juicy_safety.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.initial_world.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.

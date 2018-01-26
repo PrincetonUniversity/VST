@@ -1,22 +1,22 @@
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.simulations.
-Require Import sepcomp.simulations_lemmas.
-(*Require Import sepcomp.compiler_correctness.*)
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.simulations.
+Require Import VST.sepcomp.simulations_lemmas.
+(*Require Import VST.sepcomp.compiler_correctness.*)
 
-Require Import veric.base.
-Require Import veric.Clight_lemmas.
-Require Import veric.Clight_new.
+Require Import VST.veric.base.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.Clight_new.
 Require compcert.cfrontend.Clight.
 Module CC := Clight.
-Require veric.Clight_core.
+Require VST.veric.Clight_core.
 Module CC' := Clight_core.
 Section GE.
 Variable ge : genv.
 
 Definition CCstep s1 s2 := 
-  Clight_core.cl_at_external ge (fst (CC'.CC_state_to_CC_core s1)) (snd (CC'.CC_state_to_CC_core s1)) = None /\
+  Clight_core.cl_at_external (fst (CC'.CC_state_to_CC_core s1)) = None /\
   Clight.step ge (Clight.function_entry2 ge) s1 Events.E0 s2.
 
 Fixpoint strip_skip' (k: CC.cont) : CC.cont :=
@@ -947,41 +947,21 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
             @CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
              (fun n ge => CS.(initial_core) n (Build_genv ge cenv))
-             (fun ge => CS.(at_external) (Build_genv ge cenv))
-             (fun ge => CS.(after_external)  (Build_genv ge cenv))
+             CS.(at_external)
+             CS.(after_external)
              CS.(halted)
             (fun ge => CS.(corestep) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_at_external) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
-            (fun ge => CS.(at_external_halted_excl)  (Build_genv ge cenv) ).
+            CS.(at_external_halted_excl).
 
-Require Import sepcomp.step_lemmas.
-
- Lemma sim_initial_new:
-  forall (prog: Clight.program) b q m h,
-  initial_core Clight_new.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
-          (Vptr b Int.zero) nil = Some (q, None) ->
-  exists q',
-  initial_core Clight_core.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
-          (Vptr b Int.zero) nil = Some (q', None) /\
-    match_states q q'.
-Proof.
- intros.
- eexists.
- simpl in *.
- rewrite if_true in H|-* by auto.
- match type of H with  match ?A with Some _ => _ | None => _ end = _ => destruct A eqn:?H end; inv H.
- split.
- f_equal. f_equal.
-Admitted.
+Require Import VST.sepcomp.step_lemmas.
 
  Lemma sim_dry_safeN:
   forall dryspec (prog: Clight.program) b q m h,
   initial_core Clight_new.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
-          (Vptr b Int.zero) nil = Some (q, None) ->
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+          (Vptr b Ptrofs.zero) nil = Some q ->
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_new.cl_core_sem 
@@ -990,7 +970,7 @@ Admitted.
   exists q', 
   initial_core Clight_core.cl_core_sem h
            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          m (Vptr b Int.zero) nil = Some (q', None) /\
+          (Vptr b Ptrofs.zero) nil = Some q' /\
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_core.cl_core_sem 
@@ -1007,7 +987,7 @@ rewrite Heqo.
 eexists; split; [reflexivity|].
 intro.
 remember (State empty_env
-          (PTree.Node PTree.Leaf (Some (Vptr b Int.zero)) PTree.Leaf)
+          (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)
           (Kseq
              (Scall None (Etempvar 1%positive (type_of_fundef f))
                 (map (fun x : ident * type => Etempvar (fst x) (snd x))
@@ -1018,7 +998,7 @@ remember (Clight_core.CC_core_State Clight_core.empty_function
         (map (fun x : ident * type => Etempvar (fst x) (snd x))
            (Clight_core.params_of_types 2 (Clight_core.params_of_fundef f))))
      (Clight.Kseq (Sloop Sskip Sskip) Kstop) empty_env
-     (PTree.Node PTree.Leaf (Some (Vptr b Int.zero)) PTree.Leaf)) as q'.
+     (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)) as q'.
 assert (match_states q q'). {
  subst q q'. constructor. simpl. auto. simpl.
   constructor. simpl. constructor. simpl. constructor.
@@ -1075,7 +1055,7 @@ inv H0.
  destruct H4 as [c' [? ?]].
  simpl in *.
  destruct c'; inv H2; inv H; try discriminate.
- 2: elimtype False; clear - H1; destruct ret; inv H1; destruct lid0; inv H0.
+ 2: apply cl_after_at_external_excl in H1; inv H1.
  eexists; split; [reflexivity|].
  destruct n'; [constructor|].
  constructor 2 with (c':=(CC'.CC_core_State f Sskip k' ve (CC.set_opttemp lid (Val.maketotal ret) te0)))(m':=m').
@@ -1097,5 +1077,4 @@ destruct ret, lid; inv H6; apply H4.
 *
  inv H1.
 Qed.
-
 

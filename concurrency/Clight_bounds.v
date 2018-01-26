@@ -1,22 +1,22 @@
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 
-Require Import concurrency.sepcomp.
+Require Import VST.concurrency.sepcomp.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.permissions.
+Require Import VST.concurrency.permissions.
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
-Require Import concurrency.bounded_maps.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.bounded_maps.
+Require Import VST.concurrency.permissions.
 
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics_lemmas.
 Require Import Coqlib.
-Require Import veric.Clight_new.
-Require Import veric.Clightnew_coop.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clightnew_coop.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 

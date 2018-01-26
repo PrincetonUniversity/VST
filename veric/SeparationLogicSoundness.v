@@ -1,30 +1,30 @@
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.semantics.
 
-Require Import veric.juicy_base.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
-Require Import sepcomp.extspec.
-Require Import sepcomp.step_lemmas.
-Require Import veric.juicy_extspec.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.semax.
-Require Import veric.semax_lemmas.
-Require Import veric.semax_congruence.
-Require Import veric.Clight_lemmas.
-Require Import veric.initial_world.
-Require Import veric.semax_call.
-Require Import veric.semax_straight.
-Require Import veric.semax_loop.
-Require Import veric.semax_switch.
-Require Import veric.semax_prog.
-Require Import veric.semax_ext.
-Require Import veric.SeparationLogic.
-Require Import veric.expr_rel.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_new.
+Require Import VST.sepcomp.extspec.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.semax.
+Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.semax_congruence.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.initial_world.
+Require Import VST.veric.semax_call.
+Require Import VST.veric.semax_straight.
+Require Import VST.veric.semax_loop.
+Require Import VST.veric.semax_switch.
+Require Import VST.veric.semax_prog.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.SeparationLogic.
+Require Import VST.veric.expr_rel.
 
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
@@ -40,10 +40,10 @@ Axiom semax_prog_rule :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
-       semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) jm (Vptr b Int.zero) nil = Some (q, None) /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
        no_locks (m_phi jm) /\
        matchfunspecs (globalenv prog) G (m_phi jm) /\
@@ -57,7 +57,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  exp (fun b: block => andp (prop (v = Vptr b Int.zero)) (func_at f (b, 0))).
+  exp (fun b: block => andp (prop (v = Vptr b Ptrofs.zero)) (func_at f (b, 0))).
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
@@ -70,9 +70,6 @@ Proof.
   intros.
   unfold func_ptr.
   destruct spec.
-  change (@predicates_hered.exp rmap compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
-  change (@predicates_hered.andp rmap compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
-  change (@predicates_hered.prop rmap compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
   normalize.
 Qed.
 
@@ -98,6 +95,8 @@ Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
 Definition semax_switch := @semax_switch.
+Definition semax_Slabel := @semax_Slabel.
+Definition semax_seq_Slabel := @semax_seq_Slabel.
 Definition seq_assoc := @seq_assoc.
 Definition semax_seq_skip := @semax_seq_skip.
 Definition semax_skip_seq := @semax_skip_seq.

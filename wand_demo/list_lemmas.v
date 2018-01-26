@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import wand_demo.wand_frame.
 Require Import wand_demo.wandQ_frame.
 Require Import wand_demo.list.
@@ -125,7 +125,7 @@ Proof.
     sep_apply (IHs1 y').
     cancel.
 Qed.
-
+(* TODO: swap the order of * *)
 Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
   listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
 Proof.

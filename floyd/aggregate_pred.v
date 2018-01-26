@@ -1,18 +1,16 @@
-Require Import floyd.base.
-Require Import floyd.assert_lemmas.
-Require Import floyd.client_lemmas.
-Require Import floyd.type_induction.
-(*Require Import floyd.fieldlist.*)
-Require Import floyd.compact_prod_sum.
-(*Require Import floyd.aggregate_type.*)
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.nested_pred_lemmas.
-Require Import floyd.jmeq_lemmas.
-Require Import floyd.sublist.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.type_induction.
+(*Require Import VST.floyd.fieldlist.*)
+Require Import VST.floyd.compact_prod_sum.
+(*Require Import VST.floyd.aggregate_type.*)
+Require Import VST.floyd.mapsto_memory_block.
+Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.jmeq_lemmas.
+Require Import VST.floyd.sublist.
 
-Require Export floyd.fieldlist.
-Require Export floyd.aggregate_type.
-
+Require Export VST.floyd.fieldlist.
+Require Export VST.floyd.aggregate_type.
 
 Open Scope Z.
 Open Scope logic.
@@ -301,11 +299,11 @@ Proof.
   rewrite H1; auto; omega.
 Qed.
 
-Lemma array_pred_ext_derives: forall {A} (d: A) lo hi P0 P1 v0 v1 p,
+Lemma array_pred_ext_derives: forall {A B} (dA: A) (dB: B) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p.
+    P0 i (Znth (i-lo) v0 dA) p |-- P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p |-- array_pred dB lo hi P1 v1 p.
 Proof.
   intros.
   unfold array_pred.
@@ -320,11 +318,11 @@ Proof.
     apply H0. omega.
 Qed.
 
-Lemma array_pred_ext: forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+Lemma array_pred_ext: forall {A B} (dA: A) (dB: B) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0 d) p = P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p.
+    P0 i (Znth (i-lo) v0 dA) p = P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p = array_pred dB lo hi P1 v1 p.
 Proof.
   intros; apply pred_ext; apply array_pred_ext_derives; intros; try omega;
   rewrite H0; auto.
@@ -1210,30 +1208,29 @@ Section MEMORY_BLOCK_AGGREGATE.
 Context {cs: compspecs}.
 
 Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
-  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi <= Int.modulus ->
+  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Ptrofs.modulus ->
   0 <= lo <= hi ->
-  sizeof t * (hi - lo) < Int.modulus ->
   Zlength v = hi - lo ->
   array_pred d lo hi
     (fun i _ p => memory_block sh (sizeof t) (offset_val (sizeof t * i) p)) v
-    (Vptr b (Int.repr ofs)) =
-   memory_block sh (sizeof t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof t * lo))).
+    (Vptr b (Ptrofs.repr ofs)) =
+   memory_block sh (sizeof t * (hi - lo)) (Vptr b (Ptrofs.repr (ofs + sizeof t * lo))).
 Proof.
   intros.
   unfold array_pred.
-  rewrite prop_true_andp by auto; clear H2.
+  rewrite prop_true_andp by auto; clear H1.
   f_equal.
   remember (Z.to_nat (hi - lo)) as n eqn:HH.
-  revert lo HH H H0 H1 v; induction n; intros.
+  revert lo HH H H0 v; induction n; intros.
   + simpl.
     pose proof arith_aux00 _ _ (proj2 H0) HH.
-    rewrite H2, Z.mul_0_r, memory_block_zero_Vptr.
+    rewrite H1, Z.mul_0_r, memory_block_zero_Vptr.
     reflexivity.
   + simpl.
     pose proof arith_aux01 _ _ _ HH.
     solve_mod_modulus.
     pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
-    rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega | exact v].
+    rewrite IHn; [| apply arith_aux02; auto | omega | omega | exact v].
     replace (ofs + sizeof  t * Z.succ lo) with (ofs + sizeof t * lo + sizeof t) by omega.
     rewrite <- memory_block_split by (auto; omega).
     f_equal.
@@ -1242,14 +1239,13 @@ Qed.
 
 Lemma memory_block_array_pred': forall {A} (d:A)  sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
-  sizeof t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
   array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof t) (offset_val (sizeof t * i) p))
              (list_repeat (Z.to_nat z) d)
-     (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs)).
+     (Vptr b (Ptrofs.repr ofs))  =
+  memory_block sh (sizeof t * z) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   rewrite memory_block_array_pred.
@@ -1262,13 +1258,13 @@ Qed.
 Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
   members_no_replicate m = true ->
-  sizeof_struct cenv_cs 0 m <= sz < Int.modulus ->
-  0 <= ofs /\ ofs + sz <= Int.modulus ->
+  sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
+  0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh sz (Vptr b (Int.repr ofs)).
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh sz (Vptr b (Ptrofs.repr ofs)).
 Proof.
   unfold field_offset, Ctypes.field_offset, field_offset_next.
   intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
@@ -1319,8 +1315,8 @@ Qed.
 
 Lemma memory_block_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Int.repr ofs)) =
-  memory_block sh sz (Vptr b (Int.repr ofs)).
+  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh sz (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
   destruct m as [| (i0, t0) m].
@@ -1379,19 +1375,19 @@ Definition array_pred_shift: forall {A} (d:A) lo hi lo' hi' mv P' P v p,
 := @array_pred_shift.
 
 Definition array_pred_ext_derives:
-  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  forall {A B} (dA:A) (dB:B) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-      P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p
+      P0 i (Znth (i-lo) v0 dA) p |-- P1 i (Znth (i-lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p |-- array_pred dB lo hi P1 v1 p
 := @array_pred_ext_derives.
 
 Definition array_pred_ext:
-  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  forall {A B} (dA:A) (dB:B) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-     P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) ->
-  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p
+     P0 i (Znth (i - lo) v0 dA) p = P1 i (Znth (i - lo) v1 dB) p) ->
+  array_pred dA lo hi P0 v0 p = array_pred dB lo hi P1 v1 p
 := @array_pred_ext.
 
 Definition at_offset_array_pred: forall {A} (d:A) lo hi P v ofs p,
@@ -1529,7 +1525,7 @@ Definition union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mp
 
 End aggregate_pred.
 
-Require Import floyd.reptype_lemmas.
+Require Import VST.floyd.reptype_lemmas.
 
 (******************************************
 
@@ -1780,34 +1776,33 @@ Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 Definition memory_block_array_pred:
   forall {cs: compspecs} (A : Type) (d : A) sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
-  sizeof t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
   array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof t)
         (offset_val (sizeof t * i) p)) (list_repeat (Z.to_nat z) d)
-     (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs))
+     (Vptr b (Ptrofs.repr ofs))  =
+  memory_block sh (sizeof t * z) (Vptr b (Ptrofs.repr ofs))
 := @memory_block_array_pred'.
 
 Definition memory_block_struct_pred:
   forall {cs: compspecs} sh m sz {A} (v: compact_prod (map A m)) b ofs,
   (m = nil -> sz = 0) ->
   members_no_replicate m = true ->
-  sizeof_struct cenv_cs 0 m <= sz < Int.modulus ->
-  0 <= ofs /\ ofs + sz <= Int.modulus ->
+  sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
+  0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh sz (Vptr b (Int.repr ofs))
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh sz (Vptr b (Ptrofs.repr ofs))
 := @memory_block_struct_pred.
 
 Definition memory_block_union_pred:
   forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Int.repr ofs)) =
-  memory_block sh sz (Vptr b (Int.repr ofs))
+  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Ptrofs.repr ofs)) =
+  memory_block sh sz (Vptr b (Ptrofs.repr ofs))
 := @memory_block_union_pred.
 
 End auxiliary_pred.

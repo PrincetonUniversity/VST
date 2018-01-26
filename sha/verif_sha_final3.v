@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
@@ -110,8 +110,9 @@ Lemma align_compatible_tarray_tuchar:
 Proof.
 intros.
 destruct v; simpl; auto.
-exists (Int.unsigned i).
-symmetry. apply Z.mul_1_r.
+constructor; intros.
+eapply align_compatible_rec_by_value; [reflexivity |].
+apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
@@ -123,7 +124,7 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
  generate_and_pad msg = hashed++lastblock ->
 semax
   (initialized _cNl (initialized _cNh (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))))
   (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
@@ -135,12 +136,13 @@ semax
     K_vector kv;
     memory_block shmd 32 md))
   sha_final_epilog
+  (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
       SEP  (K_vector kv;
         data_at_ Tsh t_struct_SHA256state_st c;
-        data_block shmd (SHA_256 msg) md))).
+        data_block shmd (SHA_256 msg) md))) emp).
 Proof.
   intros. Intros.
   unfold sha_final_epilog.
@@ -166,10 +168,10 @@ Proof.
   {
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
         by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
-    Time saturate_local.
     change (memory_block Tsh 64) with (memory_block Tsh (sizeof (tarray tuchar 64))).
+    entailer!.
     rewrite memory_block_data_at_ by auto.
-    Time cancel.
+    cancel.
   }
  gather_SEP 0 1 3 4 5.
  replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
@@ -289,17 +291,19 @@ Focus 1. {
 } Unfocus.
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
+(* TODO: simplify this proof. *)
 intuition.
 - hnf in H6|-*. unfold offset_val. destruct md; auto.
-  rewrite <- (Int.repr_unsigned i0).
-  rewrite add_repr.
+  rewrite <- (Ptrofs.repr_unsigned i0).
+  rewrite ptrofs_add_repr.
   simpl in H6|-*.
-  rewrite Int.unsigned_repr; try omega.
+  simpl in H2; inv_int i0.
+  rewrite Ptrofs.unsigned_repr; try omega.
   rewrite Z.mul_1_l.
-  change (Int.max_unsigned) with (Int.modulus-1).
-  pose proof (Int.unsigned_range i0); omega.
+  change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1).
+  omega.
 - apply align_compatible_tarray_tuchar.
-- destruct H9; auto.
+- destruct H6; auto.
 +
      split; auto.
       rewrite Zlength_correct; subst bytes.
@@ -371,7 +375,7 @@ intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
 semax
   (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))
   (PROP  ()
       LOCAL
       (temp _p
@@ -390,7 +394,8 @@ semax
           (map Vint (hash_blocks init_registers hashed')) c;
       K_vector kv;
       memory_block shmd 32 md))
-   sha_final_part2
+  sha_final_part2
+  (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
@@ -401,7 +406,7 @@ semax
              (hash_blocks init_registers
                 (generate_and_pad
                    (intlist_to_Zlist hashed ++ dd))))
-          md))).
+          md))) emp).
 Proof.
   intros Espec hashed md c shmd kv H
   bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
@@ -454,7 +459,7 @@ Proof.
 
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
-  make_Vptr c. simpl. normalize.
+  make_Vptr c. simpl. unfold Ptrofs.of_ints. normalize.
   split; auto.  clear; compute; congruence.
 
   match goal with |- context [SEPx (?A :: _)] =>
@@ -507,8 +512,8 @@ Proof.
      replace X with  (field_address t_struct_SHA256state_st [StructField _data] c)
       by (pose proof CBLOCKz_eq;
             rewrite !field_address_offset by auto with field_compatible;
-           make_Vptr c;  simpl;  rewrite Int.sub_add_opp;
-           rewrite !Int.add_assoc; normalize)
+           make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
+           rewrite !Ptrofs.add_assoc; normalize)
    end.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
   change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).
@@ -552,5 +557,5 @@ Proof.
   * apply Zlength_Zlist_to_intlist.
      rewrite Zlength_map; assumption.
   * eapply generate_and_pad_lemma1; eassumption.
-Time Qed. (*58.4 *)
+Time Qed. (*VST2.0: 3.1s *)
 

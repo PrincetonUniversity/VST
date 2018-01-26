@@ -1,6 +1,5 @@
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.forward_lemmas.
+Require Import VST.floyd.base2.
+Require Import VST.floyd.client_lemmas.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -54,14 +53,14 @@ Fixpoint initialized_list ids D :=
  | i::il => initialized_list il (initialized i D)
  end.
 
-Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
+Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 ann d',
     initialized_list il
       match a1 ! i with
        | Some (ty, _) =>
-          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5
-       | None => mk_tycontext a1 a2 a3 a4 a5
+          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5 ann
+       | None => mk_tycontext a1 a2 a3 a4 a5 ann
        end = d' ->
-    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5) = d'.
+    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5 ann) = d'.
 Proof. intros; subst; reflexivity.
 Qed.
 
@@ -95,17 +94,18 @@ end.
 
 Ltac check_ground_Delta :=
 match goal with
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _) |- _ =>
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _ ?Ann) |- _ =>
    first [check_ground_ptree A | fail 99 "Temps component of Delta not a ground PTree"];
    first [check_ground_ptree B | fail 99 "Local Vars component of Delta not a ground PTree"];
-   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"]
+   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"];
+   first [check_ground_ptree Ann | fail 99 "Annotation component of Delta not a ground PTree"]
 end;
 match goal with
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
    DS' := @abbreviate (PTree.t funspec) ?E  |- _ =>
    constr_eq DS DS';
    first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
    DS' : (PTree.t funspec) |- _ =>
    constr_eq DS DS'
 end.
@@ -113,11 +113,11 @@ end.
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
 Ltac simplify_func_tycontext' DD :=
-  match DD with context [(func_tycontext ?f ?V ?G)] =>
+  match DD with context [(func_tycontext ?f ?V ?G ?A)] =>
    ensure_no_augment_funspecs G;
     let D1 := fresh "D1" in let Delta := fresh "Delta" in
-    pose (Delta := @abbreviate tycontext (func_tycontext f V G));
-    change (func_tycontext f V G) with Delta;
+    pose (Delta := @abbreviate tycontext (func_tycontext f V G A));
+    change (func_tycontext f V G A) with Delta;
     unfold func_tycontext, make_tycontext in Delta;
     let DS := fresh "Delta_specs" in let DS1 := fresh "DS1" in 
     pose (DS1 := make_tycontext_s G);
@@ -152,7 +152,7 @@ Ltac simplify_Delta_at DS Delta D :=
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
-    mk_tycontext a b c d _ => mk_tycontext a b c d DS
+    mk_tycontext a b c d _ ann => mk_tycontext a b c d DS ann
   end.
 
 Ltac compute_in_Delta :=
@@ -163,23 +163,7 @@ Ltac compute_in_Delta :=
            cbv beta iota zeta delta - [abbreviate] in Delta
  end.
 
-(* This tactic is carefully tuned to avoid proof blowups,
-  both in execution and in Qed *)
-Ltac simplify_Delta :=
-match goal with
- | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
- | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
- | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
-       constr_eq D1 D (* ONLY this case terminates! *)
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- _ => simplify_func_tycontext; simplify_Delta
- | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
-     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
-     change e with (@abbreviate (PTree.t funspec) e) in DS;
-     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
-     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
- | Delta := @abbreviate tycontext ?D 
-      |- semax ?DD _ _ _ => 
+Ltac simplify_Delta' Delta D DD := 
        match DD with
        | context [update_tycon Delta ?c] =>
            let C := fresh "C" in set (C:=c);
@@ -200,13 +184,34 @@ match goal with
            replace (with_Delta_specs DS Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
-       end; simplify_Delta
- | |- semax ?DD _ _ _ => 
+       end.
+
+Ltac simplify_Delta'' DD := 
        match DD with
        | context [initialized_list _ _] => unfold initialized_list
        | context [initialized _ ?D] => try (revert D; fail 1); unfold D
        | context [update_tycon ?D _] => try (revert D; fail 1); unfold D
-       end; simplify_Delta
+       end.
+
+(* This tactic is carefully tuned to avoid proof blowups,
+  both in execution and in Qed *)
+Ltac simplify_Delta :=
+match goal with
+ | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
+ | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
+ | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+ | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
+ | |- semax ?DD _ _ _ =>  simplify_Delta'' DD; simplify_Delta
+ | |- ENTAIL ?DD, _ |-- _ =>  simplify_Delta'' DD; simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -220,11 +225,66 @@ Ltac build_Struct_env :=
  end.
 *)
 
+Ltac is_sequential br co c :=
+ lazymatch c with
+ | Ssequence ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
+ | Sifthenelse _ ?c1 ?c2 => is_sequential br co c1; is_sequential br co c2
+ | Sloop ?body ?incr => is_sequential true true body; is_sequential false false incr
+ | Sfor ?init _ ?body ?incr => is_sequential br co init;
+       is_sequential true true body; is_sequential false false incr
+ | Swhile _ ?body => is_sequential true true body
+ | Sswitch _ ?LS => is_sequential_ls co LS
+ | Sbreak => constr_eq br true
+ | Scontinue => constr_eq co true
+ | Sreturn _ => fail
+ | Sswitch _ _ => fail
+ | Sgoto _ => fail
+ | Sskip => idtac
+ | Sassign _ _ => idtac
+ | Sset _ _ => idtac
+ | Scall _ _ _ => idtac
+ | Sbuiltin _ _ _ _ => idtac
+ | ?c => match goal with M := @abbreviate statement ?c' |- _ =>
+               constr_eq c M; is_sequential br co c'
+             end
+ end
+with is_sequential_ls co ls := 
+ lazymatch ls with 
+ | LSnil => idtac
+ | LScons _ ?s ?ls' => is_sequential true co s; is_sequential_ls co ls'
+ end.
+
+Ltac force_sequential :=
+match goal with
+| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ ?P' =>
+    constr_eq P P'
+| P := @abbreviate ret_assert _ |- semax _ _ ?c ?P' =>
+    constr_eq P P'; 
+    try (is_sequential false false c;
+         unfold abbreviate in P; subst P;
+         apply sequential; simpl_ret_assert)
+| P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P;
+      force_sequential
+| |- semax _ _ _ (normal_ret_assert ?P) => 
+       abbreviate (normal_ret_assert P) : ret_assert as POSTCONDITION
+| |- semax _ _ ?c ?P =>
+    tryif (is_sequential false false c)
+    then (apply sequential; simpl_ret_assert;
+          match goal with |- semax _ _ _ ?Q =>
+             abbreviate Q : ret_assert as POSTCONDITION
+          end)
+    else abbreviate P : ret_assert as POSTCONDITION
+end.
+
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ =>
   simplify_Delta;
-  match goal with
+  repeat match goal with
+  | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
+  end;
+  force_sequential;
+(*  match goal with
   | P := @abbreviate ret_assert _ |- semax _ _ _ ?Q => constr_eq P Q
   | |- _ => 
     repeat match goal with
@@ -234,9 +294,7 @@ Ltac abbreviate_semax :=
        abbreviate P : ret_assert as POSTCONDITION
     end
   end;
-  repeat match goal with
-  | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
-  end;
+*)
   match goal with |- semax _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>
@@ -331,17 +389,17 @@ Ltac initialized_temps_of_fundec F Delta :=
      let v2 := (eval simpl in vv) in
         v2.
 
-Ltac mkConciseDelta V G F Delta :=
+Ltac mkConciseDelta V G F Ann Delta :=
   let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
     let inits := (eval simpl in vv) in
-    change Delta with (initialized_list inits (func_tycontext F V G))(*;
+    change Delta with (initialized_list inits (func_tycontext F V G Ann))(*;
     refold_temp_names F;
   clear Delta*).
 
-Ltac semax_subcommand V G F :=
+Ltac semax_subcommand V G F Ann :=
   abbreviate_semax;
   match goal with |- semax ?Delta _ _ _ =>
-      mkConciseDelta V G F Delta;
+      mkConciseDelta V G F Ann Delta;
       repeat
          match goal with
           | P := @abbreviate statement _ |- _ => unfold abbreviate in P; subst P

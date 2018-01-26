@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
@@ -19,11 +19,11 @@ Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.
 Proof.
   start_function.
-  rename lvar0 into seed.
+  rename v_seed into seed.
   destruct I.
   destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
-  Intros. simpl in *.
+  Intros.
   rename H into XH1.
   rename H0 into XH2.
   rename H1 into XH3.
@@ -37,12 +37,12 @@ Proof.
   rename H9 into XH11.
   rename H10 into XH12.
   rename H11 into XH13.
+  simpl in XH2, XH4, El2, XH6, XH7 |- *.
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
   Intros.
 
   (* entropy_len = ctx->entropy_len *)
-  simpl in *.
   remember (contents_with_add additional add_len contents) as contents'.
   assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
     { subst contents'. unfold contents_with_add.
@@ -70,11 +70,10 @@ Proof.
   { forward. entailer!. }
   { forward. entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite add_repr.
       rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
-      + omega.
+      + rep_omega.
   }
 
   forward_if (PROP  (add_len_too_high = false)
@@ -85,7 +84,7 @@ Proof.
       SEP (FRZL FR2)
   ).
   { rewrite H in *. subst add_len_too_high. forward.
-    Exists seed (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
+    Exists (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
     unfold reseedPOST. simpl; rewrite <- Heqadd_len_too_high.
     (*remember (zlt 256 (Zlength contents) || zlt 384 (entropy_len + Zlength contents))%bool as c.
     destruct c; simpl in Heqadd_len_too_high; try discriminate.*)
@@ -135,7 +134,7 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try omega. rewrite int_max_unsigned_eq. omega.
+  { split. split; try omega. rewrite ptrofs_max_unsigned_eq. omega.
     apply writable_share_top.
 (*
     subst entropy_len; auto.*)
@@ -172,7 +171,7 @@ Proof.
   {
     (* != 0 case *)
     forward.
-    Exists seed (Vint (Int.neg (Int.repr (9)))). entailer!. 
+    Exists (Vint (Int.neg (Int.repr (9)))). entailer!. 
     unfold reseedPOST.
     remember ((zlt 256 (Zlength contents)
        || zlt 384
@@ -204,15 +203,15 @@ Proof.
       entailer!. thaw FR4; cancel.
       rewrite data_at__memory_block. entailer!.
       destruct seed; inv Pseed. unfold offset_val.
-      rewrite <- repr_unsigned with (i:=i). 
+      rewrite <- Ptrofs.repr_unsigned with (i:=i). 
       assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)) by (simpl; omega). 
       rewrite XX.
-      rewrite (memory_block_split Tsh b (Int.unsigned i) entropy_len (384 - entropy_len)), add_repr; try omega.
+      rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
           simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
-      rewrite Zplus_minus. cbv; trivial.
-      assert (Int.unsigned i >= 0) by (pose proof (Int.unsigned_range i); omega).
+      rewrite Zplus_minus.
+      assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
       split. omega.
       clear - Hfield. red in Hfield; simpl in Hfield. omega.
   }

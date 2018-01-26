@@ -1,16 +1,16 @@
-Require Import veric.juicy_base.
-Require Import veric.shares.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.res_predicates.
-Require Import veric.extend_tc.
-Require Import veric.seplog.
-Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
-Require Import veric.tycontext.
-Require Import veric.expr2.
-Require Import veric.expr_lemmas.
-Require Import veric.Clight_lemmas.
-Require Import veric.initial_world.
+Require Import VST.veric.juicy_base.
+Require Import VST.veric.shares.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.res_predicates.
+Require Import VST.veric.extend_tc.
+Require Import VST.veric.seplog.
+Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_new.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.expr2.
+Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.initial_world.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
@@ -218,7 +218,7 @@ Definition globvar2pred (idv: ident * globvar type) : assert :=
   | Some b => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Int.zero) rho
+                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Ptrofs.zero) rho
  end.
 
 Definition globvars2pred (vl: list (ident * globvar type)) : assert :=
@@ -288,7 +288,7 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
   | Init_float64 n =>
       Mem.load Mfloat64 m b p = Some(Vfloat n)
   | Init_addrof symb ofs =>
-      Mem.load Mint32 m b p = Some
+      Mem.load Mptr m b p = Some
              match Genv.find_symbol ge symb with
                 | Some b' => Vptr b' ofs
                 | None => Vint Int.zero
@@ -320,6 +320,8 @@ Proof. induction dl; simpl; intros. omega.
  pose proof (init_data_size_pos a); omega.
 Qed.
 
+Require Import FunInd.
+
 Remark store_zeros_load_outside:
   forall m b p n m',
   store_zeros m b p n = Some m' ->
@@ -327,7 +329,7 @@ Remark store_zeros_load_outside:
   b' <> b \/ p' + size_chunk chunk <= p \/ p + n <= p' ->
   Mem.load chunk m' b' p' = Mem.load chunk m b' p'.
 Proof.
-  intros until n. functional induction (store_zeros m b p n); intros.
+  intros until n.  functional induction (store_zeros m b p n); intros.
   inv H; auto.
   transitivity (Mem.load chunk m' b' p').
   apply IHo. auto. intuition omega.
@@ -742,10 +744,10 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
      else identity (w1 @ loc)) ->
    forall (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
-           (LO:   0 <= z) (HI: z + init_data_size a < Int.modulus)
+           (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
          (RHO: ge_of rho = filter_genv ge),
   (init_data2pred a  (Share.lub extern_retainer (readonly2share (gvar_readonly v)))
-       (Vptr b (Int.repr z))) rho w1.
+       (Vptr b (Ptrofs.repr z))) rho w1.
 Proof.
   intros.
   assert (APOS:= init_data_size_pos a).
@@ -754,7 +756,7 @@ Proof.
   unfold init_data2pred, mapsto.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
     fst,snd.
-  rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
   simpl.
   unfold mapsto, tc_val, is_int, is_long, is_float.
   destruct (readable_share_dec
@@ -954,11 +956,14 @@ if_tac; auto.
   inv H5.
   left. split; [apply I | ].
   rewrite H4 in H.
- exists  (getN (size_chunk_nat Mint32) z (mem_contents m3) !! b).
- repeat split; auto. clear - H; congruence.
+ exists  (getN (size_chunk_nat Mptr) z (mem_contents m3) !! b).
+ repeat split; auto.
+ clear - H. 
+ cbv iota. congruence.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl init_data_size in H2.
-   simpl size_chunk.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
  if_tac; [ | apply H2].
   exists READABLE. hnf. 
   destruct H2.
@@ -989,9 +994,9 @@ Qed.
 
 
 Lemma max_unsigned_modulus:
-  Int.max_unsigned + 1 = Int.modulus.
+  Ptrofs.max_unsigned + 1 = Ptrofs.modulus.
 Proof.
- unfold Int.max_unsigned. omega.
+ unfold Ptrofs.max_unsigned. omega.
 Qed.
 
 Lemma init_data_list_lem:
@@ -1002,11 +1007,11 @@ Lemma init_data_list_lem:
      drop_perm m3 b 0 (init_data_list_size (gvar_init v))
                (Genv.perm_globvar v) = Some m4 ->
   forall
-   (SANITY: init_data_list_size (gvar_init v) < Int.modulus)
+   (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true)
    (RHO: ge_of rho = filter_genv ge),
-     init_data_list2pred (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Int.zero)
+     init_data_list2pred (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero)
             rho (beyond_block b (inflate_initial_mem m4 phi0)).
 Proof.
 intros.
@@ -1076,7 +1081,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    remember (core phi) as w'.
    remember phi as w.
    assert (join w' w phi). subst. apply core_unit.
-   unfold Int.zero.
+   unfold Ptrofs.zero.
    remember 0 as z. rewrite Heqz in H,H0,H1.
    replace z with (init_data_list_size dl') in AL,H4|-* by (subst; auto).
    clear z Heqz.
@@ -1089,7 +1094,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    apply all_resource_at_identity; intro loc.
    specialize (H6 loc); if_tac in H6; auto. destruct loc; destruct H7.
   omegaContradiction.
-  assert (SANITY': init_data_list_size dl' + init_data_size a + init_data_list_size dl < Int.modulus).
+  assert (SANITY': init_data_list_size dl' + init_data_size a + init_data_list_size dl < Ptrofs.modulus).
   clear - H2 SANITY.
   subst D.
  rewrite init_data_list_size_app in SANITY. simpl in SANITY. omega.
@@ -1132,8 +1137,8 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   specialize (IHdl  (dl' ++ (a::nil))  wg w2).
   replace (init_data_list_size (dl' ++ a :: nil)) with
              (init_data_list_size dl' + init_data_size a) in IHdl.
-  rewrite Int.add_unsigned.
-  repeat rewrite Int.unsigned_repr
+  rewrite Ptrofs.add_unsigned.
+  repeat rewrite Ptrofs.unsigned_repr
        by (pose proof (init_data_list_size_pos dl'); pose proof (init_data_list_size_pos dl);
       pose proof (init_data_size_pos a); pose proof max_unsigned_modulus; omega).
   apply IHdl; auto.
@@ -1180,7 +1185,7 @@ Qed.
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Ptrofs.modulus))
                       (prog_vars prog) = true.
 
 Lemma forallb_rev: forall {A} f (vl: list A), forallb f (rev vl) = forallb f vl.
@@ -2188,9 +2193,9 @@ rewrite Pos_to_nat_eq_S.
  fold fundef in *.
  rewrite FS.
  assert (H99: exists t, match type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0) with
-  | Some t => Some (Vptr (nextblock m0) Int.zero, t)
-  | None => Some (Vptr (nextblock m0) Int.zero, Tvoid)
-  end = Some (Vptr (nextblock m0) Int.zero, t)) by (destruct (type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0)); eauto).
+  | Some t => Some (Vptr (nextblock m0) Ptrofs.zero, t)
+  | None => Some (Vptr (nextblock m0) Ptrofs.zero, Tvoid)
+  end = Some (Vptr (nextblock m0) Ptrofs.zero, t)) by (destruct (type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0)); eauto).
 (* destruct H99 as [t H99]; rewrite H99; clear t H99.*)
  case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
 

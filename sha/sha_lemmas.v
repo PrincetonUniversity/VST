@@ -1,4 +1,4 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.
@@ -19,14 +19,13 @@ Lemma mapsto_tc_val:
   mapsto sh t p v = !! tc_val t v && mapsto sh t p v .
 Proof.
 intros.
-apply pred_ext.
+apply pred_ext; [ | normalize].
 apply andp_right; auto.
 unfold mapsto; simpl.
 destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
+destruct (attr_volatile (attr_of_type t)); try apply FF_left.
 destruct p; try apply FF_left.
 if_tac; try contradiction. apply orp_left.
-normalize.
 normalize.
 normalize.
 Qed.
@@ -217,14 +216,14 @@ Local Open Scope Z.
 
 Local Open Scope logic.
 
-Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
+Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
 Proof. unfold data_block. simpl; intros.
   apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
   rewrite Z.max_r, Z.mul_1_l; omega.
 Qed.
 
-Lemma data_block_isbyteZ:
+Lemma data_block_isbyteZ {cs: compspecs}:
  forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
 Proof.
 unfold data_block; intros.
@@ -246,7 +245,7 @@ Lemma isbyte_value_fits_tuchar:
   forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
 Proof.
 intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed.
+simpl. rewrite Int.unsigned_repr by rep_omega.
   change Byte.max_unsigned with 255%Z. omega.
 Qed.
 

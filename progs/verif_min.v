@@ -7,8 +7,8 @@
  http://www.cs.princeton.edu/~appel/papers/modsec.pdf
 *)
 
-Require Import floyd.proofauto.
-Require Import progs.min.
+Require Import VST.floyd.proofauto.
+Require Import VST.progs.min.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
@@ -164,6 +164,21 @@ Exists 0. unfold Inv; entailer!.
 *
 entailer!.
 *
+match goal with
+| P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P
+end.
+match goal with
+| |- semax _ _ ?c ?P =>
+    tryif (is_sequential false false c)
+    then (apply sequential; simpl_ret_assert;
+          match goal with |- semax _ _ _ ?Q =>
+             abbreviate Q : ret_assert as POSTCONDITION
+          end)
+    else abbreviate P : ret_assert as POSTCONDITION
+end.
+
+force_sequential.
+abbreviate_semax.
 rename a0 into i.
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al 0))
@@ -173,7 +188,7 @@ rename a0 into i.
           [apply Forall_Znth; auto; omega
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
- apply semax_post_flipped with  (normal_ret_assert (Inv 1 (Z.gt n) i)).
+ apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite (sublist_one i (i+1) al 0) by omega.
@@ -188,7 +203,7 @@ rename a0 into i.
  +
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
- unfold normal_ret_assert. normalize. autorewrite with ret_assert.
+ simpl_ret_assert.
  (* TODO: entailer! fails here with a misleading error message *)
  Exists i. apply andp_left2. normalize.
 *

@@ -4,11 +4,11 @@ Require Import compcert.lib.Axioms.
 
 (* Add LoadPath "../concurrency" as concurrency.*)
 
-Require Import concurrency.sepcomp.
+Require Import VST.concurrency.sepcomp.
 Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
@@ -21,21 +21,21 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.addressFiniteMap.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.permjoin_def.
-Require Import concurrency.scheduler.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.dry_machine_step_lemmas.
-Require Import concurrency.dry_context.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.mem_obs_eq.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.permjoin_def.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.mem_obs_eq.
 
 Module SimDefs (SEM: Semantics)
        (SemAxioms: SemanticsAxioms SEM)

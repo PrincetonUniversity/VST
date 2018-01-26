@@ -1,8 +1,8 @@
-Require Import floyd.proofauto.
+Require Import VST.floyd.proofauto.
 Require Import Coqlib.
 Require Import Recdef.
 Existing Instance NullExtension.Espec.
-Require Import progs.switch.
+Require Import VST.progs.switch.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -10,7 +10,7 @@ Definition twice_spec :=
   DECLARE _twice
     WITH n : Z
     PRE [ _n OF tint ]
-      PROP  (0 <= n+n <= Int.max_unsigned)
+      PROP  (0 <= n+n <= Int.max_signed)
       LOCAL (temp _n (Vint (Int.repr n)))
       SEP ()
     POST [ tint ]
@@ -24,6 +24,7 @@ Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
 forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
+ rep_omega.
 repeat forward; entailer!.
 repeat forward; entailer!.
 repeat forward; entailer!.
