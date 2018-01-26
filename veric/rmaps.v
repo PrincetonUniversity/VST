@@ -121,21 +121,26 @@ Module Type STRAT_MODEL.
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
 
-  Definition valid' A (w: address -> res A) : Prop :=
-    AV.valid (fun l => res_option A (w l)).
+  Parameter G : Type -> Type. (* G : PRED |-> ghost PRED *)
+  Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
+  Axiom ff_G : functorFacts G G_fmap.
+  Definition f_G : functor := Functor ff_G.
+  Axiom Join_G : forall A, Join (G A).
+
+  Definition valid' A (w: (address -> res A) * G A) : Prop :=
+    AV.valid (fun l => res_option A (fst w l)).
 
   Axiom valid'_res_map : forall A B f g m,
-    valid' A m -> valid' B (fmap f_res f g oo m).
+    valid' A m -> valid' B (fmap f_res f g oo fst m, fmap f_G f g (snd m)).
 
-  (* Definition pre_rmap (A:Type) := { m:address -> res A | valid' A m }. *)
   Definition f_pre_rmap : functor :=
-    fsubset (ffunc (fconst address) f_res) _ valid'_res_map.
+    fsubset (fpair (ffunc (fconst address) f_res) f_G) _ valid'_res_map.
 
-  (* TODO: this one not used? *)
-  Axiom valid'_res_map2 : forall A B f g m, valid' B (res_fmap A B f g oo m) -> valid' A m.
+  Axiom valid'_res_map2 : forall A B f g m,
+    valid' B (fmap f_res f g oo fst m, fmap f_G f g (snd m)) -> valid' A m.
 
   Instance Join_pre_rmap (A: Type) : Join (f_pre_rmap A) :=
-            Join_prop _ (Join_fun address (res A) (res_join A)) (valid' A).
+            Join_prop _ (Join_prod _ (Join_fun address (res A) (res_join A)) _ (Join_G A)) (valid' A).
 
   Parameter Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
   Parameter Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
@@ -315,8 +320,15 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
 
-  Definition valid' A (w: address -> res A) : Prop :=
-    AV.valid (fun l => res_option A (w l)).
+  Parameter G : Type -> Type. (* G : PRED |-> ghost PRED *)
+  Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
+  Axiom ff_G : functorFacts G G_fmap.
+  Definition f_G : functor := Functor ff_G.
+  Axiom Join_G : forall A, Join (G A).
+  Axiom paf_G : pafunctor f_G Join_G.
+
+  Definition valid' A (w: (address -> res A) * G A) : Prop :=
+    AV.valid (fun l => res_option A (fst w l)).
 
   Lemma same_valid : forall f1 f2, (forall x, f1 x = f2 x) -> AV.valid f1 -> AV.valid f2.
   Proof.
@@ -325,77 +337,84 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Qed.
 
   Lemma valid'_res_map : forall A B f g m,
-    valid' A m -> valid' B (fmap f_res f g oo m).
+    valid' A m -> valid' B (fmap f_res f g oo fst m, fmap f_G f g (snd m)).
   Proof.
     unfold valid'; intros A B f g m.
     apply same_valid; intro l.
-    unfold compose.
-    destruct (m l); simpl; auto.
+    unfold compose; simpl.
+    destruct (fst m l); simpl; auto.
   Qed.
 
   Lemma valid'_res_map2 : forall A B f g m,
-    valid' B (fmap f_res f g oo m) -> valid' A m.
+    valid' B (fmap f_res f g oo fst m, fmap f_G f g (snd m)) -> valid' A m.
   Proof.
     unfold valid'; intros A B f g m.
     apply same_valid; intro l.
-    unfold compose.
-    destruct (m l); simpl; auto.
+    unfold compose; simpl.
+    destruct (fst m l) eqn: Hl; setoid_rewrite Hl; auto.
   Qed.
 
-  Definition pre_rmap (A:Type) := { m:address -> res A | valid' A m }.
+  Definition pre_rmap (A:Type) := { m:(address -> res A) * G A | valid' A m }.
   Definition f_pre_rmap : functor :=
-    fsubset (ffunc (fconst address) f_res) _ valid'_res_map.
+    fsubset (fpair (ffunc (fconst address) f_res) f_G) _ valid'_res_map.
+
+  Notation Join_obj A := (Join_prod _ (Join_fun address (res A) (res_join A)) _ (Join_G A)).
 
   Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
-            Join_prop _ (Join_fun address (res A) (res_join A)) (valid' A).
+    Join_prop _ (Join_obj A) (valid' A).
 
   Definition paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap :=
-    paf_subset (paf_fun address paf_res) valid' valid'_res_map valid'_res_map2.
+    paf_subset (paf_pair (paf_fun address paf_res) paf_G) valid' valid'_res_map valid'_res_map2.
+
+  Axiom Sep_G : forall A, Sep_alg (G A).
+  Axiom Perm_G : forall A, Perm_alg (G A).
+  Axiom Disj_G : forall A, Disj_alg (G A).
 
   Lemma pre_rmap_sa_valid_core (A: Type):
-        forall x : address -> res A,
+        forall x,
        valid' A x ->
-       valid' A  (@core (address -> res A) (Join_fun address (res A) (res_join A))
-                     (Sep_fun address (res A) (res_join A) (sa_rj A)) x).
+       valid' A  (@core ((address -> res A) * G A) (Join_obj A)
+         (Sep_prod (Sep_fun address (res A) (res_join A) (sa_rj A)) (Sep_G A)) x).
   Proof.
     intros. red. red.
-    replace (fun l => res_option A (core x l)) with (fun l : address => @None (rshare * kind)).
+    replace (fun l => res_option A (fst (core x) l)) with (fun l : address => @None (rshare * kind)).
     apply AV.valid_empty.
-    extensionality a. simpl. icase (x a).
+    extensionality a. simpl. icase (fst x a).
   Qed.
 
 
-  Lemma pre_rmap_sa_valid_join : forall A (x y z : address -> res A),
-    @join _ (Join_fun address (res A) (res_join A)) x y z ->
+  Lemma pre_rmap_sa_valid_join : forall A (x y z : (address -> res A) * G A),
+    @join _ (Join_obj A) x y z ->
     valid' A x -> valid' A y -> valid' A z.
   Proof.
      intros.
      simpl in H.
      unfold valid' in *.
-     apply AV.valid_join with (fun l => res_option A (x l)) (fun l => res_option A (y l)); auto.
-     intro l. spec H l. inv H; try constructor; simpl.
-     apply join_comm in H5.
-     rewrite (join_readable_part_eq rsh2 nsh1 rsh3 H5). constructor.
-     rewrite (join_readable_part_eq rsh1 nsh2 rsh3 H5). constructor.
-     constructor.
-     red. red. simpl.
-     clear - H5. destruct H5. split.
-     rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc sh1).
-     rewrite (Share.glb_commute sh1). rewrite Share.glb_assoc.
-     rewrite <- (Share.glb_assoc Share.Rsh).
-     rewrite H. rewrite Share.glb_bot. auto.
-     rewrite <- Share.distrib1. rewrite H0. auto.
-     constructor. reflexivity. reflexivity.
+     apply AV.valid_join with (fun l => res_option A (fst x l)) (fun l => res_option A (fst y l)); auto.
+     intro l. inv H.
+     spec H2 l. inv H2; try constructor; simpl.
+     - apply join_comm in H6.
+       rewrite (join_readable_part_eq rsh2 nsh1 rsh3 H6). constructor.
+     - rewrite (join_readable_part_eq rsh1 nsh2 rsh3 H6). constructor.
+     - constructor.
+       red. red. simpl.
+       clear - H6. destruct H6. split.
+       + rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc sh1).
+         rewrite (Share.glb_commute sh1). rewrite Share.glb_assoc.
+         rewrite <- (Share.glb_assoc Share.Rsh).
+         rewrite H. rewrite Share.glb_bot. auto.
+       + rewrite <- Share.distrib1. rewrite H0. auto.
+       + constructor. reflexivity. reflexivity.
   Qed.
 
   Definition Perm_pre_rmap (A: Type): Perm_alg (pre_rmap A) :=
-    Perm_prop _ _ (Perm_fun address _ _ _) _ (pre_rmap_sa_valid_join _).
+    Perm_prop _ _ (Perm_prod (Perm_fun address _ _ _) (Perm_G A)) _ (pre_rmap_sa_valid_join _).
 
   Definition Sep_pre_rmap (A: Type): Sep_alg (pre_rmap A) :=
-    Sep_prop _ _ (Perm_fun address _ _ _) _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
+    Sep_prop _ _ (Perm_prod (Perm_fun address _ _ _) (Perm_G A)) _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
 
   Definition Disj_pre_rmap (A: Type): Disj_alg (pre_rmap A) :=
-    @Disj_prop _ _ _ (Disj_fun address _ _ _).
+    @Disj_prop _ _ _ (@Disj_prod _ _ _ _ (Disj_fun address _ _ _) (Disj_G A)).
 
 End StratModel.
 
@@ -469,18 +488,26 @@ Module Type RMAPS.
   Axiom resource_fmap_comp : forall f1 f2 g1 g2,
     resource_fmap g1 g2 oo resource_fmap f1 f2 = resource_fmap (g1 oo f1) (f2 oo g2).
 
-  Definition valid (m: address -> resource) : Prop :=
-    AV.valid  (res_option oo m).
+  Parameter G : Type.
 
-  Axiom valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo m).
-  Axiom rmapj_valid_join : forall (x y z : address -> resource),
+  Definition valid (m: (address -> resource) * G) : Prop :=
+    AV.valid  (res_option oo fst m).
+
+  Parameter G_fmap : forall (f g : pred rmap -> pred rmap), G -> G.
+  Axiom Join_G : Join G.
+  Axiom Sep_G : Sep_alg G.
+  Axiom Perm_G : Perm_alg G.
+  Axiom Disj_G : Disj_alg G.
+
+  Axiom valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo fst m, G_fmap f g (snd m)).
+  Axiom rmapj_valid_join : forall (x y z : (address -> resource) * G),
     join x y z -> valid x -> valid y -> valid z.
-  Axiom rmapj_valid_core: forall x: address -> resource, valid x -> valid (core x).
+  Axiom rmapj_valid_core: forall x: (address -> resource) * G, valid x -> valid (core x).
 
   Definition rmap' := sig valid.
 
   Definition rmap_fmap (f g: pred rmap -> pred rmap) (x:rmap') : rmap' :=
-    match x with exist m H => exist (fun m => valid m) (resource_fmap f g oo m) (valid_res_map f g m H) end.
+    match x with exist m H => exist (fun m => valid m) (resource_fmap f g oo fst m, G_fmap f g (snd m)) (valid_res_map f g m H) end.
   Axiom rmap_fmap_id : rmap_fmap (id _) (id _) = id rmap'.
   Axiom rmap_fmap_comp : forall f1 f2 g1 g2,
    rmap_fmap g1 g2 oo rmap_fmap f1 f2 = rmap_fmap (g1 oo f1) (f2 oo g2).
@@ -496,8 +523,9 @@ Module Type RMAPS.
     | (S n,x) => Some (squash (n,x))
     end.
 
-  Definition resource_at (phi:rmap) : address -> resource := proj1_sig (snd (unsquash phi)).
+  Definition resource_at (phi:rmap) : address -> resource := fst (proj1_sig (snd (unsquash phi))).
   Infix "@" := resource_at (at level 50, no associativity).
+  Definition ghost_of (phi:rmap) : G := snd (proj1_sig (snd (unsquash phi))).
 
   Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.
 
@@ -602,8 +630,10 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     extensionality r; destruct r; simpl; auto; destruct p; auto.
   Qed.
 
-  Definition valid (m: address -> resource) : Prop :=
-    AV.valid (res_option oo m).
+  Definition G := G (pred rmap).
+
+  Definition valid (m: (address -> resource) * G) : Prop :=
+    AV.valid  (res_option oo fst m).
 
   Inductive res_join : resource -> resource -> resource -> Prop :=
    | res_join_NO1 : forall sh1 nsh1 sh2 nsh2 sh3 nsh3
@@ -618,7 +648,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
    | res_join_YES : forall sh1 rsh1 sh2 rsh2 sh3 rsh3 k p
                  (RJ: join sh1 sh2 sh3),
         res_join (YES sh1 rsh1 k p) (YES sh2 rsh2 k p) (YES sh3 rsh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
   Instance Join_resource: Join resource := res_join.
   Instance Perm_resource: Perm_alg resource.
@@ -712,39 +742,45 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     apply extensionality; auto.
   Qed.
 
-  Lemma rmapj_valid_core: forall x : address -> resource, valid x -> valid (core x).
+  Definition Join_G := Join_G (pred rmap).
+  Axiom Sep_G : Sep_alg G.
+  Axiom Perm_G : Perm_alg G.
+  Axiom Disj_G : Disj_alg G.
+
+  Lemma rmapj_valid_core: forall x : (address -> resource) * G, valid x -> valid (core x).
   Proof.
      unfold valid, compose; intros. red. red. 
-     replace (fun x0 => res_option (core x x0)) with (fun _ : address => @None (rshare * kind)).
+     replace (fun x0 => res_option (fst (core x) x0)) with (fun _ : address => @None (rshare * kind)).
 
      apply AV.valid_empty.
-     extensionality a. simpl. icase (x a).
+     extensionality a. simpl. icase (fst x a).
   Qed.
 
-  Lemma rmapj_valid_join : forall (x y z : address -> resource),
+  Lemma rmapj_valid_join : forall (x y z : (address -> resource) * G),
     join x y z ->
     valid x -> valid y -> valid z.
   Proof.
      intros.
      simpl in H.
      unfold valid, compose in *.
-     apply AV.valid_join with (fun l => res_option (x l)) (fun l => res_option (y l)); auto.
-     intro l. specialize (H l). inv  H; eauto. constructor.
-     simpl.
-     rewrite (join_readable_part_eq rsh1 nsh2 rsh3 RJ). constructor.
-     apply join_comm in RJ.
-     simpl.
-     rewrite (join_readable_part_eq rsh2 nsh1 rsh3 RJ). constructor.
-     constructor. constructor. simpl.
-     red. red. simpl.
-     clear - RJ. destruct RJ. split.
-     rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc sh1).
-     rewrite (Share.glb_commute sh1). rewrite Share.glb_assoc.
-     rewrite <- (Share.glb_assoc Share.Rsh).
-     rewrite H. rewrite Share.glb_bot. auto.
-     rewrite <- Share.distrib1. rewrite H0. auto.
-     constructor. reflexivity. reflexivity.
-     constructor.
+     apply AV.valid_join with (fun l => res_option (fst x l)) (fun l => res_option (fst y l)); auto.
+     intro l. inv H. specialize (H2 l). inv H2; eauto.
+     - constructor.
+     - simpl.
+       rewrite (join_readable_part_eq rsh1 nsh2 rsh3 RJ). constructor.
+     - apply join_comm in RJ.
+       simpl.
+       rewrite (join_readable_part_eq rsh2 nsh1 rsh3 RJ). constructor.
+     - constructor. constructor.
+       + simpl. red. red. simpl.
+         clear - RJ. destruct RJ. split.
+         * rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc sh1).
+           rewrite (Share.glb_commute sh1). rewrite Share.glb_assoc.
+           rewrite <- (Share.glb_assoc Share.Rsh).
+           rewrite H. rewrite Share.glb_bot. auto.
+         * rewrite <- Share.distrib1. rewrite H0. auto.
+       + constructor; reflexivity.
+    - constructor.
   Qed.
 
   Definition rmap' := sig valid.
@@ -777,14 +813,16 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     | PURE k p => PURE k (preds_fmap f g p)
     end.
 
-  Lemma valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo m).
+  Definition G_fmap := G_fmap (pred rmap) (pred rmap).
+
+  Lemma valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo fst m, G_fmap f g (snd m)).
   Proof.
-    unfold valid, compose; intros.
-    replace (fun l : address => res_option (resource_fmap f g (m l)))
-       with (fun l : address => res_option (m l)); auto.
+    unfold valid, compose; intros; simpl.
+    replace (fun l : address => res_option (resource_fmap f g (fst m l)))
+       with (fun l : address => res_option (fst m l)); auto.
     extensionality l.
     unfold res_option, resource_fmap.
-    case (m l); auto.
+    case (fst m l); auto.
   Qed.
 
   Lemma resource_fmap_id :
@@ -797,6 +835,11 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     rewrite preds_fmap_id; auto.
   Qed.
 
+  Lemma G_fmap_id : G_fmap (id (pred rmap)) (id (pred rmap)) = id G.
+  Proof.
+    apply ff_id, ff_G.
+  Qed.
+
   Lemma resource_fmap_comp : forall f1 f2 g1 g2,
     resource_fmap g1 g2 oo resource_fmap f1 f2 = resource_fmap (g1 oo f1) (f2 oo g2).
   Proof.
@@ -807,19 +850,24 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     rewrite <- preds_fmap_comp; auto.
   Qed.
 
+  Lemma G_fmap_comp : forall f1 f2 g1 g2,
+    G_fmap g1 g2 oo G_fmap f1 f2 = G_fmap (g1 oo f1) (f2 oo g2).
+  Proof.
+    intros; apply ff_comp, ff_G.
+  Qed.
+
   Definition rmap_fmap (f g:(pred rmap)->(pred rmap)) (x:rmap') : rmap' :=
-    match x with exist m H => exist (fun m => valid m) (resource_fmap f g oo m) (valid_res_map f g m H) end.
+    match x with exist m H => exist (fun m => valid m) _ (valid_res_map f g m H) end.
 
   Lemma rmap_fmap_id : rmap_fmap (id (pred rmap)) (id (pred rmap)) = id rmap'.
   Proof.
     intros; apply extensionality; intro x.
     unfold rmap_fmap; destruct x.
-    unfold id at 5.
+    unfold id at 7.
     generalize (valid_res_map (id _) (id _) x v).
-    rewrite (resource_fmap_id).
-    simpl.
-    rewrite (id_unit2 _ (resource) x).
-    intro v0. f_equal; auto. apply proof_irr.
+    rewrite resource_fmap_id, G_fmap_id.
+    rewrite (id_unit2 _ (resource) (fst x)).
+    intro v0. destruct x; simpl. f_equal; auto. apply proof_irr.
   Qed.
 
   Lemma rmap_fmap_comp : forall f1 f2 g1 g2,
@@ -830,36 +878,40 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     apply extensionality; intro x.
     unfold compose at 1.
     destruct x.
-    generalize (valid_res_map g1 g2 (resource_fmap f1 f2 oo x) (valid_res_map f1 f2 x v)).
+    generalize (valid_res_map g1 g2 (resource_fmap f1 f2 oo fst x, G_fmap f1 f2 (snd x)) (valid_res_map f1 f2 x v)).
     generalize (valid_res_map (g1 oo f1) (f2 oo g2) x v).
     clear.
-    assert (resource_fmap g1 g2 oo resource_fmap f1 f2 oo x = resource_fmap (g1 oo f1) (f2 oo g2) oo x).
-    rewrite <- compose_assoc.
-    rewrite resource_fmap_comp; auto.
-    rewrite H.
+    assert (resource_fmap g1 g2 oo resource_fmap f1 f2 oo fst x = resource_fmap (g1 oo f1) (f2 oo g2) oo fst x).
+    { rewrite <- compose_assoc.
+      rewrite resource_fmap_comp; auto. }
+    simpl; rewrite H.
+    pose proof G_fmap_comp as HG.
+    unfold compose in HG at 1; rewrite <- HG.
     intros.
-    intros; f_equal; proof_irr; auto.
+    f_equal; proof_irr; auto.
   Qed.
 
   Definition rmap'2pre_rmap (r: rmap') : f_pre_rmap (pred rmap).
     destruct r as [f ?].
     unfold f_pre_rmap.
-    assert (valid' _ (fun x: address => resource2res (f x))).
+    assert (valid' _ (fun x: address => resource2res (fst f x), snd f)).
     unfold valid'. unfold valid, compose in v.
     eapply same_valid; try apply v.
     intros. simpl.
-    destruct (f x); simpl; auto; destruct p; simpl; auto.
+    destruct (fst f x); simpl; auto; destruct p; simpl; auto.
     eexists. exact H.
   Defined.
 
   Definition pre_rmap2rmap' (r: f_pre_rmap (pred rmap)) : rmap'.
     destruct r as [f ?].
     unfold rmap', valid' in *.
-    assert (valid (fun l: address => res2resource (f l))).
+    assert (valid (fun l: address => res2resource (fst f l), snd f)).
     unfold valid, compose.
-    replace (fun l : address => res_option (res2resource (f l))) with (fun l : address => SM.res_option (pred rmap) (f l)); auto.
-    extensionality l. rewrite res_option_rewrite.
-    unfold compose; simpl. rewrite res2resource2res. auto.
+    simpl.
+    assert ((fun l : address => res_option (res2resource (fst f l))) = (fun l : address => SM.res_option (pred rmap) (fst f l))).
+    { extensionality l. rewrite res_option_rewrite.
+      unfold compose; simpl. rewrite res2resource2res. auto. }
+    setoid_rewrite H; auto.
     eauto.
   Defined.
 
@@ -869,6 +921,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     intro. destruct x as [f V]. unfold rmap'2pre_rmap, pre_rmap2rmap'. simpl.
     match goal with |- exist _ _ ?p = _ => generalize p; intro p1 end.
     apply exist_ext.
+    destruct f; simpl; f_equal.
     extensionality x; rewrite res2resource2res; auto.
   Qed.
 
@@ -880,6 +933,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     unfold rmap'2pre_rmap, pre_rmap2rmap'. simpl.
     match goal with |- exist _ _ ?p = _ => generalize p; intro p1 end.
     apply exist_ext.
+    destruct f; simpl; f_equal.
     extensionality x; rewrite resource2res2resource; auto.
   Qed.
 (*
@@ -905,8 +959,9 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     match K.unsquash phi with (n,rm) => (n, pre_rmap2rmap' rm) end.
 
   Definition rmap_level (phi:rmap) : nat := fst (unsquash phi).
-  Definition resource_at (phi:rmap) : address -> resource := proj1_sig (snd (unsquash phi)).
+  Definition resource_at (phi:rmap) : address -> resource := fst (proj1_sig (snd (unsquash phi))).
   Infix "@" := resource_at (at level 50, no associativity).
+  Definition ghost_of (phi:rmap) : G := snd (proj1_sig (snd (unsquash phi))).
 
   Lemma pred_ext': forall {A} `{agA: ageable A} P Q,
                 (forall x, app_pred P x <-> app_pred Q x) -> P = Q.
@@ -963,14 +1018,16 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     2: unfold compose; auto.
     destruct rm; simpl.
     apply exist_ext.
+    destruct x; simpl; f_equal.
     extensionality l.
     unfold compose.
-    destruct (x l); simpl; auto.
+    destruct (r l); simpl; auto.
     (* YES *)
     destruct p; simpl.
     rewrite approx_K_approx; auto.
     (* PURE *)
     destruct p; simpl.
+    rewrite approx_K_approx; auto.
     rewrite approx_K_approx; auto.
   Qed.
 
@@ -1009,13 +1066,16 @@ Qed.
     destruct (K.unsquash phi3) as [n1 f1].
     simpl; intuition.
     destruct H; simpl in *; split; simpl; auto.
-    intro l; spec H0 l.
+    inversion H0.
+    constructor.
+    intro l; spec H1 l.
     destruct f as [f ?].
     destruct f0 as [f0 ?].
     destruct f1 as [f1 ?].
     simpl in *.
     unfold compose.
-    inv H0; simpl.
+    destruct f, f0, f1; simpl in *.
+    inv H1; simpl.
     constructor; auto.
     destruct p. simpl in *. constructor; auto. destruct p. simpl in *. constructor; auto.
     destruct p; simpl in *.
@@ -1023,21 +1083,26 @@ Qed.
     destruct p; simpl in *.
     constructor; auto.
 
+    destruct f, f0, f1; auto.
+
     destruct H; simpl in *; split; simpl; auto.
     destruct f as [f ?].
     destruct f0 as [f0 ?].
     destruct f1 as [f1 ?].
-    hnf in H0. simpl proj1_sig in H0.
-    intro l; spec H0 l.
+    inversion H0.
+    hnf in H1. simpl proj1_sig in H1.
+    constructor; auto.
+    intro l; spec H1 l.
     simpl proj1_sig.
-    clear - H0.
-    forget (f l) as a; forget (f0 l) as b; forget (f1 l) as c.
-    clear - H0.
+    clear - H1.
+    destruct f, f0, f1; simpl in *.
+    forget (r l) as a; forget (r0 l) as b; forget (r1 l) as c.
+    clear - H1.
     unfold res2resource in *. unfold res_fmap in *.
     destruct a as [ra | ra sha ka pa| ka pa]; try destruct pa as [? ?p];
     destruct b as [rb | rb shb kb pb|kb pb]; try destruct pb as [? ?p];
     destruct c as [rc | rc shc kc pc|kc pc]; try destruct pc as [? ?p];
-    inv H0.
+    inv H1.
     + constructor; auto.
     + apply inj_pair2 in H8. subst p0. constructor; auto.
     + apply inj_pair2 in H8. subst p0. constructor; auto.
@@ -1085,7 +1150,7 @@ Qed.
    rewrite K.knot_level. destruct (K.unsquash x); simpl. auto.
   Qed.
 
-  Lemma unevolve_identity_rmap :
+(*  Lemma unevolve_identity_rmap :
    (* REMARK:  This may not be needed for anything, so for now it's removed
      from the Module Type *)
     forall w w':rmap, necR w w' -> identity w' -> identity w.
@@ -1105,17 +1170,21 @@ Qed.
     inv H; auto.
     subst y.
     rewrite unsquash_squash in H0.
-    destruct H0; split;  simpl fst in *; simpl snd in *; try split; auto.
+    destruct H0.
+    destruct H1.
+    split; auto.
+    split.
     intro l; spec H1 l.
     destruct r.
     simpl in *.
     unfold compose in *.
-    destruct (x0 l); simpl in *.
+    destruct (fst x0 l); simpl in *.
     constructor; auto.
     inv H1; auto.
     inv H1. constructor; auto.
     constructor.
-  Qed.
+    
+  Qed.*)
 
 End Rmaps.
 Local Close Scope nat_scope.
