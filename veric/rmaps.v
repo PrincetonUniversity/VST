@@ -70,9 +70,24 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   | ArrowType T1 T2 => dtfr T1 -> dtfr T2
   end.
 
+Module Type GHOST.
+  Parameter G : forall (PRED : Type), Type.
+  Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
+  Axiom ff_G : functorFacts G G_fmap.
+  Definition f_G : functor := Functor ff_G.
+  Axiom Join_G : forall A, Join (G A).
+  Axiom paf_G : pafunctor f_G Join_G.
+
+  Axiom Sep_G : forall A, Sep_alg (G A).
+  Axiom Perm_G : forall A, Perm_alg (G A).
+  Axiom Disj_G : forall A, Disj_alg (G A).
+End GHOST.
+
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
   Import AV.
+  Declare Module G : GHOST.
+  Import G.
 
   Definition preds: functor :=
     fsig (fun T: TypeTree =>
@@ -121,12 +136,6 @@ Module Type STRAT_MODEL.
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
 
-  Parameter G : Type -> Type. (* G : PRED |-> ghost PRED *)
-  Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
-  Axiom ff_G : functorFacts G G_fmap.
-  Definition f_G : functor := Functor ff_G.
-  Axiom Join_G : forall A, Join (G A).
-
   Definition valid' A (w: (address -> res A) * G A) : Prop :=
     AV.valid (fun l => res_option A (fst w l)).
 
@@ -149,9 +158,11 @@ Module Type STRAT_MODEL.
 
 End STRAT_MODEL.
 
-Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
+Module StratModel (AV' : ADR_VAL) (G' : GHOST) : STRAT_MODEL with Module AV:=AV' with Module G:=G'.
   Module AV := AV'.
   Import AV.
+  Module G := G'.
+  Import G.
 
   Definition preds: functor :=
     fsig (fun T: TypeTree =>
@@ -320,13 +331,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
 
-  Parameter G : Type -> Type. (* G : PRED |-> ghost PRED *)
-  Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
-  Axiom ff_G : functorFacts G G_fmap.
-  Definition f_G : functor := Functor ff_G.
-  Axiom Join_G : forall A, Join (G A).
-  Axiom paf_G : pafunctor f_G Join_G.
-
   Definition valid' A (w: (address -> res A) * G A) : Prop :=
     AV.valid (fun l => res_option A (fst w l)).
 
@@ -365,10 +369,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   Definition paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap :=
     paf_subset (paf_pair (paf_fun address paf_res) paf_G) valid' valid'_res_map valid'_res_map2.
-
-  Axiom Sep_G : forall A, Sep_alg (G A).
-  Axiom Perm_G : forall A, Perm_alg (G A).
-  Axiom Disj_G : forall A, Disj_alg (G A).
 
   Lemma pre_rmap_sa_valid_core (A: Type):
         forall x,
@@ -423,6 +423,8 @@ Local Open Scope nat_scope.
 Module Type RMAPS.
   Declare Module AV:ADR_VAL.
   Import AV.
+  Declare Module G:GHOST.
+  Import G.
 
   Parameter rmap : Type.
   Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
@@ -488,16 +490,12 @@ Module Type RMAPS.
   Axiom resource_fmap_comp : forall f1 f2 g1 g2,
     resource_fmap g1 g2 oo resource_fmap f1 f2 = resource_fmap (g1 oo f1) (f2 oo g2).
 
-  Parameter G : Type.
+  Definition G := G (pred rmap).
 
   Definition valid (m: (address -> resource) * G) : Prop :=
     AV.valid  (res_option oo fst m).
 
-  Parameter G_fmap : forall (f g : pred rmap -> pred rmap), G -> G.
-  Axiom Join_G : Join G.
-  Axiom Sep_G : Sep_alg G.
-  Axiom Perm_G : Perm_alg G.
-  Axiom Disj_G : Disj_alg G.
+  Definition G_fmap := G_fmap (pred rmap) (pred rmap).
 
   Axiom valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo fst m, G_fmap f g (snd m)).
   Axiom rmapj_valid_join : forall (x y z : (address -> resource) * G),
@@ -550,13 +548,18 @@ Module Type RMAPS.
   Axiom squash_unsquash : forall phi, squash (unsquash phi) = phi.
   Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) (approx n) rm).
 
+  Axiom G_fmap_approx : forall n g g', join_sub g (G_fmap (approx n) (approx n) g') ->
+    G_fmap (approx n) (approx n) g = g.
+
 End RMAPS.
 
-Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
+Module Rmaps (AV':ADR_VAL) (G':GHOST): RMAPS with Module AV:=AV' with Module G:=G'.
   Module AV:=AV'.
   Import AV.
+  Module G:=G'.
+  Import G.
 
-  Module SM := StratModel(AV).
+  Module SM := StratModel(AV)(G).
   Import SM.
 
   Module TyF. (* <: TY_FUNCTOR_PROP. *)
@@ -629,7 +632,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     unfold SM.res_option, res_option, compose.
     extensionality r; destruct r; simpl; auto; destruct p; auto.
   Qed.
-
+  
   Definition G := G (pred rmap).
 
   Definition valid (m: (address -> resource) * G) : Prop :=
@@ -743,9 +746,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Qed.
 
   Definition Join_G := Join_G (pred rmap).
-  Axiom Sep_G : Sep_alg G.
-  Axiom Perm_G : Perm_alg G.
-  Axiom Disj_G : Disj_alg G.
 
   Lemma rmapj_valid_core: forall x : (address -> resource) * G, valid x -> valid (core x).
   Proof.
@@ -1185,6 +1185,10 @@ Qed.
     constructor.
     
   Qed.*)
+
+  (* Is this necessary? What can we provide to make it provable? *)
+  Axiom G_fmap_approx : forall n g g', join_sub g (G_fmap (approx n) (approx n) g') ->
+    G_fmap (approx n) (approx n) g = g.
 
 End Rmaps.
 Local Close Scope nat_scope.
