@@ -200,7 +200,6 @@ Proof.
   intros.
   rewrite rmap_level_eq.
   unfold ghost_of in *.
-  destruct H as [g' ?].
   revert H; case_eq (unsquash phi); intros n ? ?.
   generalize H; rewrite <- (squash_unsquash phi).
   rewrite H. rewrite unsquash_squash.
@@ -212,7 +211,15 @@ Proof.
   unfold rmap_fmap in *.
   destruct r.
   simpl in *.
-  eapply G_fmap_approx; eexists; eauto.
+  apply G.G_preds_unchanged; intros ?? HP.
+  eapply G.G_join_preds in HP; eauto.
+  setoid_rewrite G.G_fmap_preds in HP.
+  simpl in HP.
+  destruct (G.G_preds _ _ _) eqn: HG; inv HP.
+  destruct _f; simpl.
+  f_equal.
+  extensionality.
+  rewrite fmap_app, approx_oo_approx; auto.
 Qed.
 
 Lemma deallocate:
@@ -235,7 +242,7 @@ Proof.
   generalize (make_rmap'' (level phi) f a Hf); intros [phif [? [Gf Ga]]].
   generalize (make_rmap'' (level phi) g b Hg); intros [phig [? [Gg Gb]]].
   exists phif; exists phig.
-  split.
+  split; [|rewrite Ga, Gf; auto].
   rewrite rmap_level_eq in *.
   unfold resource_at, ghost_of in *.
   revert H0 HG H Gf Ga H1 Gg Gb Ha Hb H2 H3;
@@ -261,11 +268,31 @@ Proof.
   auto.
   simpl; rewrite Ga, Gb; simpl.
   rewrite Ha, Hb; auto.
-  rewrite Gf, Ga.
-  auto.
 Qed.
 
-(*Lemma allocate:
+Lemma ghost_same_level_join:
+   forall phi1 phi2 g, level phi1 = level phi2 -> join (ghost_of phi1) (ghost_of phi2) g ->
+   G_fmap (approx (level phi1)) (approx (level phi1)) g = g.
+Proof.
+  intros.
+  apply G.G_preds_unchanged; intros ?? HP.
+  eapply G.G_join_preds_inv in HP; eauto.
+  destruct HP as [HP | HP].
+  - rewrite <- (ghost_same_level (ghost_of phi1) _ (join_sub_refl _)) in HP.
+    setoid_rewrite G.G_fmap_preds in HP; simpl in HP.
+    destruct (G.G_preds _ _ _) eqn: HG; inv HP.
+    destruct _f; simpl.
+    f_equal; extensionality.
+    rewrite fmap_app, approx_oo_approx; auto.
+  - rewrite <- (ghost_same_level (ghost_of phi2) _ (join_sub_refl _)) in HP.
+    setoid_rewrite G.G_fmap_preds in HP; simpl in HP.
+    destruct (G.G_preds _ _ _) eqn: HG; inv HP.
+    destruct _f; simpl.
+    f_equal; extensionality.
+    rewrite H, fmap_app, approx_oo_approx; auto.
+Qed.
+
+Lemma allocate:
      forall (phi : rmap) (f : AV.address -> resource) a,
      AV.valid (res_option oo f) ->
         resource_fmap (approx (level phi)) (approx (level phi)) oo f = f ->
@@ -313,6 +340,7 @@ Proof.
  destruct H4 as [phig [? [? ?]]].
  exists phif; exists phig.
  split; [|split; congruence].
+ erewrite ghost_same_level_join in H6.
  rewrite join_unsquash.
  unfold resource_at, ghost_of in *.
  rewrite rmap_level_eq in *.
@@ -324,7 +352,7 @@ Proof.
  intros; subst nf ng.
  split. split; trivial.
  simpl.
- split.
+ split; [|congruence].
  intro l.
  spec H6 l.
  assert (fst (proj1_sig phig') l = g l).
@@ -350,21 +378,9 @@ Proof.
  rewrite Gf.
  rewrite H3.
  auto.
- assert (snd (proj1_sig phig') = b) as ->; [|rewrite Ga, Hg; auto].
-   generalize (f_equal squash H2); intro.
-   rewrite squash_unsquash in H5.
-   subst phi.
-   rewrite unsquash_squash in H2.
-   injection H2; clear H2; intro.
-   rewrite <- H2 in X0.
-   rewrite <- Hg in X0.
-   rewrite H9.
-   clear - X0.
-   revert X0.
-   unfold rmap_fmap, compose, resource_fmap.
-   destruct phi'; simpl.
-   admit.
-Admitted.*)
+ symmetry; apply H2.
+ rewrite Ga, Hg; auto.
+Qed.
 
   Lemma unsquash_inj : forall x y,
       unsquash x = unsquash y -> x = y.
@@ -965,7 +981,7 @@ Proof.
   eapply age1None_levelS_absurd in H0; eauto.
 Qed.
 
-(*Lemma resource_at_constructive_joins2:
+Lemma resource_at_constructive_joins2:
   forall phi1 phi2,
        level phi1 = level phi2 ->
        (forall loc, constructive_joins (phi1 @ loc) (phi2 @ loc)) ->
@@ -1012,7 +1028,7 @@ inv H1.
 simpl; f_equal.
 pose proof (resource_at_approx phi1 loc). rewrite H0 in H1. simpl in H1.
 injection H1; intros; auto.
-admit.
+eapply ghost_same_level_join; eauto.
 (*  End of make_rmap proof *)
 exists phi'.
 apply resource_at_join2; auto.
@@ -1021,19 +1037,20 @@ intros.
 rewrite H3.
 destruct (H0 loc).
 simpl; auto.
-rewrite H4.
-Admitted. *)
+rewrite H4; auto.
+Qed.
 
-(*Lemma resource_at_joins2:
+Lemma resource_at_joins2:
   forall phi1 phi2,
        level phi1 = level phi2 ->
        (forall loc, constructive_joins (phi1 @ loc) (phi2 @ loc)) ->
+       constructive_joins (ghost_of phi1) (ghost_of phi2) ->
          joins phi1 phi2.
 Proof.
   intros.
   apply cjoins_joins.
   apply resource_at_constructive_joins2; trivial.
-Qed.*)
+Qed.
 
 Definition no_preds (r: resource) :=
    match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP end.
@@ -1114,7 +1131,7 @@ Qed.
 
   Definition empty_rmap g (n:nat) : rmap := R.squash (n, empty_rmap' g).
 
-(*Lemma emp_empty_rmap: forall g n, emp (empty_rmap g n).
+Lemma emp_empty_rmap: forall g n, emp (empty_rmap g n).
 Proof.
 intros.
 intro; intros.
@@ -1130,15 +1147,17 @@ rewrite unsquash_squash in H.
 simpl in *.
 unfold compose in H.
 inv H; auto; apply join_unit1_e in RJ; auto; subst; proof_irr; auto.
+destruct (join_level _ _ _ H) as [Hlevel _].
 apply ghost_of_join in H.
 unfold empty_rmap, empty_rmap', ghost_of in *.
 destruct (unsquash a); destruct (unsquash b).
 simpl in *.
 destruct r; destruct r0; simpl in *.
-rewrite unsquash_squash in H.
+rewrite unsquash_squash in *.
 simpl in *.
-admit.
-Admitted. *)
+setoid_rewrite G.G_fmap_core in H.
+eapply core_identity; eauto.
+Qed.
 
 Lemma empty_rmap_level g:
   forall lev, level (empty_rmap g lev) = lev.

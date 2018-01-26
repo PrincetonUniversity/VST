@@ -70,6 +70,10 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   | ArrowType T1 T2 => dtfr T1 -> dtfr T2
   end.
 
+  Definition preds: functor :=
+    fsig (fun T: TypeTree =>
+      fpi (fun ts: list Type => dependent_type_functor_rec ts T)).
+
 Module Type GHOST.
   Parameter G : forall (PRED : Type), Type.
   Parameter G_fmap : forall (A B:Type) (f:A->B) (g:B->A)(x:G A), G B.
@@ -81,6 +85,22 @@ Module Type GHOST.
   Axiom Sep_G : forall A, Sep_alg (G A).
   Axiom Perm_G : forall A, Perm_alg (G A).
   Axiom Disj_G : forall A, Disj_alg (G A).
+
+  Axiom G_fmap_core : forall A B f g x, G_fmap A B f g (core x) = core (G_fmap A B f g x).
+
+  (* This is a clunky way of exposing the effects of fmap on the predicates in G. *)
+  Parameter Index : Type.
+  Parameter G_preds : forall (PRED : Type), G PRED -> Index -> option (preds PRED).
+  Axiom G_fmap_preds : forall A B f g x i,
+    G_preds B (G_fmap A B f g x) i = fmap (foption preds) f g (G_preds A x i).
+  Axiom G_join_preds : forall (PRED : Type) (x y : G PRED) i P,
+    join_sub x y -> G_preds _ x i = Some P -> G_preds _ y i = Some P.
+  Axiom G_join_preds_inv : forall (PRED : Type) (x y z : G PRED) i P,
+    join x y z -> G_preds _ z i = Some P -> G_preds _ x i = Some P \/ G_preds _ y i = Some P.
+  Axiom G_preds_unchanged : forall A f g x,
+    (forall i P, G_preds A x i = Some P -> fmap preds f g P = P) ->
+    G_fmap A A f g x = x.
+
 End GHOST.
 
 Module Type STRAT_MODEL.
@@ -88,10 +108,6 @@ Module Type STRAT_MODEL.
   Import AV.
   Declare Module G : GHOST.
   Import G.
-
-  Definition preds: functor :=
-    fsig (fun T: TypeTree =>
-      fpi (fun ts: list Type => dependent_type_functor_rec ts T)).
 
   Inductive res (PRED : Type) : Type :=
     | NO':  forall sh: Share.t, ~(readable_share sh) -> res PRED
@@ -547,9 +563,6 @@ Module Type RMAPS.
 
   Axiom squash_unsquash : forall phi, squash (unsquash phi) = phi.
   Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) (approx n) rm).
-
-  Axiom G_fmap_approx : forall n g g', join_sub g (G_fmap (approx n) (approx n) g') ->
-    G_fmap (approx n) (approx n) g = g.
 
 End RMAPS.
 
@@ -1183,12 +1196,8 @@ Qed.
     inv H1; auto.
     inv H1. constructor; auto.
     constructor.
-    
+    simpl in *.
   Qed.*)
-
-  (* Is this necessary? What can we provide to make it provable? *)
-  Axiom G_fmap_approx : forall n g g', join_sub g (G_fmap (approx n) (approx n) g') ->
-    G_fmap (approx n) (approx n) g = g.
 
 End Rmaps.
 Local Close Scope nat_scope.
