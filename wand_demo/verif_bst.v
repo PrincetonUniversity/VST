@@ -124,19 +124,21 @@ Module insert_by_WandQFrame_Func_Hole.
 Import PartialTreeboxRep_WandQFrame_Func_Hole.
 
 Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpred :=
-  EX p: val, EX t: tree val, EX pt: tree val -> tree val,
-  PROP(pt (insert x v t) = (insert x v t0))
+  EX p: val, EX t: tree val, EX P: tree val -> tree val,
+  PROP(P (insert x v t) = (insert x v t0))
   LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
-  SEP(treebox_rep t p;  partial_treebox_rep pt p0 p).
+  SEP(treebox_rep t p;  partial_treebox_rep P p0 p).
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   rewrite Mapbox_rep_unfold.
   Intros t0.
-  rename H1 into ABS, H2 into ST.
-  pose proof insert_relate _ _ x v _ _ ABS as ABS'.
-  pose proof insert_SearchTree _ x v _ ST as ST'.
+  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
+  { rewrite Mapbox_rep_unfold; Exists (insert x v t0).
+    entailer!.
+    split; [apply insert_relate | apply insert_SearchTree]; auto. }
+  clear H1 H2.
   eapply semax_pre; [
     | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
   * (* Precondition *)
@@ -146,7 +148,7 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     unfold insert_inv.
-    Intros p t pt.
+    Intros p t P.
     forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
@@ -168,8 +170,6 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
-      rewrite Mapbox_rep_unfold.
-      Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
       rewrite <- H1. apply treebox_rep_partial_treebox_rep.
@@ -182,7 +182,7 @@ Proof.
       - (* Inner if, then clause: x<k *)
         forward. (* p=&q->left *)
         unfold insert_inv.
-        Exists (field_address t_struct_tree [StructField _left] q) t1 (fun t1 => pt (T t1 k v0 t2)).
+        Exists (field_address t_struct_tree [StructField _left] q) t1 (fun t1 => P (T t1 k v0 t2)).
         entailer!.
        ** rewrite <- H1.
           simpl; simpl_compb; auto.
@@ -191,7 +191,7 @@ Proof.
       - (* Inner if, second branch:  k<x *)
         forward. (* p=&q->right *)
         unfold insert_inv.
-        Exists (field_address t_struct_tree [StructField _right] q) t2 (fun t2 => pt (T t1 k v0 t2)).
+        Exists (field_address t_struct_tree [StructField _right] q) t2 (fun t2 => P (T t1 k v0 t2)).
         entailer!.
        ** rewrite <- H1.
           simpl; simpl_compb; simpl_compb; auto.
@@ -202,8 +202,6 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
-        rewrite Mapbox_rep_unfold.
-        Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
         simpl insert.
@@ -232,9 +230,11 @@ Proof.
   start_function.
   rewrite Mapbox_rep_unfold.
   Intros t0.
-  rename H1 into ABS, H2 into ST.
-  pose proof insert_relate _ _ x v _ _ ABS as ABS'.
-  pose proof insert_SearchTree _ x v _ ST as ST'.
+  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
+  { rewrite Mapbox_rep_unfold; Exists (insert x v t0).
+    entailer!.
+    split; [apply insert_relate | apply insert_SearchTree]; auto. }
+  clear H1 H2.
   eapply semax_pre; [
     | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
   * (* Precondition *)
@@ -265,8 +265,6 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
-      rewrite Mapbox_rep_unfold.
-      Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
       apply treebox_rep_partial_treebox_rep.
@@ -297,8 +295,6 @@ Proof.
         subst x. clear H H1 H4.
         forward. (* q->value=value *)
         forward. (* return *)
-        rewrite Mapbox_rep_unfold.
-        Exists (insert k v t0).
         entailer!.
         simpl_compb; simpl_compb.
         sep_apply (treebox_rep_internal t1 k v t2 p q); auto.
@@ -325,9 +321,11 @@ Proof.
   start_function.
   rewrite Mapbox_rep_unfold.
   Intros t0.
-  rename H1 into ABS, H2 into ST.
-  pose proof insert_relate _ _ x v _ _ ABS as ABS'.
-  pose proof insert_SearchTree _ x v _ ST as ST'.
+  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
+  { rewrite Mapbox_rep_unfold; Exists (insert x v t0).
+    entailer!.
+    split; [apply insert_relate | apply insert_SearchTree]; auto. }
+  clear H1 H2.
   eapply semax_pre; [
     | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
   * (* Precondition *)
@@ -359,8 +357,6 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
-      rewrite Mapbox_rep_unfold.
-      Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
       rewrite <- H1. apply treebox_rep_partial_treebox_rep.
@@ -395,8 +391,6 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
-        rewrite Mapbox_rep_unfold.
-        Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
         simpl insert.
@@ -428,9 +422,11 @@ Proof.
   start_function.
   rewrite Mapbox_rep_unfold.
   Intros t0.
-  rename H1 into ABS, H2 into ST.
-  pose proof insert_relate _ _ x v _ _ ABS as ABS'.
-  pose proof insert_SearchTree _ x v _ ST as ST'.
+  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
+  { rewrite Mapbox_rep_unfold; Exists (insert x v t0).
+    entailer!.
+    split; [apply insert_relate | apply insert_SearchTree]; auto. }
+  clear H1 H2.
   eapply semax_pre; [
     | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
   * (* Precondition *)
@@ -462,8 +458,6 @@ Proof.
       rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
-      rewrite Mapbox_rep_unfold.
-      Exists (insert x v t0).
       entailer!.
       sep_apply (treebox_rep_leaf x q p v); auto.
       rewrite <- H1. apply treebox_rep_partial_treebox_rep.
@@ -498,8 +492,6 @@ Proof.
         subst x. clear H H2 H5.
         forward. (* q->value=value *)
         forward. (* return *)
-        rewrite Mapbox_rep_unfold.
-        Exists (insert k v t0).
         entailer!.
         rewrite <- H1.
         simpl insert.

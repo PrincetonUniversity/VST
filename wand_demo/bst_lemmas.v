@@ -191,8 +191,8 @@ Qed.
 
 Module PartialTree_WandQFrame_Func_Hole.
 
-Definition partialT (rep: tree val -> val -> mpred) (pt: tree val -> tree val) (p_root p_in: val): mpred :=
-  ALL t: tree val, rep t p_in -* rep (pt t) p_root.
+Definition partialT (rep: tree val -> val -> mpred) (P: tree val -> tree val) (p_root p_in: val): mpred :=
+  ALL t: tree val, rep t p_in -* rep (P t) p_root.
 
 Lemma partialT_rep_partialT_rep: forall rep pt12 pt23 p1 p2 p3,
   partialT rep pt12 p2 p1 * partialT rep pt23 p3 p2 |-- partialT rep (Basics.compose pt23 pt12) p3 p1.
@@ -213,14 +213,11 @@ Proof.
   normalize.
 Qed.
 
-Lemma rep_partialT_rep: forall rep t pt p q,
-  rep t p * partialT rep pt q p |-- rep (pt t) q.
+Lemma rep_partialT_rep: forall rep t P p q,
+  rep t p * partialT rep P q p |-- rep (P t) q.
 Proof.
   intros.
-  unfold partialT.
-  change (rep (pt t) q) with ((fun t => rep (pt t) q) t).
-  change (rep t p) with ((fun t => rep t p) t).
-  apply wandQ_frame_elim.
+  exact (wandQ_frame_elim _ (fun t => rep t p) (fun t => rep (P t) q) t).
 Qed.
 
 End PartialTree_WandQFrame_Func_Hole.
