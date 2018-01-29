@@ -113,7 +113,7 @@ Qed.
 
 Lemma make_rmap (f: AV.address -> resource) g (V: AV.valid (res_option oo f))
     (n: nat) (H: resource_fmap (approx n) (approx n) oo f = f)
-    (HG: G_fmap (approx n) (approx n) g = g) :
+    (HG: ghost_fmap (approx n) (approx n) g = g) :
   {phi: rmap | level phi = n /\ resource_at phi = f /\ ghost_of phi = g}.
 Proof.
 intros.
@@ -126,7 +126,7 @@ Lemma make_rmap'':
     forall n (f: AV.address -> resource) g,
       AV.valid (fun l => res_option (f l)) ->
       exists phi:rmap, level phi = n /\ resource_at phi = resource_fmap (approx n) (approx n) oo f /\
-      ghost_of phi = G_fmap (approx n) (approx n) g.
+      ghost_of phi = ghost_fmap (approx n) (approx n) g.
   Proof.
     intros.
     exists (squash (n, exist valid (f, g) H)).
@@ -195,7 +195,7 @@ Qed.
 
 Lemma ghost_same_level:
    forall g phi, join_sub g (ghost_of phi) ->
-   G_fmap (approx (level phi)) (approx (level phi)) g = g.
+   ghost_fmap (approx (level phi)) (approx (level phi)) g = g.
 Proof.
   intros.
   rewrite rmap_level_eq.
@@ -209,17 +209,15 @@ Proof.
   rewrite <- H0 in H1.
   clear H0.
   unfold rmap_fmap in *.
-  destruct r.
-  simpl in *.
-  apply G.G_preds_unchanged; intros ?? HP.
-  eapply G.G_join_preds in HP; eauto.
-  setoid_rewrite G.G_fmap_preds in HP.
-  simpl in HP.
-  destruct (G.G_preds _ _ _) eqn: HG; inv HP.
-  destruct _f; simpl.
-  f_equal.
-  extensionality.
-  rewrite fmap_app, approx_oo_approx; auto.
+  destruct r, x.
+  destruct g0; simpl in *.
+  destruct H1.
+  inv H; simpl.
+  match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst.
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) pds))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) pds).
+  rewrite preds_fmap_comp.
+  rewrite approx_oo_approx; auto.
 Qed.
 
 Lemma deallocate:
@@ -272,24 +270,25 @@ Qed.
 
 Lemma ghost_same_level_join:
    forall phi1 phi2 g, level phi1 = level phi2 -> join (ghost_of phi1) (ghost_of phi2) g ->
-   G_fmap (approx (level phi1)) (approx (level phi1)) g = g.
+   ghost_fmap (approx (level phi1)) (approx (level phi1)) g = g.
 Proof.
   intros.
-  apply G.G_preds_unchanged; intros ?? HP.
-  eapply G.G_join_preds_inv in HP; eauto.
-  destruct HP as [HP | HP].
-  - rewrite <- (ghost_same_level (ghost_of phi1) _ (join_sub_refl _)) in HP.
-    setoid_rewrite G.G_fmap_preds in HP; simpl in HP.
-    destruct (G.G_preds _ _ _) eqn: HG; inv HP.
-    destruct _f; simpl.
-    f_equal; extensionality.
-    rewrite fmap_app, approx_oo_approx; auto.
-  - rewrite <- (ghost_same_level (ghost_of phi2) _ (join_sub_refl _)) in HP.
-    setoid_rewrite G.G_fmap_preds in HP; simpl in HP.
-    destruct (G.G_preds _ _ _) eqn: HG; inv HP.
-    destruct _f; simpl.
-    f_equal; extensionality.
-    rewrite H, fmap_app, approx_oo_approx; auto.
+  rewrite rmap_level_eq in *.
+  unfold ghost_of in *.
+  revert H; case_eq (unsquash phi1); case_eq (unsquash phi2); intros n ? ? ???.
+  simpl; intro; subst.
+  generalize H0; rewrite <- (squash_unsquash phi1), <- (squash_unsquash phi2).
+  rewrite H, H1, !unsquash_squash.
+  simpl; intros.
+  destruct r, r0; simpl in *.
+  destruct x, x0; simpl in *.
+  destruct g, g1.
+  inv H2; simpl in *.
+  repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst.
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) pds0))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) pds0).
+  rewrite preds_fmap_comp.
+  rewrite approx_oo_approx; auto.
 Qed.
 
 Lemma allocate:
@@ -297,7 +296,7 @@ Lemma allocate:
      AV.valid (res_option oo f) ->
         resource_fmap (approx (level phi)) (approx (level phi)) oo f = f ->
        (forall l, {r' | join (phi@l) (f l) r'}) ->
-        G_fmap (approx (level phi)) (approx (level phi)) a = a ->
+        ghost_fmap (approx (level phi)) (approx (level phi)) a = a ->
         {a' | join (ghost_of phi) a a'} ->
        exists phi1 : rmap,
          exists phi2 : rmap,
@@ -1060,7 +1059,7 @@ Lemma remake_rmap:
        AV.valid (res_option oo f) ->
        forall n,
        (forall l, (exists m, level m = n /\ f l = m @ l) \/ no_preds (f l)) ->
-       G_fmap (approx n) (approx n) g = g ->
+       ghost_fmap (approx n) (approx n) g = g ->
        {phi: rmap | level phi = n /\ resource_at phi = f /\ ghost_of phi = g}.
 Proof.
   intros.
@@ -1121,7 +1120,7 @@ rewrite (age1_resource_at _ _ H1 loc _ (eq_sym (resource_at_approx _ _))).
 rewrite H. rewrite H4; auto.
 Qed.
 
-  Definition empty_rmap' (g : G) : rmap'.
+  Definition empty_rmap' (g : ghost) : rmap'.
     set (f:= fun _: AV.address => NO Share.bot bot_unreadable).
     assert (R.valid (f, core g)).
     red; unfold f; simpl.
@@ -1155,7 +1154,10 @@ simpl in *.
 destruct r; destruct r0; simpl in *.
 rewrite unsquash_squash in *.
 simpl in *.
-setoid_rewrite G.G_fmap_core in H.
+destruct g; rewrite ghost_core in H; simpl in H.
+inv H.
+match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst.
+f_equal.
 eapply core_identity; eauto.
 Qed.
 
