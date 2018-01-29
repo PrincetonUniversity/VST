@@ -484,7 +484,7 @@ Lemma BDY_update: forall
 (H3 : Forall general_lemmas.isbyteZ contents),
 @semax hmac_drbg_compspecs.CompSpecs Espec
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
-        HmacDrbgFunSpecs)
+        HmacDrbgFunSpecs nil)
   (PROP ( )
    LOCAL (lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep;
    temp _ctx ctx; temp _additional additional;

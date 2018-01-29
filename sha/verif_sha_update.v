@@ -121,8 +121,7 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
 rewrite <- H0.
 clear H0; pose (H0:=True).
 apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
-*
- semax_subcommand Vprog Gtot f_SHA256_Update.
+* semax_subcommand Vprog Gtot f_SHA256_Update (@nil (ident * Annotation)).
  eapply semax_post_flipped.
 +
  assert (BLEN: bitlength (s256a_hashed a) (s256a_data a) = s256a_len a)
@@ -146,7 +145,7 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
 * (* after if (n!=0) *)
  eapply semax_seq' with
      (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv true).
- semax_subcommand Vprog Gtot  f_SHA256_Update.
+ semax_subcommand Vprog Gtot  f_SHA256_Update (@nil (ident * Annotation)).
 simple apply update_while_proof; try assumption; try omega; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.

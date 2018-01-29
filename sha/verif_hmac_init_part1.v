@@ -90,7 +90,7 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l k
 (FC_cxtkey : field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
 (lt_64_l : 64 < l),
 @semax CompSpecs Espec (initialized_list [_reset; _j]
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 64)); temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
@@ -309,7 +309,7 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ke
 (FC_cxtkey : field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
 (ge_64_l : 64 >= l),
 @semax CompSpecs Espec (initialized_list [_reset; _j]
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 64)); temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
@@ -415,7 +415,7 @@ Lemma hmac_init_part1: forall
 (h1:hmacabs)
 (pad : val)
 (Delta := initialized _reset
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
 (ckb : block)
 (ckoff : ptrofs),
 @semax CompSpecs Espec Delta

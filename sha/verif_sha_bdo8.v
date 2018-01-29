@@ -36,7 +36,7 @@ Lemma sha256_block_load8:
    (H5 : length r_h = 8%nat),
      semax
       (initialized _data
-         (func_tycontext f_sha256_block_data_order Vprog Gtot))
+         (func_tycontext f_sha256_block_data_order Vprog Gtot nil))
   (PROP  ()
    LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
                 gvar  _K256 kv)
@@ -251,14 +251,11 @@ Lemma add_s:
  forall i i',
     (i < 8)%nat ->
     i' = Z.of_nat i ->
-   upd_Znth i' (map Vint (add_upto i regs atoh))
-       (force_val
-              (sem_cast_pointer
-                 (force_val
-                    (both_int (fun n1 n2 : int => Some (Vint (Int.add n1 n2)))
-                       sem_cast_pointer sem_cast_pointer
-                       (Znth i' (map Vint (add_upto i regs atoh)) Vundef)
-                       (Vint (nthi atoh i')))))) =
+    upd_Znth i' (map Vint (add_upto i regs atoh))
+             (Vint
+                (Int.add
+                   (Znth i' (add_upto i regs atoh) Int.zero)
+                   (nthi atoh i'))) =
      map Vint (add_upto (S i) regs atoh).
 Proof.
 intros.
@@ -268,18 +265,13 @@ assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)) Vundef)).
 subst i'.
 rewrite add_upto_S; try omega.
 f_equal.
-destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef) eqn:?;
+destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef);
    try contradiction H3.
 simpl.
 f_equal. f_equal.
-unfold Znth in Heqv.
-rewrite if_false in Heqv.
+unfold Znth. rewrite if_false by omega.
 unfold nthi.
-rewrite Nat2Z.id in Heqv|-*.
-rewrite nth_map' with (d':=Int.zero) in Heqv.
-inv Heqv. auto.
-rewrite length_add_upto; try congruence.
-clear; omega.
+rewrite Nat2Z.id. auto.
 Qed.
 
 Lemma add_upto_8:
@@ -330,15 +322,15 @@ assert (INT_ADD_UPTO := int_add_upto _ _ H H0).
 assert (ADD_S := add_s _ _ H H0).
 
 Opaque add_upto.
-
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result ::= idtac.
-
+assert (forall i i', i'=Z.of_nat i -> 0<= i' <8 -> 0 <= i' < Zlength (add_upto i regs atoh)). {
+ intros;
+ rewrite Zlength_correct; rewrite length_add_upto by omega;
+ rewrite H; simpl; omega.
+}
+assert (0<=0) by computable.
 forward.
-entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
-simpl upd_Znth.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.

@@ -1721,3 +1721,112 @@ End eq_dec.
 
 Instance EqDec_statement: EqDec statement := eq_dec_statement.
 Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
+
+Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
+Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.
+
+(*Moved here from semax_switch*)
+Lemma semax_eq:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
+  semax Espec Delta P c R = 
+  (TT |-- (ALL psi : genv,
+         ALL Delta' : tycontext,
+         !! (tycontext_sub Delta Delta' /\ genv_cenv psi = cenv_cs) -->
+         believe Espec Delta' psi Delta' -->
+         ALL k : cont ,
+         ALL F : assert ,
+         !! closed_wrt_modvars c F &&
+         rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R F) k -->
+         guard Espec psi Delta' (fun rho : environ => F rho * P rho) (Kseq c :: k))).
+Proof.
+intros.
+extensionality w.
+rewrite semax_fold_unfold.
+apply prop_ext; intuition.
+Qed.
+
+Lemma safe_kseq_Slabel Espec psi n ora ve te l c k m :
+  @jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora
+      (State ve te (@cons cont' (Kseq c) k)) m ->
+@jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora
+  (State ve te (@cons cont' (Kseq (Slabel l c)) k)) m.
+Proof.
+inversion 1; subst.
++ constructor.
++ econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto. 
+  simpl in H0. simpl. eapply step_label; trivial.
++ simpl in *; congruence.
++ simpl in *. unfold cl_halted in H0. congruence.
+Qed.
+
+Lemma semax_Slabel {Espec: OracleKind} {cs:compspecs}
+       (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
+@semax cs Espec Gamma P c Q -> @semax cs Espec Gamma P (Slabel l c) Q.
+Proof. intros. 
+rewrite semax_eq. rewrite semax_eq in H.
+eapply derives_trans. eassumption. clear H.
+apply allp_derives; intros psi.
+apply allp_derives; intros Delta.
+apply prop_imp_derives; intros TC.
+apply imp_derives; [ apply derives_refl | ].
+apply allp_derives; intros k.
+apply allp_derives; intros F.
+rewrite closed_Slabel, exit_typcon_Slabel'.
+apply imp_derives; [ apply derives_refl | ].
+apply guard_safe_adj; [ trivial | intros].
+apply safe_kseq_Slabel; trivial.
+Qed.
+
+Lemma safe_seq_Slabel Espec psi n ora m k ve te l c1 c2 :
+      @jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora
+      (State ve te (Kseq (Ssequence (Slabel l c1) c2) :: k)) m 
+  <-> @jsafeN (@OK_ty Espec) (@OK_spec Espec) psi n ora (State ve te (Kseq (Slabel l (Ssequence c1 c2)) :: k)) m.
+Proof.
+split; intros. 
+{ inversion H; clear H; subst; simpl in *.
+  + constructor.
+  + econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto. 
+    simpl in H. simpl. inversion H; clear H; subst; simpl in *.
+    inversion H11; clear H11; subst. 
+    econstructor. econstructor. trivial.
+  + simpl in *; congruence.
+  + simpl in *. unfold cl_halted in H0. congruence. }
+{ inversion H; clear H; subst; simpl in *.
+  + constructor.
+  + destruct H0 as (?&?&?); simpl in *. inversion H; clear H; subst; simpl in *.
+    inversion H11; clear H11; subst; simpl in *.
+    econstructor; eauto; simpl. econstructor; eauto; simpl.
+    econstructor; eauto; simpl.
+    econstructor; eauto.
+  + simpl in *; congruence.
+  + simpl in *. unfold cl_halted in H0. congruence. }
+Qed.
+
+Lemma semax_seq_Slabel:
+   forall {Espec: OracleKind} {cs:compspecs},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
+Proof. intros.
+split; intros H; rewrite semax_eq; rewrite semax_eq in H; (eapply derives_trans; try eassumption; try clear H).
++ apply allp_derives; intros psi.
+apply allp_derives; intros Delta'.
+apply prop_imp_derives; intros TC.
+apply imp_derives; [ apply derives_refl | ].
+apply allp_derives; intros k.
+apply allp_derives; intros F.
+rewrite closed_Slabel, exit_typcon_Slabel'.
+apply imp_derives; [ apply derives_refl | ].
+apply guard_safe_adj; [ trivial | intros].
+apply safe_seq_Slabel; trivial.
++ apply allp_derives; intros psi.
+apply allp_derives; intros Delta'.
+apply prop_imp_derives; intros TC.
+apply imp_derives; [ apply derives_refl | ].
+apply allp_derives; intros k.
+apply allp_derives; intros F.
+rewrite closed_Slabel, exit_typcon_Slabel'.
+apply imp_derives; [ apply derives_refl | ].
+apply guard_safe_adj; [ trivial | intros].
+apply safe_seq_Slabel; trivial.
+Qed.
