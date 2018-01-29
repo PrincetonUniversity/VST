@@ -78,3 +78,6 @@ doc/html/
 _CoqProject
 .loadpath-export
 _CoqProject-export
+wand_demo/vfa/*.ml
+wand_demo/vfa/*.mli
+

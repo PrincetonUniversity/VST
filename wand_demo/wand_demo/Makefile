@@ -1,7 +1,7 @@
 CURRENT_LOC=.
-VST_LOC=..
-CC_LOC=../compcert
-VFA_LOC=../../vfa/vfa
+VST_LOC=../..
+CC_LOC=../../compcert
+VFA_LOC=../vfa
 COQBIN=
 
 -include CONFIGURE
@@ -31,7 +31,7 @@ $(FILES:%.v=%.vo): %.vo: %.v
 	@$(COQC) $(COQ_FLAG) $(CURRENT_LOC)/$*.v
 
 all: \
-	.depend $(FILES:%.v=%.vo)
+	_CoqProject .loadpath .depend $(FILES:%.v=%.vo)
 
 depend:
 	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
