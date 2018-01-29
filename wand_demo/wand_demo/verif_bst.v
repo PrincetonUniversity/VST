@@ -129,25 +129,48 @@ Definition insert_inv (p0: val) (t0: tree val) (x: nat) (v: val): environ -> mpr
   LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
   SEP(treebox_rep t p;  partial_treebox_rep P p0 p).
 
+Ltac forward_loop Inv :=
+ eapply semax_pre; [ | apply (semax_loop _ Inv Inv); [ |  apply sequential; apply semax_skip]] .
+
+Lemma insert_concrete_to_abstract:
+ forall {Espec: OracleKind} CMD p0 x v m0,
+ (forall t0, 
+   semax (func_tycontext f_insert Vprog Gprog [])
+    (PROP ( )
+     LOCAL (temp _p p0; temp _x (Vint (Int.repr (Z.of_nat x))); temp _value v)  
+     SEP (treebox_rep t0 p0)) CMD
+   (frame_ret_assert
+     (function_body_ret_assert tvoid
+        (PROP ( )  LOCAL ()  SEP (treebox_rep (insert x v t0) p0))) emp))  ->
+ semax (func_tycontext f_insert Vprog Gprog [])
+   (PROP ( )
+    LOCAL (temp _p p0; temp _x (Vint (Int.repr (Z.of_nat x))); temp _value v)
+    SEP (Mapbox_rep m0 p0)) CMD
+  (frame_ret_assert
+    (function_body_ret_assert tvoid
+     (PROP ( )  LOCAL ()  SEP (Mapbox_rep (t_update m0 x v) p0))) emp).
+Proof.
+  intros.
+  rewrite !Mapbox_rep_unfold.
+  Intros t0.
+  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
+  Exists (insert x v t0).
+  entailer!.
+  split; [apply insert_relate | apply insert_SearchTree]; auto.
+Qed.
+
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  rewrite Mapbox_rep_unfold.
-  Intros t0.
-  apply (semax_post'' (PROP () LOCAL () SEP (treebox_rep (insert x v t0) p0))); auto.
-  { rewrite Mapbox_rep_unfold; Exists (insert x v t0).
-    entailer!.
-    split; [apply insert_relate | apply insert_SearchTree]; auto. }
-  clear H1 H2.
-  eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv p0 t0 x v) (insert_inv p0 t0 x v) )].
+  apply insert_concrete_to_abstract; intros.
+  forward_loop (EX p: val, EX t: tree val, EX P: tree val -> tree val,
+       PROP(P (insert x v t) = (insert x v t0))
+       LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
+       SEP(treebox_rep t p;  partial_treebox_rep P p0 p)).
   * (* Precondition *)
-    unfold insert_inv.
-    Exists p0 t0 (fun t: tree val => t). entailer.
-    cancel.
+    Exists p0 t0 (fun t: tree val => t). entailer!.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
-    unfold insert_inv.
     Intros p t P.
     forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
@@ -156,21 +179,18 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)
-      simpl.
       forward. (* q->value=value; *)
       forward. (* q->left=NULL; *)
       forward. (* q->right=NULL; *)
-      assert_PROP (t = (@E _)).
-        1: entailer!.
-      subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+      assert_PROP (t = (@E _)) by entailer!.
+      subst t. rewrite tree_rep_treebox_rep. normalize.
       forward. (* * p = q; *)
       forward. (* return; *)
-      entailer!.
+      entailer!.  clear - H1 H0 H.
       sep_apply (treebox_rep_leaf x q p v); auto.
       rewrite <- H1. apply treebox_rep_partial_treebox_rep.
     + (* else clause *)
@@ -181,7 +201,6 @@ Proof.
       forward_if; [ | forward_if ].
       - (* Inner if, then clause: x<k *)
         forward. (* p=&q->left *)
-        unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _left] q) t1 (fun t1 => P (T t1 k v0 t2)).
         entailer!.
        ** rewrite <- H1.
@@ -190,7 +209,6 @@ Proof.
           apply partial_treebox_rep_partial_treebox_rep.
       - (* Inner if, second branch:  k<x *)
         forward. (* p=&q->right *)
-        unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _right] q) t2 (fun t2 => P (T t1 k v0 t2)).
         entailer!.
        ** rewrite <- H1.
@@ -204,13 +222,9 @@ Proof.
         forward. (* return *)
         entailer!.
         rewrite <- H1.
-        simpl insert.
-        simpl_compb; simpl_compb.
+        simpl insert. simpl_compb; simpl_compb.
         sep_apply (treebox_rep_internal t1 k v t2 p q); auto.
         apply treebox_rep_partial_treebox_rep.
-  * (* After the loop *)
-    forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize. 
 Qed.
 
 End insert_by_WandQFrame_Func_Hole.
@@ -251,7 +265,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)
@@ -343,7 +357,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)

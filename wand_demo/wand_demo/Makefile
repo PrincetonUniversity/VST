@@ -33,6 +33,15 @@ $(FILES:%.v=%.vo): %.vo: %.v
 all: \
 	_CoqProject .loadpath .depend $(FILES:%.v=%.vo)
 
+../vfa/Maps.vo: ../vfa/Maps.v
+	$(COQC) $(COQ_FLAG) $<
+
+../vfa/Perm.vo: ../vfa/Perm.v
+	$(COQC) $(COQ_FLAG) $<
+
+../vfa/SearchTree.vo: ../vfa/SearchTree.v ../vfa/Maps.vo ../vfa/Perm.vo
+	$(COQC) $(COQ_FLAG) $<
+
 depend:
 	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
