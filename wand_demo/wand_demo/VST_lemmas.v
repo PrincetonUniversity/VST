@@ -27,3 +27,6 @@ Proof.
   auto.
 Qed.
 
+Ltac forward_loop Inv :=
+ eapply semax_pre; [ | apply (semax_loop _ Inv Inv); [ |  apply sequential; apply semax_skip]] .
+
