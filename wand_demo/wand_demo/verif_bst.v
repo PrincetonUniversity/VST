@@ -7,6 +7,29 @@ Require Import WandDemo.bst_lemmas.
 Require Import WandDemo.VST_lemmas.
 Require Import WandDemo.spec_bst.
 
+(***************************************************************)
+(*                                                             *)
+(* This file contains the formal verification of BST insert    *)
+(* and the alternative proofs using traditional definitions of *)
+(* partial tree predicates. Those proofs and tactics outside   *)
+(* Modules are shared.                                         *)
+(*                                                             *)
+(* Magic-wand-as-frame proof is in                             *)
+(*  Module insert_by_WandQFrame_Func_Hole.                     *)
+(*                                                             *)
+(* Quantifier free version of Magic-wand-as-frame proof is in  *)
+(*  Module insert_by_WandFrame.                                *)
+(*                                                             *)
+(* Another version of Magic-wand-as-frame proof is in          *)
+(*  Module insert_by_WandQFrame_Ind_Hole.                      *)
+(*                                                             *)
+(* The proof using traditionally defined partial_treebox_rep   *)
+(* is in                                                       *)
+(*  Module insert_by_Ind_Pred_Ind_Hole.                        *)
+(*                                                             *)
+(*                                                             *)
+(***************************************************************)
+
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
 Proof. intros; subst; auto. Qed.
 
