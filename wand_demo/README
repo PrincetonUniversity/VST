@@ -1,0 +1,29 @@
+How to build?
+
+Step 1: build VST. In the parent folder of this folder, do "make depend; make floyd".
+Step 2: build this demo. In the child folder "wand_demo" of this folder, do "make depend; make". It will also build part of VFA that we use.
+
+------------------------------
+
+Where are all proofs?
+
+1. wandQ_frame.v wand_frame.v: soundness of wandQ_frame and wand_frame rules.
+
+2. bst_lemmas.v:
+2.1. The definitions and properties of tree_rep, treebox_rep, Map_rep and Mapbox_rep. They are not in any module.
+2.2. Module PartialTree_WandQFrame_Func_Hole: definitions and properties of partialT.
+2.3. Module PartialTreeboxRep_WandQFrame_Func_Hole: definitions and properties of partial_treebox_rep.
+2.4. Module PartialTreeRep_WandQFrame_Func_Hole: definitions and properties of partial_tree_rep.
+2.5. Other modules: alternative definitions and proofs of partial_treebox_rep, for comparison purpose.
+
+3. spec_bst.v: specifications of BST insert, lookup, delete.
+
+4. verif_bst.v:
+4.1. Module insert_by_WandQFrame_Func_Hole: our main theorem---the proof of insert.
+4.2. Other modules: alternative proofs using alternative definitions of partial_treebox_rep, for comparison purpose.
+
+5. verif_bst_other.v: the proof of BST lookup and delete.
+
+6. lst_lemmas: the definition and proofs (and alternative definitions and proofs) of list_rep, lseg etc.
+
+7. verif_list: the proof (and alternative proofs) of linked list append.

@@ -174,44 +174,39 @@ Definition f_insert := {|
 Definition f_lookup := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (tptr (Tstruct _tree noattr)))) :: (_x, tint) ::
+  fn_params := ((_p, (tptr (Tstruct _tree noattr))) :: (_x, tint) ::
                 nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _tree noattr))) :: (_v, (tptr tvoid)) ::
-               (_y, tint) :: nil);
+  fn_temps := ((_v, (tptr tvoid)) :: (_y, tint) :: nil);
   fn_body :=
-(Ssequence
-  (Sset _q
-    (Ederef (Etempvar _p (tptr (tptr (Tstruct _tree noattr))))
-      (tptr (Tstruct _tree noattr))))
   (Ssequence
     (Swhile
-      (Ebinop One (Etempvar _q (tptr (Tstruct _tree noattr)))
+      (Ebinop One (Etempvar _p (tptr (Tstruct _tree noattr)))
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
       (Ssequence
         (Sset _y
           (Efield
-            (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
+            (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
               (Tstruct _tree noattr)) _key tint))
         (Sifthenelse (Ebinop Olt (Etempvar _x tint) (Etempvar _y tint) tint)
-          (Sset _q
+          (Sset _p
             (Efield
-              (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
+              (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
                 (Tstruct _tree noattr)) _left (tptr (Tstruct _tree noattr))))
           (Sifthenelse (Ebinop Olt (Etempvar _y tint) (Etempvar _x tint)
                          tint)
-            (Sset _q
+            (Sset _p
               (Efield
-                (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
+                (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
                   (Tstruct _tree noattr)) _right
                 (tptr (Tstruct _tree noattr))))
             (Ssequence
               (Sset _v
                 (Efield
-                  (Ederef (Etempvar _q (tptr (Tstruct _tree noattr)))
+                  (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
                     (Tstruct _tree noattr)) _value (tptr tvoid)))
               (Sreturn (Some (Etempvar _v (tptr tvoid)))))))))
-    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))))
+    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
 |}.
 
 Definition f_turn_left := {|

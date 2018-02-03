@@ -30,17 +30,16 @@ void insert (treebox p, int x, void *value) {
   }
 }
 
-void *lookup (treebox p, int x) {
-  struct tree * q; void * v;
-  q = * p;
-  while (q != NULL) {
-    int y = q -> key;
+void *lookup (tree * p, int x) {
+  void * v;
+  while (p != NULL) {
+    int y = p -> key;
     if (x < y)
-      q = q -> left;
+      p = p -> left;
     else if (y<x)
-      q = q -> right;
+      p = p -> right;
     else {
-      v = q -> value;
+      v = p -> value;
       return v;
     }
   }

@@ -189,6 +189,20 @@ Proof.
   entailer!.
 Qed.
 
+Lemma tree_rep_internal: forall l x v r (p p1 p2: val),
+  Int.min_signed <= Z.of_nat x <= Int.max_signed ->
+  tc_val (tptr Tvoid) v ->
+  data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat x)), (v, (p1, p2))) p *
+  tree_rep l p1 *
+  tree_rep r p2 |--
+  tree_rep (T l x v r) p.
+Proof.
+  intros.
+  rewrite (tree_rep_spec (T _ _ _ _)).
+  Exists p1 p2.
+  entailer!.
+Qed.
+
 Module PartialTree_WandQFrame_Func_Hole.
 
 Definition partialT (rep: tree val -> val -> mpred) (P: tree val -> tree val) (p_root p_in: val): mpred :=
@@ -517,6 +531,58 @@ Proof.
 Qed.
 
 End PartialTreeboxRep_Ind_Pred_Ind_Hole.
+
+Module PartialTreeRep_WandQFrame_Func_Hole.
+
+Export PartialTree_WandQFrame_Func_Hole.
+
+Definition partial_tree_rep := partialT tree_rep.
+
+Lemma partial_tree_rep_singleton_left: forall (t2: tree val) k (v p p1 p2: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat k)), (v, (p1, p2))) p *
+  tree_rep t2 p2
+  |-- partial_tree_rep (fun t1 => T t1 k v t2) p p1.
+Proof.
+  intros.
+  unfold partial_tree_rep, partialT.
+  apply allp_right; intros t1.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite (tree_rep_spec (T t1 k v t2)).
+  Exists p1 p2.
+  entailer!.
+Qed.
+
+Lemma partial_tree_rep_singleton_right: forall (t1: tree val) k (v p p1 p2: val),
+  Int.min_signed <= Z.of_nat k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh t_struct_tree (Vint (Int.repr (Z.of_nat k)), (v, (p1, p2))) p *
+  tree_rep t1 p1
+  |-- partial_tree_rep (fun t2 => T t1 k v t2) p p2.
+Proof.
+  intros.
+  unfold partial_tree_rep, partialT.
+  apply allp_right; intros t2.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite (tree_rep_spec (T t1 k v t2)).
+  Exists p1 p2.
+  entailer!.
+Qed.
+
+Lemma partial_tree_rep_partial_tree_rep: forall pt12 pt23 p1 p2 p3,
+  partial_tree_rep pt12 p2 p1 * partial_tree_rep pt23 p3 p2 |-- partial_tree_rep (Basics.compose pt23 pt12) p3 p1.
+Proof. apply partialT_rep_partialT_rep. Qed.
+
+Lemma emp_partial_tree_rep_H: forall p,
+  emp |-- partial_tree_rep (fun t => t) p p.
+Proof. apply emp_partialT_rep_H. Qed.
+
+Lemma tree_rep_partial_tree_rep: forall t pt p q,
+  tree_rep t p * partial_tree_rep pt q p |-- tree_rep (pt t) q.
+Proof. apply rep_partialT_rep. Qed.
+
+End PartialTreeRep_WandQFrame_Func_Hole.
 
 Definition Map_rep (m: total_map val) (p: val): mpred :=
   EX t: tree val, !! (Abs val nullval t m /\ SearchTree val t) && tree_rep t p.

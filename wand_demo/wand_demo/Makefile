@@ -24,7 +24,7 @@ DEP_FLAG = $(DEP_DEMO)
 FILES = \
   wand_frame.v wandQ_frame.v wand_frame_tactic.v VST_lemmas.v \
   list.v list_lemmas.v verif_list.v \
-  SearchTree_ext.v bst.v bst_lemmas.v verif_bst.v
+  SearchTree_ext.v bst.v bst_lemmas.v spec_bst.v verif_bst.v verif_bst_other.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
