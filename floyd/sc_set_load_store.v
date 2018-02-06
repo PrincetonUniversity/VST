@@ -839,20 +839,89 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
-Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e
+Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
+| find_type_contradict_pred_data_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at sh t0 v0 p)
+| find_type_contradict_pred_data_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at_ sh t0 p)
+| find_type_contradict_pred_field_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at sh t0 nil v0 p)
+| find_type_contradict_pred_field_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at_ sh t0 nil p).
+
+Inductive find_type_contradict_preds {cs: compspecs} (t: type) (p: val): list mpred -> option mpred -> Prop :=
+| find_type_contradict_preds_cons_head: forall R0 R, find_type_contradict_pred t p R0 -> find_type_contradict_preds t p (R0 :: R) (Some R0)
+| find_type_contradict_preds_cons_tail: forall R0 R R_res, find_type_contradict_preds t p R R_res -> find_type_contradict_preds t p (R0 :: R) R_res
+| find_type_contradict_preds_nil: find_type_contradict_preds t p nil None.
+
+Lemma SEP_type_contradict_lemma: forall {cs: compspecs} e R goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+  mm1 mm2,
+  local2ptree Q = (T1, T2, nil, nil) ->
+  compute_nested_efield e = (e_root, efs, tts, lr) ->
+  msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
+  msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
+  msubst_efield_denote T1 T2 efs gfs_from_e ->
+  compute_root_type (typeof e_root) lr t_root_from_e ->
+  field_address_gen (t_root_from_e, gfs_from_e, p_root_from_e) (t_root_from_hint, gfs_from_hint, p_root_from_hint) ->
+  find_type_contradict_preds (typeof e) p_full_from_e R mm1 ->
+  (gfs_from_hint = nil /\ find_type_contradict_preds t_root_from_hint p_root_from_hint R mm2 \/ mm2 = None) ->
+  mm1 = mm2 /\ False ->
+  goal.
+Proof.
+  intros.
+  destruct H8 as [? ?].
+  exfalso; apply H9; auto.
+Qed.
+
+Ltac find_type_contradict_rec :=
+  first [ simple eapply find_type_contradict_pred_data_at; reflexivity
+        | simple eapply find_type_contradict_pred_data_at_; reflexivity
+        | simple eapply find_type_contradict_pred_field_at; reflexivity
+        | simple eapply find_type_contradict_pred_field_at_; reflexivity].
+
+Ltac find_type_contradict :=
+  first [ simple eapply find_type_contradict_preds_cons_head; find_type_contradict_rec
+        | simple eapply find_type_contradict_preds_cons_tail; find_type_contradict
+        | simple eapply find_type_contradict_preds_nil].
+
+Ltac SEP_type_contradict LOCAL2PTREE e R :=
+  eapply (SEP_type_contradict_lemma e R);
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | solve_msubst_eval_lvalue
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
+  | find_type_contradict
+  | first [left; split; [reflexivity | find_type_contradict] | right; reflexivity]
+  | ];
+  match goal with
+  | |- ?mm1 = ?mm2 /\ False =>
+        match mm1 with
+        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
+        | _ => idtac
+        end;
+        match mm2 with
+        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
+        | _ => idtac
+        end
+  end;
+  fail 0.
+
+Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
   local2ptree Q = (T1, T2, nil, nil) ->
   compute_nested_efield e = (e_root, efs, tts, lr) ->
   msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
   msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
+  msubst_efield_denote T1 T2 efs gfs_from_e ->
+  compute_root_type (typeof e_root) lr t_root_from_e ->
+  field_address_gen (t_root_from_e, gfs_from_e, p_root_from_e) (t_root_from_hint, gfs_from_hint, p_root_from_hint) ->
   p_full_from_e = field_address t gfs p /\
-  p_root_from_e = field_address t gfs p /\
+  p_root_from_hint = field_address t gfs p /\
   False ->
   goal.
 Proof.
   intros.
-  destruct H3 as [? [? ?]].
-  inv H5.
+  destruct H6 as [? [? ?]].
+  exfalso; apply H8; auto.
 Qed.
 
 Ltac hint_msg LOCAL2PTREE e :=
@@ -861,11 +930,16 @@ Ltac hint_msg LOCAL2PTREE e :=
   | reflexivity
   | solve_msubst_eval_lvalue
   | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
   | ];
   match goal with
   | |- ?eq1 /\ ?eq2 /\ False =>
-          fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
-                    "or if this does not hold, prove an equality of the form" eq2
+          first [ constr_eq eq1 eq2;
+                   fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
+                | fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
+                    "or if this does not hold, prove an equality of the form" eq2]
   end.
 
 Section SEMAX_PTREE.
@@ -1424,7 +1498,7 @@ Ltac load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
+    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
@@ -1481,7 +1555,7 @@ Ltac cast_load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
+    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
