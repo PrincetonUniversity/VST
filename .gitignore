@@ -80,4 +80,5 @@ _CoqProject
 _CoqProject-export
 wand_demo/vfa/*.ml
 wand_demo/vfa/*.mli
-
+wand/vfa/*.ml
+wand/vfa/*.mli
