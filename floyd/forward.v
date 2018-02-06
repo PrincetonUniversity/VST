@@ -1606,7 +1606,79 @@ Lemma seq_assoc1:
        semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
 Proof. intros. apply -> seq_assoc; auto. Qed.
 
-Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
+Lemma semax_loop_noincr :
+  forall {Espec: OracleKind}{CS: compspecs} ,
+forall Delta Q body R,
+     @semax CS Espec Delta  Q body (loop1_ret_assert Q R) ->
+     @semax CS Espec Delta Q (Sloop body Sskip) R.
+Proof.
+intros.
+apply semax_loop with Q; auto.
+eapply semax_post_flipped.
+apply semax_skip.
+all: try (simpl; intros; apply andp_left2; destruct R; try apply derives_refl; apply FF_left).
+Qed.
+
+Lemma semax_post1: forall R' Espec {cs: compspecs} Delta R P c,
+           ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+      @semax cs Espec Delta P c (overridePost R' R) ->
+      @semax cs Espec Delta P c R.
+Proof. intros. eapply semax_post; try apply H0.
+ destruct R; apply H.
+ all: intros; destruct R; apply andp_left2; apply derives_refl.
+Qed.
+
+Lemma semax_post1_flipped: forall R' Espec {cs: compspecs} Delta R P c,
+      @semax cs Espec Delta P c (overridePost R' R) ->
+         ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+      @semax cs Espec Delta P c R.
+Proof. intros. apply semax_post1 with R'; auto. Qed.
+
+Ltac forward_loop_aux2 Inv PreInc :=
+ lazymatch goal with
+  | |- semax _ _ (Sloop _ Sskip) _ => 
+         tryif (constr_eq Inv PreInc) then (apply (semax_loop_noincr _ Inv); abbreviate_semax)
+         else (apply (semax_loop _ Inv PreInc); abbreviate_semax)
+  | |- semax _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); abbreviate_semax
+ end.
+
+Ltac forward_loop_aux1 Inv PreInc:=
+  lazymatch goal with
+  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ (Swhile ?E ?B) _ => 
+          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
+ end.
+ 
+Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" constr(Post) :=
+  repeat simple apply seq_assoc1;
+  match goal with
+  | |- semax _ _ (Ssequence _ _) _ => 
+          apply semax_seq with Post; forward_loop_aux1 Inv PreInc
+  | |- semax _ _ _ ?Post' => 
+            tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
+           else (apply (semax_post1_flipped Post); [ forward_loop_aux1 Inv PreInc | ])
+  end.
+
+Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
+  forward_loop Inv continue: Inv break: Post.
+
+Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
+  match goal with
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+      constr_eq P Post; try (has_evar Post'; fail 1) ; forward_loop Inv continue: PreInc break: Post
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post =>
+      constr_eq P Post;
+      fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  end.
+
+Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
+    forward_loop Inv continue: PreInc break: Post.
+
+Tactic Notation "forward_loop" constr(Inv)  := forward_loop Inv continue: Inv.
+
+Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
@@ -1615,7 +1687,7 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   end;
   lazymatch type of PreInc with
   | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -1642,7 +1714,7 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   | |- _ => fail "forward_for2x cannot recognize the loop"
   end.
 
-Tactic Notation "forward_for" constr(Inv) constr(PreInc) constr(Postcond) :=
+Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" constr(Postcond) :=
   check_Delta;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
@@ -1666,6 +1738,15 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) constr(Postcond) :=
      apply semax_pre with (exp Inv);
       [ unfold_function_derives_right | forward_for3 Inv PreInc Postcond ]
   end.
+
+Tactic Notation "forward_for" constr(Inv) "break:" constr(Postcond) "continue:" constr(PreInc) :=
+   forward_for Inv continue: PreInc break: Postcond.
+
+Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
+  fail "Usage of the forward_for tactic:
+forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index values of type A *)
+forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
+forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
 Ltac process_cases := 
 match goal with

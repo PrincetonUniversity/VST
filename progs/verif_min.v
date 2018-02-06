@@ -157,7 +157,7 @@ pose (Inv d (f: Z->Prop) (i: Z) :=
           temp _a a; temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
-forward_for (Inv 0 (fun _ => True)) (Inv 1 (Z.gt n)).
+forward_for (Inv 0 (fun _ => True)) continue: (Inv 1 (Z.gt n)).
 *
 forward.
 Exists 0. unfold Inv; entailer!.
