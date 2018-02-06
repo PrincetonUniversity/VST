@@ -880,6 +880,21 @@ Ltac find_type_contradict :=
         | simple eapply find_type_contradict_preds_cons_tail; find_type_contradict
         | simple eapply find_type_contradict_preds_nil].
 
+Definition unknown_type := Tvoid.
+
+Ltac SEP_type_contradict_msg r e :=
+ let t := constr:(typeof e) in
+ let t := eval simpl in t in
+ let t' := match r with data_at _ ?u _ _ => constr:(u)
+                                | data_at_ _ ?u _ => constr:(u)
+                                | field_at _ ?u _ _ _ => constr:(u)
+                                | field_at_ _ ?u _ _ => constr:(u)
+                                | _ => constr:(unknown_type)
+             end in
+ fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch
+Type of expression: " t "
+Type in SEP conjunct: " t'.
+
 Ltac SEP_type_contradict LOCAL2PTREE e R :=
   eapply (SEP_type_contradict_lemma e R);
   [ exact LOCAL2PTREE
@@ -893,15 +908,9 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   | first [left; split; [reflexivity | find_type_contradict] | right; reflexivity]
   | ];
   match goal with
-  | |- ?mm1 = ?mm2 /\ False =>
-        match mm1 with
-        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
-        | _ => idtac
-        end;
-        match mm2 with
-        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
-        | _ => idtac
-        end
+  | |- Some ?r = _ /\ False => SEP_type_contradict_msg r e
+  | |- _ = Some ?r /\ False => SEP_type_contradict_msg r e
+  | |- _ => idtac
   end;
   fail 0.
 
