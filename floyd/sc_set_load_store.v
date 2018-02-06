@@ -890,16 +890,16 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   | econstructor
   | solve_field_address_gen
   | find_type_contradict
-  | first [split; [reflexivity | find_type_contradict] | reflexivity]
+  | first [left; split; [reflexivity | find_type_contradict] | right; reflexivity]
   | ];
   match goal with
   | |- ?mm1 = ?mm2 /\ False =>
         match mm1 with
-        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because type mismatch"
+        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
         | _ => idtac
         end;
         match mm2 with
-        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because type mismatch"
+        | Some ?r => fail 1000 "Cannot load/store with SEP clause" r "because of type mismatch"
         | _ => idtac
         end
   end;
@@ -1498,7 +1498,7 @@ Ltac load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
+    first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
@@ -1555,7 +1555,7 @@ Ltac cast_load_tac :=
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
-    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | hint_msg LOCAL2PTREE e];
+    first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
 
