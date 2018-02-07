@@ -1367,6 +1367,7 @@ Ltac do_repr_inj H :=
                | unfold nullval in H; simple apply typed_false_tint_Vint in H
 (*               | simple apply typed_true_tint in H *)
                ];
+   rewrite ?ptrofs_to_int_repr in H;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    match type of H with
