@@ -581,7 +581,6 @@ Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-
 Ltac putable x :=
  match x with
  | O => idtac
@@ -589,6 +588,7 @@ Ltac putable x :=
  | Z.lt ?x ?y => putable x; putable y
  | Z.le ?x ?y => putable x; putable y
  | Z.gt ?x ?y => putable x; putable y
+ | Z.ge ?x ?y => putable x; putable y
  | eq?x ?y => putable x; putable y
  | ?x <> ?y => putable x; putable y
  | Zpos ?x => putable x

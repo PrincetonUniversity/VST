@@ -71,15 +71,6 @@ Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
 
-Lemma mod255_condition: forall b,
-  is_true (negb (b && Int.eq (Int.repr 255) Int.mone)).
-Proof.
-  intros. unfold is_true, negb.
-  destruct (Int.eq (Int.repr 255) Int.mone) eqn: E.
-  - discriminate.
-  - rewrite andb_false_r. exact I.
-Qed.
-
 Definition rcon_loop_inv00(i: Z)(v_pow v_log tables: val)(frozen: list mpred) : environ -> mpred :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
@@ -637,7 +628,7 @@ Proof.
           TODO floyd: Make sure floyd can solve this automatically, also in solve_efield_denote, so
           that we don't have to factor out the modulo, but can use it directly as the array index. *)
         split.
-        apply mod255_condition.
+         intros [? H99]; inv H99.
         clear - Hlog H1 H3.
       apply add_no_overflow; auto; computable.
       }
@@ -678,7 +669,7 @@ Proof.
       forward. { 
          entailer!.
          split.
-         apply mod255_condition.
+         intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
       }
       assert (0 <= Znth 9 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
@@ -718,7 +709,7 @@ Proof.
       forward. { 
          entailer!. 
          split. 
-         apply mod255_condition.
+         intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
       }
       assert (0 <= Znth 13 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
@@ -758,7 +749,7 @@ Proof.
       forward. { 
          entailer!.
          split.
-         apply mod255_condition.
+         intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
       }
       assert (0 <= Znth 11 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {

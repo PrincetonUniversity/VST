@@ -23,40 +23,39 @@ assert (iWS:Int.iwordsize = Int.repr 32) by reflexivity.
 assert (X: Int.unsigned (Int.repr 32) = 32). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
 assert (zWS: Int.zwordsize = 32) by reflexivity.
 specialize (Int.unsigned_range c); intros Y.
-destruct (Int.ltu c Int.iwordsize) eqn:?H.
-  Focus 2. {
-    apply ltu_false_inv in H0.
-    change (Int.unsigned Int.iwordsize) with 32 in H0.
-    unfold Int.signed in H.
-    destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-  } Unfocus.
-destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
-  Focus 2. {
-    apply ltu_false_inv in H1.
-    unfold Int.sub in H1.
-    change (Int.unsigned (Int.repr 32)) with 32 in H1.
-    change (Int.unsigned Int.iwordsize) with 32 in H1.
-    unfold Int.signed in H.
-    rewrite Int.unsigned_repr in H1.
-    + destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-    + rewrite int_max_unsigned_eq.
-      destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-  } Unfocus.
 Time forward. (*8.8*)   
-{
-  entailer!.
-  rewrite H0, H1; simpl; auto.
-}
-unfold Int.signed in H.
-destruct (zlt (Int.unsigned c) Int.half_modulus); [| omega].
-entailer!.
-unfold sem_shift; simpl. rewrite H0, H1; simpl.
+entailer!. 
+- 
+ change (Int.unsigned Int.iwordsize) with 32.
+ split.
+ +
+    unfold Int.signed in H;
+    destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+ +
+    unfold Int.sub.
+    change (Int.unsigned (Int.repr 32)) with 32.
+    unfold Int.signed in H.
+    rewrite Int.unsigned_repr.
+    * destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+    * rewrite int_max_unsigned_eq.
+      destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
+-
+  unfold Int.signed in H.
+  destruct (zlt (Int.unsigned c) Int.half_modulus); [| omega].
+  apply prop_right.
+  unfold sem_shift; simpl.
+  unfold Int.ltu.
+ change (Int.unsigned Int.iwordsize) with 32.
+ rewrite if_true by rep_omega.
+ rewrite if_true. simpl.
 unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
 rewrite Z.mod_small; simpl; try omega.
 unfold Int.sub.
 rewrite Int.and_mone, X, Int.unsigned_repr; trivial.
 rewrite int_max_unsigned_eq; omega.
-Time Qed. (*0.1*)
+rewrite <- (Int.repr_unsigned c).
+ normalize. omega.
+Qed.
 (*
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.

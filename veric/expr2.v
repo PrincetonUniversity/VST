@@ -109,19 +109,19 @@ Definition denote_tc_iszero v : mpred :=
 
 Definition denote_tc_nonzero v : mpred :=
          match v with
-         | Vint i => if negb (Int.eq i Int.zero) then TT else FF
-         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
+         | Vint i => prop (i <> Int.zero)
+         | Vlong i =>prop (i <> Int64.zero)
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
      match v with
-     | Vint i1 => prop (is_true (Int.ltu i1 i))
+     | Vint i1 => prop (Int.unsigned i1 < Int.unsigned i)
      | _ => FF
      end.
 
 Definition denote_tc_lgt l v : mpred :=
      match v with
-     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
+     | Vlong l1 => prop (Int64.unsigned l1 < Int64.unsigned l)
      | _ => FF
      end.
 
@@ -149,11 +149,11 @@ Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
 Definition denote_tc_Zge z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -162,11 +162,11 @@ Definition denote_tc_Zge z v : mpred :=
 Definition denote_tc_Zle z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -184,16 +184,10 @@ Definition denote_tc_samebase v1 v2 : mpred :=
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
 match v1, v2 with
-          | Vint n1, Vint n2 => prop (is_true (negb
-                                   (Int.eq n1 (Int.repr Int.min_signed)
-                                    && Int.eq n2 Int.mone)))
-          | Vlong n1, Vlong n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int64.eq n2 Int64.mone)))
+          | Vint n1, Vint n2 => prop (~(n1 = Int.repr Int.min_signed /\ n2 = Int.mone))
+          | Vlong n1, Vlong n2 => prop (~(n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone))
           | Vint n1, Vlong n2 => TT
-          | Vlong n1, Vint n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int.eq n2 Int.mone)))
+          | Vlong n1, Vint n2 => prop (~ (n1 = Int64.repr Int64.min_signed  /\ n2 = Int.mone))
           | _ , _ => FF
         end.
 

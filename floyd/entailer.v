@@ -374,7 +374,22 @@ Ltac pull_out_props :=
                 || simple apply derives_extract_prop');
                 fancy_intros true).
 
+Ltac simplify_float2int :=
+match goal with
+| |- context [Zofsingle (Float32.of_bits (Int.repr ?A))] =>
+   putable A; 
+   let x := fresh "x" in (evar (x: Z));
+   replace (Zofsingle (Float32.of_bits (Int.repr A))) with (Some x) by (subst x; reflexivity);
+   compute in x; subst x
+| |- context [Zoffloat (Float.of_bits (Int.repr ?A))] =>
+   putable A; 
+   let x := fresh "x" in (evar (x: Z));
+   replace (Zoffloat (Float.of_bits (Int.repr A))) with (Some x) by (subst x; reflexivity);
+   compute in x; subst x
+end.
+
 Ltac ent_iter :=
+    repeat simplify_float2int;
     autorewrite with gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');

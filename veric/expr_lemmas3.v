@@ -520,10 +520,10 @@ destruct (classify_cast (typeof e) t)
     | H: app_pred (prop _) _ |- _ => apply is_true_e in H;
            rewrite ?Z.leb_le, ?Z.geb_le in H
    end.
-
-all: try (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
+all: try (simpl in H0,H2;
+          first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
           | erewrite single_to_int_ok | erewrite single_to_intu_ok];
-          [ | eassumption | split; assumption]).
+          [ | eassumption | split; omega]).
 all:   try match goal with
      | |- context[Int.sign_ext ?n ?x] =>
       apply (sign_ext_range' n x); compute; split; congruence
