@@ -248,8 +248,8 @@ PROGS_FILES= \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
-  verif_int_or_ptr.v verif_union.v verif_cast_test.v
-# verif_dotprod.v verif_insertion_sort.v
+  verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v
+# verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
