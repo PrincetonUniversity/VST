@@ -301,18 +301,22 @@ Proof. intros. abbreviate_semax.
        destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
        rewrite X; trivial. autorewrite with sublist; simpl; trivial. }
      { omega. }
+     2: omega.
      Opaque Z.mul. Opaque Z.add.
      Time forward. (*5.8 versus 12.9*)
      autorewrite with sublist; rewrite Uj.
      Transparent Z.add. Transparent Z.mul.
+    entailer!.
 (*Issue: substitution in entailer/entailer! is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
      assert (FLN: Zlength Front = i /\ Zlength FrontN = i). split; assumption. clear FL FN.
      Time entailer!. (*4.8 versus 11.6*)
+     destruct FLN as [FL FN].
      thaw FR5. thaw FRk. Time cancel. (*2.2*)
-(*     rewrite Uj in H0. symmetry in H0; inv H0.*)
-     destruct FLN as [FL FLN].
-
+(*     rewrite Znth_map with (d':=Int.zero) by rep_omega.
+     rewrite Uj.
+*)
+     entailer!.
      (*rewrite Uj. simpl.*)
      repeat rewrite <- sepcon_assoc.
      apply sepcon_derives.
@@ -321,9 +325,9 @@ Proof. intros. abbreviate_semax.
        2: rewrite NNN; reflexivity.
        erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
        2: rewrite SSS; reflexivity.
-       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite FL, FLN.
+       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. (*rewrite FL, FLN. *)
        rewrite Zmult_1_r. simpl.
-        repeat rewrite app_nil_r. cancel.
+        repeat rewrite app_nil_r. rewrite FN; cancel.       
        rewrite <- SSS, <- C16; trivial.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
@@ -334,9 +338,11 @@ Proof. intros. abbreviate_semax.
        simpl. rewrite Ptrofs.add_zero.
 (*       rewrite isptr_offset_val_zero by trivial. *)
        apply data_at_ext.
+clear H1.
+       remember (Zlength Front) as i.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
-       rewrite Z2Nat.id by omega.
-       rewrite upd_Znth_ints.
+       replace (length Front) with (Z.to_nat i).
+       rewrite Z2Nat.id by omega.    
        rewrite upd_Znth_ints.
        autorewrite with sublist.
        f_equal.
@@ -381,9 +387,13 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
+(*        rewrite Znth_map with (d':=Int.zero) by rep_omega. *)
         rewrite !VJeq, !EQ.
-        autorewrite with sublist. auto.
-    +  omega.
+        simpl force_val.
+        autorewrite with sublist.
+        rewrite !sublist_map. 
+        rewrite map_app. reflexivity.
+        subst i. rewrite Zlength_correct. rewrite Nat2Z.id. auto.
    }
   apply andp_left2; apply derives_refl.
 Time Qed. (*June 4th, 2017 (laptop: Finished transaction in 4.418 secs (3.784u,0.004s) (successful)*)

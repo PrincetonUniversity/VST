@@ -146,13 +146,11 @@ Ltac Omega'' L :=
 
 Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
 
-Ltac helper1 :=
+Ltac helper1 := 
+  pose_standard_const_equations;
  match goal with
    | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
-   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
-   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
-   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
-  end.
+ end.
 
 Ltac Omega0 := Omega (solve [ helper1 ]).
 

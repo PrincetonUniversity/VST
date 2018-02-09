@@ -62,7 +62,6 @@ Proof.
    data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
    data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
   { unfold N; computable. }
-  { unfold N; computable. }
   { entailer!.
     rewrite upd_Znth_eq with (d := Vundef); simpl; [|rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; omega].
     unfold Znth; simpl.
@@ -717,7 +716,6 @@ Proof.
                  else if eq_dec a b then sepalg_list.list_join sh0 (sublist i N shs) sh
                  else sepalg_list.list_join sh0 (make_shares shs lasts' a) sh) &&
               EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth a bufs Vundef)) (upto (Z.to_nat B))))).
-  { unfold N; computable. }
   { unfold N; computable. }
   { Exists (@nil nat) (@nil val).
     replace (map (fun i => if eq_dec (Znth i [] Vundef) Empty then b0 else Znth i lasts 0) (upto (Z.to_nat N)))

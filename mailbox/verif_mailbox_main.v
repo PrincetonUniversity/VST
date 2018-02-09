@@ -166,7 +166,6 @@ Proof.
          fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
          fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs))).
   { unfold N; computable. }
-  { unfold N; computable. }
   { Exists ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val)
       ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
     - rewrite sublist_same; auto; omega.
@@ -522,7 +521,6 @@ Proof.
         fold_right sepcon emp (map (malloc_token Tsh 4) reads);
         fold_right sepcon emp (map (malloc_token Tsh 4) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs Vundef)) (sublist i N shs)))).
-  { unfold N; computable. }
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. }
   { Intros sh'.

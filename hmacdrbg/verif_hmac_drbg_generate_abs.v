@@ -321,10 +321,7 @@ Proof.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
     { red in WFI; simpl in *. repeat split; trivial; try rep_omega.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega. 
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      rep_omega.
-      rep_omega.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega.
     }
      
     Intros return_value.

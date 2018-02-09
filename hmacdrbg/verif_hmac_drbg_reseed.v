@@ -70,7 +70,7 @@ Proof.
   { forward. entailer!. }
   { forward. entailer!. simpl.
       unfold Int.ltu; simpl.
-      rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+      rewrite Int.unsigned_repr by rep_omega.
       rewrite Int.unsigned_repr_eq, Zmod_small.
       + destruct (zlt 384 (entropy_len + (Zlength contents))); simpl; try reflexivity.
       + rep_omega.
@@ -134,7 +134,7 @@ Proof.
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. freeze [1;2;3;4;6;7] FR4. 
   forward_call (Tsh, s, seed, entropy_len).
-  { split. split; try omega. rewrite ptrofs_max_unsigned_eq. omega.
+  { split. split; try omega. rep_omega.
     apply writable_share_top.
 (*
     subst entropy_len; auto.*)

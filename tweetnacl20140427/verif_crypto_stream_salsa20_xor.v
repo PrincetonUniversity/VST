@@ -784,7 +784,7 @@ rename H into I.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
     + rewrite Znth_map with (d' := Byte.zero) by omega. entailer!. 
-      rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max. 
+        apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       rewrite Znth_map with (d':=Byte.zero); [|omega]. 
@@ -982,7 +982,7 @@ Focus 2.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist; rewrite Znth_map with (d' := Byte.zero) by omega.
     { entailer!.
-      rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max. }
+      apply Byte.unsigned_range_2.  }
     forward. entailer!.
     erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 

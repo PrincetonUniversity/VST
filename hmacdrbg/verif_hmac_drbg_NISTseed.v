@@ -301,14 +301,14 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite ptrofs_max_unsigned_eq.
-    split. omega. (* rewrite int_max_unsigned_eq; omega.*)
+  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *.
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
-    split. (*change Int.modulus with 4294967296.*) omega.
+    split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }
