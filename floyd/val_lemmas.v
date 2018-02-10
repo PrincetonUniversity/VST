@@ -759,16 +759,25 @@ Ltac Zground X :=
   | xI ?y => Zground y
  end.
 
+(*
 Ltac pose_const_equation X :=
  match goal with
  | H: X = ?Y |- _ => Zground Y
  | _ => let z := eval compute in X in assert (X = z) by reflexivity
  end.
+*)
+
+Ltac pose_const_equation X :=
+ match goal with
+ | H: X = ?Y |- _ => Zground Y
+ | _ => let z := eval compute in X in 
+                  change X with z in *
+ end.
 
 Ltac perhaps_post_const_equation X :=
  lazymatch goal with 
  | H: context [X] |- _ => pose_const_equation X
- | H:= context [X] |- _ => pose_const_equation X
+(* | H:= context [X] |- _ => pose_const_equation X *)
  | |- context [X] => pose_const_equation X
  | |- _ => idtac
  end.
@@ -778,8 +787,6 @@ Ltac pose_const_equations L :=
  | ?X :: ?Y => perhaps_post_const_equation X; pose_const_equations Y
  | nil => idtac
  end.
-
-Ltac register_omega_constants := constr:(@nil Z).
 
 Import ListNotations.
 
@@ -791,8 +798,7 @@ pose_const_equations
   Ptrofs.zwordsize; Ptrofs.modulus; Ptrofs.half_modulus; Ptrofs.max_unsigned; Ptrofs.max_signed; Ptrofs.min_signed;
   Byte.min_signed; Byte.max_signed; Byte.max_unsigned; Byte.modulus
   ];
- pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize];
- pose_const_equations register_omega_constants.
+ pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize].
 
 Definition Zlength' := @Zlength.
 
@@ -814,7 +820,7 @@ Ltac pose_Zlength_nonneg :=
   match goal with
   | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
   | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
-  | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
+(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
  end;
   unfold Zlength' in *.
 
@@ -832,7 +838,7 @@ Ltac pose_lemmas F F' L :=
   match goal with
   | |- context [F ?A] => pose_lemma F F' A L
   | H: context [F ?A] |- _ => pose_lemma F F' A L
- | H:= context [F ?A] |- _ => pose_lemma F F' A L
+(*  | H:= context [F ?A] |- _ => pose_lemma F F' A L *)
  end;
   unfold F' in *.
 
@@ -844,7 +850,13 @@ Definition int64_unsigned' := Int64.unsigned.
 Definition int64_signed' := Int64.signed.
 Definition ptrofs_unsigned' := Ptrofs.unsigned.
 
-Ltac rep_omega := 
+Ltac rep_omega_setup := 
+ repeat match goal with
+            |  x:= _ : Z |- _ => subst x
+            |  x:= _ : nat |- _ => subst x
+            |  x:= _ |- _ => clearbody x
+            end;
+  try autorewrite with rep_omega in *;
   unfold repable_signed in *;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range;
@@ -854,8 +866,32 @@ Ltac rep_omega :=
   pose_lemmas Int64.unsigned int64_unsigned' Int64.unsigned_range;
   pose_lemmas Int64.signed int64_unsigned' Int64.signed_range;
   pose_lemmas Ptrofs.unsigned ptrofs_unsigned' Ptrofs.unsigned_range;
-  pose_standard_const_equations;
- omega.
+  pose_standard_const_equations.
+
+Ltac rep_omega2 := 
+ repeat  match goal with
+  | |- _ /\ _ => match goal with
+                        | |- context [Z.of_nat] => split
+                        | |- context [Z.to_nat] => split
+                        end
+            end;
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
+  repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
+         ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
+         ?Z2Nat.inj_add by rep_omega2;
+   simpl;
+   omega.
+
+Ltac rep_omega :=
+   rep_omega_setup;
+   rep_omega2.
 
 Ltac repable_signed := 
   idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.

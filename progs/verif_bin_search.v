@@ -56,7 +56,8 @@ Proof.
   unfold Znth; intros.
   destruct (zlt i 0); [omega|].
   subst; apply nth_In.
-  rewrite Zlength_correct in Hrange; auto; Omega0.
+  rewrite Zlength_correct in Hrange; auto.
+  rep_omega.
 Qed.
 
 Lemma In_Znth : forall A (l : list A) x d,

@@ -298,7 +298,6 @@ forward_call (* sha256_block_data_order (c,p); *)
  Exists (hashed ++ ddzw) (@nil Z) pad.
  entailer!.
 *
-split; [ Omega1 |].
 split.
  + rewrite initial_world.Zlength_app.
   apply Z.divide_add_r; auto. rewrite H1'.

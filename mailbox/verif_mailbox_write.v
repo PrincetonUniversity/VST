@@ -737,7 +737,7 @@ Proof.
       replace (length lasts) with (Z.to_nat N).
       apply map_ext.
       intro; rewrite Znth_nil; destruct (eq_dec Vundef Empty); auto; discriminate.
-      { rewrite Zlength_correct in *; Omega0. } }
+      { rewrite Zlength_correct in *; rep_omega. } }
   - assert_PROP (Zlength comms = N) as Hcomms by entailer!.
     Intros t' h'.
     forward.

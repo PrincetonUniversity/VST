@@ -228,7 +228,7 @@ Proof.
     change (upto 1) with [0]; simpl.
     rewrite Z2Nat.id, Z.add_0_r by omega.
     rewrite !Znth_app1 by auto.
-    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; Omega0).
+    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_omega).
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
     rewrite !sem_cast_neutral_ptr by auto.
@@ -315,7 +315,7 @@ Proof.
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    { split. unfold B, N.  computable. split; try omega. repeat constructor; computable. }
+    { split. unfold B, N.  computable. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].

@@ -429,8 +429,7 @@ Proof.
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
-   rewrite (split3seg_array_at _ _ _ 0 56 60)
-     by (autorewrite with sublist; Omega1).
+   rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_omega).
    assert (CBZ := CBLOCKz_eq).
    Time autorewrite with sublist. (*11.5*)
    clear CBZ; subst GOAL. cbv beta.

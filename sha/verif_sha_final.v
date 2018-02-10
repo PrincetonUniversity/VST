@@ -118,7 +118,7 @@ replace (memory_block Tsh (56 - Zlength dd'))
   by (f_equal; rewrite sizeof_tarray_tuchar; auto; omega).
 cancel.
 }
- split; auto.  Omega1.
+ split; auto. change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
 
 forward.  (* p += SHA_CBLOCK-8; *)
 assert_PROP (force_val

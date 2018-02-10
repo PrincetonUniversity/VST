@@ -32,6 +32,7 @@ Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
 Hint Resolve @FF_local_facts: saturate_local.
 
+(*
 (*** Omega stuff ***)
 
 Ltac omegable' A :=
@@ -155,6 +156,7 @@ Ltac helper1 :=
 Ltac Omega0 := Omega (solve [ helper1 ]).
 
 (*** End of Omega stuff *)
+*)
 
 Ltac simpl_compare :=
  match goal with
@@ -465,7 +467,7 @@ Ltac prove_it_now :=
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | Omega0
+        | rep_omega (* Omega0 *)
         | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
@@ -761,4 +763,4 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; Omega0) : norm.
+Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
