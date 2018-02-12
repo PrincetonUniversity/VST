@@ -60,7 +60,7 @@ Definition _d2 : ident := 65%positive.
 Definition _dest : ident := 57%positive.
 Definition _i : ident := 54%positive.
 Definition _j : ident := 60%positive.
-Definition _main : ident := 67%positive.
+Definition _main : ident := 68%positive.
 Definition _src : ident := 58%positive.
 Definition _str : ident := 52%positive.
 Definition _str1 : ident := 62%positive.
@@ -69,9 +69,10 @@ Definition _strcat : ident := 61%positive.
 Definition _strchr : ident := 56%positive.
 Definition _strcmp : ident := 66%positive.
 Definition _strcpy : ident := 59%positive.
-Definition _t'1 : ident := 68%positive.
-Definition _t'2 : ident := 69%positive.
-Definition _t'3 : ident := 70%positive.
+Definition _strlen : ident := 67%positive.
+Definition _t'1 : ident := 69%positive.
+Definition _t'2 : ident := 70%positive.
+Definition _t'3 : ident := 71%positive.
 
 Definition f_strchr := {|
   fn_return := (tptr tschar);
@@ -238,6 +239,31 @@ Definition f_strcmp := {|
                                (Etempvar _d2 tschar) tint)
                   (Sreturn (Some (Econst_int (Int.repr 1) tint)))
                   Sskip)))))))
+    (Sset _i
+      (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint))))
+|}.
+
+Definition f_strlen := {|
+  fn_return := tuint;
+  fn_callconv := cc_default;
+  fn_params := ((_str, (tptr tschar)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_i, tuint) :: (_t'1, tschar) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sloop
+    (Ssequence
+      Sskip
+      (Ssequence
+        (Sset _t'1
+          (Ederef
+            (Ebinop Oadd (Etempvar _str (tptr tschar)) (Etempvar _i tuint)
+              (tptr tschar)) tschar))
+        (Sifthenelse (Ebinop Oeq (Etempvar _t'1 tschar)
+                       (Econst_int (Int.repr 0) tint) tint)
+          (Sreturn (Some (Etempvar _i tuint)))
+          Sskip)))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint))))
 |}.
@@ -489,10 +515,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_strchr, Gfun(Internal f_strchr)) :: (_strcpy, Gfun(Internal f_strcpy)) ::
  (_strcat, Gfun(Internal f_strcat)) :: (_strcmp, Gfun(Internal f_strcmp)) ::
- nil).
+ (_strlen, Gfun(Internal f_strlen)) :: nil).
 
 Definition public_idents : list ident :=
-(_strcmp :: _strcat :: _strcpy :: _strchr :: ___builtin_debug ::
+(_strlen :: _strcmp :: _strcat :: _strcpy :: _strchr :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

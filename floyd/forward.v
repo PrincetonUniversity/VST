@@ -2076,6 +2076,13 @@ Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
 Ltac check_cast_assignment :=
    first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
 
+Ltac simplify_casts := 
+  cbv beta iota delta [ cast_int_int  cast_int_float cast_float_int  cast_int_single cast_single_int
+                  cast_int_long cast_long_float cast_long_single cast_float_long cast_single_long ];
+ rewrite ?sign_ext_inrange 
+  by (let z := fresh "z" in set (z := two_p (Zpos _ - 1)); compute in z; subst z;
+          rewrite Int.signed_repr by rep_omega;  rep_omega).
+
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
@@ -2085,7 +2092,7 @@ Ltac forward_setx :=
         [ reflexivity
         | reflexivity
         | check_cast_assignment
-        | solve_msubst_eval; reflexivity
+        | solve_msubst_eval; simplify_casts; reflexivity
         | first [ quick_typecheck3
                 | pre_entailer; try solve [entailer!]]
         ]
@@ -2294,11 +2301,21 @@ Proof.
 intros; f_equal; auto.
 Qed.
 
+Ltac subst_indexes gfs :=
+  match gfs with
+  | ArraySubsc ?i :: ?g' => 
+     match goal with H: ?x = ?i |- _ => is_var x; subst x; subst_indexes g' end
+  | _ :: ?g' => subst_indexes g'
+  | nil => idtac
+  end.
+
 Ltac solve_store_rule_evaluation :=
+(*  we comment these out, because "simplify_casts" can make use of these user hypotheses 
   repeat match goal with
   | A : _ |- _ => clear A
   | A := _ |- _ => clear A
   end;
+*)
   apply data_equal_congr;
   match goal with A := ?gfs : list gfield |- upd_reptype _ _ ?v0 (valinject _ ?v1) = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
@@ -2310,8 +2327,10 @@ Ltac solve_store_rule_evaluation :=
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
    lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];
-   subst rhs h0 h1;
-   subst; apply eq_refl
+   unfold v1 in h1;
+   revert h1; simplify_casts; cbv zeta;
+   subst rhs h0; subst_indexes gfs;
+  apply eq_refl
   end.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
