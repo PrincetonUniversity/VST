@@ -8,7 +8,7 @@ Definition strchr_spec :=
  DECLARE _strchr
   WITH str : val, s : String.string, c : Z
   PRE  [ _str OF tptr tschar, _c OF tint ]
-    PROP (repable_signed c; c <> 0)
+    PROP (Byte.min_signed <= c <= Byte.max_signed; c <> 0)
     LOCAL (temp _str str; temp _c (Vint (Int.repr c)))
     SEP (cstring s str)
   POST [ tptr tschar ]
@@ -79,6 +79,8 @@ Ltac revert_PROP :=
       rewrite (insert_PROP P L Q) by apply H; clear H
     end
  end.
+
+Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm.
 
 Lemma body_strchr': semax_body Vprog Gprog f_strchr strchr_spec.
   (* Alternate proof of strchar to demonstrate handling
@@ -151,7 +153,7 @@ Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
 start_function.
 forward.
-unfold cstring.
+unfold cstring in *.
 set (ls := string_to_Z s) in *.
 Intros.
 forward_loop (EX i : Z,
@@ -173,22 +175,18 @@ forward_loop (EX i : Z,
   forward.
   simpl cast_int_int. rewrite sign_ext_char by auto.
   forward_if_prop (Znth i (ls ++ [0]) 0 <> c).
-  { rewrite data_at_isptr; Intros.
-    forward. 
+  { forward. 
     Exists (offset_val i str).
-    unfold cstring. fold ls. 
     entailer!.
-    left. exists i. split3; auto.
-    destruct (zlt i (Zlength ls)); autorewrite with sublist in *; simpl in *; auto.
-    assert (i = Zlength ls) by omega. subst i.
-    rewrite Z.sub_diag in *. contradiction H0. reflexivity. }
+    left. exists i. split3; auto. rewrite app_Znth1; auto.
+    destruct (zlt i (Zlength ls)); auto. rewrite app_Znth2 in H0 by list_solve.
+    replace (i - Zlength ls) with 0 in H0 by omega. contradiction H0; reflexivity. }
   { forward.
     entailer!. }
   Intros.
-  forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
-  { rewrite data_at_isptr; Intros.
-    forward.
-    Exists (Vint Int.zero); unfold cstring; rewrite !map_app; entailer!.
+  forward_if.
+  { forward.
+    Exists nullval; rewrite !map_app; entailer!.
     right. split; auto.
     assert (i = Zlength ls). {
       destruct (zlt i (Zlength ls)); [ | omega].
@@ -197,23 +195,20 @@ forward_loop (EX i : Z,
     }
     subst i.
     autorewrite with sublist in H3; auto. }
-  { forward.
-    entailer!. }
+  forward.
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) 
      by(intro; subst i; apply H6; autorewrite with sublist; reflexivity).
-  split3.
+  split.
   rep_omega. 
   rewrite (sublist_split 0 i) by rep_omega. rewrite Forall_app. split; auto.
   rewrite sublist_len_1 with (d:=0) by rep_omega. repeat constructor.
   rewrite app_Znth1 in H5 by rep_omega. auto.
-  f_equal. f_equal. omega.
 -
   Intros i.
   forward.
  Exists i.
  entailer!.
- f_equal. f_equal. omega.
 Qed.
 
 Lemma split_data_at_app:
@@ -262,11 +257,11 @@ Intros.
 assert_PROP (n <= Ptrofs.max_unsigned) as Hn. {
    entailer!.
    clear - H H2. destruct H2 as [? [_ [? _]]]. destruct dest; try contradiction; simpl in *.
-   rewrite Z.mul_1_l in *. rewrite Z.max_r in * by rep_omega. rep_omega.
+   rewrite Z.max_r in * by rep_omega. rep_omega.
 }
-forward.
 set (ld := string_to_Z sd) in *.
 set (ls := string_to_Z ss) in *.
+forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
     LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
@@ -303,32 +298,28 @@ forward_loop (EX i : Z,
     autorewrite with sublist. 
     rewrite Znth_map with (d':= Int.zero) by list_solve.
     rewrite Znth_map with (d':= 0) by list_solve.
-    simpl. rewrite Int.signed_repr by rep_omega. auto. }
+    simpl. normalize. }
   autorewrite with sublist; simpl.
   forward.
     rewrite Znth_map with (d':= Int.zero) by list_solve.
     rewrite Znth_map with (d':= 0) by list_solve.
    simpl.
   rewrite sign_ext_char by auto.
-  forward_if_prop (Znth i (ld ++ [0]) 0 <> 0).
+  forward_if.
   + forward.
     entailer!. f_equal. f_equal.
     destruct (zlt i (Zlength ld)); [ | rep_omega].
     rewrite app_Znth1 in H3 by rep_omega. contradiction H0.
     rewrite <- H3; apply Znth_In; omega.
-  + forward.
-    entailer!.
-  + intros.
+  +
+    forward.
     Exists (i+1); entailer!.
-    split.
     destruct (zlt i (Zlength ld)); [ rep_omega | ].
     assert (i = Zlength ld) by omega. subst i.
     subst; rewrite app_Znth2, Zminus_diag in * by omega; contradiction.
-    f_equal. f_equal. omega.
 - Intros i.
    forward.
    Exists i. entailer!. 
-    f_equal. f_equal. omega.
 -
   abbreviate_semax.
   forward.
@@ -397,7 +388,7 @@ forward_loop (EX i : Z,
   destruct (zlt j (Zlength ls)).
    2:  assert (j = Zlength ls) by omega; subst j;
         rewrite app_Znth2 in H3 by omega; rewrite Z.sub_diag in H3; contradiction H3; reflexivity.
-  entailer!. f_equal. f_equal. omega.
+  entailer!.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
    rewrite (sublist_split 0 j (j+1)) by rep_omega.
    rewrite (app_assoc ld). rewrite !map_app.
@@ -417,16 +408,15 @@ forward_loop (EX i : Z,
   cancel.
   }
  + Intros j. forward. Exists j. entailer!.
-   f_equal. f_equal. omega.
 Qed.
 
 Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.
 Proof.
 start_function.
-forward.
 unfold cstring in *.
 set (ls1 := string_to_Z s1).
 set (ls2 := string_to_Z s2).
+forward.
 Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
@@ -565,33 +555,31 @@ forward_loop (EX i : Z,
          change (Znth 0 [0] 0) with 0 in H18. rewrite <- H18.
          apply Znth_In. omega.
    } Unfocus.
-  split. omega. split. split. omega.
+  split. omega. split. omega.
   rewrite (sublist_split 0 i (i+1)) by omega.
   rewrite (sublist_split 0 i (i+1)) by omega.
   f_equal; auto.
   rewrite !sublist_len_1 with (d:=0) by omega.
   rewrite !app_Znth1 in H18 by list_solve.
   f_equal. auto.
-  f_equal. f_equal. omega.
  -
   Intros i.
   forward.
   Exists i.
   entailer!.
-  f_equal. f_equal. omega.
 Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
 Proof.
 start_function.
 unfold cstring,cstringn in *.
-forward.
 set (ls := string_to_Z s) in *.
 assert_PROP (n <= Ptrofs.max_unsigned) as Hn. {
    entailer!.
-   clear - H H1. destruct H1 as [? [_ [? _]]]. destruct dest; try contradiction; simpl in *.
-   rewrite Z.mul_1_l in *. rewrite Z.max_r in * by rep_omega. rep_omega.
+   clear - H H0. destruct H0 as [? [_ [? _]]]. destruct dest; try contradiction; simpl in *.
+   rewrite Z.max_r in * by rep_omega. rep_omega.
 }
+forward.
 Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
@@ -645,7 +633,6 @@ forward_loop (EX i : Z,
      contradiction H3; reflexivity.
    } Unfocus.
   forward. Exists (i+1). entailer!. 
-  f_equal. f_equal. omega. 
   autorewrite with sublist.
   rewrite upd_Znth_app2 by list_solve.
   rewrite (sublist_split 0 i (i+1)) by list_solve.
@@ -667,6 +654,5 @@ forward_loop (EX i : Z,
   forward.
   Exists i.
   entailer!.
-  f_equal. f_equal. omega. 
 Qed.
 
