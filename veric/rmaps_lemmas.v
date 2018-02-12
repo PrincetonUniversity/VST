@@ -262,24 +262,74 @@ Proof.
   rewrite Ha, Hb; auto.
 Qed.
 
-Lemma ghost_same_level_join:
-   forall phi1 phi2 g, level phi1 = level phi2 -> join (ghost_of phi1) (ghost_of phi2) g ->
-   ghost_fmap (approx (level phi1)) (approx (level phi1)) g = g.
+  Lemma unsquash_inj : forall x y,
+      unsquash x = unsquash y -> x = y.
+  Proof.
+    intros.
+    rewrite <- (squash_unsquash x).
+    rewrite <- (squash_unsquash y).
+    rewrite H; auto.
+  Qed.
+
+Lemma resource_fmap_fmap:  forall f1 f2 g1 g2 r, resource_fmap f1 f2 (resource_fmap g1 g2 r) =
+                                                                      resource_fmap (f1 oo g1) (g2 oo f2) r.
+Proof.
+destruct r; simpl; auto.
+rewrite preds_fmap_fmap; auto.
+rewrite preds_fmap_fmap; auto.
+Qed.
+
+Lemma ghost_of_approx:
+  forall phi,
+      ghost_fmap (approx (level phi)) (approx (level phi)) (ghost_of phi) = ghost_of phi.
+Proof.
+intros. symmetry. rewrite rmap_level_eq. unfold ghost_of.
+case_eq (unsquash phi); intros.
+simpl.
+destruct r; simpl in *.
+assert (R.valid (resource_fmap (approx n) (approx n) oo fst x, snd x)).
+apply valid_res_map; auto.
+set (phi' := (squash (n, exist (fun m => R.valid m) _ H0))).
+generalize (unsquash_inj phi phi'); intro.
+spec H1.
+replace (unsquash phi) with (unsquash (squash (unsquash phi))).
+2: rewrite squash_unsquash; auto.
+rewrite H.
+unfold phi'.
+repeat rewrite unsquash_squash.
+simpl.
+f_equal.
+assert (Hex: forall A (F: A -> Prop) (x x': A) y y', x=x' -> exist F x y = exist F x' y') by auto with extensionality.
+apply Hex.
+unfold compose.
+f_equal.
+extensionality y.
+rewrite resource_fmap_fmap.
+rewrite approx_oo_approx; auto.
+unfold phi' in *; clear phi'.
+subst.
+rewrite unsquash_squash in H.
+injection H; clear H; intro.
+pattern x at 1; rewrite <- H.
+auto.
+Qed.
+
+Lemma ghost_same_level_gen:
+   forall n a b c, join (ghost_fmap (approx n) (approx n) a) b c ->
+   ghost_fmap (approx n) (approx n) b = b /\ ghost_fmap (approx n) (approx n) c = c.
 Proof.
   intros.
-  rewrite rmap_level_eq in *.
-  unfold ghost_of in *.
-  revert H; case_eq (unsquash phi1); case_eq (unsquash phi2); intros n ? ? ???.
-  simpl; intro; subst.
-  generalize H0; rewrite <- (squash_unsquash phi1), <- (squash_unsquash phi2).
-  rewrite H, H1, !unsquash_squash.
-  simpl; intros.
-  destruct r, r0; simpl in *.
-  destruct x, x0; simpl in *.
-  destruct g, g1.
-  inv H2; simpl in *.
+  destruct a, b, c; inv H.
   repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst.
-  rewrite preds_fmap_fmap, approx_oo_approx; auto.
+  simpl; rewrite preds_fmap_fmap, approx_oo_approx; auto.
+Qed.
+
+Lemma ghost_same_level_join:
+   forall phi1 f g, join (ghost_of phi1) f g ->
+   ghost_fmap (approx (level phi1)) (approx (level phi1)) g = g.
+Proof.
+  intros; eapply ghost_same_level_gen.
+  rewrite ghost_of_approx; eauto.
 Qed.
 
 Lemma allocate:
@@ -330,7 +380,7 @@ Proof.
  destruct H4 as [phig [? [? ?]]].
  exists phif; exists phig.
  split; [|split; congruence].
- erewrite ghost_same_level_join in H6.
+ erewrite ghost_same_level_join in H6 by eauto.
  rewrite join_unsquash.
  unfold resource_at, ghost_of in *.
  rewrite rmap_level_eq in *.
@@ -368,18 +418,7 @@ Proof.
  rewrite Gf.
  rewrite H3.
  auto.
- symmetry; apply H2.
- rewrite Ga, Hg; auto.
 Qed.
-
-  Lemma unsquash_inj : forall x y,
-      unsquash x = unsquash y -> x = y.
-  Proof.
-    intros.
-    rewrite <- (squash_unsquash x).
-    rewrite <- (squash_unsquash y).
-    rewrite H; auto.
-  Qed.
 
   Lemma rmap_ext: forall phi1 phi2,
     level phi1 = level phi2 ->
@@ -592,14 +631,6 @@ match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-Lemma resource_fmap_fmap:  forall f1 f2 g1 g2 r, resource_fmap f1 f2 (resource_fmap g1 g2 r) =
-                                                                      resource_fmap (f1 oo g1) (g2 oo f2) r.
-Proof.
-destruct r; simpl; auto.
-rewrite preds_fmap_fmap; auto.
-rewrite preds_fmap_fmap; auto.
-Qed.
-
 Lemma ghost_fmap_fmap:  forall f1 f2 g1 g2 r, ghost_fmap f1 f2 (ghost_fmap g1 g2 r) =
                                                                  ghost_fmap (f1 oo g1) (g2 oo f2) r.
 Proof.
@@ -642,41 +673,6 @@ pattern x at 1; rewrite <- H.
 unfold compose.
 simpl; rewrite resource_fmap_fmap.
 rewrite approx_oo_approx; auto.
-Qed.
-
-Lemma ghost_of_approx:
-  forall phi,
-      ghost_fmap (approx (level phi)) (approx (level phi)) (ghost_of phi) = ghost_of phi.
-Proof.
-intros. symmetry. rewrite rmap_level_eq. unfold ghost_of.
-case_eq (unsquash phi); intros.
-simpl.
-destruct r; simpl in *.
-assert (R.valid (resource_fmap (approx n) (approx n) oo fst x, snd x)).
-apply valid_res_map; auto.
-set (phi' := (squash (n, exist (fun m => R.valid m) _ H0))).
-generalize (unsquash_inj phi phi'); intro.
-spec H1.
-replace (unsquash phi) with (unsquash (squash (unsquash phi))).
-2: rewrite squash_unsquash; auto.
-rewrite H.
-unfold phi'.
-repeat rewrite unsquash_squash.
-simpl.
-f_equal.
-assert (Hex: forall A (F: A -> Prop) (x x': A) y y', x=x' -> exist F x y = exist F x' y') by auto with extensionality.
-apply Hex.
-unfold compose.
-f_equal.
-extensionality y.
-rewrite resource_fmap_fmap.
-rewrite approx_oo_approx; auto.
-unfold phi' in *; clear phi'.
-subst.
-rewrite unsquash_squash in H.
-injection H; clear H; intro.
-pattern x at 1; rewrite <- H.
-auto.
 Qed.
 
 Lemma necR_resource_at:
@@ -744,7 +740,7 @@ Lemma resource_at_empty: forall phi,
      forall l, phi @ l = NO Share.bot bot_unreadable \/ exists k, exists pds, phi @ l = PURE k pds.
 Proof.
   intros.
-  rewrite identity_unit_equiv in H.
+  apply identity_unit' in H.
   unfold unit_for in H.
   generalize (resource_at_join _ _ _ l H); intro.
   remember (phi @ l) as r.
@@ -1860,24 +1856,34 @@ Proof.
  symmetry; apply identity_core, resource_at_core_identity.
 Qed.
 
-Lemma ghost_of_core_identity: forall m, identity (ghost_of (core m)).
-Proof.
-  intros.
-  eapply unit_identity, ghost_of_join, core_duplicable.
-Qed.
-
 Lemma core_ghost_of: forall w, core (ghost_of w) = ghost_of (core w).
 Proof.
  intros.
- replace (ghost_of (core w)) with (core (ghost_of (core w))).
- pose proof (core_unit (ghost_of w)) as H1.
- pose proof (core_unit w) as H2.
- apply ghost_of_join in H2.
- unfold unit_for in *.
- rewrite <- core_idem.
- destruct (join_assoc (join_comm H1) (join_comm H2)) as [? [? ?]].
- eapply join_core2; eauto.
- symmetry; apply identity_core, ghost_of_core_identity.
+ eapply same_identity.
+ - apply core_identity.
+ - apply core_unit.
+ - repeat intro.
+   destruct (make_rmap (resource_at (core w)) b (rmap_valid (core w)) (level (core w)))
+     as (wb & Hl & Hr & ?).
+   { extensionality; apply resource_at_approx. }
+   { eapply ghost_same_level_join; eauto. }
+   subst; destruct (make_rmap (resource_at (core w)) a (rmap_valid (core w)) (level (core w)))
+     as (wa & ? & Hr' & ?).
+   { extensionality; apply resource_at_approx. }
+   { rewrite <- Hl; eapply ghost_same_level.
+     eexists; apply join_comm; eauto. }
+   subst.
+   apply resource_at_join2 in H; auto.
+   apply core_identity in H; subst; auto.
+   { congruence. }
+   { intro; rewrite Hr, Hr'.
+     apply identity_unit', resource_at_core_identity. }
+ - apply ghost_of_join, core_unit.
+Qed.
+
+Lemma ghost_of_core_identity: forall m, identity (ghost_of (core m)).
+Proof.
+  intro; rewrite <- core_ghost_of; apply core_identity.
 Qed.
 
 Lemma resource_at_identity: forall (m: rmap) (loc: AV.address),
@@ -1950,6 +1956,15 @@ intros.
 case_eq (w @ loc); intros;
  [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
 rewrite <- H. apply resource_at_approx.
+Qed.
+
+Lemma ghost_fmap_join: forall a b c f g, join a b c ->
+  join (ghost_fmap f g a) (ghost_fmap f g b) (ghost_fmap f g c).
+Proof.
+  destruct a, b, c; simpl; intros.
+  inv H.
+  repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst.
+  constructor; auto.
 Qed.
 
 End Rmaps_Lemmas.

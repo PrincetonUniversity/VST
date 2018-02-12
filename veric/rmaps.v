@@ -49,25 +49,23 @@ Inductive TypeTree: Type :=
   | ProdType: TypeTree -> TypeTree -> TypeTree
   | ArrowType: TypeTree -> TypeTree -> TypeTree.
 
-Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
-  fix dtfr (T: TypeTree): functor :=
+Fixpoint dependent_type_functor_rec (ts: list Type) (T: TypeTree) : functor :=
   match T with
   | ConstType A => fconst A
   | Mpred => fidentity
   | DependentType n => fconst (nth n ts unit)
-  | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
-  | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+  | ProdType T1 T2 => fpair (dependent_type_functor_rec ts T1) (dependent_type_functor_rec ts T2)
+  | ArrowType T1 T2 => ffunc (dependent_type_functor_rec ts T1) (dependent_type_functor_rec ts T2)
   end.
 Opaque dependent_type_functor_rec.
 
-Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree -> Type :=
-  fix dtfr (T: TypeTree): Type :=
+Fixpoint dependent_type_function_rec (ts: list Type) (mpred': Type) (T: TypeTree) : Type :=
   match T with
   | ConstType A => A
   | Mpred => mpred'
   | DependentType n => nth n ts unit
-  | ProdType T1 T2 => (dtfr T1 * dtfr T2)%type
-  | ArrowType T1 T2 => dtfr T1 -> dtfr T2
+  | ProdType T1 T2 => (dependent_type_function_rec ts mpred' T1 * dependent_type_function_rec ts mpred' T2)%type
+  | ArrowType T1 T2 => dependent_type_function_rec ts mpred' T1 -> dependent_type_function_rec ts mpred' T2
   end.
 
   Definition preds: functor :=
@@ -75,7 +73,7 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
       fpi (fun ts: list Type => dependent_type_functor_rec ts T)).
 
 Class Ghost := { G : Type;
-  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G; Disj_G :> Disj_alg G }.
+  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G }.
 
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
@@ -114,7 +112,6 @@ Module Type STRAT_MODEL.
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
   Axiom pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Axiom sa_rj : forall PRED, @Sep_alg _ (res_join PRED).
-  Axiom da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Axiom paf_res : @pafunctor f_res res_join.
 
   Definition res_option (PRED : Type) (r: res PRED) : option (rshare * kind):=
@@ -139,7 +136,6 @@ Module Type STRAT_MODEL.
         ghost_join PRED (GHOST' PRED RA a pds) (GHOST' PRED RA b pds) (GHOST' PRED RA c pds).
   Axiom pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
   Axiom sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
-  Axiom da_gj : forall PRED, @Disj_alg _ (ghost_join PRED).
   Axiom paf_ghost : @pafunctor f_ghost ghost_join.
 
   Definition valid' A (w: (address -> res A) * ghost A) : Prop :=
@@ -159,7 +155,6 @@ Module Type STRAT_MODEL.
 
   Parameter Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
   Parameter Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
-  Parameter Disj_pre_rmap: forall (A: Type), Disj_alg (f_pre_rmap A).
   Parameter paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap.
 
 End STRAT_MODEL.
@@ -288,15 +283,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
             intros. inversion H; auto.
   Defined.
 
-  Instance da_rj : forall PRED, @Disj_alg _ (res_join PRED).
-  Proof.  repeat intro.
-    inv H0; inv H;
-    repeat match goal with H: join ?A ?A ?B |- _ => 
-              apply join_self in H; specialize (H _ _ H1); subst end;
-    repeat proof_irr; auto.
-    contradiction.
-  Qed.
-
   Definition paf_res : @pafunctor f_res res_join.
   Proof. constructor; repeat intro.
   (* This is a little painful because of the way res_join is defined, but
@@ -397,15 +383,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       apply core_unit.
     - intros; inv H.
       apply join_core in H0 as ->; auto.
-  Qed.
-
-  Instance da_gj : forall PRED, @Disj_alg _ (ghost_join PRED).
-  Proof.
-    repeat intro.
-    inv H; inv H0.
-    repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end;
-      subst; auto.
-    f_equal; eapply join_self; eauto.
   Qed.
 
   Definition paf_ghost : @pafunctor f_ghost ghost_join.
@@ -517,9 +494,6 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Definition Sep_pre_rmap (A: Type): Sep_alg (pre_rmap A) :=
     Sep_prop _ _ (Perm_prod (Perm_fun address _ _ _) (pa_gj A)) _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
 
-  Definition Disj_pre_rmap (A: Type): Disj_alg (pre_rmap A) :=
-    @Disj_prop _ _ _ (@Disj_prod _ _ _ _ (Disj_fun address _ _ _) (da_gj A)).
-
 End StratModel.
 
 Local Open Scope nat_scope.
@@ -532,7 +506,6 @@ Module Type RMAPS.
   Axiom Join_rmap: Join rmap. Existing Instance Join_rmap.
   Axiom Perm_rmap: Perm_alg rmap. Existing Instance Perm_rmap.
   Axiom Sep_rmap: Sep_alg rmap. Existing Instance Sep_rmap.
-  Axiom Disj_rmap: Disj_alg rmap.  Existing Instance Disj_rmap.
   Axiom ag_rmap: ageable rmap.  Existing Instance ag_rmap.
   Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
 
@@ -572,7 +545,6 @@ Module Type RMAPS.
   Instance Join_resource: Join resource := res_join.
   Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
   Axiom Sep_resource: Sep_alg resource. Existing Instance Sep_resource.
-  Axiom Disj_resource: Disj_alg resource. Existing Instance Disj_resource.
 
   Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
     match x with SomeP A Q => SomeP A (fmap (fpi _) f g Q)
@@ -602,7 +574,6 @@ Module Type RMAPS.
   Instance Join_ghost : Join ghost := ghost_join.
   Axiom Perm_ghost: Perm_alg ghost. Existing Instance Perm_ghost.
   Axiom Sep_ghost: Sep_alg ghost. Existing Instance Sep_ghost.
-  Axiom Disj_ghost: Disj_alg ghost. Existing Instance Disj_ghost.
   Axiom ghost_core: forall RA a pds, core (GHOST RA a pds) = GHOST RA (core a) pds.
 
   Definition ghost_fmap (f g:pred rmap -> pred rmap)(x:ghost) : ghost :=
@@ -687,7 +658,6 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     Instance Join_F: forall A, Join (F A) := _.
     Definition Perm_F : forall A, Perm_alg (F A) := Perm_pre_rmap.
     Definition Sep_F := Sep_pre_rmap.
-    Definition Disj_F := Disj_pre_rmap.
     Definition paf_F := paf_pre_rmap.
   End TyFSA.
 
@@ -699,7 +669,6 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Instance Join_rmap: Join rmap := KSa.Join_knot.
   Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
   Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
-  Instance Disj_rmap : Disj_alg rmap:= KSa.Disj_knot.
   Instance ag_rmap : ageable rmap := K.ageable_knot.
   Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
 
@@ -859,16 +828,6 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   intros. inversion H; auto.
   Defined.
 
-  Instance Disj_resource: Disj_alg resource.
-  Proof.
-    repeat intro.
-    inv H0; inv H;
-    repeat match goal with H: join ?A ?A ?B |- _ => 
-              apply join_self in H; specialize (H _ _ RJ); subst end;
-    repeat proof_irr; auto.
-    contradiction.
-  Qed.
-
   (* Will this give us the higher-order ghost state we want? *)
   Inductive ghost_join : ghost -> ghost -> ghost -> Prop :=
     | ghost_join_I : forall RA a b c pds, join a b c ->
@@ -920,15 +879,6 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Lemma ghost_core : forall RA a pds, core (GHOST RA a pds) = GHOST RA (core a) pds.
   Proof. auto. Qed.
-
-  Instance Disj_ghost : Disj_alg ghost.
-  Proof.
-    repeat intro.
-    inv H; inv H0.
-    repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end;
-      subst; auto.
-    f_equal; eapply join_self; eauto.
-  Qed.
 
   Lemma same_valid : forall f1 f2, (forall x, f1 x = f2 x) -> AV.valid f1 -> AV.valid f2.
   Proof.

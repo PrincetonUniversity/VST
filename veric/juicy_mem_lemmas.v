@@ -5,13 +5,14 @@ Require Import VST.veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
-Lemma inflate_initial_mem_empty:
+(*Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
 intro lev.
 unfold inflate_initial_mem.
-destruct (make_rmap (inflate_initial_mem' Mem.empty lev)
+destruct (make_rmap (inflate_initial_mem' Mem.empty lev) (core (ghost_of lev))
         (inflate_initial_mem'_valid Mem.empty lev) (level lev)
         (inflate_initial_mem'_fmap Mem.empty lev)); simpl.
+{ rewrite core_ghost_of, <- level_core; apply ghost_of_approx. }
 destruct a.
 apply resource_at_empty2.
 intro l; rewrite H0.
@@ -22,7 +23,7 @@ simpl.
 rewrite PMap.gi.
 destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
-Local Hint Resolve inflate_initial_mem_empty.
+Local Hint Resolve inflate_initial_mem_empty.*)
 
 (* fancy initial mem *)
 
@@ -601,7 +602,7 @@ split; [apply core_load_load'| ].
 intros; apply load_core_load; auto.
 Qed.
 
-Lemma address_mapsto_exists':
+(*Lemma address_mapsto_exists':
   forall ch v sh (rsh: readable_share sh) loc m lev,
       (align_chunk ch | snd loc)
       -> Mem.load ch m (fst loc) (snd loc) = Some v 
@@ -639,7 +640,7 @@ if_tac.
 exists rsh.
 f_equal. 
 apply NO_identity.
-Qed.
+Qed.*)
     
 Lemma mapsto_valid_access: forall ch v sh b ofs jm,
   (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
@@ -650,7 +651,7 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[H2 [H3 H3']] H]] ?].
+destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
 spec H (b, ofs').
@@ -691,7 +692,7 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[H2 [H3 H3']] H]] ?].
+destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
 spec H (b, ofs').
@@ -830,7 +831,7 @@ Lemma juicy_free_aux_lemma:
 Proof.
 intros.
 destruct H as [phi1 [phi2 [? [? ?]]]].
-specialize (H1 (b,ofs)).
+destruct H1 as [H1 _]; specialize (H1 (b,ofs)).
 apply (resource_at_join _ _ _ (b,ofs)) in H.
 hnf in H1. rewrite if_true in H1 by (split; auto; omega).
 destruct H1 as [? [? ?]].
@@ -859,13 +860,13 @@ pose (H0 :=True).
 intros R H VR H1 H2 Hyes.
 assert (forall l, ~adr_range (b,lo) (hi-lo) l -> identity (m1 @ l)).
   unfold VALspec_range, allp, jam in H1.
-  intros l. spec H1 l. intros H3.
+  intros l. destruct H1 as [H1 _]; spec H1 l. intros H3.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 assert (forall l, adr_range (b,lo) (hi-lo) l 
   -> exists mv, yesat NoneP (VAL mv) Share.top  l m1).
   unfold VALspec_range, allp, jam in H1.
-  intros l. spec H1 l. intros H4.
+  intros l. destruct H1 as [H1 _]; spec H1 l. intros H4.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 remember (free_juicy_mem _ _ _ _ _ H _) as j'.
@@ -941,6 +942,12 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
   do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
   rewrite Hm1 in H. rewrite H6 in H.
   rewrite core_PURE in H. rewrite core_NO in H; inv H.
+* destruct H1 as [_ Hg].
+  rewrite (identity_core Hg), core_ghost_of, H2.
+  subst j'; simpl.
+  unfold inflate_free.
+  rewrite ghost_of_make_rmap.
+  rewrite <- core_ghost_of; apply core_unit.
 Qed.
 
 Section free.
@@ -958,15 +965,19 @@ Proof.
   apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
   - apply join_level in Hjoin; destruct Hjoin; auto.
   - intro.
-    specialize (Hphi1 l); simpl in Hphi1.
+    destruct Hphi1 as [Hphi1' _]. specialize (Hphi1' l); simpl in Hphi1'.
     apply (resource_at_join _ _ _ l) in Hjoin.
     if_tac.
-    + destruct Hphi1 as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
+    + destruct Hphi1' as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; apply f_equal, proof_irr.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; contradiction bot_unreadable.
-    + apply Hphi1 in Hjoin; auto.
+    + apply Hphi1' in Hjoin; auto.
+  - rewrite ghost_of_make_rmap.
+    destruct Hphi1 as [_ Hg].
+    apply ghost_of_join in Hjoin.
+    symmetry; apply Hg; auto.
 Qed.
 
 End free.
@@ -1008,6 +1019,8 @@ destruct (access_at m loc); try destruct p; try rewrite core_NO; try rewrite cor
 destruct (access_at m loc); try destruct p0; try rewrite core_NO;  repeat rewrite core_YES; auto.
 destruct H1.
 destruct H2. rewrite H2. auto.
+unfold inflate_initial_mem.
+rewrite <- core_ghost_of, ghost_of_make_rmap, core_ghost_of; auto.
 Qed.
 
 Lemma writable_writable_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,

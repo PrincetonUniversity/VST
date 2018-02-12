@@ -637,6 +637,18 @@ refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
                          end).
 Qed.
 
+Lemma ghost_of_make_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (make_rmap f g V lev H Hg)) = g.
+refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                         end).
+Qed.
+
+Lemma ghost_of_remake_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (remake_rmap f g V lev H Hg)) = g.
+refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                         end).
+Qed.
+
 Lemma level_make_rmap: forall f g V lev H Hg, @level rmap _ (proj1_sig (make_rmap f g V lev H Hg)) = lev.
 refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
                            | conj LEVEL _ => LEVEL
