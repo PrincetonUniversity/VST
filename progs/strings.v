@@ -20,8 +20,9 @@ Proof.
   rewrite IHs; auto.
 Qed.
 
-Definition repable_char i := Byte.min_signed <= i <= Byte.max_signed.
+(*Definition repable_char i := Byte.min_signed <= i <= Byte.max_signed. *)
 
+(*
 Lemma repable_char_0 : repable_char 0.
 Proof.
   split.
@@ -41,33 +42,37 @@ Proof.
 Qed.
 
 Hint Resolve repable_char_0 repable_byte repable_char_int.
+*)
 
-Lemma repable_string : forall s, Forall repable_char (string_to_Z s).
+Lemma repable_string : forall s, 
+  Forall (fun i => Byte.min_signed <= i <= Byte.max_signed) (string_to_Z s).
 Proof.
   induction s; constructor; auto.
+  rep_omega.
 Qed.
 
-Lemma repable_string_i : forall s i, repable_char (Znth i (string_to_Z s ++ [0]) 0).
+Lemma repable_string_i : forall s i, 
+  Byte.min_signed <=  Znth i (string_to_Z s ++ [0]) 0 <= Byte.max_signed.
 Proof.
   intros.
   destruct (zlt i 0).
-  { rewrite Znth_underflow; auto. }
+  { rewrite Znth_underflow; auto; rep_omega. }
   destruct (zlt i (Zlength (string_to_Z s))).
   { rewrite app_Znth1 by auto.
     apply Forall_Znth, repable_string; omega. }
   rewrite app_Znth2 by auto.
   destruct (eq_dec (i - Zlength (string_to_Z s)) 0).
-  { rewrite e, Znth_0_cons; auto. }
-  { rewrite Znth_overflow; auto.
+  { rewrite e, Znth_0_cons; auto; rep_omega. }
+  { rewrite Znth_overflow; auto. rep_omega.
     rewrite Zlength_cons, Zlength_nil; omega. }
 Qed.
 
-Lemma sign_ext_char : forall c, repable_char c ->
+Lemma sign_ext_char : forall c, Byte.min_signed <= c <= Byte.max_signed ->
   Int.sign_ext 8 (Int.repr c) = Int.repr c.
 Proof.
   intros; apply sign_ext_inrange.
   rewrite Int.signed_repr; auto.
-  apply repable_char_int; auto.
+  rep_omega.
 Qed.
 
 Opaque N.mul.

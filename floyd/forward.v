@@ -1656,28 +1656,43 @@ Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" c
   repeat simple apply seq_assoc1;
   match goal with
   | |- semax _ _ (Ssequence _ _) _ => 
-          apply semax_seq with Post; forward_loop_aux1 Inv PreInc
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
            else (apply (semax_post1_flipped Post); [ forward_loop_aux1 Inv PreInc | ])
   end.
 
+Ltac check_no_incr S :=
+ let s' := eval hnf in S in 
+ match s' with
+ | Ssequence ?x _ => check_no_incr x
+ | Sloop _ ?inc => let i' := eval hnf in inc in match i' with Sskip => idtac end
+ | Sloop _ _ => fail 100 "Your loop has an increment statement, so your forward_loop must have a continue: invariant"
+ | _ => fail 100 "applied forward_loop to something that is not a loop"
+end.
+
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
+  match goal with |- semax _ _ ?c _ => check_no_incr c end;
   forward_loop Inv continue: Inv break: Post.
 
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
-  match goal with
+lazymatch goal with
+  | |- semax _ _ (Ssequence _ _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
-      constr_eq P Post; try (has_evar Post'; fail 1) ; forward_loop Inv continue: PreInc break: Post
-  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post =>
-      constr_eq P Post;
-      fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  end.
+      first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
+      try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
+     forward_loop Inv continue: PreInc break: Post
+  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- _ => fail 100 "forward_loop applicable only to a semax goal"
+end.
 
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
     forward_loop Inv continue: PreInc break: Post.
 
-Tactic Notation "forward_loop" constr(Inv)  := forward_loop Inv continue: Inv.
+Tactic Notation "forward_loop" constr(Inv)  := 
+  match goal with |- semax _ _ ?c _ => check_no_incr c end;
+  forward_loop Inv continue: Inv.
 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta;

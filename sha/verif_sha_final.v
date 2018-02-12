@@ -95,7 +95,7 @@ erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try apply
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 2: autorewrite with sublist; Omega1.
  rewrite (split2_array_at _ _ _ (Zlength dd') 56 64); try Omega1.
-2:autorewrite with sublist; rewrite Zlength_sublist; autorewrite with sublist; Omega1.
+2:autorewrite with sublist; Omega1.
  assert (0 <= Zlength dd' <= 56) by Omega1.
  autorewrite with sublist.
  replace (CBLOCKz - Zlength dd' - (56 - Zlength dd')) with 8 by Omega1.
