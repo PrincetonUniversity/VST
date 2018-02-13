@@ -1655,7 +1655,9 @@ Ltac forward_loop_aux1 Inv PreInc:=
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" constr(Post) :=
   repeat simple apply seq_assoc1;
   match goal with
-  | |- semax _ _ (Ssequence _ _) _ => 
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ => 
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | ]
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
@@ -1668,12 +1670,16 @@ Ltac check_no_incr S :=
  | Ssequence ?x _ => check_no_incr x
  | Sloop _ ?inc => let i' := eval hnf in inc in match i' with Sskip => idtac end
  | Sloop _ _ => fail 100 "Your loop has an increment statement, so your forward_loop must have a continue: invariant"
+ | Sfor _ _ ?inc _ => let i' := eval hnf in inc in match i' with Sskip => idtac end
+ | Sfor _ _ _ _ => fail 100 "Your loop has an increment statement, so your forward_loop must have a continue: invariant"
  | _ => fail 100 "applied forward_loop to something that is not a loop"
 end.
 
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
 lazymatch goal with
-  | |- semax _ _ (Ssequence _ _) _ =>
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
@@ -1733,7 +1739,9 @@ Ltac forward_loop_nocontinue Inv Post :=
 
 Ltac forward_loop_nocontinue_nobreak Inv :=
   lazymatch goal with
-  | |- semax _ _ (Ssequence _ _) _ =>
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
@@ -1985,7 +1993,10 @@ match goal with
 end.
 
 Tactic Notation "forward_if" constr(post) :=
-  forward_if_tac post.
+  lazymatch type of post with
+  | Prop => match goal with |-semax _ (PROPx (?P) ?Q) _ _ => forward_if_tac (PROPx (post :: P) Q) end
+  | _ => forward_if_tac post
+  end.
 
 Tactic Notation "forward_if" :=
   forward_if'_new.
@@ -2831,6 +2842,38 @@ Ltac advise_prepare_postcondition :=
  end;
  try simple eapply semax_seq.
 
+
+Fixpoint nobreaksx (s: statement) : bool :=
+match s with
+| Sbreak => false
+| Scontinue => false
+| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
+| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
+| _ => true  (* including Sloop case! *)
+end.
+
+Ltac forward_advise_loop c :=
+ try lazymatch c with
+ | Sfor _ _ Sskip ?body =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ | Swhile _ ?body =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ end;
+ lazymatch c with
+  | Sfor _ ?test ?body ?incr  =>
+       tryif (unify (nobreaksx body) true; test_simple_bound test incr)
+       then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+  | Sloop _ _ =>
+     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+ end.
+
 Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
@@ -2889,7 +2932,8 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
     first [no_loads_expr e false; forward_setx | load_tac]
   | Sifthenelse ?e _ _ => forward_advise_if
   | Swhile _ _ => forward_advise_while
-  | Sfor _ _ _ _ => forward_advise_for
+  | Sfor _ _ _ _ => forward_advise_loop s
+  | Sloop _ _ => forward_advise_loop s
   | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.

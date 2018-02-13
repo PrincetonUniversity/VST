@@ -832,7 +832,9 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   Use \lstinline{forward_i$$f $Q$}, where $Q$ is
 \label{refcard:forward-if}
   the \emph{join postcondition}, the precondition of
-  statement $s_3$.
+  statement $s_3$.  $Q$ may be a full assertion
+  (environ$\rightarrow$mpred), or it may be just a \lstinline{Prop},
+  in which case it will be \emph{added} to the current precondition.
 \item $\mathbf{if}\,e\,\mathbf{then}\,s_1\,\mathbf{else}\,s_2;\}\ldots$
   When the if-statement appears at the end of a block, so the
   postcondition is already known, you can do \lstinline{forward_if.}
@@ -846,23 +848,13 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   See \autoref{refcard:forward-while}.
 
 \item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (with \lstinline{break} statements in $s$)\newline
-  You must treat this as if it were $\mathbf{for}\,(;e;)~ s$, and use the
-  \lstinline{forward_for} tactic; see below.
+  You must treat this as if it were $\mathbf{for}\,(;e;)~ s$; see below.
 
-\item $\mathbf{for}\,(e_1;i<e_2;i++)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
-  If $e_2$ is loop-invariant, you may be able to use
-  \lstinline{forward_for_simple_bound}; see \autoref{refcard:for}.
-
-\item $\mathbf{for}\,(e_1;e_2;e_3)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
-  Use \lstinline{forward_for $Q$ continue: $Q'$}, where $Q$ is the loop invariant
-  and $Q'$ is the assertion that goes right before the \emph{increment}
-  command, $e_3$. See \autoref{refcard:for-general}.
-
-\item $\mathbf{for}\,(e_1;e_2;e_3)~ s; \ldots $\newline
-  If $s$ contains \lstinline{break} statements \emph{and} there are more
-  commands after the loop, you will need to write
-  \lstinline{forward_for $Q$ continue: $Q'$ break: $R$}, where $Q$ and $Q'$ are as above,
-  and $R$ is the join-postcondition. See \autoref{refcard:for-general}.
+\item $\mathbf{for}\,(e_1;e_2;e_3)~ s$ \newline
+  Use a tactic for for-loops:\newline
+  \lstinline{forward_for_simple_bound} (\autoref{refcard:for}), \newline
+  \lstinline{forward_for} (\autoref{refcard:for-general-iter}), or \newline
+  \lstinline{forward_loop} (\autoref{refcard:for-general}).
 \end{itemize}
 
 \chapter{While loops}
@@ -3140,6 +3132,9 @@ Also see \file{progs/verif\_min.v} for several approaches to the specification/v
 \ychapter{For loops (general iterators)}{}
 \label{refcard:for-general-iter}
 
+\textbf{\emph{This tactic is deprecated; use \lstinline{forward_loop} instead; see the next chapter.}}
+
+{\small
 The C-language \textsf{for} loop has the general form,
 \lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
 If your for-loop has an iteration variable that is tested by the $\mathit{test}$
@@ -3184,7 +3179,7 @@ unsigned sumarray(unsigned a[], int n) {
   return s;
 }
 \end{lstlisting}
-
+}
 
 \ychapter{Loops (fully general)}{}
 \label{refcard:for-general}
@@ -3206,10 +3201,13 @@ $\mathit{PreInc}: \mathsf{environ->mpred}$ is the invariant just before the $\ma
 The assertion $\mathit{Post}: \mathsf{environ->mpred}$ is the postcondition
 of the loop.
 
-If your $\mathit{incr}$ is empty (or Sskip), you can omit \ \ \lstinline{continue: $\mathit{PreInc}$}.
+If your $\mathit{incr}$ is empty (or Sskip),
+or if the $\mathit{body}$ has no \lstinline{continue} statements,
+you can omit \ \ \lstinline{continue: $\mathit{PreInc}$}.
 
 If your postcondition is already fully determined (POSTCOND contains no unification variables), then you can omit \ \ \lstinline{break: $\mathit{Post}$}.
 
+If you're not sure whether to omit the \lstinline{break:} or \lstinline{continue:} assertions, just try \lstinline{forward_loop $\mathit{Inv}$} without them, and Floyd will advise you.
 
 
 \chapter{Manipulating preconditions}

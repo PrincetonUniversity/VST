@@ -74,10 +74,6 @@ Definition strlen_spec :=
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
-(* up *)
-(* Often an if statement only serves to add information (e.g., rule out some cases). *)
-Ltac forward_if_prop P := match goal with |-semax _ (PROP () ?Q) _ _ => forward_if (PROP (P) Q) end.
-
 Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
 
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
@@ -118,6 +114,7 @@ Exists i.
 entailer!.
 Qed.
 
+
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
 start_function.
@@ -142,7 +139,7 @@ forward_loop (EX i : Z,
   assert (Zlength (ls ++ [0]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward.
   forward.
-  forward_if_prop (Znth i (ls ++ [0]) 0 <> c).
+  forward_if (Znth i (ls ++ [0]) 0 <> c).
   { forward. 
     Exists (offset_val i str).
     entailer!.
@@ -591,7 +588,7 @@ assert (Hi := repable_string_i s i); fold ls in Hi.
 assert (Zlength (ls ++ [0]) = Zlength ls + 1) by (autorewrite with sublist; auto).
 forward.
 
-forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
+forward_if (Znth i (ls ++ [0]) 0 <> 0).
 forward.
 entailer!. f_equal. f_equal. cstring.
 forward.
@@ -620,7 +617,7 @@ forward_loop (EX i : Z,
   assert (Zlength (ls ++ [0]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward.
   forward.
-  forward_if_prop (Znth i (ls ++ [0]) 0 <> c).
+  forward_if (Znth i (ls ++ [0]) 0 <> c).
   { forward. 
     Exists (offset_val i str).
     entailer!.
@@ -628,7 +625,7 @@ forward_loop (EX i : Z,
   { forward.
     entailer!. }
   Intros.
-  forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
+  forward_if (Znth i (ls ++ [0]) 0 <> 0).
   { forward.
     Exists nullval; rewrite !map_app; entailer!.
     right. split; auto.
@@ -725,7 +722,7 @@ forward_loop (EX i : Z,
   rewrite Znth_map with (d':= Int.zero) by list_solve.
   rewrite Znth_map with (d':= 0) by list_solve.
   forward.
-  forward_if_prop (Znth i (ld ++ [0]) 0 <> 0).
+  forward_if (Znth i (ld ++ [0]) 0 <> 0).
   + forward.
     entailer!. f_equal. f_equal. cstring.
   +
@@ -763,7 +760,7 @@ forward_loop (EX i : Z,
   clear H3.
   rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
-  forward_if_prop (Znth j (ls ++ [0]) 0 <> 0).
+  forward_if (Znth j (ls ++ [0]) 0 <> 0).
   + forward.
       clear H8 H9 H6 PNdest PNsrc.
       rewrite string_to_Z_app; autorewrite with sublist. fold ld. fold ls.
@@ -867,7 +864,7 @@ forward_loop (EX i : Z,
     entailer!.
     destruct (i =? Zlength ls1) eqn: Heq; auto.
     rewrite Z.eqb_eq in Heq; tauto. }
-  forward_if_prop ((i <> Zlength ls1 \/ i <> Zlength ls2) 
+  forward_if ((i <> Zlength ls1 \/ i <> Zlength ls2) 
                           /\  Znth i (ls1 ++ [0]) 0 = Znth i (ls2 ++ [0]) 0).
  +
   rewrite andb_true_iff in H6; destruct H6.
@@ -935,7 +932,7 @@ forward_loop (EX i : Z,
  forward.
  forward.
  forward.
- forward_if_prop (Znth i (ls ++ [0]) 0 <> 0).
+ forward_if (Znth i (ls ++ [0]) 0 <> 0).
 +
    forward.
    entailer!.
