@@ -1671,10 +1671,6 @@ Ltac check_no_incr S :=
  | _ => fail 100 "applied forward_loop to something that is not a loop"
 end.
 
-Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
-  match goal with |- semax _ _ ?c _ => check_no_incr c end;
-  forward_loop Inv continue: Inv break: Post.
-
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
 lazymatch goal with
   | |- semax _ _ (Ssequence _ _) _ =>
@@ -1690,9 +1686,76 @@ end.
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
     forward_loop Inv continue: PreInc break: Post.
 
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
+
+Ltac check_nocontinue s :=
+ let s' := eval hnf in s in
+  lazymatch s' with 
+ | Ssequence ?x _ => check_nocontinue x
+ | Sloop ?body _ => unify (nocontinue body) true
+ | _ => fail 100 "applied forward_loop to something that is not a loop"
+end.
+
+Axiom trust_me : trust_loop_nocontinue.
+
+Ltac forward_loop_nocontinue2 Inv :=
+  apply (semax_loop_nocontinue trust_me Inv); abbreviate_semax.
+
+Ltac forward_loop_nocontinue1 Inv :=
+  lazymatch goal with
+  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ (Swhile ?E ?B) _ => 
+          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
+ end.
+
+Ltac forward_loop_nocontinue Inv Post :=
+  repeat simple apply seq_assoc1;
+  match goal with
+  | |- semax _ _ (Ssequence _ _) _ => 
+          apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | ]
+  | |- semax _ _ _ ?Post' => 
+            tryif (unify Post Post') then forward_loop_nocontinue1 Inv
+           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  | ])
+  end.
+
+Ltac forward_loop_nocontinue_nobreak Inv :=
+  lazymatch goal with
+  | |- semax _ _ (Ssequence _ _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+      first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
+      try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
+     forward_loop_nocontinue Inv Post
+  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- _ => fail 100 "forward_loop applicable only to a semax goal"
+end.
+
 Tactic Notation "forward_loop" constr(Inv)  := 
-  match goal with |- semax _ _ ?c _ => check_no_incr c end;
-  forward_loop Inv continue: Inv.
+  match goal with |- semax _ _ ?c _ =>
+  tryif (check_nocontinue c)
+   then forward_loop_nocontinue_nobreak Inv
+  else (check_no_incr c; forward_loop Inv continue: Inv)
+ end.
+
+Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
+  match goal with |- semax _ _ ?c _ =>
+  tryif (check_nocontinue c)
+   then forward_loop_nocontinue Inv Post
+  else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
+ end.
 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta;

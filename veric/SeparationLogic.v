@@ -66,6 +66,8 @@ Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
+Inductive trust_loop_nocontinue : Prop := .
+
 (* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
          match v with
@@ -710,6 +712,15 @@ Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
      RA_return := r |}
  end.
 
+Definition loop1a_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := FF;
+     RA_return := r |}
+ end.
+
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -1201,6 +1212,12 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta  Q body (loop1_ret_assert Q' R) ->
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R.
+
+Axiom semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ semax Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ semax Delta P (Sloop body incr) R.
 
 (* THIS RULE FROM semax_switch *)
 

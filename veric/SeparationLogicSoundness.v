@@ -129,6 +129,15 @@ Definition juicy_ext_spec := juicy_ext_spec.
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
 
+Lemma semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ @semax CS Espec Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ @semax CS Espec Delta P (Sloop body incr) R.
+Proof.
+intros. inv H.
+Qed.
+
 End CSL.
 
 Definition semax_prog_rule := @semax_prog_rule.

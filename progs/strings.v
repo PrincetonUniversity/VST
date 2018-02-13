@@ -20,29 +20,6 @@ Proof.
   rewrite IHs; auto.
 Qed.
 
-(*Definition repable_char i := Byte.min_signed <= i <= Byte.max_signed. *)
-
-(*
-Lemma repable_char_0 : repable_char 0.
-Proof.
-  split.
-  - pose proof Byte.min_signed_neg; omega.
-  - pose proof Byte.max_signed_pos; omega.
-Qed.
-
-Lemma repable_char_int : forall i, repable_char i -> repable_signed i.
-Proof.
-  unfold repable_char, repable_signed, Byte.min_signed, Byte.max_signed,
-    Int.min_signed, Int.max_signed; simpl; intros; omega.
-Qed.
-
-Lemma repable_byte : forall a, repable_char (Byte.signed a).
-Proof.
-  apply Byte.signed_range.
-Qed.
-
-Hint Resolve repable_char_0 repable_byte repable_char_int.
-*)
 
 Lemma repable_string : forall s, 
   Forall (fun i => Byte.min_signed <= i <= Byte.max_signed) (string_to_Z s).
@@ -192,3 +169,29 @@ Qed.
 Hint Resolve cstring_valid_pointer : valid_pointer.
 
 End CS.
+
+Lemma Znth_zero_zero:
+  forall i {A} (a: A), Znth i [a] a = a.
+Proof.
+intros.
+unfold Znth.
+if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
+Qed.
+
+
+Ltac cstring := 
+(* THIS TACTIC solves goals of the form,
+    ~In 0 ls,  Znth i (ls++[0]) 0 = 0 |-  (any omega consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) 0 <> 0 |-  (any omega consequence of)  i >= Zlength ls
+*)
+  pose_Zlength_nonneg;
+  apply Classical_Prop.NNPP; intro;
+  match goal with
+  | H: ~In 0 ?ls, H1: Znth ?i (?ls' ++ [0]) 0 = 0 |- _ =>
+     constr_eq ls ls'; elimtype False; apply H; rewrite <- H1; 
+    rewrite app_Znth1 by omega; apply Znth_In; omega
+  | H: ~In 0 ?ls, H1: Znth ?i (?ls' ++ [0]) 0 <> 0 |- _ =>
+     constr_eq ls ls'; elimtype False; apply H1;
+    rewrite app_Znth2 by omega; apply Znth_zero_zero
+ end.
+
