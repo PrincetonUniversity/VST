@@ -1357,6 +1357,14 @@ Proof.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
 
+Lemma repr_neq_e:
+ forall i j, Int.repr i <> Int.repr j -> i <> j.
+Proof. intros. contradict H. subst. auto. Qed.
+
+Lemma repr64_neq_e:
+ forall i j, Int64.repr i <> Int64.repr j -> i <> j.
+Proof. intros. contradict H. subst. auto. Qed.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
@@ -1371,7 +1379,12 @@ Ltac do_repr_inj H :=
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    match type of H with
-          | _ <> _ => apply int_eq_false_e in H
+(*  don't do these, because they weaken the statement, unfortunately.
+          | _ <> _ => apply repr_neq_e (*int_eq_false_e*) in H
+          | _ <> _ => apply repr64_neq_e in H
+*)
+          | _ <> _ => let H' := fresh H "'" in assert (H' := repr_neq_e _ _ H)
+          | _ <> _ => let H' := fresh H "'" in assert (H' := repr64_neq_e _ _ H)
           | Int.eq _ _ = false => apply int_eq_false_e in H
           | _ => idtac
   end;
