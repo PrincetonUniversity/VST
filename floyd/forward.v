@@ -1365,14 +1365,62 @@ Lemma repr64_neq_e:
  forall i j, Int64.repr i <> Int64.repr j -> i <> j.
 Proof. intros. contradict H. subst. auto. Qed.
 
+Lemma Byte_signed_lem: 
+ forall b,
+  (Byte.signed b = 0) = (b = Byte.zero).
+Proof.
+intros.
+apply prop_ext; split; intro.
+rewrite <- (Byte.repr_signed b). rewrite H; reflexivity.
+rewrite <- Byte.signed_repr by rep_omega.
+f_equal; auto.
+Qed.
+Hint Rewrite Byte_signed_lem: norm entailer_rewrite.
+
+Lemma Byte_signed_lem': 
+ forall b c,
+  (Byte.signed b = Byte.signed c) = (b = c).
+Proof.
+intros.
+apply prop_ext; split; intro.
+rewrite <- (Byte.repr_signed b).
+rewrite <- (Byte.repr_signed c).
+ rewrite H; reflexivity.
+congruence.
+Qed.
+Hint Rewrite Byte_signed_lem': norm entailer_rewrite.
+
+Lemma int_repr_byte_signed_eq0:
+  forall c, (Int.repr (Byte.signed c) = Int.zero) = (c = Byte.zero).
+Proof.
+intros.
+apply prop_ext; split; intro.
+apply repr_inj_signed in H; try repable_signed.
+rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
+subst; reflexivity.
+Qed.
+Hint Rewrite int_repr_byte_signed_eq0: norm entailer_rewrite.
+
+Lemma int_repr_byte_signed_eq:
+  forall c d, (Int.repr (Byte.signed c) = Int.repr (Byte.signed d)) = (c = d).
+Proof.
+intros.
+apply prop_ext; split; intro.
+apply repr_inj_signed in H; try repable_signed.
+rewrite <- (Byte.repr_signed c). 
+rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
+subst; reflexivity.
+Qed.
+Hint Rewrite int_repr_byte_signed_eq: norm entailer_rewrite.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
                |apply typed_false_of_bool in H
                | apply typed_true_ptr in H
                | apply typed_false_ptr_e in H
-               | unfold nullval in H; simple apply typed_true_tint_Vint in H
-               | unfold nullval in H; simple apply typed_false_tint_Vint in H
+               | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
+               | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
 (*               | simple apply typed_true_tint in H *)
                ];
    rewrite ?ptrofs_to_int_repr in H;
@@ -1412,7 +1460,10 @@ Ltac do_repr_inj H :=
          | simple apply lt_inv in H; cleanup_repr H
          | simple apply lt_false_inv in H; cleanup_repr H
          | idtac
-         ].
+         ];
+    rewrite ?Byte_signed_lem, ?Byte_signed_lem',
+                 ?int_repr_byte_signed_eq0, ?int_repr_byte_signed_eq0
+      in H.
 
 Ltac simpl_fst_snd :=
 repeat match goal with

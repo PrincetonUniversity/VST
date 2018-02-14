@@ -1,7 +1,8 @@
-Require Import String Ascii List ZArith.
+Require Import List ZArith.
 Import ListNotations.
+Require String Ascii.
 Require Import VST.floyd.proofauto.
-
+(*
 Fixpoint string_to_Z (s : string) :=
   match s with
   | EmptyString => []
@@ -104,13 +105,17 @@ Proof.
   rewrite !Zmod_small in * by auto.
   destruct (zlt _ _), (zlt _ _); auto; omega.
 Qed.
+*)
 
 Section CS.
   Context {CS : compspecs}.
 
-Definition cstring s p := let ls := string_to_Z s in
-  !!(~In 0 ls) &&
-  data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vint (map Int.repr (ls ++ [0]))) p.
+Definition Vbyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.signed c)).
+   
+Definition cstring (s: list byte) p := 
+  !!(~In Byte.zero s) &&
+  data_at Tsh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
 
 Lemma cstring_local_facts: forall s p, cstring s p |-- !! (isptr p).
 Proof.
@@ -124,29 +129,29 @@ Proof.
   intros; unfold cstring; Intros.
   apply data_at_valid_ptr; auto.
   unfold tarray; simpl.
-  pose proof (Zlength_nonneg (string_to_Z s)).
+  pose proof (Zlength_nonneg s).
   rewrite Z.max_r; omega.
 Qed.
 
 Hint Resolve cstring_valid_pointer : valid_pointer.
 
-Definition cstringn s n p := let ls := string_to_Z s in
-  !!(~In 0 ls) &&
-  data_at Tsh (tarray tschar n) (map Vint (map Int.repr (ls ++ [0])) ++
-    list_repeat (Z.to_nat (n - (Zlength ls + 1))) Vundef) p.
+Definition cstringn (s: list byte) n p :=
+  !!(~In Byte.zero s) &&
+  data_at Tsh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
+    list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
 
-Lemma cstringn_equiv : forall s p, cstring s p = cstringn s (Zlength (string_to_Z s) + 1) p.
+Lemma cstringn_equiv : forall s p, cstring s p = cstringn s (Zlength s + 1) p.
 Proof.
   intros; unfold cstring, cstringn.
   rewrite Zminus_diag, app_nil_r; auto.
 Qed.
 
-Lemma cstringn_local_facts: forall s n p, cstringn s n p |-- !! (isptr p /\ Zlength (string_to_Z s) + 1 <= n).
+Lemma cstringn_local_facts: forall s n p, cstringn s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
 Proof.
   intros; unfold cstringn; entailer!.
   autorewrite with sublist in H1.
-  pose proof (Zlength_nonneg (string_to_Z s)).
-  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength (string_to_Z s) + 1))) Vundef)).
+  pose proof (Zlength_nonneg s).
+  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
   destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; omega.
 Qed.
 
@@ -162,7 +167,7 @@ Proof.
   unfold cstringn; Intros.
   apply data_at_valid_ptr; auto.
   unfold tarray; simpl.
-  pose proof (Zlength_nonneg (string_to_Z s)).
+  pose proof (Zlength_nonneg s).
   rewrite Z.max_r; omega.
 Qed.
 
@@ -187,11 +192,29 @@ Ltac cstring :=
   pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
-  | H: ~In 0 ?ls, H1: Znth ?i (?ls' ++ [0]) 0 = 0 |- _ =>
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero = Byte.zero |- _ =>
      constr_eq ls ls'; elimtype False; apply H; rewrite <- H1; 
     rewrite app_Znth1 by omega; apply Znth_In; omega
-  | H: ~In 0 ?ls, H1: Znth ?i (?ls' ++ [0]) 0 <> 0 |- _ =>
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero <> Byte.zero |- _ =>
      constr_eq ls ls'; elimtype False; apply H1;
     rewrite app_Znth2 by omega; apply Znth_zero_zero
  end.
 
+Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
+  0 <= i < Zlength l -> Znth i (map Vbyte l) Vundef = Vbyte (Znth i l Byte.zero).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
+
+Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
+Proof.
+intros. simpl. normalize. rep_omega.
+Qed.
+Hint Resolve is_int_Vbyte.
+
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.

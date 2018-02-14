@@ -415,13 +415,10 @@ Proof.
    SEP (data_at Tsh (tarray tuchar n)
           (list_repeat (Z.to_nat k) (Vint Int.zero) ++
            list_repeat (Z.to_nat (n - k)) Vundef) (Vptr b i))).
-    - inv H. forward. apply negb_true_iff in H1. apply int_eq_false_e in H1.
-      entailer!. elim H1; rewrite H2; trivial.
-    - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
-      assert (NK: n = k).
-      { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
-        do 2 rewrite Int.unsigned_repr in H1; try rep_omega. }
-      subst k; clear H1 K. rewrite Zminus_diag.
+    - forward. entailer!.
+    - 
+      assert (NK: n = k) by (apply repr_inj_unsigned in H; rep_omega).
+      subst k; clear H K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.
       apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega. 
