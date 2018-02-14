@@ -2784,8 +2784,8 @@ match goal with |- semax _ _ _ ?R =>
  match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ * stackframe_of ?f _) |} =>
   apply semax_post with (frame_ret_assert (function_body_ret_assert t P) (stackframe_of f));
    [ simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
-   | simpl_ret_assert; solve [auto]
-   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
+   | simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
    | simpl_ret_assert; solve [auto]
    |]
  end
