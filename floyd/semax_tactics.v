@@ -421,3 +421,18 @@ Ltac find_statement_in_body f reassoc pat :=
       in let body := reassoc body
       in let S := pat body
       in exact S.
+
+Ltac check_POSTCONDITION' P :=
+    lazymatch P with
+    | context [bind_ret] =>
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' to inspect it"
+    | _ => idtac
+    end.
+
+Ltac check_POSTCONDITION :=
+  match goal with
+  | P := ?P' |- semax _ _ _ ?P'' =>
+     constr_eq P P''; check_POSTCONDITION' P'
+  | |- semax _ _ _ ?P => check_POSTCONDITION' P
+  | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
+  end.

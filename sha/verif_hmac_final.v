@@ -41,7 +41,7 @@ Proof. intros. abbreviate_semax.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
 Intros ST.
-destruct h1; simpl in *.
+destruct h1; simpl in H|-*.
 destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
 (*VST Issue: make_Vptr c. fails*)
@@ -63,7 +63,7 @@ rewrite <- memory_block_data_at_ ; trivial.
 
 unfold_data_at 1%nat.
 
-destruct ST as [MD [iCTX oCTX]]. simpl in *.
+destruct ST as [MD [iCTX oCTX]]. simpl in reprMD,reprI,reprO |- *.
 freeze [2;3;5] FR1.
 Time forward_call (ctx, buf, Vptr b i, Tsh, kv). (*3.6 versus 9.5*)
   { unfold sha256state_. Exists MD.

@@ -845,7 +845,8 @@ let L' := factor_out_v L in
   factor_back L'
 end.
 
-Ltac after_forward_call := 
+Ltac after_forward_call :=
+    check_POSTCONDITION; 
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
@@ -1581,7 +1582,7 @@ Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is 
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
 Ltac forward_for_simple_bound n Pre :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
  repeat match goal with |-
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
@@ -1830,7 +1831,7 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
  end.
 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
@@ -1866,7 +1867,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   end.
 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" constr(Postcond) :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
@@ -1957,7 +1958,7 @@ match goal with
 end.
 
 Ltac forward_if'_new :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
@@ -2019,7 +2020,7 @@ Ltac abbreviate_update_tycon :=
 end.
 
 Ltac forward_if_tac post :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred)
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
@@ -3045,11 +3046,13 @@ You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
+  | |- semax _ (exp _) _ _ => 
+             fail "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
 Ltac forward :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
   repeat rewrite <- seq_assoc;
   lazymatch goal with 
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
