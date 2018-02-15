@@ -1959,6 +1959,7 @@ end.
 
 Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
+ repeat apply -> semax_seq_skip;
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
@@ -2022,6 +2023,7 @@ end.
 Ltac forward_if_tac post :=
   check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
+  repeat apply -> semax_seq_skip;
 first [ignore (post: environ->mpred)
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with

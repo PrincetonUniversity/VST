@@ -1103,7 +1103,7 @@ forward_if
 { unfold typed_true, strict_bool_val in H. simpl in H. 
   unfold eval_unop in H. simpl in H.
   specialize (Int64.eq_spec b Int64.zero). intros.
-  destruct (Int64.eq b Int64.zero); simpl in *. 2: inv H.
+  destruct (Int64.eq b Int64.zero); [ | inv H].
   clear H.
   forward. entailer!. 
   unfold crypto_stream_xor_postsep. 
