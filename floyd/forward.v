@@ -1700,12 +1700,24 @@ Lemma semax_post1_flipped: forall R' Espec {cs: compspecs} Delta R P c,
       @semax cs Espec Delta P c R.
 Proof. intros. apply semax_post1 with R'; auto. Qed.
 
+Lemma semax_skip_seq1:
+  forall {Espec: OracleKind} {CS: compspecs} Delta P s1 s2 Q,
+   semax Delta P (Ssequence s1 s2) Q ->
+   semax Delta P (Ssequence (Ssequence Sskip s1) s2) Q.
+Proof.
+intros. apply seq_assoc1. apply -> semax_skip_seq. auto.
+Qed.
+
+Ltac delete_skip :=
+ repeat apply -> semax_skip_seq;
+ try apply semax_skip_seq1.
+
 Ltac forward_loop_aux2 Inv PreInc :=
  lazymatch goal with
   | |- semax _ _ (Sloop _ Sskip) _ => 
          tryif (constr_eq Inv PreInc) then (apply (semax_loop_noincr _ Inv); abbreviate_semax)
-         else (apply (semax_loop _ Inv PreInc); abbreviate_semax)
-  | |- semax _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); abbreviate_semax
+         else (apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax)
+  | |- semax _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax
  end.
 
 Ltac forward_loop_aux1 Inv PreInc:=
@@ -1719,11 +1731,12 @@ Ltac forward_loop_aux1 Inv PreInc:=
  
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" constr(Post) :=
   repeat simple apply seq_assoc1;
+ repeat apply -> semax_seq_skip;
   match goal with
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ => 
-          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | ]
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
-          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | ]
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
            else (apply (semax_post1_flipped Post); [ forward_loop_aux1 Inv PreInc | ])
@@ -1741,6 +1754,7 @@ Ltac check_no_incr S :=
 end.
 
 Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
+ repeat apply -> semax_seq_skip;
 lazymatch goal with
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
@@ -1781,7 +1795,7 @@ end.
 Axiom trust_me : trust_loop_nocontinue.
 
 Ltac forward_loop_nocontinue2 Inv :=
-  apply (semax_loop_nocontinue trust_me Inv); abbreviate_semax.
+  apply (semax_loop_nocontinue trust_me Inv); delete_skip; abbreviate_semax.
 
 Ltac forward_loop_nocontinue1 Inv :=
   lazymatch goal with
@@ -1794,15 +1808,17 @@ Ltac forward_loop_nocontinue1 Inv :=
 
 Ltac forward_loop_nocontinue Inv Post :=
   repeat simple apply seq_assoc1;
+  repeat apply -> semax_seq_skip;
   match goal with
   | |- semax _ _ (Ssequence _ _) _ => 
-          apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | ]
+          apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | abbreviate_semax ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_nocontinue1 Inv
            else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  | ])
   end.
 
 Ltac forward_loop_nocontinue_nobreak Inv :=
+ repeat apply -> semax_seq_skip;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
@@ -1981,6 +1997,10 @@ match goal with
      ]
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
+| |- semax _ _ (Ssequence (Sifthenelse _ _) _) _ => 
+     fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+| |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
+     fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
@@ -3054,6 +3074,7 @@ or else hide the * by making a Definition or using a freezer"
  end.
 
 Ltac forward :=
+  try apply semax_ff;
   check_Delta; check_POSTCONDITION;
   repeat rewrite <- seq_assoc;
   lazymatch goal with 

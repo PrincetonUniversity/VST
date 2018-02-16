@@ -95,14 +95,12 @@ forward_loop (EX i : Z,
 Exists 0. entailer!.
 *
 Intros i.
-forward.
 assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
-forward.
-normalize.
+forward. normalize.
 forward_if.
 forward.
 entailer!. f_equal. f_equal. cstring.
-forward.
+forward. 
 Exists (i+1).
 entailer!. cstring.
 *
@@ -111,7 +109,6 @@ forward.
 Exists i.
 entailer!.
 Qed.
-
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
@@ -132,7 +129,6 @@ forward_loop (EX i : Z,
           (map Vbyte (ls ++ [Byte.zero])) str)).
   Exists 0; rewrite sublist_nil; entailer!.
 - Intros i. 
-  forward.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -240,7 +236,6 @@ forward_loop (EX i : Z,
 -
   Intros i.
   forward.
-  forward.
   { entailer!. }
   { entailer!. autorewrite with sublist. normalize.  }
   autorewrite with sublist; normalize.
@@ -283,7 +278,6 @@ forward_loop (EX i : Z,
     cancel.    
    }
   { Intros j.
-  forward.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -358,7 +352,6 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - Exists 0; entailer!.
 - Intros i.
-  forward.
   assert (Zlength (ls1 ++ [Byte.zero]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   assert (Zlength (ls2 ++ [Byte.zero]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
@@ -492,7 +485,6 @@ forward_loop (EX i : Z,
  Exists 0. rewrite Z.sub_0_r; entailer!.
 *
  Intros i.
- forward.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
  forward. normalize.
  forward. fold_Vbyte.
@@ -553,7 +545,7 @@ unfold cstring in *.
 rename s into ls.
 Intros.
 forward.
-forward_loop (EX i : Z,
+forward_loop  (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
@@ -562,7 +554,6 @@ forward_loop (EX i : Z,
 Exists 0. entailer!.
 *
 Intros i.
-forward.
 assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
 forward.
 normalize.
@@ -590,7 +581,6 @@ forward_loop (EX i : Z,
           (map Vbyte (ls ++ [Byte.zero])) str)).
   Exists 0; rewrite sublist_nil; entailer!.
 - Intros i. 
-  forward.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -648,7 +638,6 @@ forward_loop (EX i : Z,
 -
   Intros i.
   forward.
-  forward.
   { entailer!. }
   { entailer!. autorewrite with sublist. normalize.  }
   autorewrite with sublist; normalize.
@@ -681,7 +670,6 @@ forward_loop (EX i : Z,
     cancel.    
    }
   { Intros j.
-  forward.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -749,7 +737,6 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - Exists 0; entailer!.
 - Intros i.
-  forward.
   assert (Zlength (ls1 ++ [Byte.zero]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   assert (Zlength (ls2 ++ [Byte.zero]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
@@ -768,7 +755,7 @@ forward_loop (EX i : Z,
     forward_if (PROP ()
       (LOCALx (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2))) :: Q) R)) end.
   { forward.
-    simpl force_val.
+    simpl force_val. normalize.
     rewrite Hs1 in *.
     destruct (Byte.eq_dec (Znth i (ls2 ++ [Byte.zero]) Byte.zero) Byte.zero).
     + rewrite e; simpl force_val.
@@ -875,7 +862,6 @@ forward_loop (EX i : Z,
  Exists 0. rewrite Z.sub_0_r; entailer!.
 *
  Intros i.
- forward.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
  forward. normalize.
  forward. fold_Vbyte.

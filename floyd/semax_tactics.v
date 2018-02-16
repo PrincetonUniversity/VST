@@ -278,23 +278,14 @@ end.
 
 Ltac abbreviate_semax :=
  match goal with
+ | |- semax _ FF _ _ => apply semax_ff
+ | |- semax _ (PROPx (False::_) _) _ _ => Intros; contradiction
  | |- semax _ _ _ _ =>
   simplify_Delta;
   repeat match goal with
   | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
   end;
   force_sequential;
-(*  match goal with
-  | P := @abbreviate ret_assert _ |- semax _ _ _ ?Q => constr_eq P Q
-  | |- _ => 
-    repeat match goal with
-    | P := @abbreviate ret_assert _ |- _ => subst P
-    end;
-    match goal with |- semax _ _ _ ?P => 
-       abbreviate P : ret_assert as POSTCONDITION
-    end
-  end;
-*)
   match goal with |- semax _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>
