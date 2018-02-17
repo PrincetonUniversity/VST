@@ -1146,17 +1146,15 @@ Ltac quick_typecheck3 :=
  apply quick_derives_right; clear; go_lowerx; intros;
  clear; repeat apply andp_right; auto; fail.
 
-Ltac default_entailer_for_load_tac :=
+Ltac default_entailer_for_load_store :=
   repeat match goal with H := _ |- _ => clear H end;
   try quick_typecheck3;
   unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
   try solve [entailer!].
 
-Ltac entailer_for_load_tac := default_entailer_for_load_tac.
+Ltac entailer_for_load_tac := default_entailer_for_load_store.
 
-Ltac default_entailer_for_store_tac := try solve [entailer!]. (* TODO: maybe use the same one for load? *)
-
-Ltac entailer_for_store_tac := default_entailer_for_store_tac.
+Ltac entailer_for_store_tac := default_entailer_for_load_store.
 
 Ltac load_tac_with_hint LOCAL2PTREE :=
   eapply semax_PTree_field_load_with_hint;
@@ -1269,8 +1267,7 @@ Ltac cast_load_tac :=
     first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
     clear T1 T2 LOCAL2PTREE
   end.
-Check semax_PTree_field_store_with_hint.
-Locate solve_load_rule_evaluation.
+
 Lemma data_equal_congr {cs: compspecs}:
     forall T (v1 v2: reptype T),
    v1 = v2 ->
@@ -1296,7 +1293,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
                                                          "unexpected failure in converting stored value")
   | first [apply data_equal_congr; solve_store_rule_evaluation
                                              | fail 1000 "unexpected failure in store_tac_with_hint."
-                                                         "unexpected failure in generating loaded value"]
+                                                         "unexpected failure in computing stored result"]
   | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "unexpected failure in entailer_for_store_tac"]
   ].
@@ -1315,11 +1312,11 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
   | (auto                                   || fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "Cannot prove writable_share")
-  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_with_hint."
+  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "unexpected failure in converting stored value")
   | first [apply data_equal_congr; solve_store_rule_evaluation
-                                             | fail 1000 "unexpected failure in store_tac_with_hint."
-                                                         "unexpected failure in generating loaded value"]
+                                             | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in computing stored result"]
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]

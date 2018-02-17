@@ -205,24 +205,17 @@ Ltac subst_indexes gfs :=
   end.
 
 Ltac solve_store_rule_evaluation :=
-(*  we comment these out, because "simplify_casts" can make use of these user hypotheses 
-  repeat match goal with
-  | A : _ |- _ => clear A
-  | A := _ |- _ => clear A
-  end;
-*)
-(*  apply data_equal_congr;*)
-  match goal with A := ?gfs : list gfield |- upd_reptype _ _ ?v0 (valinject _ ?v1) = ?B =>
+  match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
    lazy beta zeta iota delta [reptype reptype_gen] in rhs;
    simpl in rhs;
    let h0 := fresh "h0" in let h1 := fresh "h1" in
-   set (h0:=v0); set (h1:=v1);
+   set (h0:=v0); set (h1:=v1); change (upd_reptype t gfs h0 h1 = rhs);
    remember_indexes gfs;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
    lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];
-   unfold v1 in h1;
+   try unfold v1 in h1;
    revert h1; simplify_casts; cbv zeta;
    subst rhs h0; subst_indexes gfs;
   apply eq_refl
