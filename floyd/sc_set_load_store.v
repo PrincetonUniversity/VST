@@ -256,155 +256,7 @@ Proof.
   1: eassumption.
   rewrite (add_andp _ _ H9), (add_andp _ _ H5); solve_andp.
 Qed.
-(*
-Lemma semax_SC_field_store_without_nested_efield:
-  forall {Espec: OracleKind},
-    forall Delta sh n (a p: val) P Q R (e1 e2 : expr)
-      (t t_root: type) (gfs0 gfs1 gfs: list gfield)
-      (v0: val) (v v_new: reptype (nested_field_type t_root gfs0)),
-      typeof e1 = t ->
-      nested_field_type t_root gfs = t ->
-      type_is_by_value t = true ->
-      type_is_volatile t = false ->
-      gfs = gfs1 ++ gfs0 ->
-      nth_error R n = Some (field_at sh t_root gfs0 v a) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_lvalue e1)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfs a) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
-      writable_share sh ->
-      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_lvalue Delta e1) && 
-         (tc_expr Delta (Ecast e2 t)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root gfs) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-        (Sassign e1 e2)
-          (normal_ret_assert
-            (PROPx P
-              (LOCALx Q
-                (SEPx
-                  (replace_nth n R
-                    (field_at sh t_root gfs0 v_new a)))))).
-Proof.
-  intros until 0.
-  intros TypeOf EqT ByVal Volatile EqGfs GetR Ugly Nice EvalRhs Wsh DEq Tc Lnf.
-  eapply semax_extract_later_prop'; [exact Lnf | clear Lnf; intro Lnf].
-  eapply semax_extract_later_prop'; [exact Nice | clear Nice; intro Nice]. subst p.
-  erewrite field_at_data_equal by (symmetry; apply DEq).
-  clear DEq v_new.
-  subst t.
-  eapply semax_no_path_field_store_nth_ram.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: symmetry; eassumption.
-  1: apply @JMeq_sym.
-     apply valinject_JMeq. rewrite EqT. exact ByVal.
-  1: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
-  assert ({v0': reptype (nested_field_type t_root (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v) v0'}).
-  {
-    apply JMeq_sigT.
-    rewrite nested_field_type_nested_field_type; auto.
-  }
-  destruct X as [v0' JM].
-  pose proof nested_field_ramif' sh t_root gfs0 gfs1 v v0' a JM as A.
-  rewrite EqGfs in Lnf; spec A; [auto |].
-  eapply derives_trans; [apply A |].
-  rewrite EqGfs.
-  apply sepcon_derives; [apply field_at_field_at_ |].
-  clear v0' A JM.
-  apply (allp_left _ (valinject (nested_field_type t_root (gfs1 ++ gfs0)) v0)).
-  apply (allp_left _ (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) v0)).
-  rewrite prop_imp; [apply derives_refl |].
-  rewrite <- EqT, EqGfs in ByVal.
-  eapply JMeq_trans; [apply valinject_JMeq; exact ByVal |].
-  apply @JMeq_sym, valinject_JMeq.
-  rewrite nested_field_type_nested_field_type. exact ByVal.
-Qed.
 
-Lemma semax_SC_field_store_with_nested_field_partial:
-  forall {Espec: OracleKind},
-    forall Delta sh n (a p: val) P Q R (e1 e2 : expr)
-      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfsA gfsB: list gfield) (tts: list type)
-      (v0: val) (v v_new: reptype (nested_field_type t_root gfs0)) lr,
-      typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t = true ->
-      LR_of_type (nested_field_type t_root gfsA) = lr ->
-      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
-      gfsB ++ gfsA = gfs1 ++ gfs0 ->
-      nth_error R n = Some (field_at sh t_root gfs0 v a) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfsA a) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (efield_denote efs gfsB) ->
-      writable_share sh ->
-      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_LR Delta e1 lr) && 
-         (tc_expr Delta (Ecast e2 t)) &&
-         (tc_efield Delta efs) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root (gfsB ++ gfsA)) ->
-      legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-        (Sassign (nested_efield e1 efs tts) e2)
-          (normal_ret_assert
-            (PROPx P
-              (LOCALx Q
-                (SEPx
-                  (replace_nth n R
-                    (field_at sh t_root gfs0 v_new a)))))).
-Proof.
-  intros until 0.
-  intros TypeOf ByVal LRo Volatile EqGfs GetR Ugly Nice EvalRhs Edenote Wsh DEq Tc Lnf Lnef.
-  eapply semax_extract_later_prop'; [exact Lnf | clear Lnf; intro Lnf].
-  eapply semax_extract_later_prop'; [exact Nice | clear Nice; intro Nice]. subst p.
-  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
-    rewrite <- nested_field_type_nested_field_type.
-    eapply derives_trans; [exact Edenote |].
-    intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
-    symmetry; eapply typeof_nested_efield; eauto.
-  }
-  erewrite field_at_data_equal by (symmetry; apply DEq).
-  clear DEq v_new.
-  subst t.
-  eapply semax_partial_path_field_store_nth_ram.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: apply @JMeq_sym.
-     apply valinject_JMeq. rewrite <- EqT. exact ByVal.
-  1: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: rewrite (add_andp _ _ Edenote), (add_andp _ _ Tc); solve_andp.
-  2: eassumption.
-  assert ({v0': reptype (nested_field_type t_root (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v) v0'}).
-  {
-    apply JMeq_sigT.
-    rewrite nested_field_type_nested_field_type; auto.
-  }
-  destruct X as [v0' JM].
-  pose proof nested_field_ramif' sh t_root gfs0 gfs1 v v0' a JM as A.
-  rewrite EqGfs in Lnf; spec A; [auto |].
-  eapply derives_trans; [apply A |].
-  rewrite EqGfs.
-  apply sepcon_derives; [apply field_at_field_at_ |].
-  clear v0' A JM.
-  apply (allp_left _ (valinject (nested_field_type t_root (gfs1 ++ gfs0)) v0)).
-  apply (allp_left _ (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) v0)).
-  rewrite prop_imp; [apply derives_refl |].
-  rewrite EqT, EqGfs in ByVal.
-  eapply JMeq_trans; [apply valinject_JMeq; exact ByVal |].
-  apply @JMeq_sym, valinject_JMeq.
-  rewrite nested_field_type_nested_field_type. exact ByVal.
-Qed.
-*)
 End SEMAX_SC.
 
 (************************************************
@@ -1033,7 +885,7 @@ Qed.
 
 Lemma semax_PTree_field_store_no_hint:
   forall {Espec: OracleKind},
-    forall n Delta sh P Q R (e1 e2 : expr) t
+    forall n Delta sh P Q R (e1 e2 : expr)
       T1 T2 e_root (efs: list efield) (tts: list type) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
@@ -1057,7 +909,7 @@ Lemma semax_PTree_field_store_no_hint:
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e_root lr) &&
-         (tc_expr Delta (Ecast e2 t)) &&
+         (tc_expr Delta (Ecast e2 (typeof e1))) &&
          (tc_efield Delta efs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
@@ -1068,7 +920,7 @@ Lemma semax_PTree_field_store_no_hint:
                   (replace_nth n R
                     (field_at sh t_root gfs0 v_new p)))))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
          ? ? ? ? ?
@@ -1135,71 +987,75 @@ Proof.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
   1: eassumption.
   1: eassumption.
+  3: eassumption.
+  3: eapply JMeq_sym; eassumption.
+  3: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
   + rewrite <- TYPE_EQ, TYPEOF.
     apply andp_left2.
     erewrite local2ptree_soundness by eauto.
     apply msubst_eval_expr_eq; eauto.
-  + 
+  + rewrite (add_andp _ _ DERIVES), (add_andp _ _ TC).
+    rewrite <- TYPE_EQ, TYPEOF, NESTED_EFIELD.
+    solve_andp.
 Qed.
 
-(* TODO: This was broken because semax_SC_field_store's specification is changed. *)
-(*
-Lemma semax_PTree_store:
+Lemma semax_PTree_field_store_with_hint:
   forall {Espec: OracleKind},
-    forall Delta sh n P T1 T2 R Rn (e1 e2 : expr)
-      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v0: val) (v v_new: reptype (nested_field_type t_root gfs0)) lr,
-      typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t = true ->
+    forall n Delta sh P Q R (e1 e2 : expr)
+      T1 T2 p_from_e
+      (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
+      (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
+      (v0_val: val) (v v_new: reptype (nested_field_type t_root gfs0)),
+      local2ptree Q = (T1, T2, nil, nil) ->
+      type_is_by_value (typeof e1) = true ->
+      type_is_volatile (typeof e1) = false ->
+      msubst_eval_expr T1 T2 (Ecast e2 (typeof e1)) = Some v0_val ->
+      msubst_eval_lvalue T1 T2 e1 = Some p_from_e ->
+      p_from_e = field_address t_root gfs p ->
+      typeof e1 = nested_field_type t_root gfs ->
+      nth_error R n = Some (field_at sh t_root gfs0 v p) /\
       gfs = gfs1 ++ gfs0 ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
-      nth_error R n = Some Rn ->
-      msubst_eval_LR T1 T2 e1 lr = Some p ->
-      msubst_eval_expr T1 T2 (Ecast e2 t) = Some v0 ->
-      msubst_efield_denote T1 T2 efs = Some gfs ->
-      (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil))  |--
-        `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
-      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
-      (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-         (tc_LR Delta e1 lr) &&
-         (tc_expr Delta (Ecast e2 t)) &&
-         (tc_efield Delta efs) ->
-      (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-        (!! legal_nested_field t_root gfs) ->
-      semax Delta (|>assertD P (localD T1 T2) R)
-        (Sassign (nested_efield e1 efs tts) e2)
+      JMeq v0_val v0 ->
+      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+         (tc_lvalue Delta e1) &&
+         (tc_expr Delta (Ecast e2 (typeof e1))) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+        (Sassign e1 e2)
           (normal_ret_assert
-            (assertD P (localD T1 T2)
+            (PROPx P
+              (LOCALx Q
+                (SEPx
                   (replace_nth n R
-                    (field_at sh t_root gfs0 v_new p)))).
+                    (field_at sh t_root gfs0 v_new p)))))).
 Proof.
-  intros.
-  unfold assertD, localD in *.
-  rewrite insert_tce in H7, H10, H11.
-  eapply semax_post'.
-  Focus 2. {
-    eapply semax_SC_field_store with (n0 := n); eauto.
-(*    + apply map_nth_error, H3.*)
-    + rewrite <- insert_local.
-      apply andp_left2.
-      destruct lr;
-      unfold eval_LR;
-      unfold msubst_eval_LR in H4.
-      - apply msubst_eval_lvalue_eq, H4.
-      - apply msubst_eval_expr_eq, H4.
-    + rewrite <- insert_local.
-      apply andp_left2.
-      apply msubst_eval_expr_eq, H5.
-    + rewrite <- insert_local. apply andp_left2.
-      apply msubst_efield_denote_equiv, H6.
-  } Unfocus.
-(*  rewrite map_replace_nth.*)
-  auto.
+  intros ? ? ? ? ? ? ? ? ?
+         ? ? ? ?
+         ? ? ? ? ?
+         ? ? ?
+         LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ [NTH GFS] SH JMEQ DATA_EQ TC.
+  eapply semax_SC_field_store.
+  1: eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  1: rewrite <- TYPE_EQ; eassumption.
+  1: eassumption.
+  1: eassumption.
+  3: eassumption.
+  3: eapply JMeq_sym; eassumption.
+  3: eassumption.
+  3: rewrite <- TYPE_EQ; auto.
+  + rewrite <- FIELD_ADD.
+    erewrite (local2ptree_soundness P Q R) by eassumption.
+    simpl app.
+    apply andp_left2. apply msubst_eval_lvalue_eq; auto.
+  + rewrite <- TYPE_EQ.
+    erewrite (local2ptree_soundness P Q R) by eassumption.
+    simpl app.
+    apply andp_left2. apply msubst_eval_expr_eq; auto.
 Qed.
-*)
 
 Definition proj_val t_root gfs v :=
    repinject (nested_field_type t_root gfs) (proj_reptype t_root gfs v).
@@ -1298,7 +1154,11 @@ Ltac default_entailer_for_load_tac :=
 
 Ltac entailer_for_load_tac := default_entailer_for_load_tac.
 
-Ltac load_tac_with_hint LOCAL2PTREE :=  
+Ltac default_entailer_for_store_tac := try solve [entailer!]. (* TODO: maybe use the same one for load? *)
+
+Ltac entailer_for_store_tac := default_entailer_for_store_tac.
+
+Ltac load_tac_with_hint LOCAL2PTREE :=
   eapply semax_PTree_field_load_with_hint;
   [ exact LOCAL2PTREE
   | reflexivity
@@ -1353,7 +1213,7 @@ Ltac load_tac :=
     clear T1 T2 LOCAL2PTREE
   end.
 
-Ltac cast_load_tac_with_hint LOCAL2PTREE :=  
+Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   eapply semax_PTree_field_cast_load_with_hint;
   [ exact LOCAL2PTREE
   | reflexivity
@@ -1364,9 +1224,9 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
-  | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast)load_tac_with_hint."
+  | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
-  | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
+  | (auto                                   || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "Cannot prove readable_share")
   | first [solve_load_rule_evaluation        | fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "unexpected failure in generating loaded value"]
@@ -1407,6 +1267,75 @@ Ltac cast_load_tac :=
     assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
     [subst T1 T2; prove_local2ptree |];
     first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
+    clear T1 T2 LOCAL2PTREE
+  end.
+Check semax_PTree_field_store_with_hint.
+Locate solve_load_rule_evaluation.
+Lemma data_equal_congr {cs: compspecs}:
+    forall T (v1 v2: reptype T),
+   v1 = v2 ->
+   data_equal v1 v2.
+Proof. intros. subst. intro. reflexivity.
+Qed.
+
+Ltac store_tac_with_hint LOCAL2PTREE :=
+  eapply semax_PTree_field_store_with_hint;
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_expr
+  | solve_msubst_eval_lvalue
+  | eassumption (* This line can fail. If it does not, the following should not fail. *)
+  | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "The hint does not type match")
+  | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "Required field_at does not exists in SEP")
+  | (auto                                   || fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "Cannot prove writable_share")
+  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "unexpected failure in converting stored value")
+  | first [apply data_equal_congr; solve_store_rule_evaluation
+                                             | fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "unexpected failure in entailer_for_store_tac"]
+  ].
+
+Ltac store_tac_no_hint LOCAL2PTREE :=
+  eapply semax_PTree_field_store_no_hint;
+  [ exact LOCAL2PTREE
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | solve_msubst_eval_expr
+  | solve_msubst_eval_LR
+  | solve_msubst_efield_denote
+  | econstructor
+  | solve_field_address_gen
+  | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
+  | (auto                                   || fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "Cannot prove writable_share")
+  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "unexpected failure in converting stored value")
+  | first [apply data_equal_congr; solve_store_rule_evaluation
+                                             | fail 1000 "unexpected failure in store_tac_with_hint."
+                                                         "unexpected failure in generating loaded value"]
+  | first [solve_legal_nested_field_in_entailment
+                                             | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in solve_legal_nested_field_in_entailment"]
+  | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in entailer_for_store_tac"]
+  ].
+
+Ltac store_tac :=
+  match goal with
+  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+    let T1 := fresh "T1" in evar (T1: PTree.t val);
+    let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
+    let LOCAL2PTREE := fresh "LOCAL2PTREE" in
+    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
+    [subst T1 T2; prove_local2ptree |];
+    first [ store_tac_with_hint LOCAL2PTREE | store_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e1 R | hint_msg LOCAL2PTREE e1];
     clear T1 T2 LOCAL2PTREE
   end.
 
