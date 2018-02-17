@@ -420,16 +420,52 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
+Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
+| find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
+| find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
+| find_nth_SEP_preds_rec_nil: forall n, find_nth_SEP_preds_rec pred n nil None.
+
+Inductive find_nth_SEP_preds (pred: mpred -> Prop): list mpred -> option (nat * mpred) -> Prop :=
+| find_nth_SEP_preds_constr: forall R R_res, find_nth_SEP_preds_rec pred 0 R R_res -> find_nth_SEP_preds pred R R_res.
+
+Lemma find_nth_SEP_preds_Some: forall pred R n R0, find_nth_SEP_preds pred R (Some (n, R0)) ->
+  nth_error R n = Some R0 /\ pred R0.
+Proof.
+  intros.
+  inv H.
+  replace n with (n - 0)%nat by omega.
+  assert ((n >= 0)%nat /\ nth_error R (n - 0) = Some R0 /\ pred R0); [| tauto].
+  revert H0; generalize 0%nat as m; intros.
+  remember (Some (n, R0)) as R_res eqn:?H in H0.
+  induction H0.
+  + inv H.
+    replace (n - n)%nat with 0%nat by omega.
+    simpl; auto.
+  + apply IHfind_nth_SEP_preds_rec in H.
+    destruct H as [? [? ?]].
+    replace (n - n0)%nat with (S (n - S n0)) by omega.
+    split; [omega |].
+    simpl; auto.
+  + inv H.
+Qed.
+
+Ltac find_nth_SEP_rec tac :=
+  first [ simple eapply find_nth_SEP_preds_rec_cons_head; tac
+        | simple eapply find_nth_SEP_preds_rec_cons_tail; find_nth_SEP_rec tac
+        | simple eapply find_nth_SEP_preds_rec_nil].
+
+Ltac find_nth_SEP tac :=
+  eapply find_nth_SEP_preds_constr; find_nth_SEP_rec tac.
+(* The reason to use "eapply" instead of "simple eapply" is because "find_nth_SEP" may be buried in definitions. *)
+
 Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
 | find_type_contradict_pred_data_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at sh t0 v0 p)
 | find_type_contradict_pred_data_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at_ sh t0 p)
 | find_type_contradict_pred_field_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at sh t0 nil v0 p)
 | find_type_contradict_pred_field_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at_ sh t0 nil p).
 
-Inductive find_type_contradict_preds {cs: compspecs} (t: type) (p: val): list mpred -> option mpred -> Prop :=
-| find_type_contradict_preds_cons_head: forall R0 R, find_type_contradict_pred t p R0 -> find_type_contradict_preds t p (R0 :: R) (Some R0)
-| find_type_contradict_preds_cons_tail: forall R0 R R_res, find_type_contradict_preds t p R R_res -> find_type_contradict_preds t p (R0 :: R) R_res
-| find_type_contradict_preds_nil: find_type_contradict_preds t p nil None.
+Definition find_type_contradict_preds {cs: compspecs} (t: type) (p: val) :=
+  find_nth_SEP_preds (find_type_contradict_pred t p).
 
 Lemma SEP_type_contradict_lemma: forall {cs: compspecs} e R goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   mm1 mm2,
@@ -456,11 +492,6 @@ Ltac find_type_contradict_rec :=
         | simple eapply find_type_contradict_pred_field_at; reflexivity
         | simple eapply find_type_contradict_pred_field_at_; reflexivity].
 
-Ltac find_type_contradict :=
-  first [ simple eapply find_type_contradict_preds_cons_head; find_type_contradict_rec
-        | simple eapply find_type_contradict_preds_cons_tail; find_type_contradict
-        | simple eapply find_type_contradict_preds_nil].
-
 Definition unknown_type := Tvoid.
 
 Ltac SEP_type_contradict_msg r e :=
@@ -485,12 +516,12 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   | solve_msubst_efield_denote
   | econstructor
   | solve_field_address_gen
-  | find_type_contradict
-  | first [left; split; [reflexivity | find_type_contradict] | right; reflexivity]
+  | find_nth_SEP find_type_contradict_rec
+  | first [left; split; [reflexivity | find_nth_SEP find_type_contradict_rec] | right; reflexivity]
   | ];
   match goal with
-  | |- Some ?r = _ /\ False => SEP_type_contradict_msg r e
-  | |- _ = Some ?r /\ False => SEP_type_contradict_msg r e
+  | |- Some (_, ?r) = _ /\ False => SEP_type_contradict_msg r e
+  | |- _ = Some (_, ?r) /\ False => SEP_type_contradict_msg r e
   | |- _ => idtac
   end;
   fail 0.
