@@ -128,14 +128,14 @@ Qed.
 
 Lemma make_unmake:
  forall a b p,
- field_at Tsh t_struct_elem [] (Vint a, (Vint b, Vundef)) p =
+ data_at Tsh t_struct_elem (Vint a, (Vint b, Vundef)) p =
  field_at Qsh' t_struct_elem [StructField _a] (Vint a) p *
  field_at Qsh' t_struct_elem [StructField _b] (Vint b) p *
  list_cell QS Qsh (Vundef, Vundef) p *
  field_at_ Tsh t_struct_elem [StructField _next] p.
 Proof.
 intros.
-unfold_field_at 1%nat.
+unfold_data_at 1%nat.
 rewrite <- !sepcon_assoc.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
@@ -512,7 +512,7 @@ forward_call (*  free(p, sizeof( *p)); *)
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2 *
    malloc_token Tsh (sizeof t_struct_elem) p2).
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
- unfold data_at; rewrite make_unmake; cancel.
+ rewrite make_unmake; cancel.
  apply derives_trans with
    (data_at_ Tsh t_struct_elem p' * fold_right_sepcon Frame).
  cancel.

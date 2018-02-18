@@ -73,7 +73,6 @@ Proof.
   Intro i.
   forward.
   forward_call (cond, sh).
-  rewrite field_at_isptr; Intros.
   forward_call (lock, sh, dlock_inv data).
   { lock_props.
     unfold dlock_inv; Exists 1; cancel. }
@@ -108,7 +107,6 @@ Proof.
   forward.
   forward_call (cond, Ews).
   { unfold tcond; entailer!. }
-  rewrite field_at_isptr; Intros.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }

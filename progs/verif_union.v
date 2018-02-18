@@ -219,7 +219,7 @@ Proof.
 start_function.
 forward.
 destruct (fabs_float32_lemma x) as [y [H3 H4]].
-unfold_field_at 1%nat.
+unfold_data_at 1%nat.
 rewrite field_at_data_at.
 erewrite data_at_single_int with (v2:= Vint y);
  [ | apply I | apply I | exact H3 | auto | apply (union_field_address _ (eq_refl _))].

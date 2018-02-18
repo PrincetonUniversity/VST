@@ -87,7 +87,6 @@ Proof.
   Intro z.
   forward.
   forward.
-  rewrite field_at_isptr; Intros.
   forward_call (lock, sh, cptr_lock_inv ctr).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1); entailer!. }
@@ -101,7 +100,6 @@ Proof.
   unfold cptr_lock_inv at 2; simpl.
   Intro z.
   forward.
-  rewrite data_at_isptr; Intros.
   forward_call (lock, sh, cptr_lock_inv ctr).
   { lock_props.
     unfold cptr_lock_inv; Exists z; entailer!. }
@@ -140,7 +138,6 @@ Proof.
   forward.
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  rewrite field_at_isptr; Intros.
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { lock_props.
     unfold cptr_lock_inv; Exists 0; cancel. }

@@ -1101,17 +1101,14 @@ Definition upd_val t_root gfs v v0 :=
 
 End SEMAX_PTREE.
 
-Ltac unify_var_or_evar name val :=
-  let E := fresh "E" in assert (name = val) as E by (try subst name; reflexivity); clear E.
-
 Ltac SEP_field_at_unify' gfs :=
   match goal with
   | |- field_at ?shl ?tl ?gfsl ?vl ?pl = field_at ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
       unify (skipn (length gfs - length gfsl) gfs) gfsl;
-      unify_var_or_evar gfsl gfsr;
-      unify_var_or_evar shl shr;
-      unify_var_or_evar vl vr;
+      unify gfsl gfsr;
+      unify shl shr;
+      unify vl vr;
       generalize vl; intro;
       rewrite <- ?field_at_offset_zero; reflexivity
   end.
@@ -1133,23 +1130,23 @@ Ltac SEP_field_at_strong_unify' gfs :=
   | |- @field_at ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
       unify (skipn (length gfs - length gfsl) gfs) gfsl;
-      unify_var_or_evar gfsl gfsr;
-      unify_var_or_evar shl shr;
-      unify_var_or_evar vl vr;
+      unify gfsl gfsr;
+      unify shl shr;
+      unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify_var_or_evar Rv (fun v: tv1 => @field_at cs shl tl gfsl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => @field_at cs shl tl gfsl v pl)
         end; reflexivity
       | extensionality;
         rewrite <- ?field_at_offset_zero; reflexivity]
   | |- @data_at ?cs ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
-      unify_var_or_evar gfsr (@nil gfield);
-      unify_var_or_evar shl shr;
-      unify_var_or_evar vl vr;
+      unify gfsr (@nil gfield);
+      unify shl shr;
+      unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify_var_or_evar Rv (fun v: tv1 => @data_at cs shl tl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => @data_at cs shl tl v pl)
         end; reflexivity
       | extensionality;
         unfold data_at;
@@ -1178,7 +1175,7 @@ Ltac prove_gfs_suffix gfs :=
   | |- _ = ?gfs1 ++ ?gfs0 =>
        let len := fresh "len" in
        let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
-       unify_var_or_evar gfs1 gfs1';
+       unify gfs1 gfs1';
        reflexivity
   end.
 

@@ -32,7 +32,7 @@ env:
 branches:
   only:
   - master
-  - align
+  - improve_loadstore
 notifications:
   email:
     recipients:
