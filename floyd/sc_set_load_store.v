@@ -925,7 +925,7 @@ Lemma semax_PTree_field_store_no_hint:
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
-      (v0_val: val) (v v_new: reptype (nested_field_type t_root gfs0)),
+      (v0_val: val) Rv (v v_new: reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, nil) ->
       compute_nested_efield e1 = (e_root, efs, tts, lr) ->
       type_is_by_value (typeof e1) = true ->
@@ -935,7 +935,7 @@ Lemma semax_PTree_field_store_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
@@ -951,12 +951,11 @@ Lemma semax_PTree_field_store_no_hint:
             (PROPx P
               (LOCALx Q
                 (SEPx
-                  (replace_nth n R
-                    (field_at sh t_root gfs0 v_new p)))))).
+                  (replace_nth n R (Rv v_new)))))).
 Proof.
   intros ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
-         ? ? ?
+         ? ? ? ?
          ? ? ? ? ?
          ? ? ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD BY_VALUE ? EVAL_R EVAL_ROOT EVAL_EFIELD ROOT_TYPE
@@ -976,7 +975,7 @@ Proof.
     rewrite COMPUTE_NESTED_EFIELD in H1; apply H1; auto.
   } Unfocus.
   apply find_nth_SEP_preds_Some in NTH.
-  destruct NTH as [NTH [? GFS]]; subst Rn.
+  destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   destruct H0 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
@@ -1043,7 +1042,7 @@ Lemma semax_PTree_field_store_with_hint:
       T1 T2 p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
-      (v0_val: val) (v v_new: reptype (nested_field_type t_root gfs0)),
+      (v0_val: val) Rv (v v_new: reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, nil) ->
       type_is_by_value (typeof e1) = true ->
       type_is_volatile (typeof e1) = false ->
@@ -1051,7 +1050,7 @@ Lemma semax_PTree_field_store_with_hint:
       msubst_eval_lvalue T1 T2 e1 = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e1 = nested_field_type t_root gfs ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
@@ -1069,11 +1068,11 @@ Lemma semax_PTree_field_store_with_hint:
 Proof.
   intros ? ? ? ? ? ? ? ? ? ?
          ? ? ? ?
-         ? ? ? ? ?
+         ? ? ? ? ? ?
          ? ? ?
          LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ DATA_EQ TC.
   apply find_nth_SEP_preds_Some in NTH.
-  destruct NTH as [NTH [? GFS]]; subst Rn.
+  destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   eapply semax_SC_field_store.
   1: eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
@@ -1129,6 +1128,44 @@ Ltac SEP_field_at_unify gfs :=
       unfold field_at_; SEP_field_at_unify' gfs
   end.
 
+Ltac SEP_field_at_strong_unify' gfs :=
+  match goal with
+  | |- @field_at ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+      unify tl tr;
+      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify_var_or_evar gfsl gfsr;
+      unify_var_or_evar shl shr;
+      unify_var_or_evar vl vr;
+      split;
+      [ match type of vl with
+        | ?tv1 => unify_var_or_evar Rv (fun v: tv1 => @field_at cs shl tl gfsl v pl)
+        end; reflexivity
+      | extensionality;
+        rewrite <- ?field_at_offset_zero; reflexivity]
+  | |- @data_at ?cs ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+      unify tl tr;
+      unify_var_or_evar gfsr (@nil gfield);
+      unify_var_or_evar shl shr;
+      unify_var_or_evar vl vr;
+      split;
+      [ match type of vl with
+        | ?tv1 => unify_var_or_evar Rv (fun v: tv1 => @data_at cs shl tl v pl)
+        end; reflexivity
+      | extensionality;
+        unfold data_at;
+        rewrite <- ?field_at_offset_zero; reflexivity]
+  end.
+
+Ltac SEP_field_at_strong_unify gfs :=
+  match goal with
+  | |- data_at_ ?sh ?t ?p = _ /\ _ =>
+      change (data_at_ sh t p) with (data_at sh t (default_val t) p);
+      SEP_field_at_strong_unify' gfs
+  | |- field_at_ _ _ _ _ = _ /\ _ =>
+      unfold field_at_; SEP_field_at_strong_unify' gfs
+  | _ => SEP_field_at_strong_unify' gfs
+  end.
+
 (* simplifies a list expression into [e1; e2; ...] form without simplifying its elements *)
 Ltac eval_list l :=
   let l' := eval hnf in l in lazymatch l' with
@@ -1148,8 +1185,12 @@ Ltac prove_gfs_suffix gfs :=
 Ltac test_field_at_in_SEP :=
 cbv beta;
 match goal with
-| |- _ /\ ?gfs = _ ++ _ =>
-  split; [SEP_field_at_unify gfs | prove_gfs_suffix gfs]
+| |- ?A /\ ?gfs = _ ++ _ =>
+  split; [ match A with
+           | _ /\ _ => SEP_field_at_strong_unify gfs
+           | _ => SEP_field_at_unify gfs
+           end
+         | prove_gfs_suffix gfs]
 end.
 
 Ltac search_field_at_in_SEP := find_nth_SEP test_field_at_in_SEP.
