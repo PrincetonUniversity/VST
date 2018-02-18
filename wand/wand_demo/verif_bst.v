@@ -84,7 +84,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t P.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -159,7 +158,6 @@ Proof.
     apply ramify_PPQQ.
   * (* Loop body *)
     Intros p t.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -234,7 +232,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t pt.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -318,7 +315,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t pt.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.

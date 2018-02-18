@@ -258,10 +258,10 @@ Proof.
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
   forward_call (r, reading, last_read, reads, lasts, sh1).
-  eapply semax_seq'; [|apply semax_ff].
+(*  eapply semax_seq'; [|apply semax_ff]. *)
   set (c := Znth r comms Vundef).
   set (l := Znth r locks Vundef).
-  eapply semax_pre with (P' := EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
+  forward_loop (EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
     LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read; 
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
@@ -272,12 +272,11 @@ Proof.
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
-         ghost_var gsh1 (vint b0) g0)).
+         ghost_var gsh1 (vint b0) g0))
+  break: (@FF (environ->mpred) _).
   { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.
     unfold latest_read; auto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros b0 h.
-  forward.
   subst c l; subst; forward_call (r, reading, last_read, lock, comm, reads, lasts, locks, comms, bufs,
     sh, sh1, sh2, b0, g, g0, g1, g2, h).
   { cancel. }
@@ -288,8 +287,8 @@ Proof.
   forward.
   forward_call (r, reading, reads, sh1).
   { cancel. }
-  go_lower.
-  Exists b (h ++ [(t, AE e Empty)]) v; entailer'; cancel.
+  entailer!.
+  Exists b (h ++ [(t, AE e Empty)]) v; entailer!.
 Qed.
 
 Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
@@ -297,8 +296,7 @@ Proof.
   start_function.
   forward_call (writing, last_given, last_taken).
   forward.
-  eapply semax_seq'; [|apply semax_ff].
-  eapply semax_pre with (P' := EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
+  forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; ~In b0 lasts)
    LOCAL (temp _v (vint v); temp _arg arg; gvar _writing writing; gvar _last_given last_given;
    gvar _last_taken last_taken; gvar _lock lock; gvar _comm comm; gvar _bufs buf)
@@ -313,7 +311,8 @@ Proof.
      ghost_var gsh1 (vint (Znth r0 lasts (-1))) (Znth r0 g2 Vundef)) (upto (Z.to_nat N)));
    fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
-     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
+     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B)))))
+  break: (@FF (environ->mpred) _).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
     { split. unfold B, N.  computable. repeat constructor; computable. }
     rewrite sepcon_map.
@@ -340,10 +339,8 @@ Proof.
        rewrite Heq; auto; [|omega].
       apply mpred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
-  forward.
   forward_call (writing, last_given, last_taken, b0, lasts).
   { cancel. }
   Intros b.
@@ -378,7 +375,7 @@ Proof.
   Intros x; destruct x as (lasts', h').
   rewrite sepcon_map; Intros.
   forward.
-  unfold loop2_ret_assert; Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
+  Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
 Qed.
 
@@ -594,10 +591,9 @@ Proof.
       Exists 0; fast_cancel.
       { match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; unfold N; omega end. }
     - Exists sh1'; entailer!. }
-  eapply semax_seq'; [|apply semax_ff].
-  eapply semax_loop; [|forward; apply drop_tc_environ].
-  forward.
-  entailer!.
+    forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
+    entailer!.
+    forward. entailer!.
 Qed.
 
 Definition extlink := ext_link_prog prog.

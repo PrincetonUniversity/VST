@@ -53,9 +53,11 @@ Definition ___compcert_va_composite : ident := 17%positive.
 Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
-Definition _main : ident := 54%positive.
+Definition _f : ident := 55%positive.
+Definition _main : ident := 56%positive.
 Definition _n : ident := 52%positive.
 Definition _twice : ident := 53%positive.
+Definition _x : ident := 54%positive.
 
 Definition f_twice := {|
   fn_return := tint;
@@ -81,6 +83,21 @@ Definition f_twice := {|
               Sbreak)
             LSnil)))))
   (Sreturn (Some (Etempvar _n tint))))
+|}.
+
+Definition f_f := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_x, tint) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Sswitch (Etempvar _x tint)
+  (LScons (Some 1)
+    (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
+    (LScons (Some 2)
+      (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
+      (LScons None (Sreturn (Some (Econst_int (Int.repr 1) tint))) LSnil))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -328,10 +345,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_twice, Gfun(Internal f_twice)) :: nil).
+ (_twice, Gfun(Internal f_twice)) :: (_f, Gfun(Internal f_f)) :: nil).
 
 Definition public_idents : list ident :=
-(_twice :: ___builtin_debug :: ___builtin_nop ::
+(_f :: _twice :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

@@ -131,7 +131,6 @@ Proof.
     Intros b0 ta0 x vx tbc0 P.
     rewrite treebox_rep_tree_rep.
     Intros p0.
-    forward. (* skip *)
     forward. (* p = *t; *)
     rewrite tree_rep_spec.
     Intros pa pbc.
@@ -191,7 +190,6 @@ Proof.
   * (* Loop body *)
     unfold delete_inv.
     Intros b1 t1 P.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep. Intros p1.
     forward. (* p = *t; *)
     forward_if.
