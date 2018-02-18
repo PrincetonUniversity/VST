@@ -74,6 +74,7 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   apply insert_concrete_to_abstract; intros.
+  abbreviate_semax.
   forward_loop (EX p: val, EX t: tree val, EX P: tree val -> tree val,
        PROP(P (insert x v t) = (insert x v t0))
        LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
@@ -83,7 +84,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t P.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -148,6 +148,7 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   apply insert_concrete_to_abstract; intros.
+  abbreviate_semax.
   forward_loop (EX p: val, EX t: tree val,
       PROP()
       LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
@@ -157,7 +158,6 @@ Proof.
     apply ramify_PPQQ.
   * (* Loop body *)
     Intros p t.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -222,6 +222,7 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   apply insert_concrete_to_abstract; intros.
+  abbreviate_semax.
   forward_loop (EX p: val, EX t: tree val, EX pt: partial_tree val,
       PROP(partial_tree_tree pt (insert x v t) = (insert x v t0))
       LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
@@ -231,7 +232,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t pt.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
@@ -305,6 +305,7 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   apply insert_concrete_to_abstract; intros.
+  abbreviate_semax.
   forward_loop (EX p: val, EX t: tree val, EX pt: partial_tree val,
       PROP(partial_tree_tree pt (insert x v t) = (insert x v t0))
       LOCAL(temp _p p; temp _x (Vint (Int.repr (Z.of_nat x)));   temp _value v)
@@ -314,7 +315,6 @@ Proof.
     apply emp_partial_treebox_rep_H.
   * (* Loop body *)
     Intros p t pt.
-    forward. (* Sskip *)
     rewrite treebox_rep_tree_rep at 1. Intros q.
     forward. (* q = * p; *)
     forward_if.
