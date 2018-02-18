@@ -196,10 +196,10 @@ Proof.
 intros; f_equal; auto.
 Qed.
 
-Ltac subst_indexes gfs :=
+Ltac subst_indexes gfs ::=
   match gfs with
   | ArraySubsc ?i :: ?g' => 
-     match goal with H: ?x = ?i |- _ => is_var x; subst x; subst_indexes g' end
+     match goal with H: ?x = i |- _ => is_var x; subst x; subst_indexes g' end
   | _ :: ?g' => subst_indexes g'
   | nil => idtac
   end.

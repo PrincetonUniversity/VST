@@ -493,9 +493,6 @@ eapply semax_post_flipped'.
            with a residual subgoal thats more complex to discharge*)
         Time forward. (*5.8 versus 4.8*) (*FIXME NOW: 19 secs*)
         Time entailer!. (*4.2 versus 5.6*)
-        rewrite field_at_data_at.
-        rewrite field_address_offset by auto with field_compatible.
-        simpl; rewrite Ptrofs.add_zero.
         apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
       }
 *

@@ -57,7 +57,7 @@ Proof.
   forward_for_simple_bound N (EX i : Z, PROP ( )
    LOCAL (temp _i (vint B); lvar _available (tarray tint B) v_available;
    gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
-   SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
+   SEP (data_at Tsh (tarray tint B) (map (fun x => vint (if eq_dec x b0 then 0
      else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
    data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
    data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
