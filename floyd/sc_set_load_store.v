@@ -1105,43 +1105,28 @@ End SEMAX_PTREE.
 Ltac unify_var_or_evar name val :=
   let E := fresh "E" in assert (name = val) as E by (try subst name; reflexivity); clear E.
 
-Ltac sc_try_instantiate P Q R R0 gfs a sh t_root gfs0 v n i H SH GFS TY V A :=
-  let E := fresh "E" in
-  assert (R0 = (field_at sh t_root gfs0 v a)) as E;
-  [ unify_var_or_evar gfs0 GFS;
-    unify_var_or_evar t_root TY;
-    unify_var_or_evar sh SH;
-    unify_var_or_evar v V;
-    unify_var_or_evar a A;
-    try unfold sh, t_root, gfs0, v, a;
-    unfold data_at_;
-    unfold data_at;
-    unify GFS (skipn (length gfs - length GFS) gfs);
-    simpl skipn; try subst gfs;
-    try unfold field_at_;
-    generalize V;
-    intro;
-    solve [ rewrite <- ?field_at_offset_zero; reflexivity ] (* TODO: this line may be problematic. Because the left side of E may be not same to R0 now (although equal) *)
-  | (pose i as n || unify_var_or_evar i n);
-    assert (nth_error R n = Some R0) as H by reflexivity;
-    clear E ].
+Ltac SEP_field_at_unify' gfs :=
+  match goal with
+  | |- field_at ?shl ?tl ?gfsl ?vl ?pl = field_at ?shr ?tr ?gfsr ?vr ?pr =>
+      unify tl tr;
+      unify (skipn (length gfs - length gfsl) gfs) gfsl;
+      unify_var_or_evar gfsl gfsr;
+      unify_var_or_evar shl shr;
+      unify_var_or_evar vl vr;
+      generalize vl; intro;
+      rewrite <- ?field_at_offset_zero; reflexivity
+  end.
 
-Ltac sc_new_instantiate P Q R Rnow gfs p sh t_root gfs0 v n i H :=
-  match Rnow with
-  | ?R0 :: ?Rnow' =>
-    match R0 with
-    | data_at ?SH ?TY ?V ?A => 
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY V A
-    | data_at_ ?SH ?TY ?A => 
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH (@nil gfield) TY
-      (default_val (nested_field_type TY nil)) A
-    | field_at ?SH ?TY ?GFS ?V ?A =>
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY V A
-    | field_at_ ?SH ?TY ?GFS ?A =>
-      sc_try_instantiate P Q R R0 gfs p sh t_root gfs0 v n i H SH GFS TY
-      (default_val (nested_field_type TY GFS)) A
-    | _ => sc_new_instantiate P Q R Rnow' gfs p sh t_root gfs0 v n (S i) H
-    end
+Ltac SEP_field_at_unify gfs :=
+  match goal with
+  | |- data_at _ _ _ _ = _ =>
+      unfold data_at; SEP_field_at_unify' gfs
+  | |- data_at_ _ _ _ = _ =>
+      unfold data_at_, field_at_; SEP_field_at_unify' gfs
+  | |- field_at _ _ _ _ _ = _ =>
+      SEP_field_at_unify' gfs
+  | |- field_at_ _ _ _ _ = _ =>
+      unfold field_at_; SEP_field_at_unify' gfs
   end.
 
 (* simplifies a list expression into [e1; e2; ...] form without simplifying its elements *)
@@ -1151,21 +1136,23 @@ Ltac eval_list l :=
   | (@nil ?T) => constr:(@nil T)
   end.
 
-Ltac prove_gfs_suffix gfs gfs0 gfs1 :=
-  let len := fresh "len" in
-  let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
-  unify_var_or_evar gfs1 gfs1';
-  reflexivity.
+Ltac prove_gfs_suffix gfs :=
+  match goal with
+  | |- _ = ?gfs1 ++ ?gfs0 =>
+       let len := fresh "len" in
+       let gfs1' := eval_list (firstn ((length gfs - length gfs0)%nat) gfs) in
+       unify_var_or_evar gfs1 gfs1';
+       reflexivity
+  end.
 
-Ltac search_field_at_in_SEP :=
+Ltac test_field_at_in_SEP :=
+cbv beta;
 match goal with
-| |- nth_error ?R ?n = Some (field_at ?sh ?t_root ?gfs0 ?v ?p) /\
-     ?gfs = ?gfs1 ++ ?gfs0 =>
-  let H := fresh "H" in
-  sc_new_instantiate (@nil Prop) (@nil localdef) R R
-                     gfs p sh t_root gfs0 v n 0%nat H;
-  split; [exact H | prove_gfs_suffix gfs gfs0 gfs1]
+| |- _ /\ ?gfs = _ ++ _ =>
+  split; [SEP_field_at_unify gfs | prove_gfs_suffix gfs]
 end.
+
+Ltac search_field_at_in_SEP := find_nth_SEP test_field_at_in_SEP.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
