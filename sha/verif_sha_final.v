@@ -67,7 +67,6 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
  entailer!.
 rewrite <- H0; clear H0.
 forward. (* n = c->num; *)
-rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 assert (Hddlen: 0 <= Zlength (s256a_data a) < 64) by Omega1.
 forward. (* p[n] = 0x80; *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).

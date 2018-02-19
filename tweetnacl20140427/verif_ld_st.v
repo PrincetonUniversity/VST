@@ -319,10 +319,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time entailer!. (*1.5*)
   unfold upd_Znth.
   autorewrite with sublist.
-  rewrite field_at_data_at. simpl. unfold field_address. simpl.
-  rewrite if_true; trivial.
-  replace (4 - (1 + i)) with (4-i-1) by omega.
-  rewrite isptr_offset_val_zero; trivial. clear H.
+  simpl.
   apply data_at_ext. rewrite Zplus_comm.
         assert (ZW: Int.zwordsize = 32) by reflexivity.
         assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr.

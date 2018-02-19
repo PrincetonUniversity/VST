@@ -332,17 +332,13 @@ Proof. intros. abbreviate_semax.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
        rewrite <- NNN, <- N16. cbv; trivial.
-     + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
-       rewrite field_at_data_at.
-       rewrite field_address_offset by auto with field_compatible.
-       simpl. rewrite Ptrofs.add_zero.
-(*       rewrite isptr_offset_val_zero by trivial. *)
+     + Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
        apply data_at_ext.
-clear H1.
+       clear H1.
        remember (Zlength Front) as i.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
        replace (length Front) with (Z.to_nat i).
-       rewrite Z2Nat.id by omega.    
+       rewrite Z2Nat.id by omega.
        rewrite upd_Znth_ints.
        autorewrite with sublist.
        f_equal.
@@ -391,7 +387,7 @@ clear H1.
         rewrite !VJeq, !EQ.
         simpl force_val.
         autorewrite with sublist.
-        rewrite !sublist_map. 
+        rewrite !sublist_map.
         rewrite map_app. reflexivity.
         subst i. rewrite Zlength_correct. rewrite Nat2Z.id. auto.
    }
@@ -541,7 +537,7 @@ Proof. intros. abbreviate_semax.
     freeze [0;1;3] FR3.
     rewrite Znth_map with (d':= Int.zero) in Xi; try omega. 
     inversion Xi; clear Xi; subst xi.
-    Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs Int.zero)). 
+    Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs Int.zero)).
     1: solve [autorewrite with sublist; entailer!]. 
     simpl.
     assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero)) = 32).
@@ -562,7 +558,7 @@ deadvars!.
       thaw FR3. thaw FR2. cancel.
       unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
-      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero))); 
+      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero)));
        try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.

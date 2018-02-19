@@ -262,10 +262,9 @@ forward_if
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ last0 :: nil) last.
      entailer.
-     fold (data_at Tsh t_struct_elem (last0,p) tl).
      rewrite (field_at_list_cell Tsh last0 p).
+     unfold_data_at 4%nat.
      unfold_data_at 2%nat.
-     unfold_field_at 3%nat.
      simpl sizeof.
      match goal with
      | |- _ |-- _ * _ * (_ * ?AA) => remember AA as A
