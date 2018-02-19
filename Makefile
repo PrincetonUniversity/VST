@@ -434,11 +434,11 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs hmacdrbg sha mailbox
+travis: progs sha hmac mailbox
 
 files: .loadpath version.vo $(FILES:.v=.vo)
 
-all: files travis tweetnacl aes
+all: files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

@@ -268,10 +268,6 @@ Proof.
               + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.
               + intro E. change 0 with (Int.unsigned Int.zero) in E. apply unsigned_eq_eq in E.
                 symmetry in E. apply (pow3_not0 i E).
-          - replace 256 with (Zlength log) by assumption.
-            apply upd_Znth_Zlength.
-            replace (Zlength log) with 256 by assumption.
-            apply pow3_range; omega.
           - intros. assert (1 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
             * rewrite upd_Znth_diff.
               + auto.
@@ -282,8 +278,6 @@ Proof.
             * subst. rewrite upd_Znth_same.
               + reflexivity.
               + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.
-          - replace 256 with (Zlength pow) by assumption.
-            apply upd_Znth_Zlength. omega.
           - intros. assert (0 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
             * rewrite upd_Znth_diff by omega. auto.
             * subst. rewrite upd_Znth_same by omega. reflexivity.
