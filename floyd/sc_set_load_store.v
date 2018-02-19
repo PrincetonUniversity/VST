@@ -940,11 +940,11 @@ Lemma semax_PTree_field_store_no_hint:
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e_root lr) &&
          (tc_expr Delta (Ecast e2 (typeof e1))) &&
          (tc_efield Delta efs) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
@@ -959,7 +959,7 @@ Proof.
          ? ? ? ? ?
          ? ? ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD BY_VALUE ? EVAL_R EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_GEN NTH SH JMEQ DATA_EQ LEGAL_NESTED_FIELD TC.
+         FIELD_ADD_GEN NTH SH JMEQ DATA_EQ TC LEGAL_NESTED_FIELD.
   assert_PROP (nested_efield e_root efs tts = e1 /\
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
@@ -1379,11 +1379,11 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | first [apply data_equal_congr; solve_store_rule_evaluation
                                              | fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "unexpected failure in computing stored result"]
+  | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_no_hint."
+                                                         "unexpected failure in entailer_for_store_tac"]
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | first [entailer_for_store_tac            | fail 1000 "unexpected failure in store_tac_no_hint."
-                                                         "unexpected failure in entailer_for_store_tac"]
   ].
 
 Ltac store_tac :=
