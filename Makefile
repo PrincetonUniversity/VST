@@ -436,7 +436,9 @@ endif
 
 travis: progs hmacdrbg sha mailbox
 
-all: .loadpath version.vo $(FILES:.v=.vo) travis
+files: .loadpath version.vo $(FILES:.v=.vo)
+
+all: files travis tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

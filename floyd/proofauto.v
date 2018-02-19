@@ -66,6 +66,14 @@ rewrite H.
 auto.
 Qed.
 
+Lemma modu_repr: forall x y, 
+   0 <= x <= Int.max_unsigned ->
+   0 <= y <= Int.max_unsigned ->
+  Int.modu (Int.repr x) (Int.repr y) = Int.repr (x mod y).
+Proof.
+intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
+Qed.
+Hint Rewrite modu_repr using rep_omega : entailer_rewrite norm.
 
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.

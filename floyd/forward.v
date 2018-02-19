@@ -1414,12 +1414,51 @@ subst; reflexivity.
 Qed.
 Hint Rewrite int_repr_byte_signed_eq: norm entailer_rewrite.
 
+Lemma typed_true_negb_bool_val_p:
+  forall p, 
+   typed_true tint
+      (force_val
+         (option_map (fun b : bool => Val.of_bool (negb b))
+            (bool_val_p p))) ->
+     p = nullval.
+Proof.
+intros. destruct p; inv H.
+destruct Archi.ptr64 eqn:Hp.
+inv H1.
+simpl in H1.
+rewrite negb_involutive in H1.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb.
+subst; reflexivity.
+Qed.
+
+Lemma typed_false_negb_bool_val_p:
+  forall p, 
+   is_pointer_or_null p ->
+   typed_false tint
+      (force_val
+         (option_map (fun b : bool => Val.of_bool (negb b))
+            (bool_val_p p))) ->
+     isptr p.
+Proof.
+intros. destruct p; inv H0.
+destruct Archi.ptr64 eqn:Hp.
+inv H2.
+simpl in H2.
+rewrite negb_involutive in H2.
+destruct (Int.eq i Int.zero) eqn:?; inv H2.
+simpl in H. rewrite Hp in H. subst. inv Heqb.
+hnf; auto.
+Qed.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
                |apply typed_false_of_bool in H
                | apply typed_true_ptr in H
                | apply typed_false_ptr_e in H
+               | apply typed_true_negb_bool_val_p in H
+               | apply typed_false_negb_bool_val_p in H; [| solve [auto]]
                | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
                | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
 (*               | simple apply typed_true_tint in H *)

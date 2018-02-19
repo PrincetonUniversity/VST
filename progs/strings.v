@@ -122,7 +122,6 @@ Proof.
   intros; unfold cstring; entailer!.
 Qed.
 
-Hint Resolve cstring_local_facts : saturate_local.
 
 Lemma cstring_valid_pointer: forall s p, cstring s p |-- valid_pointer p.
 Proof.
@@ -132,8 +131,6 @@ Proof.
   pose proof (Zlength_nonneg s).
   rewrite Z.max_r; omega.
 Qed.
-
-Hint Resolve cstring_valid_pointer : valid_pointer.
 
 Definition cstringn (s: list byte) n p :=
   !!(~In Byte.zero s) &&
@@ -174,6 +171,9 @@ Qed.
 Hint Resolve cstring_valid_pointer : valid_pointer.
 
 End CS.
+
+Hint Resolve cstring_local_facts : saturate_local.
+Hint Resolve cstring_valid_pointer : valid_pointer.
 
 Lemma Znth_zero_zero:
   forall i {A} (a: A), Znth i [a] a = a.
