@@ -60,14 +60,14 @@ Fixpoint iter_sepcon (l : list B) (p : B -> A) : A :=
     | x :: xl => p x * iter_sepcon xl p
   end.
 
-Lemma iter_sepcon_app_sepcon:
+Lemma iter_sepcon_app:
   forall (l1 l2 : list B) (p : B -> A), iter_sepcon (l1 ++ l2) p = iter_sepcon l1 p * iter_sepcon l2 p.
 Proof.
   induction l1; intros; simpl. rewrite emp_sepcon; auto. rewrite IHl1. rewrite sepcon_assoc. auto.
 Qed.
 
 Lemma iter_sepcon_app_comm: forall (l1 l2 : list B) (p : B -> A), iter_sepcon (l1 ++ l2) p = iter_sepcon (l2 ++ l1) p.
-Proof. intros. do 2 rewrite iter_sepcon_app_sepcon. rewrite sepcon_comm. auto. Qed.
+Proof. intros. do 2 rewrite iter_sepcon_app. rewrite sepcon_comm. auto. Qed.
 
 Lemma iter_sepcon_permutation: forall  (l1 l2 : list B) (p : B -> A), Permutation l1 l2 -> iter_sepcon l1 p = iter_sepcon l2 p.
 Proof.
@@ -90,7 +90,7 @@ Lemma iter_sepcon_incl_true: forall (p : B -> A) (l s: list B),
     NoDup s -> incl s l -> iter_sepcon l p |-- iter_sepcon s p * TT.
 Proof.
   intros. destruct (incl_Permutation l s H H0) as [l' ?].
-  apply (iter_sepcon_permutation p) in H1. rewrite H1, iter_sepcon_app_sepcon.
+  apply (iter_sepcon_permutation p) in H1. rewrite H1, iter_sepcon_app.
   apply sepcon_derives; auto. apply TT_right.
 Qed.
 
@@ -163,7 +163,7 @@ Proof.
       tauto.
     } Unfocus.
     subst.
-    rewrite iter_sepcon_app_sepcon in *.
+    rewrite iter_sepcon_app in *.
     simpl.
     rewrite (sepcon_comm (p a)), <- sepcon_assoc, (sepcon_comm _ (p a)).
     apply sepcon_derives; auto.
@@ -285,7 +285,7 @@ Proof.
     - apply prop_right.
       apply NoDup_app_inv; auto.
       firstorder.
-    - rewrite <- iter_sepcon_app_sepcon; auto.
+    - rewrite <- iter_sepcon_app; auto.
   + apply exp_left; intro l.
     rewrite andp_assoc.
     do 2 (apply derives_extract_prop; intro).
@@ -293,7 +293,7 @@ Proof.
     rewrite exp_sepcon1. apply (exp_right lp).
     rewrite exp_sepcon2. apply (exp_right lq).
     normalize.
-    rewrite H7, iter_sepcon_app_sepcon; auto.
+    rewrite H7, iter_sepcon_app; auto.
 Qed.
 
 Lemma pred_sepcon_sepcon1: forall (P P': B -> Prop) p x0,
