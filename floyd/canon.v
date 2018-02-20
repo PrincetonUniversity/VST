@@ -50,6 +50,8 @@ Inductive localdef : Type :=
 (* | tc_env: tycontext -> localdef *)
  | localprop: Prop -> localdef.
 
+Arguments temp i%positive v.
+
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
          | Some (b, ty') => t=ty' /\ v = Vptr b Ptrofs.zero
