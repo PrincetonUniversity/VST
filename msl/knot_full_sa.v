@@ -106,6 +106,7 @@ Module Type KNOT_FULL_SA.
 
   Axiom join_unsquash : forall x1 x2 x3 : knot,
     join x1 x2 x3 = join (unsquash x1) (unsquash x2) (unsquash x3).
+  Axiom core_unsquash : forall x, core x = squash (core (unsquash x)).
 
   Axiom asa_knot : Age_alg knot.
 
@@ -166,6 +167,11 @@ Module KnotFullSa
 
   Instance Sep_knot: Sep_alg knot :=
     Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
+
+  Lemma core_unsquash : forall x, core x = squash (core (unsquash x)).
+  Proof.
+    auto.
+  Qed.
 
   Lemma age_join1 :
     forall x y z x' : K'.knot,
