@@ -26,6 +26,7 @@ Proof.
   simpl in H2 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
   rewrite Z.add_0_r.
+  destruct H2 as [H2 _].
   specialize (H2 (b, ofs + i)).
   if_tac in H2.
   + destruct H2.
@@ -48,6 +49,7 @@ Proof.
   simpl in H1 |- *.
   rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
   rewrite Z.add_0_r.
+  destruct H1 as [H1 _].
   specialize (H1 (b, ofs + i)).
   if_tac in H1.
   + destruct H1 as [? [? ?]].

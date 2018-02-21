@@ -455,7 +455,7 @@ pose proof (join_eq H1 H3); subst w4.
 auto.
 Qed.
 
-Lemma superprecise_address_mapsto:
+(*Lemma superprecise_address_mapsto:
   wishes_eq_horses -> 
   forall ch v sh loc, 
    v<>Vundef -> superprecise (address_mapsto ch v sh loc).
@@ -528,4 +528,4 @@ eapply WH'; eauto.
 Qed.
 *)
 Abort.
-
+*)

@@ -6,6 +6,7 @@ Require Import VST.veric.shares.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.initial_world.
+Require Import VST.veric.own.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -26,7 +27,8 @@ Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
- level jm = S (level jm').
+ level jm = S (level jm') /\
+ ghost_fp_update (ghost_approx (level jm') (ghost_of (m_phi jm))) (ghost_of (m_phi jm')).
 
 Definition j_halted {G C} (csem: @CoreSemantics G C mem)
        (c: C) : option val :=
@@ -63,8 +65,8 @@ Record jm_init_package: Type := {
   jminit_fdecs_match: match_fdecs (prog_funct jminit_prog) jminit_G
 }.
 
-Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
-  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d)
+Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) g :=
+  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) g (jminit_lev d)
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem
@@ -237,7 +239,7 @@ Proof.
    subst SN.
   inv H0.
   + pose proof (age_level _ _ H2).
-   destruct H1 as (?&?&?).
+   destruct H1 as (?&?&?&Hg).
    assert (level m' > 0) by omega.
    assert (exists i, level m' = S i).
    destruct (level m'). omegaContradiction. eauto.
@@ -257,8 +259,20 @@ Proof.
    eapply age_resource_decay; try eassumption.
    destruct (age1_juicy_mem_unpack _ _ H2); auto.
    destruct (age1_juicy_mem_unpack _ _ H6); auto.
+   split.
    apply age_level in H6. rewrite <- H6.
    omega.
+   { erewrite (age1_ghost_of _ _ (proj1 (age1_juicy_mem_unpack _ _ H2)))
+       by (symmetry; apply ghost_of_approx).
+     erewrite (age1_ghost_of _ _ (proj1 (age1_juicy_mem_unpack _ _ H6)))
+       by (symmetry; apply ghost_of_approx).
+     rewrite ghost_fmap_fmap; simpl.
+     unfold natLevel.
+     assert (level jm >= level jm1') by (apply age_level in H6; omega).
+     rewrite approx_oo_approx', approx'_oo_approx by auto.
+     repeat intro.
+     SearchAbout ghost_fmap join.
+     assert (level m' >= level jm1') by (apply age_level in H6; omega). }
    eapply IHN; try eassumption.
    apply age_level in H6; omega.
   + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
@@ -466,4 +480,5 @@ Proof.
 
   - (* phi2: free   | phi2: free   *)
     congruence.
+  - SearchAbout jm2.
 Qed.

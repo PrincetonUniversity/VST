@@ -162,7 +162,7 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   destruct H4 as [[_ ?] | [? _]]; [ | contradiction].
   apply core_load_load'.
   destruct H4 as [bl ?]; exists bl.
-  destruct H4 as [H3' ?]; split; auto.
+  destruct H4 as [[H3' ?] Hg]; split; auto.
   clear H3'.
   intro b'; specialize (H4 b'). hnf in H4|-*.
   if_tac; auto.
