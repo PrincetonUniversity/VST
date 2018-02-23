@@ -355,6 +355,14 @@ Ltac solve_msubst_efield_denote :=
     ]
   ].
 
+Inductive Hint: Prop -> Prop :=
+| Hint_intro: forall P: Prop, P -> Hint P.
+
+Inductive PermanentHint: Prop -> Prop :=
+| PermanentHint_intro: forall P: Prop, P -> PermanentHint P.
+
+
+
 Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * list gfield * val -> Prop :=
 | field_address_gen_nil: forall t1 t2 gfs p tgp,
     nested_field_type t2 gfs = t1 ->
@@ -364,8 +372,16 @@ Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * 
     nested_field_type t2 gfs2 = t1 ->
     field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
     field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
-| field_address_gen_assu: forall t gfs p1 p2 tgp,
+| field_address_gen_assu_deprecated: forall t gfs p1 p2 tgp, (* deprecated *)
     p1 = p2 ->
+    field_address_gen (t, gfs, p2) tgp ->
+    field_address_gen (t, gfs, p1) tgp    
+| field_address_gen_hint: forall t gfs p1 p2 tgp,
+    Hint (p1 = p2) ->
+    field_address_gen (t, gfs, p2) tgp ->
+    field_address_gen (t, gfs, p1) tgp    
+| field_address_gen_phint: forall t gfs p1 p2 tgp,
+    PermanentHint (p1 = p2) ->
     field_address_gen (t, gfs, p2) tgp ->
     field_address_gen (t, gfs, p1) tgp    
 | field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
@@ -399,12 +415,18 @@ Proof.
   + subst.
     inv H1.
     auto.
+  + inv H.
+    inv H1.
+    auto.
+  + inv H.
+    inv H1.
+    auto.
   + subst.
     inv H1.
     auto.
 Qed.
 
-Ltac field_address_assumption := 
+Ltac field_address_assumption_deprecated := 
 match goal with
  |  H: ?a = field_address _ _ _ |- ?b = _ => constr_eq a b; simple eapply H
 end.
@@ -415,11 +437,13 @@ Ltac solve_field_address_gen :=
       first
       [ simple apply field_address_gen_nil; [reflexivity |]
       | simple apply field_address_gen_app; [reflexivity |]
-      | simple eapply field_address_gen_assu; [field_address_assumption |]
+      | simple eapply field_address_gen_assu_deprecated; [field_address_assumption_deprecated |]
+      | simple eapply field_address_gen_hint; [eassumption |]
+      | simple eapply field_address_gen_phint; [eassumption |]
       | simple apply field_address_gen_refl
       ]
   ].
-
+Locate Ltac assert_PROP.
 Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
 | find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
 | find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
