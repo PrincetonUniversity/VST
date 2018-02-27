@@ -13,6 +13,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.own.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -26,10 +27,10 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
 Program Definition assert_safe
      (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
-  fun rho w => forall ora (jm:juicy_mem),
+  fun rho => bupd (fun w => forall ora (jm:juicy_mem),
        rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
-             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm.
+             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm).
  Next Obligation.
   intro; intros.
   subst.

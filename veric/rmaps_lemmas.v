@@ -942,6 +942,38 @@ rewrite approx_oo_approx'; auto.
 rewrite approx'_oo_approx; auto.
 Qed.
 
+Lemma ghost_fmap_join: forall a b c f g, join a b c ->
+  join (ghost_fmap f g a) (ghost_fmap f g b) (ghost_fmap f g c).
+Proof.
+  destruct a, b, c; simpl; intros.
+  inv H.
+  repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst).
+  constructor; auto.
+  intros i n; specialize (H13 i n); inv H13; simpl; try constructor.
+  inv H3; constructor; auto.
+Qed.
+
+Lemma age1_ghost_of_identity:
+  forall phi phi', age1 phi = Some phi' ->
+               (identity (ghost_of phi) <-> identity (ghost_of phi')).
+Proof.
+ intros.
+ erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
+ split; intro.
+ - replace (ghost_fmap _ _ _) with (ghost_of phi); auto.
+   rewrite (identity_core H0).
+   destruct (ghost_of phi).
+   rewrite ghost_core; simpl.
+   apply ghost_ext; auto.
+ - replace (ghost_of phi) with (core (ghost_of phi)); [apply core_identity|].
+   apply identity_core in H0.
+   destruct (ghost_of phi); simpl in *.
+   rewrite ghost_core in H0 |- *; inv H0; repeat inj_pair_tac.
+   apply ghost_ext; auto.
+   extensionality i n.
+   apply equal_f with i, equal_f with n in H0.
+   destruct (pds i n); inv H0; auto.
+Qed.
 
 Lemma age1_YES: forall phi phi' l rsh sh k ,
   age1 phi = Some phi' -> (phi @ l = YES rsh sh k NoneP <-> phi' @ l = YES rsh sh k NoneP).
@@ -1943,17 +1975,6 @@ intros.
 case_eq (w @ loc); intros;
  [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
 rewrite <- H. apply resource_at_approx.
-Qed.
-
-Lemma ghost_fmap_join: forall a b c f g, join a b c ->
-  join (ghost_fmap f g a) (ghost_fmap f g b) (ghost_fmap f g c).
-Proof.
-  destruct a, b, c; simpl; intros.
-  inv H.
-  repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst).
-  constructor; auto.
-  intros i n; specialize (H13 i n); inv H13; simpl; try constructor.
-  inv H3; constructor; auto.
 Qed.
 
 End Rmaps_Lemmas.

@@ -128,6 +128,11 @@ Proof.
   destruct (finmap_get (gb i) n); inv H10.
 Qed.
 
+Lemma bupd_intro: forall P, P |-- bupd P.
+Proof.
+  repeat intro; eauto 7.
+Qed.
+
 Lemma bupd_mono: forall P Q, P |-- Q -> bupd P |-- bupd Q.
 Proof.
   repeat intro.
@@ -135,6 +140,45 @@ Proof.
   destruct (H0 _ H1) as (b & ? & m' & ? & ? & ? & ?).
   exists b; split; auto.
   exists m'; repeat split; auto.
+Qed.
+
+Lemma bupd_frame_r: forall P Q, bupd P * Q |-- bupd (P * Q).
+Proof.
+  repeat intro.
+  destruct H as (w1 & w2 & J & HP & HQ).
+  destruct (join_level _ _ _ J) as [Hl1 Hl2].
+  pose proof (ghost_of_join _ _ _ J) as Jg.
+  destruct H0 as [? J'].
+  destruct (join_assoc Jg J') as (c' & J1 & J2).
+  erewrite <- (ghost_same_level_gen (level a) (ghost_of w2) c c') in J2, J1
+    by (rewrite <- Hl2 at 1 2; rewrite ghost_of_approx; auto).
+  destruct (HP c') as (? & [? J1'] & w1' & ? & Hr' & ? & HP'); subst.
+  { rewrite Hl1; eauto. }
+  rewrite Hl1 in J1'; destruct (join_assoc (join_comm J1) (join_comm J1')) as (w' & ? & ?).
+  exists w'; split; [eexists; apply join_comm; eauto|].
+  destruct (make_rmap _ w' (rmap_valid a) (level a)) as (m' & ? & Hr'' & ?); subst.
+  { extensionality l; apply resource_at_approx. }
+  { eapply ghost_same_level_gen.
+    rewrite <- (ghost_of_approx w2), <- (ghost_of_approx w1'), H, Hl1, Hl2 in H0.
+    apply join_comm; eauto. }
+  exists m'; repeat split; auto.
+  exists w1', w2; repeat split; auto.
+  apply resource_at_join2; auto; try omega.
+  intro; rewrite Hr', Hr''.
+  apply resource_at_join; auto.
+Qed.
+
+Lemma bupd_frame_l: forall P Q, P * bupd Q |-- bupd (P * Q).
+Proof.
+  intros; rewrite sepcon_comm, (sepcon_comm P Q); apply bupd_frame_r.
+Qed.
+
+Lemma bupd_trans: forall P, bupd (bupd P) |-- bupd P.
+Proof.
+  repeat intro.
+  destruct (H _ H0) as (b & J & a' & Hl & Hr & ? & Ha'); subst.
+  rewrite <- Hl in J; destruct (Ha' _ J) as (b' & ? & Hm').
+  rewrite <- Hl, <- Hr; eauto.
 Qed.
 
 Definition ghost_fp_update_ND a B :=
@@ -165,6 +209,20 @@ Qed.
 Definition ghost_fp_update (a b : ghost) :=
   forall n c, joins (ghost_fmap (approx n) (approx n) a) c ->
                joins (ghost_fmap (approx n) (approx n) b) c.
+
+Lemma ghost_fp_update_approx: forall a b n, ghost_fp_update a b ->
+  ghost_fp_update (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) b).
+Proof.
+  intros; intros m c J.
+  rewrite ghost_fmap_fmap in *.
+  replace (approx m oo approx n) with (approx (min m n)) in *.
+  replace (approx n oo approx m) with (approx (min m n)) in *.
+  auto.
+  { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
+      [rewrite approx'_oo_approx | rewrite approx_oo_approx']; auto; omega. }
+  { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
+      [rewrite approx_oo_approx' | rewrite approx'_oo_approx]; auto; omega. }
+Qed.
 
 Lemma Own_update: forall a b, ghost_fp_update a b ->
   Own a |-- bupd (Own b).

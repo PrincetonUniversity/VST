@@ -266,13 +266,9 @@ Proof.
        by (symmetry; apply ghost_of_approx).
      erewrite (age1_ghost_of _ _ (proj1 (age1_juicy_mem_unpack _ _ H6)))
        by (symmetry; apply ghost_of_approx).
-     rewrite ghost_fmap_fmap; simpl.
-     unfold natLevel.
-     assert (level jm >= level jm1') by (apply age_level in H6; omega).
-     rewrite approx_oo_approx', approx'_oo_approx by auto.
-     repeat intro.
-     SearchAbout ghost_fmap join.
-     assert (level m' >= level jm1') by (apply age_level in H6; omega). }
+     apply ghost_fp_update_approx.
+     replace (level (m_phi jm)) with (level m'); auto.
+     rewrite H4 in H; inv H; auto. }
    eapply IHN; try eassumption.
    apply age_level in H6; omega.
   + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
@@ -316,7 +312,7 @@ Proof.
     eapply JE_exit_hered; eauto.
 Qed.
 
-Lemma juicy_core_sem_preserves_corestep_fun
+(*Lemma juicy_core_sem_preserves_corestep_fun
   {G C} (csem: @CoreSemantics G C mem) :
   corestep_fun csem ->
   corestep_fun (juicy_core_sem csem).
@@ -481,4 +477,4 @@ Proof.
   - (* phi2: free   | phi2: free   *)
     congruence.
   - SearchAbout jm2.
-Qed.
+Qed.*)
