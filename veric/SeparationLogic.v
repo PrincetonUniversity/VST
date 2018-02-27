@@ -1219,6 +1219,11 @@ Axiom semax_loop_nocontinue:
  semax Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
  semax Delta P (Sloop body incr) R.
 
+Axiom semax_if_seq:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
+ semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
+
 (* THIS RULE FROM semax_switch *)
 
 Axiom semax_switch: 

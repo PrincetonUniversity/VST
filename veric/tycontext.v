@@ -1640,3 +1640,52 @@ Lemma exit_typcon_Slabel' l c Delta:
 Proof. extensionality b. rewrite exit_tycon_Slabel. trivial. Qed.
 
 
+Lemma annotations_update_dist:
+  forall d1 d2 : tycontext, annotations (join_tycon d1 d2) = annotations d1.
+Proof.
+intros.
+unfold annotations.
+unfold join_tycon.
+destruct d1; auto. destruct d2; auto.
+Qed.
+
+
+Lemma annotations_update_tycon: forall c Delta, 
+   (annotations Delta) = (annotations (update_tycon Delta c))
+ with annotations_update_tycon_le: forall cl Delta,
+   (annotations Delta) = (annotations (join_tycon_labeled cl Delta)).
+Proof.
+* clear annotations_update_tycon.
+induction c; intros; simpl; unfold initialized; simpl; auto.
+destruct ((temp_types Delta) ! i) as [[? ?] |]; auto.
+destruct o; auto.
+destruct ((temp_types Delta) ! i) as [[? ?] |]; auto.
+rewrite IHc2.
+rewrite <- !IHc2. auto.
+rewrite annotations_update_dist.
+auto.
+*
+clear annotations_update_tycon_le.
+induction cl; intros; simpl; auto.
+rewrite annotations_update_dist.
+auto.
+Qed.
+
+Lemma tycontext_sub_update: 
+forall Delta c, tycontext_sub Delta (update_tycon Delta c).
+Proof.
+intros.
+hnf.
+repeat split; intros; simpl.
+destruct ((temp_types Delta) ! id) eqn:?; auto. destruct p.
+apply update_tycon_te_same with (c:=c) in Heqo.
+destruct Heqo. rewrite H. split; auto. destruct b; reflexivity.
+rewrite var_types_update_tycon; auto.
+rewrite ret_type_update_tycon; auto.
+rewrite glob_types_update_tycon; auto.
+apply sub_option_refl.
+rewrite glob_specs_update_tycon; auto.
+apply sub_option_refl.
+rewrite <- annotations_update_tycon.
+apply Annotation_sub_refl.
+Qed.

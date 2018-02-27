@@ -836,12 +836,17 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   (environ$\rightarrow$mpred), or it may be just a \lstinline{Prop},
   in which case it will be \emph{added} to the current precondition.
 \item $\mathbf{if}\,e\,\mathbf{then}\,s_1\,\mathbf{else}\,s_2;\}\ldots$
+  \newline
   When the if-statement appears at the end of a block, so the
   postcondition is already known, you can do \lstinline{forward_if.}
   That is, you don't need to supply a join postcondition if
   \lstinline{POSTCONDITION} is fully instantiated, without any
   unification variables.  You can
   \lstinline{unfold abbreviate in POSTCONDITION} to see.
+
+  When one (or both) of your then/else branches
+  exits by \lstinline{break}, \lstinline{continue}, or \lstinline{return}
+  then you don't need to supply a join postcondition.
 
 \item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (no \lstinline{break} statements in $s$)\newline
   You write \lstinline{forward_while $Q$}, where $Q$ is a loop invariant.

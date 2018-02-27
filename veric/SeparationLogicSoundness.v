@@ -94,6 +94,7 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
+Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
 Definition semax_seq_Slabel := @semax_seq_Slabel.

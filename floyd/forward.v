@@ -1810,6 +1810,32 @@ end.
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
     forward_loop Inv continue: PreInc break: Post.
 
+
+Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
+ match c with
+ | Sreturn _ => ok EK_return
+ | Ssequence c1 c2 =>
+     quickflow c1 (fun ek => match ek with
+                          | EK_normal => quickflow c2 ok
+                          | _ => ok ek
+                          end)
+ | Sifthenelse e c1 c2 =>
+     andb (quickflow c1 ok) (quickflow c2 ok)
+ | Sloop body incr =>
+     quickflow body (fun ek => match ek with
+                              | EK_normal => true
+                              | EK_break => ok EK_normal
+                              | EK_continue => true
+                              | EK_return => ok EK_return
+                              end)
+ | Sbreak => ok EK_break
+ | Scontinue => ok EK_continue
+ | Sswitch _ _ => false   (* this could be made more generous *)
+ | Slabel _ c => quickflow c ok
+ | Sgoto _ => false
+ | _ => ok EK_normal
+ end.
+
 Fixpoint nocontinue s :=
  match s with
  | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
@@ -2012,6 +2038,12 @@ match goal with
 ]
 end.
 
+Definition nofallthrough ek :=
+ match ek with
+ | EK_normal => false
+ | _ => true
+ end.
+
 Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
@@ -2034,6 +2066,9 @@ match goal with
        try rewrite Int.signed_repr in HRE by rep_omega;
        abbreviate_semax
      ]
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
+    unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true;
+    apply semax_if_seq; forward_if'_new
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _) _) _ => 
@@ -2963,31 +2998,6 @@ Proof. intros.
             rewrite frame_ret_assert_emp;
    auto.
 Qed.
-
-Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
- match c with
- | Sreturn _ => ok EK_return
- | Ssequence c1 c2 =>
-     quickflow c1 (fun ek => match ek with
-                          | EK_normal => quickflow c2 ok
-                          | _ => ok ek
-                          end)
- | Sifthenelse e c1 c2 =>
-     andb (quickflow c1 ok) (quickflow c2 ok)
- | Sloop body incr =>
-     quickflow body (fun ek => match ek with
-                              | EK_normal => true
-                              | EK_break => ok EK_normal
-                              | EK_continue => true
-                              | EK_return => ok EK_return
-                              end)
- | Sbreak => ok EK_break
- | Scontinue => ok EK_continue
- | Sswitch _ _ => false   (* this could be made more generous *)
- | Slabel _ c => quickflow c ok
- | Sgoto _ => false
- | _ => ok EK_normal
- end.
 
 Definition must_return (ek: exitkind) : bool :=
   match ek with EK_return => true | _ => false end.

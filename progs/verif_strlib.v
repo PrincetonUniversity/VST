@@ -132,22 +132,19 @@ forward_loop (EX i : Z,
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
-  forward_if (Znth i (ls ++ [Byte.zero]) Byte.zero <> c).
-
+ forward_if.
   { forward. 
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
   { forward.
-    entailer!. }
-  Intros.
-  forward_if.
-  { forward.
-    Exists nullval; rewrite !map_app; entailer!.
-    right. split; auto.
-    assert (i = Zlength ls) by cstring.
-    subst i.
-    autorewrite with sublist in H2; auto. }
+    forward_if.
+    { forward.
+      Exists nullval; rewrite !map_app; entailer!.
+      right. split; auto.
+      assert (i = Zlength ls) by cstring.
+      subst i.
+     autorewrite with sublist in H2; auto. }
   forward.
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) by cstring.
@@ -155,6 +152,7 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 i) by rep_omega. rewrite Forall_app. split; auto.
   rewrite sublist_len_1 with (d:=Byte.zero) by rep_omega. repeat constructor.
   rewrite app_Znth1 in H4 by rep_omega. auto.
+  }
 -
   Intros i.
   forward.
@@ -557,15 +555,14 @@ Intros i.
 assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
 forward.
 normalize.
-forward_if (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero).
+forward_if.  (*  (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero). *)
 forward.
 entailer!. f_equal. f_equal. cstring.
-forward. entailer!.
+forward. (* entailer!.  *)
 forward.
 Exists (i+1).
 entailer!. cstring.
 Qed.
-
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
@@ -593,14 +590,14 @@ forward_loop (EX i : Z,
   { forward.
     entailer!. }
   Intros.
-  forward_if (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero).
+  forward_if.  (*  (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero). *)
   { forward.
     Exists nullval; rewrite !map_app; entailer!.
     right. split; auto.
     assert (i = Zlength ls) by cstring.
     subst i.
     autorewrite with sublist in H2; auto. }
-  forward. entailer!.
+  forward. (* entailer!. *)
   forward.
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) by cstring.
@@ -642,13 +639,13 @@ forward_loop (EX i : Z,
   { entailer!. autorewrite with sublist. normalize.  }
   autorewrite with sublist; normalize.
   forward.
-  forward_if (Znth i (ld ++ [Byte.zero]) Byte.zero <> Byte.zero).
+  forward_if (*  (Znth i (ld ++ [Byte.zero]) Byte.zero <> Byte.zero). *)
   + forward.
-    entailer!. f_equal. f_equal. cstring.
+   (*  entailer!. f_equal. f_equal. cstring. *)
   +
-    forward. entailer!.
+    forward. entailer!. f_equal. f_equal. cstring. 
   +
-    forward.
+    forward. forward.
     Exists (i+1); entailer!. cstring.
 -
   abbreviate_semax.
@@ -678,7 +675,7 @@ forward_loop (EX i : Z,
   clear H3.
   rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
-  forward_if (Znth j (ls ++ [Byte.zero]) Byte.zero <> Byte.zero).
+  forward_if. (* (Znth j (ls ++ [Byte.zero]) Byte.zero <> Byte.zero). *)
   + forward.
       autorewrite with sublist.
       rewrite prop_true_andp 
@@ -697,8 +694,7 @@ forward_loop (EX i : Z,
     rewrite !map_app.
     reflexivity.
  +
-  forward. entailer!.
- +
+  forward. (* entailer!. *)
   forward.
   Exists (j+1).
   destruct (zlt j (Zlength ls)); [ | cstring].
@@ -777,8 +773,8 @@ forward_loop (EX i : Z,
     entailer!.
     destruct (i =? Zlength ls1) eqn: Heq; auto.
     rewrite Z.eqb_eq in Heq; tauto. }
-  forward_if ((i <> Zlength ls1 \/ i <> Zlength ls2) /\
-           Znth i (ls2 ++ [Byte.zero]) Byte.zero = Znth i (ls1 ++ [Byte.zero]) Byte.zero).
+  forward_if. (* ((i <> Zlength ls1 \/ i <> Zlength ls2) /\
+           Znth i (ls2 ++ [Byte.zero]) Byte.zero = Znth i (ls1 ++ [Byte.zero]) Byte.zero). *)
  +
   rewrite andb_true_iff in H6; destruct H6.
   rewrite Z.eqb_eq in H6,H7.
@@ -801,40 +797,37 @@ forward_loop (EX i : Z,
    assert (H17: Byte.signed (Znth i (ls1 ++ [Byte.zero]) Byte.zero) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]) Byte.zero)) by omega.
    normalize in H17. clear H7 H8.
-   forward. entailer!.
- +
-   Intros. rename H7 into H17.
+   forward.
+ (*  Intros. rename H7 into H17. *)
    forward.
    Exists (i+1).
    entailer!.
-   clear H7 H8.
+   clear - H17 H6 Hs1 Hs2 H3 H1 H2 H H0.
+(*   clear H7 H8.
    clear H13 H14 H12 PNstr1 PNstr2.
    clear H10 H11 H9.
+*)
    destruct (zlt i (Zlength ls1)).
   Focus 2. {
-         rewrite app_Znth2 in Hs1 by rep_omega.
-         destruct (zeq i (Zlength ls1)); [ | omega].
-         subst.
+         assert (i = Zlength ls1) by omega. subst.
          destruct H6; [congruence | ].
          assert (Zlength ls1 < Zlength ls2) by omega.
-         rewrite app_Znth1 in H17 by rep_omega.
          rewrite app_Znth2 in H17 by rep_omega.
+         rewrite app_Znth1 in H17 by rep_omega.
          rewrite Z.sub_diag in H17. contradiction H0.
          change (Znth 0 [Byte.zero] Byte.zero) with Byte.zero in H17.
-         rewrite <- H17. apply Znth_In. omega.
+         rewrite H17. apply Znth_In. omega.
    } Unfocus.
   destruct (zlt i (Zlength ls2)).
   Focus 2. {
-         rewrite app_Znth2 in Hs2 by rep_omega.
-         destruct (zeq i (Zlength ls2)); [ | omega].
-         subst.
+         assert (i = Zlength ls2) by omega. subst.
          destruct H6; [ | congruence].
          assert (Zlength ls1 > Zlength ls2) by omega.
-         rewrite app_Znth2 in H17 by rep_omega.
          rewrite app_Znth1 in H17 by rep_omega.
+         rewrite app_Znth2 in H17 by rep_omega.
          rewrite Z.sub_diag in H17. contradiction H.
          change (Znth 0 [Byte.zero] Byte.zero) with Byte.zero in H17.
-         rewrite H17.  apply Znth_In. omega.
+         rewrite <- H17.  apply Znth_In. omega.
    } Unfocus.
   rewrite (sublist_split 0 i (i+1)) by omega.
   rewrite (sublist_split 0 i (i+1)) by omega.
@@ -866,7 +859,7 @@ forward_loop (EX i : Z,
  forward. normalize.
  forward. fold_Vbyte.
  forward.
- forward_if (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero).
+ forward_if. (*  (Znth i (ls ++ [Byte.zero]) Byte.zero <> Byte.zero). *)
 + forward.
    entailer!.
   assert (i = Zlength ls) by cstring. subst i.
@@ -885,10 +878,9 @@ forward_loop (EX i : Z,
   cancel.
 +
    assert (i < Zlength ls) by cstring.
-  forward. entailer!.
-+
   forward.
-  Exists (i+1). entailer!. cstring.
+  forward.
+  Exists (i+1). entailer!.
   rewrite upd_Znth_app2 by list_solve.
   assert (i < Zlength ls) by cstring.
   rewrite (sublist_split 0 i (i+1)) by list_solve.
