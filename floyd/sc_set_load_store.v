@@ -355,14 +355,6 @@ Ltac solve_msubst_efield_denote :=
     ]
   ].
 
-Inductive Hint: Prop -> Prop :=
-| Hint_intro: forall P: Prop, P -> Hint P.
-
-Inductive PermanentHint: Prop -> Prop :=
-| PermanentHint_intro: forall P: Prop, P -> PermanentHint P.
-
-
-
 Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * list gfield * val -> Prop :=
 | field_address_gen_nil: forall t1 t2 gfs p tgp,
     nested_field_type t2 gfs = t1 ->
@@ -443,7 +435,7 @@ Ltac solve_field_address_gen :=
       | simple apply field_address_gen_refl
       ]
   ].
-Locate Ltac assert_PROP.
+
 Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
 | find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
 | find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
@@ -740,7 +732,7 @@ Lemma semax_PTree_field_load_with_hint:
       is_neutral_cast (typeof e) t = true ->
       type_is_volatile (typeof e) = false ->
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
-      p_from_e = field_address t_root gfs p ->
+      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
       typeof e = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
@@ -758,7 +750,8 @@ Proof.
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
+         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ TC.
+  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   eapply semax_SC_field_load.
@@ -903,7 +896,7 @@ Lemma semax_PTree_field_cast_load_with_hint:
       type_is_volatile (typeof e) = false ->
       cast_pointer_to_bool (typeof e) t = false ->
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
-      p_from_e = field_address t_root gfs p ->
+      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
       typeof e = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
@@ -921,7 +914,8 @@ Proof.
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
+         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ TC.
+  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   rewrite TYPE_EQ.
@@ -1072,7 +1066,7 @@ Lemma semax_PTree_field_store_with_hint:
       type_is_volatile (typeof e1) = false ->
       msubst_eval_expr T1 T2 (Ecast e2 (typeof e1)) = Some v0_val ->
       msubst_eval_lvalue T1 T2 e1 = Some p_from_e ->
-      p_from_e = field_address t_root gfs p ->
+      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
       typeof e1 = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
@@ -1094,7 +1088,8 @@ Proof.
          ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
-         LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ DATA_EQ TC.
+         LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ DATA_EQ TC.
+  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   eapply semax_SC_field_store.
@@ -1249,7 +1244,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | eassumption (* This line can fail. If it does not, the following should not fail. *)
+  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
@@ -1305,7 +1300,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | eassumption (* This line can fail. If it does not, the following should not fail. *)
+  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1368,7 +1363,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | solve_msubst_eval_expr
   | solve_msubst_eval_lvalue
-  | eassumption (* This line can fail. If it does not, the following should not fail. *)
+  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
