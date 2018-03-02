@@ -2071,7 +2071,7 @@ match goal with
     apply semax_if_seq; forward_if'_new
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
-| |- semax _ _ (Ssequence (Sifthenelse _ _) _) _ => 
+| |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
      fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
@@ -2866,7 +2866,7 @@ Ltac forward_advise_if :=
  lazymatch goal with
    | |- semax _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
-       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches"
+       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
        else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
   end.
 
@@ -3100,6 +3100,8 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
+Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic".
+
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
@@ -3171,7 +3173,8 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- clear_Delta_specs_if_leaf_function.
+ clear_Delta_specs_if_leaf_function;
+ start_function_hint.
 
 Opaque sepcon.
 Opaque emp.

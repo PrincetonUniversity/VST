@@ -204,7 +204,6 @@ entailer!. {
   autorewrite with sublist in *.
   rewrite !Znth_map with (d':=Float.zero) by omega.
   simpl.
-  rewrite upd_Znth_app2 by (autorewrite with sublist; omega).
   unfold data_at.
   apply derives_refl'. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.

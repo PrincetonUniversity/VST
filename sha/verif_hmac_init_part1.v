@@ -263,7 +263,7 @@ Proof. intros. abbreviate_semax.
        change (64-32)%nat with (Z.to_nat 32).
        autorewrite with sublist.
        change (64 - 32) with 32.
-       rewrite !map_list_repeat. fold Int.zero.
+       fold Int.zero.
        rewrite field_address0_offset by auto with field_compatible. simpl.
        change (Ptrofs.repr (Ptrofs.unsigned ckoff + 32))
              with (Ptrofs.add ckoff (Ptrofs.repr 32)). (*rewrite Z.add_0_l.*)

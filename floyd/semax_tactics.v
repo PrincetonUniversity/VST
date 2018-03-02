@@ -136,19 +136,6 @@ match goal with
  | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
 end.
 
-(*
-Ltac simplify_Delta_at DS Delta D :=
- match D with
- | _ => unfold D
- | _ => simplify_func_tycontext D
- | mk_tycontext ?a ?b ?c ?d ?e =>
-     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
-     change e with (@abbreviate (PTree.t funspec) e) in DS;
-     let E := fresh "Delta" in set (E := mk_tycontext a b c d DS);
-     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in E
- | 
- end.
-*)
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with

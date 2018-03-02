@@ -509,7 +509,6 @@ forward_loop (EX i : Z,
   forward.
   Exists (i+1). entailer!. 
   autorewrite with sublist.
-  rewrite upd_Znth_app2 by list_solve.
   rewrite (sublist_split 0 i (i+1)) by list_solve.
   rewrite !map_app. rewrite <- app_assoc.
   autorewrite with sublist.
@@ -518,7 +517,7 @@ forward_loop (EX i : Z,
   autorewrite with sublist.
    replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
-  rewrite upd_Znth_app1 by list_solve.
+  autorewrite with sublist.
   cancel.
   rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.
@@ -798,15 +797,10 @@ forward_loop (EX i : Z,
      Byte.signed (Znth i (ls2 ++ [Byte.zero]) Byte.zero)) by omega.
    normalize in H17. clear H7 H8.
    forward.
- (*  Intros. rename H7 into H17. *)
    forward.
    Exists (i+1).
    entailer!.
    clear - H17 H6 Hs1 Hs2 H3 H1 H2 H H0.
-(*   clear H7 H8.
-   clear H13 H14 H12 PNstr1 PNstr2.
-   clear H10 H11 H9.
-*)
    destruct (zlt i (Zlength ls1)).
   Focus 2. {
          assert (i = Zlength ls1) by omega. subst.
@@ -833,7 +827,7 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 i (i+1)) by omega.
   f_equal; auto.
   rewrite !sublist_len_1 with (d:=Byte.zero) by omega.
-  rewrite !app_Znth1 in H17 by list_solve.
+  autorewrite with sublist in H17.
   split. rep_omega. split. rep_omega.
   f_equal; auto. f_equal. auto.
 Qed.
@@ -864,7 +858,6 @@ forward_loop (EX i : Z,
    entailer!.
   assert (i = Zlength ls) by cstring. subst i.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
-  rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
   rewrite !map_app.
   rewrite <- app_assoc.
@@ -873,7 +866,7 @@ forward_loop (EX i : Z,
    autorewrite with sublist.
    replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
-  rewrite upd_Znth_app1 by list_solve.
+  autorewrite with sublist.
   rewrite !split_data_at_app_tschar by list_solve.
   cancel.
 +
@@ -891,7 +884,7 @@ forward_loop (EX i : Z,
   autorewrite with sublist.
    replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
   rewrite <- list_repeat_app' by omega.
-  rewrite upd_Znth_app1 by list_solve.
+  autorewrite with sublist.
   cancel.
   rewrite !split_data_at_app_tschar by list_solve.
   autorewrite with sublist.

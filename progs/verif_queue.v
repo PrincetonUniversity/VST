@@ -166,18 +166,19 @@ apply (field_at_share_join _ _ _ t_struct_elem [StructField _next]
    _ p Qsh_Qsh').
 Qed.
 
-
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   WITH n:Z
+   WITH t:type
    PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))))
        SEP ()
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
+       SEP (malloc_token Tsh t p * data_at_ Tsh t p).
 
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
@@ -197,7 +198,7 @@ Definition fifo_body (contents: list val) (hd tl: val) :=
 Definition fifo (contents: list val) (p: val) : mpred :=
   (EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh (sizeof t_struct_fifo) p *
+      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
       fifo_body contents hd tl).
 
 Definition fifo_new_spec :=
@@ -254,7 +255,7 @@ Definition make_elem_spec :=
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
               list_cell QS Qsh (Vundef, Vundef) p;
               field_at_ Tsh t_struct_elem [StructField _next] p;
-              malloc_token Tsh (sizeof t_struct_elem) p)).
+              malloc_token Tsh t_struct_elem p)).
 
 Definition main_spec :=
  DECLARE _main
@@ -273,12 +274,12 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     n.
+     (CompSpecs,t).
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh n p * memory_block Tsh n p)).
+   SEP (malloc_token Tsh t p * data_at_ Tsh t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -288,12 +289,13 @@ Proof.
     contradiction.
 *
     if_tac.
-    + forward. subst p. inv H0.
+    + forward. subst p. discriminate.
     + Intros. forward. entailer!.
 *
   forward. Exists p; entailer!.
 Qed.
 
+(*
 Lemma memory_block_fifo:
  forall p,
   field_compatible t_struct_fifo nil p ->
@@ -303,6 +305,7 @@ Proof.
  change 8 with (sizeof t_struct_fifo).
  rewrite memory_block_data_at_; auto.
 Qed.
+*)
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
@@ -347,12 +350,9 @@ Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
-     (sizeof t_struct_fifo).
-    simpl; computable.
+      t_struct_fifo.
+  split3;  simpl; auto; computable.
   Intros q.
-  assert_PROP (field_compatible t_struct_fifo [] q).
-   entailer!.
-  rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
   forward. (* Q->tail = NULL; *)
@@ -462,13 +462,11 @@ Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
-  (sizeof t_struct_elem).
- simpl; computable.
+  t_struct_elem.
+ split3; simpl; auto; computable.
  Intros p.
- assert_PROP (field_compatible t_struct_elem [] p). entailer!.
- rewrite memory_block_data_at_ by auto.
   forward.  (*  p->a=a; *)
-  simpl.  (* this should not be necessary -- Qinxiang, please look *)
+  progress simpl.  (* this should not be necessary -- Qinxiang, please look *)
   forward.  (*  p->b=b; *)
   forward.  (* return p; *)
   Exists p.
@@ -502,15 +500,14 @@ forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p').
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
-change (malloc_token Tsh 12) with (malloc_token Tsh (sizeof t_struct_elem)).
 forward_call (*  free(p, sizeof( *p)); *)
-   (p', sizeof t_struct_elem).
+   (CompSpecs, t_struct_elem, p').
 {
  pose (work_around_coq_bug := fifo [p2] q *
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2 *
-   malloc_token Tsh (sizeof t_struct_elem) p2).
+   malloc_token Tsh t_struct_elem p2).
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  rewrite make_unmake; cancel.
  apply derives_trans with

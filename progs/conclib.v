@@ -3054,6 +3054,7 @@ Proof.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
 Qed.
 
+(*
 Lemma malloc_compat : forall {cs : compspecs} sh t p,
   complete_legal_cosu_type t = true ->
   natural_aligned natural_alignment t = true ->
@@ -3062,6 +3063,7 @@ Proof.
   intros; rewrite andp_comm; apply add_andp; entailer!.
   apply malloc_compatible_field_compatible; auto.
 Qed.
+*)
 
 Lemma gvar_eval_var: forall i t v rho,
   gvar_denote i v rho -> eval_var i t rho = v.
@@ -3108,9 +3110,10 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
     | |- _ |-- ?P * _ => rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc end;
   try cancel_frame.
 
-Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
+(*Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
+*)
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;

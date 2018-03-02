@@ -4036,23 +4036,25 @@ The C library's \lstinline|malloc| and \lstinline|free| functions
 have these specifications:
 \begin{lstlisting}
 DECLARE _malloc
-   WITH n:Z
-   PRE [ 1%positive OF tuint ] (* parameter 1 has type unsigned int *)
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp
-            else (malloc_token Tsh n p * memory_block Tsh n p)).
+  WITH cs: compspecs, t:type
+  PRE [ 1%positive OF tuint ]
+    PROP (0 <= sizeof t <= Int.max_unsigned;
+          complete_legal_cosu_type t = true;
+          natural_aligned natural_alignment t = true)
+    LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+    SEP ()
+  POST [ tptr tvoid ] EX p:_,
+    PROP ()
+    LOCAL (temp ret_temp p)
+    SEP (if eq_dec p nullval then emp
+        else (malloc_token Tsh t p * data_at_ Tsh t p)).
 
 DECLARE _free
-   WITH p:val, n:Z
+   WITH cs: compspecs, t: type, p:val
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
-       SEP (malloc_token Tsh n p; memory_block Tsh n p)
+       SEP (malloc_token Tsh t p; data_at_ Tsh t p)
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
