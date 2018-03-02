@@ -1810,6 +1810,8 @@ end.
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
     forward_loop Inv continue: PreInc break: Post.
 
+Tactic Notation "forward_loop" :=
+    fail "Usage:   forward_loop Inv,     where Inv is your loop invariant".
 
 Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  match c with
@@ -2047,6 +2049,7 @@ Definition nofallthrough ek :=
 Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
+ repeat (apply seq_assoc1; try apply -> semax_seq_skip);
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in

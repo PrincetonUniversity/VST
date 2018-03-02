@@ -68,7 +68,6 @@ Ltac hint :=
      else  idtac "Hint:  try 'entailer!'";
  tryif (try (progress autorewrite with sublist; fail 1)) then idtac
      else  idtac "Hint:  try 'autorewrite with sublist'";
- try match goal with |- _ |-- exp _ => idtac "Hint: try 'Exists x' where x is the value to instantiate the existential" end;
  try match goal with H: ?p = nullval |- _ => idtac "Hint: try 'subst " p "'" end;
  try match goal with |- ?A |-- ?B =>
           tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) then idtac
@@ -76,7 +75,7 @@ Ltac hint :=
        end;
  try match goal with |- _ |-- ?B =>
     match B with context [@exp _ _ ?t ] =>
-       idtac "Hint: try 'Exists x', where x is a value of type " t
+       idtac "Hint: try 'Exists x', where x is a value of type (" t ") to instantiate the existential"
    end
   end;
  lazymatch goal with
