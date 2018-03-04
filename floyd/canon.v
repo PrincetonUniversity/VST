@@ -983,11 +983,13 @@ rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 apply andp_right; auto.
 apply prop_right; auto.
+apply derives_refl.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 apply andp_right; auto.
 apply prop_right; auto.
+apply derives_refl.
 Qed.
 
 Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
@@ -1346,8 +1348,8 @@ Lemma extract_exists_post:
 Proof.
 intros.
 eapply semax_pre_post; try apply H; 
-intros; apply andp_left2; auto.
-apply exp_right with x; normalize.
+intros; apply andp_left2; auto; try apply derives_refl.
+apply exp_right with x; normalize; apply derives_refl.
 Qed.
 
 Ltac repeat_extract_exists_pre :=
@@ -2226,6 +2228,7 @@ Proof.
     inversion H0.
     unfold globals_only, eval_id, env_set, te_of.
     rewrite Map.gss; auto.
+    apply derives_refl.
   + apply exp_left; intro a.
     apply (derives_trans _ _ _ (H0 a _ eq_refl)).
     intro rho.
@@ -2299,10 +2302,10 @@ Proof.
     apply andp_right.
     - apply (derives_trans _ _ _ H0).
       eapply derives_trans; [apply typecheck_expr_sound; auto |].
-      unfold_lift; auto.
+      unfold_lift; apply derives_refl.
     - apply (derives_trans _ _ _ H3).
       eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H2] |].
-      unfold_lift; auto.
+      apply derives_refl.
   + rewrite (add_andp _ _ H1), (add_andp _ _ H).
     rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
     apply andp_left2.

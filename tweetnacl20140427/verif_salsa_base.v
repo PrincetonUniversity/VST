@@ -13,7 +13,7 @@ Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
 Lemma data_at_ext sh t v v' p: v=v' -> data_at sh t v p |-- data_at sh t v' p.
-Proof. intros; subst. trivial. Qed.
+Proof. intros; subst. auto. Qed.
 
 (*
 Definition EightWord (q:QuadWord * QuadWord) (v:val) : mpred :=

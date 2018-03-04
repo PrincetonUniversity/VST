@@ -390,12 +390,13 @@ Proof.
   apply pred_ext.
   + apply exp_left; intros.
     normalize.
-    destruct x; [auto |].
+    destruct x; [apply derives_refl |].
     specialize (H b); simpl in H; tauto.
   + apply (exp_right nil).
     normalize.
-    apply andp_right; auto.
+    apply andp_right.
     apply prop_right; constructor.
+    apply derives_refl.
 Qed.
 
 End IterPredSepCon.

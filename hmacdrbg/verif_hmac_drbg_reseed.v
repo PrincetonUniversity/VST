@@ -128,7 +128,7 @@ Proof.
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   {
     (*subst entropy_len.*) go_lower.
-     eapply derives_trans. apply data_at_memory_block. simpl. rewrite Z.max_r, Z.mul_1_l; trivial.
+     eapply derives_trans. apply data_at_memory_block. simpl. rewrite Z.max_r, Z.mul_1_l; auto.
   }
 
   (* get_entropy(seed, entropy_len ) *)
@@ -209,7 +209,7 @@ Proof.
       rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
-          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
+          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; auto.
       rewrite Zplus_minus.
       assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
       split. omega.

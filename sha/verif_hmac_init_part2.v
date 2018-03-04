@@ -465,7 +465,7 @@ eapply semax_post_flipped'.
         unfold data_block.
         rewrite sublist_nil, sublist_same; trivial.
           simpl app. Time entailer!. (*6 versus 3.1 -- penalty?*)
-          rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
+          rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. apply derives_refl.
           subst IPADcont. do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. trivial.
       }
       { rename H into I.

@@ -895,6 +895,7 @@ Proof.
         destruct (zlt (Zlength t') (Zlength t' + 1)); [|omega].
         rewrite !app_Znth2 by omega.
         rewrite Zminus_diag; replace (Zlength t') with (Zlength h'); rewrite Zminus_diag, !Znth_0_cons; auto.
+        apply derives_refl.
       + rewrite upd_Znth_diff' by (rewrite ?Zlength_map, ?Zlength_upto; auto).
         rewrite !Znth_map with (d' := N), !Znth_upto by (auto; omega).
         if_tac; if_tac; auto; try omega.

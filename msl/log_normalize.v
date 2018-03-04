@@ -6,7 +6,8 @@ Require Import Coq.Setoids.Setoid.
 
 Local Open Scope logic.
 
-Hint Resolve @derives_refl.
+Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end.
+(* Hint Resolve @derives_refl.    too expensive sometimes when it fails . . . *)
 
 Ltac solve_andp' :=
   first [ apply derives_refl

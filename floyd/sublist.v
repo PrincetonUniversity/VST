@@ -1557,3 +1557,12 @@ Proof.
 intros. unfold sublist.
 apply Forall_firstn. apply Forall_skipn. auto.
 Qed.
+
+Hint Rewrite @upd_Znth_app1 using list_solve : sublist.
+Hint Rewrite @upd_Znth_app2 using list_solve : sublist.
+
+Lemma map_list_repeat: forall {A B} (f: A->B) n (x:A), map f (list_repeat n x) = list_repeat n (f x).
+Proof.
+intros. induction n; simpl; f_equal; auto.
+Qed.
+Hint Rewrite @map_list_repeat : sublist.

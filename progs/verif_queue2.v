@@ -148,20 +148,10 @@ Proof.
     contradiction.
 *
     if_tac.
-    + forward. subst p. discriminate.
+    + forward. subst p. congruence.
     + Intros. forward. entailer!.
 *
   forward. Exists p; entailer!.
-Qed.
-
-Lemma memory_block_fifo:
- forall p,
-  field_compatible t_struct_fifo nil p ->
-  memory_block Tsh 8 p = field_at_ Tsh t_struct_fifo nil p.
-Proof.
- intros.
- change 8 with (sizeof t_struct_fifo).
- rewrite memory_block_data_at_; auto.
 Qed.
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.

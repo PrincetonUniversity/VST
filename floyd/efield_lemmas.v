@@ -500,7 +500,7 @@ Proof.
   + rewrite EVAL, H0, NESTED_FIELD_TYPE.
     reflexivity.
   + simpl in TC; rewrite <- TC.
-    auto.
+      apply derives_refl.
 Qed.
 
 Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
@@ -559,7 +559,7 @@ Proof.
   + rewrite EVAL, H0, NESTED_FIELD_TYPE.
     reflexivity.
   + simpl in TC; rewrite <- TC.
-    auto.
+      apply derives_refl.
 Qed.
 
 Definition lvalue_LR_of_type: forall Delta rho P p t e,
@@ -616,7 +616,7 @@ Proof.
   (* Induction *)
   revert tts LEGAL_NESTED_EFIELD_REC; induction EFIELD_DENOTE; intros;
   destruct tts; try solve [inversion LEGAL_NESTED_EFIELD_REC];
-  [normalize | | |];
+  [normalize; apply derives_refl | | |];
   pose proof FIELD_COMPATIBLE as FIELD_COMPATIBLE_CONS;
   apply field_compatible_cons in FIELD_COMPATIBLE;
   destruct (nested_field_type t_root gfs) eqn:NESTED_FIELD_TYPE; try solve [inv FIELD_COMPATIBLE];
@@ -651,7 +651,7 @@ Proof.
   intros.
   subst lr.
   eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
-  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto; try apply derives_refl.
   unfold LR_of_type in H0.
   destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
 Qed.
@@ -672,7 +672,7 @@ Proof.
   subst lr.
   eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
   apply andp_left1.
-  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto; try apply derives_refl.
   unfold LR_of_type in H0.
   destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
 Qed.
@@ -693,7 +693,7 @@ Proof.
   subst lr.
   eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
   apply andp_left2.
-  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto; try apply derives_refl.
   unfold LR_of_type in H0.
   destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
 Qed.

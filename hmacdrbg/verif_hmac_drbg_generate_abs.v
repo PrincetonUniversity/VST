@@ -774,5 +774,5 @@ assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.ma
           Hout_lenb ZLa Hreseed_interval.*)
   eapply derives_trans. apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *. 
   + red in WFI; subst I; simpl in *. apply WFI.
-  + normalize. unfold AREP, REP. Exists Info a. normalize.
+  + normalize. unfold AREP, REP. Exists Info a. normalize. apply derives_refl.
 Time Qed. (*61s*) 

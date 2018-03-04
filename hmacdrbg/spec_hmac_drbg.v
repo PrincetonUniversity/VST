@@ -37,7 +37,7 @@ Lemma FULL_isptr k q:
   UNDER_SPEC.FULL k q = !!isptr q && UNDER_SPEC.FULL k q.
 Proof.
 apply pred_ext.
-+ apply andp_right; trivial. apply UNDER_SPEC.FULL_isptr.
++ apply andp_right; try apply derives_refl. apply UNDER_SPEC.FULL_isptr.
 + entailer!.
 Qed.
 
@@ -45,7 +45,7 @@ Lemma EMPTY_isptr q:
   UNDER_SPEC.EMPTY q = !!isptr q && UNDER_SPEC.EMPTY q.
 Proof.
 apply pred_ext.
-+ apply andp_right; trivial. apply UNDER_SPEC.EMPTY_isptr.
++ apply andp_right; auto. apply UNDER_SPEC.EMPTY_isptr.
 + entailer!.
 Qed.
 
@@ -54,19 +54,19 @@ Lemma REP_isptr abs q:
 Proof.
 destruct abs.
 apply pred_ext.
-+ apply andp_right; trivial. apply UNDER_SPEC.REP_isptr.
++ apply andp_right; auto. apply UNDER_SPEC.REP_isptr.
 + entailer!.
 Qed. 
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
   WITH ctx:val, r:mdstate
-  PRE  [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr) ]
+  PRE  [ _ctx OF tptr t_struct_md_ctx_st ]
        PROP() 
        LOCAL(temp _ctx ctx) 
        SEP (data_at Tsh t_struct_md_ctx_st r ctx;
             UNDER_SPEC.EMPTY (snd (snd r)); 
-            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
+            malloc_token Tsh (Tstruct _hmac_ctx_st noattr) (snd (snd r)))
   POST [ tvoid ] 
        PROP () LOCAL () SEP (data_at Tsh t_struct_md_ctx_st r ctx).
 
@@ -211,9 +211,10 @@ Definition md_setup_spec :=
           LOCAL (temp ret_temp (Vint (Int.repr r)))
           SEP( 
               if zeq r 0
-              then (EX p:_, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
-                              memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                              malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+              then (EX p:_, 
+                              !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&  (* this line unnecessary, probably implied by malloc_token *)
+                              data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
+                              malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                               data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
               else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
@@ -593,7 +594,7 @@ Definition hmac_drbg_seed_buf_spec :=
                               HMAC256DRBGabs key V RC EL PR RI
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             && md_full key mds * malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
                         end).
@@ -764,7 +765,7 @@ Definition hmac_drbg_seed_inst256_spec :=
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
             else !!(ret_value = Int.zero) && 
                  md_empty (fst Ctx) *
-                 EX p:val, malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                  match (fst Ctx, fst handle_ss) with ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR)) =>
                    let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) 
                    in data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
@@ -848,7 +849,6 @@ Definition hmac_drbg_setReseedInterval_spec :=
        SEP (data_at Tsh t_struct_hmac256drbg_context_st (setRI_CTX (Vint (Int.repr l)) CTX) ctx;
             hmac256drbg_relate (setRI_ABS l ABS) (setRI_CTX (Vint (Int.repr l)) CTX)).
 
-
 Definition hmac_drbg_free_spec :=
   DECLARE _mbedtls_hmac_drbg_free
    WITH ctx:val, CTX:hmac256drbgstate, ABS:_
@@ -858,7 +858,7 @@ Definition hmac_drbg_free_spec :=
        SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
                  (hmac256drbg_relate ABS CTX *
-                  malloc_token Tsh 324 (snd(snd (fst CTX)))))
+                  malloc_token Tsh spec_hmac.t_struct_hmac_ctx_st (snd(snd (fst CTX)))))
     POST [ tvoid ] 
       EX vret:unit, PROP ()
        LOCAL ()
@@ -971,3 +971,7 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
 
   drbg_memcpy_spec:: drbg_memset_spec::
   sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::nil)).
+
+Ltac fix_hmacdrbg_compspecs :=
+  rewrite (@data_at__change_composite spec_hmac.CompSpecs hmac_drbg_compspecs.CompSpecs
+            hmac_drbg_compspecs.CompSpecs_Preserve) by reflexivity.

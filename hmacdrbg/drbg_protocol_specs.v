@@ -75,7 +75,7 @@ Definition drbg_seed_inst256_spec_abs :=
             if Int.eq ret_value (Int.repr (-20864))
             then seedREP dp rc pr_flag ri kv Info info ctx * Stream s                 
             else !!(ret_value = Int.zero) &&                  
-                 EX p:val, malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                  match fst handle_ss with ((((newV, newK), newRC), newEL), newPR) =>
                     AREP kv (HMAC256DRBGabs newK newV newRC 32 newPR 10000) ctx *
                     Stream (snd handle_ss) * EX mds:mdstate, md_empty mds   
@@ -105,7 +105,7 @@ Definition drbg_seed_buf_abs_spec :=
             else match I with HMAC256DRBGabs key V RC EL PR RI =>
                  EX KEY:list Z, EX VAL:list Z, EX p:val, EX mds:mdstate,
                  !!(hmacdrbg.HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                 && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 && md_full key mds * malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                  REP kv Info (HMAC256DRBGabs KEY VAL RC EL PR RI) ctx end).
 
 Definition drbg_setPredictionResistance_spec_abs :=

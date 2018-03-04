@@ -1451,6 +1451,15 @@ simpl in H. rewrite Hp in H. subst. inv Heqb.
 hnf; auto.
 Qed.
 
+Lemma typed_false_negb_bool_val_p':
+  forall p : val,
+  typed_false tint
+    (force_val (option_map (fun b : bool => Val.of_bool (negb b)) (bool_val_p p))) ->
+   p <> nullval.
+Proof.
+ intros. intro; subst. discriminate.
+Qed.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
@@ -1459,6 +1468,7 @@ Ltac do_repr_inj H :=
                | apply typed_false_ptr_e in H
                | apply typed_true_negb_bool_val_p in H
                | apply typed_false_negb_bool_val_p in H; [| solve [auto]]
+               | apply typed_false_negb_bool_val_p' in H
                | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
                | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
 (*               | simple apply typed_true_tint in H *)
@@ -2584,7 +2594,7 @@ Proof. intros.
 
 Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
-  destruct t; trivial. simpl; intros. apply H.
+  destruct t; try apply derives_refl. simpl; intros. apply H. 
 Qed.
 
 (*
@@ -2654,8 +2664,7 @@ Proof.
     go_lowerx.
     apply sepcon_derives; auto.
     subst.
-    rewrite var_block_data_at_ by auto.
-    auto.
+    rewrite var_block_data_at_ by auto. apply derives_refl.
 Qed.
 
 Lemma canonicalize_stackframe_emp: forall {cs: compspecs} Delta P Q,

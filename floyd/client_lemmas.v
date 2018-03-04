@@ -1434,14 +1434,14 @@ Proof.
   apply andp_derives; auto.
   unfold LOCALx.
   autorewrite with subst norm.
-  apply andp_derives; auto.
+  apply andp_derives; auto; try apply derives_refl.
   induction Q; simpl fold_right.
   + autorewrite with subst norm; auto.
   + destruct a; [if_tac | ..];
     autorewrite with subst norm.
     - eapply derives_trans; [| exact IHQ].
       rewrite local_lift2_and.
-      apply andp_left2; auto.
+      apply andp_left2; apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold locald_denote.
@@ -1454,22 +1454,22 @@ Proof.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
 Qed.
 
 Fixpoint iota_formals (i: ident) (tl: typelist) :=

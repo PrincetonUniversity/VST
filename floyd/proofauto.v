@@ -79,14 +79,7 @@ Hint Rewrite modu_repr using rep_omega : entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
-Hint Rewrite @upd_Znth_app1 using list_solve : sublist.
-Hint Rewrite @upd_Znth_app2 using list_solve : sublist.
 
-Lemma map_list_repeat: forall {A B} (f: A->B) n (x:A), map f (list_repeat n x) = list_repeat n (f x).
-Proof.
-intros. induction n; simpl; f_equal; auto.
-Qed.
-Hint Rewrite @map_list_repeat : sublist.
 
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .

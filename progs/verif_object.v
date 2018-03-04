@@ -152,12 +152,12 @@ forward_if
           object_methods foo_invariant mtable)).
 *
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
-if_tac; entailer.
+if_tac; entailer!.
 *
 forward_call tt.
 contradiction.
 *
-rewrite if_false by (intro; subst; inv H).
+rewrite if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!.

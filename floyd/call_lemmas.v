@@ -243,7 +243,7 @@ apply andp_left2.
 rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 rewrite sepcon_comm.
-auto.
+ apply derives_refl.
 auto.
 Qed.
 
@@ -296,7 +296,7 @@ apply andp_left2.
 rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 rewrite sepcon_comm.
-auto.
+apply derives_refl.
 Qed.
 
 Inductive extract_trivial_liftx {A}: list (environ->A) -> list A -> Prop :=

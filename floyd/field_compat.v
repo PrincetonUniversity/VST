@@ -379,7 +379,7 @@ Proof.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   apply sepcon_derives.
   unfold array_at.
-  simpl. apply andp_derives; auto.
+  simpl. apply andp_derives; auto; try apply derives_refl. 
   apply prop_derives. intuition.
   assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
      admit.  (* true, but tedious *)
@@ -610,14 +610,15 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; trivial; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; try apply derives_refl; omega.
 Qed.
 
 Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
-  rewrite data_at__memory_block; simpl. normalize. rewrite sizeof_tarray_tuchar; trivial; omega. 
+  rewrite data_at__memory_block; simpl. normalize. 
+  rewrite sizeof_tarray_tuchar; try apply derives_refl; omega. 
 Qed.
 
 Lemma isptr_field_compatible0_tarray {cs}:
@@ -677,7 +678,7 @@ Proof.
   rewrite field_address_offset; trivial.
   unfold nested_field_type. simpl. unfold nested_field_offset.
     simpl. rewrite Z.mul_0_r.
- rewrite isptr_offset_val_zero; trivial.
+ rewrite isptr_offset_val_zero; try apply derives_refl; auto.
   eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
 Qed.
 
@@ -713,7 +714,7 @@ Lemma data_at_zero_array {cs} sh t v p:
 Proof. intros.
   unfold data_at. 
   erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: eassumption. 2: simpl; trivial. 
-  rewrite array_at_len_0. apply andp_right; trivial.
+  rewrite array_at_len_0. apply andp_right; try apply derives_refl.
   apply prop_right.
   apply field_compatible0_ArraySubsc0.
   apply isptr_field_compatible0_tarray; auto.

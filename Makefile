@@ -241,7 +241,7 @@ PROGS_FILES= \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
-  dotprod.v strings.v strlib.v \
+  dotprod.v strlib.v \
   verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
@@ -435,11 +435,11 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs sha hmac mailbox
+travis: default_target progs sha hmac mailbox
 
 files: .loadpath version.vo $(FILES:.v=.vo)
 
-all: files travis hmacdrbg tweetnacl aes
+all: default_target files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

@@ -23,6 +23,8 @@ to make a post-hoc adjustment to the precedence and associativity levels of
 some operators.
 *)
 
+Global Set Warnings "-notation-overridden,-parsing".
+
 Require Import Clightdefs.
 From Coq Require Import String List ZArith.
 From compcert Require Import Integers Floats Maps Errors AST Ctypes Cop Clight.

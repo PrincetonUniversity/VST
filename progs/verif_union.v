@@ -109,7 +109,7 @@ Proof.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; try apply derives_refl; auto.
     - destruct H3 as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct p2; auto.
@@ -120,7 +120,7 @@ Proof.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; try apply derives_refl; auto.
     - destruct H3 as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct p2; auto.

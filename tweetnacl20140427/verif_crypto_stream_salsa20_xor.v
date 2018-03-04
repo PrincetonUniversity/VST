@@ -140,7 +140,7 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
     intros.
     apply andp_left2.
     normalize. autorewrite with norm1 norm2; normalize.
-    apply andp_right. apply andp_right. apply andp_left1; auto.
+    apply andp_right. apply andp_right. apply andp_left1; auto. apply derives_refl.
     apply andp_left2; apply andp_left1; auto.
     apply andp_left2; apply andp_left2; auto.
   - rewrite andp_comm.

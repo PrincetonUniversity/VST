@@ -1888,7 +1888,9 @@ Proof.
   apply derives_trans with (Q := (weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P);
     [|apply weak_precise_positive_conflict].
   cancel.
-  rewrite <- sepcon_emp at 1; apply sepcon_derives; apply andp_right; auto; apply derives_trans with (Q := TT);
+  rewrite <- sepcon_emp at 1.
+  apply sepcon_derives; apply andp_right; auto; try apply derives_refl;
+  apply derives_trans with (Q := TT);
     auto; [apply precise_weak_precise | apply positive_weak_positive]; auto.
 Qed.
 
@@ -2036,7 +2038,7 @@ Proof.
   destruct (readable_share_dec sh); [|contradiction n; auto].
   eapply derives_positive, ex_address_mapsto_positive.
   apply orp_left; entailer.
-  - Exists v; eauto.
+  - Exists v; eauto. apply derives_refl.
   - Exists v2'; auto.
 Qed.
 
@@ -2646,7 +2648,7 @@ Proof.
     + destruct (eq_dec v2 Vundef).
       * subst; rewrite prop_false_andp with (P := tc_val t Vundef), FF_orp;
           try apply tc_val_Vundef.
-        rewrite prop_true_andp with (P := Vundef = Vundef); auto.
+        rewrite prop_true_andp with (P := Vundef = Vundef); auto.  apply derives_refl.
       * rewrite prop_false_andp with (P := v2 = Vundef), orp_FF; auto; Intros.
         Exists v2; auto.
     + Intro v2'.
@@ -2673,6 +2675,7 @@ Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 
 Proof.
   intros.
   revert v1 v2; induction m; auto; intros.
+  apply derives_refl.
   destruct a; inv IH.
   destruct m.
   - unfold withspacer, at_offset; simpl.
@@ -2725,6 +2728,7 @@ Proof.
   clear H3 H4.
   rewrite Z2Nat_max0 in *.
   forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+ apply derives_refl.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
   eapply derives_trans; [apply sepcon_derives|].
@@ -2929,7 +2933,7 @@ Qed.
 
 Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
 Proof.
-  destruct v; simpl; auto.
+  destruct v; simpl; auto; try apply derives_refl.
   entailer!.
 Qed.
 Hint Resolve valid_pointer_isptr : saturate_local.

@@ -48,7 +48,7 @@ Proof.
     rewrite set_temp_ve.
     destruct ((var_types Delta) ! i0); auto.
     rewrite set_temp_ge.
-    destruct ((glob_types Delta) ! i0); auto.
+    destruct ((glob_types Delta) ! i0); apply derives_refl.
   + (* destruct (negb (type_is_volatile t)); auto.*)
     destruct ( (temp_types Delta) ! i0) eqn:?; [ | apply @FF_left].
     destruct p.
@@ -83,7 +83,7 @@ Proof.
       rewrite ?denote_tc_assert_bool; auto.
     rewrite set_temp_ge.
     destruct ((glob_types Delta) ! i0);
-      rewrite ?denote_tc_assert_bool; auto.
+      rewrite ?denote_tc_assert_bool; apply derives_refl.
      rewrite !denote_tc_assert_andp.
       rewrite ?denote_tc_assert_bool; auto.
     repeat apply andp_derives; auto.

@@ -574,7 +574,7 @@ Ltac normalize1 :=
                                 apply imp_extract_exp_left; intro y
                    | _ => simple apply TT_prop_right
                    | _ => simple apply TT_right
-                   | _ => apply derives_refl
+                   | _ => constr_eq A B; apply derives_refl
                    end
               | |- _ => solve [auto]
               | |- _ |-- !! (?x = ?y) && _ =>

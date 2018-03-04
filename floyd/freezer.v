@@ -17,12 +17,12 @@ End FREEZER.
 
 Module Freezer : FREEZER.
 Definition FRZ (p: mpred) := p.
-Lemma FRZ1 p: p |-- FRZ p. trivial. Qed.
-Lemma FRZ2 p: FRZ p |-- p. trivial. Qed.
+Lemma FRZ1 p: p |-- FRZ p. apply derives_refl. Qed.
+Lemma FRZ2 p: FRZ p |-- p. apply derives_refl. Qed.
 
 Definition FRZL (ps:list mpred): mpred := fold_right sepcon emp ps.
-Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. trivial. Qed.
-Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. trivial. Qed.
+Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. apply derives_refl. Qed.
+Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. apply derives_refl. Qed.
 End Freezer.
 
 Notation FRZ := Freezer.FRZ.

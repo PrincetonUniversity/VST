@@ -29,7 +29,7 @@ Proof.
     contradiction.
 *
     if_tac.
-    + forward. subst p. discriminate.
+    + forward. subst p. congruence.
     + Intros. forward. entailer!.
 *
   forward. Exists p; entailer!.
@@ -248,7 +248,7 @@ Proof.
     rewrite <- lock_struct_array; unfold AE_inv.
     rewrite !sem_cast_neutral_ptr by intuition.
     erewrite map_ext_in; [cancel|].
-    { rewrite sepcon_comm; apply sepcon_derives; auto. }
+    { rewrite sepcon_comm; apply sepcon_derives; auto; apply derives_refl. }
     intros; rewrite In_upto, <- Zlength_correct in *.
     rewrite !app_Znth1; try omega; reflexivity. }
   Intros locks comms g g0 g1 g2 reads lasts sh.
@@ -379,7 +379,7 @@ Proof.
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
     (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs Vundef))) (upto (Z.to_nat B)))).
   { go_lowerx; eapply derives_trans with (Q := _ * _);
-      [|erewrite replace_nth_sepcon, upd_Znth_triv; eauto].
+      [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
     rewrite Znth_map', Znth_upto; [|simpl; unfold B, N in *; omega].
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].

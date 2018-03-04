@@ -149,7 +149,7 @@ apply join_tycon_same.
 simpl typeof.
 eapply semax_post_flipped.
 eapply semax_pre0; [ | apply (H2 i)].
-go_lowerx. repeat apply andp_right; try apply prop_right; auto.
+go_lowerx. repeat apply andp_right; try apply prop_right; auto; try apply derives_refl.
 rewrite Thi in H. unfold_lift in H. rewrite <- H6 in H.
 destruct (eval_expr hi rho); simpl in H; try solve [inv H].
  unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H.
@@ -359,6 +359,7 @@ apply sequential'.
 eapply semax_post'; [ | apply semax_skip].
 apply andp_left2.
 apply andp_right. apply andp_right. apply andp_left1; auto.
+apply derives_refl.
 apply andp_left2; apply andp_left1; auto.
 apply andp_left2; apply andp_left2; auto.
 +

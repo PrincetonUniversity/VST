@@ -489,7 +489,7 @@ Proof.
    pose proof (Zlength_nonneg dd').
    Time autorewrite with sublist. (*7*)
    cancel.
-   rewrite array_at_data_at_rec; auto.
+   rewrite array_at_data_at_rec; auto.  apply derives_refl.
  }
   Time forward. (* p += 4; *) (*5.1*) {
    go_lower. apply prop_right.
