@@ -15,7 +15,7 @@ Proof.
   rewrite EMPTY_isptr. Intros. 
   forward. 
 freeze [0;1;2] FR1.
- forward_call (hmac_drbg_compspecs.CompSpecs, (Tstruct _hmac_ctx_st noattr), r3).
+ forward_call (Tstruct _hmac_ctx_st noattr, r3).
 { rewrite sepcon_comm. apply sepcon_derives.
   eapply derives_trans. apply UNDER_SPEC.EmptyDissolve.
   fix_hmacdrbg_compspecs.
@@ -127,7 +127,7 @@ Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSp
 Proof.
   start_function.
 
-  forward_call (hmac_drbg_compspecs.CompSpecs, Tstruct _hmac_ctx_st noattr).
+  forward_call (Tstruct _hmac_ctx_st noattr).
   Intros vret.
 
   forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info;

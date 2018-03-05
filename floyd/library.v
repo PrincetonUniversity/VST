@@ -74,8 +74,8 @@ Hint Resolve malloc_token_local_facts : saturate_local.
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
 
-Definition malloc_spec' :=
-   WITH cs: compspecs, t:type
+Definition malloc_spec'  {cs: compspecs} :=
+   WITH t:type
    PRE [ 1%positive OF tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
@@ -88,16 +88,16 @@ Definition malloc_spec' :=
        SEP (if eq_dec p nullval then emp
             else (malloc_token Tsh t p * data_at_ Tsh t p)).
 
-Definition malloc_spec (prog: program) :=
+Definition malloc_spec  {cs: compspecs} (prog: program) :=
    try_spec prog "_malloc" malloc_spec'.
-Arguments malloc_spec prog / .
+Arguments malloc_spec {cs} prog / .
 
 Parameter body_malloc:
- forall {Espec: OracleKind},
+ forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_malloc malloc_spec'.
 
-Definition free_spec' :=
-   WITH cs: compspecs, t: type, p:val
+Definition free_spec'  {cs: compspecs} :=
+   WITH t: type, p:val
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
@@ -107,15 +107,15 @@ Definition free_spec' :=
        LOCAL ()
        SEP ().
 
-Definition free_spec  (prog: program) :=
+Definition free_spec   {cs: compspecs} (prog: program) :=
    try_spec prog "_free" free_spec'.
-Arguments free_spec prog / .
+Arguments free_spec  {cs} prog / .
 
 Parameter body_free:
- forall {Espec: OracleKind},
+ forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_free free_spec'.
 
-Definition library_G prog :=
+Definition library_G  {cs: compspecs} prog :=
   exit_spec prog ++ malloc_spec prog ++ free_spec prog.
 
 Ltac with_library prog G := 

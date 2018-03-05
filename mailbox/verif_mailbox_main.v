@@ -14,7 +14,7 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     (CompSpecs,t).
+     t.
   Intros p.
   forward_if
   (PROP ( )

@@ -274,7 +274,7 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     (CompSpecs,t).
+     t.
   Intros p.
   forward_if
   (PROP ( )
@@ -489,7 +489,7 @@ forward_call  (*   p' = fifo_get(Q); p = p'; *)
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward_call (*  free(p, sizeof( *p)); *)
-   (CompSpecs, t_struct_elem, p').
+   (t_struct_elem, p').
 {
  pose (work_around_coq_bug := fifo [p2] q *
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
