@@ -1102,7 +1102,7 @@ Proof.
   apply age_jm_phi in H.
   erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
   unfold level at 1; simpl.
-  unfold natLevel; repeat intro; auto.
+  repeat intro; auto.
   assert (N = level m')%nat.
   apply age_level in H; omega.
   clear HeqN m H. rename m' into m.
@@ -1118,7 +1118,7 @@ Proof.
   apply age_jm_phi in H.
   erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
   unfold level at 1; simpl.
-  unfold natLevel; repeat intro; auto.
+  repeat intro; auto.
   eapply IHN; eauto.
   apply age_level in H. omega.
 Qed.
@@ -1988,4 +1988,66 @@ rewrite closed_Slabel, exit_typcon_Slabel'.
 apply imp_derives; [ apply derives_refl | ].
 apply guard_safe_adj; [ trivial | intros].
 apply safe_seq_Slabel; trivial.
+Qed.
+
+Lemma tc_expr_gen: forall {cs: compspecs} Delta e rho a a', resource_at a = resource_at a' ->
+  tc_expr Delta e rho a -> tc_expr Delta e rho a'.
+Proof.
+  unfold tc_expr; intros.
+  induction (typecheck_expr Delta e); auto; simpl in *.
+  - destruct H0; auto.
+  - destruct H0; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto; simpl in *.
+    + if_tac; auto.
+      destruct H0; split; auto.
+      destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
+    + if_tac; auto.
+      destruct H0; split; auto.
+      destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
+    + unfold test_eq_ptrs in *.
+      destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto; simpl in *.
+    unfold test_order_ptrs in *.
+    destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *.
+    + destruct (Zoffloat f); auto.
+    + destruct (Zofsingle f); auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho); auto; simpl in *.
+    + destruct (Zoffloat f); auto.
+    + destruct (Zofsingle f); auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto.
+  - unfold liftx in *; simpl in *.
+    unfold lift in *; simpl in *.
+    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto.
+Qed.
+
+Lemma bupd_tc_expr: forall {cs: compspecs} P Delta e rho a,
+  tc_expr Delta e rho a -> bupd P a -> bupd (tc_expr Delta e rho && P) a.
+Proof.
+  repeat intro.
+  destruct (H0 _ H1) as (b & ? & m & ? & ? & ? & ?); subst.
+  eexists; split; eauto; exists m; repeat split; eauto.
+  eapply tc_expr_gen; [|eauto]; auto.
 Qed.

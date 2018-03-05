@@ -114,8 +114,40 @@ destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
-intros ora jm Hge Hphi.
+pose proof (typecheck_expr_sound _ _ _ _ TC_ENV TC2) as HTCb; simpl in HTCb.
+unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
+destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
+assert (assert_safe Espec psi vx tx (Kseq (if b' then c else d) :: k)
+  (construct_rho (filter_genv psi) vx tx) w0) as Hw0.
+{ admit. }
+eapply own.bupd_mono, bupd_tc_expr, Hw0; auto.
+
+
+intros r Hr ora jm Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
+unfold tc_expr in TC2'.
+simpl in TC2'.
+rewrite denote_tc_assert_andp in TC2'.
+destruct TC2' as [TC2' TC2'a].
+apply wlog_safeN_gt0; intro.
+subst r.
+change (level (m_phi jm)) with (level jm) in H9.
+revert H9; case_eq (level jm); intros.
+omegaContradiction.
+apply levelS_age1 in H9. destruct H9 as [jm' ?].
+clear H10.
+apply (@safe_step'_back2  _ _ _ _ _ _ _ _ psi ora _ jm
+        (State vx tx (Kseq (if b' then c else d) :: k)) jm' _).
+split3.
+rewrite <- (age_jm_dry H9); econstructor; eauto.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+change (level (m_phi jm)) with (level jm).
+replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H10; omega).
+eapply @age_safe; try apply H10.
+rewrite <- Hge in *.
+
+
 assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2').
  unfold tc_expr in TC2'.
  simpl in TC2'.

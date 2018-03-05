@@ -28,7 +28,7 @@ Definition jstep {G C} (csem: @CoreSemantics G C mem)
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') /\
- ghost_fp_update (ghost_approx (level jm') (ghost_of (m_phi jm))) (ghost_of (m_phi jm')).
+ ghost_fp_update (ghost_approx jm' (ghost_of (m_phi jm))) (ghost_of (m_phi jm')).
 
 Definition j_halted {G C} (csem: @CoreSemantics G C mem)
        (c: C) : option val :=

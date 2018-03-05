@@ -759,6 +759,14 @@ Proof.
  rewrite level_make_rmap. auto.
 Qed.
 
+Lemma free_juicy_mem_ghost:
+  forall jm m b lo hi H H0,
+    ghost_of (m_phi (free_juicy_mem jm m b lo hi H H0)) = ghost_of (m_phi jm).
+Proof.
+ intros;  simpl;  unfold inflate_free; simpl.
+ rewrite ghost_of_make_rmap. auto.
+Qed.
+
 Lemma free_list_free:
   forall m b lo hi l' m',
        free_list m ((b,lo,hi)::l') = Some m' ->
@@ -1029,7 +1037,7 @@ destruct H0 as [phi2 H0].
 hnf; intros.
 pose proof (juicy_mem_access jm (b,ofs)).
 hnf. unfold access_at in H2. simpl in H2.
-specialize (H (b,ofs)).
+destruct H as [H _]; specialize (H (b,ofs)).
 hnf in H.
 rewrite if_true in H by (split; auto; omega).
 destruct H as [v ?].
@@ -1311,6 +1319,7 @@ Proof.
  if_tac; auto.
  destruct l; destruct H1; subst. specialize (H0 z).
  spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
+ rewrite !ghost_of_core, free_juicy_mem_ghost; auto.
 Qed.
 
 Lemma same_glob_funassert':
@@ -1491,7 +1500,10 @@ rewrite H22.
 rewrite Hty. reflexivity.
 split.
 apply age1_resource_decay; auto.
-apply age_level; auto.
+split; [apply age_level; auto|].
+apply age_jm_phi in H0.
+erewrite (age1_ghost_of _ _ H0) by (symmetry; apply ghost_of_approx).
+repeat intro; auto.
 hnf.
 destruct n as [ | n ].
 constructor.

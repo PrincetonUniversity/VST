@@ -27,22 +27,23 @@ Context (Espec: OracleKind).
 Lemma semax_straight_simple:
  forall  {CS: compspecs} Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
-  (forall jm jm1 Delta' ge ve te rho k F,
+  (forall w w1 Delta' ge ve te rho k F,
               tycontext_sub Delta Delta' ->
-              app_pred (B rho) (m_phi jm) ->
+              app_pred (B rho) w ->
               guard_environ Delta' (current_function k) rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
-              age jm jm1 ->
-              ((F rho * |>P rho) && funassert Delta' rho) (m_phi jm) ->
+              age w w1 ->
+              ((F rho * |>P rho) && funassert Delta' rho) w ->
               genv_cenv ge = cenv_cs ->
-              exists jm', exists te', exists rho',
+              exists w', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
-                level jm = S (level jm') /\
+                level w = S (level w') /\
                 guard_environ (update_tycon Delta' c) (current_function k) rho'  /\
-                jstep cl_core_sem ge (State ve te (Kseq c :: k)) jm
-                                 (State ve te' k) jm' /\
-              ((F rho' * Q rho') && funassert Delta' rho) (m_phi jm')) ->
+                (forall jm, m_phi jm = w -> exists jm', m_phi jm' = w' /\
+                   jstep cl_core_sem ge (State ve te (Kseq c :: k)) jm
+                                 (State ve te' k) jm') /\
+              ((F rho' * Q rho') && funassert Delta' rho) w') ->
   semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
@@ -55,21 +56,18 @@ apply (pred_nec_hereditary _ _ _ (necR_nat H)) in Hsafe.
 clear H w.
 rename w0 into w.
 apply assert_safe_last'; intro Hage.
-intros ora jm _ H2. subst w.
+destruct (age1 w) as [w1|] eqn: Hage'; [clear Hage; rename Hage' into Hage | contradiction].
 destruct Hglob as [[TC' Hglob] Hglob'].
-apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
 apply extend_sepcon_andp in Hglob; auto.
 destruct Hglob as [TC2 Hglob].
-specialize (Hc jm jm1 Delta' psi ve te _ k F TS TC2 TC' Hcl (eq_refl _) Hage).
+specialize (Hc w w1 Delta' psi ve te _ k F TS TC2 TC' Hcl (eq_refl _) Hage).
 specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
-destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
-change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
+destruct Hc as [w' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
+change (@level rmap _  w = S (level w')) in H2.
 rewrite H2 in Hsafe.
-eapply safe_step'_back2; [eassumption | ].
-unfold rguard in Hsafe.
 specialize (Hsafe EK_normal None te' ve).
 simpl exit_cont in Hsafe.
-specialize (Hsafe (m_phi jm')).
+specialize (Hsafe w').
 spec Hsafe.
 change R.rmap with rmap; omega.
 specialize (Hsafe _ (necR_refl _)).
@@ -88,7 +86,9 @@ rewrite glob_specs_update_tycon; auto.
 subst rho'.
 hnf in Hsafe.
 change R.rmap with rmap in *.
-replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_phi jm'))%nat by omega.
+simpl.
+Check safe_step'_back2.
+replace (@level rmap ag_rmap w - 1)%nat with (@level rmap ag_rmap w')%nat by omega.
 apply Hsafe; auto.
 Qed.
 

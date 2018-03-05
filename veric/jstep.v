@@ -39,7 +39,7 @@ Program Definition t : FSem.t mem juicy_mem :=
     (fun jm jm' =>
        resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
        ageable.level jm = S (ageable.level jm') /\
-       ghost_fp_update (ghost_approx (level jm') (ghost_of (m_phi jm))) (ghost_of (m_phi jm')))
+       ghost_fp_update (ghost_approx jm' (ghost_of (m_phi jm))) (ghost_of (m_phi jm')))
     _ _ _ _ _.
 
 End JuicyFSem.

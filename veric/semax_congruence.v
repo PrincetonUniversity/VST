@@ -15,6 +15,7 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Require Import Coq.Classes.RelationClasses.
+Require Import VST.veric.own.
 
 Local Open Scope pred.
 Local Open Scope nat_scope.
@@ -38,6 +39,7 @@ Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
   exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
+  ghost_fp_update ((ghost_approx m') (ghost_of (m_phi jm))) (ghost_of (m_phi m')) /\
   @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
 Proof.
   intros.
@@ -46,12 +48,12 @@ Proof.
     * exists c', m'.
       simpl in H1.
       unfold jstep in H1.
-      destruct H1 as [? [? ?]].
+      destruct H1 as [? [? []]].
       simpl in H0.
       auto.
     * inversion H1.
     * inversion H0.
-  - destruct H as [c' [m' [? [? [? ?]]]]].
+  - destruct H as [c' [m' [? [? [? [? ?]]]]]].
     eapply safeN_step; [| eauto].
     simpl.
     unfold jstep.
@@ -129,7 +131,8 @@ Proof.
     (* This step uses that fact that current function has nothing to do with c1 and c2. *)
   clear - JS_EQUIV Hc1.
   specialize (JS_EQUIV k k eq_refl (fun _ _ _ _ _ _ => iff_refl _)).
-  unfold assert_safe in Hc1 |- *; simpl in Hc1 |- *.
+  eapply bupd_mono, Hc1.
+  clear Hc1; intros ? Hc1.
   intros ? ? _ ?.
   apply JS_EQUIV.
   apply Hc1; auto.

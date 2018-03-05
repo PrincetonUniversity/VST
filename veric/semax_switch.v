@@ -368,17 +368,20 @@ apply necR_level; auto.
 Qed.
 
 Lemma assert_safe_step_nostore:
-  forall Espec psi vx vx2 tx tx2 k1 k2 SideCond,
+  forall {cs: compspecs} Espec psi vx vx2 tx tx2 k1 k2 Delta e rho,
   (forall jm jm', age1 jm = Some jm' ->
-    app_pred SideCond (m_phi jm) ->
+    app_pred (tc_expr Delta e rho) (m_phi jm) ->
      cl_step psi (State vx tx k1)
       (m_dry jm) (State vx2 tx2 k2) (m_dry jm)) ->
   assert_safe Espec psi vx2 tx2 k2 (construct_rho (filter_genv psi) vx2 tx2)
- && SideCond
+ && tc_expr Delta e rho
 |-- assert_safe Espec psi vx tx k1 (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros.
-intros w [Hw Hw'] ora jm ? ?. subst w.
+intros w [Hw Hw'] ? J.
+destruct (Hw _ J) as (b & ? & m' & Hl & Hr & ? & Hm').
+exists b; split; auto; exists m'; repeat split; auto.
+intros ora jm ? ?. subst.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
@@ -388,16 +391,19 @@ econstructor 2 with (m' := jm').
 econstructor.
 rewrite <- (age_jm_dry H9).
 apply (H _ _ H9); auto.
+eapply tc_expr_gen, Hw'; congruence.
 split.
 apply age1_resource_decay; assumption.
-apply age_level; assumption.
+split; [apply age_level; assumption|].
+apply age_jm_phi in H9.
+erewrite (age1_ghost_of _ _ H9) by (symmetry; apply ghost_of_approx).
+intros ??; auto.
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn.
 rewrite Heqn in H1.
 inv H1. clear Heqn.
-eapply pred_hereditary in Hw;
-  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
-apply Hw; auto.
+eapply semax.assert_safe_obligation_1; eauto.
+apply age_jm_phi; auto.
 Qed.
 
 Lemma semax_switch: 
