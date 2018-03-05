@@ -413,6 +413,8 @@ Proof.
   apply allp_right; intros.
   apply wand_sepcon_adjoint.
   normalize.
+  simpl.
+  auto.
 Qed.
 
 Lemma treebox_rep_partial_treebox_rep: forall t pt p q,
