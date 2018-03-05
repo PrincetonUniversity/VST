@@ -205,7 +205,7 @@ VERIC_FILES= \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
   expr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
-  slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
+  slice.v res_predicates.v own.v seplog.v mapsto_memory_block.v assert_lemmas.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_switch.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
