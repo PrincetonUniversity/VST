@@ -272,13 +272,11 @@ Tactic Notation "deadvars" "!" :=
     semax _ ?P ?c ?Y =>
     constr_eq X Y;
     match find_dead_vars P c Q with
-    | nil => fail "deadvars!: Did not find any dead variables"
+    | nil => fail 2 "deadvars!: Did not find any dead variables"
     | ?d =>  drop_LOCALs d
      end
  | |- semax _ _ _ _ => 
-       fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
- | |- _ => fail "deadvars!: the proof goal should be a semax"
+       fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
+ | |- _ => fail 1 "deadvars!: the proof goal should be a semax"
  end.
-  
-   
 

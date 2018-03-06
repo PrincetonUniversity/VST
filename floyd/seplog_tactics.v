@@ -598,3 +598,15 @@ Ltac normalize :=
               || simple apply derives_extract_prop');
               fancy_intros true);
    repeat normalize1; try contradiction.
+
+Lemma allp_instantiate: 
+   forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
+       ALL y : B, P y |-- P x.
+Proof.
+intros. apply allp_left with x. auto.
+Qed.
+
+Ltac allp_instantiate x := 
+ match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
+   sep_apply (@allp_instantiate T ND B P x)
+ end end.

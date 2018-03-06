@@ -21,6 +21,7 @@ Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
+Require Import VST.floyd.deadvars.
 Import Cop.
 Import Cop2.
 
@@ -36,6 +37,7 @@ match c with
 end.
 
 Ltac print_hint_semax D Pre c Post :=
+ try (deadvars!; idtac "Hint: 'deadvars!' removes useless LOCAL definitions");
  try match Pre with exp _ => idtac "Hint: try 'Intros x' where x is the name you want to give the variable bound by EX'"  end;
  try match Pre with PROPx (_::_) _ => idtac "Hint: use 'Intros' to move propositions above the line" end;
  try match Pre with PROPx nil (LOCALx _ (SEPx _)) =>
@@ -83,6 +85,15 @@ Ltac hint :=
     match B with context [@exp _ _ ?t ] =>
        idtac "Hint: try 'Exists x', where x is a value of type (" t ") to instantiate the existential"
    end
+  end;
+ try match goal with
+ | H : value_fits _ _ |- _ => 
+  tryif (try (progress simplify_value_fits in H; fail 1)) then idtac
+     else  idtac "Hint:  try 'simplify_value_fits in " H "'"
+  end;
+ try match goal with
+  | H: Forall ?F ?L |- ?F' (Znth _ ?L' _) => 
+       constr_eq F F'; constr_eq L L'; idtac "Hint: try 'apply forall_Znth; auto'"
   end;
  lazymatch goal with
  | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
