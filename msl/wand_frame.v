@@ -18,6 +18,15 @@ Proof.
   apply wand_sepcon_adjoint; auto.
 Qed.
 
+Lemma wand_frame_elim' {A} {ND: NatDed A} {SL: SepLog A}: forall (P P' Q: A),
+  P |-- P' -> P * (P' -* Q) |-- Q.
+Proof.
+  intros.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint; auto.
+  apply wand_derives; auto.
+Qed.
+
 Lemma wand_frame_ver {A} {ND: NatDed A} {SL: SepLog A}: forall (P Q R: A),
   (P -* Q) * (Q -* R) |-- P -* R.
 Proof.

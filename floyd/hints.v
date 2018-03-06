@@ -75,6 +75,9 @@ Ltac hint :=
      else  idtac "Hint:  try 'autorewrite with sublist'";
  tryif (try (progress autorewrite with sublist in *|-; fail 1)) then idtac
      else  idtac "Hint:  try 'autorewrite with sublist in *|-'";
+ try (match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
+       tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then idtac
+       else  idtac "Hint:  'auto with field_compatible' solves the goal");
  try match goal with H: ?p = nullval |- _ => idtac "Hint: try 'subst " p "'" end;
  try match goal with |- _ |-- ?B =>
     match B with context [@exp _ _ ?t ] =>
