@@ -395,9 +395,8 @@ eapply tc_expr_gen, Hw'; congruence.
 split.
 apply age1_resource_decay; assumption.
 split; [apply age_level; assumption|].
-apply age_jm_phi in H9.
-erewrite (age1_ghost_of _ _ H9) by (symmetry; apply ghost_of_approx).
-intros ??; auto.
+eapply age1_ghost_of; [|symmetry; apply ghost_of_approx].
+apply age_jm_phi; auto.
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn.
 rewrite Heqn in H1.
@@ -543,7 +542,7 @@ unfold guard.
 intros tx vx.
 set (rho := construct_rho (filter_genv psi) vx tx) in *.
 specialize (H0 rho).
-apply frame_tc_expr with (F0 := F rho) in  H0. 
+apply frame_tc_expr with (F0 := F rho) in  H0.
 intros w' Hw' w'' Hw'' [[[H4 H4'] H5] H6].
 rewrite sepcon_comm in H0; specialize (H0 _ H5).
 assert (H0' := typecheck_expr_sound _ _ _ _ (typecheck_environ_sub _ _ TS _ H4) H0).
@@ -554,7 +553,18 @@ rewrite semax_unfold in H1.
 specialize (H1 psi Delta' w TS HGG Prog_OK (Kswitch :: k) F).
 specialize (H1 (closed_wrt_modvars_switch _ _ _ _ H2)); clear H2.
 set (c := seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) in *.
-intros ora jm H7 H8. subst w''; clear H7.
+spec H1.
+{ eapply switch_rguard; eauto. }
+specialize (H1 tx vx w' Hw' _ Hw'').
+spec H1.
+{ clear H1.
+  split; auto.
+  split; auto.
+  do 3 red. split; auto.
+  fold rho. rewrite prop_true_andp by auto. auto. }
+intros ? J; specialize (H1 _ J); destruct H1 as (b & Hb & m' & Hl & Hr & ? & H1).
+exists b; split; auto; exists m'; repeat split; auto.
+intros ora jm H7 H8. subst; clear H7.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn0) as [phi' ?].
@@ -567,28 +577,19 @@ econstructor.
 eapply eval_expr_relate; eauto.
 eapply tc_expr_sub; eauto.
 eapply typecheck_environ_sub; eauto.
+eapply tc_expr_gen; [|eauto]; auto.
 fold rho. rewrite Heqv, Heqt.
 reflexivity.
 split.
 apply age1_resource_decay; assumption.
-apply age_level; assumption.
+split; [apply age_level; assumption|].
+eapply age1_ghost_of; [|symmetry; apply ghost_of_approx].
+apply age_jm_phi; auto.
 
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn0.
 rewrite Heqn0 in H.
 inv H. clear Heqn0.
-spec H1. eapply switch_rguard; eauto.
-specialize (H1 tx vx w' Hw' _ Hw'').
-spec H1. {
- clear H1.
- split; auto.
- split; auto.
- do 3 red. split; auto.
- fold rho. rewrite prop_true_andp by auto. auto.
-}
-eapply pred_hereditary in H1;
-  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
+eapply age_safe; eauto.
 apply H1; auto.
 Qed.
-
-

@@ -11,9 +11,39 @@ Require Import VST.veric.own.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
+Definition rmap_fp_update a b := level a = level b /\ resource_at a = resource_at b /\
+  ghost_fp_update (ghost_of a) (ghost_of b).
+
+Definition juicy_fp_update a b := m_dry a = m_dry b /\ rmap_fp_update (m_phi a) (m_phi b).
+
+Lemma juicy_update_level: forall a b, juicy_fp_update a b -> level a = level b.
+Proof.
+  intros ?? (? & ? & ?); auto.
+Qed.
+
+Lemma juicy_update_age: forall a b a' b', juicy_fp_update a b -> age a a' -> age b b' ->
+  juicy_fp_update a' b'.
+Proof.
+  intros ???? (? & Hl & Hr & ?) Ha Hb.
+  split.
+  { rewrite <- (age_jm_dry Ha), <- (age_jm_dry Hb); auto. }
+  apply age_jm_phi in Ha; apply age_jm_phi in Hb.
+  assert (level (m_phi a') = level (m_phi b')) as Hl'.
+  { rewrite (age_level _ _ Ha), (age_level _ _ Hb) in Hl; omega. }
+  repeat split; auto.
+  - extensionality l.
+    rewrite (age_to_resource_at.age_resource_at Ha), (age_to_resource_at.age_resource_at Hb),
+      Hr, Hl'; auto.
+  - rewrite (age1_ghost_of _ _ Ha), (age1_ghost_of _ _ Hb), Hl'.
+    apply ghost_fp_update_approx; auto.
+Qed.
+
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
   JE_pre_hered: forall e t ge_s typs args z, hereditary age (ext_spec_pre JE_spec e t ge_s typs args z);
+  JE_pre_update: forall m m' e t ge_s typs args z, juicy_fp_update m m' ->
+    ext_spec_pre JE_spec e t ge_s typs args z m' ->
+    ext_spec_pre JE_spec e t ge_s typs args z m;
   JE_post_hered: forall e t ge_s tret rv z, hereditary age (ext_spec_post JE_spec e t ge_s tret rv z);
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z)
 }.
@@ -25,10 +55,11 @@ Class OracleKind := {
 
 Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem ge q (m_dry jm) q' (m_dry jm') /\
- resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
- level jm = S (level jm') /\
- ghost_fp_update (ghost_approx jm' (ghost_of (m_phi jm))) (ghost_of (m_phi jm')).
+ exists jm1, juicy_fp_update jm jm1 /\
+ corestep csem ge q (m_dry jm1) q' (m_dry jm') /\
+ resource_decay (nextblock (m_dry jm1)) (m_phi jm1) (m_phi jm') /\
+ level jm1 = S (level jm') /\
+ ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm1)).
 
 Definition j_halted {G C} (csem: @CoreSemantics G C mem)
        (c: C) : option val :=
@@ -38,13 +69,13 @@ Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
 Proof.
   intros.
-  destruct H. eapply corestep_not_at_external; eauto.
+  destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
 Qed.
 
 Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
 Proof.
-  intros. destruct H. eapply corestep_not_halted; eauto.
+  intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
 Qed.
 
 Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
@@ -98,7 +129,7 @@ Section upd_exit.
   Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge :=
     Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _.
   Next Obligation. intros. eapply JE_pre_hered; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
+  Next Obligation. intros. eapply JE_pre_update; eauto. Qed.
   Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
 End upd_exit.
 
@@ -239,38 +270,28 @@ Proof.
    subst SN.
   inv H0.
   + pose proof (age_level _ _ H2).
-   destruct H1 as (?&?&?&Hg).
+   destruct H1 as (jm1 & Hupd & ? & ? & ? & Hg).
+   pose proof (juicy_update_level _ _ Hupd) as Hl.
    assert (level m' > 0) by omega.
    assert (exists i, level m' = S i).
    destruct (level m'). omegaContradiction. eauto.
-   destruct H6 as [i ?].
-   apply levelS_age1 in H6. destruct H6 as [jm1' ].
-   econstructor; eauto.
+   destruct H6 as [i Hl'].
+   symmetry in Hl'; pose proof (levelS_age _ _ Hl') as [jm1' []]; subst.
+   econstructor; [|eapply IHN; eauto; omega].
+   symmetry in H4; destruct (levelS_age _ _ H4) as [jm' [Hage1 Hl1]].
+   exists jm'; split; [eapply juicy_update_age; eauto|].
    split.
-   replace (m_dry jm) with (m_dry jm0)
-     by (decompose [and] (age1_juicy_mem_unpack _ _ H2); auto).
-   instantiate (1 := jm1').
-   replace (m_dry jm1') with (m_dry m')
-     by (decompose [and] (age1_juicy_mem_unpack _ _ H6); auto).
-   eauto.
+   rewrite <- (age_jm_dry Hage1), <- (age_jm_dry H6); auto.
    split.
-   replace (m_dry jm) with (m_dry jm0)
-     by (decompose [and] (age1_juicy_mem_unpack _ _ H2); auto).
-   eapply age_resource_decay; try eassumption.
+   rewrite <- (age_jm_dry Hage1).
+   eapply age_resource_decay; try eassumption; try apply age_jm_phi; auto.
    destruct (age1_juicy_mem_unpack _ _ H2); auto.
    destruct (age1_juicy_mem_unpack _ _ H6); auto.
    split.
    apply age_level in H6. rewrite <- H6.
    omega.
-   { erewrite (age1_ghost_of _ _ (proj1 (age1_juicy_mem_unpack _ _ H2)))
-       by (symmetry; apply ghost_of_approx).
-     erewrite (age1_ghost_of _ _ (proj1 (age1_juicy_mem_unpack _ _ H6)))
-       by (symmetry; apply ghost_of_approx).
-     apply ghost_fp_update_approx.
-     replace (level (m_phi jm)) with (level m'); auto.
-     rewrite H4 in H; inv H; auto. }
-   eapply IHN; try eassumption.
-   apply age_level in H6; omega.
+   rewrite (age1_ghost_of _ _ (age_jm_phi H6)), (age1_ghost_of _ _ (age_jm_phi Hage1)), Hg.
+   rewrite Hl1; auto.
   + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
@@ -318,8 +339,8 @@ Qed.
   corestep_fun (juicy_core_sem csem).
 Proof.
   intros determinism ge jm q jm1 q1 jm2 q2 step1 step2.
-  destruct step1 as [step1 [[ll1 rd1] l1]].
-  destruct step2 as [step2 [[ll2 rd2] l2]].
+  destruct step1 as [step1 [[ll1 rd1] [l1 g1]]].
+  destruct step2 as [step2 [[ll2 rd2] [l2 g2]]].
   pose proof determinism _ _ _ _ _ _ _ step1 step2 as E.
   injection E as <- E; f_equal.
   apply juicy_mem_ext; auto.
@@ -476,5 +497,5 @@ Proof.
 
   - (* phi2: free   | phi2: free   *)
     congruence.
-  - SearchAbout jm2.
+  - congruence.
 Qed.*)

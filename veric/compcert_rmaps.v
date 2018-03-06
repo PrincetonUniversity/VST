@@ -1197,5 +1197,4 @@ apply H0.
 symmetry; apply resource_at_approx.
 erewrite age1_ghost_of; eauto.
 rewrite H3; apply H1.
-symmetry; apply ghost_of_approx.
 Qed.

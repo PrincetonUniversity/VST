@@ -926,20 +926,14 @@ Qed.
 Lemma age1_ghost_of:
      forall phi phi',
           age1 phi = Some phi' ->
-         forall r,
-          ghost_of phi = ghost_fmap (approx (level phi)) (approx (level phi)) r ->
-          ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) r.
+          ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of phi).
 Proof.
 unfold ghost_of; rewrite rmap_age1_eq, rmap_level_eq.
 intros until phi'; case_eq (unsquash phi); intros.
 simpl in *.
 destruct n; inv H0.
 rewrite unsquash_squash.
-destruct r; simpl in *.
-unfold compose; rewrite H1.
-rewrite ghost_fmap_fmap.
-rewrite approx_oo_approx'; auto.
-rewrite approx'_oo_approx; auto.
+destruct r; auto.
 Qed.
 
 Lemma ghost_fmap_join: forall a b c f g, join a b c ->

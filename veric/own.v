@@ -210,6 +210,11 @@ Definition ghost_fp_update (a b : ghost) :=
   forall n c, joins (ghost_fmap (approx n) (approx n) a) c ->
                joins (ghost_fmap (approx n) (approx n) b) c.
 
+Instance ghost_fp_update_preorder: RelationClasses.PreOrder ghost_fp_update.
+Proof.
+  split; repeat intro; auto.
+Qed.
+
 Lemma ghost_fp_update_approx: forall a b n, ghost_fp_update a b ->
   ghost_fp_update (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) b).
 Proof.
@@ -295,8 +300,7 @@ Program Definition inG (RA: Ghost): pred rmap :=
 Next Obligation.
   repeat intro.
   subst filtered_var program_branch_0; simpl in *.
-  lapply (age1_ghost_of _ _ H (ghost_of a)); [|symmetry; apply ghost_of_approx].
-  intros ->.
+  rewrite (age1_ghost_of _ _ H).
   destruct (ghost_of a) eqn: Ha; auto.
 Qed.
 
