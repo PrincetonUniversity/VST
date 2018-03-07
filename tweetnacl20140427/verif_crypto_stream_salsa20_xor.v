@@ -992,7 +992,6 @@ Focus 2.
     destruct M as [M _]. 2: discriminate.
     forward. entailer!.
   } 
-  deadvars!.
 (*  forward. drop_LOCAL 10%nat. (*variable 187*) *)
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i Vundef) as  [xi Xi].
     repeat rewrite Zlength_map. omega.

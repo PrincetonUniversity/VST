@@ -469,7 +469,6 @@ Proof.
 
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
-  deadvars!.
   forward_if (
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
