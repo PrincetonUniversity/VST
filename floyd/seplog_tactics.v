@@ -522,17 +522,17 @@ Ltac norm_rewrite := autorewrite with norm.
     And then, maybe use "bottomup" instead of "topdown", see if that's better.
 
    To test whether your version of Coq works, use this:
-Lemma L : forall n, n=n -> n + 1 = S n.
+*)
+Lemma TEST_L : forall n:nat, n=n -> (n + 1 = S n)%nat.
 Proof. intros. rewrite <- plus_n_Sm ,<- plus_n_O. reflexivity.
 Qed.
-Hint Rewrite L using reflexivity : test888.
-Goal forall n, S n = n + 1.
+Hint Rewrite TEST_L using reflexivity : test888.
+Goal forall n, S n = (n + 1)%nat.
 intros.
 rewrite_strat (topdown hints test888).
 match goal with |- S n = S n => reflexivity end.
-(* should be no extra (n=n) goal here *)
-Qed.
- *)
+Qed.  (* Yes, this works in Coq 8.7.2 *)
+
 
 Ltac normalize1 :=
          match goal with
@@ -598,3 +598,18 @@ Ltac normalize :=
               || simple apply derives_extract_prop');
               fancy_intros true);
    repeat normalize1; try contradiction.
+
+Lemma allp_instantiate: 
+   forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
+       ALL y : B, P y |-- P x.
+Proof.
+intros. apply allp_left with x. auto.
+Qed.
+
+Ltac allp_left x := 
+ match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
+   sep_apply (@allp_instantiate T ND B P x)
+ end end.
+
+
+

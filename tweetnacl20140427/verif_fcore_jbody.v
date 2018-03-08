@@ -505,7 +505,6 @@ deadvars!.
   { entailer!. rewrite TM; simpl; trivial. }
   assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; omega).
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
-  deadvars!.
   forward.
   { entailer!. (* rewrite andb_false_r; simpl; trivial. *)
    clear H1. clear WLIST1. clear TM. clear H.

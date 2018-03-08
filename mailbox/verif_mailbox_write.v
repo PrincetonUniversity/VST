@@ -943,7 +943,7 @@ Proof.
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts 0))) last_taken :: R)))) end.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
-        auto.
+        auto. apply ENTAIL_refl.
     + forward.
       destruct (eq_dec b' (-1)); [subst; absurd (Int.repr (-1) = Int.neg (Int.repr 1)); auto|].
       erewrite upd_Znth_triv with (i0 := i).
