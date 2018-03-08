@@ -34,13 +34,13 @@ Section extensions.
 Context (Espec : OracleKind).
 
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
-  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
+  @jsafeN_ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) (cl_core_sem) OK_spec
     gx (S n) ora (State vx tx k) jm <->
   exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
-  ghost_fp_update ((ghost_approx m') (ghost_of (m_phi jm))) (ghost_of (m_phi m')) /\
-  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
+  ghost_of (m_phi m') = ghost_approx m' (ghost_of (m_phi jm)) /\
+  jm_bupd (@jsafeN_ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) (cl_core_sem) OK_spec gx n ora c') m').
 Proof.
   intros.
   split; intros.
@@ -54,7 +54,7 @@ Proof.
     * inversion H1.
     * inversion H0.
   - destruct H as [c' [m' [? [? [? [? ?]]]]]].
-    eapply safeN_step; [| eauto].
+    eapply jsafeN_step; [| eauto].
     simpl.
     unfold jstep.
     auto.
@@ -142,10 +142,10 @@ Lemma jsafeN_step_jsem_seq: forall gx vx tx n c1 c2 k ora jm,
   jsafeN OK_spec gx n ora (State vx tx (Kseq (Ssequence c1 c2) :: k)) jm <->
   jsafeN OK_spec gx n ora (State vx tx (Kseq c1 :: Kseq c2 :: k)) jm.
 Proof.
-  unfold jsafeN, juicy_safety.safeN; simpl.
+  unfold jsafeN; simpl.
   intros.
   destruct n.
-  + split; intros; apply safeN_0.
+  + split; intros; apply jsafeN_0.
   + rewrite !safeN_step_jsem_spec.
     split; intros; destruct H as [c' [m' [? ?]]]; exists c', m'; (split; [| auto]); clear H0.
     - inversion H; subst.

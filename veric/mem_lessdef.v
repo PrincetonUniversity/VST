@@ -725,6 +725,8 @@ Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
     ext_spec_exit spec e v m1 ->
     ext_spec_exit spec e v m2).
 
+Check jsafeN__ind.
+
 Lemma jsafeN_mem_equiv {Z Jspec ge n z c jm1 jm2} :
   juicy_mem_equiv jm1 jm2 ->
   ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec) ->

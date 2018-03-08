@@ -239,6 +239,16 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
+Definition jm_bupd P m := forall C : ghost, joins (ghost_of (m_phi m)) ((ghost_approx m) C) ->
+  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
+    jm_update m m' /\ P m'.
+
+Lemma jm_bupd_intro: forall (P : juicy_mem -> Prop) m, P m -> jm_bupd P m.
+Proof.
+  repeat intro.
+  eexists; split; eauto; repeat split; auto.
+Qed.
+
 Section juicy_safety.
   Context {G C Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
@@ -257,9 +267,7 @@ Section juicy_safety.
   | jsafeN_step:
       forall n z c m c' m',
       jstep Hcore ge c m c' m' ->
-      (forall C, joins (ghost_of (m_phi m')) (ghost_approx m' C) ->
-       exists m'', joins (ghost_of (m_phi m'')) (ghost_approx m' C) /\
-       jm_update m' m'' /\ jsafeN_ n z c' m'') ->
+      jm_bupd (jsafeN_ n z c') m' ->
       jsafeN_ (S n) z c m
   | jsafeN_external:
       forall n z c m e args x,
@@ -273,7 +281,7 @@ Section juicy_safety.
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
            semantics.after_external Hcore ret c = Some c' /\
-           jsafeN_ n' z' c' m') ->
+           jm_bupd (jsafeN_ n' z' c') m') ->
       jsafeN_ (S n) z c m
   | jsafeN_halted:
       forall n z c m i,

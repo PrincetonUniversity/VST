@@ -1149,16 +1149,6 @@ simpl in *; congruence.
 simpl in *. unfold cl_halted in H0. congruence.
 Qed.
 
-Definition jm_bupd P m := forall C : ghost, joins (ghost_of (m_phi m)) ((ghost_approx m) C) ->
-  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
-    jm_update m m' /\ P m'.
-
-Lemma jm_bupd_intro: forall (P : juicy_mem -> Prop) m, P m -> jm_bupd P m.
-Proof.
-  repeat intro.
-  eexists; split; eauto; repeat split; auto.
-Qed.
-
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
@@ -1392,12 +1382,12 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
     destruct H9 as [c' [? ?]]. simpl in H5. unfold cl_after_external in *.
     destruct ret as [ret|]. destruct optid.
     exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.
-    inv H5. apply H4; auto.
+    inv H5. eapply control_as_safe_bupd; auto.
     destruct H10 as (?&?&?). inv H5.
-    exists (State ve te (l ++ ctl2)); split; auto. apply H4; auto.
+    exists (State ve te (l ++ ctl2)); split; auto. eapply control_as_safe_bupd; auto.
     destruct optid; auto.
-    exists (State ve (PTree.set i Vundef te) (l ++ ctl2)); split; auto.  inv H5. apply H4; auto.
-    exists (State ve te (l ++ ctl2)); split; auto. apply H4; auto.
+    exists (State ve (PTree.set i Vundef te) (l ++ ctl2)); split; auto.  inv H5. eapply control_as_safe_bupd; auto.
+    exists (State ve te (l ++ ctl2)); split; auto. eapply control_as_safe_bupd; auto.
     inv H5. auto. }
   { simpl in H6. unfold cl_halted in H6. congruence. } }
   (* sequence  *)
@@ -2016,22 +2006,21 @@ apply guard_safe_adj; [ trivial | intros].
 apply safe_seq_Slabel; trivial.
 Qed.
 
-Lemma tc_expr_gen: forall {cs: compspecs} Delta e rho a a', resource_at a = resource_at a' ->
-  tc_expr Delta e rho a -> tc_expr Delta e rho a'.
+Lemma denote_tc_resource: forall {cs: compspecs} rho a a' t, resource_at a = resource_at a' ->
+  denote_tc_assert t rho a -> denote_tc_assert t rho a'.
 Proof.
-  unfold tc_expr; intros.
-  induction (typecheck_expr Delta e); auto; simpl in *.
+  induction t; auto; intros; simpl in *.
   - destruct H0; auto.
   - destruct H0; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto; simpl in *.
+    destruct (eval_expr e rho), (eval_expr e0 rho); auto; simpl in *.
     + if_tac; auto.
       destruct H0; split; auto.
       destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
@@ -2042,38 +2031,49 @@ Proof.
       destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto; simpl in *.
+    destruct (eval_expr e rho), (eval_expr e0 rho); auto; simpl in *.
     unfold test_order_ptrs in *.
     destruct (sameblock _ _), H0; split; simpl in *; rewrite <- H; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *; if_tac; auto.
+    destruct (eval_expr e rho); auto; simpl in *; if_tac; auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *.
+    destruct (eval_expr e rho); auto; simpl in *.
     + destruct (Zoffloat f); auto.
     + destruct (Zofsingle f); auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho); auto; simpl in *.
+    destruct (eval_expr e rho); auto; simpl in *.
     + destruct (Zoffloat f); auto.
     + destruct (Zofsingle f); auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto.
+    destruct (eval_expr e rho), (eval_expr e0 rho); auto.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
-    destruct (eval_expr e0 rho), (eval_expr e1 rho); auto.
+    destruct (eval_expr e rho), (eval_expr e0 rho); auto.
 Qed.
 
-Lemma bupd_tc_expr: forall {cs: compspecs} P Delta e rho a,
-  tc_expr Delta e rho a -> bupd P a -> bupd (tc_expr Delta e rho && P) a.
+Lemma bupd_denote_tc: forall {cs: compspecs} P t rho a,
+  denote_tc_assert t rho a -> bupd P a -> bupd (denote_tc_assert t rho && P) a.
 Proof.
   repeat intro.
   destruct (H0 _ H1) as (b & ? & m & ? & ? & ? & ?); subst.
   eexists; split; eauto; exists m; repeat split; eauto.
-  eapply tc_expr_gen; [|eauto]; auto.
+  eapply denote_tc_resource; [|eauto]; auto.
+Qed.
+
+Lemma assert_safe_jsafe: forall Espec ge ve te ctl ora jm,
+  assert_safe Espec ge ve te ctl (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
+  jm_bupd (jsafeN OK_spec ge (level jm) ora (State ve te ctl)) jm.
+Proof.
+  repeat intro.
+  destruct (H _ H0) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
+  exists jm'; repeat split; auto.
+  rewrite level_juice_level_phi, <- Hl; auto.
 Qed.

@@ -547,11 +547,11 @@ auto.
 Qed.
 
 Lemma funassert_initial_core:
-  forall (prog: program) ve te V G n,
+  forall (prog: program) ve te V G h n,
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
-                      (initial_core (Genv.globalenv prog) G n).
+                      (initial_core (Genv.globalenv prog) G h n).
 Proof.
  intros; split.
 *
@@ -617,8 +617,8 @@ destruct a. destruct p.
  intros w ? ?.
  destruct H2 as [pp ?].
  hnf in H2.
- assert (exists pp, initial_core (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
-case_eq (initial_core (Genv.globalenv prog) G n @ (loc',0)); intros.
+ assert (exists pp, initial_core (Genv.globalenv prog) G h n @ (loc',0) = PURE (FUN fsig' cc') pp).
+case_eq (initial_core (Genv.globalenv prog) G h n @ (loc',0)); intros.
 destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
 rewrite H4 in H2 by auto.
 inv H2.
@@ -707,15 +707,15 @@ rewrite H; auto.
 Qed.
 
 Lemma core_inflate_initial_mem:
-  forall (m: mem) (prog: program) (G: funspecs) (n: nat)
+  forall (m: mem) (prog: program) (G: funspecs) h (n: nat)
      (INIT: Genv.init_mem prog = Some m),
     match_fdecs (prog_funct prog) G ->
       list_norepet (prog_defs_names prog) ->
-   core (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)) =
-         initial_core (Genv.globalenv prog) G n.
+   core (inflate_initial_mem m (initial_core (Genv.globalenv prog) G h n)) =
+         initial_core (Genv.globalenv prog) G h n.
 Proof.
 intros.
-assert (IOK := initial_core_ok _ _ n _ H0 H INIT).
+assert (IOK := initial_core_ok _ _ h n _ H0 H INIT).
 apply rmap_ext.
   unfold inflate_initial_mem, initial_core; simpl.
   rewrite level_core. do 2 rewrite level_make_rmap; auto.
@@ -755,6 +755,9 @@ if_tac.
   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
   unfold fundef in *; rewrite H1 in *.
  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+ rewrite ghost_of_core.
+ unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+ apply core_idem.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
@@ -1050,13 +1053,13 @@ Proof.
   repeat (hnf; decide equality; auto).
 Qed.
 
-Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2 :
+Lemma initial_jm_funassert V (prog : Clight.program) m G h n H H1 H2 :
   (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-    (m_phi (initial_jm prog m G n H H1 H2)).
+    (m_phi (initial_jm prog m G h n H H1 H2)).
 Proof.
   unfold initial_jm.
   assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-    (initial_world.initial_core (Genv.globalenv prog) G n)
+    (initial_world.initial_core (Genv.globalenv prog) G h n)
          ).
   apply funassert_initial_core; auto.
   revert FA.
@@ -1124,7 +1127,7 @@ Proof.
   econstructor.
   repeat split; auto.
   intro n.
-  exists (initial_jm _ _ _ n H1 H0 H2).
+  exists (initial_jm _ _ _ empty_ghost n H1 H0 H2).
   repeat split.
   - simpl.
     rewrite inflate_initial_mem_level.
@@ -1156,7 +1159,7 @@ Proof.
 
     rewrite E in *.
     unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
-    pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
+    pattern n at 1; replace n with (level (m_phi (initial_jm prog m G empty_ghost n H1 H0 H2))).
     pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     intros z.
@@ -1203,6 +1206,7 @@ Proof.
       apply derives_subp.
       normalize. intro rv.
       simpl.
+      eapply derives_trans, own.bupd_intro.
       intros ? ? ? ? _ ?.
       destruct H8 as [[? [H10 [H11 ?]]] ?].
       hnf in H10, H11.
@@ -1259,8 +1263,8 @@ Proof.
   - apply initial_jm_without_locks.
   - apply initial_jm_without_locks.
   - apply initial_jm_matchfunspecs.
-  -  destruct (initial_jm_funassert V prog m G n H1 H0 H2). auto.
-  -  destruct (initial_jm_funassert V prog m G n H1 H0 H2). auto.
+  -  destruct (initial_jm_funassert V prog m G empty_ghost n H1 H0 H2). auto.
+  -  destruct (initial_jm_funassert V prog m G empty_ghost n H1 H0 H2). auto.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext :=
@@ -1484,7 +1488,8 @@ Proof.
   rewrite HGG. reflexivity.
 
   (* safety: we conclude as we add an infinite loop at the end *)
-  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert] ora jm0 Heq <-.
+  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert].
+  apply own.bupd_intro; intros ora jm0 Heq <-.
   rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.
   destruct ek; simpl proj_ret_assert in FrameRA;
    try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [[? ?] ?]]]]; contradiction];

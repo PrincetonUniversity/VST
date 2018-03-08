@@ -379,8 +379,7 @@ Lemma assert_safe_step_nostore:
 Proof.
 intros.
 intros w [Hw Hw'] ? J.
-destruct (Hw _ J) as (b & ? & m' & Hl & Hr & ? & Hm').
-exists b; split; auto; exists m'; repeat split; auto.
+eexists; split; eauto; eexists; repeat split; eauto.
 intros ora jm ? ?. subst.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
@@ -391,18 +390,17 @@ econstructor 2 with (m' := jm').
 econstructor.
 rewrite <- (age_jm_dry H9).
 apply (H _ _ H9); auto.
-eapply tc_expr_gen, Hw'; congruence.
 split.
 apply age1_resource_decay; assumption.
 split; [apply age_level; assumption|].
-eapply age1_ghost_of; [|symmetry; apply ghost_of_approx].
-apply age_jm_phi; auto.
+apply age1_ghost_of, age_jm_phi; auto.
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn.
 rewrite Heqn in H1.
 inv H1. clear Heqn.
-eapply semax.assert_safe_obligation_1; eauto.
-apply age_jm_phi; auto.
+eapply pred_hereditary in Hw;
+  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
+apply assert_safe_jsafe; auto.
 Qed.
 
 Lemma semax_switch: 
@@ -562,8 +560,7 @@ spec H1.
   split; auto.
   do 3 red. split; auto.
   fold rho. rewrite prop_true_andp by auto. auto. }
-intros ? J; specialize (H1 _ J); destruct H1 as (b & Hb & m' & Hl & Hr & ? & H1).
-exists b; split; auto; exists m'; repeat split; auto.
+intros ? J; eexists; split; eauto; repeat eexists; auto.
 intros ora jm H7 H8. subst; clear H7.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
@@ -577,19 +574,17 @@ econstructor.
 eapply eval_expr_relate; eauto.
 eapply tc_expr_sub; eauto.
 eapply typecheck_environ_sub; eauto.
-eapply tc_expr_gen; [|eauto]; auto.
 fold rho. rewrite Heqv, Heqt.
 reflexivity.
 split.
 apply age1_resource_decay; assumption.
 split; [apply age_level; assumption|].
-eapply age1_ghost_of; [|symmetry; apply ghost_of_approx].
-apply age_jm_phi; auto.
+apply age1_ghost_of, age_jm_phi; auto.
 
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn0.
 rewrite Heqn0 in H.
 inv H. clear Heqn0.
-eapply age_safe; eauto.
-apply H1; auto.
+eapply assert_safe_jsafe, pred_hereditary, H1.
+apply age_jm_phi; auto.
 Qed.

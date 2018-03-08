@@ -124,18 +124,18 @@ assert (assert_safe Espec psi vx tx (Kseq (if b' then c else d) :: k)
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
-eapply own.bupd_mono, bupd_tc_expr, Hw0; eauto.
+eapply own.bupd_mono, bupd_denote_tc, Hw0; eauto.
 intros r [Htc Hr] ora jm Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
-apply wlog_safeN_gt0; intro.
+apply wlog_jsafeN_gt0; intro.
 subst r.
 change (level (m_phi jm)) with (level jm) in H9.
 revert H9; case_eq (level jm); intros.
 omegaContradiction.
 apply levelS_age1 in H9. destruct H9 as [jm' ?].
 clear H10.
-apply (@safe_step'_back2  _ _ _ _ _ _ _ _ psi ora _ jm
-        (State vx tx (Kseq (if b' then c else d) :: k)) jm' _).
+apply jsafe_step'_back2 with (st' := State vx tx (Kseq (if b' then c else d) :: k))
+  (m' := jm').
 split3.
 assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc).
 unfold tc_expr in Htc.
@@ -320,7 +320,7 @@ assert ((guard Espec psi Delta' (fun rho : environ => F rho * P rho)%pred
 (Kseq h :: Kseq t :: k)) w).
 Focus 2. {
 eapply guard_safe_adj; try apply H3; try reflexivity;
-intros until n; apply convergent_controls_safe; simpl; auto;
+intros until n; apply convergent_controls_jsafe; simpl; auto;
 intros; destruct q'.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
@@ -420,13 +420,13 @@ revert w H1; apply rguard_adj; [reflexivity | ].
 intros.
 destruct ek; simpl; try apply control_as_safe_refl.
 repeat intro.
-eapply convergent_controls_safe; try apply H0; try reflexivity.
+eapply convergent_controls_jsafe; try apply H0; try reflexivity.
 intros. simpl. destruct ret; simpl in *; auto.
 intros. simpl in *.
 destruct H1 as [? [? ?]]. split3; auto.
 constructor. auto.
 eapply guard_safe_adj; try apply H; try reflexivity.
-intros until n; apply convergent_controls_safe; simpl; auto;
+intros until n; apply convergent_controls_jsafe; simpl; auto;
 intros; destruct q'.
 destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
 destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
@@ -444,13 +444,13 @@ destruct (corestep_preservation_lemma Espec psi
 { intros. apply control_suffix_safe; simpl; auto.
 clear.
 intro; intros.
-eapply convergent_controls_safe; try apply H0; simpl; auto.
+eapply convergent_controls_jsafe; try apply H0; simpl; auto.
 intros.
 destruct H1 as [H1 [H1a H1b]]; split3; auto.
 inv H1; auto. }
 { clear.
 hnf; intros.
-eapply convergent_controls_safe; try apply H0; simpl; auto.
+eapply convergent_controls_jsafe; try apply H0; simpl; auto.
 clear; intros.
 destruct H as [H1 [H1a H1b]]; split3; auto.
 solve[inv H1; auto]. }
@@ -472,7 +472,7 @@ revert w H1; apply rguard_adj; [reflexivity | ].
 destruct ek; intros; try apply control_as_safe_refl.
 clear H1.
 revert w H. apply guard_safe_adj; [reflexivity | ].
-   intros until n; apply convergent_controls_safe; simpl; auto;
+   intros until n; apply convergent_controls_jsafe; simpl; auto;
    intros; destruct q'.
    destruct H as [? [? ?]]; split3; auto.
   constructor. constructor. auto.
@@ -484,7 +484,7 @@ revert w H1; apply rguard_adj; [reflexivity | ].
 destruct ek; intros; try apply control_as_safe_refl.
 clear H1.
 revert w H; apply guard_safe_adj; [reflexivity | ].
-   intros until n; apply convergent_controls_safe; simpl; auto;
+   intros until n; apply convergent_controls_jsafe; simpl; auto;
    intros; destruct q'.
    destruct H as [? [? ?]]; split3; auto.
   inv H.  inv H10; auto.
@@ -557,7 +557,7 @@ Proof.
       destruct ek2; simpl exit_tycon in *.
       + unfold exit_cont.
         apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
-        - repeat intro. eapply convergent_controls_safe; try apply H11; simpl; auto.
+        - repeat intro. eapply convergent_controls_jsafe; try apply H11; simpl; auto.
           intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
         - eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
           apply derives_subp.
@@ -588,7 +588,7 @@ Proof.
     intros tx2 vx2.
     apply (assert_safe_adj' Espec) with (k:= Kseq incr :: Kloop2 body incr :: k); auto.
     intros ? ? ? ? ? ? ?.
-    eapply convergent_controls_safe; simpl; eauto.
+    eapply convergent_controls_jsafe; simpl; eauto.
     intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
     eapply subp_trans'; [ | apply H0].
     apply derives_subp.
@@ -630,7 +630,7 @@ Proof.
     unfold exit_cont.
     apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
     - intros ? ? ? ? ? ? ?.
-      eapply convergent_controls_safe; simpl; eauto.
+      eapply convergent_controls_jsafe; simpl; eauto.
       intros q' m' [? [? ?]]; split3; auto. inv H11; econstructor; eauto.
     - eapply subp_trans'; [ | eapply H1; eauto].
       apply derives_subp.
@@ -667,9 +667,6 @@ Proof.
   specialize (H' tx vx _ (le_refl _) _ (necR_refl _)); spec H'.
   { apply pred_hereditary with a'; auto.
     subst; split; auto; split; auto. }
-  simpl in H'.
-  destruct (H' (core (ghost_of a2))) as (b & ? & m' & Hl & Hr & ? & Hsafe); subst.
-  { rewrite <- ghost_of_approx at 1; eexists; apply ghost_fmap_join, join_comm, core_unit. }
   apply own.bupd_intro.
   intros ora jm RE ?; subst.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm2 LEVa2'].
@@ -681,22 +678,18 @@ Proof.
     intro Hx; inv Hx; auto.
   } Unfocus.
   subst a2.
-  destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & Hdry); subst.
   rewrite (age_level _ _ LEVa2).
-  apply safe_corestep_backward
+  apply jsafeN_step
    with (State vx tx (Kseq body :: Kseq Scontinue :: Kloop1 body incr :: k))
-          jm'.
+          jm2.
   Focus 1. {
     split3.
-    + rewrite (age_jm_dry LEVa2'), Hdry; econstructor.
-    + destruct (age1_resource_decay _ _ LEVa2') as [? Hdecay].
-      split; [rewrite Hl; auto|].
-      intro l; rewrite Hl, Hr; auto.
-    + split; [unfold level; simpl; rewrite Hl; apply age_level; auto|].
-      
+    + rewrite (age_jm_dry LEVa2'); econstructor.
+    + apply age1_resource_decay; auto.
+    + split; [apply age_level; auto|].
+      apply age1_ghost_of; auto.
   } Unfocus.
-  
-  specialize (H' _ (core_unit _
+  apply assert_safe_jsafe; auto.
 Qed.
 
 Lemma semax_break {CS: compspecs}:
@@ -717,10 +710,11 @@ Proof.
   rewrite (prop_true_andp (None=None)) by auto.
   rewrite sepcon_comm.
   eapply andp_derives; try apply H0; auto.
+  apply own.bupd_mono.
   repeat intro.
   specialize (H0 ora jm H1 H2).
   destruct (@level rmap _ a). constructor.
-  apply convergent_controls_safe with (State ve te (break_cont k)); auto.
+  apply convergent_controls_jsafe with (State ve te (break_cont k)); auto.
   simpl.
 
   intros.
@@ -748,10 +742,11 @@ repeat intro. simpl exit_tycon.
   rewrite (prop_true_andp (None=None)) by auto.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
+apply own.bupd_mono.
 repeat intro.
 specialize (H0 ora jm H1 H2).
 destruct (@level rmap _ a). constructor.
-apply convergent_controls_safe with (State ve te (continue_cont k)); auto.
+apply convergent_controls_jsafe with (State ve te (continue_cont k)); auto.
 simpl.
 
 intros.
