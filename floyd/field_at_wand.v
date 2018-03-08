@@ -16,23 +16,37 @@ Require Import VST.floyd.nested_loadstore.
 
 Local Open Scope logic.
 
+Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
+!! field_compatible (tarray t n) nil p &&
+(ALL cl:reptype (tarray t (hi-lo)), EX cl':list (reptype t), EX dl:reptype (tarray t n), 
+!! (JMeq cl cl' /\ JMeq dl (sublist 0 lo al' ++ cl' ++ sublist hi n al'))
+&& (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
+-* data_at sh (tarray t n) dl p)).
+
+Lemma array_with_hole_local_facts {cs: compspecs}: forall sh t lo hi n al' p,
+array_with_hole sh t lo hi n al' p |-- 
+!! (field_compatible (tarray t n) nil p).
+Proof.
+intros.
+unfold array_with_hole. entailer!.
+Qed.
+Hint Resolve array_with_hole_local_facts : saturate_local.
+
 Lemma wand_slice_array:
 forall {cs: compspecs} lo hi n sh t (al: reptype (tarray t n)) (bl: reptype (tarray t (hi-lo)))
 (al' : list (reptype t)) p,
 0 <= lo <= hi ->
 hi <= n ->
-Zlength al' = n ->
 JMeq al al' ->
 JMeq bl (sublist lo hi al') ->
+Zlength al' = n ->
 data_at sh (tarray t n) al p =
 data_at sh (tarray t (hi-lo)) bl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
-(ALL cl:_, EX cl':_, EX dl:_, 
-!! (JMeq cl cl' /\ JMeq dl (sublist 0 lo al' ++ cl' ++ sublist hi n al'))
-&& (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
--* data_at sh (tarray t n) dl p)).
+array_with_hole sh t lo hi n al' p.
 Proof.
-  intros.
-  unfold data_at.
+  intros until p.
+  intros H H0 H2 H3 H1.
+  unfold data_at, array_with_hole.
   assert (forall n, reptype (tarray t n) = list (reptype t)).
   {
     intros.
@@ -40,7 +54,10 @@ Proof.
     auto.
   }
   apply pred_ext.
-  + erewrite field_at_Tarray.
+  + rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
+    normalize.
+    rename H5 into H7, H6 into H8.
+    erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
       2: omega.
@@ -94,7 +111,9 @@ Proof.
         autorewrite with sublist.
         rewrite fold_unfold_reptype.
         auto.
-  + rewrite sepcon_comm.
+  + normalize.
+    clear H5.
+    rewrite sepcon_comm.
     apply wand_sepcon_adjoint.
     apply (allp_left _ bl); intros.
     apply exp_left; intros.
@@ -102,6 +121,7 @@ Proof.
     normalize.
     apply wand_derives; [apply derives_refl |].
     apply derives_refl'.
+    unfold data_at.
     f_equal.
     apply JMeq_eq.
     eapply JMeq_trans; [eassumption |].
@@ -119,11 +139,13 @@ let spec := constr:(forall lo hi n sh
 (al' : list (reptype t)) p,
 0 <= lo <= hi ->
 hi <= n ->
+Zlength al' = n ->
 data_at sh (tarray t n) al' p =
-data_at sh (tarray t (hi-lo)) (sublist lo hi al') (field_address (tarray t n) (ArraySubsc lo :: nil) p) *
+data_at sh (tarray t (hi-lo)) (sublist lo hi al') (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
+(!! (field_compatible (tarray t n) nil p) &&
 (ALL cl: list (reptype t),
 (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) )
--* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)) in
+-* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p))) in
 exact spec.
 
 Lemma elim_double_exp: forall (T: Type) (x: T) (y: T -> T) (P: T -> T -> mpred),
@@ -147,24 +169,18 @@ Qed.
 Ltac prove_wand_slice_array t :=
   hnf; intros;
   erewrite wand_slice_array by eauto;
-  f_equal;
-  f_equal; extensionality cl;
+  f_equal; unfold array_with_hole;
+  f_equal; f_equal; extensionality cl;
   refine (elim_double_exp (list (reptype t)) _ _ _).
 
 (* Try the following lines with a concrete compspecs. *)
 (*
 Lemma wand_slice_array_tint: ltac:(constr_wand_slice_array_spec tint).
-Proof.
-  prove_wand_slice_array tint.
-Qed.
+Proof. prove_wand_slice_array tint. Qed.
 
 Lemma wand_slice_array_tptint: ltac:(constr_wand_slice_array_spec (tptr tint)).
-Proof.
-  prove_wand_slice_array (tptr tint).
-Qed.
+Proof. prove_wand_slice_array (tptr tint). Qed.
 
 Lemma wand_slice_array_tatint: ltac:(constr_wand_slice_array_spec (tarray tint 10)).
-Proof.
-  prove_wand_slice_array (tarray tint 10).
-Qed.
+Proof. prove_wand_slice_array (tarray tint 10). Qed.
 *)

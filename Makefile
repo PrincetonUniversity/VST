@@ -227,7 +227,7 @@ FLOYD_FILES= \
    entailer.v globals_lemmas.v \
    local2ptree_denote.v local2ptree_eval.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
-   data_at_rec_lemmas.v field_at.v stronger.v \
+   data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v \
    bug_coq88dev.v
