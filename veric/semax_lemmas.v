@@ -252,15 +252,17 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
     destruct R; auto.
   * destruct H3; eapply typecheck_environ_sub; eauto.
     apply exit_tycon_sub; auto. }
-apply bupd_trans.
-intros ? J.
-destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
-exists b; split; auto; exists m'; repeat split; auto.
-pose proof (necR_level _ _ H2).
-lapply (H0 m'); [|omega].
-intro X; apply X; auto.
-split; [split|]; auto.
-apply funassert_resource with (a := a'); auto.
+assert ((bupd (assert_safe Espec psi ve te (exit_cont ek vl k)
+  (construct_rho (filter_genv psi) ve te))) a') as Hsafe.
+{ intros ? J.
+  destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
+  exists b; split; auto; exists m'; repeat split; auto.
+  pose proof (necR_level _ _ H2).
+  lapply (H0 m'); [|omega].
+  intro X; apply X; auto.
+  split; [split|]; auto.
+  apply funassert_resource with (a := a'); auto. }
+eapply bupd_trans; eauto.
 Qed.
 
 Lemma semax'_post:
@@ -389,7 +391,7 @@ repeat intro.
 specialize (HP ora jm H6 H7).
 destruct (@level rmap _ m').
 constructor.
-apply convergent_controls_safe with (State ve te k); auto.
+apply convergent_controls_jsafe with (State ve te k); auto.
 simpl.
 
 intros.
@@ -1092,7 +1094,7 @@ Proof.
   remember (level m)%nat as N.
   destruct N; [constructor|].
   case_eq (age1 m); [intros m' ? |  intro; apply age1_level0 in H; omegaContradiction].
-  apply safeN_step with
+  apply jsafeN_step with
     (c' := State ve te (Kseq Sskip :: Kseq Scontinue :: Kloop1 Sskip Sskip :: k))
     (m'0 := m').
   split3.
@@ -1106,9 +1108,10 @@ Proof.
   assert (N = level m')%nat.
   apply age_level in H; omega.
   clear HeqN m H. rename m' into m.
-  revert m H0; induction N; intros; simpl; [constructor|].
+  intros; eexists; repeat split; eauto.
+  clear H; revert m H0; induction N; intros; simpl; [constructor|].
   case_eq (age1 m); [intros m' ? |  intro; apply age1_level0 in H; omegaContradiction].
-  apply safeN_step
+  apply jsafeN_step
     with (c' := State ve te (Kseq Sskip :: Kseq Scontinue :: Kloop1 Sskip Sskip :: k))
          (m'0 := m').
   split3.
@@ -1119,6 +1122,7 @@ Proof.
   erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
   unfold level at 1; simpl.
   repeat intro; auto.
+  intros; eexists; repeat split; eauto.
   eapply IHN; eauto.
   apply age_level in H. omega.
 Qed.
@@ -1145,19 +1149,27 @@ simpl in *; congruence.
 simpl in *. unfold cl_halted in H0. congruence.
 Qed.
 
+Definition jm_bupd P m := forall C : ghost, joins (ghost_of (m_phi m)) ((ghost_approx m) C) ->
+  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
+    jm_update m m' /\ P m'.
+
+Lemma jm_bupd_intro: forall (P : juicy_mem -> Prop) m, P m -> jm_bupd P m.
+Proof.
+  repeat intro.
+  eexists; split; eauto; repeat split; auto.
+Qed.
+
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
    j_halted cl_core_sem st  = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
-   jstep cl_core_sem psi st m st' m' /\
-   jsafeN (@OK_spec Espec) psi n ora  st' m'.
+   jstep cl_core_sem psi st m st' m' /\ jm_bupd (jsafeN (@OK_spec Espec) psi n ora  st') m'.
 Proof.
  intros.
  inv H1.
  eexists; eexists; split; eauto.
- solve[destruct H3 as (?&?&?); split3; eauto].
  simpl in H3; rewrite H3 in H; congruence.
  simpl in H2; unfold cl_halted in H2. congruence.
 Qed.
@@ -1331,38 +1343,51 @@ intros.
  eapply find_label_prefix2'; eauto.
 Qed.
 
+Lemma control_as_safe_bupd: forall ge n ctl1 ctl2, control_as_safe ge n ctl1 ctl2 ->
+ forall (ora : OK_ty) (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
+     n' <= n ->
+     jm_bupd (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl1)) m ->
+     jm_bupd (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl2)) m.
+Proof.
+  repeat intro.
+  destruct (H1 _ H2) as (? & ? & ? & ?); eauto.
+Qed.
+
 Lemma corestep_preservation_lemma:
    forall ge ctl1 ctl2 ora ve te m n c l c' m',
        filter_seq ctl1 = filter_seq ctl2 ->
       (forall k : list cont', control_as_safe ge n (k ++ ctl1) (k ++ ctl2)) ->
       control_as_safe ge (S n) ctl1 ctl2 ->
       jstep cl_core_sem ge (State ve te (c :: l ++ ctl1)) m c' m' ->
-      jsafeN (@OK_spec Espec) ge n ora c' m' ->
+      jm_bupd (jsafeN (@OK_spec Espec) ge n ora c') m' ->
    exists c2 : corestate,
      exists m2 : juicy_mem,
        jstep cl_core_sem ge (State ve te (c :: l ++ ctl2)) m c2 m2 /\
-       jsafeN (@OK_spec Espec) ge n ora c2 m2.
+       jm_bupd (jsafeN (@OK_spec Espec) ge n ora c2) m2.
 Proof. intros until m'. intros H0 H4 CS0 H H1.
   remember (State ve te (c :: l ++ ctl1)) as q. rename c' into q'.
-  destruct H as [H [Hb Hc]].
+  destruct H as [H [Hb [Hc Hg]]].
   remember (m_dry m) as dm; remember (m_dry m') as dm'.
-  revert c l m Heqdm m' Heqdm' Hb Hc H1 Heqq; induction H; intros; try inv Heqq.
+  revert c l m Heqdm m' Heqdm' Hb Hc Hg H1 Heqq; induction H; intros; try inv Heqq.
   (* assign *)
-  do 2 eexists; split; [split3; [econstructor; eauto | auto | auto ] | apply H4; auto ].
+  do 2 eexists; split; [split3; [econstructor; eauto | auto | auto ] | eapply control_as_safe_bupd; auto ].
   (* set *)
   do 2 eexists; split; [split3; [ | eassumption | auto ] | ].
   rewrite <- Heqdm'; econstructor; eauto.
-  apply H4; auto.
+  eapply control_as_safe_bupd; auto.
   (* call_internal *)
   do 2 eexists; split; [split3; [econstructor; eauto | auto | auto ] |  ].
-  do 3 rewrite cons_app'. apply H4; auto.
+  do 3 rewrite cons_app'. eapply control_as_safe_bupd; auto.
   (* call_external *)
 { do 2 eexists; split; [split3; [ | eassumption | auto ] | ].
   rewrite <- Heqdm';  eapply step_call_external; eauto.
+  intros ? J; specialize (H5 _ J).
+  destruct H5 as (m'' & J' & Hupd & H5).
+  exists m''; split; auto; split; auto.
   destruct n; [constructor|].
   inv H5.
   { destruct H7 as (?&?&?). inv H5. }
-  { eapply safeN_external; eauto.
+  { eapply jsafeN_external; eauto.
     intros ret m'0 z'' n'' Hargsty Hretty Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hargsty Hretty Hle H10 H11).
     destruct H9 as [c' [? ?]]. simpl in H5. unfold cl_after_external in *.
     destruct ret as [ret|]. destruct optid.
@@ -1377,7 +1402,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   { simpl in H6. unfold cl_halted in H6. congruence. } }
   (* sequence  *)
   { destruct (IHcl_step (Kseq s1) (Kseq s2 :: l)
-            _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _))
+            _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _))
       as [c2 [m2 [? ?]]]; clear IHcl_step.
     destruct H2 as [H2 [H2b H2c]].
     exists c2, m2; split; auto. split3; auto. constructor. apply H2. }
@@ -1385,7 +1410,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   { destruct l.
     simpl in H.
    assert (jsafeN (@OK_spec Espec) ge (S n) ora (State ve te ctl1) m0).
-   eapply safe_corestep_backward; eauto; split3; eauto.
+   { econstructor; eauto; split3; eauto. }
    apply CS0 in H2; auto.
     eapply safe_step_forward in H2; auto.
    destruct H2 as [st2 [m2 [? ?]]]; exists st2; exists m2; split; auto.
@@ -1393,7 +1418,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
      destruct H2 as [H2 [H2b H2c]].
     split3; auto.
     rewrite <- strip_step. simpl. rewrite strip_step; auto.
-    destruct (IHcl_step c l _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _))
+    destruct (IHcl_step c l _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _))
       as [c2 [m2 [? ?]]]; clear IHcl_step.
     exists c2; exists m2; split; auto.
     destruct H2 as [H2 [H2b H2c]].
@@ -1429,7 +1454,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   clear - H2. revert H2; induction l; intros; try destruct a; simpl in *; auto; try discriminate.
   repeat rewrite cons_app'. f_equal; auto.
   rewrite H3 in H, IHcl_step.
-  destruct (IHcl_step _ _ _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
+  destruct (IHcl_step _ _ _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
   exists c2,m2; split; auto.
    destruct H5 as [H5 [H5b H5c]].
  split3; auto.
@@ -1463,7 +1488,7 @@ Focus 1.
   specialize (CS0 ora ve te m0 (S n)).
   assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
+  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1481,7 +1506,7 @@ Focus 1.
   specialize (CS0 ora ve te m0 (S n)).
   assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
+  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1494,19 +1519,19 @@ Focus 1.
   exists (State ve te (Kseq (if b then s1 else s2) :: l ++ ctl2)), m'.
   split. split3; auto. rewrite <- Heqdm'. econstructor; eauto.
   rewrite cons_app. rewrite <- app_ass.
-  apply H4; auto.
+  eapply control_as_safe_bupd; auto.
   (* loop *)
   change (Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: l ++ ctl1) with
                ((Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: l) ++ ctl1) in H1.
-  eapply H4 in H1.
+  eapply control_as_safe_bupd in H1; eauto.
   do 2 eexists; split; eauto.
-   split3; auto. rewrite <- Heqdm'.
-  econstructor; eauto. omega.
+   split3; eauto. rewrite <- Heqdm'.
+  econstructor; eauto.
   (* loop2 *)
   change (Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: l ++ ctl1) with
               ((Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: l) ++ ctl1) in H1.
-  apply H4 in H1; auto.
-  do 2 eexists; split; eauto.   split3; auto. rewrite <- Heqdm'.  econstructor; eauto.
+  eapply control_as_safe_bupd in H1; eauto.
+  do 2 eexists; split; eauto.   split3; eauto. rewrite <- Heqdm'.  econstructor; eauto.
  (* return *)
   case_eq (call_cont l); intros.
   rewrite call_cont_app_nil in * by auto.
@@ -1519,13 +1544,13 @@ Focus 1.
   split3; eauto.
   econstructor; try eassumption.
  rewrite (call_cont_app_cons _ _ _ H6). reflexivity.
-  apply H4; auto.
+  eapply control_as_safe_bupd; auto.
  (* switch *)
   do 2 eexists; split; [split3; [| eauto | eauto] | ].
   rewrite <- Heqdm'. econstructor; eauto.
-  do 2 rewrite cons_app'. apply H4; auto.
+  do 2 rewrite cons_app'. eapply control_as_safe_bupd; auto.
  (* label *)
-  destruct (IHcl_step _ _  _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
+  destruct (IHcl_step _ _  _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
   exists c2, m2; split; auto.
    destruct H2 as [H2 [H2b H2c]].
   split3; auto.
@@ -1540,7 +1565,7 @@ Focus 1.
   clear - H3 H2 CUR.
   revert l H3 H2 CUR; induction l; simpl; try destruct a; intros; auto; try congruence.
   rewrite call_cont_app_nil in H by auto.
-  rewrite <- (filter_seq_call_cont ctl1 ctl2 H0); auto.
+  rewrite <- (filter_seq_call_cont ctl1 ctl2 H0); eauto.
   rewrite (call_cont_app_cons _ _ _ H2) in H.
   assert (exists j, k' = j ++ ctl1).
   clear - H2 H.
@@ -1557,7 +1582,7 @@ Focus 1.
  eapply find_label_prefix; eauto.
   destruct H3 as [j ?].
   subst k'.
-  exists (State ve te (j++ctl2)), m'; split; [ | apply H4; auto].
+  exists (State ve te (j++ctl2)), m'; split; [ | eapply control_as_safe_bupd; eauto].
   split3; auto.
   rewrite <- Heqdm'; econstructor.
   instantiate (1:=f).
@@ -1944,7 +1969,8 @@ Proof.
 split; intros. 
 { inversion H; clear H; subst; simpl in *.
   + constructor.
-  + econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto. 
+  + econstructor; [|apply H1].
+    simpl. destruct H0 as (?&?&?). split3; eauto.
     simpl in H. simpl. inversion H; clear H; subst; simpl in *.
     inversion H11; clear H11; subst. 
     econstructor. econstructor. trivial.
@@ -1954,7 +1980,7 @@ split; intros.
   + constructor.
   + destruct H0 as (?&?&?); simpl in *. inversion H; clear H; subst; simpl in *.
     inversion H11; clear H11; subst; simpl in *.
-    econstructor; eauto; simpl. econstructor; eauto; simpl.
+    econstructor; [|apply H1]; simpl. econstructor; eauto; simpl.
     econstructor; eauto; simpl.
     econstructor; eauto.
   + simpl in *; congruence.

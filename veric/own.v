@@ -52,6 +52,65 @@ Proof.
         apply ghost_fmap_join; auto.
 Qed.
 
+Lemma preds_join_i: forall {I} a b, (forall i n x y, a i n = Some x -> b i n = Some y -> x = y) ->
+  preds_join I a b (fun i n => match a i n with Some x => Some x | _ => b i n end).
+Proof.
+  intros.
+  intros i n; specialize (H i n).
+  destruct (a i n); [|constructor].
+  destruct (b i n); constructor.
+  specialize (H _ _ eq_refl eq_refl); subst; auto.
+Qed.
+
+Lemma ghost_joins_approx: forall n a c,
+  joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
+  exists c', joins (ghost_fmap (approx (S n)) (approx (S n)) a) (ghost_fmap (approx (S n)) (approx (S n)) c') /\
+    forall b, joins b (ghost_fmap (approx (S n)) (approx (S n)) c') ->
+      joins (ghost_fmap (approx n) (approx n) b) (ghost_fmap (approx n) (approx n) c).
+Proof.
+  intros.
+  destruct a as [?? ga pdsa], c as [?? gc pdsc], H as [? H]; inv H; repeat inj_pair_tac.
+  assert (forall i n pp, match pdsa i n, pdsc i n with Some x, Some _ => Some x | _, _ => pdsc i n end = Some pp ->
+    exists a, finmap_get (gc i) n = Some a) as dom'.
+  { intros; destruct (pdsa i n0) eqn: Hi; eauto.
+    destruct (pdsc i n0) eqn: Hi'; inv H; eauto. }
+  eexists (GHOST _ _ gc _ dom'); split.
+  - eexists; constructor; eauto.
+    apply preds_join_i; intros.
+    destruct (pdsa i n0); inv H.
+    destruct (pdsc i n0); inv H0; auto.
+  - intros [?? gb pdsb] [? J]; inv J; repeat inj_pair_tac.
+    eexists; constructor; eauto.
+    apply preds_join_i; intros.
+    specialize (H10 i n0); specialize (H11 i n0); simpl in *.
+    destruct (pdsb i n0); inv H.
+    destruct (pdsc i n0); inv H0.
+    destruct (pdsa i n0); inv H10; inv H11.
+    + inv H2; inv H4.
+      rewrite <- H, preds_fmap_fmap, approx_oo_approx', approx'_oo_approx; auto.
+    + inv H3.
+      rewrite preds_fmap_fmap, approx_oo_approx', approx'_oo_approx; auto.
+  Unshelve.
+  simpl; intros.
+  specialize (H9 i); apply finmap_get_join with (i0 := n0) in H9.
+  destruct (finmap_get (c0 i) n0); eauto.
+  destruct (pdsa i n0) eqn: Hi; inv H.
+  destruct (dom _ _ _ Hi) as [? Hget]; rewrite Hget in H9.
+  destruct (finmap_get (gc i) n0); inv H9.
+  destruct (pdsc i n0) eqn: Hi'; inv H1.
+  destruct (dom0 _ _ _ Hi') as [? Hget]; rewrite Hget in H9.
+  destruct (finmap_get (ga i) n0); inv H9.
+  simpl; intros.
+  specialize (H8 i); apply finmap_get_join with (i0 := n0) in H8.
+  destruct (finmap_get (c1 i) n0); eauto.
+  destruct (pdsb i n0) eqn: Hi; inv H.
+  destruct (dom1 _ _ _ Hi) as [? Hget]; rewrite Hget in H8.
+  destruct (finmap_get (gc i) n0); inv H8.
+  destruct (pdsc i n0) eqn: Hi'; inv H1.
+  destruct (dom0 _ _ _ Hi') as [? Hget]; rewrite Hget in H8.
+  destruct (finmap_get (gb i) n0); inv H8.
+Qed.
+
 Program Definition bupd (P: pred rmap): pred rmap :=
   fun m => forall c, joins (ghost_of m) (ghost_approx m c) ->
     exists b, joins b (ghost_approx m c) /\
@@ -59,73 +118,24 @@ Program Definition bupd (P: pred rmap): pred rmap :=
 Next Obligation.
 Proof.
   repeat intro.
-  erewrite (age1_ghost_of _ _ H) in H1 by (symmetry; apply ghost_of_approx).
+  rewrite (age1_ghost_of _ _ H) in H1.
   rewrite <- ghost_of_approx in H0.
-  destruct (ghost_of a) as [?? ga pdsa], c as [?? gc pdsc], H1 as [? H1]; inv H1; repeat inj_pair_tac.
-  assert (forall i n pp, match pdsa i n, pdsc i n with Some x, Some _ => Some x | _, _ => pdsc i n end = Some pp ->
-    exists a, finmap_get (gc i) n = Some a) as dom'.
-  { intros; destruct (pdsa i n) eqn: Hi; eauto.
-    destruct (pdsc i n) eqn: Hi'; inv H1; eauto. }
-  specialize (H0 (GHOST _ _ gc _ dom')); destruct H0 as (b & J & Hrb).
-  { eexists; constructor; eauto.
-    instantiate (1 := fun i n => option_map (preds_fmap (approx (level a)) (approx (level a)))
-      match pdsa i n with Some x => Some x | _ => pdsc i n end).
-    intros i n; specialize (H12 i n); inv H12.
-    * destruct (pdsa i n); inv H1; constructor.
-    * destruct (pdsc i n); inv H2.
-      destruct (pdsa i n); constructor; auto.
-    * destruct (pdsa i n); inv H0.
-      destruct (pdsc i n); inv H1.
-      inv H3; constructor; auto. }
+  destruct (ghost_joins_approx _ _ _ H1) as (c0 & J0 & Hc0).
+  rewrite <- (age_level _ _ H) in *.
+  specialize (H0 _ J0); destruct H0 as (b & J & Hrb).
   pose proof (age_level _ _ H).
-  exists (ghost_approx a' b); split.
-  - destruct b as [?? gb pdsb]; destruct J as [? J]; inv J; repeat inj_pair_tac.
-    eexists; constructor; eauto.
-    instantiate (1 := fun i n => option_map (preds_fmap (approx (level a')) (approx (level a')))
-      match pdsb i n with Some x => Some x | _ => pdsc i n end).
-    intros i n; specialize (H12 i n); specialize (H13 i n); inv H13; simpl; try constructor.
-    + assert (pdsc i n = None) as ->.
-      { destruct (pdsa i n), (pdsc i n); auto; inv H3. }
-      destruct (pdsb i n); constructor.
-    + inv H12; try constructor.
-      * destruct (pdsa i n); inv H6.
-        destruct (pdsc i n); inv H2.
-        inv H4; constructor.
-        rewrite preds_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; auto.
-      * destruct (pdsa i n); inv H5.
-        destruct (pdsc i n); inv H6.
-        inv H2; inv H4; inv H8.
-        rewrite <- H2, preds_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; auto.
-  - destruct Hrb as (m' & Hl' & Hr' & Hg' & HP).
-    destruct (levelS_age m' (level a')) as (m'' & Hage' & Hl'').
-    { congruence. }
-    exists m''; repeat split; auto.
-    + extensionality l.
-      erewrite (age1_resource_at _ _ H l) by (symmetry; apply resource_at_approx).
-      erewrite (age1_resource_at _ _ Hage' l) by (symmetry; apply resource_at_approx).
-      congruence.
-    + erewrite (age1_ghost_of _ _ Hage') by (symmetry; apply ghost_of_approx).
-      rewrite Hg', Hl''; auto.
-    + eapply (proj2_sig P); eauto.
-  Unshelve.
-  simpl; intros.
-  specialize (H11 i); apply finmap_get_join with (i0 := n) in H11.
-  destruct (finmap_get (c0 i) n); eauto.
-  destruct (pdsa i n) eqn: Hi; inv H0.
-  destruct (dom _ _ _ Hi) as [? Hget]; rewrite Hget in H11.
-  destruct (finmap_get (gc i) n); inv H11.
-  destruct (pdsc i n) eqn: Hi'; inv H2.
-  destruct (dom0 _ _ _ Hi') as [? Hget]; rewrite Hget in H11.
-  destruct (finmap_get (ga i) n); inv H11.
-  simpl; intros.
-  specialize (H10 i); apply finmap_get_join with (i0 := n) in H10.
-  destruct (finmap_get (c1 i) n); eauto.
-  destruct (pdsb i n) eqn: Hi; inv H0.
-  destruct (dom1 _ _ _ Hi) as [? Hget]; rewrite Hget in H10.
-  destruct (finmap_get (gc i) n); inv H10.
-  destruct (pdsc i n) eqn: Hi'; inv H1.
-  destruct (dom0 _ _ _ Hi') as [? Hget]; rewrite Hget in H10.
-  destruct (finmap_get (gb i) n); inv H10.
+  exists (ghost_approx a' b); split; auto.
+  destruct Hrb as (m' & Hl' & Hr' & Hg' & HP).
+  destruct (levelS_age m' (level a')) as (m'' & Hage' & Hl'').
+  { congruence. }
+  exists m''; repeat split; auto.
+  + extensionality l.
+    erewrite (age1_resource_at _ _ H l) by (symmetry; apply resource_at_approx).
+    erewrite (age1_resource_at _ _ Hage' l) by (symmetry; apply resource_at_approx).
+    congruence.
+  + rewrite (age1_ghost_of _ _ Hage').
+    rewrite Hg', <- Hl''; auto.
+  + eapply (proj2_sig P); eauto.
 Qed.
 
 Lemma bupd_intro: forall P, P |-- bupd P.

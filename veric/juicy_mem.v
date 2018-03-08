@@ -261,8 +261,8 @@ Lemma juicy_mem_alloc_cohere: alloc_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
 End selectors.
 
-Lemma juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
-  exists jm', m_phi jm' = m' /\ m_dry jm' = m_dry jm.
+Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
+  {jm' | m_phi jm' = m' /\ m_dry jm' = m_dry jm}.
 Proof.
   intros.
   assert (contents_cohere (m_dry jm) m') as Hcontents.
@@ -278,7 +278,7 @@ Proof.
   { intro.
     rewrite H; apply juicy_mem_alloc_cohere. }
   exists (mkJuicyMem _ _ Hcontents Haccess Hmax Halloc); auto.
-Qed.
+Defined.
 
 Lemma perm_of_empty_inv {s} : perm_of_sh s = None -> s = Share.bot.
 Proof.

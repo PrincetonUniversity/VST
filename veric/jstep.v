@@ -36,21 +36,10 @@ Require Import VST.veric.own.
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=
   FSem.mk mem juicy_mem (@juicy_core_sem) m_dry
-    (fun jm jm' => exists jm1, juicy_fp_update jm jm1 /\
-       resource_decay (Mem.nextblock (m_dry jm1)) (m_phi jm1) (m_phi jm') /\
-       ageable.level jm1 = S (ageable.level jm') /\
-       ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm1)))
+    (fun jm jm' => resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+       ageable.level jm = S (ageable.level jm') /\
+       ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)))
     _ _ _ _ _.
-Next Obligation.
-Proof.
-  apply prop_ext; split.
-  - intros (? & (? & ?) & ? & ?).
-    rewrite H; split; auto.
-    eexists; split; [split; eauto|]; auto.
-  - intros (? & ? & (? & ?) & ?).
-    eexists; split; [split; eauto|].
-    rewrite H0 in H; auto.
-Qed.
 
 End JuicyFSem.
 
