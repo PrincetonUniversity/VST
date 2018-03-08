@@ -25,7 +25,7 @@ Zlength al' = n ->
 JMeq al al' ->
 JMeq bl (sublist lo hi al') ->
 data_at sh (tarray t n) al p =
-data_at sh (tarray t (hi-lo)) bl (field_address (tarray t n) (ArraySubsc lo :: nil) p) *
+data_at sh (tarray t (hi-lo)) bl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
 (ALL cl:_, EX cl':_, EX dl:_, 
 !! (JMeq cl cl' /\ JMeq dl (sublist 0 lo al' ++ cl' ++ sublist hi n al'))
 && (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
@@ -33,31 +33,86 @@ data_at sh (tarray t (hi-lo)) bl (field_address (tarray t n) (ArraySubsc lo :: n
 Proof.
   intros.
   unfold data_at.
-  assert (reptype (tarray t n) = list (reptype t)).
+  assert (forall n, reptype (tarray t n) = list (reptype t)).
   {
+    intros.
     rewrite reptype_eq.
     auto.
   }
-  assert (@JMeq _ al (list (reptype t)) (eq_rect _ (fun x => x) al _ H3)).
-  {
-    apply JMeq_sym.
-    apply (@eq_rect_JMeq _ (reptype (tarray t n))  (list (reptype t)) (fun x => x) al H3).
-  }
-  rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
-  erewrite field_at_Tarray.
-    2: constructor.
-    2: reflexivity.
-    2: omega.
-    2: eassumption.
-    Print array_at. Locate split3seg_array_at. Check aggregate_pred.split_array_pred.
-  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try omega.
-  Focus 2.
-    generalize H3.
-    revert
-    2: generalize H3rewrite <- eq_rect_eq.  
-  SearchAbout array_at.
-  SearchAbout data_at tarray.
-Admitted.
+  apply pred_ext.
+  + erewrite field_at_Tarray.
+      2: constructor.
+      2: reflexivity.
+      2: omega.
+      2: eassumption.
+    erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
+      2:change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+    unfold data_at.
+    rewrite (sepcon_comm (array_at _ _ _ _ _ _ _)), sepcon_assoc.
+    apply sepcon_derives.
+    - apply derives_refl'.
+      f_equal.
+      rewrite !Z.sub_0_r.
+      pose proof fold_reptype_JMeq (tarray t (hi - lo)) (sublist lo hi al').
+      pose proof JMeq_trans H3 (JMeq_sym H5).
+      apply JMeq_eq in H6; auto.
+    - apply allp_right; intros.
+      apply (exp_right (unfold_reptype v)).
+      apply (exp_right (eq_rect _ (fun x => x) (sublist 0 lo al' ++
+             (unfold_reptype v) ++
+             sublist hi n al') _ (eq_sym (H4 _)))).
+      apply andp_right; [apply prop_right; split |].
+      * clear.
+        apply JMeq_sym.
+        apply (unfold_reptype_JMeq (tarray t (hi - lo)) v).
+      * clear.
+        apply (eq_rect_JMeq _ _ _ (fun x => x) _ _).
+      * apply -> wand_sepcon_adjoint.
+        rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
+        normalize.
+        rewrite value_fits_eq in H6; simpl in H6.
+        destruct H6.
+        rewrite Z.max_r in H6 by omega.
+        erewrite (field_at_Tarray _ (tarray t n)).
+          2: constructor.
+          2: reflexivity.
+          2: omega.
+          2: apply (eq_rect_JMeq _ _ _ (fun x => x) _ _).
+        erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
+          2: autorewrite with sublist; unfold tarray; rewrite H6; omega.
+        unfold tarray; autorewrite with sublist.
+        rewrite H6.
+        replace (hi - lo - (hi - lo) + hi) with hi by omega.
+        replace (n - lo - (hi - lo) + hi) with n by omega.
+        rewrite !sepcon_assoc.
+        apply sepcon_derives; [apply derives_refl |].
+        rewrite sepcon_comm.
+        apply sepcon_derives; [| apply derives_refl].
+        unfold data_at.
+        apply derives_refl'.
+        f_equal.
+        autorewrite with sublist.
+        rewrite fold_unfold_reptype.
+        auto.
+  + rewrite sepcon_comm.
+    apply wand_sepcon_adjoint.
+    apply (allp_left _ bl); intros.
+    apply exp_left; intros.
+    apply exp_left; intros.
+    normalize.
+    apply wand_derives; [apply derives_refl |].
+    apply derives_refl'.
+    f_equal.
+    apply JMeq_eq.
+    eapply JMeq_trans; [eassumption |].
+    eapply JMeq_trans; [| apply JMeq_sym; eassumption].
+    pose proof JMeq_trans (JMeq_sym H5) H3.
+    apply JMeq_eq in H7; subst.
+    rewrite <- sublist_split by omega.
+    rewrite <- sublist_split by omega.
+    autorewrite with sublist.
+    apply JMeq_refl.
+Qed.
 
 Ltac constr_wand_slice_array_spec t :=
 let spec := constr:(forall lo hi n sh 
@@ -65,9 +120,9 @@ let spec := constr:(forall lo hi n sh
 0 <= lo <= hi ->
 hi <= n ->
 data_at sh (tarray t n) al' p =
-data_at sh (tarray t (hi-lo)) (sublist lo hi al') (field_address (tarray t n) [ArraySubsc lo] p) *
+data_at sh (tarray t (hi-lo)) (sublist lo hi al') (field_address (tarray t n) (ArraySubsc lo :: nil) p) *
 (ALL cl: list (reptype t),
-(data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) [ArraySubsc lo] p) )
+(data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) )
 -* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)) in
 exact spec.
 
@@ -96,6 +151,8 @@ Ltac prove_wand_slice_array t :=
   f_equal; extensionality cl;
   refine (elim_double_exp (list (reptype t)) _ _ _).
 
+(* Try the following lines with a concrete compspecs. *)
+(*
 Lemma wand_slice_array_tint: ltac:(constr_wand_slice_array_spec tint).
 Proof.
   prove_wand_slice_array tint.
@@ -110,3 +167,4 @@ Lemma wand_slice_array_tatint: ltac:(constr_wand_slice_array_spec (tarray tint 1
 Proof.
   prove_wand_slice_array (tarray tint 10).
 Qed.
+*)

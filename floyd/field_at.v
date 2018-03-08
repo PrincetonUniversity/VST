@@ -841,8 +841,7 @@ Proof.
     omega.
 Qed.
 
-(* TODO: rename this lemma. *)
-Lemma array_at_data_at_rec:
+Lemma array_at_data_at':
 forall sh t gfs lo hi v p,
   lo <= hi ->
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
@@ -859,6 +858,49 @@ Proof.
   f_equal.
   unfold field_address0.
   rewrite if_true; auto.
+Qed.
+
+Lemma array_at_data_at'':
+forall sh t gfs lo hi v p,
+  lo <= hi ->
+  field_compatible0 t (ArraySubsc hi :: gfs) p ->
+  array_at sh t gfs lo hi v p =
+  data_at sh (nested_field_array_type t gfs lo hi)
+                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v)
+               (field_address0 t (ArraySubsc lo::gfs) p).
+Proof.
+  intros.
+  rewrite array_at_data_at by auto.
+  unfold at_offset.
+  unfold field_address0.
+  if_tac.
+  + rewrite !prop_true_andp by auto.
+    auto.
+  + apply pred_ext.
+    - normalize.
+    - rewrite data_at_isptr.
+      normalize.
+Qed.
+
+Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
+  lo <= ml ->
+  ml <= mr ->
+  mr <= hi ->
+  Zlength v = hi-lo ->
+  array_at sh t gfs lo hi v p =
+    array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p*
+    data_at sh (nested_field_array_type t gfs ml mr)
+       (@fold_reptype _ (nested_field_array_type t gfs ml mr)  (sublist (ml-lo) (mr-lo) v))
+               (field_address0 t (ArraySubsc ml::gfs) p) *
+    array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
+Proof.
+  intros.
+  rewrite (split3seg_array_at sh t gfs lo ml mr hi); auto.
+  rewrite (add_andp _ _ (array_at_local_facts sh t gfs mr hi _ _)).
+  normalize.
+  apply andp_prop_ext; [tauto |].
+  intros [? [? _]].
+  rewrite (array_at_data_at'' sh t gfs ml mr); auto.
 Qed.
 
 (************************************************
