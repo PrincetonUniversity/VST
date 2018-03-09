@@ -61,15 +61,20 @@ Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T}
 Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
            CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
 
+(* Somehow, this fixes a universe collapse issue that will occur if only fool is defined
+   (or at denote_tc_assert later on). *)
+Definition fool' := @map _ Type (fun it : ident * type => mpred).
+Definition fool : environ -> mpred := `orp TT TT.
+
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 Hint Resolve any_environ : typeclass_instances.
 
 Local Open Scope logic.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 Inductive trust_loop_nocontinue : Prop := .
 
@@ -230,7 +235,7 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(prop (typecheck_error msg))
   | tc_TT => TT
-  | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_andp' b c => fun rho => andp (denote_tc_assert b rho) (denote_tc_assert c rho)
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
@@ -247,7 +252,7 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 (* END from expr2.v *)
 
@@ -909,7 +914,7 @@ Definition add_funspecs (Espec : OracleKind)
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
 (* Misc lemmas *)
 Lemma typecheck_lvalue_sound {CS: compspecs} :
@@ -1038,7 +1043,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 Global Opaque rel_expr.
 Global Opaque rel_lvalue.
 
@@ -1486,3 +1491,4 @@ Proof.
   apply ND_prop_ext.
   auto.
 Defined.
+
