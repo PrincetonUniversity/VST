@@ -10,6 +10,8 @@ Require Import mailbox.verif_mailbox_write.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Opaque upto.
+
 Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
 Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 
@@ -36,7 +38,7 @@ Proof.
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B)))))
   break: (@FF (environ->mpred) _).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    { split. unfold B, N.  computable. repeat constructor; computable. }
+    { split. unfold B, N. computable. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
@@ -55,7 +57,7 @@ Proof.
       destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
       { apply mpred_ext; Intros sh; Exists sh; entailer!.
         * constructor.
-        * match goal with H : sepalg_list.list_join sh0 [] sh |- _ => inv H; auto end. }
+        * match goal with H : sepalg_list.list_join sh0 _ sh |- _ => inv H; auto end. }
       generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
       destruct (eq_dec 1 a); [contradiction n0; auto|].
        rewrite Heq; auto; [|omega].
@@ -85,9 +87,10 @@ Proof.
   gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
     (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs Vundef))) (upto (Z.to_nat B)))).
-  { go_lowerx; eapply derives_trans with (Q := _ * _);
+  { Opaque B.
+    go_lowerx; eapply derives_trans with (Q := _ * _);
       [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
-    rewrite Znth_map', Znth_upto; [|simpl; unfold B, N in *; omega].
+    rewrite Znth_map', Znth_upto by (rewrite Z2Nat.id; omega).
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
     Exists Tsh v; entailer!. }

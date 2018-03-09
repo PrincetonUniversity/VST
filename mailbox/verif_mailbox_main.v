@@ -13,6 +13,8 @@ Require Import mailbox.verif_mailbox_writer.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Opaque upto.
+
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   name buf _bufs.
