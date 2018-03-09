@@ -808,28 +808,32 @@ reflexivity.
  inv H.
  destruct b.
  *
-  eapply safeN_step.
+  eapply jsafeN_step.
   constructor; [ | eassumption].
   constructor.
   rewrite <- H11.
   eapply step_ifthenelse. eassumption. eassumption.
-  simpl. 
-  clear - H1.
-  inv H1.
+  simpl.
+  intros ? J; destruct (H1 _ J) as (m'' & ? & ? & Hsafe).
+  exists m''; split; auto; split; auto.
+  clear - Hsafe.
+  inv Hsafe.
   + constructor.
   + inv H. econstructor; eauto. simpl in H1. simpl. constructor; auto. simpl.
      inv H1. auto.
   + econstructor 3; eauto.
   + econstructor 4; eauto.
  *
-  eapply safeN_step.
+  eapply jsafeN_step.
   constructor; [ | eassumption].
   constructor.
   rewrite <- H11.
   eapply step_ifthenelse. eassumption. eassumption.
-  simpl. 
-  clear - H1.
-  inv H1.
+  simpl.
+  intros ? J; destruct (H1 _ J) as (m'' & ? & ? & Hsafe).
+  exists m''; split; auto; split; auto.
+  clear - Hsafe.
+  inv Hsafe.
   + constructor.
   + inv H. econstructor; eauto. simpl in H1. simpl. constructor; auto. simpl.
      inv H1. auto.

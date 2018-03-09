@@ -1,4 +1,6 @@
 Require Import VST.msl.log_normalize.
+Require Import VST.msl.ghost.
+Require Import VST.msl.ghost_seplog.
 Require Export VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
@@ -460,8 +462,6 @@ Proof.
   rewrite (UIP_refl _ _ e), (UIP_refl _ _ e0), (UIP_refl _ _ e1) in J; eauto.
 Qed.
 
-Definition fp_update_ND {RA: Ghost} (a: G) B := forall c, joins a c -> exists b, B b /\ joins b c.
-
 Lemma singleton_join_some: forall {A} {J: Join A} k (a b c: A) m
   (Hget: finmap_get m k = Some b) (Hjoin: join a b c),
   join (singleton k a) m (finmap_set m k c).
@@ -530,8 +530,6 @@ Proof.
   rewrite finmap_get_set; destruct (eq_dec _ _); eauto.
   eapply domb; inv H7; rewrite H1 in *; eauto.
 Qed.
-
-Definition fp_update {RA: Ghost} (a b : G) := forall c, joins a c -> joins b c.
 
 Lemma ghost_update: forall {RA: Ghost} g (a b: G) pp,
   fp_update a b -> own g a pp |-- bupd (own g b pp).

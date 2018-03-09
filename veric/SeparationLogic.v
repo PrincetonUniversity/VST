@@ -14,6 +14,7 @@ Require Export VST.msl.shares.
 Require Export VST.msl.predicates_rec.
 Require Export VST.msl.contractive.
 Require Export VST.msl.seplog.
+Require Export VST.msl.ghost_seplog.
 Require Export VST.msl.alg_seplog.
 Require Export VST.msl.log_normalize.
 Require Export VST.msl.ramification_lemmas.
@@ -30,6 +31,7 @@ Require VST.veric.assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
+Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
 
@@ -42,6 +44,9 @@ Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
 Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
+Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+  mkBSL _ _ _ _ _ bupd inG (@own) bupd_intro bupd_mono bupd_trans bupd_frame_r
+    (@ghost_alloc) (@ghost_op) (@ghost_conflict) (@ghost_update_ND) (@ghost_update).
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
@@ -1396,14 +1401,14 @@ Axiom semax_skip:
   forall {Espec: OracleKind}{CS: compspecs},
    forall Delta P, @semax CS Espec Delta P Sskip (normal_ret_assert P).
 
-Axiom semax_pre_post:
+Axiom semax_pre_post_bupd:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+    (local (tc_environ Delta) && P |-- |==> P') ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:

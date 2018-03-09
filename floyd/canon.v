@@ -784,13 +784,22 @@ intros. reflexivity.
 Qed.
 Hint Rewrite exp_unfold: norm2.
 
+Lemma semax_pre_bupd:
+ forall P' Espec {cs: compspecs} Delta P c R,
+     ENTAIL Delta , P |-- |==> P' ->
+     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; eauto;
+intros; apply andp_left2, bupd_intro; auto.
+Qed.
+
 Lemma semax_pre:
  forall P' Espec {cs: compspecs} Delta P c R,
      ENTAIL Delta , P |-- P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
-intros; eapply semax_pre_post; eauto;
-intros; apply andp_left2; auto.
+intros; eapply semax_pre_bupd; eauto.
+eapply derives_trans, bupd_intro; auto.
 Qed.
 
 Lemma semax_pre_simple:
@@ -808,6 +817,18 @@ Proof.
 intros.
 eapply semax_pre_simple; try apply H0.
  apply andp_left2; auto.
+Qed.
+
+Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
+ forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+    (local (tc_environ Delta) && P |-- P') ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+Proof.
+  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
 Qed.
 
 Lemma semax_frame_PQR:
@@ -860,6 +881,18 @@ intros. subst.
 eapply semax_pre.
 apply H1.
 apply semax_frame_PQR; auto.
+Qed.
+
+Lemma semax_post_bupd:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   ENTAIL (update_tycon Delta c), RA_normal R' |-- |==> RA_normal R ->
+   ENTAIL Delta, RA_break R' |-- |==> RA_break R ->
+   ENTAIL Delta, RA_continue R' |-- |==> RA_continue R ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- |==> RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; try eassumption.
+apply andp_left2, bupd_intro; auto.
 Qed.
 
 Lemma semax_post:

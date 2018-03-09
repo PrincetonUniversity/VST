@@ -1,4 +1,5 @@
 Require Import VST.msl.msl_standard.
+Require Import VST.msl.ghost.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.shares.
 
@@ -79,9 +80,6 @@ Definition fpreds: functor :=
 
 Instance preds_join (PRED : Type) (I: Type) : Join (I -> nat -> option (fpreds PRED)) :=
   Join_fun _ _ (Join_fun _ _ (Join_lower (Join_equiv (fpreds PRED)))).
-
-Class Ghost := { G : Type;
-  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G }.
 
 Section Finmap.
 

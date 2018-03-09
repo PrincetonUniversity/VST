@@ -725,7 +725,7 @@ Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
     ext_spec_exit spec e v m1 ->
     ext_spec_exit spec e v m2).
 
-Check jsafeN__ind.
+(* Currently fails because jsafeN__ind is too weak.
 
 Lemma jsafeN_mem_equiv {Z Jspec ge n z c jm1 jm2} :
   juicy_mem_equiv jm1 jm2 ->
@@ -801,7 +801,7 @@ Proof.
     + exists c'; split; auto.
 
   - econstructor 4; eauto.
-Qed.
+Qed.*)
 
 Lemma mem_ext m1 m2 :
   Mem.mem_contents m1 = Mem.mem_contents m2 ->
