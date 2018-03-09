@@ -148,7 +148,9 @@ Proof.
       inv H7.
       inv H.
       rewrite Z.mul_0_r in H2.
-      auto. } }
+      auto. }
+      apply derives_refl.
+    }
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
     LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
@@ -534,7 +536,7 @@ Proof.
         fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs Vundef)) (sublist i N shs)))).
   { unfold N; computable. }
-  { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. }
+  { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. apply derives_refl. }
   { Intros sh'.
     forward_call tint. split3; simpl; auto; computable. Intros d.
     forward.

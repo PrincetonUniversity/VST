@@ -173,7 +173,7 @@ Lemma ghost_list_alloc : forall lg P g, Forall (fun g => exists g', joins g g') 
     fold_right sepcon emp (map (fun i => ghost (Znth i lg g) (Znth i lp Vundef)) (upto (Z.to_nat (Zlength lg)))) * P).
 Proof.
   induction 1.
-  - apply derives_view_shift; Exists (@nil val); entailer!.
+  - apply derives_view_shift; Exists (@nil val); simpl; entailer!.
   - etransitivity; eauto.
     apply view_shift_exists; intro lp.
     etransitivity; [apply ghost_alloc; eauto|].
@@ -516,7 +516,7 @@ Proof.
   etransitivity.
   - apply view_shift_prop; intro.
     apply master_update; eauto.
-  - apply derives_view_shift; entailer!.
+  - apply derives_view_shift; entailer!. apply derives_refl.
 Qed.
 
 End Snapshot.
@@ -818,8 +818,8 @@ Proof.
     { eapply derives_trans; [apply ghost_conflict|].
       apply prop_left; intros (x & ? & ?); simpl in *.
       apply prop_right; destruct (fst x) as [(?, ?)|]; [tauto | contradiction]. }
-    erewrite ghost_join; [entailer!|].
-    repeat (split; simpl; auto).
+    erewrite ghost_join; [entailer!; apply derives_refl | ].
+    repeat (split; simpl; auto). 
   - Intros.
     erewrite ghost_join; eauto.  apply derives_refl.
     repeat (split; simpl; auto).

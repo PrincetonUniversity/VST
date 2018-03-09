@@ -191,15 +191,14 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
       simpl. Time entailer!. (*1.9 versus 5.6*)
-
      unfold_data_at 1%nat.
      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       rewrite field_address_offset by auto with field_compatible.
       simpl; rewrite Ptrofs.add_zero.
-      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       thaw FR4. thaw FR3. thaw FR2.
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       Time cancel. (*1.6 versus 0.7*)
   }
 
@@ -256,6 +255,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite field_address_offset by auto with field_compatible.
     simpl; rewrite Ptrofs.add_zero.
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
     Time cancel. (*1.7 versus 1.2 penalty when melting*)
   }
 }

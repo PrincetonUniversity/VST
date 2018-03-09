@@ -79,7 +79,14 @@ Hint Rewrite modu_repr using rep_omega : entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_false using reflexivity: entailer_rewrite norm.
 Hint Rewrite Vptrofs_unfold_true using reflexivity: entailer_rewrite norm.
 
-
+Hint Extern 1 (Vundef = default_val _) => reflexivity : cancel.
+Hint Extern 1 (default_val _ = Vundef) => reflexivity : cancel.
+Hint Extern 1 (list_repeat _ Vundef = default_val _) => reflexivity : cancel.
+Hint Extern 1 (default_val _ = list_repeat _ Vundef) => reflexivity : cancel.
+Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
+Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
+Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
+Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .

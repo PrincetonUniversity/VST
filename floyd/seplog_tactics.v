@@ -114,8 +114,6 @@ Proof.
  apply prop_derives; intuition.
 Qed.
 
-
-
 (* These versions can sometimes take minutes,
    when A and B can't be unified
 Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
@@ -402,6 +400,25 @@ Ltac qcancel P :=
      end
  end.
 
+Ltac careful_unify := 
+repeat match goal with
+| |- ?X = ?X' => constr_eq X X'; reflexivity
+| |- _ ?X = _ ?X' => constr_eq X X'; apply equal_f
+| |- ?F _ = ?F' _ => constr_eq F F'; apply f_equal
+| |- ?F _ _ = ?F' _ _ => constr_eq F F'; apply f_equal2
+| |- ?F _ _ _ = ?F' _ _ _ => constr_eq F F'; apply f_equal3
+| |- ?F _ _ _ _ = ?F' _ _ _ _ => constr_eq F F'; apply f_equal4
+| |- ?F _ _ _ _ _ = ?F' _ _ _ _ _ => constr_eq F F'; apply f_equal5
+| |- ?F ?T = ?F' ?T' => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ = ?F' ?T' _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ _ = ?F' ?T' _ _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ _ _ = ?F' ?T' _ _ _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+end.
+
 Ltac cancel :=
   rewrite ?sepcon_assoc;
   repeat match goal with |- ?A * _ |-- ?B * _ => 
@@ -424,7 +441,8 @@ Ltac cancel :=
    end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);
-  first [ simple apply derives_refl'; repeat f_equal; reflexivity (* this is NOT a _complete_ tactic;
+  first [ simpl; apply derives_refl'; solve [careful_unify]
+            (* this is NOT a _complete_ tactic;
                  for example, "simple apply derives_refl" would be more complete.  But that
                  tactic can sometimes take minutes to discover that something doesn't unify;
                  what I have here is a compromise between reliable speed, and (in)completeness.

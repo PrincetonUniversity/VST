@@ -151,7 +151,7 @@ autorewrite with sublist in *|-.
 simpl.
 autorewrite with sublist.
 cancel.
-rewrite array_at_data_at_rec; auto; try apply derives_refl; omega.
+rewrite array_at_data_at'; auto; try apply derives_refl; omega.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
 +

@@ -131,7 +131,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
   rewrite Zlength_intlist_to_Zlist in H5.
-  rewrite array_at_data_at_rec by (auto with field_compatible; omega).
+  rewrite array_at_data_at' by (auto with field_compatible; omega).
   simpl.
   autorewrite with sublist.
   fold (tarray tuchar 4). f_equal.

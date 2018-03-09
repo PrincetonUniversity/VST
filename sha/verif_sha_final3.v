@@ -339,7 +339,7 @@ intuition.
   fold vbytes.
   change (32 - i*4 - 4) with (N32 - i*4 - WORD).
   cancel.
-rewrite !array_at_data_at_rec by (auto with field_compatible; omega).
+rewrite !array_at_data_at' by (auto with field_compatible; omega).
 simpl.
 autorewrite with sublist.
 apply derives_refl'.
@@ -465,7 +465,7 @@ Proof.
    replace A with (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)
   by (clear - FC;
-        rewrite array_at_data_at_rec by auto with field_compatible;
+        rewrite array_at_data_at' by auto with field_compatible;
         reflexivity)
  end.
   gather_SEP 0 1 2.
@@ -489,7 +489,7 @@ Proof.
    pose proof (Zlength_nonneg dd').
    Time autorewrite with sublist. (*7*)
    cancel.
-   rewrite array_at_data_at_rec; auto.  apply derives_refl.
+   rewrite array_at_data_at'; auto.  apply derives_refl.
  }
   Time forward. (* p += 4; *) (*5.1*) {
    go_lower. apply prop_right.
