@@ -126,7 +126,7 @@ Proof.
     (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
   { (* precondition implies loop invariant: *)
     entailer!.
-    unfold_field_at 1%nat. cancel. }
+    unfold_data_at 1%nat. cancel. }
   { (* loop body preserves invariant: *)
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
@@ -287,6 +287,6 @@ Proof.
   forward.
   rewrite Vundef_is_Vint.
   unfold_data_at 4%nat. cancel.
-  Show.
+  Fail idtac.  (* make sure there are no subgoals *)
 (* Time Qed. takes forever *)
 Admitted.

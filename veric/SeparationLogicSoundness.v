@@ -94,6 +94,7 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
+Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
 Definition semax_seq_Slabel := @semax_seq_Slabel.
@@ -128,6 +129,15 @@ Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
+
+Lemma semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ @semax CS Espec Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ @semax CS Espec Delta P (Sloop body incr) R.
+Proof.
+intros. inv H.
+Qed.
 
 End CSL.
 

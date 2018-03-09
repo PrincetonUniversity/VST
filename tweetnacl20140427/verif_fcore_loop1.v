@@ -206,9 +206,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
       rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
       repeat rewrite Zminus_diag. rewrite Z.add_simpl_l.
       rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. trivial.
+      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. apply derives_refl.
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
-    repeat rewrite Z.add_simpl_l, app_nil_r in *. trivial. }
+    repeat rewrite Z.add_simpl_l, app_nil_r in *. apply derives_refl. }
 
   (*Store into x[...]*)
   thaw FR2.

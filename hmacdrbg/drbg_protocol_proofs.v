@@ -61,8 +61,8 @@ Proof.
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
    temp _custom data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
-          memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
+          malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
@@ -74,7 +74,7 @@ Proof.
     entailer!.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   { subst v. clear Hv. simpl. forward. entailer!. }
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
@@ -94,7 +94,7 @@ Proof.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    rewrite data_at__memory_block. simpl. entailer!. 
+    fix_hmacdrbg_compspecs. apply derives_refl.
   }
   forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, HMAC_DRBG_algorithms.initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { simpl. cancel. }
@@ -176,14 +176,14 @@ Proof.
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite ptrofs_max_unsigned_eq.
-    split. omega. (* rewrite int_max_unsigned_eq; omega.*)
+  { subst myABS; simpl.
+    split. rep_omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) rep_omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
     split. apply IB1. split; omega.
     assumption.
   }
@@ -300,8 +300,8 @@ Proof.
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
-            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
+            malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
@@ -311,7 +311,7 @@ Proof.
     Exists (M1, (M2, M3), (V, (RC, (EL, (PR, RI))))); unfold hmac256drbgstate_md_info_pointer; simpl.
     entailer!. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. apply derives_refl. }
   { subst v; clear Hv. rewrite if_true; trivial.
     forward. entailer!.
   }
@@ -330,7 +330,7 @@ Proof.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    rewrite data_at__memory_block. simpl. entailer!. 
+    fix_hmacdrbg_compspecs. apply derives_refl.
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   { rewrite lenV; simpl. cancel. }
@@ -529,7 +529,7 @@ Proof.
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   { entailer!.
      eapply derives_trans. apply data_at_memory_block. 
-     simpl. rewrite Z.max_r, Z.mul_1_l; trivial; omega.
+     simpl. rewrite Z.max_r, Z.mul_1_l; auto; omega.
   }
 
   (* get_entropy(seed, entropy_len ) *)
@@ -614,7 +614,7 @@ Proof.
       rewrite (memory_block_split Tsh b (Ptrofs.unsigned i) entropy_len (384 - entropy_len)), ptrofs_add_repr; try omega.
       cancel.
       eapply derives_trans. apply data_at_memory_block.
-          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
+          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; auto.
       rewrite Zplus_minus.
       assert (Ptrofs.unsigned i >= 0) by (pose proof (Ptrofs.unsigned_range i); omega).
       split. omega.

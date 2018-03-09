@@ -67,7 +67,6 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
  entailer!.
 rewrite <- H0; clear H0.
 forward. (* n = c->num; *)
-rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 assert (Hddlen: 0 <= Zlength (s256a_data a) < 64) by Omega1.
 forward. (* p[n] = 0x80; *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
@@ -95,7 +94,7 @@ erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try apply
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 2: autorewrite with sublist; Omega1.
  rewrite (split2_array_at _ _ _ (Zlength dd') 56 64); try Omega1.
-2:autorewrite with sublist; rewrite Zlength_sublist; autorewrite with sublist; Omega1.
+2:autorewrite with sublist; Omega1.
  assert (0 <= Zlength dd' <= 56) by Omega1.
  autorewrite with sublist.
  replace (CBLOCKz - Zlength dd' - (56 - Zlength dd')) with 8 by Omega1.
@@ -118,7 +117,7 @@ replace (memory_block Tsh (56 - Zlength dd'))
   by (f_equal; rewrite sizeof_tarray_tuchar; auto; omega).
 cancel.
 }
- split; auto.  Omega1.
+ split; auto. change (Z.of_nat CBLOCK) with CBLOCKz. Omega1.
 
 forward.  (* p += SHA_CBLOCK-8; *)
 assert_PROP (force_val
@@ -152,7 +151,7 @@ autorewrite with sublist in *|-.
 simpl.
 autorewrite with sublist.
 cancel.
-rewrite array_at_data_at_rec; auto; omega.
+rewrite array_at_data_at_rec; auto; try apply derives_refl; omega.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
 +

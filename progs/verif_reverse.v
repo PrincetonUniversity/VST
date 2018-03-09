@@ -261,11 +261,11 @@ Proof.
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
-        unfold data_at_rec, at_offset; simpl; normalize | ]);
+        unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
     clear FC'
     end.
 
-  rewrite mapsto_tuint_tptr_nullval; auto.
+  rewrite mapsto_tuint_tptr_nullval; auto. apply derives_refl.
   rewrite @lseg_nil_eq.
   entailer!.
 Qed.

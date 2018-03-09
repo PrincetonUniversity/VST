@@ -258,10 +258,10 @@ Lemma EmptyDissolve: forall v,
 Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 *)
 Lemma mkEmpty v: data_at_ Tsh t_struct_hmac_ctx_st v |-- EMPTY v.
-Proof. trivial. Qed.
+Proof. apply derives_refl. Qed.
 
 Lemma EmptyDissolve v: EMPTY v |-- data_at_ Tsh t_struct_hmac_ctx_st v.
-Proof. trivial. Qed.
+Proof. apply derives_refl. Qed.
 
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. Intros r.
@@ -503,6 +503,7 @@ simpl_ret_assert; normalize.
   apply sepcon_derives; auto.
   apply bind_ret_derives.
   rewrite hmacUpdate_app. old_go_lower. entailer!.
+  apply derives_refl.
 
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
@@ -559,7 +560,9 @@ simpl_ret_assert; normalize.
 
   unfold EMPTY. 
   rewrite <- memory_block_data_at_. simpl. unfold data_block.
-  clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.
+  clear. simpl. apply andp_left2. apply data_at_memory_block.
+  trivial.
+  apply derives_refl.
 Qed. 
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

@@ -81,7 +81,7 @@ forward_seq. instantiate (1:= PostKeyNull c k pad kv h1 l key ckb ckoff).
 (*subst PostKeyNull.*)
 unfold PostKeyNull. Intros cb cofs r.
 (*Time normalize. (*2.3*)*)
-unfold POSTCONDITION, abbreviate. subst c.
+subst c.
 rename H0 into R.
 
 (*isolate branch if (reset) *)
@@ -152,7 +152,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 (* Issue: why is update_reptype not simplifying? *)
      match goal with |- context [@upd_reptype ?cs ?t ?gfs ?x ?v] =>
            change (@upd_reptype cs t gfs x v) with (v,(iS,oS)) end.
-     simpl in *.
+     simpl in ISHA, OSHA, IREL, OREL, v |- *.
 
      Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
        as FC_cb by entailer!. (*1.8 versus 3.9*)

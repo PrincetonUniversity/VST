@@ -379,7 +379,7 @@ Proof.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   apply sepcon_derives.
   unfold array_at.
-  simpl. apply andp_derives; auto.
+  simpl. apply andp_derives; auto; try apply derives_refl. 
   apply prop_derives. intuition.
   assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
      admit.  (* true, but tedious *)
@@ -610,107 +610,151 @@ Proof.
   rewrite field_at__memory_block. 
   unfold field_address. rewrite if_true; trivial.
   unfold nested_field_offset, nested_field_type; simpl.
-  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; trivial; omega.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; try apply derives_refl; omega.
 Qed.
 
 Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
-  rewrite data_at__memory_block; simpl. normalize. rewrite sizeof_tarray_tuchar; trivial; omega. 
+  rewrite data_at__memory_block; simpl. normalize. 
+  rewrite sizeof_tarray_tuchar; try apply derives_refl; omega. 
 Qed.
 
-Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p -> 
-      @field_compatible cs (tarray tuchar 0) nil p.
+Lemma isptr_field_compatible0_tarray {cs}:
+  forall t (H: complete_legal_cosu_type t = true) p,
+       isptr p -> 
+      @field_compatible cs (tarray t 0) nil p.
 Proof. intros; red. destruct p; try contradiction.
-  repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
-  destruct (Ptrofs.unsigned_range i); omega.
-  (* TODO: abstract this proof. *)
-   eapply align_compatible_rec_hardware_1.
-   + exact cenv_consistent.
-   + exact cenv_legal_su.
-   + exact ha_env_cs_consistent.
-   + exact ha_env_cs_complete.
-   + reflexivity.
-   + reflexivity.
+  repeat split; simpl; trivial.
+  change (sizeof (tarray t 0)) with (sizeof t * 0)%Z.
+  rewrite Z.mul_0_r. rep_omega.
+  apply align_compatible_rec_Tarray; intros.
+  omega.
 Qed.
 
-Lemma data_at_tuchar_singleton_array {cs} sh v p:
-  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
-Proof. 
+Transparent sizeof.
+
+Lemma data_at_singleton_array {cs} sh t vl v p:
+  JMeq vl [v] ->
+  @data_at cs sh t v p |-- @data_at cs sh (tarray t 1) vl p.  
+Proof.
+  intros. rename H into Heq.
   rewrite data_at_isptr. normalize.
-  assert_PROP (field_compatible (tarray tuchar 1) [] p).
+  assert_PROP (field_compatible (tarray t 1) [] p).
   { eapply derives_trans. eapply data_at_local_facts. normalize.
     destruct p; auto.
     inv_int i.
     destruct H as [? [? [? [? ?]]]].
     repeat split; auto.
-    eapply align_compatible_rec_hardware_1.
-    + exact cenv_consistent.
-    + exact cenv_legal_su.
-    + exact ha_env_cs_consistent.
-    + exact ha_env_cs_complete.
-    + reflexivity.
-    + reflexivity.
+    simpl. simpl in H3. rewrite Z.mul_1_r. auto.
+    simpl in H4|-*.
+    apply align_compatible_rec_Tarray. intros. assert (i=0) by omega. subst.
+    rewrite Z.mul_0_r, Z.add_0_r. auto.
   }
   unfold data_at at 2.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  erewrite array_at_len_1. 2: apply JMeq_refl.
-  rewrite field_at_data_at; simpl. 
+  erewrite field_at_Tarray.
+  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply Heq.
+  erewrite array_at_len_1 by apply JMeq_refl.
+  rewrite field_at_data_at; simpl.
   rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
+  unfold nested_field_type. simpl. unfold nested_field_offset.
+    simpl. rewrite Z.mul_0_r.  rewrite isptr_offset_val_zero; auto.
   eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
 Qed.
- 
-Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
-  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
+
+Lemma data_at_singleton_array_inv {cs} sh t vl v p:
+  JMeq vl [v] ->
+  @data_at cs sh (tarray t 1) vl p |-- @data_at cs sh t v p.  
 Proof. 
   rewrite data_at_isptr. normalize.
-  assert_PROP (field_compatible (tarray tuchar 1) [] p).
+  assert_PROP (field_compatible (tarray t 1) [] p).
   { eapply derives_trans. eapply data_at_local_facts. normalize. }
   unfold data_at at 1.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  erewrite field_at_Tarray.
+  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply H.
   erewrite array_at_len_1. 2: apply JMeq_refl.
   rewrite field_at_data_at; simpl. 
   rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
+  unfold nested_field_type. simpl. unfold nested_field_offset.
+    simpl. rewrite Z.mul_0_r.
+ rewrite isptr_offset_val_zero; try apply derives_refl; auto.
   eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
 Qed.
+
+Opaque sizeof.
  
+Lemma data_at_singleton_array_eq {cs} sh t v vl p:
+  JMeq vl [v] ->
+  @data_at cs sh (tarray t 1) vl p = @data_at cs sh t v p.  
+Proof. 
+  intros.
+   apply pred_ext.
+  apply data_at_singleton_array_inv; auto.
+  apply data_at_singleton_array; auto.
+Qed.
+
+Lemma data_at_tuchar_singleton_array {cs} sh v p:
+  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
+Proof. apply data_at_singleton_array. apply JMeq_refl. Qed.
+
+Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
+  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
+Proof.   apply data_at_singleton_array_inv. apply JMeq_refl. Qed.
+
 Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
   @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
-Proof. apply pred_ext.
-  apply data_at_tuchar_singleton_array_inv.
-  apply data_at_tuchar_singleton_array. 
+Proof. apply data_at_singleton_array_eq. apply JMeq_refl. Qed.
+
+Lemma data_at_zero_array {cs} sh t v p:
+  complete_legal_cosu_type t = true ->
+  isptr p ->
+  JMeq v (@nil (reptype t)) ->
+  emp |-- @data_at cs sh (tarray t 0) v p.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: eassumption. 2: simpl; trivial. 
+  rewrite array_at_len_0. apply andp_right; try apply derives_refl.
+  apply prop_right.
+  apply field_compatible0_ArraySubsc0.
+  apply isptr_field_compatible0_tarray; auto.
+ simpl.
+  split; auto. omega.
+Qed.
+
+Lemma data_at_zero_array_inv {cs} sh t v p:
+  complete_legal_cosu_type t = true ->
+  JMeq v (@nil (reptype t)) ->
+  @data_at cs sh (tarray t 0) v p |-- emp.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply H0. 2: simpl; trivial. 
+  rewrite array_at_len_0. normalize. 
+Qed.
+
+Lemma data_at_zero_array_eq {cs} sh t v p:
+  complete_legal_cosu_type t = true ->
+  isptr p ->
+  JMeq v (@nil (reptype t)) ->
+  @data_at cs sh (tarray t 0) v p = emp.
+Proof. intros. 
+  apply pred_ext.
+  apply data_at_zero_array_inv; auto.
+  apply data_at_zero_array; auto.
 Qed. 
 
 Lemma data_at_tuchar_zero_array {cs} sh p: isptr p ->
   emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. apply andp_right; trivial.
-  apply prop_right. apply isptr_field_compatible_tarray_tuchar0 in H.
-  unfold field_compatible in H.  
-  unfold field_compatible0; simpl in *. intuition.
-Qed.
+Proof. intros. apply data_at_zero_array; auto. Qed.
 
 Lemma data_at_tuchar_zero_array_inv {cs} sh p:
   @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. normalize. 
-Qed.
+Proof. intros. apply data_at_zero_array_inv; auto. Qed.
 
 Lemma data_at_tuchar_zero_array_eq {cs} sh p:
   isptr p ->
   @data_at cs sh (tarray tuchar 0) [] p = emp.  
-Proof. intros.
-  apply pred_ext.
-  apply data_at_tuchar_zero_array_inv.
-  apply data_at_tuchar_zero_array; trivial.
-Qed. 
+Proof. intros. apply data_at_zero_array_eq; auto. Qed.
 
 Lemma data_at__tuchar_zero_array {cs} sh p (H: isptr p):
   emp |-- @data_at_ cs sh (tarray tuchar 0) p.  

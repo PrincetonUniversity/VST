@@ -581,7 +581,6 @@ Hint Rewrite isptr_force_ptr' : norm.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-
 Ltac putable x :=
  match x with
  | O => idtac
@@ -589,6 +588,7 @@ Ltac putable x :=
  | Z.lt ?x ?y => putable x; putable y
  | Z.le ?x ?y => putable x; putable y
  | Z.gt ?x ?y => putable x; putable y
+ | Z.ge ?x ?y => putable x; putable y
  | eq?x ?y => putable x; putable y
  | ?x <> ?y => putable x; putable y
  | Zpos ?x => putable x
@@ -749,59 +749,149 @@ Ltac const_equation x :=
   let y := eval compute in x
    in exact (x = y).
 
-Transparent Archi.ptr64.
-Definition int_wordsize_eq : ltac:(const_equation Int.wordsize) := eq_refl.
-Definition int_zwordsize_eq : ltac:(const_equation Int.zwordsize) := eq_refl.
-Definition int_modulus_eq :  ltac:(const_equation Int.modulus) := eq_refl.
-Definition int_half_modulus_eq :  ltac:(const_equation Int.half_modulus) := eq_refl.
-Definition int_max_unsigned_eq :  ltac:(const_equation Int.max_unsigned) := eq_refl.
-Definition int_max_signed_eq :  ltac:(const_equation Int.max_signed) := eq_refl.
-Definition int_min_signed_eq :  ltac:(const_equation Int.min_signed) := eq_refl.
+Ltac Zground X :=
+  match X with
+  | Z0 => idtac
+  | Zpos ?y => Zground y
+  | Zneg ?y => Zground y 
+  | xH => idtac
+  | xO ?y => Zground y
+  | xI ?y => Zground y
+ end.
 
-Definition int64_wordsize_eq : ltac:(const_equation Int64.wordsize) := eq_refl.
-Definition int64_zwordsize_eq : ltac:(const_equation Int64.zwordsize) := eq_refl.
-Definition int64_modulus_eq :  ltac:(const_equation Int64.modulus) := eq_refl.
-Definition int64_half_modulus_eq :  ltac:(const_equation Int64.half_modulus) := eq_refl.
-Definition int64_max_unsigned_eq :  ltac:(const_equation Int64.max_unsigned) := eq_refl.
-Definition int64_max_signed_eq :  ltac:(const_equation Int64.max_signed) := eq_refl.
-Definition int64_min_signed_eq :  ltac:(const_equation Int64.min_signed) := eq_refl.
+(*
+Ltac pose_const_equation X :=
+ match goal with
+ | H: X = ?Y |- _ => Zground Y
+ | _ => let z := eval compute in X in assert (X = z) by reflexivity
+ end.
+*)
 
-Definition ptrofs_wordsize_eq : ltac:(const_equation Ptrofs.wordsize) := eq_refl.
-Definition ptrofs_zwordsize_eq : ltac:(const_equation Ptrofs.zwordsize) := eq_refl.
-Definition ptrofs_modulus_eq :  ltac:(const_equation Ptrofs.modulus) := eq_refl.
-Definition ptrofs_half_modulus_eq :  ltac:(const_equation Ptrofs.half_modulus) := eq_refl.
-Definition ptrofs_max_unsigned_eq :  ltac:(const_equation Ptrofs.max_unsigned) := eq_refl.
-Definition ptrofs_max_signed_eq :  ltac:(const_equation Ptrofs.max_signed) := eq_refl.
-Definition ptrofs_min_signed_eq :  ltac:(const_equation Ptrofs.min_signed) := eq_refl.
-Opaque Archi.ptr64.
+Ltac pose_const_equation X :=
+ match goal with
+ | H: X = ?Y |- _ => Zground Y
+ | _ => let z := eval compute in X in 
+                  change X with z in *
+ end.
 
-Ltac rep_omega := 
-   pose proof int_wordsize_eq;
-   pose proof int_zwordsize_eq;
-   pose proof int_modulus_eq;
-   pose proof int_half_modulus_eq;
-   pose proof int_max_unsigned_eq;
-   pose proof int_max_signed_eq;
-   pose proof int_min_signed_eq;
- 
-   pose proof int64_wordsize_eq;
-   pose proof int64_zwordsize_eq;
-   pose proof int64_modulus_eq;
-   pose proof int64_half_modulus_eq;
-   pose proof int64_max_unsigned_eq;
-   pose proof int64_max_signed_eq;
-   pose proof int64_min_signed_eq;
- 
-   pose proof ptrofs_wordsize_eq;
-   pose proof ptrofs_zwordsize_eq;
-   pose proof ptrofs_modulus_eq;
-   pose proof ptrofs_half_modulus_eq;
-   pose proof ptrofs_max_unsigned_eq;
-   pose proof ptrofs_max_signed_eq;
-   pose proof ptrofs_min_signed_eq;
+Ltac perhaps_post_const_equation X :=
+ lazymatch goal with 
+ | H: context [X] |- _ => pose_const_equation X
+(* | H:= context [X] |- _ => pose_const_equation X *)
+ | |- context [X] => pose_const_equation X
+ | |- _ => idtac
+ end.
 
-   unfold repable_signed in *;
+Ltac pose_const_equations L :=
+ match L with
+ | ?X :: ?Y => perhaps_post_const_equation X; pose_const_equations Y
+ | nil => idtac
+ end.
+
+Import ListNotations.
+
+Ltac pose_standard_const_equations :=
+pose_const_equations
+  [
+  Int.zwordsize; Int.modulus; Int.half_modulus; Int.max_unsigned; Int.max_signed; Int.min_signed;
+  Int64.zwordsize; Int64.modulus; Int64.half_modulus; Int64.max_unsigned; Int64.max_signed; Int64.min_signed;
+  Ptrofs.zwordsize; Ptrofs.modulus; Ptrofs.half_modulus; Ptrofs.max_unsigned; Ptrofs.max_signed; Ptrofs.min_signed;
+  Byte.min_signed; Byte.max_signed; Byte.max_unsigned; Byte.modulus
+  ];
+ pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize].
+
+Definition Zlength' := @Zlength.
+
+Lemma Zlength_nonneg:
+ forall {A} (l: list A), 0 <= Zlength l.
+Proof.
+intros. rewrite Zlength_correct. omega.
+Qed.
+
+Ltac pose_Zlength_nonneg1 A :=
+     lazymatch goal with
+      | H:  0 <= Zlength A |- _ => idtac
+      | H:  0 <= Zlength A /\ _ |- _ => idtac
+      | |- _ => pose proof (Zlength_nonneg A)
+     end;  change (Zlength A) with (Zlength' _ A) in *.
+
+Ltac pose_Zlength_nonneg :=
+ repeat
+  match goal with
+  | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
+  | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
+(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
+ end;
+  unfold Zlength' in *.
+
+Ltac pose_lemma F F' A L :=
+  match type of (L A) with ?T =>
+     lazymatch goal with
+      | H:  T |- _ => idtac
+      | H:  T /\ _ |- _ => idtac
+      | |- _ => pose proof (L A)
+     end;  change (F A) with (F' A) in *
+  end.
+
+Ltac pose_lemmas F F' L :=
+ repeat
+  match goal with
+  | |- context [F ?A] => pose_lemma F F' A L
+  | H: context [F ?A] |- _ => pose_lemma F F' A L
+(*  | H:= context [F ?A] |- _ => pose_lemma F F' A L *)
+ end;
+  unfold F' in *.
+
+Definition byte_unsigned' := Byte.unsigned.
+Definition byte_signed' := Byte.signed.
+Definition int_unsigned' := Int.unsigned.
+Definition int_signed' := Int.signed.
+Definition int64_unsigned' := Int64.unsigned.
+Definition int64_signed' := Int64.signed.
+Definition ptrofs_unsigned' := Ptrofs.unsigned.
+
+Ltac rep_omega_setup := 
+ repeat match goal with
+            |  x:= _ : Z |- _ => subst x
+            |  x:= _ : nat |- _ => subst x
+            |  x:= _ |- _ => clearbody x
+            end;
+  try autorewrite with rep_omega in *;
+  unfold repable_signed in *;
+  pose_Zlength_nonneg;
+  pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range;
+  pose_lemmas Byte.signed byte_signed' Byte.signed_range;
+  pose_lemmas Int.unsigned int_unsigned' Int.unsigned_range;
+  pose_lemmas Int.signed int_signed' Int.signed_range;
+  pose_lemmas Int64.unsigned int64_unsigned' Int64.unsigned_range;
+  pose_lemmas Int64.signed int64_unsigned' Int64.signed_range;
+  pose_lemmas Ptrofs.unsigned ptrofs_unsigned' Ptrofs.unsigned_range;
+  pose_standard_const_equations.
+
+Ltac rep_omega2 := 
+ repeat  match goal with
+  | |- _ /\ _ => match goal with
+                        | |- context [Z.of_nat] => split
+                        | |- context [Z.to_nat] => split
+                        end
+            end;
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
+  repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
+         ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
+         ?Z2Nat.inj_add by rep_omega2;
+   simpl;
    omega.
+
+Ltac rep_omega :=
+   rep_omega_setup;
+   rep_omega2.
 
 Ltac repable_signed := 
   idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.

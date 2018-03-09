@@ -59,7 +59,7 @@ Definition object_mpred (history: list Z) (self: val) : mpred :=
 Definition foo_invariant : object_invariant :=
   (fun (history: list Z) p => field_at Tsh (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history))) p
-      *  malloc_token Tsh (sizeof (Tstruct _foo_object noattr)) p).
+      *  malloc_token Tsh (Tstruct _foo_object noattr) p).
 
 Definition foo_reset_spec :=
  DECLARE _foo_reset (reset_spec foo_invariant).
@@ -141,30 +141,27 @@ Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
-forward_call (sizeof (Tstruct _foo_object noattr)).
-   simpl; computable.
+forward_call (Tstruct _foo_object noattr).
+   split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
    LOCAL (temp _p p; gvar _foo_methods mtable)
-   SEP (malloc_token Tsh (sizeof (Tstruct _foo_object noattr)) p;
-          memory_block Tsh (sizeof (Tstruct _foo_object noattr)) p;
+   SEP (malloc_token Tsh (Tstruct _foo_object noattr) p;
+          data_at_ Tsh (Tstruct _foo_object noattr) p;
           object_methods foo_invariant mtable)).
 *
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
-if_tac; entailer.
+if_tac; entailer!.
 *
 forward_call tt.
 contradiction.
 *
-rewrite if_false by (intro; subst; inv H).
+rewrite if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!.
 *
-assert_PROP (field_compatible (Tstruct _foo_object noattr) [] p).
-  entailer!.
-rewrite memory_block_data_at_ by auto.
 unfold data_at_, field_at_, default_val; simpl.
 forward. (* p->mtable = &foo_methods; *)
 forward. (* p->data = 0; *)
@@ -185,20 +182,26 @@ f_equal.
 rewrite !field_compatible_field_address; auto with field_compatible.
 clear - H.
 (* TODO: simplify the following proof. *)
+destruct p; try contradiction.
+destruct H as [AL SZ].
+(*hnf in H.
 destruct H as [? [? [SZ [AL ?]]]].
+*)
 repeat split; auto.
-hnf in SZ|-*. destruct p; auto; simpl in SZ|-*; omega.
-hnf in AL|-*. destruct p; auto; unfold align_compatible in AL|-*.
+simpl in *; omega.
 eapply align_compatible_rec_Tstruct; [reflexivity |].
 simpl co_members; intros.
-simpl in H2.
-if_tac in H2; [| inv H2].
-inv H2.
-subst.
-inv H3.
-eapply align_compatible_rec_Tstruct_inv' with (i0 := _mtable) in AL; [| left; auto].
-exact AL.
+simpl in H.
+if_tac in H; [| inv H].
+inv H. inv H0.
+eapply align_compatible_rec_by_value.
+reflexivity.
+rewrite Z.add_0_r.
+unfold natural_alignment in AL.
+destruct AL as [x ?]. exists (2*x)%Z.
+rewrite H.
 simpl.
+omega.
 left; auto.
 Qed.
 

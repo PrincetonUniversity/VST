@@ -2244,10 +2244,11 @@ intros.
 apply pred_ext; saturate_local.
 rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
-erewrite field_at_share_join; eauto.
+erewrite field_at_share_join; eauto. apply derives_refl.
 rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
+apply derives_refl.
 Qed.
 (*
 Lemma nonreadable_data_at_rec_eq {cs: compspecs} :
@@ -2535,7 +2536,9 @@ Proof.
 Qed.
 
 Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p |-- @data_at cs sh t v' q.
-Proof. intros; subst. trivial. Qed.
+Proof. intros; subst. 
+apply derives_refl.
+Qed.
 
 Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p = @data_at cs sh t v' q.
 Proof. intros; subst. trivial. Qed.

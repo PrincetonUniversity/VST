@@ -17,7 +17,7 @@ Lemma da_emp_isptrornull sh t v p :
    da_emp sh t v p = (!!is_pointer_or_null p) &&  da_emp sh t v p.
  Proof. unfold da_emp; apply pred_ext.
   + apply orp_left.
-    - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. trivial.
+    - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. auto.
     - rewrite data_at_isptr with (p0:=p) at 1. normalize.
       destruct p; simpl in *; try contradiction. entailer. apply orp_right2. entailer.
   + entailer.
@@ -26,14 +26,14 @@ Qed.
 Lemma da_emp_null sh t v p: p=nullval -> da_emp sh t v p = emp.
 Proof. intros; subst. unfold da_emp. rewrite data_at_isptr. unfold isptr. simpl.
   apply pred_ext.
-  + normalize. apply orp_left. trivial. normalize.
+  + normalize. apply orp_left. auto. normalize.
   + simpl. apply orp_right1. entailer.
 Qed.
 Lemma da_emp_ptr sh t v b i: da_emp sh t v (Vptr b i) = !! (sizeof t > 0) && data_at sh t v (Vptr b i).
 Proof. intros; unfold da_emp, nullval; simpl.
   apply pred_ext.
   + apply orp_left; normalize. inv H.
-  + apply orp_right2. trivial.
+  + apply orp_right2. auto.
 Qed.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 

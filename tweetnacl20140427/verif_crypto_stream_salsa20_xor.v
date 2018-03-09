@@ -140,7 +140,7 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
     intros.
     apply andp_left2.
     normalize. autorewrite with norm1 norm2; normalize.
-    apply andp_right. apply andp_right. apply andp_left1; auto.
+    apply andp_right. apply andp_right. apply andp_left1; auto. apply derives_refl.
     apply andp_left2; apply andp_left1; auto.
     apply andp_left2; apply andp_left2; auto.
   - rewrite andp_comm.
@@ -600,10 +600,9 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k SV zbytes).
   f_equal. assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i).
      rewrite Z2Nat.id; omega.
      rewrite W. f_equal.
-     unfold Int.add. rewrite Int_unsigned_repr_byte. trivial. 
+     unfold Int.add. rewrite Int_unsigned_repr_byte. trivial.
 
-  rewrite field_at_data_at. apply derives_refl'. f_equal.
-  2: rewrite field_address_offset by auto with field_compatible; apply isptr_offset_val_zero; trivial.
+  apply derives_refl'. f_equal.
   clear H2. unfold Bl2VL.
   rewrite Q; simpl; rewrite <- HeqX. 
   rewrite upd_Znth_map. f_equal. simpl.
@@ -616,13 +615,13 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k SV zbytes).
     rewrite Int.Zzero_ext_spec; trivial. rewrite (Byte.Ztestbit_mod_two_p 8); trivial.
     rewrite Int.unsigned_repr; trivial.
     symmetry in HeqX. apply ZZ_is_byte in HeqX. destruct (Byte.unsigned_range_2 (Znth i Zi Byte.zero)).
-    rewrite byte_unsigned_max_eq in H3; rewrite int_max_unsigned_eq; omega.
+    rewrite byte_unsigned_max_eq in H4; rewrite int_max_unsigned_eq; omega.
   + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi Byte.zero)) 256). 
     omega. rewrite byte_unsigned_max_eq; omega.
 }
 Opaque ZZ.
 entailer!.
-Qed. 
+Qed.
 
 Definition null_or_offset x q y :=
 match x with 
@@ -784,7 +783,7 @@ rename H into I.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
     + rewrite Znth_map with (d' := Byte.zero) by omega. entailer!. 
-      rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max. 
+        apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       rewrite Znth_map with (d':=Byte.zero); [|omega]. 
@@ -817,7 +816,7 @@ rename H into I.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
-    rewrite field_at_data_at, Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
     rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
@@ -830,8 +829,6 @@ rename H into I.
     + apply prop_right. 
       eapply (bxorlist_snoc mInit q m mybyte l); trivial; omega.
     + autorewrite with sublist.
-      rewrite field_address_offset by auto with field_compatible.
-      simpl. rewrite isptr_offset_val_zero; trivial.
       apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
       f_equal.
@@ -841,7 +838,7 @@ rename H into I.
       assert (X:cLen - Zlength l - 1 = cLen - (Zlength l + 1)) by omega.
       rewrite X; trivial.
   }
-apply andp_left2. apply derives_refl. 
+apply andp_left2. apply derives_refl.
 Qed.
 
 Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
@@ -982,7 +979,7 @@ Focus 2.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist; rewrite Znth_map with (d' := Byte.zero) by omega.
     { entailer!.
-      rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max. }
+      apply Byte.unsigned_range_2.  }
     forward. entailer!.
     erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
@@ -1018,7 +1015,7 @@ Focus 2.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
     Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
-    rewrite field_at_data_at, Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+    rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3. 
     rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
@@ -1031,8 +1028,6 @@ Focus 2.
     - apply prop_right. 
       eapply (bxorlist_snoc mInit q m mybyte l); trivial; omega.
     - autorewrite with sublist.
-      rewrite field_address_offset by auto with field_compatible.
-      simpl. rewrite isptr_offset_val_zero; trivial.
       apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
       f_equal.
@@ -1103,16 +1098,16 @@ forward_if
 { unfold typed_true, strict_bool_val in H. simpl in H. 
   unfold eval_unop in H. simpl in H.
   specialize (Int64.eq_spec b Int64.zero). intros.
-  destruct (Int64.eq b Int64.zero); simpl in *. 2: inv H.
+  destruct (Int64.eq b Int64.zero); [ | inv H].
   clear H.
-  forward. entailer!. 
+  forward. entailer!.
   unfold crypto_stream_xor_postsep. 
   rewrite Int64.eq_true. cancel. }
 { unfold typed_false, strict_bool_val in H. simpl in H.
   unfold eval_unop in H. simpl in H.
   specialize (Int64.eq_spec b Int64.zero). intros.
   destruct (Int64.eq b Int64.zero); simpl in *. inv H.
-  clear H.  
+  clear H.
   forward. Time entailer!. }
 Intros. rename H into B.
 assert_PROP (field_compatible (Tarray tuchar (Int64.unsigned b) noattr) [] c) as FC by entailer!.
@@ -1127,8 +1122,6 @@ forward_for_simple_bound 16 (EX i:Z,
 { rename H into I. Intros l. rename H into LI16.
   forward. Exists (sublist 1 (Zlength l) l). entailer!.
     rewrite Zlength_sublist; omega.
-  rewrite field_at_data_at. rewrite field_address_offset by auto with field_compatible. 
-  simpl. rewrite isptr_offset_val_zero; trivial.
   apply derives_refl'. f_equal. 
   rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc; try omega. 
   rewrite upd_Znth_app2.
@@ -1175,8 +1168,6 @@ forward_for_simple_bound 8 (EX i:Z,
   forward.
   rewrite NB.
   entailer!.
-  rewrite field_at_data_at. rewrite field_address_offset by auto with field_compatible. 
-  simpl. rewrite isptr_offset_val_zero; trivial.
   apply derives_refl'. f_equal.
   rewrite upd_Znth_app2; try autorewrite with sublist. 2: omega.
   rewrite upd_Znth0, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. f_equal.

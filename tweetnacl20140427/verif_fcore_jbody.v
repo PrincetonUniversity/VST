@@ -159,8 +159,8 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
       rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
-      entailer!. 
-      rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
+      entailer!. destruct H3. inv H4.
+   }
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -507,12 +507,13 @@ deadvars!.
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
   deadvars!.
   forward.
-  { entailer!. rewrite andb_false_r; simpl; trivial.
+  { entailer!. (* rewrite andb_false_r; simpl; trivial. *)
    clear H1. clear WLIST1. clear TM. clear H.
-   rewrite and_True.
+   (*rewrite and_True. *)
    unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
    change (Int.signed (Int.repr 4)) with 4. 
-   rewrite Int.signed_repr by rep_omega. rep_omega.  }
+   rewrite Int.signed_repr by rep_omega.
+   split. rep_omega. intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).

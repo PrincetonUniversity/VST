@@ -223,7 +223,7 @@ Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
 forward.  (* s = 0; *)
 forward_for (sumarray_Inv a sh contents size)
-   (sumarray_PostBody a sh contents size).
+   continue: (sumarray_PostBody a sh contents size).
 * (* initializer establishes precondition *)
 forward. (* i=0; *)
 unfold sumarray_Inv. Exists 0. entailer!.

@@ -92,7 +92,7 @@ Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vint 0) = complete MAX l.
 Proof.
   intros; unfold complete.
-  rewrite upd_Znth_app1; [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
+  rewrite upd_Znth_app1; [|repeat rewrite Zlength_correct; rewrite app_length; simpl; rep_omega].
   rewrite app_length; simpl plus.
   rewrite upd_Znth_app2, Zminus_diag; [|rewrite Zlength_cons; simpl; omega].
   unfold upd_Znth, sublist.sublist.
@@ -446,7 +446,8 @@ Qed.
 Lemma length_complete : forall l m, Zlength l <= m -> length (complete m l) = Z.to_nat m.
 Proof.
   intros; unfold complete.
-  rewrite app_length, repeat_length; rewrite Zlength_correct in H; Omega0.
+  rewrite app_length, repeat_length; rewrite Zlength_correct in H.
+  rep_omega.
 Qed.
 
 Lemma Zlength_rotate : forall {A} (l : list A) n m, 0 <= n <= m -> m <= Zlength l ->
@@ -464,7 +465,7 @@ Qed.
 Lemma Zlength_complete : forall l m, Zlength l <= m -> Zlength (complete m l) = m.
 Proof.
   intros; unfold complete.
-  rewrite Zlength_app, Zlength_repeat; rewrite Zlength_correct in *; Omega0.
+  rewrite Zlength_app, Zlength_repeat; rewrite Zlength_correct in *; rep_omega.
 Qed.
 
 Lemma combine_eq : forall {A B} (l : list (A * B)), combine (map fst l) (map snd l) = l.
@@ -514,7 +515,8 @@ Lemma Znth_head : forall reqs head m d, Zlength reqs <= m -> 0 <= head < m ->
 Proof.
   intros; unfold rotate.
   assert (Zlength (sublist (m - head) (Zlength (complete m reqs)) (complete m reqs)) = head) as Hlen.
-  { rewrite Zlength_sublist; rewrite Zlength_complete; omega. }
+  { 
+rewrite Zlength_sublist; rewrite Zlength_complete; omega. }
   rewrite app_Znth2; rewrite Hlen; [|omega].
   rewrite Zminus_diag.
   rewrite Znth_sublist; try omega.
@@ -558,12 +560,12 @@ Proof.
     rewrite sublist_same; auto; [|rewrite Zlength_complete; omega].
     rewrite <- app_assoc; unfold complete.
     repeat rewrite Z2Nat.inj_add; try omega.
-    rewrite NPeano.Nat.add_sub_swap with (p := length l); [|rewrite Zlength_correct in *; Omega0].
+    rewrite NPeano.Nat.add_sub_swap with (p := length l); [|rewrite Zlength_correct in *; rep_omega].
     rewrite repeat_plus; simpl; do 3 f_equal; omega.
   - rewrite Zmod_small; [|omega].
     rewrite (sublist_split (m - (n + 1)) (Zlength (complete m l) - 1)); try rewrite Zlength_complete; try omega.
     rewrite <- app_assoc, (sublist_one (m - 1)) with (d := vint 0); try rewrite Zlength_complete; try omega; simpl.
-    assert (length l < Z.to_nat m)%nat by (rewrite Zlength_correct in *; Omega0).
+    assert (length l < Z.to_nat m)%nat by (rewrite Zlength_correct in *; rep_omega).
     unfold complete.
     replace (Z.to_nat m - length l)%nat with (Z.to_nat m - S (length l) + 1)%nat; [|omega].
     rewrite repeat_plus, app_assoc; simpl.
@@ -614,7 +616,7 @@ Proof.
   intros; unfold Znth.
   destruct (zlt i 0); [omega|].
   apply nth_indep.
-  rewrite Zlength_correct in *; Omega0.
+  rewrite Zlength_correct in *; rep_omega.
 Qed.
 
 Fixpoint upto n :=
@@ -680,7 +682,7 @@ Proof.
   intros.
   destruct (In_nth _ _ d H) as (n & ? & ?).
   exists (Z.of_nat n); unfold Znth.
-  split; [rewrite Zlength_correct; Omega0|].
+  split; [rewrite Zlength_correct; rep_omega|].
   rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
 Qed.
 
@@ -703,7 +705,7 @@ Proof.
   intros; unfold Znth.
   destruct (zlt i 0); auto.
   apply combine_nth.
-  rewrite !Zlength_correct in *; Omega0.
+  rewrite !Zlength_correct in *; rep_omega.
 Qed.
 
 Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),
@@ -742,7 +744,7 @@ Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
 Proof.
   intros; unfold upd_Znth.
   setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
-  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; Omega0].
+  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; rep_omega].
   unfold sublist.
   rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
   setoid_rewrite firstn_same at 2; auto.
@@ -1504,7 +1506,7 @@ Lemma sublist_all : forall {A} i (l : list A), Zlength l <= i -> sublist 0 i l =
 Proof.
   intros; unfold sublist; simpl.
   apply firstn_all.
-  rewrite Zlength_correct in *; Omega0.
+  rewrite Zlength_correct in *; rep_omega.
 Qed.
 
 Lemma sublist_prefix : forall {A} i j (l : list A), sublist 0 i (sublist 0 j l) = sublist 0 (Z.min i j) l.
@@ -1754,7 +1756,7 @@ Lemma sublist_over : forall {A} (l : list A) i j, Zlength l <= i -> sublist i j 
 Proof.
   intros; unfold sublist.
   rewrite skipn_short, firstn_nil; auto.
-  rewrite Zlength_correct in *; Omega0.
+  rewrite Zlength_correct in *; rep_omega.
 Qed.
 
 Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : NoDup (map fst l)),
@@ -1886,7 +1888,9 @@ Proof.
   apply derives_trans with (Q := (weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P);
     [|apply weak_precise_positive_conflict].
   cancel.
-  rewrite <- sepcon_emp at 1; apply sepcon_derives; apply andp_right; auto; apply derives_trans with (Q := TT);
+  rewrite <- sepcon_emp at 1.
+  apply sepcon_derives; apply andp_right; auto; try apply derives_refl;
+  apply derives_trans with (Q := TT);
     auto; [apply precise_weak_precise | apply positive_weak_positive]; auto.
 Qed.
 
@@ -2034,7 +2038,7 @@ Proof.
   destruct (readable_share_dec sh); [|contradiction n; auto].
   eapply derives_positive, ex_address_mapsto_positive.
   apply orp_left; entailer.
-  - Exists v; eauto.
+  - Exists v; eauto. apply derives_refl.
   - Exists v2'; auto.
 Qed.
 
@@ -2644,7 +2648,7 @@ Proof.
     + destruct (eq_dec v2 Vundef).
       * subst; rewrite prop_false_andp with (P := tc_val t Vundef), FF_orp;
           try apply tc_val_Vundef.
-        rewrite prop_true_andp with (P := Vundef = Vundef); auto.
+        rewrite prop_true_andp with (P := Vundef = Vundef); auto.  apply derives_refl.
       * rewrite prop_false_andp with (P := v2 = Vundef), orp_FF; auto; Intros.
         Exists v2; auto.
     + Intro v2'.
@@ -2671,6 +2675,7 @@ Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 
 Proof.
   intros.
   revert v1 v2; induction m; auto; intros.
+  apply derives_refl.
   destruct a; inv IH.
   destruct m.
   - unfold withspacer, at_offset; simpl.
@@ -2723,6 +2728,7 @@ Proof.
   clear H3 H4.
   rewrite Z2Nat_max0 in *.
   forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+ apply derives_refl.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
   eapply derives_trans; [apply sepcon_derives|].
@@ -2927,7 +2933,7 @@ Qed.
 
 Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
 Proof.
-  destruct v; simpl; auto.
+  destruct v; simpl; auto; try apply derives_refl.
   entailer!.
 Qed.
 Hint Resolve valid_pointer_isptr : saturate_local.
@@ -3052,6 +3058,7 @@ Proof.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
 Qed.
 
+(*
 Lemma malloc_compat : forall {cs : compspecs} sh t p,
   complete_legal_cosu_type t = true ->
   natural_aligned natural_alignment t = true ->
@@ -3060,6 +3067,7 @@ Proof.
   intros; rewrite andp_comm; apply add_andp; entailer!.
   apply malloc_compatible_field_compatible; auto.
 Qed.
+*)
 
 Lemma gvar_eval_var: forall i t v rho,
   gvar_denote i v rho -> eval_var i t rho = v.
@@ -3106,9 +3114,10 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
     | |- _ |-- ?P * _ => rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc end;
   try cancel_frame.
 
-Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
+(*Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
+*)
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;

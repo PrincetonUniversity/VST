@@ -832,8 +832,11 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   Use \lstinline{forward_i$$f $Q$}, where $Q$ is
 \label{refcard:forward-if}
   the \emph{join postcondition}, the precondition of
-  statement $s_3$.
+  statement $s_3$.  $Q$ may be a full assertion
+  (environ$\rightarrow$mpred), or it may be just a \lstinline{Prop},
+  in which case it will be \emph{added} to the current precondition.
 \item $\mathbf{if}\,e\,\mathbf{then}\,s_1\,\mathbf{else}\,s_2;\}\ldots$
+  \newline
   When the if-statement appears at the end of a block, so the
   postcondition is already known, you can do \lstinline{forward_if.}
   That is, you don't need to supply a join postcondition if
@@ -841,28 +844,22 @@ just use \lstinline{forward}, and the error message will make a suggestion.
   unification variables.  You can
   \lstinline{unfold abbreviate in POSTCONDITION} to see.
 
+  When one (or both) of your then/else branches
+  exits by \lstinline{break}, \lstinline{continue}, or \lstinline{return}
+  then you don't need to supply a join postcondition.
+
 \item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (no \lstinline{break} statements in $s$)\newline
   You write \lstinline{forward_while $Q$}, where $Q$ is a loop invariant.
   See \autoref{refcard:forward-while}.
 
 \item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (with \lstinline{break} statements in $s$)\newline
-  You must treat this as if it were $\mathbf{for}\,(;e;)~ s$, and use the
-  \lstinline{forward_for} tactic; see below.
+  You must treat this as if it were $\mathbf{for}\,(;e;)~ s$; see below.
 
-\item $\mathbf{for}\,(e_1;i<e_2;i++)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
-  If $e_2$ is loop-invariant, you may be able to use
-  \lstinline{forward_for_simple_bound}; see \autoref{refcard:for}.
-
-\item $\mathbf{for}\,(e_1;e_2;e_3)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
-  Use \lstinline{forward_for $Q$ $Q'$}, where $Q$ is the loop invariant
-  and $Q'$ is the assertion that goes right before the \emph{increment}
-  command, $e_3$. See \autoref{refcard:for-general}.
-
-\item $\mathbf{for}\,(e_1;e_2;e_3)~ s; \ldots $\newline
-  If $s$ contains \lstinline{break} statements \emph{and} there are more
-  commands after the loop, you will need to write
-  \lstinline{forward_for $Q$ $Q'$ $R$}, where $Q$ and $Q'$ are as above,
-  and $R$ is the join-postcondition. See \autoref{refcard:for-general}.
+\item $\mathbf{for}\,(e_1;e_2;e_3)~ s$ \newline
+  Use a tactic for for-loops:\newline
+  \lstinline{forward_for_simple_bound} (\autoref{refcard:for}), \newline
+  \lstinline{forward_for} (\autoref{refcard:for-general-iter}), or \newline
+  \lstinline{forward_loop} (\autoref{refcard:for-general}).
 \end{itemize}
 
 \chapter{While loops}
@@ -3137,15 +3134,28 @@ unsigned sumarray(unsigned a[], int n) {   /* sumarray2.c */
 \vspace{-16pt}
 Also see \file{progs/verif\_min.v} for several approaches to the specification/verification of another for-loop.
 
-\ychapter{For loops (general case)}{}
-\label{refcard:for-general}
+\ychapter{For loops (general iterators)}{}
+\label{refcard:for-general-iter}
 
+\textbf{\emph{This tactic is deprecated; use \lstinline{forward_loop} instead; see the next chapter.}}
+
+{\small
 The C-language \textsf{for} loop has the general form,
 \lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
+If your for-loop has an iteration variable that is tested by the $\mathit{test}$
+and adjusted by the $\mathit{incr}$, then you can probably use
+\lstinline{forward_for}, described in this chapter.  If not,
+use \lstinline{forward_loop} (see the next chapter).
+
 Let \textit{Inv} be the loop invariant, established by the
 initializer and preserved
 by the body-plus-increment.  Let \textit{PreInc} be
 the assertion just before the increment.
+Both \textit{Inv} and \textit{PreInc}
+have type $A\rightarrow\mathsf{environ}\rightarrow\mathsf{mpred}$,
+where $A$ is the Coq type of the abstract values carried by your
+iteraction variable; typically this is just \lstinline{Z}.
+
 \textit{Post} is the join-postcondition of the loop;
 you don't need to provide it if \emph{either} (1) there are
 no \lstinline{break} statements in the loop, or (2)
@@ -3153,11 +3163,12 @@ the postcondition is already provided in your proof context
 (typically because a close-brace follows the entire loop).
 Depending on whether you need \emph{Post}, verify the loop with,
 
-\noindent\lstinline{forward_for $\mathit{Inv}$ $\mathit{PreInc}$.}\qquad or\qquad\lstinline{forward_for $\mathit{Inv}$ $\mathit{PreInc}$ $\mathit{Post}$.}
+\noindent\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$.}\qquad or\newline
+\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$ break: $\mathit{Post}$.}
 
-This is demonstrated in the lemma
-\lstinline{body_sumarray_alt} in
-the file \linebreak \file{progs/verif\_sumarray2.v}.
+This is demonstrated in
+\lstinline{body_sumarray_alt} from
+\file{progs/verif\_sumarray2.v}.
 
 \begin{lstlisting}
 unsigned sumarray(unsigned a[], int n) {
@@ -3173,10 +3184,35 @@ unsigned sumarray(unsigned a[], int n) {
   return s;
 }
 \end{lstlisting}
+}
 
+\ychapter{Loops (fully general)}{}
+\label{refcard:for-general}
 
-The \textit{Inv} and \textit{PreInc} should have type $A\rightarrow \mathrm{environ}\rightarrow\mathrm{mpred}$, where $A$ is the type of some iteration-dependent quantity (in this example, \textsf{Z}, to hold the value of loop iteration variable \textit{i}), and $\mathrm{environ}\rightarrow\mathrm{mpred}$
-is the usual type of assertions.
+The C-language \textsf{for} loop has the general form,
+\lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
+
+The C-language \textsf{while} loop with \lstinline{break} and \lstinline{continue} is equivalent to a \textsf{for} loop with empty $\mathit{init}$ and
+$\mathit{incr}$.
+
+The C-language infinite-loop, written \ \ \lstinline{for(;;)$c$}\ \ 
+or \ \ \lstinline{while(1)$c$}\ \  is also a form of the for-loop.
+
+The most general tactic for proving any of these loops is,\newline
+\lstinline{forward_loop $\mathit{Inv}$ continue: $\mathit{PreInc}$ break: $\mathit{Post}$}.
+
+The assertion $\mathit{Inv}: \mathsf{environ->mpred}$ is the loop invariant.\newline
+$\mathit{PreInc}: \mathsf{environ->mpred}$ is the invariant just before the $\mathit{incr}$.\newline
+The assertion $\mathit{Post}: \mathsf{environ->mpred}$ is the postcondition
+of the loop.
+
+If your $\mathit{incr}$ is empty (or Sskip),
+or if the $\mathit{body}$ has no \lstinline{continue} statements,
+you can omit \ \ \lstinline{continue: $\mathit{PreInc}$}.
+
+If your postcondition is already fully determined (POSTCOND contains no unification variables), then you can omit \ \ \lstinline{break: $\mathit{Post}$}.
+
+If you're not sure whether to omit the \lstinline{break:} or \lstinline{continue:} assertions, just try \lstinline{forward_loop $\mathit{Inv}$} without them, and Floyd will advise you.
 
 
 \chapter{Manipulating preconditions}
@@ -4000,23 +4036,25 @@ The C library's \lstinline|malloc| and \lstinline|free| functions
 have these specifications:
 \begin{lstlisting}
 DECLARE _malloc
-   WITH n:Z
-   PRE [ 1%positive OF tuint ] (* parameter 1 has type unsigned int *)
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp
-            else (malloc_token Tsh n p * memory_block Tsh n p)).
+  WITH cs: compspecs, t:type
+  PRE [ 1%positive OF tuint ]
+    PROP (0 <= sizeof t <= Int.max_unsigned;
+          complete_legal_cosu_type t = true;
+          natural_aligned natural_alignment t = true)
+    LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+    SEP ()
+  POST [ tptr tvoid ] EX p:_,
+    PROP ()
+    LOCAL (temp ret_temp p)
+    SEP (if eq_dec p nullval then emp
+        else (malloc_token Tsh t p * data_at_ Tsh t p)).
 
 DECLARE _free
-   WITH p:val, n:Z
+   WITH cs: compspecs, t: type, p:val
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
-       SEP (malloc_token Tsh n p; memory_block Tsh n p)
+       SEP (malloc_token Tsh t p; data_at_ Tsh t p)
     POST [ Tvoid ]
        PROP ()
        LOCAL ()

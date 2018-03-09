@@ -45,15 +45,15 @@ Proof.
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
-            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
+            malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!. thaw FR0. cancel. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; trivial. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   { subst v; clear Hv. rewrite if_true; trivial.
     forward. entailer!.
   }
@@ -72,7 +72,7 @@ Proof.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    rewrite data_at__memory_block. simpl. entailer!. 
+    fix_hmacdrbg_compspecs.  apply derives_refl.
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
   (*{ rewrite H, int_add_repr_0_r; simpl.

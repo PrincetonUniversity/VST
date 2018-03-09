@@ -399,6 +399,28 @@ Proof.
 intros. rewrite Zlength_correct. omega.
 Qed.
 
+(** START of tactics copied from val_lemmas.v *)
+Definition Zlength' := @Zlength.
+
+Ltac pose_Zlength_nonneg1 A :=
+     lazymatch goal with
+      | H:  0 <= Zlength A |- _ => idtac
+      | H:  0 <= Zlength A /\ _ |- _ => idtac
+      | |- _ => pose proof (Zlength_nonneg A)
+     end;  change (Zlength A) with (Zlength' _ A) in *.
+
+Ltac pose_Zlength_nonneg :=
+ repeat
+  match goal with
+  | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
+  | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
+(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
+ end;
+  unfold Zlength' in *.
+(** END of tactics copied from val_lemmas.v *)
+
+Ltac list_solve := autorewrite with sublist; pose_Zlength_nonneg; omega.
+
 Definition Znth {X} n (xs: list X) (default: X) :=
   if (zlt n 0) then default else nth (Z.to_nat n) xs default.
 
@@ -1230,10 +1252,10 @@ subst mid'.
 apply sublist_rejoin; auto.
 Qed.
 
-Hint Rewrite @sublist_nil' using (autorewrite with sublist; omega): sublist.
+Hint Rewrite @sublist_nil' using list_solve: sublist.
 Hint Rewrite @app_nil_l : sublist.
 Hint Rewrite @Zlength_rev : sublist.
-Hint Rewrite @sublist_rejoin' using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_rejoin' using list_solve : sublist.
 
 Lemma subsub1:
  forall a b : Z, (a-(a-b)) = b.
@@ -1415,27 +1437,39 @@ Hint Rewrite @list_repeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
 Hint Rewrite @Zlength_app: sublist.
 Hint Rewrite @Zlength_map: sublist.
-Hint Rewrite @Zlength_list_repeat using (autorewrite with sublist; omega): sublist.
+Hint Rewrite @Zlength_list_repeat using list_solve: sublist.
 Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
-Hint Rewrite @Zlength_sublist using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @Zlength_sublist using list_solve: sublist.
 Hint Rewrite Z.max_r Z.max_l using omega : sublist.
 Hint Rewrite Z.min_r Z.min_l using omega : sublist.
 Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
-Hint Rewrite @sublist_sublist using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @sublist_app1 using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @sublist_app2 using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @sublist_list_repeat  using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @sublist_same using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_sublist using list_solve : sublist.
+Hint Rewrite @sublist_app1 using list_solve : sublist.
+Hint Rewrite @sublist_app2 using list_solve : sublist.
+Hint Rewrite @sublist_list_repeat  using list_solve : sublist.
+Hint Rewrite @sublist_same using list_solve : sublist.
 Hint Rewrite Z.add_simpl_l : sublist.
 Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
      Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
 Hint Rewrite Z.add_0_r : sublist.
-Hint Rewrite @app_Znth1 using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @app_Znth2 using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite @Znth_sublist using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @app_Znth1 using list_solve : sublist.
+Hint Rewrite @app_Znth2 using list_solve : sublist.
+Hint Rewrite @Znth_sublist using list_solve : sublist.
+Hint Rewrite @upd_Znth_Zlength using list_solve : sublist.
+
 
 Hint Rewrite @sublist_nil : sublist.
 
+
+Lemma list_repeat_app':
+ forall {A: Type} a b (x:A), 
+    0 <= a -> 0 <= b ->
+    list_repeat (Z.to_nat a) x ++ list_repeat (Z.to_nat b) x = list_repeat (Z.to_nat (a+b)) x.
+Proof.
+ intros.
+ rewrite list_repeat_app. f_equal.
+  apply Nat2Z.inj. rewrite <- Z2Nat.inj_add; auto.
+Qed.
 
 Lemma Znth_overflow:
   forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.
@@ -1523,3 +1557,45 @@ Proof.
 intros. unfold sublist.
 apply Forall_firstn. apply Forall_skipn. auto.
 Qed.
+
+Hint Rewrite @upd_Znth_app1 using list_solve : sublist.
+Hint Rewrite @upd_Znth_app2 using list_solve : sublist.
+
+Lemma map_list_repeat: forall {A B} (f: A->B) n (x:A), map f (list_repeat n x) = list_repeat n (f x).
+Proof.
+intros. induction n; simpl; f_equal; auto.
+Qed.
+Hint Rewrite @map_list_repeat : sublist.
+
+Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
+  0 <= lo <= hi ->
+  hi <= Zlength l ->
+  Zlength (sublist lo hi l) = hi - lo.
+Proof.
+  intros.
+  unfold sublist.
+  rewrite Zlength_firstn.
+  rewrite Z.max_r by omega.
+  rewrite Z.min_l; auto.
+  rewrite Zlength_skipn.
+  rewrite (Z.max_r 0 lo) by omega.
+  rewrite Z.max_r by omega.
+  omega.
+Qed.
+
+Lemma Zlength_sublist_incorrect: forall {A} (l: list A) (lo hi: Z),
+  0 <= lo < hi ->
+  hi > Zlength l ->
+  Zlength (sublist lo hi l) < hi - lo.
+Proof.
+  intros.
+  unfold sublist.
+  rewrite Zlength_firstn.
+  rewrite Z.max_r by omega.
+  assert (Zlength (skipn (Z.to_nat lo) l) < hi - lo); [| rewrite Z.min_r; omega].
+  rewrite Zlength_skipn.
+  rewrite (Z.max_r 0 lo) by omega.
+  apply Z.max_lub_lt; omega.
+Qed.
+
+    

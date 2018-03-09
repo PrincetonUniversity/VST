@@ -858,7 +858,7 @@ Hint Resolve @andp_later_derives @sepcon_later_derives @sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Notation " a 'OF' ta " := (a%type,ta%type) (at level 100, only parsing): formals.
+Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
 Delimit Scope formals with formals.
 
 Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)
@@ -1434,14 +1434,14 @@ Proof.
   apply andp_derives; auto.
   unfold LOCALx.
   autorewrite with subst norm.
-  apply andp_derives; auto.
+  apply andp_derives; auto; try apply derives_refl.
   induction Q; simpl fold_right.
   + autorewrite with subst norm; auto.
   + destruct a; [if_tac | ..];
     autorewrite with subst norm.
     - eapply derives_trans; [| exact IHQ].
       rewrite local_lift2_and.
-      apply andp_left2; auto.
+      apply andp_left2; apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold locald_denote.
@@ -1454,22 +1454,22 @@ Proof.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
 Qed.
 
 Fixpoint iota_formals (i: ident) (tl: typelist) :=

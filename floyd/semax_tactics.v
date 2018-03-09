@@ -136,19 +136,6 @@ match goal with
  | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
 end.
 
-(*
-Ltac simplify_Delta_at DS Delta D :=
- match D with
- | _ => unfold D
- | _ => simplify_func_tycontext D
- | mk_tycontext ?a ?b ?c ?d ?e =>
-     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
-     change e with (@abbreviate (PTree.t funspec) e) in DS;
-     let E := fresh "Delta" in set (E := mk_tycontext a b c d DS);
-     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in E
- | 
- end.
-*)
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
@@ -278,23 +265,14 @@ end.
 
 Ltac abbreviate_semax :=
  match goal with
+ | |- semax _ FF _ _ => apply semax_ff
+ | |- semax _ (PROPx (False::_) _) _ _ => Intros; contradiction
  | |- semax _ _ _ _ =>
   simplify_Delta;
   repeat match goal with
   | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
   end;
   force_sequential;
-(*  match goal with
-  | P := @abbreviate ret_assert _ |- semax _ _ _ ?Q => constr_eq P Q
-  | |- _ => 
-    repeat match goal with
-    | P := @abbreviate ret_assert _ |- _ => subst P
-    end;
-    match goal with |- semax _ _ _ ?P => 
-       abbreviate P : ret_assert as POSTCONDITION
-    end
-  end;
-*)
   match goal with |- semax _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>
@@ -421,3 +399,18 @@ Ltac find_statement_in_body f reassoc pat :=
       in let body := reassoc body
       in let S := pat body
       in exact S.
+
+Ltac check_POSTCONDITION' P :=
+    lazymatch P with
+    | context [bind_ret] =>
+         fail 100 "Your POSTCONDITION is messed up; perhaps you inadvertently did something like 'simpl in *' that changes it into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' to inspect it"
+    | _ => idtac
+    end.
+
+Ltac check_POSTCONDITION :=
+  match goal with
+  | P := ?P' |- semax _ _ _ ?P'' =>
+     constr_eq P P''; check_POSTCONDITION' P'
+  | |- semax _ _ _ ?P => check_POSTCONDITION' P
+  | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
+  end.

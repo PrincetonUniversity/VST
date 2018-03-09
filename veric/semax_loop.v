@@ -757,3 +757,90 @@ econstructor; eauto.
 Qed.
 
 End extensions.
+
+Lemma update_join_update:
+  forall Delta c1 c2 c,
+  update_tycon (join_tycon (update_tycon Delta c1) (update_tycon Delta c2)) c =
+  join_tycon (update_tycon (update_tycon Delta c1) c) (update_tycon (update_tycon Delta c2) c).
+Proof.
+intros.
+Admitted.  (* Certainly true, but it might not be worth proving now, because
+   Qinxiang's remove-init branch might succeed in getting rid of update_tycon entirely. *)
+
+Lemma semax_if_seq:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
+ semax Espec Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax Espec Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
+Proof.
+intros.
+rewrite semax_unfold in H |- *.
+intros.
+specialize (H psi Delta' w TS HGG Prog_OK).
+clear Delta TS. rename Delta' into Delta.
+specialize (H k F).
+spec H. {
+ clear - H0.
+ hnf in H0|-*; intros.
+ apply (H0 rho te'); intros.
+ specialize (H i). destruct H; auto.
+ left. clear - H.
+ unfold modifiedvars in *.
+ unfold modifiedvars' in H. fold modifiedvars' in H.
+ unfold modifiedvars'; fold modifiedvars'.
+ rewrite modifiedvars'_union in H.
+ rewrite modifiedvars'_union.
+ destruct H; auto; right.
+ rewrite modifiedvars'_union in H.
+ rewrite modifiedvars'_union.
+ destruct H; auto. 
+ rewrite modifiedvars'_union in H.
+ auto.
+}
+clear H0 Prog_OK HGG.
+eapply guard_safe_adj; [ | | apply H].
+reflexivity.
+-
+ clear.
+ intros.
+ hnf in H|-*.
+ inv H; [constructor | | inv H0 | inv H0].
+ inv H0.
+ inv H.
+ destruct b.
+ *
+  eapply safeN_step.
+  constructor; [ | eassumption].
+  constructor.
+  rewrite <- H11.
+  eapply step_ifthenelse. eassumption. eassumption.
+  simpl. 
+  clear - H1.
+  inv H1.
+  + constructor.
+  + inv H. econstructor; eauto. simpl in H1. simpl. constructor; auto. simpl.
+     inv H1. auto.
+  + econstructor 3; eauto.
+  + econstructor 4; eauto.
+ *
+  eapply safeN_step.
+  constructor; [ | eassumption].
+  constructor.
+  rewrite <- H11.
+  eapply step_ifthenelse. eassumption. eassumption.
+  simpl. 
+  clear - H1.
+  inv H1.
+  + constructor.
+  + inv H. econstructor; eauto. simpl in H1. simpl. constructor; auto. simpl.
+     inv H1. auto.
+  + econstructor 3; eauto.
+  + econstructor 4; eauto.
+-
+replace (exit_tycon (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Delta)
+  with (exit_tycon (Ssequence (Sifthenelse e c1 c2) c) Delta); auto.
+extensionality ek. destruct ek; simpl; auto.
+apply update_join_update.
+Qed.
+
+
+

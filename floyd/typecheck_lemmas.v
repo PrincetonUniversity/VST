@@ -29,7 +29,7 @@ Proof.
 intros.
 unfold tc_bool.
 destruct b.
-apply pred_ext; normalize.
+apply pred_ext; normalize; apply derives_refl.
 apply pred_ext.  apply @FF_left.
 normalize. inv H.
 Qed.

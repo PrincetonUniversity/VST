@@ -465,7 +465,7 @@ eapply semax_post_flipped'.
         unfold data_block.
         rewrite sublist_nil, sublist_same; trivial.
           simpl app. Time entailer!. (*6 versus 3.1 -- penalty?*)
-          rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
+          rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. apply derives_refl.
           subst IPADcont. do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. trivial.
       }
       { rename H into I.
@@ -493,9 +493,6 @@ eapply semax_post_flipped'.
            with a residual subgoal thats more complex to discharge*)
         Time forward. (*5.8 versus 4.8*) (*FIXME NOW: 19 secs*)
         Time entailer!. (*4.2 versus 5.6*)
-        rewrite field_at_data_at.
-        rewrite field_address_offset by auto with field_compatible.
-        simpl; rewrite Ptrofs.add_zero.
         apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
       }
 *

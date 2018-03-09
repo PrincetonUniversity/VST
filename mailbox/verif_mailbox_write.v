@@ -57,11 +57,10 @@ Proof.
   forward_for_simple_bound N (EX i : Z, PROP ( )
    LOCAL (temp _i (vint B); lvar _available (tarray tint B) v_available;
    gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
-   SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
+   SEP (data_at Tsh (tarray tint B) (map (fun x => vint (if eq_dec x b0 then 0
      else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
    data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
    data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
-  { unfold N; computable. }
   { unfold N; computable. }
   { entailer!.
     rewrite upd_Znth_eq with (d := Vundef); simpl; [|rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; omega].
@@ -718,7 +717,6 @@ Proof.
                  else sepalg_list.list_join sh0 (make_shares shs lasts' a) sh) &&
               EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth a bufs Vundef)) (upto (Z.to_nat B))))).
   { unfold N; computable. }
-  { unfold N; computable. }
   { Exists (@nil nat) (@nil val).
     replace (map (fun i => if eq_dec (Znth i [] Vundef) Empty then b0 else Znth i lasts 0) (upto (Z.to_nat N)))
       with lasts.
@@ -739,7 +737,7 @@ Proof.
       replace (length lasts) with (Z.to_nat N).
       apply map_ext.
       intro; rewrite Znth_nil; destruct (eq_dec Vundef Empty); auto; discriminate.
-      { rewrite Zlength_correct in *; Omega0. } }
+      { rewrite Zlength_correct in *; rep_omega. } }
   - assert_PROP (Zlength comms = N) as Hcomms by entailer!.
     Intros t' h'.
     forward.
@@ -897,6 +895,7 @@ Proof.
         destruct (zlt (Zlength t') (Zlength t' + 1)); [|omega].
         rewrite !app_Znth2 by omega.
         rewrite Zminus_diag; replace (Zlength t') with (Zlength h'); rewrite Zminus_diag, !Znth_0_cons; auto.
+        apply derives_refl.
       + rewrite upd_Znth_diff' by (rewrite ?Zlength_map, ?Zlength_upto; auto).
         rewrite !Znth_map with (d' := N), !Znth_upto by (auto; omega).
         if_tac; if_tac; auto; try omega.

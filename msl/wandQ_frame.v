@@ -1,7 +1,7 @@
 Require Import VST.msl.seplog.
 Require Import VST.msl.alg_seplog.
 Require Import VST.msl.log_normalize.
-Require Import wand_demo.wand_frame.
+Require Import VST.msl.wand_frame.
 Local Open Scope logic.
 
 Lemma wandQ_frame_refine {A} {ND: NatDed A} {SL: SepLog A}: forall B C (P: B -> A) (f: C -> B),
@@ -27,7 +27,7 @@ Proof.
   intros.
   rewrite sepcon_comm.
   apply wand_sepcon_adjoint.
-  apply (allp_left _ a); auto.
+  apply (allp_left _ a); simpl. auto.
 Qed.
 
 Lemma wandQ_frame_ver {A} {ND: NatDed A} {SL: SepLog A}: forall B (P Q R: B -> A),
@@ -69,4 +69,19 @@ Proof.
   apply allp_right; intros a.
   apply (allp_left _ a).
   apply wand_frame_frame.
+Qed.
+
+Lemma sepcon_wandQ_eq {A} {ND: NatDed A} {SL: SepLog A}: forall B (P: B -> A) (Q: A) (a: B),
+  P a * (ALL b: B, P b -* P b * Q) = P a * Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + rewrite sepcon_comm.
+    apply wand_sepcon_adjoint.
+    apply (allp_left _ a).
+    auto.
+  + apply sepcon_derives; auto.
+    apply allp_right; intros.
+    apply wand_sepcon_adjoint.
+    rewrite sepcon_comm; auto.
 Qed.

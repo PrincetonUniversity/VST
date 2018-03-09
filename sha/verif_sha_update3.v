@@ -259,7 +259,7 @@ intros.
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
  set (k := 64-Zlength dd).
-assert (0 < k <= 64) by Omega1.
+assert (0 < k <= 64) by rep_omega.
 pose proof I.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.

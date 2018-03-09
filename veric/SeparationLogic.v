@@ -66,6 +66,8 @@ Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
+Inductive trust_loop_nocontinue : Prop := .
+
 (* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
          match v with
@@ -76,19 +78,19 @@ Definition denote_tc_iszero v : mpred :=
 
 Definition denote_tc_nonzero v : mpred :=
          match v with
-         | Vint i => if negb (Int.eq i Int.zero) then TT else FF
-         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
+         | Vint i => prop (i <> Int.zero)
+         | Vlong i =>prop (i <> Int64.zero)
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
      match v with
-     | Vint i1 => prop (is_true (Int.ltu i1 i))
+     | Vint i1 => prop (Int.unsigned i1 < Int.unsigned i)
      | _ => FF
      end.
 
 Definition denote_tc_lgt l v : mpred :=
      match v with
-     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
+     | Vlong l1 => prop (Int64.unsigned l1 < Int64.unsigned l)
      | _ => FF
      end.
 
@@ -116,11 +118,11 @@ Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
 Definition denote_tc_Zge z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -129,11 +131,11 @@ Definition denote_tc_Zge z v : mpred :=
 Definition denote_tc_Zle z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -151,16 +153,10 @@ Definition denote_tc_samebase v1 v2 : mpred :=
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
 match v1, v2 with
-          | Vint n1, Vint n2 => prop (is_true (negb
-                                   (Int.eq n1 (Int.repr Int.min_signed)
-                                    && Int.eq n2 Int.mone)))
-          | Vlong n1, Vlong n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int64.eq n2 Int64.mone)))
+          | Vint n1, Vint n2 => prop (~(n1 = Int.repr Int.min_signed /\ n2 = Int.mone))
+          | Vlong n1, Vlong n2 => prop (~(n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone))
           | Vint n1, Vlong n2 => TT
-          | Vlong n1, Vint n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int.eq n2 Int.mone)))
+          | Vlong n1, Vint n2 => prop (~ (n1 = Int64.repr Int64.min_signed  /\ n2 = Int.mone))
           | _ , _ => FF
         end.
 
@@ -716,6 +712,15 @@ Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
      RA_return := r |}
  end.
 
+Definition loop1a_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := FF;
+     RA_return := r |}
+ end.
+
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -1207,6 +1212,17 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta  Q body (loop1_ret_assert Q' R) ->
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R.
+
+Axiom semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ semax Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ semax Delta P (Sloop body incr) R.
+
+Axiom semax_if_seq:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
+ semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
 
 (* THIS RULE FROM semax_switch *)
 

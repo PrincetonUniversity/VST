@@ -7,3 +7,9 @@ int twice (int n) {
   }
   return n;
 }
+
+int f(int x) { switch (x) {
+   case 1: return 1; break;
+   case 2: return 1; break;
+   default: return 1; }
+}

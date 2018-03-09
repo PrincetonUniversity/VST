@@ -13,19 +13,26 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
   start_function.
-  forward_call n.
+  forward_call (* p = malloc(n); *)
+     t.
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh n p * memory_block Tsh n p)).
-  - if_tac; entailer!.
-  - forward_call tt.
+   SEP (malloc_token Tsh t p * data_at_ Tsh t p)).
+*
+  if_tac.
+    subst p. entailer!.
+    entailer!.
+*
+    forward_call tt.
     contradiction.
-  - if_tac.
-    + forward. subst p. discriminate.
+*
+    if_tac.
+    + forward. subst p. congruence.
     + Intros. forward. entailer!.
-  - forward. Exists p; entailer!.
+*
+  forward. Exists p; entailer!.
 Qed.
 
 Lemma body_memset : semax_body Vprog Gprog f_memset memset_spec.
@@ -85,6 +92,14 @@ Qed.
 
 Opaque upto.
 
+Lemma malloc_compatible_isptr:
+  forall {cs: compspecs} t p, malloc_compatible (sizeof t) p -> isptr p.
+Proof.
+intros.
+hnf in H. destruct p; try contradiction; simpl; auto.
+Qed.
+Hint Resolve malloc_compatible_isptr.
+
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.
   start_function.
@@ -96,21 +111,19 @@ Proof.
          EX bufs : list val, !!(Zlength bufs = i /\ Forall isptr bufs) &&
            data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) buf *
            fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) bufs) *
-           fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs))).
+           fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
   { unfold B, N; computable. }
   { unfold B, N; computable. }
   { entailer!.
     Exists ([] : list val); simpl; entailer!. }
-  { forward_call (sizeof tbuffer).
-    { simpl; computable. }
+  { forward_call tbuffer.
+    { split3; simpl; auto; computable. }
     Intros b bufs.
-    rewrite malloc_compat; auto; Intros.
-    rewrite memory_block_data_at_; auto.
     assert_PROP (field_compatible tint [] b) by entailer!.
     forward_call (Tsh, tbuffer, b, 0, 1).
     { repeat split; simpl; auto; try computable.
-      destruct H4 as [? [? [? [? ?]]]]; auto. }
-    clear H4.
+      destruct H3 as [? [? [? [? ?]]]]; auto. }
+    clear H3.
     forward.
     rewrite upd_init; auto; try omega.
     entailer!.
@@ -147,25 +160,24 @@ Proof.
            fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef)
              (Znth r g Vundef) (Znth r g0 Vundef) (Znth r g1 Vundef) (Znth r g2 Vundef) bufs
              (Znth r shs Tsh) gsh2 []) (upto (Z.to_nat i))) *
-           fold_right sepcon emp (map (malloc_token Tsh (sizeof tlock)) locks)) *
+           fold_right sepcon emp (map (malloc_token Tsh tlock) locks)) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2) *
-           fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
+           fold_right sepcon emp (map (malloc_token Tsh tint) comms);
          EX reads : list val, !!(Zlength reads = i) &&
            data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) reading *
            fold_right sepcon emp (map (data_at_ Tsh tint) reads) *
-           fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) reads);
+           fold_right sepcon emp (map (malloc_token Tsh tint) reads);
          EX lasts : list val, !!(Zlength lasts = i) &&
            data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) last_read *
            fold_right sepcon emp (map (data_at_ Tsh tint) lasts) *
-           fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) lasts);
+           fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
          @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs buf;
          EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
            @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs Vundef);
          fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
-         fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs))).
-  { unfold N; computable. }
+         fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
   { unfold N; computable. }
   { Exists ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val)
       ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
@@ -173,14 +185,14 @@ Proof.
     - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; omega).
       simpl; cancel. }
   { Intros locks comms g g0 g1 g2 reads lasts sh.
-    forward_malloc tint c.
+    forward_call tint.  split3; simpl; auto; computable. Intros c.
     forward.
     forward.
-    forward_malloc tint rr.
+    forward_call tint.  split3; simpl; auto; computable. Intros rr.
     forward.
-    forward_malloc tint ll.
+    forward_call tint.  split3; simpl; auto; computable. Intros ll.
     forward.
-    forward_malloc tlock l.
+    forward_call tlock.  split3; simpl; auto; computable. Intros l.
     rewrite <- lock_struct_array.
     forward.
     eapply (ghost_alloc (Tsh, vint 1)); auto with init.
@@ -222,19 +234,21 @@ Proof.
     go_lower.
     apply andp_right; [apply prop_right; split; auto; omega|].
     apply andp_right; [apply prop_right; repeat split; auto|].
-    rewrite !sepcon_andp_prop'; apply andp_right; [apply prop_right; rewrite Forall_app; repeat split; auto;
-      omega|].
-    rewrite !sepcon_andp_prop; repeat (apply andp_right; [apply prop_right; auto; try omega|]).
+    assert_PROP (isptr ll /\ isptr rr /\ isptr c /\ isptr l) by (entailer!; eauto).
+    rewrite prop_true_andp
+      by  (rewrite ?Forall_app; repeat split; auto; try omega; repeat constructor; intuition).
+    rewrite !prop_true_andp
+      by  (rewrite ?Forall_app; repeat split; auto; try omega; repeat constructor; intuition).
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try omega; simpl.
     change (upto 1) with [0]; simpl.
     rewrite Z2Nat.id, Z.add_0_r by omega.
     rewrite !Znth_app1 by auto.
-    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; Omega0).
+    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_omega).
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
-    rewrite !sem_cast_neutral_ptr by auto.
+    rewrite !sem_cast_neutral_ptr by intuition.
     erewrite map_ext_in; [cancel|].
-    { rewrite sepcon_comm; apply sepcon_derives; auto. }
+    { rewrite sepcon_comm; apply sepcon_derives; auto; apply derives_refl. }
     intros; rewrite In_upto, <- Zlength_correct in *.
     rewrite !app_Znth1; try omega; reflexivity. }
   Intros locks comms g g0 g1 g2 reads lasts sh.
@@ -259,26 +273,25 @@ Proof.
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
   forward_call (r, reading, last_read, reads, lasts, sh1).
-  eapply semax_seq'; [|apply semax_ff].
+(*  eapply semax_seq'; [|apply semax_ff]. *)
   set (c := Znth r comms Vundef).
   set (l := Znth r locks Vundef).
-  eapply semax_pre with (P' := EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
+  forward_loop (EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
     LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read; 
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at Tsh tint Empty (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
-         data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh (sizeof tint) arg;
+         data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh tint arg;
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr tlock) N) locks lock;
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
-         ghost_var gsh1 (vint b0) g0)).
+         ghost_var gsh1 (vint b0) g0))
+  break: (@FF (environ->mpred) _).
   { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.
     unfold latest_read; auto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros b0 h.
-  forward.
   subst c l; subst; forward_call (r, reading, last_read, lock, comm, reads, lasts, locks, comms, bufs,
     sh, sh1, sh2, b0, g, g0, g1, g2, h).
   { cancel. }
@@ -289,8 +302,8 @@ Proof.
   forward.
   forward_call (r, reading, reads, sh1).
   { cancel. }
-  go_lower.
-  Exists b (h ++ [(t, AE e Empty)]) v; entailer'; cancel.
+  entailer!.
+  Exists b (h ++ [(t, AE e Empty)]) v; entailer!.
 Qed.
 
 Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
@@ -298,8 +311,7 @@ Proof.
   start_function.
   forward_call (writing, last_given, last_taken).
   forward.
-  eapply semax_seq'; [|apply semax_ff].
-  eapply semax_pre with (P' := EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
+  forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; ~In b0 lasts)
    LOCAL (temp _v (vint v); temp _arg arg; gvar _writing writing; gvar _last_given last_given;
    gvar _last_taken last_taken; gvar _lock lock; gvar _comm comm; gvar _bufs buf)
@@ -314,9 +326,10 @@ Proof.
      ghost_var gsh1 (vint (Znth r0 lasts (-1))) (Znth r0 g2 Vundef)) (upto (Z.to_nat N)));
    fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
-     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
+     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B)))))
+  break: (@FF (environ->mpred) _).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    { split. unfold B, N.  computable. split; try omega. repeat constructor; computable. }
+    { split. unfold B, N.  computable. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
@@ -341,10 +354,8 @@ Proof.
        rewrite Heq; auto; [|omega].
       apply mpred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
-  forward.
   forward_call (writing, last_given, last_taken, b0, lasts).
   { cancel. }
   Intros b.
@@ -368,7 +379,7 @@ Proof.
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
     (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs Vundef))) (upto (Z.to_nat B)))).
   { go_lowerx; eapply derives_trans with (Q := _ * _);
-      [|erewrite replace_nth_sepcon, upd_Znth_triv; eauto].
+      [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
     rewrite Znth_map', Znth_upto; [|simpl; unfold B, N in *; omega].
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
@@ -379,7 +390,7 @@ Proof.
   Intros x; destruct x as (lasts', h').
   rewrite sepcon_map; Intros.
   forward.
-  unfold loop2_ret_assert; Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
+  Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
 Qed.
 
@@ -516,17 +527,16 @@ Proof.
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N lasts));
-        fold_right sepcon emp (map (malloc_token Tsh 4) comms);
-        fold_right sepcon emp (map (malloc_token Tsh 8) locks);
-        fold_right sepcon emp (map (malloc_token Tsh 4) bufs);
-        fold_right sepcon emp (map (malloc_token Tsh 4) reads);
-        fold_right sepcon emp (map (malloc_token Tsh 4) lasts);
+        fold_right sepcon emp (map (malloc_token Tsh tint) comms);
+        fold_right sepcon emp (map (malloc_token Tsh tlock) locks);
+        fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs);
+        fold_right sepcon emp (map (malloc_token Tsh tint) reads);
+        fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs Vundef)) (sublist i N shs)))).
-  { unfold N; computable. }
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. }
   { Intros sh'.
-    forward_malloc tint d.
+    forward_call tint. split3; simpl; auto; computable. Intros d.
     forward.
     get_global_function'' _reader; Intros.
     apply extract_exists_pre; intros reader_.
@@ -550,7 +560,7 @@ Proof.
               g, g0, g1, g2) := x in
         fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1; 
           readable_share sh2; isptr (Znth r comms Vundef)]) && emp;
-          data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
+          data_at Tsh tint (vint r) arg; malloc_token Tsh tint arg;
           data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
           data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
           data_at_ Tsh tint (Znth r reads Vundef); data_at_ Tsh tint (Znth r lasts Vundef);
@@ -560,6 +570,8 @@ Proof.
           ghost_var gsh1 (vint 1) g0]).
     - apply andp_right.
       { entailer!. }
+      unfold spawn_pre. simpl fst in *. simpl snd in *.
+      assert_PROP (isptr d) by (entailer!; eauto).
       unfold spawn_pre, PROPx, LOCALx, SEPx.
       go_lowerx.
       rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
@@ -596,10 +608,9 @@ Proof.
       Exists 0; fast_cancel.
       { match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; unfold N; omega end. }
     - Exists sh1'; entailer!. }
-  eapply semax_seq'; [|apply semax_ff].
-  eapply semax_loop; [|forward; apply drop_tc_environ].
-  forward.
-  entailer!.
+    forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
+    entailer!.
+    forward. entailer!.
 Qed.
 
 Definition extlink := ext_link_prog prog.

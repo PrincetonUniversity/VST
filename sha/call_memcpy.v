@@ -377,7 +377,7 @@ eapply semax_pre_post';
 *
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.
+ apply andp_derives; auto.  apply derives_refl.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
@@ -610,7 +610,7 @@ eapply semax_pre_post';
 *
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.
+ apply andp_derives; auto.  apply derives_refl.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.

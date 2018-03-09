@@ -102,7 +102,9 @@ Lemma view_shift_assert_later : forall P Q PP (HPP : P |-- |>!!PP) (Hshift : PP 
 Proof.
   intros.
   rewrite (add_andp _ _ HPP).
-  repeat intro; eapply semax_extract_later_prop''; eauto.
+  repeat intro.
+   eapply semax_extract_later_prop''; eauto.
+  apply prop_derives.
   intro X; apply (Hshift X) in H.
   rewrite <- add_andp; auto.
 Qed.
@@ -148,9 +150,9 @@ Proof.
   apply mpred_ext.
   - assert_PROP (joins g1 g2) as Hjoin by (apply ghost_conflict).
     destruct Hjoin as (g & ?); Exists g; entailer!.
-    erewrite ghost_join; eauto.
+    erewrite ghost_join; eauto.  apply derives_refl.
   - Intros g.
-    erewrite ghost_join; eauto.
+    erewrite ghost_join; eauto.  apply derives_refl.
 Qed.
 
 Lemma ex_ghost_precise : forall p, precise (EX g : A, ghost g p).
@@ -179,7 +181,7 @@ Proof.
     Exists (p :: lp); rewrite !Zlength_cons, Z2Nat.inj_succ by apply Zlength_nonneg.
     rewrite (upto_app 1), map_app, sepcon_app; simpl.
     rewrite !Znth_0_cons; entailer!.
-    erewrite map_map, map_ext_in; eauto; intros; simpl.
+    erewrite map_map, map_ext_in; eauto; intros; simpl.  apply derives_refl.
     rewrite In_upto in *; rewrite !Znth_pos_cons by omega.
     rewrite Z.add_comm, Z.add_simpl_r; auto.
 Qed.
@@ -193,7 +195,7 @@ Proof.
   { apply Forall_repeat; auto. }
   apply derives_view_shift; Intros lp; Exists lp.
   rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto; entailer!.
-  erewrite map_ext_in; eauto; intros; simpl.
+  erewrite map_ext_in; eauto; intros; simpl.  apply derives_refl.
   rewrite Znth_repeat; auto.
 Qed.
 
@@ -392,8 +394,8 @@ Proof.
   intros; apply mpred_ext.
   - assert_PROP (joins v1 v2) as H by apply ghost_snap_conflict.
     destruct H as [v]; Exists v; entailer!.
-    erewrite ghost_snap_join; eauto.
-  - Intros v; erewrite ghost_snap_join; eauto.
+    erewrite ghost_snap_join; eauto.  apply derives_refl.
+  - Intros v; erewrite ghost_snap_join; eauto.  apply derives_refl.
 Qed.
 
 Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
@@ -408,7 +410,7 @@ Proof.
     unfold share in Hj; destruct (eq_dec sh Share.bot); [contradiction|].
     assert (sh' = sh) by (eapply sepalg.join_eq; eauto; apply bot_join_eq).
     destruct Hj; subst; entailer!.
-  - Intros; setoid_rewrite ghost_join; eauto.
+  - Intros; setoid_rewrite ghost_join; eauto.  apply derives_refl.
     simpl; rewrite eq_dec_refl; split.
     + apply bot_join_eq.
     + if_tac; auto; contradiction.
@@ -495,7 +497,7 @@ Proof.
   - assert_PROP (v1 = v2) by (apply master_inj; auto).
     subst; erewrite master_share_join; eauto; entailer!.
   - Intros; subst.
-    erewrite master_share_join; eauto.
+    erewrite master_share_join; eauto.  apply derives_refl.
 Qed.
 
 (* useful when we only want to deal with full masters *)
@@ -564,7 +566,7 @@ Qed.
 Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
 Proof.
   intros; apply derives_precise' with (EX g : share * A, ghost g p), ex_ghost_precise.
-  Intro v; Exists (sh, v); auto.
+  Intro v; Exists (sh, v); auto.  apply derives_refl.
 Qed.
 
 Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).
@@ -819,7 +821,7 @@ Proof.
     erewrite ghost_join; [entailer!|].
     repeat (split; simpl; auto).
   - Intros.
-    erewrite ghost_join; eauto.
+    erewrite ghost_join; eauto.  apply derives_refl.
     repeat (split; simpl; auto).
 Qed.
 
@@ -1089,11 +1091,11 @@ Proof.
     destruct (fst x); [destruct Hj1 as (_ & Heq); inv Heq | contradiction].
     assert (hist_sub sh h hr) by (rewrite <- completable_alt; auto).
     entailer!.
-    erewrite ghost_join; eauto.
+    erewrite ghost_join; eauto.  apply derives_refl.
     simpl; auto.
   - Intros h'.
     Exists h'; entailer!.
-    erewrite ghost_join; eauto.
+    erewrite ghost_join; eauto.  apply derives_refl.
     repeat (split; simpl; auto).
     rewrite completable_alt; auto.
 Qed.

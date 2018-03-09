@@ -145,7 +145,6 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   )
   SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents)))
           (offset_val (- sizeof tuint) p))).
-- pose proof (Int.unsigned_range (Int.shru (Int.repr tag) (Int.repr 10))). rep_omega.
 - (* precondition implies invariant: *)
   entailer!. f_equal. apply Int.repr_unsigned.
 - (* body preserves invariant: *)

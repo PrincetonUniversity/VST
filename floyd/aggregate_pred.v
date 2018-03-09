@@ -77,8 +77,10 @@ Lemma rangespec_shift: forall lo lo' len P P' p p',
 Proof.
   intros; apply pred_ext; apply rangespec_shift_derives;
   intros.
+  + erewrite H; eauto. 
+      apply derives_refl.
   + erewrite H; eauto.
-  + erewrite H; eauto.
+      apply derives_refl.
     omega.
 Qed.
 
@@ -419,7 +421,7 @@ Lemma struct_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (
 Proof.
   intros.
   apply pred_ext; eapply struct_pred_ext_derives; eauto;
-  intros; erewrite H0 by eauto; auto.
+  intros; erewrite H0 by eauto; auto;      apply derives_refl.
 Qed.
 
 Lemma struct_pred_not_member: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p,
@@ -771,7 +773,7 @@ Proof.
   assert (forall it, members_union_inj v1 it <-> members_union_inj v0 it)
     by (intro it; specialize (H0 it); tauto).
   apply pred_ext; eapply union_pred_ext_derives; auto;
-  intros; erewrite H1 by eauto; auto.
+  intros; erewrite H1 by eauto; apply derives_refl.
 Qed.
 
 Lemma union_pred_derives_const: forall m {A} (P: forall it, A it -> val -> mpred) p v R,

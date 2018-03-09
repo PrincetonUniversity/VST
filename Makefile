@@ -81,7 +81,8 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v #age_to.v
+  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v \
+  iter_sepcon.v ramification_lemmas.v wand_frame.v wandQ_frame.v #age_to.v
 
 SEPCOMP_FILES = \
   Address.v \
@@ -228,13 +229,9 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v Clightnotations.v unfold_data_at.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v \
+   bug_coq88dev.v
 #real_forward.v
-
-WAND_DEMO_FILES= \
-  wand_frame.v wandQ_frame.v wand_frame_tactic.v \
-  list.v list_lemmas.v verif_list.v \
-  bst.v verif_bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -245,6 +242,7 @@ PROGS_FILES= \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
+  dotprod.v strlib.v \
   verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
@@ -253,8 +251,9 @@ PROGS_FILES= \
   verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
-  verif_int_or_ptr.v verif_union.v verif_cast_test.v
-# verif_dotprod.v verif_insertion_sort.v
+  verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
+  verif_strlib.v
+# verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -359,7 +358,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c
+SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
@@ -406,7 +405,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6.1 or-else 8.7.0 or-else 8.7.1
+COQVERSION= 8.6.1 or-else 8.7.0 or-else 8.7.1 or-else 8.7.2
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -437,9 +436,11 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-travis: progs hmacdrbg sha mailbox
+travis: default_target progs sha hmac mailbox
 
-all: .loadpath version.vo $(FILES:.v=.vo) travis
+files: .loadpath version.vo $(FILES:.v=.vo)
+
+all: default_target files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

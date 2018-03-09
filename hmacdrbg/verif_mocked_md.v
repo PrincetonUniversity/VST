@@ -15,10 +15,13 @@ Proof.
   rewrite EMPTY_isptr. Intros. 
   forward. 
 freeze [0;1;2] FR1.
- forward_call (r3, 324).
-{ rewrite sepcon_comm. apply sepcon_derives. 
-  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve. rewrite data_at__memory_block. entailer!.
-  cancel. }
+ forward_call (Tstruct _hmac_ctx_st noattr, r3).
+{ rewrite sepcon_comm. apply sepcon_derives.
+  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve.
+  fix_hmacdrbg_compspecs.
+  apply derives_refl.
+  cancel.
+}
 forward. thaw FR1. 
   unfold_data_at 1%nat. cancel.
 Qed.
@@ -124,21 +127,21 @@ Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSp
 Proof.
   start_function.
 
-  forward_call (sizeof (Tstruct _hmac_ctx_st noattr)).
+  forward_call (Tstruct _hmac_ctx_st noattr).
   Intros vret.
 
   forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info;
    temp _ctx c; temp _hmac h)
       SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
-           memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
-           malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
+           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) vret;
+           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) vret *
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer2.
-      apply memory_block_valid_ptr. apply top_share_nonidentity. omega.
+      apply data_at_valid_ptr. apply top_share_nonidentity. compute. auto.
       entailer!.
   }
   { (*null*)
@@ -148,7 +151,7 @@ Proof.
   { destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
     forward. entailer!.
   }
-  rewrite memory_block_isptr. Intros.
+   Intros.
   unfold_data_at 1%nat.
   forward. forward. forward. Exists 0. simpl. entailer!.
   Exists vret. unfold_data_at 1%nat. entailer!.

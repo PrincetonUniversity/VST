@@ -510,6 +510,7 @@ Lemma BDY_update: forall
            (map Vint (map Int.repr contents)) additional; K_vector kv)))
      (stackframe_of f_mbedtls_hmac_drbg_update)).
 Proof. intros.
+  abbreviate_semax.
   destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
   rewrite da_emp_isptrornull.
 

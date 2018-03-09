@@ -664,7 +664,7 @@ Proof.
     destruct H1.
     - rewrite !data_at_rec_eq.
       generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H1; intros.
-      auto.
+      apply derives_refl.
     - rewrite data_at_rec_eq.
       rewrite memory_block_data_at_rec_default_val by auto.
       eapply derives_trans.
@@ -703,6 +703,7 @@ Proof.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
+        apply derives_refl.
       * rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.

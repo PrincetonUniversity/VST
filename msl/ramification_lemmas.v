@@ -172,7 +172,7 @@ Proof.
   apply exp_left; intro x; apply (exp_right x).
   apply wand_sepcon_adjoint.
   apply (allp_left _ x).
-  auto.
+  apply derives_refl.
 Qed.
 
 Lemma solve: forall {B} g l g' l' F,
@@ -205,7 +205,7 @@ Proof.
   intros.
   eapply derives_trans; [exact H |].
   apply sepcon_derives; [auto |].
-  apply (allp_left _ x); auto.
+  apply (allp_left _ x). apply derives_refl.
 Qed.
 
 Lemma trans: forall {B BG BL} g m l g' mG' mL' l' (fG: B -> BG) (fL: B -> BL),
@@ -233,7 +233,7 @@ Proof.
       rewrite sepcon_comm.
       apply wand_sepcon_adjoint.
       apply (allp_left _ (fG b)).
-      auto.
+      apply derives_refl.
 Qed.
 
 Lemma simple_trans: forall {B} g m l (g' m' l': B -> A),
@@ -268,7 +268,7 @@ Proof.
    apply modus_ponens_wand.
    rewrite sepcon_comm.
    rewrite -> wand_sepcon_adjoint.
-   apply allp_left with (f x). auto.
+   apply allp_left with (f x). apply derives_refl.
 Qed.
 
 Lemma split: forall {B} g1 g2 l1 l2 (g1' g2' l1' l2': B -> A),
@@ -285,10 +285,10 @@ Proof.
     rewrite <- (sepcon_assoc _ (l1' x)), (sepcon_assoc _ _ (l1' x)), (sepcon_comm _ (l1' x)), <- (sepcon_assoc _ (l1' x)), (sepcon_assoc _ _ (l2' x)).
     apply sepcon_derives.
     - apply wand_sepcon_adjoint.
-      apply (allp_left _ x); auto.
+      apply (allp_left _ x); apply derives_refl.
     - apply wand_sepcon_adjoint.
       apply (allp_left _ x).
-      auto.
+      apply derives_refl.
 Qed.
 
 (* Using split to prove frame will lead to a simpler proof. *)
@@ -332,7 +332,7 @@ Proof.
     apply sepcon_derives; auto.
   + intros x.
     apply wand_sepcon_adjoint.
-    apply (allp_left _ x); auto.
+    apply (allp_left _ x); apply derives_refl.
 Qed.
 
 Lemma exp_right: forall {T B} (a: B -> T) g l (g': T -> B -> A) (l': B -> A),
@@ -451,7 +451,7 @@ Proof.
   rewrite <- corable_sepcon_andp1 by auto.
   apply sepcon_derives; [auto |].
   rewrite andp_comm; apply imp_andp_adjoint.
-  apply (allp_left _ x); auto.
+  apply (allp_left _ x); apply derives_refl.
 Qed.
 
 Lemma trans: forall {B BG BL} g m l p pG pL g' mG' mL' l' (fG: B -> BG) (fL: B -> BL),

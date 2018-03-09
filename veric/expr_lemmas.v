@@ -276,7 +276,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; simpl in *;
     destruct v; try contradiction; 
-  try solve [eexists; simpl; eauto];
+  try solve [eexists; simpl; rewrite ?Hp; eauto];
  try (rewrite J in H); 
  try contradiction;
  try solve [
@@ -287,15 +287,14 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct H0 as [H0 H0'];
  try contradiction;
  simpl;
+
  first [rewrite (float_to_int_ok _ _ H5)
         | rewrite (float_to_intu_ok _ _ H5)
         | rewrite (single_to_int_ok _ _ H5)
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
-    [ eexists; reflexivity
-    | split; [apply Z.leb_le | apply Z.geb_le]; apply is_true_e; assumption ]];
-  simpl; rewrite Hp; eauto.
-
+    [ eexists; reflexivity |simpl in H0, H0'; omega];
+  simpl; rewrite Hp; eauto].
 }
 Opaque liftx.
 destruct H1. rewrite H1. auto.

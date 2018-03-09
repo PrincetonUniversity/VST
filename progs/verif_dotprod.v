@@ -20,18 +20,18 @@ Definition add_spec :=
   PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble]
       PROP ()
       LOCAL (temp _x x; temp _y y; temp _z z)
-      SEP (`(data_at_ Tsh (tarray tdouble 3)  x) ;
-             `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
-             `(data_at Tsh (tarray tdouble 3) (map Vfloat fz) z))
+      SEP (data_at_ Tsh (tarray tdouble 3)  x ;
+             data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
+             data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)
   POST [ tvoid ]
       PROP ()
       LOCAL ()
-      SEP (`(data_at Tsh (tarray tdouble 3) (map Vfloat (map2 Float.add fy fz)) x);
-             `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
-             `(data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
+      SEP (data_at Tsh (tarray tdouble 3) (map Vfloat (map2 Float.add fy fz)) x;
+             data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
+             data_at Tsh (tarray tdouble 3) (map Vfloat fz) z).
 
 Definition dotprod (fx fy : list float) : float :=
-  fold_right Float.add Float.zero (map2 Float.mul fx fy).
+  fold_left Float.add (map2 Float.mul fx fy) Float.zero .
 
 Definition dotprod_spec :=
  DECLARE _dotprod
@@ -39,22 +39,77 @@ Definition dotprod_spec :=
   PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble]
       PROP (0 <= n < Int.max_signed)
       LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
-      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
-             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))
+      SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
+             data_at Tsh (tarray tdouble n) (map Vfloat fy) y)
   POST [ tdouble ]
       PROP ()
       LOCAL (temp ret_temp (Vfloat (dotprod fx fy)))
-      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
-             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
+      SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
+             data_at Tsh (tarray tdouble n) (map Vfloat fy) y).
 
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [add_spec; dotprod_spec]).
 
-(*
-Lemma dotprod_one_more:
-  forall i f g, dotprod (i+1) f g = Float.add (dotprod i f g) (Float.mul (f i) (g i)).
-Admitted.
-*)
+Lemma map2_app:
+ forall (A B C: Type) (f: A -> B -> C) al al' bl bl',
+  Zlength al = Zlength bl ->
+  Zlength al' = Zlength bl' ->
+   map2 f (al ++ al') (bl ++ bl') = map2 f al bl ++ map2 f al' bl'.
+Proof.
+intros.
+rewrite !Zlength_correct in *.
+apply Nat2Z.inj in H. apply Nat2Z.inj in H0.
+revert bl H al' bl' H0; induction al; intros.
+*
+destruct bl; inv H.
+simpl. auto.
+*
+destruct bl.
+inv H.
+simpl.
+f_equal.
+auto.
+Qed.
+
+Lemma Zlength_map2: forall A B C (f: A -> B -> C) fy fz,
+  Zlength fy = Zlength fz -> Zlength (map2 f fy fz) = Zlength fy.
+Proof.
+intros.
+rewrite !Zlength_correct in *.
+apply Nat2Z.inj in H. f_equal.
+revert fz H; induction fy; destruct fz; intros; inv H.
+auto.
+simpl. f_equal; auto.
+Qed.
+
+Lemma Znth_map2:
+ forall A B C (f: A -> B -> C) (a: A) (b: B) (c: C) (al: list A) (bl: list B) i,
+  Zlength al = Zlength bl ->
+  0 <= i < Zlength al ->
+  Znth i (map2 f al bl) c = f (Znth i al a) (Znth i bl b).
+Proof.
+intros.
+rewrite !Zlength_correct in *.
+apply Nat2Z.inj in H. f_equal.
+unfold Znth.
+if_tac. omega.
+assert (Z.to_nat i < length al)%nat.
+rewrite <- (Nat2Z.id (length al)).
+apply Z2Nat.inj_lt; try omega.
+clear H0 H1.
+forget (Z.to_nat i) as j. clear i.
+revert al bl H H2; induction j; intros.
+destruct al; inv H2.
+destruct bl; inv H.
+simpl. auto.
+destruct bl; inv H.
+simpl. auto.
+destruct al; simpl in H2; try omega.
+destruct bl; inv H.
+simpl.
+apply IHj; auto.
+omega.
+Qed.
 
 Lemma body_dotprod:  semax_body Vprog Gprog f_dotprod dotprod_spec.
 Proof.
@@ -63,26 +118,49 @@ name n_ _n.
 name i_ _i.
 name x_ _x.
 name y_ _y.
-
 forward. (* sum = 0.0; *)
 forward_for_simple_bound n
    (EX i:Z,
       PROP ()
-      LOCAL (temp _sum (Vfloat (dotprod (sublist 0 i fx) (sublist 0 i fy))); temp _x x; temp _y y)
-      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
-             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))).
-*
-auto 50 with closed. (* doesn't work;  why? *)
-simple apply closed_eval_expr_e; reflexivity.
+      LOCAL (temp _sum (Vfloat (dotprod (sublist 0 i fx) (sublist 0 i fy))); temp _x x; temp _y y; temp _n (Vint (Int.repr n)))
+      SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
+             data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 * (* initializer *)
 entailer!.
 * (* body *)
-forward_nl;
-entailer!.
-rewrite <- H1; f_equal.
-apply dotprod_one_more.
-* (*after the for-loop *)
- forward. (*   return; *)
+assert_PROP (Zlength fx = n /\ Zlength fy = n). {
+    entailer!. autorewrite with sublist in *; split; auto.
+} destruct H1.
+forward. {
+  entailer!.
+  autorewrite with sublist in *.
+  rewrite Znth_map with (d':=Float.zero) by omega.
+  auto.
+}
+forward. {
+  entailer!.
+  autorewrite with sublist in *.
+  rewrite Znth_map with (d':=Float.zero) by omega.
+  auto.
+}
+rewrite !Znth_map with (d':=Float.zero) by omega.
+forward. {
+  entailer!.
+  autorewrite with sublist in *.
+  f_equal.
+  rewrite (sublist_split 0 i _ fx) by omega.
+  rewrite (sublist_split 0 i _ fy) by omega.
+  unfold dotprod.
+ rewrite map2_app by (autorewrite with sublist; omega).
+ rewrite fold_left_app.
+ rewrite !sublist_len_1 with (d:=Float.zero) by (autorewrite with sublist; omega).
+ simpl. auto.
+}
+*
+ forward.
+ autorewrite with sublist in *.
+ autorewrite with sublist.
+ entailer!.
 Qed.
 
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
@@ -92,26 +170,66 @@ name i_ _i.
 name x_ _x.
 name y_ _y.
 name z_ _z.
-
+pose (fx := map2 Float.add fy fz).
+assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
+  entailer!.
+  autorewrite with sublist in *.
+  split3; auto.
+  subst fx. clear - H1 H4.
+  rewrite Zlength_map2 by omega; auto.
+} destruct H as [Hx [Hy Hz]].
 forward_for_simple_bound 3
    (EX i:Z,
       PROP ()
       LOCAL (temp _x x; temp _y y; temp _z z)
-      SEP (`(array_at tdouble Tsh
-                   (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else Vundef)
-                  0 3 x) ;
-             `(array_at tdouble Tsh (Vfloat oo fy) 0 3 y);
-             `(array_at tdouble Tsh (Vfloat oo fz) 0 3 z))).
+      SEP (data_at Tsh (tarray tdouble 3) 
+          (map Vfloat (sublist 0 i fx) ++ list_repeat (Z.to_nat (3-i)) Vundef) x;
+   data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
+   data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
 * (* initializer *)
 entailer!.
 * (* body *)
-forward_nl. (* x[i] = y[i] + z[i]; *)
-entailer!.
-apply array_at_ext'; intros.
-unfold upd. if_tac. subst i0. rewrite if_true by omega. auto.
-if_tac. rewrite if_true by omega; auto. rewrite if_false by omega; auto.
-* (*after the for-loop *)
- forward. (*   return; *)
+forward. (* x[i] = y[i] + z[i]; *)
+entailer!. {
+  autorewrite with sublist in *.
+  rewrite Znth_map with (d':=Float.zero) by omega. auto.
+}
+forward.
+entailer!. {
+  autorewrite with sublist in *.
+  rewrite Znth_map with (d':=Float.zero) by omega. auto.
+}
+forward.
+entailer!. {
+  autorewrite with sublist in *.
+  rewrite !Znth_map with (d':=Float.zero) by omega.
+  simpl.
+  unfold data_at.
+  apply derives_refl'. f_equal.
+ rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite map_app.
+ rewrite <- app_assoc.
+ f_equal.
+ replace (Z.to_nat (3-i)) with (Init.Nat.add (Z.to_nat 1) (Z.to_nat (3-(i+1)))).
+ rewrite <-list_repeat_app.
+  rewrite upd_Znth_app1 by (autorewrite with sublist; omega).
+ f_equal.
+ autorewrite with sublist.
+ simpl list_repeat.
+ rewrite upd_Znth0.
+ rewrite !sublist_len_1 with (d:=Float.zero) by (autorewrite with sublist; omega).
+ autorewrite with sublist.
+ simpl. 
+ subst fx.
+  f_equal. f_equal.
+ rewrite Znth_map2 with (a:=Float.zero) (b:=Float.zero) (c:=Float.zero); try omega.
+ auto.
+ rewrite <- Z2Nat.inj_add by omega.
+ f_equal. omega.
+}
+*
+ forward.
+ autorewrite with sublist. subst fx. auto.
 Qed.
 
 Definition Svector_add (n: Z) (_i _x _y _z : ident) :=
@@ -140,6 +258,7 @@ Definition Svector_add (n: Z) (_i _x _y _z : ident) :=
 Definition vector_add (fx fy: Z -> float) i :=
     Float.add (fx i) (fy i).
 
+(*
 Lemma semax_vector_add:
     forall (lx ly lz sx sy sz: nat)
               (n: Z) Espec Delta P Q R  (_i _x _y _z : ident) (x y z: val) (fx: Z -> val) (fy fz : Z -> float),
@@ -336,6 +455,7 @@ forward_vector_add.
 forward.
 Qed.
 
+*)
 
 
 

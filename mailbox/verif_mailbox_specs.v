@@ -21,16 +21,18 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 (* utility function specs *)
 Definition surely_malloc_spec :=
- DECLARE _surely_malloc
-   WITH n:Z
+  DECLARE _surely_malloc
+   WITH t:type
    PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))))
        SEP ()
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
+       SEP (malloc_token Tsh t p * data_at_ Tsh t p).
 
 Definition memset_spec :=
  DECLARE _memset
@@ -113,11 +115,11 @@ Definition initialize_channels_spec :=
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
-        fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
-        fold_right sepcon emp (map (malloc_token Tsh (sizeof tlock)) locks);
-        fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs);
-        fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) reads);
-        fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) lasts);
+        fold_right sepcon emp (map (malloc_token Tsh tint) comms);
+        fold_right sepcon emp (map (malloc_token Tsh tlock) locks);
+        fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs);
+        fold_right sepcon emp (map (malloc_token Tsh tint) reads);
+        fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
         data_at sh1 tbuffer (vint 0) (Znth 0 bufs Vundef);
         fold_right sepcon emp (map (data_at Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
         fold_right sepcon emp (map (data_at_ Tsh tint) reads);
@@ -296,7 +298,7 @@ Definition reader_spec :=
    PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms Vundef))
    LOCAL (temp _arg arg; gvar _reading reading; gvar _last_read last_read;
           gvar _lock lock; gvar _comm comm; gvar _bufs buf)
-   SEP (data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
+   SEP (data_at Tsh tint (vint r) arg; malloc_token Tsh tint arg;
         data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at_ Tsh tint (Znth r reads Vundef); data_at_ Tsh tint (Znth r lasts Vundef);

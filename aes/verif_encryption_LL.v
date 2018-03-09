@@ -86,7 +86,7 @@ Proof.
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
-  (* PreInc invariant *)
+  continue: (* PreInc invariant *)
    (fun i: Z => PROP ( 
      0 < i <= 6
   ) LOCAL (
@@ -104,8 +104,8 @@ Proof.
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
-  (* Loop postcondition *)
-  (PROP() LOCAL (
+  break: (* Loop postcondition *)
+   (PROP() LOCAL (
      temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
      temp _X3 (Vint (col 3 S12));
      temp _X2 (Vint (col 2 S12));
