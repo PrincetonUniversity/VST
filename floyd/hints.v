@@ -29,18 +29,22 @@ Ltac print_hint_forward c :=
 match c with
 | Ssequence ?c1 _ => print_hint_forward c1
 | Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause"
-| Swhile _ _ => idtac "Hint: try 'forward_while'"
-| Sifthenelse _ _ _ => idtac "Hint: try 'forward_if'"
-| Sloop _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound'"
-| Sfor _ _ _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound'"
-| _ => idtac "Hint: try 'forward'"
+| Swhile _ _ => idtac "Hint: try 'forward_while Inv', where Inv is a loop invariant"
+| Sifthenelse _ _ _ => idtac "Hint: try 'forward_if', which may inform you that you need to supply a postcondition"
+| Sloop _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound' and examine its error message to see what arguments it takes"
+| Sfor _ _ _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound' and examine its error message to see what arguments it takes"
+| Sreturn _ => idtac "Hint: try 'forward'"
+| Sbreak =>  idtac "Hint: try 'forward'"
+| Scontinue =>  idtac "Hint: try 'forward'"
+| Sset _ _ =>  idtac "Hint: try 'forward'"
+| _ =>  idtac "Hint: try 'forward', which may tell you (in an error message) additional information about what to do"
 end.
 
 Ltac check_temp_value Delta i v :=
 let x := constr:(PTree.get i (temp_types Delta))
  in let x := eval hnf in x
    in match x with
-       | Some (Tint _ _ _, _) => lazymatch v with Vint _ => idtac
+       | Some (Tint _ _ _, _) => lazymatch v with Vint _ => idtac | Vbyte _ => idtac
                                | _ =>  idtac "Hint:  your LOCAL precondition binds temp " i " to a value " v " that is not of the form (Vint _) or (Vbyte _).  Although this is legal, Floyd's proof automation will not handle it as nicely.  See if you can rewrite that value so that it has Vint or Vbyte on the outside"
                               end
       | Some (Tlong _ _, _) =>  lazymatch v with Vlong _ => idtac
