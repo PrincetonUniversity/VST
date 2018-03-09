@@ -1297,7 +1297,7 @@ Opaque hmac256drbgabs_reseed.
     old_go_lower.
     subst.
     Intros v; Exists v.
-    normalize. entailer!.
+    normalize. entailer!. apply derives_refl.
   }
   
   assert (Hdone: done = out_len).
