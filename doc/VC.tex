@@ -3101,8 +3101,8 @@ be a literal constant, it just needs to be invariant.
 
 For these loops you can use the tactic,
 \begin{lstlisting}
- forward_for_simple_bound $n$ $~$     (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
- forward_for_simple_bound $n$ $~$     (EX $i$:Z, EX $x$:$A$, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
+forward_for_simple_bound $n$ (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)%assert.
+forward_for_simple_bound $n$ (EX $i$:Z, EX $x$:$A$, PROP$\ldots$LOCAL$\ldots$SEP$\ldots$)%assert.
 \end{lstlisting}
 \vspace{-16pt}
 where $n$ is the upper bound: a Coq value of type $Z$
@@ -3110,7 +3110,7 @@ such that \textit{hi} will evaluate to $n$.
 This tactic generates simpler subgoals than the general \lstinline{forward_for} tactic.
 
 The loop invariant is
-\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
+\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$))},
 where $i$ is the value (in each iteration) of the loop iteration variable
 \lstinline{_i}.  You \emph{must} have an existential quantifier for the \emph{value} of the loop-iteration variable.  You \emph{may} have a second $\exists$ for a value of your choice that depends on $i$.
 

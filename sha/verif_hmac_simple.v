@@ -44,7 +44,7 @@ Time forward_if  (
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
   { (*Branch1*) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) Time forward. (*0.3*) Time entailer!. (*1.9*)}
+  { (* Branch2 *) Time forward. (*0.3*) fold t_struct_hmac_ctx_st. Time entailer!. (*1.9*)}
 Time normalize. (*0.8*)
 freeze [2;4] FR1.
 assert_PROP (isptr k) as isPtrK.

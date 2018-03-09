@@ -155,7 +155,7 @@ Proof.
         fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs Vundef)) (sublist i N shs)))).
   { unfold N; computable. }
-  { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. }
+  { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!. apply derives_refl. }
   { Intros sh'.
     forward_call tint. split3; simpl; auto; computable. Intros d.
     forward.

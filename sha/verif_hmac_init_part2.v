@@ -333,7 +333,8 @@ eapply semax_post_flipped'.
           data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))). (*3.6secs*)
       { (*precondition implies "invariant"*)
-        rewrite sublist_nil, sublist_same; trivial.
+        rewrite sublist_nil, sublist_same; auto.
+        apply ENTAIL_refl.
       }
       { rename H into I.
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Z0 = qb /\ isbyteZ qb).
@@ -755,7 +756,7 @@ Qed.*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
        Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv myPred); try eassumption.
-       subst HMS'. clear - HeqmyPred. Time entailer!; cancel. 
+       subst HMS'. clear - HeqmyPred. Time entailer!; cancel; apply derives_refl. 
     }
     subst myPred HMS'.
 

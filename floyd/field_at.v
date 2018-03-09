@@ -841,8 +841,7 @@ Proof.
     omega.
 Qed.
 
-(* TODO: rename this lemma. *)
-Lemma array_at_data_at_rec:
+Lemma array_at_data_at':
 forall sh t gfs lo hi v p,
   lo <= hi ->
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
@@ -859,6 +858,49 @@ Proof.
   f_equal.
   unfold field_address0.
   rewrite if_true; auto.
+Qed.
+
+Lemma array_at_data_at'':
+forall sh t gfs lo hi v p,
+  lo <= hi ->
+  field_compatible0 t (ArraySubsc hi :: gfs) p ->
+  array_at sh t gfs lo hi v p =
+  data_at sh (nested_field_array_type t gfs lo hi)
+                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v)
+               (field_address0 t (ArraySubsc lo::gfs) p).
+Proof.
+  intros.
+  rewrite array_at_data_at by auto.
+  unfold at_offset.
+  unfold field_address0.
+  if_tac.
+  + rewrite !prop_true_andp by auto.
+    auto.
+  + apply pred_ext.
+    - normalize.
+    - rewrite data_at_isptr.
+      normalize.
+Qed.
+
+Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
+  lo <= ml ->
+  ml <= mr ->
+  mr <= hi ->
+  Zlength v = hi-lo ->
+  array_at sh t gfs lo hi v p =
+    array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p*
+    data_at sh (nested_field_array_type t gfs ml mr)
+       (@fold_reptype _ (nested_field_array_type t gfs ml mr)  (sublist (ml-lo) (mr-lo) v))
+               (field_address0 t (ArraySubsc ml::gfs) p) *
+    array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
+Proof.
+  intros.
+  rewrite (split3seg_array_at sh t gfs lo ml mr hi); auto.
+  rewrite (add_andp _ _ (array_at_local_facts sh t gfs mr hi _ _)).
+  normalize.
+  apply andp_prop_ext; [tauto |].
+  intros [? [? _]].
+  rewrite (array_at_data_at'' sh t gfs ml mr); auto.
 Qed.
 
 (************************************************
@@ -2582,3 +2624,62 @@ Ltac headptr_field_compatible :=
   end.
 
 Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
+
+(* BEGIN New experiments *)
+
+Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
+  v = v' ->
+  data_at sh t v p |-- data_at sh t v' p.
+Proof. intros. subst. apply derives_refl. Qed.
+ 
+Hint Resolve data_at_data_at_cancel : cancel.
+
+
+Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
+  v = v' ->
+  field_at sh t gfs v p |-- field_at sh t gfs v' p.
+Proof. intros. subst. apply derives_refl. Qed.
+ 
+Hint Resolve data_at_data_at_cancel : cancel.
+Hint Resolve field_at_field_at_cancel : cancel.
+
+Lemma data_at__data_at {cs: compspecs}:
+   forall sh t v p, v = default_val t -> data_at_ sh t p |-- data_at sh t v p.
+Proof.
+intros; subst; unfold data_at_; apply derives_refl.
+Qed.
+
+Lemma field_at__field_at {cs: compspecs} :
+   forall sh t gfs v p, v = default_val (nested_field_type t gfs) -> field_at_ sh t gfs p |-- field_at sh t gfs v p.
+Proof.
+intros; subst; unfold field_at_; apply derives_refl.
+Qed.
+
+Lemma data_at__field_at {cs: compspecs}:
+   forall sh t v p, v = default_val t -> data_at_ sh t p |-- field_at sh t nil v p.
+Proof.
+intros; subst; unfold data_at_; apply derives_refl.
+Qed.
+
+Lemma field_at__data_at {cs: compspecs} :
+   forall sh t v p, v = default_val (nested_field_type t nil) -> field_at_ sh t nil p |-- data_at sh t v p.
+Proof.
+intros; subst; unfold field_at_; apply derives_refl.
+Qed.
+
+
+Hint Resolve data_at__data_at : cancel.
+Hint Resolve field_at__field_at : cancel.
+Hint Resolve data_at__field_at : cancel.
+Hint Resolve field_at__data_at : cancel.
+
+Hint Extern 1 (_ = @default_val _ _) =>
+ match goal with |- ?A = ?B => 
+     let x := fresh "x" in set (x := B); hnf in x; subst x;
+     match goal with |- ?A = ?B => constr_eq A B; reflexivity
+  end end.
+
+Hint Extern 1 (_ = _) => 
+  match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
+
+(* END new experiments *)

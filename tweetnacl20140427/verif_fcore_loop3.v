@@ -489,5 +489,5 @@ Time forward_for_simple_bound 20 (EX i:Z,
   Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
- auto.
+ apply ENTAIL_refl.
 Time Qed. (*June4th, 2017 (laptop): Finished transaction in 1.781 secs (1.072u,0.028s) (successful)*)
