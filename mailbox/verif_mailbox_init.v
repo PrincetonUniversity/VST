@@ -148,7 +148,8 @@ Proof.
       inv H7.
       inv H.
       rewrite Z.mul_0_r in H2.
-      auto. } }
+      auto. }
+      apply derives_refl. }
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
     LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
