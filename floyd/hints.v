@@ -199,6 +199,25 @@ match AB with
        hint_field_address_offset' (field_address a b c  = c)
 end.
 
+Ltac hint_saturate_local' P :=
+ match P with
+ | ?F _ => hint_saturate_local' F
+ | _ => idtac "Hint: Nothing found in the 'saturate_local' HintDb that matches the "P" conjunct; you might want to define one"
+ end.
+
+Ltac hint_saturate_local P :=
+match P with
+| @sepcon mpred _ _ ?A ?B => hint_saturate_local A; hint_saturate_local B
+| @andp mpred _ ?A ?B => hint_saturate_local A; hint_saturate_local B
+| @wand mpred _ _ _ _ => idtac
+| @orp mpred _ _ _ => idtac
+| @emp mpred _ _ => idtac
+| _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
+                    [subst x; solve [eauto with saturate_local]; fail 1 | ]))
+               then hint_saturate_local' P
+               else idtac
+end.
+
 Ltac hint_progress := 
  first [
    print_sumbool_hint_hyp
@@ -233,6 +252,7 @@ Ltac hint_progress :=
                   else idtac "Hint: 'apply derives_refl' might possibly solve the goal, but it takes a long time to attempt the unification"
            ];
            print_sumbool_hint (A |-- B);
+           hint_saturate_local A;
            hint_allp_left A
    end].
 
