@@ -82,7 +82,7 @@ MSL_FILES = \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v \
-  iter_sepcon.v ramification_lemmas.v #age_to.v
+  iter_sepcon.v ramification_lemmas.v wand_frame.v wandQ_frame.v #age_to.v
 
 SEPCOMP_FILES = \
   Address.v \

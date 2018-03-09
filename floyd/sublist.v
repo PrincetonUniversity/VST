@@ -1566,3 +1566,36 @@ Proof.
 intros. induction n; simpl; f_equal; auto.
 Qed.
 Hint Rewrite @map_list_repeat : sublist.
+
+Lemma Zlength_sublist_correct: forall {A} (l: list A) (lo hi: Z),
+  0 <= lo <= hi ->
+  hi <= Zlength l ->
+  Zlength (sublist lo hi l) = hi - lo.
+Proof.
+  intros.
+  unfold sublist.
+  rewrite Zlength_firstn.
+  rewrite Z.max_r by omega.
+  rewrite Z.min_l; auto.
+  rewrite Zlength_skipn.
+  rewrite (Z.max_r 0 lo) by omega.
+  rewrite Z.max_r by omega.
+  omega.
+Qed.
+
+Lemma Zlength_sublist_incorrect: forall {A} (l: list A) (lo hi: Z),
+  0 <= lo < hi ->
+  hi > Zlength l ->
+  Zlength (sublist lo hi l) < hi - lo.
+Proof.
+  intros.
+  unfold sublist.
+  rewrite Zlength_firstn.
+  rewrite Z.max_r by omega.
+  assert (Zlength (skipn (Z.to_nat lo) l) < hi - lo); [| rewrite Z.min_r; omega].
+  rewrite Zlength_skipn.
+  rewrite (Z.max_r 0 lo) by omega.
+  apply Z.max_lub_lt; omega.
+Qed.
+
+    

@@ -27,7 +27,7 @@ Proof.
   intros.
   rewrite sepcon_comm.
   apply wand_sepcon_adjoint.
-  apply (allp_left _ a); auto.
+  apply (allp_left _ a); simpl. auto.
 Qed.
 
 Lemma wandQ_frame_ver {A} {ND: NatDed A} {SL: SepLog A}: forall B (P Q R: B -> A),
