@@ -25,14 +25,18 @@ Require Import VST.floyd.deadvars.
 Import Cop.
 Import Cop2.
 
+Ltac hint_loop := 
+  idtac "Hint: try 'forward_for_simple_bound N (EX i:Z, PROP... LOCAL...SEP...)%assert', where N is the upper bound of the loop, i is the loop iteration value,  and the LOCAL clause does NOT contain a 'temp' binding for the loop iteration variable";
+  idtac "Hint: try 'forward_loop' and examine its error message to see what arguments it takes".
+
 Ltac print_hint_forward c :=
 match c with
 | Ssequence ?c1 _ => print_hint_forward c1
 | Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause"
 | Swhile _ _ => idtac "Hint: try 'forward_while Inv', where Inv is a loop invariant"
 | Sifthenelse _ _ _ => idtac "Hint: try 'forward_if', which may inform you that you need to supply a postcondition"
-| Sloop _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound' and examine its error message to see what arguments it takes"
-| Sfor _ _ _ _ => idtac "Hint: try 'forward_loop' or 'forward_for_simple_bound' and examine its error message to see what arguments it takes"
+| Sloop _ _ =>hint_loop
+| Sfor _ _ _ _ => hint_loop
 | Sreturn _ => idtac "Hint: try 'forward'"
 | Sbreak =>  idtac "Hint: try 'forward'"
 | Scontinue =>  idtac "Hint: try 'forward'"
@@ -170,6 +174,10 @@ Ltac hint_solves :=
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
  | tryif (try (assert True; [ | solve [entailer!]]; fail 1)) then fail
      else  idtac "Hint:  'entailer!' solves the goal"
+ | match goal with |- ?A |-- ?B => 
+         timeout 1 (unify A B);
+         idtac "Hint: 'apply derives_refl' solves the goal.  You might wonder why 'auto' or 'cancel' does not solve this goal; the reason is that the left and right sides of the entailment are equal but not identical, and sometimes the attempt to unify terms like this would be far too slow to build into 'auto' or 'cancel'"
+   end
  ].
 
 Ltac hint_exists :=
@@ -202,7 +210,7 @@ end.
 Ltac hint_saturate_local' P :=
  match P with
  | ?F _ => hint_saturate_local' F
- | _ => idtac "Hint: Nothing found in the 'saturate_local' HintDb that matches the "P" conjunct; you might want to define one"
+ | _ => idtac "Hint: Nothing found in the 'saturate_local' HintDb that matches the "P" conjunct; you might want to define one, or unfold "P
  end.
 
 Ltac hint_saturate_local P :=
@@ -211,9 +219,10 @@ match P with
 | @andp mpred _ ?A ?B => hint_saturate_local A; hint_saturate_local B
 | @wand mpred _ _ _ _ => idtac
 | @orp mpred _ _ _ => idtac
-| @emp mpred _ _ => idtac
+| @emp mpred _ _ _ => idtac
+| @prop mpred _ _ => idtac
 | _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
-                    [subst x; solve [eauto with saturate_local]; fail 1 | ]))
+                    [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
                else idtac
 end.
@@ -244,20 +253,20 @@ Ltac hint_progress :=
               cancelable A; cancelable B;
               tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) then fail
                 else  idtac "Hint:  try 'cancel'" 
-           |  tryif (try (assert True; [ | progress entailer!]; fail 1)) then fail
-              else  idtac "Hint:  try 'entailer!'"
-           | tryif (timeout 1 (try (unify A B; idtac "Hint: 'apply derives_refl' solves the goal.  You might wonder why 'auto' or 'cancel' does not solve this goal; the reason is that the left and right sides of the entailment are equal but not identical, and sometimes the attempt to unify terms like this would be far too slow to build into 'auto' or 'cancel'"
-)))
-                  then idtac
-                  else idtac "Hint: 'apply derives_refl' might possibly solve the goal, but it takes a long time to attempt the unification"
-           ];
-           print_sumbool_hint (A |-- B);
-           hint_saturate_local A;
-           hint_allp_left A
+           ]
    end].
 
 Ltac hint_whatever :=
+ match goal with  |- @derives mpred _ ?A ?B =>
+            hint_saturate_local A;
+            tryif (try (assert True; [ | progress entailer!]; fail 1)) then idtac
+              else  idtac "Hint:  try 'entailer!'";
+            try hint_allp_left A;
+            try print_sumbool_hint (A |-- B)
+ end;
  hint_simplify_value_fits;
+ tryif (try (rewrite prop_sepcon; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon'";
+ tryif (try (rewrite prop_sepcon2; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon2'";
  try match goal with
   | H: Forall ?F ?L |- ?F' (Znth _ ?L' _) => 
        constr_eq F F'; constr_eq L L'; idtac "Hint: try 'apply forall_Znth; auto'"

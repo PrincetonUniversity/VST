@@ -629,5 +629,18 @@ Ltac allp_left x :=
    sep_apply (@allp_instantiate T ND B P x)
  end end.
 
+Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}
+    P Q, !! P * Q = !! P && (TT * Q).
+Proof.
+ intros.
+ rewrite <- (andp_TT (!! _)), sepcon_andp_prop'. normalize.
+Qed.
+
+Lemma prop_sepcon2: forall {A}{ND: NatDed A}{SL: SepLog A}
+    P Q, Q * !! P = !! P && (TT * Q).
+Proof.
+ intros.
+ rewrite sepcon_comm. apply prop_sepcon.
+Qed.
 
 
