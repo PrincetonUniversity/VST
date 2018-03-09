@@ -1244,7 +1244,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
@@ -1300,7 +1300,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1363,7 +1363,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | solve_msubst_eval_expr
   | solve_msubst_eval_lvalue
-  | solve [eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
