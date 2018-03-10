@@ -238,7 +238,7 @@ CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
-  bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
+  bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
   dotprod.v strlib.v \
