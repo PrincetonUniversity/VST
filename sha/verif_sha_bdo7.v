@@ -298,7 +298,7 @@ rewrite <- Sigma_0_eq, <- Maj_eq.
 repeat forward.
 rewrite Z.add_simpl_r.
 rewrite Z2Nat.inj_add by omega.
-entailer!.
+entailer!. 2: apply derives_refl.
 clear - H H0 H1.
 rewrite Round_equation.
 forget (W (nthi bb) i) as Wbbi.

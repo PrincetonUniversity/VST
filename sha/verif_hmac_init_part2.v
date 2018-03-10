@@ -756,7 +756,7 @@ Qed.*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
        Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv myPred); try eassumption.
-       subst HMS'. clear - HeqmyPred. Time entailer!; cancel. 
+       subst HMS'. clear - HeqmyPred. Time entailer!; cancel; apply derives_refl. 
     }
     subst myPred HMS'.
 

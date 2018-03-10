@@ -127,10 +127,10 @@ Proof.
          data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks lock)).
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [|discriminate].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     forward.
     Exists (if eq_dec b (-1) then b0 else b) t (vint b) v.

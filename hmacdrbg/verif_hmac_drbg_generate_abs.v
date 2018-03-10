@@ -646,7 +646,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     unfold POSTCONDITION, abbreviate. simpl_ret_assert.
     old_go_lower.
     subst.
-    Intros v; Exists v. entailer!.
+    Intros v; Exists v. entailer!. apply derives_refl.
    }
 
   (*POST LOOP*)

@@ -134,7 +134,7 @@ Proof.
     apply JMeq_refl.
 Qed.
 
-Ltac constr_wand_slice_array_spec t :=
+Ltac wand_slice_array_spec t :=
 let spec := constr:(forall lo hi n sh 
 (al' : list (reptype t)) p,
 0 <= lo <= hi ->
@@ -166,21 +166,24 @@ Proof.
     entailer!.
 Qed.
 
-Ltac prove_wand_slice_array t :=
-  hnf; intros;
-  erewrite wand_slice_array by eauto;
-  f_equal; unfold array_with_hole;
-  f_equal; f_equal; extensionality cl;
-  refine (elim_double_exp (list (reptype t)) _ _ _).
+Ltac prove_wand_slice_array :=
+  let al := fresh "al" in 
+  intros ? ? ? ? al ? ? ? ?;
+   erewrite wand_slice_array by eauto;
+   f_equal; unfold array_with_hole;
+   f_equal; f_equal; extensionality cl;
+  match type of al with ?t =>
+   refine (elim_double_exp t _ _ _)
+  end.
 
 (* Try the following lines with a concrete compspecs. *)
 (*
-Lemma wand_slice_array_tint: ltac:(constr_wand_slice_array_spec tint).
-Proof. prove_wand_slice_array tint. Qed.
+Lemma wand_slice_array_tint: ltac:(wand_slice_array_spec tint).
+Proof. prove_wand_slice_array. Qed.
 
-Lemma wand_slice_array_tptint: ltac:(constr_wand_slice_array_spec (tptr tint)).
-Proof. prove_wand_slice_array (tptr tint). Qed.
+Lemma wand_slice_array_tptint: ltac:(wand_slice_array_spec (tptr tint)).
+Proof. prove_wand_slice_array. Qed.
 
-Lemma wand_slice_array_tatint: ltac:(constr_wand_slice_array_spec (tarray tint 10)).
-Proof. prove_wand_slice_array (tarray tint 10). Qed.
+Lemma wand_slice_array_tatint: ltac:(wand_slice_array_spec (tarray tint 10)).
+Proof. prove_wand_slice_array. Qed.
 *)

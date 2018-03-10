@@ -40,7 +40,7 @@ Definition strcmp_spec :=
     SEP (cstring s1 str1; cstring s2 str2)
   POST [ tint ]
    EX i : int,
-    PROP (if Int.eq i Int.zero then s1 = s2 else s1 <> s2)
+    PROP (if Int.eq_dec i Int.zero then s1 = s2 else s1 <> s2)
     LOCAL (temp ret_temp (Vint i))
     SEP (cstring s1 str1; cstring s2 str2).
 

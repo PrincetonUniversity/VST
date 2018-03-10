@@ -401,7 +401,7 @@ Proof. intros.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
-     Time cancel.
+     Time cancel. apply derives_refl.
      rewrite Zlength_list_repeat', Z2Nat.id; omega.
 Time Qed. (*10 secs versus 18*)
 
