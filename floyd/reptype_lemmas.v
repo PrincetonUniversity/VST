@@ -136,11 +136,9 @@ Proof.
   reflexivity.
 Qed.
 
-Section CENV.
 
-Context {cs: compspecs}.
 
-Definition reptype_gen: type -> (sigT (fun x => x)) :=
+Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
   type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
@@ -152,12 +150,17 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
-Definition reptype t: Type := match reptype_gen t with existT t _ => t end.
+Definition reptype {cs: compspecs} t: Type := match reptype_gen t with existT t _ => t end.
 
-Definition default_val t: reptype t :=
+Definition default_val {cs: compspecs} t: reptype t :=
   match reptype_gen t as tv
     return match tv with existT t _ => t end
   with existT t v => v end.
+
+Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
+
+Section CENV.
+Context {cs: compspecs}.
 
 Lemma reptype_gen_eq: forall t,
   reptype_gen t =
@@ -871,14 +874,14 @@ Qed.
 
 Open Scope Z.
 
-Fixpoint replist' {A: Type} (d: A) (lo: Z) (n: nat) (al: list A) :=
+Fixpoint replist' {A: Type} {d: Inhabitant A} (lo: Z) (n: nat) (al: list A) :=
  match n with
  | O => nil
- | S n' =>  Znth lo al d :: replist' d (Z.succ lo) n' al
+ | S n' =>  Znth lo al :: replist' (Z.succ lo) n' al
  end.
 
 Definition replist {cs: compspecs} (t: type)  (lo hi: Z) (al: list (reptype t)) :=
-  replist' (default_val t) lo (Z.to_nat (hi-lo)) al.
+  replist'  lo (Z.to_nat (hi-lo)) al.
 
 (* replist t lo hi al *)
 
@@ -945,8 +948,8 @@ Focus 2.
 Qed.
 
 Lemma replist'_succ:
- forall A (d:A) lo n r al,
-   (lo>=0) -> replist' d (Z.succ lo) n (r::al) = replist' d lo n al.
+ forall {A} {d:Inhabitant A} lo n r al,
+   (lo>=0) -> replist' (Z.succ lo) n (r::al) = replist' lo n al.
 Proof.
 intros.
 revert lo al H; induction n; simpl; intros.
@@ -979,7 +982,7 @@ intros.
  destruct al; simpl in H. omega.
  f_equal.
  rewrite <- (IHn al) by omega. clear IHn.
- rewrite <- (replist'_succ _ (default_val t) 0 n r al) by omega.
+ rewrite <- (replist'_succ 0 n r al) by omega.
  reflexivity.
  rewrite inj_S.
   destruct al. simpl length in H0. assert (n=0)%nat by omega.

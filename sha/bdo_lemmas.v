@@ -15,7 +15,7 @@ Qed.
 
 Lemma Znth_nthi:
   forall i b,
-  (0 <= i < Zlength b)%Z -> Znth i b Int.zero = nthi b i.
+  (0 <= i < Zlength b)%Z -> Znth i b = nthi b i.
 Proof.
 intros; unfold Znth.
 rewrite if_false by omega.

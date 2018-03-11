@@ -3,6 +3,17 @@ Require Import VST.msl.Coqlib2.
 Require Import Coq.Lists.List.
 Import ListNotations.
 
+Class Inhabitant (A: Type) := default : A.
+
+Instance Inhabitant_Z : Inhabitant Z := 0.
+Instance Inhabitant_nat : Inhabitant nat := O.
+Instance Inhabitant_positive : Inhabitant positive := 1%positive.
+Instance Inhabitant_list {T: Type} : Inhabitant (list T) := @nil T.
+Instance Inhabitant_fun {T1 T2: Type} {H: Inhabitant T2} : Inhabitant (T1->T2) := fun _ => H.
+Instance Inhabitant_Prop : Inhabitant Prop := False.
+Instance Inhabitant_bool : Inhabitant bool := false.
+Instance Inhabitant_pair {T1 T2 : Type} {x1: Inhabitant T1} {x2: Inhabitant T2} : Inhabitant (T1*T2)%type := (x1,x2).
+
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
     0 <= n ->
@@ -421,24 +432,26 @@ Ltac pose_Zlength_nonneg :=
 
 Ltac list_solve := autorewrite with sublist; pose_Zlength_nonneg; omega.
 
-Definition Znth {X} n (xs: list X) (default: X) :=
-  if (zlt n 0) then default else nth (Z.to_nat n) xs default.
+Definition Znth {X}{d: Inhabitant X} n (xs: list X) :=
+  if (zlt n 0) then default else nth (Z.to_nat n) xs d.
 
 Lemma Znth_map:
-  forall {A:Type} (d': A) (B:Type) i (f: A -> B) (al: list A) (b: B),
+  forall {A:Type} {da: Inhabitant A}{B:Type}{db: Inhabitant B} i (f: A -> B) (al: list A),
   0 <= i < Zlength al ->
-  @Znth B i (map f al) b = f (Znth i al d').
+  Znth i (map f al)  = f (Znth i al).
 Proof.
 unfold Znth.
 intros.
 rewrite if_false by omega.
 rewrite if_false by omega.
-rewrite nth_map' with (d'0 := d'); auto.
+rewrite nth_map' with (d' := da); auto.
 apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
-rewrite <- Zlength_correct; omega.
+change (Inhabitant A) with A.
+rewrite <- Zlength_correct. omega.
 Qed.
 
-Hint Rewrite (Znth_map 0) (Znth_map 1%positive) (Znth_map O)
+Hint Rewrite 
+   (@Znth_map Z _) (@Znth_map nat _) (@Znth_map positive _)
     using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 
 (* Add these in a later file where things are in scope ...
@@ -446,10 +459,9 @@ Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
     using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 *)
 
-Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
+Lemma Znth_succ: forall {A}{a: Inhabitant A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
 Proof.
   intros.
-  extensionality default.
   unfold Znth.
   if_tac; [omega |].
   if_tac; [omega |].
@@ -461,17 +473,17 @@ Proof.
   omega.
 Qed.
 
-Lemma Znth_0_cons {A} l (v:A) d: Znth 0 (v::l) d = v.
+Lemma Znth_0_cons {A}{a: Inhabitant A} l (v:A): Znth 0 (v::l) = v.
 Proof. reflexivity. Qed.
 
-Lemma Znth_pos_cons {A} i l (v:A) d: 0<i -> Znth i (v::l) d = Znth (i-1) l d.
+Lemma Znth_pos_cons {A}{a: Inhabitant A} i l (v:A): 0<i -> Znth i (v::l) = Znth (i-1) l.
 Proof. intros. unfold Znth. if_tac. omega. if_tac. omega.
   assert (Z.to_nat i = S (Z.to_nat (i-1))).
     rewrite <- Z2Nat.inj_succ. assert (i = Z.succ (i - 1)). omega. rewrite <- H2. trivial. omega.
   rewrite H2; reflexivity.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
+Lemma Znth_In : forall {A}{a: Inhabitant A} i l, 0 <= i < Zlength l -> In (Znth i l) l.
 Proof.
   intros; unfold Znth.
   destruct (zlt i 0); [omega|].
@@ -479,11 +491,11 @@ Proof.
   apply Nat2Z.inj_lt; rewrite Z2Nat.id; omega.
 Qed.
 
-Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
+Lemma split3_full_length_list: forall {A}{a: Inhabitant A} lo mid hi (ct: list A),
   lo <= mid < hi ->
   Zlength ct = hi - lo ->
   ct = firstn (Z.to_nat (mid - lo)) ct ++
-       (Znth (mid - lo) ct d :: nil) ++
+       (Znth (mid - lo) ct :: nil) ++
        skipn (Z.to_nat (mid - lo + 1)) ct.
 Proof.
   intros.
@@ -491,7 +503,7 @@ Proof.
   f_equal.
   rewrite Z2Nat.inj_add by omega.
   rewrite <- skipn_skipn.
-  replace (Znth (mid - lo) ct d :: nil) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
+  replace (Znth (mid - lo) ct :: nil) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
   + rewrite firstn_skipn; reflexivity.
   + unfold Znth.
     if_tac; [omega |].
@@ -505,10 +517,10 @@ Proof.
 Qed.
 
 Lemma Forall_Znth:
- forall {A} (F: A -> Prop) (al: list A) i d,
+ forall {A}{a: Inhabitant A} (F: A -> Prop) (al: list A) i,
    0 <= i < Zlength al ->
    Forall F al ->
-   F (Znth i al d).
+   F (Znth i al).
 Proof.
 intros.
 unfold Znth. rewrite if_false by omega.
@@ -526,8 +538,8 @@ omega.
 Qed.
 
 Lemma app_Znth1:
-  forall A (l l': list A) (d: A) (i:Z),
-  i < Zlength l -> Znth i (l++l') d = Znth i l d.
+  forall A (a: Inhabitant A) (l l': list A) (i:Z),
+  i < Zlength l -> Znth i (l++l') = Znth i l.
 Proof.
 intros.
 unfold Znth.
@@ -538,8 +550,8 @@ rewrite Zlength_correct in H; auto.
 Qed.
 
 Lemma app_Znth2:
-  forall A (l l': list A) (d: A) (i:Z),
-  i >= Zlength l -> Znth i (l++l') d = Znth (i-Zlength l) l' d.
+  forall A (a: Inhabitant A) (l l': list A) (i:Z),
+  i >= Zlength l -> Znth i (l++l') = Znth (i-Zlength l) l'.
 Proof.
 intros.
 unfold Znth.
@@ -557,8 +569,8 @@ rewrite <- Zlength_correct; auto.
 Qed.
 
 Lemma Znth_firstn:
-  forall {A} (al: list A) (n m : Z) (d: A),
-  n<m -> Znth n (firstn (Z.to_nat m) al) d = Znth n al d.
+  forall {A}{a: Inhabitant A} (al: list A) (n m : Z),
+  n<m -> Znth n (firstn (Z.to_nat m) al) = Znth n al.
 Proof.
 intros.
 unfold Znth.
@@ -567,10 +579,10 @@ apply nth_firstn.
 apply Z2Nat.inj_lt; omega.
 Qed.
 
-Lemma Znth_skipn: forall {A} i n xs (default: A),
+Lemma Znth_skipn: forall {A}{a: Inhabitant A}  i n xs,
   0 <= i ->
   0 <= n ->
-  Znth i (skipn (nat_of_Z n) xs) default = Znth (i+n) xs default.
+  Znth i (skipn (nat_of_Z n) xs) = Znth (i+n) xs.
 Proof.
   intros.
   unfold Znth.
@@ -633,16 +645,16 @@ rewrite Z2Nat.id by omega.  omega.
 Qed.
 
 Lemma Znth_cons:
- forall {A} i (al: list A) d bl,
+ forall {A}(a: Inhabitant A)  i (al: list A) bl,
   0 <= i < Zlength al  ->
-  Znth i al d :: bl = firstn (Z.to_nat 1) (skipn (Z.to_nat i) al) ++ bl.
+  Znth i al :: bl = firstn (Z.to_nat 1) (skipn (Z.to_nat i) al) ++ bl.
 Proof.
 intros.
 pose proof (Znth_skipn 0 i al).
 rewrite Z.add_0_l in H0.
 rewrite <- H0 by omega; clear H0.
-change (Znth 0 (skipn (nat_of_Z i) al) d :: bl) with
-   ([Znth 0 (skipn (Z.to_nat i) al) d] ++ bl).
+change (Znth 0 (skipn (nat_of_Z i) al) :: bl) with
+   ([Znth 0 (skipn (Z.to_nat i) al)] ++ bl).
 f_equal.
 unfold Znth.
 rewrite if_false  by omega.
@@ -744,9 +756,9 @@ auto.
 Qed.
 
 Lemma Znth_rev:
-  forall {A} i (al:list A) d,
+  forall {A}{d: Inhabitant A} i (al:list A),
   0 <= i < Zlength al ->
-  Znth i (rev al) d = Znth (Zlength al - i - 1) al d.
+  Znth i (rev al) = Znth (Zlength al - i - 1) al.
 Proof.
 intros.
  unfold Znth. rewrite !if_false by omega.
@@ -875,9 +887,9 @@ symmetry. apply sublist_map.
 Qed.
 
 Lemma sublist_len_1:
-  forall {A} i (al: list A) d,
+  forall {A}{d: Inhabitant A} i (al: list A),
   0 <= i < Zlength al ->
-  sublist i (i+1) al = Znth i al d :: nil.
+  sublist i (i+1) al = Znth i al :: nil.
 Proof.
   intros.
   unfold sublist.
@@ -887,9 +899,9 @@ Proof.
 Qed.
 
 Lemma Znth_cons_sublist:
-  forall {A} i (al: list A) d bl,
+  forall {A}{d: Inhabitant A} i (al: list A) bl,
   0 <= i < Zlength al ->
-  Znth i al d :: bl = sublist i (i+1) al ++ bl.
+  Znth i al :: bl = sublist i (i+1) al ++ bl.
 Proof.
   intros.
   erewrite sublist_len_1 by eauto.
@@ -934,10 +946,10 @@ intros; apply sublist_same_gen; omega.
 Qed.
 
 Lemma Znth_sublist:
-  forall {A} lo i hi (al: list A) d,
+  forall {A}{d: Inhabitant A} lo i hi (al: list A),
  0 <= lo ->
  0 <= i < hi-lo ->
- Znth i (sublist lo hi al) d = Znth (i+lo) al d.
+ Znth i (sublist lo hi al) = Znth (i+lo) al.
 Proof.
 intros.
 unfold sublist.
@@ -1064,11 +1076,11 @@ intros.
 symmetry; apply sublist_rejoin; auto.
 Qed.
 
-Lemma sublist_last_1 : forall {A} lo hi (al : list A) d, 0 <= lo <= hi -> hi + 1 <= Zlength al ->
-  sublist lo (hi + 1) al = sublist lo hi al ++ [Znth hi al d].
+Lemma sublist_last_1 : forall {A}{d: Inhabitant A} lo hi (al : list A), 0 <= lo <= hi -> hi + 1 <= Zlength al ->
+  sublist lo (hi + 1) al = sublist lo hi al ++ [Znth hi al].
 Proof.
   intros.
-  erewrite sublist_split with (mid := hi)(hi0 := hi + 1), sublist_len_1 with (d0 := d); auto; omega.
+  erewrite sublist_split with (mid := hi)(hi0 := hi + 1), sublist_len_1; auto; omega.
 Qed.
 
 Lemma Zlen_le_1_rev:
@@ -1194,9 +1206,9 @@ simpl. auto.
 Qed.
 
 Lemma Znth_list_repeat_inrange:
-  forall {A} i n (a d: A),
+  forall {A}{d: Inhabitant A} i n (a: A),
    (0 <= i < n)%Z ->
-   Znth i (list_repeat (Z.to_nat n) a) d = a.
+   Znth i (list_repeat (Z.to_nat n) a) = a.
 Proof.
 intros.
 unfold Znth; rewrite if_false by omega.
@@ -1302,9 +1314,9 @@ Proof. unfold upd_Znth; intros. rewrite map_app, Zlength_map.
   do 2 rewrite sublist_map; trivial.
 Qed.
 
-Lemma upd_Znth_lookup K {A}: forall l (L:Zlength l = K) i j d (v:A) (I: 0<=i<K) (J: 0<=j<K),
-   (i=j /\ Znth i (upd_Znth j l v) d = v) \/
-   (i<>j /\ Znth i (upd_Znth j l v) d = Znth i l d).
+Lemma upd_Znth_lookup K {A}{d: Inhabitant A}: forall l (L:Zlength l = K) i j (v:A) (I: 0<=i<K) (J: 0<=j<K),
+   (i=j /\ Znth i (upd_Znth j l v) = v) \/
+   (i<>j /\ Znth i (upd_Znth j l v) = Znth i l).
 Proof.
   intros. unfold upd_Znth.
   destruct (zeq i j); subst.
@@ -1320,10 +1332,10 @@ Proof.
       assert (H: i - j - 1 + (j + 1) = i) by omega. rewrite H; trivial.
 Qed.
 
-Lemma upd_Znth_lookup' K {A}: forall l (L:Zlength l = K) i (I: 0<=i<K) j (J: 0<=j<K) d (v:A),
-    Znth i (upd_Znth j l v) d = if zeq i j then v else Znth i l d.
+Lemma upd_Znth_lookup' K {A}{d: Inhabitant A}: forall l (L:Zlength l = K) i (I: 0<=i<K) j (J: 0<=j<K) (v:A),
+    Znth i (upd_Znth j l v) = if zeq i j then v else Znth i l.
 Proof. intros.
-  destruct (upd_Znth_lookup K l L i j d v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
+  destruct (upd_Znth_lookup K l L i j v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
 Qed.
 
 Lemma upd_Znth_char {A} n l1 (v:A) l2 w: Zlength l1=n ->
@@ -1335,14 +1347,14 @@ Proof. intros. unfold upd_Znth.
                 rewrite sublist_1_cons. apply sublist_same; omega. omega.
 Qed.
 
-Lemma upd_Znth_same {A}: forall i l u (d:A), 0<= i< Zlength l -> Znth i (upd_Znth i l u) d = u.
+Lemma upd_Znth_same {A}{d: Inhabitant A}: forall i l u, 0<= i< Zlength l -> Znth i (upd_Znth i l u) = u.
 Proof.
   intros. rewrite (upd_Znth_lookup' _ _ (eq_refl _)); trivial.
   rewrite zeq_true; trivial.
 Qed.
 
-Lemma upd_Znth_diff {A}: forall i j l u (d:A), 0<= i< Zlength l -> 0<= j< Zlength l -> i<>j ->
-      Znth i (upd_Znth j l u) d = Znth i l d.
+Lemma upd_Znth_diff {A}{d: Inhabitant A}: forall i j l u, 0<= i< Zlength l -> 0<= j< Zlength l -> i<>j ->
+      Znth i (upd_Znth j l u) = Znth i l.
 Proof.
   intros. rewrite (upd_Znth_lookup' _ _ (eq_refl _)); trivial.
   rewrite zeq_false; trivial.
@@ -1423,8 +1435,8 @@ Proof.
   2: rewrite Zlength_app, !Zlength_sublist by omega; change (Zlength [v]) with 1; omega.
   rewrite !Zlength_sublist by omega.
   change (Zlength [v]) with 1.
-  rewrite sublist_len_1 with (d := v) by (change (Zlength [v]) with 1; omega).
-  change (Znth 0 [v] v) with v.
+  rewrite (@sublist_len_1 _ v) by (change (Zlength [v]) with 1; omega).
+  change (@Znth _ v 0 [v]) with v.
   simpl.
   rewrite !sublist_sublist by omega.
   f_equal; [| f_equal]; f_equal; omega.
@@ -1472,7 +1484,7 @@ Proof.
 Qed.
 
 Lemma Znth_overflow:
-  forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.
+  forall {A}{d: Inhabitant A} i (al: list A), i >= Zlength al -> Znth i al = d.
 Proof.
 intros.
   pose proof (Zlength_nonneg al).
@@ -1483,23 +1495,23 @@ intros.
 Qed.
 
 Lemma Znth_underflow:
-  forall {A} i (al: list A) d,  i < 0 -> Znth i al d = d.
+  forall {A}{d: Inhabitant A} i (al: list A),  i < 0 -> Znth i al = d.
 Proof.
 intros.
    unfold Znth. rewrite if_true by omega. auto.
 Qed.
 
 Lemma Znth_outofbounds:
-  forall {A} i (al: list A) d,  (i < 0 \/ i >= Zlength al) -> Znth i al d = d.
+  forall {A}{d: Inhabitant A} i (al: list A),  (i < 0 \/ i >= Zlength al) -> Znth i al = d.
 Proof.
 intros.
   destruct H. apply Znth_underflow; auto. apply Znth_overflow; auto.
 Qed.
 
 Lemma sublist_one:
-  forall {A} lo hi (al: list A) d,
+  forall {A}{d: Inhabitant A} lo hi (al: list A),
     0 <= lo -> hi <= Zlength al ->
-    lo+1=hi -> sublist lo hi al = Znth lo al d :: nil.
+    lo+1=hi -> sublist lo hi al = Znth lo al :: nil.
 Proof.
 intros.
 subst.

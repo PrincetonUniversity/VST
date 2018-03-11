@@ -53,10 +53,10 @@ Definition word_to_int (w : (int * int * int * int)) : int :=
 
 (* SubWord function from section 5.2: apply S-box to each byte in a word *)
 Definition SubWord (w: int) : int := word_to_int (
-  (Znth (byte0 w) FSb Int.zero),
-  (Znth (byte1 w) FSb Int.zero),
-  (Znth (byte2 w) FSb Int.zero),
-  (Znth (byte3 w) FSb Int.zero)
+  (Znth (byte0 w) FSb),
+  (Znth (byte1 w) FSb),
+  (Znth (byte2 w) FSb),
+  (Znth (byte3 w) FSb)
 ).
 
 Definition RotWord(i: int): int := 
@@ -76,15 +76,15 @@ Definition RCon : list int := map (fun i => Int.shl i (Int.repr 24)) [
 
 Definition GrowKeyByOne(w: list int): list int :=
   let i := Zlength w in
-  let temp := (Znth (i-1) w Int.zero) in
+  let temp := (Znth (i-1) w) in
   let temp' := if (i mod Nk =? 0) then
-    Int.xor (SubWord (RotWord temp)) (Znth (i/Nk) RCon Int.zero)
+    Int.xor (SubWord (RotWord temp)) (Znth (i/Nk) RCon)
   else if (i mod Nk =? 4) then
     SubWord temp
   else
     temp
   in
-    w ++ [Int.xor (Znth (i-8) w Int.zero) temp'].
+    w ++ [Int.xor (Znth (i-8) w) temp'].
 
 Fixpoint pow_fun{T: Type}(f: T -> T)(n: nat)(a: T): T := match n with
 | O => a
@@ -100,10 +100,10 @@ Definition KeyExpansion2: list int -> list int := pow_fun GrowKeyByOne (Z.to_nat
 (* arr: list of bytes *)
 Definition get_uint32_le (arr: list Z) (i: Z) : int :=
  (Int.or (Int.or (Int.or
-            (Int.repr (Znth  i    arr 0))
-   (Int.shl (Int.repr (Znth (i+1) arr 0)) (Int.repr  8)))
-   (Int.shl (Int.repr (Znth (i+2) arr 0)) (Int.repr 16)))
-   (Int.shl (Int.repr (Znth (i+3) arr 0)) (Int.repr 24))).
+            (Int.repr (Znth  i    arr))
+   (Int.shl (Int.repr (Znth (i+1) arr)) (Int.repr  8)))
+   (Int.shl (Int.repr (Znth (i+2) arr)) (Int.repr 16)))
+   (Int.shl (Int.repr (Znth (i+3) arr)) (Int.repr 24))).
 
 Definition key_bytes_to_key_words(key_bytes: list Z): list int := 
   fill_list 8 (fun i => get_uint32_le key_bytes (i*4)).

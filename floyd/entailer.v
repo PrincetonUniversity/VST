@@ -25,8 +25,19 @@ intros. destruct p; try contradiction; apply I.
 Qed.
 Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
-Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
+Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
+Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
+Instance Inhabitant_float : Inhabitant float := Float.zero.
+Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
+
+Hint Rewrite 
+   (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
+   (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
+   (@Znth_map float32 _)
+    using (auto; rewrite ?Zlength_map in *; omega) : sublist entailer_rewrite.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
@@ -828,7 +839,7 @@ Hint Resolve cstringn_valid_pointer : valid_pointer.
 
 
 Lemma Znth_zero_zero:
-  forall i {A} (a: A), Znth i [a] a = a.
+  forall i, Znth i [Byte.zero] = Byte.zero.
 Proof.
 intros.
 unfold Znth.
@@ -836,29 +847,29 @@ if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
 Qed.
 
 
-Ltac cstring := 
- match goal with H: ~In Byte.zero _ |- _ => idtac end;
+Ltac cstring :=
+  match goal with H: ~In Byte.zero _ |- _ => idtac end;
  lazymatch goal with
- | H1: Znth _ (_++[Byte.zero]) Byte.zero = Byte.zero |- _ => idtac 
- | H1: Znth _ (_++[Byte.zero]) Byte.zero <> Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
  end;
 (* THIS TACTIC solves goals of the form,
-    ~In 0 ls,  Znth i (ls++[0]) 0 = 0 |-  (any omega consequence of)  i < Zlength ls
-    ~In 0 ls,  Znth i (ls++[0]) 0 <> 0 |-  (any omega consequence of)  i >= Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
 *)
   pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
-  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero = Byte.zero |- _ =>
-     constr_eq ls ls'; elimtype False; apply H; rewrite <- H1; 
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
+     constr_eq ls ls'; apply H; rewrite <- H1;  
     rewrite app_Znth1 by omega; apply Znth_In; omega
-  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero <> Byte.zero |- _ =>
-     constr_eq ls ls'; elimtype False; apply H1;
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
+     constr_eq ls ls'; apply H1;
     rewrite app_Znth2 by omega; apply Znth_zero_zero
  end.
 
 Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
-  0 <= i < Zlength l -> Znth i (map Vbyte l) Vundef = Vbyte (Znth i l Byte.zero).
+  0 <= i < Zlength l -> Znth i (map Vbyte l)  = Vbyte (Znth i l).
 Proof.
   intros i l.
   apply Znth_map.

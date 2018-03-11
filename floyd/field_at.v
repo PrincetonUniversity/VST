@@ -195,7 +195,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   (v: list (reptype (nested_field_type t (ArraySubsc 0 :: gfs)))) (p: val) : mpred :=
   !! (field_compatible0 t (ArraySubsc lo :: gfs) p /\
       field_compatible0 t (ArraySubsc hi :: gfs) p) &&
-  array_pred (default_val _) lo hi
+  array_pred lo hi
     (fun i v => at_offset (data_at_rec sh (nested_field_type t (ArraySubsc 0 :: gfs)) v)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
 
@@ -327,8 +327,8 @@ Lemma array_at_ext_derives: forall sh t gfs lo hi v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i u0 u1,
      lo <= i < hi ->
-     JMeq u0 (Znth (i-lo) v0 (default_val _)) ->
-     JMeq u1 (Znth (i-lo) v1 (default_val _)) ->
+     JMeq u0 (Znth (i-lo) v0) ->
+     JMeq u1 (Znth (i-lo) v1) ->
      field_at sh t (ArraySubsc i :: gfs) u0 p |--
      field_at sh t (ArraySubsc i :: gfs) u1 p) ->
   array_at sh t gfs lo hi v0 p |-- array_at sh t gfs lo hi v1 p.
@@ -345,7 +345,7 @@ Proof.
   unfold field_at.
   rewrite nested_field_type_ArraySubsc with (i0 := i).
   intros.
-  specialize (H (Znth (i - lo) v0 (default_val _)) (Znth (i - lo) v1 (default_val _))).
+  specialize (H (Znth (i - lo) v0) (Znth (i - lo) v1)).
   do 3 (spec H; [auto |]).
   rewrite !prop_true_andp in H by (apply (field_compatible_range _ lo hi); auto).
   auto.
@@ -355,8 +355,8 @@ Lemma array_at_ext: forall sh t gfs lo hi v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i u0 u1,
      lo <= i < hi ->
-     JMeq u0 (Znth (i-lo) v0 (default_val _)) ->
-     JMeq u1 (Znth (i-lo) v1 (default_val _)) ->
+     JMeq u0 (Znth (i-lo) v0) ->
+     JMeq u1 (Znth (i-lo) v1) ->
      field_at sh t (ArraySubsc i :: gfs) u0 p =
      field_at sh t (ArraySubsc i :: gfs) u1 p) ->
   array_at sh t gfs lo hi v0 p = array_at sh t gfs lo hi v1 p.
@@ -704,7 +704,7 @@ Qed.
 Lemma split3_array_at: forall sh t gfs lo mid hi v v0 p,
   lo <= mid < hi ->
   Zlength v = hi-lo ->
-  JMeq v0 (Znth (mid-lo) v (default_val _)) ->
+  JMeq v0 (Znth (mid-lo) v) ->
   array_at sh t gfs lo hi v p =
     array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p *
     field_at sh t (ArraySubsc mid :: gfs) v0 p *
@@ -716,7 +716,7 @@ Proof.
   f_equal.
   f_equal.
   replace (mid + 1 - lo) with (mid - lo + 1) by omega.
-  rewrite sublist_len_1 with (d := default_val _) by omega.
+  rewrite sublist_len_1 by omega.
   rewrite array_at_len_1 with (v' :=v0); [auto |].
   apply JMeq_sym; auto.
 Qed.
@@ -1144,10 +1144,10 @@ Proof.
 Qed.
 
 Lemma array_at_ramif: forall sh t gfs t0 n a lo hi i v v0 p,
-  let d := default_val _ in
+(*  let d := default_val _ in *)
   nested_field_type t gfs = Tarray t0 n a ->
   lo <= i < hi ->
-  JMeq v0 (Znth (i - lo) v d) ->
+  JMeq v0 (Znth (i - lo) v) ->
   array_at sh t gfs lo hi v p |-- field_at sh t (ArraySubsc i :: gfs) v0 p *
    (ALL v0: _, ALL v0': _, !! JMeq v0 v0' -->
       (field_at sh t (ArraySubsc i :: gfs) v0 p -*

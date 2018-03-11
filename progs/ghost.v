@@ -60,7 +60,7 @@ Proof.
 Qed.
 
 Lemma view_shift_sepcon_list : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
-  (Hall : forall i, 0 <= i < Zlength l1 -> view_shift (Znth i l1 FF) (Znth i l2 FF)),
+  (Hall : forall i, 0 <= i < Zlength l1 -> view_shift (Znth i l1) (Znth i l2)),
   view_shift (fold_right sepcon emp l1) (fold_right sepcon emp l2).
 Proof.
   induction l1; intros.
@@ -123,8 +123,9 @@ End ViewShift.
 Parameter ghost : forall {A} {P : PCM A} (g : A) (p : val), mpred.
 
 Section PCM.
-
-Context `{M : PCM}.
+Context {A: Type}.
+Context {M : PCM A}.
+Context {defa: Inhabitant A}.
 
 Definition joins a b := exists c, join a b c.
 
@@ -168,9 +169,9 @@ Proof.
   intros ??; exists g; eauto.
 Qed.
 
-Lemma ghost_list_alloc : forall lg P g, Forall (fun g => exists g', joins g g') lg ->
+Lemma ghost_list_alloc : forall lg P, Forall (fun g => exists g', joins g g') lg ->
   view_shift P (EX lp : list val, !!(Zlength lp = Zlength lg) &&
-    fold_right sepcon emp (map (fun i => ghost (Znth i lg g) (Znth i lp Vundef)) (upto (Z.to_nat (Zlength lg)))) * P).
+    fold_right sepcon emp (map (fun i => ghost (Znth i lg) (Znth i lp)) (upto (Z.to_nat (Zlength lg)))) * P).
 Proof.
   induction 1.
   - apply derives_view_shift; Exists (@nil val); simpl; entailer!.
@@ -188,7 +189,7 @@ Qed.
 
 Corollary ghost_list_alloc' : forall g i P, 0 <= i -> (exists g', joins g g') ->
   view_shift P (EX lp : list val, !!(Zlength lp = i) &&
-    fold_right sepcon emp (map (fun i => ghost g (Znth i lp Vundef)) (upto (Z.to_nat i))) * P).
+    fold_right sepcon emp (map (fun i => ghost g (Znth i lp)) (upto (Z.to_nat i))) * P).
 Proof.
   intros.
   etransitivity; [apply ghost_list_alloc with (lg := repeat g (Z.to_nat i))|].
@@ -196,7 +197,8 @@ Proof.
   apply derives_view_shift; Intros lp; Exists lp.
   rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto; entailer!.
   erewrite map_ext_in; eauto; intros; simpl.  apply derives_refl.
-  rewrite Znth_repeat; auto.
+  rewrite Znth_repeat'; auto.
+  apply In_upto in H1. omega.
 Qed.
 
 End PCM.
@@ -1160,10 +1162,10 @@ Proof.
   erewrite <- nth_error_Some, H; eauto; discriminate.
 Qed.
 
-Variable (d : hist_el).
+Context {d: Inhabitant hist_el}.
 
 Definition ordered_hist h := forall i j (Hi : 0 <= i < j) (Hj : j < Zlength h),
-  (fst (Znth i h (O, d)) < fst (Znth j h (O, d)))%nat.
+  (fst (Znth i h) < fst (Znth j h))%nat.
 
 Lemma ordered_nil : ordered_hist [].
 Proof.
@@ -1176,7 +1178,7 @@ Lemma ordered_cons : forall t e h, ordered_hist ((t, e) :: h) ->
 Proof.
   unfold ordered_hist; split.
   - rewrite Forall_forall; intros (?, ?) Hin.
-    apply In_Znth with (d0 := (O, d)) in Hin.
+    apply In_Znth in Hin.
     destruct Hin as (j & ? & Hj).
     exploit (H 0 (j + 1)); try omega.
     { rewrite Zlength_cons; omega. }
@@ -1212,7 +1214,7 @@ Proof.
 Qed.
 
 Lemma ordered_hist_list : forall l h i (Hordered : ordered_hist h) (Hl : hist_list h l)
-  (Hi : 0 <= i < Zlength l), Znth i h (O, d) = (Z.to_nat i, Znth i l d).
+  (Hi : 0 <= i < Zlength l), Znth i h = (Z.to_nat i, Znth i l).
 Proof.
   intros.
   pose proof (hist_list_length _ _ Hl) as Hlen.
@@ -1234,17 +1236,27 @@ Proof.
       { split; [omega|].
         apply Nat2Z.inj_lt; tauto. }
       { rewrite Zlength_correct; apply Nat2Z.inj_lt; tauto. }
-      rewrite !map_nth, !nth_Znth; auto.
-    - rewrite <- ZtoNat_Zlength; apply Z2Nat.inj_lt; omega. }
-  rewrite nth_Znth, Z2Nat.id in Ht by tauto.
-  erewrite Znth_map with (d' := (O, d)) in Ht by omega.
-  destruct (Znth i h (O, d)) as (t, e) eqn: Heq.
+       unfold Znth. rewrite !if_false by omega. rewrite !Nat2Z.id.
+       simpl. rewrite <- map_nth. rewrite <- (map_nth _ _ _ j'). simpl. auto.
+    - rewrite Hlen'. clear - Hi. rewrite <- ZtoNat_Zlength; apply Z2Nat.inj_lt; omega. }
+  simpl in Ht.
+  assert (Znth i (map fst h) = Z.to_nat i). rewrite <- Ht.
+  rewrite <- (Z2Nat.id i) at 1 by omega. symmetry; apply nth_Znth.
+  clear Ht; rename H0 into Ht.
+  erewrite Znth_map in Ht by omega.
+  destruct (Znth i h) as (t, e) eqn: Heq.
   specialize (Hl t e); rewrite <- Heq in Hl.
   destruct Hl as (Hl & _); exploit Hl.
   { apply Znth_In; omega. }
-  intro Hnth; rewrite nth_error_nth with (d := d) in Hnth by (rewrite <- nth_error_Some, Hnth; discriminate).
-  simpl in *; inv Hnth.
-  rewrite nth_Znth, Z2Nat.id; tauto.
+  intro Hnth.
+  rewrite nth_error_nth with (d := d) in Hnth.
+  inv Hnth. simpl in Ht. subst. f_equal. change d with default. rewrite nth_Znth.
+  rewrite Z2Nat.id; auto. omega.
+  simpl in Ht. subst.
+(*  rewrite <- (Z2Nat.id i) by omega. *)
+  destruct Hi.
+  apply Z2Nat.inj_lt in H1; try list_solve.
+  rewrite Zlength_correct in H1. rewrite Nat2Z.id in H1. auto.
 Qed.
 
 (* We want to be able to remove irrelevant operations from a history, leading to a slightly weaker

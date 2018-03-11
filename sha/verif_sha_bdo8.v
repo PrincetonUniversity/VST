@@ -18,7 +18,7 @@ Definition load8 id ofs :=
 Lemma Znth_is_int:
  forall i r,
   0 <=  i < Zlength r ->
-  is_int I32 Unsigned (Znth i (map Vint r) Vundef).
+  is_int I32 Unsigned (Znth i (map Vint r)).
 Proof.
 intros.
 unfold Znth.
@@ -168,7 +168,7 @@ clear IHi.
 simpl add_upto.
 rewrite (sublist_split 0 1 (Z.of_nat (S i))); try omega.
 change (@sublist int 0 1) with (@sublist int 0 (0+1)).
-rewrite sublist_singleton with (d:=Int.zero); try omega.
+rewrite sublist_len_1; try omega.
 rewrite inj_S.
 simpl.
 autorewrite with sublist.
@@ -204,11 +204,11 @@ omega.
 Qed.
 
 Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
- forall t a v i j,
+ forall t (a: list (reptype t)) v i j,
     0 <= j <= Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
-    Znth i (upd_Znth j a v) (default_val t) = Znth i a (default_val t).
+    Znth i (upd_Znth j a v) = Znth i a.
 Proof.
 intros.
 unfold upd_Znth.
@@ -228,7 +228,7 @@ Lemma int_add_upto:
    forall (j:nat)  (i:Z),
      j = Z.to_nat i ->
      0 <= i < 8 ->
-     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh)) Vundef).
+     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh))).
 Proof.
 intros until 2.
   assert (ZR: Zlength regs = 8) by ( rewrite Zlength_correct, H; reflexivity).
@@ -254,18 +254,18 @@ Lemma add_s:
     upd_Znth i' (map Vint (add_upto i regs atoh))
              (Vint
                 (Int.add
-                   (Znth i' (add_upto i regs atoh) Int.zero)
+                   (Znth i' (add_upto i regs atoh))
                    (nthi atoh i'))) =
      map Vint (add_upto (S i) regs atoh).
 Proof.
 intros.
-assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)) Vundef)).
+assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)))).
  apply  Znth_is_int.   rewrite Zlength_correct, length_add_upto, H.
  change (Z.of_nat 8) with 8; omega. rewrite H,H0;  auto.
 subst i'.
 rewrite add_upto_S; try omega.
 f_equal.
-destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef);
+destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)));
    try contradiction H3.
 simpl.
 f_equal. f_equal.
@@ -330,20 +330,28 @@ assert (forall i i', i'=Z.of_nat i -> 0<= i' <8 -> 0 <= i' < Zlength (add_upto i
 assert (0<=0) by computable.
 forward.
 forward.
+autorewrite with sublist.
 rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 rewrite (add_upto_8 _ _ H H0).
 entailer!.

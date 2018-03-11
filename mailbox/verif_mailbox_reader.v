@@ -22,19 +22,19 @@ Proof.
   forward.
   forward_call (r, reading, last_read, reads, lasts, sh1).
 (*  eapply semax_seq'; [|apply semax_ff]. *)
-  set (c := Znth r comms Vundef).
-  set (l := Znth r locks Vundef).
+  set (c := Znth r comms).
+  set (l := Znth r locks).
   forward_loop (EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
     LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read; 
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
-         data_at Tsh tint Empty (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
+         data_at Tsh tint Empty (Znth r reads); data_at Tsh tint (vint b0) (Znth r lasts);
          data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh tint arg;
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr tlock) N) locks lock;
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
-         EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
+         EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs);
          ghost_var gsh1 (vint b0) g0))
   break: (@FF (environ->mpred) _).
   { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.

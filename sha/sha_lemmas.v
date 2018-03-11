@@ -79,7 +79,7 @@ Qed.
 Lemma Znth_big_endian_integer:
   forall i bl,
    0 <= i < Zlength bl ->
-   Znth i bl Int.zero =
+   Znth i bl =
      big_endian_integer
                    (sublist (i * WORD) (Z.succ i * WORD)
                    (map Int.repr (intlist_to_Zlist bl))).
