@@ -19,6 +19,8 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
+Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
@@ -268,11 +270,11 @@ Ltac hint_whatever :=
  tryif (try (rewrite prop_sepcon; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon'";
  tryif (try (rewrite prop_sepcon2; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon2'";
  try match goal with
-  | H: Forall ?F ?L |- ?F' (Znth _ ?L' _) => 
+  | H: Forall ?F ?L |- ?F' (Znth _ ?L') => 
        constr_eq F F'; constr_eq L L'; idtac "Hint: try 'apply forall_Znth; auto'"
   end;
- try match goal with |- context [Znth ?i (@map ?T _ ?F _) _] =>
-  idtac "Hint: perhaps 'rewrite Znth_map with (d':=x)', where x is any value of type" T
+ try match goal with |- context [Znth ?i (@map ?T _ ?F _)] =>
+  idtac "Hint: perhaps 'rewrite Znth_map'"
  end.
 
 Ltac hint_special := idtac.

@@ -4,6 +4,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 Require Import VST.floyd.simple_reify.
 
 Section SIMPL_REPTYPE.
@@ -158,12 +159,14 @@ Instance Inhabitant_int: Inhabitant int := Int.zero.
    Makes entailer and other tactics more successful. *)
 Ltac default_canon_load_result :=
   repeat (
-    first [ rewrite (@Znth_map int _)
+    first [ rewrite Znth_map_Vbyte
+          | rewrite (@Znth_map int _)
+          | rewrite (@Znth_map int64 _)
           | rewrite (@Znth_map val _)
           | rewrite (@Znth_map Z _) ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
+    [ | solve [auto; list_solve] + match goal with
+        | |- ?Bounds => fail 1000 "Make sure list_solve or auto can prove" Bounds
+        end  ]
   ).
 
 Ltac canon_load_result := default_canon_load_result.

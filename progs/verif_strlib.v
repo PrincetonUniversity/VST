@@ -95,7 +95,7 @@ Exists 0. entailer!.
 *
 Intros i.
 assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
-forward. normalize.
+forward.
 forward_if.
 forward.
 entailer!. f_equal. f_equal. cstring.

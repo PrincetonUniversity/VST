@@ -5,6 +5,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 
 Local Open Scope logic.
 
@@ -24,20 +25,6 @@ Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
 Hint Resolve isptr_force_val_sem_cast_neutral : norm.
-
-Instance Inhabitant_val : Inhabitant val := Vundef.
-Instance Inhabitant_int: Inhabitant int := Int.zero.
-Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
-Instance Inhabitant_int64: Inhabitant Int64.int := Int64.zero.
-Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
-Instance Inhabitant_float : Inhabitant float := Float.zero.
-Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
-
-Hint Rewrite 
-   (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
-   (@Znth_map int64 _) (@Znth_map ptrofs _) (@Znth_map float _)
-   (@Znth_map float32 _)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist entailer_rewrite.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
@@ -473,12 +460,24 @@ Hint Extern 4 (value_fits _ _ _) =>
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
 
+Lemma intsigned_intrepr_bytesigned: forall i,
+   Int.signed (Int.repr (Byte.signed i)) = Byte.signed i.
+Proof.
+ intros. rewrite Int.signed_repr; auto.
+  destruct (Byte.signed_range i).
+  split.
+  eapply Z.le_trans; [ | eassumption]. compute; intros Hx; inv Hx.
+  eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
+Qed.
+
+Hint Rewrite intsigned_intrepr_bytesigned : rep_omega.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rep_omega (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *)
         | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
@@ -776,9 +775,6 @@ intros. apply Z.max_r; auto.
 Qed.
 Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
 
-Definition Vbyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.signed c)).
-
 Import ListNotations.
 
 Definition cstring {CS : compspecs} (s: list byte) p := 
@@ -867,22 +863,3 @@ Ltac cstring :=
      constr_eq ls ls'; apply H1;
     rewrite app_Znth2 by omega; apply Znth_zero_zero
  end.
-
-Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
-  0 <= i < Zlength l -> Znth i (map Vbyte l)  = Vbyte (Znth i l).
-Proof.
-  intros i l.
-  apply Znth_map.
-Qed.
-Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
-
-Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
-Proof.
-intros. simpl. normalize. rep_omega.
-Qed.
-Hint Resolve is_int_Vbyte.
-
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
