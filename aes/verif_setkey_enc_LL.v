@@ -71,8 +71,8 @@ Lemma Znth_partially_expanded_key: forall i j key,
   0 <= i < 7 ->
   0 <= j < 8 + i*8 ->
   (Znth j (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i * 8)) key)
-           ++ repeat_op_table (60 - i * 8) Vundef id) Vundef)
-  = Vint (Znth j (KeyExpansion2 key) Int.zero).
+           ++ repeat_op_table (60 - i * 8) Vundef id))
+  = Vint (Znth j (KeyExpansion2 key)).
 Admitted.
 
 Lemma Zlength_partially_expanded_key: forall i key_chars,

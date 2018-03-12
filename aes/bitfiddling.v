@@ -18,27 +18,27 @@ Lemma byte3_word_to_int: forall b0 b1 b2 b3,
 Admitted.
 
 Lemma xor_byte0_with_FSb: forall b0 b1 b2 b3 i,
-  Int.xor (word_to_int (b0, b1, b2, b3)) (Znth i tablesLL.FSb Int.zero)
-  = word_to_int ((Int.xor b0 (Znth i tablesLL.FSb Int.zero)), b1, b2, b3).
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Znth i tablesLL.FSb)
+  = word_to_int ((Int.xor b0 (Znth i tablesLL.FSb)), b1, b2, b3).
 Admitted.
 
 Lemma xor_byte1_with_FSb: forall b0 b1 b2 b3 i,
-  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 8))
-  = word_to_int (b0, (Int.xor b1 (Znth i tablesLL.FSb Int.zero)), b2, b3).
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb) (Int.repr 8))
+  = word_to_int (b0, (Int.xor b1 (Znth i tablesLL.FSb)), b2, b3).
 Admitted.
 
 Lemma xor_byte2_with_FSb: forall b0 b1 b2 b3 i,
-  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 16))
-  = word_to_int (b0, b1, (Int.xor b2 (Znth i tablesLL.FSb Int.zero)), b3).
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb) (Int.repr 16))
+  = word_to_int (b0, b1, (Int.xor b2 (Znth i tablesLL.FSb)), b3).
 Admitted.
 
 Lemma xor_byte3_with_FSb: forall b0 b1 b2 b3 i,
-  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 24))
-  = word_to_int (b0, b1, b2, (Int.xor b3 (Znth i tablesLL.FSb Int.zero))).
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb) (Int.repr 24))
+  = word_to_int (b0, b1, b2, (Int.xor b3 (Znth i tablesLL.FSb))).
 Admitted.
 
 Lemma equiv_sbox: forall b,
-  Znth (Int.unsigned b) tablesLL.FSb Int.zero = look_sbox b.
+  Znth (Int.unsigned b) tablesLL.FSb = look_sbox b.
 Admitted.
 
 Lemma xor_word_to_int: forall a0 a1 a2 a3 b0 b1 b2 b3,
@@ -56,7 +56,7 @@ Lemma mask_byte_nop: forall i,
 Admitted.
 
 Lemma FSb_range: forall i,
-  0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
+  0 <= Int.unsigned (Znth i FSb) < 256.
 Admitted.
 
 Lemma zero_ext_nop: forall i,
@@ -67,24 +67,24 @@ Admitted.
 Lemma FSb_inj: forall i j,
   0 <= i < 256 ->
   0 <= j < 256 ->
-  Znth i FSb Int.zero = Znth j FSb Int.zero ->
+  Znth i FSb = Znth j FSb ->
   i = j.
 Admitted.
 
 Lemma FSb_RSb_id: forall j,
   0 <= j < 256 ->
-  j = Int.unsigned (Znth (Int.unsigned (Znth j RSb Int.zero)) FSb Int.zero).
+  j = Int.unsigned (Znth (Int.unsigned (Znth j RSb)) FSb).
 Admitted.
 
 Lemma RSb_inj: forall i j,
   0 <= i < 256 ->
   0 <= j < 256 ->
-  Znth i RSb Int.zero = Znth j RSb Int.zero ->
+  Znth i RSb = Znth j RSb ->
   i = j.
 Admitted.
 
 Lemma RSb_range: forall i,
-  0 <= Int.unsigned (Znth i RSb Int.zero) < 256.
+  0 <= Int.unsigned (Znth i RSb) < 256.
 Admitted.
 
 

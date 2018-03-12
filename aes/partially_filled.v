@@ -1,7 +1,7 @@
 Require Import ZArith.
 Local Open Scope Z_scope.
 Require Import Integers.
-Require Import VST.floyd.sublist.
+Require Import VST.floyd.proofauto.
 Require Import compcert.common.Values.
 Require Export List. Export ListNotations.
 Require Export aes.list_utils.
@@ -17,5 +17,5 @@ Admitted.
 
 Lemma Znth_partially_filled: forall (i j n: Z) (f: Z -> int),
   0 <= i -> i < j -> j <= n ->
-  Znth i (partially_filled j n f) Vundef = Vint (f i).
+  Znth i (partially_filled j n f) = Vint (f i).
 Admitted.

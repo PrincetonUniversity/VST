@@ -218,13 +218,13 @@ Lemma SixteenWR_int s i: (0<=i<16)%nat -> exists ii, nth i (SixteenWordRep s) Vu
 Qed.
 
 Lemma SixteenWR_Znth_int i s: (0 <= i < 16) ->
-       exists ii : int, Znth i (SixteenWordRep s) Vundef = Vint ii.
+       exists ii : int, Znth i (SixteenWordRep s) = Vint ii.
 Proof. intros. unfold Znth. if_tac; try omega.
    apply SixteenWR_int. destruct H. apply Z2Nat.inj_lt in H1; simpl in *; omega.
 Qed.
 
 Lemma QuadWR_Z_int: forall (q : QuadWord) (i : Z),
-               0 <= i < 4 -> exists ii : int, Znth i (QuadWordRep q) Vundef = Vint ii.
+               0 <= i < 4 -> exists ii : int, Znth i (QuadWordRep q) = Vint ii.
 Proof. intros. unfold Znth. if_tac. omega.
        apply QuadWR_int. destruct H.
        split.
@@ -369,7 +369,7 @@ Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat),
 Qed.
 
 Lemma upd_upto_Vint data: forall n, 0<=n<16 ->
-      forall d, exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) d = Vint i.
+      exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) = Vint i.
   Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
    repeat rewrite (upd_Znth_lookup' 16); trivial; simpl; try omega.
    if_tac. eexists; reflexivity.   if_tac. eexists; reflexivity.

@@ -222,7 +222,7 @@ forward_for_simple_bound 8
  apply align_compatible_tarray_tuchar.
 *
   forward. (* ll=(c)->h[xn]; *)
-  pose (w := Znth i hashedmsg Int.zero).
+  pose (w := Znth i hashedmsg).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
   assert (BYTES: bytes =
      sublist (i * 4) (i * 4 + 4)
@@ -237,7 +237,7 @@ forward_for_simple_bound 8
   replace (fun x : Z => force_int (Vint (Int.repr x))) with Int.repr
    by (extensionality zz; reflexivity).
   f_equal.
-  rewrite sublist_singleton with (d:=Int.zero) by omega.
+  rewrite sublist_len_1 by omega.
   reflexivity.
  }
  unfold data_at.

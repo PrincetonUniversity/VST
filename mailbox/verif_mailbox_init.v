@@ -158,9 +158,9 @@ Proof.
            Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i) &&
           (data_at Ews (tarray (tptr tlock) N) (locks ++ repeat Vundef (Z.to_nat (N - i))) lock *
            data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) comm *
-           fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef)
-             (Znth r g Vundef) (Znth r g0 Vundef) (Znth r g1 Vundef) (Znth r g2 Vundef) bufs
-             (Znth r shs Tsh) gsh2 []) (upto (Z.to_nat i))) *
+           fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks) (Znth r comms)
+             (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
+             (Znth r shs) gsh2 []) (upto (Z.to_nat i))) *
            fold_right sepcon emp (map (malloc_token Tsh tlock) locks)) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
@@ -176,7 +176,7 @@ Proof.
            fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
          @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs buf;
          EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
-           @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs Vundef);
+           @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs);
          fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
          fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
   { unfold N; computable. }
@@ -201,7 +201,7 @@ Proof.
     eapply (ghost_alloc (Tsh, vint 1)); auto with init.
     eapply (ghost_alloc (Some (Tsh, [] : hist), Some ([] : hist))); auto with init.
     Intros g' g0' g1' g2'.
-    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
+    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
     rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
     erewrite <- !ghost_var_share_join with (sh0 := Tsh) by eauto.
@@ -210,9 +210,10 @@ Proof.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
-    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
+    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
+(*    { entailer!. }
     { entailer!. }
-    { entailer!. }
+*)
     { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
         [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
       { apply AE_inv_precise; auto. }

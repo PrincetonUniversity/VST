@@ -34,9 +34,9 @@ Lemma Snuffle_sub_simpl data x:
     Snuffle20 (prepare_data data) = Some x ->
     exists s, Snuffle 20 (prepare_data data) = Some s /\
     forall i (I:0 <= i < 16) v,
-      Znth i (prepare_data data) Int.zero = v ->
-      littleendian_invert (Int.sub (Znth i x Int.zero) v) =
-      littleendian_invert (Znth i s Int.zero).
+      Znth i (prepare_data data) = v ->
+      littleendian_invert (Int.sub (Znth i x) v) =
+      littleendian_invert (Znth i s).
 Proof. intros.
 Transparent Snuffle20. unfold Snuffle20 in H. Opaque Snuffle20.
 remember (Snuffle 20 (prepare_data data)) as sn.

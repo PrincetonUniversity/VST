@@ -2,6 +2,7 @@ From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
 Export Cop.
 Require Export VST.floyd.base2.
 Require Export VST.floyd.sublist.
+Require Export VST.floyd.sublist2.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
 Require Export VST.floyd.closed_lemmas.
@@ -87,6 +88,9 @@ Hint Extern 1 (Vundef :: _ = default_val _) => reflexivity : cancel.
 Hint Extern 1 (default_val _ = Vundef :: _) => reflexivity : cancel.
 Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
 Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
+
+Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
+Instance Inhabitant_share : Inhabitant share := Share.bot.
 
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .

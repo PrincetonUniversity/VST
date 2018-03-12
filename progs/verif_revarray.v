@@ -113,12 +113,12 @@ auto.
 Qed.
 
 Lemma flip_fact_2:
-  forall {A} (al: list A) size j d,
+  forall {A}{d: Inhabitant A} (al: list A) size j,
  Zlength al = size ->
   j < size - j - 1 ->
    0 <= j ->
-  Znth (size - j - 1) al d =
-  Znth (size - j - 1) (flip_ends j (size - j) al) d.
+  Znth (size - j - 1) al =
+  Znth (size - j - 1) (flip_ends j (size - j) al).
 Proof.
 intros.
 unfold flip_ends.
@@ -148,8 +148,7 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map with (d':=Int.zero)
-   by (autorewrite with sublist; omega).
+  rewrite Znth_map by list_solve.
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
@@ -158,8 +157,7 @@ forward.  (* s = a[hi-1]; *)
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map with (d':=Int.zero)
-   by (autorewrite with sublist; omega).
+  rewrite Znth_map by list_solve.
   apply I.
 }
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
@@ -174,7 +172,10 @@ forward. (* hi--; *)
  apply derives_refl'.
  unfold data_at.    f_equal.
  clear - H0 HRE H1.
- forget (map Vint contents) as al.
+ unfold Z.succ.
+ rewrite <- flip_fact_3 by auto.
+ rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; list_solve).
+ forget (map Vint contents) as al. clear contents.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
  unfold upd_Znth.
@@ -184,8 +185,7 @@ forward. (* hi--; *)
  rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; omega).
  unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
  replace (size - j - 1 + (1 + j)) with size by (clear; omega).
- apply flip_fact_3; auto.
-
+ reflexivity.
 * (* after the loop *)
 forward. (* return; *)
 rewrite map_rev. rewrite flip_fact_1 by omega.

@@ -19,10 +19,10 @@ Fixpoint WcontI (xs: list int) (j:nat) (l:list val):Prop :=
    match j with O => Zlength l = 16
    | (S n) => Zlength l = 16 /\
               exists t0 t1 t2 t3,
-              Znth ((5 * (Z.of_nat n) + 4 * 0) mod 16) (map Vint xs) Vundef = Vint t0 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 1) mod 16) (map Vint xs) Vundef = Vint t1 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 2) mod 16) (map Vint xs) Vundef = Vint t2 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 3) mod 16) (map Vint xs) Vundef = Vint t3 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 0) mod 16) (map Vint xs) = Vint t0 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 1) mod 16) (map Vint xs) = Vint t1 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 2) mod 16) (map Vint xs) = Vint t2 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 3) mod 16) (map Vint xs) = Vint t3 /\
               exists wl, WcontI xs n wl /\
                 match Wcopyspec t0 t1 t2 t3 with
                  (s0,s1,s2,s3) => wlistJ' wl (Z.of_nat n) s0 s1 s2 s3 l
@@ -124,7 +124,7 @@ Sfor (Sset _m (Econst_int (Int.repr 0) tint))
 Lemma array_copy3 Espec:
 forall FR c k h nonce out
        i w x y t (xlist wlist:list val)
-       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
+       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist =Vint mval),
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
@@ -154,14 +154,14 @@ Time forward_for_simple_bound 16 (EX m:Z,
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
-         EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
+         EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist = Znth mm wlist)
                 && data_at Tsh (tarray tuint 16) mlist x))).
   (*1.2 versus 2.7*)
 { Exists xlist. Time entailer!. (*2.6 versus 6.7*) intros; omega. }
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
   destruct (WZ _ M) as [mval MVAL].
   freeze [0;2] FR1.
-  Time forward; rewrite MVAL. (*3.5 versus 8.7*)
+  Time forward; change (@Znth val Vundef) with (@Znth val _); rewrite MVAL. (*3.5 versus 8.7*)
   Time solve[entailer!]. (*0.9 versus 3.3*)
   thaw FR1.
   Time assert_PROP (Zlength mlist = 16) as ML by entailer!. (*1.2 versus 3.5*)
@@ -178,7 +178,7 @@ Time forward_for_simple_bound 16 (EX m:Z,
   Intros mlist.
   assert_PROP (Zlength mlist = 16) as ML by entailer.
   apply derives_refl'. f_equal.
-  eapply Znth_extensional with (d:=Vundef). omega.
+  eapply Znth_extensional. omega.
   intros kk K. apply H1. omega. }
 Time Qed. (*June 4th, 2017 (laptop): 1s*)
 
@@ -457,13 +457,13 @@ Time forward_for_simple_bound 20 (EX i:Z,
   { Time entailer!. (*2.5*) Exists (list_repeat 16 Vundef). Time entailer!. (*0.1*) }
   { rename H into J. rename i0 into j.
     Intros wlist. rename H into WCONT.
-    destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16) Vundef) as [t0 T0].
+    destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16)) as [t0 T0].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16) Vundef) as [t1 T1].
+    destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16)) as [t1 T1].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 2) mod 16) Vundef) as [t2 T2].
+    destruct (Znth_mapVint r ((5 * j + 4 * 2) mod 16)) as [t2 T2].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16) Vundef) as [t3 T3].
+    destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16)) as [t3 T3].
       rewrite RZL; apply Z_mod_lt; omega. 
     eapply semax_post_flipped'.
     apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).

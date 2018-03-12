@@ -7,11 +7,11 @@ Require Export aes.sbox.
 (* substitute b for its counterpart in the sbox *)
 Definition look_sbox (b: int) : int :=
   (* All possible values of b are covered in the sbox so the default should never be returned *)
-  Int.repr (Znth (Int.unsigned b) sbox 0).
+  Int.repr (Znth (Int.unsigned b) sbox).
 
 (* substitute b for its counterpart in the inverse sbox *)
 Definition look_inv_sbox (b: int) : int :=
-  Int.repr (Znth (Int.unsigned b) inv_sbox 0).
+  Int.repr (Znth (Int.unsigned b) inv_sbox).
 
 (********************* GF(256) arithmetic *******************)
 

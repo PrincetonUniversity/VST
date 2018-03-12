@@ -88,7 +88,7 @@ omega.
 Qed.
 
 Lemma flip_fact_3:
- forall A (al: list A) (d: A) j size,
+ forall A (al: list A) (d: Inhabitant A) j size,
   size = Zlength al ->
   0 <= j < size - j - 1 ->
 firstn (Z.to_nat j)
@@ -230,8 +230,8 @@ replace (Z.succ j - j) with 1 by omega.
 f_equal.
 rewrite app_nil_end.
 rewrite app_nil_end at 1.
-rewrite <- Znth_cons with (d0:=d) by omega.
-rewrite <- Znth_cons with (d0:=d) by omega.
+rewrite <- (@Znth_cons _ d) by omega.
+rewrite <- (@Znth_cons _ d) by omega.
 f_equal.
 rewrite Znth_rev by omega.
 f_equal. omega.
@@ -245,8 +245,8 @@ rewrite Zskipn_skipn by omega.
 f_equal.
 rewrite app_nil_end.
 rewrite app_nil_end at 1.
-rewrite <- Znth_cons with (d0:=d) by omega.
-rewrite <- Znth_cons with (d0:=d) by omega.
+rewrite <- (@Znth_cons _ d) by omega.
+rewrite <- (@Znth_cons _ d) by omega.
 f_equal.
 rewrite Znth_rev by omega.
 f_equal.
@@ -257,12 +257,12 @@ omega.
 Qed.
 
 Lemma flip_fact_2:
-  forall {A} (al: list A) size j d,
+  forall {A} (al: list A) size j (d: Inhabitant A),
  Zlength al = size ->
   j < size - j - 1 ->
    0 <= j ->
-  Znth (size - j - 1) al d =
-  Znth (size - j - 1) (flip_between j (size - j) al) d.
+  Znth (size - j - 1) al =
+  Znth (size - j - 1) (flip_between j (size - j) al).
 Proof.
 intros.
 unfold flip_between.
@@ -305,6 +305,8 @@ Vint (Int.repr size) = Vint (Int.repr size) /\
 Vint Int.zero = Vint (Int.repr 0) /\ True.
 Abort.
 
+Instance Inhabitant_val : Inhabitant val := Vundef.
+
 Lemma verif_sumarray_example2:
 forall (sh : share) (contents : list int) (size : Z) (a : val),
 forall (sh : share) (contents : list int) (size a1 : Z) (a : val),
@@ -314,7 +316,7 @@ a1 < size ->
 0 <= a1 <= size ->
 is_pointer_or_null a ->
 Zlength (map Vint contents) = size ->
-is_int I32 Signed (Znth a1 (map Vint contents) Vundef).
+is_int I32 Signed (Znth a1 (map Vint contents)).
 Abort.
 
 Require Import compcert.exportclight.Clightdefs.

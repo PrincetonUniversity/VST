@@ -5,6 +5,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 
 Local Open Scope logic.
 
@@ -24,9 +25,6 @@ Proof.
 intros. destruct p; try contradiction; apply I.
 Qed.
 Hint Resolve isptr_force_val_sem_cast_neutral : norm.
-
-Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
@@ -462,12 +460,24 @@ Hint Extern 4 (value_fits _ _ _) =>
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
 
+Lemma intsigned_intrepr_bytesigned: forall i,
+   Int.signed (Int.repr (Byte.signed i)) = Byte.signed i.
+Proof.
+ intros. rewrite Int.signed_repr; auto.
+  destruct (Byte.signed_range i).
+  split.
+  eapply Z.le_trans; [ | eassumption]. compute; intros Hx; inv Hx.
+  eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
+Qed.
+
+Hint Rewrite intsigned_intrepr_bytesigned : rep_omega.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | rep_omega (* Omega0 *)
+        | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *)
         | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
@@ -765,9 +775,6 @@ intros. apply Z.max_r; auto.
 Qed.
 Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
 
-Definition Vbyte (c: Byte.int) : val :=
-  Vint (Int.repr (Byte.signed c)).
-
 Import ListNotations.
 
 Definition cstring {CS : compspecs} (s: list byte) p := 
@@ -828,7 +835,7 @@ Hint Resolve cstringn_valid_pointer : valid_pointer.
 
 
 Lemma Znth_zero_zero:
-  forall i {A} (a: A), Znth i [a] a = a.
+  forall i, Znth i [Byte.zero] = Byte.zero.
 Proof.
 intros.
 unfold Znth.
@@ -836,42 +843,23 @@ if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
 Qed.
 
 
-Ltac cstring := 
- match goal with H: ~In Byte.zero _ |- _ => idtac end;
+Ltac cstring :=
+  match goal with H: ~In Byte.zero _ |- _ => idtac end;
  lazymatch goal with
- | H1: Znth _ (_++[Byte.zero]) Byte.zero = Byte.zero |- _ => idtac 
- | H1: Znth _ (_++[Byte.zero]) Byte.zero <> Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
  end;
 (* THIS TACTIC solves goals of the form,
-    ~In 0 ls,  Znth i (ls++[0]) 0 = 0 |-  (any omega consequence of)  i < Zlength ls
-    ~In 0 ls,  Znth i (ls++[0]) 0 <> 0 |-  (any omega consequence of)  i >= Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
 *)
   pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
-  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero = Byte.zero |- _ =>
-     constr_eq ls ls'; elimtype False; apply H; rewrite <- H1; 
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
+     constr_eq ls ls'; apply H; rewrite <- H1;  
     rewrite app_Znth1 by omega; apply Znth_In; omega
-  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) Byte.zero <> Byte.zero |- _ =>
-     constr_eq ls ls'; elimtype False; apply H1;
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
+     constr_eq ls ls'; apply H1;
     rewrite app_Znth2 by omega; apply Znth_zero_zero
  end.
-
-Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
-  0 <= i < Zlength l -> Znth i (map Vbyte l) Vundef = Vbyte (Znth i l Byte.zero).
-Proof.
-  intros i l.
-  apply Znth_map.
-Qed.
-Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
-
-Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
-Proof.
-intros. simpl. normalize. rep_omega.
-Qed.
-Hint Resolve is_int_Vbyte.
-
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
