@@ -316,6 +316,34 @@ Next Obligation.
   destruct (ghost_of a) eqn: Ha; auto.
 Qed.
 
+Lemma inG_emp: forall RA, inG RA |-- emp.
+Proof.
+  intro; apply andp_left2; auto.
+Qed.
+
+Lemma andp_emp_derives_dup : forall P, P && emp |-- P && emp * (P && emp).
+Proof.
+  intros ???.
+  exists a; exists a; split; auto.
+  apply sepalg.identity_unit'; destruct H; auto.
+Qed.
+
+Corollary andp_emp_dup : forall P, P && emp = (P && emp) * (P && emp).
+Proof.
+  intro; apply pred_ext.
+  - apply andp_emp_derives_dup.
+  - apply andp_right.
+    + eapply derives_trans; [apply sepcon_derives, andp_left2, derives_refl; apply andp_left1, derives_refl |].
+      rewrite sepcon_emp; auto.
+    + eapply derives_trans; [apply sepcon_derives; apply andp_left2, derives_refl |].
+      rewrite sepcon_emp; auto.
+Qed.
+
+Lemma inG_dup: forall RA, inG RA |-- inG RA * inG RA.
+Proof.
+  intro; setoid_rewrite <- andp_emp_dup; auto.
+Qed.
+
 Lemma skipn_all: forall {A} (n : nat) (l : list A), (length l <= n)%nat -> skipn n l = nil.
 Proof.
   induction n; destruct l; auto; simpl; intros; try omega.

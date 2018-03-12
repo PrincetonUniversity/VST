@@ -23,7 +23,9 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
   own_update_ND: forall {RA: Ghost} g (a: G) B pp, fp_update_ND a B ->
     own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp);
   own_update: forall {RA: Ghost} g (a: G) b pp, fp_update a b ->
-    own g a pp |-- bupd (own g b pp)
+    own g a pp |-- bupd (own g b pp);
+  inG_emp: forall RA, inG RA |-- emp;
+  inG_dup: forall RA, inG RA |-- inG RA * inG RA
   }.
 
 Notation "|==> P" := (bupd P) (at level 62): logic.
@@ -31,6 +33,14 @@ Notation "|==> P" := (bupd P) (at level 62): logic.
 Lemma bupd_frame_l: forall `{BupdSepLog} (P Q: A), (P * |==> Q) |-- |==> P * Q.
 Proof.
   intros; rewrite sepcon_comm, (sepcon_comm P Q); apply bupd_frame_r.
+Qed.
+
+Lemma bupd_sepcon: forall `{BupdSepLog} (P Q: A), ((|==> P) * |==> Q) |-- |==> P * Q.
+Proof.
+  intros.
+  eapply derives_trans, bupd_trans.
+  eapply derives_trans; [apply bupd_frame_l|].
+  apply bupd_mono, bupd_frame_r.
 Qed.
 
 Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
@@ -46,4 +56,6 @@ Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdS
  apply own_valid.
  apply own_update_ND; auto.
  apply own_update; auto.
+ apply inG_emp.
+ apply inG_dup.
 Defined.
