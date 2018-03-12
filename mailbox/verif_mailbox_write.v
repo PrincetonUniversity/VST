@@ -403,12 +403,12 @@ Proof.
       eapply IHlasts; eauto; omega.
 Qed.
 
-Lemma make_shares_join : forall i (d: Inhabitant Z) lasts shs sh0 j sh1 sh2
+Lemma make_shares_join : forall i lasts shs sh0 j sh1 sh2
   (Hlen : Zlength shs >= Zlength lasts)
   (Hsh1 : sepalg_list.list_join sh0 shs sh1)
   (Hsh2 : sepalg_list.list_join sh0 (make_shares shs lasts i) sh2)
   (Hin : 0 <= j < Zlength shs)
-  (Hj : @Znth _ d j lasts = i),  (* WARNING: d may not be 0, it may be a nonstandard Inhabitant *)
+  (Hj : Znth j lasts = i),
   exists sh', sepalg.join sh2 (Znth j shs) sh'.
 Proof.
   induction lasts; destruct shs; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
@@ -435,6 +435,32 @@ Proof.
     + inversion Hsh2 as [|????? Hj1']; subst.
       pose proof (sepalg.join_eq Hj1 Hj1'); subst.
       eapply IHlasts; eauto; omega.
+Qed.
+
+Lemma make_shares_join' : forall i lasts shs sh0 j sh1 sh2
+  (Hlen : Zlength shs >= Zlength lasts)
+  (Hsh1 : sepalg_list.list_join sh0 shs sh1)
+  (Hsh2 : sepalg_list.list_join sh0 (make_shares shs lasts i) sh2)
+  (Hin : 0 <= j < Zlength shs) (Hout : Zlength lasts <= j),
+  exists sh', sepalg.join sh2 (Znth j shs) sh'.
+Proof.
+  induction lasts; destruct shs; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
+    try (rewrite Zlength_correct in *; omega); try omega.
+  { inv Hsh2.
+    exploit (Znth_In j (t :: shs)); [rewrite Zlength_cons; auto|].
+    intro Hin'; apply in_split in Hin'.
+    destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
+    apply list_join_comm in Hsh1; inv Hsh1; eauto. }
+  destruct (eq_dec j 0).
+  { subst; rep_omega. }
+  rewrite Znth_pos_cons; [|omega].
+  inversion Hsh1 as [|????? Hj1 Hj2].
+  destruct (eq_dec a i); subst.
+  + apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
+    eapply IHlasts; eauto; omega.
+  + inversion Hsh2 as [|????? Hj1']; subst.
+    pose proof (sepalg.join_eq Hj1 Hj1'); subst.
+    eapply IHlasts; eauto; omega.
 Qed.
 
 Lemma data_at_buffer_cohere : forall sh1 sh2 v1 v2 p, readable_share sh1 ->
@@ -543,11 +569,10 @@ Proof.
       rewrite <- sepcon_assoc.
       eapply derives_trans; [apply sepcon_derives; [apply data_at_buffer_cohere; auto | apply derives_refl]|].
       assert (exists sh', sepalg.join ish shi sh') as (sh' & ?).
-      { eapply (make_shares_join _ b0); try eassumption.
+      { eapply make_shares_join'; try eassumption.
         + setoid_rewrite Hshs; rewrite Zlength_sublist; rewrite ?Zlength_map, ?Zlength_upto, ?Z2Nat.id; omega.
         + setoid_rewrite Hshs; auto.
-        + rewrite Znth_overflow; auto.
-          rewrite Zlength_sublist; rewrite ?Zlength_map, ?Zlength_upto, ?Z2Nat.id; omega. }
+        + rewrite Zlength_sublist; rewrite ?Zlength_map, ?Zlength_upto, ?Z2Nat.id; omega. }
       erewrite data_at_share_join; [|eapply sepalg.join_comm; eauto].
       rewrite (extract_nth_sepcon (upd_Znth b0 l0 (EX sh : share, _)) b0); [|rewrite upd_Znth_Zlength; omega].
       rewrite upd_Znth_twice; [|omega].
