@@ -226,7 +226,7 @@ Proof.
          tables_uninitialized tables)).
   { (* init *)
     forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
-    entailer!.
+    entailer!; try apply derives_refl.
     split; intros; omega. (* TODO floyd why doesn't entailer! do this itself? *)
   }
   { (* body *)
