@@ -123,6 +123,11 @@ Qed.
 
 Opaque skipn.
 
+Lemma finmap_get_empty: forall {A} i, finmap_get (@nil (option A)) i = None.
+Proof.
+  intros; apply nth_nil.
+Qed.
+
 Lemma finmap_get_set: forall {A} (m : finmap A) j k v,
   finmap_get (finmap_set m k v) j = if eq_dec j k then Some v else finmap_get m j.
 Proof.
@@ -227,14 +232,29 @@ Proof.
   constructor.
 Qed.
 
-Instance finmap_RA {P: Perm_alg A} {S: Sep_alg A} : Ghost := { Join_G := finmap_join }.
-
 End Finmap.
+
+Instance finmap_RA {RA: Ghost} : Ghost :=
+  { valid m := forall i a, finmap_get m i = Some a -> valid a; Join_G := finmap_join }.
+Proof.
+  intros.
+  specialize (H0 i).
+  apply finmap_get_join with (i0 := i) in H.
+  rewrite H1 in H.
+  destruct (finmap_get b i); eauto.
+  destruct (finmap_get c i); [|contradiction].
+  eapply join_valid; eauto.
+Defined.
 
 Existing Instance finmap_join.
 
 Instance Global_Ghost {I} {RAs: I -> Ghost}: Ghost :=
-  { G := forall i, finmap (@G (RAs i)) }.
+  { G := forall i, finmap (@G (RAs i)); valid m := forall i, @valid finmap_RA (m i) }.
+Proof.
+  intros.
+  specialize (H i).
+  eapply join_valid; eauto.
+Defined.
 
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
@@ -293,13 +313,14 @@ Module Type STRAT_MODEL.
     end.
 
   Inductive ghost (PRED : Type) : Type :=
-    GHOST' I (RAs: I -> Ghost) (g: G) (pds: I -> nat -> option (fpreds PRED))
+    GHOST' I (RAs: I -> Ghost) (g: @G Global_Ghost) (pds: I -> nat -> option (fpreds PRED))
+      (Hv: ghost.valid g)
       (dom: forall i n pp, pds i n = Some pp -> exists a, finmap_get (g i) n = Some a).
 
   Program Definition ghost_fmap (A B:Type) (f:A->B) (g:B->A)(x:ghost A) : ghost B :=
     match x with
-      | GHOST' _ RAs a pds dom =>
-        GHOST' _ _ RAs a (fmap (ffunc (fconst _) (ffunc (fconst _) (foption fpreds))) f g pds) _
+      | GHOST' _ RAs a pds _ _ =>
+        GHOST' _ _ RAs a (fmap (ffunc (fconst _) (ffunc (fconst _) (foption fpreds))) f g pds) _ _
     end.
   Next Obligation.
   Proof.
@@ -312,13 +333,13 @@ Module Type STRAT_MODEL.
 
   (* Will this give us the higher-order ghost state we want? *)
   Inductive ghost_join (PRED : Type) : Join (f_ghost PRED) :=
-    | ghost_join_I : forall A (RAs : A -> Ghost) a b c pdsa pdsb pdsc doma domb domc,
+    | ghost_join_I : forall A (RAs : A -> Ghost) a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc,
         join a b c -> join pdsa pdsb pdsc ->
-        ghost_join PRED (GHOST' PRED _ RAs a pdsa doma) (GHOST' PRED _ RAs b pdsb domb)
-                        (GHOST' PRED _ RAs c pdsc domc).
+        ghost_join PRED (GHOST' PRED _ RAs a pdsa Hva doma) (GHOST' PRED _ RAs b pdsb Hvb domb)
+                        (GHOST' PRED _ RAs c pdsc Hvc domc).
 
-  Lemma ghost_ext: forall PRED I RAs g g' pds pds' dom dom',
-    g = g' -> pds = pds' -> GHOST' PRED I RAs g pds dom = GHOST' PRED I RAs g' pds' dom'.
+  Lemma ghost_ext: forall PRED I RAs g g' pds pds' Hv Hv' dom dom',
+    g = g' -> pds = pds' -> GHOST' PRED I RAs g pds Hv dom = GHOST' PRED I RAs g' pds' Hv' dom'.
   Proof.
     intros; subst.
     f_equal; apply proof_irr.
@@ -327,7 +348,7 @@ Module Type STRAT_MODEL.
   Axiom pa_gj : forall PRED, @Perm_alg _ (ghost_join PRED).
 
   Lemma core_dom: forall {PRED I} {RAs: I -> Ghost} (pds : I -> nat -> option (fpreds PRED))
-    (g: G) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
+    (g: @G Global_Ghost) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
   Proof.
     discriminate.
   Qed.
@@ -335,12 +356,12 @@ Module Type STRAT_MODEL.
   Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
     intros.
-    exists (fun x => match x with GHOST' _ RA g pds _ =>
-                         GHOST' PRED _ RA (core g) (core pds) (core_dom _ _) end).
+    exists (fun x => match x with GHOST' _ RA g pds Hv _ =>
+                         GHOST' PRED _ RA (core g) (core pds) (core_valid _ Hv) (core_dom _ _) end).
     - destruct t; constructor; apply core_unit.
     - intros; inv H.
-      apply join_core in H0 as ->; f_equal.
-      apply proof_irr.
+      apply ghost_ext; auto.
+      eapply join_core; eauto.
   Defined.
   Axiom paf_ghost : @pafunctor f_ghost ghost_join.
 
@@ -533,13 +554,14 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     end.
 
   Inductive ghost (PRED : Type) : Type :=
-    GHOST' I (RAs: I -> Ghost) (g: G) (pds: I -> nat -> option (fpreds PRED))
+    GHOST' I (RAs: I -> Ghost) (g: @G Global_Ghost) (pds: I -> nat -> option (fpreds PRED))
+      (Hv: ghost.valid g)
       (dom: forall i n pp, pds i n = Some pp -> exists a, finmap_get (g i) n = Some a).
 
   Program Definition ghost_fmap (A B:Type) (f:A->B) (g:B->A)(x:ghost A) : ghost B :=
     match x with
-      | GHOST' _ RAs a pds dom =>
-        GHOST' _ _ RAs a (fmap (ffunc (fconst _) (ffunc (fconst _) (foption fpreds))) f g pds) _
+      | GHOST' _ RAs a pds _ _ =>
+        GHOST' _ _ RAs a (fmap (ffunc (fconst _) (ffunc (fconst _) (foption fpreds))) f g pds) _ _
     end.
   Next Obligation.
   Proof.
@@ -547,8 +569,8 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     destruct (pds i n) eqn: Hi; inv H; eauto.
   Defined.
 
-  Lemma ghost_ext: forall PRED I RAs g g' pds pds' dom dom',
-    g = g' -> pds = pds' -> GHOST' PRED I RAs g pds dom = GHOST' PRED I RAs g' pds' dom'.
+  Lemma ghost_ext: forall PRED I RAs g g' pds pds' Hv Hv' dom dom',
+    g = g' -> pds = pds' -> GHOST' PRED I RAs g pds Hv dom = GHOST' PRED I RAs g' pds' Hv' dom'.
   Proof.
     intros; subst.
     f_equal; apply proof_irr.
@@ -567,13 +589,13 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   (* Will this give us the higher-order ghost state we want? *)
   Inductive ghost_join (PRED : Type) : f_ghost PRED -> f_ghost PRED -> f_ghost PRED -> Prop :=
-    | ghost_join_I : forall A (RAs : A -> Ghost) a b c pdsa pdsb pdsc doma domb domc,
+    | ghost_join_I : forall A (RAs : A -> Ghost) a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc,
         join a b c -> join pdsa pdsb pdsc ->
-        ghost_join PRED (GHOST' PRED _ RAs a pdsa doma) (GHOST' PRED _ RAs b pdsb domb)
-                        (GHOST' PRED _ RAs c pdsc domc).
-  Lemma ghost_join_inv : forall PRED A RAs a b c pdsa pdsb pdsc doma domb domc,
-    ghost_join PRED (GHOST' PRED A RAs a pdsa doma) (GHOST' PRED A RAs b pdsb domb)
-      (GHOST' PRED A RAs c pdsc domc) ->
+        ghost_join PRED (GHOST' PRED _ RAs a pdsa Hva doma) (GHOST' PRED _ RAs b pdsb Hvb domb)
+                        (GHOST' PRED _ RAs c pdsc Hvc domc).
+  Lemma ghost_join_inv : forall PRED A RAs a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc,
+    ghost_join PRED (GHOST' PRED A RAs a pdsa Hva doma) (GHOST' PRED A RAs b pdsb Hvb domb)
+      (GHOST' PRED A RAs c pdsc Hvc domc) ->
       join a b c /\ join pdsa pdsb pdsc.
   Proof.
     inversion 1.
@@ -606,6 +628,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       apply ghost_join_inv in H0 as [J2 J2'].
       destruct (join_assoc J1 J2) as (f & ? & ?).
       destruct (join_assoc J1' J2') as (pdsf & ? & ?).
+      assert (ghost.valid f) as Hvf by (eapply join_valid; eauto).
       assert (forall i n pp, pdsf i n = Some pp -> exists a, finmap_get (f i) n = Some a)
         as domf.
       { intros.
@@ -622,7 +645,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
         + symmetry in H4; destruct (dom0 _ _ _ H4) as [? Hget].
           rewrite Hget in H.
           destruct (finmap_get (c i) n); inv H. }
-      exists (GHOST' PRED _ RA f pdsf domf); split; constructor; auto.
+      exists (GHOST' PRED _ RA f pdsf Hvf domf); split; constructor; auto.
     - inv H; constructor; apply join_comm; auto.
     - inv H; inv H0.
       repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end;
@@ -631,7 +654,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Qed.
 
   Lemma core_dom: forall {PRED I} {RAs: I -> Ghost} (pds : I -> nat -> option (fpreds PRED))
-    (g: G) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
+    (g: @G Global_Ghost) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
   Proof.
     discriminate.
   Qed.
@@ -639,12 +662,12 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Instance sa_gj : forall PRED, @Sep_alg _ (ghost_join PRED).
   Proof.
     intros.
-    exists (fun x => match x with GHOST' _ RA g pds _ =>
-                         GHOST' PRED _ RA (core g) (core pds) (core_dom _ _) end).
+    exists (fun x => match x with GHOST' _ RA g pds Hv _ =>
+                         GHOST' PRED _ RA (core g) (core pds) (core_valid _ Hv) (core_dom _ _) end).
     - destruct t; constructor; apply core_unit.
     - intros; inv H.
-      apply join_core in H0 as ->; f_equal.
-      apply proof_irr.
+      apply ghost_ext; auto.
+      eapply join_core; eauto.
   Defined.
 
   Definition paf_ghost : @pafunctor f_ghost ghost_join.
@@ -663,8 +686,8 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
         repeat match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end;
           subst; auto. }
       apply ghost_join_inv in H as [J J'].
-      eexists (GHOST' A _ RA x (fun i n => match pds i n with Some _ => pds2 i n | _ => None end) _),
-        (GHOST' A _ RA y (fun i n => match pds1 i n with Some _ => pds2 i n | _ => None end) _);
+      eexists (GHOST' A _ RA x (fun i n => match pds i n with Some _ => pds2 i n | _ => None end) Hv _),
+        (GHOST' A _ RA y (fun i n => match pds1 i n with Some _ => pds2 i n | _ => None end) Hv0 _);
         repeat split; auto.
       + intros i n; specialize (J' i n); inv J'.
         * destruct (pds1 i n), (pds2 i n); inv H; constructor.
@@ -696,8 +719,8 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
           subst; auto. }
       apply ghost_join_inv in H as [J J'].
       eexists (GHOST' A _ RA y (fun i n => match pds i n, pds1 i n with Some x, Some _ => Some x
-          | _, _ => pds1 i n end) _),
-        (GHOST' A _ RA z (fun i n => match pds i n with Some x => Some x | None => pds1 i n end) _);
+          | _, _ => pds1 i n end) Hv0 _),
+        (GHOST' A _ RA z (fun i n => match pds i n with Some x => Some x | None => pds1 i n end) Hv1 _);
         repeat split; auto.
       + intros i n; specialize (J' i n); inv J'.
         * destruct (pds i n); inv H0; constructor.
@@ -902,11 +925,12 @@ Module Type RMAPS.
   Axiom resource_fmap_comp : forall f1 f2 g1 g2,
     resource_fmap g1 g2 oo resource_fmap f1 f2 = resource_fmap (g1 oo f1) (f2 oo g2).
 
-  Inductive ghost : Type := GHOST I (RA : I -> Ghost) (g : G) (pds : I -> nat -> option preds)
+  Inductive ghost : Type := GHOST I (RA : I -> Ghost) (g : @G Global_Ghost) (pds : I -> nat -> option preds)
+    (Hv : ghost.valid g)
     (dom : forall i n pp, pds i n = Some pp -> exists a, finmap_get (g i) n = Some a).
 
-  Lemma ghost_ext: forall I RAs g g' pds pds' dom dom',
-    g = g' -> pds = pds' -> GHOST I RAs g pds dom = GHOST I RAs g' pds' dom'.
+  Lemma ghost_ext: forall I RAs g g' pds pds' Hv Hv' dom dom',
+    g = g' -> pds = pds' -> GHOST I RAs g pds Hv dom = GHOST I RAs g' pds' Hv' dom'.
   Proof.
     intros; subst.
     f_equal; apply proof_irr.
@@ -914,11 +938,11 @@ Module Type RMAPS.
 
   (* Will this give us the higher-order ghost state we want? *)
   Inductive ghost_join : ghost -> ghost -> ghost -> Prop :=
-    | ghost_join_I : forall A (RA : A -> Ghost) a b c pdsa pdsb pdsc doma domb domc, join a b c ->
+    | ghost_join_I : forall A (RA : A -> Ghost) a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc, join a b c ->
         join pdsa pdsb pdsc ->
-        ghost_join (GHOST _ RA a pdsa doma) (GHOST _ RA b pdsb domb) (GHOST _ RA c pdsc domc).
-  Lemma ghost_join_inv : forall A RAs a b c pdsa pdsb pdsc doma domb domc,
-    ghost_join (GHOST A RAs a pdsa doma) (GHOST A RAs b pdsb domb) (GHOST A RAs c pdsc domc) ->
+        ghost_join (GHOST _ RA a pdsa Hva doma) (GHOST _ RA b pdsb Hvb domb) (GHOST _ RA c pdsc Hvc domc).
+  Lemma ghost_join_inv : forall A RAs a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc,
+    ghost_join (GHOST A RAs a pdsa Hva doma) (GHOST A RAs b pdsb Hvb domb) (GHOST A RAs c pdsc Hvc domc) ->
     join a b c /\ join pdsa pdsb pdsc.
   Proof.
     inversion 1.
@@ -927,7 +951,7 @@ Module Type RMAPS.
   Qed.
 
   Lemma core_dom: forall {I} {RAs: I -> Ghost} (pds : I -> nat -> option preds)
-    (g: G) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
+    (g: @G Global_Ghost) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
   Proof.
     discriminate.
   Qed.
@@ -935,12 +959,12 @@ Module Type RMAPS.
   Instance Join_ghost : Join ghost := ghost_join.
   Axiom Perm_ghost: Perm_alg ghost. Existing Instance Perm_ghost.
   Axiom Sep_ghost: Sep_alg ghost. Existing Instance Sep_ghost.
-  Axiom ghost_core: forall A (RA : A -> Ghost) a pds dom,
-    core (GHOST _ RA a pds dom) = GHOST _ RA (core a) (core pds) (core_dom _ _).
+  Axiom ghost_core: forall A (RA : A -> Ghost) a pds Hv dom,
+    core (GHOST _ RA a pds Hv dom) = GHOST _ RA (core a) (core pds) (core_valid _ Hv) (core_dom _ _).
 
   Program Definition ghost_fmap (f g:pred rmap -> pred rmap)(x:ghost) : ghost :=
     match x with
-      | GHOST _ RA a pds _ => GHOST _ RA a (fun i n => option_map (preds_fmap f g) (pds i n)) _
+      | GHOST _ RA a pds _ _ => GHOST _ RA a (fun i n => option_map (preds_fmap f g) (pds i n)) _ _
     end.
   Next Obligation.
   Proof.
@@ -1085,7 +1109,8 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
     extensionality r; destruct r; simpl; auto; destruct p; auto.
   Qed.
 
-  Inductive ghost : Type := GHOST I (RAs : I -> Ghost) (g : G) (pds : I -> nat -> option preds)
+  Inductive ghost : Type := GHOST I (RAs : I -> Ghost) (g : @G Global_Ghost) (pds : I -> nat -> option preds)
+    (Hv : ghost.valid g)
     (dom : forall i n pp, pds i n = Some pp -> exists a, finmap_get (g i) n = Some a).
 
   Definition pred2p (p: preds) : fpreds (pred rmap) :=
@@ -1096,7 +1121,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition ghost2g (r: ghost): SM.ghost (pred rmap) :=
     match r with
-      | GHOST _ RA g pds _ => GHOST' (pred rmap) _ RA g (fun i n => option_map pred2p (pds i n)) _
+      | GHOST _ RA g pds _ _ => GHOST' (pred rmap) _ RA g (fun i n => option_map pred2p (pds i n)) _ _
     end.
   Next Obligation.
   Proof.
@@ -1105,15 +1130,15 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition g2ghost (r: SM.ghost (pred rmap)) : ghost :=
     match r with
-      | GHOST' _ RA g pds _ => GHOST _ RA g (fun i n => option_map p2pred (pds i n)) _
+      | GHOST' _ RA g pds _ _ => GHOST _ RA g (fun i n => option_map p2pred (pds i n)) _ _
     end.
   Next Obligation.
   Proof.
     destruct (pds i n) eqn: Hi; inv H; eauto.
   Defined.
 
-  Lemma ghost_ext: forall I RAs g g' pds pds' dom dom',
-    g = g' -> pds = pds' -> GHOST I RAs g pds dom = GHOST I RAs g' pds' dom'.
+  Lemma ghost_ext: forall I RAs g g' pds pds' Hv Hv' dom dom',
+    g = g' -> pds = pds' -> GHOST I RAs g pds Hv dom = GHOST I RAs g' pds' Hv' dom'.
   Proof.
     intros; subst.
     f_equal; apply proof_irr.
@@ -1230,12 +1255,12 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   (* Will this give us the higher-order ghost state we want? *)
   Inductive ghost_join : ghost -> ghost -> ghost -> Prop :=
-    | ghost_join_I : forall A (RA : A -> Ghost) a b c pdsa pdsb pdsc doma domb domc, join a b c ->
+    | ghost_join_I : forall A (RA : A -> Ghost) a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc, join a b c ->
         join pdsa pdsb pdsc ->
-        ghost_join (GHOST _ RA a pdsa doma) (GHOST _ RA b pdsb domb) (GHOST _ RA c pdsc domc).
+        ghost_join (GHOST _ RA a pdsa Hva doma) (GHOST _ RA b pdsb Hvb domb) (GHOST _ RA c pdsc Hvc domc).
 
-  Lemma ghost_join_inv : forall A RAs a b c pdsa pdsb pdsc doma domb domc,
-    ghost_join (GHOST A RAs a pdsa doma) (GHOST A RAs b pdsb domb) (GHOST A RAs c pdsc domc) ->
+  Lemma ghost_join_inv : forall A RAs a b c pdsa pdsb pdsc Hva Hvb Hvc doma domb domc,
+    ghost_join (GHOST A RAs a pdsa Hva doma) (GHOST A RAs b pdsb Hvb domb) (GHOST A RAs c pdsc Hvc domc) ->
     join a b c /\ join pdsa pdsb pdsc.
   Proof.
     inversion 1.
@@ -1268,6 +1293,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
       apply ghost_join_inv in H0 as [J2 J2'].
       destruct (join_assoc J1 J2) as (f & ? & ?).
       destruct (join_assoc J1' J2') as (pdsf & ? & ?).
+      assert (ghost.valid f) as Hvf by (eapply join_valid; eauto).
       assert (forall i n pp, pdsf i n = Some pp -> exists a, finmap_get (f i) n = Some a)
         as domf.
       { intros.
@@ -1284,7 +1310,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
         + symmetry in H4; destruct (dom0 _ _ _ H4) as [? Hget].
           rewrite Hget in H.
           destruct (finmap_get (c i) n); inv H. }
-      exists (GHOST _ RA f pdsf domf); split; constructor; auto.
+      exists (GHOST _ RA f pdsf Hvf domf); split; constructor; auto.
     - inv H; constructor; apply join_comm; auto.
     - inv H; inv H0.
       repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end;
@@ -1293,7 +1319,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Qed.
 
   Lemma core_dom: forall {I} {RAs: I -> Ghost} (pds : I -> nat -> option preds)
-    (g: G) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
+    (g: @G Global_Ghost) i n pp, core pds i n = Some pp -> exists a, finmap_get (g i) n = Some a.
   Proof.
     discriminate.
   Qed.
@@ -1301,15 +1327,15 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   Instance Sep_ghost : Sep_alg ghost.
   Proof.
     intros.
-    exists (fun x => match x with GHOST _ RA g pds _ => GHOST _ RA (core g) (core pds) (core_dom _ _) end).
+    exists (fun x => match x with GHOST _ RA g pds Hv _ => GHOST _ RA (core g) (core pds) (core_valid _ Hv) (core_dom _ _) end).
     - destruct t; constructor; apply core_unit.
     - intros; inv H.
       apply ghost_ext; auto.
-      apply join_core in H0 as ->; auto.
+      eapply join_core; eauto.
   Defined.
 
-  Lemma ghost_core : forall A (RA : A -> Ghost) a pds dom,
-    core (GHOST _ RA a pds dom) = GHOST _ RA (core a) (core pds) (core_dom _ _).
+  Lemma ghost_core : forall A (RA : A -> Ghost) a pds Hv dom,
+    core (GHOST _ RA a pds Hv dom) = GHOST _ RA (core a) (core pds) (core_valid _ Hv) (core_dom _ _).
   Proof. auto. Qed.
 
   Lemma same_valid : forall f1 f2, (forall x, f1 x = f2 x) -> AV.valid f1 -> AV.valid f2.
@@ -1386,7 +1412,7 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
 
   Program Definition ghost_fmap (f g:pred rmap -> pred rmap)(x:ghost) : ghost :=
     match x with
-      | GHOST _ RA a pds _ => GHOST _ RA a (fun i n => option_map (preds_fmap f g) (pds i n)) _
+      | GHOST _ RA a pds _ _ => GHOST _ RA a (fun i n => option_map (preds_fmap f g) (pds i n)) _ _
     end.
   Next Obligation.
   Proof.

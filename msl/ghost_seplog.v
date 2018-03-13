@@ -14,12 +14,12 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
   bupd_mono: forall P Q, P |-- Q -> bupd P |-- bupd Q;
   bupd_trans: forall P, bupd (bupd P) |-- bupd P;
   bupd_frame_r: forall P Q, bupd P * Q |-- bupd (P * Q);
-  own_alloc: forall {RA: Ghost} a pp, (exists b, joins a b) ->
+  own_alloc: forall {RA: Ghost} a pp, valid a ->
     inG RA |-- bupd (EX g: N, own g a pp);
   own_op: forall {RA: Ghost} g (a1 a2 a3: G) pp, join a1 a2 a3 ->
     own g a3 pp = own g a1 pp * own g a2 pp;
-  own_valid: forall {RA: Ghost} g (a1 a2: G) pp,
-    own g a1 pp * own g a2 pp |-- !!joins a1 a2;
+  own_valid_2: forall {RA: Ghost} g (a1 a2: G) pp,
+    own g a1 pp * own g a2 pp |-- !!valid_2 a1 a2;
   own_update_ND: forall {RA: Ghost} g (a: G) B pp, fp_update_ND a B ->
     own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp);
   own_update: forall {RA: Ghost} g (a: G) b pp, fp_update a b ->
@@ -43,6 +43,16 @@ Proof.
   apply bupd_mono, bupd_frame_r.
 Qed.
 
+Lemma own_valid: forall `{BupdSepLog} {RA: Ghost} g (a: G) pp,
+    own g a pp |-- !!valid a.
+Proof.
+  intros.
+  erewrite own_op by apply core_unit.
+  eapply derives_trans; [apply own_valid_2|].
+  apply prop_left; intros (a' & J & ?); apply prop_right.
+  apply core_identity in J; subst; auto.
+Qed.
+
 Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
   BupdSepLog (A -> B) N D.
  apply (mkBSL _ _ _ _ _ (fun P rho => |==> P rho) (fun RA rho => inG RA)
@@ -53,7 +63,7 @@ Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdS
  apply bupd_frame_r.
  apply own_alloc; auto.
  extensionality rho; apply own_op; auto.
- apply own_valid.
+ apply own_valid_2.
  apply own_update_ND; auto.
  apply own_update; auto.
  apply inG_emp.

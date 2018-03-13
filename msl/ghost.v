@@ -1,8 +1,31 @@
 Require Import VST.msl.sepalg.
+Require Import Ensembles.
 
-Class Ghost := { G : Type;
-  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G }.
+Class Ghost := { G : Type; valid : G -> Prop;
+  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G;
+  join_valid : forall a b c, join a b c -> valid c -> valid a }.
 
-Definition fp_update_ND {RA: Ghost} (a: G) B := forall c, joins a c -> exists b, B b /\ joins b c.
+Section Update.
 
-Definition fp_update {RA: Ghost} (a b : G) := forall c, joins a c -> joins b c.
+Context {RA: Ghost}.
+
+Lemma core_valid: forall a, valid a -> valid (core a).
+Proof.
+  intros; eapply join_valid; eauto.
+  apply core_unit.
+Qed.
+
+Definition valid_2 a b := exists c, join a b c /\ valid c.
+
+Definition fp_update_ND a B := forall c, valid_2 a c -> exists b, B b /\ valid_2 b c.
+
+Definition fp_update a b := forall c, valid_2 a c -> valid_2 b c.
+
+Lemma fp_update_equiv: forall a b, fp_update a b <-> fp_update_ND a (Singleton _ b).
+Proof.
+  split; repeat intro.
+  - exists b; split; eauto; constructor.
+  - destruct (H _ H0) as (? & Hx & ?); inversion Hx; auto.
+Qed.
+
+End Update.

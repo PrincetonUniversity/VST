@@ -46,7 +46,7 @@ Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rma
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   mkBSL _ _ _ _ _ bupd inG (@own) bupd_intro bupd_mono bupd_trans bupd_frame_r
-    (@ghost_alloc) (@ghost_op) (@ghost_conflict) (@ghost_update_ND) (@ghost_update) inG_emp inG_dup.
+    (@ghost_alloc) (@ghost_op) (@ghost_valid_2) (@ghost_update_ND) (@ghost_update) inG_emp inG_dup.
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
@@ -60,11 +60,6 @@ Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T}
            CorableSepLog (LiftEnviron T) := LiftCorableSepLog _ _.
 Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
            CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
-
-(* Somehow, this fixes a universe collapse issue that will occur if only fool is defined
-   (or at denote_tc_assert later on). *)
-Definition fool' := @map _ Type (fun it : ident * type => mpred).
-Definition fool : environ -> mpred := `orp TT TT.
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 

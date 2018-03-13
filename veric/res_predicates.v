@@ -513,7 +513,7 @@ Proof.
   rewrite (identity_core H0).
   destruct (ghost_of a); simpl.
   rewrite ghost_core; simpl.
-  replace (GHOST _ _ _ _ _) with (core (GHOST I RA g pds dom)); [apply core_identity|].
+  replace (GHOST _ _ _ _ _ _) with (core (GHOST I RA g pds Hv dom)); [apply core_identity|].
   rewrite ghost_core; apply ghost_ext; auto.
 Defined.
 

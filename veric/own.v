@@ -12,46 +12,64 @@ Local Open Scope pred.
 Notation ghost_approx m := (ghost_fmap (approx (level m)) (approx (level m))).
 
 (* Ghost state construction drawn from "Iris from the ground up", Jung et al. *)
-Program Definition ghost_is (g : ghost): pred rmap :=
-  fun m => ghost_of m = ghost_approx m g.
+Program Definition ghost_is {I} {RAs: I -> Ghost} g pds dom: pred rmap :=
+  fun m => exists Hv, ghost_of m = ghost_approx m (GHOST _ _ g pds Hv dom).
 Next Obligation.
-  repeat intro.
-  erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
-  rewrite H0; simpl.
+  intros ???????? (? & Hg).
+  rewrite (age1_ghost_of _ _ H), Hg.
   pose proof (age_level _ _ H).
-  rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; auto.
+  rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; eauto.
 Qed.
 
-Definition Own g: pred rmap := allp noat && ghost_is g.
+Definition Own {I} {RAs: I -> Ghost} g pds dom: pred rmap := allp noat && ghost_is g pds dom.
 
-Lemma Own_op: forall {RA: Ghost} (a b c: ghost), join a b c ->
-  Own c = Own a * Own b.
+Lemma Own_valid: forall {I} {RAs: I -> Ghost} g pds dom,
+  Own g pds dom |-- !!ghost.valid g.
+Proof.
+  intros.
+  intros ??.
+  destruct H as (? & ? & ?); auto.
+Qed.
+
+Lemma Own_op: forall {I} {RAs: I -> Ghost} a b c pdsa pdsb pdsc doma domb domc,
+  join a b c -> join pdsa pdsb pdsc ->
+  Own c pdsc domc = Own a pdsa doma * Own b pdsb domb.
 Proof.
   intros; apply pred_ext.
-  - intros w [Hno Hg]; simpl in *.
-    destruct (make_rmap (resource_at w) (ghost_approx w a) (rmap_valid w) (level w))
+  - intros w (Hno & ? & Hg).
+    assert (ghost.valid a) as Hva by (eapply join_valid; eauto).
+    assert (ghost.valid b) as Hvb by (eapply join_valid; eauto).
+    destruct (make_rmap (resource_at w) (ghost_approx w (GHOST _ _ _ _ Hva doma)) (rmap_valid w) (level w))
       as (wa & Hla & Hra & Hga).
     { extensionality; apply resource_at_approx. }
     { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
-    destruct (make_rmap (resource_at w) (ghost_approx w b) (rmap_valid w) (level w))
+    destruct (make_rmap (resource_at w) (ghost_approx w (GHOST _ _ _ _ Hvb domb)) (rmap_valid w) (level w))
       as (wb & Hlb & Hrb & Hgb).
     { extensionality; apply resource_at_approx. }
     { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
-    exists wa, wb; rewrite Hla, Hlb, Hra, Hrb; split; auto.
-    apply resource_at_join2; auto.
-    + intro; rewrite Hra, Hrb.
-      apply identity_unit'; auto.
-    + rewrite Hg, Hga, Hgb.
-      apply ghost_fmap_join; auto.
-  - intros w (w1 & w2 & J & [Hnoa Hga] & [Hnob Hgb]); simpl in *.
+    exists wa, wb; split.
+    + apply resource_at_join2; auto.
+      * intro; rewrite Hra, Hrb.
+        apply identity_unit', Hno.
+      * rewrite Hg, Hga, Hgb.
+        apply ghost_fmap_join; constructor; auto.
+    + simpl; rewrite Hla, Hlb, Hra, Hrb, Hga, Hgb; simpl; eauto 6.
+  - intros w (w1 & w2 & J & (Hnoa & ? & Hga) & (Hnob & ? & Hgb)).
     split.
     + intro l; apply (resource_at_join _ _ _ l) in J.
-      rewrite <- (Hnoa _ _ _ J); auto.
-    + eapply join_eq.
-      * apply ghost_of_join; eauto.
-      * rewrite Hga, Hgb.
-        destruct (join_level _ _ _ J) as [-> ->].
-        apply ghost_fmap_join; auto.
+      simpl in *; rewrite <- (Hnoa _ _ _ J); auto.
+    + destruct (join_level _ _ _ J) as [Hl1 Hl2].
+      apply ghost_of_join in J.
+      rewrite Hga, Hgb in J; inv J; repeat inj_pair_tac.
+      assert (c1 = c) by (eapply join_eq; eauto); subst.
+      simpl; rewrite <- H9.
+      eexists; apply ghost_ext; auto.
+      eapply join_eq; eauto.
+      rewrite Hl1, Hl2.
+      intros i n; specialize (H0 i n); inv H0; constructor.
+      inv H6; auto.
+  Unshelve.
+  apply Hvc.
 Qed.
 
 Lemma preds_join_i: forall {I} a b, (forall i n x y, a i n = Some x -> b i n = Some y -> x = y) ->
@@ -76,7 +94,7 @@ Proof.
     exists a, finmap_get (gc i) n = Some a) as dom'.
   { intros; destruct (pdsa i n0) eqn: Hi; eauto.
     destruct (pdsc i n0) eqn: Hi'; inv H; eauto. }
-  eexists (GHOST _ _ gc _ dom'); split.
+  eexists (GHOST _ _ gc _ Hv0 dom'); split.
   - eexists; constructor; eauto.
     apply preds_join_i; intros.
     destruct (pdsa i n0); inv H.
@@ -93,6 +111,7 @@ Proof.
     + inv H3.
       rewrite preds_fmap_fmap, approx_oo_approx', approx'_oo_approx; auto.
   Unshelve.
+  apply Hvc.
   simpl; intros.
   specialize (H9 i); apply finmap_get_join with (i0 := n0) in H9.
   destruct (finmap_get (c0 i) n0); eauto.
@@ -102,6 +121,7 @@ Proof.
   destruct (pdsc i n0) eqn: Hi'; inv H1.
   destruct (dom0 _ _ _ Hi') as [? Hget]; rewrite Hget in H9.
   destruct (finmap_get (ga i) n0); inv H9.
+  apply Hvc0.
   simpl; intros.
   specialize (H8 i); apply finmap_get_join with (i0 := n0) in H8.
   destruct (finmap_get (c1 i) n0); eauto.
@@ -197,25 +217,31 @@ Definition ghost_fp_update_ND a B :=
   forall n c, joins (ghost_fmap (approx n) (approx n) a) c ->
     exists b, B b /\ joins (ghost_fmap (approx n) (approx n) b) c.
 
-Lemma Own_update_ND: forall a B, ghost_fp_update_ND a B ->
-  Own a |-- bupd (EX b : _, !!(B b) && Own b).
+Lemma Own_update_ND: forall {I} {RAs: I -> Ghost} a pds Hv dom B,
+  ghost_fp_update_ND (GHOST _ _ a pds Hv dom) B ->
+  Own a pds dom |-- bupd (EX b : _, EX pdsb : _, EX Hvb : _, EX domb : _,
+    !!(B (GHOST _ _ b pdsb Hvb domb)) && Own b pdsb domb).
 Proof.
   repeat intro.
-  destruct H0 as [Hno Hg]; simpl in *.
+  destruct H0 as (Hno & Hv' & Hg).
   rewrite Hg in H1.
   destruct H1 as [? J].
-  destruct (H (level a0) (ghost_approx a0 c)) as (g' & ? & ?).
+  replace Hv' with Hv in J by apply proof_irr.
+  destruct (H (level a0) (ghost_approx a0 c)) as (g' & ? & J').
   { eexists; eauto. }
   exists (ghost_fmap (approx (level a0)) (approx (level a0)) g'); split; auto.
   destruct (make_rmap (resource_at a0)
     (ghost_fmap (approx (level a0)) (approx (level a0)) g') (rmap_valid a0) (level a0))
-    as (m' & Hl & Hr & ?).
+    as (m' & Hl & Hr & Hg').
   { extensionality; apply resource_at_approx. }
   { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
   exists m'; repeat split; auto.
-  exists g'; repeat split; auto.
-  - intro; rewrite Hr; auto.
-  - rewrite Hl; auto.
+  destruct g' as [?? b pdsb Hvb domb].
+  destruct c; inv J; repeat inj_pair_tac.
+  destruct J' as [? J']; inv J'; repeat inj_pair_tac; subst.
+  exists b, pdsb, Hvb, domb; repeat split; auto.
+  - simpl in *; intro; rewrite Hr; auto.
+  - simpl; rewrite Hg', Hl; simpl; eauto.
 Qed.
 
 Definition ghost_fp_update (a b : ghost) :=
@@ -241,25 +267,30 @@ Proof.
       [rewrite approx_oo_approx' | rewrite approx'_oo_approx]; auto; omega. }
 Qed.
 
-Lemma Own_update: forall a b, ghost_fp_update a b ->
-  Own a |-- bupd (Own b).
+Lemma Own_update: forall {I} {RAs: I -> Ghost} a pds Hv dom b pdsb Hvb domb,
+  ghost_fp_update (GHOST _ _ a pds Hv dom) (GHOST _ _ b pdsb Hvb domb) ->
+  Own a pds dom |-- bupd (Own b pdsb domb).
 Proof.
   intros; eapply derives_trans.
-  - apply (Own_update_ND a (Ensembles.Singleton _ b)).
+  - eapply (Own_update_ND _ _ _ _ (Ensembles.Singleton _ _)).
     repeat intro.
-    exists b; split; auto; constructor.
+    eexists; split; [constructor|].
+    apply H; eauto.
   - apply bupd_mono.
-    apply exp_left; intro.
-    apply prop_andp_left; intro X; inv X; auto.
+    repeat (apply exp_left; intro).
+    apply prop_andp_left; intro X; inv X; repeat inj_pair_tac.
+    replace x2 with domb by apply proof_irr; auto.
 Qed.
 
-Lemma Own_unit: emp |-- EX a : _, !!(identity a) && Own a.
+Lemma Own_unit: emp |-- EX a : _, !!(identity a) && match a with GHOST _ _ a pds _ dom =>
+  Own a pds dom end.
 Proof.
   intros w ?; simpl in *.
-  exists (ghost_of w); split; [|split].
-  - apply ghost_of_identity; auto.
+  exists (ghost_of w); destruct (ghost_of w) eqn: Hw; split; [|split].
+  - rewrite <- Hw; apply ghost_of_identity; auto.
   - intro; apply resource_at_identity; auto.
-  - rewrite ghost_of_approx; auto.
+  - eexists; rewrite <- Hw.
+    rewrite ghost_of_approx; auto.
 Qed.
 
 Definition gname := {I : Type & I * nat}%type.
@@ -281,33 +312,34 @@ Proof.
       simpl; apply nth_nil.
 Qed.
 
-Program Definition single_ghost {I} {_ : EqDec I} {RAs} {RA} n {H: RAs (fst n) = RA} (a: @G RA) pp :=
-  GHOST I RAs (fun j => if eq_dec j (fst n) then
-                                singleton (snd n) _ else nil)
-         (fun j m => if eq_dec j (fst n) then if eq_dec m (snd n) then Some pp else None else None) _.
+Program Definition single_ghost {I} {_ : EqDec I} {RAs} {RA} n {H: RAs (fst n) = RA} (a: @G RA) :
+  @G Global_Ghost := fun j => if eq_dec j (fst n) then singleton (snd n) _ else nil.
 Next Obligation.
 Proof.
   intros; subst; auto.
 Defined.
-Next Obligation.
+
+Definition single_pred {I} {_ : EqDec I} (n: I * nat) (pp: preds) :=
+  fun j m => if eq_dec j (fst n) then if eq_dec m (snd n) then Some pp else None else None.
+
+Lemma single_dom {I} {_ : EqDec I} {RAs} {RA} n (H: RAs (fst n) = RA) (a: @G RA) pp :
+  forall i m p, single_pred n pp i m = Some p ->
+  exists x, finmap_get (single_ghost(H := H) n a i) m = Some x.
 Proof.
-  simpl; intros.
+  unfold single_pred, single_ghost; intros.
   destruct (eq_dec _ _); [|discriminate].
-  destruct (eq_dec _ _); inv H1.
-  rewrite singleton_get, if_true; eauto.
+  rewrite singleton_get.
+  if_tac; inv H0; eauto.
 Qed.
 
 Definition own {RA: Ghost} (n: gname) (a: G) (pp: preds) :=
   match n with existT A n =>
-    EX _ : EqDec A, EX RAs : _, EX H : RAs (fst n) = RA, Own (single_ghost(H := H) n a pp) end.
-
-(*Lemma fmap_alloc: forall f a,
-  fp_update_ND f (fun g => exists i, finmap_get f i = None /\ g = finmap_set f i a).*)
+    EX _ : EqDec A, EX RAs : _, EX H : RAs (fst n) = RA, Own _ _ (single_dom n H a pp) end.
 
 (* Because the type of the ghost state is existentially quantified in the rmap, inG has to be a
    state predicate instead of a pure assertion. *)
 Program Definition inG (RA: Ghost): pred rmap :=
-  (fun m => match ghost_of m with GHOST A RAs g _ _ =>
+  (fun m => match ghost_of m with GHOST A RAs g _ _ _ =>
     exists A_eq : EqDec A, exists inG : {i | RAs i = RA}, True end) && emp.
 Next Obligation.
   repeat intro.
@@ -361,8 +393,18 @@ Proof.
   constructor.
 Qed.
 
+
+Lemma single_valid: forall {I} {I_eq : EqDec I} {RAs: I -> Ghost} {RA} n (H: RAs (fst n) = RA)
+  (a: @G RA), ghost.valid a -> ghost.valid (single_ghost(H := H) n a).
+Proof.
+  unfold single_ghost; repeat intro.
+  destruct (eq_dec i (fst n)); [|rewrite finmap_get_empty in H1; discriminate].
+  rewrite singleton_get in H1.
+  destruct (eq_dec i0 (snd n)); inv H1; auto.
+Qed.
+
 Lemma ghost_alloc: forall {RA: Ghost} a pp,
-  (exists b, joins a b) ->
+  ghost.valid a ->
   inG RA |-- bupd (EX g: gname, own g a pp).
 Proof.
   repeat intro; simpl in *.
@@ -372,7 +414,7 @@ Proof.
   eexists (ghost_approx (level a0) (GHOST _ RA0 (fun j => match eq_dec j i with
     | left H => singleton (fresh (b j)) ((fun _ _ => _) e H) | _ => nil end)
     (fun j n => if eq_dec j i then if eq_dec n (fresh (b j)) then Some pp
-                 else None else None) _)).
+                 else None else None) _ _)).
   set (g' := ghost_approx _ _).
   split.
   - eexists; constructor.
@@ -395,21 +437,34 @@ Proof.
     exists (existT _ A (i, fresh (b i))).
     exists _, _, e; split; simpl.
     + intro; rewrite Hr; apply resource_at_identity; auto.
-    + rewrite Hl, Hg; subst g'; apply ghost_ext.
+    + rewrite Hl, Hg; subst g'.
+      eexists; apply ghost_ext.
       * extensionality j.
+        unfold single_ghost; simpl.
         destruct (eq_dec _ _); auto.
         rewrite e0; auto.
       * extensionality j n.
+        unfold single_pred; simpl.
         destruct (eq_dec _ _); subst; auto.
   Unshelve.
-  simpl; intros.
-  destruct (eq_dec _ _); [|discriminate].
-  rewrite singleton_get.
-  destruct (eq_dec _ _); inv H0; eauto.
-  simpl; intros.
-  destruct (eq_dec _ _); [|eauto].
-  rewrite finmap_get_set.
-  destruct (eq_dec _ _); eauto.
+  { repeat intro.
+    destruct (eq_dec i0 i); [|rewrite finmap_get_empty in H0; discriminate].
+    rewrite singleton_get in H0.
+    destruct (eq_dec i1 (fresh _)); inv H0; auto. }
+  { simpl; intros.
+    destruct (eq_dec _ _); [|discriminate].
+    rewrite singleton_get.
+    destruct (eq_dec _ _); inv H0; eauto. }
+  { repeat intro.
+    clear H3; specialize (Hvb i0).
+    destruct (eq_dec i0 i); eauto.
+    rewrite finmap_get_set in H0.
+    destruct (eq_dec i1 (fresh _)); inv H0; eauto. }
+  { simpl; intros.
+    destruct (eq_dec _ _); [|eauto].
+    rewrite finmap_get_set.
+    destruct (eq_dec _ _); eauto. }
+  { apply single_valid; auto. }
 Qed.
 
 Lemma singleton_join: forall {A} {J: Join A} a b c k,
@@ -425,15 +480,24 @@ Proof.
 Qed.
 
 Lemma single_ghost_join: forall I (I_eq : EqDec I) (RAs: I -> Ghost) RA n
-  (H : RAs (fst n) = RA) a b c pp, join a b c ->
-  join (single_ghost(H := H) n a pp) (single_ghost(H := H) n b pp) (single_ghost(H := H) n c pp).
+  (H : RAs (fst n) = RA) a b c, join a b c ->
+  join (single_ghost(H := H) n a) (single_ghost(H := H) n b) (single_ghost(H := H) n c).
 Proof.
-  intros; constructor.
-  - intros i.
-    destruct (eq_dec _ _); [|constructor].
-    apply singleton_join; subst; auto.
-  - intros ??; destruct (eq_dec _ _); [|constructor].
-    destruct (eq_dec _ _); constructor; auto.
+  repeat intro; unfold single_ghost.
+  destruct (eq_dec _ _); [|constructor].
+  apply singleton_join; subst; auto.
+Qed.
+
+Lemma preds_join_refl: forall I a, preds_join I a a a.
+Proof.
+  repeat intro.
+  destruct (a _ _); constructor; auto.
+Qed.
+
+Lemma eq_dec_irr: forall {A} (e1: EqDec A) (e2: EqDec A), e1 = e2.
+Proof.
+  intros; extensionality a b.
+  destruct (e1 a b), (e2 a b); try contradiction; f_equal; apply proof_irr.
 Qed.
 
 Lemma ghost_op: forall {RA: Ghost} g (a1 a2 a3: G) pp,
@@ -443,26 +507,20 @@ Proof.
   intros; apply pred_ext.
   - destruct g.
     repeat (apply exp_left; intro).
-    erewrite Own_op by (apply single_ghost_join, H).
+    erewrite Own_op by ((apply single_ghost_join, H) || apply preds_join_refl).
     apply sepcon_derives; repeat eapply exp_right; eauto.
   - destruct g.
-    intros ? (w1 & w2 & J & (? & ? & ? & ? & Hg1) & (? & ? & ? & ? & Hg2)).
+    intros ? (w1 & w2 & J & (? & ? & ? & ? & ? & Hg1) & (? & ? & ? & ? & ? & Hg2)).
     pose proof (ghost_of_join _ _ _ J) as Jg.
     rewrite Hg1, Hg2 in Jg; inversion Jg.
     repeat inj_pair_tac.
     do 3 eexists.
-    erewrite Own_op by (apply single_ghost_join, H).
+    erewrite Own_op by ((apply single_ghost_join, H) || apply preds_join_refl).
     exists w1, w2; repeat split; auto.
-    + simpl in *.
-      rewrite Hg1; apply ghost_ext.
-      * extensionality j.
-        destruct (eq_dec _ _), (eq_dec _ _); try contradiction; auto.
-        replace e with e0 by apply proof_irr; auto.
-      * extensionality i n.
-        destruct (eq_dec i _), (eq_dec i _); try contradiction; auto.
-    + simpl in *.
-      rewrite Hg2; apply ghost_ext; auto.
-      replace x5 with x2 by apply proof_irr; auto.
+    + replace x4 with x0 by apply eq_dec_irr.
+      eexists; apply Hg1.
+    + replace x2 with x6 by apply proof_irr.
+      eexists; apply Hg2.
 Qed.
 
 Lemma singleton_join_inv: forall {A} {J: Join A} k a b c,
@@ -475,19 +533,38 @@ Proof.
     edestruct IHk as (? & ? & ?); eauto; subst; eauto.
 Qed.
 
-Lemma ghost_conflict: forall {RA: Ghost} g (a1 a2: G) pp,
-  own g a1 pp * own g a2 pp |-- !!joins a1 a2.
+Lemma ghost_valid_2: forall {RA: Ghost} g a1 a2 pp,
+  own g a1 pp * own g a2 pp |-- !!ghost.valid_2 a1 a2.
 Proof.
   intros.
-  destruct g as [? [i]]; intros w (? & ? & J & (? & ? & ? & ? & Hg1) & (? & ? & e1 & ? & Hg2)); simpl.
-  apply ghost_of_join in J.
-  rewrite Hg1, Hg2 in J; inv J.
-  repeat inj_pair_tac.
-  specialize (H3 i); simpl in *.
+  destruct g as [? [i]].
+  intros w (? & ? & J%ghost_of_join & (? & ? & ? & ? & ? & Hg1) & (? & ? & e1 & ? & ? & Hg2)).
+  rewrite Hg1, Hg2 in J.
+  inv J; repeat inj_pair_tac.
+  specialize (H3 i); apply finmap_get_join with (i0 := n) in H3.
+  clear H9; specialize (Hvc i n).
+  unfold single_ghost in H3; simpl in H3.
   destruct (eq_dec i i); [|contradiction].
+  rewrite singleton_get in H3.
+  destruct (eq_dec n n); [|contradiction].
   destruct (eq_dec i i); [|contradiction].
-  apply singleton_join_inv in H3 as (? & J & ?); clear - J.
-  rewrite (UIP_refl _ _ e), (UIP_refl _ _ e0), (UIP_refl _ _ e1) in J; eauto.
+  rewrite singleton_get in H3.
+  destruct (eq_dec n n); [|contradiction].
+  destruct (finmap_get (c0 i) n); [|contradiction].
+  subst; simpl in *.
+  eexists; split; eauto.
+  rewrite (UIP_refl _ _ e), (UIP_refl _ _ e1), (UIP_refl _ _ e2) in H3; auto.
+Qed.
+
+Corollary ghost_valid: forall {RA: Ghost} g a pp,
+  own g a pp |-- !!ghost.valid a.
+Proof.
+  intros.
+  rewrite <- (normalize.andp_TT (!!_)).
+  erewrite ghost_op by apply core_unit.
+  eapply derives_trans; [apply andp_right, derives_refl; apply ghost_valid_2|].
+  apply prop_andp_left; intros (? & J & ?); apply prop_andp_right; auto.
+  apply core_identity in J; subst; auto.
 Qed.
 
 Lemma singleton_join_some: forall {A} {J: Join A} k (a b c: A) m
@@ -513,50 +590,68 @@ Lemma ghost_update_ND: forall {RA: Ghost} g (a: G) B pp,
   fp_update_ND a B -> own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp).
 Proof.
   intros.
+  eapply derives_trans; [apply andp_right, derives_refl; apply ghost_valid|].
+  apply prop_andp_left; intro Hva.
   destruct g as [? [i n]].
   repeat (apply exp_left; intro).
   eapply derives_trans.
-  - apply Own_update_ND with
-      (B := fun g => exists b, B b /\ g = @single_ghost _ _ _ _ (i, n) x2 b pp).
+  - apply Own_update_ND with (Hv := single_valid (i, n) x2 a Hva)
+      (B0 := fun g => exists b (Hv: ghost.valid b), B b /\ g = GHOST _ _ _ _ (single_valid (i, n) x2 b Hv) (single_dom (i, n) x2 b pp)).
     intros ?? [? J].
     inv J; repeat inj_pair_tac.
-    pose proof (H6 i) as J.
+    pose proof (H6 i) as J; specialize (Hvc i n).
     apply finmap_get_join with (i0 := n) in J.
+    unfold single_ghost in J; simpl in J.
     destruct (eq_dec i i); [|contradiction].
     rewrite singleton_get, if_true in J by auto.
     destruct (finmap_get (b0 i) n) eqn: Hb.
     + destruct (finmap_get (c1 i) n); [|contradiction].
       rewrite (UIP_refl _ _ e) in J.
-      lapply (H g); eauto.
-      intros (b & ? & [g' J']); simpl in *.
+      lapply (H g); [|eexists; eauto].
+      intros (b & ? & g' & J' & Hvg'); simpl in *.
       pose proof (singleton_join_some _ _ _ _ _ Hb J').
-      do 2 eexists; eauto.
+      pose proof (join_valid _ _ _ J' Hvg') as Hvb'.
+      eexists; split; [exists b, Hvb'; eauto|].
       eexists; constructor; eauto; simpl.
       instantiate (1 := fun j => match eq_dec j i with
         left H => finmap_set (b0 j) n (eq_rect_r (fun j => @G (x1 j)) g' H) | _ => b0 j end).
+      unfold single_ghost; simpl.
       intro j; destruct (eq_dec j i); [|constructor].
       subst; auto.
-    + lapply (H (core a)); [|eexists; apply join_comm, core_unit].
-      intros (b & ? & _).
-      do 2 eexists; eauto.
+    + lapply (H (core a)).
+      intros (b & ? & ? & J' & ?).
+      apply join_valid in J'; auto.
+      eexists; split; [exists b, J'; eauto|].
       eexists; constructor; eauto; simpl.
       instantiate (1 := fun j => match eq_dec j i with
         left H => _ | _ => b0 j end).
+      unfold single_ghost; simpl.
       intro j; destruct (eq_dec j i); [|constructor].
       apply singleton_join_none; subst; auto.
+      { eexists; split; eauto; apply join_comm, core_unit. }
   - apply bupd_mono.
-    apply exp_left; intro; apply prop_andp_left; intros (? & ? & ?); subst.
+    repeat (apply exp_left; intro); apply prop_andp_left; intros (? & ? & ? & Hg).
+    inv Hg; repeat inj_pair_tac.
     eapply exp_right, andp_right; [repeat intro; simpl; eauto|].
-    repeat eapply exp_right; auto.
+    repeat eapply exp_right.
+    replace x6 with (single_dom (i, n) (eq_refl _) x7 pp) by apply proof_irr; auto.
   Unshelve.
-  intros j m ??; specialize (H7 j m); simpl in *.
-  destruct (eq_dec _ _); [|eapply domb; inv H7; rewrite H2 in *; eauto].
-  rewrite finmap_get_set; destruct (eq_dec _ _); eauto.
-  eapply domb; inv H7; rewrite H2 in *; eauto.
-  intros j m ??; specialize (H7 j m); simpl in *.
-  destruct (eq_dec _ _); [|eapply domb; inv H7; rewrite H1 in *; eauto].
-  rewrite finmap_get_set; destruct (eq_dec _ _); eauto.
-  eapply domb; inv H7; rewrite H1 in *; eauto.
+  { intros j m ??; specialize (Hvb j m).
+    destruct (eq_dec j i); auto.
+    rewrite finmap_get_set in H2.
+    destruct (eq_dec m n); inv H2; auto. }
+  { intros j m ??; specialize (H7 j m); unfold single_pred in H7; simpl in *.
+    destruct (eq_dec _ _); [|eapply domb; inv H7; rewrite H2 in *; eauto].
+    rewrite finmap_get_set; destruct (eq_dec _ _); eauto.
+    eapply domb; inv H7; rewrite H2 in *; eauto. }
+  { intros j m ??; specialize (Hvb j m).
+    destruct (eq_dec j i); auto.
+    rewrite finmap_get_set in H2.
+    destruct (eq_dec m n); inv H2; auto. }
+  { intros j m ??; specialize (H7 j m); unfold single_pred in H7; simpl in *.
+    destruct (eq_dec _ _); [|eapply domb; inv H7; rewrite H2 in *; eauto].
+    rewrite finmap_get_set; destruct (eq_dec _ _); eauto.
+    eapply domb; inv H7; rewrite H2 in *; eauto. }
 Qed.
 
 Lemma ghost_update: forall {RA: Ghost} g (a b: G) pp,

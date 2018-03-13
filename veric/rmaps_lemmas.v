@@ -1199,7 +1199,12 @@ Qed.
 
 Program Definition empty_ghost :=
   GHOST Empty_set (fun x => match x with end) (fun x => match x with end)
-      (fun x => match x with end) _.
+      (fun x => match x with end) _ _.
+Next Obligation.
+Proof.
+  intro.
+  destruct i.
+Defined.
 
 Definition empty_rmap' : rmap'.
   set (f:= fun _: AV.address => NO Share.bot bot_unreadable).
