@@ -886,7 +886,7 @@ Ltac rep_omega2 :=
   repeat rewrite ?Nat2Z.id, ?Nat2Z.inj_add, ?Nat2Z.inj_mul, 
          ?Z2Nat.id, ?Nat2Z.inj_sub, ?Z2Nat.inj_sub,
          ?Z2Nat.inj_add by rep_omega2;
-   simpl;
+(*    simpl; *)
    omega.
 
 Ltac rep_omega :=

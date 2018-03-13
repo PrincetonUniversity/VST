@@ -95,7 +95,7 @@ Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vint 0) = complete MAX l.
 Proof.
   intros; unfold complete.
-  rewrite upd_Znth_app1; [|repeat rewrite Zlength_correct; rewrite app_length; simpl; rep_omega].
+  rewrite upd_Znth_app1 by (rewrite Zlength_app, ?Zlength_cons; rep_omega).
   rewrite app_length; simpl plus.
   rewrite upd_Znth_app2, Zminus_diag; [|rewrite Zlength_cons; simpl; omega].
   unfold upd_Znth, sublist.sublist.
