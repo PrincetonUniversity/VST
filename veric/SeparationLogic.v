@@ -226,8 +226,7 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 Definition typecheck_error (e: tc_error) : Prop := False.
 Global Opaque typecheck_error.
 
-(* Somehow, this fixes a universe collapse issue that will occur if only fool is defined
-   (or at denote_tc_assert later on). *)
+(* Somehow, this fixes a universe collapse issue that will occur if fool is not defined. *)
 Definition fool := @map _ Type (fun it : ident * type => mpred).
 
 Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
