@@ -251,7 +251,7 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
-Check @map _ Type (fun it : ident * type => mpred).
+Definition fool' := @map _ Type (fun it : ident * type => mpred).
 
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
