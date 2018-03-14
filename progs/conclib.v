@@ -1,9 +1,11 @@
-Require Export VST.msl.predicates_sl.
+Require Import VST.msl.predicates_sl.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
+
+Notation precise := precise.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).

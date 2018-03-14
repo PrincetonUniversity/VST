@@ -15,6 +15,29 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 
+Section AEHist.
+
+(* These histories should be usable for any atomically accessed location. *)
+Inductive AE_hist_el := AE (r : val) (w : val).
+
+Fixpoint apply_hist a h :=
+  match h with
+  | [] => Some a
+  | AE r w :: h' => if eq_dec r a then apply_hist w h' else None
+  end.
+
+Arguments eq_dec _ _ _ _ : simpl never.
+
+Lemma apply_hist_app : forall h1 i h2, apply_hist i (h1 ++ h2) =
+  match apply_hist i h1 with Some v => apply_hist v h2 | None => None end.
+Proof.
+  induction h1; auto; simpl; intros.
+  destruct a.
+  destruct (eq_dec r i); auto.
+Qed.
+
+End AEHist.
+
 Notation hist := (list (nat * AE_hist_el)).
 
 (* the lock invariant used to encode an atomic invariant *)
