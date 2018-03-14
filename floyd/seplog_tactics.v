@@ -448,8 +448,8 @@ Ltac cancel :=
                  what I have here is a compromise between reliable speed, and (in)completeness.
                *)
           | apply TT_right
-          | apply sepcon_TT
-          | apply TT_sepcon
+          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
+          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
           | cancel_frame
           | idtac
           ].
