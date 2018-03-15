@@ -509,12 +509,8 @@ Program Definition noghost : pred rmap := fun m => identity (ghost_of m).
 Next Obligation.
 Proof.
   intros ????.
-  erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
-  rewrite (identity_core H0).
-  destruct (ghost_of a); simpl.
-  rewrite ghost_core; simpl.
-  replace (GHOST _ _ _ _ _ _) with (core (GHOST I RA g pds Hv dom)); [apply core_identity|].
-  rewrite ghost_core; apply ghost_ext; auto.
+  rewrite (age1_ghost_of _ _ H), (identity_core H0), ghost_core; simpl.
+  rewrite <- (ghost_core nil); apply core_identity.
 Defined.
 
 (* This is about split one segment into two segments. *)

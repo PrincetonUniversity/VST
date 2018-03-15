@@ -190,6 +190,12 @@ Proof.
     rewrite preds_fmap_fmap, approx_oo_approx; auto.
 Qed.
 
+Lemma ghost_fmap_fmap:  forall f1 f2 g1 g2 r,
+  ghost_fmap f1 f2 (ghost_fmap g1 g2 r) = ghost_fmap (f1 oo g1) (g2 oo f2) r.
+Proof.
+  intros; rewrite <- ghost_fmap_comp; auto.
+Qed.
+
 Lemma ghost_same_level:
    forall g phi, join_sub g (ghost_of phi) ->
    ghost_fmap (approx (level phi)) (approx (level phi)) g = g.
@@ -207,16 +213,19 @@ Proof.
   clear H0.
   unfold rmap_fmap in *.
   destruct r, x.
-  destruct g0; simpl in *.
-  destruct H1.
-  inv H; simpl.
-  repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst).
-  apply ghost_ext; auto; extensionality i m; specialize (H7 i m); inv H7; auto; simpl.
-  * rewrite H2; destruct (pds i m); auto; simpl.
-    rewrite preds_fmap_fmap, approx_oo_approx; auto.
-  * inv H2.
-    destruct (pds i m); inv H1.
-    rewrite preds_fmap_fmap, approx_oo_approx; auto.
+  simpl in H1; destruct H1.
+  remember (ghost_fmap (approx n) (approx n) g0) as g'.
+  clear v; revert dependent g0; induction H; auto; intros; subst.
+  - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
+  - destruct g0; inv Heqg'.
+    simpl; f_equal; eauto.
+    inv H; auto; simpl.
+    + destruct o as [[]|]; auto; simpl.
+      rewrite preds_fmap_fmap, approx_oo_approx; auto.
+    + destruct a0, a3, a4; inv H4; simpl in *.
+      destruct o as [[]|]; inv H1.
+      inv H2.
+      rewrite preds_fmap_fmap, approx_oo_approx; auto.
 Qed.
 
 Lemma deallocate:
@@ -324,16 +333,20 @@ Lemma ghost_same_level_gen:
    ghost_fmap (approx n) (approx n) c = c.
 Proof.
   intros.
-  destruct a, b, c; inv H.
-  repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst).
-  apply ghost_ext; auto; extensionality i m; specialize (H13 i m); inv H13; auto; simpl.
-  - destruct (pds0 i m); auto; simpl.
-    rewrite preds_fmap_fmap, approx_oo_approx; auto.
-  - destruct (pds i m); auto; simpl.
-    rewrite preds_fmap_fmap, approx_oo_approx; auto.
-  - destruct (pds i m); inv H.
-    inv H3.
-    rewrite preds_fmap_fmap, approx_oo_approx; auto.
+  remember (ghost_fmap (approx n) (approx n) a) as a'; remember (ghost_fmap (approx n) (approx n) b) as b'.
+  revert dependent b; revert dependent a; induction H; intros; subst.
+  - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
+  - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
+  - destruct a, b; inv Heqa'; inv Heqb'.
+    simpl; f_equal; eauto.
+    inv H; simpl.
+    + destruct o0 as [[]|]; auto; simpl.
+      rewrite preds_fmap_fmap, approx_oo_approx; auto.
+    + destruct o as [[]|]; auto; simpl.
+      rewrite preds_fmap_fmap, approx_oo_approx; auto.
+    + destruct a1, a2, a0; inv H3; simpl in *.
+      destruct o as [[]|]; inv H1; inv H4.
+      rewrite preds_fmap_fmap, approx_oo_approx; auto.
 Qed.
 
 Lemma allocate:
@@ -641,12 +654,6 @@ match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-Lemma ghost_fmap_fmap:  forall f1 f2 g1 g2 r, ghost_fmap f1 f2 (ghost_fmap g1 g2 r) =
-                                                                 ghost_fmap (f1 oo g1) (g2 oo f2) r.
-Proof.
-  intros; rewrite <- ghost_fmap_comp; auto.
-Qed.
-
 Lemma resource_at_approx:
   forall phi l,
       resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) = phi @ l.
@@ -939,12 +946,10 @@ Qed.
 Lemma ghost_fmap_join: forall a b c f g, join a b c ->
   join (ghost_fmap f g a) (ghost_fmap f g b) (ghost_fmap f g c).
 Proof.
-  destruct a, b, c; simpl; intros.
-  inv H.
-  repeat (match goal with H : existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end; subst).
-  constructor; auto.
-  intros i n; specialize (H13 i n); inv H13; simpl; try constructor.
-  inv H3; constructor; auto.
+  induction 1; constructor; auto.
+  inv H; constructor; auto.
+  destruct a0, a4, a5; inv H1; constructor; auto.
+  simpl in *; inv H2; constructor; auto.
 Qed.
 
 Lemma age1_ghost_of_identity:
@@ -952,21 +957,13 @@ Lemma age1_ghost_of_identity:
                (identity (ghost_of phi) <-> identity (ghost_of phi')).
 Proof.
  intros.
- erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
+ rewrite (age1_ghost_of _ _ H).
  split; intro.
  - replace (ghost_fmap _ _ _) with (ghost_of phi); auto.
-   rewrite (identity_core H0).
-   destruct (ghost_of phi).
-   rewrite ghost_core; simpl.
-   apply ghost_ext; auto.
+   rewrite (identity_core H0), ghost_core; auto.
  - replace (ghost_of phi) with (core (ghost_of phi)); [apply core_identity|].
    apply identity_core in H0.
-   destruct (ghost_of phi); simpl in *.
-   rewrite ghost_core in H0 |- *; inv H0; repeat inj_pair_tac.
-   apply ghost_ext; auto.
-   extensionality i n.
-   apply equal_f with i, equal_f with n in H0.
-   destruct (pds i n); inv H0; auto.
+   rewrite ghost_core in *; destruct (ghost_of phi); auto; discriminate.
 Qed.
 
 Lemma age1_YES: forall phi phi' l rsh sh k ,
@@ -1197,18 +1194,9 @@ rewrite (age1_resource_at _ _ H1 loc _ (eq_sym (resource_at_approx _ _))).
 rewrite H. rewrite H4; auto.
 Qed.
 
-Program Definition empty_ghost :=
-  GHOST Empty_set (fun x => match x with end) (fun x => match x with end)
-      (fun x => match x with end) _ _.
-Next Obligation.
-Proof.
-  intro.
-  destruct i.
-Defined.
-
 Definition empty_rmap' : rmap'.
   set (f:= fun _: AV.address => NO Share.bot bot_unreadable).
-  assert (R.valid (f, empty_ghost)).
+  assert (R.valid (f, nil)).
   red; unfold f; simpl.
   apply AV.valid_empty.
   exact (exist _ _ H).
@@ -1232,12 +1220,11 @@ rewrite unsquash_squash in H.
 simpl in *.
 unfold compose in H.
 inv H; auto; apply join_unit1_e in RJ; auto; subst; proof_irr; auto.
-eapply (core_identity empty_ghost).
-replace (core empty_ghost) with (ghost_of (empty_rmap n)).
-apply ghost_of_join; auto.
-unfold ghost_of, empty_rmap, empty_rmap', empty_ghost.
-rewrite ghost_core, unsquash_squash; simpl.
-apply ghost_ext; extensionality x; destruct x.
+eapply (core_identity nil).
+rewrite ghost_core.
+replace nil with (ghost_of (empty_rmap n)); [apply ghost_of_join; auto|].
+unfold ghost_of, empty_rmap, empty_rmap'.
+rewrite unsquash_squash; auto.
 Qed.
 
 Lemma empty_rmap_level:

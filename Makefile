@@ -130,14 +130,14 @@ CONCUR_FILES= \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
   sync_preds_defs.v sync_preds.v oracular_refinement.v \
-  semax_conc_pred.v xsemax_conc.v semax_conc.v semax_to_juicy_machine.v \
+  semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   semax_preservation_jspec.v \
   semax_preservation_local.v \
   semax_preservation_acquire.v \
-  semax_preservation_release.v \
+  semax_safety_release.v \
   semax_safety_makelock.v \
   semax_safety_freelock.v \
   semax_safety_spawn.v \

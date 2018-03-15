@@ -499,12 +499,6 @@ Proof.
   rewrite IHn; auto.
 Qed.
 
-Lemma map_repeat : forall {A B} (f : A -> B) x n, map f (repeat x n) = repeat (f x) n.
-Proof.
-  induction n; auto; simpl.
-  rewrite IHn; auto.
-Qed.
-
 Lemma sublist_repeat : forall {A} i j k (v : A), 0 <= i -> i <= j <= k ->
   sublist i j (repeat v (Z.to_nat k)) = repeat v (Z.to_nat (j - i)).
 Proof.
