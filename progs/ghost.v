@@ -1,3 +1,4 @@
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.msl.ghost.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
@@ -43,7 +44,7 @@ Definition noname : gname := O.
 
 Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la ->
   emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
-    (map (fun i => own (Znth i lg noname) (Znth i la a0) (Znth i lp compcert_rmaps.RML.R.NoneP))
+    (map (fun i => own (Znth i lg noname) (Znth i la a0) (Znth i lp NoneP))
     (upto (Z.to_nat (Zlength la))))).
 Proof.
   intros until 1; revert lp; induction H; intros.
@@ -231,7 +232,7 @@ Proof.
   - auto.
 Defined.
 
-Definition ghost_snap (a : @G P) p := own p (Share.bot, a) compcert_rmaps.RML.R.NoneP.
+Definition ghost_snap (a : @G P) p := own p (Share.bot, a) NoneP.
 
 Lemma ghost_snap_join : forall v1 v2 p v, join v1 v2 v ->
   ghost_snap v1 p * ghost_snap v2 p = ghost_snap v p.
@@ -258,7 +259,7 @@ Proof.
   - Intros v; erewrite ghost_snap_join; eauto.  apply derives_refl.
 Qed.
 
-Definition ghost_master sh (a : @G P) p := own p (sh, a) compcert_rmaps.RML.R.NoneP.
+Definition ghost_master sh (a : @G P) p := own p (sh, a) NoneP.
 
 Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
   ghost_snap v1 p * ghost_master sh v2 p = !!(ord v1 v2) && ghost_master sh v2 p.
@@ -480,7 +481,7 @@ Section GVar.
 Context {A : Type}.
 
 Definition ghost_var (sh : share) (v : A) g :=
-  @own _ _ _ _ _ _ (@pos_PCM (discrete_PCM A)) g (Some (sh, v)) compcert_rmaps.RML.R.NoneP.
+  @own _ _ _ _ _ _ (@pos_PCM (discrete_PCM A)) g (Some (sh, v)) NoneP.
 
 Lemma ghost_var_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   sh1 <> Share.bot -> sh2 <> Share.bot ->
@@ -915,7 +916,7 @@ Proof.
 Qed.
 
 Definition ghost_hist (sh : share) (h : hist_part) g :=
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), None) compcert_rmaps.RML.R.NoneP.
+  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), None) NoneP.
 
 Lemma ghost_hist_join : forall sh1 sh2 sh h1 h2 p (Hsh : sepalg.join sh1 sh2 sh)
   (Hsh1 : sh1 <> Share.bot) (Hsh2 : sh2 <> Share.bot),
@@ -970,7 +971,7 @@ Proof.
 Qed.
 
 Definition ghost_ref l g := EX hr : hist_part, !!(hist_list hr l) &&
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (None, Some hr) compcert_rmaps.RML.R.NoneP.
+  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (None, Some hr) NoneP.
 
 Lemma hist_next : forall h l (Hlist : hist_list h l), h (length l) = None.
 Proof.
@@ -984,7 +985,7 @@ Proof.
 Qed.
 
 Definition ghost_hist_ref sh (h r : hist_part) g :=
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), Some r) compcert_rmaps.RML.R.NoneP.
+  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), Some r) NoneP.
 
 Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : h' t' = None),
   ghost_hist_ref sh h h' p |-- |==> ghost_hist_ref sh (map_upd h t' e) (map_upd h' t' e) p.
@@ -1300,3 +1301,47 @@ Ltac ghost_alloc G :=
   [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
    apply sepcon_derives, derives_refl; apply own_alloc; simpl; auto|] end.
+
+(* weak view shift for use in funspecs *)
+Program Definition weak_view_shift (P Q: mpred): mpred :=
+  fun w => predicates_hered.derives (approx (S (level w)) P) (own.bupd (approx (S (level w)) Q)).
+Next Obligation.
+  repeat intro.
+  destruct H1.
+  apply age_level in H.
+  lapply (H0 a0); [|split; auto; omega].
+  intro HQ; destruct (HQ _ H2) as (? & ? & ? & ? & ? & ? & []).
+  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
+Defined.
+
+
+Lemma view_shift_nonexpansive: forall P Q n,
+  approx n (weak_view_shift P Q) = approx n (weak_view_shift (approx n P) (approx n Q)).
+Proof.
+  apply nonexpansive2_super_non_expansive; repeat intro.
+  - split; intros ??%necR_level Hshift ? HP ? J;
+      destruct (Hshift _ HP _ J) as (? & ? & m' & ? & ? & ? & []); destruct HP;
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto;
+      apply (H m'); auto; omega.
+  - split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.
+Qed.
+
+Lemma view_shift_weak: forall P Q, P |-- |==> Q -> TT |-- weak_view_shift P Q.
+Proof.
+  intros.
+  change (predicates_hered.derives TT (weak_view_shift P Q)).
+  intros w _ ? [? HP] ? J.
+  destruct (H _ HP _ J) as (? & ? & ? & ? & ? & ? & ?).
+  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
+Qed.
+
+Lemma apply_view_shift: forall P Q, (weak_view_shift P Q && emp) * P |-- |==> Q.
+Proof.
+  intros.
+  change (predicates_hered.derives ((weak_view_shift P Q && emp) * P) (own.bupd Q)).
+  intros ? (? & ? & ? & [Hshift Hemp] & HP) ? J.
+  destruct (join_level _ _ _ H).
+  apply Hemp in H; subst.
+  lapply (Hshift a); [|split; auto; omega].
+  intro X; destruct (X _ J) as (? & ? & ? & ? & ? & ? & []); eauto 7.
+Qed.

@@ -38,7 +38,7 @@ Qed.
 
 End AEHist.
 
-Notation hist := (list (nat * AE_hist_el)).
+Notation hist := (nat -> option AE_hist_el).
 
 (* the lock invariant used to encode an atomic invariant *)
 Definition AE_inv x g i R := EX h : list AE_hist_el, EX v : val,
@@ -66,7 +66,7 @@ Proof.
   { intro; subst; contradiction. }
   { intro; subst; contradiction. }
   intros (? & Hv); subst.
-  exploit (ghost_inj _ _ _ _ _ w Hg1 Hg2); try join_sub.
+(*  exploit (ghost_inj _ _ _ _ _ w Hg1 Hg2); try join_sub.
   intros (? & Heq); inv Heq.
   pose proof (hist_list_inj _ _ _ Hr1 Hr2); subst.
   destruct (age_sepalg.join_level _ _ _ Hj1), (age_sepalg.join_level _ _ _ Hj2),
@@ -84,7 +84,8 @@ Proof.
          match goal with H : sepalg.join b ?x ?y |- _ =>
            specialize (Hemp2 _ _ H); subst; auto end] | subst] end.
   join_inj.
-Qed.
+Qed.*)
+Admitted.
 
 Definition AE_loc sh l p g i R (h : hist) := lock_inv sh l (AE_inv p g i R) * ghost_hist sh h g.
 
@@ -114,52 +115,48 @@ Proof.
 Qed.
 
 (* This predicate describes the valid pre- and postconditions for a given atomic invariant R. *)
-Definition AE_spec i P R Q := forall hc hx vc vx (Hvx : apply_hist i hx = Some vx) (Hhist : hist_incl hc hx),
-  view_shift (R hx vx * P hc vc)
-  (R (hx ++ [AE vx vc]) vc * (weak_precise_mpred (R (hx ++ [AE vx vc]) vc) && emp) *
-   Q (hc ++ [(length hx, AE vx vc)]) vx).
+Definition AE_spec i P R Q := ALL hc : _, ALL hx : _, ALL vc : _, ALL vx : _,
+  !!(apply_hist i hx = Some vx /\ hist_incl hc hx) -->
+  weak_view_shift (R hx vx * P hc vc) (R (hx ++ [AE vx vc]) vc * (weak_precise_mpred (R (hx ++ [AE vx vc]) vc) && emp) *
+    Q (map_upd hc (length hx) (AE vx vc)) vx) && emp.
 
 Definition AE_type := ProdType (ProdType (ProdType
-  (ConstType (share * val * val * val * val * val * hist))
+  (ConstType (share * val * gname * val * val * val * hist))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType (list AE_hist_el)) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)).
 
 (* specification of atomic exchange *)
 Program Definition atomic_exchange_spec := DECLARE _simulate_atomic_exchange
-  TYPE AE_type WITH lsh : share, tgt : val, g : val, l : val,
+  TYPE AE_type WITH lsh : share, tgt : val, g : gname, l : val,
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
   PRE [ _tgt OF tptr tint, _l OF tptr (Tstruct _lock_t noattr), _v OF tint ]
-   PROP (tc_val tint v; readable_share lsh; AE_spec i P R Q)
+   PROP (tc_val tint v; readable_share lsh)
    LOCAL (temp _tgt tgt; temp _l l; temp _v v)
-   SEP (AE_loc lsh l tgt g i R h; P h v)
+   SEP (AE_loc lsh l tgt g i R h; P h v; AE_spec i P R Q)
   POST [ tint ]
    EX t : nat, EX v' : val,
-   PROP (tc_val tint v'; Forall (fun x => fst x < t)%nat h)
+   PROP (tc_val tint v'; newer h t)
    LOCAL (temp ret_temp v')
-   SEP (AE_loc lsh l tgt g i R (h ++ [(t, AE v' v)]); Q (h ++ [(t, AE v' v)]) v').
+   SEP (AE_loc lsh l tgt g i R (map_upd h t (AE v' v)); Q (map_upd h t (AE v' v)) v').
 Next Obligation.
 Proof.
   repeat intro.
   destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
-  - apply f_equal; apply f_equal; f_equal.
-    unfold AE_spec.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
-    rewrite !prop_impl.
-    setoid_rewrite approx_imp.
-    setoid_rewrite approx_imp at 2.
-    setoid_rewrite approx_imp at 3.
-    setoid_rewrite approx_imp at 4.
-    rewrite view_shift_super_non_expansive.
-    setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp, !approx_idem.
-    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
-  - rewrite AE_loc_super_non_expansive; auto.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite AE_loc_super_non_expansive; f_equal; f_equal.
+  unfold AE_spec.
+  rewrite !(approx_allp _ _ _ empty_map); apply f_equal; extensionality hc.
+  rewrite !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
+  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
+  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
+  setoid_rewrite approx_imp; f_equal; f_equal.
+  rewrite !approx_andp; f_equal.
+  rewrite view_shift_nonexpansive.
+  setoid_rewrite view_shift_nonexpansive at 2.
+  rewrite !approx_sepcon, !approx_andp, !approx_idem.
+  rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
 Qed.
 Next Obligation.
 Proof.
@@ -194,9 +191,19 @@ Proof.
     rewrite hist_ref_join by auto.
     Intros hr.
     apply prop_right; eapply hist_sub_list_incl; eauto. }
-  apply hist_add' with (e := AE v' v); auto.
-  gather_SEP 3 5; simpl.
-  match goal with H : AE_spec _ _ _ _ |- _ => apply H; auto end.
+  viewshift_SEP 0
+    (ghost_hist lsh (map_upd h (length h') (AE v' v)) g * ghost_ref (h' ++ [AE v' v]) g)
+    by (go_lower; apply hist_add').
+  gather_SEP 6 3 5; simpl.
+  viewshift_SEP 0 (R (h' ++ [AE v' v]) v * (weak_precise_mpred (R (h' ++ [AE v' v]) v) && emp) *
+    Q (map_upd h (length h') (AE v' v)) v').
+  { go_lower; unfold AE_spec.
+    eapply derives_trans; [apply allp_sepcon1 | apply allp_left with h].
+    eapply derives_trans; [apply allp_sepcon1 | apply allp_left with h'].
+    eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v)].
+    eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v')].
+    rewrite prop_imp by auto.
+    apply apply_view_shift. }
   forward_call (l, lsh, AE_inv tgt g i R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
@@ -206,16 +213,13 @@ Proof.
     cancel. }
   forward.
   Exists (length h') (Vint v'). unfold AE_loc; entailer!.
-  - rewrite Forall_forall. intros (?, ?) Hin.
-    specialize (Hincl _ _ Hin).
-    simpl; rewrite <- nth_error_Some, Hincl; discriminate.
+  - apply hist_incl_lt; auto.
   - apply andp_left2; auto.
 Qed.
 
-Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
-  (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
-  (Hdisj : disjoint h1 h2),
-  AE_loc sh1 l p g i R h1 * AE_loc sh2 l p g i R h2 = AE_loc sh l p g i R h.
+Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 (Hjoin : sepalg.join sh1 sh2 sh)
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hcompat : compatible h1 h2),
+  AE_loc sh1 l p g i R h1 * AE_loc sh2 l p g i R h2 = AE_loc sh l p g i R (map_add h1 h2).
 Proof.
   intros; unfold AE_loc.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) = _ => transitivity ((P1 * P2) * (Q1 * Q2));

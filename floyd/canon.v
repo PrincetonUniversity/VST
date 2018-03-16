@@ -1251,6 +1251,59 @@ Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic(t):=
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
+Lemma replace_SEP'_bupd:
+ forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (replace_nth n Rs R')))) c Post ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
+Proof.
+intros.
+eapply semax_pre_bupd; [ | apply H0].
+clear - H.
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold_lift; unfold_lift in H.
+normalize.
+rewrite !prop_true_andp in H by auto.
+rewrite sepcon_emp in H.
+rewrite prop_true_andp by auto.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
+- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+Qed.
+
+Lemma replace_SEP''_bupd:
+ forall n R' Delta P Q Rs Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- |==> Post ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- |==> Post.
+Proof.
+intros.
+eapply derives_trans, bupd_trans.
+eapply derives_trans; [ | apply bupd_mono, H0].
+clear - H.
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold_lift; unfold_lift in H.
+normalize.
+rewrite !prop_true_andp in H by auto.
+rewrite sepcon_emp in H.
+rewrite !prop_true_andp by auto.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
+- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+Qed.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
+  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic(t):=
+  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
+
 Ltac replace_in_pre S S' :=
  match goal with |- @semax _ _ _ ?P _ _ =>
   match P with context C[S] =>

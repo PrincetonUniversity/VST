@@ -101,21 +101,16 @@ Proof.
   Intros z x y.
   forward.
   forward.
-  (* It would be nice to have a version of replace_SEP for view shift. *)
   gather_SEP 2 3 4.
-  match goal with |-semax _ (PROPx _ (LOCALx ?Q (SEPx (_ :: ?R)))) _ _ =>
-    apply (semax_pre_bupd (PROP () (LOCALx Q
-      (SEPx (!!((if left then x else y) = 0) && ghost_var Tsh 1 (if left then g1 else g2) ::
-             ghost_var gsh1 (if left then y else x) (if left then g2 else g1) :: R))))) end.
+  viewshift_SEP 0 (!!((if left then x else y) = 0) && ghost_var Tsh 1 (if left then g1 else g2) *
+    ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
-    rewrite !prop_true_andp by auto.
-    rewrite <- 3sepcon_assoc.
-    eapply derives_trans; [|apply bupd_frame_r]; cancel.
     destruct left.
-    - erewrite sepcon_assoc, sepcon_comm, sepcon_assoc, ghost_var_share_join' by (try apply sepalg.join_comm; eauto).
+    - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
+      erewrite ghost_var_share_join' by eauto.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update.
-    - erewrite sepcon_assoc, ghost_var_share_join'; eauto.
+    - erewrite ghost_var_share_join' by eauto.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
   Intros; forward_call (lock, sh, cptr_lock_inv g1 g2 ctr).
