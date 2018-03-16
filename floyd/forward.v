@@ -2111,7 +2111,10 @@ Proof.
 intros. simpl_ret_assert. apply andp_left2; apply FF_left.
 Qed.
 
-Hint Resolve ENTAIL_refl ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+
+Hint Extern 0 (ENTAIL _, _ |-- _) =>
+ match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end.
 
 Ltac abbreviate_update_tycon :=
  match goal with
@@ -3112,7 +3115,7 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
-Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic".
+Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
 
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>

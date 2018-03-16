@@ -40,11 +40,9 @@ Qed.
 
 (* own isn't precise unless the ghost is a Disj_alg. Is this a problem? *)
 
-Definition noname : gname := O.
-
 Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la ->
   emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
-    (map (fun i => own (Znth i lg noname) (Znth i la a0) (Znth i lp NoneP))
+    (map (fun i => own (Znth i lg) (@Znth _ i la a0) (Znth i lp))
     (upto (Z.to_nat (Zlength la))))).
 Proof.
   intros until 1; revert lp; induction H; intros.
@@ -67,7 +65,7 @@ Qed.
 
 Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
   emp |-- |==> (EX lg : _, !!(Zlength lg = i) &&
-    fold_right sepcon emp (map (fun i => own (Znth i lg noname) a pp) (upto (Z.to_nat i)))).
+    fold_right sepcon emp (map (fun i => own (Znth i lg) a pp) (upto (Z.to_nat i)))).
 Proof.
   intros.
   eapply derives_trans; [apply own_list_alloc with (la := repeat a (Z.to_nat i))(lp := repeat pp (Z.to_nat i))|].
@@ -77,7 +75,8 @@ Proof.
   rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto.
   apply andp_right; [entailer!|].
   erewrite map_ext_in; eauto; intros; simpl.  apply derives_refl.
-  rewrite Znth_repeat, Znth_repeat' by (apply In_upto; auto); auto.
+  rewrite Znth_repeat'; auto.
+  apply In_upto in H1. omega.
 Qed.
 
 End ghost.

@@ -42,10 +42,10 @@ Definition fiddle_spec :=
 
 Definition get_uint32_le (arr: list Z) : int :=
  (Int.or (Int.or (Int.or
-            (Int.repr (Znth 0 arr 0))
-   (Int.shl (Int.repr (Znth 1 arr 0)) (Int.repr  8)))
-   (Int.shl (Int.repr (Znth 2 arr 0)) (Int.repr 16)))
-   (Int.shl (Int.repr (Znth 3 arr 0)) (Int.repr 24))).
+            (Int.repr (Znth 0 arr))
+   (Int.shl (Int.repr (Znth 1 arr)) (Int.repr  8)))
+   (Int.shl (Int.repr (Znth 2 arr)) (Int.repr 16)))
+   (Int.shl (Int.repr (Znth 3 arr)) (Int.repr 24))).
 
 Definition get_little_endian_spec :=
   DECLARE _get_little_endian
@@ -53,7 +53,7 @@ Definition get_little_endian_spec :=
   PRE [ _input OF (tptr tuchar) ]
     PROP (Zlength arr = 4;
           readable_share in_sh;
-          forall i, 0 <= i < 4 -> 0 <= Znth i arr 0 <= Byte.max_unsigned)
+          forall i, 0 <= i < 4 -> 0 <= Znth i arr <= Byte.max_unsigned)
     LOCAL (temp _input input)
     SEP (data_at in_sh (tarray tuchar 4) (map Vint (map Int.repr arr)) input)
   POST [ tuint ]
@@ -65,7 +65,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 
 
 Ltac solve_arr_range H := 
- match goal with |- context [Znth ?i _ 0] => 
+ match goal with |- context [Znth ?i _] => 
    specialize (H i); spec H; [ computable | ];
    rewrite Int.unsigned_repr; rep_omega
  end.
@@ -119,7 +119,7 @@ assert (N0: 0 <= n). {
 assert_PROP (isptr p) as P by entailer!.
 
 (* forward fails, but tells us to prove this: *)
-assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+assert_HINT (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)). {
   entailer!.
   destruct p; inversion P. simpl.
@@ -132,7 +132,7 @@ forward.
 forward.
 (* size = tagword >> 10; *)
 forward.
-rewrite !Znth_0_cons.
+(* rewrite !Znth_0_cons. *)
 
 forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) (EX i: Z,
   PROP ( )
@@ -160,12 +160,14 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   }
   forward.
   forward.
-  entailer!. split.
+  entailer!.
+  rewrite Znth_pos_cons by omega.
+  autorewrite with sublist. simpl.  
+  split.
   + f_equal. apply Int.repr_unsigned.
   + f_equal. rewrite Int.add_assoc. f_equal.
     rewrite (sublist_split 0 i (i+1)) by omega.
-    rewrite sublist_len_1 with (d := 0) by omega.
-    rewrite Znth_pos_cons by omega.
+    rewrite sublist_len_1 by omega.
     replace (1 + i - 1) with i by omega.
     rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
 - (* return sum; *)

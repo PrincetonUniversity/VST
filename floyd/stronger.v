@@ -126,7 +126,7 @@ Qed.
 
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
-  (forall i, 0 <= i < n -> Znth i (unfold_reptype v0) (default_val _) >>> Znth i (unfold_reptype v1) (default_val _)) ->
+  (forall i, 0 <= i < n -> Znth i (unfold_reptype v0)  >>> Znth i (unfold_reptype v1)) ->
   v0 >>> v1.
 Proof.
   intros.
@@ -247,7 +247,7 @@ Defined.
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
   (forall i, 0 <= i < n ->
-     Znth i (unfold_reptype v0) (default_val _) === Znth i (unfold_reptype v1) (default_val _)) ->
+     Znth i (unfold_reptype v0) === Znth i (unfold_reptype v1)) ->
   v0 === v1.
 Proof.
   intros.
@@ -255,14 +255,14 @@ Proof.
   + intros.
     specialize (H0 i H1).
     destruct (data_equal_stronger
-                      (Znth i (unfold_reptype v0) (default_val _))
-                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
+                      (Znth i (unfold_reptype v0))
+                      (Znth i (unfold_reptype v1))) as [? _].
     tauto.
   + intros.
     specialize (H0 i H1).
     destruct (data_equal_stronger
-                      (Znth i (unfold_reptype v0) (default_val _))
-                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
+                      (Znth i (unfold_reptype v0))
+                      (Znth i (unfold_reptype v1))) as [? _].
     tauto.
 Qed.
 

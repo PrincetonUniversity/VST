@@ -220,7 +220,7 @@ FLOYD_FILES= \
    library.v proofauto.v computable_theorems.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v smt_test.v extract_smt.v \
+   sublist.v sublist2.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -228,10 +228,9 @@ FLOYD_FILES= \
    entailer.v globals_lemmas.v \
    local2ptree_denote.v local2ptree_eval.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
-   data_at_rec_lemmas.v field_at.v stronger.v \
+   data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v \
-   bug_coq88dev.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -240,7 +239,7 @@ CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
-  bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
+  bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
   dotprod.v strlib.v \

@@ -38,7 +38,7 @@ Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
   get_uint32_le (map Int.unsigned [b0; b1; b2; b3]) 0 = word_to_int (b0, b1, b2, b3).
 Proof.
   intros. unfold get_uint32_le. unfold word_to_int.
-  do 4 rewrite Znth_map with (d' := Int.zero) by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
+  do 4 rewrite Znth_map by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
   do 4 rewrite Int.repr_unsigned.
   reflexivity.
 Qed.
@@ -65,23 +65,23 @@ Proof.
   unfold mbed_tls_initial_add_round_key.
   unfold mbed_tls_initial_add_round_key_col.
   match goal with
-  | |- context [ Znth 3 ?l ?d ] => let l' := (eval_list l) in change l with l'
+  | |- context [ Znth 3 ?l  ] => let l' := (eval_list l) in change l with l'
   end.
   match goal with
-  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
-    change (Znth 0 (e0 :: rest) d) with e0
+  | |- context [ Znth 0 (?e0 :: ?rest) ] =>
+    change (Znth 0 (e0 :: rest)) with e0
   end.
   match goal with
-  | |- context [ Znth 1 (?e0 :: ?e1 :: ?rest) ?d ] =>
-    change (Znth 1 (e0 :: e1 :: rest) d) with e1
+  | |- context [ Znth 1 (?e0 :: ?e1 :: ?rest) ] =>
+    change (Znth 1 (e0 :: e1 :: rest)) with e1
   end.
   match goal with
-  | |- context [ Znth 2 (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
-    change (Znth 2 (e0 :: e1 :: e2 :: rest) d) with e2
+  | |- context [ Znth 2 (?e0 :: ?e1 :: ?e2 :: ?rest) ] =>
+    change (Znth 2 (e0 :: e1 :: e2 :: rest)) with e2
   end.
   match goal with
-  | |- context [ Znth 3 (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
-    change (Znth 3 (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  | |- context [ Znth 3 (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ] =>
+    change (Znth 3 (e0 :: e1 :: e2 :: e3 :: rest)) with e3
   end.
   match goal with
   | |- context [ map Int.unsigned ?l ] => let l' := (eval_list l) in change l with l'
@@ -105,12 +105,12 @@ Proof.
   reflexivity.
 Qed.
 
-Definition FT0b0(i: Z): int := GF_ops_LL.times2 (Znth i FSb Int.zero).
-Definition FT0b1(i: Z): int := Znth i FSb Int.zero.
-Definition FT0b2(i: Z): int := Znth i FSb Int.zero.
-Definition FT0b3(i: Z): int := GF_ops_LL.times3 (Znth i FSb Int.zero).
+Definition FT0b0(i: Z): int := GF_ops_LL.times2 (Znth i FSb).
+Definition FT0b1(i: Z): int := Znth i FSb.
+Definition FT0b2(i: Z): int := Znth i FSb.
+Definition FT0b3(i: Z): int := GF_ops_LL.times3 (Znth i FSb).
 (* Note: according to calc_FT0, it should FT0b3 is
-     (Int.and (Int.xor (GF_ops_LL.times2 (Znth i FSb Int.zero)) (Znth i FSb Int.zero)) (Int.repr 255))
+     (Int.and (Int.xor (GF_ops_LL.times2 (Znth i FSb)) (Znth i FSb)) (Int.repr 255))
    but we prefer to use an equivalent "medium-level" formulation *)
 
 Lemma times3_times2: forall i,
@@ -212,23 +212,23 @@ Proof.
   (* unfold LHS (low level): *)
   unfold mbed_tls_fround. unfold state_to_four_ints.
   match goal with
-  | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
+  | |- context [ Znth (0 + 3) ?l ] => let l' := (eval_list l) in change l with l'
   end.
   match goal with
-  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
-    change (Znth 0 (e0 :: rest) d) with e0
+  | |- context [ Znth 0 (?e0 :: ?rest) ] =>
+    change (Znth 0 (e0 :: rest)) with e0
   end.
   match goal with
-  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest) ?d ] =>
-    change (Znth (0 + 1) (e0 :: e1 :: rest) d) with e1
+  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest)] =>
+    change (Znth (0 + 1) (e0 :: e1 :: rest)) with e1
   end.
   match goal with
-  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
-    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest) d) with e2
+  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest)] =>
+    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest)) with e2
   end.
   match goal with
-  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
-    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ] =>
+    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest)) with e3
   end.
   unfold mbed_tls_fround_col.
   unfold transpose.
@@ -284,23 +284,23 @@ Proof.
   (* unfold LHS (low level): *)
   unfold mbed_tls_final_fround. unfold state_to_four_ints. 
   match goal with
-  | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
+  | |- context [ Znth (0 + 3) ?l ] => let l' := (eval_list l) in change l with l'
   end.
   match goal with
-  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
-    change (Znth 0 (e0 :: rest) d) with e0
+  | |- context [ Znth 0 (?e0 :: ?rest) ] =>
+    change (Znth 0 (e0 :: rest)) with e0
   end.
   match goal with
-  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest) ?d ] =>
-    change (Znth (0 + 1) (e0 :: e1 :: rest) d) with e1
+  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest) ] =>
+    change (Znth (0 + 1) (e0 :: e1 :: rest)) with e1
   end.
   match goal with
-  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
-    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest) d) with e2
+  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest) ] =>
+    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest)) with e2
   end.
   match goal with
-  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
-    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ] =>
+    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest)) with e3
   end.
   unfold mbed_tls_final_fround_col.
   unfold transpose.

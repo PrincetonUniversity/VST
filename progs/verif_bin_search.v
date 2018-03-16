@@ -28,7 +28,7 @@ Definition search_spec :=
           SEP   (data_at sh (tarray tint (Zlength contents)) (map Vint (map Int.repr contents)) a)
   POST [ tint ]
     EX i:Z,
-         PROP (if in_dec Z.eq_dec tgt (sublist lo hi contents) then Znth i contents 0 = tgt else i = -1)
+         PROP (if in_dec Z.eq_dec tgt (sublist lo hi contents) then Znth i contents = tgt else i = -1)
           LOCAL (temp ret_temp  (Vint (Int.repr i)))
            SEP (data_at sh (tarray tint (Zlength contents)) (map Vint (map Int.repr contents)) a).
 
@@ -50,8 +50,8 @@ Proof.
   - unfold sublist; rewrite Z2Nat_neg; auto; omega.
 Qed.
 
-Lemma Znth_In : forall A i (l : list A) d x (Hrange : 0 <= i < Zlength l)
-                       (Hnth : Znth i l d = x), In x l.
+Lemma Znth_In : forall A (d: Inhabitant A) i (l : list A) x (Hrange : 0 <= i < Zlength l)
+                       (Hnth : Znth i l = x), In x l.
 Proof.
   unfold Znth; intros.
   destruct (zlt i 0); [omega|].
@@ -60,9 +60,9 @@ Proof.
   rep_omega.
 Qed.
 
-Lemma In_Znth : forall A (l : list A) x d,
+Lemma In_Znth : forall A (d: Inhabitant A) (l : list A) x,
     In x l ->
-    exists i, 0 <= i < Zlength l /\ Znth i l d = x.
+    exists i, 0 <= i < Zlength l /\ Znth i l = x.
 Proof.
   unfold Znth; intros.
   apply In_nth with (d := d) in H; destruct H as (n & ? & ?).
@@ -97,9 +97,9 @@ Proof.
        * inversion H. auto.
 Qed.
 
-Lemma sorted_mono : forall d l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
+Lemma sorted_mono : forall l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
                            (Hj : j < Zlength l),
-    Znth i l d <= Znth j l d.
+    Znth i l <= Znth j l.
 Proof.
 induction l; intros.
 * rewrite !Znth_nil. omega.
@@ -120,13 +120,13 @@ induction l; intros.
     apply IHl; auto; omega.
 Qed.
 
-Lemma In_sorted_range : forall d lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= hi)
+Lemma In_sorted_range : forall lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= hi)
                               (Hhi : hi <= Zlength l)
                               (Hin : In x (sublist lo hi l)),
-    Znth lo l d <= x <= Znth (hi - 1) l d.
+    Znth lo l <= x <= Znth (hi - 1) l.
 Proof.
   intros.
-  generalize (In_Znth _ _ _ d Hin); intros (i & Hrange & Hi).
+  generalize (In_Znth _ _ _ _ Hin); intros (i & Hrange & Hi).
   rewrite Zlength_sublist in Hrange by auto.
   rewrite Znth_sublist in Hi by omega.
   subst; split; apply sorted_mono; auto; omega.
@@ -135,14 +135,14 @@ Qed.
 Lemma In_sorted_gt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
                             (Hhi : hi <= Zlength l)
                             (Hin : In x (sublist lo hi l))
-                            (Hi : lo <= i < hi) (Hn : Znth i l 0 = n)
+                            (Hi : lo <= i < hi) (Hn : Znth i l = n)
                             (Hgt : n < x),
     In x (sublist (i + 1) hi l).
 Proof.
   intros.
   rewrite sublist_split with (mid := i + 1) in Hin; try omega.
   rewrite in_app in Hin; destruct Hin; auto.
-  generalize (In_sorted_range 0 lo (i + 1) x _ Hsort); intro X.
+  generalize (In_sorted_range lo (i + 1) x _ Hsort); intro X.
   repeat (lapply X; [clear X; intro X | omega]).
   replace (i + 1 - 1) with i in X by omega.
   specialize (X H); subst; omega.
@@ -151,21 +151,21 @@ Qed.
 Lemma In_sorted_lt : forall x i n l lo hi (Hsort : sorted l) (Hlo : lo >= 0)
                             (Hhi : hi <= Zlength l)
                             (Hin : In x (sublist lo hi l))
-                            (Hi : lo <= i < hi) (Hn : Znth i l 0 = n)
+                            (Hi : lo <= i < hi) (Hn : Znth i l = n)
                             (Hgt : x < n),
     In x (sublist lo i l).
 Proof.
   intros.
   rewrite sublist_split with (mid := i) in Hin; try omega.
   rewrite in_app in Hin; destruct Hin; auto.
-  generalize (In_sorted_range 0 i hi x _ Hsort); intro X.
+  generalize (In_sorted_range i hi x _ Hsort); intro X.
   repeat (lapply X; [clear X; intro X | omega]).
   specialize (X H); subst; omega.
 Qed.
 
-Lemma Znth_In_sublist : forall A i (l : list A) d lo hi
+Lemma Znth_In_sublist : forall A (d: Inhabitant A) i (l : list A) lo hi
   (Hlo : 0 <= lo <= i) (Hhi : i < hi <= Zlength l),
-  In (Znth i l d) (sublist lo hi l).
+  In (Znth i l) (sublist lo hi l).
 Proof.
   intros.
   apply Znth_In with (i := i - lo)(d := d).
@@ -224,11 +224,12 @@ Proof.
     by (subst; split; [apply Z_div_pos | apply Zdiv_lt_upper_bound]; omega).
   assert (H15: lo' <= mid < hi')
     by (split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega).
-  assert (H16: Int.min_signed <= Znth mid contents 0 <= Int.max_signed)
+  assert (H16: Int.min_signed <= Znth mid contents <= Int.max_signed)
     by (rewrite Forall_forall in H3; apply H3; eapply Znth_In; eauto).
   clear H3 Hlo'hi' H H0 H1.
   clearbody mid.
   forward. (* val = a[mid]; *)
+  autorewrite with sublist.
   forward_if.
   - forward. (* return mid; *)
     Exists mid; entailer!.

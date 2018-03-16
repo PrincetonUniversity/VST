@@ -46,14 +46,14 @@ assert (exists HSalsaRes, hSalsaOut v =
      SixteenByte2ValList q1 ++ SixteenByte2ValList q2
    end).
 { unfold hSalsaOut.
-  exists ((littleendian_invert (Znth 0 v Int.zero),
-           littleendian_invert (Znth 5 v Int.zero),
-           littleendian_invert (Znth 10 v Int.zero),
-           littleendian_invert (Znth 15 v Int.zero)),
-          (littleendian_invert (Znth 6 v Int.zero),
-           littleendian_invert (Znth 7 v Int.zero),
-           littleendian_invert (Znth 8 v Int.zero),
-           littleendian_invert (Znth 9 v Int.zero))).
+  exists ((littleendian_invert (Znth 0 v),
+           littleendian_invert (Znth 5 v),
+           littleendian_invert (Znth 10 v),
+           littleendian_invert (Znth 15 v)),
+          (littleendian_invert (Znth 6 v),
+           littleendian_invert (Znth 7 v),
+           littleendian_invert (Znth 8 v),
+           littleendian_invert (Znth 9 v))).
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
 destruct H0 as [HSalsaRes HS]. rewrite HS.
 forward_call (c, v_s, offset_val 16 nonce, d, Nonce2, HSalsaRes, SV).
@@ -86,14 +86,14 @@ assert (exists HSalsaRes, hSalsaOut v =
    match HSalsaRes with (q1, q2) =>
      SixteenByte2ValList q1 ++ SixteenByte2ValList q2
    end).
-{ exists ((littleendian_invert (Znth 0 v Int.zero),
-           littleendian_invert (Znth 5 v Int.zero),
-           littleendian_invert (Znth 10 v Int.zero),
-           littleendian_invert (Znth 15 v Int.zero)),
-          (littleendian_invert (Znth 6 v Int.zero),
-           littleendian_invert (Znth 7 v Int.zero),
-           littleendian_invert (Znth 8 v Int.zero),
-           littleendian_invert (Znth 9 v Int.zero))).
+{ exists ((littleendian_invert (Znth 0 v),
+           littleendian_invert (Znth 5 v),
+           littleendian_invert (Znth 10 v),
+           littleendian_invert (Znth 15 v)),
+          (littleendian_invert (Znth 6 v),
+           littleendian_invert (Znth 7 v),
+           littleendian_invert (Znth 8 v),
+           littleendian_invert (Znth 9 v))).
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
 destruct H0 as [[q1 q2] HS]. rewrite HS. 
 forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, (q1,q2), mCont, SV).

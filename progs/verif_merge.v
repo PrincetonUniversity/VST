@@ -308,7 +308,6 @@ entailer!.
 
 (* other branch of the if: contradiction *)
 rewrite H2 in HeqB; inversion HeqB.
-
 (* After the if, putting boolean value into "cond" *)
 clear -SH.
 (* TODO-LTAC I had no idea why this command failed -- we should tell "remove existential first", maybe *)

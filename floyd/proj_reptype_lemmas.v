@@ -13,7 +13,7 @@ Context {cs: compspecs}.
 Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
   match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
   with
-  | Tarray t0 hi a, ArraySubsc i => fun v => Znth i v (default_val _)
+  | Tarray t0 hi a, ArraySubsc i => fun v => @Znth _ (default_val _) i v
   | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
   | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
   | _, _ => fun _ => default_val _

@@ -76,31 +76,6 @@ change (Z.to_nat 4) with 4%nat.
 apply skipn_intlist_to_Zlist.
 Qed.
 
-Lemma sublist_singleton:
-  forall {A} i (al: list A) d,
-    0 <= i < Zlength al ->
-    sublist i (i+1) al = [Znth i al d].
-Proof.
-intros.
-unfold sublist.
-replace (i+1-i) with 1 by omega.
-change (Z.to_nat 1) with 1%nat.
-unfold Znth.
-rewrite if_false by omega.
-assert (Z.to_nat i < length al)%nat.
-destruct H.
-rewrite Zlength_correct in H0.
-apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. auto.
-clear H.
-revert al H0; induction (Z.to_nat i); destruct al; intros;
-  try (simpl in *; omega);  try reflexivity.
-simpl in H0.
-simpl nth.
-rewrite <- (IHn al) by omega.
-reflexivity.
-Qed.
-
 Lemma Zlist_to_intlist_to_Zlist':
   forall nl: list Z,
   Nat.divide (Z.to_nat WORD) (length nl) ->

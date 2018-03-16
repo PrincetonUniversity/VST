@@ -90,10 +90,11 @@ forward. (* i++; *)
    time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
  Exists (i+1).
- entailer!.
- f_equal. f_equal.
+ entailer!. simpl.
+ f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
+ rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+ autorewrite with sublist. normalize.
  simpl. rewrite Z.add_0_r. reflexivity.
 * (* After the loop *)
 forward.  (* return s; *)

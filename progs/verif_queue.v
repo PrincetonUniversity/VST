@@ -444,6 +444,7 @@ destruct prefix; inversion H; clear H.
     rewrite if_false by (destruct prefix; simpl; congruence).
     Exists prefix.
     entailer!.
+    apply derives_refl.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.

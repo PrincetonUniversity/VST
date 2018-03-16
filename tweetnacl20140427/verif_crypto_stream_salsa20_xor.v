@@ -398,10 +398,10 @@ Proof.
 Qed.
 
 Lemma Znth_sublist':
-  forall (A : Type) (lo i hi : Z) (al : list A) (d : A),
+  forall (A : Type){d: Inhabitant A} (lo i hi : Z) (al : list A),
   0 <= lo ->
   Zlength al <= hi ->
-  0 <= i <= hi - lo -> Znth i (sublist lo hi al) d = Znth (i + lo) al d.
+  0 <= i <= hi - lo -> Znth i (sublist lo hi al) = Znth (i + lo) al.
 Proof. intros. unfold Znth. destruct (zlt i 0). omega.
 destruct (zlt (i + lo) 0). omega. unfold sublist.
 destruct (zeq i (hi-lo)).
@@ -499,7 +499,7 @@ Proof. induction n; simpl; intros.
   rewrite Int.unsigned_repr; try omega. rewrite int_max_unsigned_eq; omega.
 + remember (ZZ zbytes n). destruct p. symmetry in Heqp. inv H. apply IHn in Heqp. clear IHn.
   destruct Heqp.
-  remember (Znth (Z.of_nat n + 8) l Byte.zero) as b. clear Heqb.
+  remember (Znth (Z.of_nat n + 8) l) as b. clear Heqb.
   specialize Byte_max_unsigned_Int_max_unsigned; intros B.
   assert (B1: Byte.max_unsigned = 255) by reflexivity.
   assert (B2: two_p 8 = 256) by reflexivity. 
@@ -571,25 +571,21 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k SV zbytes).
   remember (ZZ zbytes (Z.to_nat (i - 8))) as X. destruct X as [ui Zi]. 
   assert_PROP (Zlength (Bl2VL Zi) = 16) as L by entailer!.
   unfold Bl2VL in L; rewrite Zlength_map in L.
-  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned Zi)) i Vundef) as [vi Vi].
+  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned Zi)) i) as [vi Vi].
     omega.
-  rewrite Znth_map with (d':= Int.zero) in Vi.
+  rewrite Znth_map in Vi.
   2: omega.
   inv Vi. unfold Bl2VL.
   forward.
   { entailer!.
-    rewrite Znth_map with (d':= Int.zero); [| omega ].
-    rewrite 2 Zlength_map in H1.
-    rewrite Znth_map with (d':=Z0); [| omega].
-    rewrite Zlength_map in H1.
-    rewrite Znth_map with (d':=Byte.zero); [| omega].
-    red. rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max.
+    autorewrite with sublist in *.
+    red. rewrite Int.unsigned_repr by rep_omega. rep_omega.
   } 
-  simpl. rewrite Znth_map with (d':= Int.zero); [| omega].
+  simpl. rewrite Znth_map; [| omega].
     rewrite Zlength_map in L.
-    rewrite Znth_map with (d':=Z0); try omega.
+    rewrite Znth_map; try omega.
     rewrite Zlength_map in L.
-    rewrite Znth_map with (d':=Byte.zero); try omega. 
+    rewrite Znth_map; try omega. 
   forward.
   forward.
   assert (Q: Z.to_nat (i + 1 - 8) = S (Z.to_nat (i-8))).
@@ -614,9 +610,10 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k SV zbytes).
     intros j J. 
     rewrite Int.Zzero_ext_spec; trivial. rewrite (Byte.Ztestbit_mod_two_p 8); trivial.
     rewrite Int.unsigned_repr; trivial.
-    symmetry in HeqX. apply ZZ_is_byte in HeqX. destruct (Byte.unsigned_range_2 (Znth i Zi Byte.zero)).
+    symmetry in HeqX. apply ZZ_is_byte in HeqX.
+    destruct (Byte.unsigned_range_2 (Znth i Zi)).
     rewrite byte_unsigned_max_eq in H4; rewrite int_max_unsigned_eq; omega.
-  + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi Byte.zero)) 256). 
+  + destruct (Z_mod_lt (Int.unsigned ui + Byte.unsigned (Znth i Zi)) 256). 
     omega. rewrite byte_unsigned_max_eq; omega.
 }
 Opaque ZZ.
@@ -633,7 +630,7 @@ end.
 Definition byte_at x i mbytes :=
     match x with
      Vint _ => Byte.zero
-   | _ => Znth i mbytes Byte.zero
+   | _ => Znth i mbytes
     end.
 
 Lemma bxorlist_snoc x q y b l mbytes xbytes
@@ -642,7 +639,7 @@ Lemma bxorlist_snoc x q y b l mbytes xbytes
                      (sublist 0 (Zlength l) xbytes) = Some l):
         0<= q -> Zlength l < Zlength xbytes ->  q+ Zlength l < Zlength mbytes ->
         b = Byte.xor (byte_at x (Zlength l + q) mbytes)
-                     (Znth (Zlength l) xbytes Byte.zero) -> 
+                     (Znth (Zlength l) xbytes) -> 
   bxorlist (bytes_at x q (Zlength l  + 1) mbytes)
            (sublist 0 (Zlength l  + 1) xbytes) = Some (l ++ [b]).
 Proof.
@@ -652,12 +649,12 @@ Proof.
       - destruct M as [M1 M2]. subst i y. simpl. simpl in X.
         rewrite Z2Nat.inj_add, <- list_repeat_app.
         apply bxorlist_app. assumption.
-        rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero). simpl. subst b. reflexivity.
+        rewrite sublist_len_1. simpl. subst b. reflexivity.
         omega. omega. omega.
       - simpl in M. subst y. (*rewrite M in *;*) simpl in X; simpl.
-        rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
+        rewrite sublist_len_1.
         apply bxorlist_app. assumption.
-        rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero). subst b. rewrite Z.add_comm. reflexivity.
+        rewrite sublist_len_1. subst b. rewrite Z.add_comm. reflexivity.
         omega. omega.
       - omega.
       - omega.
@@ -782,11 +779,10 @@ rename H into I.
     Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
-    + rewrite Znth_map with (d' := Byte.zero) by omega. entailer!. 
+    + entailer!. 
         apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
-      rewrite Znth_map with (d':=Byte.zero); [|omega]. 
       unfold field_address0. entailer!.
       autorewrite with sublist. 
          if_tac; try contradiction.
@@ -797,14 +793,12 @@ rename H into I.
     destruct M as [M _]. 2: discriminate.
     forward. entailer!.
   }  
-  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i Vundef) as  [xi Xi].
+  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
     repeat rewrite Zlength_map. omega.
   thaw FR1. freeze [0;2;3] FR2.
-  forward; rewrite Xi.
+  forward; change (@Znth val Vundef) with (@Znth val _); rewrite Xi.
   { entailer!.
-   rewrite Znth_map with (d':=Int.zero) in Xi; [| rewrite 2 Zlength_map; omega].
-   rewrite Znth_map with (d':=Z0) in Xi; [| rewrite Zlength_map; omega].
-   rewrite Znth_map with (d':=Byte.zero) in Xi; [| omega].
+   rewrite ?Znth_map in Xi by list_solve.
    inv Xi. 
    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max.
   } 
@@ -819,11 +813,10 @@ rename H into I.
     rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
-    rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
-    rewrite Znth_map with (d':=Z0). 2: rewrite Zlength_map; omega.
-    rewrite Znth_map with (d':=Byte.zero). 2: omega. 
+    rewrite Znth_map in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
+    rewrite Znth_map. 2: omega.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
-                       (Znth (Zlength l) xbytes Byte.zero)) as mybyte.
+                       (Znth (Zlength l) xbytes)) as mybyte.
     Exists (l++ [mybyte]). cancel.
     apply andp_right.
     + apply prop_right. 
@@ -977,7 +970,7 @@ Focus 2.
            [ArraySubsc q] (Vptr b0 i0)).
     Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
-    forward; unfold Bl2VL; autorewrite with sublist; rewrite Znth_map with (d' := Byte.zero) by omega.
+    forward; unfold Bl2VL; autorewrite with sublist.
     { entailer!.
       apply Byte.unsigned_range_2.  }
     forward. entailer!.
@@ -992,20 +985,19 @@ Focus 2.
     destruct M as [M _]. 2: discriminate.
     forward. entailer!.
   } 
-  deadvars!.
 (*  forward. drop_LOCAL 10%nat. (*variable 187*) *)
-  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i Vundef) as  [xi Xi].
+  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
     repeat rewrite Zlength_map. omega.
 (*  rewrite Znth_map with (d':=Int.zero) in Xi.
   rewrite Znth_map with (d':=Z0) in Xi. inv Xi.*)
   thaw FR1. freeze [0;2;3] FR2.
   forward (*; rewrite Xi*).
-  { entailer!. rewrite Xi. 
-    rewrite Znth_map with (d':=Int.zero) in Xi; [| rewrite 2 Zlength_map; omega].
-    rewrite Znth_map with (d':=Z0) in Xi; [inv Xi| rewrite Zlength_map; omega].
-    red. rewrite Znth_map with (d':=Byte.zero); [ | omega]. 
-    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
-  } 
+  { entailer!.
+    do 2 rewrite Znth_map by list_solve. red.
+    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. 
+    apply Byte_unsigned_range_32.
+  }
+  change (@Znth val Vundef) with (@Znth val _).
   rewrite Xi. 
   thaw FR2. freeze [0;2;3] FR3.
   forward. 
@@ -1018,11 +1010,10 @@ Focus 2.
     rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3. 
-    rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
-    rewrite Znth_map with (d':=Z0). 2: rewrite Zlength_map; omega.
-    rewrite Znth_map with (d':=Byte.zero). 2: omega. 
+    rewrite Znth_map in Xi by list_solve. inv Xi.
+    rewrite Znth_map by list_solve.
     remember (Byte.xor (byte_at mInit (Zlength l+q) mbytes) 
-                       (Znth (Zlength l) xbytes Byte.zero)) as mybyte.
+                       (Znth (Zlength l) xbytes)) as mybyte.
     Exists (l++ [mybyte]). cancel.
     apply andp_right.
     - apply prop_right. 
@@ -1150,20 +1141,20 @@ forward_for_simple_bound 8 (EX i:Z,
   assert (ZWS: Int.zwordsize = 32) by reflexivity.
   destruct (SixteenByte2ValList_bytes Nonce) as [NBytes [NBytesL NB]]; rewrite NB.
   assert (NBytesZL: Zlength NBytes = 16). apply Zlength_length; simpl; omega.
-  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned NBytes)) i Vundef) as [v V]. 
+  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned NBytes)) i) as [v V]. 
     repeat rewrite Zlength_map. rewrite NBytesZL. omega. 
-  assert (v = Int.repr (Byte.unsigned (Znth i NBytes Byte.zero))).
-    rewrite Znth_map' with (d':=Int.zero) in V. inv V. 
+  assert (v = Int.repr (Byte.unsigned (Znth i NBytes))).
+    rewrite Znth_map in V. inv V. 
     2: repeat rewrite Zlength_map; rewrite NBytesZL; simpl; omega.
-    rewrite Znth_map' with (d':=Z0).
+    rewrite Znth_map.
     2: rewrite Zlength_map, NBytesZL; simpl; omega.
-    rewrite Znth_map' with (d':=Byte.zero). reflexivity.
+    rewrite Znth_map. reflexivity.
     rewrite NBytesZL; simpl; omega.
   subst v.
-  destruct (Byte.unsigned_range_2 (Znth i NBytes Byte.zero)) as [VBmin VBmax]. 
+  destruct (Byte.unsigned_range_2 (Znth i NBytes)) as [VBmin VBmax]. 
   specialize Byte_max_unsigned_Int_max_unsigned; intros ByteIntMaxUnsigned.
   simpl.
-  forward; rewrite V.
+  forward; change (@Znth val Vundef) with (@Znth val _); rewrite V.
   { entailer!. }
   forward.
   rewrite NB.
@@ -1171,10 +1162,10 @@ forward_for_simple_bound 8 (EX i:Z,
   apply derives_refl'. f_equal.
   rewrite upd_Znth_app2; try autorewrite with sublist. 2: omega.
   rewrite upd_Znth0, <- (@sublist_rejoin val 0 i (i+1)), <- app_assoc. f_equal.
-  rewrite <- Znth_cons_sublist with (d:=Vundef).
-  f_equal. rewrite Znth_map' with (d':=Int.zero).
-     rewrite Znth_map' with (d':=Z0).
-     rewrite Znth_map' with (d':=Byte.zero); trivial.
+  rewrite <- Znth_cons_sublist.
+  f_equal. rewrite Znth_map.
+     rewrite Znth_map.
+     rewrite Znth_map; trivial.
      omega. rewrite Zlength_map; omega. repeat rewrite Zlength_map; omega.
      autorewrite with sublist. rewrite  Z.sub_add_distr; trivial.
      autorewrite with sublist in *. omega.

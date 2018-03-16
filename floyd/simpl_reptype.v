@@ -4,6 +4,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 Require Import VST.floyd.simple_reify.
 
 Section SIMPL_REPTYPE.
@@ -147,17 +148,25 @@ Ltac solve_load_rule_evaluation_old :=
     end
   end.
 
+(* Warning: these aren't defined until later, which should be OK,
+  but might be confusing. 
+Instance Inhabitant_val : Inhabitant val := Vundef.
+Instance Inhabitant_int: Inhabitant int := Int.zero.
+*)
+
 (* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
    Useful for all loads from int arrays.
    Makes entailer and other tactics more successful. *)
 Ltac default_canon_load_result :=
   repeat (
-    first [ rewrite Znth_map with (d' := Int.zero)
-          | rewrite Znth_map with (d' := Vundef)
-          | rewrite Znth_map with (d' := 0) ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
+    first [ rewrite Znth_map_Vbyte
+          | rewrite (@Znth_map int _)
+          | rewrite (@Znth_map int64 _)
+          | rewrite (@Znth_map val _)
+          | rewrite (@Znth_map Z _) ];
+    [ | solve [auto; list_solve] + match goal with
+        | |- ?Bounds => fail 1000 "Make sure list_solve or auto can prove" Bounds
+        end  ]
   ).
 
 Ltac canon_load_result := default_canon_load_result.

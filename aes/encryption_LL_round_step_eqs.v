@@ -12,67 +12,67 @@ Lemma round13eq: forall buf S12 S13,
        Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 52 buf 0))
+               (Int.xor (Int.repr (Znth 52 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 0 S12))
-                        (Int.unsigned (Int.repr 255))) FT0 Int.zero))
+                        (Int.unsigned (Int.repr 255))) FT0))
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 1 S12) (Int.repr 8)))
-                     (Int.unsigned (Int.repr 255))) FT1 Int.zero))
+                     (Int.unsigned (Int.repr 255))) FT1))
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 2 S12) (Int.repr 16)))
-                  (Int.unsigned (Int.repr 255))) FT2 Int.zero))
+                  (Int.unsigned (Int.repr 255))) FT2))
          (Znth
             (Z.land (Int.unsigned (Int.shru (col 3 S12) (Int.repr 24)))
-               (Int.unsigned (Int.repr 255))) FT3 Int.zero) = col 0 S13
+               (Int.unsigned (Int.repr 255))) FT3) = col 0 S13
    /\  Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 53 buf 0))
+               (Int.xor (Int.repr (Znth 53 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 1 S12))
-                        (Int.unsigned (Int.repr 255))) FT0 Int.zero))
+                        (Int.unsigned (Int.repr 255))) FT0))
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 2 S12) (Int.repr 8)))
-                     (Int.unsigned (Int.repr 255))) FT1 Int.zero))
+                     (Int.unsigned (Int.repr 255))) FT1))
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 3 S12) (Int.repr 16)))
-                  (Int.unsigned (Int.repr 255))) FT2 Int.zero))
+                  (Int.unsigned (Int.repr 255))) FT2))
          (Znth
             (Z.land (Int.unsigned (Int.shru (col 0 S12) (Int.repr 24)))
-               (Int.unsigned (Int.repr 255))) FT3 Int.zero) = col 1 S13
+               (Int.unsigned (Int.repr 255))) FT3) = col 1 S13
    /\  Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 54 buf 0))
+               (Int.xor (Int.repr (Znth 54 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 2 S12))
-                        (Int.unsigned (Int.repr 255))) FT0 Int.zero))
+                        (Int.unsigned (Int.repr 255))) FT0))
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 3 S12) (Int.repr 8)))
-                     (Int.unsigned (Int.repr 255))) FT1 Int.zero))
+                     (Int.unsigned (Int.repr 255))) FT1))
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 0 S12) (Int.repr 16)))
-                  (Int.unsigned (Int.repr 255))) FT2 Int.zero))
+                  (Int.unsigned (Int.repr 255))) FT2))
          (Znth
             (Z.land (Int.unsigned (Int.shru (col 1 S12) (Int.repr 24)))
-               (Int.unsigned (Int.repr 255))) FT3 Int.zero) = col 2 S13
+               (Int.unsigned (Int.repr 255))) FT3) = col 2 S13
    /\  Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 55 buf 0))
+               (Int.xor (Int.repr (Znth 55 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 3 S12))
-                        (Int.unsigned (Int.repr 255))) FT0 Int.zero))
+                        (Int.unsigned (Int.repr 255))) FT0))
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 0 S12) (Int.repr 8)))
-                     (Int.unsigned (Int.repr 255))) FT1 Int.zero))
+                     (Int.unsigned (Int.repr 255))) FT1))
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 1 S12) (Int.repr 16)))
-                  (Int.unsigned (Int.repr 255))) FT2 Int.zero))
+                  (Int.unsigned (Int.repr 255))) FT2))
          (Znth
             (Z.land (Int.unsigned (Int.shru (col 2 S12) (Int.repr 24)))
-               (Int.unsigned (Int.repr 255))) FT3 Int.zero) = col 3 S13.
+               (Int.unsigned (Int.repr 255))) FT3) = col 3 S13.
 Proof.
   intros. subst S13. destruct S12 as [c0 [c1 [c2 c3]]]. repeat split.
 Qed.
@@ -82,94 +82,94 @@ Lemma round14eq: forall buf S13 S14,
        Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 56 buf 0))
+               (Int.xor (Int.repr (Znth 56 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 0 S13))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero))
+                        (Int.unsigned (Int.repr 255))) FSb))
                (Int.shl
                   (Znth
                      (Z.land
                         (Int.unsigned (Int.shru (col 1 S13) (Int.repr 8)))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                        (Int.unsigned (Int.repr 255))) FSb)
                   (Int.repr 8)))
             (Int.shl
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 2 S13) (Int.repr 16)))
-                     (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                     (Int.unsigned (Int.repr 255))) FSb)
                (Int.repr 16)))
          (Int.shl
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 3 S13) (Int.repr 24)))
-                  (Int.unsigned (Int.repr 255))) FSb Int.zero) (Int.repr 24)) =
+                  (Int.unsigned (Int.repr 255))) FSb) (Int.repr 24)) =
        col 0 S14
     /\ Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 57 buf 0))
+               (Int.xor (Int.repr (Znth 57 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 1 S13))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero))
+                        (Int.unsigned (Int.repr 255))) FSb))
                (Int.shl
                   (Znth
                      (Z.land
                         (Int.unsigned (Int.shru (col 2 S13) (Int.repr 8)))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                        (Int.unsigned (Int.repr 255))) FSb)
                   (Int.repr 8)))
             (Int.shl
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 3 S13) (Int.repr 16)))
-                     (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                     (Int.unsigned (Int.repr 255))) FSb)
                (Int.repr 16)))
          (Int.shl
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 0 S13) (Int.repr 24)))
-                  (Int.unsigned (Int.repr 255))) FSb Int.zero) (Int.repr 24)) =
+                  (Int.unsigned (Int.repr 255))) FSb) (Int.repr 24)) =
        col 1 S14
     /\ Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 58 buf 0))
+               (Int.xor (Int.repr (Znth 58 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 2 S13))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero))
+                        (Int.unsigned (Int.repr 255))) FSb))
                (Int.shl
                   (Znth
                      (Z.land
                         (Int.unsigned (Int.shru (col 3 S13) (Int.repr 8)))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                        (Int.unsigned (Int.repr 255))) FSb)
                   (Int.repr 8)))
             (Int.shl
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 0 S13) (Int.repr 16)))
-                     (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                     (Int.unsigned (Int.repr 255))) FSb)
                (Int.repr 16)))
          (Int.shl
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 1 S13) (Int.repr 24)))
-                  (Int.unsigned (Int.repr 255))) FSb Int.zero) (Int.repr 24)) =
+                  (Int.unsigned (Int.repr 255))) FSb) (Int.repr 24)) =
        col 2 S14
     /\ Int.xor
          (Int.xor
             (Int.xor
-               (Int.xor (Int.repr (Znth 59 buf 0))
+               (Int.xor (Int.repr (Znth 59 buf))
                   (Znth
                      (Z.land (Int.unsigned (col 3 S13))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero))
+                        (Int.unsigned (Int.repr 255))) FSb))
                (Int.shl
                   (Znth
                      (Z.land
                         (Int.unsigned (Int.shru (col 0 S13) (Int.repr 8)))
-                        (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                        (Int.unsigned (Int.repr 255))) FSb)
                   (Int.repr 8)))
             (Int.shl
                (Znth
                   (Z.land (Int.unsigned (Int.shru (col 1 S13) (Int.repr 16)))
-                     (Int.unsigned (Int.repr 255))) FSb Int.zero)
+                     (Int.unsigned (Int.repr 255))) FSb)
                (Int.repr 16)))
          (Int.shl
             (Znth
                (Z.land (Int.unsigned (Int.shru (col 2 S13) (Int.repr 24)))
-                  (Int.unsigned (Int.repr 255))) FSb Int.zero) (Int.repr 24)) =
+                  (Int.unsigned (Int.repr 255))) FSb) (Int.repr 24)) =
        col 3 S14.
 Proof.
   intros. subst S14. destruct S13 as [c0 [c1 [c2 c3]]]. repeat split.

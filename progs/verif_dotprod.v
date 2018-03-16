@@ -83,10 +83,10 @@ simpl. f_equal; auto.
 Qed.
 
 Lemma Znth_map2:
- forall A B C (f: A -> B -> C) (a: A) (b: B) (c: C) (al: list A) (bl: list B) i,
+ forall A B C (a: Inhabitant A) (b: Inhabitant B) (c: Inhabitant C) (f: A -> B -> C) (al: list A) (bl: list B) i,
   Zlength al = Zlength bl ->
   0 <= i < Zlength al ->
-  Znth i (map2 f al bl) c = f (Znth i al a) (Znth i bl b).
+  Znth i (map2 f al bl) = f (Znth i al) (Znth i bl).
 Proof.
 intros.
 rewrite !Zlength_correct in *.
@@ -131,31 +131,20 @@ entailer!.
 assert_PROP (Zlength fx = n /\ Zlength fy = n). {
     entailer!. autorewrite with sublist in *; split; auto.
 } destruct H1.
-forward. {
-  entailer!.
-  autorewrite with sublist in *.
-  rewrite Znth_map with (d':=Float.zero) by omega.
-  auto.
-}
-forward. {
-  entailer!.
-  autorewrite with sublist in *.
-  rewrite Znth_map with (d':=Float.zero) by omega.
-  auto.
-}
-rewrite !Znth_map with (d':=Float.zero) by omega.
-forward. {
+forward.
+forward. 
+rewrite !Znth_map by omega.
+forward. 
   entailer!.
   autorewrite with sublist in *.
   f_equal.
   rewrite (sublist_split 0 i _ fx) by omega.
   rewrite (sublist_split 0 i _ fy) by omega.
   unfold dotprod.
- rewrite map2_app by (autorewrite with sublist; omega).
+ rewrite map2_app by list_solve.
  rewrite fold_left_app.
- rewrite !sublist_len_1 with (d:=Float.zero) by (autorewrite with sublist; omega).
+ rewrite !sublist_len_1 by list_solve.
  simpl. auto.
-}
 *
  forward.
  autorewrite with sublist in *.
@@ -190,19 +179,10 @@ forward_for_simple_bound 3
 entailer!.
 * (* body *)
 forward. (* x[i] = y[i] + z[i]; *)
-entailer!. {
-  autorewrite with sublist in *.
-  rewrite Znth_map with (d':=Float.zero) by omega. auto.
-}
+forward.
 forward.
 entailer!. {
   autorewrite with sublist in *.
-  rewrite Znth_map with (d':=Float.zero) by omega. auto.
-}
-forward.
-entailer!. {
-  autorewrite with sublist in *.
-  rewrite !Znth_map with (d':=Float.zero) by omega.
   simpl.
   unfold data_at.
   apply derives_refl'. f_equal.
@@ -212,12 +192,12 @@ entailer!. {
  f_equal.
  replace (Z.to_nat (3-i)) with (Init.Nat.add (Z.to_nat 1) (Z.to_nat (3-(i+1)))).
  rewrite <-list_repeat_app.
-  rewrite upd_Znth_app1 by (autorewrite with sublist; omega).
+ rewrite upd_Znth_app1 by list_solve.
  f_equal.
  autorewrite with sublist.
  simpl list_repeat.
  rewrite upd_Znth0.
- rewrite !sublist_len_1 with (d:=Float.zero) by (autorewrite with sublist; omega).
+ rewrite !sublist_len_1 by list_solve.
  autorewrite with sublist.
  simpl. 
  subst fx.

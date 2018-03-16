@@ -90,14 +90,14 @@ Qed.
 
 Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 32 ->
   hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT =
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums Int.zero) (littleendian C3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums Int.zero) (littleendian C4))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))).
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums)  (littleendian C1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums)  (littleendian C2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums) (littleendian C3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums) (littleendian C4))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums)  (littleendian N1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums)  (littleendian N2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums)  (littleendian N3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums)  (littleendian N4))).
 Proof. intros.
 rewrite Zlength_length in H, H0. simpl in H, H0.
 destruct intsums; simpl in H. omega. rename i into v0.
@@ -157,9 +157,9 @@ Definition HTrue_inv intsums xs ys:Prop:=
 Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 ->
            exists xj, exists yj,
-           Znth j (map Vint xs) Vundef = Vint xj /\
-           Znth j (map Vint ys) Vundef = Vint yj /\
-           Znth j (map Vint intsums) Vundef = Vint (Int.add yj xj)).
+           Znth j (map Vint xs) = Vint xj /\
+           Znth j (map Vint ys) = Vint yj /\
+           Znth j (map Vint intsums) = Vint (Int.add yj xj)).
 
 Lemma HTrue_inv_char l xs ys: Zlength xs = 16 -> Zlength ys=16 ->
       HTrue_inv l xs ys -> Some l = sumlist xs ys.

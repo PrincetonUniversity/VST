@@ -235,16 +235,16 @@ forward_for_simple_bound 8 (EX i:Z,
 { rename H into I.
   assert (HH: Znth i
                  [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2; Byte.unsigned b3; 
-                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 0 
-          = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3] Byte.zero)).
-  solve [ erewrite <- (Znth_map' Byte.unsigned) with (d:= Z.zero); [ reflexivity | apply I ] ].
+                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 
+          = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3])).
+  solve [erewrite <- (Znth_map _ Byte.unsigned); [ reflexivity | apply I ] ].
   forward. 
   + entailer!. rewrite HH. 
      apply Byte.unsigned_range_2.
   + simpl; rewrite HH. forward.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
-    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
+    rewrite sublist_len_1.
     2: rewrite ! Zlength_cons, Zlength_nil; omega.
     simpl.
     unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).

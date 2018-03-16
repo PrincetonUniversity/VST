@@ -31,21 +31,15 @@ forward_for_simple_bound n
 { Intros. rename H0 into I. rename H1 into B. rename x0 into b.
   rewrite 3 Zlength_map in LenX, LenY. 
   forward.
-  { entailer!. 
-    rewrite Znth_map with (d':=Byte.zero); trivial. 
-    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32. }
-  rewrite Znth_map with (d':=Byte.zero) by omega. 
+  { entailer!. rep_omega. }
   forward.
-  { entailer!.
-    rewrite Znth_map with (d':=Byte.zero) by omega. 
-    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32. }
-  rewrite Znth_map with (d':=Byte.zero) by omega. 
+  { entailer!. rep_omega. }
   forward. entailer!. clear H3 H6 H4 H7.
-  rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1 with (d:=Byte.zero); try omega.
-  rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1 with (d:=Byte.zero); try omega.
+  rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1; try omega.
+  rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1; try omega.
   rewrite list_eq_dec_app. 2: rewrite 2 Zlength_sublist; trivial; omega. 2: rewrite 2 Zlength_cons, Zlength_nil; trivial.
   rewrite <- B. unfold Int.xor. 
-  remember (list_eq_dec Byte.eq_dec [Znth i xcont Byte.zero] [Znth i ycont Byte.zero]).  simpl.
+  remember (list_eq_dec Byte.eq_dec [Znth i xcont] [Znth i ycont]).  simpl.
   rewrite or_repr. clear H0 H1 H2 (*H4*) H5 (*H7*) SH SH0 PNx PNy Heqs.
 (*  rewrite 2 zero_ext_inrange by 
       (rewrite Int.unsigned_repr; [ apply Byte.unsigned_range_2 | apply byte_unsigned_range_int_unsigned_max]).*)
@@ -55,14 +49,14 @@ forward_for_simple_bound n
     simpl. destruct s.
     - inv e0. rewrite H1, Z.lxor_nilpotent, Z.lor_0_r.
       Exists Byte.zero. entailer.
-    - destruct (Z_lxor_byte_neq (Znth i xcont Byte.zero) (Znth i ycont Byte.zero)) as [bb [BB HBB]].
+    - destruct (Z_lxor_byte_neq (Znth i xcont) (Znth i ycont)) as [bb [BB HBB]].
       * intros N. apply n; rewrite N; trivial.
       * Exists bb; entailer!. split. apply Byte.eq_false; trivial. 
         rewrite BB, Zlor_Byteor, Byte.or_zero_l; trivial.
   + destruct s.
     - inv e. rewrite H1, Z.lxor_nilpotent, Z.lor_0_r, andb_true_r.
       Exists b. entailer!.
-    - destruct (Z_lxor_byte_neq (Znth i xcont Byte.zero) (Znth i ycont Byte.zero)) as [bb [BB HBB]].
+    - destruct (Z_lxor_byte_neq (Znth i xcont) (Znth i ycont)) as [bb [BB HBB]].
       * intros N. apply n0; rewrite N; trivial.
       * rewrite BB, Zlor_Byteor, andb_false_r. 
         Exists (Byte.or b bb). entailer!. apply Byte.eq_false. intros N.

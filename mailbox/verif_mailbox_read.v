@@ -14,7 +14,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
@@ -29,7 +29,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   rewrite comm_loc_isptr; Intros.
@@ -37,14 +37,14 @@ Proof.
   forward.
   forward.
   forward.
-  set (c := Znth r comms Vundef).
-  set (l := Znth r locks Vundef).
+  set (c := Znth r comms).
+  set (l := Znth r locks).
   forward_call (sh2, c, g, l, vint 0, Empty, h,
     fun h b => !!(b = Empty /\ latest_read h (vint b0)) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) g0,
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs)) * ghost_var gsh1 (vint b0) g0,
     comm_R bufs sh gsh2 g0 g1 g2, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
       -1 <= b' < B /\ latest_read h (vint b')) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 (vint b') g0).
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs)) * ghost_var gsh1 (vint b') g0).
   { repeat (split; auto); try computable.
     unfold AE_spec; intros.
     intros ??????? Ha.
@@ -115,22 +115,22 @@ Proof.
   { forward.
     destruct (eq_dec b (-1)); [|omega].
     entailer!. }
-  forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads Vundef);
+  forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads);
       temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
     SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (h ++ [(t, AE (vint b) Empty)]);
-         EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs Vundef);
+         EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs);
          ghost_var gsh1 (vint b') g0;
          data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
-         data_at_ Tsh tint (Znth r reads Vundef);
-         data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts Vundef);
+         data_at_ Tsh tint (Znth r reads);
+         data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks lock)).
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [|discriminate].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     forward.
     Exists (if eq_dec b (-1) then b0 else b) t (vint b) v.
@@ -153,7 +153,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
