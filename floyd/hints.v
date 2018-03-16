@@ -210,7 +210,7 @@ match AB with
 end.
 
 Ltac hint_saturate_local' P :=
- match P with
+ lazymatch P with
  | ?F _ => hint_saturate_local' F
  | _ => idtac "Hint: Nothing found in the 'saturate_local' HintDb that matches the "P" conjunct; you might want to define one, or unfold "P
  end.
@@ -223,10 +223,22 @@ match P with
 | @orp mpred _ _ _ => idtac
 | @emp mpred _ _ _ => idtac
 | @prop mpred _ _ => idtac
+| @allp _ _ _ _ => idtac
+| @exp _ _ _ _ => idtac
 | _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
                     [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
                else idtac
+end.
+
+Ltac cancel_frame_hint := 
+match goal with
+| |- @derives mpred _  _ ?A =>
+  match A with context [fold_right_sepcon ?Frame] =>
+      match goal with F := ?G : list mpred |- _ => constr_eq F Frame; is_evar G end;
+      match A with context [@sepcon] => idtac end;
+      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
+  end
 end.
 
 Ltac hint_progress := 
@@ -251,11 +263,10 @@ Ltac hint_progress :=
               idtac "Hint: try 'entailer!'";
               try match Pre with PROPx _ (LOCALx _ (SEPx ?R)) => hint_allp_left R end
    | |- @derives mpred _ ?A ?B =>
-         first [
               cancelable A; cancelable B;
-              tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) then fail
+              tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) 
+                then cancel_frame_hint
                 else  idtac "Hint:  try 'cancel'" 
-           ]
    end].
 
 Ltac hint_whatever :=
