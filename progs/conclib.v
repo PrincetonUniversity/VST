@@ -6,6 +6,7 @@ Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 
 Notation precise := precise.
+Notation derives_precise := predicates_sl.derives_precise.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
