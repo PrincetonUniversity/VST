@@ -12,6 +12,8 @@ Hint Resolve Share.nontrivial.
 
 Definition gname := own.gname.
 
+Instance Inhabitant_preds : Inhabitant preds := NoneP.
+
 Section ghost.
 
 Context {RA: Ghost}.
@@ -42,7 +44,7 @@ Qed.
 
 Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la ->
   emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
-    (map (fun i => own (Znth i lg) (@Znth _ i la a0) (Znth i lp))
+    (map (fun i => own (Znth i lg) (@Znth _ a0 i la) (Znth i lp))
     (upto (Z.to_nat (Zlength la))))).
 Proof.
   intros until 1; revert lp; induction H; intros.
@@ -68,15 +70,16 @@ Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
     fold_right sepcon emp (map (fun i => own (Znth i lg) a pp) (upto (Z.to_nat i)))).
 Proof.
   intros.
-  eapply derives_trans; [apply own_list_alloc with (la := repeat a (Z.to_nat i))(lp := repeat pp (Z.to_nat i))|].
+  eapply derives_trans;
+    [apply own_list_alloc with (a0 := a)(la := repeat a (Z.to_nat i))(lp := repeat pp (Z.to_nat i))|].
   { apply Forall_repeat; auto. }
   { rewrite !repeat_length; auto. }
   apply bupd_mono; Intros lg; Exists lg.
   rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto.
   apply andp_right; [entailer!|].
   erewrite map_ext_in; eauto; intros; simpl.  apply derives_refl.
-  rewrite Znth_repeat'; auto.
-  apply In_upto in H1. omega.
+  apply In_upto in H2.
+  rewrite !Znth_repeat'; auto.
 Qed.
 
 End ghost.
@@ -271,10 +274,12 @@ Proof.
     rewrite eq_dec_refl in Hj.
     destruct (eq_dec sh Share.bot); [contradiction|].
     destruct Hj; subst; entailer!.
+    apply derives_refl.
   - Intros; Exists (sh, v2); entailer!.
     split; simpl; rewrite ?eq_dec_refl.
     + apply bot_join_eq.
     + if_tac; auto; contradiction.
+    + apply derives_refl.
 Qed.
 
 Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- |==> ghost_master Tsh v' p.
@@ -380,6 +385,7 @@ Proof.
   Intros.
   eapply derives_trans; [apply master_update; eauto|].
   apply bupd_mono; entailer!.
+  apply derives_refl.
 Qed.
 
 End Snapshot.
@@ -500,9 +506,10 @@ Proof.
     destruct a as [(sh, v')|]; inv H.
     destruct H2 as (? & ? & Hv); inv Hv.
     Exists sh; entailer!.
+    apply derives_refl.
   - Intros sh; subst.
-    Exists (Some (sh, v2)); entailer!.
-    repeat (split; auto); simpl.
+    Exists (Some (sh, v2)); apply andp_right, derives_refl.
+    apply prop_right; repeat (split; auto); simpl.
     intro; subst; apply join_Bot in H2 as []; contradiction.
 Qed.
 
@@ -617,6 +624,8 @@ Fixpoint map_upd_list m l :=
 Definition map_add m1 m2 k := match m1 k with Some v' => Some v' | None => m2 k end.
 
 Definition empty_map k : option B := None.
+
+Global Instance Inhabitant_map : Inhabitant (A -> option B) := empty_map.
 
 Definition singleton k v k1 := if eq_dec k1 k then Some v else None.
 
@@ -1092,8 +1101,8 @@ Proof.
   intros; rewrite hist_ref_join by auto.
   apply mpred_ext; entailer!.
   - apply hist_list_nil_inv2 in H0; subst; auto.
-  - Exists (fun _ : nat => @None hist_el); entailer!.
-    split; [apply hist_list_nil|].
+  - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
+    apply prop_right; split; [apply hist_list_nil|].
     split; auto.
     if_tac; auto.
 Qed.
@@ -1114,8 +1123,8 @@ Proof.
   eapply derives_trans; [apply hist_add|].
   { apply hist_next; eauto. }
   apply bupd_mono.
-  Exists (map_upd hr (length h') e); entailer!.
-  split; [apply hist_list_snoc | apply hist_sub_upd]; auto.
+  Exists (map_upd hr (length h') e); apply andp_right, derives_refl.
+  apply prop_right; split; [apply hist_list_snoc | apply hist_sub_upd]; auto.
 Qed.
 
 Definition newer (l : hist_part) t := forall t', l t' <> None -> (t' < t)%nat.
@@ -1126,12 +1135,25 @@ Proof.
   specialize (H _ H1); omega.
 Qed.
 
-Corollary newer_snoc : forall l t1 e t2, newer l t1 -> (t1 < t2)%nat ->
+Corollary newer_upd : forall l t1 e t2, newer l t1 -> (t1 < t2)%nat ->
   newer (map_upd l t1 e) t2.
 Proof.
   unfold newer, map_upd; intros.
   destruct (eq_dec t' t1); [omega|].
   eapply newer_trans; eauto; omega.
+Qed.
+
+Lemma newer_over : forall h t t', newer h t -> (t <= t')%nat -> h t' = None.
+Proof.
+  intros.
+  specialize (H t').
+  destruct (h t'); auto.
+  lapply H; [omega | discriminate].
+Qed.
+
+Corollary newer_out : forall h t, newer h t -> h t = None.
+Proof.
+  intros; eapply newer_over; eauto.
 Qed.
 
 Lemma hist_incl_lt : forall h l, hist_incl h l -> newer h (length l).
@@ -1299,7 +1321,7 @@ Ltac ghost_alloc G :=
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
   [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; simpl; auto|] end.
+   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto|] end.
 
 (* weak view shift for use in funspecs *)
 Program Definition weak_view_shift (P Q: mpred): mpred :=
@@ -1312,7 +1334,6 @@ Next Obligation.
   intro HQ; destruct (HQ _ H2) as (? & ? & ? & ? & ? & ? & []).
   eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
 Defined.
-
 
 Lemma view_shift_nonexpansive: forall P Q n,
   approx n (weak_view_shift P Q) = approx n (weak_view_shift (approx n P) (approx n Q)).

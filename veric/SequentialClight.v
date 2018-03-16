@@ -59,7 +59,8 @@ Proof.
    econstructor.
    + red. red. fold (globalenv prog). eassumption.
    + destruct (H1 (core (compcert_rmaps.RML.R.ghost_of (m_phi m')))) as (m'' & ? & (? & ? & ?) & ?).
-     { rewrite initial_world.ghost_approx_core.
+     { rewrite compcert_rmaps.RML.R.ghost_core; simpl.
+       erewrite <- compcert_rmaps.RML.R.ghost_core.
        eexists; apply join_comm, core_unit. }
      replace (m_dry m') with (m_dry m'') by auto.
      apply IHn; auto.

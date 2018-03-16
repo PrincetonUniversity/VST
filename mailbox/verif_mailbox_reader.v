@@ -6,7 +6,6 @@ Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 Require Import mailbox.verif_mailbox_read.
-Require Import mailbox.verif_mailbox_write.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -37,19 +36,18 @@ Proof.
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs);
          ghost_var gsh1 (vint b0) g0))
   break: (@FF (environ->mpred) _).
-  { Exists 1 ([] : hist); entailer!. split. unfold B,N. computable.
-    unfold latest_read; auto. }
+  { Exists 1 (empty_map : hist); entailer!. split. unfold B,N. computable.
+    unfold latest_read.
+    left; split; auto; discriminate. }
   Intros b0 h.
   subst c l; subst; forward_call (r, reading, last_read, lock, comm, reads, lasts, locks, comms, bufs,
     sh, sh1, sh2, b0, g, g0, g1, g2, h).
-  { cancel. }
   { repeat (split; auto). }
   Intros x; destruct x as (((b, t), e), v); simpl in *.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.
   forward.
   forward_call (r, reading, reads, sh1).
-  { cancel. }
   entailer!.
-  Exists b (h ++ [(t, AE e Empty)]) v; entailer!.
+  Exists b (map_upd h t (AE e Empty)) v; entailer!.
 Qed.

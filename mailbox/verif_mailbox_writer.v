@@ -5,7 +5,6 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
-Require Import mailbox.verif_mailbox_read.
 Require Import mailbox.verif_mailbox_write.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -37,7 +36,7 @@ Proof.
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
   break: (@FF (environ->mpred) _).
-  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
+  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!.
     { split. unfold B, N. computable. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
@@ -66,7 +65,6 @@ Proof.
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
   forward_call (writing, last_given, last_taken, b0, lasts).
-  { cancel. }
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
   erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try omega.

@@ -5,8 +5,6 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
-Require Import mailbox.verif_mailbox_read.
-Require Import mailbox.verif_mailbox_write.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -153,14 +151,14 @@ Proof.
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
     LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
-    SEP (EX locks : list val, EX comms : list val, EX g : list val, EX g0 : list val, EX g1 : list val,
-         EX g2 : list val, !!(Zlength locks = i /\ Zlength comms = i /\ Forall isptr comms /\ Zlength g = i /\
+    SEP (EX locks : list val, EX comms : list val, EX g : list gname, EX g0 : list gname, EX g1 : list gname,
+         EX g2 : list gname, !!(Zlength locks = i /\ Zlength comms = i /\ Forall isptr comms /\ Zlength g = i /\
            Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i) &&
           (data_at Ews (tarray (tptr tlock) N) (locks ++ repeat Vundef (Z.to_nat (N - i))) lock *
            data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) comm *
            fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks) (Znth r comms)
              (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
-             (Znth r shs) gsh2 []) (upto (Z.to_nat i))) *
+             (Znth r shs) gsh2 empty_map) (upto (Z.to_nat i))) *
            fold_right sepcon emp (map (malloc_token Tsh tlock) locks)) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
@@ -180,8 +178,8 @@ Proof.
          fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
          fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
   { unfold N; computable. }
-  { Exists ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val)
-      ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
+  { Exists ([] : list val) ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
+      ([] : list gname) ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
     - rewrite sublist_same; auto; omega.
     - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; omega).
       simpl; cancel. }
@@ -196,10 +194,11 @@ Proof.
     forward_call tlock.  split3; simpl; auto; computable. Intros l.
     rewrite <- lock_struct_array.
     forward.
-    eapply (ghost_alloc (Tsh, vint 1)); auto with init.
-    eapply (ghost_alloc (Tsh, vint 0)); auto with init.
-    eapply (ghost_alloc (Tsh, vint 1)); auto with init.
-    eapply (ghost_alloc (Some (Tsh, [] : hist), Some ([] : hist))); auto with init.
+    ghost_alloc (ghost_var Tsh (vint 1)).
+    ghost_alloc (ghost_var Tsh (vint 0)).
+    ghost_alloc (ghost_var Tsh (vint 1)).
+    ghost_alloc (ghost_hist_ref(hist_el := AE_hist_el) Tsh empty_map empty_map).
+    { apply ghost_hist_init. }
     Intros g' g0' g1' g2'.
     forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
     rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
@@ -249,8 +248,8 @@ Proof.
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
     rewrite !sem_cast_neutral_ptr by intuition.
-    erewrite map_ext_in; [cancel|].
-    { rewrite sepcon_comm; apply sepcon_derives; auto; apply derives_refl. }
+    erewrite map_ext_in; [unfold comm_loc, AE_loc, AE_inv; cancel|].
+    { apply derives_refl. }
     intros; rewrite In_upto, <- Zlength_correct in *.
     rewrite !app_Znth1; try omega; reflexivity. }
   Intros locks comms g g0 g1 g2 reads lasts sh.
