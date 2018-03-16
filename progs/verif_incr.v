@@ -186,9 +186,6 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   name ctr _ctr; name lockt _thread_lock; name lock _ctr_lock.
   start_function.
-  (* How should we get the initial inG's? *)
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre (PROPx P (LOCALx Q (SEPx (inG (@pos_PCM (discrete_PCM Z)) :: R))))); [admit|] end.
   forward.
   forward.
   forward.
@@ -243,14 +240,14 @@ Proof.
       apply lock_inv_later_eq.
     - rewrite selflock_eq at 1.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-      rewrite sepcon_comm, <- !sepcon_assoc, sepcon_comm.
+      rewrite sepcon_comm.
       apply sepcon_derives; [apply lock_inv_later | cancel]. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
     unfold thread_lock_R.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
-Admitted.
+Qed.
 
 Definition extlink := ext_link_prog prog.
 

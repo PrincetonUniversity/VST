@@ -39,19 +39,18 @@ Qed.
 
 (* own isn't precise unless the ghost is a Disj_alg. Is this a problem? *)
 
-Definition noname : own.gname := existT _ _ (tt, O).
+Definition noname : gname := O.
 
 Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la ->
-  inG RA |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
+  emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
     (map (fun i => own (Znth i lg noname) (Znth i la a0) (Znth i lp compcert_rmaps.RML.R.NoneP))
     (upto (Z.to_nat (Zlength la))))).
 Proof.
   intros until 1; revert lp; induction H; intros.
   - eapply derives_trans, bupd_intro.
     Exists (@nil own.gname); entailer!.
-    apply inG_emp.
   - destruct lp; inv H1.
-    eapply derives_trans; [apply inG_dup|].
+    rewrite <- emp_sepcon at 1.
     eapply derives_trans; [apply sepcon_derives; [apply IHForall; eauto | apply own_alloc; eauto]|].
     eapply derives_trans; [apply bupd_sepcon|].
     apply bupd_mono.
@@ -66,7 +65,7 @@ Proof.
 Qed.
 
 Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
-  inG RA |-- |==> (EX lg : _, !!(Zlength lg = i) &&
+  emp |-- |==> (EX lg : _, !!(Zlength lg = i) &&
     fold_right sepcon emp (map (fun i => own (Znth i lg noname) a pp) (upto (Z.to_nat i)))).
 Proof.
   intros.
@@ -1296,10 +1295,8 @@ Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil.
 Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
 Ltac ghost_alloc G :=
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx (inG ?M :: ?R)))) _ _ =>
-    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx (inG M * (EX g : _, G g) :: R)))));
+  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
+    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
   [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
-   eapply derives_trans; [apply sepcon_derives, derives_refl; apply inG_dup|];
-   rewrite !sepcon_assoc; eapply derives_trans, bupd_frame_l; apply sepcon_derives; [apply derives_refl|];
-   eapply derives_trans, bupd_frame_r; apply sepcon_derives, derives_refl;
-   apply own_alloc; simpl; auto|] end.
+   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
+   apply sepcon_derives, derives_refl; apply own_alloc; simpl; auto|] end.

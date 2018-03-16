@@ -169,7 +169,7 @@ Proof.
     unfold address_mapsto_zeros'.
     apply pred_ext.
     intros w ?.
-    split; intros [b' i'].
+    split; [intros [b' i']|].
     hnf.
     rewrite if_false.
     simpl. apply resource_at_identity; auto.

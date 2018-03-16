@@ -2047,7 +2047,7 @@ destruct (allocate (m_phi jm)
  apply join_comm.
  apply core_unit.
 *
-apply initial_world.ghost_approx_core.
+rewrite ghost_core; auto.
 *
 rewrite <- Hg; eexists; apply join_comm, core_unit.
 *

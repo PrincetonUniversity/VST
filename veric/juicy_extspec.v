@@ -65,8 +65,8 @@ Record jm_init_package: Type := {
   jminit_fdecs_match: match_fdecs (prog_funct jminit_prog) jminit_G
 }.
 
-Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) g :=
-  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) g (jminit_lev d)
+Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
+  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d)
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem

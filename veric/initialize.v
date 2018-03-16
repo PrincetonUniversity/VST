@@ -1308,11 +1308,11 @@ simpl in H3; auto.
 Qed.
 
 Lemma alloc_global_inflate_same:
-  forall g n i v gev m G m0,
+  forall n i v gev m G m0,
   Genv.alloc_global gev m0 (i, Gvar v) = Some m ->
-   (forall z : Z, initial_core gev G g n @ (nextblock m0, z) = NO Share.bot bot_unreadable) ->
-   inflate_initial_mem m0 (initial_core gev G g n) =
-   upto_block (nextblock m0) (inflate_initial_mem m (initial_core gev G g n)).
+   (forall z : Z, initial_core gev G n @ (nextblock m0, z) = NO Share.bot bot_unreadable) ->
+   inflate_initial_mem m0 (initial_core gev G n) =
+   upto_block (nextblock m0) (inflate_initial_mem m (initial_core gev G n)).
 Proof.
  intros.
  apply rmap_ext.
@@ -1503,10 +1503,10 @@ Proof.
 Qed.
 
 Lemma initial_core_rev:
-  forall (gev: Genv.t fundef type) G g n (vl: list (ident * globdef fundef type))
+  forall (gev: Genv.t fundef type) G n (vl: list (ident * globdef fundef type))
     (H: list_norepet (map fst (rev vl)))
     (SAME_IDS : match_fdecs (prog_funct' vl) (rev G)),
-    initial_core gev G g n = initial_core gev (rev G) g n.
+    initial_core gev G n = initial_core gev (rev G) n.
 Proof.
   intros.
      unfold initial_core;  apply rmap_ext.
@@ -1541,16 +1541,16 @@ Definition hackfun phi0 phi :=
                   (~identity (phi0 @ loc) -> (phi0 @ loc = phi @ loc)).
 
 Lemma alloc_Gfun_inflate:
-  forall g n rho i f fs vl gev m0 m G0 G,
+  forall n rho i f fs vl gev m0 m G0 G,
    Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
    (forall phi : rmap,
-    hackfun (inflate_initial_mem m0 (initial_core gev (G0 ++ (i, fs) :: G) g n))
+    hackfun (inflate_initial_mem m0 (initial_core gev (G0 ++ (i, fs) :: G) n))
       phi ->
   (globvars2pred vl rho) phi) ->
   Genv.find_symbol gev i = Some (nextblock m0) ->
   ~ In i (map fst vl) ->
   forall phi : rmap,
-  hackfun (inflate_initial_mem m (initial_core gev (G0 ++ (i, fs) :: G) g n)) phi ->
+  hackfun (inflate_initial_mem m (initial_core gev (G0 ++ (i, fs) :: G) n)) phi ->
       (globvars2pred vl rho) phi.
 Proof.
  intros.
@@ -1589,8 +1589,8 @@ Proof.
   unfold access_at; simpl. apply alloc_result in H; subst b. rewrite PMap.gss.
  destruct (zle 0 0); try omegaContradiction. destruct (zlt 0 1); try omegaContradiction; simpl. auto.
  symmetry. apply nextblock_noaccess. simpl; unfold block; clear; xomega.
- replace (inflate_initial_mem m0 (initial_core gev GG g n) @ loc)
-   with (inflate_initial_mem m (initial_core gev GG g n) @ loc); auto.
+ replace (inflate_initial_mem m0 (initial_core gev GG n) @ loc)
+   with (inflate_initial_mem m (initial_core gev GG n) @ loc); auto.
  clear - n0 H.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.
@@ -1797,10 +1797,10 @@ Proof.
 Qed.
 
 Lemma another_hackfun_lemma:
- forall g n i v gev m G phi m0,
-    hackfun (inflate_initial_mem m (initial_core gev G g n)) phi ->
+ forall n i v gev m G phi m0,
+    hackfun (inflate_initial_mem m (initial_core gev G n)) phi ->
     Genv.alloc_global gev m0 (i, Gvar v) = Some m ->
-    hackfun (inflate_initial_mem m0 (initial_core gev G g n))
+    hackfun (inflate_initial_mem m0 (initial_core gev G n))
       (upto_block (nextblock m0) phi).
 Proof.
  intros. destruct H; split.
@@ -1812,8 +1812,8 @@ Proof.
  intro loc; specialize (H loc).
  destruct (plt (fst loc) (nextblock m0)).
  unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
- replace (inflate_initial_mem m0 (initial_core gev G g n) @ loc)
-   with (inflate_initial_mem m (initial_core gev G g n) @ loc); auto.
+ replace (inflate_initial_mem m0 (initial_core gev G n) @ loc)
+   with (inflate_initial_mem m (initial_core gev G n) @ loc); auto.
  try rename p into z.   (* Coq 8.3/8.4 compatibility *)
  clear - z H0.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
@@ -1849,11 +1849,11 @@ Qed.
 
 
 Lemma alloc_global_inflate_initial_eq:
-  forall gev m0 i f m G g n loc,
+  forall gev m0 i f m G n loc,
       Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
-   ~ identity (inflate_initial_mem m0 (initial_core gev G g n) @ loc) ->
-     inflate_initial_mem m0 (initial_core gev G g n) @ loc =
-      inflate_initial_mem m (initial_core gev G g n) @ loc.
+   ~ identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) ->
+     inflate_initial_mem m0 (initial_core gev G n) @ loc =
+      inflate_initial_mem m (initial_core gev G n) @ loc.
 Proof.
 intros. rename H0 into H9.
 unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
@@ -1929,10 +1929,10 @@ Qed.
 *)
 
  Lemma alloc_global_identity_lemma3:
-   forall gev m0 i f m G g n loc,
+   forall gev m0 i f m G n loc,
     Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
-    identity (inflate_initial_mem m (initial_core gev G g n) @ loc) ->
-    identity (inflate_initial_mem m0 (initial_core gev G g n) @ loc).
+    identity (inflate_initial_mem m (initial_core gev G n) @ loc) ->
+    identity (inflate_initial_mem m0 (initial_core gev G n) @ loc).
 Proof.
 intros until 1.
 unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
@@ -1950,13 +1950,13 @@ unfold inflate_initial_mem'.
 Qed.
 
 Lemma identity_inflate_at_Gfun:
-  forall g n i f gev m G0 G loc m0,
+  forall n i f gev m G0 G loc m0,
  list_norepet (map fst (G0 ++ G)) ->
  Genv.find_symbol gev i = Some (nextblock m0) ->
  Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
  In i (map fst G) ->
- (identity (inflate_initial_mem m0 (initial_core gev (G0 ++ G) g n) @ loc) <->
- identity (inflate_initial_mem m (initial_core gev (G0 ++ G) g n) @ loc)).
+ (identity (inflate_initial_mem m0 (initial_core gev (G0 ++ G) n) @ loc) <->
+ identity (inflate_initial_mem m (initial_core gev (G0 ++ G) n) @ loc)).
 Proof.
 intros until m0. intros NR H8 ? ?.
 destruct (eq_dec loc (nextblock m0, 0)).
@@ -2021,14 +2021,14 @@ apply nextblock_access_empty. zify; omega.
 Qed.
 
 Lemma global_initializers:
-  forall (prog: program) G m g n rho,
+  forall (prog: program) G m n rho,
      list_norepet (prog_defs_names prog) ->
      all_initializers_aligned prog ->
     match_fdecs (prog_funct prog) G ->
     ge_of rho = filter_genv (globalenv prog) ->
     Genv.init_mem prog = Some m ->
      app_pred (globvars2pred (prog_vars prog) rho)
-  (inflate_initial_mem m (initial_core (Genv.globalenv prog) G g n)).
+  (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
 Proof.
   intros until rho. intros ? AL SAME_IDS RHO ?.
   unfold all_initializers_aligned in AL.
@@ -2102,7 +2102,7 @@ Proof.
   clearbody G0.
   move H2 after H. move H1 after H.
 
-  assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) g n)) phi ->
+  assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
            (globvars2pred (prog_vars' vl) rho) phi).
   Focus 2. {
     apply H3. clear.
@@ -2123,7 +2123,7 @@ Proof.
       destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
     destruct HACK as (? & <- & _).
     unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
-    apply core_identity.
+    rewrite <- (ghost_core nil); apply core_identity.
   + simpl in H0.
     revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
     spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
@@ -2171,7 +2171,7 @@ rewrite Pos_to_nat_eq_S.
  rewrite Nat2Z.id. omega.
  rewrite Nat.sub_diag. reflexivity.
   auto.
-  destruct g0.
+  destruct g.
 * (* Gfun case *)
   simpl.
   specialize (IHvl m0 (G0(*++(p::nil)*)) G).
@@ -2195,7 +2195,7 @@ rewrite Pos_to_nat_eq_S.
   split.
   rewrite <- H0.
   clear - NRG H2 FS H3 H1'.
-  apply (identity_inflate_at_Gfun g n i f); auto.
+  apply (identity_inflate_at_Gfun n i f); auto.
   intro.
   rewrite <- H1.
   eapply alloc_global_inflate_initial_eq; eauto.
@@ -2225,11 +2225,12 @@ rewrite Pos_to_nat_eq_S.
   simpl map.  simpl fold_right.
   assert (identity (ghost_of phi)) as Hg.
   { destruct HACK as (? & <- & _).
-    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap; apply core_identity. }
+    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+    rewrite <- (ghost_core nil); apply core_identity. }
   pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi Hg)).
   do 2 econstructor; split3; [ eassumption | |].
   unfold globvar2pred. rewrite RHO. unfold filter_genv. simpl @fst; simpl @snd.
-  assert (JJ:= alloc_global_inflate_same g n i v _ _ (G0++G) _ H3).
+  assert (JJ:= alloc_global_inflate_same n i v _ _ (G0++G) _ H3).
  spec JJ.
  intro. unfold initial_core. rewrite resource_at_make_rmap. unfold initial_core'.
   simpl. if_tac; auto.
@@ -2270,10 +2271,10 @@ rewrite Pos_to_nat_eq_S.
  rewrite Z2Nat.id by (pose proof (Pos2Z.is_pos b); omega).
  auto.
 
-pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) g n) rho
+pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
      H3 H5 H8 H9) .
  spec H11.
- { unfold initial_core; simpl; rewrite ghost_of_make_rmap; apply core_identity. }
+ { unfold initial_core; simpl; rewrite ghost_of_make_rmap, <- (ghost_core nil); apply core_identity. }
  spec H11.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.

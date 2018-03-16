@@ -435,16 +435,9 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
           end
    else NO Share.bot bot_unreadable.
 
-Lemma ghost_approx_core: forall n g, ghost_fmap (approx n) (approx n) (core g) = core g.
-Proof.
-  destruct g.
-  rewrite ghost_core.
-  apply ghost_ext; auto.
-Qed.
-
 (* What should the ghost state be in an initial core? *)
-Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (g: ghost) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) _ _ n _ (ghost_approx_core _ g)).
+Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
+  proj1_sig (make_rmap (initial_core' ge G n) nil _ n _ eq_refl).
 Next Obligation.
 intros.
 intros ? ?.
@@ -1205,11 +1198,11 @@ Proof.
   repeat rewrite (PMap.gso _ _ NEQ). auto.
 Qed.
 
-Lemma initial_core_ok: forall (prog: program) G g n m,
+Lemma initial_core_ok: forall (prog: program) G n m,
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       Genv.init_mem prog = Some m ->
-     initial_rmap_ok m (initial_core (Genv.globalenv prog) G g n).
+     initial_rmap_ok m (initial_core (Genv.globalenv prog) G n).
 Proof.
 intros.
 rename H1 into Hm.
@@ -1332,20 +1325,20 @@ rewrite <- H8.
 split; auto.
 Qed.
 
-Definition initial_jm (prog: program) m (G: funspecs) g (n: nat)
+Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
         (H: Genv.init_mem prog = Some m)
         (H1: list_norepet (prog_defs_names prog))
         (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
-  initial_mem m (initial_core (Genv.globalenv prog) G g n)
-           (initial_core_ok _ _ g _ m H1 H2 H).
+  initial_mem m (initial_core (Genv.globalenv prog) G n)
+           (initial_core_ok _ _ _ m H1 H2 H).
 
-Lemma initial_jm_age (prog: program) m (G: funspecs) g (n : nat)
+Lemma initial_jm_age (prog: program) m (G: funspecs) (n : nat)
         (H: Genv.init_mem prog = Some m)
         (H1: list_norepet (prog_defs_names prog))
         (H2: match_fdecs (prog_funct prog) G) :
 age
-    (initial_mem m (initial_core (Genv.globalenv prog) G g (S n)) (initial_core_ok _ _ g _ m H1 H2 H))
-    (initial_mem m (initial_core (Genv.globalenv prog) G g    n ) (initial_core_ok _ _ g _ m H1 H2 H)).
+    (initial_mem m (initial_core (Genv.globalenv prog) G (S n)) (initial_core_ok _ _ _ m H1 H2 H))
+    (initial_mem m (initial_core (Genv.globalenv prog) G    n ) (initial_core_ok _ _ _ m H1 H2 H)).
 Proof.
 apply age1_juicy_mem_unpack''; [ | reflexivity].
 simpl.
@@ -1385,8 +1378,7 @@ rewrite approx_oo_approx' by omega.
 rewrite approx'_oo_approx by omega.
 auto.
 rewrite Hg1, Hg2.
-unfold initial_core; rewrite !ghost_of_make_rmap.
-apply ghost_approx_core.
+unfold initial_core; rewrite !ghost_of_make_rmap; auto.
 Qed.
 
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
@@ -1400,8 +1392,8 @@ Definition no_locks phi :=
     phi @ addr <> YES sh sh' (LK z) P /\
     phi @ addr <> YES sh sh' (CT z) P.
 
-Lemma initial_jm_without_locks prog m G g n H H1 H2:
-  no_locks (m_phi (initial_jm prog m G g n H H1 H2)).
+Lemma initial_jm_without_locks prog m G n H H1 H2:
+  no_locks (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
@@ -1412,7 +1404,7 @@ Proof.
   rewrite E.
   destruct (access_at m addr); try (split; congruence).
   destruct p; try (split; congruence).
-  destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G g n)))) addr);
+  destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
     split; try congruence.
 Qed.
 
@@ -1467,7 +1459,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma level_initial_core ge G g n : level (initial_core ge G g n) = n.
+Lemma level_initial_core ge G n : level (initial_core ge G n) = n.
 Proof.
   apply level_make_rmap.
 Qed.
@@ -1485,8 +1477,8 @@ Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
       cond_approx_eq (level Phi) A P P' /\
       cond_approx_eq (level Phi) A Q Q'.
 
-Lemma initial_jm_matchfunspecs prog m G g n H H1 H2:
-  matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G g n H H1 H2)).
+Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
+  matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
@@ -1499,7 +1491,7 @@ Proof.
 
   set (pp := SomeP _ _) in FAT.
   assert (Pi :
-            initial_core (Genv.globalenv prog) G g n @ (b, 0)
+            initial_core (Genv.globalenv prog) G n @ (b, 0)
             = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
   {
     simpl in FAT.
@@ -1508,7 +1500,7 @@ Proof.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
     set (r := fst (proj1_sig _) _) in FAT at 2.
-    destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G g n)))) (b, 0))
+    destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.

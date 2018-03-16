@@ -1441,7 +1441,7 @@ reflexivity.
 generalize (resource_at_approx (m_phi jm) loc);
 destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
 auto.
-apply initial_world.ghost_approx_core.
+rewrite ghost_core; auto.
 
 unfold f in H5; clear f.
 exists mf; exists m2; split3; auto.
