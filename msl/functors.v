@@ -396,6 +396,14 @@ Definition Foption: functor.
   + extensionality x; destruct x; auto.
 Defined.
 
+Definition Flist: functor.
+  refine (@Functor (fun T => list T)
+   (fun _ _ f x => map f x) _).
+  constructor; intros; simpl; auto.
+  + extensionality x; apply map_id.
+  + extensionality x; apply map_map.
+Defined.
+
 Definition fpair (F1 F2: functor): functor :=
   GeneralFunctorGenerator.CovariantBiFunctor_CovariantFunctor_compose
   CovariantBiFunctorGenerator.Fpair
@@ -415,6 +423,11 @@ Definition fchoice (F1 F2: functor): functor :=
 Definition foption (F: functor): functor :=
   GeneralFunctorGenerator.CovariantFunctor_CovariantFunctor_compose
   Foption
+  F.
+
+Definition flist (F: functor): functor :=
+  GeneralFunctorGenerator.CovariantFunctor_CovariantFunctor_compose
+  Flist
   F.
 
 Goal forall (F : functor) (T: Type), foption F T = option (F T).
@@ -489,6 +502,11 @@ Definition fchoice (F1 F2: functor): functor :=
 Definition foption (F: functor): functor :=
   GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor_compose
   CovariantFunctorGenerator.Foption
+  F.
+
+Definition flist (F: functor): functor :=
+  GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor_compose
+  CovariantFunctorGenerator.Flist
   F.
 
 Definition ffunc (F1 F2: functor): functor :=

@@ -101,7 +101,7 @@ Definition initialize_channels_spec :=
         data_at_ Ews (tarray (tptr tint) N) reading; data_at_ Ews (tarray (tptr tint) N) last_read)
   POST [ tvoid ]
    EX comms : list val, EX locks : list val, EX bufs : list val, EX reads : list val, EX lasts : list val,
-     EX g : list val, EX g0 : list val, EX g1 : list val, EX g2 : list val,
+     EX g : list gname, EX g0 : list gname, EX g1 : list gname, EX g2 : list gname,
    PROP (Forall isptr comms; Zlength g = N; Zlength g0 = N; Zlength g1 = N; Zlength g2 = N)
    LOCAL ()
    SEP (data_at Ews (tarray (tptr tint) N) comms comm;
@@ -111,7 +111,7 @@ Definition initialize_channels_spec :=
         data_at Ews (tarray (tptr tint) N) lasts last_read;
         fold_right sepcon emp (map (fun r =>
           comm_loc Tsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 ([] : hist)) (upto (Z.to_nat N)));
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
@@ -142,26 +142,16 @@ Definition initialize_reader_spec :=
 
 Definition latest_read (h : hist) v :=
   (* initial condition *)
-  (Forall (fun x => let '(_, AE r w) := x in w = Empty -> r = Empty) h /\ v = vint 1) \/
-  v <> Empty /\ exists n, In (n, AE v Empty) h /\
-  Forall (fun x => let '(m, AE r w) := x in w = Empty -> r <> Empty -> m <= n)%nat h.
-
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => Q%assert end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
-               x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
-             P at level 100, Q at level 100).
+  ((forall t r w, h t = Some (AE r w) -> w = Empty -> r = Empty) /\ v = vint 1) \/
+  v <> Empty /\ exists n, h n = Some (AE v Empty) /\
+  forall t r w, h t = Some (AE r w) -> w = Empty -> r <> Empty -> (t <= n)%nat.
 
 (* last_read retains the last buffer read, while reading is reset to Empty. *)
 Definition start_read_spec :=
  DECLARE _start_read
   WITH r : Z, reading : val, last_read : val, lock : val, comm : val, reads : list val, lasts : list val,
     locks : list val, comms : list val, bufs : list val, sh : share, sh1 : share, sh2 : share, b0 : Z,
-    g : val, g0 : val, g1 : val, g2 : val, h : hist
+    g : gname, g0 : gname, g1 : gname, g2 : gname, h : hist
   PRE [ _r OF tint ]
    PROP (0 <= b0 < B; readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms); latest_read h (vint b0))
    LOCAL (temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
@@ -174,12 +164,12 @@ Definition start_read_spec :=
   POST [ tint ]
    EX b : Z, EX t : nat, EX v0 : val, EX v : Z,
    PROP (0 <= b < B; if eq_dec v0 Empty then b = b0 else v0 = vint b;
-         latest_read (h ++ [(t, AE v0 Empty)]) (vint b))
+         latest_read (map_upd h t (AE v0 Empty)) (vint b))
    LOCAL (temp ret_temp (vint b))
    SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at Tsh tint (vint b) (Znth r reads); data_at Tsh tint (vint b) (Znth r lasts);
-        comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 (h ++ [(t, AE v0 Empty)]);
+        comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 (map_upd h t (AE v0 Empty));
         data_at sh tbuffer (vint v) (Znth b bufs);
         ghost_var gsh1 (vint b) g0).
 (* And bufs[b] is the most recent buffer completed by finish_write. *)
@@ -249,7 +239,7 @@ Definition finish_write_spec :=
  DECLARE _finish_write
   WITH writing : val, last_given : val, last_taken : val, comm : val, lock : val,
     comms : list val, locks : list val, bufs : list val, b : Z, b0 : Z, lasts : list Z,
-    sh1 : share, lsh : share, shs : list share, g : list val, g0 : list val, g1 : list val, g2 : list val,
+    sh1 : share, lsh : share, shs : list share, g : list gname, g0 : list gname, g1 : list gname, g2 : list gname,
     h : list hist, sh0 : share
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
@@ -272,7 +262,7 @@ Definition finish_write_spec :=
   POST [ tvoid ]
    EX lasts' : list Z, EX h' : list hist,
    PROP (Forall (fun x => 0 <= x < B) lasts';
-         Forall2 (fun h1 h2 => exists t v, h2 = h1 ++ [(t, AE v (vint b))]) h h';
+         Forall2 (fun h1 h2 => exists t v, h2 = map_upd h1 t (AE v (vint b))) h h';
          ~In b lasts')
    LOCAL ()
    SEP (data_at Ews tint Empty writing; data_at Ews tint (vint b) last_given;
@@ -292,7 +282,7 @@ Definition finish_write_spec :=
 Definition reader_spec :=
  DECLARE _reader
   WITH arg : val, x : Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                      share * share * share * val * val * val * val
+                      share * share * share * gname * gname * gname * gname
   PRE [ _arg OF tptr tvoid ]
    let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2) := x in
    PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms))
@@ -303,7 +293,7 @@ Definition reader_spec :=
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at_ Tsh tint (Znth r reads); data_at_ Tsh tint (Znth r lasts);
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-        comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 [];
+        comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 empty_map;
         EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs);
         ghost_var gsh1 (vint 1) g0)
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
@@ -311,7 +301,7 @@ Definition reader_spec :=
 Definition writer_spec :=
  DECLARE _writer
   WITH arg : val, x : val * val * val * val * val * val * list val * list val * list val * share * share *
-                      share * list share * list val * list val * list val * list val
+                      share * list share * list gname * list gname * list gname * list gname
   PRE [ _arg OF tptr tvoid ]
    let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2) := x in
    PROP (Zlength shs = N; readable_share sh1; readable_share lsh; Forall readable_share shs;
@@ -324,7 +314,7 @@ Definition writer_spec :=
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
         fold_right sepcon emp (map (fun r =>
           comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 []) (upto (Z.to_nat N)));
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
         fold_right sepcon emp (map (fun i => EX sh : share,
@@ -344,8 +334,8 @@ Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_s
   start_read_spec; finish_read_spec; initialize_writer_spec; start_write_spec; finish_write_spec;
   reader_spec; writer_spec; main_spec]).
 
-Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
-  repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
+(*Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
+  repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.*)
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
   data_at sh (tarray (tptr (Tstruct _lock_t noattr)) z) v p =
@@ -411,7 +401,8 @@ Proof.
         data_at_ sh tbuffer (Znth (if eq_dec (vint b') Empty then b2' else b') bufs))) as Hp;
     [|apply Hp; auto].
   repeat apply precise_sepcon; auto.
-Qed.
+Admitted.
+Hint Resolve comm_R_precise.
 
 Lemma last_two_reads_cons : forall r w h, last_two_reads (AE r w :: h) =
   if eq_dec w Empty then if eq_dec r Empty then last_two_reads h else (r, fst (last_two_reads h))
@@ -477,30 +468,39 @@ Proof.
   right; eapply find_read_incl; rewrite Hfind; auto.
 Qed.
 
-Lemma latest_read_Empty : forall h n v, latest_read (h ++ [(n, AE Empty Empty)]) v <-> latest_read h v.
+Lemma latest_read_Empty : forall h n v, newer h n ->
+  latest_read (map_upd h n (AE Empty Empty)) v <-> latest_read h v.
 Proof.
   unfold latest_read; split; intros [(Hnone & ?) | (? & m & Hin & Hlatest)]; subst.
-  - rewrite Forall_app in Hnone; destruct Hnone; auto.
+  - left; split; auto; intros.
+    eapply (Hnone t); eauto.
+    unfold map_upd; if_tac; auto.
+    subst; erewrite newer_out in H0 by eauto; discriminate.
   - right; split; auto; exists m.
-    rewrite in_app in Hin; destruct Hin as [? | [X | ?]]; [| inv X; contradiction H; auto | contradiction].
-    split; auto.
-    rewrite Forall_app in Hlatest; destruct Hlatest; auto.
-  - rewrite Forall_app; auto.
+    unfold map_upd in Hin; destruct (eq_dec m n); [congruence|].
+    split; auto; intros; eapply Hlatest; eauto.
+    unfold map_upd; if_tac; auto.
+    subst; erewrite newer_out in H1 by eauto; discriminate.
+  - left; split; auto.
+    unfold map_upd; intros ???.
+    if_tac; eauto.
+    inversion 1; auto.
   - right; split; auto; exists m.
-    rewrite in_app; split; auto.
-    rewrite Forall_app; split; auto.
-    constructor; auto; contradiction.
+    unfold map_upd.
+    apply newer_out in H.
+    split; [if_tac; auto; congruence|].
+    intros ??; if_tac; eauto.
+    intro; inversion 1; contradiction.
 Qed.
 
-Lemma latest_read_new : forall h n v, Forall (fun x => fst x < n)%nat h -> v <> Empty ->
-  latest_read (h ++ [(n, AE v Empty)]) v.
+Lemma latest_read_new : forall h n v, newer h n -> v <> Empty ->
+  latest_read (map_upd h n (AE v Empty)) v.
 Proof.
   unfold latest_read; intros.
   right; split; auto; exists n.
-  rewrite in_app; simpl; split; auto.
-  rewrite Forall_app; split; auto.
-  eapply Forall_impl; [|eauto]; intros.
-  destruct a, a; simpl in *; omega.
+  unfold map_upd; rewrite eq_dec_refl; split; auto.
+  intros ???; if_tac; [subst; auto|].
+  intro Ht; specialize (H t); rewrite Ht in H; lapply H; [omega | discriminate].
 Qed.
 
 Lemma comm_loc_isptr : forall lsh l c g g0 g1 g2 b sh gsh h,

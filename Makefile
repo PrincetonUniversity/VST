@@ -82,6 +82,7 @@ MSL_FILES = \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v \
+  ghost.v ghost_seplog.v \
   iter_sepcon.v ramification_lemmas.v wand_frame.v wandQ_frame.v #age_to.v
 
 SEPCOMP_FILES = \
@@ -129,14 +130,14 @@ CONCUR_FILES= \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
   sync_preds_defs.v sync_preds.v oracular_refinement.v \
-  semax_conc_pred.v xsemax_conc.v semax_conc.v semax_to_juicy_machine.v \
+  semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   semax_preservation_jspec.v \
   semax_preservation_local.v \
   semax_preservation_acquire.v \
-  semax_preservation_release.v \
+  semax_safety_release.v \
   semax_safety_makelock.v \
   semax_safety_freelock.v \
   semax_safety_spawn.v \
@@ -206,7 +207,7 @@ VERIC_FILES= \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
   expr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
-  slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
+  slice.v res_predicates.v own.v seplog.v mapsto_memory_block.v assert_lemmas.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_switch.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \

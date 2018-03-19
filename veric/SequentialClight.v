@@ -55,10 +55,15 @@ Proof.
  clear - H4 H5.
  revert jm q H4 H5; induction n; simpl; intros. constructor.
  inv H5.
- - destruct H0 as (?&?&?).
+ - destruct H0 as (?&?&?&Hg).
    econstructor.
    + red. red. fold (globalenv prog). eassumption.
-   + apply IHn; auto.
+   + destruct (H1 (core (compcert_rmaps.RML.R.ghost_of (m_phi m')))) as (m'' & ? & (? & ? & ?) & ?).
+     { rewrite compcert_rmaps.RML.R.ghost_core; simpl.
+       erewrite <- compcert_rmaps.RML.R.ghost_core.
+       eexists; apply join_comm, core_unit. }
+     replace (m_dry m') with (m_dry m'') by auto.
+     apply IHn; auto.
      change (level (m_phi jm)) with (level jm) in H4.
      rewrite H4 in H2; inv H2; auto.
  - exfalso; auto.
@@ -89,5 +94,5 @@ Axiom module_sequential_safety : (*TODO*)
          0 (*additional temporary argument - TODO (Santiago): FIXME*)
          (Build_genv ge (prog_comp_env prog))
               (Vptr f_b Ptrofs.zero) args = Some q /\
-       forall n, safeN (@Genv.genv_symb _ _) (coresem_extract_cenv sem (prog_comp_env prog))
+       forall n, safeN_(genv_symb := @Genv.genv_symb _ _)(Hrel := juicy_extspec.Hrel) (coresem_extract_cenv sem (prog_comp_env prog))
 (upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.

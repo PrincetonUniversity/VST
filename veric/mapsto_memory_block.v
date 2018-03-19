@@ -19,6 +19,7 @@ Definition assert := environ -> mpred.  (* Unfortunately
 Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
       (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
+      identity (ghost_of w0) ->
       (align_chunk ch | snd loc) ->
       exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
                     /\ core w = core w0.
@@ -69,7 +70,7 @@ unfold address_mapsto.
 unfold derives.
 simpl.
 intros ? ?.
-destruct H as [bl [[? [? ?]] ?]].
+destruct H as [bl [[[? [? ?]] ?]] _].
 specialize (H2 a).
 rewrite if_true in H2.
 destruct H2 as [rsh ?]. auto.
@@ -154,7 +155,7 @@ Definition address_mapsto_zeros' (n: Z) : spec :=
      fun (sh: Share.t) (l: address) =>
           allp (jam (adr_range_dec l (Zmax n 0))
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) sh l')
-                                  noat).
+                                  noat) && noghost.
 
 Lemma address_mapsto_zeros_eq:
   forall sh n,
@@ -168,12 +169,13 @@ Proof.
     unfold address_mapsto_zeros'.
     apply pred_ext.
     intros w ?.
-    intros [b' i'].
+    split; [intros [b' i']|].
     hnf.
     rewrite if_false.
     simpl. apply resource_at_identity; auto.
     intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
-    intros w ?.
+    apply ghost_of_identity; auto.
+    intros w [].
     simpl.
     apply all_resource_at_identity.
     intros [b' i'].
@@ -181,17 +183,19 @@ Proof.
     hnf in H.
     rewrite if_false in H. apply H.
     clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+    auto.
   * (* inductive case *)
     rewrite inj_S.
     simpl.
     rewrite IHn; clear IHn.
     apply pred_ext; intros w ?.
     - (* forward case *)
-      destruct H as [w1 [w2 [? [? ?]]]].
+      destruct H as [w1 [w2 [? [? [? Hg2]]]]].
+      split.
       intros [b' i'].
       hnf.
       if_tac.
-      + destruct H0 as [bl [[? [? ?]] ?]].
+      + destruct H0 as [bl [[[? [? ?]] ?] _]].
         specialize (H5 (b',i')).
         hnf in H5.
         if_tac in H5.
@@ -270,7 +274,7 @@ Proof.
             clear.
             pose proof (Z_of_nat_ge_O n). omega.
       + apply (resource_at_join _ _ _ (b',i')) in H.
-        destruct H0 as [bl [[? [? ?]] ?]].
+        destruct H0 as [bl [[[? [? ?]] ?] _]].
         specialize (H5 (b',i')); specialize (H1 (b',i')).
         hnf in H1,H5.
         rewrite if_false in H5.
@@ -290,8 +294,10 @@ Proof.
           destruct H2; split; auto.
           rewrite Zmax_left by omega.
           omega.
-
+      + destruct H0 as (? & ? & Hg1).
+        simpl; rewrite <- (Hg1 _ _ (ghost_of_join _ _ _ H)); auto.
     - (* backward direction *)
+      destruct H as [H Hg].
       assert (H0 := H (b,i)).
       hnf in H0.
       rewrite if_true in H0
@@ -304,10 +310,11 @@ Proof.
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
         destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
-      destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
+      destruct (make_rmap _ (ghost_of w) H2 (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
+      { apply ghost_of_approx. }
       assert (AV.valid (res_option oo
         fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
@@ -317,13 +324,14 @@ Proof.
         case_eq (w @ (b',z')); intros;
          [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
-      destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
+      destruct (make_rmap _ (ghost_of w) H5 (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
+      { apply ghost_of_approx. }
       exists w1; exists w2; split3; auto.
 +apply resource_at_join2; try congruence.
-  intro loc; rewrite H4; rewrite H7.
+  intro loc; destruct H4; rewrite H4; destruct H7; rewrite H7.
  clear - H.
  specialize (H loc).  unfold jam in H. hnf in H.
  rewrite Zmax_left by (pose proof (Z_of_nat_ge_O n); omega).
@@ -354,22 +362,26 @@ Proof.
  clear - H.
  apply H. apply join_unit2. apply core_unit. auto.
  destruct loc. intros [? ?]; subst. apply H2; split; auto; omega.
+ destruct H4 as [_ ->], H7 as [_ ->].
+ apply identity_unit'; auto.
 + exists (Byte Byte.zero :: nil); split.
- split. reflexivity. split.
+ split. split. reflexivity. split.
  unfold decode_val. simpl. f_equal.
  apply Z.divide_1_l.
  intro loc. hnf. if_tac. exists H0.
  destruct loc as [b' i']. destruct H8; subst b'.
  simpl in H9. assert (i=i') by omega; subst i'.
  rewrite Zminus_diag. hnf. rewrite preds_fmap_NoneP.
-  rewrite H4. rewrite if_true by auto. f_equal.
- unfold noat. simpl. rewrite H4. rewrite if_false. apply core_identity.
+  destruct H4; rewrite H4. rewrite if_true by auto. f_equal.
+ unfold noat. simpl. destruct H4; rewrite H4. rewrite if_false. apply core_identity.
   contradict H8. subst. split; auto. simpl; omega.
-+ intro loc. hnf.
- if_tac. exists H0. hnf. rewrite H7.
+  simpl; destruct H4 as [_ ->]; auto.
++ split. intro loc. hnf.
+ if_tac. exists H0. hnf. destruct H7; rewrite H7.
  rewrite if_true by auto. rewrite preds_fmap_NoneP. auto.
- unfold noat. simpl. rewrite H7.
+ unfold noat. simpl. destruct H7; rewrite H7.
  rewrite if_false by auto. apply core_identity.
+ simpl; destruct H7 as [_ ->]; auto.
 Qed.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
@@ -429,19 +441,21 @@ Proof.
       apply pred_ext.
       * intros w ?.
         right; split; hnf; auto.
+        destruct H as [H Hg].
         assert (H':= H (b,i)).
         hnf in H'. rewrite if_true in H' by auto.
         destruct H' as [v H'].
         pose (l := v::nil).
         destruct v; [exists Vundef | exists (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned i0)))) | exists Vundef];
-        exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
+        exists l; split; auto; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
           rewrite EQ; intro loc; specialize (H loc);
          hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
          unfold l; simpl nth; auto.
       * apply orp_left.
         apply andp_left2.
         Focus 1. {
-          intros w [l [[? [? ?]] ?]].
+          intros w [l [[[? [? ?]] ?] Hg]].
+           split; auto.
            intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
            hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
            destruct l; inv H. exists m.
@@ -450,7 +464,8 @@ Proof.
         } Unfocus.
         Focus 1. {
           rewrite prop_true_andp by auto.
-          intros w [v2' [l [[? [? ?]] ?]]].
+          intros w [v2' [l [[[? [? ?]] ?] Hg]]].
+           split; auto.
            intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
            hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
            destruct l; inv H. exists m.
@@ -512,7 +527,7 @@ Proof.
     apply andp_right; [| apply address_mapsto_VALspec_range].
     unfold address_mapsto.
     apply exp_left; intro.
-    apply andp_left1.
+    do 2 apply andp_left1.
     apply (@prop_derives (pred rmap) (algNatDed _)); tauto.
   + apply prop_andp_left; intro.
     apply VALspec_range_exp_address_mapsto; auto.
@@ -1082,7 +1097,7 @@ Proof.
      exact (conj H0 H1).
  } Unfocus.
  f_equal. f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1120,7 +1135,7 @@ Proof.
      exact H1.
  } Unfocus.
  f_equal; f_equal; extensionality bl.
- f_equal. f_equal.
+ f_equal. f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1157,7 +1172,7 @@ Proof.
      exact (conj H0 H1).
  } Unfocus.
   f_equal; f_equal; extensionality bl.
- f_equal. apply f_equal.
+ f_equal. f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1194,7 +1209,7 @@ Proof.
      exact H1.
  } Unfocus.
  f_equal; f_equal; extensionality bl.
- f_equal. apply f_equal.
+ f_equal. f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.

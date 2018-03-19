@@ -1,9 +1,12 @@
-Require Export VST.msl.predicates_sl.
+Require Import VST.msl.predicates_sl.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
+
+Notation precise := precise.
+Notation derives_precise := predicates_sl.derives_precise.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -499,12 +502,6 @@ Qed.
 Lemma repeat_list_repeat : forall {A} n (x : A), repeat x n = list_repeat n x.
 Proof.
   induction n; auto; simpl; intro.
-  rewrite IHn; auto.
-Qed.
-
-Lemma map_repeat : forall {A B} (f : A -> B) x n, map f (repeat x n) = repeat (f x) n.
-Proof.
-  induction n; auto; simpl.
   rewrite IHn; auto.
 Qed.
 
@@ -1900,11 +1897,12 @@ Proof.
   { exists r2; auto. }
   { exists r1; apply sepalg.join_comm; auto. }
   intro; subst.
-  pose proof (sepalg.join_self H) as Hid.
-  apply Hid in H; subst.
-  destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
-  destruct (compcert_rmaps.RML.resource_at_empty Hid l) as [Hl | [? [? Hl]]];
-    rewrite Hl in HYES; discriminate.
+  destruct (Hpositive r2) as (l & ? & ? & ? & ? & HYES).
+  { split; auto; omega. }
+  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in H.
+  rewrite HYES in H; inv H.
+  apply sepalg.join_self in RJ.
+  eapply readable_not_identity; eauto.
 Qed.
 
 Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
@@ -1967,7 +1965,7 @@ Lemma lock_inv_positive : forall sh v R,
   positive_mpred (lock_inv sh v R).
 Proof.
   repeat intro.
-  destruct H as (b & o & Hv & Hlock).
+  destruct H as (b & o & Hv & Hlock & Hg).
   simpl in Hlock.
   specialize (Hlock (b, Ptrofs.unsigned o)).
   if_tac [r|nr] in Hlock.
@@ -1986,10 +1984,6 @@ Proof.
   apply precise_sepcon; auto.
   apply lock_inv_precise.
 Qed.
-
-(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_sepcon1 : forall P Q (HP : positive_mpred P),
   positive_mpred (P * Q).
@@ -2032,6 +2026,11 @@ Proof.
   apply positive_sepcon2, lock_inv_positive.
 Qed.
 
+(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
+Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+Admitted. (* still needed in verif_incr.v and verif_cond.v *)
+(* The solution to this is probably to introduce the Timeless modality. *)
+
 Lemma positive_FF : positive_mpred FF.
 Proof.
   repeat intro; contradiction.
@@ -2046,7 +2045,7 @@ Qed.
 Lemma ex_address_mapsto_positive: forall ch sh l,
   positive_mpred (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
-  intros ???? (? & ? & ? & Hp); simpl in Hp.
+  intros ???? (? & ? & [? Hp] & ?); simpl in Hp.
   specialize (Hp l); destruct (adr_range_dec _ _ _).
   destruct Hp; eauto 6.
   { contradiction n; unfold adr_range.
@@ -2395,7 +2394,7 @@ Lemma LKspec_readable lock_size :
   forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
   (!!(readable_share sh)).
 Proof.
-  intros pos R sh p a H.
+  intros pos R sh p a [H _].
   specialize (H p); simpl in H.
   destruct (adr_range_dec p lock_size p).
   destruct (eq_dec p p); [|contradiction n; auto].
@@ -2965,22 +2964,6 @@ Proof.
   entailer!.
 Qed.
 Hint Resolve valid_pointer_isptr : saturate_local.
-
-Lemma andp_emp_derives_dup : forall (P : mpred),
-  predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).
-Proof.
-  intros ???.
-  exists a; exists a; split; auto.
-  setoid_rewrite <- sepalg.identity_unit_equiv; destruct H; auto.
-Qed.
-
-Corollary andp_emp_dup : forall (P : mpred), P && emp = (P && emp) * (P && emp).
-Proof.
-  intro; apply mpred_ext.
-  - apply andp_emp_derives_dup.
-  - entailer!.
-    apply andp_left2; auto.
-Qed.
 
 Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
   compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)

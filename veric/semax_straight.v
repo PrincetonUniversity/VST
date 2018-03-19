@@ -55,6 +55,7 @@ apply (pred_nec_hereditary _ _ _ (necR_nat H)) in Hsafe.
 clear H w.
 rename w0 into w.
 apply assert_safe_last'; intro Hage.
+apply own.bupd_intro.
 intros ora jm _ H2. subst w.
 destruct Hglob as [[TC' Hglob] Hglob'].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
@@ -65,7 +66,8 @@ specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
 change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 rewrite H2 in Hsafe.
-eapply safe_step'_back2; [eassumption | ].
+rewrite <- level_juice_level_phi, (age_level _ _ Hage).
+econstructor; [eassumption | ].
 unfold rguard in Hsafe.
 specialize (Hsafe EK_normal None te' ve).
 simpl exit_cont in Hsafe.
@@ -86,10 +88,10 @@ replace (funassert (exit_tycon c Delta' EK_normal)) with (funassert Delta'); aut
 apply same_glob_funassert; simpl; auto.
 rewrite glob_specs_update_tycon; auto.
 subst rho'.
-hnf in Hsafe.
-change R.rmap with rmap in *.
-replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_phi jm'))%nat by omega.
-apply Hsafe; auto.
+replace (level jm1) with (level jm').
+apply assert_safe_jsafe; auto.
+rewrite <- !level_juice_level_phi in H2.
+apply age_level in Hage; omega.
 Qed.
 
 Definition force_valid_pointers m v1 v2 :=
@@ -172,7 +174,7 @@ destruct m; simpl; omega.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
 if_tac in H0; [inversion H0 |].
-destruct H0 as [_ ?].
+destruct H0 as [_ [? _]].
 specialize (H0 (b, Ptrofs.unsigned o)).
 simpl in H0.
 rewrite if_true in H0
@@ -443,7 +445,8 @@ Proof.
         apply age1_resource_decay; auto.
       } Unfocus.
       Focus 2. {
-        apply age_level; auto.
+        split; [apply age_level; auto|].
+        apply age1_ghost_of, age_jm_phi; auto.
       } Unfocus.
       destruct (age1_juicy_mem_unpack _ _ H).
       rewrite <- H3.
@@ -599,7 +602,8 @@ Proof.
         econstructor; eauto.
         rewrite H3; eapply eval_expr_relate with (m := jm'); eauto.
       + apply age1_resource_decay; auto.
-      + apply age_level; auto.
+      + split; [apply age_level; auto|].
+        apply age1_ghost_of, age_jm_phi; auto.
     } Unfocus.
     split.
     2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -734,7 +738,8 @@ split3; auto.
   econstructor; eauto.
   rewrite H3; eapply eval_expr_relate; try apply TC3; auto.
   apply age1_resource_decay; auto.
-  apply age_level; auto.
+  split; [apply age_level; auto|].
+  apply age1_ghost_of, age_jm_phi; auto.
 
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -858,7 +863,8 @@ split3; auto.
   change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
   rewrite H3; eapply eval_expr_relate; eauto.
   apply age1_resource_decay; auto.
-  apply age_level; auto.
+  split; [apply age_level; auto|].
+  apply age1_ghost_of, age_jm_phi; auto.
 
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -973,7 +979,8 @@ econstructor; eauto. rewrite Hge in *.
 rewrite H3; eapply eval_expr_relate; auto.
 destruct TC'; eauto. auto.
 apply age1_resource_decay; auto.
-apply age_level; auto.
+split; [apply age_level; auto|].
+apply age1_ghost_of, age_jm_phi; auto.
 
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -1184,7 +1191,8 @@ split; [split3 | ].
    unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
    apply H6.
 * apply age1_resource_decay; auto.
-* apply age_level; auto.
+* split; [apply age_level; auto|].
+  apply age1_ghost_of, age_jm_phi; auto.
 * rewrite <- map_ptree_rel.
   rewrite <- (Hcl rho (Map.set id (v2 rho) (make_tenv te))).
  +normalize.
@@ -1345,7 +1353,8 @@ split; [split3 | ].
    unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
    apply H6.
 * apply age1_resource_decay; auto.
-* apply age_level; auto.
+* split; [apply age_level; auto|].
+  apply age1_ghost_of, age_jm_phi; auto.
 * rewrite <- map_ptree_rel.
   rewrite <- (Hcl rho (Map.set id (eval_cast (typeof e1) t1 (v2 rho)) (make_tenv te))).
  +normalize.
@@ -1424,7 +1433,7 @@ unfold compose, f in H4; clear f.
 if_tac in H4.
 2: rewrite res_option_core in H4; inv H4.
 simpl in H4. injection H4; intros.  subst k; auto.
-destruct (make_rmap _ Vf (level jm)) as [mf [? ?]]; clear Vf.
+destruct (make_rmap _ (core (ghost_of (m_phi jm))) Vf (level jm)) as [mf [? [? Hg]]]; clear Vf.
 unfold f, compose; clear f; extensionality loc.
 symmetry. if_tac.
 unfold resource_fmap. rewrite preds_fmap_NoneP.
@@ -1432,6 +1441,7 @@ reflexivity.
 generalize (resource_at_approx (m_phi jm) loc);
 destruct (m_phi jm @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; try reflexivity.
 auto.
+rewrite ghost_core; auto.
 
 unfold f in H5; clear f.
 exists mf; exists m2; split3; auto.
@@ -1440,10 +1450,10 @@ rewrite H4. symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
 apply join_level in H; destruct H.
 change R.rmap with rmap in *. change R.ag_rmap with ag_rmap in *.
 rewrite H6; symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
-intro; rewrite H5. clear mf H4 H5.
+intro; rewrite H5. clear mf H4 H5 Hg.
 simpl m_phi.
 apply (resource_at_join _ _ _ loc) in H.
-destruct H1 as [vl [? ?]]. spec H4 loc. hnf in H4.
+destruct H1 as [vl [[? ?] Hg]]. spec H4 loc. hnf in H4.
 if_tac.
 destruct H4. hnf in H4. rewrite H4 in H.
 rewrite (proof_irr x (writable_readable_share wsh)) in *; clear x.
@@ -1472,11 +1482,16 @@ rewrite H8.
 constructor.
 apply join_unit1; auto.
 rewrite core_PURE; constructor.
+rewrite Hg; simpl.
+unfold inflate_store; rewrite ghost_of_make_rmap.
+destruct H1 as [? [? Hid]].
+rewrite (Hid _ _ (ghost_of_join _ _ _ H)).
+apply core_unit.
 
 unfold address_mapsto in *.
 exists (encode_val ch v').
-destruct H1 as [vl [[? [? ?]] ?]].
-split.
+destruct H1 as [vl [[[? [? ?]] ?] Hg1]].
+split; [split|].
 split3; auto.
 apply encode_val_length.
 intro loc. hnf.
@@ -1509,6 +1524,7 @@ apply (writable_lub_retainer_Rsh _ wsh).
 generalize (size_chunk_pos ch); omega.
 do 3 red. rewrite H5. rewrite if_false by auto.
 apply core_identity.
+simpl; rewrite Hg; apply core_identity.
 Qed.
 
 Ltac dec_enc :=
@@ -1675,7 +1691,7 @@ apply juicy_store_nodecay.
 {intros.
  clear - H11' H2 WS.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
+ destruct H0 as [bl [[_ ?] Hg]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; omega).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
@@ -1683,7 +1699,9 @@ apply juicy_store_nodecay.
  inv H; simpl; apply join_writable1 in RJ; auto;
  unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor. 
 }
-rewrite level_store_juicy_mem. apply age_level; auto.
+rewrite level_store_juicy_mem. split; [apply age_level; auto|].
+simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
+apply age1_ghost_of, age_jm_phi; auto.
 split.
 Focus 2.
 rewrite corable_funassert.
@@ -1702,6 +1720,10 @@ simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
 rewrite resource_at_make_rmap. rewrite <- core_resource_at.
  case_eq (m_phi jm1 @ loc); intros; auto.
  destruct k0; simpl; repeat rewrite core_YES; auto.
+ simpl.
+ rewrite !ghost_of_core.
+ unfold inflate_store; rewrite ghost_of_make_rmap; auto.
+ 
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
@@ -1776,7 +1798,8 @@ eapply rel_expr_relate; try eassumption; eauto.
 apply H8; auto.
 exists w1; auto.
 apply age1_resource_decay; auto.
-apply age_level; auto.
+split; [apply age_level; auto|].
+apply age1_ghost_of, age_jm_phi; auto.
 
 split.
 2: eapply pred_hereditary; try apply H4; destruct (age1_juicy_mem_unpack _ _ H3); auto.
@@ -1923,14 +1946,17 @@ apply juicy_store_nodecay.
 {intros.
  clear - H11' H2 H. rename H into wsh.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
+ destruct H0 as [bl [[_ ?] Hg]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; omega).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.
  inv H; simpl; apply join_writable1 in RJ; auto; unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
 }
-rewrite level_store_juicy_mem. apply age_level; auto.
+rewrite level_store_juicy_mem. split; [apply age_level; auto|].
+simpl.
+unfold inflate_store; rewrite ghost_of_make_rmap.
+apply age1_ghost_of, age_jm_phi; auto.
 split.
 Focus 2. {
 rewrite corable_funassert.
@@ -1948,6 +1974,8 @@ simpl. rewrite <- !core_resource_at. unfold inflate_store. simpl.
 rewrite resource_at_make_rmap.
  case_eq (m_phi jm1 @ loc); intros; auto.
  destruct k0; simpl; repeat rewrite core_YES; auto.
+rewrite !ghost_of_core; simpl.
+unfold inflate_store; rewrite ghost_of_make_rmap; auto.
 } Unfocus.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.

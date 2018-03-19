@@ -80,7 +80,7 @@ Proof.
     unfold res_predicates.address_mapsto.
     apply predicates_hered.pred_ext'. extensionality phi.
     simpl. apply exists_ext; intro bl.
-    f_equal.
+    f_equal; f_equal.
     apply and_ext'; auto. intro.
     destruct H1 as [H1' H1].
     specialize (H1 bl).

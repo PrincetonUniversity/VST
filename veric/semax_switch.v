@@ -368,17 +368,19 @@ apply necR_level; auto.
 Qed.
 
 Lemma assert_safe_step_nostore:
-  forall Espec psi vx vx2 tx tx2 k1 k2 SideCond,
+  forall {cs: compspecs} Espec psi vx vx2 tx tx2 k1 k2 Delta e rho,
   (forall jm jm', age1 jm = Some jm' ->
-    app_pred SideCond (m_phi jm) ->
+    app_pred (tc_expr Delta e rho) (m_phi jm) ->
      cl_step psi (State vx tx k1)
       (m_dry jm) (State vx2 tx2 k2) (m_dry jm)) ->
   assert_safe Espec psi vx2 tx2 k2 (construct_rho (filter_genv psi) vx2 tx2)
- && SideCond
+ && tc_expr Delta e rho
 |-- assert_safe Espec psi vx tx k1 (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros.
-intros w [Hw Hw'] ora jm ? ?. subst w.
+intros w [Hw Hw'] ? J.
+eexists; split; eauto; eexists; repeat split; eauto.
+intros ora jm ? ?. subst.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
@@ -390,14 +392,15 @@ rewrite <- (age_jm_dry H9).
 apply (H _ _ H9); auto.
 split.
 apply age1_resource_decay; assumption.
-apply age_level; assumption.
+split; [apply age_level; assumption|].
+apply age1_ghost_of, age_jm_phi; auto.
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn.
 rewrite Heqn in H1.
 inv H1. clear Heqn.
 eapply pred_hereditary in Hw;
   [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
-apply Hw; auto.
+apply assert_safe_jsafe; auto.
 Qed.
 
 Lemma semax_switch: 
@@ -537,7 +540,7 @@ unfold guard.
 intros tx vx.
 set (rho := construct_rho (filter_genv psi) vx tx) in *.
 specialize (H0 rho).
-apply frame_tc_expr with (F0 := F rho) in  H0. 
+apply frame_tc_expr with (F0 := F rho) in  H0.
 intros w' Hw' w'' Hw'' [[[H4 H4'] H5] H6].
 rewrite sepcon_comm in H0; specialize (H0 _ H5).
 assert (H0' := typecheck_expr_sound _ _ _ _ (typecheck_environ_sub _ _ TS _ H4) H0).
@@ -548,7 +551,17 @@ rewrite semax_unfold in H1.
 specialize (H1 psi Delta' w TS HGG Prog_OK (Kswitch :: k) F).
 specialize (H1 (closed_wrt_modvars_switch _ _ _ _ H2)); clear H2.
 set (c := seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) in *.
-intros ora jm H7 H8. subst w''; clear H7.
+spec H1.
+{ eapply switch_rguard; eauto. }
+specialize (H1 tx vx w' Hw' _ Hw'').
+spec H1.
+{ clear H1.
+  split; auto.
+  split; auto.
+  do 3 red. split; auto.
+  fold rho. rewrite prop_true_andp by auto. auto. }
+intros ? J; eexists; split; eauto; repeat eexists; auto.
+intros ora jm H7 H8. subst; clear H7.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn0) as [phi' ?].
@@ -565,24 +578,13 @@ fold rho. rewrite Heqv, Heqt.
 reflexivity.
 split.
 apply age1_resource_decay; assumption.
-apply age_level; assumption.
+split; [apply age_level; assumption|].
+apply age1_ghost_of, age_jm_phi; auto.
 
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn0.
 rewrite Heqn0 in H.
 inv H. clear Heqn0.
-spec H1. eapply switch_rguard; eauto.
-specialize (H1 tx vx w' Hw' _ Hw'').
-spec H1. {
- clear H1.
- split; auto.
- split; auto.
- do 3 red. split; auto.
- fold rho. rewrite prop_true_andp by auto. auto.
-}
-eapply pred_hereditary in H1;
-  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
-apply H1; auto.
+eapply assert_safe_jsafe, pred_hereditary, H1.
+apply age_jm_phi; auto.
 Qed.
-
-
