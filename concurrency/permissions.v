@@ -14,6 +14,7 @@ Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
 From VST.veric Require Import shares juicy_mem juicy_mem_lemmas.
 Require Import VST.msl.msl_standard.
+Require Import FunInd.
 Import cjoins.
 
 (*IM using proof irrelevance!*)

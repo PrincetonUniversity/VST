@@ -408,22 +408,26 @@ Definition A2P {A} :=
  (fun (pmap : access_map) (a : address * A) =>
       let (a0, _) := a in let (b0, ofs0) := a0 in setPermBlock (Some Writable) b0 ofs0 pmap LKSIZE_nat).
 
+Lemma setPermBlock_lookup : forall p b o a n b' o', (setPermBlock p b o a n) !! b' o' =
+  if adr_range_dec (b, o) (Z.of_nat n) (b', o') then p else a !! b' o'.
+Proof.
+  intros; if_tac; simpl in H.
+  - destruct H; subst; apply setPermBlock_same; auto.
+  - destruct (peq b b'); [|apply setPermBlock_other_2; auto].
+    subst; destruct (zle o o'); [|apply setPermBlock_other_1; omega].
+    destruct (zlt o' (o + Z.of_nat n)); [tauto | apply setPermBlock_other_1; omega].
+Qed.
+
 Lemma A2P_congr A e e' a : PMap_eq e e' -> PMap_eq (A2P e a) (@A2P A e' a).
 Proof.
-  destruct a as ((b_, ofs_), a). intros E b'' ofs''. simpl. unfold setPerm.
-  repeat rewrite PMap.gsspec.
-  destruct (peq b'' b_) as [-> | ne]. destruct (peq b_ b_); [ | tauto]. 2:now auto.
-  repeat match goal with |- (if ssrbool.is_left ?A then _ else _) = _ =>  destruct A; simpl; auto end.
+  destruct a as ((b_, ofs_), a). intros E b'' ofs''. simpl.
+  rewrite !setPermBlock_lookup; if_tac; auto.
 Qed.
 
 Lemma A2P_overwrite A : forall a b e, fst a = fst b -> PMap_eq (@A2P A (A2P e a) b) (@A2P A e a).
 Proof.
   intros ((b1, ofs1), x1) (k2, x2) e; simpl. intros <- b'' ofs''.
-  f_equal.
- repeat 
- match goal with |- setPerm _ _ ?A _ = _ =>
-     repeat rewrite (setPerm_b_comm _ _ _ A); rewrite setPerm_b_idem; f_equal
-  end.
+  rewrite !setPermBlock_lookup; if_tac; auto.
 Qed.
 
 Lemma setPerm_comm b1 o1 b2 o2 e:
@@ -456,19 +460,8 @@ Qed.
 Lemma A2P_comm A e a b : PMap_eq (@A2P A (A2P e a) b) (@A2P A (A2P e b) a).
 Proof.
   destruct a as ((b1, o1), a1), b as ((b2, o2), a2); simpl.
-
-repeat (
- repeat 
- ( lazymatch goal with |- PMap_eq (setPerm _ _ (o2 + _) _) _ => idtac end;
-   eapply PMap_eq_trans;
- [ repeat  lazymatch goal with 
-  |- PMap_eq (setPerm _ _ (o2 + _) (setPerm _ _ (o2 + _) _)) _ => 
-       apply setPerm_congr
- end;
-  apply setPerm_comm |
- ]);
- apply setPerm_congr).
-  apply PMap_eq_refl.
+  intros ??.
+  rewrite !setPermBlock_lookup; if_tac; if_tac; auto.
 Qed.
 
 Lemma fold_right_cons : forall A B (f : A -> B -> B) (z : B) (x : A) (y : list A),
@@ -489,7 +482,7 @@ Qed.
 
 Lemma A2PMap_found A m b ofs ofs' o :
   AMap.find (elt:=A) (b, ofs) m = Some o ->
-  (ofs <= ofs' < ofs + 4)%Z ->
+  (ofs <= ofs' < ofs + LKSIZE)%Z ->
   (A2PMap m) !! b ofs' = Some Writable.
 Proof.
   unfold AMap.find, A2PMap, AMap.elements, AMap.Raw.elements.
@@ -505,19 +498,14 @@ Proof.
   destruct (AddressOrdered.compare (b, ofs) (b0, ofs0)) as [C|C|C].
   - discriminate.
   - injection 1 as <-.
-    rewrite fold_right_cons.
-    simpl.
-    repeat rewrite setPerm_spec.
-    repeat (if_tac; auto).
+    rewrite fold_right_cons, setPermBlock_lookup.
+    if_tac; auto.
     injection C as <- <- .
     intros r.
     exfalso.
-    do 8 match goal with H : (b, ?x) <> (b, ?y) |- _ => assert (x <> y) by (intros <-; tauto); clear H end.
-    omega.
-  - rewrite fold_right_cons.
-    simpl.
-    repeat rewrite setPerm_spec.
-    repeat (if_tac; auto).
+    contradiction H; split; auto.
+  - rewrite fold_right_cons, setPermBlock_lookup.
+    if_tac; auto.
 Qed.
 
 Lemma fold_right_rev_left:
@@ -569,18 +557,7 @@ Proof.
   remember (rev l) as l'; clear l Heql' P.
   rewrite (* canon. *)fold_right_cons.
   set (fold_right _ _ _) as m; clearbody m; clear.
-  simpl.
-  unfold setPerm in *.
-  repeat rewrite PMap.gsspec.
-  if_tac [->|ne]; swap 1 2.
-  { if_tac. destruct H. congruence. reflexivity. }
-  destruct (peq b b). 2:tauto.
- repeat 
- lazymatch goal with |- context [zeq ?A ?B] =>
-   destruct (zeq A B) as [<- | ?]; simpl;
-    [if_tac; auto; destruct H; split; auto; unfold LKSIZE; omega | ]
- end.
-  if_tac; auto. destruct H. unfold LKSIZE in H0. omega.
+  apply setPermBlock_lookup.
 Qed.
 
 Lemma find_too_small A y a x l :

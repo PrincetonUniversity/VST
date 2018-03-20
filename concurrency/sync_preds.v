@@ -115,7 +115,7 @@ Proof.
   cut (~ ~ (b < Mem.nextblock m)%positive). zify. omega. intros L.
   specialize (LW ofs).
   assert (Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
-  { split; simpl; unfold LKSIZE in *; simpl; omega. }
+  { split; simpl; pose proof LKSIZE_pos; omega. }
   autospec LW.
   rewrite (Mem.nextblock_noaccess _ _ ofs Max L) in LW.
   inversion LW.
@@ -670,12 +670,12 @@ Qed.
 
 Lemma predat4 {phi b ofs sh R} :
   app_pred (lock_inv sh (Vptr b ofs) R) phi ->
-  predat phi (b, Int.unsigned ofs) (approx (level phi) R).
+  predat phi (b, Ptrofs.unsigned ofs) (approx (level phi) R).
 Proof.
   unfold lock_inv in *.
-  intros (b' & ofs' & E & lk).
+  intros (b' & ofs' & E & lk & _).
   injection E as <- <-.
-  specialize (lk (b, Int.unsigned ofs)); simpl in lk.
+  specialize (lk (b, Ptrofs.unsigned ofs)); simpl in lk.
   if_tac in lk. 2:range_tac.
   if_tac in lk. 2:tauto.
   hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
@@ -694,7 +694,7 @@ Proof.
   unfold lkat in *.
   intros H. spec H loc.
   spec H.
-  { destruct loc. split; auto; unfold LKSIZE; omega. }
+  { destruct loc. split; auto; pose proof LKSIZE_pos; omega. }
   destruct H as (sh & rsh & ->).
   if_tac. 2:tauto.
   eauto.
@@ -714,11 +714,11 @@ Qed.
 
 Lemma lock_inv_at sh v R phi :
   app_pred (lock_inv sh v R) phi ->
-  exists b ofs, v = Vptr b ofs /\ exists R, islock_pred R (phi @ (b, Int.unsigned ofs)).
+  exists b ofs, v = Vptr b ofs /\ exists R, islock_pred R (phi @ (b, Ptrofs.unsigned ofs)).
 Proof.
-  intros (b & ofs & Ev & lk).
+  intros (b & ofs & Ev & lk & _).
   exists b, ofs. split. now apply Ev.
-  specialize (lk (b, Int.unsigned ofs)).
+  specialize (lk (b, Ptrofs.unsigned ofs)).
   exists (approx (level phi) R).
   simpl in lk.
   if_tac in lk; swap 1 2. {
@@ -726,7 +726,7 @@ Proof.
     apply H.
     unfold adr_range in *.
     intuition.
-    unfold LKSIZE.
+    pose proof LKSIZE_pos.
     omega.
   }
   if_tac in lk; [ | tauto ].

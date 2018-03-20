@@ -150,7 +150,7 @@ Proof.
   zify.
   rewrite <-Pos2Z.add_pos_neg.
   assert (x < z)%positive by auto.
-  rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
+  rewrite Z2Pos.id; zify; omega.
 Qed.
 
 Lemma lt_sub_bound:
@@ -161,7 +161,7 @@ Proof.
   intros x y H.
   zify.
   rewrite <-Pos2Z.add_pos_neg.
-  rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
+  rewrite Z2Pos.id; zify; omega.
 Qed.
 
 Lemma lt_lt_sub:
@@ -171,8 +171,7 @@ Lemma lt_lt_sub:
     (b - a < c)%positive.
 Proof.
   intros a b c H H0.
-  zify.
-  rewrite Pos2Z.inj_sub; auto; omega.
+  zify; omega.
 Qed.
 
 Lemma prod_fun :

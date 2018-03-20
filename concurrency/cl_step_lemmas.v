@@ -45,15 +45,15 @@ Proof.
       -- simpl in *.
          Transparent Mem.store.
          unfold Mem.store in *; simpl in *.
-         destruct (Mem.valid_access_dec m chunk b (Int.unsigned ofs) Writable).
+         destruct (Mem.valid_access_dec m chunk b (Ptrofs.unsigned ofs) Writable).
          2:discriminate.
          injection STO as <-. simpl.
          reflexivity.
       -- Transparent Mem.storebytes.
          unfold Mem.storebytes in *.
          destruct (Mem.range_perm_dec
-                     m b (Int.unsigned ofs)
-                     (Int.unsigned ofs + Z.of_nat (Datatypes.length bytes)) Cur Writable).
+                     m b (Ptrofs.unsigned ofs)
+                     (Ptrofs.unsigned ofs + Z.of_nat (Datatypes.length bytes)) Cur Writable).
          2:discriminate.
          injection STO as <-. simpl.
          reflexivity.
@@ -167,7 +167,7 @@ Proof.
     inversion ASS; subst.
     + inversion H4.
       unfold Mem.store in *.
-      destruct (Mem.valid_access_dec m chunk b0 (Int.unsigned ofs0) Writable); [|discriminate].
+      destruct (Mem.valid_access_dec m chunk b0 (Ptrofs.unsigned ofs0) Writable); [|discriminate].
       injection H6 as <- ; clear ASS H4.
       simpl.
       destruct (eq_dec b b0) as [e|n]; swap 1 2.
@@ -177,7 +177,7 @@ Proof.
         destruct v0 as [v0 align].
         specialize (v0 ofs).
         {
-          destruct (adr_range_dec (b, Int.unsigned ofs0) (size_chunk chunk) (b, ofs)) as [a|a].
+          destruct (adr_range_dec (b, Ptrofs.unsigned ofs0) (size_chunk chunk) (b, ofs)) as [a|a].
           - simpl in a; destruct a as [_ a].
             autospec v0.
             tauto.
@@ -187,9 +187,9 @@ Proof.
             rewrite encode_val_length.
             replace (Z_of_nat (size_chunk_nat chunk)) with (size_chunk chunk); swap 1 2.
             { unfold size_chunk_nat in *. rewrite Z2Nat.id; auto. destruct chunk; simpl; omega. }
-            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + size_chunk chunk)%Z) by intuition.
+            assert (a' : ~ (Ptrofs.unsigned ofs0 <= ofs < Ptrofs.unsigned ofs0 + size_chunk chunk)%Z) by intuition.
             revert a'; clear.
-            generalize (Int.unsigned ofs0).
+            generalize (Ptrofs.unsigned ofs0).
             generalize (size_chunk chunk).
             intros.
             omega.
@@ -197,7 +197,7 @@ Proof.
 
     + (* still the case of assignment (copying) *)
       unfold Mem.storebytes in *.
-      destruct (Mem.range_perm_dec m b0 (Int.unsigned ofs0) (Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes)) Cur Writable); [ | discriminate ].
+      destruct (Mem.range_perm_dec m b0 (Ptrofs.unsigned ofs0) (Ptrofs.unsigned ofs0 + Z.of_nat (Datatypes.length bytes)) Cur Writable); [ | discriminate ].
       injection H8 as <-; clear ASS; simpl.
       destruct (eq_dec b b0) as [e|n]; swap 1 2.
       * rewrite PMap.gso; auto.
@@ -205,16 +205,16 @@ Proof.
         generalize ((Mem.mem_contents m) !! b); intros t.
         specialize (r ofs).
         {
-          destruct (adr_range_dec (b, Int.unsigned ofs0) (Z.of_nat (Datatypes.length bytes)) (b, ofs)) as [a|a].
+          destruct (adr_range_dec (b, Ptrofs.unsigned ofs0) (Z.of_nat (Datatypes.length bytes)) (b, ofs)) as [a|a].
           - simpl in a; destruct a as [_ a].
             autospec r.
             tauto.
           - simpl in a.
             symmetry.
             apply Mem.setN_outside.
-            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes))%Z) by intuition.
+            assert (a' : ~ (Ptrofs.unsigned ofs0 <= ofs < Ptrofs.unsigned ofs0 + Z.of_nat (Datatypes.length bytes))%Z) by intuition.
             revert a'; clear.
-            generalize (Int.unsigned ofs0).
+            generalize (Ptrofs.unsigned ofs0).
             intros.
             omega.
         }

@@ -308,59 +308,26 @@ Module Concur.
       unfold permMapLt, lockSet_Writable. intros.
       rewrite getMaxPerm_correct.
       specialize (H b).
-
-      (*0*)
-      destruct (lockRes js (b, ofs)) eqn:H0.
-      unfold lockRes in H0; specialize (H ofs ltac:(rewrite H0; auto) ofs).
-      assert (ineq: Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
-      unfold LKSIZE; hnf; simpl. omega.
-      apply H in ineq.
-      eapply po_trans; eauto.
-      rewrite lockSet_spec_1. apply po_refl.
-      unfold lockRes; rewrite H0; constructor.
-
       (* manual induction *)
-      Local Ltac t H js b ofs n :=
-        let H1 := fresh in
-        destruct (lockRes js (b, (ofs-n)%Z)) eqn:H1;
-        [ unfold lockRes in H1;
-          specialize (H (ofs-n)%Z ltac:(rewrite H1; auto) (ofs));
-          assert (ineq: Intv.In ofs (ofs-n, (ofs-n + LKSIZE))%Z)
-            by (unfold LKSIZE; hnf; simpl; omega);
-          assert (ineq':=ineq);
-          apply H in ineq; eapply po_trans; eauto;
-          erewrite lockSet_spec_2;
-          [ apply po_refl
-          | apply ineq'
-          | unfold lockRes; rewrite H1; constructor ] | ].
-
-      t H js b ofs 1%Z.
-      t H js b ofs 2%Z.
-      t H js b ofs 3%Z.
-      t H js b ofs 4%Z.
-      t H js b ofs 5%Z.
-      t H js b ofs 6%Z.
-      t H js b ofs 7%Z.
-(*      t H js b ofs 8%Z.
-      t H js b ofs 9%Z.
-      t H js b ofs 10%Z.
-      t H js b ofs 11%Z.
-      t H js b ofs 12%Z.
-      t H js b ofs 13%Z.
-      t H js b ofs 14%Z.
-      t H js b ofs 15%Z.*)
-
-      pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
-      assert (forall z, (z <= ofs < z + LKSIZE)%Z -> lockRes js (b, z) = None).
-      intros.
-      assert (O : (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 \/
-                   z = ofs-4  \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 (* \/
-                   z = ofs-8 \/ z = ofs-9 \/ z = ofs-10 \/ z = ofs-11 \/
-                   z = ofs-12 \/ z = ofs-13 \/ z = ofs-14 \/ z = ofs-15 \/
-                   z = ofs-16*))%Z) by (unfold LKSIZE in *; omega).
-      repeat (destruct O as [-> | O]; auto). subst z; auto.
-
-      rewrite e. apply po_None. auto.
+      assert (forall n, (exists ofs0, Intv.In ofs (ofs0, (ofs0 + Z.of_nat n)%Z) /\ lockRes js (b, ofs0)) \/
+        (forall ofs0, (ofs0 <= ofs < ofs0 + Z.of_nat n)%Z -> lockRes js (b, ofs0) = None)) as Hdec.
+      { clear; induction n.
+        { right; simpl; intros; omega. }
+        destruct IHn; auto.
+        - destruct H as (? & ? & ?); left; eexists; split; eauto.
+          unfold Intv.In, fst, snd in *; zify; omega.
+        - destruct (lockRes js (b, (ofs - Z.of_nat n)%Z)) eqn: Hres.
+          + left; eexists; split; [|setoid_rewrite Hres; auto].
+            unfold Intv.In, fst, snd in *; zify; omega.
+          + right; intro.
+            destruct (eq_dec ofs0 (ofs - Z.of_nat n)%Z); [subst; auto|].
+            intro; apply H.
+            zify; omega. }
+      destruct (Hdec LKSIZE_nat) as [(ofs0 & ? & ?)|].
+      - erewrite lockSet_spec_2 by eauto.
+        eapply H; eauto.
+      - rewrite lockSet_spec_3; auto.
+        apply po_None.
     Qed.
 
     Lemma mem_compatible_locks_ltwritable:
@@ -1191,27 +1158,27 @@ Qed.
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)psh(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
-            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
+            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.one))
             (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
                   = m1*)
             (Hset_perm: setPermBlock (Some Writable)
-                                       b (Int.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
+                                       b (Ptrofs.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
             (* This following condition is not needed:
                It should follow from the mem_compat statement... somehow... *)
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
+            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
+            (His_unlocked: lockRes tp (b, Ptrofs.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi  phi')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None )
+            (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) None )
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)
+            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Ptrofs.intval ofs) None)
     | step_release :
         forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
           forall
@@ -1224,29 +1191,29 @@ Qed.
                personal_mem cnt0 Hcompatible = jm *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t) psh
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
-            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero))
             (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
                   = m1*)
             (Hset_perm: setPermBlock (Some Writable)
-                                       b (Int.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
+                                       b (Ptrofs.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
             (* This following condition is not needed:
                It should follow from the mem_compat statement... somehow... *)
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
-            (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
+            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
+            (His_locked: lockRes tp (b, Ptrofs.intval ofs) = SNone )
             (Hsat_lock_inv: R (age_by 1 d_phi))
             (Hrem_lock_res: join d_phi phi' phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
-                    updLockSet tp' (b, Int.intval ofs) (Some d_phi))
+                    updLockSet tp' (b, Ptrofs.intval ofs) (Some d_phi))
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)
+            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Ptrofs.intval ofs) None)
     | step_create :
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs om (* P Q *),
           forall
@@ -1263,7 +1230,7 @@ Qed.
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%coq_nat (addThread tp_upd vf arg d_phi)),
-            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
+            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
           let: phi := m_phi jm in
@@ -1279,18 +1246,18 @@ Qed.
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
-            (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
+            (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Ptrofs.intval ofs) phi*)
             (Hstore:
-               Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
+               Mem.store Mint32 (m_dry jm) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
             (* [Hrmap] replaced: [Hct], [Hlock], [Hj_forward] and [levphi'].
                This says that phi and phi' coincide everywhere except in adr_range,
                and specifies how phi and phi' should differ in adr_range
                (in particular, they have equal shares, pointwise) *)
-            (Hrmap : rmap_makelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
+            (Hrmap : rmap_makelock phi phi' (b, Ptrofs.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
-                    (updLockSet tp' (b, Int.intval ofs) None )),
-            syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
+                    (updLockSet tp' (b, Ptrofs.intval ofs) None )),
+            syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi R phi',
           forall
@@ -1301,13 +1268,13 @@ Qed.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*First check the lock is acquired:*)
-            (His_acq: lockRes tp (b, (Int.intval ofs)) = SNone)
+            (His_acq: lockRes tp (b, (Ptrofs.intval ofs)) = SNone)
             (*Relation between rmaps:*)
-            (Hrmap : rmap_freelock phi phi' m (b, Int.unsigned ofs) R LKSIZE)
+            (Hrmap : rmap_freelock phi phi' m (b, Ptrofs.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
-                    (remLockSet tp' (b, Int.intval ofs) )),
-            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs))
+                    (remLockSet tp' (b, Ptrofs.intval ofs) )),
+            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
 
     | step_acqfail :
         forall  c b ofs jm m1,
@@ -1323,9 +1290,9 @@ Qed.
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (sh:Share.t) psh(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
-            syncStep' genv cnt0 Hcompat tp m (failacq (b,Int.intval ofs)).
+            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
+            syncStep' genv cnt0 Hcompat tp m (failacq (b,Ptrofs.intval ofs)).
 
     Definition threadStep (genv:G): forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->

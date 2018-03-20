@@ -7,6 +7,7 @@ Require Import VST.veric.shares.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_ops.
 Require Import VST.concurrency.permjoin_def.
+Require Import FunInd.
 Import Memtype.
 
   Lemma perm_of_glb_not_Freeable: forall sh,

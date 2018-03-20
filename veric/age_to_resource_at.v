@@ -121,3 +121,21 @@ Proof.
         rewrite approx'_oo_approx; auto.
         omega.
 Qed.
+
+Lemma age_to_ghost_of phi n : ghost_of (age_to n phi) = ghost_fmap (approx n) (approx n) (ghost_of phi).
+Proof.
+  pose proof (age_to_ageN n phi).
+  forget (age_to n phi) as phi'.
+  remember (level phi - n) as n'.
+  revert dependent n; revert dependent phi; induction n'; intros.
+  - inv H.
+    rewrite <- ghost_of_approx, ghost_fmap_fmap, approx'_oo_approx, approx_oo_approx' by omega; auto.
+  - change (ageN (S n') phi) with
+      (match age1 phi with Some w' => ageN n' w' | None => None end) in H.
+    destruct (age1 phi) eqn: Hage; [|discriminate].
+    pose proof (age_level _ _ Hage) as Hl.
+    assert (n' = level r - n).
+    { rewrite Hl, <- minus_Sn_m in Heqn' by omega; inversion Heqn'; auto. }
+    rewrite (IHn' _ H n), (age1_ghost_of _ _ Hage) by (auto; omega).
+    rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; auto.
+Qed.

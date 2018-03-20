@@ -138,15 +138,15 @@ Ltac range_tac :=
   | H : ~ adr_range (?b, _) _ (?b, _) |- _ =>
     exfalso; apply H;
     repeat split; auto;
-    try unfold Int.unsigned;
-    unfold LKSIZE;
+    try unfold Ptrofs.unsigned;
+    pose proof LKSIZE_pos;
     omega
   | H : ~ adr_range ?l _ ?l |- _ =>
     destruct l;
     exfalso; apply H;
     repeat split; auto;
-    try unfold Int.unsigned;
-    unfold LKSIZE;
+    try unfold Ptrofs.unsigned;
+    pose proof LKSIZE_pos;
     omega
   end.
 

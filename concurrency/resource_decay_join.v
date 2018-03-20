@@ -243,6 +243,7 @@ Qed.
 Lemma resource_decay_join b phi1 phi1' phi2 phi3 :
   rmap_bound b phi2 ->
   resource_decay b phi1 phi1' ->
+  ghost_of phi1' = own.ghost_approx phi1' (ghost_of phi1) ->
   sepalg.join phi1 phi2 phi3 ->
   exists phi3',
     sepalg.join phi1' (age_to (level phi1') phi2) phi3' /\
@@ -250,7 +251,7 @@ Lemma resource_decay_join b phi1 phi1' phi2 phi3 :
 Proof.
   Unset Printing Implicit.
   intros bound rd; apply resource_decay_aux_spec in rd; revert rd.
-  intros [lev rd] J.
+  intros [lev rd] Hg J.
   assert (lev12 : level phi1 = level phi2).
   { apply join_level in J; intuition congruence. }
 
@@ -334,7 +335,8 @@ Proof.
         clear - RJ rsh2. apply join_top_l in RJ. subst. contradiction bot_unreadable; auto.
   }
 
-  destruct (make_rmap (fun loc => proj1_sig (DESCR loc))) with (n := level phi1') as (phi3' & lev3 & at3).
+  destruct (make_rmap (fun loc => proj1_sig (DESCR loc)) (own.ghost_approx phi1' (ghost_of phi3)))
+    with (n := level phi1') as (phi3' & lev3 & at3 & Hg3).
   {
     (* validity *)
     intros b' ofs.
@@ -363,6 +365,9 @@ Proof.
     extensionality loc; simpl.
     destruct (DESCR loc) as (?&?&rd3&?); simpl; auto.
   }
+  {
+    rewrite !ghost_fmap_fmap, approx_oo_approx; auto.
+  }
 
   exists phi3'.
   split;[|split].
@@ -374,6 +379,8 @@ Proof.
     + intros loc.
       rewrite at3.
       destruct (DESCR loc) as (?&?&?); simpl; auto.
+    + subst phi2'; rewrite Hg, age_to_ghost_of, Hg3.
+      apply ghost_fmap_join, ghost_of_join; auto.
   - rewrite lev3.
     apply join_level in J.
     auto with *.
