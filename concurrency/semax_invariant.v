@@ -278,21 +278,21 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
-        cl_after_external ge None c = Some c' ->
+        cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
         jsafe_phi Jspec ge n ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
       exists q_new,
-      cl_initial_core ge m v1 (v2 :: nil) = Some (q_new, None) /\
+      cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
       jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 
-Definition threads_wellformed ge m tp :=
+Definition threads_wellformed tp :=
   forall i (cnti : containsThread tp i),
     match getThreadC cnti with
     | Krun q => Logic.True
-    | Kblocked q => cl_at_external ge q m <> None
-    | Kresume q v => cl_at_external ge q m <> None /\ v = Vundef
+    | Kblocked q => cl_at_external q <> None
+    | Kresume q v => cl_at_external q <> None /\ v = Vundef
     | Kinit _ _ => Logic.True
     end.
 
@@ -471,7 +471,7 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
-      (wellformed : threads_wellformed ge m tp)
+      (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
     : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
 
@@ -497,7 +497,7 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
     exists j cntj sch' c args,
       sch = j :: sch' /\
       @getThreadC j tp cntj = Kblocked c /\
-      cl_at_external ge c m = Some (ef, args)
+      cl_at_external c = Some (ef, args)
   end.
 
 Ltac absurd_ext_link_naming :=

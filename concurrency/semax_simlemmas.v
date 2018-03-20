@@ -82,12 +82,12 @@ Lemma lset_valid_access m m_any tp Phi b ofs
   (compat : mem_compatible_with tp m Phi) :
   lock_coherence (lset tp) Phi m_any ->
   AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None ->
-  Mem.valid_access (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) Mint32 b ofs Writable.
+  Mem.valid_access (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) Mptr b ofs Writable.
 Proof.
   intros C F.
   split.
   - intros ofs' r. eapply lset_range_perm; eauto.
-     unfold LKSIZE; simpl in r; omega. (* Andrew says: looks fishy *)
+    unfold LKSIZE; omega. (* Andrew says: looks fishy *) (* Is this still fishy? -WM *)
   - eapply lock_coherence_align; eauto.
 Qed.
 
@@ -324,13 +324,13 @@ Qed.
 
 Lemma islock_valid_access tp m b ofs p
       (compat : mem_compatible tp m) :
-  (4 | ofs) ->
+  (align_chunk Mptr | ofs) ->
   lockRes tp (b, ofs) <> None ->
   p <> Freeable ->
   Mem.valid_access
     (restrPermMap
        (mem_compatible_locks_ltwritable compat))
-    Mint32 b ofs p.
+    Mptr b ofs p.
 Proof.
   intros div islock NE.
   eapply Mem.valid_access_implies with (p1 := Writable).
@@ -340,7 +340,6 @@ Proof.
   split; auto;
   intros loc range;
   apply H;
-  unfold size_chunk in *;
   unfold LKSIZE in *;
   omega.
 Qed.
@@ -490,7 +489,7 @@ Lemma jsafeN_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c jm} :
   jsafeN Jspec ge (S n) z c jm ->
   jsafeN Jspec ge n z c jm.
 Proof.
-  apply safe_downward1.
+  apply jsafe_downward1.
 Qed.
 
 Lemma jsafe_phi_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
@@ -498,7 +497,7 @@ Lemma jsafe_phi_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
   jsafe_phi Jspec ge n z c phi.
 Proof.
   intros S jm <-.
-  apply safe_downward1.
+  apply jsafe_downward1.
   apply S, eq_refl.
 Qed.
 
