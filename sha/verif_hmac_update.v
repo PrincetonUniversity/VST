@@ -31,7 +31,7 @@ Proof. abbreviate_semax.
 unfold hmacstate_.
 Intros ST.
 destruct H as [DL1 [DL2 DL3]].
-destruct h1; simpl in *.
+destruct h1; simpl in DL3,H0|-*.
 destruct H0 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
 Time assert_PROP (isptr c /\ field_compatible t_struct_hmac_ctx_st [] c)
@@ -57,7 +57,7 @@ Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv). (*6 versus 21 *)
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
     cancel.
   }
-split; [ intuition | omega ].
+split; [ | split3]; auto. rep_omega. simpl; rep_omega.
 rewrite sublist_same; trivial.
 freeze [0;1;2] FR1.
 Time forward. (*12 versus 12.4*)

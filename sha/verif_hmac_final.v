@@ -41,7 +41,7 @@ Proof. intros. abbreviate_semax.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.
 Intros ST.
-destruct h1; simpl in *.
+destruct h1; simpl in H|-*.
 destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
 (*VST Issue: make_Vptr c. fails*)
@@ -63,7 +63,7 @@ rewrite <- memory_block_data_at_ ; trivial.
 
 unfold_data_at 1%nat.
 
-destruct ST as [MD [iCTX oCTX]]. simpl in *.
+destruct ST as [MD [iCTX oCTX]]. simpl in reprMD,reprI,reprO |- *.
 freeze [2;3;5] FR1.
 Time forward_call (ctx, buf, Vptr b i, Tsh, kv). (*3.6 versus 9.5*)
   { unfold sha256state_. Exists MD.
@@ -98,7 +98,10 @@ apply semax_pre with (P':=
       unfold_data_at 1%nat. thaw FR1.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
-      simpl. rewrite Ptrofs.add_zero. Time cancel. (*0.9*)
+      simpl. rewrite Ptrofs.add_zero.
+      fold t_struct_SHA256state_st.
+      change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+      Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
 
@@ -174,7 +177,7 @@ rewrite field_address_offset by auto with field_compatible. Time cancel. (*0.2*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite field_at_data_at.
-rewrite field_address_offset by auto with field_compatible. simpl. trivial.
+rewrite field_address_offset by auto with field_compatible. simpl.  apply derives_refl.
 Time Qed. (*VST 2.0: 6s*) 
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs

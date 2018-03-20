@@ -68,15 +68,3 @@ Proof.
   intros l; spec E1 l; spec E2 l.
   destruct (phi3 @ l); auto. destruct E2 as (pp, E2). rewrite E2 in E1; auto.
 Qed.
-
-Section juicy_safety.
-  Context {G C Z:Type}.
-  Context (genv_symb: G -> PTree.t block).
-  Context (Hcore:@CoreSemantics G C juicy_mem).
-  Variable (Hspec:external_specification juicy_mem external_function Z).
-  Definition Hrel n' m m' :=
-    n' = level m' /\
-    (level m' < level m)%nat /\
-    pures_eq (m_phi m) (m_phi m').
-  Definition safeN := @safeN_ G C juicy_mem Z genv_symb Hrel Hcore Hspec.
-End juicy_safety.

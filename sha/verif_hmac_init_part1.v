@@ -263,7 +263,7 @@ Proof. intros. abbreviate_semax.
        change (64-32)%nat with (Z.to_nat 32).
        autorewrite with sublist.
        change (64 - 32) with 32.
-       rewrite !map_list_repeat. fold Int.zero.
+       fold Int.zero.
        rewrite field_address0_offset by auto with field_compatible. simpl.
        change (Ptrofs.repr (Ptrofs.unsigned ckoff + 32))
              with (Ptrofs.add ckoff (Ptrofs.repr 32)). (*rewrite Z.add_0_l.*)
@@ -357,7 +357,7 @@ Proof. intros.
        rewrite sepcon_comm.
        rewrite sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
-           simpl. rewrite Z.max_r. rewrite Z.mul_1_l. trivial. omega.
+           simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. omega.
        Time cancel. (*0.1 versus 2.4*) }
      { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l; repeat split; trivial; omega. }
      unfold tarray.
@@ -377,7 +377,7 @@ Proof. intros.
          eapply derives_trans; try apply data_at_memory_block.
                rewrite sizeof_Tarray. trivial.
        rewrite field_address0_offset by auto with field_compatible.
-       simpl. rewrite Z.add_0_l, Z.mul_1_l; trivial.
+       simpl. rewrite Z.add_0_l, Z.mul_1_l;  apply derives_refl.
        apply Z.max_r. omega. }
      { split; auto. rep_omega. }
 
@@ -401,7 +401,7 @@ Proof. intros.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
-     Time cancel.
+     Time cancel. apply derives_refl.
      rewrite Zlength_list_repeat', Z2Nat.id; omega.
 Time Qed. (*10 secs versus 18*)
 

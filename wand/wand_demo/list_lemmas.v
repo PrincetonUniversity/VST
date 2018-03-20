@@ -1,49 +1,10 @@
 Require Import VST.floyd.proofauto.
-Require Import wand_demo.wand_frame.
-Require Import wand_demo.wandQ_frame.
-Require Import wand_demo.list.
+Require Import WandDemo.wand_frame.
+Require Import WandDemo.wandQ_frame.
+Require Import WandDemo.list.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
-
-Module GeneralLseg.
-
-Section GeneralLseg.
-
-Variable listrep: share -> list int -> val -> mpred.
-
-Definition lseg (sh: share) (contents: list int) (x z: val) : mpred :=
-  ALL tcontents: list int, listrep sh tcontents z -* listrep sh (contents ++ tcontents) x.
-
-Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
-  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
-Proof.
-  intros.
-  unfold lseg.
-  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
-  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
-  apply derives_refl'.
-  f_equal; extensionality tcontents; simpl.
-  rewrite app_assoc.
-  auto.
-Qed.
-
-Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
-  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
-Proof.
-  intros.
-  unfold lseg.
-  change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
-   change
-     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh (s1 ++ tcontents) x)
-   with
-     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
-   change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
-   apply wandQ_frame_elim.
-Qed.
-
-End GeneralLseg.
-End GeneralLseg.
 
 Fixpoint listrep (sh: share) (contents: list int) (x: val) : mpred :=
  match contents with
@@ -228,6 +189,45 @@ Proof.
 Qed.
 
 End LsegWandFrame.
+
+Module GeneralLseg.
+
+Section GeneralLseg.
+
+Variable listrep: share -> list int -> val -> mpred.
+
+Definition lseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  ALL tcontents: list int, listrep sh tcontents z -* listrep sh (contents ++ tcontents) x.
+
+Lemma lseg_lseg: forall sh (s1 s2: list int) (x y z: val),
+  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
+Proof.
+  intros.
+  unfold lseg.
+  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
+  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
+  apply derives_refl'.
+  f_equal; extensionality tcontents; simpl.
+  rewrite app_assoc.
+  auto.
+Qed.
+
+Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  unfold lseg.
+  change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
+   change
+     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh (s1 ++ tcontents) x)
+   with
+     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
+   change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
+   apply wandQ_frame_elim.
+Qed.
+
+End GeneralLseg.
+End GeneralLseg.
 
 Module LsegWandQFrame.
 

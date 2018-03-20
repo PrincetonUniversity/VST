@@ -33,7 +33,7 @@ Proof.
     forward_if (PROP ( )
        LOCAL (temp _ctx (Vptr b i))
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
-            hmac256drbg_relate ABS CTX; (*FreeBLK*)malloc_token Tsh 324 (snd (snd (fst CTX))))).
+            hmac256drbg_relate ABS CTX; (*FreeBLK*)malloc_token Tsh spec_hmac.t_struct_hmac_ctx_st (snd (snd (fst CTX))))).
     + elim H; trivial.
     + clear H. forward. entailer!.
     + destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
@@ -46,7 +46,9 @@ Proof.
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H1 as [xx XX]. 
-      forward_call (Vptr b i, (v, (v0, v1))). { simpl; cancel. } 
+      forward_call (Vptr b i, (v, (v0, v1))). {
+         change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
+         simpl; cancel. } 
       replace_SEP 0 (memory_block Tsh 12 (Vptr b i)).
             { specialize (data_at_memory_block Tsh t_struct_md_ctx_st xx); simpl; intros.
               entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
@@ -193,7 +195,7 @@ Proof.
   eapply derives_trans.
   + apply sepcon_derives. apply derives_refl.
     instantiate (1:=emp).  
-    apply orp_left; [ trivial | normalize].
+    apply orp_left; [ auto | normalize; apply derives_refl].
   + cancel. 
 Qed.
 (*
@@ -415,13 +417,10 @@ Proof.
    SEP (data_at Tsh (tarray tuchar n)
           (list_repeat (Z.to_nat k) (Vint Int.zero) ++
            list_repeat (Z.to_nat (n - k)) Vundef) (Vptr b i))).
-    - inv H. forward. apply negb_true_iff in H1. apply int_eq_false_e in H1.
-      entailer!. elim H1; rewrite H2; trivial.
-    - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
-      assert (NK: n = k).
-      { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
-        do 2 rewrite Int.unsigned_repr in H1; try rep_omega. }
-      subst k; clear H1 K. rewrite Zminus_diag.
+    - forward. entailer!.
+    - 
+      assert (NK: n = k) by (apply repr_inj_unsigned in H; rep_omega).
+      subst k; clear H K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.
       apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega. 

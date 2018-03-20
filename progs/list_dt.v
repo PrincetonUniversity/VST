@@ -2626,3 +2626,5 @@ Hint Extern 10 (_ |-- valid_pointer _) =>
 
 End Links.
 
+Arguments elemtype {cs} {list_structid} {list_link} {list_token} ls / .
+

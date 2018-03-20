@@ -71,8 +71,8 @@ Lemma Znth_partially_expanded_key: forall i j key,
   0 <= i < 7 ->
   0 <= j < 8 + i*8 ->
   (Znth j (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i * 8)) key)
-           ++ repeat_op_table (60 - i * 8) Vundef id) Vundef)
-  = Vint (Znth j (KeyExpansion2 key) Int.zero).
+           ++ repeat_op_table (60 - i * 8) Vundef id))
+  = Vint (Znth j (KeyExpansion2 key)).
 Admitted.
 
 Lemma Zlength_partially_expanded_key: forall i key_chars,
@@ -126,7 +126,7 @@ Proof.
     (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
   { (* precondition implies loop invariant: *)
     entailer!.
-    unfold_field_at 1%nat. cancel. }
+    unfold_data_at 1%nat. cancel. }
   { (* loop body preserves invariant: *)
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
@@ -287,6 +287,6 @@ Proof.
   forward.
   rewrite Vundef_is_Vint.
   unfold_data_at 4%nat. cancel.
-  Show.
+  Fail idtac.  (* make sure there are no subgoals *)
 (* Time Qed. takes forever *)
 Admitted.

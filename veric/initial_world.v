@@ -33,7 +33,7 @@ Lemma VALspec_range_e:
                 {x | m @ loc = YES sh (snd x) (VAL (fst x)) NoneP}.
 Proof.
 intros.
-spec H loc.
+destruct H as [H _]; spec H loc.
 rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k;
@@ -161,11 +161,13 @@ assert (Hv: CompCert_AV.valid (res_option oo f)).
   rewrite core_NO in H5; inv H5.
   rewrite core_YES in H5; inv H5.
   rewrite core_PURE in H5; inv H5.
-destruct (remake_rmap f Hv (level w)) as [m2 [? ?]]; clear Hv.
+destruct (remake_rmap f (core (ghost_of w)) Hv (level w)) as [m2 [? ?]]; clear Hv.
 intros; unfold f, no_preds; simpl; intros; repeat if_tac; auto.
 left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
+{ rewrite <- ghost_of_core, <- level_core; apply ghost_of_approx. }
 unfold f in *; clear f.
 exists m2.
+destruct H2 as [H2 Hg2].
 split.
 * (* case 1 of 3 ****)
 apply resource_at_join2.
@@ -179,7 +181,7 @@ simpl; repeat rewrite inflate_initial_mem_level; auto.
 rewrite H1; simpl; rewrite inflate_initial_mem_level; auto.
 destruct H as [H [H5 H7]].
 intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; spec H b' z'.
-spec H3 (b',z'). unfold jam in H3.
+destruct H3 as [H3 Hg]. spec H3 (b',z'). unfold jam in H3.
 hnf in H3. if_tac in H3.
 2: rename H6 into H8.
 clear H. destruct H6 as [H H8].
@@ -208,7 +210,7 @@ destruct (w @ (b,z')); inv H4.
 inv H4.
 + (* case 1.2 *)
 apply join_unit2_e in H4; auto.
-clear m1 H3.
+clear m1 H3 Hg.
 destruct H. contradiction.
 rewrite H2; clear H2.
 rewrite if_false; auto.
@@ -229,8 +231,16 @@ rewrite core_YES.
 destruct (access_at m (b', z')); try destruct p0; try constructor; auto.
 destruct IOK2 as [? [? ?]].
 rewrite H2. rewrite core_PURE; constructor.
-
++
+destruct H3 as [_ Hg].
+apply ghost_of_join in H4.
+unfold initial_mem in *; simpl in *; unfold inflate_initial_mem in *; simpl in *.
+rewrite ghost_of_make_rmap in *.
+rewrite (Hg _ _ (join_comm H4)).
+rewrite Hg2; apply join_comm, core_unit.
 * (**** case 2 of 3 ****)
+destruct H3 as [H3 Hg].
+split.
 intro loc.
 spec H3 loc.
 hnf in H3|-*.
@@ -244,9 +254,10 @@ apply H6.
 do 3 red. rewrite H2.
 rewrite if_false; auto.
 apply core_identity.
+simpl; rewrite Hg2; apply core_identity.
 Qed.
 
-Lemma mem_alloc_juicy:
+(*Lemma mem_alloc_juicy:
   forall m lo hi m' b,
      Mem.alloc m lo hi = (m',b) ->
     forall w P IOK IOK',
@@ -357,7 +368,7 @@ exists readable_share_top.
 f_equal.
 rewrite <- core_resource_at.
 apply core_identity.
-Qed.
+Qed.*)
 
 Lemma fold_right_rev_left:
   forall (A B: Type) (f: A -> B -> A) (l: list B) (i: A),
@@ -424,9 +435,9 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
           end
    else NO Share.bot bot_unreadable.
 
-
-Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat) : rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) _ n _).
+(* What should the ghost state be in an initial core? *)
+Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
+  proj1_sig (make_rmap (initial_core' ge G n) nil _ n _ eq_refl).
 Next Obligation.
 intros.
 intros ? ?.
@@ -1332,8 +1343,8 @@ Proof.
 apply age1_juicy_mem_unpack''; [ | reflexivity].
 simpl.
 unfold inflate_initial_mem in *.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r & lev & bah); simpl end.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r' & lev' & bah'); simpl end.
+match goal with |- context [ proj1_sig ?x ] => destruct x as (r & lev & bah & Hg1); simpl end.
+match goal with |- context [ proj1_sig ?x ] => destruct x as (r' & lev' & bah' & Hg2); simpl end.
 apply rmap_age_i.
 rewrite lev,lev'.
 unfold initial_core; simpl.
@@ -1366,6 +1377,8 @@ end.
 rewrite approx_oo_approx' by omega.
 rewrite approx'_oo_approx by omega.
 auto.
+rewrite Hg1, Hg2.
+unfold initial_core; rewrite !ghost_of_make_rmap; auto.
 Qed.
 
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
@@ -1384,14 +1397,14 @@ Lemma initial_jm_without_locks prog m G n H H1 H2:
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
+  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
   unfold inflate_initial_mem' in E.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
   destruct (access_at m addr); try (split; congruence).
   destruct p; try (split; congruence).
-  destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr);
+  destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
     split; try congruence.
 Qed.
 
@@ -1469,7 +1482,7 @@ Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
+  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
   unfold inflate_initial_mem' in E.
   unfold resource_at in E.
   intros b fsig cc A P Q FAT.
@@ -1486,8 +1499,8 @@ Proof.
     unfold "@" in *.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := proj1_sig _ _) in FAT at 2.
-    destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) (b, 0))
+    set (r := fst (proj1_sig _) _) in FAT at 2.
+    destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.

@@ -374,10 +374,10 @@ normalize. rewrite H6; auto.
 intros.
 apply andp_left2.
 unfold loop1_ret_assert.
-destruct Post as [?P ?P ?P ?P]; apply exp_right with a; auto.
-destruct Post as [?P ?P ?P ?P]; apply andp_left2; auto.
+destruct Post as [?P ?P ?P ?P]; apply exp_right with a; apply derives_refl.
+destruct Post as [?P ?P ?P ?P]; apply andp_left2; apply derives_refl.
 destruct Post as [?P ?P ?P ?P]; apply exp_right with a; apply andp_left2; simpl; auto.
-intros vl; destruct Post as [?P ?P ?P ?P]; apply andp_left2; auto.
+intros vl; destruct Post as [?P ?P ?P ?P]; apply andp_left2; apply derives_refl.
 apply extract_exists_pre; intro a.
 eapply semax_post'; try apply (H3 a).
 apply exp_right with a; auto.

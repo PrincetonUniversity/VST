@@ -300,6 +300,7 @@ Proof.
   apply @const_nonexpansive.
 
   unfold LKspec.
+  apply conj_nonexpansive, const_nonexpansive.
   apply forall_nonexpansive; intros.
   hnf; intros.
   intros n ?.

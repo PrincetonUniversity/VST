@@ -321,10 +321,7 @@ Proof.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
     { red in WFI; simpl in *. repeat split; trivial; try rep_omega.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega. 
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      rep_omega.
-      rep_omega.
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega.
     }
      
     Intros return_value.
@@ -649,7 +646,7 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
     unfold POSTCONDITION, abbreviate. simpl_ret_assert.
     old_go_lower.
     subst.
-    Intros v; Exists v. entailer!.
+    Intros v; Exists v. entailer!. apply derives_refl.
    }
 
   (*POST LOOP*)
@@ -777,5 +774,5 @@ assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.ma
           Hout_lenb ZLa Hreseed_interval.*)
   eapply derives_trans. apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *. 
   + red in WFI; subst I; simpl in *. apply WFI.
-  + normalize. unfold AREP, REP. Exists Info a. normalize.
+  + normalize. unfold AREP, REP. Exists Info a. normalize. apply derives_refl.
 Time Qed. (*61s*) 

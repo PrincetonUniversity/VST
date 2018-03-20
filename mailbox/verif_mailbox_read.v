@@ -14,7 +14,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
@@ -29,7 +29,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   rewrite comm_loc_isptr; Intros.
@@ -37,66 +37,63 @@ Proof.
   forward.
   forward.
   forward.
-  set (c := Znth r comms Vundef).
-  set (l := Znth r locks Vundef).
+  set (c := Znth r comms).
+  set (l := Znth r locks).
   forward_call (sh2, c, g, l, vint 0, Empty, h,
     fun h b => !!(b = Empty /\ latest_read h (vint b0)) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) g0,
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs)) * ghost_var gsh1 (vint b0) g0,
     comm_R bufs sh gsh2 g0 g1 g2, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
       -1 <= b' < B /\ latest_read h (vint b')) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 (vint b') g0).
-  { repeat (split; auto); try computable.
-    unfold AE_spec; intros.
-    intros ??????? Ha.
-    unfold comm_R; unfold comm_R at 1 in Ha.
-    rewrite !rev_app_distr in Ha; simpl in Ha.
-    rewrite !last_two_reads_cons, prev_taken_cons in Ha.
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs)) * ghost_var gsh1 (vint b') g0).
+  { unfold comm_loc; entailer!.
+    rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+    unfold AE_spec.
+    apply allp_right; intro hc.
+    apply allp_right; intro hx.
+    apply allp_right; intro vc.
+    apply allp_right; intro vx.
+    rewrite <- imp_andp_adjoint; Intros.
+    apply andp_right; auto; eapply derives_trans, view_shift_weak; auto.
+    Intros.
+    unfold comm_R at 1 2.
+    rewrite !rev_app_distr; simpl.
+    rewrite !last_two_reads_cons, prev_taken_cons.
     unfold last_write in *; simpl in *.
     pose proof (last_two_reads_fst (rev hx)).
-    rewrite flatten_sepcon_in_SEP.
-    rewrite extract_exists_in_SEP; Intro b.
-    rewrite extract_exists_in_SEP; Intro b1.
-    rewrite extract_exists_in_SEP; Intro b2.
-    rewrite <- flatten_sepcon_in_SEP.
-    rewrite !sepcon_andp_prop', !sepcon_andp_prop.
-    erewrite extract_prop_in_SEP with (n := O); simpl; eauto.
-    erewrite extract_prop_in_SEP with (n := O); simpl; eauto.
-    Intros; subst.
+    Intros b b1 b2.
     assert (last_two_reads (rev hx) = (vint b1, vint b2)) as Hlast by assumption.
     rewrite <- sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 3sepcon_assoc.
-    assert_PROP (vint b1 = vint b0) as Hb1.
-    { go_lowerx.
-      do 2 apply sepcon_derives_prop.
-      rewrite sepcon_comm; apply ghost_var_inj; auto. }
-    rewrite Hb1 in *; erewrite ghost_var_share_join; eauto.
-    rewrite flatten_sepcon_in_SEP.
-    apply ghost_var_update with (v' := vint (if eq_dec (vint b) Empty then b0 else b)).
-    eapply semax_pre, Ha.
-    go_lowerx.
+    erewrite ghost_var_share_join' by eauto; Intros.
+    eapply derives_trans; [apply sepcon_derives, derives_refl;
+      apply ghost_var_update with (v' := vint (if eq_dec (vint b) Empty then b0 else b))|].
+    eapply derives_trans, bupd_mono; [apply bupd_frame_r|].
     assert (repable_signed b0) by (apply repable_buf; omega).
-    rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
-    rewrite <- emp_sepcon at 1; rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
-    Exists (-1) (if eq_dec (vint b) Empty then b0 else b) (if eq_dec (vint b) Empty then b2 else b0).
-    rewrite !sepcon_andp_prop'.
-    apply andp_right.
-    { apply prop_right; repeat (split; [solve [auto; omega]|]).
-      rewrite Forall_app; split; [split; [|constructor]; auto|].
-      { repeat eexists; auto; omega. }
-      destruct (eq_dec (vint b) Empty); rewrite Hlast; auto.
-      split; [|split]; auto; apply repable_buf; auto. }
-    erewrite <- ghost_var_share_join; eauto.
-    rewrite eq_dec_refl; cancel.
-    setoid_rewrite sepcon_comm at 3.
+    assert (b1 = b0) by (apply repr_inj_signed; auto); subst.
+    lapply (repable_buf b); auto; intro.
+    rewrite Hlast.
+    erewrite <- ghost_var_share_join by eauto.
+    Exists (-1) (if eq_dec (vint b) Empty then b0 else b)
+      (if eq_dec (vint b) Empty then b2 else b0); entailer!.
+    { split; [rewrite Forall_app; repeat constructor; auto|].
+      { exists b, (-1); split; [|split]; auto; omega. }
+      rewrite eq_dec_refl.
+      if_tac; auto. }
+    rewrite !eq_dec_refl.
     Exists (if eq_dec (vint b) Empty then b0 else b).
+    rewrite <- exp_sepcon2; cancel.
+    lapply (hist_incl_lt hc hx); auto; intro.
     destruct (eq_dec (vint b) Empty).
     - assert (b = -1) by (apply Empty_inj; auto; apply repable_buf; auto).
       subst; rewrite eq_dec_refl; entailer!.
       rewrite latest_read_Empty; auto.
+      { apply andp_right; auto.
+        eapply derives_trans; eauto. }
     - destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
       entailer!.
       apply latest_read_new; auto.
-      apply hist_incl_lt; auto. }
+      { apply andp_right; auto.
+        eapply derives_trans; eauto. } }
+  { repeat (split; auto); computable. }
   Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
   { destruct (eq_dec v Empty); subst.
@@ -115,22 +112,22 @@ Proof.
   { forward.
     destruct (eq_dec b (-1)); [|omega].
     entailer!. }
-  forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads Vundef);
+  forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads);
       temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
-    SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (h ++ [(t, AE (vint b) Empty)]);
-         EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs Vundef);
+    SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (map_upd h t (AE (vint b) Empty));
+         EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs);
          ghost_var gsh1 (vint b') g0;
          data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
-         data_at_ Tsh tint (Znth r reads Vundef);
-         data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts Vundef);
+         data_at_ Tsh tint (Znth r reads);
+         data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks lock)).
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [|discriminate].
-    entailer!.
+    entailer!. apply derives_refl.
   - forward.
     forward.
     Exists (if eq_dec b (-1) then b0 else b) t (vint b) v.
@@ -153,7 +150,7 @@ Proof.
   rewrite (data_at__isptr _ tint); Intros.
   assert_PROP (Zlength reads = N) by entailer!.
   assert (0 <= r < N) as Hr.
-  { exploit (Znth_inbounds r reads Vundef); [|omega].
+  { exploit (Znth_inbounds r reads); [|omega].
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.

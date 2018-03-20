@@ -9,43 +9,40 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.binop_lemmas2.
 
 Lemma denote_tc_nonzero_e:
- forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
+ forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> i <> Int.zero.
 Proof.
-simpl; intros . destruct (Int.eq i Int.zero); auto; contradiction.
+simpl; auto .
 Qed.
 
 Lemma denote_tc_nodivover_e:
  forall i j m, app_pred (denote_tc_nodivover (Vint i) (Vint j)) m ->
-   Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone = false.
+   ~ (i =Int.repr Int.min_signed /\ j = Int.mone).
 Proof.
-simpl; intros.
-destruct (Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone); try reflexivity; contradiction.
+simpl; auto.
 Qed.
 
 Lemma denote_tc_nonzero_e64:
- forall i m, app_pred (denote_tc_nonzero (Vlong i)) m -> Int64.eq i Int64.zero = false.
+ forall i m, app_pred (denote_tc_nonzero (Vlong i)) m -> i <> Int64.zero.
 Proof.
-simpl; intros . destruct (Int64.eq i Int64.zero); auto; contradiction.
+simpl; auto.
 Qed.
 
 Lemma denote_tc_nodivover_e64_ll:
  forall i j m, app_pred (denote_tc_nodivover (Vlong i) (Vlong j)) m ->
-   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+   ~ (i =Int64.repr Int64.min_signed /\ j = Int64.mone).
 Proof.
-simpl; intros.
-destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+simpl; auto.
 Qed.
 
 Lemma denote_tc_nodivover_e64_il:
+  (* This is a rather vacuous lemma, since the premise is simply True *)
  forall s i j m, app_pred (denote_tc_nodivover (Vint i) (Vlong j)) m ->
-   Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+   ~ (cast_int_long s i = Int64.repr Int64.min_signed /\ j = Int64.mone).
 Proof.
 simpl; intros.
-pose proof (Int64.eq_spec (cast_int_long s i) (Int64.repr Int64.min_signed)).
-destruct (Int64.eq (cast_int_long s i)); unfold cast_int_long in *; try reflexivity.
-simpl.
-elimtype False.
-destruct s.
+intros [? ?].
+subst.
+destruct s; simpl in *.
 *
 pose proof (@f_equal _ _ Int64.signed _ _ H0).
 rewrite Int64.signed_repr in H1.
@@ -88,20 +85,14 @@ Qed.
 
 Lemma denote_tc_nodivover_e64_li:
  forall s i j m, app_pred (denote_tc_nodivover (Vlong i) (Vint j)) m ->
-   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false.
+   ~ (i = Int64.repr Int64.min_signed /\ cast_int_long s j = Int64.mone).
 Proof.
 simpl; intros.
-destruct (Int64.eq i (Int64.repr Int64.min_signed)); try reflexivity.
-simpl in H.
-unfold cast_int_long.
-simpl.
-destruct (Int.eq j Int.mone) eqn:?; inv H.
-destruct s.
+contradict H.
+destruct H; split; auto.
+clear - H0.
+destruct s; simpl in *.
 *
-pose proof (Int.eq_spec j Int.mone). rewrite Heqb in H. clear Heqb.
-pose proof (Int64.eq_spec  (Int64.repr (Int.signed j)) Int64.mone).
-destruct (Int64.eq (Int64.repr (Int.signed j)) Int64.mone); auto.
-contradiction H; clear H.
 unfold Int64.mone in H0.
 pose proof (@f_equal _ _ Int64.signed _ _ H0).
 clear H0.
@@ -115,10 +106,6 @@ destruct H.
 split; eapply Z.le_trans; try eassumption.
 compute. congruence. compute. congruence.
 *
-pose proof (Int.eq_spec j Int.mone). rewrite Heqb in H. clear Heqb.
-pose proof (Int64.eq_spec  (Int64.repr (Int.unsigned j)) Int64.mone).
-destruct (Int64.eq (Int64.repr (Int.unsigned j)) Int64.mone); auto.
-contradiction H; clear H.
 unfold Int64.mone in H0.
 pose proof (@f_equal _ _ Int64.signed _ _ H0).
 clear H0.
@@ -137,6 +124,33 @@ compute. auto.
 omega.
 Qed.
 
+Lemma Int64_eq_repr_signed32_nonzero:
+  forall i, i <> Int.zero ->
+             Int64.repr (Int.signed i) <> Int64.zero.
+Proof.
+intros.
+contradict H.
+rename H into H0.
+unfold Int64.zero in H0.
+assert (Int64.signed (Int64.repr (Int.signed i)) = Int64.signed (Int64.repr 0)) by (f_equal; auto).
+rewrite Int64.signed_repr in H.
+rewrite Int64.signed_repr in H.
+rewrite <- (Int.repr_signed i).
+rewrite H. reflexivity.
+pose proof (Int64.signed_range Int64.zero).
+rewrite Int64.signed_zero in H1.
+auto.
+pose proof (Int.signed_range i).
+clear - H1.
+destruct H1.
+split.
+apply Z.le_trans with Int.min_signed; auto.
+compute; congruence.
+apply Z.le_trans with Int.max_signed; auto.
+compute; congruence.
+Qed.
+
+(*
 Lemma Int64_eq_repr_signed32_nonzero:
   forall i, Int.eq i Int.zero = false ->
              Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
@@ -163,7 +177,33 @@ compute; congruence.
 apply Z.le_trans with Int.max_signed; auto.
 compute; congruence.
 Qed.
+*)
 
+Lemma Int64_eq_repr_unsigned32_nonzero:
+  forall i, i <> Int.zero ->
+             Int64.repr (Int.unsigned i) <> Int64.zero.
+Proof.
+intros.
+rename H into H0.
+contradict H0.
+unfold Int64.zero in H0.
+assert (Int64.unsigned (Int64.repr (Int.unsigned i)) = Int64.unsigned (Int64.repr 0)) by (f_equal; auto).
+rewrite Int64.unsigned_repr in H.
+rewrite Int64.unsigned_repr in H.
+rewrite <- (Int.repr_unsigned i).
+rewrite H. reflexivity.
+split; compute; congruence.
+pose proof (Int.unsigned_range i).
+clear - H1.
+destruct H1.
+split; auto.
+unfold Int64.max_unsigned.
+apply Z.le_trans with Int.modulus.
+omega.
+compute; congruence.
+Qed.
+
+(*
 
 Lemma Int64_eq_repr_unsigned32_nonzero:
   forall i, Int.eq i Int.zero = false ->
@@ -189,7 +229,19 @@ apply Z.le_trans with Int.modulus.
 omega.
 compute; congruence.
 Qed.
+*)
 
+Lemma Int64_eq_repr_int_nonzero:
+  forall s i, i <> Int.zero ->
+    cast_int_long s i <> Int64.zero.
+Proof.
+  intros.
+  destruct s.
+  + apply Int64_eq_repr_signed32_nonzero; auto.
+  + apply Int64_eq_repr_unsigned32_nonzero; auto.
+Qed.
+
+(*
 Lemma Int64_eq_repr_int_nonzero:
   forall s i, Int.eq i Int.zero = false ->
     Int64.eq (cast_int_long s i) Int64.zero = false.
@@ -199,32 +251,27 @@ Proof.
   + apply Int64_eq_repr_signed32_nonzero; auto.
   + apply Int64_eq_repr_unsigned32_nonzero; auto.
 Qed.
+*)
 
 Lemma denote_tc_igt_e:
   forall m i j, app_pred (denote_tc_igt j (Vint i)) m ->
-        Int.ltu i j = true.
-Proof.
-intros.
-hnf in H. destruct (Int.ltu i j); auto; contradiction.
-Qed.
+        Int.unsigned i < Int.unsigned j.
+Proof. auto. Qed.
 
 Lemma denote_tc_lgt_e:
   forall m i j, app_pred (denote_tc_lgt j (Vlong i)) m ->
-        Int64.ltu i j = true.
-Proof.
-intros.
-hnf in H. destruct (Int64.ltu i j); auto; contradiction.
-Qed.
+        Int64.unsigned i < Int64.unsigned j.
+Proof. auto. Qed.
 
 Lemma denote_tc_iszero_long_e:
  forall m i,
-  app_pred (denote_tc_iszero (Vlong i)) m ->
-  Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true.
+  app_pred (denote_tc_iszero (Vlong i)) m -> i = Int64.zero.
 Proof.
 intros.
-hnf in H.
-destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero);
-  auto; contradiction.
+hnf in H. rewrite Int64.repr_unsigned in H.
+pose proof (Int64.eq_spec i Int64.zero).
+destruct (Int64.eq i Int64.zero); try contradiction.
+auto.
 Qed.
 
 Lemma int_type_tc_val_Vtrue:
@@ -291,20 +338,20 @@ Lemma Int64repr_Intsigned_zero:
   forall i, Int64.repr (Int.signed i) = Int64.zero -> i=Int.zero.
 Proof.
 intros.
-destruct (Int.eq i Int.zero) eqn:?.
-apply int_eq_e; auto.
-apply Int64_eq_repr_signed32_nonzero in Heqb.
-rewrite H in Heqb. inv Heqb.
+pose proof (Int.eq_spec i Int.zero).
+destruct (Int.eq i Int.zero) eqn:?; auto.
+apply Int64_eq_repr_signed32_nonzero in H0.
+contradiction.
 Qed.
 
 Lemma Int64repr_Intunsigned_zero:
   forall i, Int64.repr (Int.unsigned i) = Int64.zero -> i=Int.zero.
 Proof.
 intros.
-destruct (Int.eq i Int.zero) eqn:?.
-apply int_eq_e; auto.
-apply Int64_eq_repr_unsigned32_nonzero in Heqb.
-rewrite H in Heqb. inv Heqb.
+pose proof (Int.eq_spec i Int.zero).
+destruct (Int.eq i Int.zero) eqn:?; auto.
+apply Int64_eq_repr_unsigned32_nonzero in H0.
+contradiction.
 Qed.
 
 Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
@@ -773,10 +820,11 @@ Proof.
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
-    - rewrite (denote_tc_igt_e m) by assumption;
+    - 
+       unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - rewrite (denote_tc_igt_e m) by assumption;
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
+            destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_ll *)
     destruct IBR as [?IBR ?IBR].
     apply tc_bool_e in IBR0.
@@ -793,9 +841,10 @@ Proof.
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
-    - rewrite (denote_tc_lgt_e m) by assumption;
+    -
+       unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - rewrite (denote_tc_lgt_e m) by assumption;
+    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_il *)
     destruct IBR as [?IBR ?IBR].
@@ -813,9 +862,9 @@ Proof.
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
-    - rewrite (denote_tc_lgt_e m) by assumption;
+    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - rewrite (denote_tc_lgt_e m) by assumption;
+    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_li *)
     destruct IBR as [?IBR ?IBR].
@@ -833,9 +882,9 @@ Proof.
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
-    - rewrite (denote_tc_igt_e m) by assumption;
+    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - rewrite (denote_tc_igt_e m) by assumption;
+    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
 Qed.
 

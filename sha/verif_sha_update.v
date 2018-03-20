@@ -206,7 +206,7 @@ forward_if (   PROP  ()
     assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d)
       by (entailer!; auto with field_compatible).
  evar (Frame: list mpred).
-  unfold_field_at 1%nat.
+  unfold_data_at 1%nat.
   eapply(call_memcpy_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0
                    (list_repeat (Z.to_nat CBLOCKz) Vundef) c
@@ -264,7 +264,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  forward. (* skip; *)
  unfold sha256state_.
  unfold data_block.
- match goal with |- context [field_at _ _ _ ?r _] => Exists r end.
+ match goal with |- context [data_at _ t_struct_SHA256state_st ?r _] => Exists r end.
  entailer!.
  rewrite <- UAE.
  autorewrite with sublist.

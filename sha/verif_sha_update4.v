@@ -97,8 +97,6 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
-  pose proof CBLOCKz_eq. pose proof (Zlength_nonneg dd). 
-  entailer!.
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data kv).
@@ -113,7 +111,7 @@ apply andp_left2; auto.
 * (* else clause *)
 forward.  (* skip; *)
 Exists (@nil int). rewrite <- app_nil_end.
-apply repr_inj_unsigned in H0; try Omega1. rename H0 into H1.
+rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.

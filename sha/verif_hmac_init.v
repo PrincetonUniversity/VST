@@ -81,7 +81,7 @@ forward_seq. instantiate (1:= PostKeyNull c k pad kv h1 l key ckb ckoff).
 (*subst PostKeyNull.*)
 unfold PostKeyNull. Intros cb cofs r.
 (*Time normalize. (*2.3*)*)
-unfold POSTCONDITION, abbreviate. subst c.
+subst c.
 rename H0 into R.
 
 (*isolate branch if (reset) *)
@@ -152,7 +152,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 (* Issue: why is update_reptype not simplifying? *)
      match goal with |- context [@upd_reptype ?cs ?t ?gfs ?x ?v] =>
            change (@upd_reptype cs t gfs x v) with (v,(iS,oS)) end.
-     simpl in *.
+     simpl in ISHA, OSHA, IREL, OREL, v |- *.
 
      Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
        as FC_cb by entailer!. (*1.8 versus 3.9*)
@@ -191,15 +191,14 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
       simpl. Time entailer!. (*1.9 versus 5.6*)
-
      unfold_data_at 1%nat.
      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       rewrite field_address_offset by auto with field_compatible.
       simpl; rewrite Ptrofs.add_zero.
-      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       thaw FR4. thaw FR3. thaw FR2.
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       Time cancel. (*1.6 versus 0.7*)
   }
 
@@ -256,6 +255,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite field_address_offset by auto with field_compatible.
     simpl; rewrite Ptrofs.add_zero.
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
     Time cancel. (*1.7 versus 1.2 penalty when melting*)
   }
 }

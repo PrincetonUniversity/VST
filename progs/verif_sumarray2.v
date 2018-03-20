@@ -74,8 +74,8 @@ forward. (* s += x; *)
 entailer!.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
- simpl. rewrite Z.add_0_r. reflexivity.
+ rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+ simpl. autorewrite with sublist. normalize.
 * (* After the loop *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
@@ -223,7 +223,7 @@ Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
 forward.  (* s = 0; *)
 forward_for (sumarray_Inv a sh contents size)
-   (sumarray_PostBody a sh contents size).
+   continue: (sumarray_PostBody a sh contents size).
 * (* initializer establishes precondition *)
 forward. (* i=0; *)
 unfold sumarray_Inv. Exists 0. entailer!.
@@ -239,8 +239,8 @@ unfold sumarray_PostBody. Exists i.
 entailer!.
      f_equal. f_equal.
      rewrite (sublist_split 0 i (i+1)) by omega.
-     rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
-     simpl. rewrite Z.add_0_r. reflexivity.
+     rewrite sum_Z_app. rewrite (sublist_one i) by omega.
+     simpl. autorewrite with sublist norm. reflexivity.
 * (* loop increment *)
 forward. (* i++; *)
 rename a0 into i.

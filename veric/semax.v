@@ -13,6 +13,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.own.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -20,16 +21,16 @@ Local Open Scope pred.
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
-Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
-  safeN (fun ge: genv => Genv.genv_symb ge) (juicy_core_sem cl_core_sem) Hspec.
+Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) :=
+  jsafeN_(genv_symb := fun ge: genv => Genv.genv_symb ge) cl_core_sem Hspec.
 
 Program Definition assert_safe
      (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
-  fun rho w => forall ora (jm:juicy_mem),
+  fun rho => bupd (fun w => forall ora (jm:juicy_mem),
        rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
-             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm.
+             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm).
  Next Obligation.
   intro; intros.
   subst.
@@ -39,7 +40,6 @@ Program Definition assert_safe
    forget (State ve te ctl) as c. clear H ve te ctl.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in H0.
-  unfold jsafeN in *.
   eapply age_safe; eauto.
 Qed.
 

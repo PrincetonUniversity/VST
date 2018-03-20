@@ -222,7 +222,7 @@ forward_for_simple_bound 8
  apply align_compatible_tarray_tuchar.
 *
   forward. (* ll=(c)->h[xn]; *)
-  pose (w := Znth i hashedmsg Int.zero).
+  pose (w := Znth i hashedmsg).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
   assert (BYTES: bytes =
      sublist (i * 4) (i * 4 + 4)
@@ -237,7 +237,7 @@ forward_for_simple_bound 8
   replace (fun x : Z => force_int (Vint (Int.repr x))) with Int.repr
    by (extensionality zz; reflexivity).
   f_equal.
-  rewrite sublist_singleton with (d:=Int.zero) by omega.
+  rewrite sublist_len_1 by omega.
   reflexivity.
  }
  unfold data_at.
@@ -339,7 +339,7 @@ intuition.
   fold vbytes.
   change (32 - i*4 - 4) with (N32 - i*4 - WORD).
   cancel.
-rewrite !array_at_data_at_rec by (auto with field_compatible; omega).
+rewrite !array_at_data_at' by (auto with field_compatible; omega).
 simpl.
 autorewrite with sublist.
 apply derives_refl'.
@@ -429,8 +429,7 @@ Proof.
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
-   rewrite (split3seg_array_at _ _ _ 0 56 60)
-     by (autorewrite with sublist; Omega1).
+   rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_omega).
    assert (CBZ := CBLOCKz_eq).
    Time autorewrite with sublist. (*11.5*)
    clear CBZ; subst GOAL. cbv beta.
@@ -466,7 +465,7 @@ Proof.
    replace A with (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)
   by (clear - FC;
-        rewrite array_at_data_at_rec by auto with field_compatible;
+        rewrite array_at_data_at' by auto with field_compatible;
         reflexivity)
  end.
   gather_SEP 0 1 2.
@@ -490,7 +489,7 @@ Proof.
    pose proof (Zlength_nonneg dd').
    Time autorewrite with sublist. (*7*)
    cancel.
-   rewrite array_at_data_at_rec; auto.
+   rewrite array_at_data_at'; auto.  apply derives_refl.
  }
   Time forward. (* p += 4; *) (*5.1*) {
    go_lower. apply prop_right.

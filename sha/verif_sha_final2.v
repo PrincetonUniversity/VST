@@ -130,10 +130,8 @@ semax Delta_final_if1
    field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
    field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;
    field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (s256a_len a))) c;
-   field_at Tsh (tarray tuchar 64) []
-     ((map Vint (map Int.repr (s256a_data a)) ++ [Vint (Int.repr 128)]) ++
-      sublist (Zlength (s256a_data a) + 1) CBLOCKz r_data)
-     (field_address t_struct_SHA256state_st [StructField _data] c);
+   field_at Tsh t_struct_SHA256state_st [StructField _data]
+     ((map Vint (map Int.repr (s256a_data a)) ++ [Vint (Int.repr 128)]) ++ sublist (Zlength (s256a_data a) + 1) CBLOCKz r_data) c;
    field_at Tsh t_struct_SHA256state_st [StructField _num]
      (Vint (Int.repr (Zlength (s256a_data a)))) c; memory_block shmd 32 md))
   (Sifthenelse
@@ -198,6 +196,7 @@ replace_SEP 0  (data_at Tsh t_struct_SHA256state_st
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite <- !(app_ass _ [_]).
  rewrite <- app_nil_end.
+ rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
  autorewrite with sublist. omega.
  autorewrite with sublist; apply JMeq_refl.
@@ -298,7 +297,6 @@ forward_call (* sha256_block_data_order (c,p); *)
  Exists (hashed ++ ddzw) (@nil Z) pad.
  entailer!.
 *
-split; [ Omega1 |].
 split.
  + rewrite initial_world.Zlength_app.
   apply Z.divide_add_r; auto. rewrite H1'.
@@ -342,7 +340,7 @@ split.
 autorewrite with sublist. omega.
 apply s256a_hashed_divides.
 autorewrite with sublist; auto.
-rewrite (field_at_data_at _ _ [_]).
+rewrite !(field_at_data_at _ _ [_]).
 eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
 autorewrite with sublist; Omega1.
 autorewrite with sublist.

@@ -25,7 +25,7 @@ Lemma loop1_aux_lemma1:
   Zlength b <= 16 ->
   upd_Znth i
           (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16 - i)) Vundef)
-          (Vint (Znth i b Int.zero))
+          (Vint (Znth i b))
   =  map Vint (sublist 0 (i+1) b) ++ list_repeat (Z.to_nat (16 - (i+1))) Vundef.
 Proof.
 intros.
@@ -35,7 +35,7 @@ rewrite (sublist_split 0 i (i+1)) by omega.
 rewrite map_app.
 rewrite app_ass.
 f_equal.
-rewrite (sublist_singleton i _ Int.zero) by omega.
+rewrite (sublist_len_1 i) by omega.
 simpl.
 autorewrite with sublist.
 f_equal. f_equal. f_equal. omega.
@@ -131,7 +131,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
   rewrite Zlength_intlist_to_Zlist in H5.
-  rewrite array_at_data_at_rec by (auto with field_compatible; omega).
+  rewrite array_at_data_at' by (auto with field_compatible; omega).
   simpl.
   autorewrite with sublist.
   fold (tarray tuchar 4). f_equal.

@@ -403,7 +403,7 @@ Proof.
   {
     (* prove the PROP clauses *)
     simpl in *. repeat split; trivial; try omega. (*
-    rewrite H2 in *;*) rewrite ptrofs_max_unsigned_eq. omega.
+    rewrite H2 in *;*) rep_omega.
     left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption.
       eapply get_bytes_isbyteZ; eauto.

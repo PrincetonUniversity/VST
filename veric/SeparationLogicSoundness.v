@@ -40,8 +40,8 @@ Axiom semax_prog_rule :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
+       (forall jm, m_dry jm = m -> semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) jm (Vptr b Ptrofs.zero) nil = Some (q, None)) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
@@ -94,6 +94,7 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
+Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
 Definition semax_seq_Slabel := @semax_seq_Slabel.
@@ -114,7 +115,7 @@ Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
-Definition semax_pre_post := @semax_pre_post.
+Definition semax_pre_post_bupd := @semax_pre_post_bupd.
 Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
@@ -128,6 +129,15 @@ Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
+
+Lemma semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ @semax CS Espec Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ @semax CS Espec Delta P (Sloop body incr) R.
+Proof.
+intros. inv H.
+Qed.
 
 End CSL.
 

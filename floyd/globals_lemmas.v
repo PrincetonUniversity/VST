@@ -268,7 +268,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
     (apply exp_right with (Vptr b' Ptrofs.zero); apply andp_right;
       [unfold local, lift1; apply prop_right; auto
-      |      unfold offset_val; simpl; try rewrite Ptrofs.repr_unsigned, Ptrofs.add_zero_l; auto]).
+      |      unfold offset_val; simpl; try rewrite Ptrofs.repr_unsigned, Ptrofs.add_zero_l; auto; try apply derives_refl]).
 
   unfold mapsto. simpl. rewrite !if_true by auto.
   rewrite andb_false_r. simpl.
@@ -414,7 +414,7 @@ assert (0 <= ofs) by (unfold ofs; omega).
 clearbody ofs.
 revert ofs H9 H10 H11 H12.
 clear dependent gv. clear H H0 H6.
-induction idata; simpl; auto; intros.
+induction idata; simpl; auto; intros. apply derives_refl.
 apply sepcon_derives.
 * rewrite andb_true_iff in H1.
   eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
@@ -1088,7 +1088,7 @@ rewrite !local_sepcon_assoc1.
 apply andp_derives; auto.
 rewrite <- !sepcon_assoc.
 pull_left (`(g (h x))).
-auto.
+apply derives_refl.
 Qed.
 
 Lemma move_globfield_into_SEP'':

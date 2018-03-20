@@ -5,6 +5,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.sublist2.
 
 Local Open Scope logic.
 
@@ -25,13 +26,11 @@ intros. destruct p; try contradiction; apply I.
 Qed.
 Hint Resolve isptr_force_val_sem_cast_neutral : norm.
 
-Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
-    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
-
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
 Hint Resolve @FF_local_facts: saturate_local.
 
+(*
 (*** Omega stuff ***)
 
 Ltac omegable' A :=
@@ -146,17 +145,16 @@ Ltac Omega'' L :=
 
 Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
 
-Ltac helper1 :=
+Ltac helper1 := 
+  pose_standard_const_equations;
  match goal with
    | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
-   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
-   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
-   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
-  end.
+ end.
 
 Ltac Omega0 := Omega (solve [ helper1 ]).
 
 (*** End of Omega stuff *)
+*)
 
 Ltac simpl_compare :=
  match goal with
@@ -374,7 +372,22 @@ Ltac pull_out_props :=
                 || simple apply derives_extract_prop');
                 fancy_intros true).
 
+Ltac simplify_float2int :=
+match goal with
+| |- context [Zofsingle (Float32.of_bits (Int.repr ?A))] =>
+   putable A; 
+   let x := fresh "x" in (evar (x: Z));
+   replace (Zofsingle (Float32.of_bits (Int.repr A))) with (Some x) by (subst x; reflexivity);
+   compute in x; subst x
+| |- context [Zoffloat (Float.of_bits (Int.repr ?A))] =>
+   putable A; 
+   let x := fresh "x" in (evar (x: Z));
+   replace (Zoffloat (Float.of_bits (Int.repr A))) with (Some x) by (subst x; reflexivity);
+   compute in x; subst x
+end.
+
 Ltac ent_iter :=
+    repeat simplify_float2int;
     autorewrite with gather_prop;
     repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
@@ -447,12 +460,24 @@ Hint Extern 4 (value_fits _ _ _) =>
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
 
+Lemma intsigned_intrepr_bytesigned: forall i,
+   Int.signed (Int.repr (Byte.signed i)) = Byte.signed i.
+Proof.
+ intros. rewrite Int.signed_repr; auto.
+  destruct (Byte.signed_range i).
+  split.
+  eapply Z.le_trans; [ | eassumption]. compute; intros Hx; inv Hx.
+  eapply Z.le_trans; [eassumption | ]. compute; intros Hx; inv Hx.
+Qed.
+
+Hint Rewrite intsigned_intrepr_bytesigned : rep_omega.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
         | reflexivity
-        | Omega0
+        | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *)
         | prove_signed_range
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
@@ -748,4 +773,93 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; Omega0) : norm.
+Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
+
+Import ListNotations.
+
+Definition cstring {CS : compspecs} (s: list byte) p := 
+  !!(~In Byte.zero s) &&
+  data_at Tsh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
+
+Lemma cstring_local_facts: forall {CS : compspecs} s p, cstring s p |-- !! (isptr p).
+Proof.
+  intros; unfold cstring; entailer!.
+Qed.
+
+Hint Resolve cstring_local_facts : saturate_local.
+
+Lemma cstring_valid_pointer: forall {CS : compspecs} s p, cstring s p |-- valid_pointer p.
+Proof.
+  intros; unfold cstring; Intros.
+  apply data_at_valid_ptr; auto.
+  unfold tarray, tschar, sizeof.
+  pose proof (Zlength_nonneg s).
+  rewrite Z.max_r; omega.
+Qed.
+
+Hint Resolve cstring_valid_pointer : valid_pointer.
+Definition cstringn {CS : compspecs} (s: list byte) n p :=
+  !!(~In Byte.zero s) &&
+  data_at Tsh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
+    list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
+
+Lemma cstringn_equiv : forall {CS : compspecs} s p, cstring s p = cstringn s (Zlength s + 1) p.
+Proof.
+  intros; unfold cstring, cstringn.
+  rewrite Zminus_diag, app_nil_r; auto.
+Qed.
+
+Lemma cstringn_local_facts: forall {CS : compspecs} s n p, cstringn s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
+Proof.
+  intros; unfold cstringn; entailer!.
+  autorewrite with sublist in H1.
+  pose proof (Zlength_nonneg s).
+  pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
+  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; omega.
+Qed.
+
+Hint Resolve cstringn_local_facts : saturate_local.
+
+Lemma cstringn_valid_pointer: forall {CS : compspecs} s n p, cstringn s n p |-- valid_pointer p.
+Proof.
+  intros.
+  entailer!. 
+  unfold cstringn; Intros.
+  apply data_at_valid_ptr; auto.
+  unfold tarray, tschar, sizeof; cbv beta iota zeta.
+  pose proof (Zlength_nonneg s).
+  rewrite Z.max_r; omega.
+Qed.
+
+Hint Resolve cstringn_valid_pointer : valid_pointer.
+
+
+Lemma Znth_zero_zero:
+  forall i, Znth i [Byte.zero] = Byte.zero.
+Proof.
+intros.
+unfold Znth.
+if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
+Qed.
+
+
+Ltac cstring :=
+  match goal with H: ~In Byte.zero _ |- _ => idtac end;
+ lazymatch goal with
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
+ end;
+(* THIS TACTIC solves goals of the form,
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
+*)
+  pose_Zlength_nonneg;
+  apply Classical_Prop.NNPP; intro;
+  match goal with
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
+     constr_eq ls ls'; apply H; rewrite <- H1;  
+    rewrite app_Znth1 by omega; apply Znth_In; omega
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
+     constr_eq ls ls'; apply H1;
+    rewrite app_Znth2 by omega; apply Znth_zero_zero
+ end.

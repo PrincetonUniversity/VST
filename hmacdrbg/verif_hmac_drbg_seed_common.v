@@ -12,7 +12,7 @@ Proof. intros.
 Qed.
 
 Lemma hmac_interp_empty d r: hmac_interp d r |-- md_empty r.
-destruct d; simpl. trivial.
+destruct d; simpl. auto.
 + destruct h. simpl.
   eapply derives_trans.
   apply UNDER_SPEC.REP_FULL.

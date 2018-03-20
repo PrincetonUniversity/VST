@@ -19,10 +19,10 @@ Ltac canon_load_result ::= idtac.
 Definition HTrue_inv1 l i ys xs : Prop :=
       Zlength l = 16 /\ exists ints, l=map Vint ints /\
                forall j, 0<=j<16 -> exists xj,
-                Znth j xs Vundef = Vint xj
-                /\ (j<i -> exists yj, Znth j ys Vundef = Vint yj /\
-                                      Znth j l Vundef = Vint (Int.add yj xj))
-                /\ (i<=j ->  Znth j l Vundef = Vint xj).
+                Znth j xs = Vint xj
+                /\ (j<i -> exists yj, Znth j ys = Vint yj /\
+                                      Znth j l = Vint (Int.add yj xj))
+                /\ (i<=j ->  Znth j l = Vint xj).
 
 Definition htrue_loop1_statement:=
 Sfor (Sset _i (Econst_int (Int.repr 0) tint))
@@ -46,7 +46,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
-Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h xs ys:
+Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
@@ -85,18 +85,19 @@ Proof.
     split. assumption.
     exists xs; split; trivial.
     intros.
-    destruct (Znth_mapVint xs j Vundef) as [xj Xj]. rewrite Zlength_map in XL; omega.
+    destruct (Znth_mapVint xs j) as [xj Xj]. rewrite Zlength_map in XL; omega.
     exists xj; split; trivial.
     split; intros. omega. trivial. }
   { rename H into I. Intros xlist.
     destruct H as [XLL XLIST].
     destruct XLIST as [xints [INTS J]]. subst xlist.
     destruct (J _ I) as [xi [Xi [_ HXi]]].
-    destruct (Znth_mapVint ys i Vundef) as [yi Yi]. rewrite Zlength_map in YL; omega.
-    freeze [0;1] FR1. 
-    Time forward; rewrite HXi by omega. solve [entailer!]. 
+    destruct (Znth_mapVint ys i) as [yi Yi]. rewrite Zlength_map in YL; omega.
+    freeze [0;1] FR1.
+    spec HXi; [omega|]. change Inhabitant_val with Vundef in HXi.
+    Time forward; rewrite HXi.
     thaw FR1. freeze [0;2] FR2.
-    Time forward; rewrite Yi. solve [entailer!]. 
+    Time forward; change Inhabitant_val with Vundef in Yi; rewrite Yi. 
     thaw FR2.
     Time forward. (*4.8 versus 7.4*)
     Exists (upd_Znth i (map Vint xints) (Vint (Int.add yi xi))).
@@ -116,7 +117,8 @@ Proof.
             omega.
         - assert (JJ: kk=i) by omega. subst kk.
           rewrite Xj in Xi; inv Xi.
-          rewrite upd_Znth_same, Yi. exists yi; split; trivial.
+          rewrite @upd_Znth_same.
+          exists yi. change Inhabitant_val with Vundef; split; trivial.
           simpl in *; omega.
       + rewrite upd_Znth_diff. apply IJ2; omega.
             simpl in *; omega.
@@ -182,8 +184,8 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
          O => sumlist
        | S m => let j:= Z.of_nat m in
                 let s := hPosLoop2 m sumlist C Nonce in
-                let five := Int.sub (Znth (5*j) sumlist Int.zero) (littleendian (Select16Q C j)) in
-                let six := Int.sub (Znth (6+j) sumlist Int.zero) (littleendian (Select16Q Nonce j)) in
+                let five := Int.sub (Znth (5*j) sumlist) (littleendian (Select16Q C j)) in
+                let six := Int.sub (Znth (6+j) sumlist) (littleendian (Select16Q Nonce j)) in
                 upd_Znth (6+j) (upd_Znth (5*j) s five) six
        end.
 
@@ -262,11 +264,10 @@ Proof. intros. abbreviate_semax.
       assert (PL2Zlength: Zlength (hPosLoop2 (Z.to_nat i) intsums C Nonce) = 16).
          apply PL2length. split; try omega. apply (Z2Nat.inj_lt _ 4); omega.
 
-      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i) Vundef) as [vj Vj].
+      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i)) as [vj Vj].
       rewrite PL2Zlength; omega.
       thaw FR3.
-      Time forward; rewrite Vj. (*5.3 versus 10.9*) 
-      Time solve[entailer!]. (*1.3 versus 3.6*)
+      Time forward; change (@Znth val Vundef) with (@Znth val Inhabitant_val); rewrite Vj. (*5.3 versus 10.9*) 
       Time forward. (*4.9 versus 10.3*)
 
       thaw FR2. freeze [0;1;3;4] FR3.
@@ -292,27 +293,31 @@ Proof. intros. abbreviate_semax.
       freeze [0;2] FR4.
       Time forward_call (Vptr nb (Ptrofs.add noff (Ptrofs.repr (4 * i))),
                      Select16Q Nonce i). (*3 versus 14.8*)
-     destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
+     destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i)) as [uj Uj].
       rewrite PL2Zlength; omega.
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
      autorewrite with sublist in *.
      Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*5.9 versus 13*)
      { Time entailer!. (*2 versus 4.6*)
-       destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
-       rewrite X; trivial. autorewrite with sublist; simpl; trivial. }
+(*       destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
+       rewrite X; trivial. autorewrite with sublist; simpl; trivial. *) }
      { omega. }
+     2: omega.
      Opaque Z.mul. Opaque Z.add.
      Time forward. (*5.8 versus 12.9*)
      autorewrite with sublist; rewrite Uj.
      Transparent Z.add. Transparent Z.mul.
+    entailer!.
 (*Issue: substitution in entailer/entailer! is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
      assert (FLN: Zlength Front = i /\ Zlength FrontN = i). split; assumption. clear FL FN.
      Time entailer!. (*4.8 versus 11.6*)
+     destruct FLN as [FL FN].
      thaw FR5. thaw FRk. Time cancel. (*2.2*)
-(*     rewrite Uj in H0. symmetry in H0; inv H0.*)
-     destruct FLN as [FL FLN].
-
+(*     rewrite Znth_map with (d':=Int.zero) by rep_omega.
+     rewrite Uj.
+*)
+     entailer!.
      (*rewrite Uj. simpl.*)
      repeat rewrite <- sepcon_assoc.
      apply sepcon_derives.
@@ -321,28 +326,26 @@ Proof. intros. abbreviate_semax.
        2: rewrite NNN; reflexivity.
        erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
        2: rewrite SSS; reflexivity.
-       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite FL, FLN.
+       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. (*rewrite FL, FLN. *)
        rewrite Zmult_1_r. simpl.
-        repeat rewrite app_nil_r. cancel.
+        repeat rewrite app_nil_r. rewrite FN; cancel.       
        rewrite <- SSS, <- C16; trivial.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
        rewrite <- NNN, <- N16. cbv; trivial.
-     + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
-       rewrite field_at_data_at.
-       rewrite field_address_offset by auto with field_compatible.
-       simpl. rewrite Ptrofs.add_zero.
-(*       rewrite isptr_offset_val_zero by trivial. *)
+     + Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
        apply data_at_ext.
+       clear H1.
+       remember (Zlength Front) as i.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
+       replace (length Front) with (Z.to_nat i).
        rewrite Z2Nat.id by omega.
-       rewrite upd_Znth_ints.
        rewrite upd_Znth_ints.
        autorewrite with sublist.
        f_equal.
        unfold upd_Znth.
-       assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) Int.zero =
-                Znth (5 * i) intsums Int.zero). {
+       assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
+                Znth (5 * i) intsums). {
          clear - SL PL2length I.
          destruct (zeq i 0); subst; simpl; [ trivial | ].
          destruct (zeq i 1); subst; simpl.
@@ -361,8 +364,8 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
-      assert (EQ: Znth (6 + i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) Int.zero =
-                   Znth (6 + i) intsums Int.zero).  {
+      assert (EQ: Znth (6 + i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) =
+                   Znth (6 + i) intsums).  {
          clear - SL PL2length I.
          destruct (zeq i 0); subst; simpl. trivial.
          destruct (zeq i 1); subst; simpl.
@@ -381,9 +384,13 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
+(*        rewrite Znth_map with (d':=Int.zero) by rep_omega. *)
         rewrite !VJeq, !EQ.
-        autorewrite with sublist. auto.
-    +  omega.
+        simpl force_val.
+        autorewrite with sublist.
+        rewrite !sublist_map.
+        rewrite map_app. reflexivity.
+        subst i. rewrite Zlength_correct. rewrite Nat2Z.id. auto.
    }
   apply andp_left2; apply derives_refl.
 Time Qed. (*June 4th, 2017 (laptop: Finished transaction in 4.418 secs (3.784u,0.004s) (successful)*)
@@ -402,8 +409,8 @@ Fixpoint hPosLoop3 (n:nat) (xlist: list int) (old: list val): list val :=
       O => old
     | S m => let j:= Z.of_nat m in
                 let s := hPosLoop3 m xlist old in
-                let five := Znth (5*j) xlist Int.zero in
-                let six := Znth (6+j) xlist Int.zero in
+                let five := Znth (5*j) xlist in
+                let six := Znth (6+j) xlist in
                 UpdateOut (UpdateOut s (4*j) five) (16+4*j) six
        end.
 
@@ -512,10 +519,9 @@ Proof. intros. abbreviate_semax.
       rewrite <- ZtoNat_Zlength, P3_Zlength; reflexivity.
     remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll. (*clear Heqll.*)
 
-    destruct (Znth_mapVint xs (5 * i) Vundef) as [xi Xi]. omega.
+    destruct (Znth_mapVint xs (5 * i)) as [xi Xi]. omega.
     freeze [0;2] FR1.
-    Time forward; rewrite Xi. (*3.7 versus 8.8*)
-    Time solve[entailer!]. (*0.9 versus 3.21*)
+    Time forward; change (@Znth val Vundef) with (@Znth val Inhabitant_val); rewrite Xi. (*3.7 versus 8.8*)
     thaw FR1.
     freeze [0;2] FR2.
     Time assert_PROP (isptr out /\ field_compatible (Tarray tuchar 32 noattr) [] out)
@@ -529,12 +535,12 @@ Proof. intros. abbreviate_semax.
     unfold offset_val; simpl.
     repeat flatten_sepcon_in_SEP.
     freeze [0;1;3] FR3.
-    rewrite Znth_map with (d':= Int.zero) in Xi; try omega. 
+    rewrite Znth_map in Xi; try omega. 
     inversion Xi; clear Xi; subst xi.
-    Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs Int.zero)). 
+    Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs)).
     1: solve [autorewrite with sublist; entailer!]. 
     simpl.
-    assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero)) = 32).
+    assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) (Znth (5 * i) xs)) = 32).
       rewrite UpdateOut_Zlength; trivial; omega.
 deadvars!.
     apply semax_pre with (P':=
@@ -546,13 +552,13 @@ deadvars!.
    temp _out (Vptr ob ooff); temp _c c; temp _k k;
    temp _h (Vint (Int.repr h)))
    SEP 
-   (FR; data_at Tsh (tarray tuchar 32) (UpdateOut ll (4*i) (Znth (5 * i) xs Int.zero)) (Vptr ob ooff);
+   (FR; data_at Tsh (tarray tuchar 32) (UpdateOut ll (4*i) (Znth (5 * i) xs)) (Vptr ob ooff);
    data_at Tsh (tarray tuint 16) (map Vint xs) x))).
     { clear Heqll. Time entailer!. (*2.5 versus 7.5*)
       thaw FR3. thaw FR2. cancel.
       unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
-      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) (Znth (5 * i) xs Int.zero))); 
+      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) (Znth (5 * i) xs)));
        try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
@@ -564,10 +570,9 @@ deadvars!.
       autorewrite with sublist. rewrite Zplus_comm.
       apply derives_refl'. f_equal. f_equal. omega. }
 
-    destruct (Znth_mapVint xs (6+i) Vundef) as [zi Zi]. omega.
+    destruct (Znth_mapVint xs (6+i)) as [zi Zi]. omega.
     freeze [0;1] FR4.
-    Time forward; rewrite Zi. (*5 versus 11.1*)
-    Time solve[entailer!]. (*1.3 versus 3.2*)
+    Time forward;  change (@Znth val Vundef) with (@Znth val Inhabitant_val);  rewrite Zi. (*5 versus 11.1*)
     thaw FR4. freeze [0;2] FR5.
     erewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
     rewrite field_address0_offset by auto with field_compatible.
@@ -591,12 +596,12 @@ deadvars!.
 (*    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.*)
     (*assert (XXi: xi = Znth (5 * i) xs Int.zero).
       rewrite Znth_map' with (d':=Int.zero) in Xi; try omega. clear -Xi. inv Xi. trivial.*)
-    assert (ZZi: zi = Znth (6 + i) xs Int.zero).
-      rewrite Znth_map' with (d':=Int.zero) in Zi; try omega. clear -Zi. inv Zi. trivial.
+    assert (ZZi: zi = Znth (6 + i) xs).
+    clear -Zi. inv Zi. trivial.
     rewrite Z2Nat.id, (*<- XXi,*) <- ZZi; try omega; clear (*XXi*) ZZi.
     unfold QByte.
 (*    remember (UpdateOut ll (4 * i) xi) as l.*)
-    remember (UpdateOut (hPosLoop3 (Z.to_nat i) xs OUT) (4 * i) (Znth (5 * i) xs Int.zero)) as l.
+    remember (UpdateOut (hPosLoop3 (Z.to_nat i) xs OUT) (4 * i) (Znth (5 * i) xs)) as l.
     assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 32).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     rewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 * i) (4+16 + 4 * i)); try omega.
@@ -619,9 +624,9 @@ match data with ((Nonce, C), K) =>
   PROP (Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 ->
            exists xj, exists yj,
-           Znth j (map Vint xs) Vundef = Vint xj /\
-           Znth j (map Vint ys) Vundef = Vint yj /\
-           Znth j (map Vint intsums) Vundef = Vint (Int.add yj xj)))
+           Znth j (map Vint xs) = Vint xj /\
+           Znth j (map Vint ys) = Vint yj /\
+           Znth j (map Vint intsums) = Vint (Int.add yj xj)))
   LOCAL (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;

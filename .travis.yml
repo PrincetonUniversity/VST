@@ -32,7 +32,7 @@ env:
 branches:
   only:
   - master
-  - align
+  - improve_loadstore
 notifications:
   email:
     recipients:
@@ -70,12 +70,12 @@ jobs:
     - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true progs
     - echo -en 'travis_fold:end:progs.build\\r'
   - script:
-    - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
+    - echo 'Building hmac...' && echo -en 'travis_fold:start:hmac.build\\r'
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true hmacdrbg sha
-    - echo -en 'travis_fold:end:hmacdrbg.build\\r'
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true sha hmac
+    - echo -en 'travis_fold:end:hmac.build\\r'
   - script:
     - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
     - git show --format='COMMIT %H %ci' -s; coqc -v

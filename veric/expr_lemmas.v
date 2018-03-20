@@ -148,6 +148,29 @@ unfold tc_val in H; try rewrite J in H;
 try (inv H; try reflexivity).
 Qed.
 
+Lemma bool_val_strict: forall t v b, tc_val t v -> bool_type t = true -> bool_val t v = Some b ->
+  strict_bool_val v t = Some b.
+Proof.
+  intros.
+  assert (eqb_type t int_or_ptr_type = false) as Hf.
+  { destruct t; auto.
+    apply negb_true; auto. }
+  destruct t, v; auto; try solve [destruct f; auto]; simpl in *; unfold bool_val in *;
+    simpl in *; rewrite ?Hf in *; auto; try discriminate; simpl in *.
+  destruct Archi.ptr64; inv H1.
+  rewrite Int.eq_true; auto.
+Qed.
+
+Lemma bool_val_Cop: forall t v m b b', bool_val t v = Some b -> Cop.bool_val v t m = Some b' ->
+  b = b'.
+Proof.
+  destruct t, v; try discriminate; unfold bool_val; try destruct f; try discriminate;
+    simpl; intros ???; try if_tac; intro; inv H; unfold Cop.bool_val; simpl; intro X;
+    inv X; auto.
+  - destruct i; inv H0; auto.
+  - destruct Archi.ptr64; simpl in *; revert H0; if_tac; congruence.
+Qed.
+
 Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (PTree.set id v te).
 intros. unfold Map.set. unfold make_tenv. extensionality. rewrite PTree.gsspec; auto.
 Qed.
@@ -253,7 +276,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; simpl in *;
     destruct v; try contradiction; 
-  try solve [eexists; simpl; eauto];
+  try solve [eexists; simpl; rewrite ?Hp; eauto];
  try (rewrite J in H); 
  try contradiction;
  try solve [
@@ -264,15 +287,14 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  destruct H0 as [H0 H0'];
  try contradiction;
  simpl;
+
  first [rewrite (float_to_int_ok _ _ H5)
         | rewrite (float_to_intu_ok _ _ H5)
         | rewrite (single_to_int_ok _ _ H5)
         | rewrite (single_to_intu_ok _ _ H5)
         ] ;
-    [ eexists; reflexivity
-    | split; [apply Z.leb_le | apply Z.geb_le]; apply is_true_e; assumption ]];
-  simpl; rewrite Hp; eauto.
-
+    [ eexists; reflexivity |simpl in H0, H0'; omega];
+  simpl; rewrite Hp; eauto].
 }
 Opaque liftx.
 destruct H1. rewrite H1. auto.

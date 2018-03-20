@@ -152,9 +152,9 @@ Program Definition cl_core_sem :
   @CoreSemantics genv CC_core mem :=
   @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
-    (fun _ => cl_initial_core)
-    cl_at_external
-    cl_after_external
+    (fun _ g m v lv => option_map (fun a => (a, None)) (cl_initial_core g v lv))
+    (fun _ c _ => cl_at_external c)
+    (fun _ => cl_after_external)
     cl_halted
     cl_step
     cl_corestep_not_at_external

@@ -11,10 +11,10 @@ Definition Nb := 4. (* number of words in a block (state) *)
 (* arr: list of 4 bytes *)
 Definition get_uint32_le (arr: list Z) (i: Z) : int :=
  (Int.or (Int.or (Int.or
-            (Int.repr (Znth  i    arr 0))
-   (Int.shl (Int.repr (Znth (i+1) arr 0)) (Int.repr  8)))
-   (Int.shl (Int.repr (Znth (i+2) arr 0)) (Int.repr 16)))
-   (Int.shl (Int.repr (Znth (i+3) arr 0)) (Int.repr 24))).
+            (Int.repr (Znth  i    arr))
+   (Int.shl (Int.repr (Znth (i+1) arr)) (Int.repr  8)))
+   (Int.shl (Int.repr (Znth (i+2) arr)) (Int.repr 16)))
+   (Int.shl (Int.repr (Znth (i+3) arr)) (Int.repr 24))).
 
 (* outputs a list of 4 bytes *)
 Definition put_uint32_le (x : int) : list int :=

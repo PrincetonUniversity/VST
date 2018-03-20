@@ -91,14 +91,14 @@ End SINGLE_HOLE.
 
 Module zlist_hint_db.
 
-Lemma Znth_sub_0_r: forall A i l (d: A), Znth (i - 0) l d = Znth i l d.
+Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i l, Znth (i - 0) l = Znth i l.
   intros.
   rewrite Z.sub_0_r by omega.
   auto.
 Qed.
 
 Lemma Znth_map_Vint: forall (i : Z) (l : list int),
-  0 <= i < Zlength l -> Znth i (map Vint l) Vundef = Vint (Znth i l Int.zero).
+  0 <= i < Zlength l -> Znth i (map Vint l) = Vint (Znth i l).
 Proof.
   intros i l.
   apply Znth_map.

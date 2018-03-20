@@ -258,10 +258,10 @@ Lemma EmptyDissolve: forall v,
 Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 *)
 Lemma mkEmpty v: data_at_ Tsh t_struct_hmac_ctx_st v |-- EMPTY v.
-Proof. trivial. Qed.
+Proof. apply derives_refl. Qed.
 
 Lemma EmptyDissolve v: EMPTY v |-- data_at_ Tsh t_struct_hmac_ctx_st v.
-Proof. trivial. Qed.
+Proof. apply derives_refl. Qed.
 
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. Intros r.
@@ -493,7 +493,7 @@ destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
   6: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
 
-  apply andp_left2. old_go_lower. entailer!.
+  apply andp_left2. old_go_lower. entailer!; try apply derives_refl.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
@@ -502,8 +502,8 @@ simpl_ret_assert; normalize.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   apply bind_ret_derives.
-  rewrite hmacUpdate_app. old_go_lower. entailer!.
-
+  rewrite hmacUpdate_app. old_go_lower. entailer!; try apply derives_refl.
+  apply derives_refl.
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
   rewrite Zlength_app, Zlength_mkArgZ, map_length, mkKey_length, Min.min_idempotent.
@@ -559,7 +559,9 @@ simpl_ret_assert; normalize.
 
   unfold EMPTY. 
   rewrite <- memory_block_data_at_. simpl. unfold data_block.
-  clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.
+  clear. simpl. apply andp_left2. apply data_at_memory_block.
+  trivial.
+  apply derives_refl.
 Qed. 
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

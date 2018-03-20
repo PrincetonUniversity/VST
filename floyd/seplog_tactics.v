@@ -114,8 +114,6 @@ Proof.
  apply prop_derives; intuition.
 Qed.
 
-
-
 (* These versions can sometimes take minutes,
    when A and B can't be unified
 Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
@@ -402,6 +400,25 @@ Ltac qcancel P :=
      end
  end.
 
+Ltac careful_unify := 
+repeat match goal with
+| |- ?X = ?X' => constr_eq X X'; reflexivity
+| |- _ ?X = _ ?X' => constr_eq X X'; apply equal_f
+| |- ?F _ = ?F' _ => constr_eq F F'; apply f_equal
+| |- ?F _ _ = ?F' _ _ => constr_eq F F'; apply f_equal2
+| |- ?F _ _ _ = ?F' _ _ _ => constr_eq F F'; apply f_equal3
+| |- ?F _ _ _ _ = ?F' _ _ _ _ => constr_eq F F'; apply f_equal4
+| |- ?F _ _ _ _ _ = ?F' _ _ _ _ _ => constr_eq F F'; apply f_equal5
+| |- ?F ?T = ?F' ?T' => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ = ?F' ?T' _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ _ = ?F' ?T' _ _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+| |- ?F ?T _ _ _ = ?F' ?T' _ _ _ => 
+    constr_eq F F'; match type of T with Type => idtac end; change T with T'
+end.
+
 Ltac cancel :=
   rewrite ?sepcon_assoc;
   repeat match goal with |- ?A * _ |-- ?B * _ => 
@@ -424,14 +441,15 @@ Ltac cancel :=
    end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);
-  first [ simple apply derives_refl'; repeat f_equal; reflexivity (* this is NOT a _complete_ tactic;
+  first [ simpl; apply derives_refl'; solve [careful_unify]
+            (* this is NOT a _complete_ tactic;
                  for example, "simple apply derives_refl" would be more complete.  But that
                  tactic can sometimes take minutes to discover that something doesn't unify;
                  what I have here is a compromise between reliable speed, and (in)completeness.
                *)
           | apply TT_right
-          | apply sepcon_TT
-          | apply TT_sepcon
+          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
+          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
           | cancel_frame
           | idtac
           ].
@@ -522,17 +540,17 @@ Ltac norm_rewrite := autorewrite with norm.
     And then, maybe use "bottomup" instead of "topdown", see if that's better.
 
    To test whether your version of Coq works, use this:
-Lemma L : forall n, n=n -> n + 1 = S n.
+*)
+Lemma TEST_L : forall n:nat, n=n -> (n + 1 = S n)%nat.
 Proof. intros. rewrite <- plus_n_Sm ,<- plus_n_O. reflexivity.
 Qed.
-Hint Rewrite L using reflexivity : test888.
-Goal forall n, S n = n + 1.
+Hint Rewrite TEST_L using reflexivity : test888.
+Goal forall n, S n = (n + 1)%nat.
 intros.
 rewrite_strat (topdown hints test888).
 match goal with |- S n = S n => reflexivity end.
-(* should be no extra (n=n) goal here *)
-Qed.
- *)
+Qed.  (* Yes, this works in Coq 8.7.2 *)
+
 
 Ltac normalize1 :=
          match goal with
@@ -574,7 +592,7 @@ Ltac normalize1 :=
                                 apply imp_extract_exp_left; intro y
                    | _ => simple apply TT_prop_right
                    | _ => simple apply TT_right
-                   | _ => apply derives_refl
+                   | _ => constr_eq A B; apply derives_refl
                    end
               | |- _ => solve [auto]
               | |- _ |-- !! (?x = ?y) && _ =>
@@ -598,3 +616,31 @@ Ltac normalize :=
               || simple apply derives_extract_prop');
               fancy_intros true);
    repeat normalize1; try contradiction.
+
+Lemma allp_instantiate: 
+   forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
+       ALL y : B, P y |-- P x.
+Proof.
+intros. apply allp_left with x. auto.
+Qed.
+
+Ltac allp_left x := 
+ match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
+   sep_apply (@allp_instantiate T ND B P x)
+ end end.
+
+Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}
+    P Q, !! P * Q = !! P && (TT * Q).
+Proof.
+ intros.
+ rewrite <- (andp_TT (!! _)), sepcon_andp_prop'. normalize.
+Qed.
+
+Lemma prop_sepcon2: forall {A}{ND: NatDed A}{SL: SepLog A}
+    P Q, Q * !! P = !! P && (TT * Q).
+Proof.
+ intros.
+ rewrite sepcon_comm. apply prop_sepcon.
+Qed.
+
+

@@ -80,7 +80,7 @@ Proof.
     unfold res_predicates.address_mapsto.
     apply predicates_hered.pred_ext'. extensionality phi.
     simpl. apply exists_ext; intro bl.
-    f_equal.
+    f_equal; f_equal.
     apply and_ext'; auto. intro.
     destruct H1 as [H1' H1].
     specialize (H1 bl).
@@ -109,7 +109,7 @@ Proof.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; try apply derives_refl; auto.
     - destruct H3 as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct p2; auto.
@@ -120,7 +120,7 @@ Proof.
   + entailer!.
     erewrite <- mapsto_data_at'; auto.
     erewrite <- mapsto_data_at'; auto.
-    - erewrite mapsto_single_int; auto.
+    - erewrite mapsto_single_int; try apply derives_refl; auto.
     - destruct H3 as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct p2; auto.
@@ -219,7 +219,7 @@ Proof.
 start_function.
 forward.
 destruct (fabs_float32_lemma x) as [y [H3 H4]].
-unfold_field_at 1%nat.
+unfold_data_at 1%nat.
 rewrite field_at_data_at.
 erewrite data_at_single_int with (v2:= Vint y);
  [ | apply I | apply I | exact H3 | auto | apply (union_field_address _ (eq_refl _))].

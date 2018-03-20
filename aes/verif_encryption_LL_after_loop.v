@@ -108,7 +108,7 @@ intros.
   deadvars!. rewrite EqY3; clear EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
-  assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
+  assert (forall i, Int.unsigned (Znth i FSb) <= Byte.max_unsigned). {
     intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
   }
   assert (Hfinal := final_aes_eq buf plaintext S0 S12 S13 (eq_refl _) HeqS12 HeqS13);

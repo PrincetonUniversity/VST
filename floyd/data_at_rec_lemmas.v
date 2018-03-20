@@ -79,7 +79,7 @@ Definition data_at_rec: forall t, reptype t -> val -> mpred :=
        if type_is_volatile t
        then memory_block sh (sizeof t) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_pred (default_val t) 0 (Z.max 0 n) (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
+    (fun t n a P v => array_pred 0 (Z.max 0 n) (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -95,7 +95,7 @@ Lemma data_at_rec_eq: forall t v,
                       if type_is_volatile t
                       then memory_block sh (sizeof t) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred (default_val t0) 0 (Z.max 0 n) (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i))
+  | Tarray t0 n a => array_pred 0 (Z.max 0 n) (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
                         (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof (field_type (fst it) (co_members (get_co id))))
@@ -341,7 +341,7 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 *)
-Lemma Znth_nil: forall {A} n (d: A), Znth n nil d = d.
+Lemma Znth_nil: forall {A}{d: Inhabitant A} n, Znth n nil = default.
 Proof.
   intros.
   unfold Znth.
@@ -455,8 +455,8 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t))
-     (dB := (default_val t)); auto.
+     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t));
+     auto.
     rewrite memory_block_array_pred; auto.
     - apply Zle_max_l.
     - f_equal.
@@ -664,7 +664,7 @@ Proof.
     destruct H1.
     - rewrite !data_at_rec_eq.
       generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H1; intros.
-      auto.
+      apply derives_refl.
     - rewrite data_at_rec_eq.
       rewrite memory_block_data_at_rec_default_val by auto.
       eapply derives_trans.
@@ -703,6 +703,7 @@ Proof.
         } {
           eapply align_compatible_rec_Tunion_inv'; eauto.
         }
+        apply derives_refl.
       * rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.
@@ -916,8 +917,7 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
                           (offset_val (sizeof t * i) p))
-     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t))
-     (dB := (default_val t)); auto.
+     (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
     rewrite memory_block_array_pred; auto.
     - apply Zle_max_l.
     - rewrite (proj1 H2).
@@ -1127,14 +1127,24 @@ Proof.
     apply array_pred_ext.
     - apply list_func_JMeq; [apply reptype_change_composite; auto | auto].
     - intros.
-      rewrite (IH (Znth (i - 0) (unfold_reptype v1) (default_val t)) (Znth (i - 0) (unfold_reptype v2) (default_val t))); auto.
+      rewrite (IH (Znth (i - 0) (unfold_reptype v1)) (Znth (i - 0) (unfold_reptype v2))); auto.
       * f_equal.
         f_equal.
         apply sizeof_change_composite; auto.
-      * change (@Znth (@reptype cs_from t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_from t)).
-        change (@Znth (@reptype cs_to t) (i - 0)) with ((fun X: Type => @Znth X (i - 0)) (@reptype cs_to t)).
-        apply @list_func_JMeq'; auto.
-        apply default_val_change_composite; auto.
+      *
+        pose (Znthx (A: Type) (i: Z) (al: list A) (d: A) := @Znth A d i al).
+        change  (@Znth (@reptype cs_from t) (@Inhabitant_reptype cs_from t) (i - 0)
+                                     (@unfold_reptype cs_from (Tarray t z a) v1))
+       with (Znthx (@reptype cs_from t) (i-0) (@unfold_reptype cs_from (Tarray t z a) v1)(@Inhabitant_reptype cs_from t)).
+        change  (@Znth (@reptype cs_to t) (@Inhabitant_reptype cs_to t) (i - 0)
+                                     (@unfold_reptype cs_to (Tarray t z a) v2))
+       with (Znthx (@reptype cs_to t) (i-0) (@unfold_reptype cs_to (Tarray t z a) v2)(@Inhabitant_reptype cs_to t)).
+       change (@Znthx (@reptype cs_from t) (i - 0)) 
+     with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_from t)).
+        change (@Znthx (@reptype cs_to t) (i - 0)) 
+          with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_to t)).
+      apply @list_func_JMeq'; auto.
+      apply default_val_change_composite; auto.
   + rewrite !data_at_rec_eq.
     auto.
   + (* Tstruct *)

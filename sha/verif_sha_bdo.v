@@ -68,6 +68,7 @@ forward. (* return; *)
 fold (hash_block  (hash_blocks init_registers hashed) b).
 rewrite hash_blocks_last by auto.
 entailer!.
+apply derives_refl.
 Qed.
 
 

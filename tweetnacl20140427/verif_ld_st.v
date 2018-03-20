@@ -17,46 +17,46 @@ Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
 start_function.
-assert (M1: Int.modulus = 4294967296) by reflexivity.
+(*assert (M1: Int.modulus = 4294967296) by reflexivity.
 assert (HM1: Int.half_modulus = 2147483648) by reflexivity.
 assert (iWS:Int.iwordsize = Int.repr 32) by reflexivity.
 assert (X: Int.unsigned (Int.repr 32) = 32). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
 assert (zWS: Int.zwordsize = 32) by reflexivity.
 specialize (Int.unsigned_range c); intros Y.
-destruct (Int.ltu c Int.iwordsize) eqn:?H.
-  Focus 2. {
-    apply ltu_false_inv in H0.
-    change (Int.unsigned Int.iwordsize) with 32 in H0.
-    unfold Int.signed in H.
-    destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-  } Unfocus.
-destruct (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) eqn:?H.
-  Focus 2. {
-    apply ltu_false_inv in H1.
-    unfold Int.sub in H1.
-    change (Int.unsigned (Int.repr 32)) with 32 in H1.
-    change (Int.unsigned Int.iwordsize) with 32 in H1.
-    unfold Int.signed in H.
-    rewrite Int.unsigned_repr in H1.
-    + destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-    + rewrite int_max_unsigned_eq.
-      destruct (zlt (Int.unsigned c) Int.half_modulus); omega.
-  } Unfocus.
+*)
 Time forward. (*8.8*)   
-{
-  entailer!.
-  rewrite H0, H1; simpl; auto.
-}
-unfold Int.signed in H.
-destruct (zlt (Int.unsigned c) Int.half_modulus); [| omega].
-entailer!.
-unfold sem_shift; simpl. rewrite H0, H1; simpl.
+entailer!. 
+- 
+ change (Int.unsigned Int.iwordsize) with 32.
+ split.
+ +
+    unfold Int.signed in H;
+    destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
+ +
+    unfold Int.sub.
+    change (Int.unsigned (Int.repr 32)) with 32.
+    unfold Int.signed in H.
+    rewrite Int.unsigned_repr.
+    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
+    * destruct (zlt (Int.unsigned c) Int.half_modulus); rep_omega.
+-
+  unfold Int.signed in H.
+  destruct (zlt (Int.unsigned c) Int.half_modulus); [| rep_omega].
+  apply prop_right.
+  unfold sem_shift; simpl.
+  unfold Int.ltu.
+ change (Int.unsigned Int.iwordsize) with 32.
+ rewrite if_true by rep_omega.
+ rewrite if_true. simpl.
 unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
 rewrite Z.mod_small; simpl; try omega.
 unfold Int.sub.
-rewrite Int.and_mone, X, Int.unsigned_repr; trivial.
-rewrite int_max_unsigned_eq; omega.
-Time Qed. (*0.1*)
+rewrite Int.and_mone,Int.unsigned_repr; trivial.
+rewrite Int.unsigned_repr; rep_omega.
+rep_omega.
+rewrite <- (Int.repr_unsigned c).
+ normalize. omega.
+Qed.
 (*
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
@@ -140,9 +140,9 @@ Time entailer!.
     repeat rewrite <- Z.mul_assoc.
     rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
     rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
+  rewrite TP, BMU, Z.mul_add_distr_l. rep_omega.
 Time Qed. (*6.7*)
 
 Fixpoint lendian (l:list byte): Z :=
@@ -223,8 +223,7 @@ start_function.
 destruct B as (((b0, b1), b2), b3).
 destruct C as (((c0, c1), c2), c3).
 unfold QuadByte2ValList; simpl. 
-forward. simpl. rewrite Int.signed_repr.
-2: rewrite int_min_signed_eq, int_max_signed_eq; omega. 
+forward. simpl. rewrite Int.signed_repr by  rep_omega.
 
 forward_for_simple_bound 8 (EX i:Z, 
   (PROP  ()
@@ -236,21 +235,20 @@ forward_for_simple_bound 8 (EX i:Z,
 { rename H into I.
   assert (HH: Znth i
                  [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2; Byte.unsigned b3; 
-                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 0 
-          = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3] Byte.zero)).
-  solve [ erewrite <- (Znth_map' Byte.unsigned) with (d:= Z.zero); [ reflexivity | apply I ] ].
+                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 
+          = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3])).
+  solve [erewrite <- (Znth_map _ Byte.unsigned); [ reflexivity | apply I ] ].
   forward. 
   + entailer!. rewrite HH. 
-    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply Byte_unsigned_range_32.
+     apply Byte.unsigned_range_2.
   + simpl; rewrite HH. forward.
     entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
     2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
-    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
+    rewrite sublist_len_1.
     2: rewrite ! Zlength_cons, Zlength_nil; omega.
     simpl.
     unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
     2: unfold Int64.max_unsigned; simpl; omega.
-    rewrite Int.unsigned_repr. 2: apply Byte_unsigned_range_32.
     rewrite Int64.unsigned_repr. 2: apply Byte_unsigned_range_64.
     change (two_p 8) with 256. 
     rewrite bendian_app, bendian_singleton. simpl.
@@ -321,13 +319,11 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time entailer!. (*1.5*)
   unfold upd_Znth.
   autorewrite with sublist.
-  rewrite field_at_data_at. simpl. unfold field_address. simpl.
-  rewrite if_true; trivial.
-  replace (4 - (1 + i)) with (4-i-1) by omega.
-  rewrite isptr_offset_val_zero; trivial. clear H.
+  simpl.
   apply data_at_ext. rewrite Zplus_comm.
         assert (ZW: Int.zwordsize = 32) by reflexivity.
-        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
+        assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr.
+        rep_omega.
         inv HeqU. clear - ZW EIGHT I.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.

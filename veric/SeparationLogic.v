@@ -14,6 +14,7 @@ Require Export VST.msl.shares.
 Require Export VST.msl.predicates_rec.
 Require Export VST.msl.contractive.
 Require Export VST.msl.seplog.
+Require Export VST.msl.ghost_seplog.
 Require Export VST.msl.alg_seplog.
 Require Export VST.msl.log_normalize.
 Require Export VST.msl.ramification_lemmas.
@@ -30,6 +31,7 @@ Require VST.veric.assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
+Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
 
@@ -42,6 +44,9 @@ Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
 Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
+Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+  mkBSL _ _ _ _ _ bupd (@own) bupd_intro bupd_mono bupd_trans bupd_frame_r
+    (@ghost_alloc) (@ghost_op) (@ghost_valid_2) (@ghost_update_ND) (@ghost_update).
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
@@ -58,13 +63,15 @@ Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIn
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 Hint Resolve any_environ : typeclass_instances.
 
 Local Open Scope logic.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
+
+Inductive trust_loop_nocontinue : Prop := .
 
 (* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
@@ -76,19 +83,19 @@ Definition denote_tc_iszero v : mpred :=
 
 Definition denote_tc_nonzero v : mpred :=
          match v with
-         | Vint i => if negb (Int.eq i Int.zero) then TT else FF
-         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
+         | Vint i => prop (i <> Int.zero)
+         | Vlong i =>prop (i <> Int64.zero)
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
      match v with
-     | Vint i1 => prop (is_true (Int.ltu i1 i))
+     | Vint i1 => prop (Int.unsigned i1 < Int.unsigned i)
      | _ => FF
      end.
 
 Definition denote_tc_lgt l v : mpred :=
      match v with
-     | Vlong l1 => prop (is_true (Int64.ltu l1 l))
+     | Vlong l1 => prop (Int64.unsigned l1 < Int64.unsigned l)
      | _ => FF
      end.
 
@@ -116,11 +123,11 @@ Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
 Definition denote_tc_Zge z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | Some n => prop (z >= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -129,11 +136,11 @@ Definition denote_tc_Zge z v : mpred :=
 Definition denote_tc_Zle z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | Some n => prop (z <= n)
                                     | None => FF
                                    end
                      | _ => FF
@@ -151,16 +158,10 @@ Definition denote_tc_samebase v1 v2 : mpred :=
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
 match v1, v2 with
-          | Vint n1, Vint n2 => prop (is_true (negb
-                                   (Int.eq n1 (Int.repr Int.min_signed)
-                                    && Int.eq n2 Int.mone)))
-          | Vlong n1, Vlong n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int64.eq n2 Int64.mone)))
+          | Vint n1, Vint n2 => prop (~(n1 = Int.repr Int.min_signed /\ n2 = Int.mone))
+          | Vlong n1, Vlong n2 => prop (~(n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone))
           | Vint n1, Vlong n2 => TT
-          | Vlong n1, Vint n2 => prop (is_true (negb
-                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
-                                    && Int.eq n2 Int.mone)))
+          | Vlong n1, Vint n2 => prop (~ (n1 = Int64.repr Int64.min_signed  /\ n2 = Int.mone))
           | _ , _ => FF
         end.
 
@@ -225,11 +226,14 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 Definition typecheck_error (e: tc_error) : Prop := False.
 Global Opaque typecheck_error.
 
+(* Somehow, this fixes a universe collapse issue that will occur if fool is not defined. *)
+Definition fool := @map _ Type (fun it : ident * type => mpred).
+
 Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(prop (typecheck_error msg))
   | tc_TT => TT
-  | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_andp' b c => fun rho => andp (denote_tc_assert b rho) (denote_tc_assert c rho)
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
@@ -246,7 +250,9 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Definition fool' := @map _ Type (fun it : ident * type => mpred).
+
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 (* END from expr2.v *)
 
@@ -716,6 +722,15 @@ Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
      RA_return := r |}
  end.
 
+Definition loop1a_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := FF;
+     RA_return := r |}
+ end.
+
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -899,7 +914,7 @@ Definition add_funspecs (Espec : OracleKind)
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
 (* Misc lemmas *)
 Lemma typecheck_lvalue_sound {CS: compspecs} :
@@ -1028,7 +1043,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 Global Opaque rel_expr.
 Global Opaque rel_lvalue.
 
@@ -1208,6 +1223,17 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R.
 
+Axiom semax_loop_nocontinue:
+ trust_loop_nocontinue ->
+ forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
+ semax Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
+ semax Delta P (Sloop body incr) R.
+
+Axiom semax_if_seq:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
+ semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
+
 (* THIS RULE FROM semax_switch *)
 
 Axiom semax_switch: 
@@ -1380,14 +1406,14 @@ Axiom semax_skip:
   forall {Espec: OracleKind}{CS: compspecs},
    forall Delta P, @semax CS Espec Delta P Sskip (normal_ret_assert P).
 
-Axiom semax_pre_post:
+Axiom semax_pre_post_bupd:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+    (local (tc_environ Delta) && P |-- |==> P') ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:
@@ -1465,3 +1491,4 @@ Proof.
   apply ND_prop_ext.
   auto.
 Defined.
+

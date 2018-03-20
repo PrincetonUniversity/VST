@@ -576,4 +576,35 @@ Qed.
 Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
 Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
+Lemma ptrofs_to_int_repr: 
+ forall x, (Ptrofs.to_int (Ptrofs.repr x)) = Int.repr x.
+Proof.
+intros.
+destruct Archi.ptr64 eqn:Hp.
+*
+unfold Ptrofs.to_int. 
+apply Int.eqm_samerepr.
+unfold Int.eqm.
+rewrite Ptrofs.unsigned_repr_eq.
+unfold Ptrofs.modulus.
+unfold Ptrofs.wordsize.
+unfold Wordsize_Ptrofs.wordsize.
+rewrite Hp.
+unfold Int.modulus.
+unfold Int.wordsize.
+unfold Wordsize_32.wordsize.
+apply Int.eqmod_divides with (two_power_nat 64).
+apply Int.eqmod_sym.
+apply Int.eqmod_mod.
+compute. auto.
+exists (two_power_nat 32).
+reflexivity.
+*
+erewrite Ptrofs.agree32_to_int_eq. reflexivity.
+apply Ptrofs.agree32_repr.
+auto.
+Qed.
+
+
+
 

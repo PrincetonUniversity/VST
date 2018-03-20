@@ -755,6 +755,8 @@ if_tac.
   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
   unfold fundef in *; rewrite H1 in *.
  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+ rewrite ghost_of_core.
+ unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
@@ -1072,8 +1074,8 @@ Lemma semax_prog_rule {CS: compspecs} :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
+       (forall jm, m_dry jm = m -> semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) jm (Vptr b Ptrofs.zero) nil = Some (q, None)) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -1114,6 +1116,7 @@ Proof.
   destruct EXx as [b [? ?]]; auto.
   exists b.
   unfold semantics.initial_core. simpl (_ = Some _).
+  unfold j_initial_core, semantics.initial_core. simpl (_ = Some _).
   unfold fundef in *; rewrite H7.
   rewrite if_true by auto.
   (* unfold is_Internal in HInt. *)
@@ -1203,6 +1206,7 @@ Proof.
       apply derives_subp.
       normalize. intro rv.
       simpl.
+      eapply derives_trans, own.bupd_intro.
       intros ? ? ? ? _ ?.
       destruct H8 as [[? [H10 [H11 ?]]] ?].
       hnf in H10, H11.
@@ -1357,9 +1361,9 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
           (PTree.set id_arg arg (PTree.empty val))) in
 
   { q : corestate |
-    semantics.initial_core
+    (forall jm, semantics.initial_core
       (juicy_core_sem cl_core_sem) h
-      (globalenv prog) (Vptr b Ptrofs.zero) (arg :: nil) = Some q /\
+      (globalenv prog) jm (Vptr b Ptrofs.zero) (arg :: nil) = Some (q, None)) /\
 
     forall (jm : juicy_mem) ts a,
       app_pred (P ts a rho1) (m_phi jm) ->
@@ -1384,6 +1388,7 @@ Proof.
                       cc_default A P Q _ (necR_refl _)).
   spec Believe.
   { exists id_fun, NEP, NEQ. split; auto. exists b; split; auto. }
+  simpl (semantics.initial_core _). unfold j_initial_core.
   simpl (semantics.initial_core _). unfold cl_initial_core.
   if_tac [_|?]. 2:tauto.
 
@@ -1395,7 +1400,7 @@ Proof.
     if_tac [_|?] in H. rewrite Eb in H. auto. tauto.
     assert (b' = b) by congruence. subst b'. congruence.
   }
-  eexists. split; auto.
+  eexists. split; simpl; eauto.
 
   intros jm ts a m_sat_Pa m_funassert.
 
@@ -1484,7 +1489,8 @@ Proof.
   rewrite HGG. reflexivity.
 
   (* safety: we conclude as we add an infinite loop at the end *)
-  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert] ora jm0 Heq <-.
+  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert].
+  apply own.bupd_intro; intros ora jm0 Heq <-.
   rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.
   destruct ek; simpl proj_ret_assert in FrameRA;
    try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [[? ?] ?]]]]; contradiction];

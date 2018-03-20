@@ -845,7 +845,8 @@ let L' := factor_out_v L in
   factor_back L'
 end.
 
-Ltac after_forward_call := 
+Ltac after_forward_call :=
+    check_POSTCONDITION; 
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
@@ -1357,20 +1358,131 @@ Proof.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
 
+Lemma repr_neq_e:
+ forall i j, Int.repr i <> Int.repr j -> i <> j.
+Proof. intros. contradict H. subst. auto. Qed.
+
+Lemma repr64_neq_e:
+ forall i j, Int64.repr i <> Int64.repr j -> i <> j.
+Proof. intros. contradict H. subst. auto. Qed.
+
+Lemma Byte_signed_lem: 
+ forall b,
+  (Byte.signed b = 0) = (b = Byte.zero).
+Proof.
+intros.
+apply prop_ext; split; intro.
+rewrite <- (Byte.repr_signed b). rewrite H; reflexivity.
+rewrite <- Byte.signed_repr by rep_omega.
+f_equal; auto.
+Qed.
+Hint Rewrite Byte_signed_lem: norm entailer_rewrite.
+
+Lemma Byte_signed_lem': 
+ forall b c,
+  (Byte.signed b = Byte.signed c) = (b = c).
+Proof.
+intros.
+apply prop_ext; split; intro.
+rewrite <- (Byte.repr_signed b).
+rewrite <- (Byte.repr_signed c).
+ rewrite H; reflexivity.
+congruence.
+Qed.
+Hint Rewrite Byte_signed_lem': norm entailer_rewrite.
+
+Lemma int_repr_byte_signed_eq0:
+  forall c, (Int.repr (Byte.signed c) = Int.zero) = (c = Byte.zero).
+Proof.
+intros.
+apply prop_ext; split; intro.
+apply repr_inj_signed in H; try repable_signed.
+rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
+subst; reflexivity.
+Qed.
+Hint Rewrite int_repr_byte_signed_eq0: norm entailer_rewrite.
+
+Lemma int_repr_byte_signed_eq:
+  forall c d, (Int.repr (Byte.signed c) = Int.repr (Byte.signed d)) = (c = d).
+Proof.
+intros.
+apply prop_ext; split; intro.
+apply repr_inj_signed in H; try repable_signed.
+rewrite <- (Byte.repr_signed c). 
+rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
+subst; reflexivity.
+Qed.
+Hint Rewrite int_repr_byte_signed_eq: norm entailer_rewrite.
+
+Lemma typed_true_negb_bool_val_p:
+  forall p, 
+   typed_true tint
+      (force_val
+         (option_map (fun b : bool => Val.of_bool (negb b))
+            (bool_val_p p))) ->
+     p = nullval.
+Proof.
+intros. destruct p; inv H.
+destruct Archi.ptr64 eqn:Hp.
+inv H1.
+simpl in H1.
+rewrite negb_involutive in H1.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb.
+subst; reflexivity.
+Qed.
+
+Lemma typed_false_negb_bool_val_p:
+  forall p, 
+   is_pointer_or_null p ->
+   typed_false tint
+      (force_val
+         (option_map (fun b : bool => Val.of_bool (negb b))
+            (bool_val_p p))) ->
+     isptr p.
+Proof.
+intros. destruct p; inv H0.
+destruct Archi.ptr64 eqn:Hp.
+inv H2.
+simpl in H2.
+rewrite negb_involutive in H2.
+destruct (Int.eq i Int.zero) eqn:?; inv H2.
+simpl in H. rewrite Hp in H. subst. inv Heqb.
+hnf; auto.
+Qed.
+
+Lemma typed_false_negb_bool_val_p':
+  forall p : val,
+  typed_false tint
+    (force_val (option_map (fun b : bool => Val.of_bool (negb b)) (bool_val_p p))) ->
+   p <> nullval.
+Proof.
+ intros. intro; subst. discriminate.
+Qed.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
                |apply typed_false_of_bool in H
                | apply typed_true_ptr in H
                | apply typed_false_ptr_e in H
-               | unfold nullval in H; simple apply typed_true_tint_Vint in H
-               | unfold nullval in H; simple apply typed_false_tint_Vint in H
+               | apply typed_true_negb_bool_val_p in H
+               | apply typed_false_negb_bool_val_p in H; [| solve [auto]]
+               | apply typed_false_negb_bool_val_p' in H
+               | unfold nullval in H; (*simple*) apply typed_true_tint_Vint in H
+               | unfold nullval in H; (*simple*) apply typed_false_tint_Vint in H
 (*               | simple apply typed_true_tint in H *)
                ];
+   rewrite ?ptrofs_to_int_repr in H;
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    match type of H with
-          | _ <> _ => apply int_eq_false_e in H
+(*  don't do these, because they weaken the statement, unfortunately.
+          | _ <> _ => apply repr_neq_e (*int_eq_false_e*) in H
+          | _ <> _ => apply repr64_neq_e in H
+*)
+          | _ <> _ => let H' := fresh H "'" in assert (H' := repr_neq_e _ _ H)
+          | _ <> _ => let H' := fresh H "'" in assert (H' := repr64_neq_e _ _ H)
           | Int.eq _ _ = false => apply int_eq_false_e in H
           | _ => idtac
   end;
@@ -1398,7 +1510,10 @@ Ltac do_repr_inj H :=
          | simple apply lt_inv in H; cleanup_repr H
          | simple apply lt_false_inv in H; cleanup_repr H
          | idtac
-         ].
+         ];
+    rewrite ?Byte_signed_lem, ?Byte_signed_lem',
+                 ?int_repr_byte_signed_eq0, ?int_repr_byte_signed_eq0
+      in H.
 
 Ltac simpl_fst_snd :=
 repeat match goal with
@@ -1516,7 +1631,7 @@ Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is 
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
 Ltac forward_for_simple_bound n Pre :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
  repeat match goal with |-
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
@@ -1606,8 +1721,210 @@ Lemma seq_assoc1:
        semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
 Proof. intros. apply -> seq_assoc; auto. Qed.
 
-Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
-  check_Delta;
+Lemma semax_loop_noincr :
+  forall {Espec: OracleKind}{CS: compspecs} ,
+forall Delta Q body R,
+     @semax CS Espec Delta  Q body (loop1_ret_assert Q R) ->
+     @semax CS Espec Delta Q (Sloop body Sskip) R.
+Proof.
+intros.
+apply semax_loop with Q; auto.
+eapply semax_post_flipped.
+apply semax_skip.
+all: try (simpl; intros; apply andp_left2; destruct R; try apply derives_refl; apply FF_left).
+Qed.
+
+Lemma semax_post1: forall R' Espec {cs: compspecs} Delta R P c,
+           ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+      @semax cs Espec Delta P c (overridePost R' R) ->
+      @semax cs Espec Delta P c R.
+Proof. intros. eapply semax_post; try apply H0.
+ destruct R; apply H.
+ all: intros; destruct R; apply andp_left2; apply derives_refl.
+Qed.
+
+Lemma semax_post1_flipped: forall R' Espec {cs: compspecs} Delta R P c,
+      @semax cs Espec Delta P c (overridePost R' R) ->
+         ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+      @semax cs Espec Delta P c R.
+Proof. intros. apply semax_post1 with R'; auto. Qed.
+
+Lemma semax_skip_seq1:
+  forall {Espec: OracleKind} {CS: compspecs} Delta P s1 s2 Q,
+   semax Delta P (Ssequence s1 s2) Q ->
+   semax Delta P (Ssequence (Ssequence Sskip s1) s2) Q.
+Proof.
+intros. apply seq_assoc1. apply -> semax_skip_seq. auto.
+Qed.
+
+Ltac delete_skip :=
+ repeat apply -> semax_skip_seq;
+ try apply semax_skip_seq1.
+
+Ltac forward_loop_aux2 Inv PreInc :=
+ lazymatch goal with
+  | |- semax _ _ (Sloop _ Sskip) _ => 
+         tryif (constr_eq Inv PreInc) then (apply (semax_loop_noincr _ Inv); abbreviate_semax)
+         else (apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax)
+  | |- semax _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax
+ end.
+
+Ltac forward_loop_aux1 Inv PreInc:=
+  lazymatch goal with
+  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ (Swhile ?E ?B) _ => 
+          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
+ end.
+ 
+Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" constr(Post) :=
+  repeat simple apply seq_assoc1;
+ repeat apply -> semax_seq_skip;
+  match goal with
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ => 
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
+  | |- semax _ _ _ ?Post' => 
+            tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
+           else (apply (semax_post1_flipped Post); [ forward_loop_aux1 Inv PreInc | ])
+  end.
+
+Ltac check_no_incr S :=
+ let s' := eval hnf in S in 
+ match s' with
+ | Ssequence ?x _ => check_no_incr x
+ | Sloop _ ?inc => let i' := eval hnf in inc in match i' with Sskip => idtac end
+ | Sloop _ _ => fail 100 "Your loop has an increment statement, so your forward_loop must have a continue: invariant"
+ | Sfor _ _ ?inc _ => let i' := eval hnf in inc in match i' with Sskip => idtac end
+ | Sfor _ _ _ _ => fail 100 "Your loop has an increment statement, so your forward_loop must have a continue: invariant"
+ | _ => fail 100 "applied forward_loop to something that is not a loop"
+end.
+
+Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
+ repeat apply -> semax_seq_skip;
+lazymatch goal with
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+      first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
+      try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
+     forward_loop Inv continue: PreInc break: Post
+  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- _ => fail 100 "forward_loop applicable only to a semax goal"
+end.
+
+Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) "continue:" constr(PreInc) :=
+    forward_loop Inv continue: PreInc break: Post.
+
+Tactic Notation "forward_loop" :=
+    fail "Usage:   forward_loop Inv,     where Inv is your loop invariant".
+
+Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
+ match c with
+ | Sreturn _ => ok EK_return
+ | Ssequence c1 c2 =>
+     quickflow c1 (fun ek => match ek with
+                          | EK_normal => quickflow c2 ok
+                          | _ => ok ek
+                          end)
+ | Sifthenelse e c1 c2 =>
+     andb (quickflow c1 ok) (quickflow c2 ok)
+ | Sloop body incr =>
+     quickflow body (fun ek => match ek with
+                              | EK_normal => true
+                              | EK_break => ok EK_normal
+                              | EK_continue => true
+                              | EK_return => ok EK_return
+                              end)
+ | Sbreak => ok EK_break
+ | Scontinue => ok EK_continue
+ | Sswitch _ _ => false   (* this could be made more generous *)
+ | Slabel _ c => quickflow c ok
+ | Sgoto _ => false
+ | _ => ok EK_normal
+ end.
+
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
+
+Ltac check_nocontinue s :=
+ let s' := eval hnf in s in
+  lazymatch s' with 
+ | Ssequence ?x _ => check_nocontinue x
+ | Sloop ?body _ => unify (nocontinue body) true
+ | _ => fail 100 "applied forward_loop to something that is not a loop"
+end.
+
+Axiom trust_me : trust_loop_nocontinue.
+
+Ltac forward_loop_nocontinue2 Inv :=
+  apply (semax_loop_nocontinue trust_me Inv); delete_skip; abbreviate_semax.
+
+Ltac forward_loop_nocontinue1 Inv :=
+  lazymatch goal with
+  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ (Swhile ?E ?B) _ => 
+          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
+ end.
+
+Ltac forward_loop_nocontinue Inv Post :=
+  repeat simple apply seq_assoc1;
+  repeat apply -> semax_seq_skip;
+  match goal with
+  | |- semax _ _ (Ssequence _ _) _ => 
+          apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | abbreviate_semax ]
+  | |- semax _ _ _ ?Post' => 
+            tryif (unify Post Post') then forward_loop_nocontinue1 Inv
+           else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  | ])
+  end.
+
+Ltac forward_loop_nocontinue_nobreak Inv :=
+ repeat apply -> semax_seq_skip;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+         fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+      first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
+      try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
+     forward_loop_nocontinue Inv Post
+  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- _ => fail 100 "forward_loop applicable only to a semax goal"
+end.
+
+Tactic Notation "forward_loop" constr(Inv)  := 
+  match goal with |- semax _ _ ?c _ =>
+  tryif (check_nocontinue c)
+   then forward_loop_nocontinue_nobreak Inv
+  else (check_no_incr c; forward_loop Inv continue: Inv)
+ end.
+
+Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
+  match goal with |- semax _ _ ?c _ =>
+  tryif (check_nocontinue c)
+   then forward_loop_nocontinue Inv Post
+  else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
+ end.
+
+Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
+  check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
@@ -1615,7 +1932,7 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   end;
   lazymatch type of PreInc with
   | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -1642,8 +1959,8 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   | |- _ => fail "forward_for2x cannot recognize the loop"
   end.
 
-Tactic Notation "forward_for" constr(Inv) constr(PreInc) constr(Postcond) :=
-  check_Delta;
+Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" constr(Postcond) :=
+  check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
   | _ -> environ -> mpred => idtac
@@ -1666,6 +1983,15 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) constr(Postcond) :=
      apply semax_pre with (exp Inv);
       [ unfold_function_derives_right | forward_for3 Inv PreInc Postcond ]
   end.
+
+Tactic Notation "forward_for" constr(Inv) "break:" constr(Postcond) "continue:" constr(PreInc) :=
+   forward_for Inv continue: PreInc break: Postcond.
+
+Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
+  fail "Usage of the forward_for tactic:
+forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index values of type A *)
+forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
+forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
 Ltac process_cases := 
 match goal with
@@ -1724,8 +2050,16 @@ match goal with
 ]
 end.
 
+Definition nofallthrough ek :=
+ match ek with
+ | EK_normal => false
+ | _ => true
+ end.
+
 Ltac forward_if'_new :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
+ repeat apply -> semax_seq_skip;
+ repeat (apply seq_assoc1; try apply -> semax_seq_skip);
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
@@ -1745,8 +2079,15 @@ match goal with
        try rewrite Int.signed_repr in HRE by rep_omega;
        abbreviate_semax
      ]
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
+    unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true;
+    apply semax_if_seq; forward_if'_new
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
+| |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
+     fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+| |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
+     fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
@@ -1770,7 +2111,10 @@ Proof.
 intros. simpl_ret_assert. apply andp_left2; apply FF_left.
 Qed.
 
-Hint Resolve ENTAIL_refl ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+
+Hint Extern 0 (ENTAIL _, _ |-- _) =>
+ match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end.
 
 Ltac abbreviate_update_tycon :=
  match goal with
@@ -1787,8 +2131,9 @@ Ltac abbreviate_update_tycon :=
 end.
 
 Ltac forward_if_tac post :=
-  check_Delta;
+  check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
+  repeat apply -> semax_seq_skip;
 first [ignore (post: environ->mpred)
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with
@@ -1825,7 +2170,10 @@ match goal with
 end.
 
 Tactic Notation "forward_if" constr(post) :=
-  forward_if_tac post.
+  lazymatch type of post with
+  | Prop => match goal with |-semax _ (PROPx (?P) ?Q) _ _ => forward_if_tac (PROPx (post :: P) Q) end
+  | _ => forward_if_tac post
+  end.
 
 Tactic Notation "forward_if" :=
   forward_if'_new.
@@ -1988,7 +2336,7 @@ Ltac forward_setx :=
         [ reflexivity
         | reflexivity
         | check_cast_assignment
-        | solve_msubst_eval; reflexivity
+        | solve_msubst_eval; simplify_casts; reflexivity
         | first [ quick_typecheck3
                 | pre_entailer; try solve [entailer!]]
         ]
@@ -2167,13 +2515,6 @@ Proof.
  unfold eq_rect_r. symmetry; apply eq_rect_eq.
 Qed.
 
-Lemma data_equal_congr {cs: compspecs}:
-    forall T (v1 v2: reptype T),
-   v1 = v2 ->
-   data_equal v1 v2.
-Proof. intros. subst. intro. reflexivity.
-Qed.
-
 Lemma pair_congr: forall (A B: Type) (x x': A) (y y': B),
   x=x' -> y=y' -> (x,y)=(x',y').
 Proof.
@@ -2190,32 +2531,6 @@ Ltac simple_value v :=
  | Vptr _ _ => idtac
  | list_repeat (Z.to_nat _) ?v' => simple_value v'
  end.
-
-Lemma cons_congr: forall {A} (a a': A) bl bl',
-  a=a' -> bl=bl' -> a::bl = a'::bl'.
-Proof.
-intros; f_equal; auto.
-Qed.
-
-Ltac solve_store_rule_evaluation :=
-  repeat match goal with
-  | A : _ |- _ => clear A
-  | A := _ |- _ => clear A
-  end;
-  apply data_equal_congr;
-  match goal with A := ?gfs : list gfield |- upd_reptype _ _ ?v0 (valinject _ ?v1) = ?B =>
-   let rhs := fresh "rhs" in set (rhs := B);
-   lazy beta zeta iota delta [reptype reptype_gen] in rhs;
-   simpl in rhs;
-   let h0 := fresh "h0" in let h1 := fresh "h1" in
-   set (h0:=v0); set (h1:=v1);
-   remember_indexes gfs;
-   let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
-   lazy beta zeta iota delta in j; subst j;
-   lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];
-   subst rhs h0 h1;
-   subst; apply eq_refl
-  end.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
@@ -2241,157 +2556,11 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   subst d
 end.
 
-Ltac store_tac_without_hint Delta P Q R gfs e_root efs tts p_root p_full sh t_SEP
-                           gfs0 gfs1 v n Hroot Hnth H_Denote HRE lr :=
-  tryif
-    sc_new_instantiate P Q R R gfs p_root sh t_SEP gfs0 v n (0%nat) Hnth
-  then (
-    calc_gfs_suffix gfs gfs0 gfs1;
-    refine (semax_SC_field_store Delta sh n _ _ _ _ _ _ _ _ efs gfs0 gfs1 gfs tts _ _ _ lr
-      _ _ _ _ _ _ Hnth Hroot HRE H_Denote _ _ _ _);
-    clear Hnth Hroot HRE H_Denote;
-    subst p_root;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-    | auto (* writable share *)
-    | solve_store_rule_evaluation
-    | subst gfs0 gfs1 efs tts lr n;
-      pre_entailer;
-      try quick_typecheck3;
-      unfold tc_efield; entailer_for_store_tac;
-      simpl app; simpl typeof
-    | solve_legal_nested_field_in_entailment ]
-  ) else (
-    let path := fresh "path" in evar (path: list gfield);
-    let a := fresh "a" in evar (a: val);
-    let eq1 := eval unfold p_root, t_SEP, path, a in (p_root = field_address t_SEP path a) in
-    let eq2 := eval unfold p_full, t_SEP, path, a in (p_full = field_address t_SEP path a) in
-    fail "Please use assert_PROP to prove an equality of the form" eq1
-         "or if this does not hold, prove an equality of the form" eq2
-  ).
 
-Ltac store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP
-                                   gfs0 gfs1 v n Hnth HRE :=
-  let e_root := fresh "e_root" in
-  let efs := fresh "efs" in
-  let tts := fresh "tts" in
-  let lr := fresh "lr" in
-  construct_nested_efield e_full e_root efs tts lr;
-  let p_root := fresh "p_root" in evar (p_root: val);
-  let Hroot := fresh "Hroot" in
-  match goal with
-  | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e_root p_root Hroot
-  | lr := RRRR |- _ => do_compute_expr Delta P Q R e_root p_root Hroot
-  end;
-  simpl in p_root;
-
-  let H_Denote := fresh "H_Denote" in
-  let gfsB := fresh "gfsB" in
-  solve_efield_denote Delta P Q R efs gfsB H_Denote;
-
-  let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
-  let HNice := fresh "HNice" in
-  let p_SEP := fresh "a" in
-  tryif (
-    evar (p_SEP: val);
-    assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-            |-- !! (p_root = field_address t_SEP gfsA p_SEP)) as HNice
-    by (
-      subst p_root t_SEP gfsA p_SEP;
-      (eassumption || (apply prop_right; (eassumption || reflexivity)))
-    )
-  ) then (
-    unify_var_or_evar gfs (gfsB ++ gfsA);
-    cbv [app gfsB gfsA] in gfs;
-    sc_new_instantiate P Q R R gfs p_SEP sh t_SEP gfs0 v n (0%nat) Hnth;
-    calc_gfs_suffix gfs gfs0 gfs1;
-    subst p_SEP;
-    refine (semax_SC_field_store_with_nested_field_partial
-      Delta sh n _ _ _ _ _ _ _ _ _ efs gfs0 gfs1 gfsA gfsB tts _ _ _ lr
-      _ _ _ _ _ Hnth Hroot HNice HRE H_Denote _ _ _ _ _);
-    clear Hnth Hroot HNice HRE H_Denote;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-    | auto (* writable share *)
-    | solve_store_rule_evaluation
-    | subst gfs0 gfs1 n;
-      pre_entailer;
-      try quick_typecheck3;
-      unfold tc_efield; entailer_for_store_tac;
-      simpl app; simpl typeof
-    | solve_legal_nested_field_in_entailment
-    | reflexivity ]
-  ) else (
-    unify_var_or_evar gfs gfsB;
-    unify_var_or_evar gfsA (@nil gfield);
-    subst gfsB;
-    store_tac_without_hint Delta P Q R gfs e_root efs tts p_root p_full sh t_SEP
-                           gfs0 gfs1 v n Hroot Hnth H_Denote HRE lr
-  );
-  try subst e_root; try subst efs; try subst tts; try subst lr; try subst p_root;
-  try subst gfsB; try subst gfsA.
-
-Ltac store_tac_with_full_path_hint Delta P Q R gfs e_full p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth HRE :=
-  let p_SEP := fresh "a" in
-  let HNice := fresh "HNice" in
-  tryif (
-    evar (p_SEP: val);
-    assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-            |-- !! (p_full = field_address t_SEP gfs p_SEP)) as HNice
-    by (
-      subst p_full t_SEP gfs p_SEP;
-      (eassumption || (apply prop_right; (eassumption || reflexivity)))
-    )
-  ) then (
-    (* if "assert" succeeded, the rest must succeed *)
-    sc_new_instantiate P Q R R gfs p_SEP sh t_SEP gfs0 v n (0%nat) Hnth;
-    try (unify v (default_val (nested_field_type t_SEP gfs0));
-         lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
-    calc_gfs_suffix gfs gfs0 gfs1;
-    subst p_SEP;
-    refine (semax_SC_field_store_without_nested_efield Delta sh n _ _ _ _ _ _ _ _ _ gfs0 gfs1 _ _ _ _
-      _ _ _ _ _ Hnth Hfull HNice HRE _ _ _ _);
-    clear Hnth Hfull HNice HRE;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-    | subst sh; auto (* writable share *)
-    | solve_store_rule_evaluation
-    | subst gfs0 gfs1 sh n;
-      pre_entailer;
-      try quick_typecheck3; 
-      unfold tc_efield; entailer_for_store_tac;
-      simpl app; simpl typeof
-    | solve_legal_nested_field_in_entailment ]
-  ) else (
-    store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP gfs0 gfs1 v n Hnth HRE
-  ).
-
-Ltac store_tac := 
+Ltac store_tac :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e_full ?e2) _ =>
-    let HRE := fresh "HRE" in
-    let v0 := fresh "v0" in evar (v0: val);
-      do_compute_expr Delta P Q R (Ecast e2 (typeof e_full)) v0 HRE;
-
-    let p_full := fresh "p_full" in evar (p_full: val);
-    let Hfull := fresh "Hfull" in
-    do_compute_lvalue Delta P Q R e_full p_full Hfull;
-    simpl in p_full;
-
-    let t_SEP := fresh "t" in evar (t_SEP: type);
-    let gfs := fresh "gfs" in evar (gfs: list gfield);
-    let sh := fresh "sh" in evar (sh: share);
-    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
-    let gfs1 := fresh "gfs1" in
-    let v := fresh "v" in evar (v: reptype (nested_field_type t_SEP gfs0));
-    let n := fresh "n" in
-    let Hnth := fresh "Hnth" in
-    let HNice := fresh "HNice" in
-
-    store_tac_with_full_path_hint Delta P Q R gfs e_full p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth HRE;
-    try clear HRE; try clear Hfull; try clear Hnth; try clear HNice;
-    try subst v0; try subst p_full; try subst t_SEP; try subst gfs; try subst sh;
-    try subst gfs0; try subst gfs1; try subst v; try subst n
-end.
+sc_set_load_store.store_tac.
 
 (* END new semax_load and semax_store tactics *************************)
 
@@ -2428,7 +2597,7 @@ Proof. intros.
 
 Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
 Proof. intros. destruct v. simpl; intros. entailer!. apply H.
-  destruct t; trivial. simpl; intros. apply H.
+  destruct t; try apply derives_refl. simpl; intros. apply H. 
 Qed.
 
 (*
@@ -2498,8 +2667,7 @@ Proof.
     go_lowerx.
     apply sepcon_derives; auto.
     subst.
-    rewrite var_block_data_at_ by auto.
-    auto.
+    rewrite var_block_data_at_ by auto. apply derives_refl.
 Qed.
 
 Lemma canonicalize_stackframe_emp: forall {cs: compspecs} Delta P Q,
@@ -2530,8 +2698,8 @@ match goal with |- semax _ _ _ ?R =>
  match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ * stackframe_of ?f _) |} =>
   apply semax_post with (frame_ret_assert (function_body_ret_assert t P) (stackframe_of f));
    [ simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
-   | simpl_ret_assert; solve [auto]
-   | simpl_ret_assert; solve [auto]
+   | simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
+   | simpl_ret_assert; rewrite FF_sepcon; apply andp_left2; apply FF_left
    | simpl_ret_assert; solve [auto]
    |]
  end
@@ -2652,6 +2820,38 @@ Ltac advise_prepare_postcondition :=
  end;
  try simple eapply semax_seq.
 
+
+Fixpoint nobreaksx (s: statement) : bool :=
+match s with
+| Sbreak => false
+| Scontinue => false
+| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
+| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
+| _ => true  (* including Sloop case! *)
+end.
+
+Ltac forward_advise_loop c :=
+ try lazymatch c with
+ | Sfor _ _ Sskip ?body =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ | Swhile _ ?body =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
+        unify (nobreaksx body) true;
+        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+ end;
+ lazymatch c with
+  | Sfor _ ?test ?body ?incr  =>
+       tryif (unify (nobreaksx body) true; test_simple_bound test incr)
+       then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+  | Sloop _ _ =>
+     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+ end.
+
 Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
@@ -2681,7 +2881,7 @@ Ltac forward_advise_if :=
  lazymatch goal with
    | |- semax _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
-       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches"
+       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
        else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
   end.
 
@@ -2710,7 +2910,8 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
     first [no_loads_expr e false; forward_setx | load_tac]
   | Sifthenelse ?e _ _ => forward_advise_if
   | Swhile _ _ => forward_advise_while
-  | Sfor _ _ _ _ => forward_advise_for
+  | Sfor _ _ _ _ => forward_advise_loop s
+  | Sloop _ _ => forward_advise_loop s
   | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.
@@ -2758,11 +2959,14 @@ You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
+  | |- semax _ (exp _) _ _ => 
+             fail "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
 Ltac forward :=
-  check_Delta;
+  try apply semax_ff;
+  check_Delta; check_POSTCONDITION;
   repeat rewrite <- seq_assoc;
   lazymatch goal with 
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
@@ -2809,31 +3013,6 @@ Proof. intros.
             rewrite frame_ret_assert_emp;
    auto.
 Qed.
-
-Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
- match c with
- | Sreturn _ => ok EK_return
- | Ssequence c1 c2 =>
-     quickflow c1 (fun ek => match ek with
-                          | EK_normal => quickflow c2 ok
-                          | _ => ok ek
-                          end)
- | Sifthenelse e c1 c2 =>
-     andb (quickflow c1 ok) (quickflow c2 ok)
- | Sloop body incr =>
-     quickflow body (fun ek => match ek with
-                              | EK_normal => true
-                              | EK_break => ok EK_normal
-                              | EK_continue => true
-                              | EK_return => ok EK_return
-                              end)
- | Sbreak => ok EK_break
- | Scontinue => ok EK_continue
- | Sswitch _ _ => false   (* this could be made more generous *)
- | Slabel _ c => quickflow c ok
- | Sgoto _ => false
- | _ => ok EK_normal
- end.
 
 Definition must_return (ek: exitkind) : bool :=
   match ek with EK_return => true | _ => false end.
@@ -2936,6 +3115,8 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
+Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
+
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
@@ -3007,7 +3188,8 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- clear_Delta_specs_if_leaf_function.
+ clear_Delta_specs_if_leaf_function;
+ start_function_hint.
 
 Opaque sepcon.
 Opaque emp.
