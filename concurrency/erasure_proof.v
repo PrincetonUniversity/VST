@@ -1180,14 +1180,14 @@ Module Parching <: ErasureSig.
               computeMap
                      (DTP.getThreadR Htid').2 virtue2)).
          pose (ds'':= DTP.updLockSet ds'
-                      (b, Int.intval ofs) (empty_map,empty_map)).
-         exists ds'', (DryMachine.Events.acquire (b, Int.intval ofs) (Some (virtue1, virtue2)) ).
+                      (b, Ptrofs.intval ofs) (empty_map,empty_map)).
+         exists ds'', (DryMachine.Events.acquire (b, Ptrofs.intval ofs) (Some (virtue1, virtue2)) ).
          split; [|split].
     - { (* invariant ds''*)
 
         unfold ds''.
         rewrite DryMachine.ThreadPool.updLock_updThread_comm.
-        pose (ds0:= (DryMachine.ThreadPool.updLockSet ds (b, (Int.intval ofs)) (empty_map,empty_map))).
+        pose (ds0:= (DryMachine.ThreadPool.updLockSet ds (b, (Ptrofs.intval ofs)) (empty_map,empty_map))).
 
         cut (DryMachine.invariant ds0).
         { (* Proving: invariant ds0' *)
@@ -1206,10 +1206,10 @@ Module Parching <: ErasureSig.
               eapply
                 JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join
               with (cnti:=(MTCH_cnt' MATCH cnt))
-                     (l:=(b, Int.intval ofs))
+                     (l:=(b, Ptrofs.intval ofs))
                      (phi:=d_phi)
                 in Hcmpt''; auto.
-              eapply juicy_mem_lemmas.components_join_joins; eauto;
+              eapply (juicy_mem_lemmas.components_join_joins _ _ _ _ Hadd_lock_res); eauto;
               eapply joins_comm; auto.
             }
 
@@ -1237,10 +1237,10 @@ Module Parching <: ErasureSig.
                eapply
                  JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join
                with (cnti:=(MTCH_cnt' MATCH cnt))
-                      (l:=(b, Int.intval ofs))
+                      (l:=(b, Ptrofs.intval ofs))
                       (phi:=d_phi)
                  in Hcmpt''; auto.
-               eapply juicy_mem_lemmas.components_join_joins; eauto;
+               eapply (juicy_mem_lemmas.components_join_joins _ _ _ _ Hadd_lock_res); eauto;
                eapply joins_comm; auto.
               }
 
@@ -1264,17 +1264,17 @@ Module Parching <: ErasureSig.
                eapply
                  JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join
                with (cnti:=(MTCH_cnt' MATCH cnt))
-                      (l:=(b, Int.intval ofs))
+                      (l:=(b, Ptrofs.intval ofs))
                       (phi:=d_phi)
                  in Hcmpt''; auto.
-               eapply juicy_mem_lemmas.components_join_joins; eauto;
+               eapply (juicy_mem_lemmas.components_join_joins _ _ _ _ Hadd_lock_res); eauto;
                eapply joins_comm; auto.
               }
               apply perm_coh_joins.
               apply resource_at_joins;
               assumption.
           - intros l pmap0.
-            destruct (AMap.E.eq_dec l (b, Int.intval ofs)).
+            destruct (AMap.E.eq_dec l (b, Ptrofs.intval ofs)).
             + subst l; rewrite DMS.DTP.gssLockRes; simpl; intros HH; inversion HH; simpl.
               split; apply empty_disjoint'.
             + rewrite DMS.DTP.gsoLockRes; auto; simpl; intros HH.
@@ -1299,13 +1299,13 @@ Module Parching <: ErasureSig.
                    in Hcmpt'; auto.
                  eapply
                    JSEM.compatible_lockRes_join
-                 with (l2:=(b, Int.intval ofs))
+                 with (l2:=(b, Ptrofs.intval ofs))
                         (l1:=l)
                         (phi2:=d_phi)
                         (phi1:=r)
                    in Hcmpt''; auto.
                  eapply joins_comm.
-                 eapply juicy_mem_lemmas.components_join_joins; eauto;
+                 eapply (juicy_mem_lemmas.components_join_joins _ _ _ _ Hadd_lock_res); eauto;
                  eapply joins_comm; auto. }
                split;
                  eapply permDisjoint_permMapsDisjoint; intros b0 ofs0.
@@ -1326,7 +1326,7 @@ Module Parching <: ErasureSig.
                 rewrite empty_map_spec;
                 apply permDisjoint_None.
           - intros l pmap0.
-            destruct (AMap.E.eq_dec l (b, Int.intval ofs)); simpl.
+            destruct (AMap.E.eq_dec l (b, Ptrofs.intval ofs)); simpl.
             + subst l; rewrite DMS.DTP.gssLockRes; simpl; intros HH; inversion HH; simpl.
               (*here*)
               split; [apply permCoh_empty | apply permCoh_empty'].
@@ -1350,13 +1350,13 @@ Module Parching <: ErasureSig.
                    in Hcmpt'; auto.
                  eapply
                    JSEM.compatible_lockRes_join
-                 with (l2:=(b, Int.intval ofs))
+                 with (l2:=(b, Ptrofs.intval ofs))
                         (l1:=l)
                         (phi2:=d_phi)
                         (phi1:=r)
                    in Hcmpt''; auto.
                  eapply joins_comm.
-                 eapply juicy_mem_lemmas.components_join_joins; eauto;
+                 eapply (juicy_mem_lemmas.components_join_joins _ _ _ _ Hadd_lock_res); eauto;
                  eapply joins_comm; auto. }
                 split; intros b0 ofs0.
                 -- rewrite virtue_correct2.
@@ -1436,27 +1436,27 @@ Module Parching <: ErasureSig.
                   unfold JSEM.juicyLocks_in_lockSet in jloc_in_set.
                   eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
                   destruct juice_join.
-                  apply resource_at_join with (loc:=(b, Int.intval ofs)) in H0.
+                  apply resource_at_join with (loc:=(b, Ptrofs.intval ofs)) in H0.
                   rewrite HJcanwrite in H0.
                   inversion H0.
                   - subst.
                     symmetry in H6.
                     apply jloc_in_set in H6.
                     assert (VALID:= JSEM.compat_lr_valid Hcompatible).
-                    specialize (VALID b (Int.intval ofs)).
+                    specialize (VALID b (Ptrofs.intval ofs)).
                     unfold JSEM.ThreadPool.lockRes in VALID.
                     destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info)
-                                        (b, Int.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
+                                        (b, Ptrofs.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
                       rewrite AA in H6; try solve[inversion H6].
                     apply VALID. auto.
                   -
                     symmetry in H6.
                     apply jloc_in_set in H6.
                     assert (VALID:= JSEM.compat_lr_valid Hcompatible).
-                    specialize (VALID b (Int.intval ofs)).
+                    specialize (VALID b (Ptrofs.intval ofs)).
                     unfold JSEM.ThreadPool.lockRes in VALID.
                     destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info)
-                                        (b, Int.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
+                                        (b, Ptrofs.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
                       rewrite AA in H6; try solve[inversion H6].
                     apply VALID. auto.
                 }
@@ -1473,7 +1473,7 @@ Module Parching <: ErasureSig.
                   unfold JSEM.juicyLocks_in_lockSet in jloc_in_set.
                   eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
                   destruct juice_join.
-                  apply resource_at_join with (loc:=(b, Int.intval ofs)) in H.
+                  apply resource_at_join with (loc:=(b, Ptrofs.intval ofs)) in H.
                   rewrite HJcanwrite in H.
                   inversion H.
                   -
@@ -1506,14 +1506,14 @@ Module Parching <: ErasureSig.
       unfold ds'.
       apply MTCH_update; auto.
 
-    - assert (H: exists l, DTP.lockRes ds (b, Int.intval ofs) = Some l).
+    - assert (H: exists l, DTP.lockRes ds (b, Ptrofs.intval ofs) = Some l).
       { inversion MATCH; subst.
-        specialize (mtch_locks (b, (Int.intval ofs) )).
+        specialize (mtch_locks (b, (Ptrofs.intval ofs) )).
         rewrite His_unlocked in mtch_locks.
-        destruct (DTP.lockRes ds (b, Int.intval ofs));
+        destruct (DTP.lockRes ds (b, Ptrofs.intval ofs));
           try solve[inversion mtch_locks]. exists l; reflexivity. }
       destruct H as [l dlockRes].
-      assert (Hlt'':  permMapLt (setPermBlock (Some Writable) b (Int.intval ofs)
+      assert (Hlt'':  permMapLt (setPermBlock (Some Writable) b (Ptrofs.intval ofs)
                                               (DryMachine.ThreadPool.getThreadR
                                                  (MTCH_cnt MATCH Hi)).2 LKSIZE_nat)
                                 (getMaxPerm m)).
@@ -1522,9 +1522,9 @@ Module Parching <: ErasureSig.
         (*Do the cases *)
         destruct (peq b b0);
           [subst b0;
-            destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
         - do 2 (rewrite setPermBlock_same; auto).
-        - apply Intv.range_notin in n; [|simpl; unfold LKSIZE; omega].
+        - apply Intv.range_notin in n; [|simpl; pose proof LKSIZE_pos; omega].
           do 2 (rewrite setPermBlock_other_1; auto).
 
           destruct Hcmpt as [jall Hcmpt];
@@ -1662,7 +1662,7 @@ Module Parching <: ErasureSig.
         intros b0.
         extensionality ofs0.
         destruct (ident_eq b b0); [
-            destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z) |].
+            destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z) |].
         * unfold Intv.In in i0.
           subst. repeat (rewrite setPermBlock_same; auto).
         * subst. apply Intv.range_notin in n; auto.
@@ -1670,7 +1670,7 @@ Module Parching <: ErasureSig.
           rewrite -JSEM.juic2Perm_locks_correct.
           inversion MATCH. symmetry. eapply mtch_perm2.
           eapply JSEM.mem_compat_thread_max_cohere; auto.
-          simpl; unfold LKSIZE; xomega.
+          simpl; pose proof LKSIZE_pos; xomega.
         * repeat (rewrite setPermBlock_other_2; auto).
           rewrite -JSEM.juic2Perm_locks_correct.
           inversion MATCH. symmetry. eapply mtch_perm2.
@@ -1725,7 +1725,7 @@ Module Parching <: ErasureSig.
                                              (DTP.getThreadR Htid').1 virtue1,
                                            computeMap
                                              (DTP.getThreadR Htid').2 virtue2)).
-    pose (ds'':= DTP.updLockSet ds' (b, Int.intval ofs)
+    pose (ds'':= DTP.updLockSet ds' (b, Ptrofs.intval ofs)
                                             (JSEM.juice2Perm d_phi m, JSEM.juice2Perm_locks d_phi m )).
 
     assert (virtue_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
@@ -1858,7 +1858,7 @@ Module Parching <: ErasureSig.
              + inversion MATCH; rewrite mtch_perm2; reflexivity.
 }
     (*TODO Fix the even trace*)
-    exists ds'',  (JSEM.Events.release (b, Int.intval ofs)
+    exists ds'',  (JSEM.Events.release (b, Ptrofs.intval ofs)
                                   (Some (JSEM.juice2Perm d_phi m, JSEM.juice2Perm_locks d_phi m)) ).
     split; [|split].
     - unfold ds''.
@@ -2129,16 +2129,16 @@ Module Parching <: ErasureSig.
           { destruct Hcompatible as [allj Hcompatible].
             inversion Hcompatible.
             assert (VALID:= JSEM.compat_lr_valid Hcmpt).
-            specialize (VALID b (Int.intval ofs)).
+            specialize (VALID b (Ptrofs.intval ofs)).
             eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-            eapply resource_at_join_sub with (l:=(b,Int.intval ofs)) in juice_join.
+            eapply resource_at_join_sub with (l:=(b,Ptrofs.intval ofs)) in juice_join.
             rewrite HJcanwrite in juice_join.
             destruct juice_join as [x HH].
             inversion HH.
 
             - symmetry in H.
             apply jloc_in_set in H.
-            destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:AA;
+            destruct (JSEM.ThreadPool.lockRes js (b, Ptrofs.intval ofs)) eqn:AA;
               try solve [unfold JSEM.ThreadPool.lockRes in AA; rewrite AA in H; inversion H].
             inversion ineq.
             apply VALID; auto.
@@ -2146,7 +2146,7 @@ Module Parching <: ErasureSig.
 
              symmetry in H.
               apply jloc_in_set in H.
-              destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:BB;
+              destruct (JSEM.ThreadPool.lockRes js (b, Ptrofs.intval ofs)) eqn:BB;
                 try solve [unfold JSEM.ThreadPool.lockRes in BB; rewrite BB in H; inversion H].
               unfold JSEM.ThreadPool.lockRes in BB; rewrite BB in VALID.
               subst; apply VALID; auto.
@@ -2167,7 +2167,7 @@ Module Parching <: ErasureSig.
             rewrite AA in VALID.
             apply VALID in ineq.
             eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-            eapply resource_at_join_sub with (l:=(b,Int.intval ofs)) in juice_join.
+            eapply resource_at_join_sub with (l:=(b,Ptrofs.intval ofs)) in juice_join.
             rewrite HJcanwrite in juice_join.
             destruct juice_join as [x HH].
             inversion HH.
@@ -2175,12 +2175,12 @@ Module Parching <: ErasureSig.
             - symmetry in H.
 
              apply jloc_in_set in H.
-            destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:BB.
+            destruct (JSEM.ThreadPool.lockRes js (b, Ptrofs.intval ofs)) eqn:BB.
               + inversion ineq.
               + unfold JSEM.ThreadPool.lockRes in BB; rewrite BB in H; inversion H.
             - symmetry in H.
               apply jloc_in_set in H.
-              destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:BB;
+              destruct (JSEM.ThreadPool.lockRes js (b, Ptrofs.intval ofs)) eqn:BB;
                 try solve [unfold JSEM.ThreadPool.lockRes in BB; rewrite BB in H; inversion H].
               inversion ineq.
           }
@@ -2249,11 +2249,11 @@ Module Parching <: ErasureSig.
       }
 
 
-    - assert (H: exists l, DTP.lockRes ds (b, Int.intval ofs) = Some l).
+    - assert (H: exists l, DTP.lockRes ds (b, Ptrofs.intval ofs) = Some l).
       { inversion MATCH; subst.
-        specialize (mtch_locks (b, (Int.intval ofs) )).
+        specialize (mtch_locks (b, (Ptrofs.intval ofs) )).
         rewrite His_locked in mtch_locks.
-        destruct (DTP.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
+        destruct (DTP.lockRes ds (b, Ptrofs.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
       econstructor 2.
       17: reflexivity.
@@ -2485,7 +2485,7 @@ Module Parching <: ErasureSig.
       + apply restrPermMap_ext.
         intros b0.
         extensionality ofs0.
-        destruct (peq b b0); [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+        destruct (peq b b0); [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
         * unfold Intv.In in i0; simpl in i0.
           repeat rewrite setPermBlock_same; auto.
         * apply Intv.range_notin in n; auto.
@@ -2496,7 +2496,7 @@ Module Parching <: ErasureSig.
             inversion Hcmpt. inversion all_cohere.
           eapply JMS.mem_access_coh_sub; eauto.
           apply JMS.compatible_threadRes_sub; assumption.
-          rewrite /LKSIZE /=. xomega.
+          pose proof LKSIZE_pos; simpl; xomega.
         * repeat rewrite setPermBlock_other_2; auto.
           rewrite -JSEM.juic2Perm_locks_correct.
           symmetry; eapply MTCH_perm2.
@@ -2891,7 +2891,7 @@ Module Parching <: ErasureSig.
                      computeMap empty_map virtue22)).
       exists ds'.
       exists (JSEM.Events.spawn
-           (b, Int.intval ofs)
+           (b, Ptrofs.intval ofs)
            (Some ((DTP.getThreadR (MTCH_cnt MATCH Hi)) , (virtue11, virtue12)))
       (Some (virtue21, virtue22))) .
       split ;[|split].
@@ -3499,13 +3499,13 @@ Module Parching <: ErasureSig.
               (setPermBlock
                 (Some Nonempty)
                 b
-                (Int.intval ofs)
+                (Ptrofs.intval ofs)
                 pmap_tid.1
                 LKSIZE_nat,
                (setPermBlock
                   (Some Writable)
                   b
-                  (Int.intval ofs)
+                  (Ptrofs.intval ofs)
                   pmap_tid.2
                   LKSIZE_nat
 
@@ -3515,21 +3515,21 @@ Module Parching <: ErasureSig.
    { move => b0 ofs0.
      rewrite /pmap_tid'.
      destruct (peq b b0);
-       [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+       [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
      - rewrite setPermBlock_same.
 
-       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       assert (HH':adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
        { split; auto. }
 
        move: Hrmap => /=.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-       move=> /(_ _ HH') => [] [] val [] sh [] Rsh [] sh_before [] Wsh  sh_after.
+       intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
        rewrite sh_after.
        if_tac; reflexivity.
        auto.
      - rewrite setPermBlock_other_1.
 
-       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       assert (HH': ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
         { intros [ H1 [H2 H2']]; apply n; split; auto.  }
         move: Hrmap.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
@@ -3538,10 +3538,10 @@ Module Parching <: ErasureSig.
        apply proof_irrelevance.
 
        apply Intv.range_notin in n; auto.
-       unfold LKSIZE => /= . xomega.
+       pose proof LKSIZE_pos; simpl. xomega.
      - rewrite setPermBlock_other_2.
 
-       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+       assert (HH': ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0,ofs0)).
         { intros [ H1 [H2 H2']]; apply n. auto.  }
         move: Hrmap.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
@@ -3558,15 +3558,15 @@ Module Parching <: ErasureSig.
     { move => b0 ofs0.
      rewrite /pmap_tid'.
      destruct (peq b b0);
-       [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+       [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
      - rewrite setPermBlock_same.
 
-       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       assert (HH':adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
        { split; auto. }
 
        move: Hrmap => /=.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-       move=> /(_ _ HH') => [] [] val [] sh [] Rsh [] sh_before [] Wsh  sh_after.
+       intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
        rewrite sh_after.
        if_tac; apply perm_of_writable;
          try apply shares.writable_share_glb_Rsh; eauto;
@@ -3575,7 +3575,7 @@ Module Parching <: ErasureSig.
 
      - rewrite setPermBlock_other_1.
 
-       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       assert (HH': ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
         { intros [ H1 [H2 H2']]; apply n; split; auto.  }
         move: Hrmap.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
@@ -3584,10 +3584,10 @@ Module Parching <: ErasureSig.
        apply proof_irrelevance.
 
        apply Intv.range_notin in n; auto.
-       unfold LKSIZE => /= . xomega.
+       pose proof LKSIZE_pos; simpl. xomega.
      - rewrite setPermBlock_other_2.
 
-       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+       assert (HH': ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0,ofs0)).
         { intros [ H1 [H2 H2']]; apply n. auto.  }
         move: Hrmap.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
@@ -3602,11 +3602,11 @@ Module Parching <: ErasureSig.
 
 
       (*HERE*)
-      (*pose (pmap_lp   := setPerm (Some Writable) b (Int.intval ofs)
+      (*pose (pmap_lp   := setPerm (Some Writable) b (Ptrofs.intval ofs)
                                                (DTP.lockSet ds)).*)
       pose (ds':= DTP.updThread Htid' (Kresume c Vundef) (pmap_tid')).
-      pose (ds'':= DTP.updLockSet ds' (b, Int.intval ofs) (empty_map,empty_map)).
-      exists ds'',  (JSEM.Events.mklock (b, Int.intval ofs)).
+      pose (ds'':= DTP.updLockSet ds' (b, Ptrofs.intval ofs) (empty_map,empty_map)).
+      exists ds'',  (JSEM.Events.mklock (b, Ptrofs.intval ofs)).
       split ; [|split].
       - (*DryMachine.invariant ds''*)
         cut (DryMachine.invariant ds').
@@ -3658,17 +3658,16 @@ Module Parching <: ErasureSig.
           apply resource_at_join_sub with (l:= (b,ofs0)) in HH.
           rewrite MAP in HH.
 
-          assert (ineq': Int.intval ofs <= ofs0 < Int.intval ofs + LKSIZE).
+          assert (ineq': Ptrofs.intval ofs <= ofs0 < Ptrofs.intval ofs + LKSIZE).
           { clear - ineq.
             destruct ineq; auto. simpl in *.
             xomega.
           }
-          assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+          assert (HH':adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
           { split; auto. }
           move: Hrmap => /=.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-          move=> /(_ _ HH') => [] [] val [] sh [] Rsh [] sh_before [] Wsh  sh_after.
-
+          intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
           rewrite sh_before in HH.
           destruct HH as [x HH]. inversion HH.
 
@@ -3683,23 +3682,22 @@ Module Parching <: ErasureSig.
           unfold JSEM.ThreadPool.lockRes in BB.
           specialize (lset_in_juice (b, ofs0)). rewrite BB in lset_in_juice.
           destruct lset_in_juice as [sh' [psh [P MAP]]]; auto.
-          assert (HH:= JSEM.compatible_threadRes_sub Hi juice_join).
-          assert (VALID:= phi_valid allj).
+          assert (HH:= JSEM.compatible_threadRes_sub Hi juice_join).          assert (VALID:= phi_valid allj).
           specialize (VALID b ofs0).
           unfold "oo" in VALID.
           rewrite MAP in VALID.
           simpl in VALID.
-          assert (ineq': 0 < Int.intval ofs - ofs0 < LKSIZE).
+          assert (ineq': 0 < Ptrofs.intval ofs - ofs0 < LKSIZE).
           { clear - ineq. simpl in ineq; destruct ineq. xomega. }
           apply VALID in ineq'.
-          replace (ofs0 + (Int.intval ofs - ofs0)) with (Int.intval ofs) in ineq' by omega.
-          apply resource_at_join_sub with (l:= (b,Int.intval ofs)) in HH.
-
+          replace (ofs0 + (Ptrofs.intval ofs - ofs0)) with (Ptrofs.intval ofs) in ineq' by omega.
+          apply resource_at_join_sub with (l:= (b,Ptrofs.intval ofs)) in HH.
           move: Hrmap => /=.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2 H3.
-          assert (adr_range (b, Int.unsigned ofs) LKSIZE (b, Int.unsigned ofs)).
+          assert (adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, Ptrofs.unsigned ofs)).
           { split; auto.
             split; omega. }
+          destruct H3 as [H3 Hg].
           move: (H3 _ H4)=> [] v [] sh [] Rsh [] HH1 [] Wsh HH2.
           rewrite HH1 in HH.
           destruct HH as [x HH].
@@ -3724,12 +3722,10 @@ Module Parching <: ErasureSig.
             (cnti:= Hi)(cntj:= (MTCH_cnt' MATCH cntj)) in Hcmpt'; auto.
               destruct Hcmpt' as [x thread_join].
               simpl in Hrmap.
-              assert (H0:(0< LKSIZE)%Z) by
-                  (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_makelock_join
                        _ _ _ _
                        _ _ _
-                       H0
+                       LKSIZE_pos
                        Hrmap) in thread_join.
               destruct thread_join as [X [_ THEY_JOIN]].
               exists X; assumption. }
@@ -3747,12 +3743,10 @@ Module Parching <: ErasureSig.
             (cnti:= Hi)(l:=l)(phi:=pmap) in Hcmpt'; auto.
               destruct Hcmpt' as [x thread_lock_join].
               simpl in Hrmap.
-              assert (H0:(0< LKSIZE)%Z) by
-                  (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_makelock_join
                        _ _ _ _
                        _ _ _
-                       H0
+                       LKSIZE_pos
                        Hrmap) in thread_lock_join.
               destruct thread_lock_join as [X [_ THEY_JOIN]].
               exists X; assumption.
@@ -3779,14 +3773,14 @@ Module Parching <: ErasureSig.
           - intros j cnt neq b0 ofs0.
             rewrite (MTCH_perm' _ MATCH).
             destruct (peq b b0);
-              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+              [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             + rewrite setPermBlock_same; auto.
 
               move: Hrmap.
               rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-              assert (H3: adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
-              move => /(_ _ H3) [] val [] sh [] Rsh [] H4 [] ? H5.
+              intros [X Hg]; destruct (X _ H3) as (val & sh & Rsh & H4 & Y & H5); clear X.
               (*replace (MTCH_cnt' MATCH cnt) with Hi by apply proof_irrelevance.*)
               assert (H0: joins (JTP.getThreadR (MTCH_cnt' MATCH cnt))
                             (JTP.getThreadR Hi)).
@@ -3801,7 +3795,7 @@ Module Parching <: ErasureSig.
               -- rewrite -H7; simpl.
                  apply join_comm in RJ.
                  exfalso. eapply shares.join_writable_readable; eauto.
-            + apply Intv.range_notin in n; simpl in n; try (unfold LKSIZE; simpl; omega).
+            + apply Intv.range_notin in n; simpl in n; try (pose proof LKSIZE_pos; simpl; omega).
               rewrite setPermBlock_other_1; auto.
               rewrite /pmap_tid.
               rewrite (MTCH_perm2' _ MATCH).
@@ -3818,15 +3812,14 @@ Module Parching <: ErasureSig.
           - intros j cnt neq b0 ofs0.
             rewrite (MTCH_perm2' _ MATCH).
             destruct (peq b b0);
-              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+              [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             + rewrite setPermBlock_same; auto.
 
               move: Hrmap.
               rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-              assert (H3: adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
-              move => /(_ _ H3) [] val [] sh [] Rsh [] H4 [] Wsh H5.
-              (*replace (MTCH_cnt' MATCH cnt) with Hi by apply proof_irrelevance.*)
+              intros [X Hg]; destruct (X _ H3) as (val & sh & Rsh & H4 & Wsh & H5); clear X.
               assert (H0: joins (JTP.getThreadR (MTCH_cnt' MATCH cnt))
                             (JTP.getThreadR Hi)).
               { eapply JMS.JuicyMachineLemmas.compatible_threadRes_join;
@@ -3840,7 +3833,7 @@ Module Parching <: ErasureSig.
               -- rewrite -H7; simpl.
                  apply join_comm in RJ.
                  exfalso. eapply shares.join_writable_readable; eauto.
-            + apply Intv.range_notin in n; simpl in n; try (unfold LKSIZE; simpl; omega).
+            + apply Intv.range_notin in n; simpl in n; try (pose proof LKSIZE_pos; simpl; omega).
               rewrite setPermBlock_other_1; auto.
               rewrite /pmap_tid.
               rewrite (MTCH_perm' _ MATCH).
@@ -3965,23 +3958,23 @@ Here be dragons
               apply proof_irrelevance; reflexivity.
         + replace (MTCH_cnt MATCH Hi) with Htid' by
               apply proof_irrelevance; reflexivity.
-        + destruct (DTP.lockRes ds (b, Int.intval ofs)) eqn:AA; try reflexivity.
+        + destruct (DTP.lockRes ds (b, Ptrofs.intval ofs)) eqn:AA; try reflexivity.
           inversion MATCH.
-          specialize (mtch_locks (b, Int.intval ofs)).
+          specialize (mtch_locks (b, Ptrofs.intval ofs)).
           rewrite AA in mtch_locks.
 
           move: Hrmap.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
-          assert (H3: adr_range (b, Int.unsigned ofs) LKSIZE (b, Int.unsigned ofs)).
+          assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, Ptrofs.unsigned ofs)).
           { split; auto.
-            unfold LKSIZE.
+            pose proof LKSIZE_pos.
             split; omega. }
-          move => /(_ _ H3) [] val [] sh [] Rsh [] H4 [] Wsh H5.
+          intros [X Hg]; destruct (X _ H3) as (val & sh & Rsh & H4 & Y & H5); clear X.
           assert (Hcmpt':=Hcmpt).
           destruct Hcmpt as [jall Hcmpt].
           inversion Hcmpt.
           apply JSEM.compatible_threadRes_sub with (cnt:=Hi) in juice_join.
-          apply resource_at_join_sub with (l:=(b, Int.unsigned ofs)) in juice_join.
+          apply resource_at_join_sub with (l:=(b, Ptrofs.unsigned ofs)) in juice_join.
           destruct juice_join as [X HH].
           simpl in H4.
           rewrite H4 in HH.
@@ -3996,7 +3989,7 @@ Here be dragons
           Definition WorF (sh: share): permission:=
             if eq_dec sh Share.top then Freeable else Writable.
           pose (delta_b:=
-                  fun ofs0 => if (Intv.In_dec ofs0 ( Int.intval ofs,  Int.intval ofs + LKSIZE)%Z) then
+                  fun ofs0 => if (Intv.In_dec ofs0 ( Ptrofs.intval ofs,  Ptrofs.intval ofs + LKSIZE)%Z) then
                              Some (perm_of_res (phi' @ (b, ofs0)))
                            else None).
           Definition empty_delta_map: delta_map:= PTree.empty (Z -> option (option permission)).
@@ -4007,18 +4000,18 @@ Here be dragons
                           if (i > LKSIZE_nat)%N  then
                             None
                           else
-                            perm_of_res (phi' @ (b, Int.intval ofs + Z.of_nat (i)-1))
+                            perm_of_res (phi' @ (b, Ptrofs.intval ofs + Z.of_nat (i)-1))
                ).
           pose (pmap_tid' := (setPermBlock_var (*=setPermBlockfunc*)
                                 pdata
                                 b
-                                (Int.intval ofs)
+                                (Ptrofs.intval ofs)
                                 pmap_tid.1
                                 LKSIZE_nat,
                               setPermBlock
                                 None
                                 b
-                                (Int.intval ofs)
+                                (Ptrofs.intval ofs)
                                 pmap_tid.2
                                 LKSIZE_nat)).
           assert (pmap_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
@@ -4026,14 +4019,14 @@ Here be dragons
           { move => b0 ofs0.
             rewrite /pmap_tid'.
             destruct (peq b b0);
-              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+              [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             - rewrite setPermBlock_var_same; auto.
               unfold pdata.
               replace
-                (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)) -1)
+                (Ptrofs.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Ptrofs.intval ofs + 1)) -1)
               with
               ofs0.
-              assert ((LKSIZE_nat < nat_of_Z (ofs0 - Int.intval ofs + 1) )%N = false).
+              assert ((LKSIZE_nat < nat_of_Z (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
               {
                 move: i0. clear.
                 move => [] /= A B.
@@ -4053,12 +4046,12 @@ Here be dragons
 
               unfold LKSIZE in i0; destruct i0 as [A B].
               simpl in A. simpl in B.
-              assert (ofs0 - Int.intval ofs >= 0).
+              assert (ofs0 - Ptrofs.intval ofs >= 0).
               omega.
               omega.
             - rewrite setPermBlock_var_other_1; auto.
               move: Hrmap  => [] [] H1 [].
-              assert (H3: ~ adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
               move => /(_ _ H3) => <- _.
@@ -4068,10 +4061,10 @@ Here be dragons
                     apply proof_irrelevance.
                 reflexivity.
                 apply Intv.range_notin in n; auto.
-                unfold LKSIZE; simpl; omega.
+                pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_var_other_2; auto.
               move: Hrmap  => [] [] H1 [].
-              assert (H3: ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0, ofs0)).
+              assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
               move => /(_ _ H3) => <- _.
@@ -4088,16 +4081,16 @@ Here be dragons
             move => b0 ofs0.
             rewrite /pmap_tid'.
             destruct (peq b b0);
-              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+              [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             - rewrite setPermBlock_same; auto.
               move: Hrmap  => [] [] H1 [] _.
-              assert (H3: adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
-              move => /(_ _ H3) => [] [] sh [] Rsh [] -> [] Wsh BB.
+              intros [X Hg]; destruct (X _ H3) as (sh & Rsh & -> & Wsh & BB); clear X.
               reflexivity.
             - rewrite setPermBlock_other_1; auto.
                move: Hrmap  => [] [] H1 [].
-              assert (H3: ~ adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
               move => /(_ _ H3) => <- _.
@@ -4108,10 +4101,10 @@ Here be dragons
                     apply proof_irrelevance.
                 reflexivity.
                 apply Intv.range_notin in n; auto.
-                unfold LKSIZE; simpl; omega.
+                pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_other_2; auto.
               move: Hrmap  => [] [] H1 [].
-              assert (H3: ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0, ofs0)).
+              assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
               move => /(_ _ H3) => <- _.
@@ -4125,13 +4118,13 @@ Here be dragons
 
 
           pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
-          pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
+          pose (ds'':= DTP.remLockSet ds' (b,(Ptrofs.intval ofs))).
 
-          exists ds'', (JSEM.Events.freelock (b, Int.intval ofs)).
+          exists ds'', (JSEM.Events.freelock (b, Ptrofs.intval ofs)).
           split ; [|split].
 
           unfold ds''; rewrite DTP.remLock_updThread_comm.
-          pose (ds0:= (DTP.remLockSet ds (b, (Int.intval ofs)))).
+          pose (ds0:= (DTP.remLockSet ds (b, (Ptrofs.intval ofs)))).
 
           - cut (DryMachine.invariant ds0).
             { (*DryMachine.invariant ds' *)
@@ -4146,12 +4139,10 @@ Here be dragons
             (cnti:= Hi)(cntj:= (MTCH_cnt' MATCH cntj)) in Hcmpt'; auto.
               destruct Hcmpt' as [x thread_join].
               simpl in Hrmap.
-              assert (H0:(0< LKSIZE)%Z) by
-                  (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_freelock_join
                        _ _ _ _
                        _ _ _ _
-                       H0
+                       LKSIZE_pos
                        Hrmap) in thread_join.
               destruct thread_join as [X [_ THEY_JOIN]].
               exists X; assumption. }
@@ -4166,12 +4157,10 @@ Here be dragons
             (cnti:= Hi)(l:=l)(phi:=pmap) in Hcmpt'; auto.
               destruct Hcmpt' as [x thread_lock_join].
               simpl in Hrmap.
-              assert (H0:(0< LKSIZE)%Z) by
-                  (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_freelock_join
                        _ _ _ _
                        _ _ _ _
-                       H0
+                       LKSIZE_pos
                        Hrmap) in thread_lock_join.
               destruct thread_lock_join as [X [_ THEY_JOIN]].
               exists X; assumption.
@@ -4208,7 +4197,7 @@ Here be dragons
             eapply H; assumption.
           - move=> l pmap is_lock0.
             assert (is_lock: DryMachine.ThreadPool.lockRes ds l =  Some pmap).
-            { destruct (AMap.E.eq_dec (b, Int.intval ofs) l).
+            { destruct (AMap.E.eq_dec (b, Ptrofs.intval ofs) l).
                 * subst l.
                   rewrite DMS.DTP.gsslockResRemLock in is_lock0; inversion is_lock0.
                 * rewrite DMS.DTP.gsolockResRemLock in is_lock0; auto. }
@@ -4246,7 +4235,7 @@ Here be dragons
               split; first [apply empty_disjoint'| apply permCoh_empty].
           - move=> l pmap is_lock0.
             assert (is_lock: DryMachine.ThreadPool.lockRes ds l =  Some pmap).
-            { destruct (AMap.E.eq_dec (b, Int.intval ofs) l).
+            { destruct (AMap.E.eq_dec (b, Ptrofs.intval ofs) l).
                 * subst l.
                   rewrite DMS.DTP.gsslockResRemLock in is_lock0; inversion is_lock0.
                 * rewrite DMS.DTP.gsolockResRemLock in is_lock0; auto. }
@@ -4315,10 +4304,10 @@ Here be dragons
 
             (*First get the lock rmap*)
 
-            destruct (DTP.lockRes ds (b, Int.intval ofs)) eqn:is_lock.
+            destruct (DTP.lockRes ds (b, Ptrofs.intval ofs)) eqn:is_lock.
             Focus 2.
             { inversion MATCH.
-              specialize (mtch_locks (b, Int.intval ofs)).
+              specialize (mtch_locks (b, Ptrofs.intval ofs)).
               rewrite is_lock His_acq in mtch_locks.
               inversion mtch_locks.
             } Unfocus.
@@ -4346,9 +4335,9 @@ Here be dragons
               unfold permission_at in HH. rewrite HH.
               rewrite -(MTCH_perm2 _ MATCH).
               move: Hrmap  => [] [] H1 [] AA.
-              assert (H3: adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)).
+              assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
-              move => /(_ _ H3) => [] [] sh [] Rsh [] _ [] Wsh ->.
+              intros [X Hg]; destruct (X _ H3) as (sh & Rsh & _ & Wsh & ->); clear X.
               if_tac.
               * simpl.
                 rewrite perm_of_writable.
@@ -4367,34 +4356,35 @@ Here be dragons
               unfold pdata.
               assert ((LKSIZE_nat < indx.+1)%N = false).
               { destruct ineq.
-                move: H0. rewrite /LKSIZE_nat /LKSIZE.
+                move: H0.
                 simpl.
-                destruct (8 < indx.+1)%N eqn:NN; auto.
-                assert ((8 < indx.+1)%N) by
+                destruct (LKSIZE_nat < indx.+1)%N eqn:NN; auto.
+                assert ((LKSIZE_nat < indx.+1)%N) by
                 (rewrite NN; auto).
                 move: H0 => /ltP.
-                intros. xomega. }
+                intros. unfold LKSIZE_nat in *. apply Z2Nat.inj_lt in H0; try omega. rewrite Nat2Z.id in H0; omega. }
               rewrite H.
 
               move: Hrmap  => [] [] H1 [] AA.
-              assert (H3: adr_range (b, Int.unsigned ofs)
+              assert (H3: adr_range (b, Ptrofs.unsigned ofs)
                                     LKSIZE
-                     (b, Int.unsigned ofs + Z.of_nat indx.+1 - 1)).
+                     (b, Ptrofs.unsigned ofs + Z.of_nat indx.+1 - 1)).
               { split; auto.
                 unfold LKSIZE.
                 move:  ineq.
                 clear.
                 rewrite /LKSIZE => [] [] /= A B.
-                replace (Int.unsigned ofs + Z.pos (Pos.of_succ_nat indx) - 1)
+                replace (Ptrofs.unsigned ofs + Z.pos (Pos.of_succ_nat indx) - 1)
                 with
-                (Int.unsigned ofs + Z.of_nat indx).
+                (Ptrofs.unsigned ofs + Z.of_nat indx).
                 split; simpl.
-                replace (Int.unsigned ofs) with (Int.unsigned ofs + 0) at 1.
+                replace (Ptrofs.unsigned ofs) with (Ptrofs.unsigned ofs + 0) at 1.
                 apply Z.add_le_mono; omega.
                 omega.
                 omega.
                 rewrite Zpos_P_of_succ_nat; omega. }
-              move => /(_ _ H3) => [] [] sh [] ? [] -> [] Wsh _ /=.
+              unfold Ptrofs.unsigned in H3.
+              intros [X Hg]; destruct (X _ H3) as (sh & ? & -> & Wsh & _); clear X; simpl.
               destruct (eq_dec sh Share.top); try subst.
               * rewrite perm_of_freeable; constructor.
               * rewrite perm_of_writable; auto; constructor.
@@ -4404,7 +4394,7 @@ Here be dragons
 
         (* step_acqfail *)
         {
-          exists ds, (JSEM.Events.failacq (b, Int.intval ofs)).
+          exists ds, (JSEM.Events.failacq (b, Ptrofs.intval ofs)).
           split ; [|split].
           + assumption.
           + assumption.
@@ -4437,9 +4427,9 @@ Here be dragons
              (*Do the cases *)
              destruct (peq b b0);
                [subst b0;
-                 destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+                 destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
              - do 2 (rewrite setPermBlock_same; auto).
-             - apply Intv.range_notin in n; [|simpl; unfold LKSIZE; omega].
+             - apply Intv.range_notin in n; [|simpl; pose proof LKSIZE_pos; omega].
                do 2 (rewrite setPermBlock_other_1; auto).
 
                destruct Hcmpt as [jall Hcmpt];

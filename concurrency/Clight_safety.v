@@ -7,26 +7,26 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import compcert.cfrontend.Clight.
 
-Require Import veric.tycontext.
-Require Import veric.semax_prog.
+Require Import VST.veric.tycontext.
+Require Import VST.veric.semax_prog.
 
 (** *Juicy safetyn*)
-Require Import concurrency.semax_initial.
-Require Import concurrency.semax_conc.
-Require Import concurrency.semax_to_juicy_machine.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.semax_initial.
+Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.semax_to_juicy_machine.
+Require Import VST.concurrency.permissions.
 
 (** *Erasure Imports*)
-Require Import concurrency.erasure_signature.
-Require Import concurrency.erasure_proof.
-Require Import concurrency.erasure_safety.
+Require Import VST.concurrency.erasure_signature.
+Require Import VST.concurrency.erasure_proof.
+Require Import VST.concurrency.erasure_safety.
 
 (** *SAFETY*)
-Require Import concurrency.safety.
+Require Import VST.concurrency.safety.
 
 (** *SSROMEGA*)
 Require Import Omega.
-Require Import concurrency.ssromega.
+Require Import VST.concurrency.ssromega.
 Set Bullet Behavior "Strict Subproofs".
 
 (** *Excluded middle*)

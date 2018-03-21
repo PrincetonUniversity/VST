@@ -473,6 +473,13 @@ Proof.
   apply pures_eq_refl.
 Qed.
 
+Lemma pures_same_resource phi1 phi2 :
+  resource_at phi1 = resource_at phi2 ->
+  pures_same phi1 phi2.
+Proof.
+  unfold pures_same; intros ->; reflexivity.
+Qed.
+
 Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
   pures_same (m_phi (jm_ cnti compat)) Phi.
@@ -497,8 +504,7 @@ Lemma jsafe_phi_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
   jsafe_phi Jspec ge n z c phi.
 Proof.
   intros S jm <-.
-  apply jsafe_downward1.
-  apply S, eq_refl.
+  apply jsafe_downward1, S; auto.
 Qed.
 
 Lemma jsafe_phi_age Z Jspec ge ora q n phi phiaged :

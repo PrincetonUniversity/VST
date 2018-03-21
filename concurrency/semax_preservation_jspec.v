@@ -140,7 +140,7 @@ Section Jspec'_properties.
   Qed.
 
   Lemma Jspec'_jsafe_phi ge n ora c jm ext :
-    cl_at_external ge c (m_dry jm) = Some ext ->
+    cl_at_external c = Some ext ->
     jsafeN Jspec' ge n ora c jm ->
     jsafe_phi Jspec' ge n ora c (m_phi jm).
   Proof.
@@ -193,7 +193,7 @@ Section Jspec'_properties.
         all: rewrite Ejm_; try reflexivity.
 
     - (* halted: not at external *)
-      destruct (Clight_new.cl_core_sem_obligation_1 ge c (m_dry jm)); discriminate.
+      destruct (Clight_new.cl_core_sem_obligation_1 c); discriminate.
   Qed.
 
 End Jspec'_properties.

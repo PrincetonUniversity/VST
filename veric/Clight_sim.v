@@ -947,35 +947,35 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
             @CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
              (fun n ge => CS.(initial_core) n (Build_genv ge cenv))
-             CS.(at_external)
-             CS.(after_external)
+             (fun ge => CS.(at_external) (Build_genv ge cenv))
+             (fun ge => CS.(after_external) (Build_genv ge cenv))
              CS.(halted)
             (fun ge => CS.(corestep) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_at_external) (Build_genv ge cenv))
             (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
-            CS.(at_external_halted_excl).
+            (fun ge => CS.(at_external_halted_excl) _).
 
 Require Import VST.sepcomp.step_lemmas.
 
  Lemma sim_dry_safeN:
   forall dryspec (prog: Clight.program) b q m h,
   initial_core Clight_new.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
           (Vptr b Ptrofs.zero) nil = Some q ->
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_new.cl_core_sem 
    (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m) ->
+   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt (fst q) m) ->
   exists q', 
   initial_core Clight_core.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) m
           (Vptr b Ptrofs.zero) nil = Some q' /\
   (forall n, 
     @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
    (coresem_extract_cenv Clight_core.cl_core_sem 
    (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q' m).
+   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt (fst q') m).
 Proof.
 intros.
 simpl in H.

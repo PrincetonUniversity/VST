@@ -248,7 +248,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m1:= restrPermMap (DMS.DryMachine.compat_th Hcmpt cnti).1).
-        destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
         Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
@@ -293,18 +293,18 @@ Module THE_DRY_MACHINE_SOURCE.
         } Unfocus.
 
         pose (pmap_tid'0:= (setPermBlock (Some Nonempty) b
-                    (Int.intval ofs)
+                    (Ptrofs.intval ofs)
                     (DMS.DryMachine.ThreadPool.getThreadR cnti).1
                     LKSIZE_nat,
                     setPermBlock (Some Writable) b
-                    (Int.intval ofs)
+                    (Ptrofs.intval ofs)
                     (DMS.DryMachine.ThreadPool.getThreadR cnti).2
                     LKSIZE_nat)).
         pose (tp'0:= DMS.DryMachine.ThreadPool.updThread cnti
                     (Kresume c Vundef) pmap_tid'0).
         pose (tp''0 :=
                   DMS.DryMachine.ThreadPool.updLockSet tp'0
-                    (b, Int.intval ofs) (empty_map, empty_map)).
+                    (b, Ptrofs.intval ofs) (empty_map, empty_map)).
         exists 1%nat, (fun _ => ([::], tp''0, m')).
         move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -368,7 +368,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*Check if can acquire*)
         pose (load_one_dec:=
-                Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one)).
+                Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.one)).
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
 
         (*ACQFAIL*)
@@ -410,7 +410,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         pose (pmap_tid'0:=
                 setPermBlock (Some Writable) b
-                             (Int.intval ofs)
+                             (Ptrofs.intval ofs)
                              (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
 
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
@@ -437,7 +437,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m2:= restrPermMap Hlt).
-        destruct (Mem.store Mint32 m2 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint32 m2 b (Ptrofs.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
         Focus 2. {
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
@@ -475,7 +475,7 @@ Module THE_DRY_MACHINE_SOURCE.
                      (Kresume c Vundef) (newThreadPerm v)).
         pose (tp''0 v:=
                 DMS.DryMachine.ThreadPool.updLockSet (tp'0 v)
-                     (b, Int.intval ofs) (empty_map, empty_map)).
+                     (b, Ptrofs.intval ofs) (empty_map, empty_map)).
 
         exists N.
         exists (fun n => (nil,
@@ -525,7 +525,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*Most be acquired*)
         pose (load_one_dec:=
-                Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero)).
+                Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero)).
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
         Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
@@ -548,7 +548,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         pose (pmap_tid'0:=
                 setPermBlock (Some Writable) b
-                             (Int.intval ofs)
+                             (Ptrofs.intval ofs)
                              (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
         destruct (Classical_Prop.classic Hlt_dec) as [Hlt| NHlt].
@@ -572,7 +572,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*must be able to store*)
         pose (m1:= restrPermMap Hlt).
-        destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one)) as [m'|] eqn:Hstore'.
+        destruct (Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.one)) as [m'|] eqn:Hstore'.
         Focus 2. {
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
@@ -610,7 +610,7 @@ Module THE_DRY_MACHINE_SOURCE.
                      (Kresume c Vundef) (newThreadPerm v)).
         pose (tp''0 v:=
                 DMS.DryMachine.ThreadPool.updLockSet (tp'0 v.1)
-                     (b, Int.intval ofs) (virtueLP v.2)).
+                     (b, Ptrofs.intval ofs) (virtueLP v.2)).
         exists N.
         exists (fun n => (nil,
                   tp''0 (virtue_generator n),
@@ -809,10 +809,10 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*get a pair of virtues*)
         pose (pmap_tid'0 pd:=
-                (setPermBlock_var pd b (Int.intval ofs)
+                (setPermBlock_var pd b (Ptrofs.intval ofs)
                       (DMS.DryMachine.ThreadPool.getThreadR cnti).1
                       LKSIZE_nat,
-                    setPermBlock None b (Int.intval ofs)
+                    setPermBlock None b (Ptrofs.intval ofs)
                       (DMS.DryMachine.ThreadPool.getThreadR cnti).2
                       LKSIZE_nat)).
         pose (tp'0 pd:=
@@ -820,7 +820,7 @@ Module THE_DRY_MACHINE_SOURCE.
                                                     (Kresume c Vundef) (pmap_tid'0 pd)).
         pose (tp''0 pd:=
                     DMS.DryMachine.ThreadPool.remLockSet (tp'0 pd)
-                      (b, Int.intval ofs)).
+                      (b, Ptrofs.intval ofs)).
         exists N.
         exists (fun n => (nil,
                   tp''0 (virtue_generator n),

@@ -51,10 +51,12 @@ Module ErasureSafety.
   (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.*)
   Definition step_diagram:= ErasureProof.core_diagram.
 
+  Notation jm_csafe := JuicyMachineModule.THE_JUICY_MACHINE.jm_csafe.
+
   Lemma erasure_safety': forall n ge sch js ds m,
       ErasureProof.match_st js ds ->
       DMS.invariant ds ->
-    JuicyMachine.csafe ge (sch, nil, js) m n ->
+    jm_csafe ge (sch, nil, js) m n ->
     DryMachine.csafe ge (sch, nil, ds) m n.
   Proof.
     induction n.
@@ -75,7 +77,32 @@ Module ErasureSafety.
         unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
         eapply step_diagram in Hstep; try eassumption.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        econstructor 3; eauto. }
+        destruct Hsafe as (t & cnt & Hsafe).
+        specialize (Hsafe nil); spec Hsafe.
+        { eexists; simpl.
+          erewrite <- ghost_core; apply join_comm, core_unit. }
+        destruct Hsafe as (? & ? & ? & ? & Hr & ? & Hsafe).
+        eapply IHn in Hsafe; eauto.
+        econstructor 3; eauto.
+        { inv MATCH'; constructor; auto.
+          - intros.
+            destruct (eq_dec t tid).
+            + subst; setoid_rewrite JTP.gssThreadRes.
+              rewrite Hr; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+            + setoid_rewrite JTP.gsoThreadRes; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+          - intros.
+            destruct (eq_dec t tid).
+            + subst; setoid_rewrite JTP.gssThreadRes.
+              rewrite Hr; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+            + setoid_rewrite JTP.gsoThreadRes; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. } } }
     - { simpl in Hstep.
         unfold JuicyMachine.MachStep in Hstep; simpl in Hstep.
         assert (step_diagram:=step_diagram).
@@ -85,13 +112,41 @@ Module ErasureSafety.
         unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
         eapply step_diagram in Hstep; try eassumption.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        econstructor 4; eauto. }
+        econstructor 4; eauto.
+        intro U''; specialize (Hsafe U'').
+        destruct Hsafe as (t & cnt & Hsafe).
+        specialize (Hsafe nil); spec Hsafe.
+        { eexists; simpl.
+          erewrite <- ghost_core; apply join_comm, core_unit. }
+        destruct Hsafe as (? & ? & ? & ? & Hr & ? & Hsafe).
+        eapply IHn in Hsafe; eauto.
+        { inv MATCH'; constructor; auto.
+          - intros.
+            destruct (eq_dec t tid).
+            + subst; setoid_rewrite JTP.gssThreadRes.
+              rewrite Hr; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+            + setoid_rewrite JTP.gsoThreadRes; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+          - intros.
+            destruct (eq_dec t tid).
+            + subst; setoid_rewrite JTP.gssThreadRes.
+              rewrite Hr; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. }
+            + setoid_rewrite JTP.gsoThreadRes; auto.
+              { apply (JMS.ThreadPool.pool tp').
+                econstructor; eauto. } } }
+Unshelve.
+all: assumption.
 Qed.
 
 
   Theorem erasure_safety: forall ge cd j js ds m n,
       Erasure.match_state cd j js m ds m ->
-    JuicyMachine.csafe ge js m n ->
+    jm_csafe ge js m n ->
     DryMachine.csafe ge ds m n.
   Proof.
     intros ? ? ? ? ? ? ? MATCH jsafe.

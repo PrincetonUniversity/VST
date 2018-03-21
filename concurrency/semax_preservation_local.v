@@ -71,14 +71,15 @@ Open Scope string_scope.
 Lemma resource_decay_joinlist b phi1 phi1' l Phi :
   rmap_bound b Phi ->
   resource_decay b phi1 phi1' ->
+  ghost_of phi1' = ghost_fmap (approx (level phi1')) (approx (level phi1')) (ghost_of phi1) ->
   joinlist (phi1 :: l) Phi ->
   exists Phi',
     joinlist (phi1' :: (map (age_to (level phi1')) l)) Phi' /\
     resource_decay b Phi Phi'.
 Proof.
-  intros B rd (x & h & j).
+  intros B rd g (x & h & j).
   assert (Bx : rmap_bound b x). { apply (rmap_bound_join j) in B. intuition. }
-  destruct (resource_decay_join _ _ _ _ _ Bx rd j) as (Phi' & j' & rd').
+  destruct (resource_decay_join _ _ _ _ _ Bx rd g j) as (Phi' & j' & rd').
   exists Phi'; split; auto.
   exists (age_to (level phi1') x); split; auto.
   apply joinlist_age_to, h.
@@ -87,7 +88,8 @@ Qed.
 Lemma resource_decay_join_all {tp m Phi} c' {phi' i} {cnti : ThreadPool.containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
   resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
-  level (getThreadR i tp cnti) = S (level phi') ->
+  level (getThreadR i tp cnti) = S (level phi') /\
+  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of (getThreadR i tp cnti)) ->
   join_all tp Phi ->
   exists Phi',
     join_all (@updThread i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
@@ -95,9 +97,9 @@ Lemma resource_decay_join_all {tp m Phi} c' {phi' i} {cnti : ThreadPool.contains
     level Phi = S (level Phi').
 Proof.
   do 2 rewrite join_all_joinlist.
-  intros B (rd, lev) j.
+  intros B (rd & lev & g) j.
   rewrite (maps_getthread _ _ cnti) in j.
-  destruct (resource_decay_joinlist _ _ _ _ _ B rd j) as (Phi' & j' & rd').
+  destruct (resource_decay_joinlist _ _ _ _ _ B rd g j) as (Phi' & j' & rd').
   exists Phi'; split; [ | split]; auto.
   - rewrite maps_updthread.
     exact_eq j'. f_equal. f_equal. rewrite <-all_but_map, maps_age_to.
@@ -109,13 +111,14 @@ Qed.
 
 Lemma resource_decay_join_identity b phi phi' e e' :
   resource_decay b phi phi' ->
+  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of phi) ->
   sepalg.joins phi e ->
   sepalg.joins phi' e' ->
   identity e ->
   identity e' ->
   e' = age_to (level phi') e.
 Proof.
-  intros rd j j' i i'.
+  intros rd g j j' i i'.
   apply rmap_ext.
   - apply rmap_join_eq_level in j.
     apply rmap_join_eq_level in j'.
@@ -151,6 +154,9 @@ Proof.
       rewr (phi' @ l) in j'.
       inv j'.
       reflexivity.
+  - rewrite age_to_ghost_of.
+    rewrite (identity_core (ghost_of_identity _ i)), (identity_core (ghost_of_identity _ i')).
+    rewrite !ghost_core; auto.
 Qed.
 
 Lemma same_except_cur_jm_ tp m phi i cnti compat :
@@ -293,7 +299,7 @@ Lemma invariant_thread_step
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec m ge tp Phi compat (S n))
-  (wellformed : threads_wellformed ge m tp)
+  (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
@@ -330,7 +336,7 @@ Proof.
     clear -stepi Eni.
     rewrite <-level_juice_level_phi.
     cut (S (level jmi') = S n); [ congruence | ].
-    destruct stepi as [_ [_ <-]].
+    destruct stepi as [_ [_ [<- _]]].
     apply Eni.
   }
   unfold LocksAndResources.res in *.
@@ -373,6 +379,7 @@ Proof.
       rewrite N in Hext''. simpl in Hext''.
       rewrite <-Eni''.
       eapply resource_decay_join_identity.
+      + apply (proj2 stepi).
       + apply (proj2 stepi).
       + exists Phi. apply Jext.
       + exists Phi''. apply Jext''.
@@ -693,7 +700,7 @@ Proof.
             destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
             * discriminate.
             * tauto.
-            * unfold LKSIZE; simpl in range; clear - range; omega.
+            * unfold LKSIZE; simpl in range; clear - range; rewrite size_chunk_Mptr; if_tac; omega.
           + constructor.
         - (* basic alignment *)
           eapply lock_coherence_align; eauto.
@@ -743,7 +750,7 @@ Proof.
           simpl in lk.
           assert (adr_range (b, ofs) 4%Z (b, ofs0))
             by apply interval_adr_range, interval.
-          spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; omega.
+          spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; rewrite size_chunk_Mptr; if_tac; omega.
           if_tac in lk.
           * destruct lk as (? & ? & ->). simpl. constructor.
           * destruct lk as (? & ? & ->). simpl. constructor.

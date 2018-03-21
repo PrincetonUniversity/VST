@@ -60,7 +60,6 @@ Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.semax_preservation_jspec.
 Require Import VST.concurrency.semax_preservation_local.
 Require Import VST.concurrency.semax_preservation_acquire.
-Require Import VST.concurrency.semax_preservation_release.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.

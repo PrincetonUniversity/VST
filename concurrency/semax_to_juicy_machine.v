@@ -49,14 +49,14 @@ Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.
 Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.sync_preds.
-Require Import VST.concurrency.semax_initial.
+(*Require Import VST.concurrency.semax_initial.
 Require Import VST.concurrency.semax_progress.
 Require Import VST.concurrency.semax_preservation_jspec.
 Require Import VST.concurrency.semax_safety_makelock.
 Require Import VST.concurrency.semax_safety_spawn.
 Require Import VST.concurrency.semax_safety_release.
 Require Import VST.concurrency.semax_safety_freelock.
-Require Import VST.concurrency.semax_preservation.
+Require Import VST.concurrency.semax_preservation.*)
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -65,22 +65,12 @@ Inductive jmsafe : nat -> cm_state -> Prop :=
 | jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
 | jmsafe_core n m m' ge sch tp tp':
     @JuicyMachine.machine_step ge sch nil tp m sch nil tp' m' ->
-    jmsafe n (m', ge, (sch, tp')) ->
+    tp_bupd (fun tp' => jmsafe n (m', ge, (sch, tp'))) tp' ->
     jmsafe (S n) (m, ge, (sch, tp))
 | jmsafe_sch n m m' ge i sch tp tp':
     @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
-    (forall sch', jmsafe n (m', ge, (sch', tp'))) ->
+    (forall sch', tp_bupd (fun tp' => jmsafe n (m', ge, (sch', tp'))) tp') ->
     jmsafe (S n) (m, ge, (i :: sch, tp)).
-
-(*
-Inductive jmsafe : nat -> cm_state -> Prop :=
-| jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
-| jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
-| jmsafe_sch n m m' ge i sch tp tp':
-    @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
-    (forall sch', unique_Krun tp sch' -> jmsafe n (m', ge, (sch', tp'))) ->
-    jmsafe (S n) (m, ge, (i :: sch, tp)).
- *)
 
 Lemma step_sch_irr ge i sch sch' tp m tp' m' :
   @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
@@ -425,7 +415,7 @@ Section Safety.
     exists n; split; auto; apply initial_invariant.
   Qed.
 
-  Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> JuicyMachine.csafe ge (sch, nil, s) m n.
+  Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> jm_csafe ge (sch, nil, s) m n.
   Proof.
     clear.
     revert m ge sch s; induction n; intros m ge sch s SAFE.
@@ -433,14 +423,18 @@ Section Safety.
     inversion SAFE; subst.
     - constructor 2. reflexivity.
     - econstructor 3; simpl; eauto.
+      destruct H5 as (? & cnt & H); exists _, cnt; intros ?? J.
+      destruct (H _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
     - econstructor 4; simpl; eauto.
+      intro U''; destruct (H5 U'') as (? & cnt & H); exists _, cnt; intros ?? J.
+      destruct (H _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
   Qed.
 
   (* [jmsafe] is an intermediate result, we can probably prove [csafe]
   directly *)
 
   Theorem safety_initial_state (sch : schedule) (n : nat) :
-    JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
+    jm_csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
   Proof.
     apply jmsafe_csafe, jmsafe_initial_state.
   Qed.
