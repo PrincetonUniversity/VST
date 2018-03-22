@@ -702,7 +702,8 @@ cancel.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega.
    eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
-   eapply JMeq_trans; [ | apply JMeq_sublist; [ | apply H8]; now auto].
+   apply (JMeq_sublist _ _ lop (lop + len) _ _ (eq_sym H99)) in H8.
+   eapply JMeq_trans, H8.
    apply eq_JMeq.
    unfold splice_into_list.
    autorewrite with sublist. auto.

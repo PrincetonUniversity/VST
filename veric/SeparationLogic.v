@@ -14,6 +14,7 @@ Require Export VST.msl.shares.
 Require Export VST.msl.predicates_rec.
 Require Export VST.msl.contractive.
 Require Export VST.msl.seplog.
+Require Export VST.msl.ghost_seplog.
 Require Export VST.msl.alg_seplog.
 Require Export VST.msl.log_normalize.
 Require Export VST.msl.ramification_lemmas.
@@ -30,6 +31,7 @@ Require VST.veric.assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
+Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
 
@@ -42,6 +44,9 @@ Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
 Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
+Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
+  mkBSL _ _ _ _ _ bupd (@own) bupd_intro bupd_mono bupd_trans bupd_frame_r
+    (@ghost_alloc) (@ghost_op) (@ghost_valid_2) (@ghost_update_ND) (@ghost_update).
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
 Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
@@ -58,13 +63,13 @@ Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIn
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 Hint Resolve any_environ : typeclass_instances.
 
 Local Open Scope logic.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 Inductive trust_loop_nocontinue : Prop := .
 
@@ -221,11 +226,14 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 Definition typecheck_error (e: tc_error) : Prop := False.
 Global Opaque typecheck_error.
 
+(* Somehow, this fixes a universe collapse issue that will occur if fool is not defined. *)
+Definition fool := @map _ Type (fun it : ident * type => mpred).
+
 Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(prop (typecheck_error msg))
   | tc_TT => TT
-  | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_andp' b c => fun rho => andp (denote_tc_assert b rho) (denote_tc_assert c rho)
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
@@ -242,7 +250,9 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_nosignedover op e1 e2 => `(denote_tc_nosignedover op) (eval_expr e1) (eval_expr e2)
  end.
 
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Definition fool' := @map _ Type (fun it : ident * type => mpred).
+
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
 (* END from expr2.v *)
 
@@ -904,7 +914,7 @@ Definition add_funspecs (Espec : OracleKind)
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
 (* Misc lemmas *)
 Lemma typecheck_lvalue_sound {CS: compspecs} :
@@ -1033,7 +1043,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 Global Opaque rel_expr.
 Global Opaque rel_lvalue.
 
@@ -1396,14 +1406,14 @@ Axiom semax_skip:
   forall {Espec: OracleKind}{CS: compspecs},
    forall Delta P, @semax CS Espec Delta P Sskip (normal_ret_assert P).
 
-Axiom semax_pre_post:
+Axiom semax_pre_post_bupd:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+    (local (tc_environ Delta) && P |-- |==> P') ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:
@@ -1481,3 +1491,4 @@ Proof.
   apply ND_prop_ext.
   auto.
 Defined.
+

@@ -792,13 +792,22 @@ intros. reflexivity.
 Qed.
 Hint Rewrite exp_unfold: norm2.
 
+Lemma semax_pre_bupd:
+ forall P' Espec {cs: compspecs} Delta P c R,
+     ENTAIL Delta , P |-- |==> P' ->
+     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; eauto;
+intros; apply andp_left2, bupd_intro; auto.
+Qed.
+
 Lemma semax_pre:
  forall P' Espec {cs: compspecs} Delta P c R,
      ENTAIL Delta , P |-- P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
-intros; eapply semax_pre_post; eauto;
-intros; apply andp_left2; auto.
+intros; eapply semax_pre_bupd; eauto.
+eapply derives_trans, bupd_intro; auto.
 Qed.
 
 Lemma semax_pre_simple:
@@ -816,6 +825,18 @@ Proof.
 intros.
 eapply semax_pre_simple; try apply H0.
  apply andp_left2; auto.
+Qed.
+
+Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
+ forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+    (local (tc_environ Delta) && P |-- P') ->
+    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+Proof.
+  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
 Qed.
 
 Lemma semax_frame_PQR:
@@ -868,6 +889,18 @@ intros. subst.
 eapply semax_pre.
 apply H1.
 apply semax_frame_PQR; auto.
+Qed.
+
+Lemma semax_post_bupd:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   ENTAIL (update_tycon Delta c), RA_normal R' |-- |==> RA_normal R ->
+   ENTAIL Delta, RA_break R' |-- |==> RA_break R ->
+   ENTAIL Delta, RA_continue R' |-- |==> RA_continue R ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- |==> RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; try eassumption.
+apply andp_left2, bupd_intro; auto.
 Qed.
 
 Lemma semax_post:
@@ -1223,6 +1256,59 @@ Tactic Notation "replace_SEP" constr(n) constr(R) :=
 
 Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic(t):=
   first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
+
+Lemma replace_SEP'_bupd:
+ forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (replace_nth n Rs R')))) c Post ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
+Proof.
+intros.
+eapply semax_pre_bupd; [ | apply H0].
+clear - H.
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold_lift; unfold_lift in H.
+normalize.
+rewrite !prop_true_andp in H by auto.
+rewrite sepcon_emp in H.
+rewrite prop_true_andp by auto.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
+- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+Qed.
+
+Lemma replace_SEP''_bupd:
+ forall n R' Delta P Q Rs Post,
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- |==> Post ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- |==> Post.
+Proof.
+intros.
+eapply derives_trans, bupd_trans.
+eapply derives_trans; [ | apply bupd_mono, H0].
+clear - H.
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold_lift; unfold_lift in H.
+normalize.
+rewrite !prop_true_andp in H by auto.
+rewrite sepcon_emp in H.
+rewrite !prop_true_andp by auto.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bupd_intro; auto].
+- eapply derives_trans, bupd_frame_r; apply sepcon_derives; auto.
+- eapply derives_trans, bupd_frame_l; apply sepcon_derives; auto.
+Qed.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
+  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
+
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic(t):=
+  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 

@@ -14,7 +14,7 @@ Require Import VST.veric.initial_world.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
-                                 _ (level w) _)).
+                              _ _ (level w) _ (ghost_of_approx w))).
 Proof.
  intros b' z'.
  unfold compose.
@@ -38,7 +38,7 @@ Proof. intros. destruct (f b). right; intuition. left; auto.
 Qed.
 
 Lemma join_only_blocks:
-  forall {S} S_dec phi, join (@only_blocks S S_dec phi)
+  forall {S} S_dec phi, identity (ghost_of phi) -> join (@only_blocks S S_dec phi)
                         (only_blocks (not_dec S_dec) phi) phi.
 Proof. intros.
   unfold only_blocks.
@@ -49,6 +49,8 @@ Proof. intros.
  destruct (S_dec (fst loc)); simpl.
   try rewrite if_false by intuition. apply join_comm; apply core_unit.
   rewrite if_true by intuition; apply core_unit.
+  rewrite !ghost_of_make_rmap.
+  apply identity_unit'; auto.
 Qed.
 
 Lemma Exists_dec: forall {T} (f: T -> Prop)(f_dec: forall x, {f x}+{~f x}) (l: list T),
@@ -77,8 +79,8 @@ Definition beyond_block (b: block) (w: rmap) : rmap := only_blocks (not_dec (fun
 
 
 Lemma join_upto_beyond_block:
-  forall b phi, join  (upto_block b phi)  (beyond_block b phi) phi.
-Proof.  intros; apply join_only_blocks.
+  forall b phi, identity (ghost_of phi) -> join  (upto_block b phi)  (beyond_block b phi) phi.
+Proof.  intros; apply join_only_blocks; auto.
 Qed.
 
 
@@ -86,12 +88,13 @@ Lemma split_range:
   forall phi base n,
     (forall loc, adr_range base n loc ->
        match phi @ loc with YES _ _ k _ => isVAL k | _ => True end) ->
+    noghost phi ->
    exists phi1, exists phi2,
       join phi1 phi2 phi /\
       forall loc, if adr_range_dec base n loc then identity (phi2 @ loc)
                                                       else identity (phi1 @ loc).
 Proof.
-  intros.
+  intros ???? Hg.
   assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)))).
   intro; intros. destruct base as [b0 z].
   pose proof (H (b,ofs)).
@@ -102,10 +105,11 @@ Proof.
   clear H0.
   destruct (phi @ (b,ofs)); simpl; auto.
     rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
-  destruct (make_rmap _ H0 (level phi)) as [phi1 [J1 J2]].
+  destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi1 [J1 J2]].
   extensionality loc;   unfold compose.
   if_tac.  apply resource_at_approx.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
+  { apply ghost_of_approx. }
   clear H0.
   assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc))).
   clear phi1 J1 J2.
@@ -126,18 +130,21 @@ Proof.
   destruct (phi @ (b,ofs-z0)); inv H3. destruct H; inv H.
   destruct (phi @ (b,ofs-z0)); inv H3.
   simpl. f_equal. f_equal. apply exist_ext. auto.
-  destruct (make_rmap _ H0 (level phi)) as [phi2 [J3 J4]].
+  destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi2 [J3 J4]].
   extensionality loc;   unfold compose.
   if_tac.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
   apply resource_at_approx.
+  { apply ghost_of_approx. }
  clear H0.
+  destruct J2 as [J2 Hg1], J4 as [J4 Hg2].
   exists phi1; exists phi2; split; auto.
-  apply resource_at_join2; [congruence | congruence | ].
+  apply resource_at_join2; [congruence | congruence | | ].
   intros; rewrite J2; rewrite J4.
   if_tac.
     apply join_unit2. apply core_unit. auto.
     apply join_unit1. apply core_unit. auto.
+  rewrite Hg1, Hg2; apply identity_unit'; auto.
   intros. rewrite J2; rewrite J4. if_tac; apply core_identity.
 Qed.
 
@@ -742,7 +749,7 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
      if adr_range_dec (b, z) (init_data_size a) loc
      then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
      else identity (w1 @ loc)) ->
-   forall (VOL:  gvar_volatile v = false)
+   forall (Hg: noghost w1) (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
          (RHO: ge_of rho = filter_genv ge),
@@ -912,6 +919,7 @@ Proof.
   apply nth_getN; simpl; omega.
 * (* address_mapsto_zeros *)
  rewrite address_mapsto_zeros_eq.
+ split; auto.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
 rewrite Zmax_Z_of_nat.
 rewrite nat_of_Z_max.
@@ -1007,7 +1015,7 @@ Lemma init_data_list_lem:
      drop_perm m3 b 0 (init_data_list_size (gvar_init v))
                (Genv.perm_globvar v) = Some m4 ->
   forall
-   (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
+   (Hg: noghost phi0) (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true)
    (RHO: ge_of rho = filter_genv ge),
@@ -1089,16 +1097,20 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
                                then identity (w' @ loc)  else identity (w @ loc)).
   intro. subst. if_tac. rewrite <- core_resource_at. apply core_identity.
   specialize (H4 loc). rewrite if_false in H4 by auto; auto.
+  assert (noghost w) as Hgw.
+  { subst w phi.
+    unfold beyond_block, only_blocks, inflate_initial_mem; simpl.
+    rewrite !ghost_of_make_rmap; auto. }
    clear Heqw' Heqw Heqdl' HeqD.
-   revert dl' w' w AL H2 H4 H5 H6; induction dl; simpl; intros.
-   apply all_resource_at_identity; intro loc.
+   revert dl' w' w AL H2 H4 H5 H6 Hgw; induction dl; simpl; intros.
+   apply all_resource_at_identity; auto; intro loc.
    specialize (H6 loc); if_tac in H6; auto. destruct loc; destruct H7.
-  omegaContradiction.
+   omegaContradiction.
   assert (SANITY': init_data_list_size dl' + init_data_size a + init_data_list_size dl < Ptrofs.modulus).
   clear - H2 SANITY.
   subst D.
  rewrite init_data_list_size_app in SANITY. simpl in SANITY. omega.
-  destruct (split_range w (b,init_data_list_size dl') (init_data_size a)) as [w1 [w2 [? ?]]].
+  destruct (split_range w (b,init_data_list_size dl') (init_data_size a)) as [w1 [w2 [? ?]]]; auto.
   intros. apply (resource_at_join _ _ _ loc) in H5.
   specialize (H6 loc). rewrite if_true in H6. apply H6 in H5.
   rewrite H5.
@@ -1130,6 +1142,8 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   pose proof (load_store_init_data_lem1 H0 H1 _ _ _ H2).
   unfold phi in *; clear phi.
   eapply init_data_lem; try eassumption.
+  apply ghost_of_join in H7.
+  simpl; eapply split_identity; eauto.
   clear - AL. apply andb_true_iff in AL. destruct AL; auto.
   pose proof (init_data_list_size_pos dl'); omega.
   pose proof (init_data_list_size_pos dl); omega.
@@ -1179,6 +1193,8 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
  rewrite if_false. apply H8 in H7. rewrite H7; auto.
  contradict H12. destruct H12; split; auto.
   pose proof (init_data_size_pos a); omega.
+  apply ghost_of_join, join_comm in H7.
+  simpl; eapply split_identity; eauto.
  clear.
   induction dl'; simpl; intros; try omega.
 Qed.
@@ -1329,6 +1345,7 @@ Focus 2.
  if_tac. unfold Genv.perm_globvar. if_tac. simpl in H0. rewrite H0. rewrite core_NO; auto.
   if_tac; rewrite core_YES; auto.
  rewrite core_NO; auto.
+ unfold upto_block, only_blocks, inflate_initial_mem; rewrite !ghost_of_make_rmap; auto.
 Qed.
 
 Lemma find_id_rev: forall i G,
@@ -1515,10 +1532,11 @@ Proof.
    rewrite map_app, list_norepet_app in H.   destruct H as [? [? ?]]; auto.
     apply find_id_rev; auto.
     rewrite <- list_norepet_rev, <- map_rev. auto.
+  rewrite !ghost_of_make_rmap; auto.
 Qed.
 
 Definition hackfun phi0 phi :=
-  level phi0 = level phi /\
+  level phi0 = level phi /\ ghost_of phi0 = ghost_of phi /\
   forall loc, (identity (phi0 @ loc) <-> identity (phi @ loc)) /\
                   (~identity (phi0 @ loc) -> (phi0 @ loc = phi @ loc)).
 
@@ -1537,7 +1555,9 @@ Lemma alloc_Gfun_inflate:
 Proof.
  intros.
  apply H0.
- destruct H3 as [H3' H3]; split. rewrite inflate_initial_mem_level in H3'|-*; auto.
+ destruct H3 as [H3' [Hg H3]]; split. rewrite inflate_initial_mem_level in H3'|-*; auto.
+ split.
+ { unfold inflate_initial_mem in *; rewrite ghost_of_make_rmap in *; auto. }
  intro loc; specialize (H3 loc).
  clear - H3 H2 H1 H.
  assert (exists fs', find_id i (G0 ++ (i,fs)::G) = Some fs').
@@ -1629,7 +1649,7 @@ Proof.
 intros.
 assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc))).
 intros b ofs. unfold compose.
-destruct H. destruct (H1 (b,ofs)).
+destruct H as (? & Hg & ?). destruct (H1 (b,ofs)).
  pose proof  (resource_at_join _ _ _ (b,ofs) H0).
 if_tac. apply H5 in H4.
  case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
@@ -1646,18 +1666,20 @@ if_tac. apply H5 in H4.
  destruct H10 as [n [? ?]]; exists n; split; auto.
  destruct (w1 @ (b,ofs-z)); inv H6; rewrite if_false by apply YES_not_identity.
  simpl. f_equal. f_equal. apply exist_ext; auto.
- destruct (make_rmap _ H1 (level w))  as [w1' [? ?]]; clear H1.
+ destruct (make_rmap _ (ghost_of w1) H1 (level w))  as [w1' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
  rewrite <- level_core. apply resource_at_approx.
  replace (level w) with (level w1) by (apply join_level in H0; destruct H0; auto).
  apply resource_at_approx.
+ destruct (join_level _ _ _ H0) as [<- _].
+ apply ghost_of_approx.
 
 assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc))).
  apply join_comm in H0. clear H2 H3.
 intros b ofs. unfold compose.
-destruct H. destruct (H1 (b,ofs)).
+destruct H, H1 as [Hg H1]. destruct (H1 (b,ofs)).
  pose proof  (resource_at_join _ _ _ (b,ofs) H0).
 if_tac. apply H5 in H4.
  case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
@@ -1674,28 +1696,34 @@ if_tac. apply H5 in H4.
  destruct (w2 @ (b,ofs-z)); inv H6.
  rewrite if_false by apply YES_not_identity.
  simpl. f_equal. f_equal. apply exist_ext; auto.
-destruct (make_rmap _ H1 (level w))  as [w2' [? ?]]; clear H1.
+destruct (make_rmap _ (ghost_of w2) H1 (level w))  as [w2' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
  rewrite <- level_core. apply resource_at_approx.
  replace (level w) with (level w2) by (apply join_level in H0; destruct H0; auto).
  apply resource_at_approx.
+ destruct (join_level _ _ _ H0) as [_ <-]; apply ghost_of_approx.
  exists w1'; exists w2'; split3.
  apply resource_at_join2. destruct H; congruence. destruct H; congruence.
- intro loc; apply (resource_at_join _ _ _ loc) in H0. rewrite H3,H5.
- destruct H. destruct (H1 loc).
- if_tac. apply H8 in H0. rewrite H0.
- if_tac.  apply H6 in H9. apply identity_unit_equiv in H9. apply unit_core in H9.
- rewrite <- H9 at 2. apply core_unit.
- rewrite H7 by auto. apply core_unit.
- spec H7. contradict H8; apply split_identity in H0; auto. rewrite <- H7.
- if_tac. apply join_comm in H0. apply H9 in H0. rewrite H0. apply join_comm; apply core_unit.
+ intro loc; apply (resource_at_join _ _ _ loc) in H0. destruct H3 as [-> _], H5 as [-> _].
+ destruct H. destruct H1 as [Hg H1], (H1 loc).
+ if_tac. apply H6 in H0. rewrite H0.
+ if_tac.  apply H3 in H7. apply identity_core in H7.
+ rewrite <- H7 at 2. apply core_unit.
+ rewrite H5 by auto. apply core_unit.
+ spec H5. contradict H6; apply split_identity in H0; auto. rewrite <- H5.
+ if_tac. apply join_comm in H0. apply H7 in H0. rewrite H0. apply join_comm; apply core_unit.
  auto.
+ destruct H3 as [_ ->], H5 as [_ ->].
+ destruct H as (? & <- & _).
+ apply ghost_of_join; auto.
  destruct H; split. apply join_level in H0; destruct H0; congruence.
+ destruct H3 as [H3 ->]; split; auto.
  intro loc. rewrite H3. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
  intuition.
  destruct H; split. apply join_level in H0; destruct H0; congruence.
+ destruct H5 as [H5 ->]; split; auto.
  intro loc. rewrite H5. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
  intuition.
 Qed.
@@ -1708,9 +1736,10 @@ Lemma init_datalist_hack:
    readable_share (Share.lub extern_retainer sh) ->
    (init_data_list2pred dl sh (Vptr b z) rho) phi.
 Proof.
-  induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
-  apply all_resource_at_identity; intro loc. destruct (H0 loc).
+  induction dl; intros. destruct H0 as [H0' [Hg H0]]. simpl in *.
+  apply all_resource_at_identity. intro loc; destruct (H0 loc).
   apply (resource_at_identity _ loc) in H. apply H2; auto.
+  rewrite <- Hg; apply ghost_of_identity; auto.
 
   rename H1 into H_READABLE.
  simpl init_data_list2pred in H|-*.
@@ -1718,7 +1747,7 @@ Proof.
  destruct (hackfun_sep _ _ _ _ H0 H) as [w1' [w2' [? [? ?]]]].
  exists w1'; exists w2'; split3; auto.
  2: eapply IHdl; eauto.
- clear - H_READABLE H1 H4. destruct H4 as [H4' H4].
+ clear - H_READABLE H1 H4. destruct H4 as [H4' [Hg H4]].
 
   unfold init_data2pred in *;
   unfold mapsto, address_mapsto in *;
@@ -1731,12 +1760,13 @@ Proof.
            | apply sign_ext_range'; compute; split; congruence
            | apply zero_ext_range'; compute; split; congruence ]
     | simpl in H1 |- *;
-      destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
+      destruct H1 as [bl [[? H8] Hg']]; exists bl; split; [|rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc);
       if_tac; [ destruct H8 as [p H8]; exists p; destruct (H4 loc) as [_ H5];
                 rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
               | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
+ destruct H1 as [H1 Hg1]; split; [|simpl; rewrite <- Hg; auto].
  intro loc; specialize (H1 loc).
  assert (H99:  Zmax (Zmax z0 0) 0 = Zmax z0 0).
    apply Z.max_l. apply Zmax_bound_r. omega.
@@ -1747,14 +1777,16 @@ Proof.
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
 
  destruct (ge_of rho i); try destruct p; auto.
- destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto;
- destruct H1 as [bl [? H8]].
- exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto.
+ destruct H1 as [bl [[? H8] Hg1]].
+ exists bl; split; [|simpl; rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
  intuition.
- exists bl,x. destruct H8 as [H8' H8].
+ destruct H1 as [bl [? H8]].
+ exists bl,x. destruct H8 as [[H8' H8] Hg1].
+ split; [|simpl; rewrite <- Hg; auto].
  split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
@@ -1775,6 +1807,8 @@ Proof.
  rewrite inflate_initial_mem_level in H|-*.
  unfold upto_block. rewrite level_only_blocks. auto.
  clear H; rename H1 into H.
+ destruct H as [Hg H]; split.
+ { unfold upto_block, only_blocks, inflate_initial_mem in *; rewrite !ghost_of_make_rmap in *; auto. }
  intro loc; specialize (H loc).
  destruct (plt (fst loc) (nextblock m0)).
  unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
@@ -1801,7 +1835,9 @@ Lemma hackfun_beyond_block:
 Proof.
  intros. destruct H.
  split. unfold beyond_block. repeat rewrite level_only_blocks. auto.
- clear H. intro loc; specialize (H0 loc).
+ clear H. destruct H0 as [Hg H0]; split.
+ { unfold beyond_block, only_blocks; rewrite !ghost_of_make_rmap; auto. }
+ intro loc; specialize (H0 loc).
  unfold beyond_block. repeat  rewrite only_blocks_at. if_tac. auto.
  clear. pose proof (core_identity (w @ loc)); pose proof (core_identity (w' @ loc)); intuition.
 Qed.
@@ -2071,19 +2107,23 @@ Proof.
   Focus 2. {
     apply H3. clear.
     split. auto.
+    split; auto.
     intro loc. intuition.
   } Unfocus.
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)
   revert H m G0 G NRG H2 H0 H1 H1'; induction vl; intros.
   + apply resource_at_empty2.
-    intro l. apply proj2 in HACK; specialize (HACK l).
+    intro l. do 2 apply proj2 in HACK; specialize (HACK l).
     unfold inflate_initial_mem in HACK|-*.
     rewrite resource_at_make_rmap in *.
     unfold inflate_initial_mem' in HACK|-*.
     inversion H0; clear H0; subst m.
     unfold access_at, empty in HACK; simpl in HACK; rewrite PMap.gi in HACK.
       destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
+    destruct HACK as (? & <- & _).
+    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+    rewrite <- (ghost_core nil); apply core_identity.
   + simpl in H0.
     revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
     spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
@@ -2147,6 +2187,8 @@ rewrite Pos_to_nat_eq_S.
   destruct HACK as [? ? ].
   split. rewrite <- H.
   unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
+  destruct H0 as [Hg H0]; split.
+  unfold inflate_initial_mem in *; rewrite ghost_of_make_rmap in *; auto.
   intro; specialize (H0 loc).
   destruct H0.
   clear - NRG H2 FS H0 H1 H3 H1'.
@@ -2181,7 +2223,11 @@ rewrite Pos_to_nat_eq_S.
  }
   unfold globvars2pred.
   simpl map.  simpl fold_right.
-  pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi)).
+  assert (identity (ghost_of phi)) as Hg.
+  { destruct HACK as (? & <- & _).
+    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+    rewrite <- (ghost_core nil); apply core_identity. }
+  pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi Hg)).
   do 2 econstructor; split3; [ eassumption | |].
   unfold globvar2pred. rewrite RHO. unfold filter_genv. simpl @fst; simpl @snd.
   assert (JJ:= alloc_global_inflate_same n i v _ _ (G0++G) _ H3).
@@ -2227,6 +2273,8 @@ rewrite Pos_to_nat_eq_S.
 
 pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
      H3 H5 H8 H9) .
+ spec H11.
+ { unfold initial_core; simpl; rewrite ghost_of_make_rmap, <- (ghost_core nil); apply core_identity. }
  spec H11.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.

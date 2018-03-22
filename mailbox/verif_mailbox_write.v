@@ -730,10 +730,10 @@ Proof.
           gvar _last_taken last_taken; gvar _comm comm; gvar _lock lock)
    SEP (data_at Ews tint (vint b) writing; data_at Ews tint (vint b0) last_given;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
-        EX t' : list nat, EX h' : list val, !!(Zlength t' = i /\ Zlength h' = i) &&
+        EX t' : list nat, EX h' : list val, !!(Zlength t' = i /\ Zlength h' = i /\ Forall2 newer (sublist 0 i h) t') &&
           fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks) (Znth r comms)
             (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs (Znth r shs)
-            gsh2 (Znth r h  ++ if zlt r i then [(Znth r t', AE (Znth r h') (vint b))] else []))
+            gsh2 (map_add (Znth r h) (if zlt r i then singleton (Znth r t') (AE (Znth r h') (vint b)) else empty_map)))
             (upto (Z.to_nat N))) *
           let lasts' := map (fun i => if eq_dec (Znth i h') Empty then b0 else Znth i lasts)
                             (upto (Z.to_nat N)) in
@@ -751,12 +751,12 @@ Proof.
   { Exists (@nil nat) (@nil val).
     replace (map (fun i => if eq_dec (Znth i []) Empty then b0 else Znth i lasts) (upto (Z.to_nat N)))
       with lasts.
-    entailer!.
+    rewrite sublist_nil; entailer!.
     apply derives_refl'; f_equal; f_equal.
     { f_equal.
       apply map_ext_in.
       intros; rewrite In_upto in *.
-      destruct (zlt a 0); [omega | rewrite app_nil_r; auto]. }
+      destruct (zlt a 0); [omega | rewrite map_add_empty; auto]. }
     apply map_ext; intro.
     f_equal; extensionality; f_equal; f_equal.
     apply prop_ext.
@@ -781,7 +781,7 @@ Proof.
       [|rewrite Zlength_map; auto].
     rewrite (@Znth_map _ N); [|rewrite Zlength_upto; auto].
     rewrite Znth_upto; [|rewrite Z2Nat.id; auto; omega].
-    destruct (zlt i i); [omega | rewrite app_nil_r].
+    destruct (zlt i i); [omega | rewrite map_add_empty].
     rewrite comm_loc_isptr; Intros.
     forward.
     rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map, Zlength_upto; auto].
@@ -798,6 +798,7 @@ Proof.
     erewrite !Znth_map; rewrite ?Znth_upto; rewrite ?Znth_upto, ?Zlength_upto; rewrite ?Z2Nat.id; auto; try omega.
     rewrite Znth_overflow with (al := h'); [|omega].
     destruct (zlt i i); [clear - l; omega|].
+    destruct (eq_dec _ _); [discriminate|].
     forward_call (lsh, Znth i comms, Znth i g, Znth i locks, vint 0, vint b, Znth i h,
       fun (h : hist) (v : val) => !!(v = vint b) &&
         ghost_var gsh1 (vint b0) (Znth i g1) *
@@ -809,79 +810,77 @@ Proof.
           ghost_var gsh1 (vint (if eq_dec b' (-1) then b0 else Znth i lasts)) (Znth i g2) *
           if eq_dec b' (-1) then EX v : Z, data_at (Znth i shs) tbuffer (vint v) (Znth (Znth i lasts) bufs)
           else !!(b' = b0) && EX v' : Z, data_at (Znth i shs) tbuffer (vint v') (Znth b0 bufs)).
-    { rewrite <- !sepcon_assoc; rewrite (sepcon_comm _ (EX v : Z, @data_at CompSpecs bsh tbuffer (vint v) _)).
-      rewrite !sepcon_assoc; eapply derives_trans; [apply sepcon_derives; [|apply derives_refl]|].
+    { unfold comm_loc; cancel.
+      rewrite prop_true_andp by auto; cancel.
+      rewrite (sepcon_comm _ (EX v : Z, _)), !sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives, derives_refl|].
       { instantiate (1 := (EX v : Z, data_at bsh' tbuffer (vint v) (Znth b bufs)) *
           (EX v : Z, data_at (Znth i shs) tbuffer (vint v) (Znth b bufs))).
-        Intro v0; Exists v0 v0; rewrite (data_at_share_join _ _ _ _ _ _ Hsh); auto. }
-      fast_cancel. }
-    { repeat (split; auto).
-      unfold AE_spec; intros.
-      intros ??????? Ha.
-      unfold comm_R; unfold comm_R at 1 in Ha.
-      rewrite rev_app_distr in Ha; simpl in Ha.
-      rewrite last_two_reads_cons, prev_taken_cons in Ha.
-      rewrite flatten_sepcon_in_SEP.
-      rewrite extract_exists_in_SEP; Intro b'.
-      rewrite extract_exists_in_SEP; Intro b1.
-      rewrite extract_exists_in_SEP; Intro b2.
-      rewrite <- flatten_sepcon_in_SEP.
-      rewrite !sepcon_andp_prop', !sepcon_andp_prop.
-      erewrite extract_prop_in_SEP with (n := O); simpl; eauto.
-      erewrite extract_prop_in_SEP with (n := O); simpl; eauto.
+         Intro v0; Exists v0 v0; rewrite (data_at_share_join _ _ _ _ _ _ Hsh); auto. }
+      cancel.
+      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+      unfold AE_spec.
+      apply allp_right; intro hc.
+      apply allp_right; intro hx.
+      apply allp_right; intro vc.
+      apply allp_right; intro vx.
+      rewrite <- imp_andp_adjoint; Intros.
+      apply andp_right; auto; eapply derives_trans, view_shift_weak; auto.
       Intros.
+      unfold comm_R at 1 2.
+      rewrite rev_app_distr; simpl.
+      rewrite last_two_reads_cons, prev_taken_cons.
       assert (repable_signed b) by (apply repable_buf; omega).
       destruct (eq_dec vc Empty).
       { subst; assert (b = -1) by (apply Empty_inj; auto); omega. }
-      apply semax_pre with (P' := PROPx P (LOCALx Q (SEPx (
-        (ghost_var gsh1 (vint b0) (Znth i g1) *
-         ghost_var gsh2 (last_write (rev hx)) (Znth i g1)) ::
-        (ghost_var gsh1 (vint (Znth i lasts)) (Znth i g2) *
-         ghost_var gsh2 (prev_taken (rev hx)) (Znth i g2)) ::
+      Intros b' b1 b2.
+      apply (derives_trans _ (ghost_var gsh1 (vint b0) (Znth i g1) *
+         ghost_var gsh2 (last_write (rev hx)) (Znth i g1) *
+        ((ghost_var gsh1 (vint (Znth i lasts)) (Znth i g2) *
+         ghost_var gsh2 (prev_taken (rev hx)) (Znth i g2)) *
         (ghost_var gsh2 (vint b1) (Znth i g0) *
          (if eq_dec b' (-1) then EX v1 : Z, @data_at CompSpecs (Znth i shs) tbuffer (vint v1) (Znth b2 bufs)
           else EX v1 : Z, @data_at CompSpecs (Znth i shs) tbuffer (vint v1) (Znth b' bufs)) *
-         (EX v1 : Z, @data_at CompSpecs (Znth i shs) tbuffer (vint v1) (Znth b bufs))) :: R)))).
-      { go_lowerx; cancel. }
+         (EX v1 : Z, @data_at CompSpecs (Znth i shs) tbuffer (vint v1) (Znth b bufs)))))).
+      { cancel. }
       assert_PROP (last_write (rev hx) = vint b0) as Hwrite.
-      { go_lowerx; apply sepcon_derives_prop.
-        rewrite sepcon_comm; apply ghost_var_inj; auto. }
+      { apply sepcon_derives_prop; rewrite sepcon_comm; apply ghost_var_inj; auto. }
       assert_PROP (prev_taken (rev hx) = vint (Znth i lasts)) as Hprev.
-      { go_lowerx.
-        rewrite <- sepcon_assoc, (sepcon_comm (_ * _) (_ * ghost_var _ _ _)).
+      { rewrite <- sepcon_assoc, (sepcon_comm (_ * _) (_ * ghost_var _ _ _)).
         do 2 apply sepcon_derives_prop.
         rewrite sepcon_comm; apply ghost_var_inj; auto. }
       rewrite <- Hprev, <- Hwrite in *.
-      erewrite !ghost_var_share_join; eauto.
-      apply ghost_var_update with (v' := vint b).
-      rewrite <- flatten_sepcon_in_SEP, sepcon_comm, flatten_sepcon_in_SEP.
-      apply ghost_var_update with (v' := if eq_dec b' (-1) then last_write (rev hx) else prev_taken (rev hx)).
-      rewrite <- !(ghost_var_share_join _ _ _ _ _ gsh1_gsh2_join).
-      eapply semax_pre, Ha.
-      go_lowerx.
+      erewrite !ghost_var_share_join by eauto.
+      eapply derives_trans; [apply sepcon_derives, derives_refl;
+        apply ghost_var_update with (v' := vint b)|].
+      rewrite sepcon_comm, !sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives, derives_refl; apply ghost_var_update with
+        (v' := if eq_dec b' (-1) then last_write (rev hx) else prev_taken (rev hx))|].
+      rewrite <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 2sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives, derives_refl; apply bupd_sepcon|].
+      eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
       rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
       rewrite <- emp_sepcon at 1; rewrite !sepcon_assoc; apply sepcon_derives.
       { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
-      Exists b b1 b2.
-      rewrite !sepcon_andp_prop'.
-      apply andp_right.
-      { apply prop_right; repeat (split; [solve [auto; omega]|]).
-      rewrite Forall_app; split; [split; [|constructor]; auto | auto].
-      subst; repeat eexists; auto; omega. }
+      erewrite <- !(ghost_var_share_join _ _ Tsh) by eauto.
+      Exists b b1 b2; entailer!.
+      { rewrite Forall_app; repeat constructor; auto.
+        exists b', b; split; [|split]; auto; omega. }
       destruct (eq_dec b (-1)); [omega|].
-      rewrite (sepcon_comm (_ * _)); Exists b'.
-      rewrite !sepcon_andp_prop'; apply andp_right; [apply prop_right; auto|].
+      Exists b'.
+      rewrite <- exp_sepcon2; cancel.
+      rewrite prop_true_andp by auto.
       assert (last_two_reads (rev hx) = (vint b1, vint b2)) as Hlast by assumption.
       erewrite take_read, Hlast in *; try (rewrite rev_involutive; eauto).
       unfold last_write in *; simpl in *.
-      destruct (eq_dec vc Empty); [absurd (vc = Empty); auto|].
-      assert (Znth i lasts = if eq_dec vx Empty then b2 else b1).
-      { assert (repable_signed (Znth i lasts)).
+      rewrite (if_false (vint b = Empty)) by auto.
+      assert (Znth (Zlength t') lasts = if eq_dec (vint b') Empty then b2 else b1).
+      { assert (repable_signed (Znth (Zlength t') lasts)).
         { apply Forall_Znth; [omega|].
           eapply Forall_impl; [|eauto]; intros.
           apply repable_buf; simpl in *; omega. }
-        destruct (eq_dec vx Empty); apply repr_inj_signed; auto; congruence. }
-      destruct (eq_dec vx Empty); subst; fast_cancel.
+        if_tac; apply repr_inj_signed; auto; congruence. }
+      destruct (eq_dec (vint b') Empty); subst; simpl; cancel.
       + assert (b' = -1) by (apply Empty_inj; auto; apply repable_buf; auto).
         subst; rewrite !eq_dec_refl.
         rewrite Hwrite; simpl; cancel.
@@ -890,7 +889,8 @@ Proof.
         { discriminate. }
         intros ->; rewrite Hwrite; auto.
       + assert (exists rest, find_write (rev hx) (vint 0) = (vint b', rest)) as (? & Hwrite').
-        { replace hx with (rev (rev hx)) in Hvx by (apply rev_involutive).
+        { assert (apply_hist (vint 0) hx = Some (vint b')) as Hvx by assumption.
+          replace hx with (rev (rev hx)) in Hvx by (apply rev_involutive).
           destruct (rev hx); simpl in *.
           { assert (b' = 0); [|subst; eauto].
             apply repr_inj_signed.
@@ -904,18 +904,17 @@ Proof.
           inv Hvx.
           destruct (eq_dec (vint b') Empty); [absurd (vint b' = Empty); auto | eauto]. }
         rewrite Hwrite' in Hwrite.
-        assert (b' = b0).
+        assert (b' = b0); subst.
         { apply repr_inj_signed; [apply repable_buf | apply repable_buf | simpl in *; congruence]; auto; omega. }
-        subst.
         destruct (eq_dec b0 (-1)); [subst; contradiction n3; auto|].
-        rewrite !sepcon_andp_prop', !sepcon_andp_prop; apply andp_right; [apply prop_right; auto|].
         unfold last_two_reads in Hlast; destruct (find_read (rev hx) (vint 1)); inv Hlast.
-        simpl; cancel. }
+        simpl; entailer!. }
+    { repeat (split; auto). }
     Intros x b'; destruct x as (t, v); simpl in *.
     gather_SEP 0 9; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-        (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (Znth r h ++
-        (if zlt r (i + 1) then [(Znth r (t' ++ [t]), AE (Znth r (h' ++ [v])) (vint b))] else [])))
+        (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (map_add (Znth r h)
+        (if zlt r (i + 1) then singleton (Znth r (t' ++ [t])) (AE (Znth r (h' ++ [v])) (vint b)) else empty_map)))
       (upto (Z.to_nat N)))).
     { go_lower.
       rewrite replace_nth_sepcon; apply sepcon_list_derives; rewrite upd_Znth_Zlength;
@@ -926,11 +925,15 @@ Proof.
         destruct (zlt (Zlength t') (Zlength t' + 1)); [|omega].
         rewrite !app_Znth2 by omega.
         rewrite Zminus_diag; replace (Zlength t') with (Zlength h'); rewrite Zminus_diag, !Znth_0_cons; auto.
-        apply derives_refl.
+        rewrite map_add_comm, map_add_single; [apply derives_refl|].
+        intros ??? Ht; unfold singleton.
+        if_tac; intro X; inv X.
+        rewrite newer_out in Ht; [discriminate|].
+        replace (Zlength h') with (Zlength t'); auto.
       + rewrite upd_Znth_diff' by (rewrite ?Zlength_map, ?Zlength_upto; auto).
         rewrite !(@Znth_map _ N), !Znth_upto by (auto; omega).
-        if_tac; if_tac; auto; try omega.
-        rewrite !app_Znth1; auto; omega. }
+        if_tac; if_tac; rewrite ?map_add_empty; try omega; try apply derives_refl.
+        rewrite !app_Znth1 by omega; apply derives_refl. }
     gather_SEP 1 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (Znth r g1)) (upto (Z.to_nat N)))).
     { go_lowerx.
@@ -956,8 +959,8 @@ Proof.
       replace i with (Zlength h'); rewrite app_Znth2, Zminus_diag, Znth_0_cons; [fast_cancel | omega].
       apply sepcon_derives.
       { destruct (eq_dec v Empty), (eq_dec b' (-1)); auto; subst.
-        + contradiction n0; apply Empty_inj; auto; apply repable_buf; auto.
-        + contradiction n0; auto. }
+        + contradiction n1; apply Empty_inj; auto; apply repable_buf; auto.
+        + contradiction n1; auto. }
       apply sepcon_list_derives; rewrite !upd_Znth_Zlength; rewrite !Zlength_map;
         try (rewrite !Zlength_upto; simpl; unfold N in *; omega); intros.
       destruct (eq_dec i0 (Zlength h')); [subst; rewrite !upd_Znth_same by (rewrite ?Zlength_map; auto); auto|].
@@ -981,14 +984,13 @@ Proof.
       apply drop_tc_environ.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; omega).
-        rewrite Znth_overflow; [|omega].
+        rewrite Znth_overflow by omega.
         rewrite if_false. rewrite if_false; auto.
-        contradict n0. unfold Empty in n0. apply Vint_inj in n0. rewrite n0 in H17. contradiction H17.  reflexivity. 
+        contradict n0. unfold Empty in n0. apply Vint_inj in n0. contradiction.
         intro Hx; inv Hx.
         change (Zlength (upto 3)) with 3. unfold N in *; omega.
         autorewrite with sublist.     change (Zlength (upto 3)) with 3. unfold N in *; omega.
-    + 
-      subst.
+    + subst.
       Exists (t' ++ [t]) (h' ++ [vint b']).
       assert (H11 := I).
       go_lower.
@@ -996,7 +998,10 @@ Proof.
       rewrite lock_struct_array; fast_cancel.
       rewrite !sepcon_andp_prop'.
       rewrite Zlength_app, Zlength_cons, Zlength_nil; apply andp_right.
-      { replace (Zlength t') with (Zlength h'); apply prop_right; rewrite Zlength_app; auto. }
+      { replace (Zlength t') with (Zlength h') in *; apply prop_right; rewrite Zlength_app; repeat (split; auto).
+        rewrite sublist_split with (mid := Zlength h') by omega.
+        rewrite (sublist_one (Zlength h')) by (auto; omega).
+        apply Forall2_app; auto. }
       fast_cancel.
       apply sepcon_derives.
       * apply derives_refl'; f_equal.
@@ -1018,7 +1023,7 @@ Proof.
     forward.
     rewrite sublist_nil, sublist_same; rewrite ?Zlength_map; auto.
     Exists (map (fun i => if eq_dec (Znth i h') Empty then b0 else Znth i lasts) (upto (Z.to_nat N)))
-      (extendr (map (fun x : nat * val => let '(t, v) := x in (t, AE v (vint b))) (combine t' h')) h); entailer!.
+      (map (fun '(h, (t, v)) => map_upd h t (AE v (vint b))) (combine h (combine t' h'))); entailer!.
     + repeat split.
       * rewrite Forall_map, Forall_forall; intros; simpl.
         destruct (eq_dec (Znth x h') Empty); [omega|].
@@ -1039,13 +1044,14 @@ Proof.
       { erewrite map_ext_in; eauto; intros; simpl.
         rewrite In_upto in *.
         destruct (zlt a N); [|unfold N in *; simpl in *; omega].
-        erewrite Znth_extendr_in.
-        Unshelve. Focus 4. constructor. apply O. constructor; apply Vundef.
-        2: rewrite ?Zlength_map, ?Zlength_combine, ?Z.min_l; omega.
-        2: rewrite ?Zlength_map, ?Zlength_combine, ?Z.min_l; omega.
-       rewrite Znth_map by (rewrite Zlength_combine, ?Z.min_l; omega).
-       rewrite Znth_combine; auto. omega.
- }
+        rewrite map_add_comm, map_add_single.
+        rewrite Znth_map, !Znth_combine by
+          (rewrite ?Zlength_combine; rewrite ?Z.min_l; rewrite ?Z.min_l; auto; omega); auto.
+        intros ??? Ha; unfold singleton.
+        if_tac; intro X; inv X.
+        rewrite newer_out in Ha; [discriminate|].
+        rewrite sublist_all in H12 by omega.
+        apply Forall2_Znth; auto; omega. }
       apply map_ext; intro.
       f_equal; extensionality; f_equal; f_equal; apply prop_ext.
       destruct (eq_dec a b).

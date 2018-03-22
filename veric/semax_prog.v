@@ -755,6 +755,8 @@ if_tac.
   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
   unfold fundef in *; rewrite H1 in *.
  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+ rewrite ghost_of_core.
+ unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
@@ -1203,6 +1205,7 @@ Proof.
       apply derives_subp.
       normalize. intro rv.
       simpl.
+      eapply derives_trans, own.bupd_intro.
       intros ? ? ? ? _ ?.
       destruct H8 as [[? [H10 [H11 ?]]] ?].
       hnf in H10, H11.
@@ -1484,7 +1487,8 @@ Proof.
   rewrite HGG. reflexivity.
 
   (* safety: we conclude as we add an infinite loop at the end *)
-  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert] ora jm0 Heq <-.
+  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert].
+  apply own.bupd_intro; intros ora jm0 Heq <-.
   rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.
   destruct ek; simpl proj_ret_assert in FrameRA;
    try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [[? ?] ?]]]]; contradiction];
