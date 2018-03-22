@@ -195,6 +195,7 @@ Qed.
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
+
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      t_struct_fifo.
     split3; simpl; auto; computable.

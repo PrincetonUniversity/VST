@@ -13,19 +13,19 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
-Lemma updatebodyproof Espec c d len data kv (h1 : hmacabs)
+Lemma updatebodyproof Espec c d len data gv (h1 : hmacabs)
       (H : has_lengthD (s256a_len (absCtxt h1)) len data):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c; temp _data d;
-           temp _len (Vint (Int.repr len)); gvar sha._K256 kv)
-   SEP  (K_vector kv; hmacstate_ h1 c; data_block Tsh data d))
+           temp _len (Vint (Int.repr len)); gvars gv)
+   SEP  (K_vector gv; hmacstate_ h1 c; data_block Tsh data d))
   (Ssequence (fn_body f_HMAC_Update) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
-         SEP  (K_vector kv; hmacstate_ (hmacUpdate data h1) c;
+         SEP  (K_vector gv; hmacstate_ (hmacUpdate data h1) c;
          data_block Tsh data d))) emp).
 Proof. abbreviate_semax.
 unfold hmacstate_.
@@ -48,7 +48,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl @nested_field_type.
 make_Vptr c.
 simpl. rewrite Ptrofs.add_zero.
-Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv). (*6 versus 21 *)
+Time forward_call (ctx, data, Vptr b i, d, Tsh, len, gv). (*6 versus 21 *)
   { unfold sha256state_. Exists (fst ST).
     rewrite prop_true_andp by auto.
     change_compspecs CompSpecs.

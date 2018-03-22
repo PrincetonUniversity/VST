@@ -3996,6 +3996,13 @@ at address $v$, with permission-share $\mathit{sh}$.
 
 From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
 
+\chapter{Private global variables}
+
+If your C module (typically, a .c file, but it could be part of a .c file or several .c files) accesses private global variables, you may want to avoid mentioning their names in the public interface.
+
+more to come . . .
+
+
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}
 

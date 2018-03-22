@@ -117,7 +117,7 @@ Qed.
 
 Lemma sha_final_part3:
 forall (Espec : OracleKind) (md c : val) (shmd : share)
-  (hashed lastblock: list int) msg kv
+  (hashed lastblock: list int) msg gv
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
@@ -128,19 +128,19 @@ semax
   (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
-           gvar _K256 kv)
+           gvars gv)
    SEP
    (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
         (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
-    K_vector kv;
+    K_vector gv;
     memory_block shmd 32 md))
   sha_final_epilog
   (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector kv;
+      SEP  (K_vector gv;
         data_at_ Tsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 msg) md))) emp).
 Proof.
@@ -151,7 +151,7 @@ Proof.
   Time forward_call (* sha256_block_data_order (c,p); *)
     (hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
-       Tsh, kv).
+       Tsh, gv).
   {
     unfold data_block. simpl.
     Time entailer!. autorewrite with sublist.
@@ -204,7 +204,7 @@ forward_for_simple_bound 8
    (data_at Tsh t_struct_SHA256state_st
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
       c;
-    K_vector kv;
+    K_vector gv;
     data_at shmd (tarray tuchar 32)
          (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))
            ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
@@ -358,7 +358,7 @@ Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
 Time Qed. (* 64 sec *)
 
 Lemma final_part2:
-forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) kv,
+forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) gv,
 writable_share shmd ->
 forall bitlen (dd : list Z),
 (LBLOCKz | Zlength hashed) ->
@@ -381,7 +381,7 @@ semax
       (temp _p
          (field_address t_struct_SHA256state_st [ArraySubsc (CBLOCKz - 8); StructField _data] c);
       temp _n (Vint (Int.repr (Zlength dd')));
-      temp _md md; temp _c c; gvar _K256 kv)
+      temp _md md; temp _c c; gvars gv)
       SEP
       (field_at Tsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
@@ -392,14 +392,14 @@ semax
       field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
       field_at Tsh t_struct_SHA256state_st [StructField _h]
           (map Vint (hash_blocks init_registers hashed')) c;
-      K_vector kv;
+      K_vector gv;
       memory_block shmd 32 md))
   sha_final_part2
   (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector kv;
+      SEP  (K_vector gv;
         data_at_ Tsh t_struct_SHA256state_st c;
         data_block shmd
           (intlist_to_Zlist

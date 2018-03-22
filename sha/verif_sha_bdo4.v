@@ -48,7 +48,7 @@ Definition block_data_order_loop1 :=
 
 Lemma sha256_block_data_order_loop1_proof:
   forall (Espec : OracleKind) (sh: share)
-     (b: list int) ctx (data: val) (regs: list int) kv Xv
+     (b: list int) ctx (data: val) (regs: list int) gv Xv
      (Hregs: length regs = 8%nat)
      (Hsh: readable_share sh),
      Zlength b = LBLOCKz ->
@@ -59,9 +59,9 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _e (Vint (nthi regs 4)); temp _f (Vint (nthi regs 5));
                 temp _g (Vint (nthi regs 6)); temp _h (Vint (nthi regs 7));
                 temp _data data; temp _ctx ctx; temp _in data;
-                gvar _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
+                gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP  (data_at_ Tsh (tarray tuint 16) Xv;
-           data_block sh (intlist_to_Zlist b) data; K_vector kv))
+           data_block sh (intlist_to_Zlist b) data; K_vector gv))
   block_data_order_loop1
   (normal_ret_assert
     (PROP ()
@@ -74,8 +74,8 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 7));
-                gvar _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
-     SEP (K_vector kv;
+                gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+     SEP (K_vector gv;
             data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv;
             data_block sh (intlist_to_Zlist b) data))).
 Proof.
@@ -84,7 +84,6 @@ intros.
 simpl nth.
 abbreviate_semax.
 assert (LBE := LBLOCKz_eq).
-
 forward_for_simple_bound 16
    (EX i:Z,
     PROP ()
@@ -99,8 +98,8 @@ forward_for_simple_bound 16
                  temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
                  temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                  lvar _X (tarray tuint LBLOCKz) Xv;
-                 gvar _K256 kv)
-     SEP (K_vector kv;
+                 gvars gv)
+     SEP (K_vector gv;
        data_at Tsh (tarray tuint LBLOCKz)
            (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16-i)) Vundef)
             Xv;
@@ -164,6 +163,7 @@ rewrite loop1_aux_lemma1 by Omega1.
 unfold K_vector.
 assert (i < Zlength K256)
   by (change (Zlength K256) with 64; omega).
+assert_gvar _K256.
 forward.  (* Ki=K256[i]; *)
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.
@@ -175,7 +175,7 @@ forget (nthi b) as M.
 replace (M i) with (W M i)
   by (rewrite W_equation; rewrite if_true by omega; auto).
 assert_PROP (isptr data) as H3 by entailer!.
-change (data_at Tsh (tarray tuint  (Zlength K256)) (map Vint K256)) with K_vector.
+change (data_at Tsh (tarray tuint  (Zlength K256)) (map Vint K256) (gv _K256)) with (K_vector gv).
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   semax_frame [  ] R

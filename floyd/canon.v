@@ -42,13 +42,17 @@ Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
    end.
 
 *)
+
+Definition globals := ident->val.
+
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
  | lvar: ident -> type -> val -> localdef
  | gvar: ident -> val -> localdef
  | sgvar: ident -> val -> localdef
 (* | tc_env: tycontext -> localdef *)
- | localprop: Prop -> localdef.
+ | localprop: Prop -> localdef
+ | gvars: globals -> localdef.
 
 Arguments temp i%positive v.
 
@@ -74,6 +78,9 @@ Definition sgvar_denote (i: ident) (v: val) rho :=
              | None => False
          end.
 
+Definition gvars_denote (gv: globals) rho :=
+   gv = (fun i => match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
  | temp i v => `(eq v) (eval_id i)
@@ -82,6 +89,7 @@ Definition locald_denote (d: localdef) : environ -> Prop :=
  | sgvar i v => sgvar_denote i v
 (* | tc_env D => tc_environ D *)
  | localprop P => `P
+ | gvars gv => gvars_denote gv
  end.
 
 Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
@@ -1753,6 +1761,7 @@ Fixpoint find_LOCAL_index (name: ident) (current: nat) (l : list localdef) : opt
     | gvar  i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | sgvar i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | localprop _ => None
+    | gvars _ => None 
     end
   | nil => None
   end.

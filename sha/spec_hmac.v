@@ -234,18 +234,18 @@ Definition initPostKey k key:mpred :=
 
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, k:val, l:Z, key:list Z, kv:val, h1:hmacabs
+   WITH c : val, k:val, l:Z, key:list Z, h1:hmacabs, gv:globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP ((*has_lengthK l key*))
          LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
-                gvar sha._K256 kv)
-         SEP (K_vector kv; initPre c k h1 l key)
+                gvars gv)
+         SEP (K_vector gv; initPre c k h1 l key)
   POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv).
+     SEP (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector gv).
 
 (************************ Specification of HMAC_update *******************************************************)
 
@@ -255,18 +255,18 @@ Definition has_lengthD (k l:Z) (data:list Z) :=
 
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
-   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, kv:val
+   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _data OF tptr tvoid,
          _len OF tuint]
          PROP (has_lengthD (s256a_len (absCtxt h1)) len data)
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
-                gvar sha._K256 kv)
-         SEP(K_vector kv; hmacstate_ h1 c; data_block Tsh data d)
+                gvars gv)
+         SEP(K_vector gv; hmacstate_ h1 c; data_block Tsh data d)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(K_vector kv; hmacstate_ (hmacUpdate data h1) c; data_block Tsh data d).
+          SEP(K_vector gv; hmacstate_ (hmacUpdate data h1) c; data_block Tsh data d).
 (*
 Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
 Proof.
@@ -294,17 +294,17 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
 
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
-   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
+   WITH h1: hmacabs, c : val, md:val, shmd: share, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _md OF tptr tuchar ]
        PROP (writable_share shmd)
        LOCAL (temp _md md; temp _ctx c;
-              gvar sha._K256 kv)
-       SEP(hmacstate_ h1 c; K_vector kv; memory_block shmd 32 md)
+              gvars gv)
+       SEP(hmacstate_ h1 c; K_vector gv; memory_block shmd 32 md)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
+          SEP(K_vector gv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
               data_block shmd (snd (hmacFinal h1)) md).
 
 Lemma hmacstate_PostFinal_PreInitNull key data dig h2 v:
@@ -358,7 +358,7 @@ Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        kv:val, shmd: share, md: val
+        shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -371,15 +371,15 @@ Definition HMAC_spec :=
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (CONT KEY) keyVal;
              data_block Tsh (CONT MSG) msgVal;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd 32 md)
   POST [ tptr tuchar ] EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY))
           LOCAL (temp ret_temp md)
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block shmd digest md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).

@@ -674,7 +674,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
 *)
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H; 
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -687,7 +687,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -703,7 +703,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -718,7 +718,7 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -729,7 +729,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -904,6 +904,19 @@ Witness type: " T "
 Funspec type: " TA'')
      end.
 
+Lemma trivial_Forall_inclusion:
+ forall {A} (G: list A), Forall (fun x => In x G) G.
+Proof.
+intros.
+apply Forall_forall; intros; auto.
+Qed.
+
+Lemma trivial_Forall_inclusion0:
+ forall {A} (G: list A), Forall (fun x => In x G) nil.
+Proof.
+intros. constructor.
+Qed.
+
 Ltac prove_call_setup1 :=
 match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  lazymatch c with
@@ -940,18 +953,19 @@ end.
 Ltac prove_call_setup witness :=
  prove_call_setup1;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type A witness
  end;
  let H := fresh in
  intro H;
  match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
+ | try apply trivial_Forall_inclusion; try apply trivial_Forall_inclusion0
  | unfold fold_right_sepcon at 1 2; try change_compspecs CS; cancel_for_forward_call
  |
  ]
@@ -967,7 +981,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -2648,8 +2662,8 @@ Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpre
     msubst_eval_lvar T2 i t = Some p ->
     fn_data_at T2 (i, t) (data_at_ Tsh t p).
 
-Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 fn,
-  local2ptree Q = (T1, T2, nil, nil) ->
+Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 G fn,
+  local2ptree Q = (T1, T2, nil, G) ->
   Forall2 (fn_data_at T2) fn R ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- fold_right sepcon emp (map (var_block Tsh) fn).
 Proof.
@@ -2661,7 +2675,7 @@ Proof.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
     rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
-    apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
+    apply (msubst_eval_lvar_eq P T1 T2 G (data_at_ Tsh t p :: l')) in H3.
     rewrite <- H in H3; clear H.
     rewrite (add_andp _ _ H3); clear H3.
     go_lowerx.
@@ -3379,3 +3393,47 @@ Ltac prove_semax_prog :=
         fail "Funspec of _main is not in the proper form"
     end
  ].
+
+
+Lemma intro_LOCAL_gvar:
+  forall Delta gv i P Q R,
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i <> None ->
+  In (gvars gv) Q ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
+Proof.
+intros.
+Transparent andp.
+go_lowerx.
+Opaque andp.
+normalize.
+apply prop_right.
+pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
+apply H5 in H4.
+simpl in H4.
+hnf.
+destruct H2 as [? [? [? ?]]].
+apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
+destruct H6 as [H6 _].
+specialize (H6 H).
+rewrite H6.
+destruct ((glob_types Delta) ! i) eqn:?.
+hnf in H7.
+specialize (H7 _ _ Heqo). destruct H7.
+rewrite H4.
+rewrite H7. auto.
+clear - H0; congruence.
+apply in_map.
+auto.
+Qed.
+
+Ltac assert_gvar i :=
+ match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
+   assert_LOCAL (gvar i (gv i)); 
+  [apply intro_LOCAL_gvar; 
+    [ reflexivity 
+    | let H := fresh in intro H; inversion H 
+    | solve [repeat ((left; reflexivity) + right) ]]
+  | ]
+ end.
+

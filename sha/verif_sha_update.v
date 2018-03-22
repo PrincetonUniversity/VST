@@ -120,7 +120,7 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
   normalize.
 rewrite <- H0.
 clear H0; pose (H0:=True).
-apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
+apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data gv false).
 * semax_subcommand Vprog Gtot f_SHA256_Update (@nil (ident * Annotation)).
  eapply semax_post_flipped.
 +
@@ -144,7 +144,7 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
  rewrite H1. auto.
 * (* after if (n!=0) *)
  eapply semax_seq' with
-     (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv true).
+     (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data gv true).
  semax_subcommand Vprog Gtot  f_SHA256_Update (@nil (ident * Annotation)).
 simple apply update_while_proof; try assumption; try omega; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
@@ -191,9 +191,9 @@ assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
  auto.
  }
 forward_if (   PROP  ()
-                    LOCAL (gvar  _K256 kv)
+                    LOCAL (gvars  gv)
                     SEP
-                    (K_vector kv;
+                    (K_vector gv;
                      sha256state_ (S256abs hashed dd ++ sublist 0 len data) c; data_block sh data d)).
 + (* then-clause *)
     set (dd' := sublist b4d len data).

@@ -522,6 +522,22 @@ hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_gvar : closed.
 
+Lemma closed_wrt_gvars:
+  forall S gv, closed_wrt_vars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrt_gvars : closed.
+
+Lemma closed_wrtl_gvars:
+  forall S gv, closed_wrt_lvars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrtl_gvars : closed.
+
 Lemma closed_wrt_sgvar:
   forall S id v, closed_wrt_vars S (locald_denote (sgvar id v)).
 Proof.
