@@ -202,8 +202,8 @@ Module Type STRAT_MODEL.
   Instance Join_pre_rmap (A: Type) : Join (f_pre_rmap A) :=
             Join_prop _ (Join_prod _ (Join_fun address (res A) (res_join A)) _ (ghost_join A)) (valid' A).
 
-  Parameter Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
-  Parameter Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
+  Declare Instance Perm_pre_rmap: forall (A: Type), Perm_alg (f_pre_rmap A).
+  Declare Instance Sep_pre_rmap: forall (A: Type), Sep_alg (f_pre_rmap A).
   Parameter paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap.
 
   Existing Instance ghost_join.
