@@ -1846,8 +1846,8 @@ Fixpoint find_LOCAL_index (name: ident) (current: nat) (l : list localdef) : opt
     | lvar  i _ _ => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | gvar  i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | sgvar i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
-    | localprop _ => None
-    | gvars _ => None 
+    | localprop _ => find_LOCAL_index name (S current) t
+    | gvars _ => find_LOCAL_index name (S current) t
     end
   | nil => None
   end.

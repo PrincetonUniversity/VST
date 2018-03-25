@@ -106,7 +106,7 @@ Proof.
   rename H2 into ASS4. rename H3 into ASS5. rename H4 into ASS6.
   forward.  
   forward_call (@nil Z, nullval, Z0, output, out_len, ctx, initial_state,
-               I, kv, info_contents, s).
+               I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
     repeat (split; try assumption; try omega).
@@ -126,21 +126,21 @@ Definition hmac_drbg_random_spec_simple :=
    WITH output: val, n: Z,
         ctx: val, i: hmac256drbgstate,
         I: hmac256drbgabs,
-        kv: val, info: md_info_state,
-        s: ENTROPY.stream, bytes:_, J:_, ss:_
+        info: md_info_state,
+        s: ENTROPY.stream, bytes:_, J:_, ss:_, gv: globals
     PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
        PROP ( WF I;
          0 <= n <= 1024;
          mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss)
        LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr n)); gvar sha._K256 kv)
+              temp _out_len (Vint (Int.repr n)); gvars gv)
        SEP (
          data_at_ Tsh (tarray tuchar n) output;
          data_at Tsh t_struct_hmac256drbg_context_st i ctx;
          hmac256drbg_relate I i;
          data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
-         K_vector kv)
+         K_vector gv)
     POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate, 
        PROP (F = match J with ((((VV, KK), RC), _), PR) =>
                    HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
@@ -151,7 +151,7 @@ Definition hmac_drbg_random_spec_simple :=
             data_at Tsh t_struct_hmac256drbg_context_st f ctx;
          hmac256drbg_relate F f;
          data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
-        Stream ss; K_vector kv).
+        Stream ss; K_vector gv).
 
 Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
   ENTROPY.success (bytes, J) ss ->
@@ -174,7 +174,7 @@ Proof.
   destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
   forward.
   forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
-                I, kv, info, s).
+                I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
     repeat (split; try assumption; try rep_omega).

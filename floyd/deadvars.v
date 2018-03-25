@@ -249,7 +249,6 @@ Ltac find_dead_vars P c Q :=
                                      (deadvars_post (snd post)))) in
       let d := eval compute in d in
       d.
- 
 
 Ltac deadvars := 
  match goal with
@@ -259,7 +258,7 @@ Ltac deadvars :=
     match find_dead_vars P c Q with
     | nil => idtac
     | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
-     end
+     end + fail 99 "deadvars failed for an unknown reason"
  | |- semax _ _ _ _ => 
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ |-- _ => idtac

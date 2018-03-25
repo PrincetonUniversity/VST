@@ -188,7 +188,7 @@ Lemma sha256_block_data_order_loop2_proof:
                temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
                temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
-               gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+               gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP ( K_vector gv;
            data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv))
   block_data_order_loop2
@@ -203,7 +203,7 @@ Lemma sha256_block_data_order_loop2_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
-                gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+                gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
      SEP (K_vector gv;
             data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
@@ -231,7 +231,7 @@ forward_for_simple_bound 64%Z
                   temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
                   temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                   lvar _X (tarray tuint LBLOCKz) Xv;
-                  gvars gv)
+                  gvar _K256 (gv _K256); gvars gv)
      SEP (K_vector gv;
        data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv)).
 *
@@ -282,7 +282,6 @@ rewrite Xarray_update by assumption.
 unfold K_vector.
 change CBLOCKz with 64%Z.
 assert (LEN: Zlength K256 = 64%Z) by reflexivity.
-assert_gvar _K256.
 forward.  (* Ki=K256[i]; *)
 autorewrite with sublist.
 rename b into bb.

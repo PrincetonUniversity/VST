@@ -38,7 +38,7 @@ Lemma sha256_block_load8:
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil))
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
+   LOCAL  (temp _data data; gvar _K256 (gv _K256); temp _ctx ctx; temp _in data;
                 gvars gv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
@@ -61,7 +61,7 @@ Lemma sha256_block_load8:
                 temp _g (Vint (nthi r_h 6));
                 temp _h (Vint (nthi r_h 7));
                 temp _data data; temp _ctx ctx; temp _in data;
-                gvars gv)
+                gvar _K256 (gv _K256); gvars gv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))).
 Proof.
 intros.
@@ -302,12 +302,12 @@ Lemma add_them_back_proof:
                 temp _f  (Vint (nthi regs' 5));
                 temp _g  (Vint (nthi regs' 6));
                 temp _h  (Vint (nthi regs' 7));
-                gvars gv)
+                gvar _K256 (gv _K256); gvars gv)
    SEP
    (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx))
    (sequence add_them_back Sskip)
   (normal_ret_assert
-   (PROP() LOCAL(temp _ctx ctx; gvars gv)
+   (PROP() LOCAL(temp _ctx ctx; gvar _K256 (gv _K256); gvars gv)
     SEP (field_at Tsh t_struct_SHA256state_st  [StructField _h]
                 (map Vint (map2 Int.add regs regs')) ctx))).
 Proof.

@@ -59,7 +59,7 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _e (Vint (nthi regs 4)); temp _f (Vint (nthi regs 5));
                 temp _g (Vint (nthi regs 6)); temp _h (Vint (nthi regs 7));
                 temp _data data; temp _ctx ctx; temp _in data;
-                gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+                gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP  (data_at_ Tsh (tarray tuint 16) Xv;
            data_block sh (intlist_to_Zlist b) data; K_vector gv))
   block_data_order_loop1
@@ -74,7 +74,7 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 7));
-                gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+                gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
      SEP (K_vector gv;
             data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv;
             data_block sh (intlist_to_Zlist b) data))).
@@ -98,7 +98,7 @@ forward_for_simple_bound 16
                  temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
                  temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                  lvar _X (tarray tuint LBLOCKz) Xv;
-                 gvars gv)
+                 gvar _K256 (gv _K256); gvars gv)
      SEP (K_vector gv;
        data_at Tsh (tarray tuint LBLOCKz)
            (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16-i)) Vundef)
@@ -129,7 +129,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
    autorewrite with sublist.
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
-  rewrite Zlength_intlist_to_Zlist in H5.
+  rewrite Zlength_intlist_to_Zlist in H6.
   rewrite array_at_data_at' by (auto with field_compatible; omega).
   simpl.
   autorewrite with sublist.
@@ -163,7 +163,6 @@ rewrite loop1_aux_lemma1 by Omega1.
 unfold K_vector.
 assert (i < Zlength K256)
   by (change (Zlength K256) with 64; omega).
-assert_gvar _K256.
 forward.  (* Ki=K256[i]; *)
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.

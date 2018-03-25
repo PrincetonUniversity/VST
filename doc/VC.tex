@@ -3996,12 +3996,36 @@ at address $v$, with permission-share $\mathit{sh}$.
 
 From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
 
-\chapter{Private global variables}
+\chapter{\textsf{gvars}: Private global variables}
 
 If your C module (typically, a .c file, but it could be part of a .c file or several .c files) accesses private global variables, you may want to avoid mentioning their names in the public interface.
 
-more to come . . .
+\begin{lstlisting}
+Definition MyModuleGlobs (gv: globals) : mpred :=
+  (* for example *) data_at Tsh t_struct_foo some_value (gv _MyVar).
 
+DECLARE _myfunction
+WITH $\ldots$, gv: globals
+PRE [ $\ldots$ ]
+   PROP($\ldots$) LOCAL ($\ldots$; gvars gv) SEP($\ldots$; MyModuleGlobs gv)
+POST [ $\ldots$ ]
+   PROP() LOCAL (temp ret_temp $\ldots$) SEP($\ldots$; MyModuleGlobs gv).
+\end{lstlisting}
+
+The client of \lstinline{myfunction} sees that
+there is a private conjunct \lstinline{MyModuleGlobs gv}
+that (presumably) uses some global variables of MyModule,
+but it does not see their names.
+
+When you do a \lstinline{semax_body} proof of a function
+that \emph{directly} accesses a global variable such as \lstinline{_MyVar},
+and you have \lstinline{gvars gv} in your \lstinline{LOCAL} precondition,
+then \lstinline{start_function} will add
+\lstinline{gvar _MyVar (gv _Myvar)} to the LOCALs clause,
+so that your variable-accesses will work.
+
+By convention, you should put \lstinline{gv:globals} as the last
+component of your WITH clause.
 
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}

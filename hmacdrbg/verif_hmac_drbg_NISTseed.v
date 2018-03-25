@@ -126,8 +126,8 @@ Definition hmac_drbg_seed_simple_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
    WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
         Ctx: hmac256drbgstate,
-        kv: val, Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
-        handle_ss: DRBG_state_handle * ENTROPY.stream
+        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
+        handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
@@ -136,20 +136,20 @@ Definition hmac_drbg_seed_simple_spec :=
                                        (contents_with_add data (Zlength Data) Data)
              = ENTROPY.success (fst handle_ss) (snd handle_ss))
        LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvar sha._K256 kv)
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
          data_at Tsh t_struct_mbedtls_md_info Info info;
          da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv; Stream s)
+         K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info;
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-            K_vector kv;
+            K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
@@ -186,7 +186,7 @@ Proof.
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvar sha._K256 kv)
+   temp _custom data; gvars gv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
@@ -222,7 +222,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), gv).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -254,7 +254,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
+   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
   { elim H; trivial. }
@@ -297,7 +297,7 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
+  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
@@ -323,9 +323,9 @@ Proof.
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
    temp _entropy_len (Vint (Int.repr 32));
-   temp _ctx (Vptr b i); gvar sha._K256 kv)
+   temp _ctx (Vptr b i); gvars gv)
    SEP (reseedPOST v Data data (Zlength Data) s
-          myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
+          myABS (Vptr b i) Info gv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -389,7 +389,7 @@ Definition hmac_drbg_seed_full_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
    WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
         Ctx: hmac256drbgstate,
-        kv: val, Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z
+        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
@@ -398,20 +398,20 @@ Definition hmac_drbg_seed_full_spec :=
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus /\ Forall isbyteZ Data)
        LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvar sha._K256 kv)
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
          data_at Tsh t_struct_mbedtls_md_info Info info;
          da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv; Stream s)
+         K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info;
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-            K_vector kv;
+            K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
@@ -473,7 +473,7 @@ Proof.
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvar sha._K256 kv)
+   temp _custom data; gvars gv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
@@ -507,7 +507,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), gv).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -540,7 +540,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); 
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
+   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
   { elim H; trivial. }
@@ -583,7 +583,7 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
+  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
@@ -608,9 +608,9 @@ Proof.
   forward_if (
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i); gvar sha._K256 kv)
+   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i); gvars gv)
    SEP (reseedPOST v Data data (Zlength Data) s
-          myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
+          myABS (Vptr b i) Info gv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -711,7 +711,7 @@ Definition hmac_drbg_seed_spec :=
    WITH ctx: val, info:val, len: Z, data:val, Data: list Z,
         Ctx: hmac256drbgstate,
         (*CTX: hmac256drbgabs,*)
-        kv: val, Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list Z
+        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list Z, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
@@ -720,21 +720,21 @@ Definition hmac_drbg_seed_spec :=
               48 + len < Int.modulus /\
               0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus /\ Forall isbyteZ Data)
        LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvar sha._K256 kv)
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate VV rc pr ri Ctx;
          (*hmac256drbg_relate CTX Ctx;*)
          data_at Tsh t_struct_mbedtls_md_info Info info;
          da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv; Stream s)
+         K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info;
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-            K_vector kv;
+            K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                   (*hmac256drbg_relate CTX Ctx *) preseed_relate VV rc pr ri Ctx *
@@ -800,7 +800,7 @@ Proof.
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvar sha._K256 kv)
+   temp _custom data; gvars gv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
@@ -834,7 +834,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), gv).
   { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
@@ -873,7 +873,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
+   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
   { elim H; trivial. }
@@ -918,7 +918,7 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
+  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
@@ -944,9 +944,9 @@ Proof.
    temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i);
    temp _md_info info;
    temp _len (Vint (Int.repr (Zlength Data)));
-   temp _custom data; gvar sha._K256 kv)
+   temp _custom data; gvars gv)
    SEP (reseedPOST v Data data (Zlength Data) s
-          myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
+          myABS (Vptr b i) Info gv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.

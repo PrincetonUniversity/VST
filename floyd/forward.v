@@ -3129,6 +3129,119 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
+Lemma intro_LOCAL_gvar:
+  forall Delta gv i P Q R,
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i <> None ->
+  In (gvars gv) Q ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
+Proof.
+intros.
+Transparent andp.
+go_lowerx.
+Opaque andp.
+normalize.
+apply prop_right.
+pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
+apply H5 in H4.
+simpl in H4.
+hnf.
+destruct H2 as [? [? [? ?]]].
+apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
+destruct H6 as [H6 _].
+specialize (H6 H).
+rewrite H6.
+destruct ((glob_types Delta) ! i) eqn:?.
+hnf in H7.
+specialize (H7 _ _ Heqo). destruct H7.
+rewrite H4.
+rewrite H7. auto.
+clear - H0; congruence.
+apply in_map.
+auto.
+Qed.
+
+Ltac assert_gvar i :=
+ match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
+   assert_LOCAL (gvar i (gv i)); 
+  [apply intro_LOCAL_gvar; 
+    [ reflexivity + fail 99  "Local variable " i " is shadowing the global variable" i
+    | (let H := fresh in intro H; discriminate H) + fail 99 "No global variable " i " in Delta, i.e., in your extern declarations"
+    | solve [repeat ((left; reflexivity) + right) ]] + fail 99 "No LOCAL assertion (gvars " gv ")"
+  | ]
+ end.
+
+Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
+ match c with
+ | Sskip => x
+ | Sassign e1 e2 => f e1 (f e2 x)
+ | Sset _ e => f e x
+ | Scall _ e el => f e (fold_right f x el)
+ | Sbuiltin _ _ _ el => fold_right f x el
+ | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sifthenelse e c1 c2 => f e (find_expressions f c1 (find_expressions f c2 x))
+ | Sloop c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sbreak => x
+ | Scontinue => x
+ | Sreturn (Some e) => f e x
+ | Sreturn None => x
+ | Sswitch e cl => f e (find_expressions_sl f cl x)
+ | Slabel _ c => find_expressions f c x
+ | Sgoto _ => x
+ end
+with find_expressions_sl {A: Type} (f: expr -> A -> A) (c: labeled_statements) (x: A) : A :=
+ match c with
+ | LSnil => x
+ | LScons _ c1 c2 => find_expressions f c1 (find_expressions_sl f c2 x)
+ end.
+
+Fixpoint find_vars {A: Type} (f: ident -> A -> A) (e: expr) (x: A) : A :=
+ match e with
+ | Evar i _ => f i x
+ | Ederef e _ => find_vars f e x
+ | Eaddrof e _ => find_vars f e x
+ | Eunop _ e _ => find_vars f e x
+ | Ebinop _ e1 e2 _ => find_vars f e1 (find_vars f e2 x)
+ | Ecast e _ => find_vars f e x
+ | Efield e _ _ => find_vars f e x
+ | _ => x
+ end.
+
+Fixpoint find_lvars (locals: list localdef)  (m: PTree.t unit) : PTree.t unit :=
+ match locals with
+ | lvar i _ _ :: locals'=> find_lvars locals' (PTree.set i tt m)
+ | gvar i _ :: locals'=> find_lvars locals' (PTree.set i tt m)
+ | _ :: locals' => find_lvars locals' m
+ | nil => m
+ end.
+
+
+Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t unit * list ident) :=
+ match ml with (t,il) =>
+  match PTree.get i t with Some _ => ml | None =>  (PTree.set i tt t, i :: il) end
+ end.
+Arguments another_gvar i !ml .
+
+Definition find_gvars (DS: PTree.t funspec) (locals: list localdef) (c: statement) : list ident :=
+ snd (find_expressions (find_vars another_gvar) c 
+                (find_lvars locals (PTree.map1 (fun _ => tt) DS), nil)).
+
+Ltac assert_gvars' x := 
+ match x with
+ | ?i :: ?x' => assert_gvar i; assert_gvars' x'
+ | nil => idtac
+ end.
+
+Ltac assert_gvars := 
+ match goal with DS := @abbreviate (PTree.t funspec) _ |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
+   tryif match l with context [gvars _] => idtac end
+    then let x := constr:(find_gvars DS l c) in
+            let x := eval unfold find_gvars, find_lvars in x in
+            let x := eval simpl in x in 
+            assert_gvars' x
+   else idtac
+ end.
+
 Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
 
 Ltac start_function :=
@@ -3202,6 +3315,7 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
+ assert_gvars;
  clear_Delta_specs_if_leaf_function;
  start_function_hint.
 
@@ -3393,47 +3507,3 @@ Ltac prove_semax_prog :=
         fail "Funspec of _main is not in the proper form"
     end
  ].
-
-
-Lemma intro_LOCAL_gvar:
-  forall Delta gv i P Q R,
-  (var_types Delta) ! i = None ->
-  (glob_types Delta) ! i <> None ->
-  In (gvars gv) Q ->
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
-Proof.
-intros.
-Transparent andp.
-go_lowerx.
-Opaque andp.
-normalize.
-apply prop_right.
-pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
-apply H5 in H4.
-simpl in H4.
-hnf.
-destruct H2 as [? [? [? ?]]].
-apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
-destruct H6 as [H6 _].
-specialize (H6 H).
-rewrite H6.
-destruct ((glob_types Delta) ! i) eqn:?.
-hnf in H7.
-specialize (H7 _ _ Heqo). destruct H7.
-rewrite H4.
-rewrite H7. auto.
-clear - H0; congruence.
-apply in_map.
-auto.
-Qed.
-
-Ltac assert_gvar i :=
- match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
-   assert_LOCAL (gvar i (gv i)); 
-  [apply intro_LOCAL_gvar; 
-    [ reflexivity 
-    | let H := fresh in intro H; inversion H 
-    | solve [repeat ((left; reflexivity) + right) ]]
-  | ]
- end.
-

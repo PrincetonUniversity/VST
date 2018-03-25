@@ -403,7 +403,8 @@ Definition sha256final_spec := (_SHA256_Final, snd SHA256_Final_spec).
 Definition memset_spec := (_memset, snd spec_sha.memset_spec).
 Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec).
 
-Definition HmacVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
+Definition HmacVarSpecs : varspecs := 
+  [(_m, tarray tuchar 32); (_m__1, tarray tuchar 64); (sha._K256, tarray tuint 64)].
 
 Definition HmacFunSpecs : funspecs :=
   memcpy_spec_data_at:: memset_spec::

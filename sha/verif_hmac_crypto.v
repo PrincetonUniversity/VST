@@ -91,7 +91,7 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG gv shmd md buf
       (DL: has_lengthD 512 (LEN MSG) (CONT MSG)):
 @semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
+   LOCAL  (gvar _m (gv _m); lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
      temp _key k; temp _key_len (Vint (Int.repr (LEN KEY)));
      temp _d msg; temp _n (Vint (Int.repr (LEN MSG))); gvars gv)
    SEP  (data_at_ Tsh (Tstruct _hmac_ctx_st noattr) buf;

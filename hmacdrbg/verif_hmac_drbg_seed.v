@@ -51,7 +51,7 @@ Proof.
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvar sha._K256 kv)
+   temp _custom data; gvars gv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
@@ -85,7 +85,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Ptrofs.add i (Ptrofs.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), gv).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -117,7 +117,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
+   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
   { elim H; trivial. }
@@ -161,7 +161,7 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
+  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
@@ -187,9 +187,9 @@ Proof.
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
    temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   gvar sha._K256 kv)
+   gvars gv)
    SEP (reseedPOST v Data data (Zlength Data) s
-          myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
+          myABS (Vptr b i) Info gv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.

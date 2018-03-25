@@ -123,42 +123,42 @@ Definition md_get_size_spec :=
 
 Definition md_reset_spec :=
   DECLARE _mbedtls_md_hmac_reset
-   WITH c : val, r: mdstate, key:list Z, kv:val
+   WITH c : val, r: mdstate, key:list Z, gv:globals
    PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr)]
          PROP ()
-         LOCAL (temp _ctx c; gvar sha._K256 kv)
+         LOCAL (temp _ctx c; gvars gv)
          SEP (UNDER_SPEC.FULL key (snd (snd r)); 
-              data_at Tsh (Tstruct _mbedtls_md_context_t noattr) r c; K_vector kv)
+              data_at Tsh (Tstruct _mbedtls_md_context_t noattr) r c; K_vector gv)
   POST [ tint ] 
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.zero)))
      SEP (md_relate (UNDER_SPEC.hABS key nil) r;
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) r c;
-          K_vector kv).
+          K_vector gv).
 
 Definition md_starts_spec :=
   DECLARE _mbedtls_md_hmac_starts
-   WITH c : val, r: mdstate, l:Z, key:list Z, kv:val, b:block, i:ptrofs
+   WITH c : val, r: mdstate, l:Z, key:list Z, b:block, i:ptrofs, gv: globals
    PRE [ _ctx OF tptr t_struct_md_ctx_st,
          _key OF tptr tuchar,
          _keylen OF tuint ]
          PROP (sha.spec_hmac.has_lengthK l key; Forall isbyteZ key)
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _keylen (Vint (Int.repr l));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP (UNDER_SPEC.EMPTY (snd (snd r));
               data_at Tsh t_struct_md_ctx_st r c;
-              data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b i); K_vector kv)
+              data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b i); K_vector gv)
   POST [ tint ] 
      PROP (Forall isbyteZ key)
      LOCAL (temp ret_temp (Vint (Int.zero)))
      SEP (md_relate (UNDER_SPEC.hABS key nil) r;
           data_at Tsh t_struct_md_ctx_st r c;
           data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b i);
-          K_vector kv).
+          K_vector gv).
 
 Definition md_update_spec :=
   DECLARE _mbedtls_md_hmac_update
-   WITH key: list Z, c : val, r:mdstate, d:val, data:list Z, data1:list Z, kv:val
+   WITH key: list Z, c : val, r:mdstate, d:val, data:list Z, data1:list Z, gv: globals
    PRE [ _ctx OF tptr t_struct_md_ctx_st, 
          _input OF tptr tuchar, 
          _ilen OF tuint]
@@ -166,33 +166,33 @@ Definition md_update_spec :=
                Zlength data1 + Zlength data + 64 < two_power_pos 61;
                Forall isbyteZ data1)
          LOCAL (temp _ctx c; temp _input d; temp  _ilen (Vint (Int.repr (Zlength data1)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(md_relate (UNDER_SPEC.hABS key data) r;
              data_at Tsh t_struct_md_ctx_st r c;
-             data_at Tsh (tarray tuchar (Zlength data1)) (map Vint (map Int.repr data1)) d; K_vector kv)
+             data_at Tsh (tarray tuchar (Zlength data1)) (map Vint (map Int.repr data1)) d; K_vector gv)
   POST [ tint ] 
           PROP (Forall isbyteZ data1) 
           LOCAL (temp ret_temp (Vint (Int.zero)))
           SEP(md_relate (UNDER_SPEC.hABS key (data ++ data1)) r;
               data_at Tsh t_struct_md_ctx_st r c; 
-              data_at Tsh (tarray tuchar (Zlength data1)) (map Vint (map Int.repr data1)) d; K_vector kv).
+              data_at Tsh (tarray tuchar (Zlength data1)) (map Vint (map Int.repr data1)) d; K_vector gv).
 
 Definition md_final_spec :=
   DECLARE _mbedtls_md_hmac_finish
-   WITH data:list Z, key:list Z, c : val, r:mdstate, md:val, shmd: share, kv:val
+   WITH data:list Z, key:list Z, c : val, r:mdstate, md:val, shmd: share, gv: globals
    PRE [ _ctx OF tptr t_struct_md_ctx_st,
          _output OF tptr tuchar ]
        PROP (writable_share shmd) 
        LOCAL (temp _output md; temp _ctx c;
-              gvar sha._K256 kv)
+              gvars gv)
        SEP((md_relate (UNDER_SPEC.hABS key data) r);
            (data_at Tsh t_struct_md_ctx_st r c);
-           (K_vector kv);
+           (K_vector gv);
            (memory_block shmd 32 md))
   POST [ tint ] 
           PROP (Forall isbyteZ (HMAC256 data key)) 
           LOCAL (temp ret_temp (Vint (Int.zero)))
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               UNDER_SPEC.FULL key (snd (snd r));
               data_at Tsh t_struct_md_ctx_st r c;
               data_at shmd (tarray tuchar (Zlength (HMAC256 data key))) (map Vint (map Int.repr (HMAC256 data key))) md).
@@ -330,7 +330,7 @@ Definition hmac_drbg_update_spec :=
         additional: val, add_len: Z,
         ctx: val, initial_state: hmac256drbgstate,
         I: hmac256drbgabs,
-        kv: val, info_contents: md_info_state
+        info_contents: md_info_state, gv: globals
      PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st),
            _additional OF (tptr tuchar), _add_len OF tuint ]
        PROP (
@@ -343,14 +343,14 @@ Definition hmac_drbg_update_spec :=
        LOCAL (temp _ctx ctx;
               temp _additional additional;
               temp _add_len (Vint (Int.repr add_len));
-              gvar sha._K256 kv)
+              gvars gv)
        SEP (
          da_emp Tsh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional;
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
          hmac256drbg_relate I initial_state;
          data_at Tsh t_struct_mbedtls_md_info
                   info_contents (hmac256drbgstate_md_info_pointer initial_state);
-         K_vector kv)
+         K_vector gv)
     POST [ tvoid ]
        PROP (
          )
@@ -361,7 +361,7 @@ Definition hmac_drbg_update_spec :=
                (contents_with_add additional add_len contents))
             initial_state ctx info_contents;
          da_emp Tsh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional;
-         K_vector kv).
+         K_vector gv).
 
 Definition mbedtls_HMAC256_DRBG_reseed_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs)
            (additional_input: list Z): ENTROPY.result DRBG_state_handle :=
@@ -410,21 +410,21 @@ Parameter Stream: ENTROPY.stream -> mpred.
 
 Definition reseedPOST rv contents additional add_len s
           I ctx
-          info_contents kv (initial_state: reptype t_struct_hmac256drbg_context_st):=
+          info_contents gv (initial_state: reptype t_struct_hmac256drbg_context_st):=
   if ((zlt 256 add_len) || (zlt 384 (hmac256drbgabs_entropy_len I + add_len)))%bool
   then (!!(rv = Vint (Int.neg (Int.repr 5))) &&
        (da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx *
          hmac256drbg_relate I initial_state *
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state) *
-         Stream s * K_vector kv))
+         Stream s * K_vector gv))
   else (!!(return_value_relate_result (mbedtls_HMAC256_DRBG_reseed_function s I 
             (contents_with_add additional add_len contents)) rv)
         && (hmac256drbgabs_common_mpreds (hmac256drbgabs_reseed I s 
              (contents_with_add additional add_len contents)) initial_state ctx info_contents *
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          Stream (get_stream_result (mbedtls_HMAC256_DRBG_reseed_function s I (contents_with_add additional add_len contents))) *
-         spec_sha.K_vector kv)).
+         spec_sha.K_vector gv)).
 
 (*384 equals MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT*)
 
@@ -434,8 +434,8 @@ Definition hmac_drbg_reseed_spec :=
         additional: val, add_len: Z,
         ctx: val, initial_state: hmac256drbgstate,
         I: hmac256drbgabs,
-        kv: val, info_contents: md_info_state,
-        s: ENTROPY.stream
+        info_contents: md_info_state,
+        s: ENTROPY.stream, gv: globals
     PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st), _additional OF (tptr tuchar), _len OF tuint ]
        PROP (
          0 <= add_len <= Ptrofs.max_unsigned;
@@ -447,21 +447,21 @@ Definition hmac_drbg_reseed_spec :=
          Forall isbyteZ (hmac256drbgabs_value I);
          Forall isbyteZ contents
        )
-       LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+       LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvars gv)
        SEP (
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
          hmac256drbg_relate I initial_state;
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);
          Stream s;
-         K_vector kv)
+         K_vector gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
        SEP (reseedPOST ret_value contents additional add_len s
           I ctx
-          info_contents kv initial_state).
+          info_contents gv initial_state).
 
 Definition mbedtls_HMAC256_DRBG_generate_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs) 
             (requested_number_of_bytes: Z) (additional_input: list Z): ENTROPY.result (list Z * DRBG_state_handle) :=
@@ -488,7 +488,7 @@ Definition hmac256drbgabs_generate (a: hmac256drbgabs) (s: ENTROPY.stream) (byte
                end
   end.
 
-Definition generatePOST ret_value contents additional add_len output out_len ctx initial_state I kv info_contents s :=
+Definition generatePOST ret_value contents additional add_len output out_len ctx initial_state I gv info_contents s :=
 if out_len >? 1024
 then (!!(ret_value = Vint (Int.neg (Int.repr 3))) &&
        (data_at_ Tsh (tarray tuchar out_len) output *
@@ -497,7 +497,7 @@ then (!!(ret_value = Vint (Int.neg (Int.repr 3))) &&
          hmac256drbg_relate I initial_state *
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state) *
          Stream s *
-         K_vector kv))
+         K_vector gv))
 else
   if (add_len >? 256)
   then (!!(ret_value = Vint (Int.neg (Int.repr 5))) &&
@@ -507,7 +507,7 @@ else
          hmac256drbg_relate I initial_state *
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state) *
          Stream s *
-         K_vector kv))
+         K_vector gv))
   else let g := (mbedtls_HMAC256_DRBG_generate_function s I out_len (*contents*)(contents_with_add additional add_len contents))
        in (!!(return_value_relate_result g ret_value)) &&
           (match g with
@@ -517,7 +517,7 @@ else
           hmac256drbgabs_common_mpreds (hmac256drbgabs_generate I s out_len (*contents*)(contents_with_add additional add_len contents)) initial_state ctx info_contents *
           da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
           Stream (get_stream_result g) *
-          K_vector kv).
+          K_vector gv).
 
 Definition  RI_range (z:Z): Prop:= 0 < z /\ z+1 < Int.max_signed. (*Here*)
 
@@ -528,8 +528,8 @@ Definition hmac_drbg_generate_spec :=
         output: val, out_len: Z,
         ctx: val, initial_state: hmac256drbgstate,
         I: hmac256drbgabs,
-        kv: val, info_contents: md_info_state,
-        s: ENTROPY.stream
+        info_contents: md_info_state,
+        s: ENTROPY.stream, gv: globals
     PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, _additional OF (tptr tuchar), _add_len OF tuint ]
        PROP (
          0 <= add_len <= Ptrofs.max_unsigned;
@@ -545,7 +545,7 @@ Definition hmac_drbg_generate_spec :=
          Forall isbyteZ contents
        )
        LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
-              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvars gv)
        SEP (
          data_at_ Tsh (tarray tuchar out_len) output;
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
@@ -553,39 +553,39 @@ Definition hmac_drbg_generate_spec :=
          hmac256drbg_relate I initial_state;
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);
          Stream s;
-         K_vector kv)
+         K_vector gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
-       SEP (generatePOST ret_value contents additional add_len output out_len ctx initial_state I kv info_contents s).
+       SEP (generatePOST ret_value contents additional add_len output out_len ctx initial_state I gv info_contents s).
 
 Definition hmac_drbg_seed_buf_spec :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
    WITH ctx: val, info:val, d_len: Z, data:val, Data: list Z,
         Ctx: hmac256drbgstate,
         CTX: hmac256drbgabs,
-        kv: val, Info: md_info_state
+        Info: md_info_state, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
          _data OF tptr tuchar, _data_len OF tuint ]
        PROP ( (d_len = Zlength Data \/ d_len=0) /\
               0 <= d_len <= Ptrofs.max_unsigned /\ Forall isbyteZ Data)
        LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvar sha._K256 kv)
+              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvars gv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
          hmac256drbg_relate CTX Ctx;
          data_at Tsh t_struct_mbedtls_md_info Info info;
          da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv)
+         K_vector gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info *
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
-            K_vector kv;
+            K_vector gv;
             if Val.eq ret_value (Vint (Int.repr (-20864)))
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  hmac256drbg_relate CTX Ctx
@@ -659,8 +659,8 @@ Definition hmac_drbg_random_spec :=
    WITH output: val, out_len: Z,
         ctx: val, initial_state: hmac256drbgstate,
         I: hmac256drbgabs,
-        kv: val, info_contents: md_info_state,
-        s: ENTROPY.stream
+        info_contents: md_info_state,
+        s: ENTROPY.stream, gv: globals
     PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
        PROP ( 
          0 <= out_len <= Ptrofs.max_unsigned;
@@ -670,19 +670,19 @@ Definition hmac_drbg_random_spec :=
          0 <= hmac256drbgabs_reseed_counter I < Int.max_signed;
          Forall isbyteZ (hmac256drbgabs_value I))
        LOCAL (temp _p_rng ctx; temp _output output;
-              temp _out_len (Vint (Int.repr out_len)); gvar sha._K256 kv)
+              temp _out_len (Vint (Int.repr out_len)); gvars gv)
        SEP (
          data_at_ Tsh (tarray tuchar out_len) output;
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
          hmac256drbg_relate I initial_state;
          data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);
          Stream s;
-         K_vector kv)
+         K_vector gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
-       SEP (generatePOST ret_value nil nullval 0 output out_len ctx initial_state I kv info_contents s).
+       SEP (generatePOST ret_value nil nullval 0 output out_len ctx initial_state I gv info_contents s).
 
 (*********************************** hmac_drbg_seed specification ******************************)
 
@@ -737,8 +737,8 @@ Definition hmac_drbg_seed_inst256_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
    WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
         Ctx: hmac256drbgstate,
-        kv: val, Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
-        handle_ss: DRBG_state_handle * ENTROPY.stream
+        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
+        handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
@@ -746,20 +746,20 @@ Definition hmac_drbg_seed_inst256_spec :=
              instantiate_function_256 s pr_flag (contents_with_add data (Zlength Data) Data)
                = ENTROPY.success (fst handle_ss) (snd handle_ss))
        LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _len (Vint (Int.repr len)); temp _custom data; gvar sha._K256 kv)
+              temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate dp rc pr_flag ri Ctx;
          data_at Tsh t_struct_mbedtls_md_info Info info;
          da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv; Stream s)
+         K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info;
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-            K_vector kv;
+            K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
@@ -890,40 +890,40 @@ Definition fs_merge (fA fB: funspec): option funspec :=
 *)
 
 Definition hmac_init_funspec:=
-    (WITH x : val * Z * list Z * val + val * Z * list Z * val * block * ptrofs
+    (WITH x : val * Z * list Z * globals + val * Z * list Z * block * ptrofs * globals
      PRE
      [(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
      (hmac._len, tint)] match x with
-                        | inl (c, l, key, kv) =>
+                        | inl (c, l, key, gv) =>
                             PROP ( )
                             LOCAL (temp hmac._ctx c; temp hmac._key nullval;
                             temp hmac._len (Vint (Int.repr l)); 
-                            gvar sha._K256 kv)
+                            gvars gv)
                             SEP (UNDER_SPEC.FULL key c;
-                            spec_sha.K_vector kv)
-                        | inr (c, l, key, kv, b0, i) =>
+                            spec_sha.K_vector gv)
+                        | inr (c, l, key, b0, i, gv) =>
                             PROP (spec_hmac.has_lengthK l key)
                             LOCAL (temp hmac._ctx c; temp hmac._key (Vptr b0 i);
                             temp hmac._len (Vint (Int.repr l)); 
-                            gvar sha._K256 kv)
+                            gvars gv)
                             SEP (UNDER_SPEC.EMPTY c;
                             spec_sha.data_block Tsh key (Vptr b0 i); 
-                            spec_sha.K_vector kv)
+                            spec_sha.K_vector gv)
                         end
      POST [tvoid] match x with
-                  | inl (c, _, key, kv) =>
+                  | inl (c, _, key, gv) =>
                       PROP ( )
                       LOCAL ()
                       SEP (UNDER_SPEC.REP
                              (UNDER_SPEC.hABS key []) c;
-                      spec_sha.K_vector kv)
-                  | inr (c, _, key, kv, b0, i) =>
+                      spec_sha.K_vector gv)
+                  | inr (c, _, key, b0, i, gv) =>
                       PROP ( )
                       LOCAL ()
                       SEP (UNDER_SPEC.REP
                              (UNDER_SPEC.hABS key []) c;
                       spec_sha.data_block Tsh key (Vptr b0 i); 
-                      spec_sha.K_vector kv)
+                      spec_sha.K_vector gv)
                   end).
 (*
 Lemma hmac_init_merge: 
@@ -942,12 +942,12 @@ Proof.
   unfold hmac_init_funspec.
   f_equal.
   + extensionality.
-    destruct x as [[[[c l] key] kv] | [[[[[c l] key] kv] b0] i]].
+    destruct x as [[[[c l] key] gv] | [[[[[c l] key] b0] i] gv]].
     - auto.
     - change_compspecs CompSepcs.
       auto.
   + extensionality.
-    destruct x as [[[[c l] key] kv] | [[[[[c l] key] kv] b0] i]].
+    destruct x as [[[[c l] key] gv] | [[[[[c l] key] b0] i] gv]].
     - auto.
     - change_compspecs CompSepcs.
       auto.

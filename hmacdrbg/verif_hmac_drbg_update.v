@@ -474,7 +474,7 @@ Lemma BDY_update: forall
 (ctx : val)
 (initial_state : hmac256drbgstate)
 (initial_state_abs : hmac256drbgabs)
-(kv : val)
+(gv : globals)
 (info_contents : md_info_state)
 (sep: val)( K : val)
 (H : 0 <= add_len <= Int.max_unsigned)
@@ -488,7 +488,7 @@ Lemma BDY_update: forall
   (PROP ( )
    LOCAL (lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep;
    temp _ctx ctx; temp _additional additional;
-   temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+   temp _add_len (Vint (Int.repr add_len)); gvars gv)
    SEP (data_at_ Tsh (tarray tuchar 32) K;
    data_at_ Tsh (tarray tuchar 1) sep;
    da_emp Tsh (tarray tuchar (Zlength contents))
@@ -496,7 +496,7 @@ Lemma BDY_update: forall
    data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
    hmac256drbg_relate initial_state_abs initial_state;
    data_at Tsh t_struct_mbedtls_md_info info_contents
-     (hmac256drbgstate_md_info_pointer initial_state); K_vector kv))
+     (hmac256drbgstate_md_info_pointer initial_state); K_vector gv))
   (Ssequence (fn_body f_mbedtls_hmac_drbg_update) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
@@ -507,7 +507,7 @@ Lemma BDY_update: forall
                    (contents_with_add additional add_len contents))
                 initial_state ctx info_contents;
          da_emp Tsh (tarray tuchar (Zlength contents))
-           (map Vint (map Int.repr contents)) additional; K_vector kv)))
+           (map Vint (map Int.repr contents)) additional; K_vector gv)))
      (stackframe_of f_mbedtls_hmac_drbg_update)).
 Proof. intros.
   abbreviate_semax.
@@ -546,7 +546,7 @@ Proof. intros.
       lvar _sep (tarray tuchar 1) sep;
       temp _additional additional; temp _add_len (Vint (Int.repr add_len));
       temp _t'2 (Val.of_bool na);
-      gvar sha._K256 kv)
+      gvars gv)
       SEP  (FRZL (FR2))).
   {
     (* show that add_len <> 0 implies the post condition *)
@@ -585,7 +585,7 @@ Proof. intros.
       lvar _sep (tarray tuchar 1) sep;
       temp _additional additional; temp _add_len (Vint (Int.repr add_len));
       temp _t'3 (Vint (Int.repr rounds));
-      gvar sha._K256 kv
+      gvars gv
              )
       SEP  (FRZL FR2)
   ).
@@ -615,7 +615,7 @@ Proof. intros.
        temp _ctx ctx;
        lvar _K (tarray tuchar 32) K; lvar _sep (tarray tuchar 1) sep;
        temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-       gvar sha._K256 kv
+       gvars gv
          )
       SEP  (
         (EX key: list Z, EX value: list Z, EX final_state_abs: hmac256drbgabs,
@@ -636,7 +636,7 @@ Proof. intros.
         (data_at_ Tsh (tarray tuchar 32) K);
         (da_emp Tsh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional);
         (data_at_ Tsh (tarray tuchar 1) sep );
-        (K_vector kv)
+        (K_vector gv)
          )
   ). (* 2 *)
   {
@@ -707,14 +707,14 @@ Proof. intros.
 
     (* mbedtls_md_hmac_reset( &ctx->md_ctx ); *)
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), key, kv). 
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)), key, gv). 
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
     thaw FR3. rewrite <- H9. freeze [3;4;5;6;8] FR4.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx,
-                       @nil Z, V, kv). 
+                       @nil Z, V, gv). 
     {
       rewrite H9.
       repeat split; [hnf;auto | hnf;auto | assumption].
@@ -732,7 +732,7 @@ Proof. intros.
     thaw FR4. freeze [2;4;5;6;7] FR5.
     unfold upd_Znth, sublist. simpl. rewrite Hiuchar; clear Hiuchar.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), sep, V, [i], kv). 
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)), sep, V, [i], gv). 
     {
       (* prove the PROP clauses *)
       rewrite H9.
@@ -754,12 +754,12 @@ Proof. intros.
       temp _rounds (Vint (Int.repr rounds));  temp _md_len (Vint (Int.repr 32));
       temp _ctx ctx; lvar _K (tarray tuchar (Zlength V)) K;
       lvar _sep (tarray tuchar 1) sep; temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+      temp _add_len (Vint (Int.repr add_len)); gvars gv)
       SEP  (md_relate (UNDER_SPEC.hABS key (V ++ [i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
       (data_at Tsh t_struct_md_ctx_st (*md_ctx*)(IS1a, (IS1b, IS1c))
           (field_address t_struct_hmac256drbg_context_st
              [StructField _md_ctx] ctx));
-      (K_vector kv);FRZL FR6;      
+      (K_vector gv);FRZL FR6;      
       (da_emp Tsh (tarray tuchar (Zlength contents))
           (map Vint (map Int.repr contents)) additional))
     ). (* 4.4 *)
@@ -779,7 +779,7 @@ Proof. intros.
 
       (* mbedtls_md_hmac_update( &ctx->md_ctx, additional, add_len ); *)
       Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                         (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, kv).
+                         (*md_ctx*)(IS1a, (IS1b, IS1c)), Vptr b i0, V ++ [i], contents, gv).
       {
         (* prove the PROP clause matches *)
         repeat split; [omega | rep_omega | | assumption].
@@ -818,7 +818,7 @@ Proof. intros.
     Intros.
     Time forward_call ((V ++ [i] ++ (if na then contents else [])), key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), K, Tsh, kv). 
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)), K, Tsh, gv). 
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -830,7 +830,7 @@ Proof. intros.
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        (Zlength (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)),
-                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, sk, ik). 
+                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, sk, ik, gv). 
     {
       (* prove the function parameters match up *)
       apply prop_right. 
@@ -853,7 +853,7 @@ Proof. intros.
     Time forward_call (HMAC256 (V ++ [i] ++ (if na then contents else [])) key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9 *)
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, gv). (*9 *)
     {
       (* prove the function parameters match up *)
       rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction.
@@ -874,7 +874,7 @@ Proof. intros.
     Time forward_call (V, HMAC256 (V ++ i::(if na then contents else [])) key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv).
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, gv).
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
     idtac "previous timing was for go_lower (goal: 12secs)".
     apply andp_right; [ apply prop_right; trivial | ].
