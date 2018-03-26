@@ -1398,7 +1398,7 @@ Opaque hmac256drbgabs_reseed.
   apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *.
   + red in Hreseed_interval; red; simpl in *. repeat split; trivial; try omega.
   + unfold drbg_protocol_specs.AREP, drbg_protocol_specs.REP, hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer;
-    normalize. rewrite <- H9.
+    normalize. rewrite <- H11.
     remember (mbedtls_HMAC256_DRBG_generate_function s
        (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) out_len
        (contents_with_add additional (Zlength contents) contents)).
