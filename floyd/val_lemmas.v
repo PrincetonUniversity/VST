@@ -1,4 +1,5 @@
 Require Import VST.floyd.base.
+Require Import VST.floyd.sublist.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
@@ -799,30 +800,6 @@ pose_const_equations
   Byte.min_signed; Byte.max_signed; Byte.max_unsigned; Byte.modulus
   ];
  pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize].
-
-Definition Zlength' := @Zlength.
-
-Lemma Zlength_nonneg:
- forall {A} (l: list A), 0 <= Zlength l.
-Proof.
-intros. rewrite Zlength_correct. omega.
-Qed.
-
-Ltac pose_Zlength_nonneg1 A :=
-     lazymatch goal with
-      | H:  0 <= Zlength A |- _ => idtac
-      | H:  0 <= Zlength A /\ _ |- _ => idtac
-      | |- _ => pose proof (Zlength_nonneg A)
-     end;  change (Zlength A) with (Zlength' _ A) in *.
-
-Ltac pose_Zlength_nonneg :=
- repeat
-  match goal with
-  | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
-  | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
-(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
- end;
-  unfold Zlength' in *.
 
 Ltac pose_lemma F F' A L :=
   match type of (L A) with ?T =>
