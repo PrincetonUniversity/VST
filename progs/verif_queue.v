@@ -385,7 +385,7 @@ forward_if
       contradiction (field_compatible_isptr _ _ _ H9).
       rewrite lseg_cons_eq by auto. simpl.
       Intros y. saturate_local.
-      contradiction (field_compatible_isptr _ _ _ H11).
+      contradiction (field_compatible_isptr _ _ _ H12).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   unfold fifo_body.

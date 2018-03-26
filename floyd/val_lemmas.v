@@ -991,7 +991,9 @@ Ltac fancy_intro aggressive :=
  | tc_val _ _ => unfold tc_val in H; try change (eqb_type _ _) with false in H; cbv iota in H
  end;
  match type of H with
- | ?P => clear H; (((assert (H:P) by immediate; fail 1) || fail 1) || idtac)
+ | ?P => clear H; 
+              match goal with H': P |- _ => idtac end (* work around bug number 6998 in Coq *)
+             + (((assert (H:P) by (clear; immediate); fail 1) || fail 1) || idtac)
                 (* do it in this complicated way because the proof will come out smaller *)
  | ?x = ?y => constr_eq aggressive true;
                      first [subst x | subst y

@@ -1596,7 +1596,7 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{rep_omega} tactic,
+you can use the \lstinline{rep_omega} tactic (see \autoref{rep-omega}),
 which is basically just \lstinline{omega} with
 knowledge of the values of
 \lstinline{Int.min_signed},
@@ -3683,7 +3683,42 @@ n-0=n \quad 0+n=n \quad n+0=n \quad n \le m \rightarrow \mathrm{max}(n,m) = m\\
 \end{array}
 \]
 
+\chapter{\textsf{rep\_omega}: omega with representation facts}
+\label{refcard:rep-omega}
 
+To solve goals such as
+
+\begin{minipage}{2.5in}
+\begin{lstlisting}
+H:  Zlength al < 50
+-------------------  
+0 <= Zlength al <= Int.max_signed
+\end{lstlisting}
+\end{minipage}\qquad
+\begin{minipage}{2.5in}
+\begin{lstlisting}
+
+-------------------  
+0 <= Int.unsigned (Int.repr i) <= Int.max_unsigned.
+\end{lstlisting}
+\end{minipage}
+
+you want to use the \lstinline{omega} tactic \emph{augmented} by many facts
+about the \emph{representations} of integers:
+the numeric values of
+\lstinline{Int.min_signed,}
+\lstinline{Int.max_signed,}
+etc.;
+the fact that \lstinline{Zlength} is nonnegative;
+the fact that \lstinline{0 <= Int.unsigned $z$ <= Int.max_unsigned},
+and so on.
+
+The \lstinline{rep_omega} tactic does this.
+In addition, it ``knows'' all the facts in the 
+\lstinline{Hint Rewrite : rep_omega} database.
+This is very helpful when using Opaque constants,
+as explained in \file{progs/tutorial1.v}, Lemmas
+\lstinline{exercise4} through \lstinline{exercise4c}.
 
 
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}

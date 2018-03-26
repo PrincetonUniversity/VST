@@ -474,7 +474,7 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
 hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: .loadpath mailbox/verif_mailbox_main.vo
+mailbox: .loadpath mailbox/verif_mailbox_all.vo
 atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT

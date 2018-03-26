@@ -226,7 +226,7 @@ Proof.
     {
       entailer!.
       apply derives_refl'; apply data_at_complete_split; trivial; try omega.
-      rewrite Zlength_app in H; rewrite H; trivial.
+      rewrite Zlength_app in H0; rewrite H0; trivial.
       repeat rewrite Zlength_map; trivial.
       rewrite Zlength_list_repeat; omega.
     }
@@ -364,10 +364,11 @@ Proof.
     clear Heqcontents'.
     rewrite app_assoc.
     entailer!.
-    rewrite Zlength_app, Zlength_list_repeat in H; try omega.
+    autorewrite with sublist in H0.
     apply derives_refl'.
-    apply data_at_complete_split; repeat rewrite Zlength_list_repeat; try omega; auto;
-      (* rewrite Zlength_app;*)try rewrite H; try rewrite Hentropy_bytes_length; repeat rewrite Zlength_map; auto.
+    apply data_at_complete_split; try list_solve.
+    autorewrite with sublist. rewrite H0. assumption.
+    auto.
   }
   flatten_sepcon_in_SEP.
 

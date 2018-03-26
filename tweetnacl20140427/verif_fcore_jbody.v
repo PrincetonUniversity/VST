@@ -158,7 +158,7 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
-      entailer!. destruct H3. inv H4.
+      entailer!. match goal with H: _ /\ _ |- _ => destruct H as [_ H]; inversion H end.
    }
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
