@@ -15,11 +15,11 @@ Parameter FRZL1: forall ps, (fold_right sepcon emp ps) |-- FRZL ps.
 Parameter FRZL2: forall ps, FRZL ps |-- fold_right sepcon emp ps.
 
 Parameter FRZRw : list mpred -> list mpred -> Type.
-Parameter FRZRw_pair : forall {L1 G1 L2 G2: list mpred},
-    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) -> FRZRw L1 G1.
+Parameter FRZRw_constr : forall {L1 G1: list mpred} {F: mpred},
+    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) F -> FRZRw L1 G1.
 Parameter FRZR : forall L1 G1 {w: FRZRw L1 G1}, mpred.
 Parameter FRZR1: forall L1 G1 (w: FRZRw L1 G1), (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (@FRZR L1 G1 w).
-Parameter FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_pair L1 G1 L2 G2 H)) |-- (fold_right sepcon emp G2).
+Parameter FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_constr L1 G1 (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) H)) |-- (fold_right sepcon emp G2).
 
 End FREEZER.
 
@@ -33,21 +33,21 @@ Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. apply derives_refl. Qed.
 Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. apply derives_refl. Qed.
 
 Inductive FRZRw' (L1 G1: list mpred): Type :=
-| FRZRw'_pair: forall L2 G2: list mpred,
-    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) -> FRZRw' L1 G1.
+| FRZRw'_constr: forall F: mpred,
+    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) F -> FRZRw' L1 G1.
 
 Definition FRZRw := FRZRw'.
-Definition FRZRw_pair:= FRZRw'_pair.
+Definition FRZRw_constr:= FRZRw'_constr.
 
 Definition FRZR (L1 G1: list mpred) {w: FRZRw L1 G1}: mpred := 
   match w with
-  | FRZRw'_pair L2 G2 _ => wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)
+  | FRZRw'_constr F _ => F
   end.
 
 Lemma FRZR1: forall L1 G1 (w: FRZRw L1 G1), (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (@FRZR L1 G1 w).
-Proof. intros ? ? [? ? ?]. auto. Qed.
+Proof. intros ? ? [? ?]. auto. Qed.
 
-Lemma FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_pair L1 G1 L2 G2 H)) |-- (fold_right sepcon emp G2).
+Lemma FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_constr L1 G1 (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) H)) |-- (fold_right sepcon emp G2).
 Proof. intros ? ? ? ? ?. apply modus_ponens_wand. Qed.
 
 End Freezer.
@@ -55,6 +55,7 @@ End Freezer.
 Notation FRZ := Freezer.FRZ.
 Notation FRZL := Freezer.FRZL.
 Notation FRZR := Freezer.FRZR.
+Notation FRZRw := Freezer.FRZRw.
 
 (************************ Freezing a single mpred ************************)
 Lemma FRZ_ax:forall p, FRZ p = p.
@@ -310,4 +311,86 @@ Ltac thaw name :=
 
 (************************ Ramification ************************)
 
+Inductive split_FRZ_in_SEP: list mpred -> list mpred -> list mpred -> Prop :=
+| split_FRZ_in_SEP_nil: split_FRZ_in_SEP nil nil nil
+| split_FRZ_in_SEP_FRZ: forall R R' RF F, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (FRZ F :: R) R' (FRZ F :: RF)
+| split_FRZ_in_SEP_FRZL: forall R R' RF F, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (FRZL F :: R) R' (FRZL F :: RF)
+| split_FRZ_in_SEP_FRZR: forall R R' RF L G w, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (@FRZR L G w :: R) R' (@FRZR L G w :: RF)
+| split_FRZ_in_SEP_other: forall R R' RF R0, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (R0 :: R) (R0 :: R') RF.
 
+Ltac prove_split_FRZ_in_SEP :=
+  solve [
+    repeat first
+    [ simple apply split_FRZ_in_SEP_nil
+    | simple apply split_FRZ_in_SEP_FRZ
+    | simple apply split_FRZ_in_SEP_FRZL
+    | simple apply split_FRZ_in_SEP_FRZR
+    | simple apply split_FRZ_in_SEP_other]].
+
+Lemma split_FRZ_in_SEP_spec: forall R R' RF,
+  split_FRZ_in_SEP R R' RF ->
+  fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF).
+Proof.
+  intros.
+  induction H.
+  + simpl.
+    rewrite sepcon_emp; auto.
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    apply pred_ext; cancel.
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    apply pred_ext; cancel.
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    apply pred_ext; cancel.
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    apply pred_ext; cancel.
+Qed.
+
+Lemma localize: forall R_L Espec {cs: compspecs} Delta P Q R R_G R_FR c Post (w: FRZRw R_L R_G),
+  split_FRZ_in_SEP R R_G R_FR ->
+  (let FR_L := @abbreviate _ R_L in
+   let FR_G := @abbreviate _ R_G in
+  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_L ++ @FRZR FR_L FR_G w :: R_FR)))) c Post) ->
+  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  eapply semax_pre; [clear H0 | exact H0].
+  apply split_FRZ_in_SEP_spec in H.
+  apply andp_left2.
+  apply andp_derives; auto.
+  apply andp_derives; auto.
+  unfold SEPx; intro.
+  rewrite H.
+  rewrite fold_right_sepcon_app.
+  simpl.
+  cancel.
+  apply Freezer.FRZR1.
+Qed.
+
+(* Move this and the copy of this in forward.v into somewhere proper. *)
+Ltac unfold_app :=
+change (@app mpred)
+  with (fix app (l m : list mpred) {struct l} : list mpred :=
+  match l with
+  | nil => m
+  | cons a l1 => cons a (app l1 m)
+  end);
+change (@app Prop)
+  with (fix app (l m : list Prop) {struct l} : list Prop :=
+  match l with
+  | nil => m
+  | cons a l1 => cons a (app l1 m)
+  end);
+cbv beta iota.
+
+Ltac localize R_L :=
+  eapply (localize R_L); [prove_split_FRZ_in_SEP |];
+  let FR_L := fresh "RamL" in
+  let FR_G := fresh "RamG" in
+  intros FR_L FR_G;
+  unfold_app.
+
+                    
