@@ -32,7 +32,7 @@ env:
 branches:
   only:
   - master
-  - improve_loadstore
+  - ramif
 notifications:
   email:
     recipients:

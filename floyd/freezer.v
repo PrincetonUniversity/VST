@@ -13,6 +13,14 @@ Parameter FRZ2: forall p, FRZ p |-- p.
 Parameter FRZL : list mpred -> mpred.
 Parameter FRZL1: forall ps, (fold_right sepcon emp ps) |-- FRZL ps.
 Parameter FRZL2: forall ps, FRZL ps |-- fold_right sepcon emp ps.
+
+Parameter FRZRw : list mpred -> list mpred -> Type.
+Parameter FRZRw_pair : forall {L1 G1 L2 G2: list mpred},
+    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) -> FRZRw L1 G1.
+Parameter FRZR : forall L1 G1 {w: FRZRw L1 G1}, mpred.
+Parameter FRZR1: forall L1 G1 (w: FRZRw L1 G1), (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (@FRZR L1 G1 w).
+Parameter FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_pair L1 G1 L2 G2 H)) |-- (fold_right sepcon emp G2).
+
 End FREEZER.
 
 Module Freezer : FREEZER.
@@ -23,10 +31,30 @@ Lemma FRZ2 p: FRZ p |-- p. apply derives_refl. Qed.
 Definition FRZL (ps:list mpred): mpred := fold_right sepcon emp ps.
 Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. apply derives_refl. Qed.
 Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. apply derives_refl. Qed.
+
+Inductive FRZRw' (L1 G1: list mpred): Type :=
+| FRZRw'_pair: forall L2 G2: list mpred,
+    (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)) -> FRZRw' L1 G1.
+
+Definition FRZRw := FRZRw'.
+Definition FRZRw_pair:= FRZRw'_pair.
+
+Definition FRZR (L1 G1: list mpred) {w: FRZRw L1 G1}: mpred := 
+  match w with
+  | FRZRw'_pair L2 G2 _ => wand (fold_right sepcon emp L2) (fold_right sepcon emp G2)
+  end.
+
+Lemma FRZR1: forall L1 G1 (w: FRZRw L1 G1), (fold_right sepcon emp G1) |-- sepcon (fold_right sepcon emp L1) (@FRZR L1 G1 w).
+Proof. intros ? ? [? ? ?]. auto. Qed.
+
+Lemma FRZR2: forall L1 G1 L2 G2 H, sepcon (fold_right sepcon emp L2) (@FRZR L1 G1 (@FRZRw_pair L1 G1 L2 G2 H)) |-- (fold_right sepcon emp G2).
+Proof. intros ? ? ? ? ?. apply modus_ponens_wand. Qed.
+
 End Freezer.
 
 Notation FRZ := Freezer.FRZ.
 Notation FRZL := Freezer.FRZL.
+Notation FRZR := Freezer.FRZR.
 
 (************************ Freezing a single mpred ************************)
 Lemma FRZ_ax:forall p, FRZ p = p.
@@ -280,65 +308,6 @@ Ltac thaw name :=
   thaw' name; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
-(*************************** depercated auxiliary lemmas and tactics ********************
-(*Freezes the mpreds at positions n0, n1, .. nk, where L= [n0; n1;..;nk] (counting starts at 0)*)
-Ltac freeze' L :=
-  eapply (freeze_SEP' (map nat_of_Z L));
-  first [solve [reflexivity] |
-         simpl].
+(************************ Ramification ************************)
 
-(*A variant that abbreviates the resulting freezer and introduces it as a named hypothesis*)
-Ltac freezeOLD L name :=
-  eapply (freeze_SEP'' (map nat_of_Z L));
-  first [(*solve [apply extract_trivial_liftx_e; repeat econstructor] | *)
-         solve [reflexivity] |
-         match goal with
-           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: _)))) _ _ =>
-           let D := fresh name in
-           set (D:=xs);
-(*           hnf in D;*)
-           change xs with (@abbreviate (list mpred) xs) in D;
-           simpl (*mapliftx*)
-         end].
-(*taken from hmac_pure_lemmas*)
-Lemma mapnth': forall {A B : Type} (f : A -> B) (l : list A) (d : A) (n : nat) fd,
-      fd = f d -> nth n (map f l) fd = f (nth n l d).
-Proof. intros; subst. apply map_nth. Qed.
 
-Lemma thaw_SEP':
- forall n Espec {cs: compspecs} Delta P Q  R c Post xs ys,
- nth n R emp = FRZL xs ->
- delete_nth n R = ys ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (xs ++ ys)))) c Post ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros. subst.
-eapply semax_pre_post. 3: eassumption. 2: intros; entailer.
-apply andp_left2. unfold PROPx. normalize.
-unfold LOCALx. apply derives_refl'.
-f_equal. unfold SEPx. clear - H.
-rewrite fold_right_sepcon_app. rewrite FRZL_ax in H.
-extensionality x.
-rewrite (fold_right_sepcon_deletenth n), H; trivial.
-Qed.
-Ltac thawOLD name := rewrite (FRZL_ax name); unfold name, abbreviate; simpl; clear name.
-
-(*List-freezers appearing in (preconditions of) semax-goals can also be thawed.
- Instead of yielding the sepcon product, the (un)frozen items are prepended to the SEP-list*)
-
-(*Tactic that does not attempt to clear the abbreviation identifier.*)
-Ltac melt' i:=
-  eapply (thaw_SEP' (nat_of_Z i));
-  first [(*solve [apply extract_trivial_liftx_e; repeat econstructor] | *)
-         solve [reflexivity] |
-         simpl].
-
-(*Variant that attempts to clear the abbreviation identifier.*)
-Ltac melt i x:=
-  eapply (thaw_SEP' (nat_of_Z i));
-  first [(*solve [apply extract_trivial_liftx_e; repeat econstructor] | *)
-         solve [reflexivity] |
-         first [simpl; clear x |
-                fail 2 "The identifier "x" cannot be cleared, or is not at position "i"." ]].
-
-*******************************************************************************)
