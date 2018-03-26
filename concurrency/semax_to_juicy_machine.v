@@ -49,14 +49,14 @@ Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.
 Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.sync_preds.
-(*Require Import VST.concurrency.semax_initial.
+Require Import VST.concurrency.semax_initial.
 Require Import VST.concurrency.semax_progress.
 Require Import VST.concurrency.semax_preservation_jspec.
 Require Import VST.concurrency.semax_safety_makelock.
 Require Import VST.concurrency.semax_safety_spawn.
 Require Import VST.concurrency.semax_safety_release.
 Require Import VST.concurrency.semax_safety_freelock.
-Require Import VST.concurrency.semax_preservation.*)
+Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -216,7 +216,7 @@ Section Safety.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
     destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
-    destruct (cl_at_external ge c m) as [(ef', args) | ] eqn:Eo;
+    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     destruct (eq_dec ef ef'); try subst ef';
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
@@ -228,12 +228,12 @@ Section Safety.
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state' /\
-      (state_invariant Jspec' Gamma n state' \/
-       state_invariant Jspec' Gamma (S n) state').
+      (state_bupd (state_invariant Jspec' Gamma n) state' \/
+       state_bupd (state_invariant Jspec' Gamma (S n)) state').
   Proof.
     intros inv.
 
-    (* the case for makelock *)
+(*    (* the case for makelock *)
     destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnotmakelock].
     {
       apply safety_induction_makelock; eauto.
@@ -275,22 +275,36 @@ Section Safety.
     destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
-    apply ext_link_inj.
+    apply ext_link_inj.*)
+  Admitted.
+
+  Lemma tp_bupd_mono : forall (P Q : thread_pool -> Prop) tp,
+    (forall tid (cnt : containsThread tp tid) phi phi', getThreadR cnt = phi ->
+       level phi = level phi' -> resource_at phi = resource_at phi' ->
+       P (updThreadR cnt phi') -> Q (updThreadR cnt phi')) ->
+    tp_bupd P tp -> tp_bupd Q tp.
+  Proof.
+    intros ???? HP.
+    destruct HP as (? & cnt & HP).
+    exists _, cnt; intros ?? J.
+    destruct (HP _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
   Qed.
 
   Lemma inv_step Gamma n state :
     inv Gamma (S n) state ->
     exists state',
       state_step state state' /\
-      inv Gamma n state'.
+      state_bupd (inv Gamma n) state'.
   Proof.
     intros (m & lm & i).
     replace m with (S (m - 1)) in i by omega.
     destruct (safety_induction _ _ _ i) as (state' & step & inv').
     exists state'; split; [ now apply step | ].
-    hnf. destruct inv'.
-    - exists (m - 1). split. omega. assumption.
-    - exists m. split. omega. exact_eq H; f_equal. omega.
+    destruct inv'.
+    - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
+      intros; exists (m - 1). split. omega. assumption.
+    - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
+      intros ??????? Hinv; exists m. split. omega. simpl in *. exact_eq Hinv; f_equal. omega.
   Qed.
 
   Lemma invariant_safe Gamma n state :
@@ -306,12 +320,13 @@ Section Safety.
       + destruct (Step _ _ _ INV) as (state' & step & INV').
         inversion step as [ | ge' m0 m' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
         inversion jmstep; subst.
-        all: try solve [ eapply jmsafe_core; eauto ].
+        all: try solve [ eapply jmsafe_core; eauto; eapply tp_bupd_mono; eauto; auto ].
         all: eapply jmsafe_sch; eauto.
-        all: intros sch'; apply IHn.
+        all: intros sch'; eapply tp_bupd_mono; eauto.
+        all: intros; apply IHn.
         all: simpl in *.
         all: apply no_Krun_inv with (sch := sch); eauto.
-        all: eapply schstep_norun; eauto.
+        all: rewrite <- numUpdateR; intro; eapply no_Krun_stableR, schstep_norun; eauto.
         all: destruct INV as (? & lm & INV).
         all: inv INV; auto.
   Qed.

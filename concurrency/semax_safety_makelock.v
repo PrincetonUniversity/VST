@@ -97,8 +97,8 @@ Lemma safety_induction_makelock Gamma n state
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
     state_step state state' /\
-    (state_invariant Jspec' Gamma n state' \/
-     state_invariant Jspec' Gamma (S n) state').
+    (state_bupd (state_invariant Jspec' Gamma n) state' \/
+     state_bupd (state_invariant Jspec' Gamma (S n)) state').
 Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
@@ -109,12 +109,11 @@ Proof.
   pose proof (safety i cnti tt) as safei.
 
   rewrite Eci in safei.
-  unfold jsafeN, juicy_safety.safeN in safei.
 
   fixsafe safei.
   inversion safei
     as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
-  apply corestep_not_at_external in bad. elimtype False; subst; clear - bad atex.
+  apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.
   subst.
@@ -158,7 +157,7 @@ Proof.
   assert (Eargs : args = Vptr b ofs :: nil)
     by (eapply shape_of_args; eauto).
 
-  assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem _ _ (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
+  assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem _ _ (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
     clear -AT Join Hwritable.
     unfold tlock in AT.
     destruct AT as (AT1, AT2).
@@ -200,7 +199,7 @@ Proof.
   specialize (RL shx b ofs Rx phi0 _ Hpos' Hwritable AT).
   destruct RL as (phi0' & RL0 & Hlkat).
 
-  match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by omega end.
+  match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RL0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
@@ -248,17 +247,17 @@ Proof.
 
   assert (LPhi' : level Phi' = level Phi) by (destruct Hrmap'; auto).
 
-  assert (notfound : lockRes tp (b, Int.intval ofs) = None). {
-    spec lock_coh (b, Int.intval ofs). cleanup.
+  assert (notfound : lockRes tp (b, Ptrofs.intval ofs) = None). {
+    spec lock_coh (b, Ptrofs.intval ofs). cleanup.
     destruct (AMap.find _ _) as [o|] eqn:Eo. 2:reflexivity. exfalso.
-    assert (C : exists (R : pred rmap), (lkat R (b, Int.intval ofs)) Phi)
+    assert (C : exists (R : pred rmap), (lkat R (b, Ptrofs.intval ofs)) Phi)
       by (destruct o; breakhyps; eauto). clear lock_coh.
     destruct C as (R' & At).
-    destruct Hrmap' as (_ & _ & inside).
-    spec inside (b, Int.intval ofs).
-    spec inside. split; auto; unfold Int.unsigned in *; lkomega.
+    destruct Hrmap' as (_ & _ & inside & _).
+    spec inside (b, Ptrofs.intval ofs).
+    spec inside. split; auto; unfold Ptrofs.unsigned in *; lkomega.
     destruct inside as (val' & sh'' & rsh'' & E & _).
-    spec At (b, Int.intval ofs). simpl in At.
+    spec At (b, Ptrofs.intval ofs). simpl in At.
     spec At. now split; auto; lkomega.
     destruct At as [sh [rsh  At]].
     rewrite if_true in At by auto.
@@ -267,7 +266,7 @@ Proof.
   assert (APhi' : age Phi' (age_to n Phi')) by (apply age_to_1; congruence).
 
   assert (Phi'rev : forall sh psh k pp' loc,
-             ~adr_range (b, Int.unsigned ofs) LKSIZE loc ->
+             ~adr_range (b, Ptrofs.unsigned ofs) LKSIZE loc ->
              age_to n Phi' @ loc = YES sh psh k pp' ->
              exists pp,
                Phi @ loc = YES sh psh k pp /\
@@ -286,7 +285,7 @@ Proof.
   }
 
 
-  assert (mcompat' : mem_compatible_with' (age_tp_to n (updLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Int.intval ofs) None)) m' (age_to n Phi')). {
+  assert (mcompat' : mem_compatible_with' (age_tp_to n (updLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Ptrofs.intval ofs) None)) m' (age_to n Phi')). {
     constructor.
     + (* join_all *)
       (* rewrite <-Hpersonal_juice. autospec El. cleanup. rewrite El. *)
@@ -301,9 +300,9 @@ Proof.
     + (* mem_cohere' *)
       split.
       * intros rsh sh v loc pp E''.
-        destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc) as [r|nr].
         -- exfalso.
-           destruct Hrmap' as (_ & _ & inside). spec inside loc.
+           destruct Hrmap' as (_ & _ & inside & _). spec inside loc.
            spec inside r.
            rewrite age_to_resource_at in E''.
            destruct inside as (? & ? & ? & ? & ? & E').
@@ -316,8 +315,7 @@ Proof.
              spec outside b1 ofs1.
              destruct outside as [(->, r) | same].
              - exfalso. apply nr. split; auto.
-                clear - r; unfold LKSIZE; simpl in *. change Int.unsigned with Int.intval.
-                omega.
+                change Ptrofs.unsigned with Ptrofs.intval; lkomega.
              - rewrite <-same.
                unfold personal_mem.
                change (m_dry (mkJuicyMem ?m _ _ _ _ _)) with m.
@@ -340,9 +338,9 @@ Proof.
           - apply juicyRestrictMax.
         }
         exact_eq M. f_equal.
-        destruct Hrmap' as (_ & Same & Changed).
+        destruct Hrmap' as (_ & Same & Changed & _).
         spec Same loc. spec Changed loc.
-        destruct (adr_range_dec (b, Int.unsigned ofs) (4 * 2) loc) as [r|nr].
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) (4 * 2) loc) as [r|nr].
         -- autospec Changed.
            destruct Changed as (val & sh & rsh & ? & ? & ?).
            rewrite H; if_tac in H1; rewrite H1; reflexivity.
@@ -354,15 +352,15 @@ Proof.
         unfold alloc_cohere in *.
         destruct (store_outside' _ _ _ _ _ _ Hstore) as (_ & _ & <-).
         intros loc out.
-        destruct Hrmap' as (_ & outside & inside).
+        destruct Hrmap' as (_ & outside & inside & _).
         spec outside loc.
         spec outside.
         { destruct loc as (b', ofs').
           intros [<- _].
-          spec A (b, Int.intval ofs) out.
-          spec inside (b, Int.unsigned ofs).
+          spec A (b, Ptrofs.intval ofs) out.
+          spec inside (b, Ptrofs.unsigned ofs).
           spec inside. split; auto. lkomega.
-          unfold Int.unsigned in *.
+          unfold Ptrofs.unsigned in *.
           if_tac in inside;
           breakhyps. }
         spec A loc out.
@@ -392,7 +390,7 @@ Proof.
       * injection e as <- <-.
         intros _ ofs0 r.
         pose proof all_cohere compat as C. destruct C as [_ C _].
-        destruct Hrmap' as (_ & _ & inside).
+        destruct Hrmap' as (_ & _ & inside & _).
         specialize (inside (b, ofs0)).
         spec C (b, ofs0).
         spec inside. hnf. split. auto.
@@ -417,14 +415,14 @@ Proof.
       cut (Phi @ loc = YES sh psh (LK z) pp).
       { intros; eapply (jloc_in_set compat); eauto. }
       rewrite <-E'.
-      destruct Hrmap' as (_ & outside & inside).
+      destruct Hrmap' as (_ & outside & inside & _).
       apply outside.
       intros r.
       spec inside loc r.
       destruct inside as (val & sh' & rsh' & ? & _ & E1).
       rewrite E1 in E'.
       if_tac in E'.
-      * unfold Int.unsigned in *. congruence.
+      * unfold Ptrofs.unsigned in *. congruence.
       * congruence.
     + (* lockSet_in_juicyLocks *)
       cleanup.
@@ -437,17 +435,17 @@ Proof.
       rewrite AMap_find_add.
       if_tac.
 
-      * intros []. subst loc. change Int.intval with Int.unsigned in *.
-        destruct Hrmap' as (_ & _ & inside). spec inside (b, Int.unsigned ofs). spec inside.
+      * intros []. subst loc. change Ptrofs.intval with Ptrofs.unsigned in *.
+        destruct Hrmap' as (_ & _ & inside & _). spec inside (b, Ptrofs.unsigned ofs). spec inside.
         { split; auto; omega. }
         if_tac in inside. 2:tauto.
         rewrite age_to_resource_at.
         breakhyps.
-        rewr (Phi' @ (b, Int.unsigned ofs)). simpl.
+        rewr (Phi' @ (b, Ptrofs.unsigned ofs)). simpl.
         exists x0, x1; eexists.
         apply YES_ext; reflexivity.
       * intros tr. spec J tr. auto.
-        destruct Hrmap' as (_ & outside & inside).
+        destruct Hrmap' as (_ & outside & inside & _).
         spec outside loc.
         spec outside.
         { intros r. spec inside loc r. breakhyps. }
@@ -460,13 +458,13 @@ Proof.
             lock_sparsity
               (lset (age_tp_to n (updLockSet
                                     (updThread i tp cnti (Kresume ci Vundef) phi')
-                                    (b, Int.intval ofs) None)))).
+                                    (b, Ptrofs.intval ofs) None)))).
   {
     simpl.
     cleanup.
     unfold lock_sparsity in *.
     cut (forall loc, AMap.find loc (lset tp) <> None ->
-                loc = (b, Int.intval ofs) \/ fst loc <> b \/ fst loc = b /\ far (snd loc) (Int.intval ofs)). {
+                loc = (b, Ptrofs.intval ofs) \/ fst loc <> b \/ fst loc = b /\ far (snd loc) (Ptrofs.intval ofs)). {
       clear -sparse.
       intros H loc1 loc2.
       do 2 rewrite AMap_find_map_option_map. cleanup.
@@ -492,7 +490,7 @@ Proof.
     destruct coh as (R' & AT').
     pose proof AT' as AT''.
     spec AT' loc.
-    destruct Hrmap' as (_ & outside & inside).
+    destruct Hrmap' as (_ & outside & inside & _).
     spec AT'. destruct loc; split; auto; lkomega.
     if_tac in AT'. 2:tauto.
     spec outside loc. assert_specialize outside as nr. {
@@ -501,12 +499,12 @@ Proof.
     }
     unfold far.
     destruct loc as (b', ofs'). simpl. simpl in nr.
-    unfold Int.unsigned in *. unfold LKSIZE.
+    unfold Ptrofs.unsigned in *.
     destruct (eq_dec b b') as [<- | ?]; [ | now auto ].
     right; split; auto.
-    spec AT'' (b, Int.intval ofs).
-    spec inside (b, Int.intval ofs). spec inside. now split; auto; lkomega.
-    destruct (adr_range_dec (b, ofs') LKSIZE (b, Int.intval ofs)) as [r|nr'].
+    spec AT'' (b, Ptrofs.intval ofs).
+    spec inside (b, Ptrofs.intval ofs). spec inside. now split; auto; lkomega.
+    destruct (adr_range_dec (b, ofs') LKSIZE (b, Ptrofs.intval ofs)) as [r|nr'].
     + autospec AT''. if_tac in AT''; breakhyps.
     + clear -nr nr'. simpl in nr'. unfold LKSIZE in *.
       do 2 match goal with H : ~(b = b /\ ?P) |- _ => assert (~P) by tauto; clear H end.
@@ -514,7 +512,9 @@ Proof.
   }
 
   left.
-  unshelve eapply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
+  unshelve erewrite updLock_updThread_comm in mcompat', sparse' |- *; try (apply cntUpdateL; auto).
+  unshelve erewrite age_to_updThread in mcompat', sparse' |- *; try (apply cnt_age', cntUpdateL; auto).
+  apply state_inv_upd with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
     apply level_age_to. omega.
 
@@ -548,7 +548,8 @@ Proof.
         if_tac [va|nva];swap 1 2.
         {
           destruct nva. simpl.
-          apply islock_valid_access. now apply AT. 2:congruence.
+          apply islock_valid_access. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|omega]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
+          2:congruence.
           unfold lockRes.
           simpl.
           rewrite AMap_find_map_option_map.
@@ -561,19 +562,19 @@ Proof.
 
       * (* LK_at *)
         subst loc. simpl.
-        split. apply AT.
+        split. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|omega]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
         split.
-        destruct AT as [[_ [_ [_ [_ [_ [H5 _]]]]]] _ ].
-        apply H5.
+        destruct AT as [(_ & _ & H5 & _) _]; simpl in H5.
+        unfold LKSIZE; rewrite size_chunk_Mptr; unfold Ptrofs.unsigned in *; omega.
         exists Rx.
         intros loc r.
-        destruct Hrmap' as (_ & _ & inside). spec inside loc.
+        destruct Hrmap' as (_ & _ & inside & _). spec inside loc.
         spec inside. clear - r. apply r.
         rewrite age_to_resource_at.
         breakhyps.
         rewr (Phi' @ loc).
         if_tac.
-        -- unfold Int.unsigned in *.
+        -- unfold Ptrofs.unsigned in *.
            if_tac. 2:tauto.
            unfold LKSIZE in *.
            unfold sync_preds_defs.pack_res_inv in *.
@@ -583,7 +584,7 @@ Proof.
            eauto.
            rewrite level_age_to. 2:omega.
            apply approx_approx'. omega.
-        -- unfold Int.unsigned in *. if_tac. tauto.
+        -- unfold Ptrofs.unsigned in *. if_tac. tauto.
            simpl. eauto.
 
     + spec lock_coh loc.
@@ -616,7 +617,8 @@ Proof.
           if_tac. 2:reflexivity.
           change (Some Writable = (lockSet tp) !! b' ofs0).
           symmetry. apply lockSet_spec_2 with ofs'.
-          clear - r0; hnf; simpl in *; omega.
+          unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega).
+          clear - r0; hnf; simpl in *; lkomega.
           cleanup. rewrite Eo. reflexivity.
         }
 
@@ -644,7 +646,7 @@ Proof.
               simpl in Hm'.
               destruct Hm' as [r1 | a]. 2:exact a.
               destruct r1 as [<- r1]. exfalso.
-              spec sparse' (b, ofs') (b, Int.intval ofs).
+              spec sparse' (b, ofs') (b, Ptrofs.intval ofs).
               simpl in sparse'. cleanup.
               do 2 rewrite AMap_find_map_option_map in sparse'.
               do 2 rewrite AMap_find_add in sparse'.
@@ -685,7 +687,7 @@ Proof.
               simpl in Hm'.
               destruct Hm' as [r1 | a]. 2:exact a.
               destruct r1 as [<- r1]. exfalso.
-              spec sparse' (b, ofs') (b, Int.intval ofs).
+              spec sparse' (b, ofs') (b, Ptrofs.intval ofs).
               simpl in sparse'. cleanup.
               do 2 rewrite AMap_find_map_option_map in sparse'.
               do 2 rewrite AMap_find_add in sparse'.
@@ -708,7 +710,7 @@ Proof.
            split; auto.
            exists R. split.
            ++ apply age_to_ind. now apply lkat_hered.
-              destruct Hrmap' as (LPhi & outside & inside).
+              destruct Hrmap' as (LPhi & outside & inside & _).
               intros x rx. spec lk x rx.
               spec outside x.
               spec inside x.
@@ -726,7 +728,7 @@ Proof.
         -- (* lkat *)
            destruct coh as (align & bound & R & lk). repeat (split; auto). exists R.
            apply age_to_ind. now apply lkat_hered.
-           destruct Hrmap' as (LPhi & outside & inside).
+           destruct Hrmap' as (LPhi & outside & inside & _).
            intros x r. spec lk x r.
            spec outside x.
            spec inside x.
@@ -737,8 +739,8 @@ Proof.
            eauto.
 
       * unfold option_map.
-        destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
-        -- destruct Hrmap' as (_ & _ & inside).
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc) as [r|nr].
+        -- destruct Hrmap' as (_ & _ & inside & _).
            spec inside loc.
         spec inside r.
            rewrite isLK_age_to.
@@ -757,6 +759,180 @@ Proof.
 
   - (* safety *)
     {
+    intros ? J.
+    assert (containsThread (updThread i (age_tp_to n
+      (updLockSet tp (b, Ptrofs.intval ofs) None))
+      cnti (Kresume ci Vundef) (age_to n phi')) i) as cnti'.
+    { apply cntUpdate, cnt_age', cntUpdateL; auto. }
+    destruct Post with
+          (ret := @None val)
+            (m' := jm_ cnti' mcompat')
+            (z' := tt) (n' := n) as (c'' & Ec'' & Safe'); auto.
+    { apply Logic.I. }
+    { unfold Hrel; simpl.
+      unfold compose.
+      assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
+      rewrite eqtype_refl, level_age_to by (setoid_rewrite Hl'; auto).
+      split; auto; split; [omega|].
+      eapply pures_same_eq_l.
+      2:apply pures_eq_age_to; omega.
+      eapply pures_same_sym, rmap_makelock_pures_same; eauto. }
+    { (* we must satisfy the post condition *)
+      exists (age_to n phi0'), (age_to n phi1).
+      split.
+      * simpl; rewrite eqtype_refl.
+        apply age_to_join; auto.
+      * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+        split. now constructor.
+        split. now constructor.
+        simpl. rewrite seplog.sepcon_emp.
+        unfold semax_conc_pred.lock_inv in *.
+        exists b, ofs; split. auto.
+        destruct RL0 as (Lphi0 & outside & inside & Hg).
+        split.
+        intros loc. simpl.
+        pose proof data_at_unfold _ _ _ _ _ 2 Hwritable AT as Hbefore.
+        spec Hbefore loc.
+        if_tac [r|nr]; [ if_tac [e|ne] | ].
+        - exists ((writable_readable_share Hwritable)).
+          spec inside loc r.
+          if_tac in inside. 2:unfold Int.unsigned in *; congruence.
+          destruct inside as (val & sh & rsh & E & wsh & E').
+          if_tac in Hbefore. 2:tauto.
+          rewrite age_to_resource_at.
+          destruct Hbefore as (v, Hb). rewrite Hb in E.
+          injection E as -> <-.
+          rewrite E'. simpl.
+          unfold pfullshare.
+          rewrite approx_approx'. 2: join_level_tac; omega.
+          rewrite level_age_to.  2: join_level_tac; omega.
+          apply YES_ext.
+          reflexivity.
+        - exists ((writable_readable_share Hwritable)).
+          spec inside loc.
+          spec inside r.
+          if_tac in inside. unfold Int.unsigned in *; congruence.
+          destruct inside as (val & sh & rsh & E & wsh & E').
+          if_tac in Hbefore. 2:tauto.
+          rewrite age_to_resource_at.
+          destruct Hbefore as (v, Hb). rewrite Hb in E.
+          injection E as -> <-.
+          rewrite E'. simpl.  apply YES_ext.
+          reflexivity.
+        - if_tac in Hbefore. tauto.
+          spec outside loc.
+          spec outside nr.
+          rewrite age_to_resource_at, <-outside.
+          apply empty_NO in Hbefore.
+          destruct Hbefore as [-> | (? & ? & ->)]; simpl.
+          + apply NO_identity.
+          + apply PURE_identity.
+        - simpl; rewrite age_to_ghost_of, <- Hg.
+          apply data_at_noghost in AT.
+          rewrite (identity_core AT), ghost_core; simpl.
+          rewrite <- (ghost_core (ghost_of phi0)); apply core_identity. }
+    assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
+    pose proof (ghost_of_join _ _ _ (age_to_join n _ _ _ J')) as J1.
+    destruct J as [? J]; destruct (join_assoc J1 J) as (C0 & J0 & Jphi').
+    specialize (Safe' C0) as (jm' & J'' & Hupd & Safe').
+    { simpl; unfold compose.
+      rewrite eqtype_refl.
+      rewrite age_to_ghost_of in *.
+      rewrite level_age_to by (setoid_rewrite Hl'; auto).
+      eapply ghost_fmap_join in Jphi'.
+      rewrite ghost_fmap_fmap, 2approx_oo_approx in Jphi'; eauto. }
+    exists (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None)) (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef) (m_phi jm')).
+    destruct J'' as [? J'']; simpl in J''.
+    unfold compose in J''; rewrite eqtype_refl in J''.
+    rewrite level_age_to in J'' by (setoid_rewrite Hl'; auto).
+    rewrite level_age_to in J0 by omega.
+    eapply ghost_fmap_join in J0.
+    rewrite !ghost_fmap_fmap, 2approx_oo_approx in J0.
+    destruct (join_assoc (join_comm J0) (join_comm J'')) as (g' & Jg' & ?).
+    assert (level jm' = n) as Hl''.
+    { destruct Hupd as (_ & -> & _); simpl.
+      unfold compose; rewrite eqtype_refl, level_age_to by (setoid_rewrite Hl'; auto); auto. }
+    destruct (make_rmap _ g' (rmap_valid (age_to n Phi')) n) as (Phi'' & ? & Hr & ?).
+    { replace n with (level (age_to n Phi')) at 1 2 by (rewrite level_age_to; auto; rewrite LPhi', En; auto).
+      extensionality; apply resource_at_approx. }
+    { rewrite <- (ghost_of_approx (m_phi jm')), <- level_juice_level_phi, Hl'' in Jg'.
+      eapply ghost_same_level_gen; eauto. }
+    subst g'; exists Phi''.
+    assert (tp_update (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
+               (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
+               (age_to n phi')) (age_to n Phi')
+            (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
+               (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
+               (m_phi jm')) Phi'') as Htp'.
+    { repeat split; auto.
+      - rewrite level_age_to; omega.
+      - rewrite join_all_joinlist.
+        eapply joinlist_permutation; [symmetry; apply maps_updthread|].
+        exists (age_to n psi).
+        rewrite maps_age_to, all_but_map, maps_updlock1, maps_getlock1 by auto.
+        split; [apply joinlist_age_to; auto|].
+        destruct (join_level _ _ _ jpsi).
+        apply resource_at_join2.
+        + rewrite <- level_juice_level_phi; congruence.
+        + rewrite level_age_to by omega; auto.
+        + destruct Hupd as (_ & _ & ->); simpl; rewrite eqtype_refl.
+          rewrite Hr; intros.
+          apply resource_at_join, age_to_join; auto.
+        + apply join_comm; rewrite <- ghost_of_approx, level_age_to by omega; auto.
+      - assert (forall t : tid,
+         JTP.containsThread
+           (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
+              (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
+              (m_phi jm')) t <->
+         JTP.containsThread
+           (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
+              (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
+              (age_to n phi')) t) as Hiff.
+        { split; intros ?%cntUpdate'; apply cntUpdate; auto. }
+        exists Hiff; split; auto.
+        intros t0 ?; destruct (eq_dec t0 i).
+        + subst t0; rewrite !gssThreadCode, !gssThreadRes.
+          rewrite <- level_juice_level_phi, level_age_to by omega.
+          destruct Hupd as (_ & _ & ->); simpl; rewrite eqtype_refl; auto.
+        + unshelve erewrite !gsoThreadCode, !gsoThreadRes; auto. }
+    exists Htp'; split.
+    { rewrite level_age_to by omega; eauto. }
+    intros t0 ? [].
+    destruct (eq_dec t0 i).
+    - subst; rewrite gssThreadCode; intros ??? Hjm.
+      rewrite gssThreadRes in Hjm.
+      SearchAbout jsafeN_ m_phi.
+      Check Safe'.
+      eauto.
+        omega.
+          
+          Check jpsi1.
+          SearchAbout psi.
+        SearchAbout maps remLockSet.
+      jpsi1
+      
+      
+    pose proof (resource_at_join2 
+    assert (joins 
+    exists Phi''.
+    
+      
+      2: omega.
+      eauto.
+      eexists.
+      
+
+          apply identity_core; erewrite <- (ghost_core (ghost_of phi0))
+          
+(* up *)
+Locate data_at_.
+Print memory_block.
+
+          eapply data_at_rmap_makelock in AT; auto.
+
+SearchAbout phi0.
+
+          
     intros j lj ora.
     specialize (safety j lj ora).
     unshelve erewrite <-gtc_age. auto.

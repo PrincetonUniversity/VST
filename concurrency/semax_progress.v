@@ -109,7 +109,7 @@ Proof.
   match goal with |- ?P = ?Q => cut (P /\ Q) end.
   { intros (?, ?). apply prop_ext; split; auto. }
   split.
-  - erewrite A2PMap_found; eauto.
+  - erewrite A2PMap_found; eauto; try lkomega.
     constructor.
   - unfold juice2Perm_locks in *.
     unfold mapmap in *.
@@ -123,7 +123,7 @@ Proof.
     simpl.
     destruct ((snd (mem_access m)) ! b) eqn:E. 2:tauto. clear notnone.
     unfold perm_of_res_lock in *.
-    spec lk (b, ofs'). simpl in lk.
+    destruct lk as [lk Hg]; spec lk (b, ofs'). simpl in lk.
     if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
     apply resource_at_join with (loc := (b, ofs')) in j.
     if_tac [e|ne] in lk.
@@ -159,12 +159,12 @@ Lemma valid_access_restrPermMap m i tp Phi b ofs ophi
   (compat : mem_compatible_with tp m Phi)
   (lock_coh : lock_coherence' tp Phi m compat)
   (cnti : containsThread tp i)
-  (Efind : AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (lset tp) = Some ophi)
-  (align : (4 | snd (b, Int.unsigned ofs)))
+  (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi)
+  (align : (4 | snd (b, Ptrofs.unsigned ofs)))
   (Hlt' : permMapLt
-           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
            (getMaxPerm m)) :
-  valid_access (restrPermMap Hlt') Mint32 b (Int.intval ofs) Writable.
+  valid_access (restrPermMap Hlt') Mint32 b (Ptrofs.intval ofs) Writable.
 Proof.
   split. 2:exact align.
   intros ofs' r.
@@ -174,22 +174,24 @@ Proof.
   rewrite RR.
   simpl.
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
-  rewrite !setPerm_spec.
+  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  rewrite setPermBlock_lookup.
   repeat (if_tac; [constructor |]).
   exfalso.
   simpl in r.
   assert (A : forall z, (b, z) <> (b, ofs') -> z <> ofs') by congruence.
   repeat match goal with H: (_,_)<>(_,_) |- _ => apply A in H end.
-  omega.
+  contradiction H.
+  unfold LKSIZE_nat; rewrite Z2Nat.id by lkomega.
+  split; auto; lkomega.
 Qed.
 
 Lemma permMapLt_local_locks m i tp Phi b ofs ophi
       (compat : mem_compatible_with tp m Phi)
       (cnti : containsThread tp i)
-      (Efind : AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (lset tp) = Some ophi) :
+      (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi) :
   permMapLt
-    (setPermBlock (Some Writable) b (Int.intval ofs)
+    (setPermBlock (Some Writable) b (Ptrofs.intval ofs)
                   (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
     (getMaxPerm m).
 Proof.
@@ -199,12 +201,12 @@ Proof.
     by (unfold getMaxPerm in *; rewrite PMap.gmap; reflexivity).
 
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Int.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
   rewrite RR.
-  rewrite !setPerm_spec.
- repeat (
-  if_tac; [match goal with H: (_,_) = (_,_) |-_ => inv H; apply LW; split; simpl; unfold Int.unsigned in *; lkomega end | ]).
- rewrite <-RR.
+  rewrite setPermBlock_lookup; if_tac.
+  { unfold LKSIZE_nat in H; rewrite Z2Nat.id in H by (pose proof LKSIZE_pos; omega).
+    destruct H; subst; auto. }
+  rewrite <-RR.
   apply juice2Perm_locks_cohere, mem_compat_thread_max_cohere.
   eexists; eauto.
 Qed.
@@ -283,13 +285,13 @@ Section Progress.
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem cl_core_sem) ge ci jmi ci' jmi'
-                   /\ forall ora, jsafeN Jspec' ge n ora ci' jmi').
+                   /\ forall ora, jm_bupd (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : at_external _ _ _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : j_at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
           exists c', m'. split; [ apply step | ].
           revert step safety safe; clear.
@@ -297,9 +299,8 @@ Section Progress.
           generalize (State ve te k).
           unfold jsafeN.
           intros c j step safety safe ora.
-          eapply safe_corestep_forward.
-          - apply juicy_core_sem_preserves_corestep_fun.
-            apply semax_lemmas.cl_corestep_fun'.
+          eapply jsafe_corestep_forward.
+          - apply semax_lemmas.cl_corestep_fun'.
           - apply step.
           - apply safety.
         }
@@ -429,11 +430,10 @@ Section Progress.
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H | subst | now inversion bad ].
+          [ now inversion bad; inversion H4 | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
@@ -467,7 +467,7 @@ Section Progress.
             destruct compat; eauto.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
-        pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
+        pose proof (resource_at_join_sub _ _ (b, Ptrofs.unsigned ofs) SUB) as SUB'.
         pose proof islock_pred_join_sub SUB' islock as isl.
 
         (* PLAN
@@ -494,8 +494,8 @@ Section Progress.
 
 
         (* next step depends on status of lock: *)
-        pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
-        destruct (AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (ThreadPool.lset tp))
+        pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
+        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (ThreadPool.lset tp))
           as [[unlockedphi|]|] eqn:Efind;
           swap 1 3.
         (* inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry]. *)
@@ -514,33 +514,33 @@ Section Progress.
           rewrite Ewetv in *.
 
           (* rewrite Eat in Ewetv. *)
-          specialize (lk (b, Int.unsigned ofs)).
-          spec lk. unfold LKSIZE in *; split; auto; omega.
+          specialize (lk (b, Ptrofs.unsigned ofs)).
+          spec lk. pose proof LKSIZE_pos; split; auto; omega.
           if_tac in lk. 2:tauto.
 
           unfold lock_inv in PREC.
-          destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
+          destruct PREC as (b0 & ofs0 & EQ & LKSPEC & HG).
           injection EQ as <- <-.
           exists (m, ge, (sch, tp))(* ; split *).
           + apply state_step_c.
             apply JuicyMachine.sync_step with
             (Htid := cnti)
               (Hcmpt := mem_compatible_forget compat)
-              (ev := Events.failacq (b, Int.intval (* replace with unsigned? *) ofs));
+              (ev := Events.failacq (b, Ptrofs.intval (* replace with unsigned? *) ofs));
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
             (* factoring proofs out before the inversion/eapply *)
             pose proof LKSPEC as LKSPEC'.
-            specialize (LKSPEC (b, Int.unsigned ofs)).
+            specialize (LKSPEC (b, Ptrofs.unsigned ofs)).
             simpl in LKSPEC.
             if_tac [r|nr] in LKSPEC; swap 1 2.
             { destruct nr.
-              unfold LKSIZE; simpl.
-              split. reflexivity. omega. }
+              simpl.
+              split. reflexivity. pose proof LKSIZE_pos; omega. }
             if_tac in LKSPEC; [ | congruence ].
             destruct LKSPEC as (p & E).
-            pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
+            pose proof (resource_at_join _ _ _ (b, Ptrofs.unsigned ofs) Join) as J.
             rewrite E in J.
 
             assert (Ename : name = "acquire"). {
@@ -576,7 +576,7 @@ Section Progress.
 
             unfold load_at in LOAD.
             eapply load_at_phi_restrict with (phi0 := phi0) (cnti := cnti) in LOAD.
-            all: [ > | exists phi1; eassumption | eassumption | eassumption ].
+            all: [ > | exists phi1; eassumption | split; eassumption | eassumption ].
 
             inversion J; subst.
 
@@ -585,16 +585,16 @@ Section Progress.
               all: try solve [ constructor | eassumption | reflexivity ].
                 (* [ > idtac ]. *)
               simpl.
-              unfold Int.unsigned in *.
-              rewr (getThreadR cnti @ (b, Int.intval ofs)).
+              unfold Ptrofs.unsigned in *.
+              rewr (getThreadR cnti @ (b, Ptrofs.intval ofs)).
               reflexivity.
               
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
-              unfold Int.unsigned in *.
-              rewr (getThreadR cnti @ (b, Int.intval ofs)).
+              unfold Ptrofs.unsigned in *.
+              rewr (getThreadR cnti @ (b, Ptrofs.intval ofs)).
               reflexivity.
 
         - (* acquire succeeds *)
@@ -606,8 +606,8 @@ Section Progress.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
           injection EQ as <- <-.
 
-          specialize (lk (b, Int.unsigned ofs)).
-          spec lk. hnf. unfold LKSIZE in *; split; auto; omega.
+          specialize (lk (b, Ptrofs.unsigned ofs)).
+          spec lk. hnf. pose proof LKSIZE_pos; split; auto; omega.
           if_tac in lk. 2:tauto.
           destruct sat as [sat | sat]; [ | omega ].
 
@@ -644,19 +644,18 @@ Section Progress.
 
           assert (Hlt': permMapLt
                           (setPermBlock
-                             (Some Writable) b (Int.intval ofs)
+                             (Some Writable) b (Ptrofs.intval ofs)
                              (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat) (getMaxPerm m)).
           {
-            clear -Efind compat.
             clear -Efind compat.
             eapply permMapLt_local_locks; eauto.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.zero) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
-            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
+            destruct (Mem.valid_access_dec _ Mint32 b (Ptrofs.intval ofs) Writable) as [N|N].
             now eauto.
             exfalso.
             apply N.
@@ -671,9 +670,9 @@ Section Progress.
             as (phi', Jphi').
 
           (* necessary to know that we have indeed a lock *)
-          assert (ex: exists sh0 psh0, phi0 @ (b, Int.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) Rx))). {
+          assert (ex: exists sh0 psh0, phi0 @ (b, Ptrofs.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) Rx))). {
             clear -LKSPEC.
-            specialize (LKSPEC (b, Int.intval ofs)).
+            destruct LKSPEC as [LKSPEC _]; specialize (LKSPEC (b, Ptrofs.intval ofs)).
             simpl in LKSPEC.
             if_tac in LKSPEC. 2:range_tac.
             if_tac in LKSPEC. 2:tauto.
@@ -682,14 +681,14 @@ Section Progress.
             apply E.
           }
           destruct ex as (sh0 & psh0 & ex).
-          pose proof (resource_at_join _ _ _ (b, Int.intval ofs) Join) as Join'.
+          pose proof (resource_at_join _ _ _ (b, Ptrofs.intval ofs) Join) as Join'.
           destruct (join_YES_l Join' ex) as (sh3 & sh3' & E3).
 
           eexists (m', ge, (sch, _)).
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
-            with (ev := (Events.acquire (b, Int.intval ofs) None))
+            with (ev := (Events.acquire (b, Ptrofs.intval ofs) None))
                    (tid := i)
                    (Htid := cnti)
                    (Hcmpt := mem_compatible_forget compat)
@@ -737,10 +736,9 @@ Section Progress.
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         fixsafe safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H | subst | now inversion bad ].
+          [ now inversion bad; inversion H4 | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
@@ -781,12 +779,12 @@ Section Progress.
           apply compatible_threadRes_sub; eauto. apply compat.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
-        pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
+        pose proof (resource_at_join_sub _ _ (b, Ptrofs.unsigned ofs) SUB) as SUB'.
         pose proof islock_pred_join_sub SUB' islock as isl.
 
         (* next step depends on status of lock: *)
-        pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
-        destruct (AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (ThreadPool.lset tp))
+        pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
+        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (ThreadPool.lset tp))
           as [[unlockedphi|]|] eqn:Efind;
           swap 1 3.
 
@@ -805,9 +803,9 @@ Section Progress.
           rewrite Ewetv in *.
 
           (* rewrite Eat in Ewetv. *)
-          specialize (lk (b, Int.unsigned ofs)).
+          specialize (lk (b, Ptrofs.unsigned ofs)).
           spec lk.
-          { hnf. unfold LKSIZE in *; split; auto; omega. }
+          { hnf. split; auto; lkomega. }
           if_tac in lk. 2:tauto.
           destruct lk as (sh' & rsh & EPhi).
 
@@ -842,11 +840,11 @@ Section Progress.
           }
           subst z.
 
-          assert (E1: exists sh sh', getThreadR cnti @ (b, Int.intval ofs) = YES sh sh' (LK LKSIZE) (pack_res_inv R)).
+          assert (E1: exists sh sh', getThreadR cnti @ (b, Ptrofs.intval ofs) = YES sh sh' (LK LKSIZE) (pack_res_inv R)).
           {
             revert Join jphi SUB' islock; clear.
-            unfold Int.unsigned in *.
-            generalize (b, Int.intval ofs); intros l. clear b ofs.
+            unfold Ptrofs.unsigned in *.
+            generalize (b, Ptrofs.intval ofs); intros l. clear b ofs.
             intros A B (r, C).
             apply resource_at_join with (loc := l) in A.
             apply resource_at_join with (loc := l) in B.
@@ -861,7 +859,7 @@ Section Progress.
 
           assert (Hlt': permMapLt
                           (setPermBlock
-                             (Some Writable) b (Int.intval ofs)
+                             (Some Writable) b (Ptrofs.intval ofs)
                              (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat) (getMaxPerm m)).
           {
             clear -Efind compat.
@@ -870,10 +868,10 @@ Section Progress.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.one) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
-            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
+            destruct (Mem.valid_access_dec _ Mint32 b (Ptrofs.intval ofs) Writable) as [N|N].
             now eauto.
             exfalso.
             apply N.
@@ -1021,10 +1019,9 @@ Section Progress.
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         fixsafe safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H | subst | now inversion bad ].
+          [ now inversion bad; inversion H4 | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
@@ -1082,7 +1079,7 @@ Section Progress.
           repeat f_equal; congruence.
         }
 
-        assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
+        assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
           unfold tlock in AT. 
           destruct AT as (AT1, AT2). 
@@ -1128,7 +1125,7 @@ Section Progress.
         specialize (RL shx b ofs Rx phi0 _ Hpos Hwritable AT).
         destruct RL as (phi0' & RL0 & lkat).
 
-        match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
+        match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
         pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RL0 Join as RL.
         destruct RL as (phi' & RLphi & j').
         assert (ji : join_sub (getThreadR cnti) Phi) by join_sub_tac.
@@ -1157,10 +1154,9 @@ Section Progress.
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         fixsafe safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H | subst | now inversion bad ].
+          [ now inversion bad; inversion H4 | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
@@ -1235,14 +1231,14 @@ Section Progress.
 
         clear Post.
 
-        assert (lock_not_none : lockRes tp (b, Int.intval ofs) <> None). {
-          spec lock_coh (b, Int.intval ofs). cleanup.
+        assert (lock_not_none : lockRes tp (b, Ptrofs.intval ofs) <> None). {
+          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
           destruct (AMap.find _ _) as [|] eqn:Ephi_sat. congruence.
           unfold lock_inv in *.
-          destruct Hlockinv as (b_ & ofs_ & E_ & HH).
-          spec HH (b, Int.intval ofs).
+          destruct Hlockinv as (b_ & ofs_ & E_ & HH & HG).
+          spec HH (b, Ptrofs.intval ofs).
           simpl in HH.
-          change Int.intval with Int.unsigned in *.
+          change Ptrofs.intval with Ptrofs.unsigned in *.
           injection E_ as <- <- .
           if_tac [r|nr] in HH. 2:range_tac.
           if_tac [e|ne] in HH. 2:tauto.
@@ -1253,7 +1249,7 @@ Section Progress.
             join_sub_tac.
           }
           destruct j as (psi' & j).
-          apply resource_at_join with (loc := (b, Int.unsigned ofs)) in j.
+          apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
           rewrite HH in j.
           destruct lock_coh.
           inv j; hnf; eauto.
@@ -1262,14 +1258,14 @@ Section Progress.
         pose proof Hlockinv as COPY.
         apply (lock_inv_rmap_freelock CS) with (m := m) in COPY; auto; try apply lock_coh; swap 1 2; swap 2 3.
         {
-          spec lock_coh (b, Int.intval ofs). cleanup.
+          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
           remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
           rewrite <-Heqo in lock_not_none.
           destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
           tauto.
         }
         {
-          spec lock_coh (b, Int.intval ofs). cleanup.
+          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
           remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
           rewrite <-Heqo in lock_not_none.
           destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
@@ -1278,19 +1274,18 @@ Section Progress.
 
         destruct COPY as (phi0lockinv' & Hrmap00 & Hlkat).
 
-        assert (Hpos'' : (0 < LKSIZE)%Z) by (clear; unfold LKSIZE; omega). 
-        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ LKSIZE_pos Hrmap00 jphi0 as Hrmap0.
         destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
-        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ LKSIZE_pos Hrmap0 Join as Hrmap.
         pose proof Hrmap as Hrmap_.
         destruct Hrmap_ as (phi' & RLphi & j').
         assert (ji : join_sub (@getThreadR _ _ cnti) Phi) by join_sub_tac.
         destruct ji as (psi & jpsi). cleanup.
-        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ LKSIZE_pos RLphi jpsi as Hrmap'.
         destruct Hrmap' as (Phi' & Hrmap' & J').
 
-        assert (locked : lockRes tp (b, Int.intval ofs) = Some None). {
-          spec lock_coh (b, Int.intval ofs). cleanup.
+        assert (locked : lockRes tp (b, Ptrofs.intval ofs) = Some None). {
+          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
           destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
           - (* positive and precise *)
             destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
@@ -1365,10 +1360,10 @@ Section Progress.
           - (* not a lock: impossible *)
             simpl in Hlockinv.
             unfold lock_inv in *.
-            destruct Hlockinv as (b_ & ofs_ & E_ & HH).
-            spec HH (b, Int.intval ofs).
+            destruct Hlockinv as (b_ & ofs_ & E_ & HH & HG).
+            spec HH (b, Ptrofs.intval ofs).
             simpl in HH.
-            change Int.intval with Int.unsigned in *.
+            change Ptrofs.intval with Ptrofs.unsigned in *.
             injection E_ as <- <- .
             if_tac [r|nr] in HH. 2:range_tac.
             if_tac [e|ne] in HH. 2:tauto.
@@ -1379,7 +1374,7 @@ Section Progress.
               join_sub_tac.
             }
             destruct j as (psi' & j).
-            apply resource_at_join with (loc := (b, Int.unsigned ofs)) in j.
+            apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
             rewrite HH in j.
             apply lock_coh.
             inv j; hnf; eauto.
@@ -1416,10 +1411,9 @@ Section Progress.
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         fixsafe safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H | subst | now inversion bad ].
+          [ now inversion bad; inversion H4 | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
@@ -1508,10 +1502,9 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * replace (initial_core SEM.Sem _) with cl_initial_core. eauto.
-            unfold the_sem, SEM.Sem.
-            rewrite SEM.CLN_msem.
-            reflexivity.
+          * unfold the_sem, SEM.Sem.
+            rewrite SEM.CLN_msem; simpl.
+            rewrite Einit; reflexivity.
           * constructor.
           * reflexivity.
     }

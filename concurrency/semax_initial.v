@@ -144,7 +144,7 @@ Section Initial_State.
         unfold tp in Ephi; simpl in Ephi.
         discriminate.
       + intros loc sh psh P z L.
-        destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & A' & NL & MFS).
+        destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS).
         unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
         rewrite L in NL'.
@@ -170,7 +170,7 @@ Section Initial_State.
       auto.
 
     - (*! env_coherence *)
-      destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & A' & NL & MFS & FA).
+      destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS & FA).
       simpl in jm. unfold jm.
       split.
       + apply MFS.
@@ -209,7 +209,7 @@ Section Initial_State.
       subst jm. rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.
       destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-      destruct (JS n) as (jm' & jmm & lev & InitC & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
+      destruct (JS n) as (jm' & jmm & lev & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
       subst q.
       simpl proj1_sig in *; simpl proj2_sig in *. subst n.
       apply (Safe ora).

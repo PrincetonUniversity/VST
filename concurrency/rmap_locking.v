@@ -424,6 +424,25 @@ Proof.
   rewrite Coqlib.nat_of_Z_eq; omega.
 Qed.
 
+Lemma data_at_noghost CS sh b ofs phi :
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) 2 noattr) (Vptr b ofs)) phi ->
+  noghost phi.
+Proof.
+  intros Hw; simpl in *.
+  destruct Hw as (_ & _ & ? & ? & ? & ? & ? & ? & J2 & ? & Hemp).
+  apply join_comm, Hemp in J2; subst.
+  unfold mapsto_memory_block.at_offset in *; simpl in *.
+  unfold mapsto in *; simpl in *.
+  destruct (readable_share_dec sh).
+  - destruct H0 as [[]|[_ H0]], H1 as [[]|[_ H1]]; try contradiction.
+    destruct H0 as (_ & _ & _ & ?), H1 as (_ & _ & _ & ?); simpl in *.
+    apply ghost_of_join, H0 in H.
+    rewrite <- H; auto.
+  - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?).
+    apply ghost_of_join, H0 in H.
+    rewrite <- H; auto.
+Qed.
+
 Definition rmap_makelock phi phi' loc R length :=
   (level phi = level phi') /\
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\

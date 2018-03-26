@@ -118,14 +118,14 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
       (4 | snd loc) /\
-      (snd loc + LKSIZE <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Ptrofs.modulus)%Z /\
       exists R, lkat R loc phi
 
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
       (4 | snd loc) /\
-      (snd loc + LKSIZE <= Int.modulus)%Z /\
+      (snd loc + LKSIZE <= Ptrofs.modulus)%Z /\
       exists (R : mpred),
         lkat R loc phi /\
         (app_pred R (age_by 1 lockphi) \/ level phi = O)
@@ -345,6 +345,17 @@ Proof.
   - unshelve erewrite gsoThreadCode; auto.
 Qed.
 
+Lemma no_Krun_stableR tp i cnti phi' :
+  no_Krun tp ->
+  no_Krun (@updThreadR i tp cnti phi').
+Proof.
+  intros notkrun j cntj q.
+  destruct (eq_dec i j).
+  - subst.
+    unshelve erewrite gThreadRC; eauto.
+  - unshelve erewrite gThreadRC; eauto.
+Qed.
+
 Lemma no_Krun_unique_Krun_updThread tp i sch cnti q phi' :
   no_Krun tp ->
   unique_Krun (@updThread i tp cnti (Krun q) phi') (i :: sch).
@@ -500,6 +511,106 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
       cl_at_external c = Some (ef, args)
   end.
 
+Definition state_bupd P (state : cm_state) := let '(m, ge, (sch, tp)) := state in
+  tp_bupd (fun tp' => P (m, ge, (sch, tp'))) tp.
+
+Lemma mem_compatible_upd : forall tp m phi tp' phi', mem_compatible_with tp m phi ->
+  tp_update tp phi tp' phi' -> mem_compatible_with tp' m phi'.
+Proof.
+  intros ?????? (Hl & Hr & ? & ? & ? & Hguts & ? & ? & ?).
+  inv H; constructor; auto.
+  - inv all_cohere0; constructor.
+    + repeat intro.
+      rewrite Hr in H; eauto.
+    + repeat intro; rewrite Hr; auto.
+    + repeat intro; rewrite Hr; auto.
+  - rewrite Hguts; auto.
+  - rewrite Hguts; repeat intro.
+    rewrite Hr in H; eauto.
+  - rewrite Hguts; repeat intro.
+    rewrite Hr; auto.
+Qed.
+
+Lemma join_all_eq : forall tp phi phi', join_all tp phi -> join_all tp phi' ->
+  (getThreadsR tp = nil /\ getLocksR tp = nil /\ identity phi /\ identity phi') \/ phi = phi'.
+Proof.
+  intros ???; rewrite join_all_joinlist.
+  unfold maps.
+  destruct (getThreadsR tp); [|intros; right; eapply joinlist_inj; eauto; discriminate].
+  destruct (getLocksR tp); [auto | intros; right; eapply joinlist_inj; eauto; discriminate].
+Qed.
+
+(* Ghost update only affects safety; the rest of the invariant is preserved. *)
+Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
+  (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+      (lev : level PHI = n)
+      (envcoh : env_coherence Jspec ge Gamma PHI)
+      (mcompat : mem_compatible_with tp m PHI)
+      (lock_sparse : lock_sparsity (lset tp))
+      (lock_coh : lock_coherence' tp PHI m mcompat)
+      (safety : forall C, joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) ->
+        exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
+        joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
+        threads_safety Jspec m ge tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
+      (wellformed : threads_wellformed tp)
+      (uniqkrun :  unique_Krun tp sch),
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+Proof.
+  intros; intros ??? J.
+  assert (join_all tp PHI) as HPHI by (clear - mcompat; inv mcompat; auto).
+  destruct (join_all_eq _ _ _ H HPHI) as [(Ht & ? & ? & ?)|].
+  { exists nil; split.
+    { eexists; erewrite <- ghost_core; apply core_unit. }
+    exists phi, tp; split; [apply tp_update_refl; auto|].
+    split; [erewrite <- ghost_core; apply identity_core, ghost_of_identity; auto|].
+    apply state_invariant_c with (mcompat0 := mcompat); auto.
+    repeat intro.
+    generalize (getThreadR_nth _ _ cnti); rewrite Ht, nth_error_nil; discriminate. }
+  subst.
+  specialize (safety _ J) as (tp' & PHI' & Hupd & J' & safety).
+  eexists; split; eauto; do 2 eexists; split; eauto; split; auto.
+  pose proof (mem_compatible_upd _ _ _ _ _ mcompat Hupd) as mcompat'.
+  destruct Hupd as (Hl & Hr & Hj & Hiff & Hthreads & Hguts & Hlset & Hres & Hlatest).
+  apply state_invariant_c with (mcompat0 := mcompat').
+  - auto.
+  - destruct envcoh as [mtch coh]; split.
+    + repeat intro.
+      simpl in H0.
+      rewrite Hl, Hr in H0; rewrite Hl; auto.
+    + destruct coh as (? & ? & ? & ? & ? & Happ).
+      do 4 eexists; eauto; split; auto.
+      eapply semax_lemmas.funassert_resource, Happ; auto.
+  - repeat intro.
+    unfold JTP.lockGuts in Hguts.
+    rewrite Hguts in *; auto.
+  - repeat intro.
+    specialize (lock_coh loc).
+    unfold JTP.lockGuts in Hguts.
+    rewrite Hguts, Hl, Hr.
+    destruct (AMap.find _ _); auto.
+    assert (forall R, lkat R loc PHI -> lkat R loc PHI').
+    { repeat intro; rewrite Hl, Hr; auto. }
+    replace (load_at (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget mcompat'))) loc)
+      with (load_at (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget mcompat))) loc).
+    destruct o; repeat (split; try tauto).
+    + destruct lock_coh as (? & ? & ? & ? & ? & ?); eauto.
+    + destruct lock_coh as (? & ? & ? & ? & ?); eauto.
+    + erewrite restrPermMap_irr'; [reflexivity | auto].
+  - erewrite (proof_irr mcompat'); eauto.
+  - repeat intro.
+    pose proof (proj1 (Hiff _) cnti) as cnti0.
+    destruct (Hthreads _ cnti0) as (HC & _).
+    replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
+    rewrite <- HC; apply wellformed.
+  - repeat intro.
+    pose proof (proj1 (Hiff _) cnti) as cnti0.
+    destruct (Hthreads _ cnti0) as (HC & _).
+    replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
+    rewrite <- HC in *.
+    replace (num_threads tp') with (num_threads tp) in *; eauto.
+    symmetry; apply contains_iff_num; auto.
+Qed.
+
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
@@ -509,7 +620,7 @@ Ltac absurd_ext_link_naming :=
   unfold funsig2signature in *;
   match goal with
   | H : Some (?ext_link ?a, ?b) <> Some (?ext_link ?a, ?b') |- _ =>
-    simpl in H; congruence
+    simpl in H; [contradiction || congruence]
   | H : Some (?ext_link ?a, ?c) = Some (?ext_link ?b, ?d) |- _ =>
     simpl in H;
     match goal with

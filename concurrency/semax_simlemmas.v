@@ -473,13 +473,6 @@ Proof.
   apply pures_eq_refl.
 Qed.
 
-Lemma pures_same_resource phi1 phi2 :
-  resource_at phi1 = resource_at phi2 ->
-  pures_same phi1 phi2.
-Proof.
-  unfold pures_same; intros ->; reflexivity.
-Qed.
-
 Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
   pures_same (m_phi (jm_ cnti compat)) Phi.
@@ -504,7 +497,8 @@ Lemma jsafe_phi_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
   jsafe_phi Jspec ge n z c phi.
 Proof.
   intros S jm <-.
-  apply jsafe_downward1, S; auto.
+  apply jsafe_downward1.
+  apply S, eq_refl.
 Qed.
 
 Lemma jsafe_phi_age Z Jspec ge ora q n phi phiaged :
@@ -844,10 +838,7 @@ Tactic Notation "REWR" "in" "*" :=
       unshelve erewrite m_phi_age_to in *
     ]; auto.
 
-Ltac lkomega :=
-  unfold LKSIZE in *;
-  unfold size_chunk in *;
-  try omega.
+Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try omega.
 
 Lemma FF_orp:
  forall A (ND: NatDed A) (P: A), seplog.orp seplog.FF P = P.

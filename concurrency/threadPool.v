@@ -689,6 +689,14 @@ Open Scope nat_scope.
     rewrite <- numUpdateC in H; assumption.
   Qed.
 
+  Lemma numUpdateR :
+    forall {tid tp} (cnt: containsThread tp tid) r,
+      num_threads tp =  num_threads (updThreadR cnt r).
+  Proof.
+    intros tid tp cnt r.
+    destruct tp; simpl; reflexivity.
+  Qed.
+
   Lemma cntUpdateR:
     forall {i j tp} r
       (cnti: containsThread tp i),

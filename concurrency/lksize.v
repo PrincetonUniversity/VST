@@ -11,3 +11,9 @@ Proof.
   unfold LKSIZE.
   pose proof (size_chunk_pos Mptr); omega.
 Qed.
+
+Lemma LKSIZE_int : (size_chunk Mint32 < LKSIZE)%Z.
+Proof.
+  unfold LKSIZE; simpl.
+  rewrite size_chunk_Mptr; destruct Archi.ptr64; omega.
+Qed.
