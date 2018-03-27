@@ -109,11 +109,10 @@ Proof.
   pose proof (safety i cnti tt) as safei.
 
   rewrite Eci in safei.
-  unfold jsafeN, juicy_safety.safeN in safei.
   fixsafe safei.
   inversion safei
     as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
-  apply corestep_not_at_external in bad. elimtype False; subst; clear - bad atex.
+  apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.
   subst.
@@ -168,8 +167,8 @@ Proof.
 
   destruct AT as (phi0lockinv & phi0sat & jphi0 & Hlockinv & Hsat).
 
-  assert (locked : lockRes tp (b, Int.intval ofs) = Some None). {
-    spec lock_coh (b, Int.intval ofs). cleanup.
+  assert (locked : lockRes tp (b, Ptrofs.intval ofs) = Some None). {
+    spec lock_coh (b, Ptrofs.intval ofs). cleanup.
     destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
     - (* positive and precise *)
       destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
@@ -251,10 +250,10 @@ Proof.
     - (* not a lock: impossible *)
       simpl in Hlockinv.
       unfold lock_inv in *.
-      destruct Hlockinv as (b_ & ofs_ & E_ & HH).
-      spec HH (b, Int.intval ofs).
+      destruct Hlockinv as (b_ & ofs_ & E_ & HH & _).
+      spec HH (b, Ptrofs.intval ofs).
       simpl in HH.
-      change Int.intval with Int.unsigned in *.
+      change Ptrofs.intval with Ptrofs.unsigned in *.
       injection E_ as <- <- .
       if_tac [r|nr] in HH. 2:range_tac.
       if_tac [e|ne] in HH. 2:tauto.
@@ -265,14 +264,14 @@ Proof.
         join_sub_tac.
       }
       destruct j as (psi & j).
-      apply resource_at_join with (loc := (b, Int.unsigned ofs)) in j.
+      apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
       rewrite HH in j.
       apply lock_coh.
       inv j; hnf; eauto.
   }
 
   pose proof lock_coh as lock_coh_.
-  spec lock_coh (b, Int.intval ofs). cleanup. rewrite locked in lock_coh.
+  spec lock_coh (b, Ptrofs.intval ofs). cleanup. rewrite locked in lock_coh.
 
   unfold tlock in *.
   apply (lock_inv_rmap_freelock CS) with (m := m) in Hlockinv; auto; try apply lock_coh.
@@ -323,7 +322,7 @@ Proof.
   assert (APhi' : age Phi' (age_to n Phi')) by (apply age_to_1; congruence).
 
   assert (Phi'rev : forall sh psh k pp' loc,
-             ~adr_range (b, Int.unsigned ofs) LKSIZE loc ->
+             ~adr_range (b, Ptrofs.unsigned ofs) LKSIZE loc ->
              age_to n Phi' @ loc = YES sh psh k pp' ->
              exists pp,
                Phi @ loc = YES sh psh k pp /\
@@ -339,7 +338,7 @@ Proof.
     rewrite level_age_to. 2:omega. reflexivity.
   }
 
-  assert (mcompat' : mem_compatible_with' (age_tp_to n (remLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Int.intval ofs))) m (age_to n Phi')).
+  assert (mcompat' : mem_compatible_with' (age_tp_to n (remLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Ptrofs.intval ofs))) m (age_to n Phi')).
   {
     constructor.
     + (* join_all *)
@@ -350,10 +349,10 @@ Proof.
       rewrite join_all_joinlist in j.
       rewrite maps_remLockSet_updThread.
       rewrite maps_updthread.
-      rewrite <-(maps_getlock2 _ (b, Int.unsigned ofs)) in j. 2:eassumption.
-      assert (cnti' : containsThread (remLockSet tp (b, Int.unsigned ofs)) i) by auto.
+      rewrite <-(maps_getlock2 _ (b, Ptrofs.unsigned ofs)) in j. 2:eassumption.
+      assert (cnti' : containsThread (remLockSet tp (b, Ptrofs.unsigned ofs)) i) by auto.
       rewrite maps_getthread with (i := i) (cnti := cnti') in j.
-      change Int.intval with Int.unsigned.
+      change Ptrofs.intval with Ptrofs.unsigned.
       clear Post B1.
       eapply (joinlist_merge phi0' phi1). apply j'.
       apply join_comm in jphi0'.
@@ -371,8 +370,8 @@ Proof.
     + (* mem_cohere' *)
       split.
       * intros rsh sh v loc pp E''.
-        destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
-        -- destruct Hrmap' as (_ & _ & inside). spec inside loc. autospec inside.
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc) as [r|nr].
+        -- destruct Hrmap' as (_ & _ & inside & _). spec inside loc. autospec inside.
            rewrite age_to_resource_at in E''.
            destruct inside as (sh' & rsh' & E' & wsh' & E).
            rewrite E' in E''. simpl in E''.
@@ -389,9 +388,9 @@ Proof.
         rewrite perm_of_res'_age_to.
         clear Post.
         exact_eq M. f_equal.
-        destruct Hrmap' as (_ & Same & Changed).
+        destruct Hrmap' as (_ & Same & Changed & _).
         spec Same loc. spec Changed loc.
-        destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc) as [r|nr].
         -- autospec Changed.
            destruct Changed as (sh'' & rsh'' & ? & ? & ?).
            rewrite H,H1.
@@ -403,15 +402,15 @@ Proof.
         pose proof all_coh ((all_cohere compat)) as A.
         unfold alloc_cohere in *.
         intros loc out.
-        destruct Hrmap' as (_ & outside & inside).
+        destruct Hrmap' as (_ & outside & inside & _).
         spec outside loc.
         spec outside.
         { destruct loc as (b', ofs').
           intros [<- _].
-          spec A (b, Int.intval ofs) out.
-          spec inside (b, Int.unsigned ofs).
+          spec A (b, Ptrofs.intval ofs) out.
+          spec inside (b, Ptrofs.unsigned ofs).
           spec inside. split; auto. lkomega.
-          unfold Int.unsigned in *.
+          unfold Ptrofs.unsigned in *.
           if_tac in inside;
           breakhyps. }
         spec A loc out.
@@ -437,17 +436,17 @@ Proof.
       simpl.
       rewrite AMap_find_remove. if_tac [<- | ne].
       * exfalso.
-        destruct Hrmap' as (_ & outside & inside).
-        spec inside (b, Int.intval ofs). spec inside. now split; auto; unfold Int.unsigned; omega.
+        destruct Hrmap' as (_ & outside & inside & _).
+        spec inside (b, Ptrofs.intval ofs). spec inside. now split; auto; unfold Ptrofs.unsigned; omega.
         if_tac in inside; breakhyps.
         rewrite age_to_resource_at in E''.
-        rewr (Phi' @ (b, Int.intval ofs)) in E''.
+        rewr (Phi' @ (b, Ptrofs.intval ofs)) in E''.
         discriminate.
       * destruct (rmap_unage_YES _ _ _ _ _ _ _ APhi' E'') as (pp, E').
         cut (Phi @ loc = YES sh psh (LK z) pp).
         { intros; eapply (jloc_in_set compat); eauto. }
         rewrite <-E'.
-        destruct Hrmap' as (_ & outside & inside).
+        destruct Hrmap' as (_ & outside & inside & _).
         apply outside.
         intros r.
         spec inside loc r.
@@ -466,8 +465,8 @@ Proof.
       if_tac.
       * discriminate.
       * intro IS; spec J IS.
-        destruct Hrmap' as (_ & outside & inside). spec inside loc. spec outside loc.
-        destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc).
+        destruct Hrmap' as (_ & outside & inside & _). spec inside loc. spec outside loc.
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc).
         -- autospec inside. exfalso.
            if_tac in inside; breakhyps.
         -- autospec outside. rewrite outside in J.
@@ -500,21 +499,21 @@ Proof.
     rewrite AMap_find_map_option_map.
     rewrite AMap_find_remove.
     if_tac; simpl.
-    + destruct Hrmap' as (_ & _ & inside).
+    + destruct Hrmap' as (_ & _ & inside & _).
       spec inside loc. subst loc. rewrite isLK_age_to.
-      spec inside. split; auto; unfold Int.unsigned in *; omega.
-      unfold Int.unsigned in *.
+      spec inside. split; auto; unfold Ptrofs.unsigned in *; omega.
+      unfold Ptrofs.unsigned in *.
       destruct inside as (sh & rsh & ? & wsh & ?). intros HH.
       unfold isLK in *. breakhyps.
     + spec lock_coh_ loc.
       destruct (AMap.find loc _) as [[uphi|]|] eqn:Eo; simpl.
 
       * (* Lock found, locked *)
-        spec sparse loc (b, Int.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
+        spec sparse loc (b, Ptrofs.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
         spec sparse. congruence.
         spec sparse. congruence.
         destruct sparse as [ | sparse]. congruence. simpl in sparse.
-        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Int.unsigned ofs) 4 x).
+        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Ptrofs.unsigned ofs) LKSIZE x).
         {
           clear -H sparse. intros x r.
           destruct x as (b', ofs'). simpl.
@@ -522,12 +521,12 @@ Proof.
           destruct loc as (b', ofs0). simpl in r. destruct r as (->, r0).
           simpl in sparse.
           destruct sparse as [? | [_ sparse]]. tauto. simpl in *.
-          unfold Int.unsigned in *.
-          assert (ofs0 <> Int.intval ofs) by congruence. clear H.
+          unfold Ptrofs.unsigned in *.
+          assert (ofs0 <> Ptrofs.intval ofs) by congruence. clear H.
           unfold far in *.
-          unfold LKSIZE in *.
+          unfold Ptrofs.unsigned in *.
           zify.
-          omega.
+          lkomega.
         }
         destruct lock_coh_ as (LOAD & align & bound & R & lk & [sat | ?]). 2:omega.
         split; [ | split; [ | split ]]; auto.
@@ -567,16 +566,13 @@ Proof.
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
               red in sparse.
               clear - SparseX SparseX' H0 r1 sparse. simpl in *.
-              change Int.intval with Int.unsigned in *.
-              assert (~ (Int.unsigned ofs <= ofs0 < Int.unsigned ofs + 4)%Z) 
+              change Ptrofs.intval with Ptrofs.unsigned in *.
+              assert (~ (Ptrofs.unsigned ofs <= ofs0 < Ptrofs.unsigned ofs + LKSIZE)%Z) 
                       by (contradict SparseX; auto).
-              assert (~ (Int.unsigned ofs <= ofs1 < Int.unsigned ofs + 4)%Z)
+              assert (~ (Ptrofs.unsigned ofs <= ofs1 < Ptrofs.unsigned ofs + LKSIZE)%Z)
                       by (contradict SparseX'; auto).
-              clear - r1 H0 H H1 sparse. unfold LKSIZE in *.
-              forget (Int.unsigned ofs) as a.
-              assert (a+4 <= ofs1 < a+8)%Z by omega. clear H0 H1.
-              apply H; clear H. split ; try omega.
-              destruct (Zabs_dec (ofs0-a)); omega.
+              clear - r1 H0 H H1 sparse.
+              omega.
         -- exists R; split.
            ++ (* sparsity again, if easier or just the rmap_freelock *)
               intros x r.
@@ -587,9 +583,9 @@ Proof.
               destruct loc; destruct x; destruct r. subst b1.
               intros [? ?]. subst b0. simpl in *. 
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
-              change Int.intval with Int.unsigned in *.
+              change Ptrofs.intval with Ptrofs.unsigned in *.
               red in sparse.
-              destruct (Zabs_dec (z - Int.unsigned ofs)); omega.
+              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); omega.
               rewrite age_to_resource_at.
               rewrite <-outside. clear outside.
               unfold sync_preds_defs.pack_res_inv in *.
@@ -605,11 +601,11 @@ Proof.
               apply pred_age1', sat.
 
       * (* Lock found, unlocked *)
-        spec sparse loc (b, Int.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
+        spec sparse loc (b, Ptrofs.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
         spec sparse. congruence.
         spec sparse. congruence.
         destruct sparse as [ | sparse]. congruence.
-        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Int.unsigned ofs) 4 x).
+        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Ptrofs.unsigned ofs) LKSIZE x).
         {
           clear -H sparse. intros x r.
           destruct x as (b', ofs'). simpl.
@@ -617,12 +613,11 @@ Proof.
           destruct loc as (b', ofs0). simpl in r. destruct r as (->, r0).
           simpl in sparse.
           destruct sparse as [? | [_ sparse]]. tauto. simpl in *.
-          unfold Int.unsigned in *.
-          assert (ofs0 <> Int.intval ofs) by congruence. clear H.
+          unfold Ptrofs.unsigned in *.
+          assert (ofs0 <> Ptrofs.intval ofs) by congruence. clear H.
           unfold far in *.
-          unfold LKSIZE in *.
           zify.
-          omega.
+          lkomega.
         }
         destruct lock_coh_ as (LOAD & align & bound & R & lk).
         split; [ | split; [ | split ]]; auto.
@@ -662,16 +657,12 @@ Proof.
               destruct r; subst b0.
               clear - SparseX SparseX' H0 r1 sparse. simpl in *.
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
-              change Int.intval with Int.unsigned in *.
-              assert (~ (Int.unsigned ofs <= ofs0 < Int.unsigned ofs + 4)%Z) 
+              change Ptrofs.intval with Ptrofs.unsigned in *.
+              assert (~ (Ptrofs.unsigned ofs <= ofs0 < Ptrofs.unsigned ofs + LKSIZE)%Z) 
                       by (contradict SparseX; auto).
-              assert (~ (Int.unsigned ofs <= ofs1 < Int.unsigned ofs + 4)%Z)
+              assert (~ (Ptrofs.unsigned ofs <= ofs1 < Ptrofs.unsigned ofs + LKSIZE)%Z)
                       by (contradict SparseX'; auto).
-              clear - r1 H0 H H1 sparse. unfold LKSIZE in *.
-              forget (Int.unsigned ofs) as a.
-              assert (a+4 <= ofs1 < a+8)%Z by omega. clear H0 H1.
-              apply H; clear H. split ; try omega.
-              red in sparse; unfold LKSIZE in *; destruct (Zabs_dec (ofs0-a)); try omega.
+              clear - r1 H0 H H1 sparse. omega.
         -- exists R.
            (* sparsity again, if easier or just the rmap_freelock *)
            intros x r.
@@ -682,9 +673,9 @@ Proof.
               destruct loc; destruct x; destruct r. subst b1.
               intros [? ?]. subst b0. simpl in *. 
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
-              change Int.intval with Int.unsigned in *.
+              change Ptrofs.intval with Ptrofs.unsigned in *.
               red in sparse.
-              destruct (Zabs_dec (z - Int.unsigned ofs)); omega.
+              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); omega.
            rewrite age_to_resource_at.
            rewrite <-outside. clear outside.
            unfold sync_preds_defs.pack_res_inv in *.
@@ -696,7 +687,7 @@ Proof.
 
       * (* Lock not found, unlocked *)
         rewrite age_to_resource_at.
-        destruct Hrmap' as (_ & inside & outside). clear Post B1 Phi'rev.
+        destruct Hrmap' as (_ & inside & outside & _). clear Post B1 Phi'rev.
         intros LK. spec inside loc. spec outside loc. spec inside.
         { intros r. spec outside r. destruct LK as (sh & sh' & z & pp & E).
           breakhyps. rewr (Phi' @ loc) in E. breakhyps. }
@@ -782,7 +773,7 @@ Proof.
               assumption.
               apply age_to_pred. assumption.
           + exact_eq Safe'.
-            unfold jsafeN, safeN.
+            unfold jsafeN.
             f_equal.
             congruence.
       }
@@ -791,7 +782,7 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
          apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
     }

@@ -59,7 +59,8 @@ Module THE_JUICY_MACHINE.
     replace (proj2 _ _) with cnt by apply proof_irr; auto.
   Qed.
 
-  Definition tp_bupd P (tp : jstate) := forall phi, JSEM.join_all tp phi ->
+  Definition tp_bupd P (tp : jstate) := (exists phi, JSEM.join_all tp phi) /\
+  forall phi, JSEM.join_all tp phi ->
     forall c : ghost,
      joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
      exists b : ghost,

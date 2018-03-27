@@ -288,7 +288,7 @@ Lemma invariant_thread_step
        (forall loc : address, max_access_at m loc = max_access_at m' loc) ->
        (forall loc : AV.address, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
        mem_equiv (m_dry (personal_mem m phi pr)) (m_dry (personal_mem m' phi pr')))
-  {Z} (Jspec : juicy_ext_spec Z) Gamma
+  (Jspec : juicy_ext_spec unit) Gamma
   n m ge i sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
@@ -303,12 +303,12 @@ Lemma invariant_thread_step
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
-  (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
+  (safei' : forall ora, jm_bupd (jsafeN Jspec ge n ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : ThreadPool.t)
   (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
-  state_invariant Jspec Gamma n cm'.
+  state_bupd (state_invariant Jspec Gamma n) cm'.
 Proof.
   (** * Two steps : [x] -> [x'] -> [x'']
           1. we age [x] to get [x'], the level decreasing
@@ -618,7 +618,7 @@ Proof.
           changed.
    *)
 
-  apply state_invariant_c with (PHI := Phi'') (mcompat := compat'').
+  apply state_inv_upd1 with (PHI := Phi'') (mcompat := compat'').
   - (* level *)
     assumption.
 
@@ -769,47 +769,32 @@ Proof.
     + easy.
 
   - (* safety *)
-    intros j cntj ora.
-    destruct (eq_dec i j) as [e|n0].
-    + subst j.
-      replace (getThreadC _ _ cntj) with (Krun ci').
-      * specialize (safei' ora).
-        exact_eq safei'.
-        f_equal.
-        unfold jm_ in *.
-        {
-          apply juicy_mem_ext.
-          - unfold personal_mem in *.
-            simpl.
-            match goal with |- _ = _ ?c => set (coh := c) end.
-            apply mem_ext.
-
-            + reflexivity.
-
-            + rewrite juicyRestrictCur_unchanged.
-              * reflexivity.
-              * intros.
-                unfold "oo".
-                rewrite eqtype_refl.
-                unfold tp'; simpl.
-                unfold access_at in *.
-                destruct jmi'; simpl.
-                eauto.
-
-            + reflexivity.
-
-          - simpl.
-            unfold "oo".
-            rewrite eqtype_refl.
-            auto.
-        }
-
-      * (* assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity. *)
-        (* clearbody tp''. *)
-        subst tp''.
-        rewrite gssThreadCode. auto.
-
-    + unfold tp'' at 1.
+    assert (containsThread tp'' i) as cnti''.
+    { apply cntUpdate, cnt_age'; auto. }
+    exists _, cnti''; split.
+    + subst tp''; eexists; split.
+      { rewrite gssThreadCode; auto. }
+      intros ? Jg.
+      rewrite gssThreadRes in Jg.
+      specialize (safei' tt _ Jg) as (jm' & ? & Hupd & safei').
+      eexists; split.
+      { rewrite gssThreadRes; eauto. }
+      exists (m_phi jm').
+      destruct Hupd as (Hd & Hl & Hr).
+      assert (resource_at (m_phi jm') =
+        resource_at (getThreadR i (updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')) cnti'')) as Hr'.
+      { rewrite gssThreadRes; auto. }
+      exists Hr'; split; [rewrite gssThreadRes; auto|].
+      split; auto.
+      intros []; exact_eq safei'; f_equal.
+      apply juicy_mem_ext; auto.
+      rewrite Hd; unfold personal_mem; simpl.
+      apply mem_ext; auto.
+      rewrite juicyRestrictCur_unchanged; [reflexivity|].
+      intro; rewrite Hr.
+      destruct jmi'; auto.
+    + repeat intro.
+      unfold tp'' at 1.
       unfold tp' at 1.
       unshelve erewrite gsoThreadCode; auto.
 
@@ -817,7 +802,6 @@ Proof.
 
       assert (notkrun : forall c, getThreadC j (age_tp_to (level jmi') tp) cntj <> Krun c). {
         eapply (unique_Krun_neq i j); eauto.
-        now destruct tp; auto.
         apply unique_Krun_age_tp_to; eauto.
       }
 
@@ -849,10 +833,10 @@ Proof.
         REWR.
         REWR.
         intros c' Ec'; spec safej c' Ec'.
-        apply jsafe_phi_age_to; auto.
+        apply jsafe_phi_bupd_age_to; auto.
         rewrite level_juice_level_phi.
         omega.
-        apply jsafe_phi_downward.
+        apply jsafe_phi_bupd_downward.
         assumption.
       * destruct safej as (q_new & Einit & safej). exists q_new; split; auto.
         unfold tp'', tp'.

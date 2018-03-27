@@ -201,12 +201,11 @@ Proof.
   pose proof (safety i cnti tt) as safei.
 
   rewrite Eci in safei.
-  unfold jsafeN, juicy_safety.safeN in safei.
 
   fixsafe safei.
   inversion safei
     as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
-  apply corestep_not_at_external in bad. elimtype False; subst; clear - bad atex.
+  apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.
   subst.
@@ -363,7 +362,7 @@ clear - Initcore.
     unshelve eapply JuicyMachine.sync_step
     with (tid := i)
            (Htid := cnti)
-           (ev := Events.spawn (f_b, Int.intval Int.zero) None None).
+           (ev := Events.spawn (f_b, Ptrofs.intval Ptrofs.zero) None None).
     { eexists; eauto. }
     { reflexivity. }
     { reflexivity. }
@@ -376,14 +375,13 @@ clear - Initcore.
     { unfold SEM.Sem in *.
       rewrite SEM.CLN_msem.
       apply atex. }
-    { replace (initial_core SEM.Sem _) with cl_initial_core
-        by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
+    { unfold SEM.Sem; rewrite SEM.CLN_msem; simpl.
       unfold code in *.
       instantiate (1:=None).
       specialize (Initcore (jm_ cnti compat)); clear - Initcore.
       simpl in Initcore. unfold j_initial_core in Initcore. 
       destruct (initial_core cl_core_sem 0 (globalenv prog)
-               (m_dry (jm_ cnti compat)) (Vptr f_b Int.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
+               (m_dry (jm_ cnti compat)) (Vptr f_b Ptrofs.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
      apply Heqo. }
   }
   (* "progress" part finished. *)
@@ -395,7 +393,7 @@ clear - Initcore.
   assert (compat' :
             mem_compatible_with
               (addThread (updThread i tp cnti (Kresume ci Vundef) phi1)
-                         (Vptr f_b Int.zero) b phi0) m Phi).
+                         (Vptr f_b Ptrofs.zero) b phi0) m Phi).
   {
     split; try apply compat.
     clear -jphi compat. destruct compat as [jj jj']. simpl in jphi.
@@ -437,7 +435,6 @@ clear - Initcore.
        - other threads *)
     intros j lj ora.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-
     + (* safety of new thread *)
       subst j.
       REWR.
@@ -445,11 +442,9 @@ clear - Initcore.
       exists q_new.
       split.
       specialize (Initcore (jm_ cnti compat)); clear - Initcore.
-      clear - Initcore.
-      simpl in Initcore. unfold j_initial_core in Initcore. 
-      destruct (initial_core cl_core_sem 0 (globalenv prog)
-               (m_dry (jm_ cnti compat)) (Vptr f_b Int.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
-     apply Heqo.
+      simpl in Initcore. unfold j_initial_core in Initcore.
+      unfold cl_core_sem, initial_core in Initcore.
+      destruct (cl_initial_core (globalenv prog) (Vptr f_b Ptrofs.zero) (b :: nil)); inv Initcore; auto.
 
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
       spec Safety jm ts.
@@ -568,7 +563,7 @@ clear - Initcore.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- intros c' Ec'; spec safety c' Ec'.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
+         apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- destruct safety as (c_new & Einit & safety). exists c_new; split; auto.
          unshelve erewrite gsoAddRes; auto. REWR.

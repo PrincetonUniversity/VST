@@ -630,7 +630,7 @@ Proof.
 
           + exact_eq Safe'.
             unfold jsafeN in *.
-            f_equal.
+            f_equal; f_equal.
             cut (Some c'' = Some c'). injection 1; auto.
             rewrite <-Ec'', <-Ec'.
             unfold cl_core_sem; simpl.
@@ -641,8 +641,8 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto.
-         apply jsafe_phi_downward. assumption.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_bupd_age_to; auto.
+         apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
          apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
 

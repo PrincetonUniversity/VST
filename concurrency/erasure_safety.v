@@ -77,32 +77,13 @@ Module ErasureSafety.
         unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
         eapply step_diagram in Hstep; try eassumption.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        destruct Hsafe as (t & cnt & Hsafe).
-        specialize (Hsafe nil); spec Hsafe.
+        destruct Hsafe as [[? Hphi] Hsafe].
+        specialize (Hsafe _ Hphi nil) as (? & ? & ? & ? & Hr & ? & Hsafe).
         { eexists; simpl.
           erewrite <- ghost_core; apply join_comm, core_unit. }
-        destruct Hsafe as (? & ? & ? & ? & Hr & ? & Hsafe).
+        eapply MTCH_tp_update in MATCH'; eauto.
         eapply IHn in Hsafe; eauto.
-        econstructor 3; eauto.
-        { inv MATCH'; constructor; auto.
-          - intros.
-            destruct (eq_dec t tid).
-            + subst; setoid_rewrite JTP.gssThreadRes.
-              rewrite Hr; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-            + setoid_rewrite JTP.gsoThreadRes; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-          - intros.
-            destruct (eq_dec t tid).
-            + subst; setoid_rewrite JTP.gssThreadRes.
-              rewrite Hr; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-            + setoid_rewrite JTP.gsoThreadRes; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. } } }
+        econstructor 3; eauto. }
     - { simpl in Hstep.
         unfold JuicyMachine.MachStep in Hstep; simpl in Hstep.
         assert (step_diagram:=step_diagram).
@@ -114,33 +95,11 @@ Module ErasureSafety.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
         econstructor 4; eauto.
         intro U''; specialize (Hsafe U'').
-        destruct Hsafe as (t & cnt & Hsafe).
-        specialize (Hsafe nil); spec Hsafe.
+        destruct Hsafe as [[? Hphi] Hsafe].
+        specialize (Hsafe _ Hphi nil) as (? & ? & ? & ? & Hr & ? & Hsafe).
         { eexists; simpl.
           erewrite <- ghost_core; apply join_comm, core_unit. }
-        destruct Hsafe as (? & ? & ? & ? & Hr & ? & Hsafe).
-        eapply IHn in Hsafe; eauto.
-        { inv MATCH'; constructor; auto.
-          - intros.
-            destruct (eq_dec t tid).
-            + subst; setoid_rewrite JTP.gssThreadRes.
-              rewrite Hr; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-            + setoid_rewrite JTP.gsoThreadRes; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-          - intros.
-            destruct (eq_dec t tid).
-            + subst; setoid_rewrite JTP.gssThreadRes.
-              rewrite Hr; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. }
-            + setoid_rewrite JTP.gsoThreadRes; auto.
-              { apply (JMS.ThreadPool.pool tp').
-                econstructor; eauto. } } }
-Unshelve.
-all: assumption.
+        eapply MTCH_tp_update in MATCH'; eauto. }
 Qed.
 
 

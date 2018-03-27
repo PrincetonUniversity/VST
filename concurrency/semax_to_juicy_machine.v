@@ -224,6 +224,18 @@ Section Safety.
     now left; repeat eexists; eauto.
   Qed.
 
+  Lemma safety_bupd : forall state n Gamma, (exists state', state_step state state' /\
+    (state_invariant Jspec' Gamma n state' \/ state_invariant Jspec' Gamma (S n) state')) ->
+    exists state',
+      state_step state state' /\
+      (state_bupd (state_invariant Jspec' Gamma n) state' \/
+       state_bupd (state_invariant Jspec' Gamma (S n)) state').
+  Proof.
+    intros ??? (? & ? & H).
+    eexists; split; eauto.
+    destruct H; [left | right]; apply state_bupd_intro'; auto.
+  Qed.
+
   Theorem safety_induction Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
@@ -233,10 +245,10 @@ Section Safety.
   Proof.
     intros inv.
 
-(*    (* the case for makelock *)
+    (* the case for makelock *)
     destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnotmakelock].
     {
-      apply safety_induction_makelock; eauto.
+      apply safety_bupd, safety_induction_makelock; eauto.
       - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
@@ -246,7 +258,7 @@ Section Safety.
     (* the case for freelock *)
     destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
     {
-      apply safety_induction_freelock; eauto.
+      apply safety_bupd, safety_induction_freelock; eauto.
       - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
@@ -256,7 +268,7 @@ Section Safety.
     (* the case for spawn *)
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
-      apply safety_induction_spawn; eauto.
+      apply safety_bupd, safety_induction_spawn; eauto.
       - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
@@ -266,7 +278,8 @@ Section Safety.
     (* the case for release *)
     destruct (blocked_at_external_dec state UNLOCK) as [isrelease|isnotrelease].
     {
-      apply safety_induction_release; eauto.
+      apply safety_bupd, safety_induction_release; eauto.
+      - apply ext_link_inj.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
@@ -275,19 +288,18 @@ Section Safety.
     destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
-    apply ext_link_inj.*)
-  Admitted.
+    apply ext_link_inj.
+  Qed.
 
   Lemma tp_bupd_mono : forall (P Q : thread_pool -> Prop) tp,
-    (forall tid (cnt : containsThread tp tid) phi phi', getThreadR cnt = phi ->
-       level phi = level phi' -> resource_at phi = resource_at phi' ->
-       P (updThreadR cnt phi') -> Q (updThreadR cnt phi')) ->
+    (forall phi tp' phi', tp_update tp phi tp' phi' ->
+       P tp' -> Q tp') ->
     tp_bupd P tp -> tp_bupd Q tp.
   Proof.
     intros ???? HP.
-    destruct HP as (? & cnt & HP).
-    exists _, cnt; intros ?? J.
-    destruct (HP _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
+    destruct HP as [? HP]; split; auto.
+    intros ? Hj ? J.
+    specialize (HP _ Hj _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
   Qed.
 
   Lemma inv_step Gamma n state :
@@ -304,7 +316,23 @@ Section Safety.
     - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
       intros; exists (m - 1). split. omega. assumption.
     - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
-      intros ??????? Hinv; exists m. split. omega. simpl in *. exact_eq Hinv; f_equal. omega.
+      intros ???? Hinv; exists m. split. omega. simpl in *. exact_eq Hinv; f_equal. omega.
+  Qed.
+
+  Lemma num_tp_update : forall tp tp' phi phi', tp_update tp phi tp' phi' ->
+    num_threads tp' = num_threads tp.
+  Proof.
+    intros; apply contains_iff_num, H.
+  Qed.
+
+  Lemma no_Krun_stable_update tp tp' phi phi' : no_Krun tp -> tp_update tp phi tp' phi' ->
+    no_Krun tp'.
+  Proof.
+    intros notkrun (_ & _ & _ & Hiff & H & _) ????.
+    assert (containsThread tp i) as cnt by (apply Hiff; auto).
+    specialize (H _ cnt) as (H & _).
+    replace (proj2 (Hiff i) cnt) with cnti in H by apply proof_irr.
+    rewrite <- H in *; eapply notkrun; eauto.
   Qed.
 
   Lemma invariant_safe Gamma n state :
@@ -326,7 +354,7 @@ Section Safety.
         all: intros; apply IHn.
         all: simpl in *.
         all: apply no_Krun_inv with (sch := sch); eauto.
-        all: rewrite <- numUpdateR; intro; eapply no_Krun_stableR, schstep_norun; eauto.
+        all: rewrite (num_tp_update _ _ _ _ H); intro; eapply no_Krun_stable_update; eauto; eapply schstep_norun; eauto.
         all: destruct INV as (? & lm & INV).
         all: inv INV; auto.
   Qed.
@@ -362,7 +390,7 @@ Section Safety.
 
   Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
 
-  (* We state the theorem in terms of [safeN_] but because there are
+(*  (* We state the theorem in terms of [safeN_] but because there are
   no external, this really just says that the initial state is
   "angelically safe" : for every schedule and every fuel n, there is a
   path either ending on an empty schedule or consuming all the
@@ -400,7 +428,7 @@ Section Safety.
     clearbody t0. revert t0.
     match goal with |- context[(proj1_sig ?m)] => generalize (proj1_sig m) end.
 
-    (* here we decorelate the CoreSemantics parameters from the
+    (* here we decorrelate the CoreSemantics parameters from the
     initial state parameters *)
     generalize sch at 2.
     generalize (globalenv prog), sch.
@@ -417,7 +445,7 @@ Section Safety.
       + eapply STEP.
       + apply IHn.
         apply INV'.
-  Qed.
+  Qed.*)
 
   (* The following is a slightly stronger result, proving [jmsafe]
   i.e. a safety that universally quantifies over all schedule each
@@ -438,11 +466,10 @@ Section Safety.
     inversion SAFE; subst.
     - constructor 2. reflexivity.
     - econstructor 3; simpl; eauto.
-      destruct H5 as (? & cnt & H); exists _, cnt; intros ?? J.
-      destruct (H _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
+      eapply tp_bupd_mono; eauto; auto.
     - econstructor 4; simpl; eauto.
-      intro U''; destruct (H5 U'') as (? & cnt & H); exists _, cnt; intros ?? J.
-      destruct (H _ J) as (? & ? & ? & ? & ? & ? & ?); eauto 8.
+      intro U''; eapply tp_bupd_mono; eauto; intros.
+      apply IHn, H0.
   Qed.
 
   (* [jmsafe] is an intermediate result, we can probably prove [csafe]

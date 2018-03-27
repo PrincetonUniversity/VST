@@ -519,6 +519,23 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
 Definition state_bupd P (state : cm_state) := let '(m, ge, (sch, tp)) := state in
   tp_bupd (fun tp' => P (m, ge, (sch, tp'))) tp.
 
+Lemma state_bupd_intro : forall (P : _ -> Prop) m ge sch tp phi, join_all tp phi ->
+  P (m, ge, (sch, tp)) -> state_bupd P (m, ge, (sch, tp)).
+Proof.
+  intros; split; eauto; intros.
+  eexists; split; eauto.
+  eexists _, _; split; [apply tp_update_refl|]; auto.
+Qed.
+
+Lemma state_bupd_intro' : forall {Z} (jz : juicy_ext_spec Z) Gamma n s,
+  state_invariant jz Gamma n s ->
+  state_bupd (state_invariant jz Gamma n) s.
+Proof.
+  inversion 1; subst.
+  eapply state_bupd_intro; auto.
+  apply mcompat.
+Qed.
+
 Lemma mem_compatible_upd : forall tp m phi tp' phi', mem_compatible_with tp m phi ->
   tp_update tp phi tp' phi' -> mem_compatible_with tp' m phi'.
 Proof.
@@ -561,7 +578,9 @@ Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
       (uniqkrun :  unique_Krun tp sch),
   state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
 Proof.
-  intros; intros ??? J.
+  intros.
+  split; [eexists; apply mcompat|].
+  intros ??? J.
   assert (join_all tp PHI) as HPHI by (clear - mcompat; inv mcompat; auto).
   destruct (join_all_eq _ _ _ H HPHI) as [(Ht & ? & ? & ?)|].
   { exists nil; split.

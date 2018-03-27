@@ -930,6 +930,44 @@ Module Parching <: ErasureSig.
         eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
     Qed.
 
+    Lemma MTCH_tp_update: forall js ds phi js' phi',
+        match_st js ds -> tp_update js phi js' phi' ->
+        match_st js' ds.
+    Proof.
+      inversion 1; subst.
+      intros (Hl & Hr & Hj & Hcnt & Hget & Hlock). constructor.
+      - intros i HH. apply Hcnt in HH.
+        apply mtch_cnt; assumption.
+      - intros i HH. apply Hcnt.
+        apply mtch_cnt'; assumption.
+      - intros i cnt cnt'.
+        assert (JTP.containsThread js i) as cnt0 by (apply Hcnt; auto).
+        specialize (Hget _ cnt0) as [Hget _].
+        replace (proj2 _ _) with cnt in Hget by apply proof_irr.
+        rewrite <- Hget; auto.
+      - intros.
+        assert (JTP.containsThread js tid) as cnt0 by (apply Hcnt; auto).
+        specialize (Hget _ cnt0) as (_ & _ & Hget).
+        replace (proj2 _ _) with Htid in Hget by apply proof_irr.
+        rewrite <- Hget; auto.
+      - intros.
+        assert (JTP.containsThread js tid) as cnt0 by (apply Hcnt; auto).
+        specialize (Hget _ cnt0) as (_ & _ & Hget).
+        replace (proj2 _ _) with Htid in Hget by apply proof_irr.
+        rewrite <- Hget; auto.
+      - intros.
+        destruct Hlock as (_ & _ & -> & _); auto.
+      - intros.
+        destruct Hlock as (_ & _ & Hlock & _); rewrite Hlock in H0.
+        eapply mtch_locksEmpty; eassumption.
+      - intros.
+        destruct Hlock as (_ & _ & Hlock & _); rewrite Hlock in H0.
+        eapply mtch_locksRes; eassumption.
+      - intros.
+        destruct Hlock as (_ & _ & Hlock & _); rewrite Hlock in H0.
+        eapply mtch_locksRes0; eassumption.
+    Qed.
+
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
         (vals : list Values.val) (m : Mem.mem) rmap pmap main genv h,

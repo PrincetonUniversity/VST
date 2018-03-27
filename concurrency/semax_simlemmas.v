@@ -812,6 +812,119 @@ Proof.
     inversion L.
 Qed.
 
+Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_with tp m PHI) n
+  i (cnti : containsThread tp i) := forall (ora : Z),
+    match getThreadC cnti with
+    | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
+    | Kblocked c =>
+      (* The dry memory will change, so when we prove safety after an
+      external we must only inspect the rmap m_phi part of the juicy
+      memory.  This means more proof for each of the synchronisation
+      primitives. *)
+      jsafe_phi Jspec ge n ora c (getThreadR cnti)
+    | Kresume c v =>
+      forall c',
+        (* [v] is not used here. The problem is probably coming from
+           the definition of JuicyMachine.resume_thread'. *)
+        cl_after_external None c = Some c' ->
+        (* same quantification as in Kblocked *)
+        jsafe_phi_bupd Jspec ge n ora c' (getThreadR cnti)
+    | Kinit v1 v2 =>
+      exists q_new,
+      cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
+      jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
+    end.
+
+Lemma mem_cohere'_res : forall m phi phi', mem_cohere' m phi ->
+  resource_at phi' = resource_at phi -> mem_cohere' m phi'.
+Proof.
+  inversion 1; constructor; repeat intro; rewrite H0 in *; eauto.
+Qed.
+
+Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
+  (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+      (lev : level PHI = n)
+      (envcoh : env_coherence Jspec ge Gamma PHI)
+      (mcompat : mem_compatible_with tp m PHI)
+      (lock_sparse : lock_sparsity (lset tp))
+      (lock_coh : lock_coherence' tp PHI m mcompat)
+      (safety : exists i (cnti : containsThread tp i), let phi := getThreadR cnti in
+       (exists k, getThreadC cnti = Krun k /\
+       forall c, joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
+        exists b, joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
+        exists phi' (Hr : resource_at phi' = resource_at phi), level phi' = level phi /\ ghost_of phi' = b /\
+        forall ora, jsafeN Jspec ge n ora k
+          (personal_mem (mem_cohere'_res _ _ _ (compatible_threadRes_cohere cnti (mem_compatible_forget mcompat)) Hr))) /\
+       forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat n j cntj)
+      (wellformed : threads_wellformed tp)
+      (uniqkrun :  unique_Krun tp sch),
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+Proof.
+  intros; apply state_inv_upd with (mcompat0 := mcompat); auto; intros.
+  destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
+  assert (join_all tp PHI) as Hj by (apply mcompat).
+  rewrite join_all_joinlist in Hj.
+  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti := cnti)].
+  destruct Hj as (? & ? & Hphi).
+  pose proof (ghost_of_join _ _ _ Hphi) as Hghost.
+  destruct H; destruct (join_assoc Hghost H) as (c & HC & Hc).
+  eapply ghost_fmap_join in Hc; rewrite ghost_of_approx in Hc.
+  destruct (Hsafe c) as (? & [? Hj'] & phi' & Hr' & Hl' & ? & Hsafe'); eauto; subst.
+  apply ghost_fmap_join with (f := approx (level (getThreadR cnti)))
+    (g := approx (level (getThreadR cnti))) in HC.
+  destruct (join_assoc (join_comm HC) (join_comm Hj')) as (g' & Hg' & HC').
+  destruct (join_level _ _ _ Hphi) as [Hl].
+  destruct (make_rmap _ g' (rmap_valid PHI) (level PHI)) as (PHI' & HL' & HR' & ?); subst.
+  { extensionality; apply resource_at_approx. }
+  { eapply ghost_same_level_gen.
+    rewrite <- (ghost_of_approx phi') in Hg'.
+    exact_eq Hg'; f_equal; f_equal; f_equal; rewrite ?Hl'; auto. }
+  assert (tp_update tp PHI (updThreadR cnti phi') PHI') as Hupd.
+  { repeat split; auto.
+    - rewrite join_all_joinlist.
+      eapply joinlist_permutation; [symmetry; apply maps_updthreadR|].
+      eexists; split; eauto.
+      apply resource_at_join2.
+      + rewrite Hl', HL'; auto.
+      + rewrite HL'; auto.
+      + rewrite Hr', HR'; intro; apply resource_at_join; auto.
+      + apply join_comm; exact_eq Hg'; f_equal.
+        rewrite <- ghost_of_approx at 2; f_equal; rewrite Hl; auto.
+    - assert (forall t, containsThread (updThreadR cnti phi') t <-> containsThread tp t) as Hiff.
+      { split; [apply cntUpdateR' | apply cntUpdateR]. }
+      exists Hiff; split; auto; intros.
+      split; [unshelve erewrite gThreadRC; auto|].
+      destruct (eq_dec i t0).
+      + subst.
+        setoid_rewrite (@JTP.gssThreadRes _ _ _ (getThreadC cnt)).
+        replace cnt with cnti by apply proof_irr; auto.
+      + setoid_rewrite (@JTP.gsoThreadRes _ _ _ _ _ n (getThreadC cnt)); auto. }
+  exists _, _, Hupd; split.
+  - replace (level (getThreadR cnti)) with (level PHI) in HC' by omega.
+    rewrite ghost_fmap_fmap, approx_oo_approx in HC'; eauto.
+  - intros j cntj ora.
+    unshelve erewrite gThreadRC; auto.
+    destruct (eq_dec j i).
+    + subst.
+      replace cntj with cnti by apply proof_irr.
+      rewrite Hk.
+      specialize (Hsafe' ora); exact_eq Hsafe'.
+      unfold jm_; f_equal.
+      apply personal_mem_ext; simpl.
+      rewrite eqtype_refl; auto.
+    + assert (getThreadR cntj = @getThreadR _ tp cntj) as Heq.
+      { simpl.
+        rewrite eqtype_neq; auto. }
+      rewrite Heq.
+      specialize (Hrest _ cntj n ora).
+      destruct (@getThreadC j tp cntj); auto.
+      exact_eq Hrest; f_equal.
+      apply juicy_mem_ext; [|rewrite !m_phi_jm_; auto].
+      unfold jm_, personal_mem, m_dry, juicyRestrict.
+      apply restrPermMap_irr'.
+      rewrite Heq; auto.
+Qed.
+
 (*
 assert (cnti = Htid) by apply proof_irr; subst Htid).
 assert (ctn = cnti) by apply proof_irr; subst cnt).

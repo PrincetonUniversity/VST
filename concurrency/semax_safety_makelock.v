@@ -97,8 +97,8 @@ Lemma safety_induction_makelock Gamma n state
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
     state_step state state' /\
-    (state_bupd (state_invariant Jspec' Gamma n) state' \/
-     state_bupd (state_invariant Jspec' Gamma (S n)) state').
+    (state_invariant Jspec' Gamma n state' \/
+     state_invariant Jspec' Gamma (S n) state').
 Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
@@ -514,7 +514,7 @@ Proof.
   left.
   unshelve erewrite updLock_updThread_comm in mcompat', sparse' |- *; try (apply cntUpdateL; auto).
   unshelve erewrite age_to_updThread in mcompat', sparse' |- *; try (apply cnt_age', cntUpdateL; auto).
-  apply state_inv_upd with (PHI := age_to n Phi') (mcompat := mcompat').
+  apply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
     apply level_age_to. omega.
 
@@ -759,16 +759,6 @@ Proof.
 
   - (* safety *)
     {
-    assert (join_all (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
-      (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef) 
-      (age_to n phi')) (age_to n Phi')) as Hall.
-    { rewrite join_all_joinlist.
-      eapply joinlist_permutation; [symmetry; apply maps_updthread|].
-      exists (age_to n psi).
-      rewrite maps_age_to, all_but_map, maps_updlock1, maps_getlock1 by auto.
-      split; [apply joinlist_age_to; auto|].
-      apply age_to_join; auto. }
-    intros; exists _, _, (tp_update_refl _ _ Hall); split; auto.
     intros j cntj ?; destruct (eq_dec i j).
     + subst j; rewrite gssThreadCode, gssThreadRes; intros ? Hc' ? Hjm.
       destruct Post with
@@ -778,7 +768,7 @@ Proof.
       { apply Logic.I. }
       { unfold Hrel.
         assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
-        rewrite level_jm_, m_phi_jm_, level_juice_level_phi, Hjm, level_age_to by omega.
+        rewrite level_jm_, m_phi_jm_, level_juice_level_phi, Hjm, level_age_to by (setoid_rewrite Hl'; auto).
         split; auto; split; [setoid_rewrite En; auto|].
         eapply pures_same_eq_l.
         2:apply pures_eq_age_to; omega.

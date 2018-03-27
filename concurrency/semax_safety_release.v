@@ -106,7 +106,6 @@ Proof.
   pose proof (safety i cnti tt) as safei.
 
   rewrite Eci in safei.
-  unfold jsafeN, juicy_safety.safeN in safei.
 
   fixsafe safei.
   inversion safei
@@ -162,10 +161,10 @@ Proof.
 
   Ltac jmstep_inv :=
     match goal with
-    | H : JuicyMachine.start_thread _ _ _  |- _ => inversion H
-    | H : JuicyMachine.resume_thread _ _   |- _ => inversion H
-    | H : threadStep _ _ _ _ _ _           |- _ => inversion H
-    | H : JuicyMachine.suspend_thread _ _  |- _ => inversion H
+    | H : JuicyMachine.start_thread _ _ _ _ _ |- _ => inversion H
+    | H : JuicyMachine.resume_thread _ _ _ _   |- _ => inversion H
+    | H : threadStep _ _ _ _ _ _          |- _ => inversion H
+    | H : JuicyMachine.suspend_thread _ _ _ _  |- _ => inversion H
     | H : syncStep _ _ _ _ _ _ _           |- _ => inversion H
     | H : threadHalted _                   |- _ => inversion H
     | H : JuicyMachine.schedfail _         |- _ => inversion H
@@ -191,14 +190,14 @@ Proof.
   inv PreB1.
   assert (Htid = cnti) by apply proof_irr; subst.
   assert (pack_res_inv R = pack_res_inv (approx (level phi0') Rx)) as HR.
-  { destruct Hlockinv as (bl & ofsl & Heq & Hlockinv); inv Heq.
-    specialize (Hlockinv (bl, Int.unsigned ofsl)); simpl in Hlockinv.
-    destruct (adr_range_dec _ _); [|contradiction n0; unfold adr_range, LKSIZE; split; auto; omega].
+  { destruct Hlockinv as (bl & ofsl & Heq & Hlockinv & _); inv Heq.
+    specialize (Hlockinv (bl, Ptrofs.unsigned ofsl)); simpl in Hlockinv.
+    destruct (adr_range_dec _ _); [|contradiction n0; unfold adr_range; split; auto; lkomega].
     destruct (eq_dec _ _); [|contradiction n0; auto].
     destruct (join_assoc jphi0 j) as [? [_ j'']].
-    apply resource_at_join with (loc := (bl, Int.unsigned ofsl)) in j''.
+    apply resource_at_join with (loc := (bl, Ptrofs.unsigned ofsl)) in j''.
     destruct Hlockinv as [? Hlock]; rewrite Hlock in j''.
-    inv j''; unfold Int.unsigned in *; unfold pack_res_inv in *; congruence. }
+    inv j''; unfold Ptrofs.unsigned in *; unfold pack_res_inv in *; congruence. }
   rewrite HR in HJcanwrite.
   destruct (join_assoc (join_comm jphi0) j) as [phi' [? Hrem_lock_res]].
   assert (level (getThreadR i tp cnti) = S n) as Hn.
@@ -231,7 +230,7 @@ Proof.
 
   assert (compat'' :
             mem_compatible_with
-              (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi))
+              (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) (Some d_phi))
               m' Phi). {
     cleanup.
     constructor.
@@ -245,12 +244,12 @@ Proof.
       rewrite maps_updthread.
       erewrite <-maps_getlock2 in J; eauto.
       simpl map.
-      assert (pr:containsThread (remLockSet tp (b, Int.intval ofs)) i) by auto.
+      assert (pr:containsThread (remLockSet tp (b, Ptrofs.intval ofs)) i) by auto.
       rewrite (maps_getthread i _ pr) in J.
       rewrite gRemLockSetRes with (cnti0 := cnti) in J. clear pr.
       revert Hrem_lock_res J.
       generalize (@getThreadR _ _ cnti) d_phi phi'.
-      generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
+      generalize (all_but i (maps (remLockSet tp (b, Ptrofs.intval ofs)))).
       cleanup.
       clear -lev.
       intros l c a b j h.
@@ -339,10 +338,10 @@ Proof.
       { subst loc.
         split; swap 1 2.
         - (* the rmap is unchanged (but we have to prove the SAT information) *)
-          cut ((4 | snd (b, Int.intval ofs)) /\
-               (snd (b, Int.intval ofs) + LKSIZE <= Int.modulus)%Z /\
+          cut ((4 | snd (b, Ptrofs.intval ofs)) /\
+               (snd (b, Ptrofs.intval ofs) + LKSIZE <= Int.modulus)%Z /\
                exists (* sh0 *) R0,
-                  (lkat R0 (* sh0 *) (b, Int.intval ofs)) Phi /\
+                  (lkat R0 (* sh0 *) (b, Ptrofs.intval ofs)) Phi /\
                   (app_pred R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
                    \/ level (age_to n Phi) = 0)
               ).
@@ -425,7 +424,7 @@ Proof.
         unfold load_at in *.
         clear lock_coh.
         destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
-        pose proof sparse (b, Int.intval ofs) (b', ofs') as SPA.
+        pose proof sparse (b, Ptrofs.intval ofs) (b', ofs') as SPA.
         assert_specialize SPA by (cleanup; congruence).
         assert_specialize SPA by (cleanup; congruence).
         simpl in SPA.
@@ -487,16 +486,18 @@ Proof.
           destruct SPA as [bOUT | [<- ofsOUT]].
           + rewrite gsoLockSet_2; auto.
             apply lockSet_spec_2 with ofs'.
-            * hnf; simpl. eauto. clear -int0; simpl in *; omega.
+            * hnf; simpl. eauto. clear -int0; simpl in *.
+              unfold LKSIZE_nat; rewrite Z2Nat.id; lkomega.
             * cleanup. rewrite Eo. reflexivity.
           + rewrite gsoLockSet_1; auto.
             * apply lockSet_spec_2 with ofs'.
-              -- hnf; simpl. eauto.  clear -int0; simpl in *; omega.
+              -- hnf; simpl. eauto.  clear -int0; simpl in *.
+                 unfold LKSIZE_nat; rewrite Z2Nat.id; lkomega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
               simpl in *.
               zify.
-              lkomega.
+              unfold LKSIZE_nat; rewrite Z2Nat.id; lkomega.
       }
       destruct o; destruct lock_coh as (Load (* & sh' *) & align & bound & R' & lks); split.
       -- now intuition.
@@ -588,7 +589,7 @@ Proof.
               simpl. rewrite seplog.sepcon_emp.
               apply age_to_pred; auto.
           + exact_eq Safe'.
-            unfold jsafeN, safeN.
+            unfold jsafeN.
             f_equal.
             congruence.
       }
@@ -596,7 +597,7 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
          apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
 
