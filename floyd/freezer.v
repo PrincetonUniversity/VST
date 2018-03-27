@@ -349,14 +349,16 @@ Proof.
     apply pred_ext; cancel.
 Qed.
 
-Lemma localize: forall R_L Espec {cs: compspecs} Delta P Q R R_G R_FR c Post (w: FRZRw R_L R_G),
+Lemma localize: forall R_L Espec {cs: compspecs} Delta P Q R R_FR R_G c Post,
   split_FRZ_in_SEP R R_G R_FR ->
   (let FR_L := @abbreviate _ R_L in
    let FR_G := @abbreviate _ R_G in
+   exists  (w: FRZRw FR_L FR_G),
   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_L ++ @FRZR FR_L FR_G w :: R_FR)))) c Post) ->
   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
   intros.
+  destruct H0 as [? ?].
   eapply semax_pre; [clear H0 | exact H0].
   apply split_FRZ_in_SEP_spec in H.
   apply andp_left2.
@@ -391,6 +393,44 @@ Ltac localize R_L :=
   let FR_L := fresh "RamL" in
   let FR_G := fresh "RamG" in
   intros FR_L FR_G;
+  eexists;
   unfold_app.
 
-                    
+Lemma unlocalize: forall R_G2 Espec {cs: compspecs} Delta P Q R R_FR R_L1 R_G1 R_L2 c Post w,
+  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
+  (exists (H: (fold_right_sepcon R_G1) |-- sepcon (fold_right_sepcon R_L1) (wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2))), w = @Freezer.FRZRw_constr _ _ _ H) ->
+  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR)))) c Post) ->
+  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  eapply semax_pre; [clear H1 | exact (H1 I)].
+  apply split_FRZ_in_SEP_spec in H.
+  apply andp_left2.
+  apply andp_derives; auto.
+  apply andp_derives; auto.
+  unfold SEPx; intro.
+  rewrite H.
+  rewrite fold_right_sepcon_app.
+  simpl.
+  cancel.
+  destruct H0 as [? ?]; subst.
+  apply Freezer.FRZR2.
+Qed.
+
+Ltac unlocalize R_G2 :=
+  eapply (unlocalize R_G2);
+  [ prove_split_FRZ_in_SEP
+  | refine (ex_intro _ _ eq_refl);
+    match goal with
+    | |- fold_right_sepcon ?R_G1 |-- sepcon (fold_right_sepcon ?R_L1) _ =>
+           unfold abbreviate in R_L1, R_G1; unfold R_L1, R_G1; clear R_L1 R_G1
+    end;
+    rewrite <- !fold_right_sepconx_eq;
+    unfold fold_right_sepconx
+  | match goal with
+    | |- _ ?R_L1 ?R_G1 -> _ =>
+      intros _;
+      clear R_L1 R_G1;
+      unfold_app
+    end
+  ].
