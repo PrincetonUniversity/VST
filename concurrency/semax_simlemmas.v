@@ -501,6 +501,14 @@ Proof.
   apply S, eq_refl.
 Qed.
 
+Lemma jsafe_phi_bupd_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
+  jsafe_phi_bupd Jspec ge (S n) z c phi ->
+  jsafe_phi_bupd Jspec ge n z c phi.
+Proof.
+  intros S jm <- ? J.
+  specialize (S _ eq_refl _ J) as (? & ? & ? & ?%jsafe_downward1); eauto.
+Qed.
+
 Lemma jsafe_phi_age Z Jspec ge ora q n phi phiaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age phi phiaged ->
@@ -526,6 +534,47 @@ Proof.
   apply age_to_ind_refined.
   intros x y H L.
   apply jsafe_phi_age; auto.
+  omega.
+Qed.
+
+Lemma jsafe_phi_bupd_age Z Jspec ge ora q n phi phiaged :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  age phi phiaged ->
+  le n (level phiaged) ->
+  @jsafe_phi_bupd Z Jspec ge n ora q phi ->
+  @jsafe_phi_bupd Z Jspec ge n ora q phiaged.
+Proof.
+  intros stable A l S jm' E.
+  destruct (oracle_unage jm' phi) as (jm & Aj & <-). congruence.
+  intros ? J.
+  rewrite (age1_ghost_of _ _ (age_jm_phi Aj)) in J.
+  apply own.ghost_joins_approx in J as (c' & J & Hc').
+  erewrite <- age_level in J by eauto.
+  rewrite level_juice_level_phi, ghost_of_approx in J.
+  specialize (S _ eq_refl _ J) as (jm1 & ? & Hupd & ?).
+  destruct (jm_update_age _ _ _ Hupd Aj) as (jm1' & Hupd' & Aj').
+  exists jm1'; split.
+  - rewrite (age1_ghost_of _ _ (age_jm_phi Aj')), <- level_juice_level_phi.
+    destruct Hupd' as (_ & -> & _).
+    apply Hc'.
+    erewrite <- age_level by eauto; auto.
+  - split; auto; eapply jsafeN_age; eauto.
+    destruct Hupd' as (_ & -> & _).
+    exact_eq l; f_equal.
+    rewrite level_juice_level_phi.
+    congruence.
+Qed.
+
+Lemma jsafe_phi_bupd_age_to Z Jspec ge ora q n l phi :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  le n l ->
+  @jsafe_phi_bupd Z Jspec ge n ora q phi ->
+  @jsafe_phi_bupd Z Jspec ge n ora q (age_to l phi).
+Proof.
+  intros Stable nl.
+  apply age_to_ind_refined.
+  intros x y H L.
+  apply jsafe_phi_bupd_age; auto.
   omega.
 Qed.
 

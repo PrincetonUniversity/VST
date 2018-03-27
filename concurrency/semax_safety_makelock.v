@@ -759,308 +759,98 @@ Proof.
 
   - (* safety *)
     {
-    intros ? J.
-    assert (containsThread (updThread i (age_tp_to n
-      (updLockSet tp (b, Ptrofs.intval ofs) None))
-      cnti (Kresume ci Vundef) (age_to n phi')) i) as cnti'.
-    { apply cntUpdate, cnt_age', cntUpdateL; auto. }
-    destruct Post with
+    assert (join_all (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
+      (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef) 
+      (age_to n phi')) (age_to n Phi')) as Hall.
+    { rewrite join_all_joinlist.
+      eapply joinlist_permutation; [symmetry; apply maps_updthread|].
+      exists (age_to n psi).
+      rewrite maps_age_to, all_but_map, maps_updlock1, maps_getlock1 by auto.
+      split; [apply joinlist_age_to; auto|].
+      apply age_to_join; auto. }
+    intros; exists _, _, (tp_update_refl _ _ Hall); split; auto.
+    intros j cntj ?; destruct (eq_dec i j).
+    + subst j; rewrite gssThreadCode, gssThreadRes; intros ? Hc' ? Hjm.
+      destruct Post with
           (ret := @None val)
-            (m' := jm_ cnti' mcompat')
+            (m' := jm)
             (z' := tt) (n' := n) as (c'' & Ec'' & Safe'); auto.
-    { apply Logic.I. }
-    { unfold Hrel; simpl.
-      unfold compose.
-      assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
-      rewrite eqtype_refl, level_age_to by (setoid_rewrite Hl'; auto).
-      split; auto; split; [omega|].
-      eapply pures_same_eq_l.
-      2:apply pures_eq_age_to; omega.
-      eapply pures_same_sym, rmap_makelock_pures_same; eauto. }
-    { (* we must satisfy the post condition *)
-      exists (age_to n phi0'), (age_to n phi1).
-      split.
-      * simpl; rewrite eqtype_refl.
-        apply age_to_join; auto.
-      * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
-        split. now constructor.
-        split. now constructor.
-        simpl. rewrite seplog.sepcon_emp.
-        unfold semax_conc_pred.lock_inv in *.
-        exists b, ofs; split. auto.
-        destruct RL0 as (Lphi0 & outside & inside & Hg).
+      { apply Logic.I. }
+      { unfold Hrel.
+        assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
+        rewrite level_jm_, m_phi_jm_, level_juice_level_phi, Hjm, level_age_to by omega.
+        split; auto; split; [setoid_rewrite En; auto|].
+        eapply pures_same_eq_l.
+        2:apply pures_eq_age_to; omega.
+        eapply pures_same_sym, rmap_makelock_pures_same; eauto. }
+      { (* we must satisfy the post condition *)
+        exists (age_to n phi0'), (age_to n phi1).
+        rewrite Hjm.
         split.
-        intros loc. simpl.
-        pose proof data_at_unfold _ _ _ _ _ 2 Hwritable AT as Hbefore.
-        spec Hbefore loc.
-        if_tac [r|nr]; [ if_tac [e|ne] | ].
-        - exists ((writable_readable_share Hwritable)).
-          spec inside loc r.
-          if_tac in inside. 2:unfold Int.unsigned in *; congruence.
-          destruct inside as (val & sh & rsh & E & wsh & E').
-          if_tac in Hbefore. 2:tauto.
-          rewrite age_to_resource_at.
-          destruct Hbefore as (v, Hb). rewrite Hb in E.
-          injection E as -> <-.
-          rewrite E'. simpl.
-          unfold pfullshare.
-          rewrite approx_approx'. 2: join_level_tac; omega.
-          rewrite level_age_to.  2: join_level_tac; omega.
-          apply YES_ext.
-          reflexivity.
-        - exists ((writable_readable_share Hwritable)).
-          spec inside loc.
-          spec inside r.
-          if_tac in inside. unfold Int.unsigned in *; congruence.
-          destruct inside as (val & sh & rsh & E & wsh & E').
-          if_tac in Hbefore. 2:tauto.
-          rewrite age_to_resource_at.
-          destruct Hbefore as (v, Hb). rewrite Hb in E.
-          injection E as -> <-.
-          rewrite E'. simpl.  apply YES_ext.
-          reflexivity.
-        - if_tac in Hbefore. tauto.
-          spec outside loc.
-          spec outside nr.
-          rewrite age_to_resource_at, <-outside.
-          apply empty_NO in Hbefore.
-          destruct Hbefore as [-> | (? & ? & ->)]; simpl.
-          + apply NO_identity.
-          + apply PURE_identity.
-        - simpl; rewrite age_to_ghost_of, <- Hg.
-          apply data_at_noghost in AT.
-          rewrite (identity_core AT), ghost_core; simpl.
-          rewrite <- (ghost_core (ghost_of phi0)); apply core_identity. }
-    assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
-    pose proof (ghost_of_join _ _ _ (age_to_join n _ _ _ J')) as J1.
-    destruct J as [? J]; destruct (join_assoc J1 J) as (C0 & J0 & Jphi').
-    specialize (Safe' C0) as (jm' & J'' & Hupd & Safe').
-    { simpl; unfold compose.
-      rewrite eqtype_refl.
-      rewrite age_to_ghost_of in *.
-      rewrite level_age_to by (setoid_rewrite Hl'; auto).
-      eapply ghost_fmap_join in Jphi'.
-      rewrite ghost_fmap_fmap, 2approx_oo_approx in Jphi'; eauto. }
-    exists (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None)) (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef) (m_phi jm')).
-    destruct J'' as [? J'']; simpl in J''.
-    unfold compose in J''; rewrite eqtype_refl in J''.
-    rewrite level_age_to in J'' by (setoid_rewrite Hl'; auto).
-    rewrite level_age_to in J0 by omega.
-    eapply ghost_fmap_join in J0.
-    rewrite !ghost_fmap_fmap, 2approx_oo_approx in J0.
-    destruct (join_assoc (join_comm J0) (join_comm J'')) as (g' & Jg' & ?).
-    assert (level jm' = n) as Hl''.
-    { destruct Hupd as (_ & -> & _); simpl.
-      unfold compose; rewrite eqtype_refl, level_age_to by (setoid_rewrite Hl'; auto); auto. }
-    destruct (make_rmap _ g' (rmap_valid (age_to n Phi')) n) as (Phi'' & ? & Hr & ?).
-    { replace n with (level (age_to n Phi')) at 1 2 by (rewrite level_age_to; auto; rewrite LPhi', En; auto).
-      extensionality; apply resource_at_approx. }
-    { rewrite <- (ghost_of_approx (m_phi jm')), <- level_juice_level_phi, Hl'' in Jg'.
-      eapply ghost_same_level_gen; eauto. }
-    subst g'; exists Phi''.
-    assert (tp_update (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
-               (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
-               (age_to n phi')) (age_to n Phi')
-            (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
-               (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
-               (m_phi jm')) Phi'') as Htp'.
-    { repeat split; auto.
-      - rewrite level_age_to; omega.
-      - rewrite join_all_joinlist.
-        eapply joinlist_permutation; [symmetry; apply maps_updthread|].
-        exists (age_to n psi).
-        rewrite maps_age_to, all_but_map, maps_updlock1, maps_getlock1 by auto.
-        split; [apply joinlist_age_to; auto|].
-        destruct (join_level _ _ _ jpsi).
-        apply resource_at_join2.
-        + rewrite <- level_juice_level_phi; congruence.
-        + rewrite level_age_to by omega; auto.
-        + destruct Hupd as (_ & _ & ->); simpl; rewrite eqtype_refl.
-          rewrite Hr; intros.
-          apply resource_at_join, age_to_join; auto.
-        + apply join_comm; rewrite <- ghost_of_approx, level_age_to by omega; auto.
-      - assert (forall t : tid,
-         JTP.containsThread
-           (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
-              (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
-              (m_phi jm')) t <->
-         JTP.containsThread
-           (updThread i (age_tp_to n (updLockSet tp (b, Ptrofs.intval ofs) None))
-              (cnt_age' (cntUpdateL (b, Ptrofs.intval ofs) None cnti)) (Kresume ci Vundef)
-              (age_to n phi')) t) as Hiff.
-        { split; intros ?%cntUpdate'; apply cntUpdate; auto. }
-        exists Hiff; split; auto.
-        intros t0 ?; destruct (eq_dec t0 i).
-        + subst t0; rewrite !gssThreadCode, !gssThreadRes.
-          rewrite <- level_juice_level_phi, level_age_to by omega.
-          destruct Hupd as (_ & _ & ->); simpl; rewrite eqtype_refl; auto.
-        + unshelve erewrite !gsoThreadCode, !gsoThreadRes; auto. }
-    exists Htp'; split.
-    { rewrite level_age_to by omega; eauto. }
-    intros t0 ? [].
-    destruct (eq_dec t0 i).
-    - subst; rewrite gssThreadCode; intros ??? Hjm.
-      rewrite gssThreadRes in Hjm.
-      SearchAbout jsafeN_ m_phi.
-      Check Safe'.
-      eauto.
-        omega.
-          
-          Check jpsi1.
-          SearchAbout psi.
-        SearchAbout maps remLockSet.
-      jpsi1
-      
-      
-    pose proof (resource_at_join2 
-    assert (joins 
-    exists Phi''.
-    
-      
-      2: omega.
-      eauto.
-      eexists.
-      
-
-          apply identity_core; erewrite <- (ghost_core (ghost_of phi0))
-          
-(* up *)
-Locate data_at_.
-Print memory_block.
-
-          eapply data_at_rmap_makelock in AT; auto.
-
-SearchAbout phi0.
-
-          
-    intros j lj ora.
-    specialize (safety j lj ora).
-    unshelve erewrite <-gtc_age. auto.
-    unshelve erewrite gLockSetCode; auto.
-    destruct (eq_dec i j).
-    * {
-        (* use the "well formed" property to derive that this is
-              an external call, and derive safety from this.  But the
-              level has to be decreased, here. *)
-        subst j.
-        rewrite gssThreadCode.
-        replace lj with cnti in safety by apply proof_irr.
-        rewrite Eci in safety.
-        specialize (wellformed i cnti).
-        rewrite Eci in wellformed.
-        intros c' Ec' jm' Ejm'.
-        - (* at_external : we can now use safety *)
-          destruct Post with
-          (ret := @None val)
-            (m' := jm')
-            (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
-
-          + auto.
-
-          + simpl.
-            apply Logic.I.
-
-          + auto.
-
-          + (* proving Hrel *)
-            assert (n = level jm'). {
-              rewrite <-level_m_phi.
-              rewrite Ejm'.
-              REWR.
-              REWR.
-              REWR.
-              rewrite level_age_to; auto.
-              replace (level phi') with (level Phi). omega.
-              transitivity (level (getThreadR i tp cnti)); join_level_tac.
-            }
-            assert (level phi' = S n). {
-              cleanup. replace (level phi') with (S n). omega. join_level_tac.
-            }
-
-            split; [ | split].
-            * auto.
-            * rewr (level jm'). rewrite level_jm_. cleanup. omega.
-            * simpl. rewrite Ejm'. do 3 REWR.
-              eapply pures_same_eq_l.
-              2:apply pures_eq_age_to; omega.
-              apply pures_same_trans with phi1.
-              -- apply pures_same_sym. apply join_sub_pures_same. exists phi0'. apply join_comm. assumption.
-              -- apply join_sub_pures_same. exists phi0. apply join_comm. assumption.
-
-          + (* we must satisfy the post condition *)
-            rewrite Ejm'.
-            (* rewrite m_phi_jm_. *)
-            exists (age_to n phi0'), (age_to n phi1).
-            split.
-            * REWR.
-              apply age_to_join.
-              REWR.
-              REWR.
-            * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
-              split. now constructor.
-              split. now constructor.
-              simpl. rewrite seplog.sepcon_emp.
-              unfold semax_conc_pred.lock_inv in *.
-              exists b, ofs; split. auto.
-              intros loc. simpl.
-              destruct RL0 as (Lphi0 & outside & inside).
-              pose proof data_at_unfold _ _ _ _ _ 2 Hwritable AT as Hbefore.
-              spec Hbefore loc.
-              if_tac [r|nr]; [ if_tac [e|ne] | ].
-              -- exists ((writable_readable_share Hwritable)).
-                 spec inside loc r.
-                 if_tac in inside. 2:unfold Int.unsigned in *; congruence.
-                 destruct inside as (val & sh & rsh & E & wsh & E').
-                 if_tac in Hbefore. 2:tauto.
-                 rewrite age_to_resource_at.
-                 destruct Hbefore as (v, Hb). rewrite Hb in E.
-                 injection E as -> <-.
-                 rewrite E'. simpl.
-                 unfold pfullshare.
-                 rewrite approx_approx'. 2: join_level_tac; omega.
-                 rewrite level_age_to.  2: join_level_tac; omega.
-                 apply YES_ext.
-                 reflexivity.
-              -- exists ((writable_readable_share Hwritable)).
-                 spec inside loc.
-        spec inside r.
-                 if_tac in inside. unfold Int.unsigned in *; congruence.
-                 destruct inside as (val & sh & rsh & E & wsh & E').
-                 if_tac in Hbefore. 2:tauto.
-                 rewrite age_to_resource_at.
-                 destruct Hbefore as (v, Hb). rewrite Hb in E.
-                 injection E as -> <-.
-                 rewrite E'. simpl.  apply YES_ext.
-                 reflexivity.
-              -- if_tac in Hbefore. tauto.
-                 spec outside loc.
-        spec outside nr. 
-                 rewrite age_to_resource_at, <-outside.
-                 apply empty_NO in Hbefore.
-                 destruct Hbefore as [-> | (? & ? & ->)]; simpl.
-                 ++ apply NO_identity.
-                 ++ apply PURE_identity.
-
-          + exact_eq Safe'.
-            unfold jsafeN, safeN.
-            f_equal.
-            congruence.
-      }
-
-    * repeat REWR.
-      destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq i j); eauto.
-      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
-    }
+        * apply age_to_join; auto.
+        * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+          split. now constructor.
+          split. now constructor.
+          simpl. rewrite seplog.sepcon_emp.
+          unfold semax_conc_pred.lock_inv in *.
+          exists b, ofs; split. auto.
+          destruct RL0 as (Lphi0 & outside & inside & Hg).
+          split.
+          intros loc. simpl.
+          pose proof data_at_unfold _ _ _ _ _ 2 Hwritable AT as Hbefore.
+          spec Hbefore loc.
+          if_tac [r|nr]; [ if_tac [e|ne] | ].
+          - exists ((writable_readable_share Hwritable)).
+            spec inside loc r.
+            if_tac in inside. 2:unfold Int.unsigned in *; congruence.
+            destruct inside as (val & sh & rsh & E & wsh & E').
+            if_tac in Hbefore. 2:tauto.
+            rewrite age_to_resource_at.
+            destruct Hbefore as (v, Hb). rewrite Hb in E.
+            injection E as -> <-.
+            rewrite E'. simpl.
+            unfold pfullshare.
+            rewrite approx_approx'. 2: join_level_tac; omega.
+            rewrite level_age_to.  2: join_level_tac; omega.
+            apply YES_ext.
+            reflexivity.
+          - exists ((writable_readable_share Hwritable)).
+            spec inside loc.
+            spec inside r.
+            if_tac in inside. unfold Int.unsigned in *; congruence.
+            destruct inside as (val & sh & rsh & E & wsh & E').
+            if_tac in Hbefore. 2:tauto.
+            rewrite age_to_resource_at.
+            destruct Hbefore as (v, Hb). rewrite Hb in E.
+            injection E as -> <-.
+            rewrite E'. simpl.  apply YES_ext.
+            reflexivity.
+          - if_tac in Hbefore. tauto.
+            spec outside loc.
+            spec outside nr.
+            rewrite age_to_resource_at, <-outside.
+            apply empty_NO in Hbefore.
+            destruct Hbefore as [-> | (? & ? & ->)]; simpl.
+            + apply NO_identity.
+            + apply PURE_identity.
+          - simpl; rewrite age_to_ghost_of, <- Hg.
+            apply data_at_noghost in AT.
+            rewrite (identity_core AT), ghost_core; simpl.
+            rewrite <- (ghost_core (ghost_of phi0)); apply core_identity. }
+      rewrite Hc' in Ec''; inv Ec''; destruct ora; auto.
+    + unshelve erewrite gsoThreadCode, gsoThreadRes, <- gtc_age, gLockSetCode, <- getThreadR_age,
+        gLockSetRes; auto.
+      specialize (safety j cntj ora).
+      destruct (getThreadC j tp cntj) eqn: Hget.
+      * edestruct (unique_Krun_neq i j); eauto.
+      * apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      * intros ? Hc'; apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. auto.
+      * destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
+        apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety. }
 
   - (* threads_wellformed *)
     intros j lj.
     specialize (wellformed j lj).
-    unshelve erewrite <-gtc_age. auto.
-    unshelve erewrite gLockSetCode; auto.
     destruct (eq_dec i j).
     + subst j.
       rewrite gssThreadCode.
@@ -1071,9 +861,9 @@ SearchAbout phi0.
 
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
+    apply no_Krun_stable. congruence.
     rewrite no_Krun_age_tp_to.
     apply no_Krun_updLockSet.
-    apply no_Krun_stable. congruence.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.

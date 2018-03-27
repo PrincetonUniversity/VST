@@ -254,6 +254,11 @@ Definition jsafe_phi {Z} Jspec ge n ora c phi :=
     m_phi jm = phi ->
     @semax.jsafeN Z Jspec ge n ora c jm.
 
+Definition jsafe_phi_bupd {Z} Jspec ge n ora c phi :=
+  forall jm,
+    m_phi jm = phi ->
+    jm_bupd (@semax.jsafeN Z Jspec ge n ora c) jm.
+
 Lemma jsafe_phi_jsafeN {Z} Jspec ge n ora c i tp m (cnti : containsThread tp i) Phi compat :
   @jsafe_phi Z Jspec ge n ora c (getThreadR cnti) ->
   @semax.jsafeN Z Jspec ge n ora c (@jm_ tp m Phi i cnti compat).
@@ -280,7 +285,7 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
            the definition of JuicyMachine.resume_thread'. *)
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
-        jsafe_phi Jspec ge n ora c' (getThreadR cnti)
+        jsafe_phi_bupd Jspec ge n ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
       exists q_new,
       cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
