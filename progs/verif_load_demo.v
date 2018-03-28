@@ -119,7 +119,7 @@ assert (N0: 0 <= n). {
 assert_PROP (isptr p) as P by entailer!.
 
 (* forward fails, but tells us to prove this: *)
-assert_HINT (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)). {
   entailer!.
   destruct p; inversion P. simpl.
