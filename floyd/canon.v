@@ -1739,12 +1739,6 @@ apply andp_right; auto.
 apply derives_extract_prop. auto.
 Qed.
 
-Inductive Hint: Prop -> Prop :=
-| Hint_intro: forall P: Prop, P -> Hint P.
-
-Inductive PermanentHint: Prop -> Prop :=
-| PermanentHint_intro: forall P: Prop, P -> PermanentHint P.
-
 Tactic Notation "assert_PROP" constr(A) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
 
@@ -1756,22 +1750,6 @@ Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
-
-Tactic Notation "assert_HINT" constr(A) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)];
-  [ | let H := fresh "HINT" in intro H; apply Hint_intro in H ].
-
-Tactic Notation "assert_HINT" constr(A) "by" tactic(t) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ];
-  [ now t | let H := fresh "HINT" in intro H; apply Hint_intro in H ].
-
-Tactic Notation "assert_PERMANENT_HINT" constr(A) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)];
-  [ | let H := fresh "HINT" in intro H; apply PermanentHint_intro in H ].
-
-Tactic Notation "assert_PERMANENT_HINT" constr(A) "by" tactic(t) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ];
-  [ now t | let H := fresh "HINT" in intro H; apply PermanentHint_intro in H ].
 
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,
