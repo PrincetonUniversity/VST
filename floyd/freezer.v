@@ -443,6 +443,17 @@ Ltac prove_ramif_frame_gen wit :=
       apply ramif_frame_gen_refl
   end.
 
+Ltac conj_gen assu :=
+  match assu with
+  | pair ?a ?assu0 => let r := conj_gen assu0 in constr:(conj a r)
+  | _ => constr:(assu)
+  end.
+
+Ltac prove_ramif_frame_gen_prop assu :=
+  let H := conj_gen assu in
+  let Pure := type of H in
+    apply (ramif_frame_gen_prop Pure _ _ H).
+
 Lemma ramif_frame_gen_spec: forall P Q, ramif_frame_gen P Q -> P |-- Q.
 Proof.
   intros.
@@ -479,7 +490,7 @@ Proof.
   apply ramif_frame_gen_spec; auto.
 Qed.
 
-Ltac unlocalize R_G2 :=
+Ltac unlocalize_plain R_G2 :=
   eapply (unlocalize R_G2);
   [ prove_split_FRZ_in_SEP
   | refine (ex_intro _ _ eq_refl);
@@ -497,11 +508,12 @@ Ltac unlocalize R_G2 :=
     end
   ].
 
-Ltac unlocalizeQ R_G2 wit :=
+Ltac unlocalize_wit R_G2 wit tac :=
   eapply (unlocalizeQ R_G2);
   [ prove_split_FRZ_in_SEP
   | rewrite <- !fold_right_sepconx_eq;
     unfold fold_right_sepconx;
+    tac;
     prove_ramif_frame_gen wit
   | refine (ex_intro _ _ eq_refl);
     match goal with
@@ -517,3 +529,13 @@ Ltac unlocalizeQ R_G2 wit :=
       unfold_app
     end
   ].
+
+Tactic Notation "unlocalize" constr(R_G2) :=
+  unlocalize_plain R_G2.
+
+Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) :=
+  unlocalize_wit R_G2 wit idtac.
+
+Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) "assuming" constr(assu) :=
+  let tac := prove_ramif_frame_gen_prop assu in
+  unlocalize_wit R_G2 wit tac.
