@@ -1284,8 +1284,9 @@ to the functions it calls on an as-needed basis.
 The function-spec for the \lstinline{sumarray} program's \lstinline{main} is,
 \begin{lstlisting}
 Definition main_spec :=
- DECLARE _main  WITH u : unit
-    PRE  [ ] main_pre prog u
+ DECLARE _main  
+    WITH gv : globals
+    PRE  [ ] main_pre prog gv
     POST [ tint ]
       (* application-specific postcondition *)
       PROP()
@@ -1308,22 +1309,22 @@ the \lstinline{start_function} tactic ``unpacks''
 \lstinline{main_pre} into an assertion:
 \pagebreak
 \begin{lstlisting}
-$\mathit{v\_four}$ : val
+gv: globals
 ______________________________________(1/1)
 semax Delta
- (PROP  ()  LOCAL  (gvar _four $\mathit{v\_four}$)
+ (PROP  ()  LOCAL  (gvar _four (gv _four); gvars gv)
   SEP (data_at Ews (tarray tuint 4)
-     (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) $\mathit{v\_four}$))
+     (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) (gv _four)))
  $\mbox{\emph{(\ldots{}function body\ldots)}}$
  POSTCONDITION
 \end{lstlisting}
 The \lstinline{LOCAL} clause means that the C global
 variable \lstinline{_four} is at memory address
-$\mathit{v\_four}$.    See \autoref{refcard:gvar}.
+\lstinline{(gv _four)}.    See \autoref{refcard:gvar}.
 
 The \lstinline{SEP} clause means that there's
 data of type ``array of 4 integers'' at
-address $\mathit{v\_four}$, with access permission
+address \lstinline{(gv _four)}, with access permission
 \lstinline{Ews} and contents [1;2;3;4].
 \lstinline{Ews} stands for ``external write share,''
 the standard access permission of extern global writable
@@ -4061,6 +4062,8 @@ so that your variable-accesses will work.
 
 By convention, you should put \lstinline{gv:globals} as the last
 component of your WITH clause.
+
+Sometimes you may want a LOCAL assertion \lstinline{(gvar _v (gv _v))} even for a variable \lstinline{_v} that you don't use directly in this function; you can use the tactic \lstinline{assert_gvar _v} to add it (calculated from \lstinline{Delta} and \lstinline{(gvars gv)}).
 
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}

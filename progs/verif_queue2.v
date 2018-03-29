@@ -118,8 +118,8 @@ Definition make_elem_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]
        PROP() LOCAL (temp ret_temp (Vint (Int.repr 1))) SEP(TT).
 

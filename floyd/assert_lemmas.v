@@ -459,10 +459,12 @@ unfold Map.get; rewrite H. rewrite Hc.
 auto.
 Qed.
 
-Lemma globvars2pred_unfold: forall vl rho,
-    globvars2pred vl rho =
-    fold_right sepcon emp (map (fun idv => globvar2pred idv rho) vl).
+Lemma globvars2pred_unfold: forall gv vl rho,
+    globvars2pred gv vl rho =
+     andp (prop (gv = globals_of_env rho))
+      (fold_right sepcon emp (map (fun idv => globvar2pred gv idv rho) vl)).
 Proof. intros. unfold globvars2pred.
+  unfold lift2. f_equal.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.
 Hint Rewrite globvars2pred_unfold : norm.

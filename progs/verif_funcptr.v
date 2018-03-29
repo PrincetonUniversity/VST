@@ -20,9 +20,9 @@ Definition myfunc_spec := DECLARE _myfunc myspec.
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     myfunc_spec; main_spec]).
@@ -38,7 +38,6 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function. fold cc_default noattr tint.
-drop_LOCALs [_a].
 make_func_ptr _myfunc.
 (* TODO: if the C program doesn't have an ampersand in this line, it fails, but probably should work. *)
 forward.

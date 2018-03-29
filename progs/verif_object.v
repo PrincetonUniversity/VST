@@ -69,18 +69,18 @@ Definition foo_twiddle_spec :=
 
 Definition make_foo_spec :=
  DECLARE _make_foo
- WITH mtable: val
+ WITH gv: globals
  PRE [ ]
-    PROP () LOCAL (gvar _foo_methods mtable) 
-    SEP (object_methods foo_invariant mtable)
+    PROP () LOCAL (gvars gv) 
+    SEP (object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
     EX p: val, PROP () LOCAL (temp ret_temp p)
-     SEP (object_mpred nil p; object_methods foo_invariant mtable).
+     SEP (object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]
      EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
 
@@ -146,10 +146,10 @@ forward_call (Tstruct _foo_object noattr).
 Intros p.
 forward_if
   (PROP ( )
-   LOCAL (temp _p p; gvar _foo_methods mtable)
+   LOCAL (temp _p p; gvar _foo_methods (gv _foo_methods))
    SEP (malloc_token Tsh (Tstruct _foo_object noattr) p;
           data_at_ Tsh (Tstruct _foo_object noattr) p;
-          object_methods foo_invariant mtable)).
+          object_methods foo_invariant (gv _foo_methods))).
 *
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).
 if_tac; entailer!.
@@ -168,8 +168,8 @@ forward. (* p->data = 0; *)
 forward. (* return (struct object * ) p; *)
 Exists p.
 unfold object_mpred.
-Exists foo_invariant mtable.
-sep_apply (split_object_methods foo_invariant mtable).
+Exists foo_invariant (gv _foo_methods).
+sep_apply (split_object_methods foo_invariant (gv _foo_methods)).
 unfold foo_invariant at 4.
 entailer!.
 simpl.
@@ -180,13 +180,10 @@ simpl.
 apply derives_refl'.
 f_equal.
 rewrite !field_compatible_field_address; auto with field_compatible.
-clear - H.
+clear - H0.
 (* TODO: simplify the following proof. *)
 destruct p; try contradiction.
-destruct H as [AL SZ].
-(*hnf in H.
-destruct H as [? [? [SZ [AL ?]]]].
-*)
+destruct H0 as [AL SZ].
 repeat split; auto.
 simpl in *; omega.
 eapply align_compatible_rec_Tstruct; [reflexivity |].
@@ -205,10 +202,12 @@ omega.
 left; auto.
 Qed.
 
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename v_foo_methods into mtable;
+assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *)
+set (mtable := gv _foo_methods).
 rename v_foo_twiddle into twiddle;
 rename v_foo_reset into reset.
 fold noattr cc_default.
@@ -217,7 +216,8 @@ fold noattr cc_default.
 make_func_ptr _foo_twiddle.
 make_func_ptr _foo_reset.
 gather_SEP 0 1 2 3.
-replace_SEP 0 (object_methods foo_invariant mtable). {
+replace_SEP 0 (object_methods foo_invariant mtable).
+ {
   entailer!.
   unfold object_methods.
   Exists Ews reset twiddle.
@@ -236,7 +236,8 @@ clear reset twiddle.
 
 (* 2. Build an instance of class [foo], called [p] *)
 forward_call (* p = make_foo(); *)
-        mtable.
+        gv.
+subst mtable. cancel.
 Intros p.
 
 (* 3. We can do these next 3 lines because we won't create any more foo objects *)

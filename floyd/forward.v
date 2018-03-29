@@ -3072,18 +3072,62 @@ subst; clear.
 simpl; f_equal. extensionality rho; normalize.
 Qed.
 
+Lemma intro_LOCAL_gvar:
+  forall Delta gv i P Q R,
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i <> None ->
+  In (gvars gv) Q ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
+Proof.
+intros.
+Transparent andp.
+go_lowerx.
+Opaque andp.
+normalize.
+apply prop_right.
+pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
+apply H5 in H4.
+simpl in H4.
+hnf.
+destruct H2 as [? [? [? ?]]].
+apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
+destruct H6 as [H6 _].
+specialize (H6 H).
+rewrite H6.
+destruct ((glob_types Delta) ! i) eqn:?.
+hnf in H7.
+specialize (H7 _ _ Heqo). destruct H7.
+rewrite H4.
+rewrite H7. auto.
+clear - H0; congruence.
+apply in_map.
+auto.
+Qed.
+
+Ltac assert_gvar i :=
+ match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
+   assert_LOCAL (gvar i (gv i)); 
+  [apply intro_LOCAL_gvar; 
+    [ reflexivity + fail 99  "Local variable " i " is shadowing the global variable" i
+    | (let H := fresh in intro H; discriminate H) + fail 99 "No global variable " i " in Delta, i.e., in your extern declarations"
+    | solve [repeat ((left; reflexivity) + right) ]] + fail 99 "No LOCAL assertion (gvars " gv ")"
+  | ]
+ end.
+
 Ltac change_mapsto_gvar_to_data_at :=
 match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
-   match L with context [gvar _ g] =>
-     assert_PROP (headptr (offset_val 0 g));
+   lazymatch L with
+   | context [gvar _ g] => idtac 
+   | _ => match g with (?gv ?i)  => assert_gvar i end
+   end;
+   assert_PROP (headptr (offset_val 0 g));
        [entailer!; apply <- headptr_offset_zero; auto |];
-     erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
+   erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
        [| reflexivity | now auto | assumption | apply JMeq_refl ];
-     match goal with H: _ |- _ => clear H end;
+   match goal with H: _ |- _ => clear H end;
      rewrite <- ? data_at_offset_zero
    end
-  end
 end.
 
 Ltac clear_Delta_specs_if_leaf_function :=
@@ -3140,48 +3184,6 @@ Ltac check_parameter_vals Delta al :=
     check_parameter_vals Delta al'
  | _ :: ?al' => check_parameter_vals Delta al'
  | nil => idtac
- end.
-
-Lemma intro_LOCAL_gvar:
-  forall Delta gv i P Q R,
-  (var_types Delta) ! i = None ->
-  (glob_types Delta) ! i <> None ->
-  In (gvars gv) Q ->
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
-Proof.
-intros.
-Transparent andp.
-go_lowerx.
-Opaque andp.
-normalize.
-apply prop_right.
-pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
-apply H5 in H4.
-simpl in H4.
-hnf.
-destruct H2 as [? [? [? ?]]].
-apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
-destruct H6 as [H6 _].
-specialize (H6 H).
-rewrite H6.
-destruct ((glob_types Delta) ! i) eqn:?.
-hnf in H7.
-specialize (H7 _ _ Heqo). destruct H7.
-rewrite H4.
-rewrite H7. auto.
-clear - H0; congruence.
-apply in_map.
-auto.
-Qed.
-
-Ltac assert_gvar i :=
- match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
-   assert_LOCAL (gvar i (gv i)); 
-  [apply intro_LOCAL_gvar; 
-    [ reflexivity + fail 99  "Local variable " i " is shadowing the global variable" i
-    | (let H := fresh in intro H; discriminate H) + fail 99 "No global variable " i " in Delta, i.e., in your extern declarations"
-    | solve [repeat ((left; reflexivity) + right) ]] + fail 99 "No LOCAL assertion (gvars " gv ")"
-  | ]
  end.
 
 Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=

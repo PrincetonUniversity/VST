@@ -780,39 +780,35 @@ Qed.
 Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
 
 Lemma closed_wrt_globvars:
-  forall S v, closed_wrt_vars S (globvars2pred v).
+  forall S gv v, closed_wrt_vars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrt_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Ptrofs.zero) as j.
-clear - Heqb0.
+forget (gv i) as j.
 revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
-apply IHv.
 Qed.
 
 Lemma closed_wrtl_globvars:
-  forall S v, closed_wrt_lvars S (globvars2pred v).
+  forall S gv v, closed_wrt_lvars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrtl_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Ptrofs.zero) as j.
-clear - Heqb0.
-revert j; induction (gvar_init g); intro; simpl; f_equal; auto.
-apply IHv.
+forget (gv i) as j.
+revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 

@@ -89,9 +89,9 @@ Definition intpair_deserialize_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=
   EX fg: val*val,
@@ -162,9 +162,12 @@ Proof.
 name buf _buf.
 name q _q.
 name p _p.
+(*
 name ipm _intpair_message.
-start_function.  fold cc_default noattr.
-(* TODO:   "name" tactic doesn't work for function-pointer gvars? *)
+*)
+start_function.
+set (ipm := gv _intpair_message).
+fold cc_default noattr.
 rename v_intpair_deserialize into des.
 rename v_intpair_serialize into ser.
 make_func_ptr _intpair_deserialize.

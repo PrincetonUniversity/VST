@@ -43,8 +43,6 @@ Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
 
 *)
 
-Definition globals := ident->val.
-
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
  | lvar: ident -> type -> val -> localdef

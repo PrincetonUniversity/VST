@@ -17,15 +17,28 @@ Opaque upto.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name buf _bufs.
-  name lock _lock.
-  name comm _comm.
-  name reading _reading.
-  name last_read _last_read.
-  name last_taken _last_taken.
-  name writing _writing.
-  name last_given _last_given.
   start_function.
+  assert_gvar _bufs. assert_gvar _lock. assert_gvar _comm. assert_gvar _reading.
+  assert_gvar _last_read. assert_gvar _last_taken. assert_gvar _writing.
+  assert_gvar _last_given.
+  forget (gv _bufs) as buf.
+  forget (gv _lock) as lock.
+  forget (gv _comm) as comm.
+  forget (gv _reading) as reading.
+  forget (gv _last_read) as last_read.
+  forget (gv _last_taken) as last_taken.
+  forget (gv _writing) as writing.
+  forget (gv _last_given) as last_given.
+(*
+  set (buf := gv _bufs).
+  set (lock := gv _lock).
+  set (comm := gv _comm).
+  set (reading := gv _reading).
+  set (last_read := gv _last_read).
+  set (last_taken := gv _last_taken).
+  set (writing := gv _writing).
+  set (last_given := gv _last_given).
+*)  
   exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (comm, lock, buf, reading, last_read, sh0, shs).

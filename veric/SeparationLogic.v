@@ -405,18 +405,20 @@ Fixpoint init_data_list2pred (dl: list init_data)
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
 
-Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
- fun rho =>
-  match ge_of rho (fst idv) with
-  | None => emp
-  | Some b => if (gvar_volatile (snd idv))
-                       then  TT
-                       else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Ptrofs.zero) rho
- end.
+Definition globals := ident -> val.
 
-Definition globvars2pred (vl: list (ident * globvar type)) : environ->mpred :=
-  fold_right sepcon emp (map globvar2pred vl).
+Definition globvar2pred (gv: globals) (idv: ident * globvar type) : environ->mpred :=
+   if (gvar_volatile (snd idv))
+                       then  lift0 TT
+                       else    init_data_list2pred (gvar_init (snd idv))
+                                   (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
+
+Definition globals_of_env (rho: environ) (i: ident) : val := 
+  match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+
+Definition globvars2pred  (gv: globals)  (vl: list (ident * globvar type)) : environ->mpred :=
+  (lift2 andp) (fun rho => prop (gv = globals_of_env rho))
+  (fold_right sepcon emp (map (globvar2pred gv) vl)).
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
@@ -827,21 +829,22 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre (prog: program) : list Type -> unit -> environ->mpred :=
-  (fun nil tt => globvars2pred (prog_vars prog)).
+Definition main_pre (prog: program) : list Type -> globals -> environ -> mpred :=
+(fun nil gv => globvars2pred gv (prog_vars prog)).
 
-Definition main_post (prog: program) : list Type -> unit -> environ->mpred :=
-  (fun nil tt => TT).
+Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=
+  (fun nil _ _ => TT).
+
 
 Definition main_spec' (prog: program) 
-    (post: list Type -> unit -> environ -> mpred): funspec :=
+    (post: list Type -> globals -> environ -> mpred): funspec :=
   mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType unit) (main_pre prog) post
+     (rmaps.ConstType globals) (main_pre prog) post
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType unit) (main_pre prog) (main_post prog)
+     (rmaps.ConstType globals) (main_pre prog) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=

@@ -70,23 +70,23 @@ Definition semax_func
           genv_cenv ge = cenv_cs ->
           forall n, believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
-Definition main_pre (prog: program) : list Type -> unit -> assert :=
-(fun nil tt => globvars2pred (prog_vars prog)).
+Definition main_pre (prog: program) : list Type -> (ident->val) -> assert :=
+(fun nil gv => globvars2pred gv (prog_vars prog)).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : list Type -> unit -> assert :=
-  (fun nil tt _ => TT).
+Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
+  (fun nil _ _ => TT).
 
 Definition main_spec' (prog: program) 
-    (post: list Type -> unit -> environ ->pred rmap): funspec :=
+    (post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
   mk_funspec (nil, tint) cc_default
-     (ConstType unit) (main_pre prog) post
+     (ConstType (ident->val)) (main_pre prog) post
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
-     (ConstType unit) (main_pre prog) (main_post prog)
+     (ConstType (ident->val)) (main_pre prog) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition is_Internal (prog : program) (f : ident) :=
@@ -1159,13 +1159,13 @@ Proof.
     rewrite E in *.
     unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
     pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
-    pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
+    pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     intros z.
-    pose (post' := fun rho => TT * EX rv:val, post nil tt (env_set (globals_only rho) ret_temp rv)).
-    eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
+    pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
+    eapply (semax_call_aux Espec (Delta1 V G) (ConstType (ident->val))
               _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
-              nil tt (fun _ => TT) (fun _ => TT)
+              nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
               None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
@@ -1195,7 +1195,7 @@ Proof.
       do 3 (pose proof I).
       replace (funassert (Delta1 V G)) with
       (funassert (@nofunc_tycontext V G)).
-      unfold rho; apply funassert_initial_core; auto.
+      unfold rho1; apply funassert_initial_core; auto.
       apply same_glob_funassert.
       reflexivity.
     + intros ek vl tx' vx'.
@@ -1253,7 +1253,9 @@ Proof.
       rewrite TT_sepcon_TT.
       rewrite sepcon_comm.
       apply sepcon_TT.
-      simpl.
+     match goal with |- app_pred (globvars2pred (globals_of_env ?A) _ ?B) _ => 
+       change (globals_of_env A) with (globals_of_env B)
+      end.
       apply global_initializers; auto.
     + simpl.
       rewrite inflate_initial_mem_level.
