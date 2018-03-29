@@ -1910,7 +1910,7 @@ Proof.
   intros.
   apply derives_trans with (Q := (weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P);
     [|apply weak_precise_positive_conflict].
-  cancel.
+  Transparent mpred. cancel. Opaque mpred.
   rewrite <- sepcon_emp at 1.
   apply sepcon_derives; apply andp_right; auto; try apply derives_refl;
   apply derives_trans with (Q := TT);
@@ -2061,9 +2061,10 @@ Proof.
   destruct p; try apply positive_FF.
   destruct (readable_share_dec sh); [|contradiction n; auto].
   eapply derives_positive, ex_address_mapsto_positive.
-  apply orp_left; entailer.
+  Transparent mpred. apply orp_left; entailer.
   - Exists v; eauto. apply derives_refl.
   - Exists v2'; auto.
+Opaque mpred.
 Qed.
 
 Corollary data_at__positive : forall {cs} sh t p (Hsh : readable_share sh)
@@ -2175,8 +2176,10 @@ Lemma lock_inv_isptr : forall sh v R, lock_inv sh v R = !!isptr v && lock_inv sh
 Proof.
   intros.
   eapply local_facts_isptr with (P := fun v => lock_inv sh v R); eauto.
+  Transparent mpred.
   unfold lock_inv; Intros b o.
   subst; simpl; entailer.
+  Opaque mpred.
 Qed.
 
 Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
@@ -2643,8 +2646,11 @@ Proof.
   destruct p; try solve [entailer!].
   destruct (readable_share_dec sh1); [|contradiction n; auto].
   destruct (readable_share_dec sh2); [|contradiction n; auto].
+
+  Transparent mpred.
   rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
   rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
+  Opaque mpred.
   apply res_predicates.address_mapsto_value_cohere.
 Qed.
 
@@ -2657,6 +2663,7 @@ Proof.
   destruct p; try simple apply derives_refl.
   destruct (readable_share_dec sh1); [|contradiction n; auto].
   destruct (eq_dec v1 Vundef).
+  Transparent mpred.
   - subst; rewrite !prop_false_andp with (P := tc_val t Vundef), !FF_orp, prop_true_andp; auto;
       try apply tc_val_Vundef.
     cancel.
@@ -2683,6 +2690,7 @@ Proof.
       subst; entailer!.
     + entailer!.
       intro; auto.
+Opaque mpred.
 Qed.
 
 Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 v2
@@ -2960,9 +2968,13 @@ Qed.
 
 Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
 Proof.
+Transparent mpred.
+Transparent predicates_hered.pred.
   destruct v; simpl; auto; try apply derives_refl.
   entailer!.
+Opaque mpred. Opaque predicates_hered.pred.
 Qed.
+
 Hint Resolve valid_pointer_isptr : saturate_local.
 
 Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =

@@ -149,7 +149,7 @@ Proof.
   - rewrite prop_true_andp; auto.
   - rewrite prop_false_andp; auto.
     apply pred_ext.
-    + unfold lock_inv. Intros b ofs. subst; simpl in *; tauto.
+    + unfold lock_inv. Transparent mpred. Intros b ofs. Opaque mpred. subst; simpl in *; tauto.
     + apply FF_left.
 Qed.
 
