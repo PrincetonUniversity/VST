@@ -2521,7 +2521,6 @@ Proof.
   intros.
   unfold field_at.
   extensionality p.
-  SearchAbout (!! _ && _ = !! _ && _).
   apply andp_prop_ext.
   + apply field_compatible_change_composite; auto.
   + intros.

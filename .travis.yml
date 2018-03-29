@@ -32,7 +32,7 @@ env:
 branches:
   only:
   - master
-  - improve_loadstore
+  - ramif
 notifications:
   email:
     recipients:
@@ -81,7 +81,7 @@ jobs:
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; travis_wait make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true mailbox
+    - cd build; travis_wait 30 make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
 #  - script:
 #    - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
