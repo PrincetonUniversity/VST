@@ -273,7 +273,10 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
   unfold mapsto. simpl. rewrite !if_true by auto.
   rewrite andb_false_r. simpl.
   apply orp_right1.
-  apply orp_left. auto.
+  apply orp_left.
+  Transparent mpred.
+  auto.
+  Opaque mpred.
   normalize. inv H0.
 Qed.
 
