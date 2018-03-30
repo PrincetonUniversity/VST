@@ -36,7 +36,7 @@ Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divi
 Proof.
   intros.
   repeat rewrite two_power_nat_two_p in *.
-  unfold Zdivide.
+  unfold Z.divide.
   exists (two_p (Z.of_nat m - Z.of_nat n)).
   assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
   rewrite H0 at 1.

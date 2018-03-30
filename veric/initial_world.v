@@ -705,7 +705,7 @@ intros.
         rewrite PTree.gso by auto. rewrite H2.  split; intro Hx; inv Hx; congruence.
         simpl; auto.
         rewrite Zlength_cons.
-        replace (n + Zsucc (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
+        replace (n + Z.succ (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
         simpl. simpl in H0. inv H0.
          simpl in H.
          destruct a as [a ag]; simpl in *.
@@ -722,9 +722,9 @@ intros.
         unfold Genv.find_symbol, Genv.add_global; simpl. rewrite PTree.gss; auto.
         forget (Genv.add_global ge (a,ag)) as ge1.
         forget (Genv.genv_next ge) as N; clear ge H2.
-         assert (Zsucc N + Zlength dl > N).
+         assert (Z.succ N + Zlength dl > N).
          rewrite Zlength_correct; unfold block in *; omega.
-         forget (Zsucc N + Zlength dl) as K.
+         forget (Z.succ N + Zlength dl) as K.
          clear - H1 H3 H2 H4.
          revert ge1 K H2 H1 H3 H4; induction vl; simpl; intros.
         inversion2 H1 H4; omega.
@@ -1090,7 +1090,7 @@ Qed.
 
 Lemma alloc_globals_rev_nextblock:
   forall {F V} (ge: Genv.t F V) vl m, alloc_globals_rev ge empty vl = Some m ->
-     nextblock m = Z.to_pos(Zsucc (Zlength vl)).
+     nextblock m = Z.to_pos(Z.succ (Zlength vl)).
 Proof.
   intros.
    revert m H; induction vl; simpl; intros. inv H; apply nextblock_empty.

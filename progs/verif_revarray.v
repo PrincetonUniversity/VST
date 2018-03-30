@@ -166,7 +166,7 @@ forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
- Exists (Zsucc j).
+ Exists (Z.succ j).
  entailer!.
  f_equal; f_equal; omega.
  apply derives_refl'.

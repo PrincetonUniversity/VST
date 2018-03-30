@@ -42,7 +42,7 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 
-Lemma divide_align: forall x y: Z, x > 0 -> Zdivide x y -> align y x = y.
+Lemma divide_align: forall x y: Z, x > 0 -> Z.divide x y -> align y x = y.
 Proof.
   intros.
   unfold align.

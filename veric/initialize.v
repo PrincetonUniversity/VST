@@ -303,7 +303,7 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
                 | None => Vint Int.zero
               end
   | Init_space n =>
-      forall z, 0 <= z < Zmax n 0 ->
+      forall z, 0 <= z < Z.max n 0 ->
            Mem.load Mint8unsigned m b (p+z) = Some (Vint Int.zero)
   end.
 
@@ -689,7 +689,7 @@ Proof.
 Abort.
 
 Lemma Zmax_Z_of_nat:
- forall n, Zmax (Z_of_nat n) 0 = Z_of_nat n.
+ forall n, Z.max (Z_of_nat n) 0 = Z_of_nat n.
 Proof.
 intros.
 apply Z.max_l.
@@ -697,7 +697,7 @@ omega.
 Qed.
 (*
 Lemma Zmax_of_nat:
-  forall n, Z_of_nat (nat_of_Z n) = Zmax n 0.
+  forall n, Z_of_nat (nat_of_Z n) = Z.max n 0.
 Proof.
  intros.
  apply nat_of_Z_max.
@@ -1770,7 +1770,7 @@ Proof.
  rewrite nat_of_Z_max in *.
  destruct H1 as [H1 Hg1]; split; [|simpl; rewrite <- Hg; auto].
  intro loc; specialize (H1 loc).
- assert (H99:  Zmax (Zmax z0 0) 0 = Zmax z0 0).
+ assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
    apply Z.max_l. apply Zmax_bound_r. omega.
  rewrite H99 in *.
  hnf in H1|-*.

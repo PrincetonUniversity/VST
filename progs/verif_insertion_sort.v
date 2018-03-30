@@ -1083,7 +1083,7 @@ simpl in H4. destruct (Int.lt sorted_val insert_value); inv H4; auto.
 }
 Qed.
 
-Lemma sorted_sound : forall xs, sorted xs = true <-> LocallySorted Zle xs.
+Lemma sorted_sound : forall xs, sorted xs = true <-> LocallySorted Z.le xs.
 intuition.
 +  induction xs.
    - constructor.
@@ -1101,7 +1101,7 @@ intuition.
      inv H. apply Z.leb_le in H4. congruence.
 Qed.
 
-Lemma insert_sorted : forall x xs, LocallySorted Zle xs -> LocallySorted Zle (insert x xs).
+Lemma insert_sorted : forall x xs, LocallySorted Z.le xs -> LocallySorted Z.le (insert x xs).
 Proof.
 intros.
 induction xs.
@@ -1120,7 +1120,7 @@ induction xs.
           constructor. simpl in IHxs. rewrite <- Heqb0 in IHxs. auto. auto.
 Qed.
 
-Lemma insertion_sort_sorted : forall xs, LocallySorted Zle (insertion_sort xs).
+Lemma insertion_sort_sorted : forall xs, LocallySorted Z.le (insertion_sort xs).
 Proof.
 induction xs.
   + constructor.
@@ -1157,7 +1157,7 @@ induction xs.
 + simpl. apply insert_permutation2. auto.
 Qed.
 
-Lemma insertion_sort_sound : forall xs, LocallySorted Zle (insertion_sort xs) /\ Permutation xs (insertion_sort xs).
+Lemma insertion_sort_sound : forall xs, LocallySorted Z.le (insertion_sort xs) /\ Permutation xs (insertion_sort xs).
 Proof.
 intros.
 split. apply insertion_sort_sorted.

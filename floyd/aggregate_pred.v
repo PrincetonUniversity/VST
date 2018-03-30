@@ -24,13 +24,13 @@ Definition and lemmas about rangespec
 Fixpoint rangespec (lo: Z) (n: nat) (P: Z -> val -> mpred): val -> mpred :=
   match n with
   | O => fun _ => emp
-  | S n' => P lo * rangespec (Zsucc lo) n' P
+  | S n' => P lo * rangespec (Z.succ lo) n' P
  end.
 
 Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
  match n with
   | O => zero
-  | S n' => f lo (fold_range' f  zero (Zsucc lo) n')
+  | S n' => f lo (fold_range' f  zero (Z.succ lo) n')
  end.
 
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=

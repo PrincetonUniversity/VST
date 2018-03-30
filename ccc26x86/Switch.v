@@ -124,7 +124,7 @@ Fixpoint validate_jumptable (cases: ZMap.t nat)
   | nil => true
   | act :: rem =>
       beq_nat act (ZMap.get n cases)
-      && validate_jumptable cases rem (Zsucc n)
+      && validate_jumptable cases rem (Z.succ n)
   end.
 
 Fixpoint validate (default: nat) (cases: table) (t: comptree)

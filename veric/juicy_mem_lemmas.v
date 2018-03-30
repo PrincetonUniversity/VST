@@ -342,7 +342,7 @@ assert (nat_of_Z (snd loc' - (ofs + 1)) = n).
   replace (Z_of_nat (S n)) with (Zpos (P_of_succ_nat n)) by auto.
   replace (Z_of_nat (S (S n))) with (Zpos (P_of_succ_nat (S n))) by auto.
   do 2 rewrite Zpos_P_of_succ_nat.
-  replace (Zsucc (Z_of_nat (S n)) - 1) with (Z_of_nat (S n)) by omega.
+  replace (Z.succ (Z_of_nat (S n)) - 1) with (Z_of_nat (S n)) by omega.
   simpl.
   rewrite Zpos_P_of_succ_nat.
   auto.
@@ -370,7 +370,7 @@ rewrite Coqlib.nat_of_Z_eq; try solve [omega].
 rewrite Coqlib.nat_of_Z_eq in H5; try solve [omega].
 rewrite <- H5.
 rewrite inj_S.
-assert (forall z, Zsucc z - 1 = z) by (intros; omega).
+assert (forall z, Z.succ z - 1 = z) by (intros; omega).
 rewrite H6.
 rewrite nat_of_Z_eq.
 auto.

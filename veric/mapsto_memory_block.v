@@ -148,12 +148,12 @@ Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with
  | O => emp
  | S n' => address_mapsto Mint8unsigned (Vint Int.zero) sh adr 
-               * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
+               * address_mapsto_zeros sh n' (fst adr, Z.succ (snd adr))
 end.
 
 Definition address_mapsto_zeros' (n: Z) : spec :=
      fun (sh: Share.t) (l: address) =>
-          allp (jam (adr_range_dec l (Zmax n 0))
+          allp (jam (adr_range_dec l (Z.max n 0))
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) sh l')
                                   noat) && noghost.
 
@@ -173,7 +173,7 @@ Proof.
     hnf.
     rewrite if_false.
     simpl. apply resource_at_identity; auto.
-    intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
+    intros [? ?]. unfold Z.max in H1;  simpl in H1. omega.
     apply ghost_of_identity; auto.
     intros w [].
     simpl.
@@ -182,7 +182,7 @@ Proof.
     specialize (H (b',i')).
     hnf in H.
     rewrite if_false in H. apply H.
-    clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+    clear; intros [? ?]. unfold Z.max in H0; simpl in H0. omega.
     auto.
   * (* inductive case *)
     rewrite inj_S.
@@ -262,11 +262,11 @@ Proof.
             simpl.
             subst b'.
             clear - H7 H8.
-            assert (~ (Zsucc i <= i' < (Zsucc i + Zmax (Z_of_nat n) 0))).
+            assert (~ (Z.succ i <= i' < (Zsucc i + Z.max (Z_of_nat n) 0))).
             contradict H7; split; auto.
             clear H7.
-            replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
-            replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
+            replace (Z.max (Z.succ (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
+            replace (Z.max (Z_of_nat n) 0) with (Z_of_nat n) in H.
             omega.
             symmetry; apply Zmax_left.
             apply Z_of_nat_ge_O.
@@ -316,7 +316,7 @@ Proof.
            | apply resource_fmap_core].
       { apply ghost_of_approx. }
       assert (AV.valid (res_option oo
-        fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
+        fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
           else core (w @ loc))).
       Focus 1. {
