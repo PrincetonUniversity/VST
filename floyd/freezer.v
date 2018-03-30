@@ -422,29 +422,32 @@ Inductive ramif_frame_gen: mpred -> mpred -> Prop :=
 | ramif_frame_gen_prop: forall (Pure: Prop) P Q, Pure -> ramif_frame_gen P (imp (prop Pure) Q) -> ramif_frame_gen P Q
 | ramif_frame_gen_allp: forall {A: Type} (x: A) P Q, (forall x: A, ramif_frame_gen (P x) (Q x)) -> ramif_frame_gen (allp P) (Q x).
 
-Ltac prove_ramif_frame_gen wit :=
+Ltac prove_ramif_frame_gen_rec wit :=
   match wit with
-  | pair ?x ?wit0 =>
+  | pair ?wit0 ?x =>
+      prove_ramif_frame_gen_rec wit0;
       match goal with
       | |- ramif_frame_gen _ ?P => super_pattern P x
       end;
       apply (ramif_frame_gen_allp x);
       clear dependent x;
-      intros x;
-      prove_ramif_frame_gen wit0
+      intros x
   | _ =>
       match goal with
       | |- ramif_frame_gen _ ?P => super_pattern P wit
       end;
       apply (ramif_frame_gen_allp wit);
       clear dependent wit;
-      intros wit;
-      apply ramif_frame_gen_refl
+      intros wit
   end.
+
+Ltac prove_ramif_frame_gen wit :=
+  prove_ramif_frame_gen_rec wit;
+  apply ramif_frame_gen_refl.
 
 Ltac conj_gen assu :=
   match assu with
-  | pair ?a ?assu0 => let r := conj_gen assu0 in constr:(conj a r)
+  | pair ?assu0 ?a => let r := conj_gen assu0 in constr:(conj r a)
   | _ => constr:(assu)
   end.
 
