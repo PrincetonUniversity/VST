@@ -223,7 +223,7 @@ Proof.
   (*  subst add_len. *) clear H.
   unfold POSTCONDITION, abbreviate, generate_absPOST. rewrite Hout_lenb, Hadd_lenb. abbreviate_semax.
   assert (ZLa: Zlength (contents_with_add additional add_len contents) >? 256 = false).
-     { unfold contents_with_add. if_tac. subst; trivial. rewrite Zlength_nil; trivial. }
+     { unfold contents_with_add. simple_if_tac. subst; trivial. rewrite Zlength_nil; trivial. }
 
   (*1. (aka VII and IX) Check reseed counter and PR*)
   set (should_reseed := orb prediction_resistance (reseed_counter >? reseed_interval)) in *.
@@ -284,7 +284,7 @@ Proof.
 
   set (contents' := contents_with_add additional add_len contents) in *.
   assert (C' : contents' = nil \/ contents' = contents).
-  { subst contents'; unfold contents_with_add. if_tac. right; trivial. left; trivial. }
+  { subst contents'; unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   assert (ZLc' : Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
   { destruct C' as [C' | C']; rewrite C'. left; trivial. right; trivial. }
 

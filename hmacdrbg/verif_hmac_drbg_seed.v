@@ -172,7 +172,7 @@ Proof.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. simple_if_tac. omega. rewrite Zlength_nil; omega.
     split. apply IB1. split; omega.
     assumption.
   }
@@ -180,7 +180,7 @@ Proof.
   Intros v.
   assert (ZLc': Zlength (contents_with_add data (Zlength Data) Data) = 0 \/
                  Zlength (contents_with_add data (Zlength Data) Data) = Zlength Data).
-         { unfold contents_with_add. if_tac. right; trivial. left; trivial. }
+         { unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   forward.
   deadvars!. 
   forward_if (
