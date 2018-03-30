@@ -372,7 +372,6 @@ Proof.
   apply Freezer.FRZR1.
 Qed.
 
-(* Move this and the copy of this in forward.v into somewhere proper. *)
 Ltac unfold_app :=
 change (@app mpred)
   with (fix app (l m : list mpred) {struct l} : list mpred :=
