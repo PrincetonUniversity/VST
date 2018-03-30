@@ -278,7 +278,7 @@ simpl Mem.getN;
   repeat match goal with n: nat |- _ =>
      destruct n; try (rewrite !andb_false_r; reflexivity)
    end;
- try solve [if_tac; destruct v; auto].
+ try solve [simple_if_tac; destruct v; auto].
 Qed.
 
 Lemma rel_LR'_fun:

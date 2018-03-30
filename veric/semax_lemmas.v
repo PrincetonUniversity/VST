@@ -508,7 +508,7 @@ Lemma semax_post'_bupd {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H0 n. revert n H0.
+specialize (H0 n). revert n H0.
 apply semax'_post_bupd.
 auto.
 Qed.
@@ -527,7 +527,7 @@ Lemma semax_post_bupd {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H3 n. revert n H3.
+specialize (H3 n). revert n H3.
 apply semax'_post_bupd.
 intros; destruct ek; simpl;
 repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
@@ -544,7 +544,7 @@ Lemma semax_post' {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H0 n. revert n H0.
+specialize (H0 n). revert n H0.
 apply semax'_post.
 auto.
 Qed.
@@ -563,7 +563,7 @@ Lemma semax_post {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H3 n. revert n H3.
+specialize (H3 n). revert n H3.
 apply semax'_post.
 intros; destruct ek; simpl;
 repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
@@ -578,7 +578,7 @@ Lemma semax_pre_bupd {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H0 n.
+specialize (H0 n).
 revert n H0.
 apply semax'_pre_bupd.
 repeat intro. apply (H rho a); auto. split; auto.
@@ -591,7 +591,7 @@ Lemma semax_pre {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-spec H0 n.
+specialize (H0 n).
 revert n H0.
 apply semax'_pre.
 repeat intro. apply (H rho a). split; auto.
@@ -2021,10 +2021,10 @@ Proof.
   - unfold liftx in *; simpl in *.
     unfold lift in *; simpl in *.
     destruct (eval_expr e rho), (eval_expr e0 rho); auto; simpl in *.
-    + if_tac; auto.
+    + simple_if_tac; auto.
       destruct H0; split; auto.
       destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
-    + if_tac; auto.
+    + simple_if_tac; auto.
       destruct H0; split; auto.
       destruct H1; [left | right]; simpl in *; rewrite <- H; auto.
     + unfold test_eq_ptrs in *.

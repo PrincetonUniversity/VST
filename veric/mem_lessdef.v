@@ -63,7 +63,7 @@ Proof.
   - intros k (b, ofs).
     match type of E with ?f = ?g => assert (S : forall b z k p, f b z k p <-> g b z k p) end.
     { rewrite E; tauto. } clear E.
-    spec S b ofs k. revert S.
+    specialize (S b ofs k). revert S.
     unfold access_at, Mem.perm. simpl.
     set (o1 := (Mem.mem_access _) !! b ofs k).
     set (o2 := (Mem.mem_access _) !! b ofs k). clearbody o1 o2. intros S.
@@ -74,7 +74,7 @@ Proof.
     destruct (S' o2) as [_ B]. spec B. apply perm_order_pp_refl.
     destruct o1 as [[]|], o2 as [[]|]; auto; simpl in *.
     all: inv A; inv B; auto.
-  - extensionality b ofs k. spec E k (b, ofs).
+  - extensionality b ofs k. specialize (E k (b, ofs)).
     unfold access_at in *.
     simpl in E.
     unfold Mem.perm in *.
@@ -115,7 +115,7 @@ Proof.
         revert ofs.
         induction n; auto; intros ofs p.
         simpl. f_equal.
-        -- spec E (b, ofs).
+        -- specialize (E (b, ofs)).
            unfold contents_at in *.
            simpl in E.
            apply E.
@@ -681,9 +681,9 @@ Qed.
 Ltac sync D :=
   first
     [ split; [destruct D as [D _] | destruct D as [_ D]]
-    | destruct D as [D|D]; [left|right]
+    | destruct D as [|D]; [left|right]
     | let x := fresh in destruct D as (x, D); exists x
-    | let x := fresh in intro x; spec D x
+    | let x := fresh in intro x; specialize (D x)
     ].
 
 Lemma juicy_step_mem_lessdef_sim {ge c jm1 c' jm1' jm2} :
@@ -700,8 +700,7 @@ Proof.
   split; split; auto.
   repeat rewrite level_juice_level_phi in *.
 
-  repeat sync D.
-
+ repeat sync D.
   all: try rewrite <-Ew; try rewrite <-Hw; try assumption.
 
   - intros out. apply D.

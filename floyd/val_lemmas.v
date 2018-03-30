@@ -887,7 +887,7 @@ Lemma typed_true_ptr:
 Proof.
 unfold typed_true, strict_bool_val; simpl; intros.
 destruct v; try discriminate.
-if_tac in H; inv H. simpl. auto.
+destruct (Int.eq i Int.zero); inv H. simpl. auto.
 Qed.
 
 Lemma int_cmp_repr':

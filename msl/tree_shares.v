@@ -1750,12 +1750,12 @@ Module Share <: SHARE_MODEL.
       simpl in H1.
       destruct (mkCanon (split_tok2 n0 t0_2)); try discriminate.
       destruct b; discriminate.
-      spec IHisToken' n0.
+      specialize ( IHisToken' n0).
       spec IHisToken'; [ omega | ].
       rewrite H1 in IHisToken'.
       inv IHisToken'.
       constructor.
-      spec IHisToken' n0.
+      specialize ( IHisToken' n0).
       spec IHisToken'.
       omega.
       rewrite H1 in IHisToken'.
@@ -1765,7 +1765,7 @@ Module Share <: SHARE_MODEL.
       rewrite H5; auto.
       constructor.
       subst; rewrite H5; auto.
-      spec IHisToken' n0 H0.
+      specialize ( IHisToken' n0 H0).
       simpl split_tok2.
       inversion IHisToken'.
       simpl minus.
@@ -2513,8 +2513,8 @@ Proof.
   simpl.
   simpl in H.
   destruct H as [? [? [? ?]]].
-  spec IHt0_1 H1.
-  spec IHt0_2 H2.
+  specialize ( IHt0_1 H1).
+  specialize ( IHt0_2 H2).
   rewrite IHt0_1.
   rewrite IHt0_2.
   icase t0_1;icase t0_2.
@@ -2545,16 +2545,16 @@ Proof.
   icase x.
   icase b.
   intro.
-  spec H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
-          (exist (fun t0 => canonicalTree t0) (Leaf true) (canonTree_Leaf _)).
+  specialize ( H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
+          (exist (fun t0 => canonicalTree t0) (Leaf true) (canonTree_Leaf _))).
   detach H0.
   inv H0.
   unfold join,BAF.Join_ba.
   split;apply exist_ext;compute;trivial.
   intro.
   unfold identity in H0.
-  spec H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
-          (exist (fun t : ShareTree => canonicalTree t) (Node x1 x2) c).
+  specialize ( H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
+          (exist (fun t : ShareTree => canonicalTree t) (Node x1 x2) c)).
   detach H0.
   inv H0.
   apply join_comm.
@@ -2604,8 +2604,8 @@ Proof.
          (conj n (conj n0 (conj c c0)))) sh) =
          (rel (exist _ x1 c) sh, rel (exist _ x2 c0) sh)).
    generalize (rel_classification);intro.
-   spec X (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
-          (conj n (conj n0 (conj c c0)))) sh.
+   specialize ( X (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+          (conj n (conj n0 (conj c c0)))) sh).
    icase X.
    destruct a;subst sh.
    clear.
@@ -2868,11 +2868,11 @@ Qed.
     unfold leftTree.
     simpl.
     generalize (rel_classification);intro.
-    spec X (exist (fun t0 : ShareTree => canonicalTree t0)
+    specialize ( X (exist (fun t0 : ShareTree => canonicalTree t0)
         (Node (Leaf true) (Leaf false))
           (conj (or_intror (true = false) (Logic.eq_refl false))
            (conj (or_introl (false = true) (Logic.eq_refl true)) (conj I I))))
-     (exist (fun t0 : ShareTree => canonicalTree t0) x c).
+     (exist (fun t0 : ShareTree => canonicalTree t0) x c)).
     icase X.
     destruct a.
     inv H.
@@ -2892,11 +2892,11 @@ Qed.
     unfold rightTree.
     simpl.
     generalize (rel_classification);intro.
-    spec X (exist (fun t0 : ShareTree => canonicalTree t0)
+    specialize ( X (exist (fun t0 : ShareTree => canonicalTree t0)
         (Node (Leaf false) (Leaf true))
          (conj (or_introl (true = false) (Logic.eq_refl false))
            (conj (or_intror (false = true) (Logic.eq_refl true)) (conj I I))))
-     (exist (fun t0 : ShareTree => canonicalTree t0) x c).
+     (exist (fun t0 : ShareTree => canonicalTree t0) x c)).
     icase X.
     destruct a0.
     inv H0.
@@ -3496,7 +3496,7 @@ Qed.
     remember (mkFull n (Leaf b)).
     destruct o.
     symmetry in Heqo.
-    spec IHn (Leaf b) s Heqo.
+    specialize ( IHn (Leaf b) s Heqo).
     inversion H1.
     simpl.
     rewrite max_l;trivial.
@@ -3531,7 +3531,7 @@ Qed.
    remember (mkFull n (Leaf b)).
    destruct o.
    symmetry in Heqo.
-   spec IHn (Leaf b) s Heqo.
+   specialize ( IHn (Leaf b) s Heqo).
    inversion H.
    apply fullTree_double;trivial.
    inversion H.
@@ -3624,15 +3624,15 @@ Qed.
    simpl in H.
    assert (n < max (tree_heightP t0_1) (tree_heightP t0_2)) by omega.
    generalize (Nat.max_lt_iff);intro.
-   spec H1 (tree_heightP t0_1) (tree_heightP t0_2) n.
+   specialize ( H1 (tree_heightP t0_1) (tree_heightP t0_2) n).
    destruct H1 as [? _].
-   spec H1 H0.
+   specialize ( H1 H0).
    destruct H1.
-   spec IHn t0_1 H1.
+   specialize ( IHn t0_1 H1).
    simpl.
    rewrite IHn;
    trivial.
-   spec IHn t0_2 H1.
+   specialize ( IHn t0_2 H1).
    simpl;rewrite IHn.
    icase (mkFull n t0_1);trivial.
   Qed.
@@ -3647,7 +3647,7 @@ Qed.
     elimtype False;omega.
     assert (n >= tree_heightP (Leaf b)).
       compute;omega.
-    spec IHn (Leaf b) H0.
+    specialize ( IHn (Leaf b) H0).
     destruct IHn.
     simpl.
     rewrite H1.
@@ -3706,8 +3706,8 @@ Qed.
    omega.
    generalize (mkCanon_split _ _ _ _ H);intro.
    destruct H0 as [? ?].
-   spec IHt0_1 t'1 H0.
-   spec IHt0_2 t'2 H1.
+   specialize ( IHt0_1 t'1 H0).
+   specialize (IHt0_2 t'2 H1).
    simpl.
    assert (max (tree_heightP t'1) (tree_heightP t'2) <= max (tree_heightP t0_1) (tree_heightP t0_2) ).
     generalize (le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
@@ -5495,7 +5495,7 @@ Qed.
    f_equal;apply exist_ext.
    icase b.
    simpl in *.
-   spec IHn b c.
+   specialize ( IHn b c).
    icase (mkFull n (Leaf b)).
    simpl.
    icase (tree_avgP s s).
@@ -6354,9 +6354,9 @@ Qed.
    destruct H11 as [H11 _];
    destruct H21 as [H21 _];
    destruct H31 as [H31 _].
-   spec H11 H1;
-   spec H21 H2;
-   spec H31 H3.
+   specialize ( H11 H1);
+   specialize ( H21 H2);
+   specialize ( H31 H3).
    generalize (canonTree_rewrite2 t11);intro H12;
    generalize (canonTree_rewrite2 t12);intro H13;
    generalize (canonTree_rewrite2 t21);intro H22;
@@ -6412,7 +6412,7 @@ Proof.
   destruct s2 as [s2 pf2].
   icase s;
   simpl in H;
-  destruct pf as [? [? [? ?]]];
+  destruct pf;
   inv H;
   unfold tree_height in *;simpl in *.
   omega.
@@ -6434,8 +6434,8 @@ Proof.
  unfold Ord in H;simpl in H.
  icase s1;icase s2;inv H0;inv H1;unfold Ord;
  simpl in pf1,pf2;
- destruct pf1 as [? [? [? ?]]];
- destruct pf2 as [? [? [? ?]]];simpl.
+ destruct pf1;
+ destruct pf2;simpl.
  icase b;icase b0;inv H.
  inversion H;subst.
  inversion H2;subst.
@@ -6584,10 +6584,10 @@ Proof.
   destruct H as [H3 H4].
   apply decompose_diff with (s11:=s11) (s12:=s12) (s21:=s21) (s22:=s22) in H0;trivial.
   destruct H0 as [H0|H0].
-  spec IHn s11 s21 H3 H0 H1.
+  specialize ( IHn s11 s21 H3 H0 H1).
   assert (H5 := countBLeafCT_le n _ _ H4).
   omega.
-  spec IHn s12 s22 H4 H0 H2.
+  specialize ( IHn s12 s22 H4 H0 H2).
   assert (H5 := countBLeafCT_le n _ _ H3).
   omega.
 Qed.
@@ -6828,11 +6828,11 @@ Proof.
   apply countBLeafCT_decompose with (n:=n1) in Heqds.
   omega.
  destruct H2 as [H2|H2].
- spec IHn1 n2 s1 H1 H2.
+ specialize ( IHn1 n2 s1 H1 H2).
  assert (H3 : n1 <= n2) by omega.
  apply countBLeafCT_mono_le with (s:=s2) in H3.
  omega.
- spec IHn1 n2 s2 H1 H2.
+ specialize ( IHn1 n2 s2 H1 H2).
  assert (H3 : n1 <= n2) by omega.
  apply countBLeafCT_mono_le with (s:=s1) in H3.
  omega.
@@ -7014,8 +7014,8 @@ Qed.
   f_equal.
   simpl in pf.
   destruct pf as [? [? [? ?]]].
-  spec IHs1 H1.
-  spec IHs2 H2.
+  specialize ( IHs1 H1).
+  specialize ( IHs2 H2).
   unfold tree_height in *;simpl in *.
   congruence.
  Qed.
@@ -7301,13 +7301,13 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   right. intro. inv H. inv H2...
   right. intro. inv H. inv H2...
   icase t2. icase b.
-  spec IHt1_1 (Leaf false).
-  spec IHt1_2 (Leaf false).
+  specialize ( IHt1_1 (Leaf false)).
+  specialize ( IHt1_2 (Leaf false)).
   destruct IHt1_1. destruct IHt1_2.
   left. apply NodeLeaf_Ord;apply Node_Ord...
   right. intro. inv H. inv H1...
   right. intro. inv H. inv H1...
-  spec IHt1_1 t2_1. spec IHt1_2 t2_2.
+  specialize ( IHt1_1 t2_1). specialize ( IHt1_2 t2_2).
   destruct IHt1_1. destruct IHt1_2.
   left. apply Node_Ord...
   right. intro. inv H...
@@ -7521,7 +7521,7 @@ Qed.
 Lemma identity_bot: forall s, identity s <-> s = bot.
 Proof.
  repeat intro. split;intros.
- spec H bot s.
+ specialize ( H bot s).
  symmetry. apply H.
  split. apply glb_bot.
  apply lub_bot.
@@ -7628,9 +7628,9 @@ Proof.
    destruct H11 as [H11 _];
    destruct H21 as [H21 _];
    destruct H31 as [H31 _].
-   spec H11 H1;
-   spec H21 H2;
-   spec H31 H3.
+   specialize ( H11 H1);
+   specialize ( H21 H2);
+   specialize ( H31 H3).
    generalize (canonTree_rewrite2 t11);intro H12;
    generalize (canonTree_rewrite2 t12);intro H13;
    generalize (canonTree_rewrite2 t21);intro H22;
@@ -7654,9 +7654,9 @@ Proof.
    destruct H11 as [H11 _];
    destruct H21 as [H21 _];
    destruct H31 as [H31 _].
-   spec H11 H1;
-   spec H21 H2;
-   spec H31 H3.
+   specialize ( H11 H1);
+   specialize ( H21 H2);
+   specialize ( H31 H3).
    generalize (canonTree_rewrite2 t11);intro H12;
    generalize (canonTree_rewrite2 t12);intro H13;
    generalize (canonTree_rewrite2 t21);intro H22;

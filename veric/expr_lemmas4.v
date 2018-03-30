@@ -591,7 +591,8 @@ destruct u;
        | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => apply tc_bool_e in H
        end;
   destruct (eval_expr e rho) eqn:?;
-  try if_tac in H4; try contradiction; try reflexivity;
+  try match type of H4 with context [if ?A then _ else _] => destruct A end;
+  try contradiction; try reflexivity;
  unfold Cop.sem_notbool; simpl;
  unfold Cop.bool_val, bool_val;
  apply tc_bool_e in H1; apply negb_true_iff in H1; rewrite H1;
@@ -682,7 +683,7 @@ rewrite H3.
 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold tc_bool in H2.
-if_tac in H2; try contradiction.
+destruct (eqb_type t t0); try contradiction.
 apply Clight.eval_Elvalue with b Ptrofs.zero; [  | econstructor 2; apply MODE].
 apply Clight.eval_Evar_global; auto.
 
@@ -729,7 +730,8 @@ simpl in *.
 clear - H3.
 destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
   try contradiction H3.
-unfold tc_val in H3. if_tac in H3; contradiction H3.
+unfold tc_val in H3. 
+destruct (eqb_type _ _); contradiction H3.
 
 * (*deref*)
 assert (TC:= typecheck_expr_sound).

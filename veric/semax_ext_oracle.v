@@ -279,7 +279,7 @@ assert (Hp'': P x z (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge)))
                                  (fst (split (fst sig))) args) s).
 { generalize (all_funspecsOracle_wf ty f) as Hwf2; intro.
   unfold wf_funspecOracle in Hwf2.
-  spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args z.
+  specialize (Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args z).
   spec Hwf2.
   rewrite symb2genv_ax; auto.
   apply Hwf2; auto. }

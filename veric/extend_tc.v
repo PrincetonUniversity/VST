@@ -163,7 +163,7 @@ destruct (eval_expr e2 rho); auto.
   apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 +
  unfold test_eq_ptrs in *.
- if_tac;
+ simple_if_tac;
  (eapply boxy_e;
   [apply extend_andp; try apply extend_orp; apply extend_valid_pointer' | apply H | apply H0]).
 Qed.
@@ -182,7 +182,7 @@ unfold denote_tc_test_order in *.
 destruct (eval_expr e1 rho); auto;
 destruct (eval_expr e2 rho); auto.
 + unfold test_order_ptrs in *.
-  if_tac; auto.
+  simple_if_tac; auto.
  eapply boxy_e;
   [apply extend_andp; eapply extend_orp; apply extend_valid_pointer' | apply H | apply H0].
 Qed.
@@ -277,12 +277,12 @@ destruct s; try apply extend_prop.
 destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
 try apply extend_tc_nosignedover;
-if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
 destruct (eval_expr e1 any_environ); try apply extend_prop;
 destruct (eval_expr e2 any_environ); try apply extend_prop;
 try apply extend_tc_nosignedover;
-if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
-all: if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
+try destruct s; try apply extend_prop; try apply extend_tc_nosignedover.
+all: simple_if_tac; try apply extend_prop; try apply extend_tc_nosignedover.
 Qed.
 
 Lemma boxy_orp {A} `{H : ageable A}:

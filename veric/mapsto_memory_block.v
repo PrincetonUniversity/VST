@@ -70,7 +70,7 @@ unfold address_mapsto.
 unfold derives.
 simpl.
 intros ? ?.
-destruct H as [bl [[[? [? ?]] ?]] _].
+destruct H as [bl [[[? [? ?]] ?]] ].
 specialize (H2 a).
 rewrite if_true in H2.
 destruct H2 as [rsh ?]. auto.
@@ -83,9 +83,9 @@ Proof.
   intros.
   unfold mapsto.
   destruct (access_mode t); auto.
-  if_tac; auto.
-  destruct p; auto.
-  if_tac.
+  if_tac; auto;
+  destruct p; auto;
+  try simple_if_tac; auto.
   + apply orp_left; apply andp_left1.
     - intros ?; simpl.
       apply tc_val_tc_val'.
@@ -1171,8 +1171,8 @@ Proof.
      destruct (sign_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact (conj H0 H1).
  } Unfocus.
-  f_equal; f_equal; extensionality bl.
- f_equal. f_equal. apply f_equal.
+ apply equal_f. apply f_equal. apply f_equal. extensionality bl.
+ apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1208,8 +1208,8 @@ Proof.
      destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact H1.
  } Unfocus.
- f_equal; f_equal; extensionality bl.
- f_equal. f_equal. apply f_equal.
+ apply equal_f. apply f_equal. apply f_equal. extensionality bl.
+ apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1242,7 +1242,7 @@ Qed.
 Lemma is_pointer_or_null_nullval: is_pointer_or_null nullval.
 Proof.
 unfold is_pointer_or_null, nullval.
-if_tac; auto.
+simple_if_tac; auto.
 Qed.
 Hint Resolve is_pointer_or_null_nullval.
 
@@ -1251,7 +1251,7 @@ Lemma tc_val_pointer_nullval:
 Proof.
  intros. unfold nullval; simpl.
  rewrite andb_false_r.
- hnf. if_tac; auto.
+ hnf. simple_if_tac; auto.
 Qed.
 Hint Resolve tc_val_pointer_nullval.
 
@@ -1260,8 +1260,8 @@ Lemma tc_val_pointer_nullval':
  forall t a, tc_val (Tpointer t a) nullval.
 Proof.
  intros. hnf. unfold nullval.
- if_tac; hnf;
- if_tac; auto.
+ simple_if_tac; hnf;
+ simple_if_tac; auto.
 Qed.
 Hint Resolve tc_val_pointer_nullval'.
 
@@ -1289,7 +1289,7 @@ f_equal.
 f_equal.
 apply prop_ext; split; intros _ _;
 unfold nullval; rewrite Hp; hnf; auto.
-if_tac; simpl; rewrite Hp; auto.
+simple_if_tac; simpl; rewrite Hp; auto.
 *
 simpl access_mode; cbv beta iota.
 simpl type_is_volatile;  cbv beta iota.
@@ -1304,7 +1304,7 @@ f_equal.
 f_equal.
 apply prop_ext; split; intros _ _;
 unfold nullval; rewrite Hp; hnf; auto.
-if_tac; simpl; rewrite Hp; auto.
+simple_if_tac; simpl; rewrite Hp; auto.
 Qed.
 
 Definition is_int32_noattr_type t :=
@@ -1362,6 +1362,6 @@ Proof.
    apply pred_ext; unfold derives; simpl; tauto.
   + f_equal. f_equal.
       unfold tc_val'.
-      f_equal. simpl. if_tac; simpl; rewrite H; auto.
+      f_equal. simpl. simple_if_tac; simpl; rewrite H; auto.
       apply prop_ext; intuition.
 Qed.

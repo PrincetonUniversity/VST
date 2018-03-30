@@ -614,7 +614,7 @@ Proof.
   intros sh t.
   type_induction t; intros;
   try solve [inversion LEGAL_COSU];
-  try solve [rewrite !data_at_rec_eq; try (if_tac; auto);
+  try solve [rewrite !data_at_rec_eq; try (simple_if_tac; auto);
   try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_]].
   + rewrite !data_at_rec_eq.
     apply array_pred_ext_derives.
@@ -766,7 +766,7 @@ Lemma default_value_fits:
 Proof.
   intros.
   type_induction t; try destruct f; rewrite value_fits_eq;
-  try solve [simpl; try (if_tac; auto); apply tc_val'_Vundef];
+  try solve [simpl; try (simple_if_tac; auto); apply tc_val'_Vundef];
   rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
@@ -795,7 +795,7 @@ Proof.
   revert v p; type_induction t; intros;
   rewrite value_fits_eq, data_at_rec_eq;
   try solve [normalize];
-  try solve [cbv zeta; if_tac; [normalize | apply mapsto_tc_val']].
+  try solve [cbv zeta; simple_if_tac; [normalize | apply mapsto_tc_val']].
   + (* Tarray *)
     eapply derives_trans; [apply array_pred_local_facts |].
     - intros.
@@ -838,7 +838,7 @@ Proof.
   intros.
   revert v ofs; pattern t; type_induction t; intros;
   rewrite !data_at_rec_eq;
-    try solve [if_tac;
+    try solve [simple_if_tac;
         [ apply memory_block_share_join; auto
         | apply mapsto_share_join; auto]];
     try solve [normalize].
@@ -1302,7 +1302,7 @@ intros. subst t' r.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_by_value_Vundef:
@@ -1315,7 +1315,7 @@ intros.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_by_value:
@@ -1330,7 +1330,7 @@ intros. subst r t'.
 rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; apply prop_ext; intuition).
+ (simple_if_tac; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_Tarray:

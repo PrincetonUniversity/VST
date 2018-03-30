@@ -716,7 +716,7 @@ forward_if PostResetBranch.
       unfold initPostKeyNullConditional.
       go_lower. ent_iter. (* Issue: we just want these two parts of entailer here... *)
       destruct k; try contradiction.
-      Time if_tac; entailer!. (* 0.92 *)
+      Time simple_if_tac; entailer!. (* 0.92 *)
       Exists b i.
       (*04/21/17: entailer! used to solve this in 6.7secs but now takes > 30secs;
        the following is a little faster.*)
@@ -860,7 +860,7 @@ Qed.*)
     destruct R; subst; [clear H |discriminate]. 
     Time destruct k; try solve[entailer]. (*2.9*)
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
-    Time if_tac; [ | entailer!].
+    Time simple_if_tac; [ | entailer!].
     Intros v x. destruct h1.
     Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl.
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.

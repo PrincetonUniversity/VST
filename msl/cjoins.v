@@ -123,7 +123,7 @@ Definition same_constructive_silhouette {A} {JOIN: Join A} (a b: A) :=
     intro phiu.
     split; intros [phix ?H].
     destruct (join_assoc H0 (join_comm H2)) as [phif [? ?]].
-    spec H phif.
+    specialize (H phif).
     destruct H as [?H ?H].
     assert (H6: constructive_joins phi phif) by (econstructor; eauto).
     spec H. rewrite constructive_joins_sym.  auto.
@@ -135,7 +135,7 @@ Definition same_constructive_silhouette {A} {JOIN: Join A} (a b: A) :=
     exists phix'.
     auto.
     destruct (join_assoc H1 (join_comm H2)) as [phif [? ?]].
-    spec H phif.
+    specialize (H phif).
     destruct H as [?H ?H].
     assert (H6: constructive_joins phi' phif) by (econstructor; eauto).
     spec H5. rewrite constructive_joins_sym.  auto.

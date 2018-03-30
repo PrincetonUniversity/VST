@@ -63,7 +63,7 @@ Lemma last_snoc h t : last (h ++ [t]) = t.
 Proof.
   induction h; simpl; auto.
   rewrite IHh.
-  remember (h ++ [t]) as l; if_tac; auto.
+  remember (h ++ [t]) as l; destruct l; auto.
   destruct h; inversion Heql.
 Qed.
 
@@ -71,7 +71,7 @@ Lemma butlast_snoc h t : butlast (h ++ [t]) = h.
 Proof.
   induction h; simpl; auto.
   rewrite IHh.
-  remember (h ++ [t]) as l; if_tac; auto.
+  remember (h ++ [t]) as l; destruct l; auto.
   destruct h; inversion Heql.
 Qed.
 
@@ -472,7 +472,7 @@ remember (hmerge :: tmerge) as merged.
    clear hmerge tmerge Heqmerged.
    forward.
    Exists a (@nil int) merged a_ c_ begin.
-   if_tac; [congruence|].
+   destruct merged; [congruence|].
    match goal with [ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
    end.
    clear Heqmerged' merged.
@@ -501,7 +501,7 @@ remember (hmerge :: tmerge) as merged.
   clear hmerge tmerge Heqmerged.
   forward.
   Exists (@nil int) b merged b_ c_ begin.
-  if_tac; [congruence|].
+  destruct merged; [congruence|].
   match goal with [ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
   end.
   clear Heqmerged' merged.

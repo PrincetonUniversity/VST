@@ -348,7 +348,7 @@ destruct Espec.
 assert (Hp'': P Ts x (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge)))
                                  (fst (split (fst sig))) args) s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
-  spec Hwf2 Ts x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args.
+  specialize (Hwf2 Ts x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args).
   spec Hwf2.
   rewrite symb2genv_ax; auto.
   apply Hwf2; auto. }
@@ -402,7 +402,7 @@ destruct Espec.
 assert (Hp'': P Ts x (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge)))
                                  (fst (split sig)) args) s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
-  spec Hwf2 Ts x ge (symb2genv (Genv.genv_symb ge)) (fst (split sig)) args.
+  specialize (Hwf2 Ts x ge (symb2genv (Genv.genv_symb ge)) (fst (split sig)) args).
   spec Hwf2.
   rewrite symb2genv_ax; auto.
   apply Hwf2; auto. }

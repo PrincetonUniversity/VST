@@ -25,13 +25,13 @@ mf_build {
           memory_block sh (mf_size-len) (offset_val len buf)
 }.
 
-Implicit Arguments mf_build [[t]].
-Implicit Arguments mf_size [[t]].
-Implicit Arguments mf_data_assert [[t]].
-Implicit Arguments mf_assert [[t]].
-Implicit Arguments mf_bufprop [[t]].
-Implicit Arguments mf_size_range [[t]].
-Implicit Arguments mf_restbuf [[t]].
+Arguments mf_build {t}.
+Arguments mf_size {t}.
+Arguments mf_data_assert {t}.
+Arguments mf_assert {t}.
+Arguments mf_bufprop {t}.
+Arguments mf_size_range {t}.
+Arguments mf_restbuf {t}.
 
 Definition t_struct_intpair := Tstruct _intpair noattr.
 Definition t_struct_message := Tstruct _message noattr.

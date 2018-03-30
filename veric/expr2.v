@@ -42,13 +42,13 @@ try solve [
  apply eqb_type_true in H. rewrite <- H in *.
  unfold tc_val in H0.
  rewrite eqb_reflx.
- if_tac in H0; destruct v; inv H0; reflexivity.
+ destruct (eqb_type (Tpointer _ _) _); destruct v; inv H0; reflexivity.
  rewrite andb_true_iff in H. destruct H.
  destruct (eqb_type (Tpointer t1 a) int_or_ptr_type); inv H.
  destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type); inv H7.
  simpl.
  unfold tc_val in H0.
- if_tac in H0; destruct v; inv H0; reflexivity.
+ destruct (eqb_type (Tpointer _ _) _); destruct v; inv H0; reflexivity.
 Qed.
 
 Lemma neutral_cast_subsumption: forall t1 t2 v,
@@ -77,7 +77,7 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
        try change (Int.unsigned Int.one) with 1;
        clear; compute; try split; congruence
     end;
- try ( if_tac in H0; contradiction H0).
+ try match type of H0 with context [if ?A then _ else _] => destruct A; contradiction H0 end.
  destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
  apply I.
  apply eqb_type_false in H.
@@ -90,7 +90,7 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  destruct attr_volatile; try solve [inv H8].
  simpl in H8.
  destruct attr_alignas; try solve [inv H8].
- destruct n as [ [ | ] | ]; try solve [inv H8].
+ destruct n as [ | ]; try solve [inv H8].
  apply Peqb_true_eq in H8. subst p.
  contradiction H. reflexivity.
  destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
@@ -328,11 +328,11 @@ intros.
   unfold is_neutral_cast in H; simpl classify_cast.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |],
    t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-   try solve [inv H; try apply I; simpl; if_tac; apply I];
+   try solve [inv H; try apply I; simpl; simple_if_tac; apply I];
   try (rewrite denote_tc_assert_andp; split);
   try solve [unfold eval_cast, sem_cast, classify_cast,
      sem_cast_pointer, sem_cast_i2bool, sem_cast_l2bool;
-      destruct Archi.ptr64; simpl; try if_tac; try apply I].
+      destruct Archi.ptr64; simpl; try simple_if_tac; try apply I].
   apply orb_true_iff in H.
   unfold classify_cast.
   destruct (eqb (eqb_type (Tpointer t a0) int_or_ptr_type)

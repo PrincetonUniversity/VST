@@ -379,10 +379,11 @@ repeat apply andp_right; try apply prop_right; auto.
  destruct (eval_expr hi rho); simpl in H5; try solve [inv H5].
  hnf in H5. red.
  unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H5.
- destruct Archi.ptr64 eqn:Hp; simpl in H5;
-  unfold Int.ltu in H5; if_tac in H5; inv H5.
+ destruct Archi.ptr64 eqn:Hp; simpl in H5.
+  unfold Int.ltu in H5; if_tac in H5; inv H5;
   rewrite Int.unsigned_repr in H3; auto.
-  if_tac in H9; inv H9.
+  rewrite Hp in H5. simpl in H5.
+  unfold Int.ltu in H5; if_tac in H5; inv H5;
   rewrite Int.unsigned_repr in H3; auto.
  -
   apply exp_right with x; auto.
@@ -404,10 +405,11 @@ rewrite Thi in H4. unfold_lift in H4. rewrite <- H6 in H4.
 destruct (eval_expr hi rho); simpl in H4; try solve [inv H4].
 hnf in H4. red.
  unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H4.
- destruct Archi.ptr64 eqn:Hp; simpl in H4;
-  unfold Int.ltu in H4; if_tac in H4; inv H4.
+ destruct Archi.ptr64 eqn:Hp; simpl in H4.
+  unfold Int.ltu in H4; if_tac in H4; inv H4;
   rewrite Int.unsigned_repr in H; auto.
- if_tac in H8; inv H8.
+  rewrite Hp in H4. simpl in H4.
+  unfold Int.ltu in H4; if_tac in H4; inv H4;
   rewrite Int.unsigned_repr in H; auto.
 *
 replace (fun a : environ =>

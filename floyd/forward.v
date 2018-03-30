@@ -251,7 +251,7 @@ Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
 Proof. extensionality t v.
 destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
 unfold tc_option_val, tc_option_val'.
-unfold tc_val. if_tac; reflexivity.
+unfold tc_val. destruct (eqb_type _ _); reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
@@ -1410,7 +1410,7 @@ Lemma int_repr_byte_signed_eq0:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try repable_signed.
+apply repr_inj_signed in H; try rep_omega.
 rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
 subst; reflexivity.
 Qed.
@@ -1421,7 +1421,7 @@ Lemma int_repr_byte_signed_eq:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try repable_signed.
+apply repr_inj_signed in H; try rep_omega.
 rewrite <- (Byte.repr_signed c). 
 rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
 subst; reflexivity.
@@ -1684,7 +1684,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
         [ reflexivity
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
@@ -1726,7 +1726,7 @@ Ltac forward_for2 Inv PreInc :=
         [ reflexivity 
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
@@ -3275,9 +3275,9 @@ Function spec: " S)
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
     match goal with
-    | s :=  (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ nil u
-               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s :=  (DECLARE _ WITH _: globals
+               PRE  [] main_pre _ nil _
+               POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
    change (semax_body V G F s); subst s
@@ -3285,7 +3285,7 @@ Function spec: " S)
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
    match Pre with
-   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return

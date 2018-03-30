@@ -125,7 +125,7 @@ rewrite H in *. rewrite eqb_type_refl in *.
  unfold is_pointer_type in H1.
  destruct pt; try solve [inv H1; auto].
  unfold tc_val.
- if_tac; apply I.
+ simple_if_tac; apply I.
 }
 {remember ((glob_types Delta) ! i). destruct o; try congruence.
 simpl in *. super_unfold_lift.
@@ -139,7 +139,7 @@ unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo0).
 rewrite H5.
 unfold tc_val; unfold is_pointer_type in H1;
  destruct pt; try solve [inv H1; reflexivity].
- if_tac; apply I.
+ simple_if_tac; apply I.
 destruct H4; congruence. inv H0.
 inv H0.
 }
@@ -177,7 +177,7 @@ destruct (typeof e); try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
   destruct t; auto; try inversion H2.
   destruct f; inv H2.
-  red. if_tac; apply I.
+  red. simple_if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
 Qed.
@@ -212,7 +212,7 @@ destruct (typeof e); try now inv H2.
   destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
   destruct pt; inv H1; auto.
-  red; if_tac; apply I.
+  red; simple_if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
 Qed.
@@ -367,7 +367,7 @@ intros. destruct t1; destruct t2;
     end;
    try solve [inv H]; destruct v; auto;
    try solve [inv H0];
-   try solve [if_tac; apply I].
+   try solve [simple_if_tac; apply I].
    unfold same_base_type in H.
    destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type).
    apply I. inv H0. reflexivity.

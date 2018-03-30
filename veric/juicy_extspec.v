@@ -446,7 +446,7 @@ Proof.
        ++ rewrite <-resource_at_approx, Hphi; auto.
       * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
         destruct H8 as [_ H8].
-        spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8].
+        specialize (H8 adr). rewrite Hm' in H8. destruct H8 as [pp H8].
         apply age_jm_phi in H2.
         assert (Hnec: necR (m_phi jm0) (m_phi jm)) by (apply rt_step; auto).
         eapply necR_PURE' in Hnec; eauto.

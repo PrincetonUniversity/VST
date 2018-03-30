@@ -186,7 +186,7 @@ intros until jm; intros H.
 assert (Hacc := juicy_mem_access jm).
 unfold access_cohere in Hacc.
 unfold Mem.perm, Mem.perm_order'.
-spec Hacc (b, i).
+specialize ( Hacc (b, i)).
 simpl in H.
 destruct (m_phi jm @ (b, i)).
 contradiction.
@@ -212,7 +212,7 @@ intros.
 destruct H as [H ?].
 destruct H0 as [H3 H4].
 subst.
-spec H ofs' H4.
+specialize( H ofs' H4).
 rewrite H1 in H.
 auto.
 Qed.
@@ -236,7 +236,7 @@ induction bl; intros; simpl; auto.
 rewrite IHbl with (ofs := ofs + 1) (z := z - 1); auto.
 rewrite Mem.getN_length.
 f_equal; auto.
-spec H (b, ofs).
+specialize ( H (b, ofs)).
 cut (adr_range (b, ofs) z (b, ofs)); [intro H6|].
 destruct (adr_range_dec (b, ofs) z (b, ofs)).
   2: elimtype False; auto.
@@ -277,7 +277,7 @@ assert (HS_nat_Z: forall n z, S n = nat_of_Z z -> Z_of_nat n + 1 = z).
   auto.
 symmetry; apply HS_nat_Z; auto.
 intros loc'.
-spec H loc'.
+specialize (H loc').
 cut ( adr_range (b, ofs + 1) (z - 1) loc' -> adr_range (b, ofs) z loc').
 intro H1.
 destruct (adr_range_dec (b, ofs + 1) (z - 1) loc').
@@ -387,7 +387,7 @@ destruct H as [bl [[H1 [H2 Halign]] H]].
 hnf in H.
 split.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -395,7 +395,7 @@ destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
 destruct H as [sh [rsh H]].
 simpl in H.
 unfold access_cohere in H0.
-spec H0 (b, ofs').
+specialize (H0 (b, ofs')).
 unfold Mem.perm, Mem.perm_order'.
 rewrite H in H0.
 unfold access_at in H0.  simpl in H0.
@@ -570,7 +570,7 @@ destruct H as [_ ?].
 specialize (PERM ofs' H).
 (*
 unfold access_cohere in H3.
-spec H3 (b, ofs').
+specialize (H3 (b, ofs').
 *)
 unfold perm_of_res in *.
 destruct H0 as [H0 _].
@@ -654,7 +654,7 @@ destruct H as [x [y [Hjoin ?]]].
 destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -695,7 +695,7 @@ destruct H as [x [y [Hjoin ?]]].
 destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -860,13 +860,13 @@ pose (H0 :=True).
 intros R H VR H1 H2 Hyes.
 assert (forall l, ~adr_range (b,lo) (hi-lo) l -> identity (m1 @ l)).
   unfold VALspec_range, allp, jam in H1.
-  intros l. destruct H1 as [H1 _]; spec H1 l. intros H3.
+  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H3.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 assert (forall l, adr_range (b,lo) (hi-lo) l 
   -> exists mv, yesat NoneP (VAL mv) Share.top  l m1).
   unfold VALspec_range, allp, jam in H1.
-  intros l. destruct H1 as [H1 _]; spec H1 l. intros H4.
+  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H4.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 remember (free_juicy_mem _ _ _ _ _ H _) as j'.
@@ -882,7 +882,7 @@ unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs0)).
 * (* adr_range *)
 clear H3.
-spec H4 (b0,ofs0) a.
+specialize (H4 (b0,ofs0) a).
 destruct H4 as [mv H4].
 unfold yesat, yesat_raw in H4. destruct H4 as [pp H4].
 simpl in H4.
@@ -897,7 +897,7 @@ assert (H0 : access_at m' (b0, ofs0) Cur = None).
   assert (b = b0) by (destruct a; auto). subst.
   unfold access_at; simpl. rewrite PMap.gss.
   rewrite adr_range_zle_zlt with (b:=b0); auto.
-spec Ha (b0,ofs0). rewrite <- H5 in Ha.
+specialize (Ha (b0,ofs0)). rewrite <- H5 in Ha.
 rewrite H0 in Ha.
 assert (H3 : m_phi j @ (b0, ofs0) = YES Share.top readable_share_top (VAL mv) NoneP). {
   clear - H H4 a Hyes.

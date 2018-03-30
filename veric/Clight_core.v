@@ -171,6 +171,15 @@ Proof. intros.
     eapply mem_step_alloc; eassumption. eassumption.
 Qed.
 
+Lemma CC_core_to_State_mem:
+    forall f STEP k e le m c m',
+    State f STEP k e le m = CC_core_to_CC_state c m' ->
+    m = m'.
+  Proof.
+    intros;
+      destruct c; inversion H; auto.
+  Qed.
+
 Lemma bind_parameters_mem_step: forall cenv e m pars vargs m'
       (M: bind_parameters cenv e m pars vargs m'), mem_step m m'.
 Proof. intros.
@@ -187,14 +196,6 @@ Program Definition CLNC_memsem :
 apply Build_MemSem with (csem := cl_core_sem).
   intros.
   induction CS. simpl in H0.
-  Lemma CC_core_to_State_mem:
-    forall f STEP k e le m c m',
-    State f STEP k e le m = CC_core_to_CC_state c m' ->
-    m = m'.
-  Proof.
-    intros;
-      destruct c; inversion H; auto.
-  Qed.
   inversion H0;
     try do 2 match goal with
     | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H

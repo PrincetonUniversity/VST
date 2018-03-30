@@ -1368,8 +1368,8 @@ Lemma Permutation_filter : forall {A} (f : A -> bool) l1 l2, Permutation.Permuta
   Permutation.Permutation (filter f l1) (filter f l2).
 Proof.
   induction 1; simpl; auto.
-  - if_tac; auto.
-  - if_tac; auto; if_tac; auto.
+  - destruct (f x); auto.
+  - destruct (f x); auto. destruct (f y); auto.
     constructor.
   - etransitivity; eauto.
 Qed.
@@ -1403,7 +1403,7 @@ Qed.
 Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filter f l1 ++ filter f l2.
 Proof.
   induction l1; auto; intros; simpl.
-  rewrite IHl1; if_tac; auto.
+  rewrite IHl1. destruct (f a); auto.
 Qed.
 
 Lemma filter_concat : forall {A} f (l : list (list A)),
@@ -3190,9 +3190,9 @@ Ltac start_dep_function :=
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
     match goal with
-    | s :=  (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ nil u
-               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s :=  (DECLARE _ WITH _ : globals
+               PRE  [] main_pre _ nil _
+               POST [ tint ] main_post _ nil _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
    change (semax_body V G F s); subst s
@@ -3200,7 +3200,7 @@ Ltac start_dep_function :=
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
    match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
+   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return

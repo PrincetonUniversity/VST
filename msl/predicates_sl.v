@@ -233,7 +233,7 @@ Proof.
   simpl; intros.
   simpl in H0.
   case_eq (age1 a); intros.
-  spec H0 a0 H5.
+  specialize ( H0 a0 H5).
   apply nec_refl_or_later in H1.
   destruct H1; subst.
   destruct (age1_join2 _ H2 H4) as [w [v [? [? ?]]]].
@@ -858,7 +858,7 @@ eapply join_eq; eauto.
 subst f.
 clear H11 H10 H7.
 assert (c=w1).
- spec H12 c w1. apply H12. auto.
+ specialize ( H12 c w1). apply H12. auto.
 subst c.
 clear H9 H5.
 destruct (join_assoc H6 H2) as [h [? ?]].

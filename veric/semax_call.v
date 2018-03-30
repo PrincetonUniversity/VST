@@ -1057,7 +1057,7 @@ Proof.
   + inversion H; subst.
     apply IHl in H3.
     simpl.
-    if_tac.
+    simple_if_tac.
     - constructor; auto.
     - auto.
 Qed.
@@ -1554,7 +1554,7 @@ assert (Htc: tc_option_val retty ret0).
    simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. omega.
    apply age_level in H0. omega.
  }
- spec Hretty phi1.
+ specialize (Hretty phi1).
  spec Hretty. apply rt_refl.
  spec Hretty. split. apply Hb. apply Hretty0.
  simpl in Hretty. auto.
@@ -1594,7 +1594,7 @@ split; [split; [split |] |].
    simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. omega.
    apply age_level in H0. omega.
  }
- spec Hretty phi1.
+ specialize (Hretty phi1).
  spec Hretty. apply rt_refl. spec Hretty. split. apply Hb. apply Hretty0. simpl in Hretty.
  unfold typecheck_temp_environ. intros id b0 ty Hty.
  destruct (ident_eq i id).

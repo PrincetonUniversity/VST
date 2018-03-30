@@ -33,7 +33,7 @@ Lemma VALspec_range_e:
                 {x | m @ loc = YES sh (snd x) (VAL (fst x)) NoneP}.
 Proof.
 intros.
-destruct H as [H _]; spec H loc.
+destruct H as [H _]; specialize (H loc).
 rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k;
@@ -180,8 +180,8 @@ rewrite H5.
 simpl; repeat rewrite inflate_initial_mem_level; auto.
 rewrite H1; simpl; rewrite inflate_initial_mem_level; auto.
 destruct H as [H [H5 H7]].
-intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; spec H b' z'.
-destruct H3 as [H3 Hg]. spec H3 (b',z'). unfold jam in H3.
+intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; specialize (H b' z').
+destruct H3 as [H3 Hg]. specialize (H3 (b',z')). unfold jam in H3.
 hnf in H3. if_tac in H3.
 2: rename H6 into H8.
 clear H. destruct H6 as [H H8].
@@ -242,7 +242,7 @@ rewrite Hg2; apply join_comm, core_unit.
 destruct H3 as [H3 Hg].
 split.
 intro loc.
-spec H3 loc.
+specialize (H3 loc).
 hnf in H3|-*.
 if_tac.
 generalize (refl_equal (m2 @ loc)).  pattern (resource_at m2) at 2; rewrite H2.
@@ -1449,7 +1449,7 @@ Lemma cond_approx_eq_weakening n n' A P1 P2 :
   cond_approx_eq n' A P1 P2.
 Proof.
   intros l.
-  intros E ts; spec E ts.
+  intros E ts; specialize (E ts).
   rewrite <-approx_oo_approx' with (n' := n) at 1; try omega.
   rewrite <-approx'_oo_approx with (n' := n) at 2; try omega.
   rewrite <-approx_oo_approx' with (n' := n) at 3; try omega.

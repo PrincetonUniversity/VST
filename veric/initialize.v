@@ -1344,8 +1344,8 @@ Focus 2.
   unfold inflate_initial_mem'.
  destruct loc; simpl in e; subst.
  rewrite (alloc_global_access _ _ _ _ _ H).
- if_tac. unfold Genv.perm_globvar. if_tac. simpl in H0. rewrite H0. rewrite core_NO; auto.
-  if_tac; rewrite core_YES; auto.
+ if_tac. unfold Genv.perm_globvar. simple_if_tac. simpl in H0. rewrite H0. rewrite core_NO; auto.
+  simple_if_tac; rewrite core_YES; auto.
  rewrite core_NO; auto.
  unfold upto_block, only_blocks, inflate_initial_mem; rewrite !ghost_of_make_rmap; auto.
 Qed.

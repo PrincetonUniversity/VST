@@ -619,7 +619,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
      unfold valid' in *.
      apply AV.valid_join with (fun l => res_option A (fst x l)) (fun l => res_option A (fst y l)); auto.
      intro l. inv H.
-     spec H2 l. inv H2; try constructor; simpl.
+     specialize ( H2 l). inv H2; try constructor; simpl.
      - apply join_comm in H6.
        rewrite (join_readable_part_eq rsh2 nsh1 rsh3 H6). constructor.
      - rewrite (join_readable_part_eq rsh1 nsh2 rsh3 H6). constructor.
@@ -1441,7 +1441,7 @@ Qed.
     destruct H; simpl in *; split; simpl; auto.
     inversion H0.
     constructor.
-    intro l; spec H1 l.
+    intro l; specialize ( H1 l).
     destruct f as [f ?].
     destruct f0 as [f0 ?].
     destruct f1 as [f1 ?].
@@ -1470,7 +1470,7 @@ Qed.
     inversion H0.
     hnf in H1. simpl proj1_sig in H1.
     constructor; auto.
-    intro l; spec H1 l.
+    intro l; specialize ( H1 l).
     simpl proj1_sig.
     clear - H1.
     destruct f, f0, f1; simpl in *.
@@ -1583,7 +1583,7 @@ Qed.
     destruct H1.
     split; auto.
     split.
-    intro l; spec H1 l.
+    intro l; specialize ( H1 l).
     destruct r.
     simpl in *.
     unfold compose in *.

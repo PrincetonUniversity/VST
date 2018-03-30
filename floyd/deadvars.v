@@ -209,7 +209,7 @@ Ltac locals_of_assert P :=
                   let b := locals_of_assert B in
                   constr:(a++b)
  | stackframe_of _ => constr:(@nil ident)
- | local (`(eq _) (eval_expr ?E)) =>
+ | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
  | @exp _ _ ?T ?F =>
     let x := inhabited_value T in

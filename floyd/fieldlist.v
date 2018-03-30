@@ -83,7 +83,7 @@ Proof.
   + simpl.
     destruct (ident_eq i i0).
     - left; subst; auto.
-    - if_tac.
+    - destruct (Ctypes.field_type i m).
       * right; auto.
       * intro HH; destruct HH; [congruence | tauto].
 Qed.

@@ -283,7 +283,7 @@ intros.
 apply H0.
 simpl.
 auto.
-spec Hf ge H1 HGG.
+specialize (Hf ge H1 HGG).
 clear H1.
 hnf in Hf|-*.
 intros v fsig cc' A' P' Q'.
@@ -291,7 +291,7 @@ apply derives_imp.
 clear n.
 intros n ?.
 subst cc.
-spec H0 id (Internal f).
+specialize (H0 id (Internal f)).
 destruct H0 as [b [? ?]]; [left; auto |].
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
 apply negb_true_iff in Hni.
@@ -1378,7 +1378,7 @@ Proof.
   spec Believe. now symmetry; apply SP.
 
   pose proof Believe as Believe_.
-  spec Believe 5%nat.
+  specialize (Believe 5%nat).
   unfold claims in *.
   unfold nofunc_tycontext in *.
   simpl glob_specs in Believe.

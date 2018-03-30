@@ -44,7 +44,7 @@ intros.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
 try solve [
      inv H; simpl; try apply @TT_right;
-           simpl; if_tac; apply @TT_right].
+           simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
 unfold classify_cast.
 destruct Archi.ptr64 eqn:Hp.
@@ -68,7 +68,7 @@ rewrite andb_true_iff in H.
 destruct H.
 rewrite negb_true_iff in H, H0. rewrite H,H0.
 rewrite eqb_reflx.
-if_tac; try apply @TT_right.
+destruct (eqb_type (Tpointer t' a) (Tpointer t a0)); try apply @TT_right.
 unfold is_pointer_type.
 rewrite H,H0.
 apply @TT_right.

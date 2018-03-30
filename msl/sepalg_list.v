@@ -118,7 +118,7 @@ exists phi'.
 repeat split; auto; constructor.
 rename w1 into phi1.
 destruct (age1_join _ H4 H) as [a' [phi1' [? [? ?]]]].
-spec IHl phi1 phi1' phi2 H2 H6.
+specialize ( IHl phi1 phi1' phi2 H2 H6).
 destruct IHl as [l' [phi2' [? [? ?]]]].
 exists (a' :: l').
 exists phi2'.
@@ -356,7 +356,7 @@ induction n; intros.
 inv H. exists phi2'; exists phi3'; split; auto.
  unfold ageN in H. simpl in H.
  revert H; case_eq (age1 phi1); intros.
-  spec IHn a phi1' phi2' phi3' H1; spec IHn H0.
+  specialize ( IHn a phi1' phi2' phi3' H1 H0).
   destruct IHn as [phi2 [phi3 [? [? ?]]]].
   destruct (join_unage' _ _ _ H H2) as [phi4 [phi5 [? [? ?]]]].
   exists phi4; exists phi5. split; auto.
