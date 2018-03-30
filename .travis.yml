@@ -28,7 +28,7 @@ env:
   # system is == 4.02.3
 #  - COMPILER="4.02.3+32bit"
   - COMPILER="system"
-  - COQ_VERSION="8.8+beta1"
+  - COQ_VERSION="8.7.2"
 branches:
   only:
   - master
