@@ -62,7 +62,7 @@ DEPFLAGS:=$(COQFLAGS)
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 # Warning setting  -w -deprecated-focus  is needed until we no longer
 # list version 8.7._ in the COQVERSION list.
-COQC=$(COQBIN)coqc -w -deprecated-focus
+COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
