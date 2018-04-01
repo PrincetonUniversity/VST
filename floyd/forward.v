@@ -28,6 +28,7 @@ Require Import VST.floyd.for_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
 
@@ -620,7 +621,39 @@ Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
 
+Lemma drop_SEP_tc:
+ forall Delta P Q R' RF R S,
+   (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
+   fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- S ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  unfold PROPx, LOCALx, SEPx in H1 |- *.
+  intro rho; specialize (H1 rho).
+  simpl in H1 |- *.
+  unfold local, lift1; simpl.
+  rewrite H0.
+  rewrite <- !sepcon_andp_prop'.
+  specialize (H rho).
+  eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
+  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+Qed.
+
+Ltac delete_FRZR_from_SEP :=
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc;
+    [ first [apply extend_tc.extend_tc_expr
+             | apply extend_tc.extend_tc_exprlist
+             | apply extend_tc.extend_tc_lvalue]
+   | apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP
+   | ]
+end end.
+
 Ltac check_typecheck :=
+ try delete_FRZR_from_SEP;
  first [goal_has_evars; idtac |
  try apply local_True_right;
  entailer!;
@@ -754,21 +787,6 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
                 (force_val (sem_cast t1 t2 v))
           ]
 end.
-
-Ltac unfold_app :=
-change (@app mpred)
-  with (fix app (l m : list mpred) {struct l} : list mpred :=
-  match l with
-  | nil => m
-  | cons a l1 => cons a (app l1 m)
-  end);
-change (@app Prop)
-  with (fix app (l m : list Prop) {struct l} : list Prop :=
-  match l with
-  | nil => m
-  | cons a l1 => cons a (app l1 m)
-  end);
-cbv beta iota.
 
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
