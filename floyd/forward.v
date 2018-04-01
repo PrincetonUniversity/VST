@@ -53,8 +53,6 @@ Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident 
  | nil => rev_append el nil
 end.
 
-Definition mk_varspecs prog := mk_varspecs' (prog_defs prog) nil.
-
 Ltac unfold_varspecs al :=
  match al with
  | context [gvar_info ?v] =>
@@ -64,10 +62,13 @@ Ltac unfold_varspecs al :=
  end.
 
 Ltac mk_varspecs prog :=
-  let a := constr:(mk_varspecs prog)
-   in let a := eval hnf in a
-   in unfold_varspecs a.
-
+ let a := constr:(prog)
+   in let a := eval unfold prog in a
+   in match a with Clightdefs.mkprogram _ ?d _ _ _ => 
+         let e := constr:(mk_varspecs' d nil)
+          in let e := eval hnf in e
+          in unfold_varspecs e
+      end.
 
 Hint Resolve field_address_isptr : norm.
 
@@ -3344,62 +3345,6 @@ Arguments EqDec_exitkind !a !a'.
 
 (**** make_compspecs ****)
 
-Fixpoint log_base_two_pos (x:positive) : nat :=
- match x with
- | xI y => S (log_base_two_pos y)
- | xO y => S (log_base_two_pos y)
- | xH => O
- end.
-
-Definition log_base_two (x: Z) : nat :=
-match x with Zpos y => log_base_two_pos y | _ => O end.
-
-Ltac make_composite_env env c :=
- match c with
- | nil => constr:(env: composite_env)
- | Composite ?id ?su ?m ?a :: ?c' =>
- let t := constr: (PTree.get id env) in
- let t := eval hnf in t in
- match t with
- | @Some _ _ => fail 1000 "Composite definitions in the programs has duplicates."
- | _ =>
- let cm := constr: (complete_members env m) in
- let cm := eval hnf in cm in
- match cm with
- | false => fail 1000 "Members in " id "are not all complete types."
- | _ =>
- let al := constr:(align_attr a (alignof_composite env m)) in
- let al := eval compute in al in
- let sz := constr:(align (sizeof_composite env su m) al) in
- let sz := eval compute in sz in
- let r := constr:(rank_members env m) in
- let r := eval compute in r in
- let szpos := constr:(Z.le_ge 0 sz (proj1 (Z.geb_le sz 0) (eq_refl _))) in
- let al_two_p := constr:(ex_intro (fun n : nat => al = two_power_nat n) (log_base_two al) (eq_refl _)) in
- let sz_al := constr:(ex_intro (fun z : Z => sz = (z * al)%Z) (sz / al) (eq_refl _)) in
- let c1 := constr:( {| co_su := su;
-            co_members := m;
-            co_attr := a;
-            co_sizeof := sz;
-            co_alignof := al;
-            co_rank := r;
-            co_sizeof_pos := szpos;
-            co_alignof_two_p := al_two_p;
-            co_sizeof_alignof := sz_al |}) in
- let env' := constr:(PTree.set id c1 env) in
- let env' := eval simpl in env' in
- make_composite_env env' c'
- end
- end
- end.
-
-Ltac make_composite_env0 prog :=
-let p := constr:(prog_types prog) in
-let c := eval hnf in p in
-let e := constr:(@PTree.empty composite) in
-let e := eval hnf in e in
-    make_composite_env e c.
-
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),
    Forall (fun idco => f (snd idco)) (PTree.elements env) ->
@@ -3438,6 +3383,90 @@ Proof.
   subst.
   apply legal_alignas_env_completeness; auto.
 Qed.
+
+Lemma Zgeb0_ge0: forall n, Z.geb n 0 = true -> n >= 0.
+Proof.
+intros.
+apply Z.geb_le in H. omega.
+Qed.
+
+Lemma prove_alignof_two_p (i: Z) : 
+    i = two_power_nat (Z.to_nat (log_sup (Z.to_pos i))) ->
+exists n: nat, i = two_power_nat n.
+Proof.
+intros. eexists; eassumption.
+Qed.
+
+Lemma prove_Zdivide (a b: Z): b = Z.mul (Z.div b a) a -> Z.divide a b.
+Proof.
+intros. eexists. eassumption.
+Qed.
+
+Ltac simplify_composite_of_def d :=
+   let d := eval hnf in d in
+  match d with
+ Errors.OK 
+   {|  co_su := ?su;
+       co_members := ?m;
+       co_attr := ?a;
+       co_sizeof := ?sz;
+       co_alignof := ?al;
+       co_rank := ?rank;
+       co_sizeof_pos := _;
+       co_alignof_two_p := _;
+       co_sizeof_alignof := _ |}  =>
+  let sz := eval compute in sz in 
+  let al := eval compute in al in 
+  let rank := eval compute in rank in 
+  let sp := constr:(Zgeb0_ge0 sz (eq_refl _)) in 
+  let altwo := constr:(prove_alignof_two_p al (eq_refl _)) in
+  let sa := constr:(prove_Zdivide al sz (eq_refl _)) in
+   let d := constr:({|  co_su := su;
+       co_members := m;
+       co_attr := a;
+       co_sizeof := sz;
+       co_alignof := al;
+       co_rank := rank;
+       co_sizeof_pos := sp;
+       co_alignof_two_p := altwo;
+       co_sizeof_alignof := sa |})
+  in
+ d
+end.
+
+Ltac simplify_add_composite_definitions env cl :=  
+ match cl with
+ | Composite ?id ?su ?m ?a :: ?cl' =>
+    let d := constr:(composite_of_def env id su m a)
+    in let d' := simplify_composite_of_def d
+       in let env' :=  constr:(PTree.set id d' env)
+        in let env' := eval simpl in env' in 
+       simplify_add_composite_definitions env' cl'
+ | nil => constr:(Errors.OK env)
+end.
+
+Ltac make_composite_env composites :=
+let j := constr:(build_composite_env' composites I)
+ in let j := eval unfold composites in j
+in let j := eval cbv beta iota zeta delta [
+       build_composite_env' build_composite_env
+       PTree.empty
+      ] in j
+ in  match j with context C [add_composite_definitions PTree.Leaf ?c] =>
+             let cd := simplify_add_composite_definitions (@PTree.Leaf composite) c in 
+             cd (* let j := context C [cd] in j *)
+     end.
+
+Ltac make_composite_env0 prog :=
+let c := constr:(prog_types prog) in
+let c := eval unfold prog, prog_types, Clightdefs.mkprogram in c in 
+match c with context C [build_composite_env' ?comp I] => 
+    let comp' := make_composite_env comp
+   in match comp' with Errors.OK ?ce =>
+            ce
+       end
+end.
+
 
 Ltac make_compspecs prog :=
   let cenv := make_composite_env0 prog in
