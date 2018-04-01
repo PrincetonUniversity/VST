@@ -3519,9 +3519,16 @@ Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   | nil => nil
  end.
 
+Ltac simpl_prog_defs p := 
+ match p with context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
+   let q := context C [d] in q
+  end.
+
 Ltac with_library' p G :=
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
+  let x := eval cbv beta iota zeta delta [prog_funct] in x in 
+  let x := simpl_prog_defs x in 
   let x := eval hnf in x in
   match x with
   | Some ?l => exact l
@@ -3537,7 +3544,8 @@ Ltac with_library' p G :=
   end
  end.
 
-Ltac with_library prog G := with_library' prog G.
+Ltac with_library prog G :=
+  let pr := eval unfold prog in prog in  with_library' pr G.
 
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',
