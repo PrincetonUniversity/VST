@@ -3139,11 +3139,11 @@ Ltac clear_Delta_specs_if_leaf_function :=
 
 Ltac type_lists_compatible al bl :=
  match al with
- | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
+ | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
                  unify (classify_cast a b) cast_case_pointer;
                  type_lists_compatible al' bl'
                 end
- | Tnil => match bl with Tnil => idtac end
+ | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end
  end.
 
 Ltac function_types_compatible t1 t2 :=
@@ -3264,7 +3264,11 @@ Ltac start_function :=
    let D := eval hnf in D in let D := eval simpl in D in 
    let S := eval hnf in S in let S := eval simpl in S in 
    tryif (unify D S) then idtac else
-   tryif function_types_compatible D S then idtac else
+   tryif function_types_compatible D S 
+   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
+Function body:" D "
+Function spec:" S
+   else
    (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
 Function body: " D "
 Function spec: " S)
