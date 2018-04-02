@@ -2279,15 +2279,6 @@ Ltac ensure_open_normal_ret_assert :=
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
 
-Ltac get_global_fun_def Delta f fsig cc A Pre Post :=
-    let VT := fresh "VT" in let GT := fresh "GT" in
-      assert (VT: (var_types Delta) ! f = None) by
-               (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
-      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig cc A Pre Post))
-                    by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) ||
-                          fail 1 "Function " f " has no specification in the type context");
-     clear VT GT.
-
 Definition This_is_a_warning := tt.
 
 Inductive Warning: unit -> unit -> Prop :=
@@ -2834,17 +2825,15 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
-try eapply semax_seq';
- [match goal with
-  | |- @semax _ ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-     clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
- end
- | .. ].
+ prove_call_setup1;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+  lazymatch A with
+  | rmaps.ConstType ?T => 
+             fail 99 "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail 99 "This function has a complex calling convention not recognized by forward_call"
+ end 
+end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
@@ -2937,16 +2926,6 @@ Ltac forward_advise_while :=
    | |- semax _ _ (Swhile _ _) _ =>
        fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.
-
-Ltac forward_advise_call :=
- lazymatch goal with
-   | |- semax ?Delta _ (Scall _ (Evar ?f _) ?bl) _ =>
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-      clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
-end.
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
