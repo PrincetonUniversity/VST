@@ -1,5 +1,5 @@
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.

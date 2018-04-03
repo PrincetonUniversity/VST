@@ -4,32 +4,32 @@ Require Import RelationClasses.
 
 Section ListMaps.
 
-Context {A B : Type} {A_eq : EqDec A}.
+Context {A B : Type} {A_eq : EqDec A} {d : Inhabitant B}.
 
-Definition map_Znth i (L : A -> option (list B)) d k := option_map (fun v => Znth i v d) (L k).
+Definition map_Znth i (L : A -> option (list B)) k := option_map (fun v => Znth i v) (L k).
 
-Lemma map_Znth_single : forall i (k : A) (v : list B) d,
-  map_Znth i (singleton k v) d = singleton k (Znth i v d).
+Lemma map_Znth_single : forall i (k : A) (v : list B),
+  map_Znth i (singleton k v) = singleton k (Znth i v).
 Proof.
   intros; unfold map_Znth, singleton; extensionality.
   if_tac; auto.
 Qed.
 
-Lemma map_Znth_add : forall (m1 m2 : A -> option (list B)) i d,
-  map_Znth i (map_add m1 m2) d = map_add (map_Znth i m1 d) (map_Znth i m2 d).
+Lemma map_Znth_add : forall (m1 m2 : A -> option (list B)) i,
+  map_Znth i (map_add m1 m2) = map_add (map_Znth i m1) (map_Znth i m2).
 Proof.
   intros; unfold map_add, map_Znth; extensionality.
   destruct (m1 x); auto.
 Qed.
 
-Lemma map_Znth_eq : forall (L : A -> option (list B)) k vs d (Hlength : forall vs', L k = Some vs' -> Zlength vs' = Zlength vs)
-  (Hnz : vs <> []) (Hall : forall i, 0 <= i < Zlength vs -> map_Znth i L d k = Some (Znth i vs d)),
+Lemma map_Znth_eq : forall (L : A -> option (list B)) k vs (Hlength : forall vs', L k = Some vs' -> Zlength vs' = Zlength vs)
+  (Hnz : vs <> []) (Hall : forall i, 0 <= i < Zlength vs -> map_Znth i L k = Some (Znth i vs)),
   L k = Some vs.
 Proof.
   intros.
   destruct (L k) eqn: Hk.
   specialize (Hlength _ eq_refl).
-  apply f_equal, list_Znth_eq' with (d0 := d); auto.
+  apply f_equal, list_Znth_eq'; auto.
   rewrite Hlength; intros j Hj; specialize (Hall _ Hj).
   unfold map_Znth in Hall; rewrite Hk in Hall; inv Hall; auto.
   { lapply (Hall 0).
@@ -39,15 +39,15 @@ Proof.
       apply Zlength_nil_inv in e; subst; contradiction. } }
 Qed.
 
-Lemma map_Znth_upd : forall (m : A -> option (list B)) k v i d,
-  map_Znth i (map_upd m k v) d = map_upd (map_Znth i m d) k (Znth i v d).
+Lemma map_Znth_upd : forall (m : A -> option (list B)) k v i,
+  map_Znth i (map_upd m k v) = map_upd (map_Znth i m) k (Znth i v).
 Proof.
   intros; unfold map_Znth, map_upd; extensionality.
   if_tac; auto.
 Qed.
 
-Lemma map_incl_Znth : forall (m1 m2 : A -> option (list B)) i d, map_incl m1 m2 ->
-  map_incl (map_Znth i m1 d) (map_Znth i m2 d).
+Lemma map_incl_Znth : forall (m1 m2 : A -> option (list B)) i, map_incl m1 m2 ->
+  map_incl (map_Znth i m1) (map_Znth i m2).
 Proof.
   unfold map_Znth; repeat intro.
   destruct (m1 k) eqn: Hm1; [|discriminate].
@@ -140,8 +140,8 @@ Qed.
 
 End Logs.
 
-Lemma map_Znth_log_latest : forall {B} m k (v : list B) i d, log_latest m k v ->
-  log_latest (map_Znth i m d) k (Znth i v d).
+Lemma map_Znth_log_latest : forall {B} {d : Inhabitant B} m k (v : list B) i, log_latest m k v ->
+  log_latest (map_Znth i m) k (Znth i v).
 Proof.
   unfold log_latest, map_Znth; intros.
   destruct H as [-> H]; split; auto.

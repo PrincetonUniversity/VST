@@ -238,7 +238,7 @@ FLOYD_FILES= \
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
-CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghost.v
+CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghosts.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
@@ -443,7 +443,7 @@ travis: default_target progs sha hmac mailbox
 
 files: .loadpath version.vo $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes
+all: default_target files travis hmacdrbg tweetnacl aes atomics
 
 
 # ifeq ($(COMPCERT), compcert)

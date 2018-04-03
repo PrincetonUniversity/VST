@@ -1,5 +1,5 @@
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.msl.ghost.
+Require Export VST.msl.ghost.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.SeparationLogic.
@@ -280,6 +280,20 @@ Proof.
     + apply bot_join_eq.
     + if_tac; auto; contradiction.
     + apply derives_refl.
+Qed.
+
+Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
+  fold_right sepcon emp (map (fun v => ghost_snap v p) lv) * ghost_master sh v2 p =
+  !!(Forall (fun v1 => ord v1 v2) lv) && ghost_master sh v2 p.
+Proof.
+  induction lv; simpl; intros.
+  - rewrite emp_sepcon, prop_true_andp; auto.
+  - rewrite sepcon_comm, <- sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join by auto.
+    apply mpred_ext.
+    + Intros; rewrite sepcon_comm, IHlv by auto; entailer!.
+    + Intros.
+      match goal with H : Forall _ _ |- _ => inv H end.
+      rewrite prop_true_andp, sepcon_comm, IHlv by auto; entailer!.
 Qed.
 
 Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- |==> ghost_master Tsh v' p.
@@ -750,7 +764,8 @@ Proof.
   - auto.
 Defined.
 
-Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3), compatible m1 m2.
+Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3),
+  compatible m1 m2.
 Proof.
   intros; intros ??? Hk1 Hk2.
   apply Hincl1 in Hk1; apply Hincl2 in Hk2.
