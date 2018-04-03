@@ -555,12 +555,21 @@ Ltac hint_msg LOCAL2PTREE e :=
   | econstructor
   | solve_field_address_gen
   | ];
-  match goal with
+ match goal with
   | |- ?eq1 /\ ?eq2 /\ False =>
+        match eq1 with _ = field_address _ _ ?p =>
           first [ constr_eq eq1 eq2;
-                   fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
-                | fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
-                    "or if this does not hold, prove an equality of the form" eq2]
+                   fail 1000 "
+It is not obvious how to move forward here.  One way:
+Find a SEP clause of the form [data_at _ _ _ " p"] (or field_at, data_at_, field_at_),
+then use assert_PROP to prove an equality of the form" eq1 ", then try [forward] again."
+                | fail 1000 "
+It is not obvious how to move forward here.  One way:
+Find a SEP clause of the form [data_at _ _ _ " p"] (or field_at, data_at_, field_at_),
+then use assert_PROP to prove an equality of the form" eq1 
+"or if this does not hold, prove an equality of the form" eq2 ", then try [forward] again."
+                    ]
+    end
   end.
 
 Section SEMAX_PTREE.

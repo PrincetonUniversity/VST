@@ -807,32 +807,32 @@ Definition sem_xor (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
 Definition sem_shift_ii sem_int (sg:signedness) v1 v2 : option val :=
       match v1, v2 with
       | Vint n1, Vint n2 =>
-          if Int.ltu n2 Int.iwordsize
-          then Some(Vint(sem_int sg n1 n2)) else None
+          (*if Int.ltu n2 Int.iwordsize
+          then*) Some(Vint(sem_int sg n1 n2)) (*else None*)
       | _, _ => None
       end.
 
 Definition sem_shift_il sem_int (sg:signedness) v1 v2 : option val :=
 match v1, v2 with
       | Vint n1, Vlong n2 =>
-          if Int64.ltu n2 (Int64.repr 32)
-          then Some(Vint(sem_int sg n1 (Int64.loword n2))) else None
+          (*if Int64.ltu n2 (Int64.repr 32)
+          then *) Some(Vint(sem_int sg n1 (Int64.loword n2))) (*else None*)
       | _, _ => None
       end.
 
 Definition sem_shift_li sem_long (sg:signedness) v1 v2 : option val :=
 match v1, v2 with
       | Vlong n1, Vint n2 =>
-          if Int.ltu n2 Int64.iwordsize'
-          then Some(Vlong(sem_long sg n1 (Int64.repr (Int.unsigned n2)))) else None
+          (*if Int.ltu n2 Int64.iwordsize'
+          then *) Some(Vlong(sem_long sg n1 (Int64.repr (Int.unsigned n2)))) (*else None*)
       | _, _ => None
       end.
 
 Definition sem_shift_ll sem_long (sg:signedness) v1 v2 : option val :=
  match v1, v2 with
       | Vlong n1, Vlong n2 =>
-          if Int64.ltu n2 Int64.iwordsize
-          then Some(Vlong(sem_long sg n1 n2)) else None
+          (*if Int64.ltu n2 Int64.iwordsize
+          then *) Some(Vlong(sem_long sg n1 n2)) (*else None*)
       | _, _ => None
       end.
 

@@ -5,12 +5,6 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
-Require Import mailbox.verif_mailbox_read.
-Require Import mailbox.verif_mailbox_write.
-Require Import mailbox.verif_mailbox_init.
-Require Import mailbox.verif_mailbox_reader.
-Require Import mailbox.verif_mailbox_writer.
-
 Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.

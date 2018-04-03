@@ -820,11 +820,8 @@ Proof.
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
-    - 
-       unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
-            destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_ll *)
     destruct IBR as [?IBR ?IBR].
     apply tc_bool_e in IBR0.
@@ -837,15 +834,7 @@ Proof.
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
       try solve [inv H1 | inv H3].
     destruct OP; subst; auto;
-    simpl;
-    unfold force_val, Cop2.sem_shift;
-    rewrite classify_shift_eq, H;
-    simpl.
-    -
-       unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    simpl; destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_il *)
     destruct IBR as [?IBR ?IBR].
     apply tc_bool_e in IBR0.
@@ -861,11 +850,8 @@ Proof.
     simpl;
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
-    simpl.
-    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - unfold Int64.ltu; rewrite if_true by apply (denote_tc_lgt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    simpl;
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
   + (* shift_li *)
     destruct IBR as [?IBR ?IBR].
     apply tc_bool_e in IBR0.
@@ -881,11 +867,8 @@ Proof.
     simpl;
     unfold force_val, Cop2.sem_shift;
     rewrite classify_shift_eq, H;
-    simpl.
-    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
-    - unfold Int.ltu; rewrite if_true by apply (denote_tc_igt_e _ _ _ IBR).
-      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    simpl;
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
 Qed.
 
 Lemma typecheck_Obin_sound:
