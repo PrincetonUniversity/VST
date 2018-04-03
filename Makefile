@@ -255,7 +255,7 @@ PROGS_FILES= \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
-  verif_strlib.v
+  verif_strlib.v bug83.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
