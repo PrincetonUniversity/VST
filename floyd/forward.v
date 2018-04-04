@@ -2126,12 +2126,15 @@ match goal with
        abbreviate_semax
      ]
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
-    unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true;
-    apply semax_if_seq; forward_if'_new
+    tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
+    then (apply semax_if_seq; forward_if'_new)
+    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+| |- semax _ (@exp _ _ _ _) _ _ =>
+      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
