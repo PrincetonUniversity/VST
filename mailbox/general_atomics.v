@@ -9,8 +9,14 @@ Require Export Ensembles.
 Set Bullet Behavior "Strict Subproofs".
 
 Arguments Empty_set {_}.
-Arguments Setminus {_} _ _.
+Arguments Full_set {_}.
 Arguments Singleton {_} _.
+Arguments Union {_} _ _.
+Arguments Add {_} _ _.
+Arguments Intersection {_} _ _.
+Arguments Setminus {_} _ _.
+Arguments Subtract {_} _ _.
+Arguments Included {_} _ _.
 
 (* fancy updates and invariants *)
 
@@ -21,9 +27,21 @@ Parameter fupd : Ensemble namespace -> Ensemble namespace -> mpred -> mpred.
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.
 Notation "|={ E }=> P" := (fupd E E P) (at level 62): logic.
 
-Axiom fupd_mono : forall E1 E2 P Q, P |-- Q -> P |-- |={E1, E2}=> Q.
-
+Axiom fupd_mono : forall E1 E2 P Q, P |-- Q -> |={E1, E2}=> P |-- |={E1, E2}=> Q.
 Axiom bupd_fupd : forall E P, |==> P |-- |={E}=> P.
+Axiom fupd_frame_r : forall E1 E2 P Q, fupd E1 E2 P * Q |-- fupd E1 E2 (P * Q).
+Axiom fupd_intro_mask : forall E1 E2 P, Included E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
+Axiom fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
+
+Lemma fupd_frame_l : forall E1 E2 P Q, P * fupd E1 E2 Q |-- fupd E1 E2 (P * Q).
+Proof.
+  intros; rewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
+Qed.
+
+Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
+Proof.
+  intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
+Qed.
 
 Definition timeless P := |>P |-- P || |>FF.
 
@@ -90,7 +108,7 @@ Proof.
 Qed.
 
 Axiom inv_open : forall (E : Ensemble namespace) N P, E N ->
-  invariant N P |-- |={E, Setminus E (Singleton N)}=> (|> P) * (|>P -* |={Setminus E (Singleton N), E}=> emp).
+  invariant N P |-- |={E, Subtract E N}=> (|> P) * (|>P -* |={Subtract E N, E}=> emp).
 
 Axiom invariant_precise : forall N P, precise (invariant N P).
 
@@ -468,7 +486,7 @@ Proof.
   intro X; destruct (X _ J) as (? & ? & ? & ? & ? & ? & []); eauto 7.*)
 Admitted.
 
-(* The logical atomicity of Iris, with TaDA's private part. *)
+(* The logical atomicity of Iris. *)
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
   EX P : mpred, |> P * (weak_fview_shift Eo Ei (|> P) (EX x : A, a x *
     ((weak_fview_shift Ei Eo (a x) (|> P) && emp) &&

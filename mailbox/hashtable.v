@@ -430,3 +430,16 @@ Proof.
 Qed.
 
 End Hashtable.
+
+Lemma sepcon_rebase : forall l m, 0 <= m <= Zlength l ->
+  fold_right sepcon emp l = fold_right sepcon emp (rebase l m).
+Proof.
+  intros; unfold rebase, rotate.
+  rewrite sepcon_app, subsub1, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
+Qed.
+
+Lemma rebase_map : forall {A B} (f : A -> B) l m, rebase (map f l) m = map f (rebase l m).
+Proof.
+  intros; unfold rebase.
+  rewrite Zlength_map; apply rotate_map.
+Qed.
