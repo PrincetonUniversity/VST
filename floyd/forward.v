@@ -667,8 +667,8 @@ Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
 end.
 
-Ltac cancel_for_forward_call := cancel.
-Ltac default_cancel_for_forward_call := cancel.
+Ltac cancel_for_forward_call := syntactic_cancel; unfold fold_right_sepcon; cbv iota beta.
+Ltac default_cancel_for_forward_call := syntactic_cancel; unfold fold_right_sepcon; cbv iota beta.
 
 Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
   [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);

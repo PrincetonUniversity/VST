@@ -2501,10 +2501,28 @@ Proof.
     cancel.
 Qed.
 
+Ltac local_cancel_in_syntactic_cancel := solve [cbv beta; auto with cancel].
+
 Ltac syntactic_cancel :=
-  apply syntactic_cancel_spec;
+  eapply syntactic_cancel_spec;
   [ repeat first
            [ simple apply syntactic_cancel_nil
            | simple apply syntactic_cancel_cons;
-             [ find_nth_SEP 
-      
+             [ find_nth_SEP local_cancel_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ simple apply syntactic_cancel_solve
+          | cbv iota beta ]
+  ].
+
+(*
+Export ListNotations.
+
+Goal forall A B C: mpred, exists F: list mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
+Proof.
+  intros.
+  eexists.
+  syntactic_cancel.
+*)
