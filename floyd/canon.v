@@ -515,6 +515,22 @@ f_equal.
 apply sepcon_comm.
 Qed.
 
+Lemma delete_nth_SEP: forall R n R0,
+  nth_error R n = Some R0 ->
+  fold_right_sepcon R |-- R0 * fold_right_sepcon (delete_nth n R).
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R; try solve [inv H].
+  + inv H.
+    simpl.
+    auto.
+  + simpl in H.
+    apply IHn in H.
+    simpl.
+    rewrite <- sepcon_assoc, (sepcon_comm _ m), sepcon_assoc.
+    apply sepcon_derives; auto.
+Qed.
+
 Ltac find_in_list A L :=
  match L with
   | A :: _ => constr:(O)
@@ -2386,3 +2402,109 @@ Proof.
     unfold id.
     normalize.
 Qed.
+
+Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
+| find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
+| find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
+| find_nth_SEP_preds_rec_nil: forall n, find_nth_SEP_preds_rec pred n nil None.
+
+Inductive find_nth_SEP_preds (pred: mpred -> Prop): list mpred -> option (nat * mpred) -> Prop :=
+| find_nth_SEP_preds_constr: forall R R_res, find_nth_SEP_preds_rec pred 0 R R_res -> find_nth_SEP_preds pred R R_res.
+
+Lemma find_nth_SEP_preds_Some: forall pred R n R0, find_nth_SEP_preds pred R (Some (n, R0)) ->
+  nth_error R n = Some R0 /\ pred R0.
+Proof.
+  intros.
+  inv H.
+  replace n with (n - 0)%nat by omega.
+  assert ((n >= 0)%nat /\ nth_error R (n - 0) = Some R0 /\ pred R0); [| tauto].
+  revert H0; generalize 0%nat as m; intros.
+  remember (Some (n, R0)) as R_res eqn:?H in H0.
+  induction H0.
+  + inv H.
+    replace (n - n)%nat with 0%nat by omega.
+    simpl; auto.
+  + apply IHfind_nth_SEP_preds_rec in H.
+    destruct H as [? [? ?]].
+    replace (n - n0)%nat with (S (n - S n0)) by omega.
+    split; [omega |].
+    simpl; auto.
+  + inv H.
+Qed.
+
+Ltac find_nth_SEP_rec tac :=
+  first [ simple eapply find_nth_SEP_preds_rec_cons_head; tac
+        | simple eapply find_nth_SEP_preds_rec_cons_tail; find_nth_SEP_rec tac
+        | simple eapply find_nth_SEP_preds_rec_nil].
+
+Ltac find_nth_SEP tac :=
+  eapply find_nth_SEP_preds_constr; find_nth_SEP_rec tac.
+(* The reason to use "eapply" instead of "simple eapply" is because "find_nth_SEP" may be buried in definitions. *)
+
+Inductive syntactic_cancel: list mpred -> list mpred -> list mpred -> list mpred -> Prop :=
+| syntactic_cancel_nil: forall R, syntactic_cancel R nil R nil
+| syntactic_cancel_cons_succeed: forall n R0 R L0 L F Res,
+    find_nth_SEP_preds (fun R0 => R0 |-- L0) R (Some (n, R0)) ->
+    syntactic_cancel (delete_nth n R) L F Res ->
+    syntactic_cancel R (L0 :: L) F Res
+| syntactic_cancel_cons_fail: forall R L0 L F Res,
+    find_nth_SEP_preds (fun R0 => R0 |-- L0) R None ->
+    syntactic_cancel R L F Res ->
+    syntactic_cancel R (L0 :: L) F (L0 :: Res).
+
+Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
+  find_nth_SEP_preds (fun R0 => R0 |-- L0) R nR0 ->
+  syntactic_cancel match nR0 with
+                   | Some (n, _) => delete_nth n R
+                   | None => R
+                   end L F Res ->
+  syntactic_cancel R (L0 :: L) F match nR0 with
+                                 | Some _ => Res
+                                 | None => L0 :: Res
+                                 end.
+Proof.
+  intros.
+  destruct nR0 as [[? ?]|].
+  + eapply syntactic_cancel_cons_succeed; eauto.
+  + eapply syntactic_cancel_cons_fail; eauto.
+Qed.
+
+Lemma syntactic_cancel_solve: forall F,
+  fold_right_sepcon F |-- fold_right_sepcon nil * fold_right_sepcon F.
+Proof.
+  intros.
+  simpl; rewrite emp_sepcon; auto.
+Qed.
+
+Lemma syntactic_cancel_spec: forall G1 L1 G2 L2 F,
+  syntactic_cancel G1 L1 G2 L2 ->
+  fold_right_sepcon G2 |-- fold_right_sepcon L2 * fold_right_sepcon F ->
+  fold_right_sepcon G1 |-- fold_right_sepcon L1 * fold_right_sepcon F.
+Proof.
+  intros.
+  revert F H0; induction H; intros.
+  + auto.
+  + apply IHsyntactic_cancel in H1.
+    simpl.
+    rewrite sepcon_assoc.
+    eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply H1]].
+    clear IHsyntactic_cancel H1.
+    apply find_nth_SEP_preds_Some in H.
+    destruct H.
+    eapply derives_trans; [apply delete_nth_SEP; eauto |].
+    apply sepcon_derives; auto.
+  + simpl in H1.
+    rewrite (sepcon_comm L0), sepcon_assoc in H1.
+    apply (IHsyntactic_cancel (L0 :: F0)) in H1.
+    eapply derives_trans; [exact H1 |].
+    simpl.
+    cancel.
+Qed.
+
+Ltac syntactic_cancel :=
+  apply syntactic_cancel_spec;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth_SEP 
+      

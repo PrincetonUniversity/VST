@@ -420,44 +420,6 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
-Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
-| find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
-| find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
-| find_nth_SEP_preds_rec_nil: forall n, find_nth_SEP_preds_rec pred n nil None.
-
-Inductive find_nth_SEP_preds (pred: mpred -> Prop): list mpred -> option (nat * mpred) -> Prop :=
-| find_nth_SEP_preds_constr: forall R R_res, find_nth_SEP_preds_rec pred 0 R R_res -> find_nth_SEP_preds pred R R_res.
-
-Lemma find_nth_SEP_preds_Some: forall pred R n R0, find_nth_SEP_preds pred R (Some (n, R0)) ->
-  nth_error R n = Some R0 /\ pred R0.
-Proof.
-  intros.
-  inv H.
-  replace n with (n - 0)%nat by omega.
-  assert ((n >= 0)%nat /\ nth_error R (n - 0) = Some R0 /\ pred R0); [| tauto].
-  revert H0; generalize 0%nat as m; intros.
-  remember (Some (n, R0)) as R_res eqn:?H in H0.
-  induction H0.
-  + inv H.
-    replace (n - n)%nat with 0%nat by omega.
-    simpl; auto.
-  + apply IHfind_nth_SEP_preds_rec in H.
-    destruct H as [? [? ?]].
-    replace (n - n0)%nat with (S (n - S n0)) by omega.
-    split; [omega |].
-    simpl; auto.
-  + inv H.
-Qed.
-
-Ltac find_nth_SEP_rec tac :=
-  first [ simple eapply find_nth_SEP_preds_rec_cons_head; tac
-        | simple eapply find_nth_SEP_preds_rec_cons_tail; find_nth_SEP_rec tac
-        | simple eapply find_nth_SEP_preds_rec_nil].
-
-Ltac find_nth_SEP tac :=
-  eapply find_nth_SEP_preds_constr; find_nth_SEP_rec tac.
-(* The reason to use "eapply" instead of "simple eapply" is because "find_nth_SEP" may be buried in definitions. *)
-
 Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
 | find_type_contradict_pred_data_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at sh t0 v0 p)
 | find_type_contradict_pred_data_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at_ sh t0 p)
