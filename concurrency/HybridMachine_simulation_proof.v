@@ -331,7 +331,7 @@ Section OneThreadCompiledMatch.
 
   Record concur_match (ocd: option compiler_index)
        (j:meminj) (cstate1: C1) (m1: mem) (cstate2: C2) (m2: mem):=
-    { same_length: num_threads cstate1 = num_threads cstate2
+  { same_length: num_threads cstate1 = num_threads cstate2
     ; memcompat1: HybridMachine.mem_compatible _ _ _ cstate1 m1
     ; memcompat2: HybridMachine.mem_compatible _ _ _ cstate2 m2
     ; mtch_source:
@@ -341,9 +341,9 @@ Section OneThreadCompiledMatch.
             (cnti2: containsThread cstate2 i),
           match_thread_source  j
                               (getThreadC cnti1)
-                              (restrPermMap (proj1 (memcompat1 i cnti1)))
+                              (restrPermMap (FST (memcompat1 i cnti1)))
                               (getThreadC cnti2)
-                              (restrPermMap (proj1 (memcompat2 i cnti2)))
+                              (restrPermMap (FST (memcompat2 i cnti2)))
     ; mtch_target:
         forall (i:nat),
           (i < hb')%nat ->
@@ -351,9 +351,9 @@ Section OneThreadCompiledMatch.
             (cnti2: containsThread cstate2 i),
           match_thread_target  j
                               (getThreadC cnti1)
-                              (restrPermMap (proj1(memcompat1 i cnti1)))
+                              (restrPermMap (FST(memcompat1 i cnti1)))
                               (getThreadC cnti2)
-                              (restrPermMap (proj1(memcompat2 i cnti2)))
+                              (restrPermMap (FST(memcompat2 i cnti2)))
     ; mtch_compiled:
         forall (i:nat),
           (i = hb')%nat ->
@@ -362,9 +362,9 @@ Section OneThreadCompiledMatch.
             exists cd, ocd = Some cd /\
           match_thread_compiled cd j
                                 (getThreadC cnti1)
-                                (restrPermMap (proj1(memcompat1 i cnti1)))
+                                (restrPermMap (FST(memcompat1 i cnti1)))
                                 (getThreadC cnti2)
-                                (restrPermMap (proj1(memcompat2 i cnti2))) }.
+                                (restrPermMap (FST(memcompat2 i cnti2))) }.
 
 Lemma contains12:
   forall {data j cstate1 m1 cstate2 m2},
@@ -377,7 +377,6 @@ Proof.
   rewrite same_length0; auto.
 Qed.
 
-
 Lemma contains21:
   forall {data j cstate1 m1 cstate2 m2},
   concur_match data j cstate1 m1 cstate2 m2 ->
@@ -388,24 +387,6 @@ Proof.
   intros ? ? ? ? ? ? H. destruct H.
   rewrite same_length0; auto.
 Qed.
-
-(* This lemma is true, but I'm not sure about the relation:
- * the interface is not working well right here. What gives?
-*)
-Lemma contains_contains_ :
-  forall hb st1 tid,
-    containsThread st1 tid ->
-    containsThread_ (ThreadPool hb Sems Semt) st1 tid.
-Proof.
-Admitted.
-
-
-Lemma contains_contains :
-  forall hb st1 tid,
-    containsThread_ (ThreadPool hb Sems Semt) st1 tid ->
-    containsThread st1 tid.
-Proof.
-Admitted.
 
 End OneThreadCompiledMatch.
 
@@ -491,9 +472,9 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                   (compat1: HybridMachine.mem_compatible hb Sems Semt tp1 m1)
                   (compat2: HybridMachine.mem_compatible hb Sems Semt tp2 m2),
                     j <> i ->
-                    semantics.mem_step (restrPermMap (proj1 (compat1 j cntj1))) m2 ->
-                  same_visible (restrPermMap (proj1 (compat1 i cnti1)))
-                               (restrPermMap (proj1 (compat2 i cnti2))).
+                    semantics.mem_step (restrPermMap (FST (compat1 j cntj1))) m2 ->
+                  same_visible (restrPermMap (FST (compat1 i cnti1)))
+                               (restrPermMap (FST (compat2 i cnti2))).
                 Proof.
                   (*SKETCH:
                    * mem_step ensures only writable memory is modified.
@@ -516,7 +497,6 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    * Otherwise, source_match is invariant under changes to non_visible memory.
                    *)
                 Admitted.
-                
                 Lemma match_thread_compiled_same_vis:
                   forall f f' m1 m1' m2 m2' cs ct cd,
                   same_visible m1 m1' ->
@@ -544,34 +524,27 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                    *)
                 Admitted.
 
-            (*mem_steps preserve compatibility*)
+                
             Lemma mem_step_compatible:
                 forall hb1 Sems Semt c m m' code_i i
                   (cnti: containsThread c i) 
                   (Hcmpt1: HybridMachine.mem_compatible hb1 Sems Semt c m),
-                  semantics.mem_step (restrPermMap (proj1 (Hcmpt1 i cnti))) m'->
+                  semantics.mem_step (restrPermMap (FST (Hcmpt1 i cnti))) m'->
                   HybridMachine.mem_compatible hb1 Sems Semt
                                                (updThread cnti
                                                           code_i
                                                           (getCurPerm m', (snd (getThreadR cnti)))) m'.
-                  (* SKETCH:
-                   * mem steps should only change visible parts of memory.
-                   * if a memory location is removed, it had full permission.
-                   * If a memory location is added it has to be fresh.
-                   *)
             Admitted.
-
-            (* restricting to the permission taken from the memory is equivalent. *)
             Lemma gss_restrPermMap:
               forall Sems Semt hb i (tp: t_ (ThreadPool hb Sems Semt)) m c
                 (cnti: containsThread tp i)
                 (COMPT: HybridMachine.mem_compatible hb Sems Semt
                         (updThread cnti c (getCurPerm m, snd (getThreadR cnti))) m),
-                mem_equiv (restrPermMap (proj1 (COMPT i cnti))) m.
+                mem_equiv (restrPermMap (FST (COMPT i cnti))) m.
             Proof.
               intros; constructor.
               - intros.
-                pose proof (restrPermMap_contents (proj1 (COMPT i cnti))).
+                pose proof (restrPermMap_contents (FST (COMPT i cnti))).
                 unfold juicy_mem.contents_at in H.
                 match type of H with
                   ?LHS = ?RHS =>
@@ -587,10 +560,10 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                 apply H0.
               - intros.
                 destruct kind.
-                + pose proof (restrPermMap_Max (proj1 (COMPT i cnti))) as HH.
+                + pose proof (restrPermMap_Max (FST (COMPT i cnti))) as HH.
                   unfold permission_at in HH; rewrite HH; auto.
                   rewrite getMaxPerm_correct; reflexivity.
-                + pose proof (restrPermMap_Cur (proj1 (COMPT i cnti))) as HH.
+                + pose proof (restrPermMap_Cur (FST (COMPT i cnti))) as HH.
                   unfold permission_at in HH; rewrite HH.
                   cbv delta[getThreadR_ ThreadPool OrdinalThreadPool_rec] zeta iota beta.
                   simpl.
@@ -608,7 +581,6 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                     apply H; auto.
               - reflexivity.
             Qed.
-            
             Lemma concur_stable_thread_step_target:
               forall  cd f (c1:C1) m1 c2 m2 f' ts1' m1' ts2' m2' tid,
               forall (Htid1: containsThread c1 tid)
@@ -618,13 +590,14 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                 (Hcmpt2: HybridMachine.mem_compatible hb2 Sems Semt c2 m2),
                 concur_match cd f c1 m1 c2 m2 ->
                 is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) ->
-                semantics.mem_step (restrPermMap (proj1 (Hcmpt1 _ Htid1))) m1' ->
-                semantics.mem_step (restrPermMap (proj1 (Hcmpt2 _ Htid2))) m2' ->
+                semantics.mem_step (restrPermMap (FST (Hcmpt1 _ Htid1))) m1' ->
+                semantics.mem_step (restrPermMap (FST (Hcmpt2 _ Htid2))) m2' ->
                 match_self (code_inject Asm_self_simulation) f' ts1' m1' ts2' m2' ->
                 concur_match cd f'
                              (updThread Htid1  (Krun (TState _ _ ts1')) (getCurPerm m1', (snd (getThreadR Htid1))))  m1'
                              (updThread Htid2 (Krun (TState _ _ ts2')) (getCurPerm m2', (snd (getThreadR Htid2)))) m2'.
             Proof.
+              (*Oct 9: Sketching the proof... *)
               intros.
               (*First set up some results *)
               remember (updThread Htid1 (Krun (TState (semC Sems) Asm.regset ts1'))
@@ -703,6 +676,8 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                   
                   eapply match_thread_target_same_vis.
                   
+
+                  
                 {
                 eapply mem_step_same_visible.
                 + eassumption.
@@ -754,7 +729,6 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
 
                 eapply H6.
             Qed.
-            
             Lemma Asm_mem_semantics:
               forall genv c1 m1 t c2 m2
                 (Astep: Asm.step genv (Asm.State c1 m1) t (Asm.State c2 m2)),
@@ -762,11 +736,12 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
             Proof. intros. 
             Admitted.
             
+            
+                
     Lemma hybrid_thread_diagram:
       forall (U0 : list nat) (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
         machine_semantics.thread_step (HCSem Sems Semt hb1 U) genv U0 st1 m1 st1' m1' ->
-        forall cd (st2 : C2) (mu : meminj) (m2 : mem)
-          (INV:HybridMachine.invariant hb2 Sems Semt st2), 
+        forall cd (st2 : C2) (mu : meminj) (m2 : mem),
           concur_match cd mu st1 m1 st2 m2 ->
           exists (st2' : C2) (m2' : mem) cd' (mu' : meminj),
             concur_match cd' mu' st1' m1' st2' m2' /\
@@ -838,28 +813,15 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
         split.
           * (*Reestablish the match*)
             eapply concur_stable_thread_step_target; eauto.
-            Lemma fst_pair_of_and:
-              forall A B (CONJ: A /\ B),
-                fst (ssrfun.pair_of_and CONJ) = proj1 CONJ.
-            Proof. intros. eapply proof_irr. Qed.
-            
-            -- rewrite <- fst_pair_of_and.
-               eauto.
-               
-            -- containsThread_cleanup.
-               eapply Asm_mem_semantics; eauto.
-            
-
-            
-
-            
+            containsThread_cleanup.
+            eapply Asm_mem_semantics; eauto.
 
           (*Prove the machine step*)
           * left.
             eapply machine_semantics_lemmas.thread_step_plus_one.
             econstructor; simpl; eauto.
             econstructor; eauto.
-             (* -- The invariant is in the hypothesis of the lemma.*)
+            -- admit. (*Invariant: going to need to add this to the match relation *)
             -- inversion TINJ; subst.
                econstructor; simpl. 
                instantiate (3 := (memcompat2 H0)).
@@ -876,23 +838,13 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
         
         + (* tid = hb' *)
           (* equal: one machine in source one in target!!*)
-          invert Htstep.
+          inversion Htstep. subst tp' m' ev0.
           eapply event_semantics.ev_step_ax1 in Hcorestep.
           assert (MSTEP:= semantics.corestep_mem _ _ _ _ _ _ Hcorestep). 
           simpl in Hcorestep.
           assert (Hcode':= Hcode).
           simpl in Hcode.
-
-          
-          assert (Htid2 : containsThread_ (ThreadPool hb2 Sems Semt) st2 tid).
-          { dup Htid.
-            eapply contains_contains in HH.
-            eapply contains_contains_.
-            apply (contains12 H0 HH).
-          }
-          
-          eapply mtch_compiled with
-              (c := H0)(cnti1:=Htid)(cnti2:=Htid2) in EQ. 
+          eapply H0 in EQ. 
           rewrite Hcode in EQ.
           assert (Htid':= contains12 H0 Htid).
           destruct EQ as [cd0 [cd_eq EQ]]; inv EQ.
@@ -901,82 +853,34 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
                           INJsrc & INJcomp & INJtgt &
                           compose).
           
-
-          (*This lemma is composing:
-           * concur_match  
-           * source_match   s1 s1'
-           * compiler_match s1' s2'
-           * target_match s2 s2'
-           * --------------
-           * compiler_match s1 s2 
-
-           *)
-
           
-          invert Hcorestep.
-          rename H1 into source_thread_step.
-          clear Htstep Hcorestep H.
-
-          (*Three things I need   *)
-          (* 1. Source diagram.   *)
-          (* 2. Compiler diagram. *)
-          (* 3. Target diagram    *)
-          
-          (* 1. Source diagram.   *)
-          remember (ssim_diagram _ _ _ Clight_self_simulation) as source_diagram'.
-          
-          Ltac dup_as H name:=
-            assert (name:=H).
-          Tactic Notation "dup" hyp(H) "as" ident(name):= dup_as H name.
-          dup source_diagram' as source_diagram.
-
-          revert source_thread_step.
-          unfold semantics.csem, ClightCoreSEM.Sem.
-          rewrite ClightCoreSEM.CLC_msem.
-          simpl. intros source_thread_step.
-          destruct source_thread_step as [atExt Clight_step1].
-
-          
-          replace (Hcmpt tid Htid)
-            with  ((memcompat1 H0) tid Htid) in Clight_step1 by (apply proof_irr).
-          specialize (source_diagram _ _ _ _ _ _ INJsrc _ _ _ Clight_step1).
-
-          destruct source_diagram as
-              (c2' & fs & t2 & m2' & Clight_step2 & source_match & is_ext_source).
-
-          (* 2. Compiler diagram. *)
-          assert (compiler_diagram:= Injfsim_simulation compiler_simulation).
-          eapply compiler_diagram in Clight_step2; eauto.
-          destruct Clight_step2 as (i3 & s3 & fcomp & t3 & target_thread_step &
-                                   compiler_match' & inj_incr & inj_trace).
-
-          (* 3. Target diagram    *)
-          remember (ssim_diagram _ _ _ Asm_self_simulation) as target_diagram'.
-          dup target_diagram' as target_diagram.
-          revert target_thread_step.
-          unfold semantics.csem, ClightCoreSEM.Sem.
-          rewrite ClightCoreSEM.CLC_msem.
-          simpl. intros source_thread_step.
-          destruct source_thread_step as [atExt Clight_step1].
-          
-          
-          eapply source_diagram in INJsrc; eauto.
-          Focus 2. simpl.
-          unfold step2; simpl.
-          instantiate (4:=genvS).
-          clear. destruct (Hcmpt tid Htid); simpl.
-          eauto.
-
-
-          eapply Clight_step.
-          simpl. in source_thread_step.
-          
-          
-          specialize (source_diagram _ _ _ _ _ _ INJsrc _ _ _ source_thread_step).
-
+          Lemma compiled_thread_diagram:
+            forall (U0 : list nat) (st1 : C1) (m1 m1' : mem) (tid : nat)
+                   (Htid : containsThread_ (ThreadPool hb1 Sems Semt) st1 tid) (c' : semC (Sem hb1 Sems Semt))
+                   (st2 : C2) (mu : meminj) (m2 : mem) (cd0 : compiler_index)
+                   (H0 : concur_match (Some cd0) mu st1 m1 st2 m2) (code1 : CC_core) 
+                   (code2 : Asm.regset) (st1_ : CC_core) (m1_ : mem)
+                   (st2_ : X86Machines.ErasedMachine.ThreadPool.code) (m2_ : mem) 
+                   (f1 f2 f3 : meminj) cnti2,
+              source_match f1 code1 (restrPermMap (FST ((memcompat1 H0) tid Htid))) st1_ m1_ ->
+              compiler_match cd0 f2 (make_state_Clight st1_ m1_) (make_state_Asm st2_ m2_) ->
+              target_match f3 code2
+                           (restrPermMap
+                              (FST
+                                 ((memcompat2 H0) tid
+                                                  cnti2))) st2_
+                           m2_ ->
+              exists (st2' : C2) (m2' : mem) (cd' : option compiler_index) (mu' : meminj),
+                concur_match cd' mu'
+                             (updThread_ (ThreadPool hb1 Sems Semt) Htid (Krun c')
+                                         (getCurPerm m1', snd (getThreadR_ (ThreadPool hb1 Sems Semt) Htid))) m1' st2' m2' /\
+                (machine_semantics_lemmas.thread_step_plus (HCSem Sems Semt hb2 U) genv 
+                                                           (tid :: U0) st2 m2 st2' m2' \/
+                 machine_semantics_lemmas.thread_step_star (HCSem Sems Semt hb2 U) genv 
+                                                           (tid :: U0) st2 m2 st2' m2' /\ option_compiler_order cd' (Some cd0)).
+          Proof.
+            intros.
             
-          (* 2. Compiler diagram. *)
-          (* 3. Target diagram    *)
           
           
           (*LOOK HERE!!! *)

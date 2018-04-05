@@ -116,12 +116,13 @@ CONCUR_FILES= \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
+  dry_context.v \
   dry_machine_lemmas.v dry_machine_step_lemmas.v \
-  Clight_bounds.v enums_equality.v\
+  Clight_bounds.v \
   ClightSemantincsForMachines.v ClightCoreSemantincsForMachines.v \
   JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
-  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
+  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v enums_equality.v  \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
@@ -151,9 +152,10 @@ CONCUR_FILES= \
 linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v CoreSemantics_sum.v \
-  concurrent_machine_rec.v HybridMachine.v
-
-#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
+  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v\
+	HybridMachine.v HybridMachine_simulation.v \
+  HybridMachine_simulation_proof.v \
+  Clight_safety.v main_safety.v main.v  
 
 PACO_FILES= \
   hpattern.v\

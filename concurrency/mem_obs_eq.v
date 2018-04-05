@@ -30,121 +30,121 @@ Require Import VST.concurrency.semantics.
 
 (** ** Block renamings*)
 Module Renamings.
-Definition memren := block -> option block.
+  Definition memren := block -> option block.
 
-Definition ren_incr f1 f2 :=
-forall (b b' : block),
-  f1 b = Some b' -> f2 b = Some b'.
+  Definition ren_incr f1 f2 :=
+    forall (b b' : block),
+      f1 b = Some b' -> f2 b = Some b'.
 
-Definition ren_separated (f f' : memren) m1 m2 :=
-forall (b1 b2 : block),
-f b1 = None ->
-f' b1 = Some b2 ->
-~ Mem.valid_block m1 b1 /\ ~ Mem.valid_block m2 b2.
+  Definition ren_separated (f f' : memren) m1 m2 :=
+    forall (b1 b2 : block),
+      f b1 = None ->
+      f' b1 = Some b2 ->
+      ~ Mem.valid_block m1 b1 /\ ~ Mem.valid_block m2 b2.
 
-Definition ren_domain_incr (f1 f2: memren) :=
-  forall b,
-    f1 b -> f2 b.
+  Definition ren_domain_incr (f1 f2: memren) :=
+    forall b,
+      f1 b -> f2 b.
 
-(** Defining the domain of a renaming with respect to a memory*)
-Definition domain_memren (f: memren) m :=
-  forall b, Mem.valid_block m b <-> isSome (f b).
+  (** Defining the domain of a renaming with respect to a memory*)
+  Definition domain_memren (f: memren) m :=
+    forall b, Mem.valid_block m b <-> isSome (f b).
 
-Lemma restrPermMap_domain:
-  forall f m p (Hlt: permMapLt p (getMaxPerm m)),
-    domain_memren f m <-> domain_memren f (restrPermMap Hlt).
-Proof.
-  intros.
-  unfold domain_memren.
-  split; intros; specialize (H b);
-  erewrite restrPermMap_valid in *;
-    by auto.
-Qed.
+  Lemma restrPermMap_domain:
+    forall f m p (Hlt: permMapLt p (getMaxPerm m)),
+      domain_memren f m <-> domain_memren f (restrPermMap Hlt).
+  Proof.
+    intros.
+    unfold domain_memren.
+    split; intros; specialize (H b);
+      erewrite restrPermMap_valid in *;
+        by auto.
+  Qed.
 
-Lemma domain_memren_incr:
-  forall f f' f'' m,
-    domain_memren f' m ->
-    domain_memren f'' m ->
-    ren_domain_incr f f' <-> ren_domain_incr f f''.
-Proof.
-  intros.
-  unfold domain_memren in *;
-  split; intros Hincr b Hf;
-  apply Hincr in Hf;
-  destruct (H b), (H0 b);
-    by eauto.
-Qed.
+  Lemma domain_memren_incr:
+    forall f f' f'' m,
+      domain_memren f' m ->
+      domain_memren f'' m ->
+      ren_domain_incr f f' <-> ren_domain_incr f f''.
+  Proof.
+    intros.
+    unfold domain_memren in *;
+      split; intros Hincr b Hf;
+        apply Hincr in Hf;
+        destruct (H b), (H0 b);
+          by eauto.
+  Qed.
 
-Lemma domain_memren_trans:
-  forall f f' m m',
-    domain_memren f m ->
-    domain_memren f m' ->
-    domain_memren f' m' ->
-    domain_memren f' m.
-Proof.
-  intros.
-  split;
-    destruct (H b), (H0 b), (H1 b); auto.
-Qed.
+  Lemma domain_memren_trans:
+    forall f f' m m',
+      domain_memren f m ->
+      domain_memren f m' ->
+      domain_memren f' m' ->
+      domain_memren f' m.
+  Proof.
+    intros.
+    split;
+      destruct (H b), (H0 b), (H1 b); auto.
+  Qed.
 
-Lemma ren_incr_domain_incr:
-  forall f f',
-    ren_incr f f' ->
-    ren_domain_incr f f'.
-Proof.
-  intros f f' Hincr b Hf.
-  destruct (f b) as [b'|] eqn:Hfb; try by exfalso.
-  specialize (Hincr b b' Hfb);
-    by rewrite Hincr.
-Qed.
+  Lemma ren_incr_domain_incr:
+    forall f f',
+      ren_incr f f' ->
+      ren_domain_incr f f'.
+  Proof.
+    intros f f' Hincr b Hf.
+    destruct (f b) as [b'|] eqn:Hfb; try by exfalso.
+    specialize (Hincr b b' Hfb);
+      by rewrite Hincr.
+  Qed.
 
-Lemma ren_domain_incr_refl:
-  forall f,
-    ren_domain_incr f f.
-Proof.
-  intros.
-  unfold ren_domain_incr;
-    by auto.
-Qed.
+  Lemma ren_domain_incr_refl:
+    forall f,
+      ren_domain_incr f f.
+  Proof.
+    intros.
+    unfold ren_domain_incr;
+      by auto.
+  Qed.
 
-Lemma ren_domain_incr_trans:
-  forall f f' f'',
-    ren_domain_incr f f' ->
-    ren_domain_incr f' f'' ->
-    ren_domain_incr f f''.
-Proof.
-  intros.
-  unfold ren_domain_incr;
-    by auto.
-Qed.
+  Lemma ren_domain_incr_trans:
+    forall f f' f'',
+      ren_domain_incr f f' ->
+      ren_domain_incr f' f'' ->
+      ren_domain_incr f f''.
+  Proof.
+    intros.
+    unfold ren_domain_incr;
+      by auto.
+  Qed.
 
-Lemma ren_incr_trans:
-  forall f f' f'',
-    ren_incr f f' ->
-    ren_incr f' f'' ->
-    ren_incr f f''.
-Proof.
-  intros.
-  unfold ren_incr;
-    by auto.
-Qed.
+  Lemma ren_incr_trans:
+    forall f f' f'',
+      ren_incr f f' ->
+      ren_incr f' f'' ->
+      ren_incr f f''.
+  Proof.
+    intros.
+    unfold ren_incr;
+      by auto.
+  Qed.
 
-Lemma ren_incr_refl:
-  forall f,
-    ren_incr f f.
-Proof.
-  unfold ren_incr; auto.
-Qed.
+  Lemma ren_incr_refl:
+    forall f,
+      ren_incr f f.
+  Proof.
+    unfold ren_incr; auto.
+  Qed.
 
-Lemma ren_separated_refl:
-  forall f m m',
-    ren_separated f f m m'.
-Proof.
-  unfold ren_separated.
-    by congruence.
-Qed.
+  Lemma ren_separated_refl:
+    forall f m m',
+      ren_separated f f m m'.
+  Proof.
+    unfold ren_separated.
+      by congruence.
+  Qed.
 
- (** Results about id injections*)
+  (** Results about id injections*)
   Definition id_ren m :=
     fun b => if is_left (valid_block_dec m b) then Some b else None.
 
@@ -164,7 +164,7 @@ Qed.
     unfold id_ren, domain_memren.
     intros.
     destruct (valid_block_dec m b); simpl;
-    split; intuition.
+      split; intuition.
   Qed.
 
   Lemma id_ren_validblock:
@@ -3356,9 +3356,10 @@ Lemma setPermBlock_var_eq:
 
 End MemObsEq.
 
-Module Type CoreInjections (SEM: Semantics).
+Module Type CoreInjections (Sem : SEMANTICS).
 
-  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq SEM event_semantics.
+  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq event_semantics Sem.
+
 
   (** Pointers in the core are well-defined *)
   Parameter core_wd : memren -> C -> Prop.
@@ -3394,16 +3395,16 @@ Module Type CoreInjections (SEM: Semantics).
       valid_mem m ->
       domain_memren f m ->
       core_wd f c ->
-      at_external Sem ge c m = Some (ef, args) -> 
+      at_external SEM ge c m = Some (ef, args) -> 
       valid_val_list f args.
 
   Parameter after_external_wd:
     forall ge m (c c' : C) (f : memren) (ef : external_function)
       (args : seq val) (ov : option val)
-      (Hat_external: at_external Sem ge c m = Some (ef, args))
+      (Hat_external: at_external SEM ge c m = Some (ef, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
-      (Hafter_external: after_external Sem ge ov c = Some c')
+      (Hafter_external: after_external SEM ge ov c = Some c')
       (Hov: match ov with
             | Some v => valid_val f v
             | None => True
@@ -3416,14 +3417,14 @@ Module Type CoreInjections (SEM: Semantics).
     forall the_ge m (f : memren) (vf arg : val) (c_new : C) om h,
       valid_mem m ->
       domain_memren f m ->
-      initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
+      initial_core SEM h the_ge m vf [:: arg] = Some (c_new, om) ->
       valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.*)
 
  Parameter initial_core_wd :
     forall the_ge m (f : memren) (vf arg : val) (c_new:C) om h,
       valid_mem m ->
       domain_memren f m ->
-      initial_core Sem h the_ge m vf [:: arg] = Some (c_new, om) ->
+      initial_core SEM h the_ge m vf [:: arg] = Some (c_new, om) ->
       valid_val f arg -> ge_wd f the_ge -> 
      exists f', core_wd f' c_new /\ ren_domain_incr f f' /\ 
         (forall b1 b2, f b1 = None -> f' b1 = Some b2 -> ~Mem.valid_block m b1).
@@ -3437,15 +3438,15 @@ Module Type CoreInjections (SEM: Semantics).
       valid_mem m ->
       domain_memren f m ->
       core_inj f c c' ->
-      match at_external Sem ge c m with
+      match at_external SEM ge c m with
       | Some (ef, vs) =>
-        match at_external Sem ge c' m with
+        match at_external SEM ge c' m with
         | Some (ef', vs') =>
           ef = ef'/\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
-        match at_external Sem ge c' m with
+        match at_external SEM ge c' m with
         | Some _ => False
         | None => True
         end
@@ -3463,9 +3464,9 @@ Module Type CoreInjections (SEM: Semantics).
       | Some v1 => valid_val f v1
       | None => True
       end ->
-      after_external Sem ge ov1 c = Some cc ->
+      after_external SEM ge ov1 c = Some cc ->
       exists (ov2 : option val) (cc' : C),
-        after_external Sem ge ov2 c' = Some cc' /\
+        after_external SEM ge ov2 c' = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
         | Some v1 =>
@@ -3481,7 +3482,7 @@ Module Type CoreInjections (SEM: Semantics).
 
   Parameter core_inj_halted:
     forall c c' f (Hinj: core_inj f c c'),
-      match halted Sem c, halted Sem c' with
+      match halted SEM c, halted SEM c' with
       | Some v, Some v' => val_obs f v v'
       | None, None => True
       | _, _ => False
@@ -3494,10 +3495,10 @@ Module Type CoreInjections (SEM: Semantics).
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core Sem h the_ge m vf arg = Some (c_new, om))
+      (Hinit: initial_core SEM h the_ge m vf arg = Some (c_new, om))
       (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),
       exists c_new' : C, exists om': option mem,
-      initial_core Sem h the_ge m' vf' arg' = Some (c_new', om') /\
+      initial_core SEM h the_ge m' vf' arg' = Some (c_new', om') /\
       exists f', 
         core_inj f' c_new c_new' /\
       match om with
@@ -3527,9 +3528,9 @@ Module Type CoreInjections (SEM: Semantics).
       (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hstep: corestep Sem the_ge cc mc cc' mc'),
+      (Hstep: corestep SEM the_ge cc mc cc' mc'),
     exists cf' mf' f',
-      corestep Sem the_ge cf mf cf' mf'
+      corestep SEM the_ge cf mf cf' mf'
       /\ core_inj f' cc' cf'
       /\ mem_obs_eq f' mc' mf'
       /\ ren_incr f f'
@@ -3564,21 +3565,25 @@ Module Type CoreInjections (SEM: Semantics).
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_domain_incr fg f)
       (Hdomain: domain_memren f m)
-      (Hcorestep: corestep Sem the_ge c m c' m'),
+      (Hcorestep: corestep SEM the_ge c m c' m'),
       valid_mem m' /\
       (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
       forall f', domain_memren f' m' ->
             core_wd f' c'.
 
-
 End CoreInjections.
 
-Module ThreadPoolInjections (SEM: Semantics)
-       (Machines: MachinesSig with Module SEM := SEM)
-       (CI: CoreInjections SEM).
+Module ThreadPoolInjections (Sem: SEMANTICS)
+       (CI: CoreInjections Sem).
 
   Import ValObsEq ValueWD MemoryWD Renamings CI.
-  Import concurrent_machine Machines.DryMachine ThreadPool.
+  Import HybridMachine ThreadPool AsmContext.
+
+  Instance asmSem : Semantics :=
+    {| semG := Sem.G;
+       semC := Sem.C;
+       semSem := Sem.SEM |}.
+
   (** Renamings on Thread Pools *)
 
   (*not clear what should happen with vf. Normally it should be in the
@@ -3638,7 +3643,7 @@ here*)
       by eauto.
   Qed.
 
-  Definition tp_wd (f: memren) (tp : thread_pool) : Prop :=
+  Definition tp_wd (f: memren) (tp : t) : Prop :=
     forall i (cnti: containsThread tp i),
       ctl_wd f (getThreadC cnti).
 
@@ -3672,7 +3677,7 @@ here*)
   Qed.
 
   Lemma tp_wd_domain:
-    forall f f' m (tp : thread_pool),
+    forall f f' m (tp : t),
       tp_wd f tp ->
       domain_memren f m ->
       domain_memren f' m ->
@@ -3697,19 +3702,19 @@ here*)
   Proof.
     intros.
     intros i cnti'.
-    assert (cnti := cntUpdateL' cnti').
+    assert (cnti := cntUpdateL' addr rmap cnti').
     specialize (Htp_wd _ cnti).
       by rewrite gLockSetCode.
   Qed.
 
   Lemma tp_wd_remLock :
-    forall (tp : thread_pool) (f : memren) (addr : address)
+    forall (tp : t) (f : memren) (addr : address)
       (Htp_wd: tp_wd f tp),
       tp_wd f (remLockSet tp addr).
   Proof.
     intros.
     intros i cnti'.
-    assert (cnti := cntRemoveL' cnti').
+    assert (cnti := cntRemoveL' addr cnti').
     specialize (Htp_wd _ cnti);
       by rewrite gRemLockSetCode.
   Qed.

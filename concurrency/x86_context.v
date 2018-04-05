@@ -1,171 +1,147 @@
-(** * Instantiating the dry and erased machine for X86*)
+(** * Instantiating the dry and bare machine for X86*)
 
-Require Import VST.concurrency.dry_machine.
-Require Import VST.concurrency.erased_machine.
-Require Import VST.concurrency.concurrent_machine.
-Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.memory_lemmas.
-Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.dry_machine_lemmas.
-Require Import VST.ccc26x86.Asm_coop.
-Require Import VST.ccc26x86.Asm_event.
+Require Import concurrency.HybridMachine.
+Require Import concurrency.erased_machine.
+Require Import concurrency.HybridMachineSig.
+Require Import concurrency.permissions.
+Require Import concurrency.memory_lemmas.
+Require Import concurrency.dry_context.
+(* Require Import concurrency.dry_machine_lemmas. *)
+Require Import concurrency.Asm_core.
+Require Import concurrency.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.
-Require Import VST.msl.Coqlib2.
+Require Import msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-Import Concur.
+Module X86Context.
+  Import AsmContext.
+  
+  Section X86Context.
 
-Module X86SEM <: Semantics.
-  Definition F := Asm.fundef.
-  Definition V := unit.
-  Definition G := Asm.genv.
-  Definition C := state.
-  Definition Sem := Asm_EvSem.
-  Definition getEnv (g: G) := g.
-End X86SEM.
+    Instance X86Sem: Semantics:=
+      {| semG:= Asm.genv;
+         semC:= Asm.regset;
+         semSem:= Asm_EvSem
+      |}.
 
-(** The DryConc, FineConc and SC machines instantiated for X86*)
-Module X86Machines <: (MachinesSig with Module SEM := X86SEM).
+    Variable initU: seq.seq nat.
+    Variable the_program: Asm.program.
 
-  Module SEM := X86SEM.
-  Module DryMachine := DryMachineShell X86SEM.
-  Module ErasedMachine := ErasedMachineShell X86SEM.
+    Definition the_ge := Globalenvs.Genv.globalenv the_program.
 
-  Module DryConc := CoarseMachine mySchedule DryMachine.
-  Module FineConc := FineMachine mySchedule DryMachine.
-  Module SC := FineMachine mySchedule ErasedMachine.
+    Definition coarse_semantics:=
+      coarse_semantics initU (Genv.init_mem the_program).
+    Definition fine_semantics:=
+      fine_semantics initU (Genv.init_mem the_program).
+    Definition bare_semantics :=
+      bare_semantics initU.
 
-End X86Machines.
-
-Module X86Context <: AsmContext X86SEM X86Machines.
-
-  Import X86Machines.
-  Parameter initU: mySchedule.schedule.
-  Parameter the_program: Asm.program.
-
-  Definition init_mem := Genv.init_mem the_program.
-  Definition init_perm : option (access_map * access_map) :=
-    match init_mem with
-    | Some m => Some (getCurPerm m, empty_map)
-    | None => None
-    end.
-
-  Definition the_ge := Globalenvs.Genv.globalenv the_program.
-
-  Definition coarse_semantics:=
-      DryConc.MachineSemantics initU init_perm.
-
-  Definition fine_semantics:=
-      FineConc.MachineSemantics initU init_perm.
-
-    Definition sc_semantics :=
-    SC.MachineSemantics initU None.
-
-  Definition tpc_init f arg := initial_core coarse_semantics 0 the_ge f arg.
-  Definition tpf_init f arg := initial_core fine_semantics 0 the_ge f arg.
-  Definition sc_init f arg := initial_core sc_semantics 0 the_ge f arg.
-
+  End X86Context.
 End X86Context.
 
-Module X86SEMAxioms <: SemanticsAxioms X86SEM.
+  Module X86SEMAxioms <: SemanticsAxioms X86SEM.
 
-  Import Asm Asm_coop event_semantics semantics_lemmas
-         X86SEM Memory.
+    Import Asm Asm_core event_semantics semantics_lemmas
+           X86SEM Memory.
 
-  Lemma corestep_det: corestep_fun Sem.
-  Proof.
-    hnf; intros.
-    inv H; inv H0;
-    repeat
-      match goal with
-      | H: ?A = _, H':?A=_ |- _ => inversion2 H H'
-      | H: ?A, H': ?A |- _ => clear H'
-      end;
-    try congruence; try now (split; auto).
-    pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
-    subst args0; auto.
-  Qed.
+    Lemma corestep_det: corestep_fun Sem.
+    Proof.
+      hnf; intros.
+      inv H; inv H0;
+        repeat
+          match goal with
+          | H: ?A = _, H':?A=_ |- _ => inversion2 H H'
+          | H: ?A, H': ?A |- _ => clear H'
+          end;
+        try congruence; try now (split; auto).
+      assert (vargs0=vargs) by (eapply Events.eval_builtin_args_determ; eauto).
+      subst vargs0; clear H10.
+      assert (t0=t) by (eapply builtin_event_determ; eauto). subst t0. clear H11.
+      destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H7 H13).
+      specialize (H0 (eq_refl _)). destruct H0; subst m'' vres0.
+      auto.
+    Qed.
 
-  Lemma mem_step_decay:
-    forall m m',
-      mem_step m m' ->
-      decay m m'.
-  Proof.
-    induction 1.
-    *
-      split; intros.
-      contradiction H0; clear H0.
-      eapply Memory.Mem.storebytes_valid_block_2; eauto.
-      right. intros.
-      apply Memory.Mem.storebytes_access in H.
-      rewrite H; auto.
-    *
-      split; intros.
-    +
-      assert (b=b').
-      pose proof (Memory.Mem.nextblock_alloc _ _ _ _ _ H).
-      apply Memory.Mem.alloc_result in H. subst.
-      unfold Memory.Mem.valid_block in *.
-      rewrite H2 in H1; clear H2.
-      apply Plt_succ_inv in H1. destruct H1; auto.
-      contradiction. subst b'. clear - H.
-      Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
-      inv H. simpl.
-      destruct (veric.Memory.range_dec lo ofs hi); [left | right]; intros.
-      rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
-      reflexivity.
-      rewrite PMap.gss.
-      destruct (zle lo ofs), (zlt ofs hi); try reflexivity.
-      omega.
-    +
-      assert (b<>b').
-      intro. subst b'. apply Memory.Mem.alloc_result in H. subst b.
-      unfold Memory.Mem.valid_block in H0. apply Plt_ne in H0.
-      contradiction H0; auto.
-      right. intro.
-      Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
-      inv H. simpl.
-      erewrite PMap.gso by auto. auto.
+    Lemma mem_step_decay:
+      forall m m',
+        mem_step m m' ->
+        decay m m'.
+    Proof.
+      induction 1.
       *
-        revert m H; induction l; intros. inv H. apply decay_refl.
-        simpl in H. destruct a. destruct p.
-        destruct (Memory.Mem.free m b z0 z) eqn:?H; inv H.
-        apply decay_trans with m0; [ | | eapply IHl; eauto].
-        eapply Memory.Mem.valid_block_free_1; eauto.
-        clear  - H0. rename m0 into m'. rename z0 into lo. rename z into hi.
-        Transparent Memory.Mem.free. unfold Memory.Mem.free in H0. Opaque Memory.Mem.free.
-        if_tac in H0; inv H0.
-        unfold Memory.Mem.unchecked_free; hnf; unfold Memory.Mem.valid_block; simpl.
-        split; intros; simpl. contradiction.
-        destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs)).
-        destruct a. subst b0. rewrite !PMap.gss. specialize (H ofs).
-        left; intro.
-        destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
-        split; simpl; auto. spec H; [omega |].
-        hnf in H. match type of H with match ?A with _ => _ end => destruct A eqn:?H end; try contradiction.
-        assert (p= Memtype.Freeable). inv H; auto. subst p. clear H.
-        destruct k; auto.
-        pose proof (Memory.Mem.access_max m b ofs).
-        rewrite H1 in H.
-        match goal with |- ?A = _ => destruct A; inv H end; auto.
-        clear H.
+        split; intros.
+        contradiction H0; clear H0.
+        eapply Memory.Mem.storebytes_valid_block_2; eauto.
         right. intros.
-        destruct (peq b b0); auto. subst b0. rewrite PMap.gss.
-        unfold adr_range in n.
-        assert (~ (lo <= ofs < hi)%Z) by (contradict n; split; auto; omega).
-        destruct (zle lo ofs); try reflexivity.
-        destruct (zlt ofs hi); try reflexivity. omega.
-        erewrite PMap.gso by auto. auto.
+        apply Memory.Mem.storebytes_access in H.
+        rewrite H; auto.
       *
-        apply decay_trans with m''; auto.
-        apply mem_step_nextblock in H.
-        unfold Memory.Mem.valid_block; intros.
-        eapply Plt_Ple_trans; try apply H1. apply H.
-  Qed.
+        split; intros.
+      +
+        assert (b=b').
+        pose proof (Memory.Mem.nextblock_alloc _ _ _ _ _ H).
+        apply Memory.Mem.alloc_result in H. subst.
+        unfold Memory.Mem.valid_block in *.
+        rewrite H2 in H1; clear H2.
+        apply Plt_succ_inv in H1. destruct H1; auto.
+        contradiction. subst b'. clear - H.
+        Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
+        inv H. simpl.
+        destruct (veric.Memory.range_dec lo ofs hi); [left | right]; intros.
+        rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+        reflexivity.
+        rewrite PMap.gss.
+        destruct (zle lo ofs), (zlt ofs hi); try reflexivity.
+        omega.
+      +
+        assert (b<>b').
+        intro. subst b'. apply Memory.Mem.alloc_result in H. subst b.
+        unfold Memory.Mem.valid_block in H0. apply Plt_ne in H0.
+        contradiction H0; auto.
+        right. intro.
+        Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
+        inv H. simpl.
+        erewrite PMap.gso by auto. auto.
+        *
+          revert m H; induction l; intros. inv H. apply decay_refl.
+          simpl in H. destruct a. destruct p.
+          destruct (Memory.Mem.free m b z0 z) eqn:?H; inv H.
+          apply decay_trans with m0; [ | | eapply IHl; eauto].
+          eapply Memory.Mem.valid_block_free_1; eauto.
+          clear  - H0. rename m0 into m'. rename z0 into lo. rename z into hi.
+          Transparent Memory.Mem.free. unfold Memory.Mem.free in H0. Opaque Memory.Mem.free.
+          if_tac in H0; inv H0.
+          unfold Memory.Mem.unchecked_free; hnf; unfold Memory.Mem.valid_block; simpl.
+          split; intros; simpl. contradiction.
+          destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs)).
+          destruct a. subst b0. rewrite !PMap.gss. specialize (H ofs).
+          left; intro.
+          destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+          split; simpl; auto. spec H; [omega |].
+          hnf in H. match type of H with match ?A with _ => _ end => destruct A eqn:?H end; try contradiction.
+          assert (p= Memtype.Freeable). inv H; auto. subst p. clear H.
+          destruct k; auto.
+          pose proof (Memory.Mem.access_max m b ofs).
+          rewrite H1 in H.
+          match goal with |- ?A = _ => destruct A; inv H end; auto.
+          clear H.
+          right. intros.
+          destruct (peq b b0); auto. subst b0. rewrite PMap.gss.
+          unfold adr_range in n.
+          assert (~ (lo <= ofs < hi)%Z) by (contradict n; split; auto; omega).
+          destruct (zle lo ofs); try reflexivity.
+          destruct (zlt ofs hi); try reflexivity. omega.
+          erewrite PMap.gso by auto. auto.
+        *
+          apply decay_trans with m''; auto.
+          apply mem_step_nextblock in H.
+          unfold Memory.Mem.valid_block; intros.
+          eapply Plt_Ple_trans; try apply H1. apply H.
+    Qed.
 
     Lemma exec_load_same_mem:
       forall ge ch m a rs rd rs' m',
@@ -211,7 +187,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
         Transparent Memory.Mem.storebytes.
         unfold Memory.Mem.storebytes in H1.
         destruct (Memory.Mem.range_perm_dec m b0 ofs0
-                                     (ofs0 + Z.of_nat (length nil)) Memtype.Cur Memtype.Writable);
+                                            (ofs0 + Z.of_nat (length nil)) Memtype.Cur Memtype.Writable);
           inv H1; simpl.
         destruct (peq b b0). subst b0.
         rewrite PMap.gss. auto.
@@ -225,7 +201,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
         unfold Memory.Mem.storebytes in H1.
         Opaque Memory.Mem.storebytes.
         destruct (Memory.Mem.range_perm_dec m b0 ofs0
-                                     (ofs0 + Z.of_nat (length (a :: nil))) Memtype.Cur Memtype.Writable);
+                                            (ofs0 + Z.of_nat (length (a :: nil))) Memtype.Cur Memtype.Writable);
           inv H1; simpl.
         destruct (peq b b0). subst b0.
         rewrite PMap.gss.
@@ -317,4 +293,4 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       apply mem_step_nextblock.
       apply asm_mem_step in H; auto.
     Qed.
-End X86SEMAxioms.
+  End X86SEMAxioms.
