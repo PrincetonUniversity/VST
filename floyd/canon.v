@@ -2516,14 +2516,17 @@ Ltac syntactic_cancel :=
             | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
             end;
             simple apply syntactic_cancel_solve
-          | unfold fold_right_sepcon at 1 2; cbv iota beta ]
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_right_sepconx_eq A), <- (fold_right_sepconx_eq B)
+            end;
+            unfold fold_right_sepconx; cbv iota beta ]
   ].
 
 (*
 Export ListNotations.
 
-Goal forall A B C: mpred, exists F: list mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
+Goal forall A B C D: mpred, exists F: list mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A; D] * fold_right_sepcon F.
 Proof.
   intros.
   eexists.
