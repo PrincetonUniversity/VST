@@ -2512,8 +2512,11 @@ Ltac syntactic_cancel :=
              | cbv iota; unfold delete_nth; cbv zeta iota
              ]
            ]
-  | first [ simple apply syntactic_cancel_solve
-          | cbv iota beta ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | unfold fold_right_sepcon at 1 2; cbv iota beta ]
   ].
 
 (*

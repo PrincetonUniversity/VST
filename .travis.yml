@@ -32,7 +32,7 @@ env:
 branches:
   only:
   - master
-  - ramif
+  - nth_SEP
 notifications:
   email:
     recipients:
