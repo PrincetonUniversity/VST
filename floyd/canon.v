@@ -2565,15 +2565,33 @@ Proof.
   eapply syntactic_cancel_spec; eauto.
 Qed.
 
-Ltac local_cancel1_in_syntactic_cancel :=
+Ltac local_cancel_in_syntactic_cancel :=
   cbv beta;
   match goal with |- ?A |-- ?B => 
-    solve [constr_eq A B; simple apply (derives_refl A)]
+    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel]
   end.
 
-Ltac local_cancel2_in_syntactic_cancel :=
-  solve [cbv beta; auto with nocore cancel].
+Ltac syntactic_cancel :=
+  eapply syntactic_cancel_spec;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth_SEP local_cancel_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
 
+
+(*
 Ltac syntactic_cancel :=
   eapply double_syntactic_cancel_spec;
   [ repeat first
@@ -2600,6 +2618,7 @@ Ltac syntactic_cancel :=
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
+*)
 
 (*
 Ltac syntactic_cancel :=
