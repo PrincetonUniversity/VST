@@ -222,6 +222,7 @@ Proof.
   forward_call (ctr, sh2, lock, g1, g2, false).
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   rewrite thread_ghost at 2.
+  Intros.
   forward_call (ctr, sh2, lock, g1, g2, 1, 1).
   gather_SEP 1 4; rewrite <- thread_ghost.
   (* We've proved that t is 2! *)
