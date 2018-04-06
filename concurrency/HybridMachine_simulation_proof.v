@@ -19,7 +19,7 @@ Require Import ExposedSmallstep.
 Require Import VST.concurrency.SantiagosTactics.
 Require Import VST.concurrency.MemoryEquivalences.
 Require Import VST.concurrency.x86_context.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.HybridMachine.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.HybridMachine_simulation.

@@ -23,11 +23,11 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.dry_machine_lemmas.
-Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
+Require Import VST.concurrency.HybridMachine_step_lemmas.
 Require Import VST.concurrency.executions.
 Require Import Coqlib.
 Require Import VST.msl.Coqlib2.
@@ -1079,7 +1079,7 @@ Module SpinLocks (SEM: Semantics)
         assert (Hvalid_mk'2: pre_k = [::] /\
                              post_k = [::] /\
                              action evk = Release /\
-                             (exists rmap : dry_machine.LocksAndResources.lock_info,
+                             (exists rmap : HybridMachine.LocksAndResources.lock_info,
                                  szk = lksize.LKSIZE_nat /\
                                  lockRes tp_k' (b, ofsk) = Some rmap /\
                                  (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) \/
@@ -1098,7 +1098,7 @@ Module SpinLocks (SEM: Semantics)
         assert (Hvalid_m2: pre_k = [::] /\
                              post_k = [::] /\
                              action evk = Release /\
-                             (exists rmap : dry_machine.LocksAndResources.lock_info,
+                             (exists rmap : HybridMachine.LocksAndResources.lock_info,
                                  szk = lksize.LKSIZE_nat /\
                                  lockRes tp_k' (b, ofsk) = Some rmap /\
                                  (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) \/
@@ -1128,7 +1128,7 @@ Module SpinLocks (SEM: Semantics)
                                  (pre_k = [::] /\
                                   post_k = [::] /\
                                   action evk = Release /\
-                                  (exists rmap : dry_machine.LocksAndResources.lock_info,
+                                  (exists rmap : HybridMachine.LocksAndResources.lock_info,
                                       szk = lksize.LKSIZE_nat /\
                                       lockRes tp_k' (b, ofsk) = Some rmap /\
                                       (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) \/

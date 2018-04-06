@@ -35,11 +35,11 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.semax_conc_pred.
 Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.juicy_machine.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
 
 Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.semax_initial.
@@ -524,7 +524,7 @@ Module MainSafety .
     Definition gTx86 := X86Context.the_ge.
     Parameter b: Values.block.
     Definition main: val:= (Vptr x Int.zero).
-    Definition p: option dry_machine.LocksAndResources.res:=
+    Definition p: option HybridMachine.LocksAndResources.res:=
       Some (dry_initial_perm, empty_map).
     Parameter sch : X86Machines.SC.Sch.
 
@@ -694,7 +694,7 @@ Module MainSafety .
           pose (valid_dec:= X86Machines.DryConc.valid (sch, [::], c)).
           destruct (Classical_Prop.classic valid_dec) as [VAL|NVAL].
           + by apply: IF_VAL.
-          + destruct (dry_machine.Concur.mySchedule.schedPeek sch) eqn:SCH.
+          + destruct (HybridMachine.Concur.mySchedule.schedPeek sch) eqn:SCH.
             - eapply X86Machines.DryConc.AngelSafe.
               eapply X86Machines.DryConc.schedfail.
               + exact SCH.
@@ -717,7 +717,7 @@ Module MainSafety .
                 assert (j =0). destruct j; auto; omega.
                 assert (t0 =0). destruct t0; auto; omega.
                 subst; auto.
-                destruct (dry_machine.Concur.mySchedule.TID.eq_tid_dec 0 0).
+                destruct (HybridMachine.Concur.mySchedule.TID.eq_tid_dec 0 0).
                 auto.
                 exfalso; apply n; auto.
               + simpl.

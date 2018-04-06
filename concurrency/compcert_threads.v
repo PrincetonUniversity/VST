@@ -5,7 +5,7 @@ Require Import VST.sepcomp.semantics_lemmas.
 
 
 Require Import VST.concurrency.pos.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.

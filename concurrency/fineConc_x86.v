@@ -15,7 +15,7 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.mem_obs_eq.
 Require Import VST.concurrency.x86_inj.
 Require Import VST.concurrency.x86_context.

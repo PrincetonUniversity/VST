@@ -23,12 +23,12 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.dry_machine_lemmas.
-Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
+Require Import VST.concurrency.HybridMachine_step_lemmas.
 Require Import Coqlib.
 Require Import VST.msl.Coqlib2.
 

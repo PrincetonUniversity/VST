@@ -22,11 +22,11 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import VST.concurrency.dry_machine_lemmas.
-Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
+Require Import VST.concurrency.HybridMachine_step_lemmas.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.mem_obs_eq.
 Require Import VST.concurrency.compcert_threads_lemmas.
 Require Import VST.concurrency.dry_context.
@@ -76,7 +76,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
   Module ThreadPoolWF := ThreadPoolWF SEM Machine.
   Import AsmContext SimProofs SimDefs Machine DryMachine ThreadPoolWF.
   Import Renamings MemObsEq ValObsEq ValueWD CI FineConcInitial ThreadPool.
-  Import SimDefs.StepType dry_machine.Concur.mySchedule.
+  Import SimDefs.StepType HybridMachine.Concur.mySchedule.
   Import StepType.InternalSteps StepLemmas.
 
   Import MemoryWD ThreadPoolInjections event_semantics.

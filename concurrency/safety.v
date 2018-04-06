@@ -9,7 +9,7 @@ Require Import compcert.common.Memory.
 
 (*Require Import VST.concurrency.juicy_machine.
 
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.*)
 Require Import VST.msl.eq_dec.
 

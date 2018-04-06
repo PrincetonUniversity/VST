@@ -3,10 +3,10 @@ Require Import compcert.common.Memory.
 (* The concurrent machinery*)
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.TheSchedule.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.juicy_machine. Import Concur.
-Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.HybridMachine. Import Concur.
 
 (*The simulations*)
 Require Import VST.sepcomp.wholeprog_simulations.

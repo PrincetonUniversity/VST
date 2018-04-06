@@ -23,9 +23,9 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.memory_lemmas.
-Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.fineConc_safe.
 Require Import VST.concurrency.executions.

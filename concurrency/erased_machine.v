@@ -2,7 +2,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.concurrency.pos.
 Require Import VST.concurrency.scheduler.
@@ -77,19 +77,19 @@ Module BareMachine.
           (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external semSem genv c m =
                          Some (LOCK, Vptr b ofs::nil))
-          (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
-          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+          (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.one))
+          (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None)
+          ext_step genv cnt0 Hcompat tp' m' (acquire (b, Ptrofs.intval ofs) None)
 
     | step_release :
         forall (tp':thread_pool) c m' b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external semSem genv c m =
                          Some (UNLOCK, Vptr b ofs::nil))
-          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
+          (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None)
+          ext_step genv cnt0 Hcompat tp' m' (release (b, Ptrofs.intval ofs) None)
 
     | step_create :
         forall (tp_upd tp':thread_pool) c b ofs arg
@@ -98,16 +98,16 @@ Module BareMachine.
                          Some (CREATE, Vptr b ofs::arg::nil))
           (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
-          ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
+          ext_step genv cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
 
     | step_mklock :
         forall  (tp': thread_pool) c m' b ofs
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external semSem genv c m =
                           Some (MKLOCK, Vptr b ofs::nil))
-           (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+           (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
            (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (mklock (b, Int.intval ofs))
+          ext_step genv cnt0 Hcompat tp' m' (mklock (b, Ptrofs.intval ofs))
 
     | step_freelock :
         forall (tp' tp'': thread_pool) c b ofs
@@ -115,15 +115,15 @@ Module BareMachine.
           (Hat_external: at_external semSem genv c m =
                          Some (FREE_LOCK, Vptr b ofs::nil))
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat  tp' m (freelock (b,Int.intval ofs))
+          ext_step genv cnt0 Hcompat  tp' m (freelock (b,Ptrofs.intval ofs))
 
     | step_acqfail :
         forall  c b ofs
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external semSem genv c m =
                           Some (LOCK, Vptr b ofs::nil))
-           (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
-          ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
+           (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
+          ext_step genv cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
     Definition threadStep (genv : G): forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
@@ -199,7 +199,7 @@ Module BareMachine.
             now eauto.
         * exists (cntUpdateC (Kresume c Vundef) cnt cntj), q.
           erewrite <- gsoThreadCC; eassumption.
-        * exists (cntRemoveL (b0, Int.intval ofs)
+        * exists (cntRemoveL (b0, Ptrofs.intval ofs)
                         (cntUpdateC (Kresume c Vundef) cnt cntj)), q.
           erewrite <- gsoThreadCC; eassumption.
         * exists cntj, q; assumption.

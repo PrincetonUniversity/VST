@@ -12,16 +12,16 @@ Require Import ProofIrrelevance.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.TheSchedule.
 
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.juicy_machine. Import Concur.
-Require Import VST.concurrency.dry_machine. Import Concur.
-(*Require Import VST.concurrency.dry_machine_lemmas. *)
+Require Import VST.concurrency.HybridMachine. Import Concur.
+(*Require Import VST.concurrency.HybridMachine_lemmas. *)
 Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.permissions.
 
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.HybridMachine_lemmas.
 Require Import VST.concurrency.erased_machine.
 
 (*Semantics*)
@@ -66,9 +66,9 @@ Import Concur threadPool.
      Notation DMachineSem:= DryConc.MachineSemantics.
      Notation new_DMachineSem:= DryConc.new_MachineSemantics.
 
-     Module FineConc := concurrent_machine.FineMachine SCH DryMachine.
+     Module FineConc := HybridMachineSig.FineMachine SCH DryMachine.
      (** SC machine*)
-     Module SC := concurrent_machine.FineMachine SCH ErasedMachine.
+     Module SC := HybridMachineSig.FineMachine SCH ErasedMachine.
      Module DTP<: ThreadPoolSig:= DryConc.SIG.ThreadPool.
 
      Import DryMachine DTP.

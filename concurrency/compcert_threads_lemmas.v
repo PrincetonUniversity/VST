@@ -30,9 +30,9 @@ Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
 Require Import VST.concurrency.scheduler.
-Require Import VST.concurrency.concurrent_machine.
-Require Import VST.concurrency.dry_machine_lemmas.
-Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.HybridMachineSig.
+Require Import VST.concurrency.HybridMachine_lemmas.
+Require Import VST.concurrency.HybridMachine_step_lemmas.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.mem_obs_eq.
@@ -52,7 +52,7 @@ Module SimDefs (SEM: Semantics)
   Import CI ValueWD MemoryWD Renamings.
 
   (* Machine and Context Imports*)
-  Import Machine DryMachine ThreadPool AsmContext dry_machine.Concur.mySchedule.
+  Import Machine DryMachine ThreadPool AsmContext HybridMachine.Concur.mySchedule.
   Module ThreadPoolInjections := ThreadPoolInjections SEM Machine CI.
   Import ThreadPoolInjections.
 
@@ -278,7 +278,7 @@ Module SimProofs (SEM: Semantics)
   Import CI ValueWD MemoryWD Renamings.
 
   (* Machine and Context Imports*)
-  Import Machine DryMachine ThreadPool AsmContext dry_machine.Concur.mySchedule.
+  Import Machine DryMachine ThreadPool AsmContext HybridMachine.Concur.mySchedule.
   Import ThreadPoolInjections ThreadPoolWF.
   Import event_semantics Events.
 
@@ -891,7 +891,7 @@ Admitted.
             fi b1 = None ->
             forall ofs, (getThreadR pffj).1 # b2 ofs = None /\ (getThreadR pffj).2 # b2 ofs = None) /\
       (forall (bl : block) (ofsl : Z)
-         (rmap : dry_machine.LocksAndResources.lock_info)
+         (rmap : HybridMachine.LocksAndResources.lock_info)
          (b1 b2 : block) (ofs : Z),
           fi' b1 = Some b2 ->
           fi b1 = None ->
@@ -1113,7 +1113,7 @@ Admitted.
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init mc (dry_machine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
+      assert (HinitF := core_inj_init mc (HybridMachine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
       destruct HinitF as [c_newF [m' [HinitialF Hcode_eq]]].
       assert (m'=None) by (apply initial_core_nomem in HinitialF; auto); subst m'.
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
@@ -5366,7 +5366,7 @@ relation*)
             exists bl1 : block, f bl1 = Some bl2)
         (HsimRes:
            forall (bl1 bl2 : block) (ofs : Z)
-             (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
+             (rmap1 rmap2 : HybridMachine.LocksAndResources.lock_info),
              f bl1 = Some bl2 ->
              forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
                (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
@@ -6587,7 +6587,7 @@ relation*)
             exists bl1 : block, f bl1 = Some bl2)
         (HsimRes:
            forall (bl1 bl2 : block) (ofs : Z)
-             (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
+             (rmap1 rmap2 : HybridMachine.LocksAndResources.lock_info),
              f bl1 = Some bl2 ->
              forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
                (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
@@ -6598,7 +6598,7 @@ relation*)
                                  (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).2)
                                  (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).2))
         (Hunmapped_res: forall (bl : block) (ofsl : Z)
-                          (rmap : dry_machine.LocksAndResources.lock_info),
+                          (rmap : HybridMachine.LocksAndResources.lock_info),
             lockRes tpf (bl, ofsl) = Some rmap ->
             forall b2 : block,
               ~ (exists b1 : block, f b1 = Some b2) ->
@@ -6928,7 +6928,7 @@ relation*)
             exists bl1 : block, f bl1 = Some bl2)
         (HsimRes:
            forall (bl1 bl2 : block) (ofs : Z)
-             (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
+             (rmap1 rmap2 : HybridMachine.LocksAndResources.lock_info),
              f bl1 = Some bl2 ->
              forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
                (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),

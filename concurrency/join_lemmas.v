@@ -429,7 +429,7 @@ Qed.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.enums_equality.
 Require Import VST.concurrency.juicy_machine.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.

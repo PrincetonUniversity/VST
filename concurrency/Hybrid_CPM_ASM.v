@@ -15,8 +15,8 @@ Set Bullet Behavior "Strict Subproofs".
 Notation hb:=(None).
 Definition Hybrid_resources:=
   Build_Resources_rec
-    dry_machine.LocksAndResources.res
-    dry_machine.LocksAndResources.lock_info.
+    HybridMachine.LocksAndResources.res
+    HybridMachine.LocksAndResources.lock_info.
 Definition Sems:= ClightCoreSemantincsForMachines.ClightSEM_rec.
 Definition Semt:= X86SEM_rec. (*Need both for hybrid*)
 Definition Hybrid_Sem:= CoreSem_Sum hb Sems Semt.

@@ -1,7 +1,7 @@
 (** * Lemmas about the Dry Machine*)
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -29,7 +29,7 @@ Require Import VST.concurrency.semantics.
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 (** This file holds various results about the dry machine*)
-(* Find other lemmas in dry_machine_step_lemmas.v        *)
+(* Find other lemmas in HybridMachine_step_lemmas.v        *)
 
 Module ThreadPoolWF.
   Import HybridMachine ThreadPool.

@@ -6,7 +6,7 @@ Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.dry_context.
-(* Require Import VST.concurrency.dry_machine_lemmas. *)
+(* Require Import VST.concurrency.HybridMachine_lemmas. *)
 Require Import VST.concurrency.Asm_core.
 Require Import VST.concurrency.Asm_event.
 Require Import compcert.common.Globalenvs.

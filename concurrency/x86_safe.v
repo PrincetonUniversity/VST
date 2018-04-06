@@ -23,7 +23,7 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.SC_erasure.
 Require Import VST.concurrency.x86_context.
 Require Import VST.ccc26x86.Asm ccc26x86.Asm_coop.

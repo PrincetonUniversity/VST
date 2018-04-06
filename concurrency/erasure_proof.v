@@ -11,10 +11,10 @@ Require Import ProofIrrelevance.
 (* The concurrent machinery*)
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.TheSchedule.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.juicy_machine. Import Concur.
-Require Import VST.concurrency.dry_machine. Import Concur.
-Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.HybridMachine. Import Concur.
+Require Import VST.concurrency.HybridMachine_lemmas.
 Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.sync_preds.

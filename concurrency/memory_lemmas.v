@@ -271,7 +271,7 @@ Module MemoryLemmas.
     forall chunk ptr v m m',
       Mem.storev chunk m ptr v = Some m' ->
       exists b ofs, ptr = Vptr b ofs /\
-               Mem.store chunk m b (Integers.Int.intval ofs) v = Some m'.
+               Mem.store chunk m b (Integers.Ptrofs.intval ofs) v = Some m'.
   Proof.
     intros.
     destruct ptr; try discriminate.

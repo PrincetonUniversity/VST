@@ -16,8 +16,8 @@ Import DryMachine.
 Notation hb:=(Some 0).
 Definition Hybrid_resources:=
   Build_Resources_rec
-    dry_machine.LocksAndResources.res
-    dry_machine.LocksAndResources.lock_info.
+    HybridMachine.LocksAndResources.res
+    HybridMachine.LocksAndResources.lock_info.
 Definition Sems:= Build_Semantics_rec SEM.G SEM.C SEM.CLC_evsem.
 Definition Semt:= X86SEM_rec. (*Need both for hybrid*)
 Definition Hybrid_Sem:= CoreSem_Sum hb Sems Semt.

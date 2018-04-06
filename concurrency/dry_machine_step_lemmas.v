@@ -1,7 +1,7 @@
-(** * Lemmas about the Dry Machine*)
+(** * Lemmas about the Hybrid Machine steps*)
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -22,7 +22,7 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.dry_machine_lemmas.

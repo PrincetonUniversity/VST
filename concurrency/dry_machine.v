@@ -6,7 +6,7 @@ Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.concurrency.pos.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.TheSchedule.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.addressFiniteMap. (*The finite maps*)
 Require Import VST.concurrency.pos.
 Require Import VST.concurrency.lksize.

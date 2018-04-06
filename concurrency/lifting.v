@@ -4,9 +4,9 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
-Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.HybridMachine. Import Concur.
 Require Import VST.concurrency.scheduler.
 
 (* We assume, on each thread, a structured simulation *)

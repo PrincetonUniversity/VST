@@ -42,7 +42,7 @@ Require Import VST.concurrency.coqlib5.
 Require Import VST.concurrency.permjoin.
 Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.juicy_machine.
-Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.

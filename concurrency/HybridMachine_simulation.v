@@ -27,7 +27,7 @@ Require Import VST.concurrency.safety.
 Require Import VST.concurrency.coinductive_safety.
 
 
-Require Import VST.concurrency.concurrent_machine_rec.
+Require Import VST.concurrency.HybridMachineSig_rec.
 
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.Clight_new.

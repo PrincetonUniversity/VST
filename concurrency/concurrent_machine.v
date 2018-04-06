@@ -1,3 +1,5 @@
+(* NOTE: THIS FILE SHOULD BE REDUNDANT. DELETE IT ONCE PORT TO HybridMachine is done*)
+
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.     (*for typ*)
