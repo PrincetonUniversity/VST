@@ -520,17 +520,12 @@ Module OrdinalPool.
       apply SetoidList.InA_cons in H1.
       destruct H1.
       hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
-      simpl. unfold permissions.setPerm. rewrite !PMap.gss.
-      repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
-      omega.
+      simpl. rewrite setPermBlock_lookup; if_tac; auto.
+      contradiction H0; split; auto.
       apply IHel in H0; clear IHel.
       simpl.
       unfold f at 1. destruct a. destruct a.
-      unfold permissions.setPermBlock. simpl.
-      unfold permissions.setPerm. rewrite !PMap.gss.
-      destruct (peq b0 b). subst b0. rewrite !PMap.gss.
-      repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
-      rewrite !PMap.gso; auto.
+      rewrite setPermBlock_lookup; if_tac; auto.
     Qed.
 
     Lemma lockSet_spec_1: forall js b ofs,
@@ -540,7 +535,7 @@ Module OrdinalPool.
       intros.
       eapply lockSet_spec_2; eauto.
       unfold Intv.In.
-      simpl. omega.
+      simpl. pose proof LKSIZE_pos; rewrite Z2Nat.id; omega.
     Qed.
 
     Open Scope nat_scope.
@@ -998,7 +993,7 @@ Module OrdinalPool.
         { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
     Proof.
       intros tp b ofs.
-      assert (H : (0 <= LKSIZE)%Z). unfold LKSIZE; omega.
+      assert (H : (0 <= LKSIZE)%Z) by (pose proof LKSIZE_pos; omega).
       destruct (@RiemannInt_SF.IZN_var _ H) as (n, ->).
       induction n.
       - right. simpl. intros. omega.
@@ -1042,16 +1037,9 @@ Module OrdinalPool.
       change ((f a (fold_right f init al)) !! b ofs = None).
       unfold f at 1. destruct a as [[? ?] ?].
       simpl.
-      destruct (peq b0 b).
-      2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
-      subst b0; rewrite !PMap.gss.
-      cut (~ (z <= ofs < z+LKSIZE))%Z.
-      unfold LKSIZE.
-      intro.
-      repeat match goal with |- context [is_left ?A] => destruct A; [ omega | simpl ] end.
-      apply IHal. intros. apply H7. right; auto.
-      intro.
-      apply H' in H. apply H; clear H.
+      rewrite setPermBlock_lookup; if_tac; auto.
+      destruct H as [Heq H]; subst.
+      apply H' in H. contradiction H.
       specialize (H7 (b,z) l). spec H7; [left; reflexivity |].
       exists l; auto.
     Qed.
@@ -1079,7 +1067,7 @@ Module OrdinalPool.
       * hnf in H.
         destruct (lockRes ds (b,z)) eqn:?; inv H1.
       + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-        assert (z <= ofs < z+16 \/ ofs <= z <= ofs+16)%Z by omega.
+        assert (z <= ofs < z+2 * size_chunk AST.Mptr \/ ofs <= z <= ofs+2 * size_chunk AST.Mptr)%Z by omega.
         destruct H1.
       - specialize (H b z). rewrite Heqo in H. unfold LKSIZE in H.
         specialize (H ofs). spec H; [omega|]. congruence.
@@ -1127,10 +1115,10 @@ Module OrdinalPool.
     Proof.
       intros.
       destruct (lockRes_range_dec ds b ofs').
-      - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
+      - destruct e as [z [ineq HH]].
         assert (ofs <> z).
         { intros AA. inversion AA.
-          apply H0. hnf. unfold LKSIZE.
+          apply H0. hnf.
           simpl; omega. }
         erewrite lockSet_spec_2.
         erewrite lockSet_spec_2; auto.
@@ -1745,7 +1733,7 @@ Module OrdinalPool.
         (Maps.PMap.get b (lockSet tp)) ofs'.
     Proof.
       intros.
-      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE in *; simpl in *; omega.
+      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE_nat in *; rewrite Z2Nat.id in Hofs; simpl in *; omega.
     Qed.
 
     Lemma gsoLockSet_2 :
