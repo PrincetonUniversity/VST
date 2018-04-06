@@ -1,11 +1,11 @@
 (** * Instances of machines for Assembly languages *)
 
-Require Import concurrency.HybridMachine.
-Require Import concurrency.erased_machine.
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.semantics.
-Require Import concurrency.HybridMachineSig.
+Require Import VST.concurrency.HybridMachine.
+Require Import VST.concurrency.erased_machine.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.

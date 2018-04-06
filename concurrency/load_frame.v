@@ -12,14 +12,14 @@ Require Import compcert.backend.Locations.
 Require Import compcert.backend.Conventions.
 Require compcert.ia32.Stacklayout.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.val_casted.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.val_casted.
 Require Import ccc26x86.BuiltinEffects.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.effect_properties.
+Require Import VST.sepcomp.reach.
 Require Import msl.Axioms.
 
 Definition load_stack (m: mem) (sp: val) (ty: typ) (ofs: int) :=

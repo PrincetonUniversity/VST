@@ -3,17 +3,19 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype se
 
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
-Require Import concurrency.scheduler.
-Require Import concurrency.permissions.
-Require Import concurrency.semantics.
-Require Import concurrency.pos.
-Require Import concurrency.threads_lemmas.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
-Require Import concurrency.addressFiniteMap.
+Require Import VST.concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
+Require Import VST.msl.Coqlib2.
+    
 
-Require Import concurrency.lksize.
+Require Import VST.concurrency.lksize.
 
 Set Implicit Arguments.
 
@@ -472,7 +474,6 @@ Module OrdinalPool.
       destruct n; try omega; eauto.
     Qed.
 
-    Require Import msl.Coqlib2.
     Import Coqlib.
 
     Lemma lockSet_WorNE: forall js b ofs,
@@ -518,7 +519,7 @@ Module OrdinalPool.
       inv H1.
       apply SetoidList.InA_cons in H1.
       destruct H1.
-      hnf in H0. destruct a; simpl in H0. destruct H0; subst.
+      hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
       simpl. unfold permissions.setPerm. rewrite !PMap.gss.
       repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
       omega.

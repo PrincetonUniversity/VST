@@ -11,7 +11,7 @@ Require Import Clight.
 
 Require Import veric.Clight_core.
 
-Require Import concurrency.self_simulation.
+Require Import VST.concurrency.self_simulation.
 
 Set Bullet Behavior "Strict Subproofs".
 

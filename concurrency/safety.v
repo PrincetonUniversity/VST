@@ -212,7 +212,7 @@ Qed.
     move => x EM blah inF sfN.
     replace x with (thing (mkTT x inF)) by reflexivity.
     eapply filtered_to_unfiltered_safe.
-    eapply concurrency.konig.konigsafe => //.
+    eapply VST.concurrency.konig.konigsafe => //.
 
     move=> [] xx prfx.
     rewrite /finite.
@@ -368,7 +368,7 @@ Section Safety.
       (forall P, finite (SST_step P)) ->
       (forall n, SsafeN n P) ->
       Ssafe P.
-  Proof. by move => EM P A B; apply: (concurrency.konig.konigsafe). Qed.
+  Proof. by move => EM P A B; apply: (VST.concurrency.konig.konigsafe). Qed.
 
   (*This is strong enough *)
   Lemma finite_Ssafe_safe':

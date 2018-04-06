@@ -8,7 +8,7 @@ Require Import ZArith.
 
 Require Import VST.sepcomp.rg_lemmas.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 
 Require Import VST.concurrency.pred_lemmas.
 Require Import VST.concurrency.inj_lemmas.

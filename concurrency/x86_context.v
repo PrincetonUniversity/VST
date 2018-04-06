@@ -1,14 +1,14 @@
 (** * Instantiating the dry and bare machine for X86*)
 
-Require Import concurrency.HybridMachine.
-Require Import concurrency.erased_machine.
-Require Import concurrency.HybridMachineSig.
-Require Import concurrency.permissions.
-Require Import concurrency.memory_lemmas.
-Require Import concurrency.dry_context.
-(* Require Import concurrency.dry_machine_lemmas. *)
-Require Import concurrency.Asm_core.
-Require Import concurrency.Asm_event.
+Require Import VST.concurrency.HybridMachine.
+Require Import VST.concurrency.erased_machine.
+Require Import VST.concurrency.HybridMachineSig.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.dry_context.
+(* Require Import VST.concurrency.dry_machine_lemmas. *)
+Require Import VST.concurrency.Asm_core.
+Require Import VST.concurrency.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.

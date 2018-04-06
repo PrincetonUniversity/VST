@@ -10,7 +10,7 @@ Require Import VST.concurrency.scheduler.
 
 Require Import VST.concurrency.lifting.
 
-(* We lift to a whole-program simulation on the dry concurrency machine *)
+(* We lift to a whole-program simulation on the dry VST.concurrency machine *)
 Require Import VST.sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 
 Require Import VST.sepcomp.event_semantics.

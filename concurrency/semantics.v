@@ -1,8 +1,8 @@
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
-Require Import sepcomp.semantics.
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.event_semantics.
 
-Require Import concurrency.machine_semantics.
+Require Import VST.concurrency.machine_semantics.
 
 (** *The typeclass version*)
 Class Semantics:=

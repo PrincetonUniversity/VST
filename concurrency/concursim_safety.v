@@ -4,26 +4,26 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_machine. Import Concur.
-Require Import concurrency.scheduler.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.dry_machine. Import Concur.
+Require Import VST.concurrency.scheduler.
 
-(* Require Import concurrency.lifting. *)
+(* Require Import VST.concurrency.lifting. *)
 
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.event_semantics.
 
 (** The X86 DryConc Machine*)
-Require Import concurrency.dry_context.
-Require Import concurrency.x86_context.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.x86_context.
 
 
 (** The Clight DryConc Machine*)
-Require Import concurrency.DryMachineSourceCore.
+Require Import VST.concurrency.DryMachineSourceCore.
 
-Require Import concurrency.machine_simulation. Import machine_simulation.
+Require Import VST.concurrency.machine_simulation. Import machine_simulation.
 
 
-(*Require Import concurrency.HybridMachine_simulation_proof.*)
+(*Require Import VST.concurrency.HybridMachine_simulation_proof.*)
 
 Set Bullet Behavior "Strict Subproofs".
 

@@ -6,9 +6,9 @@ Require Import JMeq.
 
 Require Import Axioms. (*for proof_irr*)
 
-(* sepcomp imports *)
+(* VST.sepcomp imports *)
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.arguments.
 
 Require Import VST.concurrency.pos.

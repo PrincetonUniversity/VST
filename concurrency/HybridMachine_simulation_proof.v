@@ -16,25 +16,25 @@ Require veric.Clight_core. Import Clight_core.
 
 Require Import Smallstep.
 Require Import ExposedSmallstep.
-Require Import concurrency.SantiagosTactics.
-Require Import concurrency.MemoryEquivalences.
-Require Import concurrency.x86_context.
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.HybridMachine.
-Require Import concurrency.HybridMachineSig.
-Require Import concurrency.HybridMachine_simulation.
-(*Require Import concurrency.compiler_correct.*)
-Require Import concurrency.CoreSemantics_sum.
-Require Import concurrency.self_simulation.
+Require Import VST.concurrency.SantiagosTactics.
+Require Import VST.concurrency.MemoryEquivalences.
+Require Import VST.concurrency.x86_context.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.HybridMachine.
+Require Import VST.concurrency.HybridMachineSig.
+Require Import VST.concurrency.HybridMachine_simulation.
+(*Require Import VST.concurrency.compiler_correct.*)
+Require Import VST.concurrency.CoreSemantics_sum.
+Require Import VST.concurrency.self_simulation.
 
 (*
-Require Import concurrency.Clight_self_simulation.
-Require Import concurrency.Asm_self_simulation.
+Require Import VST.concurrency.Clight_self_simulation.
+Require Import VST.concurrency.Asm_self_simulation.
 *)
 
-Require Import concurrency.permissions.
+Require Import VST.concurrency.permissions.
 
-Require Import concurrency.ClightCoreSemantincsForMachines.
+Require Import VST.concurrency.ClightCoreSemantincsForMachines.
 
 Set Bullet Behavior "Strict Subproofs".
 

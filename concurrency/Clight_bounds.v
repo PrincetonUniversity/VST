@@ -1,7 +1,7 @@
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 
-Require Import VST.concurrency.sepcomp.
+Require Import VST.sepcomp.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 

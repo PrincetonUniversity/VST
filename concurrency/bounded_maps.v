@@ -2,7 +2,7 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 (* Require Export compcert.lib.Coqlib. *)
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 
 Require Import VST.concurrency.pos.
 Require Import VST.concurrency.scheduler.

@@ -1,6 +1,6 @@
-Require Import sepcomp.semantics.
+Require Import VST.sepcomp.semantics.
 Require Import compcert.lib.Coqlib.
-(* Require Import sepcomp.simulations. *)
+(* Require Import VST.sepcomp.simulations. *)
 Require Import ZArith List.
 Import ListNotations.
 (*Require Import veric.base. *)
@@ -13,12 +13,12 @@ Require Import Values.
 Import AST.
 
 (*To prove memsem*)
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.mem_lemmas.
-Require Import concurrency.I64Helpers.
-Require Import concurrency.BuiltinEffects.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.concurrency.I64Helpers.
+Require Import VST.concurrency.BuiltinEffects.
 
 Definition cl_halted (c: regset) : option val := None.
 
@@ -432,7 +432,7 @@ Qed.
 
 End ASM_MEMSEM.
 
-Require Import concurrency.load_frame.
+Require Import VST.concurrency.load_frame.
 Lemma load_frame_store_args_rec_nextblock:
   forall args m m2 stk ofs tys
     (Hload_frame: store_args_rec m stk ofs args tys = Some m2),

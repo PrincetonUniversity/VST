@@ -9,18 +9,18 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 
 Require Import compcert.cfrontend.Ctypes. (*for type and access_mode*)
-Require Import sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
+Require Import VST.sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
 
 Require Import msl.Axioms.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.globalSep.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.effect_semantics.
+Require Import VST.sepcomp.effect_properties.
+Require Import VST.sepcomp.globalSep.
 
-Require Import concurrency.I64Helpers.
+Require Import VST.concurrency.I64Helpers.
 
 Definition memcpy_Effect sz vargs m:=
        match vargs with

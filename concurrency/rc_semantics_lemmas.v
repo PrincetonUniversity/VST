@@ -6,7 +6,7 @@ Require Import Axioms.
 
 Require Import VST.concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.arguments.
 
 Require Import VST.concurrency.rc_semantics.

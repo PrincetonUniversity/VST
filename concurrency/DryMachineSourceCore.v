@@ -9,34 +9,34 @@ Require Import veric.res_predicates.
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
-Require Import concurrency.scheduler.
-Require Import concurrency.TheSchedule.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.TheSchedule.
 
-Require Import concurrency.concurrent_machine.
-Require Import concurrency.semantics.
-Require Import concurrency.juicy_machine. Import Concur.
-Require Import concurrency.dry_machine. Import Concur.
-(*Require Import concurrency.dry_machine_lemmas. *)
-Require Import concurrency.lksize.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.concurrent_machine.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.juicy_machine. Import Concur.
+Require Import VST.concurrency.dry_machine. Import Concur.
+(*Require Import VST.concurrency.dry_machine_lemmas. *)
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.permissions.
 
-Require Import concurrency.dry_context.
-Require Import concurrency.dry_machine_lemmas.
-Require Import concurrency.erased_machine.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.erased_machine.
 
 (*Semantics*)
 Require Import veric.Clight_core.
 Require Import veric.Clightcore_coop.
-Require Import sepcomp.event_semantics.
+Require Import VST.sepcomp.event_semantics.
 Require Import veric.Clight_sim.
-Require Import concurrency.ClightCoreSemantincsForMachines.
-Require Import concurrency.Clight_bounds.
+Require Import VST.concurrency.ClightCoreSemantincsForMachines.
+Require Import VST.concurrency.Clight_bounds.
 
 (*SSReflect*)
 From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
-Require Import concurrency.ssromega. (*omega in ssrnat *)
+Require Import VST.concurrency.ssromega. (*omega in ssrnat *)
 Set Bullet Behavior "Strict Subproofs".
 
 Import Concur threadPool.

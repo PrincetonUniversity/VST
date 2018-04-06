@@ -2,16 +2,16 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
-Require Import concurrency.pos.
-Require Import concurrency.scheduler.
-Require Import concurrency.addressFiniteMap. (*The finite maps*)
-Require Import concurrency.pos.
-Require Import concurrency.lksize.
-Require Import concurrency.semantics.
-Require Import concurrency.permissions.
-Require Import concurrency.HybridMachineSig.
+Require Import VST.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.scheduler.
+Require Import VST.concurrency.addressFiniteMap. (*The finite maps*)
+Require Import VST.concurrency.pos.
+Require Import VST.concurrency.lksize.
+Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.HybridMachineSig.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -23,9 +23,9 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
-Require Import concurrency.threads_lemmas.
+Require Import VST.concurrency.threads_lemmas.
 Require Import Coq.ZArith.ZArith.
-Require Import concurrency.threadPool.
+Require Import VST.concurrency.threadPool.
 
 Module BareMachine.
 

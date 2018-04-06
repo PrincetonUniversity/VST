@@ -2,7 +2,7 @@
 (** * Definitions and properties of machine executions *)
 Require Import compcert.lib.Axioms.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.event_semantics.
 

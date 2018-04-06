@@ -6,9 +6,9 @@ Require Import JMeq.
 
 Require Import Axioms. (*for proof_irr*)
 
-(* sepcomp imports *)
+(* VST.sepcomp imports *)
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.arguments.
 
 Require Import VST.concurrency.pos.
@@ -49,7 +49,7 @@ Require Import VST.sepcomp.nucular_semantics.
 (** This file proves the main linking simulation result (see
   linking/linking_spec.v for the specification of the theorem). *)
 
-Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
+Require Import VST.sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker.
 Import Modsem.
@@ -95,7 +95,7 @@ Variable all_gvars_includedT: forall i b,
      gvars_included (Genv.find_var_info (cores_T i).(ge) b) (Genv.find_var_info my_ge b).
 
 (* I'm not sure why the directives that follow seem to have no effect here
-   when imported from sepcomp/arguments.v; nor do I have time to figure it out
+   when imported from VST.sepcomp/arguments.v; nor do I have time to figure it out
    at the moment. *)
 Arguments match_sm_wd : default implicits.
 Arguments core_at_external : default implicits.

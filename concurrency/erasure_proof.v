@@ -57,7 +57,7 @@ End DecayingSemantics. *)
 
 (* Where Does this lemma fit better?
  * Uses definitions from
- * concurrency.permissions.v and
+ * VST.concurrency.permissions.v and
  * veric.juicy_mem_lemmas.v          *)
 
 

@@ -2,9 +2,9 @@
 
 Require Import compcert.lib.Axioms.
 
-(* Add LoadPath "../concurrency" as concurrency.*)
+(* Add LoadPath "../VST.concurrency" as VST.concurrency.*)
 
-Require Import VST.concurrency.sepcomp.
+Require Import VST.sepcomp.
 Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 

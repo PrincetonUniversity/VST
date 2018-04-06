@@ -3,7 +3,7 @@
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 
 Lemma reestablish_locBlocksSrc mu0 mu :
   locBlocksSrc (reestablish mu0 mu) = locBlocksSrc mu0.

@@ -9,13 +9,13 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Errors.
 Require Import compcert.common.Globalenvs.
 (*Require Import Cminor.*)
-Require Import ccc26x86.Op.
+Require Import VST.ccc26x86.Op.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.structured_injections.
-Require Import sepcomp.reach.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.structured_injections.
+Require Import VST.sepcomp.reach.
 Require Import msl.Axioms.
-Require Import sepcomp.globalSep.
+Require Import VST.sepcomp.globalSep.
 
   (** * Axiomatization of the helper functions *)
 

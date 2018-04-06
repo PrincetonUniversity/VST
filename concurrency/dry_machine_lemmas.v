@@ -1,10 +1,10 @@
 (** * Lemmas about the Dry Machine*)
 Require Import compcert.lib.Axioms.
 
-Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import VST.sepcomp. Import SepComp.
+Require Import VST.sepcomp.semantics_lemmas.
 
-Require Import concurrency.pos.
+Require Import VST.concurrency.pos.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat seq ssrfun eqtype fintype finfun.
 Set Implicit Arguments.
@@ -20,11 +20,11 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import concurrency.threads_lemmas.
-Require Import concurrency.permissions.
-Require Import concurrency.HybridMachineSig.
-Require Import concurrency.dry_context.
-Require Import concurrency.semantics.
+Require Import VST.concurrency.threads_lemmas.
+Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.HybridMachineSig.
+Require Import VST.concurrency.dry_context.
+Require Import VST.concurrency.semantics.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 

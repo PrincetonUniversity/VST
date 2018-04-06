@@ -12,7 +12,7 @@ Require Import Clight.
 Require Import Clight_coop.
 Require Import Clight_eff.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.concurrency.arguments.
 
 Require Import VST.concurrency.jstep.

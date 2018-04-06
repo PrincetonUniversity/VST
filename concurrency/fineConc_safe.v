@@ -2,7 +2,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -99,7 +99,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     specialize (init_core_wd v ARGS H). rewrite Heqo; trivial.
   Qed.
 
-  (** Assuming safety of cooperative concurrency*)
+  (** Assuming safety of cooperative VST.concurrency*)
   Section Safety.
     Variable (f : val) (arg : list val).
     Variable init_coarse_safe:

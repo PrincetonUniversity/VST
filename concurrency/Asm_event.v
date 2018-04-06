@@ -15,14 +15,14 @@ Require Import compcert.backend.Conventions.
 Require Import compcert.ia32.Asm.
 (*LENB: In CompComp, we used a modified Asm.v, called Asm.comp.v*)
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.val_casted.
+Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.
+Require Import VST.sepcomp.val_casted.
 Require Import ccc26x86.BuiltinEffects.
-Require Import concurrency.load_frame.
-Require Import sepcomp.event_semantics.
-Require Import concurrency.Asm_core.
+Require Import VST.concurrency.load_frame.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.concurrency.Asm_core.
 
 Require Import List. Import ListNotations.
 (*

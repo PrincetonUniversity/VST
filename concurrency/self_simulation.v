@@ -10,19 +10,19 @@ Require Import msl.Coqlib2.
 
 Require veric.Clight_core. Import Clight_core.
 
-Require Import sepcomp.event_semantics.
-Require Import sepcomp.semantics.
-Require Import sepcomp.mem_lemmas.
+Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.mem_lemmas.
 
 
 Require Import Smallstep.
 (*To include once Asm has been repaired:
-  Require Import concurrency.x86_context.
-  Require Import concurrency.HybridMachine_simulation.*)
+  Require Import VST.concurrency.x86_context.
+  Require Import VST.concurrency.HybridMachine_simulation.*)
 
 
-(*Require Import concurrency.compiler_correct.*)
-Require Import concurrency.CoreSemantics_sum.
+(*Require Import VST.concurrency.compiler_correct.*)
+Require Import VST.concurrency.CoreSemantics_sum.
 
 
 (*Self simulations say that a program has equivalent executions 

@@ -388,7 +388,7 @@ Abort.
    additional witness, which would conflict with the intropattern
    notation. *)
 
-(* tactics from branch concurrency *)
+(* tactics from branch VST.concurrency *)
 
 (*
 Ltac forward_call_id00_wow_threadlib witness witness' :=

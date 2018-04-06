@@ -1,6 +1,6 @@
 Require Import Axioms.
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 
 Require Import VST.concurrency.pos.
 Require Import VST.concurrency.stack.

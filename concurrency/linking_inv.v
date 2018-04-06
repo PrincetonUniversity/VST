@@ -6,9 +6,9 @@ Require Import JMeq.
 
 Require Import Axioms. (*for proof_irr*)
 
-(* sepcomp imports *)
+(* VST.sepcomp imports *)
 
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.arguments.
 
 Require Import VST.concurrency.pos.
@@ -115,7 +115,7 @@ Variable all_gvars_includedT: forall i b,
      gvars_included (Genv.find_var_info (cores_T i).(ge) b) (Genv.find_var_info my_ge b).
 
 (* I'm not sure why the directives that follow seem to have no effect here
-   when imported from sepcomp/arguments.v; nor do I have time to figure it out
+   when imported from VST.sepcomp/arguments.v; nor do I have time to figure it out
    at the moment. *)
 Arguments match_sm_wd : default implicits.
 Arguments core_at_external : default implicits.
@@ -1998,7 +1998,7 @@ Lemma head_inv_step
   effect_semantics.effstepN
     (sem (cores_T (Core.i d))) (ge (cores_T (Core.i d))) n V
     (Core.c d) m2 d' m2' ->
-  sepcomp.mem_wd.valid_genv (ge (cores_T (Core.i d))) m2 ->
+  VST.sepcomp.mem_wd.valid_genv (ge (cores_T (Core.i d))) m2 ->
   match_state (sims (Core.i (Core.upd c c'))) cd' mu'
     (Core.c (Core.upd c c')) m1'
     (cast'' pf (Core.c (Core.upd d d'))) m2' ->

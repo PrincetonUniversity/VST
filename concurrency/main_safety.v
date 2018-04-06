@@ -4,9 +4,9 @@ Require Import Coq.Strings.String.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
-Require Import concurrency.semax_conc.
+Require Import VST.concurrency.semax_conc.
 Require Import compcert.cfrontend.Clight.
-Require Import concurrency.Clight_safety.
+Require Import VST.concurrency.Clight_safety.
 
 
 Section MainSafety.

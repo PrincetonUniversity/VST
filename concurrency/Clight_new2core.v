@@ -4,15 +4,15 @@ Require Import compcert.lib.Integers.
 
 Require Import compcert.common.Values.
 
-Require Import concurrency.machine_simulation.
-Require Import concurrency.permissions.
+Require Import VST.concurrency.machine_simulation.
+Require Import VST.concurrency.permissions.
 
-Require Import concurrency.DryMachineSource.
-Require Import concurrency.DryMachineSourceCore.
+Require Import VST.concurrency.DryMachineSource.
+Require Import VST.concurrency.DryMachineSourceCore.
 
-Require Import concurrency.concursim_safety.
-Require Import concurrency.semax_to_juicy_machine.
-Require Import concurrency.Clight_safety.
+Require Import VST.concurrency.concursim_safety.
+Require Import VST.concurrency.semax_to_juicy_machine.
+Require Import VST.concurrency.Clight_safety.
 
 
   Module NewMachine:= THE_DRY_MACHINE_SOURCE.DMS.

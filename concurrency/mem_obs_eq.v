@@ -1,7 +1,7 @@
 (** ** Memories equal up to alpha-renaming *)
 
 Require Import compcert.lib.Axioms.
-Require Import VST.concurrency.sepcomp. Import SepComp.
+Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.val_casted.
 
 Require Import VST.concurrency.pos.
