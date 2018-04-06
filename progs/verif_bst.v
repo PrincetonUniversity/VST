@@ -405,7 +405,7 @@ Proof.
     forward_if.
     + (* then clause *)
       subst p1.
-      forward_call (sizeof t_struct_tree).
+      Time forward_call (sizeof t_struct_tree).
         1: simpl; rep_omega.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
@@ -600,7 +600,7 @@ Proof.
       subst.
       forward. (* q=p->left *)
       forward. (* *t=q *)
-      forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
+      Time forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
       Focus 1. {
         entailer!.
         rewrite memory_block_data_at_ by auto.
@@ -612,7 +612,7 @@ Proof.
       cancel.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. normalize. }
-      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
+      Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
       Intros pc.
       forward. (* t = &q->left; *)
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
@@ -711,7 +711,7 @@ Proof.
           rewrite field_at_data_at.
           entailer!.
         } Unfocus.
-        forward_call (t1_1, k, v, t1_2, b1, p1).
+        Time forward_call (t1_1, k, v, t1_2, b1, p1).
         forward. (* return *)
         simpl_compb.
         simpl_compb.
@@ -724,7 +724,7 @@ Qed.
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
-  forward_call (sizeof (tptr t_struct_tree)).
+  Time forward_call (sizeof (tptr t_struct_tree)).
   simpl sizeof; computable.
   Intros p.
   rewrite memory_block_data_at_ by auto.
@@ -742,14 +742,14 @@ Proof.
     Intros pa pb.
     forward.
     forward.
-    forward_call (p, sizeof t_struct_tree).
+    Time forward_call (p, sizeof t_struct_tree).
     Focus 1. {
       entailer!.
       rewrite memory_block_data_at_ by auto.
       cancel.
     } Unfocus.
-    forward_call (t1,pa).
-    forward_call (t2,pb).
+    Time forward_call (t1,pa).
+    Time forward_call (t2,pb).
     entailer!.
   + forward.
     subst.
@@ -764,8 +764,8 @@ Proof.
   unfold treebox_rep.
   Intros p.
   forward.
-  forward_call (t,p).
-  forward_call (b, sizeof (tptr t_struct_tree)).
+  Time forward_call (t,p).
+  Time forward_call (b, sizeof (tptr t_struct_tree)).
   entailer!.
   rewrite memory_block_data_at_ by auto.
   cancel.

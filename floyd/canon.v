@@ -2501,7 +2501,7 @@ Proof.
     cancel.
 Qed.
 
-Ltac local_cancel_in_syntactic_cancel := solve [cbv beta; auto with cancel].
+Ltac local_cancel_in_syntactic_cancel := solve [cbv beta; auto with nocore cancel].
 
 Ltac syntactic_cancel :=
   eapply syntactic_cancel_spec;
@@ -2517,9 +2517,9 @@ Ltac syntactic_cancel :=
             end;
             simple apply syntactic_cancel_solve
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_right_sepconx_eq A), <- (fold_right_sepconx_eq B)
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
             end;
-            unfold fold_right_sepconx; cbv iota beta ]
+            unfold fold_left_sepconx; cbv iota beta ]
   ].
 
 (*
