@@ -81,7 +81,6 @@ Proof.
                 tlock_inv sh lockt lock cond data).
   { unfold tlock_inv; lock_props.
     - apply selflock_precise, precise_sepcon; auto.
-    - rewrite sepcon_comm; apply selflock_rec.
     - rewrite selflock_eq at 2; cancel.
       eapply derives_trans; [apply lock_inv_later | cancel]. }
   forward.

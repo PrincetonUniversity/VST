@@ -291,12 +291,41 @@ match l with
 | a::b => a * fold_right_sepconx b
 end.
 
+Definition fold_left_sepconx (l: list mpred) : mpred :=
+match l with
+| nil => emp
+| a::l => (fix fold_left_sepconx (a: mpred) (l: list mpred) {struct l}: mpred :=
+          match l with
+          | nil => a
+          | b :: l => fold_left_sepconx (sepcon a b) l
+          end) a l
+end.
+
 Lemma fold_right_sepconx_eq:
   forall l, fold_right_sepconx l = fold_right_sepcon l.
 Proof.
 induction l; simpl; auto.
 rewrite IHl.
 destruct l; simpl; auto. rewrite sepcon_emp; auto.
+Qed.
+
+Lemma fold_left_sepconx_eq:
+  forall l, fold_left_sepconx l = fold_right_sepcon l.
+Proof.
+  intros.
+  rewrite <- fold_right_sepconx_eq.
+  destruct l; auto.
+  revert m; induction l; intros.
+  + auto.
+  + simpl in *.
+    rewrite <- IHl.
+    clear IHl.
+    revert m a; induction l; intros.
+    - auto.
+    - simpl.
+      rewrite sepcon_assoc.
+      rewrite IHl.
+      auto.
 Qed.
 
 Lemma fold_right_sepconx_eqx:
