@@ -32,7 +32,6 @@ env:
 branches:
   only:
   - master
-  - nth_SEP
 notifications:
   email:
     recipients:

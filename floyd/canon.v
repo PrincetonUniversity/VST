@@ -2432,6 +2432,59 @@ Proof.
   + inv H.
 Qed.
 
+(* Current not used. *)
+Lemma find_nth_SEP_preds_rec_S: forall P z R n Rn,
+  find_nth_SEP_preds_rec P z R (Some (n, Rn)) ->
+  find_nth_SEP_preds_rec P (S z) R (Some (S n, Rn)).
+Proof.
+  intros.
+  remember (Some (n, Rn)) as Res eqn:?H.
+  revert n Rn H0; induction H; intros.
+  + inv H0.
+    eapply find_nth_SEP_preds_rec_cons_head; eauto.
+  + subst R_res.
+    apply find_nth_SEP_preds_rec_cons_tail; auto.
+  + inv H0.
+Qed.
+
+(* Current not used. *)
+Lemma find_nth_SEP_preds_rec_delete_nth: forall P z m R Rn,
+  (exists n, find_nth_SEP_preds_rec P z (delete_nth m R) (Some (n, Rn))) ->
+  (exists n, find_nth_SEP_preds_rec P z R (Some (n, Rn))).
+Proof.
+  intros.
+  revert z R H; induction m; intros; destruct R; auto.
+  + simpl in *.
+    destruct H as [n ?].
+    eexists.
+    eapply find_nth_SEP_preds_rec_cons_tail.
+    apply find_nth_SEP_preds_rec_S.
+    exact H.
+  + simpl in *.
+    destruct H as [n ?].
+    inv H.
+    - eexists; apply find_nth_SEP_preds_rec_cons_head; auto.
+    - specialize (IHm (S z) _ (ex_intro _ _ H4)).
+      clear n H4; destruct IHm as [n ?].
+      exists n.
+      apply find_nth_SEP_preds_rec_cons_tail; auto.
+Qed.
+
+(* Current not used. *)
+Lemma find_nth_SEP_preds_delete_nth: forall P m R Rn,
+  (exists n, find_nth_SEP_preds P (delete_nth m R) (Some (n, Rn))) ->
+  (exists n, find_nth_SEP_preds P R (Some (n, Rn))).
+Proof.
+  intros ? ? ? ? [n ?].
+  inv H.
+  pose proof (ex_intro _ n H0): exists n, find_nth_SEP_preds_rec P 0 (delete_nth m R) (Some (n, Rn)).
+  apply find_nth_SEP_preds_rec_delete_nth in H.
+  clear n H0.
+  destruct H as [n ?].
+  exists n.
+  apply find_nth_SEP_preds_constr; auto.
+Qed.
+
 Ltac find_nth_SEP_rec tac :=
   first [ simple eapply find_nth_SEP_preds_rec_cons_head; tac
         | simple eapply find_nth_SEP_preds_rec_cons_tail; find_nth_SEP_rec tac
@@ -2501,8 +2554,54 @@ Proof.
     cancel.
 Qed.
 
-Ltac local_cancel_in_syntactic_cancel := solve [cbv beta; auto with nocore cancel].
+Lemma double_syntactic_cancel_spec: forall G1 L1 G2 L2 G3 L3 F,
+  syntactic_cancel G1 L1 G2 L2 ->
+  syntactic_cancel G2 L2 G3 L3 ->
+  fold_right_sepcon G3 |-- fold_right_sepcon L3 * fold_right_sepcon F ->
+  fold_right_sepcon G1 |-- fold_right_sepcon L1 * fold_right_sepcon F.
+Proof.
+  intros.
+  eapply syntactic_cancel_spec; eauto.
+  eapply syntactic_cancel_spec; eauto.
+Qed.
 
+Ltac local_cancel1_in_syntactic_cancel :=
+  cbv beta;
+  match goal with |- ?A |-- ?B => 
+    solve [constr_eq A B; simple apply (derives_refl A)]
+  end.
+
+Ltac local_cancel2_in_syntactic_cancel :=
+  solve [cbv beta; auto with nocore cancel].
+
+Ltac syntactic_cancel :=
+  eapply double_syntactic_cancel_spec;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth_SEP local_cancel1_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | cbv iota beta;
+    repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth_SEP local_cancel2_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
+
+(*
 Ltac syntactic_cancel :=
   eapply syntactic_cancel_spec;
   [ repeat first
@@ -2521,12 +2620,13 @@ Ltac syntactic_cancel :=
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
+*)
 
 (*
 Export ListNotations.
 
 Goal forall A B C D: mpred, exists F: list mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A; D] * fold_right_sepcon F.
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
 Proof.
   intros.
   eexists.
