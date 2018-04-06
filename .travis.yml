@@ -49,11 +49,16 @@ install:
 - eval $(opam config env)
 - opam config list
 - opam config var root
+- opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
 - opam update
 - opam show coq
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
 - file `which coqc`
+
+stages:
+  - setup
+  - test
 
 jobs:
   include:
