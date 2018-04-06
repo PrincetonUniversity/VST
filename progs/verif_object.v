@@ -116,6 +116,28 @@ rewrite Z.mul_add_distr_l, Z.add_comm.
 entailer!.
 Qed.
 
+(* TODO: Move these into veric/slice.v and use them to define split_resource *)
+   
+Definition cleave (sh: share) :=
+  (Share.lub (fst (Share.split (Share.glb Share.Lsh sh))) (fst (Share.split (Share.glb Share.Rsh sh))),
+   Share.lub (snd (Share.split (Share.glb Share.Lsh sh))) (snd (Share.split (Share.glb Share.Rsh sh)))).
+
+Lemma cleave_join:
+ forall sh: share, sepalg.join (fst (cleave sh)) (snd (cleave sh)) sh.
+Admitted.
+
+Lemma cleave_readable1:
+ forall sh, readable_share sh -> readable_share (fst (cleave sh)).
+Proof.
+intros.
+Admitted. (* true *)
+
+Lemma cleave_readable2:
+ forall sh, readable_share sh -> readable_share (snd (cleave sh)).
+Proof.
+intros.
+Admitted. (* true *)
+
 Lemma split_object_methods:
   forall instance m, 
     object_methods instance m |-- object_methods instance m * object_methods instance m.
@@ -123,18 +145,18 @@ Proof.
 intros.
 unfold object_methods.
 Intros sh reset twiddle.
-Exists (fst (Share.split sh)) reset twiddle.
-Exists (snd (Share.split sh)) reset twiddle.
+
+Exists (fst (cleave sh)) reset twiddle.
+Exists (snd (cleave sh)) reset twiddle.
 rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
 rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
 entailer!.
 split.
-apply slice.split_YES_ok1; auto.
-apply slice.split_YES_ok2; auto.
-rewrite (data_at_share_join (fst (Share.split sh)) (snd (Share.split sh)) sh).
+apply cleave_readable1; auto.
+apply cleave_readable2; auto.
+rewrite (data_at_share_join (fst (cleave sh)) (snd (cleave sh)) sh).
 auto.
-apply split_join.
-destruct (Share.split sh) as [a b]; reflexivity.
+apply cleave_join.
 Qed.
 
 Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.

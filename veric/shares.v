@@ -993,56 +993,25 @@ Lemma glb_split_lemma1:
      Share.glb Share.Rsh (fst (Share.split b)).
 Proof.
 intros.
-destruct (Share.split a) as [a1 a2] eqn:Ha.
-destruct (Share.split b) as [b1 b2] eqn:Hb.
-simpl.
-pose proof (Share.split_together _ _ _ Ha).
-pose proof (Share.split_disjoint _ _ _ Ha).
-pose proof (Share.split_together _ _ _ Hb).
-pose proof (Share.split_disjoint _ _ _ Hb).
-subst a b.
-clear Ha Hb.
-assert (H4 := f_equal (Share.glb a1) H).
-assert (H5 := f_equal (Share.glb b1) H).
-rewrite !Share.distrib1 in H4.
-rewrite !(Share.glb_commute Share.Rsh) in H4.
-rewrite glb_twice in H4.
-rewrite <- Share.glb_assoc in H4.
-rewrite H1 in H4.
-rewrite (Share.glb_commute Share.bot), Share.glb_bot in H4.
-rewrite Share.lub_bot in H4.
-rewrite Share.glb_commute in H4.
-symmetry in H5.
-rewrite <- Share.glb_assoc in H5.
-rewrite (Share.glb_commute b1) in H5.
-rewrite Share.glb_assoc in H5.
-rewrite Share.glb_absorb in H5.
-rewrite H4,H5; clear H4 H5.
-rewrite !Share.distrib1.
-f_equal.
-rewrite (Share.glb_commute Share.Rsh).
-rewrite <- !Share.glb_assoc.
-f_equal. rewrite Share.glb_commute; auto.
-rewrite (Share.glb_commute Share.Rsh).
-rewrite <- !Share.glb_assoc.
-Admitted.
+Abort.  (* Probably true, but not absolutely needed *)
 
 Lemma glb_split_lemma2:
   forall a b, Share.glb Share.Rsh a = Share.glb Share.Rsh b ->
      Share.glb Share.Rsh (snd (Share.split a)) =
      Share.glb Share.Rsh (snd (Share.split b)).
-Admitted.
+Proof.
+Abort.  (* Probably true, but not absolutely needed *)
 
 Lemma fst_split_glb_orthogonal: forall sh : share,
 identity (Share.glb Share.Rsh (fst (Share.split sh))) ->
 identity (Share.glb Share.Rsh sh).
 Proof.
-Admitted.
+Abort. (* not true? *)
 
 Lemma snd_split_glb_orthogonal: forall sh : share,
 identity (Share.glb Share.Rsh (snd (Share.split sh))) ->
 identity (Share.glb Share.Rsh sh).
-Admitted.
+Abort.  (* not needed? *)
 
 (** the following lemmas are useful in the concurrency proofs *)
 

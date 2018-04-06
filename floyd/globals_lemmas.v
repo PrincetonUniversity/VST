@@ -279,9 +279,12 @@ Lemma readable_share_readonly2share:
 Proof.
 destruct b; simpl.
 intro.
-apply fst_split_glb_orthogonal in H.
-rewrite Share.glb_idem in H.
-contradiction juicy_mem.nonidentity_Rsh.
+rewrite glb_split_x in H.
+destruct (Share.split Share.Rsh) eqn:?.
+pose proof (split_nontrivial' _ _ _ Heqp).
+simpl in H.
+spec H0; auto.
+apply juicy_mem.nonidentity_Rsh; auto.
 unfold readable_share.
 rewrite Share.glb_idem.
 apply juicy_mem.nonidentity_Rsh.

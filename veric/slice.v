@@ -54,8 +54,8 @@ simpl in *.
 do 3 red in H|-*.
 contradict H.
 replace t with (fst (Share.split sh)) in H by (rewrite H0; reflexivity).
-apply fst_split_glb_orthogonal; auto.
-Qed.
+(*apply fst_split_glb_orthogonal; auto. *)
+Abort.  (* not true ? *)
 
 Lemma split_YES_ok2:
  forall sh, readable_share sh -> readable_share (snd (Share.split sh)).
@@ -66,10 +66,10 @@ simpl in *.
 do 3 red in H|-*.
 contradict H.
 replace t0 with (snd (Share.split sh)) in H by (rewrite H0; reflexivity).
-apply snd_split_glb_orthogonal; auto.
-Qed.
+(*apply snd_split_glb_orthogonal; auto. *)
+Abort. (* maybe true, but not necessary? *)
 
-
+(*
 Definition split_resource r :=
   match r with YES sh rsh k pp => 
                (YES (fst (Share.split sh)) (split_YES_ok1 _ rsh) k pp , 
@@ -178,6 +178,7 @@ Proof.
 intro.
 destruct r; simpl; constructor; auto; try (apply split_join; apply surjective_pairing).
 Qed.
+*)
 
 (*Lemma split_rmap_join:
   forall m, join (fst (split_rmap m)) (snd (split_rmap m)) m.

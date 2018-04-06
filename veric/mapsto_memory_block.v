@@ -2,7 +2,6 @@ Require Import VST.msl.log_normalize.
 Require Import VST.msl.alg_seplog.
 Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
@@ -11,6 +10,7 @@ Require Import VST.veric.expr_lemmas3.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.address_conflict.
 Require Import VST.veric.shares.
+Require Import VST.veric.slice.
 
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
