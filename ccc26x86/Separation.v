@@ -681,7 +681,7 @@ Lemma alloc_parallel_rule:
   Mem.alloc m2 0 sz2 = (m2', b2) ->
   (8 | delta) ->
   lo = delta ->
-  hi = delta + Zmax 0 sz1 ->
+  hi = delta + Z.max 0 sz1 ->
   0 <= sz2 <= Int.max_unsigned ->
   0 <= delta -> hi <= sz2 ->
   exists j',
@@ -741,7 +741,7 @@ Lemma free_parallel_rule:
   m2 |= range b2 0 lo ** range b2 hi sz2 ** minjection j m1 ** P ->
   Mem.free m1 b1 0 sz1 = Some m1' ->
   j b1 = Some (b2, delta) ->
-  lo = delta -> hi = delta + Zmax 0 sz1 ->
+  lo = delta -> hi = delta + Z.max 0 sz1 ->
   exists m2',
      Mem.free m2 b2 0 sz2 = Some m2'
   /\ m2' |= minjection j m1' ** P.
@@ -895,7 +895,7 @@ Lemma alloc_parallel_rule_2:
   Mem.alloc m2 0 sz2 = (m2', b2) ->
   (8 | delta) ->
   lo = delta ->
-  hi = delta + Zmax 0 sz1 ->
+  hi = delta + Z.max 0 sz1 ->
   0 <= sz2 <= Int.max_unsigned ->
   0 <= delta -> hi <= sz2 ->
   exists j',

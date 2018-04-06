@@ -1404,7 +1404,7 @@ split; auto.
 symmetry in HeqHPHI.
 destruct (H _ _ _ _ _ HeqHPHI); auto.
 * (* access_cohere *)
-intros [b' ofs']; spec H0 (b', ofs').
+intros [b' ofs']; specialize ( H0 (b', ofs')).
 unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
  + (* adr_range *)
@@ -1485,7 +1485,7 @@ if_tac; simpl; auto.
 case_eq (phi @ (b0, ofs)); intros; simpl; auto.
 generalize (rmap_valid phi). intro H4.
 unfold AV.valid, compose in H4.
-spec H4 b0 ofs.
+specialize ( H4 b0 ofs).
 rewrite H1 in H4; simpl in H4.
 destruct k; auto.
 intros.
@@ -1836,7 +1836,7 @@ simpl.
 assert (writable_share sh). {
  clear - PERM.
  unfold perm_of_sh in PERM.
- if_tac in PERM; auto. if_tac_in PERM. inv PERM.
+ if_tac in PERM; auto. if_tac in PERM. inv PERM.
  if_tac in PERM; inv PERM.
 }
  exists sh,H; do 2 econstructor; split; simpl; f_equal.

@@ -126,7 +126,7 @@ Proof. done (introv; right). Qed.
 Hint Resolve Ile_refl.
 
 Lemma Ilt_Zpos i j :
-  Ident.lt i j <-> Zlt (Zpos (id2pos i)) ((Zpos (id2pos j))).
+  Ident.lt i j <-> Z.lt (Zpos (id2pos i)) ((Zpos (id2pos j))).
 Proof.
 split; [tapp Ilt_morphism|tinv H].
 generalize (Pcompare_spec (id2pos i) (id2pos j)); rewrite H; tinv H1.

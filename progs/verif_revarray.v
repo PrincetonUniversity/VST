@@ -18,9 +18,9 @@ Definition reverse_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
 
@@ -166,7 +166,7 @@ forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
- Exists (Zsucc j).
+ Exists (Z.succ j).
  entailer!.
  f_equal; f_equal; omega.
  apply derives_refl'.
@@ -200,10 +200,10 @@ name four _four.
 start_function.
 
 forward_call  (*  revarray(four,4); *)
-  (four, Ews, four_contents, 4).
+  (gv _four, Ews, four_contents, 4).
    split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
-    (four,Ews, rev four_contents,4).
+    (gv _four,Ews, rev four_contents,4).
    split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)

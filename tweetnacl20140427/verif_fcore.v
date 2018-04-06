@@ -281,7 +281,7 @@ rename v_w into w.
 freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.
-Focus 2. unfold OutLen. if_tac; omega.
+Focus 2. unfold OutLen. simple_if_tac; omega.
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + thaw FR1. freeze [0;1;3;5] FR2.
     forward_seq.

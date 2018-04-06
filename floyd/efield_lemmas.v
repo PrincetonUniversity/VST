@@ -119,7 +119,8 @@ Lemma typeconv_typeconv'_eq: forall t1 t2,
   typeconv t1 = typeconv t2.
 Proof.
   intros.
-  destruct t1 as [| [| | |] | [|] | [|] | | | | |], t2 as [| [| | |] | [|] | [|] | | | | |]; simpl in *; do 2 try if_tac in H; congruence.
+  destruct t1 as [| [| | |] | [|] | [|] | | | | |], t2 as [| [| | |] | [|] | [|] | | | | |]; simpl in *; 
+  do 2 try match type of H with context [if ?A then _ else _] => destruct A end; congruence.
 Qed.
 
 Lemma tc_efield_ind: forall {cs: compspecs} (Delta: tycontext) (efs: list efield),
@@ -455,7 +456,7 @@ Proof.
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
-  1: if_tac in H7; inv H7.
+  1: match type of H7 with context [if ?A then _ else _] => destruct A end; inv H7.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.
@@ -518,7 +519,7 @@ Proof.
   rewrite H2 in H4; simpl in H4.
   destruct (typeof (nested_efield e efs tts)) eqn:?H; inv H4.
   1: destruct i1; inv H7.
-  1: if_tac in H7; inv H7.
+  1: match type of H7 with context [if ?A then _ else _] => destruct A end; inv H7.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H5.

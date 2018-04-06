@@ -132,7 +132,7 @@ assert (R.valid (fun l' => if eq_dec l' l
  generalize (v b ofs); unfold compose; intros.
  destruct (fst f (b,ofs)); simpl in *; auto.
  destruct k0; simpl in *; auto.
- intros. spec H i H1.
+ intros. specialize( H i H1).
  case (eq_dec (b,ofs+i) (bl,zl)); intros.
  simpl. rewrite e in H; rewrite H0 in H; inv H; auto.
  f_equal. f_equal. apply exist_ext. auto.
@@ -768,7 +768,7 @@ destruct H as [m1 [m2 [J [[bl [[[Hlen [? _]] ?] Hg]] _]]]].
 destruct H0 as [m1' [m2' [J' [[bl' [[[Hlen' [? _]] ?] Hg']] _]]]].
 subst.
 assert (forall i, nth_error bl i = nth_error bl' i).
-intro i; spec H1 (fst l, snd l + Z_of_nat i); spec H2 (fst l, snd l + Z_of_nat i).
+intro i; specialize( H1 (fst l, snd l + Z_of_nat i)); specialize( H2 (fst l, snd l + Z_of_nat i)).
 unfold jam in *.
 destruct l as [b z].
 simpl in *.
@@ -814,7 +814,7 @@ f_equal.
 specialize (H 0%nat); simpl in H. inv H. auto.
 apply IHbl.
 intro.
-spec H (S i).
+specialize( H (S i)).
 simpl in H.
 auto.
 simpl; auto.
@@ -972,7 +972,7 @@ Proof.
 unfold VALspec, readable;
 intros.
 destruct H as [w1 [w2 [? [[? ?] _]]]].
-spec H0 l.
+specialize ( H0 l).
 unfold jam in H0.
 hnf in H0|-*; rewrite if_true in H0 by auto.
 destruct H0 as [v [p ?]].
@@ -1001,7 +1001,7 @@ unfold f; clear - H0 H; intro; intros.
 unfold compose in *.
 destruct (eq_dec (adr_add l i) (b,ofs)); try inv H1.
 destruct H0 as [bl [[H0' ?] Hg]].
-spec H0 (b,ofs).
+specialize ( H0 (b,ofs)).
 unfold jam in H0.
 hnf in H0; if_tac in H0.
 destruct H0.
@@ -1017,7 +1017,7 @@ unfold g; clear - H0 H; intro; intros.
 unfold compose in *.
 destruct (eq_dec (adr_add l i) (b,ofs)); simpl; auto.
 destruct H0 as [bl [[H0' ?] Hg]].
-spec H0 (b,ofs).
+specialize ( H0 (b,ofs)).
 unfold jam in H0.
 hnf in H0; if_tac in H0.
 destruct H0.
@@ -1047,7 +1047,7 @@ unfold VALspec; split.
 intro l'.
 unfold jam in *.
 destruct H0 as [bl [[H0' ?] Hg]].
-spec H0 l'.
+specialize ( H0 l').
 unfold jam in H0.
 hnf in H0|-*; if_tac.
 subst l'.
@@ -1270,7 +1270,7 @@ intros w ?. unfold VALspec_range.
 destruct H as [bl [[Hbl ?] Hg]].
 split; auto.
 intro l'.
-spec H l'.
+specialize ( H l').
 unfold jam in *.
 hnf in H|-*. if_tac; auto.
 exists (nth (nat_of_Z (snd l' - snd l)) bl Undef).
@@ -1350,7 +1350,7 @@ Proof.
     apply prop_andp_i; auto.
     split; auto.
     hnf in H3|-*.
-    intro; spec H3 b.
+    intro; specialize ( H3 b).
     hnf in H3|-*.
     if_tac; auto.
     subst b.
@@ -1367,7 +1367,7 @@ Proof.
     simpl.
     if_tac.
     - (* P proof *)
-      spec H ts x rho P0 Q0.
+      specialize ( H ts x rho P0 Q0).
 Check approx_eq_i.
       apply approx_eq_i.
 pose proof (later_derives (unfash_derives H)).
@@ -1379,7 +1379,7 @@ pose proof (later_derives (unfash_derives H)).
       apply nec_nat; auto.
 (* Q proof *)
 clear H; rename H' into H.
-spec H (x,vl) P0 Q0.
+specialize ( H (x,vl) P0 Q0).
 apply approx_eq_i.
 apply (later_derives (unfash_derives H)); clear H.
 rewrite later_unfash.
@@ -1398,7 +1398,7 @@ apply prop_andp_i; auto.
 split; auto.
 hnf.
 intro.
-spec H3 b.
+specialize ( H3 b).
 hnf in H3|-*.
 if_tac; auto.
 subst b.
@@ -1414,7 +1414,7 @@ unfold packPQ.
 simpl.
 if_tac.
 (* P proof *)
-spec H (x,vl) P0 Q0.
+specialize ( H (x,vl) P0 Q0).
 symmetry.
 apply approx_eq_i.
 apply (later_derives (unfash_derives H)); clear H.
@@ -1424,7 +1424,7 @@ apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
 (* Q proof *)
 clear H; rename H' into H.
-spec H (x,vl) P0 Q0.
+specialize ( H (x,vl) P0 Q0).
 symmetry.
 apply approx_eq_i.
 apply (later_derives (unfash_derives H)); clear H.
@@ -1439,7 +1439,7 @@ Lemma VALspec_range_bytes_readable:
 Proof.
 intros; intro; intros.
 destruct H.
-spec H (adr_add loc i).
+specialize ( H (adr_add loc i)).
 hnf in H.
 rewrite if_true in H.
 destruct H as [v [p ?]].
@@ -1455,7 +1455,7 @@ Lemma VALspec_range_bytes_writable:
 Proof.
 intros; intro; intros.
 destruct H0.
-spec H0 (adr_add loc i).
+specialize ( H0 (adr_add loc i)).
 hnf in H0.
 rewrite if_true in H0.
 destruct H0 as [v [p ?]].
@@ -1790,8 +1790,8 @@ Lemma VALspec_range_overlap': forall sh p1 p2 n1 n2,
 Proof.
   intros.
   intros w [w1 [w2 [? [[? Hg1] [? Hg2]]]]].
-  spec H2 p2.
-  spec H3 p2.
+  specialize ( H2 p2).
+  specialize ( H3 p2).
   rewrite jam_true in H2 by auto.
   rewrite jam_true in H3 by (destruct p2; simpl; split; auto; omega).
   destruct H2; destruct H3. hnf in H2,H3.

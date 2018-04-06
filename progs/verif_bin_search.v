@@ -35,9 +35,9 @@ Definition search_spec :=
 (* The spec of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
@@ -263,9 +263,8 @@ Definition four_contents := [1; 2; 3; 4].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name four _four.
   start_function.
-  forward_call (four,Ews,four_contents,3,0,4).
+  forward_call (gv _four,Ews,four_contents,3,0,4).
   { split. auto.
     change (Zlength four_contents) with 4.
     repeat constructor; computable.

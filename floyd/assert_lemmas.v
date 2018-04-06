@@ -189,7 +189,7 @@ Proof.
  intros.
  red.
  destruct (tc_eval_gvar_zero _ _ _ _ H H0 H1) as [b ?].
- rewrite H2. if_tac; apply Coq.Init.Logic.I.
+ rewrite H2.  destruct (eqb_type _ _); apply Coq.Init.Logic.I.
 Qed.
 
 Lemma local_lift2_and: forall P Q, local (`and P Q) =
@@ -459,10 +459,12 @@ unfold Map.get; rewrite H. rewrite Hc.
 auto.
 Qed.
 
-Lemma globvars2pred_unfold: forall vl rho,
-    globvars2pred vl rho =
-    fold_right sepcon emp (map (fun idv => globvar2pred idv rho) vl).
+Lemma globvars2pred_unfold: forall gv vl rho,
+    globvars2pred gv vl rho =
+     andp (prop (gv = globals_of_env rho))
+      (fold_right sepcon emp (map (fun idv => globvar2pred gv idv rho) vl)).
 Proof. intros. unfold globvars2pred.
+  unfold lift2. f_equal.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.
 Hint Rewrite globvars2pred_unfold : norm.

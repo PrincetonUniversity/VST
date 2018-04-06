@@ -715,7 +715,7 @@ intros.
 intro. hnf in H.
 destruct t; try contradiction.
 destruct f; try contradiction.
-if_tac in H; try contradiction.
+destruct (eqb_type _ _) in H; try contradiction.
 Qed.
 
 Lemma tc_val'_Vundef:
@@ -739,7 +739,7 @@ Proof.
   destruct ty eqn:?, v eqn:?;
   try solve [simpl; auto; try destruct f; auto];
   try solve [unfold tc_val, is_pointer_or_null;
-    try if_tac; try solve [simpl; auto; intros; contradiction];
+    try simple_if_tac; try solve [simpl; auto; intros; contradiction];
     simpl; unfold Tptr; intros; try subst i;
     destruct Archi.ptr64; try contradiction; subst; auto];
   simpl; unfold Tptr; destruct Archi.ptr64; auto.
@@ -1069,7 +1069,9 @@ Qed.
 Lemma andb_if : forall {D} b c (d:D) (e:D), (if (b && c) then d else e) = if b then (if c then d else e) else e.
 Proof.
 intros.
-remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *; try rewrite andb_false_iff in *; if_tac; auto; intuition;
+remember (b&&c). destruct b0; symmetry in Heqb0; 
+try rewrite andb_true_iff in *; try rewrite andb_false_iff in *;
+simple_if_tac; auto; intuition;
 destruct c; auto; intuition.
 Qed.
 

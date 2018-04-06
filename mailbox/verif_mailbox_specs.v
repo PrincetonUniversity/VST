@@ -324,9 +324,9 @@ Definition writer_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog [] u
-  POST [ tint ] main_post prog [] u.
+  WITH gv: globals
+  PRE  [] main_pre prog [] gv
+  POST [ tint ] main_post prog [] gv.
 
 (* Create the environment containing all function specs. *)
 Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_spec; spawn_spec;
@@ -509,4 +509,14 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun l => _); [|eauto].
   unfold comm_loc, AE_loc.
   rewrite lock_inv_isptr; entailer!.
+Qed.
+
+Lemma make_shares_out : forall b lasts shs
+  (Hb : ~In b lasts) (Hlen : Zlength lasts = Zlength shs), make_shares shs lasts b = shs.
+Proof.
+  induction lasts; auto; simpl; intros.
+  { rewrite Zlength_nil in *; destruct shs; auto; rewrite Zlength_cons, Zlength_correct in *; omega. }
+  destruct (eq_dec a b); [contradiction Hb; auto|].
+  destruct shs; rewrite !Zlength_cons in *; [rewrite Zlength_nil, Zlength_correct in *; omega|].
+  simpl; rewrite IHlasts; auto; omega.
 Qed.

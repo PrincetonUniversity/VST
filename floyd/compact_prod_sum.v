@@ -117,7 +117,7 @@ Proof.
     apply H.
     simpl; auto.
   + simpl.
-    if_tac.
+    destruct (filter a0).
     - apply @JMeq_inl.
       * apply (@compact_sum_eq A F1 F2 (a :: l)).
         intros.

@@ -1628,7 +1628,7 @@ Proof.
   unfold eval_lvar.
   destruct (Map.get (ve_of rho) id); auto.
   destruct p.
-  if_tac; auto.
+  destruct (eqb_type _ _); auto.
 Qed.
 
 Lemma var_block_data_at_:
@@ -2109,8 +2109,7 @@ Lemma data_at_rec_void:
   forall {cs: compspecs}
       sh t v q, t = Tvoid -> data_at_rec sh t v q = FF.
 Proof.
- intros; subst. unfold data_at_rec; simpl. unfold mapsto.
-  if_tac; reflexivity.
+ intros; subst; reflexivity.
 Qed.
 
 Lemma snd_reptype_structlist_aux  {cs: compspecs}:
@@ -2344,7 +2343,7 @@ Lemma value_fits_Tint_trivial {cs: compspecs} :
 Proof.
 intros.
 rewrite value_fits_eq; simpl.
-if_tac; auto.
+destruct (attr_volatile a); auto.
 hnf. intro. apply Coq.Init.Logic.I.
 Qed.
 
@@ -2521,7 +2520,6 @@ Proof.
   intros.
   unfold field_at.
   extensionality p.
-  SearchAbout (!! _ && _ = !! _ && _).
   apply andp_prop_ext.
   + apply field_compatible_change_composite; auto.
   + intros.

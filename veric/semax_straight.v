@@ -173,7 +173,7 @@ destruct H4.  repeat split. omega.
 destruct m; simpl; omega.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
-if_tac in H0; [inversion H0 |].
+destruct (type_is_volatile t); [inversion H0 |].
 destruct H0 as [_ [? _]].
 specialize (H0 (b, Ptrofs.unsigned o)).
 simpl in H0.
@@ -197,9 +197,11 @@ mapsto_ sh t v m ->
 exists b, exists o, v = Vptr b o.
 Proof.
 intros. unfold mapsto_, mapsto in H.
-if_tac in H; try contradiction.
-destruct (access_mode t); try contradiction.
-destruct (access_mode t); try contradiction.
+if_tac in H; try contradiction;
+destruct (access_mode t); try contradiction;
+destruct (type_is_volatile t); try contradiction.
+destruct v; try contradiction.
+eauto.
 destruct v; try contradiction.
 eauto.
 Qed.
@@ -1310,7 +1312,8 @@ split; [split3 | ].
   destruct (sem_cast (typeof e1) t1 (v2 rho)) eqn:EC.
   2: elimtype False; clear - EC TC3;
     unfold eval_cast, force_val1 in TC3; rewrite EC in TC3;
-    destruct t1; try destruct f; try if_tac in TC3; contradiction.
+    destruct t1; try destruct f;
+    try destruct (eqb_type _ _); contradiction.
   destruct H0 as [H0 _].
    assert ((|> (F rho * P rho))%pred (m_phi jm)). {
     rewrite later_sepcon.
@@ -1453,7 +1456,7 @@ rewrite H6; symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
 intro; rewrite H5. clear mf H4 H5 Hg.
 simpl m_phi.
 apply (resource_at_join _ _ _ loc) in H.
-destruct H1 as [vl [[? ?] Hg]]. spec H4 loc. hnf in H4.
+destruct H1 as [vl [[? ?] Hg]]. specialize (H4 loc). hnf in H4.
 if_tac.
 destruct H4. hnf in H4. rewrite H4 in H.
 rewrite (proof_irr x (writable_readable_share wsh)) in *; clear x.
@@ -1568,7 +1571,7 @@ try destruct (Float32.to_longu f);
  auto; simpl;
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
-try solve [if_tac; auto].
+try solve [simple_if_tac; auto].
 Qed.
 
 

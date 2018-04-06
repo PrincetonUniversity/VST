@@ -264,7 +264,7 @@ change predicates_hered.orp with orp.
  apply andp_derives; try apply derives_refl.
  apply orp_right1. apply derives_refl.
  unfold test_eq_ptrs.
- if_tac; auto.
+ destruct (sameblock _ _); auto.
  apply andp_derives; apply valid_pointer_weak.
 Qed.
 

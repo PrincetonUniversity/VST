@@ -40,12 +40,14 @@ Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f
     semax_external (map fst (fst sig)) ef A P Q
   end.
 
-Definition try_spec (prog: program) (name: string) (spec: funspec) : list (ident*funspec) :=
- match ext_link_prog' (prog_defs prog) name with
+Definition try_spec  (name: string) (spec: funspec) : 
+   list (ident * globdef fundef type) -> list (ident*funspec) :=
+fun defs => 
+ match ext_link_prog' defs name with
  | Some id => [(id,spec)]
  | None => nil
  end.
-Arguments try_spec prog name spec / .
+Arguments try_spec name spec defs / .
 
 Definition exit_spec' :=
  WITH u: unit
@@ -54,8 +56,7 @@ Definition exit_spec' :=
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
-Definition exit_spec (prog: program) := try_spec prog "exit" exit_spec'.
-Arguments exit_spec prog / .
+Definition exit_spec := try_spec "exit" exit_spec'.
 
 Parameter body_exit:
  forall {Espec: OracleKind},
@@ -88,10 +89,6 @@ Definition malloc_spec'  {cs: compspecs} :=
        SEP (if eq_dec p nullval then emp
             else (malloc_token Tsh t p * data_at_ Tsh t p)).
 
-Definition malloc_spec  {cs: compspecs} (prog: program) :=
-   try_spec prog "_malloc" malloc_spec'.
-Arguments malloc_spec {cs} prog / .
-
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_malloc malloc_spec'.
@@ -107,24 +104,24 @@ Definition free_spec'  {cs: compspecs} :=
        LOCAL ()
        SEP ().
 
-Definition free_spec   {cs: compspecs} (prog: program) :=
-   try_spec prog "_free" free_spec'.
-Arguments free_spec  {cs} prog / .
-
 Parameter body_free:
  forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_free free_spec'.
 
 Definition library_G  {cs: compspecs} prog :=
-  exit_spec prog ++ malloc_spec prog ++ free_spec prog.
+ let defs := prog_defs prog in 
+  try_spec "exit" exit_spec' defs ++
+  try_spec "_malloc" malloc_spec' defs ++
+  try_spec "_free" free_spec' defs.
 
-Ltac with_library prog G := 
- let x := constr:(library_G prog) in
- let x := eval hnf in x in 
- let x := eval simpl in x in
- let y := constr:(x++G) in
- let y := eval cbv beta iota delta [app] in y in 
- with_library' prog y.
+Ltac with_library prog G :=
+  let pr := eval unfold prog in prog in  
+ let x := constr:(library_G pr ++ G) in
+  let x := eval cbv beta delta [app library_G] in x in
+  let x := simpl_prog_defs x in 
+  let x := eval cbv beta iota zeta delta [try_spec] in x in 
+  let x := eval simpl in x in 
+    with_library' pr x.
 
 Lemma semax_func_cons_malloc_aux:
   forall {cs: compspecs} (gx : genviron) (t :type) (ret : option val),

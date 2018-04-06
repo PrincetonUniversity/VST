@@ -59,7 +59,10 @@ endif
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
-COQC=$(COQBIN)coqc -w none
+# DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
+# Warning setting  -w -deprecated-focus  is needed until we no longer
+# list version 8.7._ in the COQVERSION list.
+COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
@@ -256,7 +259,7 @@ PROGS_FILES= \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
-  verif_strlib.v
+  verif_strlib.v bug83.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -409,7 +412,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.6.1 or-else 8.7.0 or-else 8.7.1 or-else 8.7.2
+COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -478,7 +481,7 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
 hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: .loadpath mailbox/verif_mailbox_main.vo
+mailbox: .loadpath mailbox/verif_mailbox_all.vo
 atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT

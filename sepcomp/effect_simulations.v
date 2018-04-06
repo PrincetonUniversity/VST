@@ -17,6 +17,7 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.effect_semantics.
 Require Import VST.sepcomp.structured_injections.
 Require Import VST.sepcomp.reach.
+Require Import VST.sepcomp.semantics_lemmas.
 
 Module SM_simulation. Section SharedMemory_simulation_inject.
 
@@ -213,8 +214,6 @@ Record SM_simulation_inject :=
           after_external Sem1 ge1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 ge2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
-
-Require Import VST.sepcomp.semantics_lemmas.
 
 Lemma core_diagram (SMI: SM_simulation_inject):
       forall st1 m1 st1' m1',

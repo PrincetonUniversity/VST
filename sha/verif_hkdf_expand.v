@@ -47,7 +47,7 @@ Lemma PREVcont_Sn PRK INFO i p: 0 <= i -> PREVcont PRK INFO i = map Vint (map In
                                 else map Vint (map Int.repr (HMAC256_functional_prog.HMAC256 (p ++ CONT INFO ++ [i + 1]) (CONT PRK))).
 Proof. intros. unfold PREVcont.
 destruct (zeq (i+1) 0). omega.
-change (i+1) with (Zsucc i). rewrite Z2Nat.inj_succ; try omega. simpl.
+change (i+1) with (Z.succ i). rewrite Z2Nat.inj_succ; try omega. simpl.
 unfold PREVcont in H0.
 destruct (zeq i 0).
 + subst i. simpl; trivial. 

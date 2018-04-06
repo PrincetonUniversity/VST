@@ -87,7 +87,7 @@ unfold compose; intros b ofs.
 generalize (rmap_valid m b ofs); unfold compose; intro.
 destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
 *
-intros. spec H i H0. destruct (m @(b,ofs+i)); inv H; auto.
+intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
 simpl. f_equal. f_equal. apply exist_ext.
 apply glb_split_lemma1; auto.
 *
@@ -106,7 +106,7 @@ unfold compose; intros b ofs.
 generalize (rmap_valid m b ofs); unfold compose; intro.
 destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
 *
-intros. spec H i H0. destruct (m @(b,ofs+i)); inv H; auto.
+intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
 simpl. f_equal. f_equal. apply exist_ext.
 apply glb_split_lemma2; auto.
 *
@@ -301,7 +301,7 @@ Proof.
 intros.
 (*assert (rsh3: readable_share sh3) by (eapply readable_share_join ; eauto). *)
 intro l'.
-spec H0 l'.
+specialize ( H0 l').
 unfold jam in H0 |- *.
 simpl in H0|-*.
 if_tac.
@@ -359,7 +359,7 @@ Proof.
 unfold splittable; intros.
 apply pred_ext; intro w; simpl.
 +  intros [w1 [w2 [? [? ?]]]].
-  intro l'. spec H1 l'; spec H2 l'.
+  intro l'. specialize ( H1 l'); specialize ( H2 l').
   unfold jam in *.
   revert H1 H2.
   if_tac.
@@ -394,7 +394,7 @@ apply pred_ext; intro w; simpl.
     extensionality loc; unfold compose, f.
     specialize (PARAMETRIC l loc).
     destruct PARAMETRIC as [pp [ok Jf]].
-    spec H0 loc.
+    specialize ( H0 loc).
     destruct (S l loc).
     rewrite Jf in H0.
     destruct H0 as [p3 [k3 [G0 H0]]].
@@ -417,7 +417,7 @@ apply pred_ext; intro w; simpl.
     extensionality loc; unfold compose, g.
     specialize (PARAMETRIC l loc).
     destruct PARAMETRIC as [pp [ok Jg]].
-    spec H0 loc.
+    specialize ( H0 loc).
     destruct (S l loc).
     rewrite Jg in H0.
     destruct H0 as [p3 [k3 [G0 H0]]].
@@ -437,7 +437,7 @@ apply pred_ext; intro w; simpl.
    intro.
    rewrite Hf; rewrite Hg.
    clear - PARAMETRIC H H0 rsh1 rsh2.
-   spec H0 loc.
+   specialize ( H0 loc).
    if_tac in H0.
    destruct (PARAMETRIC l loc) as [pp [ok ?]]; clear PARAMETRIC.
    rewrite H2 in H0.
@@ -485,7 +485,7 @@ unfold address_mapsto in *.
 destruct H1 as [bl1 [[[LEN1 DECODE1] ?] Hg1]]; destruct H2 as [bl2 [[[LEN2 DECODE2] ?] Hg2]].
 exists bl1; split; [split|]; auto.
 simpl; auto.
-intro loc; spec H1 loc; spec H2 loc.
+intro loc; specialize ( H1 loc); specialize ( H2 loc).
 unfold jam in *.
 apply (resource_at_join _ _ _ loc) in H0.
 hnf in H1, H2|-*.
@@ -538,7 +538,7 @@ constructor. auto.
 do 3 red in H2. apply identity_unit' in H2. apply H2; auto.
 +
 exists bl; repeat split; auto.
-intro loc; spec H2 loc; unfold jam in *;  hnf in H2|-*; if_tac; auto.
+intro loc; specialize ( H2 loc); unfold jam in *;  hnf in H2|-*; if_tac; auto.
 exists rsh1.
 hnf.
 rewrite H4.
@@ -552,7 +552,7 @@ do 3 red in H2|-*.
 rewrite H4. rewrite if_false by auto. auto.
 +
 exists bl; repeat split; auto.
-intro loc; spec H2 loc; unfold jam in *;  hnf in H2|-*; if_tac; auto.
+intro loc; specialize ( H2 loc); unfold jam in *;  hnf in H2|-*; if_tac; auto.
 exists rsh2.
 hnf.
 rewrite H6.

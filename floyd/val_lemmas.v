@@ -1,4 +1,5 @@
 Require Import VST.floyd.base.
+Require Import VST.floyd.sublist.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
@@ -800,30 +801,6 @@ pose_const_equations
   ];
  pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize].
 
-Definition Zlength' := @Zlength.
-
-Lemma Zlength_nonneg:
- forall {A} (l: list A), 0 <= Zlength l.
-Proof.
-intros. rewrite Zlength_correct. omega.
-Qed.
-
-Ltac pose_Zlength_nonneg1 A :=
-     lazymatch goal with
-      | H:  0 <= Zlength A |- _ => idtac
-      | H:  0 <= Zlength A /\ _ |- _ => idtac
-      | |- _ => pose proof (Zlength_nonneg A)
-     end;  change (Zlength A) with (Zlength' _ A) in *.
-
-Ltac pose_Zlength_nonneg :=
- repeat
-  match goal with
-  | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
-  | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
-(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
- end;
-  unfold Zlength' in *.
-
 Ltac pose_lemma F F' A L :=
   match type of (L A) with ?T =>
      lazymatch goal with
@@ -910,7 +887,7 @@ Lemma typed_true_ptr:
 Proof.
 unfold typed_true, strict_bool_val; simpl; intros.
 destruct v; try discriminate.
-if_tac in H; inv H. simpl. auto.
+destruct (Int.eq i Int.zero); inv H. simpl. auto.
 Qed.
 
 Lemma int_cmp_repr':
@@ -991,7 +968,9 @@ Ltac fancy_intro aggressive :=
  | tc_val _ _ => unfold tc_val in H; try change (eqb_type _ _) with false in H; cbv iota in H
  end;
  match type of H with
- | ?P => clear H; (((assert (H:P) by immediate; fail 1) || fail 1) || idtac)
+ | ?P => clear H; 
+              match goal with H': P |- _ => idtac end (* work around bug number 6998 in Coq *)
+             + (((assert (H:P) by (clear; immediate); fail 1) || fail 1) || idtac)
                 (* do it in this complicated way because the proof will come out smaller *)
  | ?x = ?y => constr_eq aggressive true;
                      first [subst x | subst y

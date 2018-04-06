@@ -161,6 +161,23 @@ hnf in H1.
 apply H; auto.
 Qed.
 
+Lemma lower_one_gvars:
+ forall  rho Delta P gv Q R S,
+  (gvars_denote gv rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (gvars gv :: Q) (SEPx R))) rho |-- S.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *.
+normalize.
+rewrite prop_true_andp in H by auto.
+hnf in H1.
+apply H; auto.
+Qed.
+
 Lemma finish_lower:
   forall rho D R S,
   fold_right_sepcon R |-- S ->
@@ -265,6 +282,7 @@ first [simple apply quick_finish_lower
  | simple eapply lower_one_sgvar;
      [try reflexivity; solve [eauto]
      | fold_types1; fancy_intro true; intros ?SGV]
+ | simple eapply lower_one_gvars; intro
  ];
  (simple apply finish_lower ||
  match goal with
@@ -400,6 +418,8 @@ Proof.
     destruct (ge_of rho i); [| inversion H0].
     subst.
     hnf; eauto.
+  + simpl.
+    auto.
   + simpl.
     auto.
 Qed.

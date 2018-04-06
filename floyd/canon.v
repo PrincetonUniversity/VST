@@ -42,13 +42,15 @@ Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
    end.
 
 *)
+
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
  | lvar: ident -> type -> val -> localdef
  | gvar: ident -> val -> localdef
  | sgvar: ident -> val -> localdef
 (* | tc_env: tycontext -> localdef *)
- | localprop: Prop -> localdef.
+ | localprop: Prop -> localdef
+ | gvars: globals -> localdef.
 
 Arguments temp i%positive v.
 
@@ -74,6 +76,9 @@ Definition sgvar_denote (i: ident) (v: val) rho :=
              | None => False
          end.
 
+Definition gvars_denote (gv: globals) rho :=
+   gv = (fun i => match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
  | temp i v => `(eq v) (eval_id i)
@@ -82,6 +87,7 @@ Definition locald_denote (d: localdef) : environ -> Prop :=
  | sgvar i v => sgvar_denote i v
 (* | tc_env D => tc_environ D *)
  | localprop P => `P
+ | gvars gv => gvars_denote gv
  end.
 
 Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
@@ -233,27 +239,7 @@ Proof.
   + simpl in *.
     rewrite !approx_sepcon.
     f_equal;
-    auto;
-(* AUTO should solve this: it did in Coq.8.5 *)
-(*
-  Solution*)
-
-    clear - H x rho;
-
-    change ((fix dtfr (T : rmaps.TypeTree) :
-            functors.MixVariantFunctor.functor :=
-            match T with
-            | rmaps.ConstType A0 =>
-                functors.MixVariantFunctorGenerator.fconst A0
-            | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
-            | rmaps.DependentType n0 =>
-                functors.MixVariantFunctorGenerator.fconst (nth n0 ts unit)
-            | rmaps.ProdType T1 T2 =>
-                functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
-            | rmaps.ArrowType T1 T2 =>
-                functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
-            end) A) with (rmaps.dependent_type_functor_rec ts A);
-    apply (H _ _ x rho).
+    auto.
 Qed.
 
 Lemma LOCALx_super_non_expansive: forall A Q R,
@@ -1731,12 +1717,6 @@ apply andp_right; auto.
 apply derives_extract_prop. auto.
 Qed.
 
-Inductive Hint: Prop -> Prop :=
-| Hint_intro: forall P: Prop, P -> Hint P.
-
-Inductive PermanentHint: Prop -> Prop :=
-| PermanentHint_intro: forall P: Prop, P -> PermanentHint P.
-
 Tactic Notation "assert_PROP" constr(A) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
 
@@ -1748,22 +1728,6 @@ Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
-
-Tactic Notation "assert_HINT" constr(A) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)];
-  [ | let H := fresh "HINT" in intro H; apply Hint_intro in H ].
-
-Tactic Notation "assert_HINT" constr(A) "by" tactic(t) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ];
-  [ now t | let H := fresh "HINT" in intro H; apply Hint_intro in H ].
-
-Tactic Notation "assert_PERMANENT_HINT" constr(A) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)];
-  [ | let H := fresh "HINT" in intro H; apply PermanentHint_intro in H ].
-
-Tactic Notation "assert_PERMANENT_HINT" constr(A) "by" tactic(t) :=
-  first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ];
-  [ now t | let H := fresh "HINT" in intro H; apply PermanentHint_intro in H ].
 
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,
@@ -1838,7 +1802,8 @@ Fixpoint find_LOCAL_index (name: ident) (current: nat) (l : list localdef) : opt
     | lvar  i _ _ => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | gvar  i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
     | sgvar i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
-    | localprop _ => None
+    | localprop _ => find_LOCAL_index name (S current) t
+    | gvars _ => find_LOCAL_index name (S current) t
     end
   | nil => None
   end.

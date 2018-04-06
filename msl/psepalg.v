@@ -31,9 +31,9 @@ Lemma pfull_pmaximal {A} {JA: Join A} {PA: Perm_alg A} {Pos_A: Pos_alg A} : full
 Proof with eauto.
   extensionality a.  apply prop_ext. split; repeat intro.
   destruct H0 as [a' ?]. unfold full in H.
-  spec H a'. spec H...
+  specialize (H a'). spec H...
   destruct H0 as [c ?].
-  spec H c. spec H... subst. apply join_comm in H0. 
+  specialize (H c). spec H... subst. apply join_comm in H0. 
   apply no_units in H0. contradiction.
 Qed.
 
@@ -188,7 +188,7 @@ Section PSA_LIFT.
     do 2 red in H0. simpl in H0.
     unfold full in H.
     simpl in H.
-    spec H sigma'. spec H; eauto.
+    specialize (H sigma'). spec H; eauto.
     intros ? ? ?. destruct a0, b. do 2 red in H1. simpl in H1. apply H in H1.
     subst; f_equal; auto.  apply proof_irr.
   Qed.
@@ -398,9 +398,9 @@ Section FinitePartialMap.
     destruct H as [l Hl].
     exists l.
     intros a Hl'.
-    spec Hl a Hl'.
+    specialize ( Hl a Hl').
     red in H0.
-    spec H0 a.
+    specialize ( H0 a).
     rewrite Hl in H0. inv H0; auto.
   Qed.
 
@@ -412,7 +412,7 @@ Section FinitePartialMap.
     destruct H1 as [l1 H1].
     exists (l0 ++ l1).
     intros.
-    spec H a. spec H0 a. spec H1 a.
+    specialize ( H a). specialize ( H0 a). specialize ( H1 a).
     rewrite H0 in H. rewrite H1 in H. inv H; auto.
     intro contr. apply H2. apply in_or_app; auto.
     intro contr. apply H2. apply in_or_app; auto.

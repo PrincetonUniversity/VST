@@ -26,7 +26,7 @@ Lemma pures_sub_trans phi1 phi2 phi3 :
   pures_sub phi2 phi3 ->
   pures_sub phi1 phi3.
 Proof.
-  intros lev S1 S2. intros l; spec S1 l; spec S2 l.
+  intros lev S1 S2. intros l; specialize (S1 l); specialize (S2 l).
   destruct (phi1 @ l); auto.
   rewrite S1 in S2. rewrite S2.
   f_equal.
@@ -65,6 +65,6 @@ Lemma pures_eq_trans phi1 phi2 phi3 :
   pures_eq phi1 phi3.
 Proof.
   intros lev [S1 E1] [S2 E2]; split. apply pures_sub_trans with phi2; auto.
-  intros l; spec E1 l; spec E2 l.
+  intros l; specialize (E1 l); specialize (E2 l).
   destruct (phi3 @ l); auto. destruct E2 as (pp, E2). rewrite E2 in E1; auto.
 Qed.

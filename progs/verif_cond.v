@@ -39,9 +39,9 @@ Definition thread_func_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
@@ -99,8 +99,9 @@ Admitted.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name lock _mutex; name lockt _tlock; name cond _cond; name data _data.
+(*  name lock _mutex; name lockt _tlock; name cond _cond; name data _data. *)
   start_function.
+  set (lock := gv _mutex). set (lockt := gv _tlock). set (cond := gv _cond). set (data := gv _data).
   forward.
   forward.
   forward.

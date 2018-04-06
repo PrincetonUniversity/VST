@@ -1606,7 +1606,6 @@ Lemma nested_field_offset_change_composite: forall {cs_from cs_to} {CCE: change_
 Proof.
   intros.
   induction gfs; auto.
-  SearchAbout legal_nested_field legal_nested_field0.
   rewrite (@nested_field_offset_ind cs_from) by (apply legal_nested_field0_field; auto).
   rewrite (@nested_field_offset_ind cs_to) by (apply legal_nested_field0_field; auto).
   rewrite IHgfs by (simpl in H0, H1; tauto).

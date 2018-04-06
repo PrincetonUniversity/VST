@@ -1284,8 +1284,9 @@ to the functions it calls on an as-needed basis.
 The function-spec for the \lstinline{sumarray} program's \lstinline{main} is,
 \begin{lstlisting}
 Definition main_spec :=
- DECLARE _main  WITH u : unit
-    PRE  [ ] main_pre prog u
+ DECLARE _main  
+    WITH gv : globals
+    PRE  [ ] main_pre prog gv
     POST [ tint ]
       (* application-specific postcondition *)
       PROP()
@@ -1308,22 +1309,22 @@ the \lstinline{start_function} tactic ``unpacks''
 \lstinline{main_pre} into an assertion:
 \pagebreak
 \begin{lstlisting}
-$\mathit{v\_four}$ : val
+gv: globals
 ______________________________________(1/1)
 semax Delta
- (PROP  ()  LOCAL  (gvar _four $\mathit{v\_four}$)
+ (PROP  ()  LOCAL  (gvar _four (gv _four); gvars gv)
   SEP (data_at Ews (tarray tuint 4)
-     (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) $\mathit{v\_four}$))
+     (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) (gv _four)))
  $\mbox{\emph{(\ldots{}function body\ldots)}}$
  POSTCONDITION
 \end{lstlisting}
 The \lstinline{LOCAL} clause means that the C global
 variable \lstinline{_four} is at memory address
-$\mathit{v\_four}$.    See \autoref{refcard:gvar}.
+\lstinline{(gv _four)}.    See \autoref{refcard:gvar}.
 
 The \lstinline{SEP} clause means that there's
 data of type ``array of 4 integers'' at
-address $\mathit{v\_four}$, with access permission
+address \lstinline{(gv _four)}, with access permission
 \lstinline{Ews} and contents [1;2;3;4].
 \lstinline{Ews} stands for ``external write share,''
 the standard access permission of extern global writable
@@ -1596,7 +1597,7 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{rep_omega} tactic,
+you can use the \lstinline{rep_omega} tactic (see \autoref{rep-omega}),
 which is basically just \lstinline{omega} with
 knowledge of the values of
 \lstinline{Int.min_signed},
@@ -3683,7 +3684,42 @@ n-0=n \quad 0+n=n \quad n+0=n \quad n \le m \rightarrow \mathrm{max}(n,m) = m\\
 \end{array}
 \]
 
+\chapter{\textsf{rep\_omega}: omega with representation facts}
+\label{refcard:rep-omega}
 
+To solve goals such as
+
+\begin{minipage}{2.5in}
+\begin{lstlisting}
+H:  Zlength al < 50
+-------------------  
+0 <= Zlength al <= Int.max_signed
+\end{lstlisting}
+\end{minipage}\qquad
+\begin{minipage}{2.5in}
+\begin{lstlisting}
+
+-------------------  
+0 <= Int.unsigned (Int.repr i) <= Int.max_unsigned.
+\end{lstlisting}
+\end{minipage}
+
+you want to use the \lstinline{omega} tactic \emph{augmented} by many facts
+about the \emph{representations} of integers:
+the numeric values of
+\lstinline{Int.min_signed,}
+\lstinline{Int.max_signed,}
+etc.;
+the fact that \lstinline{Zlength} is nonnegative;
+the fact that \lstinline{0 <= Int.unsigned $z$ <= Int.max_unsigned},
+and so on.
+
+The \lstinline{rep_omega} tactic does this.
+In addition, it ``knows'' all the facts in the 
+\lstinline{Hint Rewrite : rep_omega} database.
+This is very helpful when using Opaque constants,
+as explained in \file{progs/tutorial1.v}, Lemmas
+\lstinline{exercise4} through \lstinline{exercise4c}.
 
 
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}
@@ -3995,6 +4031,39 @@ space to hold a value of type $t$
 at address $v$, with permission-share $\mathit{sh}$.
 
 From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
+
+\chapter{\textsf{gvars}: Private global variables}
+
+If your C module (typically, a .c file, but it could be part of a .c file or several .c files) accesses private global variables, you may want to avoid mentioning their names in the public interface.
+
+\begin{lstlisting}
+Definition MyModuleGlobs (gv: globals) : mpred :=
+  (* for example *) data_at Tsh t_struct_foo some_value (gv _MyVar).
+
+DECLARE _myfunction
+WITH $\ldots$, gv: globals
+PRE [ $\ldots$ ]
+   PROP($\ldots$) LOCAL ($\ldots$; gvars gv) SEP($\ldots$; MyModuleGlobs gv)
+POST [ $\ldots$ ]
+   PROP() LOCAL (temp ret_temp $\ldots$) SEP($\ldots$; MyModuleGlobs gv).
+\end{lstlisting}
+
+The client of \lstinline{myfunction} sees that
+there is a private conjunct \lstinline{MyModuleGlobs gv}
+that (presumably) uses some global variables of MyModule,
+but it does not see their names.
+
+When you do a \lstinline{semax_body} proof of a function
+that \emph{directly} accesses a global variable such as \lstinline{_MyVar},
+and you have \lstinline{gvars gv} in your \lstinline{LOCAL} precondition,
+then \lstinline{start_function} will add
+\lstinline{gvar _MyVar (gv _Myvar)} to the LOCALs clause,
+so that your variable-accesses will work.
+
+By convention, you should put \lstinline{gv:globals} as the last
+component of your WITH clause.
+
+Sometimes you may want a LOCAL assertion \lstinline{(gvar _v (gv _v))} even for a variable \lstinline{_v} that you don't use directly in this function; you can use the tactic \lstinline{assert_gvar _v} to add it (calculated from \lstinline{Delta} and \lstinline{(gvars gv)}).
 
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}

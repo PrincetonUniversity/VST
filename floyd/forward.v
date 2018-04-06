@@ -28,6 +28,7 @@ Require Import VST.floyd.for_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
+Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
 
@@ -53,8 +54,6 @@ Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident 
  | nil => rev_append el nil
 end.
 
-Definition mk_varspecs prog := mk_varspecs' (prog_defs prog) nil.
-
 Ltac unfold_varspecs al :=
  match al with
  | context [gvar_info ?v] =>
@@ -64,10 +63,13 @@ Ltac unfold_varspecs al :=
  end.
 
 Ltac mk_varspecs prog :=
-  let a := constr:(mk_varspecs prog)
-   in let a := eval hnf in a
-   in unfold_varspecs a.
-
+ let a := constr:(prog)
+   in let a := eval unfold prog in a
+   in match a with Clightdefs.mkprogram _ ?d _ _ _ => 
+         let e := constr:(mk_varspecs' d nil)
+          in let e := eval hnf in e
+          in unfold_varspecs e
+      end.
 
 Hint Resolve field_address_isptr : norm.
 
@@ -251,7 +253,7 @@ Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
 Proof. extensionality t v.
 destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; try reflexivity.
 unfold tc_option_val, tc_option_val'.
-unfold tc_val. if_tac; reflexivity.
+unfold tc_val. destruct (eqb_type _ _); reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
@@ -619,7 +621,39 @@ Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
 
+Lemma drop_SEP_tc:
+ forall Delta P Q R' RF R S,
+   (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
+   fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- S ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  unfold PROPx, LOCALx, SEPx in H1 |- *.
+  intro rho; specialize (H1 rho).
+  simpl in H1 |- *.
+  unfold local, lift1; simpl.
+  rewrite H0.
+  rewrite <- !sepcon_andp_prop'.
+  specialize (H rho).
+  eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
+  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+Qed.
+
+Ltac delete_FRZR_from_SEP :=
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc;
+    [ first [apply extend_tc.extend_tc_expr
+             | apply extend_tc.extend_tc_exprlist
+             | apply extend_tc.extend_tc_lvalue]
+   | apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP
+   | ]
+end end.
+
 Ltac check_typecheck :=
+ try delete_FRZR_from_SEP;
  first [goal_has_evars; idtac |
  try apply local_True_right;
  entailer!;
@@ -674,7 +708,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
 *)
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H; 
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -687,7 +721,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -703,7 +737,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -718,7 +752,7 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -729,7 +763,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -753,21 +787,6 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
                 (force_val (sem_cast t1 t2 v))
           ]
 end.
-
-Ltac unfold_app :=
-change (@app mpred)
-  with (fix app (l m : list mpred) {struct l} : list mpred :=
-  match l with
-  | nil => m
-  | cons a l1 => cons a (app l1 m)
-  end);
-change (@app Prop)
-  with (fix app (l m : list Prop) {struct l} : list Prop :=
-  match l with
-  | nil => m
-  | cons a l1 => cons a (app l1 m)
-  end);
-cbv beta iota.
 
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
@@ -904,6 +923,19 @@ Witness type: " T "
 Funspec type: " TA'')
      end.
 
+Lemma trivial_Forall_inclusion:
+ forall {A} (G: list A), Forall (fun x => In x G) G.
+Proof.
+intros.
+apply Forall_forall; intros; auto.
+Qed.
+
+Lemma trivial_Forall_inclusion0:
+ forall {A} (G: list A), Forall (fun x => In x G) nil.
+Proof.
+intros. constructor.
+Qed.
+
 Ltac prove_call_setup1 :=
 match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  lazymatch c with
@@ -940,18 +972,19 @@ end.
 Ltac prove_call_setup witness :=
  prove_call_setup1;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type A witness
  end;
  let H := fresh in
  intro H;
  match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
+ | try apply trivial_Forall_inclusion; try apply trivial_Forall_inclusion0
  | unfold fold_right_sepcon at 1 2; try change_compspecs CS; cancel_for_forward_call
  |
  ]
@@ -967,7 +1000,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1396,7 +1429,7 @@ Lemma int_repr_byte_signed_eq0:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try repable_signed.
+apply repr_inj_signed in H; try rep_omega.
 rewrite <- (Byte.repr_signed c). rewrite H. reflexivity.
 subst; reflexivity.
 Qed.
@@ -1407,7 +1440,7 @@ Lemma int_repr_byte_signed_eq:
 Proof.
 intros.
 apply prop_ext; split; intro.
-apply repr_inj_signed in H; try repable_signed.
+apply repr_inj_signed in H; try rep_omega.
 rewrite <- (Byte.repr_signed c). 
 rewrite <- (Byte.repr_signed d). rewrite H. reflexivity.
 subst; reflexivity.
@@ -1630,6 +1663,17 @@ Loop test expression:" e
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
+Ltac check_type_forward_for_simple_bound :=
+   match goal with |- semax _ _ ?c _ => 
+         let x := constr:(match c with (Ssequence _ (Sloop _ (Sset _ e))) => Some (typeof e) | _ => None end) in let x := eval hnf in x in let x := eval simpl in x in
+         match x with
+         | None => idtac
+         | Some ?t => 
+             unify (is_int32_type t) true
+             + fail 100 "At present, forward_for_simple_bound works only on iteration variables that are (signed or unsigned) int, but your iteration variable has type" t
+         end
+     end.
+
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;
  repeat match goal with |-
@@ -1644,10 +1688,12 @@ Ltac forward_for_simple_bound n Pre :=
       ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
     end
   | simple eapply semax_seq';
-    [forward_for_simple_bound' n Pre
+    [check_type_forward_for_simple_bound;
+     forward_for_simple_bound' n Pre
     | cbv beta; simpl update_tycon; abbreviate_semax  ]
   | eapply semax_post_flipped';
-     [forward_for_simple_bound' n Pre
+     [check_type_forward_for_simple_bound;
+      forward_for_simple_bound' n Pre
      | ]
   ].
 
@@ -1657,7 +1703,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
         [ reflexivity
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
@@ -1699,7 +1745,7 @@ Ltac forward_for2 Inv PreInc :=
         [ reflexivity 
         |intro  
         | intro ;
-          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (liftx (eq _) (eval_expr ?e)) =>
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
@@ -2080,12 +2126,15 @@ match goal with
        abbreviate_semax
      ]
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
-    unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true;
-    apply semax_if_seq; forward_if'_new
+    tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
+    then (apply semax_if_seq; forward_if'_new)
+    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+| |- semax _ (@exp _ _ _ _) _ _ =>
+      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
@@ -2232,15 +2281,6 @@ Ltac ensure_open_normal_ret_assert :=
  match goal with
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
-
-Ltac get_global_fun_def Delta f fsig cc A Pre Post :=
-    let VT := fresh "VT" in let GT := fresh "GT" in
-      assert (VT: (var_types Delta) ! f = None) by
-               (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
-      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig cc A Pre Post))
-                    by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) ||
-                          fail 1 "Function " f " has no specification in the type context");
-     clear VT GT.
 
 Definition This_is_a_warning := tt.
 
@@ -2648,8 +2688,8 @@ Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpre
     msubst_eval_lvar T2 i t = Some p ->
     fn_data_at T2 (i, t) (data_at_ Tsh t p).
 
-Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 fn,
-  local2ptree Q = (T1, T2, nil, nil) ->
+Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 G fn,
+  local2ptree Q = (T1, T2, nil, G) ->
   Forall2 (fn_data_at T2) fn R ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- fold_right sepcon emp (map (var_block Tsh) fn).
 Proof.
@@ -2661,7 +2701,7 @@ Proof.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
     rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
-    apply (msubst_eval_lvar_eq P T1 T2 nil (data_at_ Tsh t p :: l')) in H3.
+    apply (msubst_eval_lvar_eq P T1 T2 G (data_at_ Tsh t p :: l')) in H3.
     rewrite <- H in H3; clear H.
     rewrite (add_andp _ _ H3); clear H3.
     go_lowerx.
@@ -2788,17 +2828,15 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
-try eapply semax_seq';
- [match goal with
-  | |- @semax _ ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-     clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
- end
- | .. ].
+ prove_call_setup1;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+  lazymatch A with
+  | rmaps.ConstType ?T => 
+             fail 99 "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail 99 "This function has a complex calling convention not recognized by forward_call"
+ end 
+end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
@@ -2891,16 +2929,6 @@ Ltac forward_advise_while :=
    | |- semax _ _ (Swhile _ _) _ =>
        fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.
-
-Ltac forward_advise_call :=
- lazymatch goal with
-   | |- semax ?Delta _ (Scall _ (Evar ?f _) ?bl) _ =>
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-      clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
-end.
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
@@ -3045,18 +3073,62 @@ subst; clear.
 simpl; f_equal. extensionality rho; normalize.
 Qed.
 
+Lemma intro_LOCAL_gvar:
+  forall Delta gv i P Q R,
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i <> None ->
+  In (gvars gv) Q ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
+Proof.
+intros.
+Transparent andp.
+go_lowerx.
+Opaque andp.
+normalize.
+apply prop_right.
+pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
+apply H5 in H4.
+simpl in H4.
+hnf.
+destruct H2 as [? [? [? ?]]].
+apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
+destruct H6 as [H6 _].
+specialize (H6 H).
+rewrite H6.
+destruct ((glob_types Delta) ! i) eqn:?.
+hnf in H7.
+specialize (H7 _ _ Heqo). destruct H7.
+rewrite H4.
+rewrite H7. auto.
+clear - H0; congruence.
+apply in_map.
+auto.
+Qed.
+
+Ltac assert_gvar i :=
+ match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
+   assert_LOCAL (gvar i (gv i)); 
+  [apply intro_LOCAL_gvar; 
+    [ reflexivity + fail 99  "Local variable " i " is shadowing the global variable" i
+    | (let H := fresh in intro H; discriminate H) + fail 99 "No global variable " i " in Delta, i.e., in your extern declarations"
+    | solve [repeat ((left; reflexivity) + right) ]] + fail 99 "No LOCAL assertion (gvars " gv ")"
+  | ]
+ end.
+
 Ltac change_mapsto_gvar_to_data_at :=
 match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
-   match L with context [gvar _ g] =>
-     assert_PROP (headptr (offset_val 0 g));
+   lazymatch L with
+   | context [gvar _ g] => idtac 
+   | _ => match g with (?gv ?i)  => assert_gvar i end
+   end;
+   assert_PROP (headptr (offset_val 0 g));
        [entailer!; apply <- headptr_offset_zero; auto |];
-     erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
+   erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
        [| reflexivity | now auto | assumption | apply JMeq_refl ];
-     match goal with H: _ |- _ => clear H end;
+   match goal with H: _ |- _ => clear H end;
      rewrite <- ? data_at_offset_zero
    end
-  end
 end.
 
 Ltac clear_Delta_specs_if_leaf_function :=
@@ -3070,11 +3142,11 @@ Ltac clear_Delta_specs_if_leaf_function :=
 
 Ltac type_lists_compatible al bl :=
  match al with
- | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
+ | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
                  unify (classify_cast a b) cast_case_pointer;
                  type_lists_compatible al' bl'
                 end
- | Tnil => match bl with Tnil => idtac end
+ | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end
  end.
 
 Ltac function_types_compatible t1 t2 :=
@@ -3115,6 +3187,77 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
+Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
+ match c with
+ | Sskip => x
+ | Sassign e1 e2 => f e1 (f e2 x)
+ | Sset _ e => f e x
+ | Scall _ e el => f e (fold_right f x el)
+ | Sbuiltin _ _ _ el => fold_right f x el
+ | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sifthenelse e c1 c2 => f e (find_expressions f c1 (find_expressions f c2 x))
+ | Sloop c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sbreak => x
+ | Scontinue => x
+ | Sreturn (Some e) => f e x
+ | Sreturn None => x
+ | Sswitch e cl => f e (find_expressions_sl f cl x)
+ | Slabel _ c => find_expressions f c x
+ | Sgoto _ => x
+ end
+with find_expressions_sl {A: Type} (f: expr -> A -> A) (c: labeled_statements) (x: A) : A :=
+ match c with
+ | LSnil => x
+ | LScons _ c1 c2 => find_expressions f c1 (find_expressions_sl f c2 x)
+ end.
+
+Fixpoint find_vars {A: Type} (f: ident -> A -> A) (e: expr) (x: A) : A :=
+ match e with
+ | Evar i _ => f i x
+ | Ederef e _ => find_vars f e x
+ | Eaddrof e _ => find_vars f e x
+ | Eunop _ e _ => find_vars f e x
+ | Ebinop _ e1 e2 _ => find_vars f e1 (find_vars f e2 x)
+ | Ecast e _ => find_vars f e x
+ | Efield e _ _ => find_vars f e x
+ | _ => x
+ end.
+
+Fixpoint find_lvars (locals: list localdef)  (m: PTree.t unit) : PTree.t unit :=
+ match locals with
+ | lvar i _ _ :: locals'=> find_lvars locals' (PTree.set i tt m)
+ | gvar i _ :: locals'=> find_lvars locals' (PTree.set i tt m)
+ | _ :: locals' => find_lvars locals' m
+ | nil => m
+ end.
+
+
+Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t unit * list ident) :=
+ match ml with (t,il) =>
+  match PTree.get i t with Some _ => ml | None =>  (PTree.set i tt t, i :: il) end
+ end.
+Arguments another_gvar i !ml .
+
+Definition find_gvars (DS: PTree.t funspec) (locals: list localdef) (c: statement) : list ident :=
+ snd (find_expressions (find_vars another_gvar) c 
+                (find_lvars locals (PTree.map1 (fun _ => tt) DS), nil)).
+
+Ltac assert_gvars' x := 
+ match x with
+ | ?i :: ?x' => assert_gvar i; assert_gvars' x'
+ | nil => idtac
+ end.
+
+Ltac assert_gvars := 
+ match goal with DS := @abbreviate (PTree.t funspec) _ |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
+   tryif match l with context [gvars _] => idtac end
+    then let x := constr:(find_gvars DS l c) in
+            let x := eval unfold find_gvars, find_lvars in x in
+            let x := eval simpl in x in 
+            assert_gvars' x
+   else idtac
+ end.
+
 Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
 
 Ltac start_function :=
@@ -3124,7 +3267,11 @@ Ltac start_function :=
    let D := eval hnf in D in let D := eval simpl in D in 
    let S := eval hnf in S in let S := eval simpl in S in 
    tryif (unify D S) then idtac else
-   tryif function_types_compatible D S then idtac else
+   tryif function_types_compatible D S 
+   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
+Function body:" D "
+Function spec:" S
+   else
    (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
 Function body: " D "
 Function spec: " S)
@@ -3133,9 +3280,9 @@ Function spec: " S)
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
     match goal with
-    | s :=  (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ nil u
-               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s :=  (DECLARE _ WITH _: globals
+               PRE  [] main_pre _ nil _
+               POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
    change (semax_body V G F s); subst s
@@ -3143,7 +3290,7 @@ Function spec: " S)
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
    match Pre with
-   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
@@ -3188,6 +3335,7 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
+ assert_gvars;
  clear_Delta_specs_if_leaf_function;
  start_function_hint.
 
@@ -3200,62 +3348,6 @@ Arguments eq_dec A EqDec / a a' .
 Arguments EqDec_exitkind !a !a'.
 
 (**** make_compspecs ****)
-
-Fixpoint log_base_two_pos (x:positive) : nat :=
- match x with
- | xI y => S (log_base_two_pos y)
- | xO y => S (log_base_two_pos y)
- | xH => O
- end.
-
-Definition log_base_two (x: Z) : nat :=
-match x with Zpos y => log_base_two_pos y | _ => O end.
-
-Ltac make_composite_env env c :=
- match c with
- | nil => constr:(env: composite_env)
- | Composite ?id ?su ?m ?a :: ?c' =>
- let t := constr: (PTree.get id env) in
- let t := eval hnf in t in
- match t with
- | @Some _ _ => fail 1000 "Composite definitions in the programs has duplicates."
- | _ =>
- let cm := constr: (complete_members env m) in
- let cm := eval hnf in cm in
- match cm with
- | false => fail 1000 "Members in " id "are not all complete types."
- | _ =>
- let al := constr:(align_attr a (alignof_composite env m)) in
- let al := eval compute in al in
- let sz := constr:(align (sizeof_composite env su m) al) in
- let sz := eval compute in sz in
- let r := constr:(rank_members env m) in
- let r := eval compute in r in
- let szpos := constr:(Z.le_ge 0 sz (proj1 (Z.geb_le sz 0) (eq_refl _))) in
- let al_two_p := constr:(ex_intro (fun n : nat => al = two_power_nat n) (log_base_two al) (eq_refl _)) in
- let sz_al := constr:(ex_intro (fun z : Z => sz = (z * al)%Z) (sz / al) (eq_refl _)) in
- let c1 := constr:( {| co_su := su;
-            co_members := m;
-            co_attr := a;
-            co_sizeof := sz;
-            co_alignof := al;
-            co_rank := r;
-            co_sizeof_pos := szpos;
-            co_alignof_two_p := al_two_p;
-            co_sizeof_alignof := sz_al |}) in
- let env' := constr:(PTree.set id c1 env) in
- let env' := eval simpl in env' in
- make_composite_env env' c'
- end
- end
- end.
-
-Ltac make_composite_env0 prog :=
-let p := constr:(prog_types prog) in
-let c := eval hnf in p in
-let e := constr:(@PTree.empty composite) in
-let e := eval hnf in e in
-    make_composite_env e c.
 
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),
@@ -3296,6 +3388,90 @@ Proof.
   apply legal_alignas_env_completeness; auto.
 Qed.
 
+Lemma Zgeb0_ge0: forall n, Z.geb n 0 = true -> n >= 0.
+Proof.
+intros.
+apply Z.geb_le in H. omega.
+Qed.
+
+Lemma prove_alignof_two_p (i: Z) : 
+    i = two_power_nat (Z.to_nat (log_sup (Z.to_pos i))) ->
+exists n: nat, i = two_power_nat n.
+Proof.
+intros. eexists; eassumption.
+Qed.
+
+Lemma prove_Zdivide (a b: Z): b = Z.mul (Z.div b a) a -> Z.divide a b.
+Proof.
+intros. eexists. eassumption.
+Qed.
+
+Ltac simplify_composite_of_def d :=
+   let d := eval hnf in d in
+  match d with
+ Errors.OK 
+   {|  co_su := ?su;
+       co_members := ?m;
+       co_attr := ?a;
+       co_sizeof := ?sz;
+       co_alignof := ?al;
+       co_rank := ?rank;
+       co_sizeof_pos := _;
+       co_alignof_two_p := _;
+       co_sizeof_alignof := _ |}  =>
+  let sz := eval compute in sz in 
+  let al := eval compute in al in 
+  let rank := eval compute in rank in 
+  let sp := constr:(Zgeb0_ge0 sz (eq_refl _)) in 
+  let altwo := constr:(prove_alignof_two_p al (eq_refl _)) in
+  let sa := constr:(prove_Zdivide al sz (eq_refl _)) in
+   let d := constr:({|  co_su := su;
+       co_members := m;
+       co_attr := a;
+       co_sizeof := sz;
+       co_alignof := al;
+       co_rank := rank;
+       co_sizeof_pos := sp;
+       co_alignof_two_p := altwo;
+       co_sizeof_alignof := sa |})
+  in
+ d
+end.
+
+Ltac simplify_add_composite_definitions env cl :=  
+ match cl with
+ | Composite ?id ?su ?m ?a :: ?cl' =>
+    let d := constr:(composite_of_def env id su m a)
+    in let d' := simplify_composite_of_def d
+       in let env' :=  constr:(PTree.set id d' env)
+        in let env' := eval simpl in env' in 
+       simplify_add_composite_definitions env' cl'
+ | nil => constr:(Errors.OK env)
+end.
+
+Ltac make_composite_env composites :=
+let j := constr:(build_composite_env' composites I)
+ in let j := eval unfold composites in j
+in let j := eval cbv beta iota zeta delta [
+       build_composite_env' build_composite_env
+       PTree.empty
+      ] in j
+ in  match j with context C [add_composite_definitions PTree.Leaf ?c] =>
+             let cd := simplify_add_composite_definitions (@PTree.Leaf composite) c in 
+             cd (* let j := context C [cd] in j *)
+     end.
+
+Ltac make_composite_env0 prog :=
+let c := constr:(prog_types prog) in
+let c := eval unfold prog, prog_types, Clightdefs.mkprogram in c in 
+match c with context C [build_composite_env' ?comp I] => 
+    let comp' := make_composite_env comp
+   in match comp' with Errors.OK ?ce =>
+            ce
+       end
+end.
+
+
 Ltac make_compspecs prog :=
   let cenv := make_composite_env0 prog in
   let cenv_consistent_ := constr:((composite_env_consistent_i composite_consistent cenv ltac:(repeat constructor)): composite_env_consistent cenv) in
@@ -3329,9 +3505,16 @@ Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
   | nil => nil
  end.
 
+Ltac simpl_prog_defs p := 
+ match p with context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
+   let q := context C [d] in q
+  end.
+
 Ltac with_library' p G :=
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
+  let x := eval cbv beta iota zeta delta [prog_funct] in x in 
+  let x := simpl_prog_defs x in 
   let x := eval hnf in x in
   match x with
   | Some ?l => exact l
@@ -3347,7 +3530,8 @@ Ltac with_library' p G :=
   end
  end.
 
-Ltac with_library prog G := with_library' prog G.
+Ltac with_library prog G :=
+  let pr := eval unfold prog in prog in  with_library' pr G.
 
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',

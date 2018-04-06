@@ -5,27 +5,34 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
-Require Import mailbox.verif_mailbox_read.
-Require Import mailbox.verif_mailbox_write.
-Require Import mailbox.verif_mailbox_init.
-Require Import mailbox.verif_mailbox_reader.
-Require Import mailbox.verif_mailbox_writer.
-
 Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name buf _bufs.
-  name lock _lock.
-  name comm _comm.
-  name reading _reading.
-  name last_read _last_read.
-  name last_taken _last_taken.
-  name writing _writing.
-  name last_given _last_given.
   start_function.
+  assert_gvar _bufs. assert_gvar _lock. assert_gvar _comm. assert_gvar _reading.
+  assert_gvar _last_read. assert_gvar _last_taken. assert_gvar _writing.
+  assert_gvar _last_given.
+  forget (gv _bufs) as buf.
+  forget (gv _lock) as lock.
+  forget (gv _comm) as comm.
+  forget (gv _reading) as reading.
+  forget (gv _last_read) as last_read.
+  forget (gv _last_taken) as last_taken.
+  forget (gv _writing) as writing.
+  forget (gv _last_given) as last_given.
+(*
+  set (buf := gv _bufs).
+  set (lock := gv _lock).
+  set (comm := gv _comm).
+  set (reading := gv _reading).
+  set (last_read := gv _last_read).
+  set (last_taken := gv _last_taken).
+  set (writing := gv _writing).
+  set (last_given := gv _last_given).
+*)  
   exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (comm, lock, buf, reading, last_read, sh0, shs).
@@ -236,43 +243,4 @@ Proof.
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
     forward. entailer!.
-Qed.
-
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
-(* This lemma ties all the function proofs into a single proof for the entire program. *)
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
-Proof.
-unfold Gprog, prog, prog_funct, main_pre, main_post, prog_vars; simpl.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-repeat semax_func_cons_ext.
-semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
-repeat semax_func_cons_ext.
-{ unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
-  unfold liftx, lift; simpl.
-  Intros; subst.
-  apply prop_right; unfold make_ext_rval, eval_id in *; simpl in *.
-  destruct ret; auto. }
-semax_func_cons body_surely_malloc.
-semax_func_cons body_memset.
-semax_func_cons body_initialize_channels.
-semax_func_cons body_initialize_reader.
-semax_func_cons body_start_read.
-semax_func_cons body_finish_read.
-semax_func_cons body_initialize_writer.
-eapply semax_func_cons; [ reflexivity
-           | repeat apply Forall_cons; try apply Forall_nil; simpl; auto; computable
-           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | precondition_closed
-           | apply body_start_write |].
-{ apply closed_wrtl_PROPx, closed_wrtl_LOCALx, closed_wrtl_SEPx.
-  repeat constructor; apply closed_wrtl_gvar; unfold is_a_local; simpl; intros [? | ?];
-    try contradiction; discriminate. }
-semax_func_cons body_finish_write.
-semax_func_cons body_reader.
-semax_func_cons body_writer.
-semax_func_cons body_main.
 Qed.

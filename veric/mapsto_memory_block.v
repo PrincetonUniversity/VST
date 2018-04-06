@@ -70,7 +70,7 @@ unfold address_mapsto.
 unfold derives.
 simpl.
 intros ? ?.
-destruct H as [bl [[[? [? ?]] ?]] _].
+destruct H as [bl [[[? [? ?]] ?]] ].
 specialize (H2 a).
 rewrite if_true in H2.
 destruct H2 as [rsh ?]. auto.
@@ -83,9 +83,9 @@ Proof.
   intros.
   unfold mapsto.
   destruct (access_mode t); auto.
-  if_tac; auto.
-  destruct p; auto.
-  if_tac.
+  if_tac; auto;
+  destruct p; auto;
+  try simple_if_tac; auto.
   + apply orp_left; apply andp_left1.
     - intros ?; simpl.
       apply tc_val_tc_val'.
@@ -148,12 +148,12 @@ Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with
  | O => emp
  | S n' => address_mapsto Mint8unsigned (Vint Int.zero) sh adr 
-               * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
+               * address_mapsto_zeros sh n' (fst adr, Z.succ (snd adr))
 end.
 
 Definition address_mapsto_zeros' (n: Z) : spec :=
      fun (sh: Share.t) (l: address) =>
-          allp (jam (adr_range_dec l (Zmax n 0))
+          allp (jam (adr_range_dec l (Z.max n 0))
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) sh l')
                                   noat) && noghost.
 
@@ -173,7 +173,7 @@ Proof.
     hnf.
     rewrite if_false.
     simpl. apply resource_at_identity; auto.
-    intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
+    intros [? ?]. unfold Z.max in H1;  simpl in H1. omega.
     apply ghost_of_identity; auto.
     intros w [].
     simpl.
@@ -182,7 +182,7 @@ Proof.
     specialize (H (b',i')).
     hnf in H.
     rewrite if_false in H. apply H.
-    clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+    clear; intros [? ?]. unfold Z.max in H0; simpl in H0. omega.
     auto.
   * (* inductive case *)
     rewrite inj_S.
@@ -262,11 +262,11 @@ Proof.
             simpl.
             subst b'.
             clear - H7 H8.
-            assert (~ (Zsucc i <= i' < (Zsucc i + Zmax (Z_of_nat n) 0))).
+            assert (~ (Z.succ i <= i' < (Zsucc i + Z.max (Z_of_nat n) 0))).
             contradict H7; split; auto.
             clear H7.
-            replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
-            replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
+            replace (Z.max (Z.succ (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
+            replace (Z.max (Z_of_nat n) 0) with (Z_of_nat n) in H.
             omega.
             symmetry; apply Zmax_left.
             apply Z_of_nat_ge_O.
@@ -316,7 +316,7 @@ Proof.
            | apply resource_fmap_core].
       { apply ghost_of_approx. }
       assert (AV.valid (res_option oo
-        fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
+        fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
           else core (w @ loc))).
       Focus 1. {
@@ -1171,8 +1171,8 @@ Proof.
      destruct (sign_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact (conj H0 H1).
  } Unfocus.
-  f_equal; f_equal; extensionality bl.
- f_equal. f_equal. apply f_equal.
+ apply equal_f. apply f_equal. apply f_equal. extensionality bl.
+ apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1208,8 +1208,8 @@ Proof.
      destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact H1.
  } Unfocus.
- f_equal; f_equal; extensionality bl.
- f_equal. f_equal. apply f_equal.
+ apply equal_f. apply f_equal. apply f_equal. extensionality bl.
+ apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
  unfold Memdata.decode_val in *. simpl in *.
@@ -1242,7 +1242,7 @@ Qed.
 Lemma is_pointer_or_null_nullval: is_pointer_or_null nullval.
 Proof.
 unfold is_pointer_or_null, nullval.
-if_tac; auto.
+simple_if_tac; auto.
 Qed.
 Hint Resolve is_pointer_or_null_nullval.
 
@@ -1251,7 +1251,7 @@ Lemma tc_val_pointer_nullval:
 Proof.
  intros. unfold nullval; simpl.
  rewrite andb_false_r.
- hnf. if_tac; auto.
+ hnf. simple_if_tac; auto.
 Qed.
 Hint Resolve tc_val_pointer_nullval.
 
@@ -1260,8 +1260,8 @@ Lemma tc_val_pointer_nullval':
  forall t a, tc_val (Tpointer t a) nullval.
 Proof.
  intros. hnf. unfold nullval.
- if_tac; hnf;
- if_tac; auto.
+ simple_if_tac; hnf;
+ simple_if_tac; auto.
 Qed.
 Hint Resolve tc_val_pointer_nullval'.
 
@@ -1289,7 +1289,7 @@ f_equal.
 f_equal.
 apply prop_ext; split; intros _ _;
 unfold nullval; rewrite Hp; hnf; auto.
-if_tac; simpl; rewrite Hp; auto.
+simple_if_tac; simpl; rewrite Hp; auto.
 *
 simpl access_mode; cbv beta iota.
 simpl type_is_volatile;  cbv beta iota.
@@ -1304,7 +1304,7 @@ f_equal.
 f_equal.
 apply prop_ext; split; intros _ _;
 unfold nullval; rewrite Hp; hnf; auto.
-if_tac; simpl; rewrite Hp; auto.
+simple_if_tac; simpl; rewrite Hp; auto.
 Qed.
 
 Definition is_int32_noattr_type t :=
@@ -1362,6 +1362,6 @@ Proof.
    apply pred_ext; unfold derives; simpl; tauto.
   + f_equal. f_equal.
       unfold tc_val'.
-      f_equal. simpl. if_tac; simpl; rewrite H; auto.
+      f_equal. simpl. simple_if_tac; simpl; rewrite H; auto.
       apply prop_ext; intuition.
 Qed.

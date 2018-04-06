@@ -1,6 +1,7 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Require Import aes.verif_setkey_enc_LL_loop_body.
 Open Scope Z.
 Local Open Scope logic.
 
@@ -67,28 +68,6 @@ Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_i
 Definition main_loop_invariant ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done :=
   EX i: Z, main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done i.
 
-Lemma Znth_partially_expanded_key: forall i j key,
-  0 <= i < 7 ->
-  0 <= j < 8 + i*8 ->
-  (Znth j (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i * 8)) key)
-           ++ repeat_op_table (60 - i * 8) Vundef id))
-  = Vint (Znth j (KeyExpansion2 key)).
-Admitted.
-
-Lemma Zlength_partially_expanded_key: forall i key_chars,
-  0 <= i < 7 ->
-  Zlength key_chars = 32 ->
-  Zlength (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i * 8)) (key_bytes_to_key_words key_chars)) ++
-          repeat_op_table (60 - i * 8) Vundef id) = 68.
-Admitted.
-
-Lemma update_partially_expanded_key: forall j v key_chars,
-(* TODO what's the value of v? *)
-  upd_Znth (j + 8) (map Vint (pow_fun GrowKeyByOne (Z.to_nat j) (key_bytes_to_key_words key_chars))
-                   ++ repeat_op_table (60 - j) Vundef id) v
-  = (map Vint (pow_fun GrowKeyByOne (Z.to_nat (j + 1)) (key_bytes_to_key_words key_chars))
-                   ++ repeat_op_table (60 - (j + 1)) Vundef id).
-Admitted.
 
 (* TODO this does not hold, we have to replace Vundef by (Vint Int.zero) in the whole proof *)
 Lemma Vundef_is_Vint:
@@ -172,112 +151,9 @@ Proof.
     rewrite isptr_offset_val_zero by assumption.
     entailer!. }
   { (* loop body preserves invariant: *)
-    assert_PROP (forall j, 0 <= j < 16 -> force_val
-      (sem_add_ptr_int tuint Signed (offset_val (i * 32) (field_address t_struct_aesctx [StructField _buf] ctx))
-      (Vint (Int.repr j)))
-      = field_address t_struct_aesctx [ArraySubsc (i*8+j); StructField _buf] ctx) as E. {
-      assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
-      entailer!.
-      intros j B.
-      rewrite field_compatible_field_address by assumption.
-      rewrite field_compatible_field_address by auto with field_compatible.
-      simpl. rewrite Ptrofs.add_assoc. rewrite ptrofs_add_repr. do 4 f_equal. omega.
-    }
-
-    (* TODO floyd: In these two tactics, entailer! does not solve everything, but entailer works *)
-
-    Ltac RK_load E :=
-      let A := fresh "A" in let E2 := fresh "E" in
-      match goal with 
-      |- semax _ _ (Ssequence (Sset _ (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _)) _) _ =>
-        assert (0 <= j < 16) as A by computable
-      end;
-      pose proof (E _ A) as E2; clear A;
-      forward;
-      repeat rewrite upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; omega);
-      repeat rewrite upd_Znth_same by (repeat rewrite upd_Znth_Zlength; omega);
-      rewrite ?Znth_partially_expanded_key by omega; [ entailer! | ];
-      clear E2.
-
-    Ltac RK_store E :=
-      let A := fresh "A" in let E2 := fresh "E" in
-      match goal with
-      |- semax _ _ (Ssequence (Sassign (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _) _) _) _ =>
-          assert (0 <= j < 16) as A by computable
-      end;
-      pose proof (E _ A) as E2; clear A;
-      forward;
-      clear E2.
-
-    Arguments Z.land _ _ : simpl never.
-
-    pose proof (Zlength_partially_expanded_key i key_chars H1 H) as L.
-
-    RK_load E.
-    RK_load E.
-    unfold tables_initialized.
-    Transparent RCON.
-    assert (Zlength RCON = 10) by reflexivity.
-    forward.
-    pose proof masked_byte_range.
-    forward. forward.
-    forward. forward.
-    fold (tables_initialized tables).
-    simpl.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-
-    RK_load E.
-    RK_load E.
-    unfold tables_initialized.
-    pose proof masked_byte_range.
-    forward. forward.
-    forward. forward.
-    fold (tables_initialized tables).
-    simpl.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-    RK_load E.
-    RK_load E.
-    RK_store E.  deadvars!.
-
-    forward. 
-    assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
-    entailer!.
-    - clear. f_equal. simpl. omega. 
-    - clear.
-      apply derives_refl'. f_equal.
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 9) with (i * 8 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 10) with (i * 8 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 11) with (i * 8 + 1 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 12) with (i * 8 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 13) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 14) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 15) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
-      rewrite update_partially_expanded_key.
-      replace (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1) with ((i + 1) * 8)%Z by (clear; omega).
-      reflexivity.
+    simple apply setkey_enc_loop_body_lemma; assumption.
   }
+  clearbody Delta_specs.
   (* return 0 *)
   assert ((Nb * (Nr + 2) - Nk) = 7 * 8)%Z as E by reflexivity.
   rewrite <- E.
@@ -288,5 +164,5 @@ Proof.
   rewrite Vundef_is_Vint.
   unfold_data_at 4%nat. cancel.
   Fail idtac.  (* make sure there are no subgoals *)
-(* Time Qed. takes forever *)
+(* Time Qed. takes forever, many minutes on a fast machine, then I gave up.  Appel, March 2018, Coq 8.7.2 *)
 Admitted.

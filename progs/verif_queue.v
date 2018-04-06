@@ -259,8 +259,8 @@ Definition make_elem_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]
        PROP() LOCAL (temp ret_temp (Vint (Int.repr (1+10)))) SEP(TT).
 
@@ -385,7 +385,7 @@ forward_if
       contradiction (field_compatible_isptr _ _ _ H9).
       rewrite lseg_cons_eq by auto. simpl.
       Intros y. saturate_local.
-      contradiction (field_compatible_isptr _ _ _ H11).
+      contradiction (field_compatible_isptr _ _ _ H12).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   unfold fifo_body.

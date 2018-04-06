@@ -25,13 +25,13 @@ mf_build {
           memory_block sh (mf_size-len) (offset_val len buf)
 }.
 
-Implicit Arguments mf_build [[t]].
-Implicit Arguments mf_size [[t]].
-Implicit Arguments mf_data_assert [[t]].
-Implicit Arguments mf_assert [[t]].
-Implicit Arguments mf_bufprop [[t]].
-Implicit Arguments mf_size_range [[t]].
-Implicit Arguments mf_restbuf [[t]].
+Arguments mf_build {t}.
+Arguments mf_size {t}.
+Arguments mf_data_assert {t}.
+Arguments mf_assert {t}.
+Arguments mf_bufprop {t}.
+Arguments mf_size_range {t}.
+Arguments mf_restbuf {t}.
 
 Definition t_struct_intpair := Tstruct _intpair noattr.
 Definition t_struct_message := Tstruct _message noattr.
@@ -89,9 +89,9 @@ Definition intpair_deserialize_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=
   EX fg: val*val,
@@ -162,9 +162,12 @@ Proof.
 name buf _buf.
 name q _q.
 name p _p.
+(*
 name ipm _intpair_message.
-start_function.  fold cc_default noattr.
-(* TODO:   "name" tactic doesn't work for function-pointer gvars? *)
+*)
+start_function.
+set (ipm := gv _intpair_message).
+fold cc_default noattr.
 rename v_intpair_deserialize into des.
 rename v_intpair_serialize into ser.
 make_func_ptr _intpair_deserialize.

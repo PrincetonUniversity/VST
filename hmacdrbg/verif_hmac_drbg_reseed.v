@@ -65,7 +65,7 @@ Proof.
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
       temp _t'1 (Val.of_bool add_len_too_high);
-      gvar sha._K256 kv)
+      gvars gv)
       SEP  (FRZL FR2)).
   { forward. entailer!. }
   { forward. entailer!. simpl.
@@ -80,7 +80,7 @@ Proof.
       LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvar sha._K256 kv)
+      gvars gv)
       SEP (FRZL FR2)
   ).
   { rewrite H in *. subst add_len_too_high. forward.
@@ -165,7 +165,7 @@ Proof.
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvar sha._K256 kv)
+      gvars gv)
       SEP (FRZL FR5)
   ).
   {

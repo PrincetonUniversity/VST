@@ -522,6 +522,22 @@ hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_gvar : closed.
 
+Lemma closed_wrt_gvars:
+  forall S gv, closed_wrt_vars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrt_gvars : closed.
+
+Lemma closed_wrtl_gvars:
+  forall S gv, closed_wrt_lvars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrtl_gvars : closed.
+
 Lemma closed_wrt_sgvar:
   forall S id v, closed_wrt_vars S (locald_denote (sgvar id v)).
 Proof.
@@ -562,12 +578,12 @@ Qed.
 Hint Resolve closed_wrtl_sgvar : closed.
 
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
-  forall {cs: compspecs} rho ve',
+  forall (cs: compspecs) rho ve',
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) ve' (te_of rho)).
 
 Definition lvalue_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
-  forall {cs: compspecs} rho ve',
+  forall (cs: compspecs) rho ve',
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) ve'  (te_of rho)).
 
@@ -764,39 +780,35 @@ Qed.
 Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
 
 Lemma closed_wrt_globvars:
-  forall S v, closed_wrt_vars S (globvars2pred v).
+  forall S gv v, closed_wrt_vars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrt_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Ptrofs.zero) as j.
-clear - Heqb0.
+forget (gv i) as j.
 revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
-apply IHv.
 Qed.
 
 Lemma closed_wrtl_globvars:
-  forall S v, closed_wrt_lvars S (globvars2pred v).
+  forall S gv v, closed_wrt_lvars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrtl_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Ptrofs.zero) as j.
-clear - Heqb0.
-revert j; induction (gvar_init g); intro; simpl; f_equal; auto.
-apply IHv.
+forget (gv i) as j.
+revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
@@ -1001,22 +1013,9 @@ rewrite expr_lemmas3.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?;
   simpl; auto with closed;
  try solve [destruct t0 as [ | [ | | | ] [|] | [|] | [ | ] |  | | | | ]; simpl;
-                auto with closed; try reflexivity].
-* (* cast_case_pointer *)
- if_tac; simpl; auto with closed.
- if_tac; simpl; auto with closed.
-* (* cast_case f2i *)
- destruct si2; simpl; auto with closed.
-* (* cast_case s2i *)
- destruct si2; simpl; auto with closed.
-* 
- if_tac; auto with closed.
-* 
- if_tac; auto with closed.
-* 
- if_tac; auto with closed.
-*
- if_tac; auto with closed.
+                auto with closed; try reflexivity];
+  auto with closed;
+ repeat simple_if_tac; try destruct si2; simpl; auto with closed.
  apply closed_wrt_tc_test_eq; auto with closed.
  hnf; intros. reflexivity.
 Qed.
@@ -1052,22 +1051,9 @@ change expr2.denote_tc_assert with denote_tc_assert.
 destruct (classify_cast (implicit_deref t) t0) eqn:?;
   auto with closed;
  try solve [destruct t0 as [ | [ | | | ] [|] | [|] | [ | ] |  | | | | ]; simpl;
-                auto with closed; try reflexivity].
-* (* cast_case_neutral *)
- if_tac; auto with closed.
- if_tac; auto with closed.
-* (* cast_case f2i *)
- destruct si2; auto with closed.
-* (* cast_case s2i *)
- destruct si2; auto with closed.
-* 
- if_tac; auto with closed.
-* 
- if_tac; auto with closed.
-* 
- if_tac; auto with closed.
-* 
- if_tac; auto with closed.
+                auto with closed; try reflexivity];
+ repeat simple_if_tac;  auto with closed;
+ try destruct si2; auto with closed.
  apply closed_wrtl_tc_test_eq; auto with closed.
  hnf; intros. reflexivity.
 Qed.
@@ -1561,10 +1547,10 @@ destruct (typeof e1); auto with closed.
 destruct s; auto with closed.
 destruct (eval_expr e1 any_environ); auto with closed;
 destruct (eval_expr e2 any_environ); auto with closed.
-all: if_tac; auto with closed.
+all: repeat simple_if_tac; auto with closed.
 destruct (eval_expr e1 any_environ); auto with closed;
 destruct (eval_expr e2 any_environ); auto with closed.
-all: if_tac; auto with closed.
+all: try destruct s; repeat simple_if_tac; auto with closed.
 Qed.
 
 Hint Resolve closed_wrt_tc_nobinover : closed.
@@ -1639,14 +1625,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  unfold isCastResultType.
  destruct (classify_cast (typeof e) t); auto with closed;
    try solve [ destruct t as [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ]; auto with closed].
- if_tac; auto with closed.
- if_tac; auto with closed.
- destruct si2; auto with closed.
- destruct si2; auto with closed.
- if_tac; auto with closed.
- if_tac; auto with closed.
- if_tac; auto with closed.
- if_tac; auto with closed.
+all: repeat simple_if_tac; try destruct si2; auto with closed.
  apply closed_wrt_tc_test_eq; auto with closed.
  hnf; intros; reflexivity.
  hnf; intros; reflexivity.

@@ -42,7 +42,7 @@ Proof.
   rewrite EMPTY_isptr; Intros.
   unfold_data_at 1%nat.
   forward.
-  forward_call (@inr (val * Z * list Z * val) _ (r3, l, key, kv, b, i)).
+  forward_call (@inr (val * Z * list Z * globals) _ (r3, l, key, b, i, gv)).
   { unfold spec_sha.data_block. normalize. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
@@ -67,7 +67,7 @@ Proof.
   rewrite data_at_isptr with (p:=d); Intros.
   destruct d; try contradiction.
 
-  forward_call (key, internal_r, Vptr b i, data, data1, kv).
+  forward_call (key, internal_r, Vptr b i, data, data1, gv).
   {
     unfold spec_sha.data_block.
     entailer!.
@@ -96,7 +96,7 @@ Proof.
   forward.
 
   (* HMAC_Final(hmac_ctx, output); *)
-  forward_call (data, key, internal_r, md, shmd, kv).
+  forward_call (data, key, internal_r, md, shmd, gv).
 
   (* return 0 *)
   unfold spec_sha.data_block.
@@ -115,7 +115,7 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
-  forward_call (@inl _ (val * Z * list Z * val * block * Ptrofs.int) (internal_r, 32, key, kv)). 
+  forward_call (@inl _ (val * Z * list Z * block * Ptrofs.int * globals) (internal_r, 32, key, gv)). 
   forward.
 
   unfold md_relate; simpl. cancel.

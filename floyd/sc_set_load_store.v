@@ -364,16 +364,8 @@ Inductive field_address_gen {cs: compspecs}: type * list gfield * val -> type * 
     nested_field_type t2 gfs2 = t1 ->
     field_address_gen (t2, gfs1 ++ gfs2, p) tgp ->
     field_address_gen (t1, gfs1, (field_address t2 gfs2 p)) tgp
-| field_address_gen_assu_deprecated: forall t gfs p1 p2 tgp, (* deprecated *)
+| field_address_gen_assu: forall t gfs p1 p2 tgp,
     p1 = p2 ->
-    field_address_gen (t, gfs, p2) tgp ->
-    field_address_gen (t, gfs, p1) tgp    
-| field_address_gen_hint: forall t gfs p1 p2 tgp,
-    Hint (p1 = p2) ->
-    field_address_gen (t, gfs, p2) tgp ->
-    field_address_gen (t, gfs, p1) tgp    
-| field_address_gen_phint: forall t gfs p1 p2 tgp,
-    PermanentHint (p1 = p2) ->
     field_address_gen (t, gfs, p2) tgp ->
     field_address_gen (t, gfs, p1) tgp    
 | field_address_gen_refl: forall tgp, field_address_gen tgp tgp.
@@ -407,18 +399,12 @@ Proof.
   + subst.
     inv H1.
     auto.
-  + inv H.
-    inv H1.
-    auto.
-  + inv H.
-    inv H1.
-    auto.
   + subst.
     inv H1.
     auto.
 Qed.
 
-Ltac field_address_assumption_deprecated := 
+Ltac field_address_assumption := 
 match goal with
  |  H: ?a = field_address _ _ _ |- ?b = _ => constr_eq a b; simple eapply H
 end.
@@ -429,9 +415,7 @@ Ltac solve_field_address_gen :=
       first
       [ simple apply field_address_gen_nil; [reflexivity |]
       | simple apply field_address_gen_app; [reflexivity |]
-      | simple eapply field_address_gen_assu_deprecated; [field_address_assumption_deprecated |]
-      | simple eapply field_address_gen_hint; [eassumption |]
-      | simple eapply field_address_gen_phint; [eassumption |]
+      | simple eapply field_address_gen_assu; [field_address_assumption |]
       | simple apply field_address_gen_refl
       ]
   ].
@@ -571,12 +555,21 @@ Ltac hint_msg LOCAL2PTREE e :=
   | econstructor
   | solve_field_address_gen
   | ];
-  match goal with
+ match goal with
   | |- ?eq1 /\ ?eq2 /\ False =>
+        match eq1 with _ = field_address _ _ ?p =>
           first [ constr_eq eq1 eq2;
-                   fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
-                | fail 1000 "Please use assert_PROP to prove an equality of the form" eq1
-                    "or if this does not hold, prove an equality of the form" eq2]
+                   fail 1000 "
+It is not obvious how to move forward here.  One way:
+Find a SEP clause of the form [data_at _ _ _ " p"] (or field_at, data_at_, field_at_),
+then use assert_PROP to prove an equality of the form" eq1 ", then try [forward] again."
+                | fail 1000 "
+It is not obvious how to move forward here.  One way:
+Find a SEP clause of the form [data_at _ _ _ " p"] (or field_at, data_at_, field_at_),
+then use assert_PROP to prove an equality of the form" eq1 
+"or if this does not hold, prove an equality of the form" eq2 ", then try [forward] again."
+                    ]
+    end
   end.
 
 Section SEMAX_PTREE.
@@ -585,8 +578,8 @@ Context {cs: compspecs}.
 
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
-    forall Delta id P Q R T1 T2 (e2: expr) t v,
-      local2ptree Q = (T1, T2, nil, nil) ->
+    forall Delta id P Q R T1 T2 G (e2: expr) t v,
+      local2ptree Q = (T1, T2, nil, G) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       msubst_eval_expr T1 T2 e2 = Some v ->
@@ -612,11 +605,11 @@ Qed.
 Lemma semax_PTree_field_load_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) (tts: list type) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v : val) (v' : reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       compute_nested_efield e = (e_root, efs, tts, lr) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
@@ -641,7 +634,7 @@ Lemma semax_PTree_field_load_no_hint:
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
          ? ? ? ? ?
@@ -656,7 +649,7 @@ Proof.
   Focus 1. {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
-    apply (msubst_efield_denote_eq P _ _ nil R)  in EVAL_EFIELD.
+    apply (msubst_efield_denote_eq P _ _ G R)  in EVAL_EFIELD.
     eapply derives_trans; [apply andp_left2, EVAL_EFIELD |].
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
@@ -701,8 +694,8 @@ Proof.
     apply andp_left2.
     simpl app.
     apply andp_right.
-    + apply (msubst_efield_denote_eq P _ _ nil R) in EVAL_EFIELD; auto.
-    + apply (msubst_eval_LR_eq P _ _ nil R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq P _ _ G R) in EVAL_EFIELD; auto.
+    + apply (msubst_eval_LR_eq P _ _ G R) in EVAL_ROOT; auto.
   } Unfocus.
   eapply semax_SC_field_load.
   1: rewrite NESTED_EFIELD, <- TYPEOF, TYPE_EQ; reflexivity.
@@ -724,15 +717,15 @@ Qed.
 Lemma semax_PTree_field_load_with_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 p_from_e
+      T1 T2 G p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v_val : val) (v_reptype : reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
       type_is_volatile (typeof e) = false ->
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
-      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
+      p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
@@ -746,12 +739,11 @@ Lemma semax_PTree_field_load_with_hint:
             (LOCALx (temp id v_val :: remove_localdef_temp id Q)
               (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ TC.
-  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
+         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   eapply semax_SC_field_load.
@@ -773,11 +765,11 @@ Qed.
 Lemma semax_PTree_field_cast_load_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) (tts: list type) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v : val) (v' : reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       compute_nested_efield e = (e_root, efs, tts, lr) ->
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof e) = true ->
@@ -803,7 +795,7 @@ Lemma semax_PTree_field_cast_load_no_hint:
               (LOCALx (temp id (eval_cast (typeof e) t v) :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
          ? ? ? ? ?
@@ -817,7 +809,7 @@ Proof.
   Focus 1. {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
-    apply (msubst_efield_denote_eq P _ _ nil R)  in EVAL_EFIELD.
+    apply (msubst_efield_denote_eq P _ _ G R)  in EVAL_EFIELD.
     eapply derives_trans; [apply andp_left2, EVAL_EFIELD |].
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
@@ -862,8 +854,8 @@ Proof.
     apply andp_left2.
     simpl app.
     apply andp_right.
-    + apply (msubst_efield_denote_eq P _ _ nil R) in EVAL_EFIELD; auto.
-    + apply (msubst_eval_LR_eq P _ _ nil R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq P _ _ G R) in EVAL_EFIELD; auto.
+    + apply (msubst_eval_LR_eq P _ _ G R) in EVAL_ROOT; auto.
   } Unfocus.
   rewrite NESTED_EFIELD. rewrite <- TYPEOF, TYPE_EQ.
   eapply semax_SC_field_cast_load.
@@ -887,16 +879,16 @@ Qed.
 Lemma semax_PTree_field_cast_load_with_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 p_from_e
+      T1 T2 G p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v_val : val) (v_reptype : reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof e) = true ->
       type_is_volatile (typeof e) = false ->
       cast_pointer_to_bool (typeof e) t = false ->
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
-      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
+      p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
@@ -910,12 +902,11 @@ Lemma semax_PTree_field_cast_load_with_hint:
             (LOCALx (temp id (eval_cast (typeof e) t v_val) :: remove_localdef_temp id Q)
               (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ TC.
-  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
+         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   rewrite TYPE_EQ.
@@ -939,12 +930,12 @@ Qed.
 Lemma semax_PTree_field_store_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh P Q R (e1 e2 : expr)
-      T1 T2 e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) (tts: list type) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
       (v0_val: val) Rv (v v_new: reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       compute_nested_efield e1 = (e_root, efs, tts, lr) ->
       type_is_by_value (typeof e1) = true ->
       type_is_volatile (typeof e1) = false ->
@@ -971,7 +962,7 @@ Lemma semax_PTree_field_store_no_hint:
                 (SEPx
                   (replace_nth n R (Rv v_new)))))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ? ?
          ? ? ? ? ?
@@ -985,7 +976,7 @@ Proof.
   Focus 1. {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
-    apply (msubst_efield_denote_eq P _ _ nil R)  in EVAL_EFIELD.
+    apply (msubst_efield_denote_eq P _ _ G R)  in EVAL_EFIELD.
     eapply derives_trans; [apply andp_left2, EVAL_EFIELD |].
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
@@ -1030,8 +1021,8 @@ Proof.
     apply andp_left2.
     simpl app.
     apply andp_right.
-    + apply (msubst_efield_denote_eq P _ _ nil R) in EVAL_EFIELD; auto.
-    + apply (msubst_eval_LR_eq P _ _ nil R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq P _ _ G R) in EVAL_EFIELD; auto.
+    + apply (msubst_eval_LR_eq P _ _ G R) in EVAL_ROOT; auto.
   } Unfocus.
   rewrite NESTED_EFIELD.
   eapply semax_SC_field_store.
@@ -1057,16 +1048,16 @@ Qed.
 Lemma semax_PTree_field_store_with_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh P Q R (e1 e2 : expr)
-      T1 T2 p_from_e
+      T1 T2 G p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
       (v0_val: val) Rv (v v_new: reptype (nested_field_type t_root gfs0)),
-      local2ptree Q = (T1, T2, nil, nil) ->
+      local2ptree Q = (T1, T2, nil, G) ->
       type_is_by_value (typeof e1) = true ->
       type_is_volatile (typeof e1) = false ->
       msubst_eval_expr T1 T2 (Ecast e2 (typeof e1)) = Some v0_val ->
       msubst_eval_lvalue T1 T2 e1 = Some p_from_e ->
-      (Hint (p_from_e = field_address t_root gfs p) \/ PermanentHint (p_from_e = field_address t_root gfs p))->
+      p_from_e = field_address t_root gfs p ->
       typeof e1 = nested_field_type t_root gfs ->
       find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
@@ -1084,12 +1075,11 @@ Lemma semax_PTree_field_store_with_hint:
                   (replace_nth n R
                     (field_at sh t_root gfs0 v_new p)))))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
-         LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD' TYPE_EQ NTH SH JMEQ DATA_EQ TC.
-  assert (FIELD_ADD: p_from_e = field_address t_root gfs p) by (destruct FIELD_ADD' as [HH | HH]; inv HH; auto).
+         LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ DATA_EQ TC.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   eapply semax_SC_field_store.
@@ -1244,7 +1234,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
@@ -1280,16 +1270,18 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
 
+
 Ltac load_tac :=
   match goal with
   | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
+    let G := fresh "G" in evar (G: list localdef);
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
-    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
-    [subst T1 T2; prove_local2ptree |];
+    assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+    [subst T1 T2 G; prove_local2ptree |];
     first [ load_tac_with_hint LOCAL2PTREE | load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
-    clear T1 T2 LOCAL2PTREE
+    clear T1 T2 G LOCAL2PTREE
   end.
 
 Ltac cast_load_tac_with_hint LOCAL2PTREE :=
@@ -1300,7 +1292,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | solve_msubst_eval_lvalue
-  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1342,11 +1334,12 @@ Ltac cast_load_tac :=
   | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
+    let G := fresh "G" in evar (G: list localdef);
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
-    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
-    [subst T1 T2; prove_local2ptree |];
+    assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+    [subst T1 T2 G; prove_local2ptree |];
     first [ cast_load_tac_with_hint LOCAL2PTREE | cast_load_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e R | hint_msg LOCAL2PTREE e];
-    clear T1 T2 LOCAL2PTREE
+    clear T1 T2 G LOCAL2PTREE
   end.
 
 Lemma data_equal_congr {cs: compspecs}:
@@ -1363,7 +1356,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | solve_msubst_eval_expr
   | solve_msubst_eval_lvalue
-  | solve [left; constructor; eassumption | left; eassumption | right; eassumption] (* This line can fail. If it does not, the following should not fail. *)
+  | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "The hint does not type match")
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
@@ -1410,9 +1403,10 @@ Ltac store_tac :=
   | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
+    let G := fresh "G" in evar (G: list localdef);
     let LOCAL2PTREE := fresh "LOCAL2PTREE" in
-    assert (local2ptree Q = (T1, T2, nil, nil)) as LOCAL2PTREE;
-    [subst T1 T2; prove_local2ptree |];
+    assert (local2ptree Q = (T1, T2, nil, G)) as LOCAL2PTREE;
+    [subst T1 T2 G; prove_local2ptree |];
     first [ store_tac_with_hint LOCAL2PTREE | store_tac_no_hint LOCAL2PTREE | SEP_type_contradict LOCAL2PTREE e1 R | hint_msg LOCAL2PTREE e1];
     clear T1 T2 LOCAL2PTREE
   end.

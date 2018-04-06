@@ -47,7 +47,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   | _ => FF
   end.
 
-Definition PostKeyNull c k pad kv h1 l key ckb ckoff: environ -> mpred :=
+Definition PostKeyNull c k pad gv h1 l key ckb ckoff: environ -> mpred :=
                  EX  cb : block,
                  (EX  cofs : ptrofs,
                   (EX  r : Z,
@@ -56,12 +56,12 @@ Definition PostKeyNull c k pad kv h1 l key ckb ckoff: environ -> mpred :=
                    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
                    lvar _pad (tarray tuchar 64) pad; temp _ctx c;
                    temp _key k; temp _len (Vint (Int.repr l));
-                   gvar sha._K256 kv)
+                   gvars gv)
                    SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                    initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
-                   K_vector kv))).
+                   K_vector gv))).
 
-Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l key kv pad
+Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l key gv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
@@ -76,14 +76,14 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l k
                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
                   lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
                   temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-                  gvar sha._K256 kv)
+                  gvars gv)
                   SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                   data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs);
                   data_at Tsh (tarray tuchar (Zlength key))
                       (map Vint (map Int.repr key)) (Vptr kb kofs);
                   data_at Tsh (tarray tuchar 64)
                       (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
-                      (Vptr ckb ckoff); K_vector kv))
+                      (Vptr ckb ckoff); K_vector gv))
 (FC_ctx : field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
 (FC_md_ctx : field_compatible t_struct_hmac_ctx_st [StructField _md_ctx]
               (Vptr cb cofs))
@@ -96,10 +96,10 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l k
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-   gvar sha._K256 kv)
+   gvars gv)
    SEP  (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
         (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
-   K_vector kv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
+   K_vector gv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
 
      (Ssequence
@@ -159,8 +159,8 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l k
                      (Econst_int (Int.repr 0) tint) ::
                      (Econst_int (Int.repr 32) tint) :: nil)))))
   (overridePost PostIf_j_Len
-     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)
-                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
+     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad gv h1 l key ckb ckoff)
+                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad gv h1 l key ckb ckoff)))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
       freeze [0; 1; 4] FR1.
@@ -186,7 +186,7 @@ Proof. intros. abbreviate_semax.
       thaw FR2.
       thaw FR1.
       freeze [2;3;5;6] FR4.
-      Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv). (*4.5*)
+      Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, gv). (*4.5*)
       { unfold data_block. rewrite prop_true_andp by auto.
         Time cancel. (*0.1*)
       }
@@ -221,7 +221,7 @@ Proof. intros. abbreviate_semax.
 
      thaw FR6.
      freeze [0;4] FR7.
-     Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*3.3.versus 4.3*)
+     Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, Tsh, gv). (*3.3.versus 4.3*)
        
      (*call memset*)
      thaw FR7.
@@ -281,7 +281,7 @@ Proof. intros. abbreviate_semax.
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
-Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l key kv pad
+Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l key gv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
@@ -295,14 +295,14 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ke
                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
                   lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
                   temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-                  gvar sha._K256 kv)
+                  gvars gv)
                   SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                   data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs);
                   data_at Tsh (tarray tuchar (Zlength key))
                       (map Vint (map Int.repr key)) (Vptr kb kofs);
                   data_at Tsh (tarray tuchar 64)
                       (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
-                      (Vptr ckb ckoff); K_vector kv))
+                      (Vptr ckb ckoff); K_vector gv))
 (FC_ctx : field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
 (FC_md_ctx : field_compatible t_struct_hmac_ctx_st [StructField _md_ctx]
               (Vptr cb cofs))
@@ -315,10 +315,10 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ke
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-   gvar sha._K256 kv)
+   gvars gv)
    SEP  (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
         (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
-   K_vector kv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
+   K_vector gv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
 
 
@@ -342,8 +342,8 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ke
                  (Ebinop Osub (Esizeof (tarray tuchar 64) tuint)
                    (Etempvar _len tint) tuint) :: nil)))
   (overridePost PostIf_j_Len
-     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)
-                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
+     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad gv h1 l key ckb ckoff)
+                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad gv h1 l key ckb ckoff)))).
 Proof. intros.
      (*call to memcpy*)
      freeze [1; 2; 3] FR1.
@@ -411,7 +411,7 @@ Lemma hmac_init_part1: forall
 (k : val)
 (l : Z)
 (key : list Z)
-(kv : val)
+(gv : globals)
 (h1:hmacabs)
 (pad : val)
 (Delta := initialized _reset
@@ -423,9 +423,9 @@ Lemma hmac_init_part1: forall
    LOCAL  (temp _reset (Vint (Int.repr 0));
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); lvar _pad (tarray tuchar 64) pad;
    temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
-   gvar sha._K256 kv)
+   gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 64) pad;
-   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv;
+   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector gv;
    initPre c k h1 l key))
 
    (Sifthenelse (Ebinop One (Etempvar _key (tptr tuchar))
@@ -510,9 +510,9 @@ Lemma hmac_init_part1: forall
                  (Ebinop Osub (Esizeof (tarray tuchar 64) tuint)
                    (Etempvar _len tint) tuint) :: nil))))))
       Sskip)
-  (normal_ret_assert (PostKeyNull c k pad kv h1 l key ckb ckoff)).
+  (normal_ret_assert (PostKeyNull c k pad gv h1 l key ckb ckoff)).
 Proof. intros. subst Delta. abbreviate_semax.
-forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
+forward_if  (PostKeyNull c k pad gv h1 l key ckb ckoff).
   { apply denote_tc_test_eq_split. unfold initPre; normalize. destruct k; try contradiction.
     clear H.
     remember (Int.eq i Int.zero). destruct b.
@@ -555,14 +555,14 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
       LOCAL  (temp _reset (Vint (Int.repr 1));
         lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); lvar _pad (tarray tuchar 64) pad;
         temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
-        temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
+        temp _len (Vint (Int.repr l)); gvars gv)
       SEP  (data_at_ Tsh (tarray tuchar 64) pad;
             data_at Tsh t_struct_hmac_ctx_st (*keyedHMS'*) HMS' (Vptr cb cofs);
             data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
               (Vptr kb kofs);
            data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
                   (Vptr ckb ckoff);
-          K_vector kv)) as PostIf_j_Len.
+          K_vector gv)) as PostIf_j_Len.
 
     thaw FR1.
     freeze [1;2;4] FR2.
@@ -582,14 +582,14 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
       thaw FR2.
       unfold POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
-      eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
+      eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l key gv pad HMS h1); try eassumption; trivial.
       rewrite Int.signed_repr in lt_64_l. trivial. rewrite int_min_signed_eq; omega.
     }
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
       thaw FR2.
-      apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
+      apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key gv pad HMS h1); try eassumption; trivial.
       rewrite Int.signed_repr in ge_64_l. trivial. rewrite int_min_signed_eq; omega.
     }
    subst.

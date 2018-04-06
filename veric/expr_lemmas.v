@@ -165,10 +165,10 @@ Lemma bool_val_Cop: forall t v m b b', bool_val t v = Some b -> Cop.bool_val v t
   b = b'.
 Proof.
   destruct t, v; try discriminate; unfold bool_val; try destruct f; try discriminate;
-    simpl; intros ???; try if_tac; intro; inv H; unfold Cop.bool_val; simpl; intro X;
+    simpl; intros ???; try simple_if_tac; intro; inv H; unfold Cop.bool_val; simpl; intro X;
     inv X; auto.
   - destruct i; inv H0; auto.
-  - destruct Archi.ptr64; simpl in *; revert H0; if_tac; congruence.
+  - destruct Archi.ptr64; simpl in *; revert H0; simple_if_tac; congruence.
 Qed.
 
 Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (PTree.set id v te).

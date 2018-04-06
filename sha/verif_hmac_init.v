@@ -17,21 +17,21 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.verif_hmac_init_part1.
 Require Import sha.verif_hmac_init_part2.
 
-Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
+Lemma initbodyproof Espec c k l key gv h1 pad ctxkey:
 @semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
            lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
-           temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
+           temp _len (Vint (Int.repr l)); gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
          data_at_ Tsh (tarray tuchar 64) pad;
-         K_vector kv; initPre c k h1 l key))
+         K_vector gv; initPre c k h1 l key))
   (Ssequence (fn_body f_HMAC_Init) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
-         SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv)))
+         SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector gv)))
      (stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
 freeze [1; 2; 3] FR1. simpl.
@@ -68,11 +68,11 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
                       lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
                       lvar _pad (tarray tuchar 64) pad;
                       temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
-                      gvar sha._K256 kv)
+                      gvars gv)
                     SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                     initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
-                    K_vector kv)))) as PostKeyNull. *)
-forward_seq. instantiate (1:= PostKeyNull c k pad kv h1 l key ckb ckoff).
+                    K_vector gv)))) as PostKeyNull. *)
+forward_seq. instantiate (1:= PostKeyNull c k pad gv h1 l key ckb ckoff).
 {  assert (DD: Delta= initialized _reset Delta) by reflexivity.
    rewrite DD.
    eapply semax_pre_simple.
@@ -111,11 +111,11 @@ remember (EX shaStates:_ ,
                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
                   temp _ctx (Vptr cb cofs); temp _key k;
                   temp _len (Vint (Int.repr l));
-                  gvar sha._K256 kv)
+                  gvars gv)
           SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                 data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
                 initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
-                K_vector kv))
+                K_vector gv))
   as PostResetBranch.
 clear FR1.
 eapply semax_seq. instantiate (1:=PostResetBranch).

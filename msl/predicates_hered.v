@@ -887,7 +887,7 @@ intros.
 apply boxy_i; auto; intros.
 destruct H2 as [x ?].
 rewrite <- H0 in H2.
-spec H2 w' H1.
+specialize ( H2 w' H1).
 econstructor; eauto.
 Qed.
 
@@ -979,7 +979,7 @@ apply boxy_i; auto.
 intros.
 simpl in *.
 intro.
-spec H2 b.
+specialize ( H2 b).
 rewrite <- H0 in H2.
 apply H2; auto.
 Qed.

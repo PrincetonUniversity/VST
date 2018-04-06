@@ -49,7 +49,7 @@ Proof.
    try reflexivity
   | rewrite (IHe _ (eq_refl _)) by congruence; auto ..
   ].
-  simpl. unfold Cop2.bool_val; if_tac; reflexivity.
+  simpl. unfold Cop2.bool_val; simple_if_tac; reflexivity.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
@@ -94,7 +94,7 @@ all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
      auto .. ]); auto;
-  try (unfold Cop2.sem_cast, Cop2.classify_cast; repeat if_tac; reflexivity).
+  try (unfold Cop2.sem_cast, Cop2.classify_cast; repeat simple_if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
@@ -188,7 +188,7 @@ Qed.
 Lemma int_eq_true : forall x y,
 true = Int.eq x y -> x = y.
 Proof.
-intros. assert (X := Int.eq_spec x y). if_tac in X; auto. congruence.
+intros. assert (X := Int.eq_spec x y). rewrite <- H in X; congruence.
 Qed.
 
 Definition check_pp_int' e1 e2 op t e :=
@@ -932,7 +932,7 @@ unfold Cop2.sem_cmp, classify_cmp, typeconv,
  try reflexivity;
  try apply tc_val_of_bool).
 Transparent tc_val.
-all: try solve [hnf in H0; if_tac in H0; inv H0].
+all: try solve [hnf in H0; destruct (eqb_type _ _); inv H0].
 Abort.
 
 Lemma tc_val_cmp_eqne_pi:
@@ -984,3 +984,4 @@ match t1 with
             end;
   try reflexivity;
   try apply tc_val_of_bool.
+

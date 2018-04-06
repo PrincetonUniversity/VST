@@ -29,8 +29,8 @@ Definition sumarray_spec :=
 (* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr (3+4)))) 
@@ -124,8 +124,8 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name four _four.
 start_function.
+set (four := gv _four).
 change [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4] with (map Int.repr four_contents).
 set (contents :=  map Vint (map Int.repr four_contents)).
 assert (Zlength contents = 4) by (subst contents; reflexivity).
@@ -140,7 +140,7 @@ forward_call (*  s = sumarray(four+2,2); *)
     sublist 2 4 four_contents,2).
 +
  clear - GV. unfold gvar_denote, eval_var in *.
-  destruct (Map.get (ve_of rho) _four) as [[? ?]|?]; try contradiction.
+  destruct (Map.get (ve_of rho) _four) as [[? ?]|]; try contradiction.
   destruct (ge_of rho _four); try contradiction. apply I.
 +
  entailer!.

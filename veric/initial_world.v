@@ -33,7 +33,7 @@ Lemma VALspec_range_e:
                 {x | m @ loc = YES sh (snd x) (VAL (fst x)) NoneP}.
 Proof.
 intros.
-destruct H as [H _]; spec H loc.
+destruct H as [H _]; specialize (H loc).
 rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k;
@@ -180,8 +180,8 @@ rewrite H5.
 simpl; repeat rewrite inflate_initial_mem_level; auto.
 rewrite H1; simpl; rewrite inflate_initial_mem_level; auto.
 destruct H as [H [H5 H7]].
-intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; spec H b' z'.
-destruct H3 as [H3 Hg]. spec H3 (b',z'). unfold jam in H3.
+intros [b' z']; apply (resource_at_join _ _ _ (b',z')) in H4; specialize (H b' z').
+destruct H3 as [H3 Hg]. specialize (H3 (b',z')). unfold jam in H3.
 hnf in H3. if_tac in H3.
 2: rename H6 into H8.
 clear H. destruct H6 as [H H8].
@@ -242,7 +242,7 @@ rewrite Hg2; apply join_comm, core_unit.
 destruct H3 as [H3 Hg].
 split.
 intro loc.
-spec H3 loc.
+specialize (H3 loc).
 hnf in H3|-*.
 if_tac.
 generalize (refl_equal (m2 @ loc)).  pattern (resource_at m2) at 2; rewrite H2.
@@ -705,7 +705,7 @@ intros.
         rewrite PTree.gso by auto. rewrite H2.  split; intro Hx; inv Hx; congruence.
         simpl; auto.
         rewrite Zlength_cons.
-        replace (n + Zsucc (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
+        replace (n + Z.succ (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
         simpl. simpl in H0. inv H0.
          simpl in H.
          destruct a as [a ag]; simpl in *.
@@ -722,9 +722,9 @@ intros.
         unfold Genv.find_symbol, Genv.add_global; simpl. rewrite PTree.gss; auto.
         forget (Genv.add_global ge (a,ag)) as ge1.
         forget (Genv.genv_next ge) as N; clear ge H2.
-         assert (Zsucc N + Zlength dl > N).
+         assert (Z.succ N + Zlength dl > N).
          rewrite Zlength_correct; unfold block in *; omega.
-         forget (Zsucc N + Zlength dl) as K.
+         forget (Z.succ N + Zlength dl) as K.
          clear - H1 H3 H2 H4.
          revert ge1 K H2 H1 H3 H4; induction vl; simpl; intros.
         inversion2 H1 H4; omega.
@@ -1090,7 +1090,7 @@ Qed.
 
 Lemma alloc_globals_rev_nextblock:
   forall {F V} (ge: Genv.t F V) vl m, alloc_globals_rev ge empty vl = Some m ->
-     nextblock m = Z.to_pos(Zsucc (Zlength vl)).
+     nextblock m = Z.to_pos(Z.succ (Zlength vl)).
 Proof.
   intros.
    revert m H; induction vl; simpl; intros. inv H; apply nextblock_empty.
@@ -1449,7 +1449,7 @@ Lemma cond_approx_eq_weakening n n' A P1 P2 :
   cond_approx_eq n' A P1 P2.
 Proof.
   intros l.
-  intros E ts; spec E ts.
+  intros E ts; specialize (E ts).
   rewrite <-approx_oo_approx' with (n' := n) at 1; try omega.
   rewrite <-approx'_oo_approx with (n' := n) at 2; try omega.
   rewrite <-approx_oo_approx' with (n' := n) at 3; try omega.

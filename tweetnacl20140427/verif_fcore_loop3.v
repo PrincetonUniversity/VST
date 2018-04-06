@@ -179,7 +179,7 @@ Time forward_for_simple_bound 16 (EX m:Z,
   assert_PROP (Zlength mlist = 16) as ML by entailer.
   apply derives_refl'. f_equal.
   eapply Znth_extensional. omega.
-  intros kk K. apply H1. omega. }
+  intros kk K. apply H2. omega. }
 Time Qed. (*June 4th, 2017 (laptop): 1s*)
 
 Definition f_core_loop3_statement :=

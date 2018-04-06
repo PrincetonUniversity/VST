@@ -171,7 +171,7 @@ Proof.
   intros.
   rewrite rmap_level_eq.
   unfold resource_fmap, resource_at in *.
-  unfold compose; extensionality l. spec H l.
+  unfold compose; extensionality l. specialize ( H l).
   destruct H as [g ?].
   revert H; case_eq (unsquash phi); intros n ? ?.
   generalize H; rewrite <- (squash_unsquash phi).
@@ -267,7 +267,7 @@ Proof.
   simpl; constructor; auto.
   subst n' phi''.
   constructor.
-  intro l; spec H2 l.
+  intro l; specialize ( H2 l).
   simpl.
   rewrite Gf; rewrite Gg; clear Gf Gg.
   rewrite H3; rewrite H4.
@@ -379,7 +379,7 @@ Proof.
    eapply AV.valid_join. 2: apply H5. 2: apply H.
    clear - H3.
     unfold compose.
-   intro l; spec H3 l.
+   intro l; specialize ( H3 l).
    destruct (phi @ l); simpl in *.
    *
    inv H3; simpl. constructor; auto.
@@ -410,7 +410,7 @@ Proof.
  simpl.
  split.
  intro l.
- spec H6 l.
+ specialize ( H6 l).
  assert (fst (proj1_sig phig') l = g l).
    generalize (f_equal squash H2); intro.
    rewrite squash_unsquash in H5.
@@ -473,7 +473,7 @@ Qed.
     destruct x, x0; simpl in *; subst; auto.
     extensionality l.
     unfold compose.
-    spec H0 l.
+    specialize ( H0 l).
     subst n0.
     rewrite H0; auto.
   Qed.
@@ -1006,7 +1006,7 @@ left. f_equal. apply identity_unit' in H. inv H.
   apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
  f_equal. apply proof_irr.
 unfold identity in H.
-spec H (NO Share.bot bot_unreadable) (YES sh r k p).
+specialize ( H (NO Share.bot bot_unreadable) (YES sh r k p)).
 spec H.
 apply res_join_NO2.
 auto.
@@ -1039,7 +1039,7 @@ Proof.
   constructor 1; auto.
   apply age_level in H0. rewrite H in H0. inv H0. trivial.
   case_eq (age1 m); intros.
-  spec IHk r.
+  specialize ( IHk r).
   rewrite <- ageN1 in H0.
   generalize (ageN_level _ _ _ H0); intro.
   spec IHk; try omega.
@@ -1080,8 +1080,8 @@ destruct Hg.
 destruct (make_rmap _ x H1 (level phi1)) as [phi' [? [? ?]]].
 clear H1.
 unfold compose; extensionality loc.
-spec H0 loc.
-destruct H0 as [? H1].
+(*specialize ( H0 loc). *)
+destruct (H0 loc) as [? H1]. clear H0.
 simpl.
 symmetry.
 revert H1; case_eq (phi1 @ loc); intros.
@@ -1808,8 +1808,8 @@ Proof.
   | H: level _ = level _ |- _ => clear H
   end;
   intro l;
-  spec Va l; spec Vb l; spec Vc l; spec Vd l;
-  spec Ra l; spec Rb l; spec Rc l; spec Rd l; 
+  specialize ( Va l); specialize ( Vb l); specialize ( Vc l); specialize ( Vd l);
+  specialize ( Ra l); specialize ( Rb l); specialize ( Rc l); specialize ( Rd l); 
   apply (resource_at_join _ _ _ l) in H;
   apply (resource_at_join _ _ _ l) in H0;
   try rewrite H2; try rewrite H4; try rewrite H6; try rewrite H8;

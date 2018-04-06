@@ -81,8 +81,8 @@ Definition reverse_spec :=
  ** from the program (prog) by the "main_pre" operator.  **)
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]
      PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
 
@@ -272,14 +272,14 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function.
+ start_function.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
-  eapply ENTAIL_trans; [ | apply (setup_globals Delta v_three); auto ] | ].
+  eapply ENTAIL_trans; [ | apply (setup_globals Delta (gv _three)); auto ] | ].
  entailer!.
 forward_call (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], v_three).
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], gv _three).
 Intros r'.
 rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)

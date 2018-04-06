@@ -46,8 +46,83 @@ intros.
 rep_omega.
 Qed.
 
-Print Ltac rep_omega.
+Lemma exercise3b: 
+  forall al: list Z ,  Zlength al < 50 ->
+         0 <= Zlength al < Int.max_signed.
+Proof.
+intros.
+rep_omega.
+Qed.
 
+Lemma exercise3c: 
+  forall i,
+         0 <= Int.unsigned (Int.repr i) <= Int.max_unsigned.
+Proof.
+intros.
+rep_omega.
+Qed.
+
+
+(**  How to manage semi-opaque constants, using Hint Rewrite : rep_omega. *)
+(* Suppose you have an uninitialized array of size N: *)
+
+Definition N : Z := 20.
+
+Lemma exercise4:
+ let Delta := @abbreviate _ Delta1 in 
+ forall sh p,
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
+ |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+Proof.
+intros.
+simpl.
+(* It's not nice that [simpl] unfolded the list_repeat. *)
+entailer!.
+repeat rewrite Zlength_cons. rewrite Zlength_nil. 
+rep_omega.
+Abort.
+
+(* To avoid unfolding of the list_repeat, let us make N opaque. *)
+
+Global Opaque N.
+
+Lemma exercise4b:
+ let Delta := @abbreviate _ Delta1 in 
+ forall sh p,
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
+ |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+Proof.
+intros.
+simpl.
+(* That's better; the data_at is more concise.  But now, unfortunately: *)
+entailer!.
+rewrite Zlength_list_repeat.
+Fail rep_omega.
+(* now rep_omega does not know that N=20. *)
+Abort.
+
+(* To tell rep_omega that N=20, just add a hint to the rep_omega database: *)
+
+Lemma N_eq: N=20.
+Proof. reflexivity. Qed.
+Hint Rewrite N_eq : rep_omega.
+
+Lemma exercise4c:
+ let Delta := @abbreviate _ Delta1 in 
+ forall sh p,
+    data_at sh (tarray tint N) (Vint (Int.repr 1) :: Vint (Int.repr 2) :: list_repeat (Z.to_nat (N-2)) Vundef) p
+ |--  !! (0 <= Zlength (list_repeat (Z.to_nat (N-2)) Vundef) < Int.max_signed).
+Proof.
+intros.
+simpl.
+(* That's still good; the data_at is more concise.  *)
+entailer!.
+rewrite Zlength_list_repeat.
+rep_omega.
+rep_omega.
+Qed.
+
+(* Summary: Make your constant Global Opaque, but add a Hint Rewrite rule to the rep_omega database. *)
 
 
 

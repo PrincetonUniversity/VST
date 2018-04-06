@@ -25,7 +25,7 @@ Definition HMAC_Double_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        kv:val, shmd: share, md: val
+        shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -38,16 +38,16 @@ Definition HMAC_Double_spec :=
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (CONT KEY) keyVal;
              data_block Tsh (CONT MSG) msgVal;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd 64 md)
   POST [ tptr tuchar ] 
          EX digest:_, 
           PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL (temp ret_temp md)
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block shmd (digest++digest) md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).
@@ -75,9 +75,9 @@ forward_if  (
   PROP  (isptr c)
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
-   temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
+   temp _n (Vint (Int.repr dl)); gvars gv)
    SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
-   data_block Tsh data d; K_vector kv;
+   data_block Tsh data d; K_vector gv;
    memory_block shmd 64 md)).
   { apply denote_tc_test_eq_split.
        apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
@@ -88,7 +88,7 @@ normalize.
 assert_PROP (isptr k).
 { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *)
 rename H into Pk.
-forward_call (c, k, kl, key, kv, HMACabs nil nil nil).
+forward_call (c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
     destruct k; try contradiction.
     entailer!.
@@ -97,7 +97,7 @@ forward_call (c, k, kl, key, kv, HMACabs nil nil nil).
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512) as H0_len512.
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 remember (hmacInit key) as h0.
-forward_call (h0, c, d, dl, data, kv).
+forward_call (h0, c, d, dl, data, gv).
   { rewrite H0_len512. assumption. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Ptrofs.modulus).
@@ -113,7 +113,7 @@ specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
-forward_call (hmacUpdate data h0, c, Vptr b i, shmd, kv).
+forward_call (hmacUpdate data h0, c, Vptr b i, shmd, gv).
 simpl.
 
 (**************Round 2*******************************)
@@ -122,18 +122,18 @@ destruct RND1 as [h2 dig].
 replace_SEP 1 (initPre c nullval h2 kl key).
   { entailer!. eapply hmacstate_PostFinal_PreInitNull.
     symmetry in HeqRND1. apply HeqRND1. }
-forward_call (c, nullval, kl, key, kv, h2).
+forward_call (c, nullval, kl, key, h2, gv).
 simpl; normalize.
 
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. entailer!. }
 rename H into H3_len512.
-forward_call (hmacInit key, c, d, dl, data, kv).
+forward_call (hmacInit key, c, d, dl, data, gv).
   { rewrite H3_len512. assumption. }
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).
-forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, kv).
+forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, gv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
 destruct RND2 as [h5 dig2].
 simpl.

@@ -65,11 +65,9 @@ Qed.
 
 (* END Tactics copied from ecm/Coqlib2.v *)
 
-
 Ltac spec H :=
   match type of H with ?a -> _ =>
     let H1 := fresh in (assert (H1: a); [|generalize (H H1); clear H H1; intro H]) end.
-
 
 Lemma f_equal_Some: forall A (x y: A), x=y -> Some x = Some y.
 Proof.
@@ -120,14 +118,45 @@ Tactic Notation "remember" constr(a) "as" ident(x) :=
   (set (x:=a) in *; assert (H: x=a) by reflexivity; clearbody x).
 *)
 
-Tactic Notation "if_tac" := match goal with |- context [if ?a then _ else _] => destruct a as [?H | ?H] end.
+Ltac simple_if_tac := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A 
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+
+Tactic Notation "if_tac" := 
+  match goal with |- context [if ?a then _ else _] =>
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as [?H | ?H]
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
+
 Tactic Notation "if_tac" simple_intropattern(H)
-   := match goal with |- context [if ?a then _ else _] => destruct a as H end.
+   := match goal with |- context [if ?a then _ else _] =>
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as H
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
+
 Tactic Notation "if_tac" "in" hyp(H0)
- := match type of H0 with context [if ?a then _ else _] => destruct a as [?H | ?H] end.
-Ltac if_tac_in H := match type of H with context [if ?a then _ else _] => destruct a as [?H0 | ?H0] end.
+ := match type of H0 with context [if ?a then _ else _] =>
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as [?H | ?H]
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
+
 Tactic Notation "if_tac" simple_intropattern(H) "in" hyp(H1)
- := match type of H1 with context [if ?a then _ else _] => destruct a as H end.
+ := match type of H1 with context [if ?a then _ else _] => 
+    lazymatch type of a with
+    | sumbool _ _ =>destruct a as H
+    | bool => fail "Use simple_if_tac instead of if_tac, since your expression"a" has type bool"
+    | ?t => fail "Use if_tac only for sumbool; your expression"a" has type" t
+   end end.
 
 Lemma predicate_max:
   forall (F: nat -> Prop) (Fdec: forall n, {F n}+{~ F n}) n,

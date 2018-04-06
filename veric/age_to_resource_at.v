@@ -1,7 +1,6 @@
 Require Import compcert.common.Memory.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_to.
 Require Import VST.veric.coqlib4.

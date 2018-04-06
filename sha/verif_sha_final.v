@@ -136,7 +136,7 @@ assert_PROP (force_val
  rewrite H2. clear H2.
  eapply semax_pre_post; [ | | | | |
   change Delta with Delta_final_if1;
-  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md);
+  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(gv:=gv)(md:=md);
   try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
 change (Z.of_nat CBLOCK) with CBLOCKz.

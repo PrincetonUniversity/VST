@@ -174,7 +174,7 @@ Qed.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
-     (b: list int) ctx (regs: list int) kv Xv
+     (b: list int) ctx (regs: list int) gv Xv
      (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
      semax (initialized _i Delta_loop1)
@@ -188,8 +188,8 @@ Lemma sha256_block_data_order_loop2_proof:
                temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
                temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
-               gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
-   SEP ( K_vector kv;
+               gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+   SEP ( K_vector gv;
            data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv))
   block_data_order_loop2
   (normal_ret_assert
@@ -203,8 +203,8 @@ Lemma sha256_block_data_order_loop2_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
-                gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
-     SEP (K_vector kv;
+                gvar _K256 (gv _K256); gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
+     SEP (K_vector gv;
             data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
 intros.
@@ -231,8 +231,8 @@ forward_for_simple_bound 64%Z
                   temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
                   temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                   lvar _X (tarray tuint LBLOCKz) Xv;
-                  gvar  _K256 kv)
-     SEP (K_vector kv;
+                  gvar _K256 (gv _K256); gvars gv)
+     SEP (K_vector gv;
        data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv)).
 *
 forward. (* skip; *)

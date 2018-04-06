@@ -1,15 +1,18 @@
+From compcert.lib Require Coqlib Maps Integers.
+From compcert.common Require Events Memory Values AST Globalenvs.
+
 Module CompcertLibraries.
-Require Export compcert.lib.Coqlib.
-Require Export compcert.lib.Maps.
-Require Export compcert.lib.Integers.
+Export compcert.lib.Coqlib.
+Export compcert.lib.Maps.
+Export compcert.lib.Integers.
 End CompcertLibraries.
 
 Module CompcertCommon.
-Require Export compcert.common.Events.
-Require Export compcert.common.Memory.
-Require Export compcert.common.Values.
-Require Export compcert.common.AST.
-Require Export compcert.common.Globalenvs.
+Export compcert.common.Events.
+Export compcert.common.Memory.
+Export compcert.common.Values.
+Export compcert.common.AST.
+Export compcert.common.Globalenvs.
 End CompcertCommon.
 
 Module CompcertAll.

@@ -248,7 +248,7 @@ intros.
 unfold identity in *.
 intros.
 destruct (unage_join _ H1 H) as [y [? [? [? ?]]]].
-spec H0 y x H2.
+specialize ( H0 y x H2).
 subst.
 unfold age in *. congruence.
 Qed.

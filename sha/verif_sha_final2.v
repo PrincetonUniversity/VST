@@ -117,7 +117,7 @@ Definition Body_final_if1 :=
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
 Lemma final_if1:
-forall (Espec : OracleKind)  (a : s256abs) (md c : val) (shmd : share) (kv : val) (r_data : list val),
+forall (Espec : OracleKind)  (a : s256abs) (md c : val) (shmd : share) (gv : globals) (r_data : list val),
 sublist 0 (Zlength (s256a_data a)) r_data = map Vint (map Int.repr (s256a_data a)) ->
 Forall isbyteZ a ->
 Zlength r_data = CBLOCKz ->
@@ -125,8 +125,8 @@ semax Delta_final_if1
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _md md; temp _c c; gvar _K256 kv)
-   SEP (K_vector kv;
+   temp _md md; temp _c c; gvars gv)
+   SEP (K_vector gv;
    field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
    field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;
    field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (s256a_len a))) c;
@@ -155,7 +155,7 @@ semax Delta_final_if1
    (temp _n (Vint (Int.repr (Zlength dd')));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
-    gvar _K256 kv)
+    gvars gv)
    SEP  (data_at Tsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers hashed'),
             (Vint (lo_part (s256a_len a)),
@@ -164,7 +164,7 @@ semax Delta_final_if1
                  ++ list_repeat (Z.to_nat (CBLOCKz - Zlength dd')) Vundef,
                Vundef))))
            c;
-           K_vector kv;
+           K_vector gv;
            memory_block shmd 32 md)))))).
 Proof.
 intros.
@@ -279,7 +279,7 @@ rewrite semax_seq_skip.
 forward_call (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c,
     field_address t_struct_SHA256state_st [StructField _data] c,
-    Tsh, kv).
+    Tsh, gv).
 {
   simpl.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].

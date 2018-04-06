@@ -39,7 +39,7 @@ Proof. intros. destruct v; try contradiction. eexists; eexists; reflexivity. Qed
 
 Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional add_len ctx
   md_ctx' V' reseed_counter' entropy_len' prediction_resistance' reseed_interval'
-  key V reseed_counter entropy_len prediction_resistance reseed_interval kv
+  key V reseed_counter entropy_len prediction_resistance reseed_interval gv
   info_contents (s : ENTROPY.stream)
   seed
   (XH : 0 <= add_len <= Int.max_unsigned)
@@ -72,7 +72,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
   (PROP ( )
    LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
-   temp _len (Vint (Int.repr add_len)); gvar sha._K256 kv)
+   temp _len (Vint (Int.repr add_len)); gvars gv)
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));
    data_at Tsh (tarray tuchar entropy_len) (map Vint (map Int.repr entropy_bytes)) seed;
    data_at Tsh (tarray tuchar (384 - entropy_len))
@@ -84,7 +84,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
      (hmac256drbgstate_md_info_pointer
         (md_ctx',
         (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))));
-   spec_sha.K_vector kv;
+   spec_sha.K_vector gv;
    data_at Tsh t_struct_hmac256drbg_context_st
      (md_ctx',
      (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))
@@ -135,7 +135,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
           LOCAL (temp ret_temp x)
           SEP (reseedPOST x contents additional add_len s
                  (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
-                 info_contents kv
+                 info_contents gv
                  (md_ctx',
                  (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))))))
      (stackframe_of f_mbedtls_hmac_drbg_reseed)).
@@ -170,7 +170,7 @@ Proof.
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
       temp _t'3 (Val.of_bool non_empty_additional);
-      gvar sha._K256 kv)
+      gvars gv)
       SEP  (FRZL FR7; da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i. rewrite da_emp_null. entailer. reflexivity.
@@ -201,7 +201,7 @@ Proof.
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvar sha._K256 kv)
+      gvars gv)
       SEP (data_at Tsh (tarray tuchar 384)
          (map Vint
             (map Int.repr entropy_bytes) ++ (map Vint (map Int.repr (*contents*)contents')) ++
@@ -226,7 +226,7 @@ Proof.
     {
       entailer!.
       apply derives_refl'; apply data_at_complete_split; trivial; try omega.
-      rewrite Zlength_app in H; rewrite H; trivial.
+      rewrite Zlength_app in H0; rewrite H0; trivial.
       repeat rewrite Zlength_map; trivial.
       rewrite Zlength_list_repeat; omega.
     }
@@ -364,10 +364,11 @@ Proof.
     clear Heqcontents'.
     rewrite app_assoc.
     entailer!.
-    rewrite Zlength_app, Zlength_list_repeat in H; try omega.
+    autorewrite with sublist in H0.
     apply derives_refl'.
-    apply data_at_complete_split; repeat rewrite Zlength_list_repeat; try omega; auto;
-      (* rewrite Zlength_app;*)try rewrite H; try rewrite Hentropy_bytes_length; repeat rewrite Zlength_map; auto.
+    apply data_at_complete_split; try list_solve.
+    autorewrite with sublist. rewrite H0. assumption.
+    auto.
   }
   flatten_sepcon_in_SEP.
 
@@ -389,7 +390,7 @@ Proof.
                  (Vint (Int.repr entropy_len),
                  (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))),
                 (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval),
-                kv, info_contents).
+                info_contents, gv).
   {
     (* prove the SEP clauses match up *)
     destruct seed; simpl in Pseed; try contradiction.

@@ -186,7 +186,7 @@ intros.
 destruct H3.
 rewrite H3 in H2.
 specialize (H2 _ H4).
-spec H0 (b,ofs+i).
+specialize ( H0 (b,ofs+i)).
 destruct H0.
 congruence.
 rewrite H2 in H0.
@@ -304,7 +304,7 @@ Lemma fixup_splitting_valid : forall (a: address->Share.t) (z:address -> option 
 Proof.
   unfold AV.valid, res_option, compose; intros.
   unfold fixup_splitting.
-  spec H0 b ofs.
+  specialize ( H0 b ofs).
   case_eq (z (b,ofs)); intros;
     rewrite H1 in H0; auto. destruct p.
   destruct k.
@@ -1106,7 +1106,7 @@ apply b0.
 omega.
 right.
 contradict n0.
-spec n0 0.
+specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
@@ -1151,7 +1151,7 @@ apply b0.
 omega.
 right.
 contradict n0.
-spec n0 0.
+specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.

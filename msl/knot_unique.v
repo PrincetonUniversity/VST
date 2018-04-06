@@ -503,7 +503,7 @@ simpl.
 generalize (fn_unsquash (g k2)); intro.
 rewrite <- g_level in H1.
 remember (g k2) as k1.
-spec H1 H (K1.unsquash k1).
+specialize ( H1 H (K1.unsquash k1)).
 firstorder.
 assert (f k1 = (f oo g) k2) by (unfold compose; congruence).
 rewrite iso2 in H2; trivial.
@@ -739,7 +739,7 @@ generalize (fSn_unsquash (fst (fg n)) (snd (fg n)) n (gf_id n) (fg_id n) (fg_lev
 rewrite <- Heqfgn in H1.
 simpl in H1.
 replace (n + 1) with (S n) in H1 by omega.
-spec H1 IHn k H U1 H0.
+specialize ( H1 IHn k H U1 H0).
 rewrite <- Heqfgn.
 simpl.
 rewrite H1.
@@ -775,7 +775,7 @@ destruct m.
 replace (level k2 + 0) with (level k2) in H0 by trivial.
 rewrite H0.
 trivial.
-spec IHn m.
+specialize ( IHn m).
 rewrite IHn; try omega.
 unfold fg; fold fg.
 remember (fg n) as fgn.
@@ -934,7 +934,7 @@ destruct U2 as [n F2].
 simpl.
 generalize (f_unsquash (g k2)); intro.
 remember (g k2) as k1.
-spec H0 (K1.unsquash k1).
+specialize ( H0 (K1.unsquash k1)).
 firstorder.
 assert (f k1 = (f oo g) k2) by (unfold compose; congruence).
 rewrite iso1 in H1.

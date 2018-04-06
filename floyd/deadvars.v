@@ -209,7 +209,7 @@ Ltac locals_of_assert P :=
                   let b := locals_of_assert B in
                   constr:(a++b)
  | stackframe_of _ => constr:(@nil ident)
- | local (`(eq _) (eval_expr ?E)) =>
+ | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
  | @exp _ _ ?T ?F =>
     let x := inhabited_value T in
@@ -249,7 +249,6 @@ Ltac find_dead_vars P c Q :=
                                      (deadvars_post (snd post)))) in
       let d := eval compute in d in
       d.
- 
 
 Ltac deadvars := 
  match goal with
@@ -259,7 +258,7 @@ Ltac deadvars :=
     match find_dead_vars P c Q with
     | nil => idtac
     | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
-     end
+     end + fail 99 "deadvars failed for an unknown reason"
  | |- semax _ _ _ _ => 
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ |-- _ => idtac

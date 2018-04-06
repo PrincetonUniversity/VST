@@ -61,8 +61,8 @@ Proof with auto.
     generalize (split_identity _ _ H1 H3); intro.
     tauto.
     intro.
-    spec H3 x. spec H3. exists x3...
-    spec H3 f x3 H2. subst x3.
+    specialize ( H3 x). spec H3. exists x3...
+    specialize ( H3 f x3 H2). subst x3.
     apply unit_identity in H2.
     tauto.
   exists (existT midObj f H3).
@@ -230,9 +230,9 @@ Proof with auto.
      generalize (split_identity _ _ H0 H5); intro.
      unfold midObj in *.
      tauto.
-     spec H5 x.
+     specialize ( H5 x).
      spec H5. exists A_top...
-     spec H5 sh' A_top H4.
+     specialize ( H5 sh' A_top H4).
      subst sh'.
      apply unit_identity in H4.
      unfold midObj in *.
@@ -567,7 +567,7 @@ Section ParameterizedCombiner.
     simpl. split; congruence.
     (* combjoin case *)
     destruct H.
-    spec combjoin_preserves_unmap_left A B f g v v0 v1 H.
+    specialize ( combjoin_preserves_unmap_left A B f g v v0 v1 H).
     destruct combjoin_preserves_unmap_left as [x [y0 [? [? ?]]]].
     exists (CPart sh x). exists (CPart sh0 y0).
     split. split...
@@ -601,7 +601,7 @@ Section ParameterizedCombiner.
     simpl. split; congruence.
     (* combjoin case *)
     destruct H.
-    spec combjoin_preserves_unmap_right A B f g v v0 v1 H.
+    specialize ( combjoin_preserves_unmap_right A B f g v v0 v1 H).
     destruct combjoin_preserves_unmap_right as [y0 [z [? [? ?]]]].
     exists (CPart sh0 y0). exists (CFull z).
     split. split...

@@ -83,7 +83,7 @@ Proof.
   + simpl.
     destruct (ident_eq i i0).
     - left; subst; auto.
-    - if_tac.
+    - destruct (Ctypes.field_type i m).
       * right; auto.
       * intro HH; destruct HH; [congruence | tauto].
 Qed.
@@ -219,7 +219,7 @@ Proof.
     simpl Ctypes.field_type.
     if_tac.
     - apply alignof_composite_hd_divide.
-    - eapply Zdivide_trans.
+    - eapply Z.divide_trans.
       * apply IHm.
         destruct H; [congruence | auto].
       * apply alignof_composite_tl_divide.
