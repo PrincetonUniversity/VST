@@ -2461,45 +2461,23 @@ Proof.
   apply Share.lub_bot.
 Qed.
 
-(* TODO: Move these into veric/slice.v and use them to define split_resource *)
-   
-Definition cleave (sh: share) :=
-  (Share.lub (fst (Share.split (Share.glb Share.Lsh sh))) (fst (Share.split (Share.glb Share.Rsh sh))),
-   Share.lub (snd (Share.split (Share.glb Share.Lsh sh))) (snd (Share.split (Share.glb Share.Rsh sh)))).
-
-Lemma cleave_join:
- forall sh: share, sepalg.join (fst (cleave sh)) (snd (cleave sh)) sh.
-Admitted.
-
-Lemma cleave_readable1:
- forall sh, readable_share sh -> readable_share (fst (cleave sh)).
-Proof.
-intros.
-Admitted. (* true *)
-
-Lemma cleave_readable2:
- forall sh, readable_share sh -> readable_share (snd (cleave sh)).
-Proof.
-intros.
-Admitted. (* true *)
-
 (* It's often useful to split Tsh in half. *)
-Definition gsh1 := fst (cleave Tsh).
-Definition gsh2 := snd (cleave Tsh).
+Definition gsh1 := fst (slice.cleave Tsh).
+Definition gsh2 := snd (slice.cleave Tsh).
 
 Lemma readable_gsh1 : readable_share gsh1.
 Proof.
-  apply cleave_readable1; auto.
+  apply slice.cleave_readable1; auto.
 Qed.
 
 Lemma readable_gsh2 : readable_share gsh2.
 Proof.
-  apply cleave_readable2; auto.
+  apply slice.cleave_readable2; auto.
 Qed.
 
 Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
 Proof.
-  apply cleave_join; unfold gsh1, gsh2; destruct (cleave Tsh); auto.
+  apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
 Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
@@ -2539,12 +2517,12 @@ Lemma split_readable_share sh :
     sepalg.join sh1 sh2 sh.
 Proof.
   intros.
-  pose proof (cleave_readable1 _ H); pose proof (cleave_readable2 _ H).
-  destruct (cleave sh) as (sh1, sh2) eqn: Hsplit.
+  pose proof (slice.cleave_readable1 _ H); pose proof (slice.cleave_readable2 _ H).
+  destruct (slice.cleave sh) as (sh1, sh2) eqn: Hsplit.
   exists sh1, sh2; split; [|split]; auto.
-  replace sh1 with (fst (cleave sh)) by (rewrite Hsplit; auto).
-  replace sh2 with (snd (cleave sh)) by (rewrite Hsplit; auto).
-  apply cleave_join; auto.
+  replace sh1 with (fst (slice.cleave sh)) by (rewrite Hsplit; auto).
+  replace sh2 with (snd (slice.cleave sh)) by (rewrite Hsplit; auto).
+  apply slice.cleave_join; auto.
 Qed.
 
 Lemma split_Ews :
