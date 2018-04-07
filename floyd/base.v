@@ -4,6 +4,7 @@ Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.jmeq_lemmas.
+Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.

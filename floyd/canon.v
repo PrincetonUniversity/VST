@@ -462,13 +462,6 @@ auto.
 Qed.
 *)
 
-Fixpoint delete_nth {A} (n: nat) (xs: list A) {struct n} : list A :=
- match n, xs with
- | O, y::ys => ys
- | S n', y::ys =>y :: delete_nth n' ys
- | _ , _ => nil
- end.
-
 Lemma grab_nth_LOCAL:
    forall n P Q R,
      (PROPx P (LOCALx Q (SEPx R))) =
@@ -2403,110 +2396,19 @@ Proof.
     normalize.
 Qed.
 
-Inductive find_nth_SEP_preds_rec (pred: mpred -> Prop): nat -> list mpred -> option (nat * mpred) -> Prop :=
-| find_nth_SEP_preds_rec_cons_head: forall n R0 R, pred R0 -> find_nth_SEP_preds_rec pred n (R0 :: R) (Some (n, R0))
-| find_nth_SEP_preds_rec_cons_tail: forall n R0 R R_res, find_nth_SEP_preds_rec pred (S n) R R_res -> find_nth_SEP_preds_rec pred n (R0 :: R) R_res
-| find_nth_SEP_preds_rec_nil: forall n, find_nth_SEP_preds_rec pred n nil None.
-
-Inductive find_nth_SEP_preds (pred: mpred -> Prop): list mpred -> option (nat * mpred) -> Prop :=
-| find_nth_SEP_preds_constr: forall R R_res, find_nth_SEP_preds_rec pred 0 R R_res -> find_nth_SEP_preds pred R R_res.
-
-Lemma find_nth_SEP_preds_Some: forall pred R n R0, find_nth_SEP_preds pred R (Some (n, R0)) ->
-  nth_error R n = Some R0 /\ pred R0.
-Proof.
-  intros.
-  inv H.
-  replace n with (n - 0)%nat by omega.
-  assert ((n >= 0)%nat /\ nth_error R (n - 0) = Some R0 /\ pred R0); [| tauto].
-  revert H0; generalize 0%nat as m; intros.
-  remember (Some (n, R0)) as R_res eqn:?H in H0.
-  induction H0.
-  + inv H.
-    replace (n - n)%nat with 0%nat by omega.
-    simpl; auto.
-  + apply IHfind_nth_SEP_preds_rec in H.
-    destruct H as [? [? ?]].
-    replace (n - n0)%nat with (S (n - S n0)) by omega.
-    split; [omega |].
-    simpl; auto.
-  + inv H.
-Qed.
-
-(* Current not used. *)
-Lemma find_nth_SEP_preds_rec_S: forall P z R n Rn,
-  find_nth_SEP_preds_rec P z R (Some (n, Rn)) ->
-  find_nth_SEP_preds_rec P (S z) R (Some (S n, Rn)).
-Proof.
-  intros.
-  remember (Some (n, Rn)) as Res eqn:?H.
-  revert n Rn H0; induction H; intros.
-  + inv H0.
-    eapply find_nth_SEP_preds_rec_cons_head; eauto.
-  + subst R_res.
-    apply find_nth_SEP_preds_rec_cons_tail; auto.
-  + inv H0.
-Qed.
-
-(* Current not used. *)
-Lemma find_nth_SEP_preds_rec_delete_nth: forall P z m R Rn,
-  (exists n, find_nth_SEP_preds_rec P z (delete_nth m R) (Some (n, Rn))) ->
-  (exists n, find_nth_SEP_preds_rec P z R (Some (n, Rn))).
-Proof.
-  intros.
-  revert z R H; induction m; intros; destruct R; auto.
-  + simpl in *.
-    destruct H as [n ?].
-    eexists.
-    eapply find_nth_SEP_preds_rec_cons_tail.
-    apply find_nth_SEP_preds_rec_S.
-    exact H.
-  + simpl in *.
-    destruct H as [n ?].
-    inv H.
-    - eexists; apply find_nth_SEP_preds_rec_cons_head; auto.
-    - specialize (IHm (S z) _ (ex_intro _ _ H4)).
-      clear n H4; destruct IHm as [n ?].
-      exists n.
-      apply find_nth_SEP_preds_rec_cons_tail; auto.
-Qed.
-
-(* Current not used. *)
-Lemma find_nth_SEP_preds_delete_nth: forall P m R Rn,
-  (exists n, find_nth_SEP_preds P (delete_nth m R) (Some (n, Rn))) ->
-  (exists n, find_nth_SEP_preds P R (Some (n, Rn))).
-Proof.
-  intros ? ? ? ? [n ?].
-  inv H.
-  pose proof (ex_intro _ n H0): exists n, find_nth_SEP_preds_rec P 0 (delete_nth m R) (Some (n, Rn)).
-  apply find_nth_SEP_preds_rec_delete_nth in H.
-  clear n H0.
-  destruct H as [n ?].
-  exists n.
-  apply find_nth_SEP_preds_constr; auto.
-Qed.
-
-Ltac find_nth_SEP_rec tac :=
-  first [ simple eapply find_nth_SEP_preds_rec_cons_head; tac
-        | simple eapply find_nth_SEP_preds_rec_cons_tail; find_nth_SEP_rec tac
-        | simple eapply find_nth_SEP_preds_rec_nil].
-
-Ltac find_nth_SEP tac :=
-  eapply find_nth_SEP_preds_constr; find_nth_SEP_rec tac.
-(* The reason to use "eapply" instead of "simple eapply" is because "find_nth_SEP" may be buried in definitions. *)
-
 Inductive syntactic_cancel: list mpred -> list mpred -> list mpred -> list mpred -> Prop :=
 | syntactic_cancel_nil: forall R, syntactic_cancel R nil R nil
 | syntactic_cancel_cons_succeed: forall n R0 R L0 L F Res,
-    find_nth_SEP_preds (fun R0 => R0 |-- L0) R (Some (n, R0)) ->
+    find_nth_preds (fun R0 => R0 |-- L0) R (Some (n, R0)) ->
     syntactic_cancel (delete_nth n R) L F Res ->
     syntactic_cancel R (L0 :: L) F Res
 | syntactic_cancel_cons_fail: forall R L0 L F Res,
-    find_nth_SEP_preds (fun R0 => R0 |-- L0) R None ->
+    find_nth_preds (fun R0 => R0 |-- L0) R None ->
     syntactic_cancel R L F Res ->
     syntactic_cancel R (L0 :: L) F (L0 :: Res).
 
 Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
-  find_nth_SEP_preds (fun R0 => R0 |-- L0) R nR0 ->
+  find_nth_preds (fun R0 => R0 |-- L0) R nR0 ->
   syntactic_cancel match nR0 with
                    | Some (n, _) => delete_nth n R
                    | None => R
@@ -2542,7 +2444,7 @@ Proof.
     rewrite sepcon_assoc.
     eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply H1]].
     clear IHsyntactic_cancel H1.
-    apply find_nth_SEP_preds_Some in H.
+    apply find_nth_preds_Some in H.
     destruct H.
     eapply derives_trans; [apply delete_nth_SEP; eauto |].
     apply sepcon_derives; auto.
@@ -2576,7 +2478,7 @@ Ltac syntactic_cancel :=
   [ repeat first
            [ simple apply syntactic_cancel_nil
            | simple apply syntactic_cancel_cons;
-             [ find_nth_SEP local_cancel_in_syntactic_cancel
+             [ find_nth local_cancel_in_syntactic_cancel
              | cbv iota; unfold delete_nth; cbv zeta iota
              ]
            ]
@@ -2597,7 +2499,7 @@ Ltac syntactic_cancel :=
   [ repeat first
            [ simple apply syntactic_cancel_nil
            | simple apply syntactic_cancel_cons;
-             [ find_nth_SEP local_cancel1_in_syntactic_cancel
+             [ find_nth local_cancel1_in_syntactic_cancel
              | cbv iota; unfold delete_nth; cbv zeta iota
              ]
            ]
@@ -2605,7 +2507,7 @@ Ltac syntactic_cancel :=
     repeat first
            [ simple apply syntactic_cancel_nil
            | simple apply syntactic_cancel_cons;
-             [ find_nth_SEP local_cancel2_in_syntactic_cancel
+             [ find_nth local_cancel2_in_syntactic_cancel
              | cbv iota; unfold delete_nth; cbv zeta iota
              ]
            ]
@@ -2626,7 +2528,7 @@ Ltac syntactic_cancel :=
   [ repeat first
            [ simple apply syntactic_cancel_nil
            | simple apply syntactic_cancel_cons;
-             [ find_nth_SEP local_cancel_in_syntactic_cancel
+             [ find_nth local_cancel_in_syntactic_cancel
              | cbv iota; unfold delete_nth; cbv zeta iota
              ]
            ]
