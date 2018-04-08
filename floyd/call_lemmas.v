@@ -839,6 +839,26 @@ Proof.
  intros. split. auto. repeat split; auto.
 Qed.
 
+Lemma in_gvars_sub:
+  forall rho G G', Forall (fun x : globals => In x G) G' ->
+  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
+  fold_right ` and ` True (map locald_denote (map gvars G')) rho.
+Proof.
+intros.
+pose proof (proj1 (Forall_forall _ G') H).
+clear H.
+revert H1; induction G'; simpl; intros; constructor.
+assert (In a G).
+apply H1; auto.
+clear - H0 H.
+induction G; destruct H. subst. destruct H0. auto.
+destruct H0.
+auto.
+apply IHG'.
+intros.
+apply H1. right; auto.
+Qed.
+
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t vardesc) G (a: expr)
      Delta P Q R argsig retty cc A Pre Post NEPre NEPost 
@@ -876,13 +896,6 @@ rewrite !exp_andp1. Intros v.
 repeat apply andp_right; auto.
 eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
 eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
-(*
-normalize.
-assert (H0 := @msubst_eval_expr_eq cs P Qtemp Qvar nil R a v).
-assert (H1 := local2ptree_soundness P Q R Qtemp Qvar nil nil PTREE).
-simpl app in H1. rewrite <- H1 in H0. apply H0 in EVAL. 
-clear H0 H1.
-*)
 rewrite PRE1.
 match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
 rewrite sepcon_comm.
@@ -979,13 +992,13 @@ apply andp_left2. apply andp_left1.
  destruct H as [? [? ?]].
  apply fold_right_and_LocalD_i; auto.
  clear - CHECKG H1.
- admit.  (* easy *)
+ eapply in_gvars_sub; eauto.
  clear - CHECKG H.
  apply fold_right_and_LocalD_e in H.
   destruct H as [? [? ?]].
   clear - H1 CHECKG.
- admit. (* easy *)
-Admitted.
+ eapply in_gvars_sub; eauto.
+Qed.
 
 Lemma semax_call_id00_wow:
  forall  
