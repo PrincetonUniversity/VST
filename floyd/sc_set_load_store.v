@@ -467,10 +467,10 @@ Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred ->
 Definition find_type_contradict_preds {cs: compspecs} (t: type) (p: val) :=
   find_nth_SEP_preds (find_type_contradict_pred t p).
 
-Lemma SEP_type_contradict_lemma: forall {cs: compspecs} e R goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma SEP_type_contradict_lemma: forall {cs: compspecs} e R goal Q T1 T2 e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   mm1 mm2,
   local2ptree Q = (T1, T2, nil, nil) ->
-  compute_nested_efield e = (e_root, efs, tts, lr) ->
+  compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
   msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
   msubst_efield_denote T1 T2 efs gfs_from_e ->
@@ -526,10 +526,10 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   end;
   fail 0.
 
-Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
   local2ptree Q = (T1, T2, nil, nil) ->
-  compute_nested_efield e = (e_root, efs, tts, lr) ->
+  compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
   msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
   msubst_efield_denote T1 T2 efs gfs_from_e ->
@@ -605,12 +605,12 @@ Qed.
 Lemma semax_PTree_field_load_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 G e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, G) ->
-      compute_nested_efield e = (e_root, efs, tts, lr) ->
+      compute_nested_efield e = (e_root, efs, lr) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
       type_is_volatile (typeof e) = false ->
@@ -634,7 +634,7 @@ Lemma semax_PTree_field_load_no_hint:
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
          ? ? ? ? ?
@@ -642,7 +642,8 @@ Proof.
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
          FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC.
   pose proof is_neutral_cast_by_value _ _ H0 as BY_VALUE.
-  assert_PROP (nested_efield e_root efs tts = e /\
+  assert_PROP (exists tts,
+               nested_efield e_root efs tts = e /\
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e).
@@ -654,11 +655,14 @@ Proof.
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
-    rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
+    rewrite COMPUTE_NESTED_EFIELD in H3.
+    destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
+    exists tts.
+    apply H4; auto.
   } Unfocus.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
-  destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
+  destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
   Focus 1. {
@@ -765,12 +769,12 @@ Qed.
 Lemma semax_PTree_field_cast_load_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh id P Q R (e: expr) t
-      T1 T2 G e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, G) ->
-      compute_nested_efield e = (e_root, efs, tts, lr) ->
+      compute_nested_efield e = (e_root, efs, lr) ->
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof e) = true ->
       type_is_volatile (typeof e) = false ->
@@ -795,14 +799,15 @@ Lemma semax_PTree_field_cast_load_no_hint:
               (LOCALx (temp id (eval_cast (typeof e) t v) :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ?
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? BY_VALUE ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
          FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC.
-  assert_PROP (nested_efield e_root efs tts = e /\
+  assert_PROP (exists tts,
+               nested_efield e_root efs tts = e /\
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e).
@@ -814,11 +819,14 @@ Proof.
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
-    rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
+    rewrite COMPUTE_NESTED_EFIELD in H3.
+    destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
+    exists tts.
+    apply H4; auto.
   } Unfocus.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
-  destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
+  destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
   Focus 1. {
@@ -930,13 +938,13 @@ Qed.
 Lemma semax_PTree_field_store_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh P Q R (e1 e2 : expr)
-      T1 T2 G e_root (efs: list efield) (tts: list type) lr
+      T1 T2 G e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
       (v0_val: val) Rv (v v_new: reptype (nested_field_type t_root gfs0)),
       local2ptree Q = (T1, T2, nil, G) ->
-      compute_nested_efield e1 = (e_root, efs, tts, lr) ->
+      compute_nested_efield e1 = (e_root, efs, lr) ->
       type_is_by_value (typeof e1) = true ->
       type_is_volatile (typeof e1) = false ->
       msubst_eval_expr T1 T2 (Ecast e2 (typeof e1)) = Some v0_val ->
@@ -962,14 +970,15 @@ Lemma semax_PTree_field_store_no_hint:
                 (SEPx
                   (replace_nth n R (Rv v_new)))))).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ?
+  intros ? ? ? ? ? ? ? ? ? ?
          ? ? ? ? ? ?
          ? ? ? ?
          ? ? ? ? ?
          ? ? ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD BY_VALUE ? EVAL_R EVAL_ROOT EVAL_EFIELD ROOT_TYPE
          FIELD_ADD_GEN NTH SH JMEQ DATA_EQ TC LEGAL_NESTED_FIELD.
-  assert_PROP (nested_efield e_root efs tts = e1 /\
+  assert_PROP (exists tts,
+               nested_efield e_root efs tts = e1 /\
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e1).
@@ -981,11 +990,14 @@ Proof.
     intro rho; simpl; unfold local, lift1; unfold_lift.
     apply prop_derives; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
-    rewrite COMPUTE_NESTED_EFIELD in H1; apply H1; auto.
+    rewrite COMPUTE_NESTED_EFIELD in H1.
+    destruct (H1 t_root_from_e gfs_from_e) as [tts ?].
+    exists tts.
+    apply H2; auto.
   } Unfocus.
   apply find_nth_SEP_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
-  destruct H0 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
+  destruct H0 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
   Focus 1. {
