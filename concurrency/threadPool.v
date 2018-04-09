@@ -44,6 +44,7 @@ Module ThreadPool.
     
     Class ThreadPool :=
       { t : Type;
+        mkPool : ctl -> res -> t;
         containsThread : t -> tid -> Prop;
         getThreadC : forall {tid tp}, containsThread tp tid -> ctl;
         getThreadR : forall {tid tp}, containsThread tp tid -> res;
@@ -359,7 +360,7 @@ es (filter i) *)
                getThreadR cnti' = getThreadR cnti
 
         ;  gsoAddCode :
-             forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+             forall {tp} vf arg pmap j
                (cntj: containsThread tp j)
                (cntj': containsThread (addThread tp vf arg pmap) j),
                getThreadC cntj' = getThreadC cntj
@@ -392,21 +393,23 @@ es (filter i) *)
                  l =
                updThread cnti' c map
       }.
-
-    Definition empty_lset {lock_info}:AMap.t lock_info:=
-      AMap.empty lock_info.
-
-    Lemma find_empty:
-      forall a l,
-        @AMap.find a l empty_lset = None.
-      unfold empty_lset.
-      unfold AMap.empty, AMap.find; reflexivity.
-    Qed.
     
   End ThreadPool.
 End ThreadPool.
 
 Module OrdinalPool.
+
+  Definition empty_lset {lock_info}:AMap.t lock_info:=
+    AMap.empty lock_info.
+
+  Lemma find_empty:
+    forall a l,
+      @AMap.find a l empty_lset = None.
+    unfold empty_lset.
+    unfold AMap.empty, AMap.find; reflexivity.
+  Qed.
+
+  
   Section OrdinalThreadPool.
 
     Context {resources: Resources}.
@@ -416,7 +419,7 @@ Module OrdinalPool.
     Local Notation ctl := (@ctl semC).
 
     Notation tid:= nat.
-
+    
     Record t := mk
                   { num_threads : pos
                     ; pool :> 'I_num_threads -> ctl
@@ -424,6 +427,14 @@ Module OrdinalPool.
                     ; lset : AMap.t lock_info
                   }.
 
+    Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
+    
+    Definition mkPool c res :=
+      mk one_pos
+        (fun _ =>  c)
+        (fun _ => res) (*initially there are no locks*)
+        empty_lset.
+    
     Definition lockGuts := lset.
     Definition lockSet (tp:t) := A2PMap (lset tp).
 
@@ -1338,7 +1349,7 @@ Module OrdinalPool.
     Qed.
 
     Lemma gsoAddCode:
-      forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      forall {tp} vf arg pmap j
         (cntj: containsThread tp j)
         (cntj': containsThread (addThread tp vf arg pmap) j),
         getThreadC cntj' = getThreadC cntj.
@@ -1353,7 +1364,7 @@ Module OrdinalPool.
       unfold getThreadC.
       destruct o.
       simpl;
-        by erewrite proof_irr with (a1 := i0) (a2:= cntj).
+        by erewrite proof_irr with (a1 := i) (a2:= cntj).
       exfalso.
       unfold containsThread in *.
       simpl in *.
@@ -1925,6 +1936,7 @@ Module OrdinalPool.
     Definition OrdinalThreadPool: ThreadPool.ThreadPool :=
       (@ThreadPool.Build_ThreadPool _ _
                                     t
+                                    mkPool
                                     containsThread
                                     (@getThreadC) 
                                     (@getThreadR) 

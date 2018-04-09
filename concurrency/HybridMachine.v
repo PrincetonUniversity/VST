@@ -45,13 +45,14 @@ Module DryHybridMachine.
     (*   msem CLN_evsem = CLN_memsem. *)
 
     (** Assume some threadwise semantics *)
-    Context {Sem: Semantics}.
+    Context {Sem: Semantics}
+            {tpool : @ThreadPool.ThreadPool resources Sem}.
     
     Notation C:= (@semC Sem).
     Notation G:= (@semG Sem).
     Notation semSem:= (@semSem Sem).
 
-    Global Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem.
+    (* Global Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem. *)
 
     Notation thread_pool := (@t resources Sem).
     (** Memories*)
@@ -366,8 +367,8 @@ Module DryHybridMachine.
         inversion H; subst.
         assert (cntj':=cntj).
         (* XXX: eapply does not work here. report? *)
-        pose proof (cntUpdate (Krun c') (getCurPerm m', (getThreadR cnt)#2) cntj cntj'). 
-        exists cntj'.
+        pose proof (cntUpdate (Krun c') (getCurPerm m', (getThreadR cnt)#2) cnt cntj') as cntj''.
+        exists cntj''.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c'.
           rewrite gssThreadCode; reflexivity.
@@ -417,66 +418,123 @@ Module DryHybridMachine.
                           (cntUpdate (Kresume c Vundef) _
                                      _ cntj)), q.
             rewrite gLockSetCode.
+            apply cntUpdate;
+              now auto.
+            intros.
             rewrite gsoThreadCode; assumption.
           * exists ( (cntUpdateL _ _
                             (cntUpdate (Kresume c Vundef) _ _ cntj))), q.
             rewrite gLockSetCode.
+            apply cntUpdate;
+              now auto.
+            intros.
             rewrite gsoThreadCode; assumption.
           * exists (cntAdd _ _ _
                       (cntUpdate (Kresume c Vundef) _ _ cntj)), q.
-            erewrite gsoAddCode . (*i? *)
+            erewrite gsoAddCode .
             rewrite gsoThreadCode; assumption.
-            eapply cntUpdate. eauto.
           * exists ( (cntUpdateL _ _
                             (cntUpdate (Kresume c Vundef) _ _ cntj))), q.
             rewrite gLockSetCode.
+            apply cntUpdate;
+              now auto.
+            intros.
             rewrite gsoThreadCode; assumption.
           * exists ( (cntRemoveL _
                             (cntUpdate (Kresume c Vundef) _ _ cntj))), q.
             rewrite gRemLockSetCode.
+            apply cntUpdate;
+              now auto.
+            intros.
             rewrite gsoThreadCode; assumption.
           * exists cntj, q; assumption.
       - intros [cntj [ q running]].
         destruct (NatTID.eq_tid_dec i j).
-        + subst j. generalize running; clear running.
-          inversion H; subst;
-            try rewrite gLockSetCode;
-            try rewrite gRemLockSetCode;
-            try rewrite gssThreadCode;
-            try solve[intros HH; inversion HH].
+        + subst j. generalize running; clear running;
+          inversion H; subst; intros;
+            try (exfalso;
+                 erewrite gLockSetCode with (cnti := cntUpdateL' _ _ cntj) in running;
+                 rewrite gssThreadCode in running;
+                 discriminate).
+          
           { (*addthread*)
             assert (cntj':=cntj).
             eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
-            * erewrite gsoAddCode; eauto.
-              subst; rewrite gssThreadCode; intros AA; inversion AA.
-            * erewrite gssAddCode . intros AA; inversion AA.
-              assumption. }
-          { (*AQCUIRE*)
-            replace cntj with cnt by apply cnt_irr.
-            rewrite Hcode; intros HH; inversion HH. }
+            * exfalso.
+              assert (Heq: getThreadC cntj = getThreadC HH)
+                by (rewrite gsoAddCode; reflexivity).
+              rewrite Heq in running.
+              rewrite gssThreadCode in running.
+              discriminate.
+            * erewrite gssAddCode in running; eauto.
+              discriminate. }
+          { (*remove lock*)
+            pose proof (cntUpdate' _ _ cnt (cntRemoveL' _ cntj)) as cnti.
+            erewrite  gRemLockSetCode with (cnti0 := cntRemoveL' _ cntj) in running.
+            rewrite gssThreadCode in running.
+            discriminate. }
+          { (*acquire lock*)
+            do 2 eexists; eauto.
+          }           
         + generalize running; clear running.
           inversion H; subst;
-            try erewrite <- age_getThreadCode;
-            try rewrite gLockSetCode;
-            try rewrite gRemLockSetCode;
-            try (rewrite gsoThreadCode; [|auto]);
-            try (intros HH;
-                 match goal with
-                 | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
-                   exists cntj, c; exact H
-                 end).
-          (*Add thread case*)
-          assert (cntj':=cntj).
-          eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
-          * erewrite gsoAddCode; eauto.
-            destruct (NatTID.eq_tid_dec i j);
-              [subst; rewrite gssThreadCode; intros AA; inversion AA|].
-            rewrite gsoThreadCode; auto.
-            exists HH, q; assumption.
-          * erewrite gssAddCode . intros AA; inversion AA.
-            assumption.
+          intros.
+          - exists (cntUpdate' _ _ cnt (cntUpdateL' _ _ cntj)), q.
+            rewrite <- running.
+            rewrite gLockSetCode.
+            eapply cntUpdateL'; eauto.
+            intros.
+            rewrite gsoThreadCode; eauto.
+            eapply cntUpdate'; eapply cntUpdateL'; eauto.
+            intros.
+            erewrite cnt_irr with (cnt1 := Hyp1).
+            reflexivity.
+          - exists (cntUpdate' _ _ cnt (cntUpdateL' _ _ cntj)), q.
+            rewrite <- running.
+            rewrite gLockSetCode.
+            eapply cntUpdateL'; eauto.
+            intros.
+            rewrite gsoThreadCode; eauto.
+            eapply cntUpdate'; eapply cntUpdateL'; eauto.
+            intros.
+            erewrite cnt_irr with (cnt1 := Hyp1).
+            reflexivity.
+          -  (*Add thread case*)
+            assert (cntj':=cntj).
+            eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+            * pose proof (cntUpdate' _ _ _ HH) as cntj0.
+              exists cntj0, q.
+              rewrite <- running.
+              erewrite gsoAddCode with (cntj1 := HH).
+              rewrite gsoThreadCode;
+                now eauto.
+            * exfalso.
+              erewrite gssAddCode in running; eauto. discriminate.
+          - exists (cntUpdate' _ _ cnt (cntUpdateL' _ _ cntj)), q.
+            rewrite <- running.
+            rewrite gLockSetCode.
+            eapply cntUpdateL'; eauto.
+            intros.
+            rewrite gsoThreadCode; eauto.
+            eapply cntUpdate'; eapply cntUpdateL'; eauto.
+            intros.
+            erewrite cnt_irr with (cnt1 := Hyp1).
+            reflexivity.
+          -  exists (cntUpdate' _ _ cnt (cntRemoveL' _ cntj)), q.
+             rewrite <- running.
+             rewrite gRemLockSetCode.
+             eapply cntRemoveL'; eauto.
+             intros.
+             rewrite gsoThreadCode; eauto.
+             eapply cntUpdate'; eapply cntRemoveL'; eauto.
+             intros.
+             erewrite cnt_irr with (cnt1 := Hyp1).
+             reflexivity.
+          - do 2 eexists;
+              now eauto.
             Grab Existential Variables.
-            all:now eauto.
+            apply cntUpdate;
+              now eauto.
     Qed.
 
     Lemma syncstep_not_running:
@@ -544,24 +602,12 @@ Module DryHybridMachine.
       erewrite (gsoThreadCC H); exact Hcode.
     Qed.
 
-
-    Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
-
-    Definition initial_machine pmap c :=
-      @OrdinalPool.mk
-        resources
-        Sem
-        one_pos
-        (fun _ =>  Krun c)
-        (fun _ => (pmap, empty_map)) (*initially there are no locks*)
-        empty_lset.
-
     Definition init_mach (pmap : option res) (genv:G) (m: mem)
                (v:val) (args:list val):option (thread_pool * option mem) :=
       match semantics.initial_core semSem 0 genv m v args with
       | Some (c, om) =>
         match pmap with
-        | Some pmap => Some (initial_machine pmap.1 c, om)
+        | Some pmap => Some (mkPool (Krun c) (pmap.1, empty_map), om)
         | None => None
         end
       | None => None
@@ -585,7 +631,7 @@ Module DryHybridMachine.
       (** *Invariant Lemmas*)
 
       (** ** Updating the machine state**)
-      (* Manny invaraint lemmas were removed from here. *)
+      (* Many invaraint lemmas were removed from here. *)
     End HybDryMachineLemmas.
 
 
@@ -688,8 +734,8 @@ Module DryHybridMachine.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)
-    Definition DryHybridMachineSig: @HybridMachineSig.MachineSig resources Sem ordinalPool :=
-      (@HybridMachineSig.Build_MachineSig resources Sem ordinalPool
+    Definition DryHybridMachineSig: @HybridMachineSig.MachineSig resources Sem tpool :=
+      (@HybridMachineSig.Build_MachineSig resources Sem tpool
                              richMem
                              dryMem
                              diluteMem

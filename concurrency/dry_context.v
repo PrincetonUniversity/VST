@@ -1,5 +1,7 @@
 (** * Instances of machines for Assembly languages *)
 
+(*TODO: rename to Asm_context.v *)
+
 Require Import VST.concurrency.HybridMachine.
 Require Import VST.concurrency.erased_machine.
 Require Import VST.concurrency.threads_lemmas.

@@ -1,7 +1,7 @@
 (** ** Memories equal up to alpha-renaming *)
 
 Require Import compcert.lib.Axioms.
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.val_casted.
 
 Require Import VST.concurrency.pos.
@@ -368,8 +368,10 @@ Module ValueWD.
       ofs < ofs + Z.of_nat (length (encode_val chunk v)).
   Proof.
     destruct chunk, v; simpl; try omega;
-    rewrite length_inj_bytes encode_int_length;
-    simpl; omega.
+    try (rewrite length_inj_bytes encode_int_length;
+         simpl; omega);
+    destruct Archi.ptr64; simpl;
+      omega.
   Qed.
 
   (** Lemmas about the well-definedness of the various value
@@ -420,8 +422,10 @@ Module ValueWD.
   Proof.
     intros.
     destruct v1; simpl; auto;
-    destruct v2; simpl; auto.
-    destruct (eq_block b b0); simpl; auto.
+      destruct v2; simpl; auto.
+    destruct (Archi.ptr64);
+      [now simpl |
+       destruct (eq_block b b0); simpl; auto].
   Qed.
 
   Lemma valid_val_mul:
@@ -933,6 +937,7 @@ Module MemoryWD.
       | [|- context[proj_value ?Q ?V]] =>
         destruct (proj_value Q V) eqn:?
       end; simpl; auto;
+        try (destruct (Archi.ptr64); simpl; auto);
       repeat match goal with
              | [H: proj_value ?Q ?V = _ |- _] =>
                destruct (proj_value Q V) eqn:?;
@@ -985,9 +990,11 @@ Module MemoryWD.
                 by exfalso
             | [H: _ = _ |- _] =>
               inversion H; subst; clear H
+            |[H: In _ (if Archi.ptr64 then _ else _) |- _ ] =>
+             destruct Archi.ptr64; simpl in H
             end); simpl; auto;
-    apply inj_bytes_type in H;
-      by exfalso.
+      apply inj_bytes_type in H;
+      now exfalso.
   Qed.
 
   Lemma valid_val_store:
@@ -1134,7 +1141,7 @@ Module ValObsEq.
       val_obs mi (Vfloat f) (Vfloat f)
   | obs_single : forall f : Floats.float32,
       val_obs mi (Vsingle f) (Vsingle f)
-  | obs_ptr : forall (b1 b2 : block) (ofs : int),
+  | obs_ptr : forall (b1 b2 : block) (ofs : ptrofs),
       mi b1 = Some b2 ->
       val_obs mi (Vptr b1 ofs) (Vptr b2 ofs)
   | obs_undef : val_obs mi Vundef Vundef.
@@ -1416,7 +1423,9 @@ Module ValObsEq.
   Proof with eauto with val_renamings.
     intros.
     destruct v1, v1'; inversion Hval_obs;
-    inversion Hval_obs'; subst; simpl...
+      inversion Hval_obs'; subst;
+        solve [simpl; eauto with val_renamings ||
+                                 destruct Archi.ptr64; simpl; eauto with val_renamings].
   Qed.
 
   Lemma val_obs_sign_ext:
@@ -1659,7 +1668,8 @@ Module ValObsEq.
   Proof with eauto with val_renamings.
     intros.
     destruct v1, v1'; inversion Hval_obs;
-    inversion Hval_obs'; subst; simpl...
+      inversion Hval_obs'; subst; simpl; eauto with val_renamings;
+    destruct Archi.ptr64; simpl...
     destruct (eq_block b b0); subst.
     rewrite H6 in H2; inversion H2; subst.
     destruct (eq_block b2 b2)...
@@ -2976,7 +2986,9 @@ Lemma setPermBlock_var_eq:
         erewrite setPermBlock_var_other_1 by eauto.
         erewrite setPermBlock_var_other_1 by eauto.
         eauto.
-        unfold lksize.LKSIZE. simpl. omega.
+        simpl.
+        eapply Z.lt_add_pos_r.
+        now apply lksize.LKSIZE_pos.
     - erewrite setPermBlock_var_other_2 by eauto.
       assert (b2 <> bl2)
         by (intros Hcontra;
@@ -3012,10 +3024,9 @@ Lemma setPermBlock_var_eq:
               simpl in *;
               auto).
         now apply po_refl.
-      * erewrite! setPermBlock_var_other_1
+      * erewrite! setPermBlock_var_other_1; eauto;
           by (apply Intv.range_notin in n; eauto;
-              unfold lksize.LKSIZE in *; simpl in *; omega).
-        assumption.
+              simpl in *; eapply Z.lt_add_pos_r; now apply lksize.LKSIZE_pos).
     + assert (bl2 <> b2)
         by (intros ?; subst; apply n; eauto).
       erewrite! setPermBlock_var_other_2 by assumption.
@@ -3064,7 +3075,7 @@ Lemma setPermBlock_var_eq:
           by eauto.
         erewrite! setPermBlock_var_other_1 in Hperm
           by (apply Intv.range_notin in n; eauto;
-              unfold lksize.LKSIZE in *; simpl in *; omega);
+              simpl in *; eapply Z.lt_add_pos_r; now apply lksize.LKSIZE_pos).
           eapply val_obs_eq0; eauto.
         pose proof (restrPermMap_Cur Hlt b1 ofs) as Heq.
         unfold permission_at in Heq. rewrite Heq.
@@ -3240,14 +3251,14 @@ Lemma setPermBlock_var_eq:
     unfold Val.cmpu,Val.of_optbool, Val.cmpu_bool, Vtrue, Vfalse...
     - destruct (Int.cmpu comp i0 i2)...
     - assert (Int.eq i0 Int.zero &&
-                     (Mem.valid_pointer m b1 (Int.unsigned ofs)
-                      || Mem.valid_pointer m b1 (Int.unsigned ofs - 1))
+                     (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs)
+                      || Mem.valid_pointer m b1 (Ptrofs.unsigned ofs - 1))
               = Int.eq i0 Int.zero &&
-                       (Mem.valid_pointer m' b2 (Int.unsigned ofs)
-                        || Mem.valid_pointer m' b2 (Int.unsigned ofs - 1))).
+                       (Mem.valid_pointer m' b2 (Ptrofs.unsigned ofs)
+                        || Mem.valid_pointer m' b2 (Ptrofs.unsigned ofs - 1))).
       { destruct (Int.eq i0 Int.zero); simpl; try reflexivity.
         erewrite valid_pointer_ren; eauto.
-        erewrite valid_pointer_ren with (ofs := (Int.unsigned ofs - 1)%Z);
+        erewrite valid_pointer_ren with (ofs := (Ptrofs.unsigned ofs - 1)%Z);
           eauto.
       }
       rewrite H.
@@ -3256,14 +3267,14 @@ Lemma setPermBlock_var_eq:
                destruct Expr eqn:?
              end...
     - assert (Int.eq i1 Int.zero &&
-                     (Mem.valid_pointer m b (Int.unsigned i0)
-                      || Mem.valid_pointer m b (Int.unsigned i0 - 1))
+                     (Mem.valid_pointer m b (Ptrofs.unsigned i0)
+                      || Mem.valid_pointer m b (Ptrofs.unsigned i0 - 1))
               = Int.eq i1 Int.zero &&
-                       (Mem.valid_pointer m' b0 (Int.unsigned i0)
-                        || Mem.valid_pointer m' b0 (Int.unsigned i0 - 1))).
+                       (Mem.valid_pointer m' b0 (Ptrofs.unsigned i0)
+                        || Mem.valid_pointer m' b0 (Ptrofs.unsigned i0 - 1))).
       { destruct (Int.eq i1 Int.zero); simpl; try reflexivity.
         erewrite valid_pointer_ren; eauto.
-        erewrite valid_pointer_ren with (ofs := (Int.unsigned i0 - 1)%Z);
+        erewrite valid_pointer_ren with (ofs := (Ptrofs.unsigned i0 - 1)%Z);
           eauto.
       }
       rewrite H.
@@ -3290,24 +3301,24 @@ Lemma setPermBlock_var_eq:
       destruct (eq_block b b3) eqn:Hb;
         destruct (eq_block b0 b4) eqn:Hb0; simpl in *; subst;
         destruct Hequiv; try (by exfalso; eauto).
-      assert (Hif: (Mem.valid_pointer m b3 (Int.unsigned i0)
-                    || Mem.valid_pointer m b3 (Int.unsigned i0 - 1))
+      assert (Hif: (Mem.valid_pointer m b3 (Ptrofs.unsigned i0)
+                    || Mem.valid_pointer m b3 (Ptrofs.unsigned i0 - 1))
                      &&
-                     (Mem.valid_pointer m b3 (Int.unsigned ofs0)
-                      || Mem.valid_pointer m b3 (Int.unsigned ofs0 - 1))
+                     (Mem.valid_pointer m b3 (Ptrofs.unsigned ofs0)
+                      || Mem.valid_pointer m b3 (Ptrofs.unsigned ofs0 - 1))
                    =
-                   (Mem.valid_pointer m' b4 (Int.unsigned i0)
-                    || Mem.valid_pointer m' b4 (Int.unsigned i0 - 1))
+                   (Mem.valid_pointer m' b4 (Ptrofs.unsigned i0)
+                    || Mem.valid_pointer m' b4 (Ptrofs.unsigned i0 - 1))
                      &&
-                     (Mem.valid_pointer m' b4 (Int.unsigned ofs0)
-                      || Mem.valid_pointer m' b4 (Int.unsigned ofs0 - 1))).
+                     (Mem.valid_pointer m' b4 (Ptrofs.unsigned ofs0)
+                      || Mem.valid_pointer m' b4 (Ptrofs.unsigned ofs0 - 1))).
       { erewrite valid_pointer_ren; eauto.
         erewrite valid_pointer_ren with
-        (m := m) (b1:=b3) (ofs := (Int.unsigned i0 - 1)%Z); eauto.
+        (m := m) (b1:=b3) (ofs := (Ptrofs.unsigned i0 - 1)%Z); eauto.
         erewrite valid_pointer_ren with
-        (m := m) (b1:=b3) (ofs := Int.unsigned ofs0); eauto.
+        (m := m) (b1:=b3) (ofs := Ptrofs.unsigned ofs0); eauto.
         erewrite valid_pointer_ren with
-        (m := m) (b1:=b3) (ofs := (Int.unsigned ofs0 - 1)%Z); eauto.
+        (m := m) (b1:=b3) (ofs := (Ptrofs.unsigned ofs0 - 1)%Z); eauto.
       }
       rewrite Hif.
       repeat match goal with

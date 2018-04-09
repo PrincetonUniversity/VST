@@ -270,7 +270,7 @@ Module HybridMachineSig.
     (** Provides control over scheduling. For example,
         for FineMach this is schedSkip, for CoarseMach this is just id *)
   Class Scheduler :=
-    {grain: schedule -> schedule }.
+    {yield: schedule -> schedule }.
 
   Context {scheduler : Scheduler}.
 
@@ -283,21 +283,21 @@ Module HybridMachineSig.
           (Htid: containsThread ms tid)
           (Hcmpt: mem_compatible ms m)
           (Htstep: start_thread genv m Htid ms' m'),
-          machine_step U tr ms m (grain U) tr ms' m'
+          machine_step U tr ms m (yield U) tr ms' m'
     | resume_step:
         forall tid U ms ms' m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
           (Hcmpt: mem_compatible ms m)
           (Htstep: resume_thread genv m Htid ms'),
-          machine_step U tr ms m (grain U) tr ms' m
+          machine_step U tr ms m (yield U) tr ms' m
     | thread_step:
         forall tid U ms ms' m m' ev tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
           (Hcmpt: mem_compatible ms m)
           (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
-          machine_step U tr ms m (grain U)
+          machine_step U tr ms m (yield U)
                        (tr ++ (List.map (fun mev => internal tid mev) ev)) ms' m'
     | suspend_step:
         forall tid U U' ms ms' m tr
@@ -329,6 +329,7 @@ Module HybridMachineSig.
           (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid)
           (Hinv: invariant ms)
+          (Hcmpt: mem_compatible ms m)
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
           machine_step U tr ms m U' tr ms m.
 
@@ -416,14 +417,14 @@ Module HybridMachineSig.
                         (Htid: containsThread ms tid)
                         (Hcmpt: mem_compatible ms m)
                         (Htstep: start_thread genv m Htid ms' m'),
-          external_step U tr ms m (grain U) tr ms' m'
+          external_step U tr ms m (yield U) tr ms' m'
       | resume_step':
           forall tid U ms ms' m tr
             (HschedN: schedPeek U = Some tid)
             (Htid: containsThread  ms tid)
             (Hcmpt: mem_compatible ms m)
             (Htstep: resume_thread genv m Htid ms'),
-            external_step U tr ms m (grain U) tr ms' m
+            external_step U tr ms m (yield U) tr ms' m
       | suspend_step':
           forall tid U U' ms ms' m tr
             (HschedN: schedPeek U = Some tid)
@@ -454,6 +455,7 @@ Module HybridMachineSig.
             (HschedN: schedPeek U = Some tid)
             (Htid: ~ containsThread ms tid)
             (Hinv: invariant ms)
+            (Hcmpt: mem_compatible ms m)
             (HschedS: schedSkip U = U'),        (*Schedule Forward*)
             external_step U tr ms m U' tr ms m.
 
@@ -461,7 +463,7 @@ Module HybridMachineSig.
       (* These steps are basically the same: *)
       Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',
           @machine_step ge U tr st m U' tr' st' m' ->
-          (U' = grain U /\ @internal_step ge U st m st' m') \/
+          (U' = yield U /\ @internal_step ge U st m st' m') \/
           @external_step ge U tr st m U' tr' st' m'.
       Proof.
         move=> ge U tr st m U' tr' st' m' ms.
@@ -473,7 +475,7 @@ Module HybridMachineSig.
       Lemma step_equivalence2: forall ge U st m st' m' tr,
           @internal_step ge U st m st' m' ->
           exists tr',
-            @machine_step ge U tr st m (grain U) tr' st' m'.
+            @machine_step ge U tr st m (yield U) tr' st' m'.
       Proof.
         move=>  ge U st m st' m' tr istp;
                  inversion istp; eexists; solve [econstructor; eauto].
@@ -538,7 +540,7 @@ Module HybridMachineSig.
               {machineSig: MachineSig}.
 
       Instance scheduler : Scheduler :=
-        {| grain := fun x => x |}.
+        {| yield := fun x => x |}.
 
       Notation thread_pool := t.
       Notation C:= (semC).
@@ -588,7 +590,7 @@ Module HybridMachineSig.
       Notation event_trace := (seq machine_event).
       
       Instance scheduler : Scheduler :=
-        {| grain := fun x => schedSkip x |}.
+        {| yield := fun x => schedSkip x |}.
 
       Definition HybridFineMachine : HybridMachine:=
         @Build_HybridMachine resources Sem ThreadPool

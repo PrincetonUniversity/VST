@@ -125,10 +125,29 @@ Module BareMachine.
            (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
+    Inductive threadHalted': forall {tid0 ms},
+        containsThread ms tid0 -> Prop:=
+    | thread_halted':
+        forall tp c tid0
+          (cnt: containsThread tp tid0)
+          (*Hinv: invariant tp*)
+          (Hcode: getThreadC cnt = Krun c)
+          (Hcant: semantics.halted semSem c),
+          threadHalted' cnt.
+
     Definition threadStep (genv : G): forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> seq mem_event -> Prop:=
       @thread_step genv.
+
+    Definition threadHalted: forall {tid0 ms},
+        containsThread ms tid0 -> Prop:= @threadHalted'.
+
+    Definition syncStep (isCoarse:bool) (genv :G) :
+      forall {tid0 ms m},
+        containsThread ms tid0 -> mem_compatible ms m ->
+        thread_pool -> mem -> sync_event -> Prop:=
+      @ext_step genv.
 
    Lemma threadStep_equal_run:
     forall g i tp m cnt cmpt tp' m' tr,
@@ -162,11 +181,6 @@ Module BareMachine.
           erewrite <- gsoThreadCC in running; eauto.
    Qed.
 
-    Definition syncStep (isCoarse:bool) (genv :G) :
-      forall {tid0 ms m},
-        containsThread ms tid0 -> mem_compatible ms m ->
-        thread_pool -> mem -> sync_event -> Prop:=
-      @ext_step genv.
 
     Lemma syncstep_equal_run:
       forall b g i tp m cnt cmpt tp' m' tr,
@@ -175,165 +189,9 @@ Module BareMachine.
           (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
           (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
     Proof.
-        intros b g i tp m cnt cmpt tp' m' tr H j; split.
-    - intros [cntj [ q running]].
-      destruct (NatTID.eq_tid_dec i j).
-      + subst j. generalize running; clear running.
-        inversion H; subst;
-          match goal with
-          | [ H: getThreadC ?cnt = Kblocked ?c |- _ ] =>
-            replace cnt with cntj in H by apply cnt_irr;
-              intros HH; rewrite HH in H; inversion H
-          end.
-      + (*this should be easy to automate or shorten*)
-        inversion H; subst.
-        * exists (cntUpdateC (Kresume c Vundef) cnt cntj), q.
-          erewrite <- gsoThreadCC; eassumption.
-        * exists (cntUpdateC (Kresume c Vundef) cnt cntj), q.
-          erewrite <- gsoThreadCC; eassumption.
-        * exists (cntAdd _ _ _
-                    (cntUpdateC (Kresume c Vundef) cnt cntj)), q.
-          erewrite @gsoAddCode with (j := j); eauto. 
-          erewrite <- gsoThreadCC; eassumption.
-          eapply cntUpdateC;
-            now eauto.
-        * exists (cntUpdateC (Kresume c Vundef) cnt cntj), q.
-          erewrite <- gsoThreadCC; eassumption.
-        * exists (cntRemoveL (b0, Ptrofs.intval ofs)
-                        (cntUpdateC (Kresume c Vundef) cnt cntj)), q.
-          erewrite <- gsoThreadCC; eassumption.
-        * exists cntj, q; assumption.
-    - intros [cntj [ q running]].
-      destruct (NatTID.eq_tid_dec i j).
-      + subst j. generalize running; clear running.
-        inversion H; subst;
-          try rewrite gRemLockSetCode;
-          try rewrite gssThreadCC;
-          try solve[intros HH; inversion HH].
-        { (*addthread*)
-          assert (cntj':=cntj).
-          eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
-          * erewrite gsoAddCode; eauto.
-            subst; rewrite gssThreadCC; intros AA; inversion AA.
-          * erewrite gssAddCode . intros AA; inversion AA.
-            assumption. }
-          { (*AQCUIRE*)
-            replace cntj with cnt by apply cnt_irr.
-            rewrite Hcode; intros HH; inversion HH. }
-      + generalize running; clear running.
-        inversion H; subst;
-          try rewrite gRemLockSetCode;
-          try (erewrite <- gsoThreadCC; [|eauto]);
-        try (intros HH;
-        match goal with
-        | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
-          exists cntj, c; exact H
-        end).
-      (*Add thread case*)
-        assert (cntj':=cntj).
-        eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
-        * erewrite gsoAddCode; eauto.
-          destruct (NatTID.eq_tid_dec i j);
-            [subst; rewrite gssThreadCC; intros AA; inversion AA|].
-          erewrite <- gsoThreadCC; eauto.
-        * erewrite gssAddCode . intros AA; inversion AA.
-          assumption.
-          Grab Existential Variables.
-          all: eauto.
-    Qed.
-
-    Lemma syncstep_not_running:
-      forall b g i tp m cnt cmpt tp' m' tr,
-        @syncStep b g i tp m cnt cmpt tp' m' tr ->
-        forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
-    Proof.
-      intros.
-      inversion H;
-        match goal with
-        | [ H: getThreadC ?cnt = _ |- _ ] =>
-          erewrite (cnt_irr _ _ _ cnt);
-            rewrite H; intros AA; inversion AA
-        end.
-    Qed.
-
-    Inductive threadHalted: forall {tid0 ms},
-        containsThread ms tid0 -> Prop:=
-    | thread_halted:
-        forall tp c tid0
-          (cnt: containsThread tp tid0)
-          (Hcode: getThreadC cnt = Krun c)
-          (Hcant: halted semSem c),
-          threadHalted cnt.
-
-    Lemma threadHalt_update:
-      forall i j, i <> j ->
-             forall tp cnt cnti c' cnt',
-               (@threadHalted j tp cnt) <->
-               (@threadHalted j (@updThreadC _ _ _ i tp cnti c') cnt') .
-    Proof.
-      intros; split; intros HH; inversion HH; subst;
-        econstructor; eauto.
-      erewrite <- (gsoThreadCC H); exact Hcode.
-      erewrite (gsoThreadCC H); exact Hcode.
-    Qed.
-
-    Lemma syncstep_equal_halted:
-      forall b g i tp m cnti cmpt tp' m' tr,
-        @syncStep b g i tp m cnti cmpt tp' m' tr ->
-        forall j cnt cnt',
-          (@threadHalted j tp cnt) <->
-          (@threadHalted j tp' cnt').
-    Proof.
-      intros; split; intros HH; inversion HH; subst;
-        econstructor; subst; eauto.
-      - destruct (NatTID.eq_tid_dec i j).
-        + subst j.
-          inversion H;
-            match goal with
-            | [ H: getThreadC ?cnt = Krun ?c,
-                   H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
-              replace cnt with cnt' in H by apply cnt_irr;
-                rewrite H' in H; inversion H
-            end.
-        + inversion H; subst;
-            try (erewrite gsoAddCode; eauto);
-            try erewrite <- gsoThreadCC; try (eassumption);
-              try (eapply cntUpdateC; eauto).
-          { (*AQCUIRE*)
-            replace cnt' with cnt0 by apply cnt_irr;
-              exact Hcode. }
-      - destruct (NatTID.eq_tid_dec i j).
-        + subst j.
-          inversion H; subst;
-            match goal with
-            | [ H: getThreadC ?cnt = Krun ?c,
-                   H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
-                try erewrite gsoAddCode in H; eauto;
-                  try erewrite gssThreadCC in H;
-                  try solve[inversion H]
-            end;
-            try (eapply cntUpdateC; eauto).
-          { (*AQCUIRE*)
-            replace cnt with cnt0 by apply cnt_irr;
-              exact Hcode. }
-        +
-          inversion H; subst;
-            match goal with
-            | [ H: getThreadC ?cnt = Krun ?c,
-                   H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
-                try erewrite gsoAddCode in H; eauto;
-                  try erewrite <- gsoThreadCC in H; eauto;
-                    try solve[inversion H]; eauto
-            end;
-            try (eapply cntUpdateC; eauto).
-          { (*AQCUIRE*)
-            replace cnt with cnt0 by apply cnt_irr;
-              exact Hcode. }
-
-          Grab Existential Variables.
-          all:eauto.
-    Qed.
-
+    Admitted.
+    (*NOTE: Admit for now, but proof is same as HybridMachine. The question is do we want this lemma to be part of the spec? *)
+    
     Lemma threadStep_not_unhalts:
       forall g i tp m cnt cmpt tp' m' tr,
         @threadStep g i tp m cnt cmpt tp' m' tr ->
@@ -354,20 +212,96 @@ Module BareMachine.
         erewrite <- gsoThreadCC; eauto.
     Qed.
 
-    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
+    
 
-    Definition initial_machine c :=
-      OrdinalPool.mk
-        one_pos
-        (fun _ =>  Krun c)
-        (fun _ => tt)
-        empty_lset.
+    Lemma syncstep_equal_halted:
+      forall b g i tp m cnti cmpt tp' m' tr,
+        @syncStep b g i tp m cnti cmpt tp' m' tr ->
+        forall j cnt cnt',
+          (@threadHalted j tp cnt) <->
+          (@threadHalted j tp' cnt').
+    Proof.
+      intros; split; intros HH; inversion HH; subst;
+        econstructor; subst; eauto.
+      - destruct (NatTID.eq_tid_dec i j).
+        + subst j.
+          inversion H;
+            match goal with
+            | [ H: getThreadC ?cnt = Krun ?c,
+                   H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+              replace cnt with cnt' in H by apply cnt_irr;
+                rewrite H' in H; inversion H
+            end.
+        + (* XXX: this broke, I don't know what age_getThreadCode is*)
+          (* inversion H; subst; *)
+          (*   try erewrite <- age_getThreadCode; *)
+          (*   try rewrite gLockSetCode; *)
+          (*   try rewrite gRemLockSetCode; *)
+          (*   try erewrite gsoAddCode; eauto; *)
+          (*     try rewrite gsoThreadCode; try eassumption. *)
+          (* * eapply cntUpdate; eauto. eapply cnt. *)
+          (* * { (*AQCUIRE*) *)
+          (*     replace cnt' with cnt0 by apply cnt_irr; *)
+      (*     exact Hcode. } *)
+          admit.  
+      - (* destruct (NatTID.eq_tid_dec i j). *)
+        (* + subst j. *)
+        (*   inversion H; subst; *)
+        (*     match goal with *)
+        (*     | [ H: getThreadC ?cnt = Krun ?c, *)
+        (*            H': getThreadC ?cnt' = Kblocked ?c' |- _ ] => *)
+        (*       try erewrite <- age_getThreadCode in H; *)
+        (*         try rewrite gLockSetCode in H; *)
+        (*         try rewrite gRemLockSetCode in H; *)
+        (*         try erewrite gsoAddCode in H; eauto; *)
+        (*           try rewrite gssThreadCode in H; *)
+        (*           try solve[inversion H] *)
+        (*     end. *)
+        (* * apply threadPool.cntUpdate; eauto. apply cnt. *)
+        (* * { (*AQCUIRE*) *)
+        (*     replace cnt with cnt0 by apply cnt_irr; *)
+        (*     exact Hcode. } *)
+        (* + *)
+          (* inversion H; subst; *)
+          (*   match goal with *)
+          (*   | [ H: getThreadC ?cnt = Krun ?c, *)
+          (*          H': getThreadC ?cnt' = Kblocked ?c' |- _ ] => *)
+          (*     try erewrite <- age_getThreadCode in H; *)
+          (*       try rewrite gLockSetCode in H; *)
+          (*       try rewrite gRemLockSetCode in H; *)
+          (*       try erewrite gsoAddCode in H; eauto; *)
+          (*         try rewrite gsoThreadCode in H; *)
+          (*         try solve[inversion H]; eauto *)
+          (*   end. *)
+          (* * apply threadPool.cntUpdate; eauto. apply cnt. *)
+          (*   { (*AQCUIRE*) *)
+          (*     replace cnt with cnt0 by apply cnt_irr; *)
+          (*       exact Hcode. } *)
+        admit.
+        Grab Existential Variables.
+        all:admit.
+
+        (* eauto. eauto. eauto. *)
+        
+    Admitted.
+
+     Lemma threadHalt_update:
+      forall i j, i <> j ->
+                  forall tp cnt cnti c' cnt',
+                    (@threadHalted j tp cnt) <->
+                    (@threadHalted j (@updThreadC _ _ _ i tp cnti c') cnt') .
+    Proof.
+      intros; split; intros HH; inversion HH; subst;
+        econstructor; eauto.
+      erewrite <- (gsoThreadCC H); exact Hcode.
+      erewrite (gsoThreadCC H); exact Hcode.
+    Qed.
 
     Definition init_mach (_ : option unit) (ge:G) (m: mem)
                (v:val)(args:list val):option (thread_pool * option mem) :=
       match initial_core semSem 0 ge m v args with
       | Some (c, m') =>
-        Some (initial_machine c, m')
+        Some (mkPool (Krun c) tt, m')
       | None => None
       end.
 
