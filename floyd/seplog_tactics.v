@@ -600,7 +600,7 @@ Qed.
 Ltac local_cancel_in_syntactic_cancel :=
   cbv beta;
   match goal with |- ?A |-- ?B => 
-    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel]
+    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel | apply derives_refl'; solve [careful_unify]]
   end.
 
 Ltac syntactic_cancel :=
@@ -866,8 +866,8 @@ Proof.
   match goal with
   | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
   end;
-(*  cancel. (* 4.323 4.275 3.887 3.763 3.684 3.66 3.6 3.534 3.616 3.6 3.591 3.606 *) *)
-(*  new_cancel. (* 0.648 0.633 0.719 0.646 0.637 0.613 0.611 0.633 *) *)
+(* cancel. (* 4.323 4.275 3.887 3.763 3.684 3.66 3.6 3.534 3.616 3.6 3.591 3.606 *) *)
+(*  new_cancel. (* 0.615 0.656 0.655 0.653 0.687 *) *)
 
 Goal forall A B C D: mpred,
   A * B * (C * fold_right_sepcon [A; B] * A) * B |-- B * (A * A) * fold_right_sepcon [A; B].
