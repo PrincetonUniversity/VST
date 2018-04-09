@@ -345,11 +345,36 @@ Qed.
 
 Lemma Ptrofs_repr_Int_signed_special:
   Archi.ptr64=false -> forall i, Ptrofs.repr (Int.signed (Int.repr i)) = Ptrofs.repr i.
-Admitted.
+Proof.
+intros.
+apply Ptrofs.eqm_samerepr.
+unfold Ptrofs.eqm.
+rewrite (Ptrofs.modulus_eq32 H).
+change (Int.eqmod Int.modulus (Int.signed (Int.repr i)) i).
+rewrite Int.signed_repr_eq.
+if_tac.
+apply Int.eqmod_sym.
+apply Int.eqmod_mod.
+computable.
+apply Int.eqmod_sym.
+eapply Int.eqmod_trans.
+apply Int.eqmod_mod.
+computable.
+rewrite <- (Z.sub_0_r (i mod Int.modulus)) at 1.
+apply Int.eqmod_sub.
+apply Int.eqmod_refl.
+hnf. exists (-1). omega.
+Qed. 
 
 Lemma Ptrofs_repr_Int_unsigned_special:
   Archi.ptr64=false -> forall i, Ptrofs.repr (Int.unsigned (Int.repr i)) = Ptrofs.repr i.
-Admitted.
+Proof.
+intros.
+pose proof (Ptrofs.agree32_repr H i).
+hnf in H0.
+rewrite <- H0.
+apply Ptrofs.repr_unsigned.
+Qed.
 
 Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
 Proof. reflexivity. Qed.

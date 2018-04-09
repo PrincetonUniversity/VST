@@ -256,7 +256,7 @@ unfold nested_field_offset; simpl.
 unfold nested_field_offset in H; simpl in H.
 unfold at_offset in H.
 unfold nested_field_type in H; simpl in H.
-Abort.  (* not at all clear that this is true *)
+Abort.  (* probably true, but not needed *)
 
 Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
 Proof.
@@ -415,7 +415,7 @@ Proof.
   pose proof stronger_proj_reptype t v2 v1.
   tauto.
 *)
-Abort.  (* is this true? *)
+Abort.  (* not needed *)
 
 End STRONGER.
 
