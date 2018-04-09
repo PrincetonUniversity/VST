@@ -731,16 +731,16 @@ Fixpoint compute_nested_efield_rec {cs:compspecs} e lr_default :=
     | Tstruct id_str _ =>
       if eqb_type (field_type id (co_members (get_co id_str))) t
       then match compute_nested_efield_rec e' LLLL with
-           | (e'', efs, tts, lr) => (e'', eStructField id :: efs, t :: tts, lr)
+           | (e'', efs, lr) => (e'', eStructField id :: efs, lr)
            end
-      else (e, nil, nil, lr_default)
+      else (e, nil, lr_default)
     | Tunion id_uni _ =>
       if eqb_type (field_type id (co_members (get_co id_uni))) t
       then match compute_nested_efield_rec e' LLLL with
-           | (e'', efs, tts, lr) => (e'', eUnionField id :: efs, t :: tts, lr)
+           | (e'', efs, lr) => (e'', eUnionField id :: efs, lr)
            end
-      else (e, nil, nil, lr_default)
-    | _ => (e, nil, nil, lr_default)
+      else (e, nil, lr_default)
+    | _ => (e, nil, lr_default)
     end
   | Ederef (Ebinop Cop.Oadd e' ei (Tpointer t a)) t' =>
     match typeof e' with
@@ -748,21 +748,21 @@ Fixpoint compute_nested_efield_rec {cs:compspecs} e lr_default :=
       match eqb_type t t'', eqb_type t t', eqb_attr a noattr with
       | true, true, true =>
         match compute_nested_efield_rec e' RRRR with
-        | (e'', efs, tts, lr) => (e'', eArraySubsc ei :: efs, t :: tts, lr)
+        | (e'', efs, lr) => (e'', eArraySubsc ei :: efs, lr)
         end
-      | _, _, _ => (e, nil, nil, lr_default)
+      | _, _, _ => (e, nil, lr_default)
       end
     | Tpointer t'' _ =>
       match eqb_type t t'', eqb_type t t', eqb_attr a noattr, eqb_type (typeof e') int_or_ptr_type with
-      | true, true, true, false => (e', eArraySubsc ei :: nil, t :: nil, RRRR)
-      | _, _, _, _ => (e, nil, nil, lr_default)
+      | true, true, true, false => (e', eArraySubsc ei :: nil, RRRR)
+      | _, _, _, _ => (e, nil, lr_default)
       end
-    | _ => (e, nil, nil, lr_default)
+    | _ => (e, nil, lr_default)
     end
-  | _ => (e, nil, nil, lr_default)
+  | _ => (e, nil, lr_default)
   end.
 
-Definition compute_nested_efield {cs: compspecs} (e: expr): expr * list efield * list type * LLRR := compute_nested_efield_rec e LLLL.
+Definition compute_nested_efield {cs: compspecs} (e: expr): expr * list efield * LLRR := compute_nested_efield_rec e LLLL.
 
 Inductive compute_root_type: forall (t_from_e: type) (lr: LLRR) (t_root: type), Prop :=
   | compute_root_type_lvalue: forall t, compute_root_type t LLLL t
@@ -789,10 +789,11 @@ Definition array_relexed_type_eq (t1 t2: type): Prop :=
   end.
 
 Lemma compute_nested_efield_trivial: forall e rho lr_default,
-  forall e_root efs tts lr,
-  e_root = e -> efs = nil -> tts = nil -> lr = lr_default ->
+  forall e_root efs lr,
+  e_root = e -> efs = nil -> lr = lr_default ->
   LR_possible e lr_default = true ->
-    forall t_root gfs,
+  forall t_root gfs,
+    exists tts,
       compute_root_type (typeof e_root) lr t_root ->
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = e /\
@@ -805,11 +806,13 @@ Lemma compute_nested_efield_trivial: forall e rho lr_default,
       end.
 Proof.
   intros.
+  exists nil.
+  intros.
   subst.
-  unfold LR_possible in H3.
+  unfold LR_possible in H2.
   unfold type_almost_match.
   Opaque eqb_type.
-  destruct (typeof e); inv H3; inv H4; inv H5; simpl;
+  destruct (typeof e); inv H2; inv H3; inv H4; simpl;
   try rewrite eqb_type_spec; auto.
   + inv H0.
   + inv H0.
@@ -818,8 +821,9 @@ Qed.
 Lemma compute_nested_efield_aux: forall e rho lr_default,
   (LR_possible e lr_default = true ->
   match compute_nested_efield_rec e lr_default with
-  | (e_root, efs, tts, lr) =>
+  | (e_root, efs, lr) =>
     forall t_root gfs,
+      exists tts,
       compute_root_type (typeof e_root) lr t_root ->
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = e /\
@@ -834,8 +838,9 @@ Lemma compute_nested_efield_aux: forall e rho lr_default,
   forall t,
   (LR_possible (Ederef e t) lr_default = true ->
   match compute_nested_efield_rec (Ederef e t) lr_default with
-  | (e_root, efs, tts, lr) =>
+  | (e_root, efs, lr) =>
       forall t_root gfs,
+      exists tts,
       compute_root_type (typeof e_root) lr t_root ->
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = Ederef e t /\
@@ -850,19 +855,21 @@ Lemma compute_nested_efield_aux: forall e rho lr_default,
 Proof.
   intros ? ?.
   induction e; intros ?; (split; [ | intros ?]);
-  try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl).
+  try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl).
   + destruct (IHe lr_default). apply (H0 t).
-  + destruct b, t; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl).
+  + destruct b, t; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl).
     simpl.
-    destruct (typeof e1) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
-    destruct (eqb_type t t1) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
+    destruct (typeof e1) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
+    destruct (eqb_type t t1) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
     apply eqb_type_spec in H0;
-    destruct (eqb_type t t0) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
+    destruct (eqb_type t t0) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
     apply eqb_type_spec in H1;
-    destruct (eqb_attr a noattr) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
+    destruct (eqb_attr a noattr) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
     apply eqb_attr_spec in H2;
-    [destruct (eqb_type ((Tpointer t1 a0)) int_or_ptr_type) eqn:HH; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl); apply eqb_type_false in HH |].
+    [destruct (eqb_type ((Tpointer t1 a0)) int_or_ptr_type) eqn:HH; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl); apply eqb_type_false in HH |].
     - subst.
+      intros.
+      exists (t0 :: nil).
       intros.
       inv H1; inv H2.
       * inv H9.
@@ -880,53 +887,66 @@ Proof.
     - subst.
       destruct (IHe1 RRRR) as [IH _]; spec IH; [unfold LR_possible; rewrite H; auto |].
       clear IHe1 IHe2.
-      destruct (compute_nested_efield_rec e1 RRRR) as (((?, ?), ?), ?).
+      destruct (compute_nested_efield_rec e1 RRRR) as ((?, ?), ?).
+      intros.
+      destruct gfs; [exists nil; intros _ HHH; inv HHH |].
+      specialize (IH t_root gfs).
+      destruct IH as [tts IH].
+      exists (t0 :: tts).
       intros.
       inv H2.
-      specialize (IH _ _ H1 H9).
+      specialize (IH H1 H10).
       destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
       rewrite IH1, IH4.
       simpl.
       rewrite eqb_type_spec.
-      assert (nested_field_type t_root (gfs0 SUB i) = t0); auto.
-      rewrite nested_field_type_ind; destruct gfs0.
+      assert (nested_field_type t_root (gfs SUB i) = t0); auto.
+      rewrite nested_field_type_ind; destruct gfs.
       * destruct t_root; inv IH5; auto.
       * rewrite IH5. auto.
   + Opaque field_type. simpl. Transparent field_type.
-    destruct (typeof e) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
-    destruct (eqb_type (field_type i (co_members (get_co i0))) t) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ _ eq_refl eq_refl eq_refl eq_refl);
+    destruct (typeof e) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
+    destruct (eqb_type (field_type i (co_members (get_co i0))) t) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
     apply eqb_type_spec in H0.
     - intros.
       destruct (IHe LLLL) as [IH _]; clear IHe.
       spec IH; [unfold LR_possible; rewrite H; auto |].
-      destruct (compute_nested_efield_rec e LLLL) as (((?, ?), ?), ?).
+      destruct (compute_nested_efield_rec e LLLL) as ((?, ?), ?).
       intros.
+      destruct gfs; [exists nil; intros _ HHH; inv HHH |].
+      specialize (IH t_root gfs).
+      destruct IH as [tts IH].
+      exists (t :: tts); intros.
       revert H0; inv H3; intros.
-      specialize (IH _ _ H2 H7).
+      specialize (IH H2 H8).
       destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
       rewrite IH1, IH4.
       simpl.
       rewrite eqb_type_spec.
-      assert (nested_field_type t_root (gfs0 DOT i) = t); auto.
-      rewrite nested_field_type_ind; destruct gfs0.
+      assert (nested_field_type t_root (gfs DOT i) = t); auto.
+      rewrite nested_field_type_ind; destruct gfs.
       * destruct t_root; inv IH5; auto.
       * rewrite IH5. auto.
     - intros.
       destruct (IHe LLLL) as [IH _]; clear IHe.
       spec IH; [unfold LR_possible; rewrite H; auto |].
-      destruct (compute_nested_efield_rec e LLLL) as (((?, ?), ?), ?).
+      destruct (compute_nested_efield_rec e LLLL) as ((?, ?), ?).
       intros.
+      destruct gfs; [exists nil; intros _ HHH; inv HHH |].
+      specialize (IH t_root gfs).
+      destruct IH as [tts IH].
+      exists (t :: tts); intros.
       revert H0; inv H3; intros.
-      specialize (IH _ _ H2 H7).
+      specialize (IH H2 H8).
       destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
       rewrite IH1, IH4.
       simpl.
       rewrite eqb_type_spec.
-      assert (nested_field_type t_root (gfs0 UDOT i) = t); auto.
-      rewrite nested_field_type_ind; destruct gfs0.
+      assert (nested_field_type t_root (gfs UDOT i) = t); auto.
+      rewrite nested_field_type_ind; destruct gfs.
       * destruct t_root; inv IH5; auto.
       * rewrite IH5. auto.
 Qed.
@@ -934,8 +954,9 @@ Qed.
 Lemma compute_nested_efield_lemma: forall e rho,
   type_is_by_value (typeof e) = true ->
   match compute_nested_efield e with
-  | (e_root, efs, tts, lr) =>
+  | (e_root, efs, lr) =>
     forall t_root gfs,
+      exists tts,
       compute_root_type (typeof e_root) lr t_root ->
       efield_denote efs gfs rho ->
       nested_efield e_root efs tts = e /\
@@ -947,11 +968,15 @@ Proof.
   intros.
   destruct (compute_nested_efield_aux e rho LLLL) as [? _].
   unfold compute_nested_efield.
-  destruct (compute_nested_efield_rec e LLLL) as (((?, ?), ?), ?).
+  destruct (compute_nested_efield_rec e LLLL) as ((?, ?), ?).
   
   intros.
   spec H0; [unfold LR_possible; destruct (typeof e); inv H; auto |].
-  specialize (H0 _ _ H1 H2).
+  specialize (H0 t_root gfs).
+  destruct H0 as [tts ?].
+  exists tts.
+  intros.
+  specialize (H0 H1 H2).
   destruct H0 as [? [? [? [? ?]]]].
   assert (nested_field_type t_root gfs = typeof e);
     [| split; [| split; [| split]]; auto].
@@ -962,8 +987,8 @@ Proof.
     rewrite H4.
     destruct gfs; auto.
     unfold type_almost_match', type_almost_match in *.
-    destruct l1, t_root; try rewrite H4; auto.
-    destruct l0; [| inv H5].
+    destruct l0, t_root; try rewrite H4; auto.
+    destruct tts; [| inv H5].
     inv H2.
     rewrite <- H7 in H.
     inv H.
