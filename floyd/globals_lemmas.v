@@ -173,18 +173,44 @@ Proof.
   omega.
 Qed.
 
+Lemma mapsto_aligned:
+ forall sh t a b z p,
+  mapsto sh (Tpointer t a) (Vptr b z) p
+   |-- !! (Memdata.align_chunk Mptr | Ptrofs.unsigned z).
+Proof.
+intros.
+unfold mapsto. simpl.
+if_tac.
+destruct (attr_volatile a).
+apply FF_left.
+apply orp_left. normalize. clear H H0.
+rewrite (res_predicates.address_mapsto_align).
+match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+intros ? ?. destruct H. apply H0.
+normalize.
+clear.
+rewrite (res_predicates.address_mapsto_align).
+match goal with |- ?A |-- ?B => change (predicates_hered.derives A B) end.
+intros ? ?. destruct H. apply H0.
+destruct (attr_volatile a).
+apply FF_left.
+normalize.
+Qed.
+
 Lemma unpack_globvar_aux1 {cs: compspecs}:
   forall sh t b v i_ofs,
   Ptrofs.unsigned i_ofs + sizeof (Tpointer t noattr) <= Ptrofs.max_unsigned ->
                mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
                    |-- memory_block sh 4 (Vptr b i_ofs).
 Proof.
- intros.
+ intros. 
+ assert_PROP ((Memdata.align_chunk Mptr | Ptrofs.unsigned i_ofs)).
+    apply mapsto_aligned.
  eapply derives_trans; [ apply mapsto_mapsto_ | ].
  rewrite (memory_block_mapsto_ _ (Tpointer t noattr)); auto.
  unfold size_compatible; unfold Ptrofs.max_unsigned in H; omega.
- admit. (* align_compatible can be FOUND inside mapsto *)
-Admitted.
+ simpl. apply align_compatible_rec_by_value with Mptr; auto.
+Qed.
 
 Lemma sizeof_Tpointer {cs: compspecs} : forall t, 
        sizeof (Tpointer t noattr) = if Archi.ptr64 then 8 else 4.
@@ -393,8 +419,6 @@ assert (RS: forall sh', readable_share (Share.lub sh' (readonly2share (gvar_read
   apply readable_share_lub. apply readable_share_readonly2share.
 }
 forget (readonly2share (gvar_readonly gv)) as sh.
-(*rename H8 into H20. *)
-(* destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?]. *)
 set (ofs:=0%Z).
 assert (alignof t | Ptrofs.unsigned (Ptrofs.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
 destruct (globvar_eval_var _ _ _ _ H7 H H0) as [b [_ H9']].
@@ -402,8 +426,6 @@ unfold globals_of_env. rewrite H9'.
 remember (Vptr b Ptrofs.zero) as x.
 assert (H10: x = offset_val ofs x) by (subst ofs x; reflexivity).
 rewrite H10 at 1.
-(*replace (eval_var i t rho) with (offset_val (Ptrofs.repr ofs) (eval_var i t rho))
-    by (rewrite H8; reflexivity). *)
 clear H10.
 assert (H11: init_data_list_size idata + ofs <= sizeof t)  by (unfold ofs; omega).
 assert (H12:  sizeof t <= Ptrofs.max_unsigned)  by omega.
@@ -414,22 +436,28 @@ clear dependent gv. clear H H0 H6.
 induction idata; simpl; auto; intros. 
 apply derives_refl.
 apply sepcon_derives.
-* rewrite andb_true_iff in H1.
-  eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
-  split3; simpl; auto.
-  change Ptrofs.max_unsigned with (Ptrofs.modulus-1) in H12.
-  admit.
- pose proof (init_data_list_size_pos idata); omega.
+*
+  clear IHidata. 
+  rewrite andb_true_iff in H1 by (pose proof (init_data_list_size_pos idata); omega).
+  pose proof (init_data_size_pos a).
+  pose proof (init_data_list_size_pos idata).
+  assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
+  destruct H1.
+  eapply init_data2pred_rejigger; eauto; try tauto; [ hnf; simpl | ];
+  clear x Heqx; clear RS H7 H9' b.
+  split3; simpl; auto. 
+  rewrite Ptrofs.unsigned_repr by omega.
+  split3; auto.
+  admit. admit. admit.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
  pose proof (init_data_list_size_pos idata).
 pose proof (init_data_size_pos a).
- apply IHidata; try omega.
+ apply IHidata; clear IHidata; try omega; auto.
  rewrite Ptrofs.unsigned_repr by omega.
  rewrite Ptrofs.unsigned_repr in H8 by omega.
  apply Z.divide_add_r; auto.
  admit. (* alignment issue *)
-auto.
 Fail idtac.
 Admitted.
 
@@ -661,7 +689,10 @@ Proof.
 * rewrite andb_true_iff.
   split; rewrite H1.
   reflexivity.
-  admit.
+  unfold is_aligned, is_aligned_aux. rewrite andb_true_iff; split.
+  destruct sz, sign; simpl; auto.
+  rewrite Z.mod_0_l. reflexivity.
+  destruct sz, sign; simpl; computable.
 *
   rewrite H1. (* rewrite H3.*)  rewrite H5.
   rewrite <- andp_assoc.
@@ -677,12 +708,13 @@ Transparent sizeof.
     admit.
   } 
   assert (offset_in_range (sizeof (Tint sz sign noattr) * n) (globals_of_env rho i)). {
-    unfold offset_in_range; simpl.
+    unfold offset_in_range.
+    destruct (globals_of_env rho i) eqn:?H; auto.
     rewrite H5 in H6; simpl in H6.
     pose proof initial_world.zlength_nonneg _ (gvar_init gv).
     rewrite Z.max_r in H6 by omega.
     unfold Ptrofs.max_unsigned in H6.
-    pose proof init_data_list_size_pos (gvar_init gv).
+    pose proof init_data_list_size_pos (gvar_init gv).    
     admit.
   }
   apply andp_right; auto.
@@ -984,7 +1016,24 @@ normalize.
 apply extract_exists_pre; intro x.
 eapply semax_pre0; [ | apply H0].
 clear - H.
-Admitted.
+Check insert_SEP.
+rewrite <- insert_SEP.
+go_lowerx.
+normalize.
+cancel.
+clear - H2 H H1.
+revert H H1; induction Q; intros.
+inv H. simpl in H. destruct H. subst a.
+simpl in H1.
+destruct H1.
+clear - H2 H.
+hnf in H,H2.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]. contradiction.
+destruct (ge_of rho i); try contradiction.
+subst. auto.
+destruct H1.
+auto.
+Qed.
 
 Lemma move_globfield_into_SEP0:
  forall {cs: compspecs}{Espec: OracleKind} Delta
