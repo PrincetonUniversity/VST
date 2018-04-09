@@ -427,7 +427,7 @@ Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred ->
 | find_type_contradict_pred_field_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at_ sh t0 nil p).
 
 Definition find_type_contradict_preds {cs: compspecs} (t: type) (p: val) :=
-  find_nth_SEP_preds (find_type_contradict_pred t p).
+  find_nth_preds (find_type_contradict_pred t p).
 
 Lemma SEP_type_contradict_lemma: forall {cs: compspecs} e R goal Q T1 T2 e_root efs tts lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   mm1 mm2,
@@ -478,8 +478,8 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   | solve_msubst_efield_denote
   | econstructor
   | solve_field_address_gen
-  | find_nth_SEP find_type_contradict_rec
-  | first [left; split; [reflexivity | find_nth_SEP find_type_contradict_rec] | right; reflexivity]
+  | find_nth find_type_contradict_rec
+  | first [left; split; [reflexivity | find_nth find_type_contradict_rec] | right; reflexivity]
   | ];
   match goal with
   | |- Some (_, ?r) = _ /\ False => SEP_type_contradict_msg r e
@@ -580,7 +580,7 @@ Lemma semax_PTree_field_load_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -618,7 +618,7 @@ Proof.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
   } Unfocus.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
   rewrite <- TYPEOF in BY_VALUE.
@@ -689,7 +689,7 @@ Lemma semax_PTree_field_load_with_hint:
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -706,7 +706,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   eapply semax_SC_field_load.
   1: eassumption.
@@ -741,7 +741,7 @@ Lemma semax_PTree_field_cast_load_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -778,7 +778,7 @@ Proof.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H3; apply H3; auto.
   } Unfocus.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   destruct H2 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
   rewrite <- TYPEOF in BY_VALUE.
@@ -852,7 +852,7 @@ Lemma semax_PTree_field_cast_load_with_hint:
       msubst_eval_lvalue T1 T2 e = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e = nested_field_type t_root gfs ->
-      find_nth_SEP_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -869,7 +869,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   rewrite TYPE_EQ.
   eapply semax_SC_field_cast_load.
@@ -906,7 +906,7 @@ Lemma semax_PTree_field_store_no_hint:
       msubst_efield_denote T1 T2 efs gfs_from_e ->
       compute_root_type (typeof e_root) lr t_root_from_e ->
       field_address_gen (t_root_from_e, gfs_from_e, p_from_e) (t_root, gfs, p) ->
-      find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
@@ -945,7 +945,7 @@ Proof.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H1; apply H1; auto.
   } Unfocus.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   destruct H0 as [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]].
   rewrite <- TYPEOF in BY_VALUE.
@@ -1021,7 +1021,7 @@ Lemma semax_PTree_field_store_with_hint:
       msubst_eval_lvalue T1 T2 e1 = Some p_from_e ->
       p_from_e = field_address t_root gfs p ->
       typeof e1 = nested_field_type t_root gfs ->
-      find_nth_SEP_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
+      find_nth_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
@@ -1042,7 +1042,7 @@ Proof.
          ? ? ? ? ? ?
          ? ? ?
          LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ DATA_EQ TC.
-  apply find_nth_SEP_preds_Some in NTH.
+  apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   eapply semax_SC_field_store.
   1: eassumption.
@@ -1161,7 +1161,7 @@ match goal with
          | prove_gfs_suffix gfs]
 end.
 
-Ltac search_field_at_in_SEP := find_nth_SEP test_field_at_in_SEP.
+Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
