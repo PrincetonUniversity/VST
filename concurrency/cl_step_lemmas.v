@@ -82,7 +82,7 @@ Proof.
         rewrite PMap.gsspec.
         unfold Mem.valid_block in *; simpl in *.
         if_tac; subst; auto.
-        -- if_tac; auto.
+        -- simple_if_tac; auto.
         -- destruct N.
            apply Coqlib.Plt_succ_inv in V.
            tauto.
