@@ -191,6 +191,20 @@ Module BareMachine.
     Proof.
     Admitted.
     (*NOTE: Admit for now, but proof is same as HybridMachine. The question is do we want this lemma to be part of the spec? *)
+
+    Lemma syncstep_not_running:
+      forall b g i tp m cnt cmpt tp' m' tr,
+        @syncStep b g i tp m cnt cmpt tp' m' tr ->
+        forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
+    Proof.
+      intros.
+      inversion H;
+        match goal with
+        | [ H: getThreadC ?cnt = _ |- _ ] =>
+          erewrite (cnt_irr _ _ _ cnt);
+            rewrite H; intros AA; inversion AA
+        end.
+    Qed.
     
     Lemma threadStep_not_unhalts:
       forall g i tp m cnt cmpt tp' m' tr,

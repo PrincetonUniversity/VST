@@ -564,32 +564,6 @@ Module DryHybridMachine.
     Definition threadHalted: forall {tid0 ms},
         containsThread ms tid0 -> Prop:= @threadHalted'.
 
-
-    (* Lemma updCinvariant': forall {tid} ds c (cnt: containsThread ds tid),
-         invariant (updThreadC cnt c) <-> invariant ds.
-           split.
-           { intros INV; inversion INV.
-             constructor.
-             - generalize no_race; unfold race_free.
-               simpl. intros.
-               apply no_race0; auto.
-             - simpl; assumption.
-             - simpl; assumption.
-             - simpl; assumption.
-             - simpl; assumption. }
-
-           { intros INV; inversion INV.
-             constructor.
-             - generalize no_race; unfold race_free.
-               simpl. intros.
-               apply no_race0; auto.
-             - simpl; assumption.
-             - simpl; assumption.
-             - simpl; assumption.
-             - simpl; assumption. }
-     Qed. *)
-
-
     Lemma threadHalt_update:
       forall i j, i <> j ->
                   forall tp cnt cnti c' cnt',

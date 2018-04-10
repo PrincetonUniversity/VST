@@ -15,8 +15,6 @@ Require Import VST.concurrency.machine_semantics.
 Require Import VST.concurrency.permissions.
 
 Require Import VST.concurrency.addressFiniteMap.
-
-Require Import VST.concurrency.scheduler.
 Require Import Coq.Program.Program.
 
 Require Import VST.concurrency.safety.
@@ -270,8 +268,8 @@ Module HybridMachineSig.
     (** Provides control over scheduling. For example,
         for FineMach this is schedSkip, for CoarseMach this is just id *)
   Class Scheduler :=
-    {yield: schedule -> schedule }.
-
+    {yield: schedule -> schedule}.
+  
   Context {scheduler : Scheduler}.
 
   Inductive machine_step {genv:G}:
@@ -529,7 +527,7 @@ Module HybridMachineSig.
       }.
 
   End HybridMachineSig.
-
+  
   (** Definition of the Coarse-grain hybrid machine *)
   Module HybridCoarseMachine.
     Section HybridCoarseMachine.

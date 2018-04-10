@@ -21,14 +21,15 @@ Module AsmContext.
     (** Assuming some Assembly semantics *)
     Context {asmSem : Semantics}.
 
-    Instance dryPool : ThreadPool.ThreadPool := @DryHybridMachine.ordinalPool asmSem.
+    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
     
     (** Instantiating the Dry Fine Concurrency Machine *)
     Definition dryFineMach : @HybridMachine DryHybridMachine.resources asmSem dryPool :=
-      @HybridFineMachine.HybridFineMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem).
+
+      @HybridFineMachine.HybridFineMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem dryPool).
     (** Instantiating the Dry Coarse Concurrency Machine *)
     Definition dryCoarseMach : @HybridMachine DryHybridMachine.resources asmSem dryPool :=
-      @HybridCoarseMachine.HybridCoarseMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem).
+      @HybridCoarseMachine.HybridCoarseMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem dryPool).
 
 
     Instance bareRes : Resources := BareMachine.resources.
@@ -59,29 +60,6 @@ Module AsmContext.
     Definition bare_init the_ge f arg := initial_core bare_semantics 0 the_ge f arg.
 
   End AsmContext.
-
-  Ltac pf_cleanup :=
-    repeat match goal with
-           | [H1: invariant ?X, H2: invariant ?X |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-             subst H2
-           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-             subst H2
-           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: ThreadPool.containsThread ?TP ?M, H2: ThreadPool.containsThread ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: ThreadPool.containsThread ?TP ?M,
-                  H2: ThreadPool.containsThread (@ThreadPool.updThreadC _ ?TP _ _) ?M |- _] =>
-             apply ThreadPool.cntUpdateC' in H2;
-             assert (H1 = H2) by (by eapply ThreadPool.cnt_irr); subst H2
-           | [H1: ThreadPool.containsThread ?TP ?M,
-                  H2: ThreadPool.containsThread (@ThreadPool.updThread _ ?TP _ _ _) ?M |- _] =>
-             apply ThreadPool.cntUpdate' in H2;
-             assert (H1 = H2) by (by eapply ThreadPool.cnt_irr); subst H2
-           end.
-
 End AsmContext.
 
 

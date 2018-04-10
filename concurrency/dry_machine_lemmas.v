@@ -25,6 +25,7 @@ Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.tactics.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
@@ -39,8 +40,12 @@ Module ThreadPoolWF.
 
   Section ThreadPoolWF.
     Context {Sem : Semantics}.
+
+    Instance ordinalPool : ThreadPool:= OrdinalPool.OrdinalThreadPool.
+    Instance res : Resources := DryHybridMachine.resources.
+   
     (** Take an instance of the Dry Machine *)
-    Instance dryMach : @HybridMachineSig.MachineSig DryHybridMachine.resources _ _ := DryHybridMachine.DryHybridMachineSig.
+    Instance dryMach : HybridMachineSig.MachineSig := DryHybridMachine.DryHybridMachineSig.
     
   Lemma unlift_m_inv :
     forall tp tid (Htid : tid < (OP.num_threads tp).+1) ord
@@ -130,10 +135,10 @@ Module ThreadPoolWF.
   Defined. *)
 
   Lemma initial_invariant0: forall pmap c,
-      DryHybridMachine.invariant (DryHybridMachine.initial_machine pmap c).
+      DryHybridMachine.invariant (mkPool c (pmap, empty_map)).
   Proof.
     intros pmap c.
-    pose (IM:=DryHybridMachine.initial_machine pmap c); fold IM.
+    pose (IM:=mkPool c (pmap,empty_map)); fold IM.
     assert (isZ: forall i, OP.containsThread IM i -> (i = 0)%N).
     { rewrite /containsThread /IM /=.
       move => i; destruct i; first[reflexivity | intros HH; inversion HH].
@@ -143,8 +148,8 @@ Module ThreadPoolWF.
     { rewrite /OP.lockRes /IM /=.
       move => l rm.
       rewrite /lockRes
-              /DryHybridMachine.initial_machine
-              /ThreadPool.empty_lset /= ThreadPool.find_empty => HH.
+              /OP.mkPool
+              /OP.empty_lset /= OP.find_empty => HH.
       inversion HH.
     }
 
@@ -159,6 +164,10 @@ Module ThreadPoolWF.
         move: (cnti) (cntj) => cnti0 cntj0;
                                 move: cnti cntj => /isZ Hi /isZ Hj.
         subst.
+        simpl in IM.
+        unfold OrdinalPool.mkPool in IM.
+        unfold getThreadR.
+        simpl.
         eapply permCoh_empty'.
       * move => l rm /noLock contra; exfalso; now eauto.
     + move => l mr /noLock contra; exfalso; now eauto.
@@ -492,14 +501,17 @@ Module ThreadPoolWF.
         now omega.
       + rewrite gsolockResUpdLock; auto.
         specialize (lockRes_valid0 b' ofs').
-        destruct (lockRes tp (b', ofs')) eqn:Hres; auto.
+        destruct (lockRes tp (b', ofs')) eqn:Hres;
+          rewrite Hres;
+          rewrite Hres in lockRes_valid0;
+          auto.
         intros ofs0 ineq.
         destruct (EqDec_address (b, ofs) (b',ofs0)).
         * inversion e; subst.
           apply Hvalid1 in ineq || apply Hvalid2 in ineq.
           rewrite ineq in Hres; inversion Hres.
         * rewrite gsolockResUpdLock;
-            now auto.
+            now eauto.
   Qed.
 
  (** [mem_compatible] is preserved by [addThread]*)
@@ -770,7 +782,8 @@ Module ThreadPoolWF.
     intros.
     simpl in Hinit.
     unfold DryHybridMachine.init_mach in *.
-    unfold DryHybridMachine.initial_machine in *.
+    simpl in Hinit.
+    unfold OP.mkPool in *. simpl in *.
     repeat match goal with
            | [H: match ?Expr with _ => _ end = _ |- _] =>
              destruct Expr eqn:?; try discriminate
@@ -795,7 +808,8 @@ Module ThreadPoolWF.
     intros.
     simpl in *.
     unfold DryHybridMachine.init_mach in *.
-    unfold DryHybridMachine.initial_machine in *.
+    simpl in Hinit;
+    unfold OrdinalPool.mkPool in *.
     repeat match goal with
            | [H: match ?Expr with _ => _ end = _ |- _] =>
              destruct Expr eqn:?; try discriminate
@@ -829,12 +843,13 @@ Module ThreadPoolWF.
     unfold DryHybridMachine.init_mach in Hinit.
     destruct (initial_core (event_semantics.msem semSem) 0 the_ge m f arg) as [[? ?]|]; try discriminate.
     destruct pmap; try discriminate.
-    unfold DryHybridMachine.initial_machine in Hinit.
+    simpl in Hinit.
+    unfold OP.mkPool in Hinit.
     inversion Hinit;
       simpl in *;
       subst.
     unfold OrdinalPool.lockRes.
-    rewrite find_empty.
+    rewrite OP.find_empty.
     reflexivity.
   Qed.
 
@@ -863,7 +878,7 @@ Module ThreadPoolWF.
           [|rewrite init_mach_none in Hinit; discriminate].
         pose proof (init_thread _ _ _ _ _ Hinit cnti); subst.
         pose proof (init_thread _ _ _ _ _ Hinit cntj); subst.
-        AsmContext.pf_cleanup.
+        Tactics.pf_cleanup.
         erewrite getThreadR_init by eauto.
         simpl.
         intros ? ?.
@@ -876,7 +891,7 @@ Module ThreadPoolWF.
       erewrite init_lockRes_empty in Hres by eauto.
       discriminate.
     - intros b ofs.
-      destruct (lockRes tp (b, ofs)) eqn:Hres; auto.
+      destruct (lockRes tp (b, ofs)) eqn:Hres; rewrite Hres; auto.
       erewrite init_lockRes_empty in Hres by eauto.
       discriminate.
   Qed.
@@ -1012,8 +1027,11 @@ Module CoreLanguageDry.
     Context {Sem : Semantics}
             {SemAx : SemAxioms}.
 
+    Instance ordinalPool : ThreadPool:= OrdinalPool.OrdinalThreadPool.
+    Instance res : Resources := DryHybridMachine.resources.
+    
     (** Take an instance of the Dry Machine *)
-    Instance dryMach : @HybridMachineSig.MachineSig DryHybridMachine.resources _ _ := DryHybridMachine.DryHybridMachineSig.
+    Instance dryMach : HybridMachineSig.MachineSig := DryHybridMachine.DryHybridMachineSig.
 
   (** Lemmas about containsThread and coresteps *)
 
@@ -1084,11 +1102,12 @@ Module CoreLanguageDry.
               assert (Hp := restrPermMap_Cur (DM.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp.
               rewrite <- Hp, HFree in Hcoh.
-              destruct (((getThreadR cnt0)#2) # b ofs) eqn:?;
+              simpl in Hcoh.
+              destruct (((OrdinalPool.getThreadR cnt0)#2) # b ofs) eqn:?;
                        first by exfalso.
               simpl in Hcoh.
               destruct (i == tid) eqn:Htid; move/eqP:Htid=>Htid; subst.
-              - rewrite gssThreadRes. AsmContext.pf_cleanup. simpl.
+              - rewrite gssThreadRes. Tactics.pf_cleanup. simpl.
                 assumption.
               - erewrite gsoThreadRes with (cntj := cnt0) by assumption.
                 assumption.
@@ -1127,7 +1146,7 @@ Module CoreLanguageDry.
               rewrite getMaxPerm_correct. unfold permission_at.
               assert (HeqCur := Heq Max).
               rewrite <- HeqCur.
-              AsmContext.pf_cleanup.
+              Tactics.pf_cleanup.
               assert (Hrestr_max := restrPermMap_Max Hlt1 b ofs).
               unfold permission_at in Hrestr_max.
               rewrite Hrestr_max.
@@ -1163,7 +1182,7 @@ Module CoreLanguageDry.
                 changed. But the goal is easily discharged by the Max> Cur invariant
                 of [Mem.mem]*)
             split; rewrite gssThreadRes; simpl;
-              [now eapply getCur_Max| AsmContext.pf_cleanup; rewrite Heqo; now apply po_None].
+              [now eapply getCur_Max| Tactics.pf_cleanup; rewrite Heqo; now apply po_None].
           + (*for different threads the permission maps did not change, hence
                 remain empty at this location*)
             erewrite! gsoThreadRes with (cntj := cnt0) by eauto.
@@ -1367,7 +1386,7 @@ Module CoreLanguageDry.
       - (* case i = j = k *)
         subst j k; exfalso; now auto.
       - (* case i = j but i <> k*)
-        subst j. AsmContext.pf_cleanup.
+        subst j. Tactics.pf_cleanup.
         (* the permissions of thread i will be the ones after stepping*)
         erewrite gssThreadRes.
         (* while the permission for thread k will remain the same*)
@@ -1425,7 +1444,7 @@ Module CoreLanguageDry.
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
       - erewrite gssThreadRes.
         (* lock permissions did not change so second goal is trivial*)
-        split; simpl; AsmContext.pf_cleanup; eauto.
+        split; simpl; Tactics.pf_cleanup; eauto.
         (*for data permissions we will use the fact that decay preserves the
           invariant ([decay_disjoint])*)
         assert (Hlt := proj1 (DM.compat_lp _ _ Hcompatible _ _ Hres)).
@@ -1450,7 +1469,7 @@ Module CoreLanguageDry.
       assert (Heq: (getThreadR cntk').2 = (getThreadR cntk).2)
         by (destruct (i == k) eqn:Hik;
             move/eqP:Hik=>Hik; subst;
-                         [erewrite gssThreadRes; AsmContext.pf_cleanup |
+                         [erewrite gssThreadRes; Tactics.pf_cleanup |
                           erewrite gsoThreadRes with (cntj := cntk) by assumption];
                          reflexivity).
       rewrite Heq.

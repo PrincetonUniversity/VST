@@ -3588,12 +3588,16 @@ Module ThreadPoolInjections (Sem: SEMANTICS)
        (CI: CoreInjections Sem).
 
   Import ValObsEq ValueWD MemoryWD Renamings CI.
-  Import HybridMachine ThreadPool AsmContext.
+  Import ThreadPool HybridMachine.
+  Module DM := DryHybridMachine.
 
   Instance asmSem : Semantics :=
     {| semG := Sem.G;
        semC := Sem.C;
        semSem := Sem.SEM |}.
+
+  Instance res : Resources := DM.resources.
+  Context {tpool : ThreadPool.ThreadPool}.
 
   (** Renamings on Thread Pools *)
 

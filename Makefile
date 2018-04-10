@@ -157,7 +157,7 @@ linking_spec.v	\
   coinductive_safety.v CoreSemantics_sum.v \
   self_simulation.v Clight_self_simulation.v Asm_self_simulation.v\
 	HybridMachine.v HybridMachine_simulation.v \
-  HybridMachine_simulation_proof.v \
+  HybridMachine_simulation_proof.v tactics.v \
   Clight_safety.v main_safety.v main.v
  # concurrent_machine.v dry_machine.v
  

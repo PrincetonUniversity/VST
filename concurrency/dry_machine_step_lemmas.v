@@ -26,6 +26,7 @@ Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.tactics.
 Import threadPool.
 
 Require Import Coq.Logic.FunctionalExtensionality.
@@ -40,19 +41,15 @@ parameterized by the semantics so they can be used by either
 high-level or low-level languages*)
 Module StepLemmas.
   Import HybridMachine ThreadPool.
-  Module HBS := HybridMachineSig.
+  Import HybridMachineSig.
   (* Module OP := OrdinalPool. *)
   Module DM := DryHybridMachine.
   Section StepLemmas.
     Context {asmSem : Semantics}.
-    Context {tpool : ThreadPool}.
-    (* Instance dryPool : ThreadPool.ThreadPool := @DryHybridMachine.ordinalPool asmSem. *)
-    (* Instance dryResources : Resources := DM.resources. *)
-    Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem tpool := DM.DryHybridMachineSig.
-    (* Context {dryMach: @HBS.HybridMachine dryResources asmSem dryPool}. *)
-  (* Module ThreadPoolWF := ThreadPoolWF SEM Machine. *)
-  (* Import SEM event_semantics ThreadPoolWF. *)
-  (* Import Machine DryMachine DryConc ThreadPool. *)
+    Context {Sch: Scheduler}.
+
+    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
+    Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig.
     
   (** [mem_compatible] is preserved by [updThreadC] *)
   Lemma updThreadC_compatible:
@@ -84,20 +81,20 @@ Module StepLemmas.
   (** [suspend_thread] is deterministic*)
   Lemma suspend_step_det:
     forall ge m tp tp' tp'' i (cnt: containsThread tp i)
-      (Hstep: HBS.suspend_thread ge m cnt tp')
-      (Hstep': HBS.suspend_thread ge m cnt tp''),
+      (Hstep: suspend_thread ge m cnt tp')
+      (Hstep': suspend_thread ge m cnt tp''),
       tp' = tp''.
   Proof.
     intros.
     inversion Hstep; inversion Hstep'; subst.
-    AsmContext.pf_cleanup. rewrite Hcode in Hcode0.
+    Tactics.pf_cleanup. rewrite Hcode in Hcode0.
     inversion Hcode0; by subst.
   Qed.
 
   (** [suspend_thread] does not change the number of threads*)
   Lemma suspend_containsThread:
     forall ge m tp tp' i j (cnti: containsThread tp i)
-      (Hsuspend: HBS.suspend_thread ge m cnti tp'),
+      (Hsuspend: suspend_thread ge m cnti tp'),
       containsThread tp j <-> containsThread tp' j.
   Proof.
     intros; inversion Hsuspend; subst.
@@ -109,7 +106,7 @@ Module StepLemmas.
   Corollary suspend_compatible:
     forall ge tp tp' m i (cnt: containsThread tp i)
       (Hcomp: DM.mem_compatible tp m)
-      (Hsuspend: HBS.suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread ge m cnt tp'),
       DM.mem_compatible tp' m.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -128,7 +125,7 @@ Module StepLemmas.
   Corollary gsoThreadC_suspend:
     forall ge m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j) (Hneq: i <> j)
-      (Hsuspend: HBS.suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread ge m cnt tp'),
       getThreadC cntj = getThreadC cntj'.
   Proof.
     intros; inversion Hsuspend; subst;
@@ -138,7 +135,7 @@ Module StepLemmas.
   Lemma gsoThreadR_suspend:
     forall ge m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j)
-      (Hsuspend: HBS.suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread ge m cnt tp'),
       getThreadR cntj = getThreadR cntj'.
   Proof.
     intros. inversion Hsuspend. subst.
@@ -149,9 +146,9 @@ Module StepLemmas.
   Lemma suspend_invariant:
     forall ge m tp tp' i
       (pff: containsThread tp i)
-      (Hinv: HBS.invariant tp)
-      (Hsuspend: HBS.suspend_thread ge m pff tp'),
-      HBS.invariant tp'.
+      (Hinv: invariant tp)
+      (Hsuspend: suspend_thread ge m pff tp'),
+      invariant tp'.
   Proof.
     intros.
     inversion Hsuspend; subst.
@@ -162,7 +159,7 @@ Module StepLemmas.
   Lemma suspend_lockRes:
     forall ge m tp tp' i
       (pff: containsThread tp i)
-      (Hsuspend: HBS.suspend_thread ge m pff tp'),
+      (Hsuspend: suspend_thread ge m pff tp'),
       lockRes tp = lockRes tp'.
   Proof.
     intros.
@@ -173,7 +170,7 @@ Module StepLemmas.
 
   Lemma suspend_lockPool :
     forall ge m (tp tp' : t) i (pfc : containsThread tp i)
-      (Hsuspend: HBS.suspend_thread ge m pfc tp') addr,
+      (Hsuspend: suspend_thread ge m pfc tp') addr,
       lockRes tp addr = lockRes tp' addr.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -183,8 +180,8 @@ Module StepLemmas.
   (** [mem_compatible] is preserved by [setMaxPerm] *)
   Lemma mem_compatible_setMaxPerm :
     forall tp m
-      (Hcomp: HBS.mem_compatible tp m),
-      HBS.mem_compatible tp (setMaxPerm m).
+      (Hcomp: mem_compatible tp m),
+      mem_compatible tp (setMaxPerm m).
   Proof.
     intros tp m Hcomp.
     constructor;
@@ -219,13 +216,11 @@ Module StepLemmas.
     eapply (DM.lockRes_blocks _ _ Hcomp); eauto.
   Qed.
 
-
-  Context {Sch: HBS.Scheduler}.
   (** Any state that steps, requires its threadpool and memory to be
   [mem_compatible]*)
   Lemma step_mem_compatible:
     forall the_ge U tr tp m U' tr' tp' m'
-      (Hstep: HBS.MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+      (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
       DM.mem_compatible tp m.
   Proof.
     intros.
@@ -236,7 +231,7 @@ Module StepLemmas.
   (** Any state that steps satisfies the [invariant] *)
   Lemma step_invariant:
     forall the_ge U tr tp m U' tr' tp' m'
-      (Hstep: HBS.MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+      (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
       DM.invariant tp.
   Proof.
     intros.
@@ -249,7 +244,7 @@ Module StepLemmas.
   Lemma step_containsThread :
     forall the_ge tp tp' m m' i j U tr tr'
       (cntj: containsThread tp j)
-      (Hstep: HBS.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
+      (Hstep: MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
       containsThread tp' j.
   Proof.
     intros.
@@ -275,34 +270,33 @@ Module StepLemmas.
       (Hneq: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
-      (Hstep: HBS.MachStep the_ge (i :: U,tr, tp) m (U,tr', tp') m'),
+      (Hstep: MachStep the_ge (i :: U,tr, tp) m (U,tr', tp') m'),
       getThreadR pfj = getThreadR pfj'.
   Proof.
-    intros.
+    intros.    
     inversion Hstep; simpl in *; subst;
-      try (inversion Htstep); subst; inversion HschedN; subst; AsmContext.pf_cleanup;
-        try (by rewrite <- gThreadCR with (cntj' := pfj'));
-        try (rewrite gLockSetRes);
-        try (rewrite @gsoThreadRes); eauto.
-    rewrite <- OrdinalPool.gThreadCR with (cntj' := pfj').
-    rewrite gsoAddRes gsoThreadRes; auto.
-    rewrite gRemLockSetRes gsoThreadRes; auto.
+      try (inversion Htstep); subst; inversion HschedN; subst; Tactics.pf_cleanup;
+        try (by rewrite <- OrdinalPool.gThreadCR with (cntj' := pfj'));
+        try (rewrite OrdinalPool.gLockSetRes);
+        try (rewrite @OrdinalPool.gsoThreadRes); eauto.
+    rewrite OrdinalPool.gsoAddRes OrdinalPool.gsoThreadRes; now auto.
+    rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gsoThreadRes; now auto.
   Qed.
 
-  Lemma permission_at_fstep:
+  Lemma permission_at_step:
     forall the_ge tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
-      (Hcomp: mem_compatible tp m)
-      (Hcomp': mem_compatible tp' m')
-      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
-      permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
-      permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur.
+      (Hcomp: DM.mem_compatible tp m)
+      (Hcomp': DM.mem_compatible tp' m')
+      (Hstep: MachStep the_ge (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
+      permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+      permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur.
   Proof.
     intros.
     do 2 rewrite restrPermMap_Cur;
-      erewrite gsoThreadR_fstep;
+      erewrite gsoThreadR_step;
         by eauto.
   Qed.
 
@@ -317,9 +311,9 @@ Module StepLemmas.
   Lemma safeC_invariant:
     forall tpc mc n the_ge
       (Hn: n > 0)
-      (Hsafe: forall (U : Sch),
-          @csafe the_ge (U,[::],tpc) mc n),
-      invariant tpc.
+      (Hsafe: forall U,
+          HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
+      DM.invariant tpc.
   Proof.
     intros.
     specialize (Hsafe [:: 1]).
@@ -333,9 +327,9 @@ Module StepLemmas.
   Lemma safeC_compatible:
     forall tpc mc n the_ge
       (Hn: n > 0)
-      (Hsafe: forall (U : Sch),
-          csafe the_ge (U,[::],tpc) mc n),
-      mem_compatible tpc mc.
+      (Hsafe: forall U,
+          HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
+      DM.mem_compatible tpc mc.
   Proof.
     intros.
     specialize (Hsafe [:: 0]).
@@ -345,80 +339,86 @@ Module StepLemmas.
                      by exfalso | |];
       inversion Hstep; try inversion Htstep; auto;
         simpl in *; subst; auto; try discriminate.
-    inversion HschedN; subst.
-    Transparent containsThread.
-    unfold containsThread in Htid.
-    exfalso.
-    clear - Htid.
-    destruct num_threads.
-    simpl in *.
-    apply Htid.
-    ssromega.
   Qed.
   Opaque containsThread.
 
   Lemma step_schedule:
-    forall the_ge tpc tpc' mc mc' i U U'
-      (Hstep: DryConc.MachStep the_ge (i :: U, [::], tpc) mc (U, [::], tpc') mc'),
-      DryConc.MachStep the_ge (i :: U', [::], tpc) mc (U', [::], tpc') mc'.
+    forall the_ge tpc tpc' mc mc' i U1 U2 U1' tr tr'
+      (Hstep: MachStep the_ge (i :: U1, tr, tpc) mc (U2, tr ++ tr', tpc') mc'),
+      exists U2',
+      MachStep the_ge (i :: U1', tr, tpc) mc (U2', tr ++ tr', tpc') mc'.
   Proof.
     intros.
     inversion Hstep; subst; simpl in *;
-      try match goal with
+    repeat match goal with
           | [H: ?X :: ?U = ?U |- _] =>
             exfalso; eapply list_cons_irrefl; eauto
           | [H: Some ?X = Some ?Y |- _] =>
             inversion H; subst; clear H
-          end.
-    econstructor 4; simpl; eauto.
-    econstructor 5; simpl; eauto.
-    econstructor 6; simpl; eauto.
-    econstructor 7; simpl; eauto.
+          | [H: ?X = cat ?X ?Y |- _] =>
+            erewrite List.app_nil_end with (l := X) in H at 1;
+              apply List.app_inv_head in H; subst;
+                rewrite cats0
+        end.
+
+    eexists; econstructor 1; simpl; eauto.
+    eexists; econstructor 2; simpl; eauto.
+    eexists; econstructor 3; simpl; eauto.
+    exists U1'; econstructor 4; simpl; eauto.
+    exists U1'; econstructor 5; simpl; eauto.
+    exists U1'; econstructor 6; simpl; eauto.
+    exists U1'; econstructor 7; simpl; eauto.
   Qed.
 
-End StepLemmas.
+  End StepLemmas.
+  End StepLemmas.
 
 (** ** Definition of internal steps *)
-Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
-       (Machine : MachinesSig with Module SEM := SEM).
+  Module InternalSteps.
 
-  Import SEM event_semantics SemAxioms.
-  Import Machine DryMachine DryConc ThreadPool.
+  (* Import SEM event_semantics SemAxioms. *)
+  (* Import Machine DryMachine DryConc ThreadPool. *)
+    Import StepLemmas ThreadPool.
+    Import CoreLanguage HybridMachineSig.
+    (* Module CoreLanguage := CoreLanguage SEM SemAxioms. *)
+    (* Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine. *)
+    (* Module ThreadPoolWF := ThreadPoolWF SEM Machine. *)
+    (* Module StepLemmas := StepLemmas SEM Machine. *)
+    (* Import ThreadPoolWF StepLemmas CoreLanguage CoreLanguageDry SCH. *)
+    Section InternalSteps.
 
-  Module CoreLanguage := CoreLanguage SEM SemAxioms.
-  Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
-  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
-  Module StepLemmas := StepLemmas SEM Machine.
-  Import ThreadPoolWF StepLemmas CoreLanguage CoreLanguageDry SCH.
+      Context {Sem : Semantics}
+              {SemAx : SemAxioms}
+              {ge  : semG}.
 
-  Lemma initial_core_nomem:
-   forall n ge m v args q m', initial_core Sem n ge m v args = Some (q,m') -> m'=None.
-  Proof.  
-  Admitted.  (* true of Clight *)
-  Lemma initial_core_mem_congr: forall n ge m m' v vl,
-      initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
-  Admitted.  (* true of Clight *)
+      Notation schedule := (seq nat).
 
-  Section InternalSteps.
-    Variable the_ge : G.
+      Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
+      Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources Sem dryPool := DM.DryHybridMachineSig.
 
-    Notation threadStep := (threadStep the_ge).
-    Notation Sch := SCH.schedule.
-
-    (** Internal steps are just thread coresteps or resume steps or start steps,
-  they mimic fine-grained internal steps *)
-    Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
-               (Hcomp: mem_compatible tp m) tp' m' :=
-      (exists ev, threadStep cnt Hcomp tp' m' ev) \/
-      (DryConc.resume_thread the_ge m cnt tp' /\ m = m') \/
-      (DryConc.start_thread the_ge m cnt tp' m').
+      (*Nick: not sure what these are about, but they probably shouldn't be here *)
+     (* Lemma initial_core_nomem:
+        forall n ge m v args q m', initial_core Sem n ge m v args = Some (q,m') -> m'=None.
+      Proof.  
+      Admitted.  (* true of Clight *)
+      Lemma initial_core_mem_congr: forall n ge m m' v vl,
+          initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
+      Admitted.  (* true of Clight *) *)
+      
+      (** Internal steps are just thread coresteps or resume steps or start steps,
+          they mimic fine-grained internal steps *)
+      Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
+                 (Hcomp: DM.mem_compatible tp m) tp' m' :=
+      (exists ev, DM.threadStep ge cnt Hcomp tp' m' ev) \/
+      (resume_thread ge m cnt tp' /\ m = m') \/
+      (start_thread ge m cnt tp' m').
 
     (* For now we don't emit events from internal_execution*)
     (*NOTE: we will probably never need to do so*)
-    Inductive internal_execution : Sch -> thread_pool -> mem ->
-                                   thread_pool -> mem -> Prop :=
+    Inductive internal_execution : schedule -> t -> mem ->
+                                   t -> mem -> Prop :=
     | refl_exec : forall tp m,
-        internal_execution empty tp m tp m
+        internal_execution [::] tp m tp m
     | step_trans : forall tid U U' tp m tp' m' tp'' m''
                      (cnt: containsThread tp tid)
                      (HschedN: schedPeek U = Some tid)
@@ -459,17 +459,17 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       intros.
       destruct Hstep as [[? Htstep] | [[Htstep ?] | Htstep]],
                         Hstep' as [[? Htstep'] | [[Htstep' ?] | Htstep']]; subst;
-      inversion Htstep; inversion Htstep'; subst; pf_cleanup;
-      try (rewrite Hcode in Hcode0; inversion Hcode0; subst);
-      try apply ev_step_ax1 in Hcorestep0;
-      try apply ev_step_ax1 in Hcorestep;
-      try assert (Heq: c' = c'0 /\ m' = m'')
-        by (eapply corestep_det; eauto);
-      try solve [destruct Heq; subst; auto].
-      rewrite Hafter_external in Hafter_external0;
-        by inversion Hafter_external0.
-      rewrite Hinitial in Hinitial0;
-        by inversion Hinitial0.
+      inversion Htstep; inversion Htstep'; subst; Tactics.pf_cleanup;
+        try (rewrite Hcode in Hcode0; inversion Hcode0; subst).
+      - apply event_semantics.ev_step_ax1 in Hcorestep0;
+          apply event_semantics.ev_step_ax1 in Hcorestep.
+        assert (Heq: c' = c'0 /\ m' = m'')
+          by (eapply corestep_det; eauto).
+        now solve [destruct Heq; subst; auto].
+      - rewrite Hafter_external in Hafter_external0;
+          now inversion Hafter_external0.
+      - rewrite Hinitial in Hinitial0;
+          now inversion Hinitial0.
     Qed.
 
     Ltac exec_induction base_case :=
@@ -481,7 +481,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         [ match goal with
           | [Hexec: internal_execution _ _ _ _ _ |- _] =>
             try (inversion Hexec; subst;
-                   by pf_cleanup)
+                   by Tactics.pf_cleanup)
           end
         | match goal with
           | [Hexec: internal_execution _ _ _ _ _ |- _] =>
@@ -494,7 +494,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                                           HschedN HschedS Hcomp ? Htrans]; subst;
                    simpl in Htrans;
                    simpl in HschedN; inversion HschedN; subst;
-                   pf_cleanup;
+                   Tactics.pf_cleanup;
                    specialize (IHxs _ _  Htrans);
                    rewrite <- IHxs;
                    erewrite base_case; eauto)
@@ -506,7 +506,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Lemma containsThread_internal_step :
       forall tp m tp' m' tid0 tid
         (Hcnt0: containsThread tp tid0)
-        (Hcomp: mem_compatible tp m)
+        (Hcomp: DM.mem_compatible tp m)
         (Hstep: internal_step Hcnt0 Hcomp tp' m')
         (Hcnt: containsThread tp tid),
         containsThread tp' tid.
@@ -514,7 +514,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       intros.
       inversion Hstep. destruct H.
       inversion H; subst.
-      eapply corestep_containsThread; by eauto.
+      eapply CoreLanguageDry.corestep_containsThread; by eauto.
       destruct H as [[Htstep _] | Htstep];
         inversion Htstep; subst;
         [by eapply cntUpdateC | by eapply cntUpdateC].
@@ -545,7 +545,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros. inversion Hstep as [[? Htstep] | [[Htstep _] | Htstep]];
         inversion Htstep; subst;
-        [eapply corestep_containsThread'; eauto
+        [eapply CoreLanguageDry.corestep_containsThread'; eauto
         |  by eapply cntUpdateC'; eauto
         |  by eapply cntUpdateC'; eauto].
     Qed.
@@ -565,20 +565,20 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
     (** [mem_compatible] is preserved by [dry_step]*)
     Lemma dry_step_compatible :
-      forall (tp tp' : thread_pool) m m' (i : nat) ev (pf : containsThread tp i)
+      forall (tp tp' : t) m m' (i : nat) ev (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hdry: dry_step the_ge pf Hcompatible tp' m' ev),
+        (Hdry: DM.dry_step ge pf Hcompatible tp' m' ev),
         mem_compatible tp' m'.
     Proof.
       intros.
-      inversion Hdry; subst; eapply corestep_compatible; eauto.
+      inversion Hdry; subst; eapply CoreLanguageDry.corestep_compatible; eauto.
     Qed.
 
     (** [mem_compatible] is preserved by [resume_thread]*)
-    Corollary coarseResume_compatible :
-      forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
+    Corollary resume_compatible :
+      forall (tp tp' : t) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hresume: DryConc.resume_thread the_ge m pf tp'),
+        (Hresume: resume_thread ge m pf tp'),
         mem_compatible tp' m.
     Proof.
       intros.
@@ -588,21 +588,21 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Qed.
 
     (** [mem_compatible] is preserved by [start_thread]*)
-    Corollary coarseStart_compatible :
-      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
+    Corollary start_compatible :
+      forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hstart: DryConc.start_thread the_ge m pf tp' m'),
+        (Hstart: start_thread ge m pf tp' m'),
         mem_compatible tp' m'.
     Proof.
       intros.
       inversion Hstart; subst.
       eapply updThreadC_compatible.
-      apply initial_core_nomem in Hinitial. subst. eauto.
-    Qed.
+      Admitted.
+      (* apply initial_core_nomem in Hinitial. subst. eauto. *)
 
     (** [mem_compatible] is preserved by [internal_step]*)
     Corollary internal_step_compatible :
-      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
+      forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
         (Hstep: internal_step pf Hcompatible tp' m'),
         mem_compatible tp' m'.
@@ -611,14 +611,14 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       destruct Hstep as [[? Hdry] | [[Hresume ?] | Hstart]];
         subst;
         [eapply dry_step_compatible
-        | eapply coarseResume_compatible
-        | eapply coarseStart_compatible];
+        | eapply resume_compatible
+        | eapply start_compatible];
           by eauto.
     Qed.
 
     (** [invariant] is preserved by [internal_step]*)
     Lemma internal_step_invariant:
-      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
+      forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
         (Hstep: internal_step pf Hcompatible tp' m'),
         invariant tp'.
@@ -626,16 +626,16 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       intros.
       destruct Hstep as [[? Hdry] | Hsr].
       - inversion Hdry as [tp'0 c m1 m1' c']. subst m' tp'0 tp' ev.
-        apply ev_step_ax1 in Hcorestep.
-        eapply corestep_invariant; eauto.
+        apply event_semantics.ev_step_ax1 in Hcorestep.
+        eapply CoreLanguageDry.corestep_invariant; eauto.
       - destruct Hsr as [H1 | H1];
         destruct H1 as [H2 ?]; subst;
         inversion H2; subst;
-          by apply updThreadC_invariant.
+          by apply ThreadPoolWF.updThreadC_invariant.
     Qed.
 
     Lemma internal_execution_compatible :
-      forall (tp tp' : thread_pool) m m' xs
+      forall (tp tp' : t) m m' xs
         (Hcompatible: mem_compatible tp m)
         (Hstep: internal_execution xs tp m tp' m'),
         mem_compatible tp' m'.
@@ -646,7 +646,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Qed.
 
     Lemma internal_execution_invariant :
-      forall (tp tp' : thread_pool) m m' xs
+      forall (tp tp' : t) m m' xs
         (Hcompatible: mem_compatible tp m)
         (Hinv: invariant tp)
         (Hstep: internal_execution xs tp m tp' m'),
@@ -690,7 +690,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros. generalize dependent tp. generalize dependent m.
       induction xs; intros.
-      - simpl in Hstep. inversion Hstep; subst. by pf_cleanup.
+      - simpl in Hstep. inversion Hstep; subst.
+        now Tactics.pf_cleanup.
         simpl in HschedN. by discriminate.
       - simpl in Hstep.
         destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq.
@@ -733,10 +734,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs,
-        permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
-        permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur /\
-        permission_at (restrPermMap (Hcomp _ pfj).2) b ofs Cur =
-        permission_at (restrPermMap (Hcomp' _ pfj').2) b ofs Cur.
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur =
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').2) b ofs Cur.
     Proof.
       intros;
         rewrite! restrPermMap_Cur;
@@ -754,14 +755,15 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros. generalize dependent tp. generalize dependent m.
       induction xs; intros.
-      - simpl in Hstep. inversion Hstep; subst. by pf_cleanup.
+      - simpl in Hstep. inversion Hstep; subst.
+        now Tactics.pf_cleanup.
         simpl in HschedN. by discriminate.
       - simpl in Hstep.
         destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq.
         + subst a. inversion Hstep; subst.
           simpl in Htrans.
           simpl in HschedN; inversion HschedN; subst tid.
-          pf_cleanup.
+          Tactics.pf_cleanup.
           assert (pfj'0: containsThread tp'0 j)
             by (eapply containsThread_internal_step; eauto).
           specialize (IHxs _ _  pfj'0 Htrans).
@@ -789,7 +791,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
     (** The [lockRes] is preserved by [internal_execution]*)
     Lemma gsoLockPool_execution :
-      forall (tp : thread_pool) (m : mem) (tp' : thread_pool)
+      forall (tp : t) (m : mem) (tp' : t)
         (m' : mem) (i : nat) (xs : seq nat_eqType)
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         addr,
@@ -797,14 +799,16 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros. generalize dependent tp. generalize dependent m.
       induction xs; intros.
-      - simpl in Hexec. inversion Hexec; subst. by pf_cleanup.
-        simpl in HschedN. by discriminate.
+      - simpl in Hexec.
+        inversion Hexec; subst;
+          Tactics.pf_cleanup;
+          [reflexivity| simpl in *; discriminate].
       - simpl in Hexec.
         destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; try eauto.
         subst a. inversion Hexec; subst.
         simpl in Htrans.
         simpl in HschedN; inversion HschedN; subst tid.
-        pf_cleanup.
+        Tactics.pf_cleanup.
         specialize (IHxs _ _  Htrans).
         rewrite <- IHxs.
         erewrite gsoLockPool_step; eauto.
@@ -827,7 +831,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                        subst;
                        [rewrite gssThreadRes
                        | erewrite @gsoThreadRes with (cntj := cntj) by eauto];
-                       pf_cleanup; reflexivity.
+                       Tactics.pf_cleanup; reflexivity.
     Qed.
 
     (** Lock resources of the threads are preserved by [internal_execution] *)
@@ -839,7 +843,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros. generalize dependent tp. generalize dependent m.
       induction xs; intros.
-      - simpl in Hexec. inversion Hexec; subst. by pf_cleanup.
+      - simpl in Hexec. inversion Hexec; subst.
+        now Tactics.pf_cleanup.
         simpl in HschedN. by discriminate.
       - simpl in Hexec.
         inversion Hexec; subst; simpl in *.
@@ -864,10 +869,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       forall b ofs,
-        permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
-        permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur /\
-        permission_at (restrPermMap (Hcomp _ pfj).2) b ofs Cur =
-        permission_at (restrPermMap (Hcomp' _ pfj').2) b ofs Cur.
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur =
+        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').2) b ofs Cur.
     Proof.
       intros.
       rewrite! restrPermMap_Cur.
@@ -884,18 +889,19 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
-           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1)b ofs Cur Readable \/
+           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
       inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
-      inversion Htstep; subst; eapply ev_step_ax1 in Hcorestep;
-      eapply corestep_disjoint_val;
+      inversion Htstep; subst; eapply event_semantics.ev_step_ax1 in Hcorestep;
+        eapply CoreLanguageDry.corestep_disjoint_val;
         by eauto.
-      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
-    Qed.
+      (* inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity. *)
+      admit. (*initial_core problem *)
+    Admitted.
 
     Lemma internal_exec_disjoint_val :
       forall tp tp' m m' i j xs
@@ -905,8 +911,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
-           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur Readable \/
+           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -923,7 +929,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           simpl in Htrans.
           simpl in HschedN.
           inversion HschedN; subst tid.
-          pf_cleanup.
+          Tactics.pf_cleanup.
           assert (pfj0': containsThread tp'0 j) by
               (eapply containsThread_internal_step; eauto).
           assert (pfi0': containsThread tp'0 i) by
@@ -931,19 +937,19 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap (Hcomp0' j pfj0').1) b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (Hcomp0' j pfj0').2) b ofs Cur Readable).
+                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').1) b ofs Cur Readable \/
+                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
             destruct (permission_at_step Hneq  pfj pfj0' Hcomp0' Hstep0 b ofs)
               as [Hperm_eq1 Hperm_eq2].
             rewrite! restrPermMap_Cur in Hperm_eq1 Hperm_eq2.
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur (Hcomp0' j pfj0').1 b ofs).
-            assert (H2:= restrPermMap_Cur (Hcomp0' j pfj0').2 b ofs).
+            assert (H1:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').1 b ofs).
+            assert (H2:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').2 b ofs).
             unfold permission_at in H1, H2.
             rewrite H1 H2. rewrite <- Hperm_eq1, <- Hperm_eq2.
-            assert (H1':= restrPermMap_Cur (proj1 (Hcomp j pfj)) b ofs).
-            assert (H2':= restrPermMap_Cur (proj2 (Hcomp j pfj)) b ofs).
+            assert (H1':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).1 b ofs).
+            assert (H2':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).2 b ofs).
             unfold permission_at in H1', H2'.
             rewrite H1' H2' in Hreadable. assumption.
           }
@@ -963,18 +969,20 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
       inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
-      inversion Htstep; subst; eapply ev_step_ax1 in Hcorestep;
-        eapply corestep_disjoint_locks;
+      inversion Htstep; subst; eapply event_semantics.ev_step_ax1 in Hcorestep;
+        eapply CoreLanguageDry.corestep_disjoint_locks;
           by eauto.
-      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
-    Qed.
-
+      inversion Htstep. subst.
+      (*initial_core issues *)
+      (* apply initial_core_nomem in Hinitial. subst. reflexivity. *)
+      admit.
+    Admitted.
 
     Lemma internal_exec_disjoint_locks:
       forall tp tp' m m' i j xs
@@ -982,7 +990,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (pfj: containsThread tp j)
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
-        (Hreadable: Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+        (Hreadable: Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -999,7 +1007,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           simpl in Htrans.
           simpl in HschedN.
           inversion HschedN; subst tid.
-          pf_cleanup.
+          Tactics.pf_cleanup.
           assert (pfj0': containsThread tp'0 j) by
               (eapply containsThread_internal_step; eauto).
           assert (pfi0': containsThread tp'0 i) by
@@ -1007,12 +1015,12 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap (Hcomp0' j pfj0').2) b ofs Cur Readable).
+                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
             pose proof (internal_step_locks_eq Hstep0 pfj pfj0') as Heq_perm.
             unfold Mem.perm in *.
-            assert (H2:= restrPermMap_Cur (Hcomp0' j pfj0').2 b ofs).
-            assert (H2':= restrPermMap_Cur (proj2 (Hcomp j pfj)) b ofs).
+            assert (H2:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').2 b ofs).
+            assert (H2':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).2 b ofs).
             unfold permission_at in H2, H2'.
             rewrite H2.
             rewrite H2' in Hreadable.
@@ -1032,7 +1040,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hstep: internal_step pfi Hcomp tp' m')
         b ofs
         (Hvalid: Mem.valid_block m b)
-        (Hstable: ~ Mem.perm (restrPermMap (Hcomp _ pfi).1) b ofs Cur Writable),
+        (Hstable: ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1040,8 +1048,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply ev_unchanged_on in Hcorestep;
         by eauto.
-      inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
-    Qed.
+      inversion Htstep. subst.
+      (* apply initial_core_nomem in Hinitial. subst. reflexivity. *)
+      (*initial core issue *)
+      admit.
+    Admitted.
 
     (** Data resources of a thread that took an internal step are related by [decay]*)
     Lemma internal_step_decay:
@@ -1050,16 +1061,16 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step cnt Hcomp tp' m'),
-        decay (restrPermMap (Hcomp _ cnt).1)
-              (restrPermMap (Hcomp' _ cnt').1).
+        decay (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)
+              (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1).
     Proof.
       intros. unfold decay. intros b ofs.
       assert (HpermCur: permission_at
-                       (restrPermMap (proj1 (Hcomp' _ cnt'))) b ofs Cur =
+                       (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1) b ofs Cur =
                      (getThreadR cnt').1 # b ofs)
         by (eapply restrPermMap_Cur; eauto).
       assert (HpermMax: permission_at
-                          (restrPermMap (proj1 (Hcomp' _ cnt'))) b ofs Max =
+                          (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1) b ofs Max =
                         (Mem.mem_access m') # b ofs Max)
         by (erewrite restrPermMap_Max;
              erewrite getMaxPerm_correct;
@@ -1067,7 +1078,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       unfold permission_at in *.
       destruct Hstep as [[? Hcstep] | [[Hresume ?] | Hstart]]; subst.
       - inversion Hcstep. subst.
-        apply ev_step_ax1 in Hcorestep.
+        apply event_semantics.ev_step_ax1 in Hcorestep.
         eapply corestep_decay in Hcorestep.
         destruct (Hcorestep b ofs).
         split.
@@ -1106,18 +1117,18 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
         assert (H: forall k,
-                   (Mem.mem_access (restrPermMap (proj1 (Hcomp' i cnt')))) # b ofs k =
-                   (Mem.mem_access (restrPermMap (proj1 (Hcomp i cnt)))) # b ofs k).
+                   (Mem.mem_access (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1)) # b ofs k =
+                   (Mem.mem_access (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)) # b ofs k).
         { intros k.
           destruct k.
           rewrite HpermMax.
-          assert (H := restrPermMap_Max (proj1 (Hcomp i cnt)) b ofs).
+          assert (H := restrPermMap_Max (((DM.compat_th _ _ Hcomp) cnt).1) b ofs).
           rewrite getMaxPerm_correct in H.
-          unfold permission_at in H;
+          unfold permission_at in H.
             by rewrite H.
           rewrite HpermCur.
           rewrite Hpmap.
-          assert (H := restrPermMap_Cur (proj1 (Hcomp i cnt)) b ofs).
+          assert (H := restrPermMap_Cur (((DM.compat_th _ _ Hcomp) cnt).1) b ofs).
           unfold permission_at in H;
             by rewrite H. }
         split.
@@ -1133,21 +1144,23 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
         assert (H: forall k,
-                   (Mem.mem_access (restrPermMap (proj1 (Hcomp' i cnt')))) # b ofs k =
-                   (Mem.mem_access (restrPermMap (proj1 (Hcomp i cnt)))) # b ofs k).
+                   (Mem.mem_access (restrPermMap (((DM.compat_th _ _ Hcomp') cnt').1))) # b ofs k =
+                   (Mem.mem_access (restrPermMap (((DM.compat_th _ _ Hcomp) cnt).1))) # b ofs k).
         { intros k.
-          destruct k.
-          rewrite HpermMax.
-          assert (H := restrPermMap_Max (proj1 (Hcomp i cnt)) b ofs).
-          rewrite getMaxPerm_correct in H.
-          apply initial_core_nomem in Hinitial. subst.
-          unfold permission_at in H;
-            by rewrite H.
-          rewrite HpermCur.
-          rewrite Hpmap.
-          assert (H := restrPermMap_Cur (proj1 (Hcomp i cnt)) b ofs).
-          unfold permission_at in H;
-            by rewrite H. }
+          admit. (*initial_core related *)
+          (* destruct k. *)
+          (* rewrite HpermMax. *)
+          (* assert (H := restrPermMap_Max (((DM.compat_th _ _ Hcomp) cnt).1) b ofs). *)
+          (* rewrite getMaxPerm_correct in H. *)
+          (* apply initial_core_nomem in Hinitial. subst. *)
+          (* unfold permission_at in H; *)
+          (*   by rewrite H. *)
+          (* rewrite HpermCur. *)
+          (* rewrite Hpmap. *)
+          (* assert (H := restrPermMap_Cur (((DM.compat_th _ _ Hcomp) cnt).1) b ofs). *)
+          (* unfold permission_at in H; *)
+          (*   by rewrite H. *)
+        }
         split.
         intros.
         right.
@@ -1157,8 +1170,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         rewrite H;
           by assumption.
         intros; auto.
-    Qed.
-
+    Admitted.
+    
     (** [Mem.valid_block] is preserved by [internal_step]*)
     Lemma internal_step_valid:
       forall tp m tp' m' i (cnt: containsThread tp i)
@@ -1172,8 +1185,11 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         [inversion Htstep; subst;
          eapply ev_step_validblock;
            by eauto | by subst | subst].
-      inversion H. subst. apply initial_core_nomem in Hinitial. subst. assumption.
-    Qed.
+      inversion H. subst.
+      (*initial_core issue *)
+      admit.
+      (* apply initial_core_nomem in Hinitial. subst. assumption. *)
+    Admitted.
 
     Lemma internal_execution_valid :
       forall tp m tp' m' xs
@@ -1202,7 +1218,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m')
         b ofs
         (Hvalid: Mem.valid_block m b)
-        (Hstable:  ~ Mem.perm (restrPermMap (Hcomp _ pfi).1) b ofs Cur Writable),
+        (Hstable:  ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1219,13 +1235,13 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           simpl in Htrans.
           simpl in HschedN.
           inversion HschedN; subst tid.
-          pf_cleanup.
+          Tactics.pf_cleanup.
           assert (pfi0': containsThread tp'0 i) by
               (eapply containsThread_internal_step; eauto).
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hstable0':
-                    ~ Mem.perm (restrPermMap (Hcomp0' _ pfi0').1) b ofs Cur Writable).
+                    ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfi0').1) b ofs Cur Writable).
           { clear IHxs Htrans HschedN Hstep.
             pose proof (internal_step_decay pfi0' Hcomp0' Hstep0) as Hdecay.
             unfold decay in Hdecay.
@@ -1255,14 +1271,14 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
-        decay (restrPermMap (Hcomp _ cnt).1)
-              (restrPermMap ((Hcomp' _ cnt').1)).
+        decay (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)
+              (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1).
     Proof.
       intros tp m tp' m' xs.
       generalize dependent tp. generalize dependent m.
       induction xs.
       - intros. simpl in Hexec. inversion Hexec; subst.
-        pf_cleanup.
+        Tactics.pf_cleanup.
           by apply decay_refl.
         simpl in HschedN. discriminate.
       - intros.
@@ -1275,15 +1291,15 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
             by (eapply internal_step_compatible; eauto).
           assert (cnt0': containsThread tp'0 i)
             by (eapply containsThread_internal_step; eauto).
-          pf_cleanup.
+          Tactics.pf_cleanup.
           eapply IHxs with
           (Hcomp := Hcomp'0) (Hcomp' := Hcomp')
                              (cnt := cnt0') (cnt' := cnt') in Htrans.
           assert (Hdecay:
-                    decay (restrPermMap (proj1 (Hcomp _ cnt)))
-                          (restrPermMap (proj1 (Hcomp'0 _ cnt0'))))
+                    decay (restrPermMap ((DM.compat_th _ _ Hcomp0) cnt).1)
+                          (restrPermMap ((DM.compat_th _ _ Hcomp'0) cnt0').1))
             by (eapply internal_step_decay; eauto).
-          eapply decay_trans with (m' := restrPermMap (proj1 (Hcomp'0 i cnt0')));
+          eapply decay_trans with (m' := (restrPermMap ((DM.compat_th _ _ Hcomp'0) cnt0').1));
             eauto.
           intros.
           erewrite restrPermMap_valid.
@@ -1302,30 +1318,33 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
-        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).1)
+        (Hreadable: Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).2)
+                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
       inversion Hstep as [[? Hcstep] | [[Hrstep Heq] | Hsstep]]; subst; auto.
-      inversion Hcstep; subst; eapply ev_step_ax1 in Hcorestep;
-      eapply corestep_disjoint_val_lockpool;
+      inversion Hcstep; subst; eapply event_semantics.ev_step_ax1 in Hcorestep;
+      eapply CoreLanguageDry.corestep_disjoint_val_lockpool;
         by eauto.
-      inversion Hsstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity.
-    Qed.
+      (* initial_core issue*)
+    (*   inversion Hsstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity. *)
+      (* Qed. *)
+      admit.
+    Admitted.
 
     Lemma internal_exec_disjoint_val_lockPool:
-      forall (tp tp' : thread_pool) (m m' : mem) (i : tid) xs bl ofsl pmap
+      forall (tp tp' : t) (m m' : mem) (i : nat) xs bl ofsl pmap
         (Hcomp : mem_compatible tp m)
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
         b ofs
-        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).1)
+        (Hreadable: Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).2)
+                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1343,7 +1362,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           simpl in Htrans.
           simpl in HschedN.
           inversion HschedN; subst tid.
-          pf_cleanup.
+          Tactics.pf_cleanup.
           assert (pfi0': containsThread tp'0 i) by
               (eapply containsThread_internal_step; eauto).
           assert(Hcomp0': mem_compatible tp'0 m'0) by
@@ -1351,18 +1370,18 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           assert (Hl0': lockRes tp'0 (bl, ofsl) = Some pmap)
             by (erewrite <- gsoLockPool_step; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap (proj1 (compat_lp Hcomp0' _ Hl0')))
+                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (compat_lp Hcomp0' _ Hl0')))
+                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').2)
                              b ofs Cur Readable).
           { clear IHxs Htrans HschedN.
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur (proj1 (compat_lp Hcomp0' _ Hl0')) b ofs).
-            assert (H2:= restrPermMap_Cur (proj2 (compat_lp Hcomp0' _ Hl0')) b ofs).
+            assert (H1:= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').1 b ofs).
+            assert (H2:= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').2 b ofs).
             unfold permission_at in H1, H2.
             rewrite H1 H2.
-            assert (H1':= restrPermMap_Cur (proj1 (compat_lp Hcomp _ Hl)) b ofs).
-            assert (H2':= restrPermMap_Cur (proj2 (compat_lp Hcomp _ Hl)) b ofs).
+            assert (H1':= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp) _ _ Hl).1 b ofs).
+            assert (H2':= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp) _ _ Hl).2 b ofs).
             unfold permission_at in H1', H2'.
               by rewrite H1' H2' in Hreadable.
           }
@@ -1371,7 +1390,6 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           eapply internal_step_disjoint_val_lockPool; eauto.
         + by eauto.
     Qed.
-
 
 
     Lemma updThread_internal_step:
@@ -1392,10 +1410,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - inversion H; subst.
         left.
         exists x.
-        eapply step_dry with (c := c0) (c' := c'); eauto.
+        eapply @DM.step_dry with (c := c0) (c' := c'); eauto.
         erewrite gsoThreadCode; eauto.
         erewrite <- restrPermMap_irr' with
-        (Hlt' := (Hcomp' j cntj').1) (Hlt := (Hcomp j cntj).1);
+        (Hlt' := ((DM.compat_th _ _ Hcomp') cntj').1) (Hlt := ((DM.compat_th _ _ Hcomp) cntj).1);
           eauto.
         erewrite @gsoThreadRes with (cntj := cntj); eauto.
         erewrite @gsoThreadRes with (cntj := cntj) by eauto.
@@ -1406,15 +1424,18 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         split; auto.
         econstructor; eauto.
         erewrite @gsoThreadCode with (cntj := cntj); eauto.
-        pf_cleanup. auto.
-        rewrite updThread_updThreadC_comm; auto.
+        Tactics.pf_cleanup. auto.
+        simpl.
+        rewrite CoreLanguageDry.OP.updThread_updThreadC_comm; auto.
       - subst.
         inversion H; subst.
         do 2 right.
         econstructor; eauto.
         erewrite @gsoThreadCode with (cntj := cntj); eauto.
-        pf_cleanup. auto.
-        rewrite updThread_updThreadC_comm; auto.
+        Tactics.pf_cleanup. auto.
+        simpl.
+        rewrite CoreLanguageDry.OP.updThread_updThreadC_comm;
+          now auto.
     Qed.
 
 
@@ -1433,28 +1454,32 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       generalize dependent m.
       generalize dependent tp.
       induction xs; intros.
-      - simpl in *.
-        inversion Hexec; subst;
+      - inversion Hexec; subst;
         first by constructor.
         simpl in HschedN;
           by discriminate.
-      - simpl in *.
-        destruct (a == j) eqn:Heq; move/eqP:Heq=>Heq.
-        subst a.
-        inversion Hexec; subst.
-        simpl in HschedN. inversion HschedN; subst tid.
-        assert (cntj' := cntUpdate c pmap cnti cnt).
-        assert (cnti0' := containsThread_internal_step Hstep cnti).
-        eapply updThread_internal_step
+      - destruct (a == j) eqn:Heq; move/eqP:Heq=>Heq.
+        + subst a.
+          simpl in Hexec.
+          erewrite if_true in Hexec by eauto.
+          inversion Hexec; subst.
+          simpl in HschedN. inversion HschedN; subst tid.
+          assert (cntj' := cntUpdate c pmap cnti cnt).
+          assert (cnti0' := containsThread_internal_step Hstep cnti).
+          eapply updThread_internal_step
         with (cntj' := cntj') (cnti' := cnti0') (Hcomp' := Hcomp') in Hstep; eauto.
         specialize (IHxs tp'0 _
                          ltac:(eapply internal_step_invariant; eauto)
                                 m'0
                                 ltac:(eapply (internal_step_compatible);
-                                       eauto) Htrans).
+                                      eauto) Htrans).
+        simpl in Htrans.
+        simpl in *. erewrite if_true by eauto.
         econstructor;
           by eauto.
-        eauto.
+        + simpl ([seq x <- a :: xs | x == j]) in *.
+          erewrite if_false in * by (now apply/eqP).
+          eapply IHxs; eauto.
     Qed.
 
     Lemma addThread_internal_step:
@@ -1472,10 +1497,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - inversion Htstep; subst tp'0 m'0.
         left.
         exists x.
-        eapply step_dry with (c := c) (c' := c'); eauto.
+        eapply @DM.step_dry with (c := c) (c' := c'); eauto.
         erewrite gsoAddCode with (cntj := cnti); eauto.
         subst.
-        erewrite restrPermMap_irr' with (Hlt' := proj1 (Hcomp i cnti)); eauto.
+        erewrite restrPermMap_irr' with (Hlt' := ((DM.compat_th _ _ Hcomp) cnti).1); eauto.
         erewrite gsoAddRes with (cntj := cnti); eauto.
         subst.
         erewrite @gsoAddRes with (cntj := cnti) by eauto.
@@ -1545,12 +1570,12 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - inversion H; subst.
         left.
         exists x.
-        eapply step_dry with (c := c) (c' := c'); eauto.
-        eapply remLock_inv; eauto.
+        eapply @DM.step_dry with (c := c) (c' := c'); eauto.
+        eapply ThreadPoolWF.remLock_inv; eauto.
         rewrite gRemLockSetCode.
         auto.
         erewrite <- restrPermMap_irr' with
-        (Hlt' := (Hcomp' j cntj').1) (Hlt := (Hcomp j cntj).1);
+        (Hlt' := ((DM.compat_th _ _ Hcomp') cntj').1) (Hlt := ((DM.compat_th _ _ Hcomp) cntj).1);
           eauto.
         rewrite gRemLockSetRes; auto.
         rewrite gRemLockSetRes; auto.
@@ -1560,13 +1585,13 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         split; auto.
         econstructor; eauto.
         rewrite gRemLockSetCode; auto.
-        eapply remLock_inv; eauto.
+        eapply ThreadPoolWF.remLock_inv; eauto.
       - subst.
         inversion H; subst.
         do 2 right.
         econstructor; eauto.
         rewrite gRemLockSetCode; auto.
-        eapply remLock_inv; eauto.
+        eapply ThreadPoolWF.remLock_inv; eauto.
     Qed.
 
     Lemma remLock_internal_execution:
@@ -1613,9 +1638,12 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply ev_step_nextblock in Hcorestep;
         by rewrite restrPermMap_nextblock in Hcorestep.
       apply Pos.le_refl.
-      inversion H. subst. apply initial_core_nomem in Hinitial. subst.
-      apply Pos.le_refl.
-    Qed.
+      inversion H. subst.
+     (* apply initial_core_nomem in Hinitial. subst.
+      apply Pos.le_refl. *)
+      (*initial_core *)
+      admit.
+    Admitted.
 
     Lemma internal_execution_nextblock:
       forall tp m tp' m' xs
@@ -1640,21 +1668,21 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 End InternalSteps.
 
 (** ** Type of steps the concurrent machine supports *)
-Module StepType (SEM : Semantics)
-       (SemAxioms: SemanticsAxioms SEM)
-       (Machine : MachinesSig with Module SEM := SEM)
-       (AsmContext : AsmContext SEM Machine ).
+Module StepType.
 
-  Import AsmContext Machine DryMachine ThreadPool.
-  Import SEM event_semantics SemAxioms.
-
-  Module StepLemmas := StepLemmas SEM Machine.
-  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
-  Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
-  Module InternalSteps := InternalSteps SEM SemAxioms Machine.
-  Import ThreadPoolWF CoreLanguageDry InternalSteps StepLemmas event_semantics.
+  Import ThreadPoolWF CoreLanguageDry InternalSteps
+         StepLemmas event_semantics HybridMachineSig.
    (** Distinguishing the various step types of the concurrent machine *)
 
+  Module DM := HybridMachine.DryHybridMachine.
+
+  Section StepLemmas.
+    Context {Sem : Semantics}.
+    Context {Sch: Scheduler}.
+
+    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
+    Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig.
+  
   Inductive StepType : Type :=
     Internal | Concurrent | Halted | Suspend.
 
