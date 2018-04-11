@@ -1,5 +1,4 @@
 Require Import VST.msl.sepalg.
-Require Import Ensembles.
 
 Class Ghost := { G : Type; valid : G -> Prop;
   Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G;
@@ -21,7 +20,7 @@ Definition fp_update_ND a B := forall c, valid_2 a c -> exists b, B b /\ valid_2
 
 Definition fp_update a b := forall c, valid_2 a c -> valid_2 b c.
 
-Lemma fp_update_equiv: forall a b, fp_update a b <-> fp_update_ND a (Singleton _ b).
+Lemma fp_update_equiv: forall a b, fp_update a b <-> fp_update_ND a (eq b).
 Proof.
   split; repeat intro.
   - exists b; split; eauto; constructor.
