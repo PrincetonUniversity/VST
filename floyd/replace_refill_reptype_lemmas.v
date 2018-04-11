@@ -82,11 +82,13 @@ Proof.
     clear - H0.
     revert V0 V1 H0 V.
     destruct (nested_field_type t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
+Abort.
+(*
     - admit.
     - admit.
     - admit.
 Admitted.
-
+*)
 End SINGLE_HOLE.
 
 Module zlist_hint_db.
@@ -262,7 +264,7 @@ Ltac pose_upd_reptype_1 CS t gf v v0 H :=
     rewrite H0 in H;
     clear H0
   end.
-
+(*
 Ltac pose_upd_reptype CS t gfs v v0 H :=
   match gfs with
   | nil =>
@@ -292,7 +294,7 @@ Ltac pose_upd_reptype CS t gfs v v0 H :=
           end
       end
   end.
-
+*)
 Module Type TestType.
 End TestType.
 
