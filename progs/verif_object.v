@@ -206,7 +206,7 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *)
+(* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 set (mtable := gv _foo_methods).
 rename v_foo_twiddle into twiddle;
 rename v_foo_reset into reset.
@@ -222,9 +222,12 @@ replace_SEP 0 (object_methods foo_invariant mtable).
   unfold object_methods.
   Exists Ews reset twiddle.
   entailer!.
-  unfold_data_at 1%nat.
-  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible.
-  rewrite <- mapsto_field_at with (v:=twiddle) by auto with field_compatible.
+  unfold_data_at 2%nat.
+  rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:=twiddle)
+      by auto with field_compatible.
+  rewrite field_at_data_at.
+  clear H3 H4 H2 H0.
+  (*  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible. *)
   rewrite !field_compatible_field_address by auto with field_compatible.
   rewrite !isptr_offset_val_zero by auto.
   rewrite sepcon_comm.

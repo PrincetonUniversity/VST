@@ -3116,18 +3116,23 @@ Ltac assert_gvar i :=
  end.
 
 Ltac change_mapsto_gvar_to_data_at :=
-match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
-  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
-   lazymatch L with
-   | context [gvar _ g] => idtac 
-   | _ => match g with (?gv ?i)  => assert_gvar i end
-   end;
-   assert_PROP (headptr (offset_val 0 g));
-       [entailer!; apply <- headptr_offset_zero; auto |];
-   erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
-       [| reflexivity | now auto | assumption | apply JMeq_refl ];
-   match goal with H: _ |- _ => clear H end;
-     rewrite <- ? data_at_offset_zero
+match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with
+  | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
+      lazymatch L with context [gvar _ (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (offset_val 0 (gv i)));
+          [entailer!;  apply <- headptr_offset_zero; auto |];
+      erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ (gv i)));
+          [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end;
+          rewrite <- ? data_at_offset_zero
+  | context [mapsto ?sh ?t (gv ?i) ?v] =>
+      lazymatch L with context [gvar i (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (gv i));
+          [entailer! |];
+      erewrite (mapsto_data_at'' _ _ _ _ (gv i));
+           [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end
    end
 end.
 

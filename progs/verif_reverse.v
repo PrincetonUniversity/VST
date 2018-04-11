@@ -224,7 +224,7 @@ Lemma setup_globals:
   ENTAIL Delta, PROP  ()
    LOCAL  (gvar _three x)
    SEP
-   (mapsto Ews tuint (offset_val 0 x) (Vint (Int.repr 1));
+   (data_at Ews tuint (Vint (Int.repr 1)) x;
     mapsto Ews (tptr t_struct_list) (offset_val 4 x)
         (offset_val 8 x);
    mapsto Ews tuint (offset_val 8 x) (Vint (Int.repr 2));
@@ -239,13 +239,16 @@ Proof.
  intros.
   go_lower.
   rewrite !prop_true_andp by auto.
+  assert_PROP (size_compatible tuint x /\ align_compatible tuint x)
+   by (entailer!; clear - H0; hnf in H0; intuition).
+  rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)) by intuition. 
+  clear H0.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] x)
     by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace x with (offset_val 0 x) by normalize.
   subst a.
-
   repeat
     match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n x));
@@ -272,12 +275,13 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
- start_function.
+start_function.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
   eapply ENTAIL_trans; [ | apply (setup_globals Delta (gv _three)); auto ] | ].
  entailer!.
+*
 forward_call (*  r = reverse(three); *)
   (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], gv _three).
 Intros r'.

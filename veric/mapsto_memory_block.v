@@ -895,7 +895,7 @@ Proof.
 Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Ptrofs.modulus ->
+  n < Ptrofs.modulus ->
   Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
@@ -905,6 +905,10 @@ Proof.
   intros.
   rename H0 into H'. rename H1 into RS.
   unfold memory_block.
+  destruct (zlt n 0).   {
+     rewrite nat_of_Z_neg by omega. simpl. rewrite prop_true_andp by auto. auto.
+  }
+ assert (0 <= n < Ptrofs.modulus) by omega. clear H g; rename H0 into H.
   repeat rewrite Int.unsigned_repr by omega.
   apply andp_right.
   + intros ? _; auto.

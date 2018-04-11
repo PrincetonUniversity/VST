@@ -527,7 +527,7 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
 Proof. exact @memory_block_valid_pointer. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Ptrofs.modulus ->
+  n < Ptrofs.modulus ->
   Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
