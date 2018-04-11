@@ -336,17 +336,17 @@ Module HybridMachineSig.
       @machine_step G (fst (fst c)) (snd (fst c)) (snd c)  m
                     (fst (fst c')) (snd (fst c')) (snd c')  m'.
 
-    Definition at_external (ge: G) (st : MachState) (m: mem)
+    Definition at_external_mach (ge: G) (st : MachState) (m: mem)
       : option (external_function * list val) := None.
     
-    Definition after_external (ge: G) (ov : option val) (st : MachState) :
+    Definition after_external_mach (ge: G) (ov : option val) (st : MachState) :
       option (MachState) := None.
     
     (*not clear what the value of halted should be*)
     (*Nick: IMO, the machine should be halted when the schedule is empty.
       The value is probably unimportant? *)
     (*Santiago: I belive empty schedule should "diverge". After all that's *)
-    Definition halted (st : MachState) : option val :=
+    Definition halted_machine (st : MachState) : option val :=
       match schedPeek (fst (fst st)) with
       | Some _ => None
       | _ => Some Vundef
@@ -365,12 +365,12 @@ Module HybridMachineSig.
     intros.
     apply (@Build_CoreSemantics _ MachState _
                                 (fun n => init_machine U r)
-                                at_external
-                                after_external
-                                halted
+                                at_external_mach
+                                after_external_mach
+                                halted_machine
                                 MachStep
           );
-      unfold at_external, halted; try reflexivity.
+      unfold at_external_mach, halted_machine; try reflexivity.
     intros. inversion H; subst; rewrite HschedN; reflexivity.
     auto.
     Defined.
@@ -496,7 +496,7 @@ Module HybridMachineSig.
         @ConcurSemantics G nat schedule event_trace machine_state mem.
       apply (@Build_ConcurSemantics _ nat schedule event_trace  machine_state _
                                     (init_machine' r)
-                                    (fun U st => halted (U, nil, st))
+                                    (fun U st => halted_machine (U, nil, st))
                                     (fun ge U st m st' m' =>
                                        @internal_step ge U st m
                                                       st' m'
@@ -507,13 +507,13 @@ Module HybridMachineSig.
                                     )
                                     unique_Krun)
       ;
-      unfold at_external, halted; try reflexivity.
+      unfold at_external_mach, halted_machine; try reflexivity.
       - intros. inversion H; subst; rewrite HschedN; reflexivity.
       - intros. inversion H; subst; rewrite HschedN; reflexivity.
     Defined.
 
     (** The class of Hybrid Machines parameterized by:
-        - ThreadWise semantics
+        - Threadwise semantics
         - Scheduler granularity *)
     Class HybridMachine:=
       {
@@ -557,7 +557,7 @@ Module HybridMachineSig.
       (** Schedule safety of the coarse-grained machine*)
       Inductive csafe (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
       | Safe_0: csafe ge st m 0
-      | HaltedSafe: forall n, halted st -> csafe ge st m n
+      | HaltedSafe: forall n, halted_machine st -> csafe ge st m n
       | CoreSafe : forall tp' m' n tr
                      (Hstep: MachStep ge st m (fst (fst st),tr,tp') m')
                      (Hsafe: csafe ge (fst (fst st),tr,tp') m' n),
@@ -600,7 +600,7 @@ Module HybridMachineSig.
       Inductive fsafe (ge : G) (tp : thread_pool) (m : mem) (U : schedule)
         : nat -> Prop :=
       | Safe_0: fsafe ge tp m U 0
-      | HaltedSafe : forall n tr, halted (U, tr, tp) -> fsafe ge tp m U n
+      | HaltedSafe : forall n tr, halted_machine (U, tr, tp) -> fsafe ge tp m U n
       | StepSafe : forall (tp' : thread_pool) (m' : mem)
                      (tr tr': event_trace) n,
           MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->

@@ -408,8 +408,8 @@ Module StepLemmas.
       (** Internal steps are just thread coresteps or resume steps or start steps,
           they mimic fine-grained internal steps *)
       Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
-                 (Hcomp: DM.mem_compatible tp m) tp' m' :=
-      (exists ev, DM.threadStep ge cnt Hcomp tp' m' ev) \/
+                 (Hcomp: mem_compatible tp m) tp' m' :=
+      (exists ev, threadStep ge cnt Hcomp tp' m' ev) \/
       (resume_thread ge m cnt tp' /\ m = m') \/
       (start_thread ge m cnt tp' m').
 
@@ -1664,35 +1664,41 @@ Module StepLemmas.
       eauto.
     Qed.
 
-  End InternalSteps.
+    End InternalSteps.
+
+    Arguments internal_step {Sem} ge {tid} {tp} {m}.
+    Arguments internal_execution {Sem} ge.
+    
 End InternalSteps.
 
 (** ** Type of steps the concurrent machine supports *)
 Module StepType.
 
-  Import ThreadPoolWF CoreLanguageDry InternalSteps
-         StepLemmas event_semantics HybridMachineSig.
+  Import ThreadPoolWF CoreLanguageDry ThreadPool
+         event_semantics HybridMachineSig InternalSteps.
    (** Distinguishing the various step types of the concurrent machine *)
 
   Module DM := HybridMachine.DryHybridMachine.
 
   Section StepLemmas.
-    Context {Sem : Semantics}.
-    Context {Sch: Scheduler}.
+    Context {Sem : Semantics}
+            {Sch: Scheduler}
+            {ge: semG}.
 
+    Instance res : Resources := DM.resources.
     Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-    Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig.
+    (* Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig. *)
   
   Inductive StepType : Type :=
     Internal | Concurrent | Halted | Suspend.
 
-  Definition ctlType (code : threadPool.ctl) : StepType :=
+  Definition ctlType (code : @threadPool.ctl semC) (m : Mem.mem) : StepType :=
     match code with
     | Kinit _ _ => Internal
     | Krun c =>
-      match at_external Sem the_ge c Mem.empty with
+      match at_external semSem ge c m with (*TODO: erm is that Mem.empty here right?*)
       | None =>
-        match halted Sem c with
+        match halted semSem c with
         | Some _ => Halted
         | None => Internal
         end
@@ -1702,67 +1708,60 @@ Module StepType.
     | Kresume c _ => Internal
     end.
 
-  Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
-    ctlType (getThreadC cnt).
+  Definition getStepType {i tp} (cnt : containsThread tp i) m : StepType :=
+    ctlType (getThreadC cnt) m.
 
-  Global Notation "cnt '@'  'I'" := (getStepType cnt = Internal) (at level 80).
-  Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
-  Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
-  Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+  Notation "cnt '$' m '@'  'I'" := (getStepType cnt m = Internal) (at level 80).
+  Notation "cnt '$' m '@'  'E'" := (getStepType cnt m = Concurrent) (at level 80).
+  Notation "cnt '$' m '@'  'S'" := (getStepType cnt m = Suspend) (at level 80).
+  Notation "cnt '$' m '@'  'H'" := (getStepType cnt m = Halted) (at level 80).
 
+  (*TODO: maybe move to tactics *)
   (** Solves absurd cases from fine-grained internal steps *)
-  Global Ltac absurd_internal Hstep :=
-    inversion Hstep; try inversion Htstep; subst; simpl in *;
-    try match goal with
-        | [H: Some _ = Some _ |- _] => inversion H; subst
-        end; pf_cleanup;
-    repeat match goal with
-           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
-             unfold getStepType in Hint;
-               rewrite H in Hint; simpl in Hint
-           | [H1: match ?Expr with _ => _ end = _,
-                  H2: ?Expr = _ |- _] => rewrite H2 in H1
-           | [H: threadHalted _ |- _] =>
-             inversion H; clear H; subst; simpl in *; pf_cleanup;
-             unfold  ThreadPool.SEM.Sem in *
-           | [H1: is_true (isSome (halted ?Sem ?C)),
-                  H2: match at_external _ _ with _ => _ end = _ |- _] =>
-             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
-               [rewrite Hext in H2;
-                 destruct (halted Sem C) eqn:Hh;
-                 [discriminate | by exfalso] |
-                rewrite Hcontra in H1; by exfalso]
-           end; try discriminate; try (exfalso; by auto).
+  (* Ltac absurd_internal Hstep := *)
+  (*   inversion Hstep; try inversion Htstep; subst; simpl in *; *)
+  (*   try match goal with *)
+  (*       | [H: Some _ = Some _ |- _] => inversion H; subst *)
+  (*       end; Tactics.pf_cleanup; *)
+  (*   repeat match goal with *)
+  (*          | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] => *)
+  (*            unfold getStepType in Hint; *)
+  (*              rewrite H in Hint; simpl in Hint *)
+  (*          | [H1: match ?Expr with _ => _ end = _, *)
+  (*                 H2: ?Expr = _ |- _] => rewrite H2 in H1 *)
+  (*          | [H: threadHalted _ |- _] => *)
+  (*            inversion H; clear H; subst; simpl in *; Tactics.pf_cleanup; *)
+  (*            unfold semSem in * *)
+  (*          | [H1: is_true (isSome (halted ?Sem ?C)), *)
+  (*                 H2: match at_external _ _ with _ => _ end = _ |- _] => *)
+  (*            destruct (at_external_halted_excl Sem C) as [Hext | Hcontra]; *)
+  (*              [rewrite Hext in H2; *)
+  (*                destruct (halted Sem C) eqn:Hh; *)
+  (*                [discriminate | by exfalso] | *)
+  (*               rewrite Hcontra in H1; by exfalso] *)
+  (*          end; try discriminate; try (exfalso; by auto). *)
 
-
-Lemma at_external_congr:
- forall ge ge' m m' c, at_external Sem ge c m = at_external Sem ge' c m'.
-   (* Provable for Clight *)
-Admitted.
-
-  Section StepType.
-    Variable ge : G.
   Lemma internal_step_type :
     forall  i tp tp' m m' (cnt : containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (Hstep_internal: internal_step ge cnt Hcomp tp' m'),
-      cnt @ I.
+      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp) cnt).1) in
+      cnt$mrestr @ I.
   Proof.
     intros.
     unfold getStepType, ctlType.
     destruct Hstep_internal as [[? Hcstep] | [[Hresume Heq] | [Hstart Heq]]].
     inversion Hcstep. subst. rewrite Hcode.
     apply ev_step_ax1 in Hcorestep.
-    assert (H1:= corestep_not_at_external Sem _ _ _ _ _ Hcorestep).
-    rewrite (at_external_congr the_ge ge Mem.empty (restrPermMap (Hcomp i cnt)#1)).
+    assert (H1:= corestep_not_at_external semSem _ _ _ _ _ Hcorestep).
     rewrite H1.
-    assert (H2:= corestep_not_halted Sem _ _ _ _ _ Hcorestep);
+    assert (H2:= corestep_not_halted semSem _ _ _ _ _ Hcorestep);
       by rewrite H2.
     inversion Hresume; subst.
-    pf_cleanup;
+    Tactics.pf_cleanup;
       by rewrite Hcode.
     inversion Hstart; subst.
-    pf_cleanup;
+    Tactics.pf_cleanup;
       by rewrite Hcode.
   Qed.
 
@@ -1770,8 +1769,10 @@ Admitted.
     forall tp m tp' m' i (cnti: containsThread tp i)
       (cnti': containsThread tp' i)
       (Hcomp: mem_compatible tp m)
+      (Hcomp': DM.mem_compatible tp' m')
       (Hinternal: internal_step ge cnti Hcomp tp' m'),
-      ~ (cnti' @ E).
+      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp') cnti').1) in
+      ~ (cnti'$mrestr @ E).
   Proof.
     intros. intro Hcontra.
     destruct Hinternal as [[? Htstep] | [[Htstep ?] | Htstep]]; subst;
@@ -1789,8 +1790,10 @@ Admitted.
     forall tp m tp' m' i xs
       (cnti': containsThread tp' i)
       (Hin: List.In i xs)
+      (Hcomp': DM.mem_compatible tp' m')
       (Hexec: internal_execution ge [seq x <- xs | x == i] tp m tp' m'),
-      ~ (cnti' @ E).
+      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp') cnti').1) in
+      ~ (cnti'$mrestr @ E).
   Proof.
     intros.
     generalize dependent m.
@@ -1822,15 +1825,19 @@ Admitted.
   Qed.
 
   (** Proofs about [fmachine_step]*)
-  Notation fmachine_step := ((corestep fine_semantics) ge).
+
+  Notation fmachine_step := ((corestep HybridFineMachine.HybridFineMachine) ge).
 
   Lemma fstep_containsThread' :
     forall tp tp' m m' i j U tr tr'
       (cnti: containsThread tp i)
       (cntj: containsThread tp' j)
-      (Hinternal: cnti @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
-      containsThread tp j.
+      (Hcomp: DM.mem_compatible tp m),
+      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp) cnti).1) in
+      forall
+        (Hinternal: cnti$mrestr @ I)
+        (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
+        containsThread tp j.
   Proof.
     intros.
     absurd_internal Hstep;
