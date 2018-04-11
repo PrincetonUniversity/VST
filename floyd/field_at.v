@@ -1555,7 +1555,6 @@ Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,
   sepalg.nonidentity sh ->
-  field_compatible t nil p ->
   0 < sizeof t ->
   data_at sh t v p * data_at sh t v' p |-- FF.
 Proof.
