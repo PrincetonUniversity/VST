@@ -41,29 +41,29 @@ parameterized by the semantics so they can be used by either
 high-level or low-level languages*)
 Module StepLemmas.
   Import HybridMachine ThreadPool.
-  Import HybridMachineSig.
+  Import DryHybridMachine HybridMachineSig.
   (* Module OP := OrdinalPool. *)
-  Module DM := DryHybridMachine.
   Section StepLemmas.
     Context {asmSem : Semantics}.
     Context {Sch: Scheduler}.
 
     Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-    Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig.
+    Instance dryMachSig: @HybridMachineSig.MachineSig DryHybridMachine.resources
+                                                      asmSem dryPool := DryHybridMachine.DryHybridMachineSig.
     
   (** [mem_compatible] is preserved by [updThreadC] *)
   Lemma updThreadC_compatible:
     forall (tp : t) m i c
       (ctn : containsThread tp i)
-      (Hcomp: DM.mem_compatible tp m),
-      DM.mem_compatible (updThreadC ctn c) m.
+      (Hcomp: mem_compatible tp m),
+      mem_compatible (updThreadC ctn c) m.
   Proof.
     intros.
     constructor.
     intros j cntj'.
     assert (cntj: containsThread tp j)
       by (eapply cntUpdateC'; eauto).
-    specialize ((DM.compat_th _ _ Hcomp) cntj).
+    specialize ((compat_th _ _ Hcomp) cntj).
     erewrite @gThreadCR with (cntj := cntj);
       by auto.
     intros.
@@ -72,7 +72,7 @@ Module StepLemmas.
       by eauto.
     intros.
     erewrite gsoThreadCLPool in H;
-      eapply (DM.lockRes_blocks _ _ Hcomp);
+      eapply (lockRes_blocks _ _ Hcomp);
       by eauto.
   Qed.
 
@@ -105,9 +105,9 @@ Module StepLemmas.
   (** [mem_compatible] is preserved by [suspend_thread]*)
   Corollary suspend_compatible:
     forall ge tp tp' m i (cnt: containsThread tp i)
-      (Hcomp: DM.mem_compatible tp m)
+      (Hcomp: mem_compatible tp m)
       (Hsuspend: suspend_thread ge m cnt tp'),
-      DM.mem_compatible tp' m.
+      mem_compatible tp' m.
   Proof.
     intros. inversion Hsuspend; subst.
       by eapply updThreadC_compatible.
@@ -213,7 +213,7 @@ Module StepLemmas.
              rewrite H2 in H
            end; simpl in *;
       by auto).
-    eapply (DM.lockRes_blocks _ _ Hcomp); eauto.
+    eapply (lockRes_blocks _ _ Hcomp); eauto.
   Qed.
 
   (** Any state that steps, requires its threadpool and memory to be
@@ -221,7 +221,7 @@ Module StepLemmas.
   Lemma step_mem_compatible:
     forall the_ge U tr tp m U' tr' tp' m'
       (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
-      DM.mem_compatible tp m.
+      mem_compatible tp m.
   Proof.
     intros.
     inversion Hstep; simpl in *; subst;
@@ -232,7 +232,7 @@ Module StepLemmas.
   Lemma step_invariant:
     forall the_ge U tr tp m U' tr' tp' m'
       (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
-      DM.invariant tp.
+      invariant tp.
   Proof.
     intros.
     inversion Hstep; simpl in *; subst;
@@ -288,11 +288,11 @@ Module StepLemmas.
       (Hneq: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
-      (Hcomp: DM.mem_compatible tp m)
-      (Hcomp': DM.mem_compatible tp' m')
+      (Hcomp: mem_compatible tp m)
+      (Hcomp': mem_compatible tp' m')
       (Hstep: MachStep the_ge (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
-      permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
-      permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur.
+      permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+      permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').1) b ofs Cur.
   Proof.
     intros.
     do 2 rewrite restrPermMap_Cur;
@@ -313,7 +313,7 @@ Module StepLemmas.
       (Hn: n > 0)
       (Hsafe: forall U,
           HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
-      DM.invariant tpc.
+      invariant tpc.
   Proof.
     intros.
     specialize (Hsafe [:: 1]).
@@ -329,7 +329,7 @@ Module StepLemmas.
       (Hn: n > 0)
       (Hsafe: forall U,
           HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
-      DM.mem_compatible tpc mc.
+      mem_compatible tpc mc.
   Proof.
     intros.
     specialize (Hsafe [:: 0]).
@@ -379,12 +379,8 @@ Module StepLemmas.
   (* Import SEM event_semantics SemAxioms. *)
   (* Import Machine DryMachine DryConc ThreadPool. *)
     Import StepLemmas ThreadPool.
-    Import CoreLanguage HybridMachineSig.
-    (* Module CoreLanguage := CoreLanguage SEM SemAxioms. *)
-    (* Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine. *)
-    (* Module ThreadPoolWF := ThreadPoolWF SEM Machine. *)
-    (* Module StepLemmas := StepLemmas SEM Machine. *)
-    (* Import ThreadPoolWF StepLemmas CoreLanguage CoreLanguageDry SCH. *)
+    Import CoreLanguage HybridMachine.DryHybridMachine HybridMachineSig.
+
     Section InternalSteps.
 
       Context {Sem : Semantics}
@@ -394,7 +390,7 @@ Module StepLemmas.
       Notation schedule := (seq nat).
 
       Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-      Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources Sem dryPool := DM.DryHybridMachineSig.
+      Instance dryMachSig: @HybridMachineSig.MachineSig resources Sem dryPool := DryHybridMachineSig.
 
       (*Nick: not sure what these are about, but they probably shouldn't be here *)
      (* Lemma initial_core_nomem:
@@ -506,7 +502,7 @@ Module StepLemmas.
     Lemma containsThread_internal_step :
       forall tp m tp' m' tid0 tid
         (Hcnt0: containsThread tp tid0)
-        (Hcomp: DM.mem_compatible tp m)
+        (Hcomp: mem_compatible tp m)
         (Hstep: internal_step Hcnt0 Hcomp tp' m')
         (Hcnt: containsThread tp tid),
         containsThread tp' tid.
@@ -567,7 +563,7 @@ Module StepLemmas.
     Lemma dry_step_compatible :
       forall (tp tp' : t) m m' (i : nat) ev (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hdry: DM.dry_step ge pf Hcompatible tp' m' ev),
+        (Hdry: dry_step ge pf Hcompatible tp' m' ev),
         mem_compatible tp' m'.
     Proof.
       intros.
@@ -734,10 +730,10 @@ Module StepLemmas.
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs,
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur =
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').2) b ofs Cur.
+        permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+        permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
+        permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur =
+        permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').2) b ofs Cur.
     Proof.
       intros;
         rewrite! restrPermMap_Cur;
@@ -869,10 +865,10 @@ Module StepLemmas.
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       forall b ofs,
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur =
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur =
-        permission_at (restrPermMap ((DM.compat_th _ _ Hcomp') pfj').2) b ofs Cur.
+        permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).1) b ofs Cur =
+        permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').1) b ofs Cur /\
+        permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur =
+        permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').2) b ofs Cur.
     Proof.
       intros.
       rewrite! restrPermMap_Cur.
@@ -889,8 +885,8 @@ Module StepLemmas.
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1)b ofs Cur Readable \/
-           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).1)b ofs Cur Readable \/
+           Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -911,8 +907,8 @@ Module StepLemmas.
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).1) b ofs Cur Readable \/
-           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).1) b ofs Cur Readable \/
+           Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -937,19 +933,19 @@ Module StepLemmas.
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').1) b ofs Cur Readable \/
-                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
+                    Mem.perm (restrPermMap ((compat_th _ _ Hcomp0') pfj0').1) b ofs Cur Readable \/
+                    Mem.perm (restrPermMap ((compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
             destruct (permission_at_step Hneq  pfj pfj0' Hcomp0' Hstep0 b ofs)
               as [Hperm_eq1 Hperm_eq2].
             rewrite! restrPermMap_Cur in Hperm_eq1 Hperm_eq2.
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').1 b ofs).
-            assert (H2:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').2 b ofs).
+            assert (H1:= restrPermMap_Cur ((compat_th _ _ Hcomp0') pfj0').1 b ofs).
+            assert (H2:= restrPermMap_Cur ((compat_th _ _ Hcomp0') pfj0').2 b ofs).
             unfold permission_at in H1, H2.
             rewrite H1 H2. rewrite <- Hperm_eq1, <- Hperm_eq2.
-            assert (H1':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).1 b ofs).
-            assert (H2':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).2 b ofs).
+            assert (H1':= restrPermMap_Cur ((compat_th _ _ Hcomp) pfj).1 b ofs).
+            assert (H2':= restrPermMap_Cur ((compat_th _ _ Hcomp) pfj).2 b ofs).
             unfold permission_at in H1', H2'.
             rewrite H1' H2' in Hreadable. assumption.
           }
@@ -969,7 +965,7 @@ Module StepLemmas.
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable:
-           Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
+           Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -990,7 +986,7 @@ Module StepLemmas.
         (pfj: containsThread tp j)
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
-        (Hreadable: Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
+        (Hreadable: Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1015,12 +1011,12 @@ Module StepLemmas.
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
+                    Mem.perm (restrPermMap ((compat_th _ _ Hcomp0') pfj0').2) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
             pose proof (internal_step_locks_eq Hstep0 pfj pfj0') as Heq_perm.
             unfold Mem.perm in *.
-            assert (H2:= restrPermMap_Cur ((DM.compat_th _ _ Hcomp0') pfj0').2 b ofs).
-            assert (H2':= restrPermMap_Cur ((DM.compat_th _ _ Hcomp) pfj).2 b ofs).
+            assert (H2:= restrPermMap_Cur ((compat_th _ _ Hcomp0') pfj0').2 b ofs).
+            assert (H2':= restrPermMap_Cur ((compat_th _ _ Hcomp) pfj).2 b ofs).
             unfold permission_at in H2, H2'.
             rewrite H2.
             rewrite H2' in Hreadable.
@@ -1040,7 +1036,7 @@ Module StepLemmas.
         (Hstep: internal_step pfi Hcomp tp' m')
         b ofs
         (Hvalid: Mem.valid_block m b)
-        (Hstable: ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
+        (Hstable: ~ Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1061,16 +1057,16 @@ Module StepLemmas.
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step cnt Hcomp tp' m'),
-        decay (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)
-              (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1).
+        decay (restrPermMap ((compat_th _ _ Hcomp) cnt).1)
+              (restrPermMap ((compat_th _ _ Hcomp') cnt').1).
     Proof.
       intros. unfold decay. intros b ofs.
       assert (HpermCur: permission_at
-                       (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1) b ofs Cur =
+                       (restrPermMap ((compat_th _ _ Hcomp') cnt').1) b ofs Cur =
                      (getThreadR cnt').1 # b ofs)
         by (eapply restrPermMap_Cur; eauto).
       assert (HpermMax: permission_at
-                          (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1) b ofs Max =
+                          (restrPermMap ((compat_th _ _ Hcomp') cnt').1) b ofs Max =
                         (Mem.mem_access m') # b ofs Max)
         by (erewrite restrPermMap_Max;
              erewrite getMaxPerm_correct;
@@ -1117,18 +1113,18 @@ Module StepLemmas.
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
         assert (H: forall k,
-                   (Mem.mem_access (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1)) # b ofs k =
-                   (Mem.mem_access (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)) # b ofs k).
+                   (Mem.mem_access (restrPermMap ((compat_th _ _ Hcomp') cnt').1)) # b ofs k =
+                   (Mem.mem_access (restrPermMap ((compat_th _ _ Hcomp) cnt).1)) # b ofs k).
         { intros k.
           destruct k.
           rewrite HpermMax.
-          assert (H := restrPermMap_Max (((DM.compat_th _ _ Hcomp) cnt).1) b ofs).
+          assert (H := restrPermMap_Max (((compat_th _ _ Hcomp) cnt).1) b ofs).
           rewrite getMaxPerm_correct in H.
           unfold permission_at in H.
             by rewrite H.
           rewrite HpermCur.
           rewrite Hpmap.
-          assert (H := restrPermMap_Cur (((DM.compat_th _ _ Hcomp) cnt).1) b ofs).
+          assert (H := restrPermMap_Cur (((compat_th _ _ Hcomp) cnt).1) b ofs).
           unfold permission_at in H;
             by rewrite H. }
         split.
@@ -1144,20 +1140,20 @@ Module StepLemmas.
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
         assert (H: forall k,
-                   (Mem.mem_access (restrPermMap (((DM.compat_th _ _ Hcomp') cnt').1))) # b ofs k =
-                   (Mem.mem_access (restrPermMap (((DM.compat_th _ _ Hcomp) cnt).1))) # b ofs k).
+                   (Mem.mem_access (restrPermMap (((compat_th _ _ Hcomp') cnt').1))) # b ofs k =
+                   (Mem.mem_access (restrPermMap (((compat_th _ _ Hcomp) cnt).1))) # b ofs k).
         { intros k.
           admit. (*initial_core related *)
           (* destruct k. *)
           (* rewrite HpermMax. *)
-          (* assert (H := restrPermMap_Max (((DM.compat_th _ _ Hcomp) cnt).1) b ofs). *)
+          (* assert (H := restrPermMap_Max (((compat_th _ _ Hcomp) cnt).1) b ofs). *)
           (* rewrite getMaxPerm_correct in H. *)
           (* apply initial_core_nomem in Hinitial. subst. *)
           (* unfold permission_at in H; *)
           (*   by rewrite H. *)
           (* rewrite HpermCur. *)
           (* rewrite Hpmap. *)
-          (* assert (H := restrPermMap_Cur (((DM.compat_th _ _ Hcomp) cnt).1) b ofs). *)
+          (* assert (H := restrPermMap_Cur (((compat_th _ _ Hcomp) cnt).1) b ofs). *)
           (* unfold permission_at in H; *)
           (*   by rewrite H. *)
         }
@@ -1218,7 +1214,7 @@ Module StepLemmas.
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m')
         b ofs
         (Hvalid: Mem.valid_block m b)
-        (Hstable:  ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
+        (Hstable:  ~ Mem.perm (restrPermMap ((compat_th _ _ Hcomp) pfi).1) b ofs Cur Writable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1241,7 +1237,7 @@ Module StepLemmas.
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hstable0':
-                    ~ Mem.perm (restrPermMap ((DM.compat_th _ _ Hcomp0') pfi0').1) b ofs Cur Writable).
+                    ~ Mem.perm (restrPermMap ((compat_th _ _ Hcomp0') pfi0').1) b ofs Cur Writable).
           { clear IHxs Htrans HschedN Hstep.
             pose proof (internal_step_decay pfi0' Hcomp0' Hstep0) as Hdecay.
             unfold decay in Hdecay.
@@ -1271,8 +1267,8 @@ Module StepLemmas.
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
-        decay (restrPermMap ((DM.compat_th _ _ Hcomp) cnt).1)
-              (restrPermMap ((DM.compat_th _ _ Hcomp') cnt').1).
+        decay (restrPermMap ((compat_th _ _ Hcomp) cnt).1)
+              (restrPermMap ((compat_th _ _ Hcomp') cnt').1).
     Proof.
       intros tp m tp' m' xs.
       generalize dependent tp. generalize dependent m.
@@ -1296,10 +1292,10 @@ Module StepLemmas.
           (Hcomp := Hcomp'0) (Hcomp' := Hcomp')
                              (cnt := cnt0') (cnt' := cnt') in Htrans.
           assert (Hdecay:
-                    decay (restrPermMap ((DM.compat_th _ _ Hcomp0) cnt).1)
-                          (restrPermMap ((DM.compat_th _ _ Hcomp'0) cnt0').1))
+                    decay (restrPermMap ((compat_th _ _ Hcomp0) cnt).1)
+                          (restrPermMap ((compat_th _ _ Hcomp'0) cnt0').1))
             by (eapply internal_step_decay; eauto).
-          eapply decay_trans with (m' := (restrPermMap ((DM.compat_th _ _ Hcomp'0) cnt0').1));
+          eapply decay_trans with (m' := (restrPermMap ((compat_th _ _ Hcomp'0) cnt0').1));
             eauto.
           intros.
           erewrite restrPermMap_valid.
@@ -1318,9 +1314,9 @@ Module StepLemmas.
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
-        (Hreadable: Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).1)
+        (Hreadable: Mem.perm (restrPermMap ((compat_lp _ _ Hcomp) _ _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).2)
+                    Mem.perm (restrPermMap ((compat_lp _ _ Hcomp) _ _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1342,9 +1338,9 @@ Module StepLemmas.
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
         b ofs
-        (Hreadable: Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).1)
+        (Hreadable: Mem.perm (restrPermMap ((compat_lp _ _ Hcomp) _ _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp) _ _ Hl).2)
+                    Mem.perm (restrPermMap ((compat_lp _ _ Hcomp) _ _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1370,18 +1366,18 @@ Module StepLemmas.
           assert (Hl0': lockRes tp'0 (bl, ofsl) = Some pmap)
             by (erewrite <- gsoLockPool_step; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').1)
+                    Mem.perm (restrPermMap ((compat_lp _ _ Hcomp0') _ _ Hl0').1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').2)
+                    Mem.perm (restrPermMap ((compat_lp _ _ Hcomp0') _ _ Hl0').2)
                              b ofs Cur Readable).
           { clear IHxs Htrans HschedN.
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').1 b ofs).
-            assert (H2:= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp0') _ _ Hl0').2 b ofs).
+            assert (H1:= restrPermMap_Cur ((compat_lp _ _ Hcomp0') _ _ Hl0').1 b ofs).
+            assert (H2:= restrPermMap_Cur ((compat_lp _ _ Hcomp0') _ _ Hl0').2 b ofs).
             unfold permission_at in H1, H2.
             rewrite H1 H2.
-            assert (H1':= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp) _ _ Hl).1 b ofs).
-            assert (H2':= restrPermMap_Cur ((DM.compat_lp _ _ Hcomp) _ _ Hl).2 b ofs).
+            assert (H1':= restrPermMap_Cur ((compat_lp _ _ Hcomp) _ _ Hl).1 b ofs).
+            assert (H2':= restrPermMap_Cur ((compat_lp _ _ Hcomp) _ _ Hl).2 b ofs).
             unfold permission_at in H1', H2'.
               by rewrite H1' H2' in Hreadable.
           }
@@ -1410,10 +1406,10 @@ Module StepLemmas.
       - inversion H; subst.
         left.
         exists x.
-        eapply @DM.step_dry with (c := c0) (c' := c'); eauto.
+        eapply @step_dry with (c := c0) (c' := c'); eauto.
         erewrite gsoThreadCode; eauto.
         erewrite <- restrPermMap_irr' with
-        (Hlt' := ((DM.compat_th _ _ Hcomp') cntj').1) (Hlt := ((DM.compat_th _ _ Hcomp) cntj).1);
+        (Hlt' := ((compat_th _ _ Hcomp') cntj').1) (Hlt := ((compat_th _ _ Hcomp) cntj).1);
           eauto.
         erewrite @gsoThreadRes with (cntj := cntj); eauto.
         erewrite @gsoThreadRes with (cntj := cntj) by eauto.
@@ -1497,10 +1493,10 @@ Module StepLemmas.
       - inversion Htstep; subst tp'0 m'0.
         left.
         exists x.
-        eapply @DM.step_dry with (c := c) (c' := c'); eauto.
+        eapply @step_dry with (c := c) (c' := c'); eauto.
         erewrite gsoAddCode with (cntj := cnti); eauto.
         subst.
-        erewrite restrPermMap_irr' with (Hlt' := ((DM.compat_th _ _ Hcomp) cnti).1); eauto.
+        erewrite restrPermMap_irr' with (Hlt' := ((compat_th _ _ Hcomp) cnti).1); eauto.
         erewrite gsoAddRes with (cntj := cnti); eauto.
         subst.
         erewrite @gsoAddRes with (cntj := cnti) by eauto.
@@ -1570,12 +1566,12 @@ Module StepLemmas.
       - inversion H; subst.
         left.
         exists x.
-        eapply @DM.step_dry with (c := c) (c' := c'); eauto.
+        eapply @step_dry with (c := c) (c' := c'); eauto.
         eapply ThreadPoolWF.remLock_inv; eauto.
         rewrite gRemLockSetCode.
         auto.
         erewrite <- restrPermMap_irr' with
-        (Hlt' := ((DM.compat_th _ _ Hcomp') cntj').1) (Hlt := ((DM.compat_th _ _ Hcomp) cntj).1);
+        (Hlt' := ((compat_th _ _ Hcomp') cntj').1) (Hlt := ((compat_th _ _ Hcomp) cntj).1);
           eauto.
         rewrite gRemLockSetRes; auto.
         rewrite gRemLockSetRes; auto.
@@ -1671,23 +1667,25 @@ Module StepLemmas.
     
 End InternalSteps.
 
-(** ** Type of steps the concurrent machine supports *)
+  (** ** Type of steps the concurrent machine supports *)
+  (*Note: Internal and External steps were introduced in the
+  HybridMachine after this development. However, this is not exactly
+  the same, as it treats resume and start steps as internal as
+  well. Basically anything that may not pop the schedule *)
 Module StepType.
 
   Import ThreadPoolWF CoreLanguageDry ThreadPool
-         event_semantics HybridMachineSig InternalSteps.
-   (** Distinguishing the various step types of the concurrent machine *)
-
-  Module DM := HybridMachine.DryHybridMachine.
-
+         event_semantics HybridMachine DryHybridMachine HybridMachineSig InternalSteps.
+  (** Distinguishing the various step types of the concurrent machine *)
+  
   Section StepLemmas.
     Context {Sem : Semantics}
             {Sch: Scheduler}
             {ge: semG}.
 
-    Instance res : Resources := DM.resources.
+    Instance res : Resources := resources.
     Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-    (* Instance dryMachSig: @HybridMachineSig.MachineSig DM.resources asmSem dryPool := DM.DryHybridMachineSig. *)
+    Instance dryMachSig: @HybridMachineSig.MachineSig resources Sem dryPool := DryHybridMachineSig.
   
   Inductive StepType : Type :=
     Internal | Concurrent | Halted | Suspend.
@@ -1716,36 +1714,11 @@ Module StepType.
   Notation "cnt '$' m '@'  'S'" := (getStepType cnt m = Suspend) (at level 80).
   Notation "cnt '$' m '@'  'H'" := (getStepType cnt m = Halted) (at level 80).
 
-  (*TODO: maybe move to tactics *)
-  (** Solves absurd cases from fine-grained internal steps *)
-  (* Ltac absurd_internal Hstep := *)
-  (*   inversion Hstep; try inversion Htstep; subst; simpl in *; *)
-  (*   try match goal with *)
-  (*       | [H: Some _ = Some _ |- _] => inversion H; subst *)
-  (*       end; Tactics.pf_cleanup; *)
-  (*   repeat match goal with *)
-  (*          | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] => *)
-  (*            unfold getStepType in Hint; *)
-  (*              rewrite H in Hint; simpl in Hint *)
-  (*          | [H1: match ?Expr with _ => _ end = _, *)
-  (*                 H2: ?Expr = _ |- _] => rewrite H2 in H1 *)
-  (*          | [H: threadHalted _ |- _] => *)
-  (*            inversion H; clear H; subst; simpl in *; Tactics.pf_cleanup; *)
-  (*            unfold semSem in * *)
-  (*          | [H1: is_true (isSome (halted ?Sem ?C)), *)
-  (*                 H2: match at_external _ _ with _ => _ end = _ |- _] => *)
-  (*            destruct (at_external_halted_excl Sem C) as [Hext | Hcontra]; *)
-  (*              [rewrite Hext in H2; *)
-  (*                destruct (halted Sem C) eqn:Hh; *)
-  (*                [discriminate | by exfalso] | *)
-  (*               rewrite Hcontra in H1; by exfalso] *)
-  (*          end; try discriminate; try (exfalso; by auto). *)
-
   Lemma internal_step_type :
     forall  i tp tp' m m' (cnt : containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (Hstep_internal: internal_step ge cnt Hcomp tp' m'),
-      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp) cnt).1) in
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) cnt).1) in
       cnt$mrestr @ I.
   Proof.
     intros.
@@ -1769,9 +1742,9 @@ Module StepType.
     forall tp m tp' m' i (cnti: containsThread tp i)
       (cnti': containsThread tp' i)
       (Hcomp: mem_compatible tp m)
-      (Hcomp': DM.mem_compatible tp' m')
+      (Hcomp': mem_compatible tp' m')
       (Hinternal: internal_step ge cnti Hcomp tp' m'),
-      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp') cnti').1) in
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp') cnti').1) in
       ~ (cnti'$mrestr @ E).
   Proof.
     intros. intro Hcontra.
@@ -1790,9 +1763,9 @@ Module StepType.
     forall tp m tp' m' i xs
       (cnti': containsThread tp' i)
       (Hin: List.In i xs)
-      (Hcomp': DM.mem_compatible tp' m')
+      (Hcomp': mem_compatible tp' m')
       (Hexec: internal_execution ge [seq x <- xs | x == i] tp m tp' m'),
-      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp') cnti').1) in
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp') cnti').1) in
       ~ (cnti'$mrestr @ E).
   Proof.
     intros.
@@ -1824,65 +1797,99 @@ Module StepType.
       move/eqP:Hia; auto.
   Qed.
 
-  (** Proofs about [fmachine_step]*)
+  (** ** Proofs about [AsmContext.dryFineMach]*)
 
-  Notation fmachine_step := ((corestep HybridFineMachine.HybridFineMachine) ge).
+  Section FineMachineInternal.
+    Context {initU : seq nat}
+            {init_mem : option Memory.Mem.mem}
+            {semAx: CoreLanguage.SemAxioms}.
+    
+  Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem) ge)).
 
+  (*TODO: maybe move to tactics *)
+  (** Solves absurd cases from fine-grained internal steps *)
+  Ltac absurd_internal Hstep :=
+    inversion Hstep; try inversion Htstep; subst; simpl in *;
+    try match goal with
+        | [H: Some _ = Some _ |- _] => inversion H; subst
+        end; Tactics.pf_cleanup;
+    repeat match goal with
+           | [H: OrdinalPool.getThreadC ?Pf = _, Hint: ?Pf$_ @ I |- _] =>
+             unfold getStepType in Hint; simpl in *;
+               rewrite H in Hint; simpl in Hint
+           | [H1: match ?Expr with _ => _ end = _,
+                  H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H: DryHybridMachine.threadHalted _ |- _] =>
+             inversion H; clear H; subst; simpl in *; Tactics.pf_cleanup;  simpl in *
+           | [H1: is_true (isSome (halted ?Sem ?C)),
+                  H2: match at_external _ _ _ with _ => _ end = _ |- _] =>
+             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
+               [rewrite Hext in H2;
+                 destruct (halted Sem C) eqn:Hh;
+                 [discriminate | by exfalso] |
+                rewrite Hcontra in H1; by exfalso]
+           end; try discriminate; try (exfalso; by auto).
+  
   Lemma fstep_containsThread' :
     forall tp tp' m m' i j U tr tr'
       (cnti: containsThread tp i)
       (cntj: containsThread tp' j)
-      (Hcomp: DM.mem_compatible tp m),
-      let mrestr := restrPermMap (((DM.compat_th _ _ Hcomp) cnti).1) in
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) cnti).1) in
       forall
         (Hinternal: cnti$mrestr @ I)
         (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
         containsThread tp j.
   Proof.
-    intros.
-    absurd_internal Hstep;
-      by eauto.
+    intros; absurd_internal Hstep;
+      by eauto. 
   Qed.
 
   Lemma fmachine_step_invariant:
-    forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U tr tr'
-      (Hcompatible: mem_compatible tp m)
-      (Hinternal: pf @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
-      invariant tp'.
+    forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i) U tr tr'
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pf).1) in
+      forall (Hinternal: pf$mrestr @ I)
+        (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
+        invariant tp'.
   Proof.
     intros.
     absurd_internal Hstep.
     - apply updThreadC_invariant; auto.
     - apply updThreadC_invariant; auto.
-    -
-      eapply ev_step_ax1 in Hcorestep.
-      eapply corestep_invariant;
-        by (simpl; eauto).
-      rewrite (at_external_congr the_ge ge Mem.empty m') in Hinternal.
-     rewrite Hat_external in Hinternal. discriminate.
-     destruct (at_external Sem the_ge c Mem.empty) eqn:?; try discriminate Hinternal.
-     destruct (halted Sem c) eqn:?; try discriminate Hinternal.
-     inversion Hcant.
+    - eapply ev_step_ax1 in Hcorestep.
+      eapply corestep_invariant; simpl; eauto.
+      now apply updThreadC_invariant.
+      destruct (halted semSem c) eqn:?;
+               destruct (at_external semSem ge c mrestr);
+        try discriminate.
   Qed.
 
   Lemma fmachine_step_compatible:
-    forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U tr tr'
-      (Hcompatible: mem_compatible tp m)
-      (Hinternal: pf @ I)
-      (Hstep: fmachine_step (i :: U,tr, tp) m (U, tr',tp') m'),
-      mem_compatible tp' m'.
+    forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i) U tr tr'
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pf).1) in
+      forall (Hinternal: pf$mrestr @ I)
+        (Hstep: fmachine_step (i :: U,tr, tp) m (U, tr',tp') m'),
+        mem_compatible tp' m'.
   Proof.
     intros.
     absurd_internal Hstep;
-      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
-      try (eapply updThreadC_compatible;
+      (* try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj); *)
+      try (eapply StepLemmas.updThreadC_compatible;
              by eauto).
-    eapply mem_compatible_setMaxPerm.
+    (* initial_core stuff*)
+    admit.
+    
+    (* eapply StepLemmas.mem_compatible_setMaxPerm. *)
+    destruct (at_external semSem ge c mrestr) eqn:?; inversion Hinternal.
+    destruct (halted semSem c); inversion H0.
     eapply corestep_compatible; simpl; eauto.
-    destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal.
-    destruct (halted Sem c); inversion H0. inversion Hcant.
-  Qed.
+    (*TODO: absurd_internal is kind of broken now, doing this proof manually *)
+    destruct (halted semSem c);
+      destruct (at_external semSem ge c mrestr);
+      try discriminate.
+  Admitted.
 
   Lemma gsoThreadC_fstepI:
     forall tp tp' m m' i j U tr tr'

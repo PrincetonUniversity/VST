@@ -1021,8 +1021,7 @@ Module CoreLanguageDry.
   Import HybridMachine ThreadPool event_semantics.
   Module HBS := HybridMachineSig.
   Module OP := OrdinalPool.
-  Module DM := DryHybridMachine.
-
+  
   Section CoreLanguageDry.
     Context {Sem : Semantics}
             {SemAx : SemAxioms}.
@@ -1068,7 +1067,7 @@ Module CoreLanguageDry.
       (Hinv: HBS.invariant tp)
       (Hcode: getThreadC pf = Krun c)
       (Hcompatible : HBS.mem_compatible tp m)
-      (Hcorestep: ev_step semSem ge c (restrPermMap (DM.compat_th _ _ Hcompatible pf).1) ev c' m'),
+      (Hcorestep: ev_step semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) ev c' m'),
       HBS.mem_compatible (updThread pf (Krun c') (getCurPerm m', (getThreadR pf).2)) m'.
   Proof.
     intros.
@@ -1078,7 +1077,7 @@ Module CoreLanguageDry.
       assert (cnt0 : containsThread tp tid)
         by (eapply cntUpdate' in cnt; auto).
       (* and it's resources are below the maximum permissions on the memory*)
-      destruct (DM.compat_th _ _ Hcompatible cnt0) as [Hlt1 Hlt2].
+      destruct (DryHybridMachine.compat_th _ _ Hcompatible cnt0) as [Hlt1 Hlt2].
       (* by decay of permissions*)
       assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
       (* let's prove a slightly different statement that will reduce proof duplication*)
@@ -1086,7 +1085,7 @@ Module CoreLanguageDry.
                                 Mem.perm_order''  ((getMaxPerm m') !! b ofs) ((getThreadR cnt).2 !! b ofs)).
       { intros b ofs.
         (* we proceed by case analysis on whether the block was a valid one or not*)
-        destruct (valid_block_dec (restrPermMap (DM.compat_th _ _ Hcompatible pf).1) b)
+        destruct (valid_block_dec (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) b)
           as [Hvalid|Hinvalid].
         - (*case it's a valid block*)
           destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -1097,9 +1096,9 @@ Module CoreLanguageDry.
                  ofs) it must be that no lock permission exists in the threadpool and
                  hence on thread tid as well*)
             assert (Hlock_empty: (getThreadR cnt)#2 !! b ofs = None).
-            { destruct (DM.thread_data_lock_coh _ Hinv _ cnt0) as [Hcoh _].
+            { destruct (DryHybridMachine.thread_data_lock_coh _ Hinv _ cnt0) as [Hcoh _].
               specialize (Hcoh _ pf b ofs).
-              assert (Hp := restrPermMap_Cur (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+              assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp.
               rewrite <- Hp, HFree in Hcoh.
               simpl in Hcoh.
@@ -1125,9 +1124,9 @@ Module CoreLanguageDry.
             (* for other threads it must hold by the disjointess invariant
             that:*)
             assert (Hempty: (getThreadR cnt).1 # b ofs = None).
-            { assert (Hp := restrPermMap_Cur (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+            { assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp. rewrite Hp in HFree.
-              assert (Hno_race := DM.no_race_thr _ Hinv _ _ pf cnt0 Htid).
+              assert (Hno_race := DryHybridMachine.no_race_thr _ Hinv _ _ pf cnt0 Htid).
               unfold permMapsDisjoint2 in Hno_race.
               pose proof (proj1 Hno_race b ofs) as Hunion.
               assert (Hnot_racy : not_racy ((getThreadR cnt0).1 # b ofs)).
@@ -1154,7 +1153,7 @@ Module CoreLanguageDry.
             * (*case it's  another thread*)
               rewrite gsoThreadRes; auto.
               assert (HeqCur := Heq Max).
-              assert (Hrestr_max := restrPermMap_Max (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+              assert (Hrestr_max := restrPermMap_Max (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hrestr_max.
               rewrite getMaxPerm_correct. unfold permission_at.
               rewrite <- HeqCur.
@@ -1165,7 +1164,7 @@ Module CoreLanguageDry.
                invalid before it must be that the lock/data permissions the threads
                had are empty*)
           apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-          assert (Hp := restrPermMap_Max (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+          assert (Hp := restrPermMap_Max (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
           unfold permission_at in Hp. rewrite Hp in Hinvalid.
           specialize (Hlt1 b ofs).
           specialize (Hlt2 b ofs).
@@ -1201,12 +1200,12 @@ Module CoreLanguageDry.
                               Mem.perm_order'' ((getMaxPerm m') !! b ofs) (pmaps.2 !! b ofs)).
       {
         (* the resources on the lp are below the maximum permissions on the memory*)
-        destruct (DM.compat_lp _ _ Hcompatible l _ Hres) as [Hlt1 Hlt2].
+        destruct (DryHybridMachine.compat_lp _ _ Hcompatible l _ Hres) as [Hlt1 Hlt2].
         (* by decay of permissions*)
         assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
         intros b ofs.
         (* by cases analysis on whether b was a valid block*)
-        destruct (valid_block_dec (restrPermMap (DM.compat_th _ _ Hcompatible pf).1) b)
+        destruct (valid_block_dec (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) b)
           as [Hvalid|Hinvalid].
         - (*case it was a valid block *)
           destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -1217,9 +1216,9 @@ Module CoreLanguageDry.
                  hence on pmaps as well*)
             assert (HemptyL: pmaps.2 !! b ofs = None).
             { (*for lock permissions this is derived by coherency between data and locks*)
-              destruct (DM.locks_data_lock_coh _ Hinv l _ Hres) as [Hcoh _].
+              destruct (DryHybridMachine.locks_data_lock_coh _ Hinv l _ Hres) as [Hcoh _].
               specialize (Hcoh _ pf b ofs).
-              assert (Hp := restrPermMap_Cur (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+              assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp.
               rewrite <- Hp, HFree in Hcoh.
               simpl in Hcoh.
@@ -1229,9 +1228,9 @@ Module CoreLanguageDry.
             }
             assert (HemptyD: pmaps.1 !! b ofs = None).
             { (*for data permissions this is derived by the disjointness invariant *)
-              assert (Hp := restrPermMap_Cur (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+              assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp. rewrite Hp in HFree.
-              destruct (DM.no_race _ Hinv _ _ pf _ Hres) as [Hno_race _].
+              destruct (DryHybridMachine.no_race _ Hinv _ _ pf _ Hres) as [Hno_race _].
               specialize (Hno_race b ofs).
               assert (Hnot_racy : not_racy (pmaps.1 # b ofs))
                 by (eapply no_race_racy with (p1 := (getThreadR pf).1 # b ofs); eauto;
@@ -1246,7 +1245,7 @@ Module CoreLanguageDry.
             rewrite getMaxPerm_correct. unfold permission_at.
             assert (HeqCur := Heq Max).
             rewrite <- HeqCur.
-            assert (Hrestr_max := restrPermMap_Max (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+            assert (Hrestr_max := restrPermMap_Max (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
             unfold permission_at in Hrestr_max.
             rewrite Hrestr_max;
               by eauto.
@@ -1255,7 +1254,7 @@ Module CoreLanguageDry.
                invalid before it must be that the lock/data permissions the threads
                had are empty*)
           apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-          assert (Hp := restrPermMap_Max (DM.compat_th _ _ Hcompatible pf).1 b ofs).
+          assert (Hp := restrPermMap_Max (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
           unfold permission_at in Hp. rewrite Hp in Hinvalid.
           specialize (Hlt1 b ofs).
           specialize (Hlt2 b ofs).
@@ -1272,7 +1271,7 @@ Module CoreLanguageDry.
     { intros.
       rewrite gsoThreadLPool in H.
       eapply corestep_validblock; eauto using ev_step_ax1.
-      eapply (DM.lockRes_blocks _ _ Hcompatible);
+      eapply (DryHybridMachine.lockRes_blocks _ _ Hcompatible);
         by eauto.
     }
   Qed.
@@ -1365,7 +1364,7 @@ Module CoreLanguageDry.
       (pf : containsThread tp i) c m1 m1' c'
       (Hinv: HBS.invariant tp)
       (Hcompatible: HBS.mem_compatible tp m)
-      (Hrestrict_pmap: restrPermMap (DM.compat_th _ _ Hcompatible pf).1 = m1)
+      (Hrestrict_pmap: restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1 = m1)
       (Hcorestep: corestep semSem ge c m1 c' m1')
       (Hcore: getThreadC pf = Krun c),
       HBS.invariant (updThread pf (Krun c') (getCurPerm m1', (getThreadR pf).2)).
@@ -1374,7 +1373,7 @@ Module CoreLanguageDry.
     apply corestep_decay in Hcorestep.
     constructor.
     { (* non-interference between threads *)
-      pose proof (DM.no_race_thr _ Hinv) as Hno_race; clear Hinv.
+      pose proof (DryHybridMachine.no_race_thr _ Hinv) as Hno_race; clear Hinv.
       intros j k.
       Opaque getThreadR.
       destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk; move/eqP:Heqj=>Heqj;
@@ -1392,7 +1391,7 @@ Module CoreLanguageDry.
         (* while the permission for thread k will remain the same*)
         erewrite @gsoThreadRes with (cntj := cntk) by assumption.
         destruct (Hno_race _ _ pf cntk Hneq) as [Hno_race1 Hno_race2].
-        assert (Hlt := proj1 (DM.compat_th _ _ Hcompatible cntk)).
+        assert (Hlt := proj1 (DryHybridMachine.compat_th _ _ Hcompatible cntk)).
         subst m1.
         split.
         + (*disjointness of data permissions*)
@@ -1411,7 +1410,7 @@ Module CoreLanguageDry.
         erewrite @gsoThreadRes with (cntj := cntj); auto.
         erewrite gssThreadRes.
         destruct (Hno_race _ _ pf cntj Heqj) as [Hno_race1 Hno_race2].
-        assert (Hlt := proj1 (DM.compat_th _ _ Hcompatible cntj)).
+        assert (Hlt := proj1 (DryHybridMachine.compat_th _ _ Hcompatible cntj)).
         subst m1.
         split.
         + (*disjointness of data permissions*)
@@ -1434,20 +1433,20 @@ Module CoreLanguageDry.
     { (* non-interference in the lockpool*)
       intros.
       rewrite! gsoThreadLPool in Hres1, Hres2.
-      eapply DM.no_race_lr;
+      eapply DryHybridMachine.no_race_lr;
         by eauto.
     }
     { intros j laddr cntj' rmap Hres.
       rewrite gsoThreadLPool in Hres.
       assert (cntj := cntUpdate' _ _ pf cntj').
-      destruct (DM.no_race _ Hinv _ laddr cntj _ Hres) as [Hdata Hlocks]; clear Hinv.
+      destruct (DryHybridMachine.no_race _ Hinv _ laddr cntj _ Hres) as [Hdata Hlocks]; clear Hinv.
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
       - erewrite gssThreadRes.
         (* lock permissions did not change so second goal is trivial*)
         split; simpl; Tactics.pf_cleanup; eauto.
         (*for data permissions we will use the fact that decay preserves the
           invariant ([decay_disjoint])*)
-        assert (Hlt := proj1 (DM.compat_lp _ _ Hcompatible _ _ Hres)).
+        assert (Hlt := proj1 (DryHybridMachine.compat_lp _ _ Hcompatible _ _ Hres)).
         eapply decay_disjoint; eauto.
         intros b ofs.
         rewrite getMaxPerm_correct;
@@ -1465,7 +1464,7 @@ Module CoreLanguageDry.
       intros k cntk'.
       assert (cntk := cntUpdate' _ _ pf cntk').
       (* the lock permissions of threads remain the same through internal steps*)
-      destruct (DM.thread_data_lock_coh _ Hinv _ cntk) as [Hthreads Hlockpool].
+      destruct (DryHybridMachine.thread_data_lock_coh _ Hinv _ cntk) as [Hthreads Hlockpool].
       assert (Heq: (getThreadR cntk').2 = (getThreadR cntk).2)
         by (destruct (i == k) eqn:Hik;
             move/eqP:Hik=>Hik; subst;
@@ -1479,7 +1478,7 @@ Module CoreLanguageDry.
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
         + rewrite gssThreadRes.
           simpl.
-          destruct (DM.compat_th _ _  Hcompatible cntk).
+          destruct (DryHybridMachine.compat_th _ _  Hcompatible cntk).
           eapply decay_coherence; eauto.
           intros b ofs.
           rewrite getMaxPerm_correct.
@@ -1504,23 +1503,23 @@ Module CoreLanguageDry.
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
         + rewrite gssThreadRes.
           simpl.
-          destruct (DM.compat_lp _ _ Hcompatible laddr _ Hres) as [_ Hlt].
+          destruct (DryHybridMachine.compat_lp _ _ Hcompatible laddr _ Hres) as [_ Hlt].
           eapply decay_coherence; eauto.
           intros b ofs.
           rewrite getMaxPerm_correct.
           rewrite restrPermMap_Max; eauto.
           intros b ofs.
           rewrite getCurPerm_correct restrPermMap_Cur.
-            by eapply (proj1 (DM.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
+            by eapply (proj1 (DryHybridMachine.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
         + erewrite gsoThreadRes with (cntj := cntUpdate' _ _ pf cntj') by assumption.
-            by eapply (proj1 (DM.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
+            by eapply (proj1 (DryHybridMachine.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
       - intros ? ? Hres'.
         rewrite gsoThreadLPool in Hres'.
-        eapply (proj2 (DM.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
+        eapply (proj2 (DryHybridMachine.locks_data_lock_coh _ Hinv laddr _ Hres)); eauto.
     }
     { (* well-formed locks*)
       eapply updThread_lr_valid;
-        apply (DM.lockRes_valid _ Hinv).
+        apply (DryHybridMachine.lockRes_valid _ Hinv).
     }
   Qed.
 
@@ -1576,9 +1575,9 @@ Module CoreLanguageDry.
       (c c' : semC)
       (pfi : containsThread tp i) (pfj : containsThread tp j)
       (Hcomp : HBS.mem_compatible tp m) (b : block) (ofs : Z)
-      (Hreadable: Mem.perm (restrPermMap (DM.compat_th _ _ Hcomp pfj).1) b ofs Cur Readable \/
-                  Mem.perm (restrPermMap (DM.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DM.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hreadable: Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).1) b ofs Cur Readable \/
+                  Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
+      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: HBS.invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1594,8 +1593,8 @@ Module CoreLanguageDry.
     forall (tp : t) ge (m m' : mem) i j (c c' : semC)
       (pfi : containsThread tp i) (pfj : containsThread tp j)
       (Hcomp : HBS.mem_compatible tp m) (b : block) (ofs : Z)
-      (Hreadable: Mem.perm (restrPermMap (DM.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DM.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hreadable: Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
+      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: HBS.invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1614,11 +1613,11 @@ Module CoreLanguageDry.
       (pfi : containsThread tp i) (Hcomp : HBS.mem_compatible tp m) addr pmap
       (Hlock: lockRes tp addr = Some pmap)
       (b : block) (ofs : Z)
-      (Hreadable: Mem.perm (restrPermMap (DM.compat_lp _ _ Hcomp _ _ Hlock).1)
+      (Hreadable: Mem.perm (restrPermMap (DryHybridMachine.compat_lp _ _ Hcomp _ _ Hlock).1)
                            b ofs Cur Readable \/
-                  Mem.perm (restrPermMap (DM.compat_lp _ _ Hcomp _ _ Hlock).2)
+                  Mem.perm (restrPermMap (DryHybridMachine.compat_lp _ _ Hcomp _ _ Hlock).2)
                            b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DM.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: HBS.invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
