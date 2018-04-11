@@ -34,7 +34,7 @@ Module THE_JUICY_MACHINE.
   Import SCH.
 
   Notation JMachineSem:= JuicyMachine.MachineCoreSemantics.
-  Notation jstate:= (@ThreadPool.t LocksAndResources (@ClightSem Sem)).
+  Definition jstate:= @ThreadPool.t LocksAndResources (@ClightSem Sem) ThreadPool.RmapThreadPool.
   Notation jmachine_state:= JuicyMachine.MachState.
   Notation JTP := ThreadPool.RmapThreadPool.
 
@@ -73,7 +73,7 @@ Module THE_JUICY_MACHINE.
   Inductive jm_csafe ge (st : jmachine_state) (m : mem) : nat -> Prop :=
   | Safe_0 : jm_csafe ge st m 0
   | HaltedSafe : forall n : nat,
-                 is_true (ssrbool.isSome (JuicyMachine.halted st)) ->
+                 is_true (ssrbool.isSome (JuicyMachine.halted_machine st)) ->
                  jm_csafe ge st m n
   | CoreSafe : forall (tp' : jstate) (m' : mem) (n : nat)
                (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), nil, tp') m')

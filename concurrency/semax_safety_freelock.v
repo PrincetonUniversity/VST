@@ -79,6 +79,10 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
 (* Weaker statement than preservation for freelock, enough to prove safety *)
 Lemma safety_induction_freelock Gamma n state
   (CS : compspecs)
@@ -168,13 +172,13 @@ Proof.
   destruct AT as (phi0lockinv & phi0sat & jphi0 & Hlockinv & Hsat).
 
   assert (locked : lockRes tp (b, Ptrofs.intval ofs) = Some None). {
-    spec lock_coh (b, Ptrofs.intval ofs). cleanup.
+    specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
     destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
     - (* positive and precise *)
       destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
 
       assert (J0 : join_sub phi0 Phi). {
-        apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
+        apply join_sub_trans with (getThreadR _ _ i tp cnti). eexists; eauto.
         join_sub_tac.
       }
       assert (Ja0 : join_sub phi0sat Phi).  {
@@ -186,7 +190,7 @@ Proof.
       }
       assert (J01 : join_sub phi0lockinv Phi). {
         apply join_sub_trans with phi0. eexists; eauto.
-        apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
+        apply join_sub_trans with (getThreadR _ _ i tp cnti). eexists; eauto.
         join_sub_tac.
       }
       assert (R01 : level phi0lockinv = level Phi) by join_level_tac.
@@ -242,7 +246,7 @@ Proof.
         apply joins_sym.
         eapply @join_sub_joins_trans with (c := phi0); auto. apply Perm_rmap.
         * exists phi0lockinv. apply join_comm. auto.
-        * eapply @join_sub_joins_trans with (c := getThreadR i tp cnti); auto. apply Perm_rmap.
+        * eapply @join_sub_joins_trans with (c := getThreadR _ _ i tp cnti); auto. apply Perm_rmap.
           -- exists phi1. auto.
           -- eapply compatible_threadRes_lockRes_join. apply (mem_compatible_forget compat).
              apply Ephi_sat.
@@ -251,7 +255,7 @@ Proof.
       simpl in Hlockinv.
       unfold lock_inv in *.
       destruct Hlockinv as (b_ & ofs_ & E_ & HH & _).
-      spec HH (b, Ptrofs.intval ofs).
+      specialize (HH (b, Ptrofs.intval ofs)).
       simpl in HH.
       change Ptrofs.intval with Ptrofs.unsigned in *.
       injection E_ as <- <- .
@@ -260,7 +264,7 @@ Proof.
       destruct HH as (p & HH).
       assert (j : join_sub phi0lockinv Phi). {
         apply join_sub_trans with phi0. eexists; eauto.
-        apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
+        apply join_sub_trans with (getThreadR _ _ i tp cnti). eexists; eauto.
         join_sub_tac.
       }
       destruct j as (psi & j).
@@ -271,7 +275,7 @@ Proof.
   }
 
   pose proof lock_coh as lock_coh_.
-  spec lock_coh (b, Ptrofs.intval ofs). cleanup. rewrite locked in lock_coh.
+  specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup. rewrite locked in lock_coh.
 
   unfold tlock in *.
   apply (lock_inv_rmap_freelock CS) with (m := m) in Hlockinv; auto; try apply lock_coh.
@@ -283,7 +287,7 @@ Proof.
   pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos Hrmap0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
-  assert (ji : join_sub (getThreadR _ _ cnti) Phi) by join_sub_tac.
+  assert (ji : join_sub (getThreadR _ _ _ _ cnti) Phi) by join_sub_tac.
   destruct ji as (psi & jpsi). cleanup.
   pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
@@ -809,3 +813,5 @@ Proof.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
 Qed.
+
+End Sem.

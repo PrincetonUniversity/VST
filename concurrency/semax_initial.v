@@ -66,6 +66,8 @@ Section Initial_State.
     | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
     end init_mem_not_none.
 
+  Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      globalenv prog,
@@ -75,7 +77,7 @@ Section Initial_State.
                    (proj1_sig init_m) 0 all_safe (proj2_sig init_m) in
       let q : corestate := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
-      ThreadPool.mk
+      @OrdinalPool.mk LocksAndResources ClightSemantincsForMachines.ClightSem
         (pos.mkPos (le_n 1))
         (* (fun _ => Kresume q Vundef) *)
         (fun _ => Krun q)
@@ -84,7 +86,7 @@ Section Initial_State.
      )
     ).
 
-  Lemma personal_mem_of_same_jm tp jm i (cnti : ThreadPool.containsThread tp i) mc :
+  Lemma personal_mem_of_same_jm (tp : jstate) jm i (cnti : ThreadPool.containsThread tp i) mc :
     (ThreadPool.getThreadR cnti = m_phi jm) ->
     m_dry (@personal_mem (m_dry jm) (getThreadR cnti) mc) = m_dry jm.
   Proof.
@@ -178,12 +180,12 @@ Section Initial_State.
 
     - (*! lock sparsity (no locks at first) *)
       intros l1 l2.
-      rewrite threadPool.find_empty.
+      rewrite find_empty.
       tauto.
 
     - (*! lock coherence (no locks at first) *)
       intros lock.
-      rewrite threadPool.find_empty.
+      rewrite find_empty.
       (* split; *) intros (sh & sh' & z & P & E); revert E; unfold jm;
       match goal with
         |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
@@ -191,7 +193,7 @@ Section Initial_State.
 
     - (*! safety of the only thread *)
       intros i cnti ora.
-      destruct (ThreadPool.getThreadC cnti) as [c|c|c v|v1 v2] eqn:Ec; try discriminate; [].
+      destruct (getThreadC cnti) as [c|c|c v|v1 v2] eqn:Ec; try discriminate; [].
       destruct i as [ | [ | i ]]. 2: now inversion cnti. 2:now inversion cnti.
       (* the initial juicy has got to be the same as the one given in initial_mem *)
       assert (Ejm: jm = jm_ cnti compat).

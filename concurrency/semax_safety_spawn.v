@@ -122,12 +122,16 @@ Proof.
     inversion L.
 Qed.
 
-Lemma lock_coherence_age_to n m tp Phi :
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Lemma lock_coherence_age_to n m (tp : jstate) Phi :
   lock_coherence (lset tp) Phi m ->
   lock_coherence (AMap.map (option_map (age_to n)) (lset tp)) (age_to n Phi) m.
 Proof.
   unfold lock_coherence.
-  intros C loc; spec C loc.
+  intros C loc; specialize (C loc).
   rewrite AMap_find_map_option_map.
   destruct (AMap.find _ _) as [[phi|]|].
   - destruct C as (A&B&C&R&D&E).
@@ -139,7 +143,7 @@ Proof.
       rewrite age_by_age_by.
       apply age_by_age_by_pred.
       omega.
-    * cut (level (age_to n Phi) <= 0). omega.
+    * cut (level (age_to n Phi) <= 0)%nat. omega.
       rewrite <-E. apply level_age_to_le.
   - destruct C as (A&B&C&R&D).
     repeat split; auto.
@@ -156,14 +160,14 @@ Qed.
 
 Lemma cond_approx_eq_app n A P1 P2 phi :
   cond_approx_eq n A P1 P2 ->
-  level phi < n ->
+  (level phi < n)%nat ->
   forall ts y z,
     app_pred (P1 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi ->
     app_pred (P2 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi.
 Proof.
   intros E lev ts y z.
   apply approx_eq_app_pred with n; auto.
-  spec E ts.
+  specialize (E ts).
   apply equal_f_dep with (x := y) in E.
   apply equal_f_dep with (x := z) in E.
   apply E.
@@ -237,7 +241,7 @@ Proof.
   clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
 
 
-  assert (li : level (getThreadR i tp cnti) = S n).
+  assert (li : level (getThreadR _ _ i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
   assert (l1 : level phi1 = S n).
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
@@ -285,11 +289,11 @@ Proof.
     join_level_tac.
     apply pures_same_sym, join_sub_pures_same.
     apply join_sub_trans with phi0. eexists; eassumption.
-    apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
+    apply join_sub_trans with (getThreadR _ _ i tp cnti). exists phi1. auto.
     join_sub_tac.
   }
 
-  spec gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default .
+  specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
   rewrite func_ptr_def in Func.
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
@@ -339,7 +343,7 @@ Proof.
   }
   *)
 
-  spec HEP PreA.
+  specialize (HEP PreA).
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
@@ -593,3 +597,5 @@ clear - Initcore.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
 Qed. (* safety_induction_spawn *)
+
+End Sem.

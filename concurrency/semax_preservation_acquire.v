@@ -67,8 +67,6 @@ Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Definition at_external_SEM_eq := ClightSemantincsForMachines.ClightSEM.at_external_SEM_eq.
-
 Open Scope string_scope.
 
 (* to make the proof faster, we avoid unfolding of those definitions *)
@@ -78,24 +76,30 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Existing Instance ClightSemantincsForMachines.ClightSem.
+
 Lemma preservation_acquire
   (lockSet_Writable_updLockSet_updThread
-     : forall (m m' : Memory.mem) (i : tid) (tp : thread_pool),
+     : forall (m m' : Memory.mem) (i : nat) (tp : jstate),
        forall (cnti : containsThread tp i) (b : block) (ofs : ptrofs) (ophi : option rmap)
-         (ophi' : LocksAndResources.lock_info) (c' : ctl) (phi' : LocksAndResources.res)
+         (ophi' : lock_info) (c' : ctl) (phi' : res)
          (z : int) (Hcmpt : mem_compatible tp m)
          (Hcmpt : mem_compatible tp m)
          (His_unlocked : AMap.find (elt:=option rmap) (b, Ptrofs.intval ofs) (lset tp) = Some ophi)
          (Hlt' : permMapLt
-              (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
                  LKSIZE_nat) (getMaxPerm m))
          (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint z) = Some m'),
-       lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
+       lockSet_Writable (lset (updLockSet (updThread _ _ i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
   (mem_cohere'_store : forall m tp m' b ofs j i Phi (cnti : containsThread tp i)
     (Hcmpt : mem_compatible tp m)
     (lock : lockRes tp (b, Ptrofs.intval ofs) <> None)
     (Hlt' : permMapLt
-           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
     (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint j) = Some m'),
     mem_compatible_with tp m Phi ->
@@ -114,11 +118,11 @@ Lemma preservation_acquire
   (Jspec'_hered : Jspec'_hered_def CS ext_link)
   (Gamma : funspecs)
   (n : nat)
-  (ge : SEM.G)
+  (ge : genv)
   (m m' : Memory.mem)
-  (i : tid)
-  (sch : list tid)
-  (tp : thread_pool)
+  (i : nat)
+  (sch : list nat)
+  (tp : jstate)
   (INV : state_invariant Jspec' Gamma (S n) (m, ge, (i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
@@ -130,12 +134,12 @@ Lemma preservation_acquire
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei cnti : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
-  (ci : code)
-  (Eci : getThreadC i tp cnti = Kblocked ci)
+  (ci : semC)
+  (Eci : getThreadC _ _ i tp cnti = Kblocked ci)
   (Hcmpt : mem_compatible tp m)
-  (El : level (getThreadR i tp cnti) - 1 = n)
+  (El : (level (getThreadR _ _ i tp cnti) - 1 = n)%nat)
   (compat_aged : mem_compatible_with (age_tp_to n tp) m (age_to n Phi))
-  (c : code)
+  (c : semC)
   (b : block)
   (ofs : ptrofs)
   (d_phi : rmap)
@@ -143,36 +147,36 @@ Lemma preservation_acquire
   (sh : Share.t)
   (psh : shares.readable_share sh)
   (R : pred rmap)
-  (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external SEM.Sem ge c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
-  (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = SSome d_phi)
+  (Hthread : getThreadC _ _ i tp cnti = Kblocked c)
+  (Hat_external : at_external ClightSemantincsForMachines.CLN_evsem ge c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
+  (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = Some (Some d_phi))
   (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
                     b (Ptrofs.intval ofs) =
           Some (Vint Int.one))
   (Hlt' : permMapLt
-           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
   (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
   (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
-  (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-  (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
-  (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil
+  (HJcanwrite : getThreadR _ _ i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+  (Hadd_lock_res : join (getThreadR _ _ i tp cnti) d_phi phi')
+  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) nil tp m sch nil
              (age_tp_to n
-                (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
-  (Htstep : syncStep true ge cnti Hcmpt
+                (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
+  (Htstep : @syncStep ClightSemantincsForMachines.ClightSem true ge _ _ _ cnti Hcmpt
              (age_tp_to n
-                (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
+                (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
              (Events.acquire (b, Ptrofs.intval ofs) None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m', ge, (sch, age_tp_to n
-           (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : thread_pool)).
+           (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate)).
 
 Proof.
   (* we prove [mem_compatible_with] BEFORE aging, as it it slightly
     easier, proving [mem_compatible_with] after aging is a simple
     application of the lemma [mem_compatible_with_age] *)
-  pose (tp__ := updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None).
+  pose (tp__ := updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None).
   assert (compat'' : mem_compatible_with tp__ m' Phi). {
     subst tp__.
     cleanup.
@@ -191,7 +195,7 @@ Proof.
       rewrite (maps_getthread i _ pr) in J.
       rewrite gRemLockSetRes with (cnti0 := cnti) in J. clear pr.
       revert Hadd_lock_res J.
-      generalize (@getThreadR _ _ cnti) d_phi phi'.
+      generalize (@getThreadR _ _ _ _ cnti) d_phi phi'.
       generalize (all_but i (maps (remLockSet tp (b, Ptrofs.intval ofs)))).
       cleanup.
       clear -lev.
@@ -307,7 +311,7 @@ Proof.
               if_tac [[H H']|H] in Hstore; [ | discriminate ].
               apply H'.
             * rewrite LockRes_age_content1.
-              rewrite JTP.gssLockRes. simpl. congruence.
+              rewrite gssLockRes. simpl. congruence.
             * congruence.
       }
 
@@ -368,9 +372,9 @@ Proof.
             * instantiate (1 := z).
               unfold size_chunk in *.
               unfold LKSIZE in *.
-              rewrite size_chunk_Mptr; if_tac; omega.
+              rewrite size_chunk_Mptr; simple_if_tac; omega.
             * unfold LKSIZE in *.
-              rewrite size_chunk_Mptr; if_tac; omega.
+              rewrite size_chunk_Mptr; simple_if_tac; omega.
           + unfold contents_at in *.
             simpl in OUT.
             apply OUT.
@@ -393,11 +397,11 @@ Proof.
           destruct SPA as [bOUT | [<- ofsOUT]].
           + rewrite gsoLockSet_2; auto.
             apply lockSet_spec_2 with ofs'.
-            * hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; if_tac; omega.
+            * hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; omega.
             * cleanup. rewrite Eo. reflexivity.
           + rewrite gsoLockSet_1; auto.
             * apply lockSet_spec_2 with ofs'.
-              -- hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; if_tac; omega.
+              -- hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; omega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
               simpl in *.
@@ -405,7 +409,7 @@ Proof.
               pose proof LKSIZE_pos.
               unfold LKSIZE_nat; rewrite Z2Nat.id by omega.
               zify.
-              unfold LKSIZE in *; rewrite size_chunk_Mptr in *; if_tac; omega.
+              unfold LKSIZE in *; rewrite size_chunk_Mptr in *; simple_if_tac; omega.
       }
       destruct o; destruct lock_coh as (Load & align & bound & R' & lks); split.
       -- now intuition.
@@ -455,20 +459,19 @@ Proof.
           set (u := at_external _ _ _ _) in Hat_external.
           set (v := at_external _ _ _ _) in step.
           assert (u = v).
-          { unfold u, v. rewrite at_external_SEM_eq. reflexivity.
+          { unfold u, v. rewrite ClightSemantincsForMachines.at_external_SEM_eq. reflexivity.
          }
           congruence.
 
         - (* not halted *)
           exfalso.
           clear -Hat_external Ha.
-          assert (Ae : at_external SEM.Sem ge c m <> None). congruence.
+          assert (Ae : at_external ClightSemantincsForMachines.CLN_evsem ge c m <> None). congruence.
           eapply at_external_not_halted in Ae.
           unfold juicy_core_sem in *.
           unfold cl_core_sem in *.
           simpl in *.
-          unfold SEM.Sem in *.
-          rewrite SEM.CLN_msem in *.
+          rewrite ClightSemantincsForMachines.CLN_msem in Ae, Hat_external.
           simpl in *.
           congruence.
 
@@ -482,12 +485,12 @@ Proof.
 
           + assert (e = LOCK).
             { simpl in ae.
-              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
               unfold j_at_external in ae. unfold cl_at_external in ae.
               congruence. }
             assert (args = Vptr b ofs :: nil).
             { simpl in ae.
-              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
               unfold j_at_external in ae. unfold cl_at_external in ae.
               congruence. }
             subst e args; simpl.
@@ -668,3 +671,5 @@ Proof.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
 Qed. (* preservation_acquire *)
+
+End Sem.

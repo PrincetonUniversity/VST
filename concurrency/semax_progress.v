@@ -60,7 +60,11 @@ Set Bullet Behavior "Strict Subproofs".
 
 Import Mem.
 
-Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Lemma load_at_phi_restrict i (tp : jstate) (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh R phi0 o :
   join_sub phi0 (getThreadR cnti) ->
   (LKspec LKSIZE R sh (b, ofs)) phi0 ->
@@ -93,10 +97,10 @@ Proof.
 
   assert (notnone : (snd (mem_access m)) ! b <> None). {
     destruct compat as (Phi & [_ _ W _ _]).
-    spec W b ofs. unfold lockGuts in *. cleanup.
+    specialize (W b ofs). unfold lockGuts in *. cleanup.
     unfold block in *.
     rewrite found in W.
-    autospec W. spec W ofs.
+    autospec W. specialize (W ofs).
     spec W. now split; simpl; auto; lkomega.
     unfold "!!" in W. destruct ((snd (mem_access m)) ! b). congruence.
     pose proof Max_isCanonical m as can. hnf in can. apply equal_f with (x := ofs) in can.
@@ -123,7 +127,7 @@ Proof.
     simpl.
     destruct ((snd (mem_access m)) ! b) eqn:E. 2:tauto. clear notnone.
     unfold perm_of_res_lock in *.
-    destruct lk as [lk Hg]; spec lk (b, ofs'). simpl in lk.
+    destruct lk as [lk Hg]; specialize (lk (b, ofs')). simpl in lk.
     if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
     apply resource_at_join with (loc := (b, ofs')) in j.
     if_tac [e|ne] in lk.
@@ -174,7 +178,7 @@ Proof.
   rewrite RR.
   simpl.
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite setPermBlock_lookup.
   repeat (if_tac; [constructor |]).
   exfalso.
@@ -186,7 +190,7 @@ Proof.
   split; auto; lkomega.
 Qed.
 
-Lemma permMapLt_local_locks m i tp Phi b ofs ophi
+Lemma permMapLt_local_locks m i (tp : jstate) Phi b ofs ophi
       (compat : mem_compatible_with tp m Phi)
       (cnti : containsThread tp i)
       (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi) :
@@ -201,7 +205,7 @@ Proof.
     by (unfold getMaxPerm in *; rewrite PMap.gmap; reflexivity).
 
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite RR.
   rewrite setPermBlock_lookup; if_tac.
   { unfold LKSIZE_nat in H; rewrite Z2Nat.id in H by (pose proof LKSIZE_pos; omega).
@@ -247,7 +251,7 @@ Section Progress.
       exists state. subst. constructor.
     }
 
-    destruct (ssrnat.leq (S i) tp.(ThreadPool.num_threads).(pos.n)) eqn:Ei; swap 1 2.
+    destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei; swap 1 2.
 
     (* bad schedule *)
     {
@@ -256,9 +260,11 @@ Section Progress.
       (* -  *)constructor.
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + unfold ThreadPool.containsThread.
+        + simpl.
+          unfold containsThread.
           now rewrite Ei; auto.
         + constructor.
+        + eexists; eauto.
         + reflexivity.
     }
 
@@ -289,7 +295,7 @@ Section Progress.
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
-          rewrite Eci in *.
+          simpl in Eci; rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
           2: now match goal with H : j_at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
@@ -307,11 +313,11 @@ Section Progress.
 
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp' := age_tp_to (level jmi') tp).
-        pose (tp'' := @ThreadPool.updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
+        pose (tp'' := @updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
         pose (cm' := (m_dry jmi', ge, (i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
-        apply JuicyMachine.thread_step with
+        apply @JuicyMachine.thread_step with
         (tid := i)
           (ev := nil)
           (Htid := cnti)
@@ -324,8 +330,7 @@ Section Progress.
           split.
           * simpl.
             subst.
-            unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem.
+            rewrite ClightSemantincsForMachines.CLN_msem.
             apply stepi.
           * simpl.
             exact_eq decay.
@@ -346,8 +351,8 @@ Section Progress.
         + eapply mem_compatible_forget; eauto.
         + econstructor.
           * eassumption.
-          * unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem.
+          * simpl.
+            rewrite ClightSemantincsForMachines.CLN_msem.
             reflexivity.
           * constructor.
           * reflexivity.
@@ -364,7 +369,7 @@ Section Progress.
       {
         exfalso.
         pose proof (wellformed i cnti) as W.
-        rewrite Eci in W.
+        simpl in Eci; rewrite Eci in W.
         apply W; auto.
       }
       (* back to external step *)
@@ -373,7 +378,7 @@ Section Progress.
       assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
       {
         pose proof (safety i cnti tt) as safe_i.
-        rewrite Eci in safe_i.
+        simpl in Eci; rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -397,7 +402,7 @@ Section Progress.
                 Some (ext_link "spawn", CREATE_SIG) = (ef_id_sig ext_link (EF_external name sg))).
       {
         pose proof (safety i cnti tt) as safe_i.
-        rewrite Eci in safe_i.
+        simpl in Eci; rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -429,7 +434,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -495,7 +500,7 @@ Section Progress.
 
         (* next step depends on status of lock: *)
         pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
-        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (ThreadPool.lset tp))
+        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp))
           as [[unlockedphi|]|] eqn:Efind;
           swap 1 3.
         (* inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry]. *)
@@ -1513,3 +1518,5 @@ Section Progress.
 Qed. (* Theorem progress *)
 
 End Progress.
+
+End Sem.

@@ -437,16 +437,18 @@ Require Import VST.concurrency.JuicyMachineModule.
 
 (*! Instantiation of modules *)
 Import THE_JUICY_MACHINE.
-Import JSEM.
-Import ThreadPool.
-Import JuicyMachineLemmas.
-Module Machine :=THE_JUICY_MACHINE.JTP.
+Import Concur.
+Import OrdinalPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
 (** * join_all and permutations *)
 
-Definition getLocksR tp := listoption_inv (map snd (AMap.elements (lset tp))).
+Section Machine.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Definition getLocksR (tp : jstate) := listoption_inv (map snd (AMap.elements (lset tp))).
 
 Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.
 
@@ -471,7 +473,7 @@ Lemma join_list_joinlist : join_list = joinlist.
 Proof.
   extensionality l; induction l; extensionality phi; simpl; auto.
   f_equal. extensionality r. apply prop_ext.
-  split; intros []; split; auto; congruence.
+  split; intros []; split; auto; simpl in *; congruence.
 Qed.
 
 Lemma join_list'_None l : join_list' l None <-> listoption_inv l = nil.
@@ -493,7 +495,7 @@ Proof.
   destruct a.
   - inversion j; subst.
     + apply join_list'_None in h.
-      rewrite h.
+      simpl in *; rewrite h.
       simpl.
       exists (core phi).
       split.
@@ -508,7 +510,7 @@ Proof.
   revert phi; induction l; intros phi. simpl; congruence.
   destruct a as [r|]; simpl.
   - intros _ (y & h & j).
-    unfold LocksAndResources.res in *.
+    simpl in *.
     assert (D:forall l:list rmap, l = nil \/ l <> nil)
       by (intros []; [left|right]; congruence).
     destruct (D (listoption_inv l)) as [E|E].
@@ -520,8 +522,7 @@ Proof.
       constructor.
     + exists (Some y). split; auto.
       constructor; auto.
-  - unfold LocksAndResources.res in *.
-    intros n j; specialize (IHl _ n j).
+  - intros n j; specialize (IHl _ n j).
     exists (Some phi); split; eauto. constructor.
 Qed.
 
@@ -552,12 +553,11 @@ Proof.
     assert (D:l' = nil \/ l' <> nil)
       by (destruct l'; [left|right]; congruence).
     destruct D as [D|D].
-    + exists rt None; unfold l' in *; unfold LocksAndResources.lock_info in *.
+    + exists rt None; unfold l' in *; simpl in *.
       * hnf. rewrite join_list_joinlist. apply jt.
       * hnf. unfold l' in D.
-        unfold LocksAndResources.lock_info in *.
         rewrite join_list'_None.
-        unfold LocksAndResources.res in *.
+        simpl in *.
         rewrite <-D.
         reflexivity.
       * rewrite D in jl.
@@ -585,7 +585,7 @@ Proof.
 Qed.
 
 Lemma nth_error_enum_from n m i Hn Hi :
-  i < n ->
+  (i < n)%nat ->
   nth_error (@enum_from n m Hn) i = Some (@fintype.Ordinal m (n - 1 - i) Hi).
 Proof.
   revert i Hi;  induction n; intros i Hi Hin.
@@ -611,10 +611,10 @@ Proof.
         f_equal.
         f_equal.
         f_equal.
-        rewrite <-minus_plus.
+        rewrite <- Nat.sub_add_distr.
         reflexivity.
       * f_equal.
-        rewrite <-minus_plus.
+        rewrite <- Nat.sub_add_distr.
         reflexivity.
       * omega.
 Qed.
@@ -637,7 +637,7 @@ Proof.
         generalize H
       end.
       pose proof (ssrbool.elimT ssrnat.leP pr).
-      assert (R : n - 1 - (n - i - 1) = i) by omega.
+      assert (R : (n - 1 - (n - i - 1) = i)%nat) by omega.
       rewrite R in *.
       intros pr'.
       do 2 f_equal.
@@ -646,8 +646,10 @@ Proof.
       omega.
 Qed.
 
+Existing Instance ClightSemantincsForMachines.ClightSem.
+
 Lemma getThreadR_nth i tp cnti :
-  nth_error (getThreadsR tp) i = Some (@getThreadR i tp cnti).
+  nth_error (getThreadsR tp) i = Some (@getThreadR _ _ i tp cnti).
 Proof.
   unfold getThreadR in *.
   unfold getThreadsR in *.
@@ -666,7 +668,7 @@ Qed.
 Lemma getThreadsR_but i tp cnti :
   Permutation
     (getThreadsR tp)
-    (@getThreadR i tp cnti :: all_but i (getThreadsR tp)).
+    (@getThreadR _ _ i tp cnti :: all_but i (getThreadsR tp)).
 Proof.
   apply permutation_all_but, getThreadR_nth.
 Qed.
@@ -708,16 +710,14 @@ Qed.
 
 Lemma updThreadR_but i tp cnti phi :
   Permutation
-    (getThreadsR (@updThreadR i tp cnti phi))
+    (getThreadsR (@updThreadR _ _ i tp cnti phi))
     (phi :: all_but i (getThreadsR tp)).
 Proof.
-  unfold LocksAndResources.res in *.
   apply permutation_upd.
   unfold updThreadR, getThreadsR.
   simpl.
   unfold containsThread in *.
   destruct tp as [[n] thds phis lset]; simpl in *.
-  unfold LocksAndResources.res in *.
   unfold enum.
   clear thds lset.
   rewrite map_rev.
@@ -736,10 +736,12 @@ Proof.
   Set Printing Implicit.
   generalize (Nat.le_refl n) as pr.
   rename n into m.
-  assert (Ei : i = (m - 1 - (m - 1 - i))). {
+  assert (Ei : (i = (m - 1 - (m - 1 - i)))%nat). {
     pose proof (ssrbool.elimT ssrnat.leP cnti).
-    unfold tid in *.
-    omega.
+    rewrite <- !Nat.sub_add_distr, Nat.add_comm, Nat.sub_add_distr.
+    replace (m - (m - (1 + i)))%nat with (S i); try omega.
+    simpl.
+    rewrite Nat.sub_0_r; auto.
   }
   assert (cnti' : is_true (ssrnat.leq (S (m - 1 - (m - 1 - i))) m))
     by congruence.
@@ -748,7 +750,7 @@ Proof.
     by (revert cnti'; rewrite <-Ei; intros; f_equal; apply proof_irr).
   assert (li' : (m - 1 - i < m)%nat) by (clear -li; omega).
   clear cnti Ei. revert li' cnti'.
-  generalize (m - 1 - i); clear i li; intros i.
+  generalize (m - 1 - i)%nat; clear i li; intros i.
   generalize m at 1 2 4 7 13 14; intros n; revert i.
   induction n; intros i li cnti Hnm. now inversion li.
   match goal with |- _ = Some (map ?F _) => set (f := F) end.
@@ -784,7 +786,7 @@ Proof.
       f_equal.
       extensionality x.
       destruct x as [j lj].
-      destruct (eq_dec j (n - 1 - i)).
+      destruct (eq_dec j (n - 1 - i)%nat).
       * rewrite eqtype_refl'; auto.
         rewrite eqtype_refl'; auto.
         omega.
@@ -797,11 +799,10 @@ Qed.
 
 Lemma updThread_but i tp cnti c phi :
   Permutation
-    (getThreadsR (@updThread i tp cnti c phi))
+    (getThreadsR (@updThread _ _ i tp cnti c phi))
     (phi :: all_but i (getThreadsR tp)).
 Proof.
   pose proof (updThreadR_but i tp cnti phi) as H; revert H.
-  unfold LocksAndResources.res in *.
   unfold updThreadR, updThread, getThreadsR; simpl.
   auto.
 Qed.
@@ -810,34 +811,32 @@ Qed.
 
 Lemma getLocksR_updLockSet_Some tp addr phi :
   Permutation
-    (getLocksR (updLockSet tp addr (Some phi)))
+    (getLocksR (updLockSet(resources:=LocksAndResources) tp addr (Some phi)))
     (phi :: getLocksR (remLockSet tp addr)).
 Proof.
   unfold lockRes, getLocksR, remLockSet, lset.
   destruct tp as [n th ph lset]; simpl. clear.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
-  unfold LocksAndResources.lock_info in *.
   induction l as [|[addr' x] l]; simpl. reflexivity.
   destruct (AddressOrdered.compare addr addr'); simpl; try reflexivity.
   destruct x; simpl; rewrite IHl; auto.
   apply perm_swap.
 Qed.
 
-Lemma getLocksR_updLockSet_None tp addr :
+Lemma getLocksR_updLockSet_None (tp : jstate) addr :
   getLocksR (updLockSet tp addr None) = getLocksR (remLockSet tp addr).
 Proof.
   unfold lockRes, getLocksR, remLockSet, lset.
   destruct tp as [n th ph lset]; simpl. clear.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
-  unfold LocksAndResources.lock_info in *.
   induction l as [|[addr' x] l]; simpl. reflexivity.
   destruct (AddressOrdered.compare addr addr'); simpl; try reflexivity.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
 
-Lemma getLocksR_SSome tp addr phi :
+Lemma getLocksR_SSome (tp : jstate) addr phi :
   lockRes tp addr = Some (Some phi) ->
   Permutation
     (getLocksR tp)
@@ -847,7 +846,6 @@ Proof.
   destruct tp as [n th ph lset]; simpl. clear.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
-  unfold LocksAndResources.lock_info in *.
   induction l as [|[addr' x] l]; simpl; intros F. inversion F.
   destruct (AddressOrdered.compare addr addr'); inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
@@ -855,7 +853,7 @@ Proof.
 Qed.
 
 
-Lemma getLocksR_SNone tp addr :
+Lemma getLocksR_SNone (tp : jstate) addr :
   lockRes tp addr = Some None ->
   getLocksR (remLockSet tp addr) = getLocksR tp.
 Proof.
@@ -863,13 +861,12 @@ Proof.
   destruct tp as [n th ph lset]; simpl. clear.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
-  unfold LocksAndResources.lock_info in *.
   induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
 
-Lemma getLocksR_None tp addr :
+Lemma getLocksR_None (tp : jstate) addr :
   lockRes tp addr = None ->
   getLocksR (remLockSet tp addr) = getLocksR tp.
 Proof.
@@ -877,7 +874,6 @@ Proof.
   destruct tp as [n th ph lset]; simpl. clear.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
-  unfold LocksAndResources.lock_info in *.
   induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
@@ -887,7 +883,7 @@ Qed.
 
 Lemma maps_getthread i tp cnti :
   Permutation (maps tp)
-              (@getThreadR i tp cnti :: all_but i (maps tp)).
+              (@getThreadR _ _ i tp cnti :: all_but i (maps tp)).
 Proof.
   rewrite all_but_maps; auto.
   transitivity
@@ -896,7 +892,7 @@ Proof.
 Qed.
 
 Lemma maps_updthread i tp cnti c phi :
-  Permutation (maps (@updThread i tp cnti c phi))
+  Permutation (maps (@updThread _ _ i tp cnti c phi))
               (phi :: all_but i (maps tp)).
 Proof.
   rewrite all_but_maps; auto.
@@ -905,7 +901,7 @@ Proof.
 Qed.
 
 Lemma maps_updthreadR i tp cnti phi :
-  Permutation (maps (@updThreadR i tp cnti phi))
+  Permutation (maps (@updThreadR _ _ i tp cnti phi))
               (phi :: all_but i (maps tp)).
 Proof.
   rewrite all_but_maps; auto.
@@ -913,14 +909,14 @@ Proof.
   apply Permutation_refl.
 Qed.
 
-Lemma maps_updlock1 tp addr :
+Lemma maps_updlock1 (tp : jstate) addr :
   maps (updLockSet tp addr None) = maps (remLockSet tp addr).
 Proof.
   unfold maps; f_equal.
   apply getLocksR_updLockSet_None.
 Qed.
 
-Lemma maps_updlock2 tp addr phi :
+Lemma maps_updlock2 (tp : jstate) addr phi :
   Permutation (maps (updLockSet tp addr (Some phi)))
               (phi :: maps (remLockSet tp addr)).
 Proof.
@@ -938,7 +934,7 @@ Proof.
   rewrite getLocksR_None; auto.
 Qed.
 
-Lemma maps_getlock2 tp addr :
+Lemma maps_getlock2 (tp : jstate) addr :
   lockRes tp addr = Some None ->
   maps (remLockSet tp addr) = maps tp.
 Proof.
@@ -946,7 +942,7 @@ Proof.
   rewrite getLocksR_SNone; auto.
 Qed.
 
-Lemma maps_getlock3 tp addr phi :
+Lemma maps_getlock3 (tp : jstate) addr phi :
   lockRes tp addr = Some (Some phi) ->
   Permutation (maps tp) (phi :: maps (remLockSet tp addr)).
 Proof.
@@ -984,15 +980,15 @@ Proof.
 Qed.
 
 Lemma maps_remLockSet_updThread i tp addr cnti c phi :
-  maps (remLockSet (@updThread i tp cnti c phi) addr) =
-  maps (@updThread i (remLockSet tp addr) cnti c phi).
+  maps (remLockSet (@updThread _ _ i tp cnti c phi) addr) =
+  maps (@updThread _ _ i (remLockSet tp addr) cnti c phi).
 Proof.
   reflexivity.
 Qed.
 
 Lemma getThread_level i tp cnti Phi :
   join_all tp Phi ->
-  level (@getThreadR i tp cnti) = level Phi.
+  level (@getThreadR _ _ i tp cnti) = level Phi.
 Proof.
   intros j.
   apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
@@ -1011,3 +1007,5 @@ Proof.
   intros x y (z, j).
   destruct (join_level _ _ _ j); congruence.
 Qed.
+
+End Machine.

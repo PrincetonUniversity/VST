@@ -79,6 +79,10 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
 (* Weaker statement than preservation for makelock, enough to prove safety *)
 Lemma safety_induction_makelock Gamma n state
   (CS : compspecs)
@@ -205,13 +209,13 @@ Proof.
   destruct Hrmap_ as (phi' & RLphi & j').
   pose proof juice_join compat as j.
   rewrite join_all_joinlist in j.
-  rewrite maps_getthread with (cnti := cnti) in j.
+  rewrite maps_getthread with (cnti0 := cnti) in j.
   destruct j as (psi & jpsi1 & jpsi).
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
 
   subst args.
-  evar (tpx: thread_pool).
+  evar (tpx: jstate).
   eexists (m', ge, (sch, tpx)); split.
 
   { (* "progress" part of the proof *)
@@ -858,3 +862,5 @@ Proof.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
 Qed.
+
+End Sem.

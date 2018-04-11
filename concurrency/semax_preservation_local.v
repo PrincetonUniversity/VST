@@ -85,14 +85,18 @@ Proof.
   apply joinlist_age_to, h.
 Qed.
 
-Lemma resource_decay_join_all {tp m Phi} c' {phi' i} {cnti : ThreadPool.containsThread tp i}:
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Lemma resource_decay_join_all {tp : jstate} {m Phi} c' {phi' i} {cnti : containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
-  resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
-  level (getThreadR i tp cnti) = S (level phi') /\
-  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of (getThreadR i tp cnti)) ->
+  resource_decay (Mem.nextblock m) (getThreadR _ _ i tp cnti) phi' /\
+  level (getThreadR _ _ i tp cnti) = S (level phi') /\
+  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of (getThreadR _ _ i tp cnti)) ->
   join_all tp Phi ->
   exists Phi',
-    join_all (@updThread i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
+    join_all (@updThread _ _ i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
     resource_decay (Mem.nextblock m) Phi Phi' /\
     level Phi = S (level Phi').
 Proof.
@@ -160,7 +164,7 @@ Proof.
 Qed.
 
 Lemma same_except_cur_jm_ tp m phi i cnti compat :
-  same_except_cur m (m_dry (@jm_ tp m phi i cnti compat)).
+  same_except_cur m (m_dry (@jm_ _ tp m phi i cnti compat)).
 Proof.
   repeat split.
   extensionality loc.
@@ -295,7 +299,7 @@ Lemma invariant_thread_step
   (envcoh : env_coherence Jspec ge Gamma Phi)
   (compat : mem_compatible_with tp m Phi)
   (En : level Phi = S n)
-  (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
+  (lock_bound : lockSet_block_bound (lset tp) (Mem.nextblock m))
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec m ge tp Phi compat (S n))
@@ -304,9 +308,9 @@ Lemma invariant_thread_step
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
   (safei' : forall ora, jm_bupd (jsafeN Jspec ge n ora ci') jmi')
-  (Eci : getThreadC i tp cnti = Krun ci)
+  (Eci : getThreadC _ _ i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
-  (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : ThreadPool.t)
+  (tp'' := @updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate)
   (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
   state_bupd (state_invariant Jspec Gamma n) cm'.
 Proof.
@@ -319,7 +323,7 @@ Proof.
   pose proof J as J_; move J_ before J.
   rewrite join_all_joinlist in J_.
   pose proof J_ as J__.
-  rewrite maps_getthread with (cnti := cnti) in J__.
+  rewrite maps_getthread with (cnti0 := cnti) in J__.
   destruct J__ as (ext & Hext & Jext).
   assert (Eni : level (jm_ cnti compat) = S n). {
     rewrite <-En, level_juice_level_phi.
@@ -339,7 +343,6 @@ Proof.
     destruct stepi as [_ [_ [<- _]]].
     apply Eni.
   }
-  unfold LocksAndResources.res in *.
   pose proof eq_refl tp' as Etp'.
   unfold tp' at 2 in Etp'.
   move Etp' before tp'.
@@ -391,7 +394,7 @@ Proof.
   subst ext''.
 
   assert (compat_ : mem_compatible_with tp (m_dry (jm_ cnti compat)) Phi).
-  { apply mem_compatible_with_same_except_cur with (m := m); auto.
+  { apply mem_compatible_with_same_except_cur with (m0 := m); auto.
     apply same_except_cur_jm_. }
 
   assert (compat' : mem_compatible_with tp' (m_dry (jm_ cnti compat)) (age_to n Phi)).
@@ -457,8 +460,8 @@ Proof.
         destruct MC as [_ AC _ _].
         unfold jm_, personal_mem; simpl m_dry.
         rewrite (H _ _  _ (b, ofs0)).
-        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))). {
-          destruct (perm_of_res (getThreadR _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
+        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0)))). {
+          destruct (perm_of_res (getThreadR _ _ _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
           all:intros po; inversion po; subst; eauto.
         }
         clear -compat IN interval lock_coh lock_bound.
@@ -466,7 +469,7 @@ Proof.
         - destruct compat.
           specialize (lock_coh (b, ofs)).
           assert (lk : exists (R : pred rmap), (lkat R (b, ofs)) Phi). {
-            destruct (AMap.find (elt:=option rmap) (b, ofs) (ThreadPool.lset tp)) as [[lockphi|]|].
+            destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)) as [[lockphi|]|].
             - destruct lock_coh as [_ (align & bound & R & lk & _)].
               now eexists _; apply lk.
             - destruct lock_coh as [_ (align & bound & R & lk)].
@@ -486,7 +489,7 @@ Proof.
           + destruct lk as (? & ? & ->).
             simpl.
             constructor.
-        - cut (join_sub (getThreadR _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
+        - cut (join_sub (getThreadR _ _ _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
           + apply po_join_sub.
           + apply resource_at_join_sub.
             eapply compatible_threadRes_sub.
@@ -623,7 +626,7 @@ Proof.
     assumption.
 
   - (* env_coherence *)
-    eapply env_coherence_resource_decay with _ Phi; eauto. omega.
+    eapply env_coherence_resource_decay with _ Phi; eauto. setoid_rewrite En''; omega.
 
   - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
     unfold tp''; simpl.
@@ -689,7 +692,7 @@ Proof.
         split.
         - apply Mem.range_perm_implies with Writable.
           + intros loc range.
-            eapply lset_range_perm with (ofs := ofs); eauto.
+            eapply lset_range_perm with (ofs0 := ofs); eauto.
             (* if LKSIZE>4:
               2:unfold size_chunk in *.
               2:unfold LKSIZE in *.
@@ -700,7 +703,7 @@ Proof.
             destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
             * discriminate.
             * tauto.
-            * unfold LKSIZE; simpl in range; clear - range; rewrite size_chunk_Mptr; if_tac; omega.
+            * unfold LKSIZE; simpl in range; clear - range; rewrite size_chunk_Mptr; simple_if_tac; omega.
           + constructor.
         - (* basic alignment *)
           eapply lock_coherence_align; eauto.
@@ -728,8 +731,8 @@ Proof.
         simpl fst in h; simpl snd in h.
         unfold Mem.perm in *.
         rewrite h.
-        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))).
-        { destruct (perm_of_res (getThreadR _ _ cnti @ (b, ofs0))); intros A B.
+        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0)))).
+        { destruct (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0))); intros A B.
           all: inversion A; subst; inversion B; subst. }
         apply po_trans with (perm_of_res (Phi @ (b, ofs0))); swap 1 2.
         + eapply po_join_sub.
@@ -750,7 +753,7 @@ Proof.
           simpl in lk.
           assert (adr_range (b, ofs) 4%Z (b, ofs0))
             by apply interval_adr_range, interval.
-          spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; rewrite size_chunk_Mptr; if_tac; omega.
+          spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; rewrite size_chunk_Mptr; simple_if_tac; omega.
           if_tac in lk.
           * destruct lk as (? & ? & ->). simpl. constructor.
           * destruct lk as (? & ? & ->). simpl. constructor.
@@ -782,7 +785,7 @@ Proof.
       exists (m_phi jm').
       destruct Hupd as (Hd & Hl & Hr).
       assert (resource_at (m_phi jm') =
-        resource_at (getThreadR i (updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')) cnti'')) as Hr'.
+        resource_at (getThreadR _ _ i (updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')) cnti'')) as Hr'.
       { rewrite gssThreadRes; auto. }
       exists Hr'; split; [rewrite gssThreadRes; auto|].
       split; auto.
@@ -800,7 +803,7 @@ Proof.
 
       clear Ecompat Hext' Hext'' J'' Jext Jext' Hext RD J' LW LJ JL.
 
-      assert (notkrun : forall c, getThreadC j (age_tp_to (level jmi') tp) cntj <> Krun c). {
+      assert (notkrun : forall c, getThreadC _ _ j (age_tp_to (level jmi') tp) cntj <> Krun c). {
         eapply (unique_Krun_neq i j); eauto.
         apply unique_Krun_age_tp_to; eauto.
       }
@@ -810,15 +813,15 @@ Proof.
         clear -cntj.
         unfold tp'', tp' in cntj.
         apply cntUpdate' in cntj.
-        rewrite <-cnt_age in cntj.
+        rewrite <-cnt_age_iff in cntj.
         apply cntj.
       }
-      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj' compat)).
+      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ _ tp m Phi j cntj' compat)).
 
       unshelve erewrite <-gtc_age; auto.
       pose proof safety _ cntj' ora as safej.
 
-      destruct (@getThreadC j tp cntj') as [c | c | c v | v v0] eqn:Ej.
+      destruct (@getThreadC _ _ j tp cntj') as [c | c | c v | v v0] eqn:Ej.
       * (* krun: impossible *)
         exfalso. eapply notkrun. unshelve erewrite <-age_getThreadCode; eauto.
       * unfold tp'', tp'.
@@ -832,7 +835,7 @@ Proof.
       * unfold tp'', tp'.
         REWR.
         REWR.
-        intros c' Ec'; spec safej c' Ec'.
+        intros c' Ec'; specialize (safej c' Ec').
         apply jsafe_phi_bupd_age_to; auto.
         rewrite level_juice_level_phi.
         omega.
@@ -872,3 +875,5 @@ Proof.
       unshelve erewrite gsoThreadCode; auto.
       unshelve erewrite <-gtc_age; auto.
 Qed.
+
+End Sem.
