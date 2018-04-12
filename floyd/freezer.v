@@ -569,7 +569,7 @@ Ltac unlocalize_plain R_G2 :=
   | |- local (tc_environ _) && _ |-- _ =>
           eapply (unlocalize_derives_canon R_G2)
   | |- @derives _ Nveric _ _ =>
-          eapply (unlocalize_derives_unlift R_G2); [construct_fold_right_sepcon_rec | ..]
+          eapply (unlocalize_derives_unlift R_G2); [construct_fold_right_sepcon | ..]
   end;
   [ prove_split_FRZ_in_SEP
   | refine (ex_intro _ _ eq_refl);
@@ -577,14 +577,15 @@ Ltac unlocalize_plain R_G2 :=
     | |- fold_right_sepcon ?R_G1 |-- sepcon (fold_right_sepcon ?R_L1) _ =>
            unfold abbreviate in R_L1, R_G1; unfold R_L1, R_G1; clear R_L1 R_G1
     end;
-    rewrite <- !fold_right_sepconx_eq;
-    unfold fold_right_sepconx
+    rewrite <- !fold_left_sepconx_eq;
+    unfold fold_left_sepconx
   | match goal with
     | |- _ ?R_L1 ?R_G1 -> _ =>
       intros _;
       clear R_L1 R_G1;
       unfold_app
-    end
+    end;
+    try unfold fold_left_sepconx
   ].
 
 Ltac unlocalize_wit R_G2 wit tac :=
@@ -594,7 +595,7 @@ Ltac unlocalize_wit R_G2 wit tac :=
   | |- local (tc_environ _) && _ |-- _ =>
           eapply (unlocalizeQ_derives_canon R_G2)
   | |- @derives _ Nveric _ _ =>
-          eapply (unlocalizeQ_derives_unlift R_G2); [construct_fold_right_sepcon_rec | ..]
+          eapply (unlocalizeQ_derives_unlift R_G2); [construct_fold_right_sepcon | ..]
   end;
   [ prove_split_FRZ_in_SEP
   | rewrite <- !fold_right_sepconx_eq;
@@ -613,7 +614,8 @@ Ltac unlocalize_wit R_G2 wit tac :=
       intros _;
       clear R_L1 R_G1;
       unfold_app
-    end
+    end;
+    try unfold fold_left_sepconx
   ].
 
 Tactic Notation "unlocalize" constr(R_G2) :=

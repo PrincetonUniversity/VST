@@ -721,6 +721,10 @@ Ltac construct_fold_right_sepcon_rec :=
          apply construct_fold_right_sepcon_rec_single
   end.
 
+Ltac construct_fold_right_sepcon :=
+  apply construct_fold_right_sepcon_constr;
+  construct_fold_right_sepcon_rec.
+
 Ltac apply_find_core X :=
  match X with
  | ?U -> ?V => match type of U with Prop => apply_find_core V end
