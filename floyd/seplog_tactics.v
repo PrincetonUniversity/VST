@@ -669,6 +669,58 @@ Proof.
   syntactic_cancel.
 *)
 
+Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> Prop :=
+| construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
+    construct_fold_right_sepcon_rec Q R R' ->
+    construct_fold_right_sepcon_rec P R' R'' ->
+    construct_fold_right_sepcon_rec (P * Q) R R''
+| construct_fold_right_sepcon_rec_emp: forall R,
+    construct_fold_right_sepcon_rec emp R R
+| construct_fold_right_sepcon_rec_single: forall P R,
+    construct_fold_right_sepcon_rec P R (P :: R).
+
+Inductive construct_fold_right_sepcon: mpred -> list mpred-> Prop :=
+| construct_fold_right_sepcon_constr: forall P R,
+    construct_fold_right_sepcon_rec P nil R ->
+    construct_fold_right_sepcon P R.
+
+Lemma construct_fold_right_sepcon_spec: forall P R,
+  construct_fold_right_sepcon P R ->
+  fold_right_sepcon R = P.
+Proof.
+  intros.
+  destruct H.
+  rename R into R'.
+  transitivity (fold_right_sepcon nil * P).
+  Focus 2. {
+    simpl.
+    rewrite !emp_sepcon.
+    auto.
+  } Unfocus.
+  forget (@nil mpred) as R.
+  induction H.
+  + etransitivity; [eassumption |].
+    transitivity (fold_right_sepcon R * Q * P); [f_equal; eassumption |].
+    clear.
+    rewrite (sepcon_comm P).
+    rewrite !sepcon_assoc; auto.
+  + rewrite sepcon_emp; auto.
+  + simpl.
+    rewrite (sepcon_comm _ P).
+    auto.
+Qed.
+
+Ltac construct_fold_right_sepcon_rec :=
+  match goal with
+  | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
+         eapply construct_fold_right_sepcon_rec_sepcon;
+         [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
+  | |- construct_fold_right_sepcon_rec emp _ _ =>
+         apply construct_fold_right_sepcon_rec_emp
+  | _ =>
+         apply construct_fold_right_sepcon_rec_single
+  end.
+
 Ltac apply_find_core X :=
  match X with
  | ?U -> ?V => match type of U with Prop => apply_find_core V end
