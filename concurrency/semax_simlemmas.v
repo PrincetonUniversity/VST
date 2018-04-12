@@ -809,7 +809,7 @@ Proof.
 Qed.
 
 Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
-  (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+  (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -825,7 +825,7 @@ Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat n j cntj)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (tr, sch, tp)).
 Proof.
   intros; apply state_inv_upd with (mcompat0 := mcompat); auto; intros.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).

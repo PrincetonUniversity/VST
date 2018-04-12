@@ -60,21 +60,28 @@ Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Inductive jmsafe : nat -> cm_state -> Prop :=
-| jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
-| jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
-| jmsafe_core n m m' ge sch tp tp':
-    @JuicyMachine.machine_step ge sch nil tp m sch nil tp' m' ->
-    tp_bupd (fun tp' => jmsafe n (m', ge, (sch, tp'))) tp' ->
-    jmsafe (S n) (m, ge, (sch, tp))
-| jmsafe_sch n m m' ge i sch tp tp':
-    @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
-    (forall sch', tp_bupd (fun tp' => jmsafe n (m', ge, (sch', tp'))) tp') ->
-    jmsafe (S n) (m, ge, (i :: sch, tp)).
+Section Sem.
 
-Lemma step_sch_irr ge i sch sch' tp m tp' m' :
-  @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
-  @JuicyMachine.machine_step ge (i :: sch') nil tp m sch' nil tp' m'.
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Existing Instance JuicyMachineShell.
+Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
+
+Inductive jmsafe : nat -> cm_state -> Prop :=
+| jmsafe_0 m ge tr sch tp : jmsafe 0 (m, ge, (tr, sch, tp))
+| jmsafe_halted n m ge tr tp : jmsafe n (m, ge, (tr, nil, tp))
+| jmsafe_core n m m' ge tr tr' sch (tp tp' : jstate):
+    JuicyMachine.machine_step(genv := ge) sch tr tp m sch tr' tp' m' ->
+    tp_bupd (fun tp' => jmsafe n (m', ge, (tr', sch, tp'))) tp' ->
+    jmsafe (S n) (m, ge, (tr, sch, tp))
+| jmsafe_sch n m m' ge i tr tr' sch (tp tp' : jstate):
+    JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+    (forall sch', tp_bupd (fun tp' => jmsafe n (m', ge, (tr', sch', tp'))) tp') ->
+    jmsafe (S n) (m, ge, (tr, i :: sch, tp)).
+
+Lemma step_sch_irr ge i tr tr' sch sch' (tp : jstate) m tp' m' :
+  JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+  JuicyMachine.machine_step(genv := ge) (i :: sch') tr tp m sch' tr' tp' m'.
 Proof.
   intros step.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
@@ -87,18 +94,18 @@ Qed.
 
 Require Import VST.concurrency.semax_simlemmas.
 
-Lemma schstep_norun ge i sch tp m tp' m' :
-  @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
+Lemma schstep_norun ge i sch tr tr' tp m tp' m' :
+  JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
   unique_Krun tp (i :: sch) ->
-  1 < pos.n (num_threads tp') ->
+  (1 < pos.n (num_threads tp'))%nat ->
   no_Krun tp'.
 Proof.
   intros step uniq more.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
-  assert (D: forall i j, containsThread tp i -> containsThread tp j -> i <> j -> 1 < pos.n tp.(num_threads)).
+  assert (D: (forall i j, containsThread tp i -> containsThread tp j -> i <> j -> 1 < pos.n tp.(num_threads))%nat).
   { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
-  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC j tp cntj <> @Krun code q).
-  { intros j cntj q cnti ne E. autospec uniq. spec uniq j cntj q E. breakhyps. }
+  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC _ _ j tp cntj <> @Krun _ q).
+  { intros j cntj q cnti ne E. autospec uniq. specialize (uniq j cntj q E). breakhyps. }
 
   inversion step; try tauto.
   all: try inversion Htstep; repeat match goal with H : ?x = ?y |- _ => subst x || subst y end.
@@ -108,8 +115,10 @@ Proof.
   all: destruct (eq_dec i j).
   all: try subst j.
 
+  all: unfold ThreadPool.updThreadC, ThreadPool.RmapThreadPool, OrdinalThreadPool in *.
   all: try (assert (cnti = Htid) by apply proof_irr; subst Htid).
   all: try (assert (ctn = cnti) by apply proof_irr; subst cnt).
+
   all: try (unshelve erewrite <-gtc_age; eauto).
   all: try (unshelve erewrite gLockSetCode; eauto).
   all: try (unshelve erewrite gRemLockSetCode; eauto).
@@ -120,14 +129,14 @@ Proof.
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
-  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
-  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.
@@ -136,15 +145,14 @@ Proof.
   all: eauto.
 
   inversion Hhalted.
-  unfold SEM.Sem in *.
-  rewrite SEM.CLN_msem in Hcant.
+  simpl in Hcant; rewrite ClightSemantincsForMachines.CLN_msem in Hcant.
   simpl in Hcant.
   inversion Hcant.
 
   intros E.
   hnf in uniq.
   autospec uniq.
-  spec uniq j cnti q E. breakhyps.
+  specialize (uniq j cnti q E). breakhyps.
 Qed.
 
 (*+ Final instantiation *)
@@ -177,21 +185,21 @@ Section Safety.
   (* another, looser invariant to have more standard preservation
   statement *)
   Definition inv Gamma n state :=
-    exists m, n <= m /\ state_invariant Jspec' Gamma m state.
+    exists m, (n <= m)%nat /\ state_invariant Jspec' Gamma m state.
 
-  Lemma inv_sch_irr Gamma n m ge i sch sch' tp :
-    inv Gamma n (m, ge, (i :: sch, tp)) ->
-    inv Gamma n (m, ge, (i :: sch', tp)).
+  Lemma inv_sch_irr Gamma n m ge i tr sch sch' tp :
+    inv Gamma n (m, ge, (tr, i :: sch, tp)) ->
+    inv Gamma n (m, ge, (tr, i :: sch', tp)).
   Proof.
     intros (k & lkm & Hk).
     exists k; split; auto.
     eapply state_invariant_sch_irr, Hk.
   Qed.
 
-  Lemma no_Krun_inv Gamma n m ge sch sch' tp :
-    (1 < pos.n (num_threads tp) -> no_Krun tp) ->
-    inv Gamma n (m, ge, (sch, tp)) ->
-    inv Gamma n (m, ge, (sch', tp)).
+  Lemma no_Krun_inv Gamma n m ge tr sch sch' tp :
+    (1 < pos.n (num_threads tp) -> no_Krun tp)%nat ->
+    inv Gamma n (m, ge, (tr, sch, tp)) ->
+    inv Gamma n (m, ge, (tr, sch', tp)).
   Proof.
     intros nokrun.
     intros (x & lx & i).
@@ -211,10 +219,10 @@ Section Safety.
       try (assert (cnti' = cnti) by apply proof_irr; subst cnti');
       breakhyps.
 
-    destruct state as ((m, ge) & [ | i sch] & tp). now t.
+    destruct state as ((m, ge) & [tr [ | i sch]] & tp). now t.
     simpl.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
-    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei;
+    destruct (@getThreadC _ _ i tp cnti) as [c | c | c v | v v0] eqn:Ei;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
@@ -291,7 +299,7 @@ Section Safety.
     apply ext_link_inj.
   Qed.
 
-  Lemma tp_bupd_mono : forall (P Q : thread_pool -> Prop) tp,
+  Lemma tp_bupd_mono : forall (P Q : jstate -> Prop) tp,
     (forall phi tp' phi', tp_update tp phi tp' phi' ->
        P tp' -> Q tp') ->
     tp_bupd P tp -> tp_bupd Q tp.
@@ -313,9 +321,9 @@ Section Safety.
     destruct (safety_induction _ _ _ i) as (state' & step & inv').
     exists state'; split; [ now apply step | ].
     destruct inv'.
-    - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
-      intros; exists (m - 1). split. omega. assumption.
-    - destruct state' as ([] & ? & ?); eapply tp_bupd_mono; eauto.
+    - destruct state' as ([] & [] & ?); eapply tp_bupd_mono; eauto.
+      intros; exists (m - 1)%nat. split. omega. assumption.
+    - destruct state' as ([] & [] & ?); eapply tp_bupd_mono; eauto.
       intros ???? Hinv; exists m. split. omega. simpl in *. exact_eq Hinv; f_equal. omega.
   Qed.
 
@@ -332,7 +340,7 @@ Section Safety.
     assert (containsThread tp i) as cnt by (apply Hiff; auto).
     specialize (H _ cnt) as (H & _).
     replace (proj2 (Hiff i) cnt) with cnti in H by apply proof_irr.
-    rewrite <- H in *; eapply notkrun; eauto.
+    simpl in H; rewrite <- H in *; eapply notkrun; eauto.
   Qed.
 
   Lemma invariant_safe Gamma n state :
@@ -341,12 +349,12 @@ Section Safety.
     intros INV.
     pose proof (inv_step) as Step.
     revert state INV.
-    induction n; intros ((m, ge), (sch, tp)) INV.
+    induction n; intros ((m, ge), ((tr, sch), tp)) INV.
     - apply jmsafe_0.
     - destruct sch.
       + apply jmsafe_halted.
       + destruct (Step _ _ _ INV) as (state' & step & INV').
-        inversion step as [ | ge' m0 m' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
+        inversion step as [ | ge' m0 m' tr' tr'' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
         inversion jmstep; subst.
         all: try solve [ eapply jmsafe_core; eauto; eapply tp_bupd_mono; eauto; auto ].
         all: eapply jmsafe_sch; eauto.
@@ -371,7 +379,7 @@ Section Safety.
   Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
 
   Definition initial_machine_state (n : nat) :=
-    ThreadPool.mk
+    @OrdinalPool.mk LocksAndResources ClightSemantincsForMachines.ClightSem
       (pos.mkPos (le_n 1))
       (fun _ => Krun initial_corestate)
       (fun _ => m_phi (initial_jm n))
@@ -452,22 +460,22 @@ Section Safety.
   time a part of the schedule is consumed *)
 
   Theorem jmsafe_initial_state sch n :
-    jmsafe n ((proj1_sig init_mem, globalenv prog), (sch, initial_machine_state n)).
+    jmsafe n ((proj1_sig init_mem, globalenv prog), (nil, sch, initial_machine_state n)).
   Proof.
     eapply invariant_safe.
     exists n; split; auto; apply initial_invariant.
   Qed.
 
-  Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> jm_csafe ge (sch, nil, s) m n.
+  Lemma jmsafe_csafe n m ge tr sch s : jmsafe n (m, ge, (tr, sch, s)) -> jm_csafe ge (sch, tr, s) m n.
   Proof.
     clear.
-    revert m ge sch s; induction n; intros m ge sch s SAFE.
+    revert m ge tr sch s; induction n; intros m ge tr sch s SAFE.
     now constructor 1.
     inversion SAFE; subst.
     - constructor 2. reflexivity.
-    - econstructor 3; simpl; eauto.
+    - econstructor 3; [apply H2|].
       eapply tp_bupd_mono; eauto; auto.
-    - econstructor 4; simpl; eauto.
+    - econstructor 4; [apply H2|].
       intro U''; eapply tp_bupd_mono; eauto; intros.
       apply IHn, H0.
   Qed.
@@ -482,3 +490,5 @@ Section Safety.
   Qed.
 
 End Safety.
+
+End Sem.

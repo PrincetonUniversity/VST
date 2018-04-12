@@ -59,12 +59,12 @@ Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_progress.
 Require Import VST.concurrency.semax_preservation.
 
-Local Arguments getThreadR : clear implicits.
-Local Arguments getThreadC : clear implicits.
+Local Arguments getThreadR {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread : clear implicits.
-Local Arguments updThreadR : clear implicits.
-Local Arguments updThreadC : clear implicits.
+Local Arguments updThread {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -77,6 +77,10 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
+
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Lemma safety_induction_release Gamma n state
   (CS : compspecs)
@@ -100,7 +104,7 @@ Lemma safety_induction_release Gamma n state
 Proof.
   intros isrelease.
   intros I.
-  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isrelease as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -118,7 +122,7 @@ Proof.
   hnf in x.
   revert x Pre SafePost.
 
-  assert (~ blocked_at_external (m, ge, (i :: sch, tp)) CREATE) as Hnot_create.
+  assert (~ blocked_at_external (m, ge, (tr, i :: sch, tp)) CREATE) as Hnot_create.
   { unfold blocked_at_external; intros (? & cnti' & ? & ? & ? & Heq & Hc & HC); inv Heq.
     assert (cnti' = cnti) by apply proof_irr; subst.
     rewrite Hc in Eci; inv Eci.
@@ -158,32 +162,10 @@ Proof.
   (* use progress to get the parts that don't depend on choice of phi *)
   destruct (progress _ _ ext_link_inj _ _ _ Hnot_create I) as [? Hstep0].
   inv Hstep0.
-
-  Ltac jmstep_inv :=
-    match goal with
-    | H : JuicyMachine.start_thread _ _ _ _ _ |- _ => inversion H
-    | H : JuicyMachine.resume_thread _ _ _ _   |- _ => inversion H
-    | H : threadStep _ _ _ _ _ _          |- _ => inversion H
-    | H : JuicyMachine.suspend_thread _ _ _ _  |- _ => inversion H
-    | H : syncStep _ _ _ _ _ _ _           |- _ => inversion H
-    | H : threadHalted _                   |- _ => inversion H
-    | H : JuicyMachine.schedfail _         |- _ => inversion H
-    end; try subst.
-
-  Ltac getThread_inv :=
-    match goal with
-    | [ H : @getThreadC ?i _ _ = _ ,
-            H2 : @getThreadC ?i _ _ = _ |- _ ] =>
-      pose proof (getThreadC_fun _ _ _ _ _ _ H H2)
-    | [ H : @getThreadR ?i _ _ = _ ,
-            H2 : @getThreadR ?i _ _ = _ |- _ ] =>
-      pose proof (getThreadR_fun _ _ _ _ _ _ H H2)
-    end.
-
-  inv H4; try inversion HschedN; subst tid;
+  inv H5; try inversion HschedN; subst tid;
       unfold containsThread, is_true in *;
-      try congruence; jmstep_inv; getThread_inv; try congruence;
-      inv H; unfold SEM.Sem in Hat_external; rewrite SEM.CLN_msem in Hat_external; simpl in Hat_external;
+      try congruence; jmstep_inv; simpl in *; getThread_inv; try congruence;
+      inv H; simpl in Hat_external; rewrite ClightSemantincsForMachines.CLN_msem in Hat_external; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external.
   clear dependent d_phi; clear dependent phi'.
 
@@ -202,10 +184,9 @@ Proof.
   destruct (join_assoc (join_comm jphi0) j) as [phi' [? Hrem_lock_res]].
   assert (level (getThreadR i tp cnti) = S n) as Hn.
   { pose proof (getThread_level _ _ cnti _ (juice_join compat)).
-    unfold LocksAndResources.res in *.
-    omega. }
-  evar (tpx: thread_pool).
-  eexists (m', ge, (sch, tpx)); split.
+    setoid_rewrite En in H0; auto. }
+  evar (tpx: jstate).
+  eexists (m', ge, (seq.cat tr _, sch, tpx)); split.
 
   { (* "progress" part of the proof *)
     constructor.
@@ -213,11 +194,12 @@ Proof.
     eapply JuicyMachine.sync_step with (Htid := cnti); auto.
 
     eapply step_release with (d_phi := phi0d); eauto.
-    - unfold SEM.Sem in *. rewrite SEM.CLN_msem. assumption.
+    - simpl; rewrite ClightSemantincsForMachines.CLN_msem. assumption.
     - hnf. rewrite level_age_by.
-      destruct (join_level _ _ _ jphi0).
-      destruct (join_level _ _ _ Hrem_lock_res).
-      unfold LocksAndResources.res in *.
+      destruct (join_level _ _ _ jphi0) as [-> <-].
+      assert (0 < level phi0d)%nat.
+      { destruct (join_level _ _ _ Hrem_lock_res) as [->].
+        setoid_rewrite Hn; omega. }
       split; [omega|].
       eapply pred_hereditary; eauto.
       apply age_by_1; omega.
@@ -248,7 +230,7 @@ Proof.
       rewrite (maps_getthread i _ pr) in J.
       rewrite gRemLockSetRes with (cnti0 := cnti) in J. clear pr.
       revert Hrem_lock_res J.
-      generalize (@getThreadR _ _ cnti) d_phi phi'.
+      generalize (getThreadR _ _ cnti) d_phi phi'.
       generalize (all_but i (maps (remLockSet tp (b, Ptrofs.intval ofs)))).
       cleanup.
       clear -lev.
@@ -306,7 +288,7 @@ Proof.
 
   pose proof mem_compatible_with_age compat'' (n := n) as compat'.
 
-  assert (level (getThreadR i tp cnti) - 1 = n) as El by (unfold LocksAndResources.res in *; omega).
+  assert (level (getThreadR i tp cnti) - 1 = n)%nat as El by omega.
   setoid_rewrite El; left; apply state_invariant_c with (mcompat := compat').
   + (* level *)
     apply level_age_to. cleanup. omega.
@@ -343,7 +325,7 @@ Proof.
                exists (* sh0 *) R0,
                   (lkat R0 (* sh0 *) (b, Ptrofs.intval ofs)) Phi /\
                   (app_pred R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
-                   \/ level (age_to n Phi) = 0)
+                   \/ level (age_to n Phi) = 0%nat)
               ).
           { intros (align & bound & (* sh0 &  *)R0 & AP & sat).
             repeat (split; auto).
@@ -376,7 +358,6 @@ Proof.
               -- apply compatible_threadRes_sub. apply compat.
             * destruct (join_level _ _ _ jphi0).
               destruct (join_level _ _ _ Hrem_lock_res).
-              unfold LocksAndResources.res in *.
               hnf. rewrite level_age_by, level_age_to by omega.
               split; [omega|].
               unfold age_to.
@@ -404,7 +385,7 @@ Proof.
               if_tac [[H H']|H] in Hstore; [ | discriminate ].
               apply H'.
             * rewrite LockRes_age_content1.
-              rewrite JTP.gssLockRes. simpl. congruence.
+              rewrite gssLockRes. simpl. congruence.
             * congruence.
       }
 
@@ -597,7 +578,7 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
+      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
          apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
 
@@ -623,3 +604,5 @@ Proof.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
 Qed.
+
+End Sem.

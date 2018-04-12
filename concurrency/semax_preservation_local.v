@@ -56,12 +56,12 @@ Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
 
-Local Arguments getThreadR : clear implicits.
-Local Arguments getThreadC : clear implicits.
+Local Arguments getThreadR {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread : clear implicits.
-Local Arguments updThreadR : clear implicits.
-Local Arguments updThreadC : clear implicits.
+Local Arguments updThread {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -91,12 +91,12 @@ Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Lemma resource_decay_join_all {tp : jstate} {m Phi} c' {phi' i} {cnti : containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
-  resource_decay (Mem.nextblock m) (getThreadR _ _ i tp cnti) phi' /\
-  level (getThreadR _ _ i tp cnti) = S (level phi') /\
-  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of (getThreadR _ _ i tp cnti)) ->
+  resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
+  level (getThreadR i tp cnti) = S (level phi') /\
+  ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of (getThreadR i tp cnti)) ->
   join_all tp Phi ->
   exists Phi',
-    join_all (@updThread _ _ i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
+    join_all (updThread i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
     resource_decay (Mem.nextblock m) Phi Phi' /\
     level Phi = S (level Phi').
 Proof.
@@ -293,7 +293,7 @@ Lemma invariant_thread_step
        (forall loc : AV.address, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
        mem_equiv (m_dry (personal_mem m phi pr)) (m_dry (personal_mem m' phi pr')))
   (Jspec : juicy_ext_spec unit) Gamma
-  n m ge i sch tp Phi ci ci' jmi'
+  n m ge i tr sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
   (envcoh : env_coherence Jspec ge Gamma Phi)
@@ -308,10 +308,10 @@ Lemma invariant_thread_step
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
   (safei' : forall ora, jm_bupd (jsafeN Jspec ge n ora ci') jmi')
-  (Eci : getThreadC _ _ i tp cnti = Krun ci)
+  (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
-  (tp'' := @updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate)
-  (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
+  (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate)
+  (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))) :
   state_bupd (state_invariant Jspec Gamma n) cm'.
 Proof.
   (** * Two steps : [x] -> [x'] -> [x'']
@@ -460,8 +460,8 @@ Proof.
         destruct MC as [_ AC _ _].
         unfold jm_, personal_mem; simpl m_dry.
         rewrite (H _ _  _ (b, ofs0)).
-        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0)))). {
-          destruct (perm_of_res (getThreadR _ _ _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
+        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))). {
+          destruct (perm_of_res (getThreadR _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
           all:intros po; inversion po; subst; eauto.
         }
         clear -compat IN interval lock_coh lock_bound.
@@ -489,7 +489,7 @@ Proof.
           + destruct lk as (? & ? & ->).
             simpl.
             constructor.
-        - cut (join_sub (getThreadR _ _ _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
+        - cut (join_sub (getThreadR _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
           + apply po_join_sub.
           + apply resource_at_join_sub.
             eapply compatible_threadRes_sub.
@@ -731,8 +731,8 @@ Proof.
         simpl fst in h; simpl snd in h.
         unfold Mem.perm in *.
         rewrite h.
-        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0)))).
-        { destruct (perm_of_res (getThreadR _ _ _ _ cnti @ (b, ofs0))); intros A B.
+        cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))).
+        { destruct (perm_of_res (getThreadR _ _ cnti @ (b, ofs0))); intros A B.
           all: inversion A; subst; inversion B; subst. }
         apply po_trans with (perm_of_res (Phi @ (b, ofs0))); swap 1 2.
         + eapply po_join_sub.
@@ -785,7 +785,7 @@ Proof.
       exists (m_phi jm').
       destruct Hupd as (Hd & Hl & Hr).
       assert (resource_at (m_phi jm') =
-        resource_at (getThreadR _ _ i (updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')) cnti'')) as Hr'.
+        resource_at (getThreadR i (updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')) cnti'')) as Hr'.
       { rewrite gssThreadRes; auto. }
       exists Hr'; split; [rewrite gssThreadRes; auto|].
       split; auto.
@@ -803,7 +803,7 @@ Proof.
 
       clear Ecompat Hext' Hext'' J'' Jext Jext' Hext RD J' LW LJ JL.
 
-      assert (notkrun : forall c, getThreadC _ _ j (age_tp_to (level jmi') tp) cntj <> Krun c). {
+      assert (notkrun : forall c, getThreadC j (age_tp_to (level jmi') tp) cntj <> Krun c). {
         eapply (unique_Krun_neq i j); eauto.
         apply unique_Krun_age_tp_to; eauto.
       }

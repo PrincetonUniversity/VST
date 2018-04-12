@@ -71,7 +71,7 @@ Section Initial_State.
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      globalenv prog,
-     (sch,
+     (nil, sch,
       let spr := semax_prog_rule
                    (Concurrent_Espec unit CS ext_link) V G prog
                    (proj1_sig init_m) 0 all_safe (proj2_sig init_m) in

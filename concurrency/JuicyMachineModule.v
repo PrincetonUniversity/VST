@@ -75,15 +75,15 @@ Module THE_JUICY_MACHINE.
   | HaltedSafe : forall n : nat,
                  is_true (ssrbool.isSome (JuicyMachine.halted_machine st)) ->
                  jm_csafe ge st m n
-  | CoreSafe : forall (tp' : jstate) (m' : mem) (n : nat)
-               (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), nil, tp') m')
-               (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), nil, tp') m' n) tp'),
+  | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
+               (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), tr', tp') m')
+               (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe ge st m (S n)
-  | AngelSafe : forall (tp' : jstate) (m' : mem) (n : nat)
+  | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                 (Hstep : JuicyMachine.MachStep ge st m
-                  (SCH.schedSkip (fst (fst st)), nil, tp') m')
+                  (SCH.schedSkip (fst (fst st)), tr', tp') m')
                 (Hsafe : forall U'',
-                 tp_bupd (fun tp' => jm_csafe ge (U'', nil, tp') m' n) tp'),
+                 tp_bupd (fun tp' => jm_csafe ge (U'', tr', tp') m' n) tp'),
                 jm_csafe ge st m (S n).
 
   End THE_JUICY_MACHINE.

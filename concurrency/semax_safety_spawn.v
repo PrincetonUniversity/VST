@@ -56,13 +56,14 @@ Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
+Import Events.
 
-Local Arguments getThreadR : clear implicits.
-Local Arguments getThreadC : clear implicits.
+Local Arguments getThreadR {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread : clear implicits.
-Local Arguments updThreadR : clear implicits.
-Local Arguments updThreadC : clear implicits.
+Local Arguments updThread {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -199,7 +200,7 @@ Lemma safety_induction_spawn Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -241,7 +242,7 @@ Proof.
   clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
 
 
-  assert (li : level (getThreadR _ _ i tp cnti) = S n).
+  assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
   assert (l1 : level phi1 = S n).
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
@@ -289,7 +290,7 @@ Proof.
     join_level_tac.
     apply pures_same_sym, join_sub_pures_same.
     apply join_sub_trans with phi0. eexists; eassumption.
-    apply join_sub_trans with (getThreadR _ _ i tp cnti). exists phi1. auto.
+    apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
     join_sub_tac.
   }
 
@@ -376,11 +377,11 @@ clear - Initcore.
       (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
-    { unfold SEM.Sem in *.
-      rewrite SEM.CLN_msem.
+    { simpl.
+      rewrite ClightSemantincsForMachines.CLN_msem.
       apply atex. }
-    { unfold SEM.Sem; rewrite SEM.CLN_msem; simpl.
-      unfold code in *.
+    { simpl.
+      rewrite ClightSemantincsForMachines.CLN_msem; simpl.
       instantiate (1:=None).
       specialize (Initcore (jm_ cnti compat)); clear - Initcore.
       simpl in Initcore. unfold j_initial_core in Initcore. 
@@ -408,9 +409,9 @@ clear - Initcore.
     rewrite joinlist_merge; eauto.
   }
 
-  apply (@mem_compatible_with_age n) in compat'.
+  apply (@mem_compatible_with_age _ n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
-  replace (S n - 1) with n by omega.
+  replace (S n - 1)%nat with n by omega.
 
   apply state_invariant_c with (mcompat := compat').
 
@@ -451,7 +452,7 @@ clear - Initcore.
       destruct (cl_initial_core (globalenv prog) (Vptr f_b Ptrofs.zero) (b :: nil)); inv Initcore; auto.
 
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
-      spec Safety jm ts.
+      specialize (Safety jm ts).
       intros Ejm.
       replace (level jm) with n in Safety; swap 1 2.
       { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
@@ -527,8 +528,8 @@ clear - Initcore.
 
     + (* safety of spawning thread *)
       subst j.
-      REWR. unshelve erewrite (@gsoAddCode i); auto. REWR. REWR.
-      unshelve erewrite (@gsoAddRes _ _ _ _ i); auto. REWR.
+      REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ i); auto. REWR. REWR.
+      unshelve erewrite (@gsoAddRes _ _ _ _ _ _ i); auto. REWR.
       intros c' afterex jm Ejm.
       specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
 
@@ -566,7 +567,7 @@ clear - Initcore.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
-      -- intros c' Ec'; spec safety c' Ec'.
+      -- intros c' Ec'; specialize (safety c' Ec').
          apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- destruct safety as (c_new & Einit & safety). exists c_new; split; auto.

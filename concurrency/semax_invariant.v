@@ -45,7 +45,7 @@ Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.join_lemmas.
 Require Import VST.concurrency.lksize.
-Import threadPool.
+Import threadPool Events.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
@@ -71,24 +71,25 @@ Ltac join_level_tac :=
   cleanup;
   try congruence.
 
+Notation event_trace := (seq.seq machine_event).
+
 Section Machine.
 
 Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 (*+ Description of the invariant *)
-
-Definition cm_state := (Mem.mem * Clight.genv * (schedule * jstate))%type.
+Definition cm_state := (Mem.mem * Clight.genv * (event_trace * schedule * jstate))%type.
 
 Inductive state_step : cm_state -> cm_state -> Prop :=
-| state_step_empty_sched ge m jstate :
+| state_step_empty_sched ge m tr jstate :
     state_step
-      (m, ge, (nil, jstate))
-      (m, ge, (nil, jstate))
-| state_step_c ge m m' sch sch' jstate jstate' :
-    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch nil jstate m sch' nil jstate' m' ->
+      (m, ge, (tr, nil, jstate))
+      (m, ge, (tr, nil, jstate))
+| state_step_c ge m m' tr tr' sch sch' jstate jstate' :
+    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
     state_step
-      (m, ge, (sch, jstate))
-      (m', ge, (sch', jstate')).
+      (m, ge, (tr, sch, jstate))
+      (m', ge, (tr', sch', jstate')).
 
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
@@ -478,7 +479,7 @@ Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
 
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
-      (m : mem) (ge : genv) (sch : schedule) (tp : jstate) (PHI : rmap)
+      (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : jstate) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -487,17 +488,17 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
-    : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
+    : state_invariant Jspec Gamma n (m, ge, (tr, sch, tp)).
 
 (* Schedule irrelevance of the invariant *)
-Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
-  state_invariant Jspec Gamma n (m, ge, (i :: sch, tp)) ->
-  state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
+Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i tr sch sch' tp :
+  state_invariant Jspec Gamma n (m, ge, (tr, i :: sch, tp)) ->
+  state_invariant Jspec Gamma n (m, ge, (tr, i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
-    subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev envcoh compat sparse lock_coh safety wellformed _).
+  inversion INV as [m0 ge0 tr0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
+    subst m0 ge0 tr0 sch0 tp0.
+  refine (state_invariant_c Jspec Gamma n m ge tr (i :: sch') tp PHI lev envcoh compat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -507,18 +508,18 @@ Qed.
 
 Definition blocked_at_external (state : cm_state) (ef : external_function) :=
   match state with
-    (m, ge, (sch, tp)) =>
+    (m, ge, (tr, sch, tp)) =>
     exists j cntj sch' c args,
       sch = j :: sch' /\
       @getThreadC _ _ j tp cntj = Kblocked c /\
       cl_at_external c = Some (ef, args)
   end.
 
-Definition state_bupd P (state : cm_state) := let '(m, ge, (sch, tp)) := state in
-  tp_bupd (fun tp' => P (m, ge, (sch, tp'))) tp.
+Definition state_bupd P (state : cm_state) := let '(m, ge, (tr, sch, tp)) := state in
+  tp_bupd (fun tp' => P (m, ge, (tr, sch, tp'))) tp.
 
-Lemma state_bupd_intro : forall (P : _ -> Prop) m ge sch tp phi, join_all tp phi ->
-  P (m, ge, (sch, tp)) -> state_bupd P (m, ge, (sch, tp)).
+Lemma state_bupd_intro : forall (P : _ -> Prop) m ge tr sch tp phi, join_all tp phi ->
+  P (m, ge, (tr, sch, tp)) -> state_bupd P (m, ge, (tr, sch, tp)).
 Proof.
   intros; split; eauto; intros.
   eexists; split; eauto.
@@ -562,7 +563,7 @@ Qed.
 
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
 Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
-  (m : mem) (ge : genv) (sch : schedule) (tp : jstate) (PHI : rmap)
+  (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : jstate) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -574,7 +575,7 @@ Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
         threads_safety Jspec m ge tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (tr, sch, tp)).
 Proof.
   intros.
   split; [eexists; apply mcompat|].

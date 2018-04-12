@@ -56,13 +56,14 @@ Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
+Import Events.
 
-Local Arguments getThreadR : clear implicits.
-Local Arguments getThreadC : clear implicits.
+Local Arguments getThreadR {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread : clear implicits.
-Local Arguments updThreadR : clear implicits.
-Local Arguments updThreadC : clear implicits.
+Local Arguments updThread {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -91,15 +92,15 @@ Lemma preservation_acquire
          (Hcmpt : mem_compatible tp m)
          (His_unlocked : AMap.find (elt:=option rmap) (b, Ptrofs.intval ofs) (lset tp) = Some ophi)
          (Hlt' : permMapLt
-              (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
+              (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
                  LKSIZE_nat) (getMaxPerm m))
          (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint z) = Some m'),
-       lockSet_Writable (lset (updLockSet (updThread _ _ i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
+       lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
   (mem_cohere'_store : forall m tp m' b ofs j i Phi (cnti : containsThread tp i)
     (Hcmpt : mem_compatible tp m)
     (lock : lockRes tp (b, Ptrofs.intval ofs) <> None)
     (Hlt' : permMapLt
-           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
     (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint j) = Some m'),
     mem_compatible_with tp m Phi ->
@@ -120,10 +121,11 @@ Lemma preservation_acquire
   (n : nat)
   (ge : genv)
   (m m' : Memory.mem)
+  (tr : event_trace)
   (i : nat)
   (sch : list nat)
   (tp : jstate)
-  (INV : state_invariant Jspec' Gamma (S n) (m, ge, (i :: sch, tp)))
+  (INV : state_invariant Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
@@ -135,9 +137,9 @@ Lemma preservation_acquire
   (unique : unique_Krun tp (i :: sch))
   (Ei cnti : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
   (ci : semC)
-  (Eci : getThreadC _ _ i tp cnti = Kblocked ci)
+  (Eci : getThreadC i tp cnti = Kblocked ci)
   (Hcmpt : mem_compatible tp m)
-  (El : (level (getThreadR _ _ i tp cnti) - 1 = n)%nat)
+  (El : (level (getThreadR i tp cnti) - 1 = n)%nat)
   (compat_aged : mem_compatible_with (age_tp_to n tp) m (age_to n Phi))
   (c : semC)
   (b : block)
@@ -147,36 +149,36 @@ Lemma preservation_acquire
   (sh : Share.t)
   (psh : shares.readable_share sh)
   (R : pred rmap)
-  (Hthread : getThreadC _ _ i tp cnti = Kblocked c)
+  (Hthread : getThreadC i tp cnti = Kblocked c)
   (Hat_external : at_external ClightSemantincsForMachines.CLN_evsem ge c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = Some (Some d_phi))
   (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
                     b (Ptrofs.intval ofs) =
           Some (Vint Int.one))
   (Hlt' : permMapLt
-           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR _ _ i tp cnti) m)
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
   (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
   (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
-  (HJcanwrite : getThreadR _ _ i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-  (Hadd_lock_res : join (getThreadR _ _ i tp cnti) d_phi phi')
-  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) nil tp m sch nil
+  (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+  (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
+  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
              (age_tp_to n
-                (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
+                (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
   (Htstep : @syncStep ClightSemantincsForMachines.ClightSem true ge _ _ _ cnti Hcmpt
              (age_tp_to n
-                (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
+                (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
              (Events.acquire (b, Ptrofs.intval ofs) None)) :
   (* ============================ *)
-  state_invariant Jspec' Gamma n (m', ge, (sch, age_tp_to n
-           (updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate)).
+  state_invariant Jspec' Gamma n (m', ge, (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil), sch, age_tp_to n
+           (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate)).
 
 Proof.
   (* we prove [mem_compatible_with] BEFORE aging, as it it slightly
     easier, proving [mem_compatible_with] after aging is a simple
     application of the lemma [mem_compatible_with_age] *)
-  pose (tp__ := updLockSet (updThread _ _ i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None).
+  pose (tp__ := updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None).
   assert (compat'' : mem_compatible_with tp__ m' Phi). {
     subst tp__.
     cleanup.
@@ -494,11 +496,11 @@ Proof.
               unfold j_at_external in ae. unfold cl_at_external in ae.
               congruence. }
             subst e args; simpl.
-            unfold Tptr; if_tac; auto.
+            unfold Tptr; simple_if_tac; auto.
 
           + assert (e = LOCK).
             { simpl in ae.
-              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
               unfold j_at_external in ae. unfold cl_at_external in ae.
               congruence. }
             subst e.
@@ -517,11 +519,11 @@ Proof.
               rewrite level_age_to; auto.
               replace (level phi') with (level Phi). omega.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              rewrite getThread_level with (Phi := Phi). auto. apply compat.
+              rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
             assert (level phi' = S n). {
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              rewrite getThread_level with (Phi := Phi). auto. apply compat.
+              rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
 
             split; [ | split].
@@ -536,7 +538,7 @@ Proof.
           + (* we must satisfy the post condition *)
             assert (e = LOCK).
             { simpl in ae.
-              clear - ae Hat_external. rewrite at_external_SEM_eq in Hat_external.
+              clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
               unfold j_at_external in ae. unfold cl_at_external in ae. 
               congruence. }
             subst e.
@@ -548,10 +550,8 @@ Proof.
             intros x (Hargsty, Pre) Post.
             simpl.
             destruct Pre as (phi0 & phi1 & j & Pre).
-            SearchAbout phi'.
             destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
             exists (age_to n phi0'), (age_to n phi1).
-            rewrite m_phi_jm_ in *.
             rewrite Ejm'.
             split.
             * REWR.
@@ -584,8 +584,7 @@ Proof.
                  pose proof predat6 lkat as ER'.
                  assert (args = Vptr b ofs :: nil). {
                    revert Hat_external ae; clear.
-                   unfold SEM.Sem in *.
-                   rewrite SEM.CLN_msem. simpl.
+                   rewrite ClightSemantincsForMachines.CLN_msem. simpl.
                    intros. unfold cl_at_external in *.
                    congruence.
                  }
@@ -618,7 +617,7 @@ Proof.
                    unfold age_to in *. f_equal.
                    replace (level d_phi) with (level Phi); swap 1 2.
                    {
-                     pose proof @compatible_lockRes_sub _ _ _ His_unlocked Phi ltac:(apply compat).
+                     pose proof @compatible_lockRes_sub _ _ _ _ His_unlocked Phi ltac:(apply compat).
                      join_level_tac.
                    }
                    omega.
@@ -644,7 +643,7 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_bupd_age_to; auto.
+      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto.
          apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
          apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
