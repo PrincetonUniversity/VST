@@ -352,8 +352,9 @@ Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n)
-                          (b, Ptrofs.unsigned z)
+  | Vptr b z => 
+    !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
+    mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
   | _ => TT
   end.
 
@@ -369,7 +370,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => TT
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
  end.
 
@@ -527,8 +528,6 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
 Proof. exact @memory_block_valid_pointer. Qed.
 
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  n < Ptrofs.modulus ->
-  Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
   readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).

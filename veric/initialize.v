@@ -202,7 +202,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => TT
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
  end.
 
@@ -921,6 +921,8 @@ Proof.
   apply nth_getN; simpl; omega.
 * (* address_mapsto_zeros *)
  rewrite address_mapsto_zeros_eq.
+ split; auto. 
+  split; auto. simpl in HI. clear - HI. destruct (Z.max_spec z0 0); destruct H; omega.
  split; auto.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
 rewrite Zmax_Z_of_nat.
@@ -961,6 +963,7 @@ if_tac; auto.
 * (* symbol case *)
  rewrite RHO.
   case_eq (filter_genv ge i); try destruct p0; auto; intros.
++
   unfold filter_genv in H4.
   revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
   inv H5.
@@ -994,6 +997,33 @@ if_tac; auto.
   rewrite H0.
   destruct loc; destruct H5; subst b1.
   apply nth_getN; simpl; omega.
++
+  erewrite mapsto__exp_address_mapsto by (auto; reflexivity).
+  rewrite exp_address_mapsto_VALspec_range_eq.
+  rewrite Ptrofs.unsigned_repr by (change Ptrofs.max_unsigned with (Ptrofs.modulus-1); omega).
+  split.
+  simpl in AL|-*.
+  apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  hnf. split; auto. intro loc; specialize (H2 loc). hnf.
+  simpl init_data_size in H2.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
+ if_tac; [ | apply H2].
+ destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1.
+  eexists.
+  hnf. exists READABLE.
+  hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true
+   by (destruct loc, H,H5; subst; simpl;
+        unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H6.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1768,7 +1798,8 @@ Proof.
               | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
- destruct H1 as [H1 Hg1]; split; [|simpl; rewrite <- Hg; auto].
+ split.  destruct H1; omega.
+ destruct H1 as [H1' [H1 Hg1]]; split; [|simpl; rewrite <- Hg; auto].
  intro loc; specialize (H1 loc).
  assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
    apply Z.max_l. apply Zmax_bound_r. omega.
@@ -1796,6 +1827,23 @@ Proof.
  rewrite H8.
  apply YES_not_identity.
  intuition.
+ unfold mapsto_ in *.
+ unfold mapsto in *.
+  simpl in *.
+ rewrite if_true in H1|-* by auto.
+ destruct H1. destruct H. contradiction. destruct H as [ _ ?].
+ right. split. hnf; auto.
+ destruct H as [v2' ?]; exists v2'.
+ destruct H as [x ?]; exists x.
+ destruct H; split; auto.
+ destruct H; split; auto.
+ intros loc; specialize (H1 loc).
+ destruct (H4 loc).
+ rename H1 into H8.
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H3; auto. rewrite H8; apply YES_not_identity.
+ intuition.
+ hnf in H0|-*. rewrite <- Hg; auto.
 Qed.
 
 Lemma another_hackfun_lemma:

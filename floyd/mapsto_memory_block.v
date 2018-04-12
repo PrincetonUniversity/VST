@@ -116,7 +116,7 @@ Lemma memory_block_local_facts: forall sh n p,
 Proof.
   intros.
    unfold memory_block.
-  destruct p; simpl; normalize. apply prop_right; auto.
+  destruct p; simpl; normalize. apply prop_right;split; auto.
 Qed.
 
 Hint Resolve memory_block_local_facts : saturate_local.
@@ -224,7 +224,6 @@ Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-(*  sizeof t < Int.modulus ->*)
   memory_block sh (sizeof t) p = 
   !! (size_compatible t p) && memory_block sh (sizeof t) p.
 Proof.

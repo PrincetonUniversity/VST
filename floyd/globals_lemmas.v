@@ -155,9 +155,9 @@ Definition init_data2pred' {cs: compspecs}
       | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
 *)
       | None, Some t => EX s:val, local (locald_denote (gvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Ptrofs.unsigned ofs) s))
-      | Some _, Some (Tarray t _ att) => `(memory_block sh 4 v)
+      | Some _, Some (Tarray t _ att) => `(mapsto_ sh (Tpointer Tvoid noattr) v)
       | Some _, Some Tvoid => TT
-      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh 4 v)
+      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(mapsto_ sh (Tpointer Tvoid noattr) v)
       | _, _ => TT
       end
  end.
@@ -197,21 +197,6 @@ apply FF_left.
 normalize.
 Qed.
 
-Lemma unpack_globvar_aux1 {cs: compspecs}:
-  forall sh t b v i_ofs,
-  Ptrofs.unsigned i_ofs + sizeof (Tpointer t noattr) <= Ptrofs.max_unsigned ->
-               mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
-                   |-- memory_block sh 4 (Vptr b i_ofs).
-Proof.
- intros. 
- assert_PROP ((Memdata.align_chunk Mptr | Ptrofs.unsigned i_ofs)).
-    apply mapsto_aligned; reflexivity.
- eapply derives_trans; [ apply mapsto_mapsto_ | ].
- rewrite (memory_block_mapsto_ _ (Tpointer t noattr)); auto.
- unfold size_compatible; unfold Ptrofs.max_unsigned in H; omega.
- simpl. apply align_compatible_rec_by_value with Mptr; auto.
-Qed.
-
 Lemma sizeof_Tpointer {cs: compspecs} : forall t, 
        sizeof (Tpointer t noattr) = if Archi.ptr64 then 8 else 4.
 Proof.
@@ -237,8 +222,9 @@ Lemma init_data2pred_rejigger {cs: compspecs}:
      (sh : Share.t) (b : block) ofs v,
 (*  field_compatible t nil (Vptr b (Ptrofs.repr ofs)) -> *)
   (*legal_alignas_type t = true -> *)
-  0 <= ofs ->
+(*  0 <= ofs ->
   ofs + init_data_size idata <= Ptrofs.max_unsigned ->
+*)
   tc_environ Delta rho ->
   v = Vptr b (Ptrofs.repr 0) ->
 (*   (alignof t | Ptrofs.unsigned (Ptrofs.repr ofs)) -> *)
@@ -247,7 +233,8 @@ Lemma init_data2pred_rejigger {cs: compspecs}:
     |-- init_data2pred' Delta (globals_of_env rho) idata sh (offset_val ofs v) rho .
 Proof.
 intros until v.
-intros H6' H6 H7 H8 (*H1''*) RS.
+intros (*H6' H6*) H7 H8 (*H1''*) RS.
+assert (H6:=I).
  unfold init_data2pred', init_data2pred.
  rename H8 into H8'.
  assert (H8: offset_val ofs v = Vptr b (Ptrofs.repr ofs)).
@@ -258,25 +245,19 @@ intros H6' H6 H7 H8 (*H1''*) RS.
 *  unfold init_data_size in H6.
     assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
     pose proof (Z.le_max_l z 0).
-     pose proof unsigned_repr_range ofs H6'.
+(*     pose proof unsigned_repr_range ofs H6'. *)
     rewrite H8.
-    apply mapsto_zeros_memory_block; [omega | omega | auto ].
+    apply mapsto_zeros_memory_block; auto.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg;
     try destruct g; try solve [simpl; apply TT_right].
  +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
      simpl.
      rewrite H8.
-     eapply derives_trans.
-     apply unpack_globvar_aux1.
-     pose proof unsigned_repr_le ofs.
-     rewrite sizeof_Tpointer; simpl in H6.
-     rewrite Ptrofs.unsigned_repr by (destruct Archi.ptr64; omega).
-     omega.
-    destruct t0; try (apply prop_right; auto).
-    destruct t0; try (apply prop_right; auto).
-    auto.
-    auto.
+     destruct t0; try solve [apply prop_right; auto].
+     destruct t0; try solve [apply prop_right; auto].
+     cancel.
+     cancel.
  +
    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
    assert (Hv' :=proj1 (expr_lemmas2.typecheck_var_environ_None _ _ (proj1 (proj2 H7)) i) Hv).
@@ -435,7 +416,7 @@ apply sepcon_derives.
   destruct H1.
   rewrite Ptrofs.unsigned_repr in H8 by omega.
   eapply init_data2pred_rejigger; eauto; try tauto;
-  clear x Heqx; clear RS H7 H9' b. omega.
+  clear x Heqx; clear RS H7 H9' b.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
  pose proof (init_data_list_size_pos idata).
