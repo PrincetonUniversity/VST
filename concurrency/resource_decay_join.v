@@ -13,7 +13,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.coqlib4.
 Require Import VST.veric.age_to_resource_at.
 Require Import VST.concurrency.permjoin.

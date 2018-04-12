@@ -27,7 +27,6 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.step_lemmas.
