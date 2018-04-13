@@ -207,12 +207,12 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
  end.
 
 Fixpoint init_data_list2pred  (dl: list init_data)
-                           (sh: share) (v: val)  (rho: environ) : pred rmap :=
+                           (sh: share) (v: val)  : environ -> pred rmap :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.lub extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
-  | nil => emp
+      lift2 sepcon (init_data2pred d (Share.lub extern_retainer sh) v) 
+                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
+  | nil => lift0 emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=

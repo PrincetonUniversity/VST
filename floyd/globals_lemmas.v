@@ -137,27 +137,21 @@ contradiction.
 Qed.
 
 Definition init_data2pred' {cs: compspecs}
-     (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : environ -> mpred :=
+     (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : mpred :=
  match d with
-  | Init_int8 i => `(mapsto sh tuchar v (Vint (Int.zero_ext 8 i)))
-  | Init_int16 i => `(mapsto sh tushort v (Vint (Int.zero_ext 16 i)))
-  | Init_int32 i => `(mapsto sh tuint v (Vint i))
-  | Init_int64 i => `(mapsto sh tulong v (Vlong i))
-  | Init_float32 r =>  `(mapsto sh tfloat v (Vsingle r))
-  | Init_float64 r =>  `(mapsto sh tdouble v (Vfloat r))
-  | Init_space n =>  `(memory_block sh n v)
+  | Init_int8 i => mapsto sh tuchar v (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh tushort v (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh tuint v (Vint i)
+  | Init_int64 i => mapsto sh tulong v (Vlong i)
+  | Init_float32 r =>  mapsto sh tfloat v (Vsingle r)
+  | Init_float64 r =>  mapsto sh tdouble v (Vfloat r)
+  | Init_space n =>  memory_block sh n v
   | Init_addrof symb ofs =>
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
-         `(mapsto sh (Tpointer t noattr) v (offset_val (Ptrofs.unsigned ofs) (gv symb)))
-      | None, Some Tvoid => TT
-(*
-      | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
-*)
-      | None, Some t => EX s:val, local (locald_denote (gvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Ptrofs.unsigned ofs) s))
-      | Some _, Some (Tarray t _ att) => `(mapsto_ sh (Tpointer Tvoid noattr) v)
-      | Some _, Some Tvoid => TT
-      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(mapsto_ sh (Tpointer Tvoid noattr) v)
+           mapsto sh (Tpointer t noattr) v (offset_val (Ptrofs.unsigned ofs) (gv symb))
+      | None, Some t => mapsto sh (Tpointer t noattr) v (offset_val (Ptrofs.unsigned ofs) (gv symb))
+      | Some _, Some _ => mapsto_ sh (Tpointer Tvoid noattr) v
       | _, _ => TT
       end
  end.
@@ -211,29 +205,17 @@ Proof. intros.
  unfold init_data_size. rewrite Z.max_l; auto. omega.
 Qed.
 
-(*
-ofs + sizeof t < Ptrofs.modulus
-align_compatible_rec cenv_cs t ofs
-ofs + init_data_size a <= Ptrofs.max_unsigned
-*)
-
 Lemma init_data2pred_rejigger {cs: compspecs}:
   forall (Delta : tycontext)  (idata : init_data) (rho : environ)
      (sh : Share.t) (b : block) ofs v,
-(*  field_compatible t nil (Vptr b (Ptrofs.repr ofs)) -> *)
-  (*legal_alignas_type t = true -> *)
-(*  0 <= ofs ->
-  ofs + init_data_size idata <= Ptrofs.max_unsigned ->
-*)
   tc_environ Delta rho ->
   v = Vptr b (Ptrofs.repr 0) ->
-(*   (alignof t | Ptrofs.unsigned (Ptrofs.repr ofs)) -> *)
   readable_share sh ->
    init_data2pred idata sh (offset_val ofs v) rho
-    |-- init_data2pred' Delta (globals_of_env rho) idata sh (offset_val ofs v) rho .
+    |-- init_data2pred' Delta (globals_of_env rho) idata sh (offset_val ofs v).
 Proof.
 intros until v.
-intros (*H6' H6*) H7 H8 (*H1''*) RS.
+intros H7 H8 RS.
 assert (H6:=I).
  unfold init_data2pred', init_data2pred.
  rename H8 into H8'.
@@ -245,7 +227,6 @@ assert (H6:=I).
 *  unfold init_data_size in H6.
     assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
     pose proof (Z.le_max_l z 0).
-(*     pose proof unsigned_repr_range ofs H6'. *)
     rewrite H8.
     apply mapsto_zeros_memory_block; auto.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
@@ -253,27 +234,21 @@ assert (H6:=I).
     try destruct g; try solve [simpl; apply TT_right].
  +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
      simpl.
-     rewrite H8.
-     destruct t0; try solve [apply prop_right; auto].
-     destruct t0; try solve [apply prop_right; auto].
-     cancel.
-     cancel.
+     rewrite H8. cancel.
  +
    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
-   assert (Hv' :=proj1 (expr_lemmas2.typecheck_var_environ_None _ _ (proj1 (proj2 H7)) i) Hv).
-   assert (locald_denote (gvar i (Vptr b' Ptrofs.zero)) rho)
-     by (hnf; rewrite Hv'; rewrite H15; auto).
-    destruct t; simpl; try apply TT_right; try rewrite H8; try rewrite H;
-   try  (apply exp_right with (Vptr b' Ptrofs.zero); apply andp_right;
-      [unfold local, lift1; apply prop_right; auto
-      |      unfold offset_val; simpl; try rewrite Ptrofs.repr_unsigned, Ptrofs.add_zero_l; auto; try apply derives_refl]).
-  unfold globals_of_env. rewrite H15. 
-  unfold mapsto. simpl. rewrite !if_true by auto.
-  rewrite andb_false_r. simpl.
-  apply orp_right1.
-  apply orp_left. normalize. rewrite Ptrofs.repr_unsigned.
+   replace (offset_val (Ptrofs.unsigned i0) (globals_of_env rho i)) with (Vptr b' i0).
+   replace (mapsto sh (Tpointer Tvoid noattr) (offset_val ofs v) (Vptr b' i0))
+   with (mapsto sh (Tpointer t noattr) (offset_val ofs v) (Vptr b' i0)).
+   destruct t; auto.
+   unfold mapsto; simpl.
+   destruct (offset_val ofs v); auto. rewrite !if_true by auto. rewrite andb_false_r.
    apply derives_refl.
-  normalize. inv H0.
+   unfold mapsto; simpl.
+   destruct (offset_val ofs v); auto. rewrite !if_true by auto. rewrite andb_false_r.
+   reflexivity.
+   unfold globals_of_env. rewrite H15. simpl. rewrite Ptrofs.add_zero_l.
+   f_equal. rewrite Ptrofs.repr_unsigned; auto.
 Qed.
 
 Lemma readable_share_readonly2share:
@@ -303,7 +278,7 @@ Lemma unpack_globvar  {cs: compspecs}:
    init_data_size idata <= sizeof t ->
    sizeof t <= Ptrofs.max_unsigned ->
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |--
-       init_data2pred' Delta gz idata (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (gz i).
+       `(init_data2pred' Delta gz idata (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (gz i)).
 Proof.
 intros.
 go_lowerx. subst gz.
@@ -321,8 +296,8 @@ unfold globals_of_env.
 rewrite H9. reflexivity.
 rewrite H10 at 1.
  apply derives_trans with
-    (init_data2pred' Delta (globals_of_env rho) idata (Share.lub extern_retainer sh)
-      (offset_val 0 (globals_of_env rho i)) rho).
+     (init_data2pred' Delta (globals_of_env rho) idata (Share.lub extern_retainer sh)
+      (offset_val 0 (globals_of_env rho i))).
 + rewrite andb_true_iff in H1; destruct H1.
   eapply init_data2pred_rejigger; eauto; try omega.
   unfold globals_of_env; rewrite H9; reflexivity.
@@ -337,7 +312,7 @@ Qed.
 Fixpoint id2pred_star   {cs: compspecs}
    (Delta: tycontext) (gz: globals) (sh: share) (v: val) (dl: list init_data) : environ->mpred :=
  match dl with
- | d::dl' => init_data2pred' Delta gz d sh v
+ | d::dl' => `(init_data2pred' Delta gz d sh v)
                    * id2pred_star Delta gz sh (offset_val (init_data_size d) v) dl'
  | nil => emp
  end.
@@ -463,7 +438,6 @@ Proof.
     (unfold offset_in_range; destruct v; auto; pose proof Ptrofs.unsigned_range i; omega).
 unfold tarray.
 set (t := Tint sz sign noattr) in *.
-(* replace v with (field_address0 (Tarray (Tint sz sign noattr) (Z.succ (Zlength data)) noattr) (SUB 1) v) at 1. *)
 revert v H H0 H1 H2; induction data; intros.
 *
   rewrite Zlength_nil. unfold data_at, field_at; simpl.
