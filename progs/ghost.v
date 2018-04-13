@@ -99,6 +99,11 @@ Qed.
 
 End ghost.
 
+Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
+Proof. auto. Defined.
+
+Definition excl {A} g a := @own _ _ _ _ _ _ (exclusive_PCM A) g (Some a) NoneP.
+
 Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
   valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
 Proof.

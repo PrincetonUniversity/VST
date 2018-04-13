@@ -3367,22 +3367,25 @@ Lemma setPermBlock_var_eq:
 
 End MemObsEq.
 
-Module Type CoreInjections (Sem : SEMANTICS).
+Module CoreInjections.
 
-  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq event_semantics Sem.
+  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq event_semantics.
 
+  Section CoreInjections.
+
+  Context {Sem : Semantics}.
 
   (** Pointers in the core are well-defined *)
-  Parameter core_wd : memren -> C -> Prop.
+  Parameter core_wd : memren -> semC -> Prop.
   (** Pointers in the global env are well-defined *)
-  Parameter ge_wd : memren -> G -> Prop.
+  Parameter ge_wd : memren -> semG -> Prop.
 
-  Parameter ge_wd_incr: forall f f' (g : G),
+  Parameter ge_wd_incr: forall f f' (g : semG),
       ge_wd f g ->
       ren_domain_incr f f' ->
       ge_wd f' g.
 
-  Parameter ge_wd_domain : forall f f' m (g : G),
+  Parameter ge_wd_domain : forall f f' m (g : semG),
       ge_wd f g ->
       domain_memren f m ->
       domain_memren f' m ->
@@ -3406,16 +3409,16 @@ Module Type CoreInjections (Sem : SEMANTICS).
       valid_mem m ->
       domain_memren f m ->
       core_wd f c ->
-      at_external SEM ge c m = Some (ef, args) -> 
+      at_external semSem ge c m = Some (ef, args) -> 
       valid_val_list f args.
 
   Parameter after_external_wd:
-    forall ge m (c c' : C) (f : memren) (ef : external_function)
+    forall ge m (c c' : semC) (f : memren) (ef : external_function)
       (args : seq val) (ov : option val)
-      (Hat_external: at_external SEM ge c m = Some (ef, args))
+      (Hat_external: at_external semSem ge c m = Some (ef, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
-      (Hafter_external: after_external SEM ge ov c = Some c')
+      (Hafter_external: after_external semSem ge ov c = Some c')
       (Hov: match ov with
             | Some v => valid_val f v
             | None => True
@@ -3432,16 +3435,16 @@ Module Type CoreInjections (Sem : SEMANTICS).
       valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.*)
 
  Parameter initial_core_wd :
-    forall the_ge m (f : memren) (vf arg : val) (c_new:C) om h,
+    forall the_ge m (f : memren) (vf arg : val) (c_new:semC) om h,
       valid_mem m ->
       domain_memren f m ->
-      initial_core SEM h the_ge m vf [:: arg] = Some (c_new, om) ->
+      initial_core semSem h the_ge m vf [:: arg] = Some (c_new, om) ->
       valid_val f arg -> ge_wd f the_ge -> 
      exists f', core_wd f' c_new /\ ren_domain_incr f f' /\ 
         (forall b1 b2, f b1 = None -> f' b1 = Some b2 -> ~Mem.valid_block m b1).
 
   (** Renamings on cores *)
-  Parameter core_inj: memren -> C -> C -> Prop.
+  Parameter core_inj: memren -> semC -> semC -> Prop.
 
   Parameter core_inj_ext:
     forall ge m c c' (f : memren),
@@ -3449,15 +3452,15 @@ Module Type CoreInjections (Sem : SEMANTICS).
       valid_mem m ->
       domain_memren f m ->
       core_inj f c c' ->
-      match at_external SEM ge c m with
+      match at_external semSem ge c m with
       | Some (ef, vs) =>
-        match at_external SEM ge c' m with
+        match at_external semSem ge c' m with
         | Some (ef', vs') =>
           ef = ef'/\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
-        match at_external SEM ge c' m with
+        match at_external semSem ge c' m with
         | Some _ => False
         | None => True
         end
@@ -3475,9 +3478,9 @@ Module Type CoreInjections (Sem : SEMANTICS).
       | Some v1 => valid_val f v1
       | None => True
       end ->
-      after_external SEM ge ov1 c = Some cc ->
-      exists (ov2 : option val) (cc' : C),
-        after_external SEM ge ov2 c' = Some cc' /\
+      after_external semSem ge ov1 c = Some cc ->
+      exists (ov2 : option val) (cc' : semC),
+        after_external semSem ge ov2 c' = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
         | Some v1 =>
@@ -3493,7 +3496,7 @@ Module Type CoreInjections (Sem : SEMANTICS).
 
   Parameter core_inj_halted:
     forall c c' f (Hinj: core_inj f c c'),
-      match halted SEM c, halted SEM c' with
+      match halted semSem c, halted semSem c' with
       | Some v, Some v' => val_obs f v v'
       | None, None => True
       | _, _ => False
@@ -3506,10 +3509,10 @@ Module Type CoreInjections (Sem : SEMANTICS).
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core SEM h the_ge m vf arg = Some (c_new, om))
+      (Hinit: initial_core semSem h the_ge m vf arg = Some (c_new, om))
       (Hf: forall b b', f b = Some b' -> Mem.valid_block m b),
-      exists c_new' : C, exists om': option mem,
-      initial_core SEM h the_ge m' vf' arg' = Some (c_new', om') /\
+      exists c_new' : semC, exists om': option mem,
+      initial_core semSem h the_ge m' vf' arg' = Some (c_new', om') /\
       exists f', 
         core_inj f' c_new c_new' /\
       match om with
@@ -3539,9 +3542,9 @@ Module Type CoreInjections (Sem : SEMANTICS).
       (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hstep: corestep SEM the_ge cc mc cc' mc'),
+      (Hstep: corestep semSem the_ge cc mc cc' mc'),
     exists cf' mf' f',
-      corestep SEM the_ge cf mf cf' mf'
+      corestep semSem the_ge cf mf cf' mf'
       /\ core_inj f' cc' cf'
       /\ mem_obs_eq f' mc' mf'
       /\ ren_incr f f'
@@ -3576,7 +3579,7 @@ Module Type CoreInjections (Sem : SEMANTICS).
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_domain_incr fg f)
       (Hdomain: domain_memren f m)
-      (Hcorestep: corestep SEM the_ge c m c' m'),
+      (Hcorestep: corestep semSem the_ge c m c' m'),
       valid_mem m' /\
       (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
       forall f', domain_memren f' m' ->
@@ -3584,17 +3587,16 @@ Module Type CoreInjections (Sem : SEMANTICS).
 
 End CoreInjections.
 
-Module ThreadPoolInjections (Sem: SEMANTICS)
-       (CI: CoreInjections Sem).
+End CoreInjections.
 
-  Import ValObsEq ValueWD MemoryWD Renamings CI.
+Module ThreadPoolInjections.
+
+  Import ValObsEq ValueWD MemoryWD Renamings CoreInjections.
   Import ThreadPool HybridMachine.
   Module DM := DryHybridMachine.
 
-  Instance asmSem : Semantics :=
-    {| semG := Sem.G;
-       semC := Sem.C;
-       semSem := Sem.SEM |}.
+  Section ThreadPoolInjections.
+  Context {asmSem : Semantics}.
 
   Instance res : Resources := DM.resources.
   Context {tpool : ThreadPool.ThreadPool}.
@@ -3755,4 +3757,4 @@ here*)
 
 End ThreadPoolInjections.
 
-
+End ThreadPoolInjections.
