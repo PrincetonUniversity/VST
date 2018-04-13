@@ -96,10 +96,19 @@ Proof.
   (* temporarily broken *)
 Admitted.
 
+Lemma gvar_denote_env_set:
+  forall rho i vi j vj, gvar_denote i vi (env_set rho j vj) = gvar_denote i vi rho.
+Proof.
+intros.
+unfold gvar_denote.
+simpl. auto.
+Qed.
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 (*  name lock _mutex; name lockt _tlock; name cond _cond; name data _data. *)
-  start_function.
+  start_function.  
+  simpl readonly2share. (* TODO: delete this line when possible. *)
   set (lock := gv _mutex). set (lockt := gv _tlock). set (cond := gv _cond). set (data := gv _data).
   forward.
   forward.
@@ -112,8 +121,8 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  get_global_function'' _thread_func.
-  apply extract_exists_pre; intros f_.
+  make_func_ptr _thread_func.
+  set (f_ := gv _thread_func).
   forward_spawn (val * share * val * val * val)%type (f_, Vint (Int.repr 0),
     fun x : val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
       [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)], (data, sh1, lock, lockt, cond),
@@ -121,8 +130,10 @@ Proof.
          !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
          lock_inv sh lockt (tlock_inv sh lockt lock cond data)).
   { simpl spawn_pre; entailer!.
-    { erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ f_) by eauto.
-      split; auto; repeat split; apply gvar_denote_global; auto. }
+    { rewrite (gvar_eval_var _thread_func _ (gv _thread_func)) by auto.
+      erewrite !(force_val_sem_cast_neutral_gvar' _ (gv _thread_func)) by eauto.
+    rewrite ?gvar_denote_env_set.
+    repeat split; try eapply gvar_denote_global; auto. }
     Exists _args; entailer!.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'. f_equal.

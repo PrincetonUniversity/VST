@@ -208,13 +208,13 @@ Proof.
 start_function.
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 set (mtable := gv _foo_methods).
-rename v_foo_twiddle into twiddle;
-rename v_foo_reset into reset.
 fold noattr cc_default.
 
 (* 1. Prove that [mtable] is a proper method-table for foo-objects *)
 make_func_ptr _foo_twiddle.
 make_func_ptr _foo_reset.
+set (twiddle := gv _foo_twiddle).
+set (reset := gv _foo_reset).
 gather_SEP 0 1 2 3.
 replace_SEP 0 (object_methods foo_invariant mtable).
  {

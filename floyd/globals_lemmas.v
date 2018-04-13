@@ -251,20 +251,9 @@ assert (H6:=I).
    f_equal. rewrite Ptrofs.repr_unsigned; auto.
 Qed.
 
-Lemma readable_share_readonly2share:
- forall b, readable_share (readonly2share b).
+Lemma readable_readonly2share: forall ro, readable_share (readonly2share ro).
 Proof.
-destruct b; simpl.
-intro.
-rewrite glb_split_x in H.
-destruct (Share.split Share.Rsh) eqn:?.
-pose proof (split_nontrivial' _ _ _ Heqp).
-simpl in H.
-spec H0; auto.
-apply juicy_mem.nonidentity_Rsh; auto.
-unfold readable_share.
-rewrite Share.glb_idem.
-apply juicy_mem.nonidentity_Rsh.
+intros. apply initialize.readable_readonly2share.
 Qed.
 
 Lemma unpack_globvar  {cs: compspecs}:
@@ -278,14 +267,12 @@ Lemma unpack_globvar  {cs: compspecs}:
    init_data_size idata <= sizeof t ->
    sizeof t <= Ptrofs.max_unsigned ->
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |--
-       `(init_data2pred' Delta gz idata (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (gz i)).
+       `(init_data2pred' Delta gz idata (readonly2share (gvar_readonly gv)) (gz i)).
 Proof.
 intros.
 go_lowerx. subst gz.
 eapply derives_trans; [eapply tc_globalvar_sound'; try eassumption | ].
-assert (RS: forall sh', readable_share (Share.lub sh' (readonly2share (gvar_readonly gv)))).
-intros.
-apply readable_share_lub. apply readable_share_readonly2share.
+assert (RS:= readable_readonly2share (gvar_readonly gv)).
 forget (readonly2share (gvar_readonly gv)) as sh.
 autorewrite with subst norm1 norm2; normalize.
 unfold init_data_list2pred.
@@ -296,7 +283,7 @@ unfold globals_of_env.
 rewrite H9. reflexivity.
 rewrite H10 at 1.
  apply derives_trans with
-     (init_data2pred' Delta (globals_of_env rho) idata (Share.lub extern_retainer sh)
+     (init_data2pred' Delta (globals_of_env rho) idata sh
       (offset_val 0 (globals_of_env rho i))).
 + rewrite andb_true_iff in H1; destruct H1.
   eapply init_data2pred_rejigger; eauto; try omega.
@@ -342,7 +329,7 @@ Lemma unpack_globvar_star  {cs: compspecs}:
    gvar_volatile gv = false ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned ->
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |-- 
-       id2pred_star Delta gz (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (gz i) (gvar_init gv).
+       id2pred_star Delta gz (readonly2share (gvar_readonly gv)) (gz i) (gvar_init gv).
 Proof.
 assert (H5:=true).
 intros until 4.
@@ -356,10 +343,7 @@ normalize.
 match goal with |- _ |-- ?F _ _ _ _ _ _ _  => change F with @id2pred_star end.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-assert (RS: forall sh', readable_share (Share.lub sh' (readonly2share (gvar_readonly gv)))).
- {intros. 
-  apply readable_share_lub. apply readable_share_readonly2share.
-}
+assert (RS:= readable_readonly2share (gvar_readonly gv)).
 forget (readonly2share (gvar_readonly gv)) as sh.
 set (ofs:=0%Z).
 assert (alignof t | Ptrofs.unsigned (Ptrofs.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
@@ -543,7 +527,7 @@ Lemma unpack_globvar_array  {cs: compspecs}:
    gvar_init gv = map (inttype2init_data sz) data ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned ->
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz(i, gv) |--
-      `(data_at (Share.lub extern_retainer (readonly2share (gvar_readonly gv)))
+      `(data_at (readonly2share (gvar_readonly gv))
          (tarray (Tint sz sign noattr) n)
          (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)
          (gz i)).
@@ -621,7 +605,7 @@ Lemma process_globvar':
        sizeof t <= Ptrofs.max_unsigned ->
   semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
                        * id2pred_star Delta gz
-                         (Share.lub  extern_retainer (readonly2share (gvar_readonly gv)))
+                         (readonly2share (gvar_readonly gv))
                          (gz i) (idata ::nil) * globvars2pred gz gvs * SF)
      c Post ->
  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))
@@ -664,7 +648,7 @@ Lemma process_globvar_array:
        Ptrofs.max_unsigned ->
   semax Delta (PROPx P (LOCALx (gvars gz :: Q)
                       (SEPx ((data_at
-                   (Share.lub extern_retainer (readonly2share (gvar_readonly gv)))
+                   (readonly2share (gvar_readonly gv))
                    (tarray (Tint sz sign noattr) n)
                    (map (Vint oo Cop.cast_int_int sz sign) data) (gz i))
                     :: R)))
@@ -707,9 +691,7 @@ Lemma process_globvar_star':
        Ptrofs.max_unsigned ->
   semax Delta (PROPx P (LOCALx (gvars gz :: Q)
                       (SEPx R))
-                  * (id2pred_star Delta gz
-                          (Share.lub extern_retainer
-                               (readonly2share (gvar_readonly gv)))
+                  * (id2pred_star Delta gz (readonly2share (gvar_readonly gv))
                       (gz i) (gvar_init gv))
              * globvars2pred gz gvs * SF)
      c Post ->
@@ -771,7 +753,7 @@ Lemma process_globvar_space:
        gvar_volatile gv = false ->
        gvar_init gv = (Init_space (sizeof t)::nil) ->
        sizeof t <= Ptrofs.max_unsigned ->
-  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx (data_at_  (Share.lub  extern_retainer (readonly2share (gvar_readonly gv))) t (gz i) :: R)))
+  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx (data_at_  (readonly2share (gvar_readonly gv)) t (gz i) :: R)))
                        * globvars2pred gz gvs * SF)
      c Post ->
  semax Delta (PROPx P (LOCALx (gvars gz::Q) (SEPx R))

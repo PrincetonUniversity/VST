@@ -398,13 +398,13 @@ Fixpoint init_data_list2pred  (dl: list init_data)
                            (sh: share) (v: val)  : environ -> mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.lub extern_retainer sh) v) 
+      sepcon (init_data2pred d sh v) 
                   (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
+  if rdonly then Ers else Ews.
 
 Definition globals := ident -> val.
 

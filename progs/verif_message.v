@@ -162,16 +162,17 @@ Proof.
 name buf _buf.
 name q _q.
 name p _p.
+
 (*
 name ipm _intpair_message.
 *)
 start_function.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.
-rename v_intpair_deserialize into des.
-rename v_intpair_serialize into ser.
 make_func_ptr _intpair_deserialize.
 make_func_ptr _intpair_serialize.
+set (des := gv _intpair_deserialize).
+set (ser := gv _intpair_serialize).
 gather_SEP 5 6 7.
 replace_SEP 0 
     (data_at Ews t_struct_message
