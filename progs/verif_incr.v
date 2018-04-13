@@ -73,7 +73,12 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
 Lemma ctr_inv_precise : forall g1 g2 p,
   precise (cptr_lock_inv g1 g2 p).
 Proof.
-Admitted.
+  intros; eapply derives_precise, precise_sepcon;
+  [| apply data_at__precise with (sh := Ews)(t := tuint)
+   | apply precise_sepcon; apply (ghost_var_precise(A := Z))].
+  unfold cptr_lock_inv; Intros x y z.
+  Exists y z; entailer!; apply derives_refl.
+Qed.
 Hint Resolve ctr_inv_precise.
 
 Lemma ctr_inv_positive : forall g1 g2 ctr,
@@ -89,7 +94,7 @@ Lemma thread_inv_precise : forall sh g1 g2 ctr lock lockt,
   precise (thread_lock_inv sh g1 g2 ctr lock lockt).
 Proof.
   intros; apply selflock_precise, precise_sepcon; auto.
-Admitted.
+Qed.
 Hint Resolve thread_inv_precise.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.

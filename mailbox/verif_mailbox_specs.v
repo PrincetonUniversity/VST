@@ -381,7 +381,7 @@ Lemma comm_R_precise : forall bufs sh gsh g0 g1 g2 h v,
   TT |-- weak_precise_mpred (comm_R bufs sh gsh g0 g1 g2 h v).
 Proof.
   unfold comm_R; intros; apply precise_weak_precise.
-  apply derives_precise' with (Q := EX b : Z, EX b2 : Z, !!(repable_signed b /\ repable_signed b2 /\
+  apply derives_precise with (Q := EX b : Z, EX b2 : Z, !!(repable_signed b /\ repable_signed b2 /\
     v = vint b /\ snd (last_two_reads (rev h)) = vint b2) &&
     ((EX v : val, ghost_var gsh v g0) * (EX v : val, ghost_var gsh v g1) * (EX v : val, ghost_var gsh v g2) *
      data_at_ sh tbuffer (Znth (if eq_dec v Empty then b2 else b) bufs))).
@@ -401,7 +401,7 @@ Proof.
         data_at_ sh tbuffer (Znth (if eq_dec (vint b') Empty then b2' else b') bufs))) as Hp;
     [|apply Hp; auto].
   repeat apply precise_sepcon; auto.
-Admitted.
+Qed.
 Hint Resolve comm_R_precise.
 
 Lemma last_two_reads_cons : forall r w h, last_two_reads (AE r w :: h) =

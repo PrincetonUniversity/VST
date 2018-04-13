@@ -1,12 +1,11 @@
-Require Import VST.msl.predicates_sl.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 
-Notation precise := precise.
-Notation derives_precise := predicates_sl.derives_precise.
+Notation precise := predicates_sl.precise.
+Arguments precise _%assert.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -1948,7 +1947,7 @@ Lemma ex_address_mapsto_precise: forall ch sh l,
   precise (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
   intros.
-  eapply derives_precise, res_predicates.VALspec_range_precise.
+  eapply predicates_sl.derives_precise, res_predicates.VALspec_range_precise.
   repeat intro.
   destruct H.
   eapply res_predicates.address_mapsto_VALspec_range; eauto.
@@ -1973,8 +1972,7 @@ Proof.
     + destruct Hlock; eauto 6.
     + contradiction ne; auto.
   - contradiction nr; unfold adr_range; split; auto.
-    unfold lksize.LKSIZE in *.
-    omega.
+    pose proof lksize.LKSIZE_pos; omega.
 Qed.
 
 Lemma selflock_precise : forall R sh v, precise R -> precise (selflock R v sh).
@@ -2093,12 +2091,12 @@ Qed.
 
 Lemma precise_emp : precise emp.
 Proof.
-  apply precise_emp.
+  apply predicates_sl.precise_emp.
 Qed.
 
-Lemma derives_precise' : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
+Lemma derives_precise : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
 Proof.
-  intros; eapply derives_precise; [|eassumption]; auto.
+  intros; eapply predicates_sl.derives_precise; [|eassumption]; auto.
 Qed.
 
 Lemma precise_FF : precise FF.
@@ -2115,7 +2113,7 @@ Proof.
   destruct (type_is_volatile t); auto.
   destruct p; auto.
   destruct (readable_share_dec sh).
-  - eapply derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
+  - eapply predicates_sl.derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
   - apply precise_andp2, res_predicates.nonlock_permission_bytes_precise.
 Qed.
 Hint Resolve mapsto_precise.
