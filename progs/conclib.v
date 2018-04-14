@@ -3548,8 +3548,9 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
  unfold tc_exprlist.
  revert bl; induction (argtypes argsig); destruct bl;
    simpl; try apply @FF_left.
+   
  apply prop_right; auto.
- repeat rewrite denote_tc_assert_andp. apply andp_left2.
+ repeat rewrite denote_tc_assert_andp; simpl. apply andp_left2.
  eapply derives_trans; [ apply IHl | ]. normalize.
 apply derives_extract_PROP; intro LEN.
 subst Qactuals. 
@@ -3815,7 +3816,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty) retty = true). {
   destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
@@ -3823,7 +3824,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
   try solve [inv NEUTRAL].
   unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
   }
- apply andp_right. apply prop_right; auto.
+ apply andp_right; simpl. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
@@ -3936,13 +3937,13 @@ end.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty') retty = true).
  replace (implicit_deref retty') with retty'
  by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
  auto.
- apply andp_right. apply prop_right; auto.
+ apply andp_right. simpl; apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
