@@ -4,35 +4,40 @@ Require Import VST.floyd.base.
 Local Open Scope logic.
 
 Lemma denote_tc_assert_andp:
-  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
-  denote_tc_assert (tc_andp a b) rho =
-  andp (denote_tc_assert a rho)
-    (denote_tc_assert b rho).
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_andp a b) =
+  andp (denote_tc_assert a)
+    (denote_tc_assert b).
 Proof.
-intros.
-apply expr2.denote_tc_assert_andp.
+  intros.
+  extensionality rho.
+  simpl.
+  apply expr2.denote_tc_assert_andp.
 Qed.
 
 Lemma denote_tc_assert_orp:
-  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
-  denote_tc_assert (tc_orp a b) rho =
-  orp (denote_tc_assert a rho)
-    (denote_tc_assert b rho).
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_orp a b) =
+  orp (denote_tc_assert a)
+    (denote_tc_assert b).
 Proof.
-intros.
-apply binop_lemmas2.denote_tc_assert_orp.
+  intros.
+  extensionality rho.
+  simpl.
+  apply binop_lemmas2.denote_tc_assert_orp.
 Qed.
 
 Lemma denote_tc_assert_bool:
-  forall {CS: compspecs} b c rho, denote_tc_assert (tc_bool b c) rho =
+  forall {CS: compspecs} b c, denote_tc_assert (tc_bool b c) =
                prop (b=true).
 Proof.
-intros.
-unfold tc_bool.
-destruct b.
-apply pred_ext; normalize; apply derives_refl.
-apply pred_ext.  apply @FF_left.
-normalize. inv H.
+  intros.
+  extensionality rho; simpl.
+  unfold tc_bool.
+  destruct b.
+  apply pred_ext; normalize; apply derives_refl.
+  apply pred_ext.  apply @FF_left.
+  normalize. inv H.
 Qed.
 
 Lemma neutral_isCastResultType:

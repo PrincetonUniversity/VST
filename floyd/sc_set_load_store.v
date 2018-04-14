@@ -586,9 +586,10 @@ Lemma semax_PTree_field_load_no_hint:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_LR Delta e_root lr) &&
-        local `(tc_val (typeof e) v) &&
-         (tc_efield Delta efs) ->
+        local `(tc_val (typeof e) v) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        denote_tc_assert
+          (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
           (normal_ret_assert
@@ -602,7 +603,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC.
+         FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC_VAL TC.
   pose proof is_neutral_cast_by_value _ _ H0 as BY_VALUE.
   assert_PROP (exists tts,
                nested_efield e_root efs tts = e /\
@@ -647,16 +648,19 @@ Proof.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
+  rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   Focus 2. {
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
     rewrite (add_andp _ _ TC).
+    rewrite (add_andp _ _ TC_VAL).
     rewrite LR.
     apply andp_right; [| solve_andp].
     apply andp_right; [| solve_andp].
     apply andp_right; [| solve_andp].
     apply andp_left1.
     erewrite (local2ptree_soundness P Q R) by eauto.
+    apply andp_left1.
     apply andp_left2.
     simpl app.
     apply andp_right.
@@ -677,7 +681,7 @@ Proof.
   + apply andp_right.
     - eapply derives_trans; [exact DERIVES | solve_andp].
     - rewrite <- TYPE_EQ, TYPEOF.
-      rewrite (add_andp _ _ TC); solve_andp.
+      rewrite (add_andp _ _ TC_VAL); solve_andp.
 Qed.
 
 Lemma semax_PTree_field_load_with_hint:
@@ -697,7 +701,9 @@ Lemma semax_PTree_field_load_with_hint:
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (tc_lvalue Delta e) && local (`(tc_val (typeof e) v_val)) ->
+        local (`(tc_val (typeof e) v_val)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        tc_lvalue Delta e ->
       @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
         (normal_ret_assert
@@ -709,9 +715,10 @@ Proof.
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
+         LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC_VAL TC.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
+  pose proof andp_right _ _ _ TC TC_VAL.
   eapply semax_SC_field_load.
   1: eassumption.
   1: eassumption.
@@ -751,9 +758,10 @@ Lemma semax_PTree_field_cast_load_no_hint:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_LR Delta e_root lr) &&
-        local `(tc_val t (eval_cast (typeof e) t v)) &&
-         (tc_efield Delta efs) ->
+        local `(tc_val t (eval_cast (typeof e) t v)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        denote_tc_assert
+          (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
           (normal_ret_assert
@@ -767,7 +775,7 @@ Proof.
          ? ? ? ? ?
          ? ?
          LOCAL2PTREE COMPUTE_NESTED_EFIELD ? BY_VALUE ? ? EVAL_ROOT EVAL_EFIELD ROOT_TYPE
-         FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC.
+         FIELD_ADD_GEN NTH SH JMEQ LEGAL_NESTED_FIELD TC_VAL TC.
   assert_PROP (exists tts,
                nested_efield e_root efs tts = e /\
                LR_of_type t_root_from_e = lr /\
@@ -811,6 +819,7 @@ Proof.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
+  rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   Focus 2. {
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
@@ -843,7 +852,7 @@ Proof.
   + apply andp_right.
     - eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
     - rewrite <- TYPE_EQ, TYPEOF.
-      rewrite (add_andp _ _ TC); solve_andp.
+      rewrite (add_andp _ _ TC_VAL); solve_andp.
 Qed.
 
 Lemma semax_PTree_field_cast_load_with_hint:
@@ -864,7 +873,9 @@ Lemma semax_PTree_field_cast_load_with_hint:
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (tc_lvalue Delta e) && local (`(tc_val t (eval_cast (typeof e) t v_val))) ->
+        local (`(tc_val t (eval_cast (typeof e) t v_val))) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        tc_lvalue Delta e ->
       @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
         (normal_ret_assert
@@ -876,9 +887,10 @@ Proof.
          ? ? ? ?
          ? ? ? ? ?
          ? ?
-         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC.
+         LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC_VAL TC.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
+  pose proof andp_right _ _ _ TC TC_VAL.
   rewrite TYPE_EQ.
   eapply semax_SC_field_cast_load.
   1: eassumption.
@@ -895,43 +907,6 @@ Proof.
   erewrite (local2ptree_soundness P Q R) by eassumption.
   simpl app.
   apply andp_left2. apply msubst_eval_lvalue_eq; auto.
-Qed.
-
-Lemma denote_tc_assert_andp:
-  forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_andp a b) =
-  andp (denote_tc_assert a)
-    (denote_tc_assert b).
-Proof.
-  intros.
-  extensionality rho.
-  simpl.
-  apply expr2.denote_tc_assert_andp.
-Qed.
-
-Lemma denote_tc_assert_orp:
-  forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_orp a b) =
-  orp (denote_tc_assert a)
-    (denote_tc_assert b).
-Proof.
-  intros.
-  extensionality rho.
-  simpl.
-  apply binop_lemmas2.denote_tc_assert_orp.
-Qed.
-
-Lemma denote_tc_assert_bool:
-  forall {CS: compspecs} b c, denote_tc_assert (tc_bool b c) =
-               prop (b=true).
-Proof.
-  intros.
-  extensionality rho; simpl.
-  unfold tc_bool.
-  destruct b.
-  apply pred_ext; normalize; apply derives_refl.
-  apply pred_ext.  apply @FF_left.
-  normalize. inv H.
 Qed.
 
 Lemma semax_PTree_field_store_no_hint:
@@ -960,11 +935,6 @@ Lemma semax_PTree_field_store_no_hint:
           (tc_andp (typecheck_LR Delta e_root lr)
             (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
               (typecheck_efield Delta efs))) ->
-(*                          
-         (tc_LR Delta e_root lr) &&
-         (tc_expr Delta (Ecast e2 (typeof e1))) &&
-         (tc_efield Delta efs) ->
-*)
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
@@ -1082,8 +1052,8 @@ Lemma semax_PTree_field_store_with_hint:
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_lvalue Delta e1) &&
-         (tc_expr Delta (Ecast e2 (typeof e1))) ->
+        denote_tc_assert
+          (tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta (Ecast e2 (typeof e1)))) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
@@ -1100,6 +1070,7 @@ Proof.
          LOCAL2PTREE ? ? EVAL_R EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ DATA_EQ TC.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
+  rewrite denote_tc_assert_andp in TC.
   eapply semax_SC_field_store.
   1: eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
@@ -1263,6 +1234,8 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
                                                          "unexpected failure in generating loaded value"]
   | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac load_tac_no_hint LOCAL2PTREE :=
@@ -1284,6 +1257,8 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_no_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   | first [entailer_for_load_tac             | fail 1000 "unexpected failure in load_tac_no_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
@@ -1321,6 +1296,8 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
                                                          "unexpected failure in generating loaded value"]
   | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_with_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   ].
 
 Ltac cast_load_tac_no_hint LOCAL2PTREE :=
@@ -1343,6 +1320,8 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
+  | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_no_hint."
+                                                         "unexpected failure in entailer_for_load_tac"]
   | first [entailer_for_load_tac             | fail 1000 "unexpected failure in cast_load_tac_no_hint."
                                                          "unexpected failure in entailer_for_load_tac"]
   ].
