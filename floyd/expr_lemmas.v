@@ -60,19 +60,19 @@ Proof.
        simpl. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
   + destruct (access_mode t) eqn:?H; try inversion H;
       try apply @FF_left.
-    rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+    rewrite !denote_tc_assert_andp, !denote_tc_assert_bool; simpl.
     repeat apply @andp_derives; auto.
-  + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+  + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool; simpl.
     repeat apply @andp_derives; auto.
      apply tc_lvalue_init; auto.
-  + rewrite !denote_tc_assert_andp.
+  + rewrite !denote_tc_assert_andp; simpl.
     repeat apply @andp_derives; auto.
-  + rewrite !denote_tc_assert_andp.
+  + rewrite !denote_tc_assert_andp; simpl.
     repeat apply @andp_derives; auto.
-  + rewrite !denote_tc_assert_andp.
+  + rewrite !denote_tc_assert_andp; simpl.
     apply andp_derives; auto.
   + destruct (access_mode t); auto.
-    rewrite !denote_tc_assert_andp.
+    rewrite !denote_tc_assert_andp; simpl.
     apply andp_derives; auto.
     apply tc_lvalue_init; auto.
   + clear tc_lvalue_init.
@@ -84,11 +84,11 @@ Proof.
     rewrite set_temp_ge.
     destruct ((glob_types Delta) ! i0);
       rewrite ?denote_tc_assert_bool; apply derives_refl.
-     rewrite !denote_tc_assert_andp.
+     rewrite !denote_tc_assert_andp; simpl.
       rewrite ?denote_tc_assert_bool; auto.
     repeat apply andp_derives; auto.
     apply tc_expr_init; auto.
      simpl.
-     rewrite !denote_tc_assert_andp.
+     rewrite !denote_tc_assert_andp; simpl.
     repeat apply andp_derives; auto.
 Qed.

@@ -439,7 +439,7 @@ Proof.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
     rewrite ISBINOP.
     normalize.
-    rewrite !denote_tc_assert_andp.
+    rewrite !denote_tc_assert_andp; simpl.
     repeat apply andp_right.
     - apply prop_right.
       simpl in H2; rewrite <- H2; auto.
