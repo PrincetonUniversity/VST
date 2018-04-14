@@ -897,6 +897,43 @@ Proof.
   apply andp_left2. apply msubst_eval_lvalue_eq; auto.
 Qed.
 
+Lemma denote_tc_assert_andp:
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_andp a b) =
+  andp (denote_tc_assert a)
+    (denote_tc_assert b).
+Proof.
+  intros.
+  extensionality rho.
+  simpl.
+  apply expr2.denote_tc_assert_andp.
+Qed.
+
+Lemma denote_tc_assert_orp:
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_orp a b) =
+  orp (denote_tc_assert a)
+    (denote_tc_assert b).
+Proof.
+  intros.
+  extensionality rho.
+  simpl.
+  apply binop_lemmas2.denote_tc_assert_orp.
+Qed.
+
+Lemma denote_tc_assert_bool:
+  forall {CS: compspecs} b c, denote_tc_assert (tc_bool b c) =
+               prop (b=true).
+Proof.
+  intros.
+  extensionality rho; simpl.
+  unfold tc_bool.
+  destruct b.
+  apply pred_ext; normalize; apply derives_refl.
+  apply pred_ext.  apply @FF_left.
+  normalize. inv H.
+Qed.
+
 Lemma semax_PTree_field_store_no_hint:
   forall {Espec: OracleKind},
     forall n Rn Delta sh P Q R (e1 e2 : expr)
@@ -919,9 +956,15 @@ Lemma semax_PTree_field_store_no_hint:
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        denote_tc_assert
+          (tc_andp (typecheck_LR Delta e_root lr)
+            (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
+              (typecheck_efield Delta efs))) ->
+(*                          
          (tc_LR Delta e_root lr) &&
          (tc_expr Delta (Ecast e2 (typeof e1))) &&
          (tc_efield Delta efs) ->
+*)
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
@@ -982,6 +1025,7 @@ Proof.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
+  rewrite !denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   Focus 2. {
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.

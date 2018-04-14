@@ -1,3 +1,4 @@
+
 Require Import VST.floyd.base.
 
 Local Open Scope logic.
@@ -81,6 +82,34 @@ Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e.
 Proof. intros; unfold tc_andp; reflexivity. Qed.
 Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
 
+Definition typecheck_LR_strong {cs: compspecs} Delta e lr :=
+  match lr with
+  | LLLL => typecheck_lvalue Delta e
+  | RRRR => typecheck_expr Delta e
+  end.
+
+Definition typecheck_LR {cs: compspecs} Delta e lr :=
+  match e with
+  | Ederef e0 t =>
+     match lr with
+     | LLLL => tc_andp
+                 (typecheck_expr Delta e0)
+                 (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+     | RRRR => match access_mode t with
+               | By_reference =>
+                  tc_andp
+                     (typecheck_expr Delta e0)
+                     (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+               | _ => tc_FF (deref_byvalue t)
+               end
+    end
+  | _ => typecheck_LR_strong Delta e lr
+  end.
+
+Definition tc_LR_strong {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR_strong Delta e lr).
+
+Definition tc_LR {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR Delta e lr).
+(*
 Definition tc_LR_strong {cs: compspecs} Delta e lr :=
   match lr with
   | LLLL => tc_lvalue Delta e
@@ -106,7 +135,7 @@ Definition tc_LR {cs: compspecs} Delta e lr :=
     end
   | _ => tc_LR_strong Delta e lr
   end.
-
+*)
 Definition eval_LR {cs: compspecs} e lr :=
   match lr with
   | LLLL => eval_lvalue e
@@ -117,7 +146,7 @@ Lemma tc_LR_tc_LR_strong: forall {cs: compspecs} Delta e lr rho,
   tc_LR Delta e lr rho && !! isptr (eval_LR e lr rho) |-- tc_LR_strong Delta e lr rho.
 Proof.
   intros.
-  unfold tc_LR, tc_LR_strong.
+  unfold tc_LR, tc_LR_strong, typecheck_LR, typecheck_LR_strong.
   destruct e; try solve [apply andp_left1; auto].
   unfold tc_lvalue, tc_expr.
   destruct lr; simpl.
