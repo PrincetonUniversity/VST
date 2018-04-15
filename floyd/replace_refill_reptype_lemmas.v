@@ -83,12 +83,6 @@ Proof.
     revert V0 V1 H0 V.
     destruct (nested_field_type t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
 Abort.
-(*
-    - admit.
-    - admit.
-    - admit.
-Admitted.
-*)
 End SINGLE_HOLE.
 
 Module zlist_hint_db.
