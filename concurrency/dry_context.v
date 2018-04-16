@@ -55,9 +55,9 @@ Module AsmContext.
     Definition bare_semantics :=
       @MachineSemantics _ _ _ bareMach initU None.
 
-    Definition tpc_init the_ge f arg := initial_core coarse_semantics 0 the_ge f arg.
-    Definition tpf_init the_ge f arg := initial_core fine_semantics 0 the_ge f arg.
-    Definition bare_init the_ge f arg := initial_core bare_semantics 0 the_ge f arg.
+    Definition tpc_init the_ge m f arg := initial_core coarse_semantics 0 the_ge m f arg.
+    Definition tpf_init the_ge m f arg := initial_core fine_semantics 0 the_ge m f arg.
+    Definition bare_init the_ge m f arg := initial_core bare_semantics 0 the_ge m f arg.
 
   End AsmContext.
 End AsmContext.

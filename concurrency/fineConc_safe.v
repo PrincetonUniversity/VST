@@ -2,7 +2,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -22,8 +22,8 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Require Import VST.concurrency.HybridMachine_lemmas.
-Require Import VST.concurrency.HybridMachine_step_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.HybridMachineSig.
@@ -36,13 +36,17 @@ Require Import VST.msl.Coqlib2.
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-Module Type FineConcInitial (SEM : Semantics)
-       (Machine : MachinesSig with Module SEM := SEM)
-       (AsmContext : AsmContext SEM Machine)
-       (CI : CoreInjections SEM).
+Module FineConcInitial.
 
   Import Renamings MemObsEq ValObsEq ValueWD MemoryWD
-         AsmContext CI event_semantics.
+         AsmContext CoreInjections event_semantics.
+
+  Section FineConcInitial.
+
+  Context {Sem : Semantics}.
+
+  Variable init_mem : option Memory.Mem.mem.
+  Variable the_ge : semG.
 
   (** The initial memory is well-defined*)
   Parameter init_mem_wd:
@@ -52,8 +56,8 @@ Module Type FineConcInitial (SEM : Semantics)
   Parameter init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m ->
-      match initial_core SEM.Sem 0 the_ge v args with
-      | Some c => core_wd (id_ren m) c
+      match initial_core semSem 0 the_ge m v args with
+      | Some (c, _) => core_wd (id_ren m) c
       | None => True
       end.
 
@@ -65,70 +69,79 @@ Module Type FineConcInitial (SEM : Semantics)
 
 End FineConcInitial.
 
-(** ** Safety for FineConc (interleaving) semantics *)
-Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
-       (Machine : MachinesSig with Module SEM := SEM)
-       (AsmContext : AsmContext SEM Machine)
-       (CI : CoreInjections SEM)
-       (FineConcInitial: FineConcInitial SEM Machine AsmContext CI).
+End FineConcInitial.
 
-  Module SimProofs := SimProofs SEM SemAxioms Machine AsmContext CI.
-  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
-  Import AsmContext SimProofs SimDefs Machine DryMachine ThreadPoolWF.
-  Import Renamings MemObsEq ValObsEq ValueWD CI FineConcInitial ThreadPool.
-  Import SimDefs.StepType HybridMachine.Concur.mySchedule.
+(** ** Safety for FineConc (interleaving) semantics *)
+Module FineConcSafe.
+
+  Import AsmContext HybridMachineSig ThreadPoolWF.
+  Import Renamings MemObsEq ValObsEq ValueWD CoreInjections FineConcInitial ThreadPool.
+  Import Concur.mySchedule.
   Import StepType.InternalSteps StepLemmas.
 
   Import MemoryWD ThreadPoolInjections event_semantics.
 
+  Section FineConcSafe.
+
+  Context {Sem : Semantics}.
+
+  Variable init_mem : option Memory.Mem.mem.
+  Variable the_ge : semG.
+
   (** Excluded middle is required, but can be easily lifted*)
   Axiom em : ClassicalFacts.excluded_middle.
 
+  (* Is this the right instance? *)
+  Existing Instance Concur.DryMachineShell.
+
   Lemma init_tp_wd:
-    forall v args m tp (ARGS:valid_val_list (id_ren m) args),
+    forall v args m tp m' (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m ->
-      init_mach init_perm the_ge v args = Some tp ->
+      init_mach(resources:=LocksAndResources) (init_perm init_mem) the_ge m v args = Some (tp, m') ->
       tp_wd (id_ren m) tp.
   Proof.
     intros.
     intros i cnti.
-    unfold init_mach in H0.
-    destruct (initial_core SEM.Sem 0 the_ge v args) eqn:?, init_perm; try discriminate.
+    simpl in H0.
+    unfold Concur.init_mach in H0.
+    destruct (initial_core semSem 0 the_ge m v args) as [[]|] eqn:?, init_perm; try discriminate.
     inversion H0; subst.
     simpl.
-    specialize (init_core_wd v ARGS H). rewrite Heqo; trivial.
+    specialize (init_core_wd(init_mem := Some m) the_ge v ARGS). rewrite Heqo; auto.
   Qed.
 
   (** Assuming safety of cooperative VST.concurrency*)
   Section Safety.
-    Variable (f : val) (arg : list val).
+
+    Variables (f : val) (arg : list val) (initU : seq.seq nat).
+
     Variable init_coarse_safe:
-      forall  U tpc mem sched n,
+      forall  U tpc mem m sched n,
         init_mem = Some mem ->
-        tpc_init f arg = Some (U, [::], tpc) ->
-        csafe the_ge (sched,[::],tpc) mem n.
+        tpc_init initU init_mem the_ge mem f arg = Some ((U, [::], tpc), m) ->
+        HybridCoarseMachine.csafe the_ge (sched,[::],tpc) mem n.
 
   (** If the initial state is defined then the initial memory was also defined*)
   Lemma tpc_init_mem_defined:
-    forall U tpc,
-      tpc_init f arg = Some (U, tpc) ->
+    forall U tpc m,
+      tpc_init initU init_mem the_ge m f arg = Some (U, tpc) ->
       exists m, init_mem = Some m.
   Proof.
     unfold tpc_init. simpl.
-    unfold DryConc.init_machine.
-    unfold init_mach. intros.
+    unfold init_machine; simpl.
+    unfold HybridMachine.DryHybridMachine.init_mach. intros.
     destruct init_perm eqn:?.
     unfold init_perm in *.
     destruct init_mem; try discriminate.
     eexists; reflexivity.
-    destruct (initial_core SEM.Sem 0 the_ge f arg); try discriminate.
+    destruct (initial_core semSem 0 the_ge m f arg) as [[]|]; try discriminate.
   Qed.
 
   (** [init_mach] and [init_mem] are related by [mem_compatible]*)
   Lemma init_compatible:
-    forall tp m,
+    forall tp m m',
       init_mem = Some m ->
-      init_mach init_perm the_ge f arg = Some tp ->
+      init_mach(resources:=LocksAndResources) (init_perm init_mem) the_ge m f arg = Some (tp, m') ->
       mem_compatible tp m.
   Proof.
     intros.

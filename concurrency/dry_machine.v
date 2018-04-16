@@ -1,6 +1,5 @@
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -32,19 +31,21 @@ Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.bounded_maps.
 Require Import VST.concurrency.threadPool.
 
-Module LocksAndResources.
+Instance LocksAndResources : Resources :=
   (** Dry resources are one permission map for non-lock locations and another for lock
   locations*)
-  Definition res := (access_map * access_map)%type.
-  Definition lock_info := (access_map * access_map)%type.
-End LocksAndResources.
+  { res := access_map * access_map; lock_info := access_map * access_map }.
 
+Module ThreadPool.
+  Include OrdinalPool.
 
-Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
-    with Module TID:= NatTID with Module SEM:=SEM
-    with Module RES := LocksAndResources.
+  Section ThreadPool.
 
-    Include (OrdinalPool SEM LocksAndResources).
+  Context {Sem: Semantics}.
+
+  Global Instance RmapThreadPool : ThreadPool.ThreadPool := OrdinalThreadPool.
+
+  End ThreadPool.
 
 End ThreadPool.
 
@@ -53,16 +54,18 @@ Module Concur.
   Module mySchedule := THESCH.
 
   (** The type of dry machines. This is basically the same as
-  [ConcurrentMachineSig] but resources are instantiated with dry
+  [HybridMachineSig.MachineSig] but resources are instantiated with dry
   resources*)
-  Module Type DryMachineSig  (SEM: Semantics) <: ConcurrentMachineSig
-      with Module ThreadPool.RES:= LocksAndResources
-      with Module ThreadPool.TID:=mySchedule.TID.
+  Section DryMachineSig.
 
-     Declare Module Events : EventSig.
-     Module ThreadPool := ThreadPool SEM.
-     Import ThreadPool SEM.
-     Import event_semantics Events.
+    Import ThreadPool.
+    Import event_semantics Events.
+
+    Context {Sem: Semantics}.
+
+    Notation C:= (semC).
+    Notation G:= (semG).
+    Notation tid:= nat.
 
      (** Memories*)
      Definition richMem: Type:= mem.
@@ -131,158 +134,33 @@ Module Concur.
        }.
 
      Definition invariant := invariant'.
-     Parameter threadStep :
-       G ->
-       forall tid0 (ms : t) (m : mem),
-         containsThread ms tid0 ->
-         mem_compatible ms m -> t -> mem -> seq mem_event -> Prop.
-
-     Axiom threadStep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr,
-      @threadStep g i tp m cnt cmpt tp' m' tr ->
-      forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
-     Parameter syncStep :
-       bool -> (* if it's a Coarse machine. Temp solution to propagating changes. *)
-       G ->
-       forall tid0 (ms : t) (m : mem),
-         containsThread ms tid0 ->
-         mem_compatible ms m -> t -> mem -> sync_event -> Prop.
-
-  Axiom syncstep_equal_run:
-    forall b g i tp m cnt cmpt tp' m' tr,
-      @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
-
-  Axiom syncstep_not_running:
-    forall b g i tp m cnt cmpt tp' m' tr,
-      @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
-
-
-     Parameter threadHalted :
-       forall tid0 (ms : t), containsThread ms tid0 -> Prop.
-     Parameter init_mach : option RES.res -> G -> mem -> val -> seq val -> option (t * option mem).
-
-
-
-  Axiom threadHalt_update:
-    forall i j, i <> j ->
-      forall tp cnt cnti c' cnt',
-        (@threadHalted j tp cnt) <->
-        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
-
-  Axiom syncstep_equal_halted:
-    forall b g i tp m cnti cmpt tp' m' tr,
-      @syncStep b g i tp m cnti cmpt tp' m' tr ->
-      forall j cnt cnt',
-        (@threadHalted j tp cnt) <->
-        (@threadHalted j tp' cnt').
-
-  Axiom threadStep_not_unhalts:
-    forall g i tp m cnt cmpt tp' m' tr,
-      @threadStep g i tp m cnt cmpt tp' m' tr ->
-      forall j cnt cnt',
-        (@threadHalted j tp cnt) ->
-        (@threadHalted j tp' cnt') .
 
   End DryMachineSig.
 
-  Module DryMachineShell (SEM:Semantics)  <: DryMachineSig SEM.
+  Section DryMachineShell.
 
-     Module Events := Events.
-     Module ThreadPool := ThreadPool SEM.
+    Context {Sem: Semantics}.
+
+    Notation C:= (semC).
+    Notation G:= (semG).
+    Notation tid:= nat.
+
      Import ThreadPool.
-     Import ThreadPool.SEM ThreadPool.RES.
      Import event_semantics Events.
 
-     Notation tid := NatTID.tid.
-
-     (** Memories*)
-     Definition richMem: Type:= mem.
-     Definition dryMem: richMem -> mem:= id.
-     Definition diluteMem: mem -> mem := setMaxPerm.
-
      Notation thread_pool := (ThreadPool.t).
-
-     (** The state respects the memory*)
-
-     Record mem_compatible' tp m : Prop :=
-       { compat_th :> forall {tid} (cnt: containsThread tp tid),
-             permMapLt (getThreadR cnt).1 (getMaxPerm m) /\
-             permMapLt (getThreadR cnt).2 (getMaxPerm m);
-         compat_lp : forall l pmaps, lockRes tp l = Some pmaps ->
-                                permMapLt pmaps.1 (getMaxPerm m) /\
-                                permMapLt pmaps.2 (getMaxPerm m);
-         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
-                                   Mem.valid_block m l.1}.
-
-     Definition mem_compatible tp m : Prop := mem_compatible' tp m.
-
-
-     (* should there be something that says that if something is a lock then
-     someone has at least readable permission on it?*)
-     Record invariant' tp :=
-       { no_race_thr :
-           forall i j (cnti: containsThread tp i) (cntj: containsThread tp j)
-             (Hneq: i <> j),
-             permMapsDisjoint2 (getThreadR cnti)
-                              (getThreadR cntj); (*thread's resources are disjoint *)
-         no_race_lr:
-           forall laddr1 laddr2 rmap1 rmap2
-             (Hneq: laddr1 <> laddr2)
-             (Hres1: lockRes tp laddr1 = Some rmap1)
-             (Hres2: lockRes tp laddr2 = Some rmap2),
-             permMapsDisjoint2 rmap1 rmap2; (*lock's resources are disjoint *)
-         no_race:
-           forall i laddr (cnti: containsThread tp i) rmap
-             (Hres: lockRes tp laddr = Some rmap),
-             permMapsDisjoint2 (getThreadR cnti) rmap; (*resources are disjoint
-             between threads and locks*)
-         (* an address is in the lockres if there is at least one >= Readable
-         lock permission - I am writing the weak version where this is required
-         only for permissions of threads*)
-         (* lock_res_perm: *)
-         (*   forall b ofs, *)
-         (*     (exists i (cnti: containsThread tp i), *)
-         (*         Mem.perm_order' ((getThreadR cnti).2 !! b ofs) Readable) ->  *)
-         (*     lockRes tp (b, ofs); *)
-
-         (* if an address is a lock then there can be no data
-             permission above non-empty for this address*)
-         thread_data_lock_coh:
-           forall i (cnti: containsThread tp i),
-             (forall j (cntj: containsThread tp j),
-                permMapCoherence (getThreadR cntj).1 (getThreadR cnti).2) /\
-             (forall laddr rmap,
-                 lockRes tp laddr = Some rmap ->
-                 permMapCoherence rmap.1 (getThreadR cnti).2);
-         locks_data_lock_coh:
-           forall laddr rmap
-             (Hres: lockRes tp laddr = Some rmap),
-             (forall j (cntj: containsThread tp j),
-                 permMapCoherence (getThreadR cntj).1 rmap.2) /\
-             (forall laddr' rmap',
-                 lockRes tp laddr' = Some rmap' ->
-                 permMapCoherence rmap'.1 rmap.2);
-         lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
-       }.
-     Definition invariant := invariant'.
 
      (** Steps*)
      Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
                (Hcompatible: mem_compatible tp m) :
        thread_pool -> mem -> seq mem_event -> Prop :=
      | step_dry :
-         forall (tp':thread_pool) c m1 m' (c' : code) ev
+         forall (tp':thread_pool) c m1 m' (c' : C) ev
            (** Instal the permission's of the thread on non-lock locations*)
            (Hrestrict_pmap: restrPermMap (Hcompatible tid0 cnt).1 = m1)
            (Hinv: invariant tp)
            (Hcode: getThreadC cnt = Krun c)
-           (Hcorestep: ev_step Sem genv c m1 ev c' m')
+           (Hcorestep: ev_step semSem genv c m1 ev c' m')
            (** the new data resources of the thread are the ones on the
            memory, the lock ones are unchanged by internal steps*)
            (Htp': tp' = updThread cnt (Krun c') (getCurPerm m', (getThreadR cnt).2)),
@@ -300,7 +178,7 @@ Module Concur.
        thread_pool -> mem -> sync_event -> Prop :=
      | step_acquire :
          forall (tp' tp'':thread_pool) m0 m1 c m' b ofs
-           (pmap : LocksAndResources.lock_info)
+           (pmap : lock_info)
            (pmap_tid' : access_map)
            (virtueThread : delta_map * delta_map)
            (Hbounded: if isCoarse then
@@ -313,7 +191,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem genv c m = Some (LOCK, Vptr b ofs::nil))
+             (Hat_external: at_external semSem genv c m = Some (LOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations*)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
              (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -356,7 +234,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem genv c m =
+             (Hat_external: at_external semSem genv c m =
                             Some (UNLOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations *)
              (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
@@ -401,7 +279,7 @@ Module Concur.
            forall
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem genv c m = Some (CREATE, Vptr b ofs::arg::nil))
+           (Hat_external: at_external semSem genv c m = Some (CREATE, Vptr b ofs::arg::nil))
            (** we do not need to enforce the almost empty predicate on thread
            spawn as long as it's considered a synchronizing operation *)
            (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)
@@ -419,7 +297,7 @@ Module Concur.
            forall
              (Hinv : invariant tp)
              (Hcode: getThreadC cnt0 = Kblocked c)
-             (Hat_external: at_external Sem genv c m = Some (MKLOCK, Vptr b ofs::nil))
+             (Hat_external: at_external semSem genv c m = Some (MKLOCK, Vptr b ofs::nil))
              (** install the thread's data permissions*)
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).1 = m1)
              (** To create the lock the thread must have [Writable] permission on it*)
@@ -457,7 +335,7 @@ Module Concur.
            forall
            (Hinv: invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem genv c m = Some (FREE_LOCK, Vptr b ofs::nil))
+           (Hat_external: at_external semSem genv c m = Some (FREE_LOCK, Vptr b ofs::nil))
            (** If this address is a lock*)
            (His_lock: lockRes tp (b, (Ptrofs.intval ofs)) = Some rmap)
            (** And the lock is taken *)
@@ -492,7 +370,7 @@ Module Concur.
          forall  c b ofs m1
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem genv c m = Some (LOCK, Vptr b ofs::nil))
+           (Hat_external: at_external semSem genv c m = Some (LOCK, Vptr b ofs::nil))
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -510,14 +388,14 @@ Module Concur.
     forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
     Proof.
       intros. split.
       - intros [cntj [ q running]].
         inversion H; subst.
         assert (cntj':=cntj).
-        eapply (cntUpdate (Krun c') (getCurPerm m', (getThreadR cnt)#2) cntj) in cntj'.
+        eapply (cntUpdate(resources:=LocksAndResources) (Krun c') (getCurPerm m', (getThreadR cnt)#2) cntj) in cntj'.
         exists cntj'.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c'.
@@ -551,8 +429,8 @@ Module Concur.
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
   Proof.
     intros b g i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
@@ -567,33 +445,32 @@ Module Concur.
       + (*this should be easy to automate or shorten*)
         inversion H; subst.
         * exists (cntUpdateL _ _
-                        (cntUpdate (Kresume c Vundef)
+                        (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef)
                                    newThreadPerm
                                    _ cntj)), q.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
         * exists ( (cntUpdateL _ _
-                          (cntUpdate (Kresume c Vundef)
+                          (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef)
                                      (computeMap (getThreadR cnt)#1 virtueThread#1,
                                       computeMap (getThreadR cnt)#2 virtueThread#2)
                                      _ cntj))), q.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
         * exists (cntAdd _ _ _
-                    (cntUpdate (Kresume c Vundef)
+                    (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef)
                                threadPerm'
                                _ cntj)), q.
           erewrite gsoAddCode . (*i? *)
           rewrite gsoThreadCode; assumption.
-          eapply cntUpdate. eauto.
         * exists ( (cntUpdateL _ _
-                          (cntUpdate (Kresume c Vundef)
+                          (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef)
                                      pmap_tid'
                                      _ cntj))), q.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
         * exists ( (cntRemoveL _
-                          (cntUpdate (Kresume c Vundef)
+                          (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef)
                                      pmap_tid'
                                      _ cntj))), q.
           rewrite gRemLockSetCode.
@@ -649,7 +526,7 @@ Module Concur.
   Lemma syncstep_not_running:
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+      forall cntj q, ~ @getThreadC _ _ i tp cntj = Krun q.
   Proof.
     intros.
     inversion H;
@@ -669,7 +546,7 @@ Module Concur.
            (cnt: containsThread tp tid0)
            (*Hinv: invariant tp*)
            (Hcode: getThreadC cnt = Krun c)
-           (Hcant: halted Sem c),
+           (Hcant: halted semSem c),
            threadHalted' cnt.
 
     Definition threadHalted: forall {tid0 ms},
@@ -705,7 +582,7 @@ Module Concur.
     forall i j, i <> j ->
       forall tp cnt cnti c' cnt',
         (@threadHalted j tp cnt) <->
-        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+        (@threadHalted j (@updThreadC _ _ i tp cnti c') cnt') .
   Proof.
     intros; split; intros HH; inversion HH; subst;
     econstructor; eauto.
@@ -724,9 +601,9 @@ Module Concur.
          empty_lset.
 
 
-     Definition init_mach (pmap : option RES.res) (genv:G) (m: mem)
+     Definition init_mach (pmap : option res) (genv:G) (m: mem)
                 (v:val)(args:list val):option (thread_pool * option mem) :=
-       match initial_core Sem 0 genv m v args with
+       match initial_core semSem 0 genv m v args with
        | Some (c, m') =>
          match pmap with
          | Some pmap => Some (initial_machine pmap.1 c, m')
@@ -735,7 +612,7 @@ Module Concur.
        | None => None
        end.
 
-     Module DryMachineLemmas.
+     Section DryMachineLemmas.
 
 
        (*TODO: This lemma should probably be moved. *)
@@ -844,6 +721,11 @@ Module Concur.
         eauto. eauto. eauto.
   Qed.
 
+  Instance DryMachineShell : @HybridMachineSig.MachineSig _ _ RmapThreadPool :=
+    HybridMachineSig.Build_MachineSig richMem dryMem diluteMem mem_compatible invariant threadStep
+      threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
+      (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts
+      init_mach.
 
   End DryMachineShell.
 

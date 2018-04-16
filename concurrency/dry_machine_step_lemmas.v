@@ -1680,7 +1680,7 @@ Module StepType.
 
   Module DM := HybridMachine.DryHybridMachine.
 
-  Section StepLemmas.
+  Section StepType.
     Context {Sem : Semantics}
             {Sch: Scheduler}
             {ge: semG}.
@@ -1825,8 +1825,10 @@ Module StepType.
   Qed.
 
   (** Proofs about [fmachine_step]*)
+  Variables (initU : seq nat) (init_mem : option mem).
 
-  Notation fmachine_step := ((corestep HybridFineMachine.HybridFineMachine) ge).
+  Notation fmachine_step := ((corestep (MachineSemantics(HybridMachine := HybridFineMachine.HybridFineMachine) initU (AsmContext.init_perm init_mem))) ge).
+  Existing Instance dryMachSig.
 
   Lemma fstep_containsThread' :
     forall tp tp' m m' i j U tr tr'
