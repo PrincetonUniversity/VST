@@ -70,6 +70,8 @@ Proof.
   forward_call (key, internal_r, Vptr b i, data, data1, gv).
   {
     unfold spec_sha.data_block.
+    entailer!. 
+    change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
     entailer!.
   }
 
@@ -79,6 +81,7 @@ Proof.
   (* prove the post condition *)
   unfold spec_sha.data_block.
   unfold md_relate (*; unfold convert_abs*).
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   entailer!.
 Qed.
 
@@ -101,6 +104,7 @@ Proof.
   (* return 0 *)
   unfold spec_sha.data_block.
   forward.
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   cancel.
 Qed.
 
