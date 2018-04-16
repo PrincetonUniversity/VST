@@ -318,6 +318,7 @@ Qed.
 
 Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
    0 <= n1 <= n ->
+   n <= Zlength v' ->
    JMeq v (sublist 0 n v') ->
    JMeq v1 (sublist 0 n1 v') ->
    JMeq v2 (sublist n1 n v') ->
@@ -327,7 +328,7 @@ Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype 
    |--
    data_at sh (Tarray t n noattr) v p.
 Proof.
-  intros.
+  intros until 1. intro Hn; intros.
   unfold field_address0.
   if_tac; [ |
   eapply derives_trans; [apply sepcon_derives;
@@ -341,40 +342,14 @@ Proof.
    clear - H3 H4 H.
    hnf in H3,H4|-*; intuition.
   } clear H3; rename H4 into H3.
-  assert_PROP (n1 <= Zlength v'). {
-    eapply derives_trans.
-    apply sepcon_derives; apply prop_and_same_derives; apply data_at_local_facts .
-    normalize. apply prop_right.
-    destruct H5 as [? _], H7 as [? _].
-    rewrite Z.max_r in * by omega.
-    clear - H7 H5 H2 H1 H0 H H6.
-    assert (Zlength (sublist 0 n1 v') = n1).
-       rewrite <- H5 at 2. f_equal. apply JMeq_eq. eapply JMeq_trans; [apply @JMeq_sym; apply H1 |].
-       apply @JMeq_sym, (unfold_reptype_JMeq _ v1).
-    clear - H H3. unfold sublist in *.
-   rewrite Zlength_correct in *.
-   rewrite firstn_length in *. rewrite skipn_length in H3.
-   change (Z.to_nat 0) with 0%nat in H3.
-    rewrite !Z.sub_0_r in H3. rewrite NPeano.Nat.sub_0_r in H3.
-   rewrite Nat2Z.inj_min in H3. rewrite Z2Nat.id in H3 by omega.
-   rewrite Z.min_l_iff in  H3. auto.
-  }
   rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
   unfold data_at at 3.  erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); trivial.
+  2: autorewrite with sublist; auto.
   change (@reptype cs
             (@nested_field_type cs (Tarray t n noattr) (ArraySubsc 0 ::nil)))
    with (@reptype cs t).
-  assert (Zlength (sublist 0 n v') = Z.min n (Zlength v')). {
-     clear - H. unfold sublist. rewrite Z.sub_0_r. change (skipn (Z.to_nat 0) v') with v'.
-  rewrite Zlength_firstn. rewrite Z.max_r by omega. auto.
-  }
-  rewrite H5. rewrite Z.sub_0_r.
   autorewrite with sublist.
-  rewrite sublist_sublist; try omega.
-  2:  destruct (Z.min_spec n (Zlength v')) as [[? ?]|[? ?]]; rewrite H7; omega.
-  2:  destruct (Z.min_spec n (Zlength v')) as [[? ?]|[? ?]]; rewrite H7; omega.
-  rewrite !Z.add_0_r.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   apply sepcon_derives.
@@ -382,8 +357,7 @@ Proof.
   simpl. apply andp_derives; auto; try apply derives_refl. 
   apply prop_derives. intuition.
   assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
-     admit.  (* true, but tedious *)
-  rewrite H6. clear H6.
+  f_equal. autorewrite with sublist. auto.
   clear - H H3.
   rewrite array_at_data_at by omega. normalize.
   rewrite array_at_data_at by omega.
@@ -402,11 +376,11 @@ Proof.
   eapply JMeq_trans; [apply fold_reptype_JMeq |].
   eapply JMeq_trans; [| eapply @JMeq_sym; apply fold_reptype_JMeq].
   apply JMeq_refl.
-  admit.
-Admitted.
+Qed.
 
 Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
    0 <= n1 <= n ->
+   n <= Zlength v' ->
    JMeq v (sublist 0 n v') ->
    JMeq v1 (sublist 0 n1 v') ->
    JMeq v2 (sublist n1 n v') ->
@@ -489,7 +463,7 @@ Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
 Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)) v1 v2 v3 p:
    naturally_aligned t ->
    0 <= n1 <= n2 ->
-   n2 <= n ->
+   n2 <= n <= Zlength v' ->
    JMeq v (sublist 0 n v') ->
    JMeq v1 (sublist 0 n1 v') ->
    JMeq v2 (sublist n1 n2 v') ->
@@ -504,7 +478,8 @@ Proof. intros until 1. rename H into NA; intros.
   instantiate (1:= @fold_reptype cs (Tarray t (n - n1) noattr) (sublist n1 n v')).
   2: apply @fold_reptype_JMeq.
   erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try omega.
-  2: instantiate (1:= sublist n1 n v'); autorewrite with sublist;
+  2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; omega.
+  2: autorewrite with sublist;
      apply @fold_reptype_JMeq.
   2: autorewrite with sublist;
      instantiate (1:= @fold_reptype cs (Tarray t (n2-n1) noattr) (sublist n1 n2 v'));
@@ -555,6 +530,7 @@ Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 v p:
 Proof. intros.
  eapply split2_data_at_Tarray; auto.
  symmetry in H0.
+ list_solve.
  rewrite sublist_same; try omega; auto.
 Qed.
 
@@ -568,7 +544,7 @@ Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 v p:
     data_at sh (Tarray tuchar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n2::nil) p).
 Proof. intros.
  eapply split3_data_at_Tarray; auto.
-  split; simpl; auto.
+  split; simpl; auto. list_solve.
  rewrite sublist_same; try omega; auto.
 Qed.
 
@@ -789,6 +765,7 @@ rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
 trivial.
 simpl.
 instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+list_solve.
 unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
 unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
 unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.

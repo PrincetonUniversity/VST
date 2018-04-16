@@ -212,7 +212,7 @@ unfold typecheck_expr; fold typecheck_expr.
 repeat rewrite denote_tc_assert_andp.
 repeat apply andp_right; try apply @TT_right.
 unfold isBinOpResultType. simpl classify_add; cbv iota.
-repeat rewrite denote_tc_assert_andp.
+repeat rewrite denote_tc_assert_andp; simpl.
 repeat apply andp_right; try apply @TT_right.
 simpl. unfold_lift. rewrite <- H3.
 clear - RANGE; unfold denote_tc_nosignedover.
@@ -222,7 +222,7 @@ omega.
 rewrite TI. apply @TT_right.
 unfold tc_temp_id, typecheck_temp_id.
 rewrite TI.
-rewrite denote_tc_assert_andp;
+rewrite denote_tc_assert_andp; simpl;
 repeat apply andp_right; apply @TT_right.
 +
 destruct Post; simpl_ret_assert.
@@ -433,12 +433,12 @@ normalize.
 apply andp_right.
 unfold tc_expr;
 unfold typecheck_expr; fold typecheck_expr.
-repeat rewrite denote_tc_assert_andp.
+repeat rewrite denote_tc_assert_andp; simpl.
 repeat apply andp_right; try apply @TT_right.
 rewrite TI. apply @TT_right.
 unfold tc_temp_id, typecheck_temp_id.
 rewrite TI.
-rewrite denote_tc_assert_andp;
+rewrite denote_tc_assert_andp; simpl;
 repeat apply andp_right; apply @TT_right.
 autorewrite with ret_assert.
 intro rho.
@@ -882,8 +882,8 @@ apply andp_right. apply @TT_right.
 unfold tc_temp_id. unfold typecheck_temp_id.
 unfold typeof_temp in TI.
 destruct ((temp_types Delta) ! _i); inv TI. destruct p. inv H8.
-rewrite denote_tc_assert_andp.
-apply andp_right. rewrite denote_tc_assert_bool.
+rewrite denote_tc_assert_andp; simpl.
+apply andp_right.
 apply prop_right. auto. apply @TT_right.
 simpl exit_tycon.
 Intros old.
@@ -1062,7 +1062,7 @@ apply andp_right; try apply @TT_right.
 unfold tc_temp_id. unfold typecheck_temp_id.
 unfold typeof_temp in TI.
 destruct ((temp_types Delta) ! _i); inv TI. destruct p. inv H8.
-rewrite denote_tc_assert_andp, denote_tc_assert_bool.
+rewrite denote_tc_assert_andp, denote_tc_assert_bool; simpl.
 apply andp_right. apply prop_right; auto.
 destruct s0; apply @TT_right.
 Intro old.

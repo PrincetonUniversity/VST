@@ -710,9 +710,6 @@ repeat match goal with
   | H : name _ |- _ => revert H
  end.
 
-Lemma ungather_admit : forall P, P.
-Admitted. (* this is to be used only for test scaffolding. *)
-
 Lemma EVAR_i: forall P: Prop, P -> EVAR P.
 Proof. intros. apply H. Qed.
 
@@ -721,7 +718,7 @@ match goal with
   | |- EVAR (forall x : ?t, _) =>
        let x' := fresh x in evar (x' : t);
        let x'' := fresh x in apply EVAR_i; intro x'';
-       replace x'' with x'; [ungather_entail; clear x'' | apply ungather_admit ]
+       replace x'' with x'; [ungather_entail; clear x'' | admit ]
   | |- _ => intros
  end.
 
