@@ -673,33 +673,6 @@ apply H in H0.
 destruct H0 as [v2 [? ?]]; exists v2; split; auto.
 Qed.
 
-Lemma mem_lessdef_assign_loc:
-  forall m1 m2,
-  mem_lessdef m1 m2 ->
-  forall ge t loc ofs v m1', 
-  assign_loc ge t m1 loc ofs v m1' ->
-  exists m2', mem_lessdef m1' m2' /\   assign_loc ge t m2 loc ofs v m2'.
-Proof.
-intros.
-inv H0.
-unfold Mem.storev in *.
-exploit Mem.store_valid_access_3. eassumption. intro.
-destruct H0 as [_ ?].
-apply Mem.store_storebytes in H2.
-assert (list_forall2 memval_lessdef (encode_val chunk v) (encode_val chunk v)).
-forget (encode_val chunk v) as bl.
-clear.
-induction bl; simpl. constructor. constructor. apply memval_lessdef_refl. auto.
-destruct (mem_lessdef_storebytes _ _ H _ _ H3 _ _ _ H2) as [m2' [? ?]].
-exists m2'; split; auto. 
-econstructor 1; eauto.
-apply Mem.storebytes_store; auto.
-destruct (mem_lessdef_loadbytes _ _ H _ _ _ _ H5) as [bytes2 [? ?]].
-destruct (mem_lessdef_storebytes _ _ H _ _ H0 _ _ _ H6) as [m2' [? ?]].
-exists m2'; split; auto. 
-econstructor 2; eauto.
-Qed.
-
 Lemma valid_pointer_lessalloc {m m2} (M:mem_lessalloc m m2):
       Mem.valid_pointer m = Mem.valid_pointer m2.
 Proof. unfold Mem.valid_pointer. destruct M as [M1 [M2 M3]].
@@ -842,145 +815,11 @@ Lemma eval_lvalue_mem_lessalloc {ge ve te m m2 e b i} (M:mem_lessalloc m m2):
       eval_lvalue ge ve te m e b i -> eval_lvalue ge ve te m2 e b i.
 Proof. intros. eapply eval_expr_eval_lvalue_mem_lessalloc; eauto. Qed.
 
-Lemma freelist_mem_lessalloc: forall l m m' (FR:Mem.free_list m l = Some m')
-      m2 (M:mem_lessalloc m m2),
-      exists m2', Mem.free_list m2 l = Some m2' /\ mem_lessalloc m' m2'.
-Proof.
-  induction l; simpl; intros.
-+ inv FR. exists m2; split; trivial.
-+ destruct a as [[b lo] hi]. remember (Mem.free m b lo hi) as q.
-  destruct q; inv FR; symmetry in Heqq.
-  specialize (IHl _ _ H0); clear H0.
-  destruct (free_mem_lessalloc _ _ _ _ _ Heqq _ M) as [m2' [FR2 M2]].
-  rewrite FR2; eauto.
-Qed.
-
-Lemma store_mem_lessalloc {m chunk b ofs v m' m2} (M:mem_lessalloc m m2)
-      (ST:Mem.store chunk m b ofs v = Some m'):
-      exists m2', Mem.store chunk m2 b ofs v = Some m2' /\
-                  mem_lessalloc m' m2'.
-Proof.
- exploit Mem.store_storebytes; eauto. intros.
- apply Mem.store_valid_access_3 in ST. destruct ST.
- apply (storebytes_mem_lessalloc M) in H.
- destruct H as [m2' [ST2 M2]].
- exists m2'; split; trivial.
- apply Mem.storebytes_store; eauto.
-Qed.
-
-Lemma assign_loc_mem_lessalloc {ge t m loc ofs v m' m2} (M:mem_lessalloc m m2):
-      assign_loc ge t m loc ofs v m' ->
-      exists m2', mem_lessalloc m' m2' /\ assign_loc ge t m2 loc ofs v m2'.
-Proof. destruct 1; simpl in *.
-+ destruct (store_mem_lessalloc M H0) as [m2' [ST2 M2]].
-  exists m2'; split; eauto. eapply assign_loc_value; eauto.
-+ destruct (storebytes_mem_lessalloc M H4) as [m2' [ST2 M2']].
-  destruct M as [M1 [M2 M3]]. rewrite M1 in H3.
-  exists m2'; split; trivial.
-  eapply assign_loc_copy; eauto.
-Qed.
-
-Lemma cl_step_mem_lessalloc_sim {ge c m1 c' m1' m2} :
-  mem_lessalloc m1 m2 ->
-  @cl_step ge c m1 c' m1' ->
-  exists m2',
-    mem_lessalloc m1' m2' /\
-    @cl_step ge c m2 c' m2'.
-(* we cannot use [cl_step_mem_lessdef_sim] directly because
-[mem_lessalloc] does not imply [mem_lessdef] in both
-directions. However, the proof must be simpler. *)
-Proof.
-intros M STEP. generalize dependent m2.
-induction STEP; intros.
-+ apply (eval_expr_mem_lessalloc M) in H1.
-  apply (eval_lvalue_mem_lessalloc M) in H0.
-  rewrite (sem_cast_mem_lessaloc M) in H2.
-  destruct (assign_loc_mem_lessalloc M H3) as [m2' [M2' ASS2]].
-  exists m2'; split; trivial. econstructor; eauto.
-+ exists m2; split; trivial.
-  apply (eval_expr_mem_lessalloc M) in H. constructor; trivial.
-+ apply (eval_expr_mem_lessalloc M) in H0.
-  apply (eval_exprlist_mem_lessalloc _ _ _ _ _ M) in H1.
-  (* here - we have the same initial ve in both cases, so I think
-     it'll be difficult to generalize the alloc_variables lemma above suitably*)
-  destruct (alloc_variables_mem_lessalloc _ _ _ _ H5 _ M) as [m2' [AV' M']].
-  exists m2'; split; trivial.
-  econstructor; eauto.
-+ exists m2; split; trivial.
-  apply (eval_expr_mem_lessalloc M) in H0.
-  apply (eval_exprlist_mem_lessalloc _ _ _ _ _ M) in H1.
-  econstructor; eauto.
-+ destruct (IHSTEP _ M) as [m2' [L' STEP']].
-  exists m2'; split; trivial. econstructor; eassumption.
-+ destruct (IHSTEP _ M) as [m2' [L' STEP']].
-  exists m2'; split; trivial. econstructor; eassumption.
-+ destruct (IHSTEP _ M) as [m2' [L' STEP']].
-  exists m2'; split; trivial. econstructor; eassumption.
-+ destruct (IHSTEP _ M) as [m2' [L' STEP']].
-  exists m2'; split; trivial. econstructor; eassumption.
-+ exists m2; split; trivial.
-  apply (eval_expr_mem_lessalloc M) in H.
-  econstructor; eauto.
-  unfold bool_val in *. destruct (classify_bool (typeof a)); trivial.
-  destruct v1; trivial. rewrite <- (weak_valid_pointer_lessalloc M); trivial.
-+ exists m2; split; trivial. econstructor.
-+ exists m2; split; trivial. constructor.
-+ destruct (freelist_mem_lessalloc _ _ _ H0 _ M) as [m2' [FL2 M2]].
-  exists m2'; split; trivial. econstructor; eauto.
-  destruct optexp; trivial.
-  destruct H1 as [v [E SC]]. apply (eval_expr_mem_lessalloc M) in E.
-  rewrite (sem_cast_mem_lessaloc M) in SC.
-  exists v; split; trivial.
-+ exists m2; split; trivial.
-  apply (eval_expr_mem_lessalloc M) in H.
-  econstructor; eauto.
-+ destruct (IHSTEP _ M) as [m2' [L' STEP']].
-  exists m2'; split; trivial. econstructor; eassumption.
-+ exists m2; split; trivial. econstructor; eauto.
-Qed.
-
-Lemma cl_step_mem_equiv_sim {ge c m1 c' m1' m2} :
-  mem_equiv m1 m2 ->
-  @cl_step ge c m1 c' m1' ->
-  exists m2',
-    mem_equiv m1' m2' /\
-    @cl_step ge c m2 c' m2'.
-Proof.
-  intros E S1.
-  pose proof mem_equiv_lessdef _ _ E as L12.
-  pose proof mem_equiv_lessdef _ _ (mem_equiv_sym _ _ E) as L21.
-  destruct (cl_step_mem_lessdef_sim L12 S1) as (m2' & L12' & S2).
-  destruct (cl_step_mem_lessdef_sim L21 S2) as (m1'' & L21' & S1').
-  exists m2'; split; auto.
-  apply mem_lessdef_equiv; auto.
-  cut (m1'' = m1'). intros <-; auto.
-  pose proof semax_lemmas.cl_corestep_fun' ge _ _ _ _ _ _ S1 S1'.
-  congruence.
-Qed.
-
 Definition juicy_mem_equiv jm1 jm2 := mem_equiv (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
 
 Definition juicy_mem_lessdef jm1 jm2 := mem_lessdef (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
 
 Definition juicy_mem_lessalloc jm1 jm2 := mem_lessdef (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
-
-Lemma juicy_step_mem_equiv_sim {ge c jm1 c' jm1' jm2} :
-  juicy_mem_equiv jm1 jm2 ->
-  corestep (juicy_core_sem cl_core_sem) ge c jm1 c' jm1' ->
-  exists jm2',
-    juicy_mem_equiv jm1' jm2' /\
-    corestep (juicy_core_sem cl_core_sem) ge c jm2 c' jm2'.
-Proof.
-  intros [Ed Ew] [step [rd lev]].
-  destruct (cl_step_mem_equiv_sim Ed step) as [m2' [Ed' Sd']].
-  destruct (mem_equiv_juicy_mem_equiv jm1' m2' Ed') as (jm2', (<-, [Hd Hw])).
-  exists jm2'.
-  split; split; auto. split.
-  - cut (Mem.nextblock (m_dry jm1) = Mem.nextblock (m_dry jm2)). congruence.
-    apply Ed.
-  - repeat rewrite level_juice_level_phi in *.
-    congruence.
-Qed.
 
 Ltac sync D :=
   first
