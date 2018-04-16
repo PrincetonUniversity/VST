@@ -6,6 +6,7 @@ Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.sublist.
 Require Import VST.floyd.sublist2.
+Require Import VST.floyd.freezer.
 
 Local Open Scope logic.
 
@@ -669,6 +670,138 @@ Ltac entbang :=
         ].
 
 Tactic Notation "entailer" "!" := entbang.
+
+Lemma local_True_right:
+ forall (P: environ -> mpred),
+   P |-- local (`True).
+Proof. intros. intro rho; apply TT_right.
+Qed.
+
+Lemma drop_SEP:
+ forall Delta P Q R' RF R S,
+   (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
+   fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- S ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  unfold PROPx, LOCALx, SEPx in H1 |- *.
+  intro rho; specialize (H1 rho).
+  simpl in H1 |- *.
+  unfold local, lift1; simpl.
+  rewrite H0.
+  rewrite <- !sepcon_andp_prop'.
+  specialize (H rho).
+  eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
+  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
+Qed.
+
+Ltac default_delete_FRZ_from_SEP :=
+idtac; (* TODO: This line should be unnecessary. It is becasue of a "bug" of Coq. *)
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP;
+    [ first [apply extend_tc.extend_tc_expr
+             | apply extend_tc.extend_tc_exprlist
+             | apply extend_tc.extend_tc_lvalue]
+   | apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP
+   | ]
+end end.
+
+Ltac entailer_for_typecheck tac1 tac2 :=
+  match goal with
+  | |- ?A => has_evar A; tac1
+  | _ => idtac
+  end;
+  match goal with
+  | |- ?A => has_evar A
+  | _ =>
+    try apply local_True_right;
+    entailer!;
+    match goal with
+    | |- typecheck_error (deref_byvalue ?T) => tac2 T
+    | |- _ => idtac
+    end
+  end.
+
+Lemma drop_SEP_tc_lvalue {cs: compspecs}:
+  forall Delta P Q R' RF R e,
+    fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- tc_lvalue Delta e ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_lvalue Delta e.
+Proof.
+  intros.
+  eapply drop_SEP; eauto.
+Qed.
+
+Lemma drop_SEP_tc_expr {cs: compspecs}:
+  forall Delta P Q R' RF R e,
+    fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- tc_expr Delta e ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta e.
+Proof.
+  intros.
+  eapply drop_SEP; eauto.
+Qed.
+
+Lemma drop_SEP_tc_exprlist {cs: compspecs}:
+  forall Delta P Q R' RF R ts es,
+    fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- tc_exprlist Delta ts es ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_exprlist Delta ts es.
+Proof.
+  intros.
+  eapply drop_SEP; eauto.
+Qed.
+
+Lemma drop_SEP_tc_val:
+  forall Delta P Q R' RF R v t,
+    fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (tc_val t v) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (tc_val t v).
+Proof.
+  intros.
+  eapply drop_SEP; eauto.
+  intros.
+  apply extend_tc.extend_prop.
+Qed.
+
+Ltac delete_FRZ_from_SEP_tc_expr :=
+idtac; (* TODO: This line should be unnecessary. It is becasue of a "bug" of Coq. *)
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc_expr;
+  [apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP | ]
+end end.
+
+Ltac delete_FRZ_from_SEP_tc_lvalue :=
+idtac; (* TODO: This line should be unnecessary. It is becasue of a "bug" of Coq. *)
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc_lvalue;
+  [apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP | ]
+end end.
+
+Ltac delete_FRZ_from_SEP_tc_exprlist :=
+idtac; (* TODO: This line should be unnecessary. It is becasue of a "bug" of Coq. *)
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc_exprlist;
+  [apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP | ]
+end end.
+
+Ltac delete_FRZ_from_SEP_tc_val :=
+idtac; (* TODO: This line should be unnecessary. It is becasue of a "bug" of Coq. *)
+match goal with
+| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
+  match R with context [FRZR] =>
+  eapply drop_SEP_tc_val;
+  [apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP | ]
+end end.
 
 Ltac elim_hyps :=  (* not in use anywhere? *)
  repeat match goal with
