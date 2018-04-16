@@ -1,6 +1,5 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.canon.
-Require Import VST.floyd.entailer.
 Require Import Coq.Lists.List.
 Export ListNotations.
 Require Import VST.floyd.client_lemmas.
@@ -78,7 +77,7 @@ Proof.
 intros. subst.
 eapply semax_pre; try apply H.
 apply andp_left2.
-go_lowerx; entailer!.  clear.
+go_lowerx. clear.
 generalize dependent R.
 induction n; destruct R; simpl; cancel. apply Freezer.FRZ1.
 Qed.

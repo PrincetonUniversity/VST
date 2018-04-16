@@ -342,12 +342,6 @@ Ltac forward_seq :=
 
 (* end of "stuff to move elsewhere" *)
 
-Lemma local_True_right:
- forall (P: environ -> mpred),
-   P |-- local (`True).
-Proof. intros. intro rho; apply TT_right.
-Qed.
-
 Lemma lvar_isptr:
   forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
 Proof.
@@ -618,50 +612,17 @@ Ltac lookup_spec id :=
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
-Ltac goal_has_evars :=
- match goal with |- ?A => has_evar A end.
+Inductive Function_pointer_expression_include_a_memory_load_of_type (t:type) := .
 
-Lemma drop_SEP_tc:
- forall Delta P Q R' RF R S,
-   (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
-   fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- S ->
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- S.
-Proof.
-  intros.
-  unfold PROPx, LOCALx, SEPx in H1 |- *.
-  intro rho; specialize (H1 rho).
-  simpl in H1 |- *.
-  unfold local, lift1; simpl.
-  rewrite H0.
-  rewrite <- !sepcon_andp_prop'.
-  specialize (H rho).
-  eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
-  apply (@predicates_sl.extend_sepcon _ _ _ _ compcert_rmaps.R.Age_rmap); auto.
-Qed.
+Ltac entailer_for_call_function_typecheck :=
+  let tac1 := delete_FRZ_from_SEP_tc_expr in
+  let tac2 T := elimtype (Function_pointer_expression_include_a_memory_load_of_type T) in
+  entailer_for_typecheck tac1 tac2.
 
-Ltac delete_FRZR_from_SEP :=
-match goal with
-| |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ =>
-  match R with context [FRZR] =>
-  eapply drop_SEP_tc;
-    [ first [apply extend_tc.extend_tc_expr
-             | apply extend_tc.extend_tc_exprlist
-             | apply extend_tc.extend_tc_lvalue]
-   | apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP
-   | ]
-end end.
-
-Ltac check_typecheck :=
- try delete_FRZR_from_SEP;
- first [goal_has_evars; idtac |
- try apply local_True_right;
- entailer!;
- match goal with
- | |- typecheck_error (deref_byvalue ?T) =>
-       elimtype (Function_arguments_include_a_memory_load_of_type T)
- | |- _ => idtac
- end].
+Ltac entailer_for_call_arguments_typecheck :=
+  let tac1 := delete_FRZ_from_SEP_tc_exprlist in
+  let tac2 T := elimtype (Function_arguments_include_a_memory_load_of_type T) in
+  entailer_for_typecheck tac1 tac2.
 
 Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
@@ -949,8 +910,8 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
       | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
       ]
     | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
-    |check_typecheck
-    |check_typecheck
+    | entailer_for_call_function_typecheck
+    | entailer_for_call_arguments_typecheck
     |check_cast_params
     |reflexivity
     | ..
@@ -961,8 +922,8 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  |reflexivity
  |prove_func_ptr
  |check_parameter_types
- |check_typecheck
- |check_typecheck
+ | entailer_for_call_function_typecheck
+ | entailer_for_call_arguments_typecheck
  |check_cast_params
  |reflexivity
  | ]
@@ -2069,6 +2030,13 @@ match goal with
       unfold seq_of_labeled_statement at 1
 end.
 
+Inductive Switch_expression_include_a_memory_load_of_type (t:type) := .
+
+Ltac entailer_for_switch_typecheck :=
+  let tac1 := delete_FRZ_from_SEP_tc_expr in
+  let tac2 T := elimtype (Switch_expression_include_a_memory_load_of_type T) in
+  entailer_for_typecheck tac1 tac2.
+
 Ltac forward_switch' := 
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ =>
@@ -2088,7 +2056,7 @@ match goal with
          subst n' n v; 
          rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
          eapply semax_switch_PQR; 
-           [reflexivity | check_typecheck | exact HRE 
+           [reflexivity | entailer_for_switch_typecheck | exact HRE 
            | clear HRE; try omega
            | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
              try match goal with H := @abbreviate statement _ |- _ => clear H end;
