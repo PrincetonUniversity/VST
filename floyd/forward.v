@@ -2801,8 +2801,8 @@ Ltac advise_forward_call :=
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
-             fail 99 "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
-  | _ => fail 99 "This function has a complex calling convention not recognized by forward_call"
+             fail "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
 
@@ -3083,6 +3083,12 @@ Ltac assert_gvar i :=
   | ]
  end.
 
+Ltac make_func_ptr id :=
+ match goal with |- semax _ (PROPx _ (LOCALx ?Q _)) _ _ =>
+   lazymatch Q with context [gvar id _] => idtac | _ => assert_gvar id end
+ end;
+ eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].
+
 Ltac change_mapsto_gvar_to_data_at :=
 match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   match S with
@@ -3165,6 +3171,7 @@ Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : 
  | Sskip => x
  | Sassign e1 e2 => f e1 (f e2 x)
  | Sset _ e => f e x
+ | Scall _ (Evar _ _) el => fold_right f x el
  | Scall _ e el => f e (fold_right f x el)
  | Sbuiltin _ _ _ el => fold_right f x el
  | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
@@ -3211,9 +3218,9 @@ Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t un
  end.
 Arguments another_gvar i !ml .
 
-Definition find_gvars (DS: PTree.t funspec) (locals: list localdef) (c: statement) : list ident :=
+Definition find_gvars (locals: list localdef) (c: statement) : list ident :=
  snd (find_expressions (find_vars another_gvar) c 
-                (find_lvars locals (PTree.map1 (fun _ => tt) DS), nil)).
+                (find_lvars locals (PTree.empty _), nil)).
 
 Ltac assert_gvars' x := 
  match x with
@@ -3222,9 +3229,9 @@ Ltac assert_gvars' x :=
  end.
 
 Ltac assert_gvars := 
- match goal with DS := @abbreviate (PTree.t funspec) _ |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
+ match goal with |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
    tryif match l with context [gvars _] => idtac end
-    then let x := constr:(find_gvars DS l c) in
+    then let x := constr:(find_gvars l c) in
             let x := eval unfold find_gvars, find_lvars in x in
             let x := eval simpl in x in 
             assert_gvars' x

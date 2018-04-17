@@ -572,6 +572,7 @@ clearbody Delta_specs.
       end;
     [
      go_lowerx;
+     apply TT_right (*
      apply andp_right;
      [unfold tc_lvalue; simpl denote_tc_assert; unfold_lift;
       match goal with H: context [eval_id _RK] |- _ => unfold_lift in H; hnf in H; rewrite <- H end;
@@ -579,8 +580,8 @@ clearbody Delta_specs.
       [apply isptr_offset_val'; assumption
      | unfold force_val2; rewrite E2; apply field_address_isptr; auto with field_compatible
       ]
-    | apply prop_right; auto ]
-    | ];
+    | apply prop_right; auto ] *)
+    | ] ;
    clear E2.
 
 (*
