@@ -2833,8 +2833,8 @@ Ltac advise_forward_call :=
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
-             fail 99 "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
-  | _ => fail 99 "This function has a complex calling convention not recognized by forward_call"
+             fail "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
 

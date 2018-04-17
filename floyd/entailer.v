@@ -512,7 +512,7 @@ Lemma try_conjuncts_start: forall A B: Prop,
  Proof. intuition. Qed.
 
 Ltac try_conjuncts_solver :=
-    match goal with H:_ |- ?A =>
+    lazymatch goal with H:_ |- ?A =>
          no_evars A;
          clear H; try immediate; auto; prove_it_now; fail
     end.
