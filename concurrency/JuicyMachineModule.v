@@ -27,31 +27,31 @@ Require Import VST.concurrency.ClightSemantincsForMachines.
 
 Module THE_JUICY_MACHINE.
   Module SCH:= THESCH.
-  Module SEM:= ClightSEM.
-  Import SCH SEM.
+  Module JuicyMachine := HybridMachineSig.
 
-  (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
-  Module JSEM := JuicyMachineShell SEM.
-  (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
-  Module JuicyMachine := CoarseMachine SCH JSEM.
-  Notation JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
+  Section THE_JUICY_MACHINE.
+  Context {Sem : ClightSEM}.
+  Import SCH.
+
+  Notation JMachineSem:= JuicyMachine.MachineCoreSemantics.
+  Definition jstate:= @ThreadPool.t LocksAndResources (@ClightSem Sem) ThreadPool.RmapThreadPool.
   Notation jmachine_state:= JuicyMachine.MachState.
-  Module JTP:=JuicyMachine.SIG.ThreadPool.
-  Import JSEM.JuicyMachineLemmas.
+  Notation JTP := ThreadPool.RmapThreadPool.
+
+  Import threadPool.ThreadPool.
 
   (* safety with ghost updates *)
-  Definition tp_update tp phi tp' phi' :=
+  Definition tp_update (tp : jstate) phi tp' phi' :=
     level phi' = level phi /\ resource_at phi' = resource_at phi /\
-    JSEM.join_all tp' phi' /\
-    exists (Hiff : forall t, JTP.containsThread tp' t <-> JTP.containsThread tp t),
-      (forall t (cnt : JTP.containsThread tp t), JTP.getThreadC cnt = JTP.getThreadC (proj2 (Hiff _) cnt) /\
-         level (JTP.getThreadR cnt) = level (JTP.getThreadR (proj2 (Hiff _) cnt)) /\
-         resource_at (JTP.getThreadR cnt) = resource_at (JTP.getThreadR (proj2 (Hiff _) cnt))) /\
-      JTP.lockGuts tp' = JTP.lockGuts tp /\ JTP.lockSet tp' = JTP.lockSet tp /\
-      JTP.lockRes tp' = JTP.lockRes tp /\ JTP.latestThread tp'= JTP.latestThread tp.
+    join_all tp' phi' /\
+    exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
+      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
+         level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt)) /\
+         resource_at (getThreadR(ThreadPool := JTP) cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
+      lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
+      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
 
-  Lemma tp_update_refl : forall tp phi, JSEM.join_all tp phi -> tp_update tp phi tp phi.
+  Lemma tp_update_refl : forall tp phi, join_all tp phi -> tp_update tp phi tp phi.
   Proof.
     repeat split; auto.
     unshelve eexists; [reflexivity|].
@@ -59,28 +59,33 @@ Module THE_JUICY_MACHINE.
     replace (proj2 _ _) with cnt by apply proof_irr; auto.
   Qed.
 
-  Definition tp_bupd P (tp : jstate) := (exists phi, JSEM.join_all tp phi) /\
-  forall phi, JSEM.join_all tp phi ->
+  Definition tp_bupd P (tp : jstate) := (exists phi, join_all tp phi) /\
+  forall phi, join_all tp phi ->
     forall c : ghost,
      joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
      exists b : ghost,
        joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
        exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
-  Inductive jm_csafe (ge : SEM.G) (st : jmachine_state) (m : mem) : nat -> Prop :=
+  Existing Instance JuicyMachineShell.
+  Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
+
+  Inductive jm_csafe ge (st : jmachine_state) (m : mem) : nat -> Prop :=
   | Safe_0 : jm_csafe ge st m 0
   | HaltedSafe : forall n : nat,
-                 is_true (ssrbool.isSome (JuicyMachine.halted st)) ->
+                 is_true (ssrbool.isSome (JuicyMachine.halted_machine st)) ->
                  jm_csafe ge st m n
-  | CoreSafe : forall (tp' : jstate) (m' : mem) (n : nat)
-               (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), nil, tp') m')
-               (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), nil, tp') m' n) tp'),
+  | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
+               (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), tr', tp') m')
+               (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe ge st m (S n)
-  | AngelSafe : forall (tp' : jstate) (m' : mem) (n : nat)
+  | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                 (Hstep : JuicyMachine.MachStep ge st m
-                  (SCH.schedSkip (fst (fst st)), nil, tp') m')
-                (Hsafe : forall U'' : JuicyMachine.Sch,
-                 tp_bupd (fun tp' => jm_csafe ge (U'', nil, tp') m' n) tp'),
+                  (SCH.schedSkip (fst (fst st)), tr', tp') m')
+                (Hsafe : forall U'',
+                 tp_bupd (fun tp' => jm_csafe ge (U'', tr', tp') m' n) tp'),
                 jm_csafe ge st m (S n).
+
+  End THE_JUICY_MACHINE.
 
 End THE_JUICY_MACHINE.

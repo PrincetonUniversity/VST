@@ -103,14 +103,15 @@ Definition tycontext_evolve (Delta Delta' : tycontext) :=
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
+ /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
+ /\ (forall id, (annotations Delta) ! id = (annotations Delta') ! id).
 
 Lemma initialized_tycontext_evolve:
   forall i Delta, tycontext_evolve Delta (initialized i Delta).
 Proof.
 intros i [A B C D E].
  unfold initialized;
- split; [| split; [|split; [|split]]]; intros; unfold temp_types, var_types, glob_types, ret_type;
+ split; [| split; [|split; [|split; [ |split]]]]; intros; unfold temp_types, var_types, glob_types, ret_type;
  simpl.
  destruct (A ! id) as [[? ?]|] eqn:?; simpl.
  destruct (A!i) as [[? ?]|] eqn:?; simpl.
@@ -122,10 +123,7 @@ intros i [A B C D E].
  destruct (eq_dec i id). subst. congruence.
  rewrite PTree.gso by auto. rewrite Heqo. auto.
  rewrite Heqo. auto.
- destruct (A!i) as [[? ?]|]; reflexivity.
- destruct (A!i) as [[? ?]|]; reflexivity.
- destruct (A!i) as [[? ?]|]; reflexivity.
- destruct (A!i) as [[? ?]|]; reflexivity.
+all: destruct (A!i) as [[? ?]|]; reflexivity.
 Qed.
 
 Lemma tycontext_evolve_trans: forall Delta1 Delta2 Delta3,
@@ -134,8 +132,8 @@ Lemma tycontext_evolve_trans: forall Delta1 Delta2 Delta3,
    tycontext_evolve Delta1 Delta3.
 Proof.
 intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
-  [S1 [S2 [S3 [S4 S5]]]]  [T1 [T2 [T3 [T4 T5]]]];
- split; [| split; [|split; [|split]]];
+  [S1 [S2 [S3 [S4 [S5 S6]]]]]  [T1 [T2 [T3 [T4 [T5 T6]]]]];
+ split; [| split; [|split; [|split; [|split]]]];
  unfold temp_types,var_types, ret_type in *; simpl in *;
  try congruence.
  clear - S1 T1.
@@ -280,16 +278,16 @@ Lemma tycontext_evolve_join:
    tycontext_evolve Delta (join_tycon Delta1 Delta2).
 Proof.
 intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
-  [? [? [? [? ?]]]] [? [? [? [? ?]]]];
+  [? [? [? [? [? ?]]]]] [? [? [? [? [? ?]]]]];
 simpl in *;
  repeat split; auto.
- clear - H H4.
-intro id; specialize (H id); specialize (H4 id).
+ clear - H H5.
+intro id; specialize (H id); specialize (H5 id).
  unfold temp_types in *; simpl in *.
  destruct (A ! id) as [[? ?]|].
  destruct (A1 ! id) as [[? ?]|] eqn:?; [ | contradiction].
  destruct (A2 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct H,H4; subst t1 t0.
+ destruct H,H5; subst t1 t0.
  rewrite (join_te_eqv _ _ _ _ _ _ Heqo Heqo0).
  split; auto. destruct b,b0; inv H0; auto.
  rewrite join_te_denote2.
@@ -316,3 +314,195 @@ induction l; simpl; auto; intros.
 apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
+
+
+Lemma join_context_com:
+ forall D D1 D2, 
+  tycontext_evolve D D1 ->
+  tycontext_evolve D D2 ->
+  tycontext_eqv (join_tycon D1 D2) (join_tycon D2 D1).
+Proof.
+intros.
+hnf.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+destruct H as [? [? [? [? [? ?]]]]].
+destruct H0 as [? [? [? [? [? ?]]]]].
+repeat split; intros; try congruence.
+rewrite !temp_types_update_dist.
+rewrite !join_te_denote2.
+unfold te_one_denote.
+clear - H H0.
+specialize (H id). specialize (H0 id).
+destruct ((temp_types D)!id) as [[? ?]|]; try contradiction.
+destruct ((temp_types D1)!id) as [[? ?]|];
+destruct ((temp_types D2)!id) as [[? ?]|]; auto.
+destruct H,H0. subst.
+f_equal.
+f_equal.
+apply andb_comm.
+destruct ((temp_types D1)!id) as [[? ?]|];
+destruct ((temp_types D2)!id) as [[? ?]|]; try contradiction; auto.
+Qed.
+
+Lemma join_tycon_assoc:
+ forall D1 D2 D3,
+ tycontext_eqv
+  (join_tycon D1 (join_tycon D2 D3))
+  (join_tycon (join_tycon D1 D2) D3).
+Proof.
+intros.
+hnf.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intro.
+destruct D1 as [a1 ].
+destruct D2 as [a2 ].
+destruct D3 as [a3 ].
+simpl.
+rewrite !join_te_denote2.
+clear.
+unfold te_one_denote.
+destruct (a1 ! id) as [[? ?]|] eqn:H1; auto.
+destruct (a2 ! id) as [[? ?]|] eqn:H2; auto.
+destruct (a3 ! id) as [[? ?]|] eqn:H3; auto.
+f_equal. f_equal.
+apply andb_assoc.
+Qed.
+
+Lemma tycontext_eqv_refl: forall Delta : tycontext, 
+   tycontext_eqv Delta Delta.
+Proof.
+intros.
+repeat split.
+Qed.
+
+Lemma tycontext_eqv_trans: forall Delta1 Delta2 Delta3 : tycontext, 
+   tycontext_eqv Delta1 Delta2 -> tycontext_eqv Delta2 Delta3 ->
+   tycontext_eqv Delta1 Delta3.
+Proof.
+intros.
+hnf in H,H0|-*.
+intuition; try congruence.
+Qed.
+
+Lemma initialized_join_tycon:
+  forall Delta1 Delta2 i,
+tycontext_eqv (initialized i (join_tycon Delta1 Delta2))
+  (join_tycon (initialized i Delta1) (initialized i Delta2)).
+Proof.
+intros.
+unfold initialized.
+destruct ((temp_types
+     (join_tycon Delta1 Delta2)) ! i)
+        as [[? ?]|] eqn:?H.
+destruct ((temp_types Delta1) ! i)
+       as [[? ?]|] eqn:?H.
+destruct ((temp_types Delta2) ! i)
+       as [[? ?]|] eqn:?H.
+unfold join_tycon at 7.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intro.
+rewrite temp_types_update_dist.
+unfold temp_types at 1 4.
+destruct (ident_eq id i).
+subst. 
+rewrite join_te_denote2.
+unfold te_one_denote.
+rewrite !PTree.gss.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+rewrite H0 in H. rewrite H1 in H. inv H.
+reflexivity.
+rewrite !join_te_denote2.
+unfold te_one_denote.
+rewrite !PTree.gso by auto.
+rewrite join_te_denote2.
+unfold te_one_denote.
+auto.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intro.
+rewrite !temp_types_update_dist.
+rewrite join_te_denote2.
+destruct Delta1; simpl in *. destruct Delta2; simpl in *.
+unfold te_one_denote.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+rewrite H0 in H. rewrite H1 in H. inv H.
+clear.
+destruct Delta2; simpl. intuition.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+rewrite H0 in H. inv H.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+destruct ((temp_types Delta1) ! i)
+        as [[? ?]|] eqn:?H.
+destruct ((temp_types Delta2) ! i)
+        as [[? ?]|] eqn:?H.
+inv H.
+hnf.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split.
+intros.
+rewrite !temp_types_update_dist.
+simpl.
+rewrite !join_te_denote2.
+unfold te_one_denote.
+destruct (ident_eq id i).
+subst.
+rewrite H0,H1.
+rewrite PTree.gss. auto.
+rewrite PTree.gso by auto.
+auto.
+destruct Delta2; simpl in *. intuition.
+destruct ((temp_types Delta2) ! i)
+        as [[? ?]|] eqn:?H.
+hnf.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intros.
+rewrite !temp_types_update_dist.
+simpl.
+rewrite !join_te_denote2.
+unfold te_one_denote.
+destruct (ident_eq id i).
+subst.
+rewrite H0. auto.
+destruct ((temp_types Delta1) ! id)
+       as [[? ?]|] eqn:?H; auto.
+destruct ((temp_types Delta2) ! id)
+       as [[? ?]|] eqn:?H; auto.
+rewrite PTree.gso by auto. rewrite H3. auto.
+rewrite PTree.gso by auto. rewrite H3. auto.
+apply tycontext_eqv_refl.
+Qed.
+

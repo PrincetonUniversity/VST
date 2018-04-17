@@ -7,6 +7,7 @@ Require Import VST.concurrency.erased_machine.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.semantics.
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
@@ -21,22 +22,34 @@ Module AsmContext.
     (** Assuming some Assembly semantics *)
     Context {asmSem : Semantics}.
 
-    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
+    Existing Instance OrdinalPool.OrdinalThreadPool.
+    Existing Instance DryHybridMachine.dryResources.
     
     (** Instantiating the Dry Fine Concurrency Machine *)
-    Definition dryFineMach : @HybridMachine DryHybridMachine.resources asmSem dryPool :=
-
-      @HybridFineMachine.HybridFineMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem dryPool).
+    Instance FineDilMem : DiluteMem :=
+      {| diluteMem := setMaxPerm |}.
+    intros.
+    split; auto.
+    Defined.
+    Instance dryFineMach : HybridMachine :=
+      @HybridFineMachine.HybridFineMachine
+        DryHybridMachine.dryResources _ _
+        (@DryHybridMachine.DryHybridMachineSig _ _) FineDilMem.
+    
     (** Instantiating the Dry Coarse Concurrency Machine *)
-    Definition dryCoarseMach : @HybridMachine DryHybridMachine.resources asmSem dryPool :=
-      @HybridCoarseMachine.HybridCoarseMachine DryHybridMachine.resources _ _ (@DryHybridMachine.DryHybridMachineSig asmSem dryPool).
+    Instance dryCoarseMach : HybridMachine  :=
+      @HybridCoarseMachine.HybridCoarseMachine DryHybridMachine.dryResources _ _ (@DryHybridMachine.DryHybridMachineSig _ _).
 
-
-    Instance bareRes : Resources := BareMachine.resources.
-    Instance barePool : @ThreadPool.ThreadPool bareRes asmSem := @BareMachine.ordinalPool asmSem.
     (** Instatiating the Bare Concurrency Machine *)
-    Definition bareMach : @HybridMachine BareMachine.resources asmSem barePool :=
-      @HybridFineMachine.HybridFineMachine bareRes _ _ (@BareMachine.BareMachineSig asmSem).
+    Existing Instance BareMachine.resources.
+    
+    Instance BareDilMem : DiluteMem :=
+      {| diluteMem := erasePerm |}.
+    intros.
+    split; auto.
+    Defined.
+    Instance bareMach : @HybridMachine BareMachine.resources _ OrdinalPool.OrdinalThreadPool :=
+      @HybridFineMachine.HybridFineMachine BareMachine.resources _ _ BareMachine.BareMachineSig BareDilMem.
 
     Variable initU : seq nat.
     Variable init_mem : option Memory.Mem.mem.
@@ -55,9 +68,9 @@ Module AsmContext.
     Definition bare_semantics :=
       @MachineSemantics _ _ _ bareMach initU None.
 
-    Definition tpc_init the_ge f arg := initial_core coarse_semantics 0 the_ge f arg.
-    Definition tpf_init the_ge f arg := initial_core fine_semantics 0 the_ge f arg.
-    Definition bare_init the_ge f arg := initial_core bare_semantics 0 the_ge f arg.
+    Definition tpc_init the_ge m f arg := initial_core coarse_semantics 0 the_ge m f arg.
+    Definition tpf_init the_ge m f arg := initial_core fine_semantics 0 the_ge m f arg.
+    Definition bare_init the_ge m f arg := initial_core bare_semantics 0 the_ge m f arg.
 
   End AsmContext.
 End AsmContext.

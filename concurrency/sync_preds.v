@@ -27,7 +27,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.age_to_resource_at.
 Require Import VST.veric.coqlib4.
 Require Import VST.sepcomp.semantics.
@@ -86,11 +85,12 @@ Local Open Scope nat_scope.
 
 (* Instantiation of modules *)
 Import THE_JUICY_MACHINE.
-Import JSEM.
-Module Machine :=THE_JUICY_MACHINE.JTP.
 Definition schedule := SCH.schedule.
-Import JuicyMachineLemmas.
-Import ThreadPool.
+Import Concur OrdinalPool.
+
+Section Machine.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
   same_locks phi phi' ->
@@ -121,7 +121,7 @@ Proof.
   inversion LW.
 Qed.
 
-Lemma join_all_age_updThread_level tp i (cnti : ThreadPool.containsThread tp i) c phi Phi :
+Lemma join_all_age_updThread_level (tp : jstate) i (cnti : ThreadPool.containsThread tp i) c phi Phi :
   join_all (age_tp_to (level phi) (ThreadPool.updThread cnti c phi)) Phi ->
   level Phi = level phi.
 Proof.
@@ -130,16 +130,16 @@ Proof.
   rewrite <- (level_age_to n phi). 2:omega.
   apply rmap_join_sub_eq_level.
   assert (cnti' : containsThread (updThread cnti c phi) i) by eauto with *.
-  rewrite (@cnt_age _ _ n) in cnti'.
+  rewrite (cnt_age_iff (n := n)) in cnti'.
   pose proof compatible_threadRes_sub cnti' J as H.
   unshelve erewrite <-getThreadR_age in H; eauto with *.
   rewrite gssThreadRes in H.
   apply H.
 Qed.
 
-Lemma join_all_level_lset tp Phi l phi :
+Lemma join_all_level_lset (tp : jstate) Phi l phi :
   join_all tp Phi ->
-  AMap.find l (lset tp) = SSome phi ->
+  AMap.find l (lset tp) = Some (Some phi) ->
   level phi = level Phi.
 Proof.
   intros J F.
@@ -147,7 +147,7 @@ Proof.
   eapply compatible_lockRes_sub; eauto.
 Qed.
 
-Lemma lset_range_perm m tp b ofs
+Lemma lset_range_perm m (tp : jstate) b ofs
   (compat : mem_compatible tp m)
   (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
   Mem.range_perm
@@ -165,15 +165,15 @@ Proof.
   + eauto.
   + unfold lockRes in *.
     unfold lockGuts in *.
-    unfold LocksAndResources.lock_info in *.
+    simpl in *.
     destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
     * reflexivity.
     * tauto.
 Qed.
 
-Lemma age_to_updThread i tp n c phi cnti cnti' :
-  age_tp_to n (@updThread i tp cnti c phi) =
-  @updThread i (age_tp_to n tp) cnti' c (age_to n phi).
+Lemma age_to_updThread i (tp : jstate) n c phi cnti cnti' :
+  age_tp_to n (@updThread _ _ i tp cnti c phi) =
+  @updThread _ _ i (age_tp_to n tp) cnti' c (age_to n phi).
 Proof.
   destruct tp; simpl.
   unfold updThread in *; simpl.
@@ -189,15 +189,15 @@ Proof.
   all:rewrite <-E, <-E0; repeat f_equal; apply proof_irr.
 Qed.
 
-Lemma lset_age_tp_to n tp :
+Lemma lset_age_tp_to n (tp : jstate) :
   lset (age_tp_to n tp) = AMap.map (option_map (age_to n)) (lset tp).
 Proof.
   destruct tp; reflexivity.
 Qed.
 
-Lemma getThreadC_fun i tp cnti cnti' x y :
-  @getThreadC i tp cnti = x ->
-  @getThreadC i tp cnti' = y ->
+Lemma getThreadC_fun i (tp : jstate) cnti cnti' x y :
+  @getThreadC _ _ i tp cnti = x ->
+  @getThreadC _ _ i tp cnti' = y ->
   x = y.
 Proof.
   intros <- <-.
@@ -206,9 +206,9 @@ Proof.
   apply proof_irr.
 Qed.
 
-Lemma getThreadR_fun i tp cnti cnti' x y :
-  @getThreadR i tp cnti = x ->
-  @getThreadR i tp cnti' = y ->
+Lemma getThreadR_fun i (tp : jstate) cnti cnti' x y :
+  @getThreadR _ _ i tp cnti = x ->
+  @getThreadR _ _ i tp cnti' = y ->
   x = y.
 Proof.
   intros <- <-.
@@ -217,7 +217,7 @@ Proof.
   apply proof_irr.
 Qed.
 
-Lemma lockSet_Writable_age n tp m :
+Lemma lockSet_Writable_age n (tp : jstate) m :
   lockSet_Writable (lset tp) m ->
   lockSet_Writable (lset (age_tp_to n tp)) m.
 Proof.
@@ -228,17 +228,16 @@ Proof.
   apply isSome_find_map.
 Qed.
 
-Lemma lockSet_age_to n tp :
+Lemma lockSet_age_to n (tp : jstate) :
   lockSet (age_tp_to n tp) = lockSet tp.
 Proof.
   destruct tp as [num thds phis lset].
   unfold lockSet in *.
   simpl.
-  unfold LocksAndResources.lock_info in *.
   apply A2PMap_option_map.
 Qed.
 
-Lemma juicyLocks_in_lockSet_age n tp phi :
+Lemma juicyLocks_in_lockSet_age n (tp : jstate) phi :
   juicyLocks_in_lockSet (lset tp) phi ->
   juicyLocks_in_lockSet (lset (age_tp_to n tp)) (age_to n phi).
 Proof.
@@ -256,7 +255,7 @@ Proof.
     apply isSome_find_map.
 Qed.
 
-Lemma lockSet_in_juicyLocks_age n tp phi :
+Lemma lockSet_in_juicyLocks_age n (tp : jstate) phi :
   lockSet_in_juicyLocks (lset tp) phi ->
   lockSet_in_juicyLocks (lset (age_tp_to n tp)) (age_to n phi).
 Proof.
@@ -292,7 +291,7 @@ Proof.
     auto.
 Qed.
 
-Lemma mem_compatible_with_same_except_cur tp m m' phi :
+Lemma mem_compatible_with_same_except_cur (tp : jstate) m m' phi :
   same_except_cur m m' ->
   mem_compatible_with tp m phi ->
   mem_compatible_with tp m' phi.
@@ -333,7 +332,6 @@ Proof.
   apply (juicyRestrictCurEq coh (b, ofs)).
 Qed.
 
-(* in mem_lessdef *)
 Lemma same_perm_spec m1 m2 :
   Mem.perm m1 = Mem.perm m2 <->
   (forall k x, access_at m1 x k = access_at m2 x k).
@@ -357,7 +355,7 @@ Proof.
   - unfold access_at in *.
     intros E. extensionality b ofs k p.
     unfold Mem.perm.
-    spec E k (b, ofs); simpl in E.
+    specialize (E k (b, ofs)); simpl in E.
     rewrite E.
     auto.
 Qed.
@@ -564,7 +562,7 @@ Proof.
     - exists phi1. apply join_comm, j.
   }
   subst phi2.
-  spec pos phi1. spec pos. split. omega. auto.
+  specialize (pos phi1). spec pos. split. omega. auto.
   destruct pos as (l & sh & rsh & k & pp & E).
   apply resource_at_joins with (loc := l) in j.
   rewrite E in j.
@@ -692,7 +690,7 @@ Lemma predat6 {R loc phi} : lkat R loc phi -> predat phi loc (approx (level phi)
 Proof.
   unfold predat in *.
   unfold lkat in *.
-  intros H. spec H loc.
+  intros H. specialize (H loc).
   spec H.
   { destruct loc. split; auto; pose proof LKSIZE_pos; omega. }
   destruct H as (sh & rsh & ->).
@@ -739,7 +737,7 @@ Qed.
 
 Lemma lkat_hered R loc : hereditary age (lkat R loc).
 Proof.
-  intros phi phi' A lk a r. spec lk a r.
+  intros phi phi' A lk a r. specialize (lk a r).
   destruct lk as (sh & rsh & E); exists sh, rsh.
   erewrite age_resource_at; eauto.
   rewrite E.
@@ -751,3 +749,5 @@ Proof.
   unfold "oo" in *.
   apply (equal_f RR R).
 Qed.
+
+End Machine.

@@ -33,32 +33,24 @@ Require Import VST.concurrency.CoreSemantics_sum.
 Module DryHybridMachine.
   Import Events ThreadPool.
 
-  Global Instance resources: Resources:=
+  Instance dryResources: Resources:=
     {| res := access_map * access_map;
        lock_info := access_map * access_map |}.
 
   Section DryHybridMachine.
         
-    (* (* Semantics *) *)
-    (* Parameter CLN_evsem : (@EvSem genv corestate). *)
-    (* Parameter CLN_msem : *)
-    (*   msem CLN_evsem = CLN_memsem. *)
-
     (** Assume some threadwise semantics *)
     Context {Sem: Semantics}
-            {tpool : @ThreadPool.ThreadPool resources Sem}.
+            {tpool : @ThreadPool.ThreadPool dryResources Sem}.
     
     Notation C:= (@semC Sem).
     Notation G:= (@semG Sem).
     Notation semSem:= (@semSem Sem).
 
-    (* Global Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem. *)
-
-    Notation thread_pool := (@t resources Sem).
+    Notation thread_pool := (@t dryResources Sem).
     (** Memories*)
     Definition richMem: Type:= mem.
     Definition dryMem: richMem -> mem:= id.
-    Definition diluteMem: mem -> mem := setMaxPerm.
     
     (** The state respects the memory*)
     
@@ -707,11 +699,10 @@ Module DryHybridMachine.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)
-    Definition DryHybridMachineSig: @HybridMachineSig.MachineSig resources Sem tpool :=
-      (@HybridMachineSig.Build_MachineSig resources Sem tpool
+    Instance DryHybridMachineSig: @HybridMachineSig.MachineSig dryResources Sem tpool :=
+      (@HybridMachineSig.Build_MachineSig dryResources Sem tpool
                              richMem
                              dryMem
-                             diluteMem
                              mem_compatible
                              invariant
                              threadStep

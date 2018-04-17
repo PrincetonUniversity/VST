@@ -1,12 +1,11 @@
-Require Import VST.msl.predicates_sl.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 
-Notation precise := precise.
-Notation derives_precise := predicates_sl.derives_precise.
+Notation precise := predicates_sl.precise.
+Arguments precise _%assert.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
@@ -1948,7 +1947,7 @@ Lemma ex_address_mapsto_precise: forall ch sh l,
   precise (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
   intros.
-  eapply derives_precise, res_predicates.VALspec_range_precise.
+  eapply predicates_sl.derives_precise, res_predicates.VALspec_range_precise.
   repeat intro.
   destruct H.
   eapply res_predicates.address_mapsto_VALspec_range; eauto.
@@ -1973,8 +1972,7 @@ Proof.
     + destruct Hlock; eauto 6.
     + contradiction ne; auto.
   - contradiction nr; unfold adr_range; split; auto.
-    unfold lksize.LKSIZE in *.
-    omega.
+    pose proof lksize.LKSIZE_pos; omega.
 Qed.
 
 Lemma selflock_precise : forall R sh v, precise R -> precise (selflock R v sh).
@@ -2093,12 +2091,12 @@ Qed.
 
 Lemma precise_emp : precise emp.
 Proof.
-  apply precise_emp.
+  apply predicates_sl.precise_emp.
 Qed.
 
-Lemma derives_precise' : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
+Lemma derives_precise : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
 Proof.
-  intros; eapply derives_precise; [|eassumption]; auto.
+  intros; eapply predicates_sl.derives_precise; [|eassumption]; auto.
 Qed.
 
 Lemma precise_FF : precise FF.
@@ -2115,7 +2113,7 @@ Proof.
   destruct (type_is_volatile t); auto.
   destruct p; auto.
   destruct (readable_share_dec sh).
-  - eapply derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
+  - eapply predicates_sl.derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
   - apply precise_andp2, res_predicates.nonlock_permission_bytes_precise.
 Qed.
 Hint Resolve mapsto_precise.
@@ -2462,22 +2460,22 @@ Proof.
 Qed.
 
 (* It's often useful to split Tsh in half. *)
-Definition gsh1 := fst (Share.split Tsh).
-Definition gsh2 := snd (Share.split Tsh).
+Definition gsh1 := fst (slice.cleave Tsh).
+Definition gsh2 := snd (slice.cleave Tsh).
 
 Lemma readable_gsh1 : readable_share gsh1.
 Proof.
-  apply slice.split_YES_ok1; auto.
+  apply slice.cleave_readable1; auto.
 Qed.
 
 Lemma readable_gsh2 : readable_share gsh2.
 Proof.
-  apply slice.split_YES_ok2; auto.
+  apply slice.cleave_readable2; auto.
 Qed.
 
 Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
 Proof.
-  apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
+  apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
 Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
@@ -2517,10 +2515,12 @@ Lemma split_readable_share sh :
     sepalg.join sh1 sh2 sh.
 Proof.
   intros.
-  pose proof (slice.split_YES_ok1 _ H); pose proof (slice.split_YES_ok2 _ H).
-  destruct (Share.split sh) as (sh1, sh2) eqn: Hsplit.
+  pose proof (slice.cleave_readable1 _ H); pose proof (slice.cleave_readable2 _ H).
+  destruct (slice.cleave sh) as (sh1, sh2) eqn: Hsplit.
   exists sh1, sh2; split; [|split]; auto.
-  apply split_join; auto.
+  replace sh1 with (fst (slice.cleave sh)) by (rewrite Hsplit; auto).
+  replace sh2 with (snd (slice.cleave sh)) by (rewrite Hsplit; auto).
+  apply slice.cleave_join; auto.
 Qed.
 
 Lemma split_Ews :
@@ -3546,8 +3546,9 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
  unfold tc_exprlist.
  revert bl; induction (argtypes argsig); destruct bl;
    simpl; try apply @FF_left.
+   
  apply prop_right; auto.
- repeat rewrite denote_tc_assert_andp. apply andp_left2.
+ repeat rewrite denote_tc_assert_andp; simpl. apply andp_left2.
  eapply derives_trans; [ apply IHl | ]. normalize.
 apply derives_extract_PROP; intro LEN.
 subst Qactuals. 
@@ -3813,7 +3814,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty) retty = true). {
   destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
@@ -3821,7 +3822,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
   try solve [inv NEUTRAL].
   unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
   }
- apply andp_right. apply prop_right; auto.
+ apply andp_right; simpl. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
@@ -3934,13 +3935,13 @@ end.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty') retty = true).
  replace (implicit_deref retty') with retty'
  by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
  auto.
- apply andp_right. apply prop_right; auto.
+ apply andp_right. simpl; apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.

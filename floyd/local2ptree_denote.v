@@ -1220,6 +1220,3 @@ destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
 destruct (ge_of rho id); try contradiction.
 subst; auto.
 Qed.
-
-Ltac make_func_ptr id :=
- eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].

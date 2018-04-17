@@ -1272,55 +1272,84 @@ Proof.
   simpl in H3.
   omega.
 Qed.
-(*
-Lemma align_compatible_gfield_type: forall t gf p i,
-  legal_field0 t gf ->
-  align_compatible_rec cenv_cs t (Int.unsigned i) ->
-  align_compatible_rec cenv_cs (nested_field_type t gfs)
-            ((Int.unsigned i + nested_field_offset t gfs) mod Int.modulus)
-  ============================
-  align_compatible_rec cenv_cs (gfield_type t gf)
-    ( gfield_offset (nested_field_type t gfs) gf))
-     mod Int.modulus)
-*)
-Lemma align_compatible_nested_field0: forall t gfs p,
-  legal_nested_field0 t gfs ->
+
+Lemma align_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
   size_compatible t p ->
   align_compatible t p ->
+  complete_legal_cosu_type t = true ->
   align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
-  intros.
+  intros. rename H2 into Hcomplete.
   destruct p; simpl in *; try tauto.
   unfold Ptrofs.unsigned; simpl.
   unfold Ptrofs.unsigned at 2; simpl.
   repeat rewrite Ptrofs.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
   inv_int i.
-Admitted.
-(*
   induction gfs as [| gf gfs].
   + rewrite nested_field_type_ind.
     rewrite nested_field_offset_ind by auto.
     rewrite Z.add_0_r.
-    inv_int i.
     rewrite Zmod_small by auto.
     auto.
   + rewrite nested_field_type_ind.
-    rewrite nested_field_offset_ind by auto.
-    
-    SearchAbout Z.modulo.
-  repeat rewrite Ptrofs.Z_mod_modulus_eq.
-  rewrite Zplus_mod_idemp_r.
-Qed.
-*)
-Lemma align_compatible_nested_field: forall t gfs p,
-  legal_nested_field t gfs ->
-  size_compatible t p ->
-  align_compatible t p ->
-  align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
-Proof.
-  intros.
-  apply align_compatible_nested_field0; auto.
+     destruct H.
+     specialize (IHgfs H).
+     destruct (nested_field_offset_in_range t gfs H Hcomplete).
+     destruct gf.
+    *
+      destruct (nested_field_type t gfs) eqn:?H; try contradiction H2.
+      simpl in *.
+      rewrite Z.max_r in H5 by omega.
+      rewrite nested_field_offset_ind by (split;auto; hnf; rewrite H6; omega).
+      rewrite H6. simpl.
+     apply align_compatible_rec_Tarray_inv with (i:=i) in IHgfs; auto.
+     match goal with H: align_compatible_rec _ t0 ?A |- align_compatible_rec _ t0 ?B => replace B with A; auto end.
+     pose proof (sizeof_pos t).  pose proof (sizeof_pos t0).
+     rewrite Z.add_assoc.
+     assert (Ptrofs.modulus <> 0) by computable.
+     rewrite (Z.add_mod (_ + _)) by auto.
+     assert (0 <= sizeof t0 * i <= sizeof t0 * z). {
+           rewrite <- (Z.mul_0_r (sizeof t0)).
+           split; apply Zmult_le_compat_l; omega.
+     }
+     rewrite (Z.mod_small (sizeof t0 * i))  by omega.
+     symmetry. apply Z.mod_small.
+     rewrite Z.mod_small; omega.
+   *
+      assert (H12:= nested_field_type_complete_legal_cosu_type _ _ Hcomplete H).
+      destruct (nested_field_type t gfs) eqn:?H; try contradiction H2.
+      unfold gfield_type.
+      destruct (gfield_offset_in_range (Tstruct i0 a) (StructField i) H2 H12) as [H13 H14].
+      simpl in H2.
+      eapply align_compatible_rec_Tstruct_inv' in IHgfs; try eassumption.
+      match goal with H: align_compatible_rec _ _ ?A |- align_compatible_rec _ _ ?B => replace B with A; auto end.
+      clear IHgfs.
+      rewrite (nested_field_offset_ind _ (_ DOT _)) by (split; auto; rewrite H6; simpl; auto).
+      rewrite H6. unfold gfield_offset.
+     pose proof (sizeof_pos t). pose proof (sizeof_pos (Tstruct i0 a)).
+     rewrite Z.add_assoc.
+     assert (Ptrofs.modulus <> 0) by computable.
+     rewrite (Z.add_mod (_ + _)) by auto.
+     rewrite (Z.mod_small (ofs + _)) by omega.
+     pose (sizeof_pos (field_type i (co_members (get_co i0)))).
+     unfold gfield_offset in H13, H14. unfold gfield_type in H14.
+     rewrite (Z.mod_small (field_offset _ _ _)) by omega.
+     symmetry. apply Z.mod_small.
+     omega.
+   *
+      assert (H12:= nested_field_type_complete_legal_cosu_type _ _ Hcomplete H).
+      destruct (nested_field_type t gfs) eqn:?H; try contradiction H2.
+      unfold gfield_type.
+      destruct (gfield_offset_in_range (Tunion i0 a) (UnionField i) H2 H12) as [H13 H14].
+      simpl in H2.
+      eapply align_compatible_rec_Tunion_inv' in IHgfs; try eassumption.
+      match goal with H: align_compatible_rec _ _ ?A |- align_compatible_rec _ _ ?B => replace B with A; auto end.
+      clear IHgfs.
+      rewrite (nested_field_offset_ind _ (_ UDOT _)) by (split; auto; rewrite H6; simpl; auto).
+      rewrite H6. unfold gfield_offset.
+      rewrite Z.add_0_r. auto.
 Qed.
 
 Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
@@ -1328,17 +1357,48 @@ Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
   size_compatible t p ->
   align_compatible t p ->
+  complete_legal_cosu_type t = true ->
   align_compatible (nested_field_array_type t gfs lo hi)
    (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
-Admitted.
-(*
-  unfold align_compatible.
-  rewrite alignof_nested_field_array_type_eq with (i := lo) by auto.
-  apply align_compatible_nested_field0; auto.
+  intros. rename H3 into Hcomplete.
+  rewrite nested_field_offset_ind by auto.
+  destruct H.
+  destruct H0 as [_ ?].
+  assert (H9:= align_compatible_nested_field t gfs p H H1 H2 Hcomplete).
+  rewrite nested_field_array_type_ind.
+  destruct (nested_field_type t gfs) eqn:?H; inv H3. simpl in H0.
+  simpl gfield_array_type.
+  destruct p; simpl in *; try tauto.
+  unfold Ptrofs.unsigned; simpl.
+  unfold Ptrofs.unsigned at 2; simpl.
+  apply align_compatible_rec_Tarray.
+  intros j ?.
+  apply align_compatible_rec_Tarray_inv with (i:= (lo+j)) in H9; [ |omega].
+  match goal with H: align_compatible_rec _ _ ?A |- align_compatible_rec _ _ ?B => replace B with A; auto end.
+  rewrite !Ptrofs.Z_mod_modulus_eq.
+  rewrite Z.mul_add_distr_l.
+  rewrite Z.add_assoc.
+  f_equal.
+  unfold Ptrofs.add.
+  destruct (nested_field_offset_in_range t gfs H Hcomplete).
+  pose proof (sizeof_pos (nested_field_type t gfs)).
+  assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable. (* TODO: This should not be necessary, rep_omega should know it *)
+  rewrite (Ptrofs.unsigned_repr (nested_field_offset _ _)) by rep_omega.
+  rewrite Ptrofs.unsigned_repr by rep_omega.
+  pose proof (sizeof_pos t0).
+     assert (0 <= sizeof t0 * lo <= sizeof t0 * z). {
+           rewrite <- (Z.mul_0_r (sizeof t0)).
+           split; apply Zmult_le_compat_l; omega.
+     }
+  rewrite H4 in *. simpl in H8. rewrite Z.max_r in H8 by omega.
+  rewrite (Z.mod_small (_ + _ * _)) by rep_omega.
+  rewrite Z.add_assoc.
+  symmetry; apply Z.mod_small.
+  rep_omega.
 Qed.
-*)
+
 Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
   field_compatible (nested_field_type t gfs) nil (offset_val (nested_field_offset t gfs) p).

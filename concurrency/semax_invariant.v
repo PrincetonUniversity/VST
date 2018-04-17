@@ -26,7 +26,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.semantics.
@@ -45,23 +44,19 @@ Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.join_lemmas.
 Require Import VST.concurrency.lksize.
-Import threadPool.
+Import threadPool Events.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
-Export JSEM.
-Module Machine :=THE_JUICY_MACHINE.JTP.
 Definition schedule := SCH.schedule.
-Export JuicyMachineLemmas.
-Export ThreadPool.
+Export Concur.
+Export OrdinalPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
 Ltac cleanup :=
   unfold lockRes in *;
-  unfold LocksAndResources.lock_info in *;
-  unfold LocksAndResources.res in *;
-  unfold lockGuts in *.
+  unfold lockGuts in *; simpl lock_info in *; simpl res in *.
 
 Ltac join_level_tac :=
   try
@@ -75,20 +70,25 @@ Ltac join_level_tac :=
   cleanup;
   try congruence.
 
-(*+ Description of the invariant *)
+Notation event_trace := (seq.seq machine_event).
 
-Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
+Section Machine.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+(*+ Description of the invariant *)
+Definition cm_state := (Mem.mem * Clight.genv * (event_trace * schedule * jstate))%type.
 
 Inductive state_step : cm_state -> cm_state -> Prop :=
-| state_step_empty_sched ge m jstate :
+| state_step_empty_sched ge m tr jstate :
     state_step
-      (m, ge, (nil, jstate))
-      (m, ge, (nil, jstate))
-| state_step_c ge m m' sch sch' jstate jstate' :
-    @JuicyMachine.machine_step ge sch nil jstate m sch' nil jstate' m' ->
+      (m, ge, (tr, nil, jstate))
+      (m, ge, (tr, nil, jstate))
+| state_step_c ge m m' tr tr' sch sch' jstate jstate' :
+    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
     state_step
-      (m, ge, (sch, jstate))
-      (m', ge, (sch', jstate')).
+      (m, ge, (tr, sch, jstate))
+      (m', ge, (tr', sch', jstate')).
 
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
@@ -157,7 +157,7 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     fst loc1 <> fst loc2 \/
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
 
-Lemma lock_sparsity_age_to tp n :
+Lemma lock_sparsity_age_to (tp : jstate) n :
   lock_sparsity (lset tp) ->
   lock_sparsity (lset (age_tp_to n tp)).
 Proof.
@@ -228,13 +228,13 @@ Qed.
 
 (*! Joinability and coherence *)
 
-Lemma mem_compatible_forget {tp m phi} :
+Lemma mem_compatible_forget {tp : jstate} {m phi} :
   mem_compatible_with tp m phi -> mem_compatible tp m.
 Proof. intros M; exists phi. apply M. Qed.
 
 Definition jm_
   {tp m PHI i}
-  (cnti : Machine.containsThread tp i)
+  (cnti : containsThread tp i)
   (mcompat : mem_compatible_with tp m PHI)
   : juicy_mem :=
   personal_mem (thread_mem_compatible (mem_compatible_forget mcompat) cnti).
@@ -259,17 +259,14 @@ Definition jsafe_phi_bupd {Z} Jspec ge n ora c phi :=
     m_phi jm = phi ->
     jm_bupd (@semax.jsafeN Z Jspec ge n ora c) jm.
 
-Lemma jsafe_phi_jsafeN {Z} Jspec ge n ora c i tp m (cnti : containsThread tp i) Phi compat :
+Lemma jsafe_phi_jsafeN {Z} Jspec ge n ora c i (tp : jstate) m (cnti : containsThread tp i) Phi compat :
   @jsafe_phi Z Jspec ge n ora c (getThreadR cnti) ->
   @semax.jsafeN Z Jspec ge n ora c (@jm_ tp m Phi i cnti compat).
 Proof.
   intros S; apply S, eq_refl.
 Qed.
 
-Ltac fixsafe H :=
-  unshelve eapply jsafe_phi_jsafeN in H; eauto.
-
-Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_with tp m PHI) n :=
+Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate) PHI (mcompat : mem_compatible_with tp m PHI) n :=
   forall i (cnti : containsThread tp i) (ora : Z),
     match getThreadC cnti with
     | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
@@ -292,7 +289,7 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 
-Definition threads_wellformed tp :=
+Definition threads_wellformed (tp : jstate) :=
   forall i (cnti : containsThread tp i),
     match getThreadC cnti with
     | Krun q => Logic.True
@@ -306,20 +303,20 @@ Definition threads_wellformed tp :=
  * SC: I had to change unique_Krun to include ~ Halted. Because halted
  * threads are still in Krun. (Although, ass you know right now there are no Hatled
  * threads...)  *)
-Definition unique_Krun tp sch :=
+Definition unique_Krun (tp : jstate) sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
-      @getThreadC i tp cnti = Krun q ->
+      @getThreadC _ _ i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
 
-Definition no_Krun tp :=
-  forall i cnti q, @getThreadC i tp cnti <> Krun q.
+Definition no_Krun (tp : jstate) :=
+  forall i cnti q, @getThreadC _ _ i tp cnti <> Krun q.
 
 Lemma no_Krun_unique_Krun tp sch : no_Krun tp -> unique_Krun tp sch.
 Proof.
   intros H _ i cnti q E; destruct (H i cnti q E).
 Qed.
 
-Lemma containsThread_age_tp_to_eq tp n :
+Lemma containsThread_age_tp_to_eq (tp : jstate) n :
   containsThread (age_tp_to n tp) = containsThread tp.
 Proof.
   destruct tp; reflexivity.
@@ -340,7 +337,7 @@ Qed.
 Lemma no_Krun_stable tp i cnti c' phi' :
   (forall q, c' <> Krun q) ->
   no_Krun tp ->
-  no_Krun (@updThread i tp cnti c' phi').
+  no_Krun (@updThread _ _ i tp cnti c' phi').
 Proof.
   intros notkrun H j cntj q.
   destruct (eq_dec i j).
@@ -352,7 +349,7 @@ Qed.
 
 Lemma no_Krun_stableR tp i cnti phi' :
   no_Krun tp ->
-  no_Krun (@updThreadR i tp cnti phi').
+  no_Krun (@updThreadR _ _ i tp cnti phi').
 Proof.
   intros notkrun j cntj q.
   destruct (eq_dec i j).
@@ -363,7 +360,7 @@ Qed.
 
 Lemma no_Krun_unique_Krun_updThread tp i sch cnti q phi' :
   no_Krun tp ->
-  unique_Krun (@updThread i tp cnti (Krun q) phi') (i :: sch).
+  unique_Krun (@updThread _ _ i tp cnti (Krun q) phi') (i :: sch).
 Proof.
   intros NO H j cntj q'.
   destruct (eq_dec i j).
@@ -388,32 +385,33 @@ Proof.
   intros N; apply N.
 Qed.
 
-Lemma ssr_leP_inv i n : is_true (ssrnat.leq i n) -> i <= n.
+Lemma ssr_leP_inv i n : is_true (ssrnat.leq i n) -> (i <= n)%nat.
 Proof.
   pose proof @ssrnat.leP i n as H.
   intros E; rewrite E in H.
   inversion H; auto.
 Qed.
 
-Lemma different_threads_means_several_threads i j tp
+Lemma different_threads_means_several_threads i j (tp : jstate)
       (cnti : containsThread tp i)
       (cntj : containsThread tp j) :
-  i <> j -> 1 < pos.n (num_threads tp).
+  i <> j -> (1 < pos.n (num_threads tp))%nat.
 Proof.
   unfold containsThread in *.
   simpl in *.
-  unfold tid in *.
   destruct tp as [n].
   simpl in *.
   remember (pos.n n) as k; clear Heqk n.
   apply ssr_leP_inv in cnti.
   apply ssr_leP_inv in cntj.
-  omega.
+  destruct k; try omega.
+  destruct k; try omega.
+  destruct i, j; try omega; contradiction.
 Qed.
 
 Lemma unique_Krun_no_Krun tp i sch cnti :
   unique_Krun tp (i :: sch) ->
-  (forall q : code, @getThreadC i tp cnti <> Krun q) ->
+  (forall q, @getThreadC _ _ i tp cnti <> Krun q) ->
   no_Krun tp.
 Proof.
   intros U N j cntj q E.
@@ -432,7 +430,7 @@ Qed.
 Lemma unique_Krun_no_Krun_updThread tp i sch cnti c' phi' :
   (forall q, c' <> Krun q) ->
   unique_Krun tp (i :: sch) ->
-  no_Krun (@updThread i tp cnti c' phi').
+  no_Krun (@updThread _ _ i tp cnti c' phi').
 Proof.
   intros notkrun uniq j cntj q.
   destruct (eq_dec i j) as [<-|N].
@@ -453,12 +451,12 @@ Lemma unique_Krun_neq i j tp sch
       (cntj : containsThread tp j) :
   i <> j ->
   unique_Krun tp (i :: sch) ->
-  forall q, @getThreadC j tp cntj <> Krun q.
+  forall q, @getThreadC _ _ j tp cntj <> Krun q.
 Proof.
   intros ne U q E.
   hnf in U.
   spec U. now apply (different_threads_means_several_threads i j).
-  spec U j cntj q E.
+  specialize (U j cntj q E).
   breakhyps.
 Qed.
 
@@ -480,7 +478,7 @@ Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
 
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
-      (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+      (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : jstate) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -489,17 +487,17 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
-    : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
+    : state_invariant Jspec Gamma n (m, ge, (tr, sch, tp)).
 
 (* Schedule irrelevance of the invariant *)
-Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
-  state_invariant Jspec Gamma n (m, ge, (i :: sch, tp)) ->
-  state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
+Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i tr sch sch' tp :
+  state_invariant Jspec Gamma n (m, ge, (tr, i :: sch, tp)) ->
+  state_invariant Jspec Gamma n (m, ge, (tr, i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
-    subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev envcoh compat sparse lock_coh safety wellformed _).
+  inversion INV as [m0 ge0 tr0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
+    subst m0 ge0 tr0 sch0 tp0.
+  refine (state_invariant_c Jspec Gamma n m ge tr (i :: sch') tp PHI lev envcoh compat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -509,18 +507,18 @@ Qed.
 
 Definition blocked_at_external (state : cm_state) (ef : external_function) :=
   match state with
-    (m, ge, (sch, tp)) =>
+    (m, ge, (tr, sch, tp)) =>
     exists j cntj sch' c args,
       sch = j :: sch' /\
-      @getThreadC j tp cntj = Kblocked c /\
+      @getThreadC _ _ j tp cntj = Kblocked c /\
       cl_at_external c = Some (ef, args)
   end.
 
-Definition state_bupd P (state : cm_state) := let '(m, ge, (sch, tp)) := state in
-  tp_bupd (fun tp' => P (m, ge, (sch, tp'))) tp.
+Definition state_bupd P (state : cm_state) := let '(m, ge, (tr, sch, tp)) := state in
+  tp_bupd (fun tp' => P (m, ge, (tr, sch, tp'))) tp.
 
-Lemma state_bupd_intro : forall (P : _ -> Prop) m ge sch tp phi, join_all tp phi ->
-  P (m, ge, (sch, tp)) -> state_bupd P (m, ge, (sch, tp)).
+Lemma state_bupd_intro : forall (P : _ -> Prop) m ge tr sch tp phi, join_all tp phi ->
+  P (m, ge, (tr, sch, tp)) -> state_bupd P (m, ge, (tr, sch, tp)).
 Proof.
   intros; split; eauto; intros.
   eexists; split; eauto.
@@ -546,10 +544,10 @@ Proof.
       rewrite Hr in H; eauto.
     + repeat intro; rewrite Hr; auto.
     + repeat intro; rewrite Hr; auto.
-  - rewrite Hguts; auto.
-  - rewrite Hguts; repeat intro.
+  - setoid_rewrite Hguts; auto.
+  - setoid_rewrite Hguts; repeat intro.
     rewrite Hr in H; eauto.
-  - rewrite Hguts; repeat intro.
+  - setoid_rewrite Hguts; repeat intro.
     rewrite Hr; auto.
 Qed.
 
@@ -564,7 +562,7 @@ Qed.
 
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
 Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
-  (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+  (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : jstate) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -576,7 +574,7 @@ Lemma state_inv_upd : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
         threads_safety Jspec m ge tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (tr, sch, tp)).
 Proof.
   intros.
   split; [eexists; apply mcompat|].
@@ -605,11 +603,11 @@ Proof.
       do 4 eexists; eauto; split; auto.
       eapply semax_lemmas.funassert_resource, Happ; auto.
   - repeat intro.
-    unfold JTP.lockGuts in Hguts.
-    rewrite Hguts in *; auto.
+    setoid_rewrite Hguts in H0; setoid_rewrite Hguts in H1; auto.
   - repeat intro.
     specialize (lock_coh loc).
-    unfold JTP.lockGuts in Hguts.
+    simpl in Hguts.
+    unfold lockGuts in Hguts.
     rewrite Hguts, Hl, Hr.
     destruct (AMap.find _ _); auto.
     assert (forall R, lkat R loc PHI -> lkat R loc PHI').
@@ -625,15 +623,21 @@ Proof.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
     replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
+    simpl in HC.
     rewrite <- HC; apply wellformed.
   - repeat intro.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
     replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
-    rewrite <- HC in *.
+    simpl in HC; rewrite <- HC in *.
     replace (num_threads tp') with (num_threads tp) in *; eauto.
     symmetry; apply contains_iff_num; auto.
 Qed.
+
+End Machine.
+
+Ltac fixsafe H :=
+  unshelve eapply jsafe_phi_jsafeN in H; eauto.
 
 Ltac absurd_ext_link_naming :=
   exfalso;

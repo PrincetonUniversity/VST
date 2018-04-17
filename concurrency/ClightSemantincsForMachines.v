@@ -23,7 +23,7 @@ Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clightnew_coop.
 Require Import VST.sepcomp.event_semantics.
 
-Module ClightSEM <: Semantics.
+Section ClightSEM.
   Definition F: Type := fundef.
   Definition V: Type := type.
   Definition G := genv.
@@ -31,22 +31,24 @@ Module ClightSEM <: Semantics.
   Definition getEnv (g:G): Genv.t F V := genv_genv g.
   (* We might want to define this properly or
      factor the machines so we don't need events here. *)
-  Parameter CLN_evsem : @EvSem G C.
-  Parameter CLN_msem :
-    msem CLN_evsem = CLN_memsem.
-  Definition Sem := CLN_evsem.
-  Parameter step_decay: forall g c m tr c' m',
+
+  Class ClightSEM := { CLN_evsem : @EvSem G C;
+    CLN_msem : msem CLN_evsem = CLN_memsem;
+    Sem := CLN_evsem;
+    step_decay: forall g c m tr c' m',
       event_semantics.ev_step (Sem) g c m tr c' m' ->
-      decay m m'.
-  Parameter initial_core_nomem: forall n ge m v vl q om,
-      initial_core Sem n ge m v vl = Some (q, om) -> om=None.
-  Parameter initial_core_mem_congr: forall n ge m m' v vl,
-      initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
-  Parameter at_external_SEM_eq:
+      decay m m';
+    initial_core_nomem: forall n ge m v vl q om,
+      initial_core Sem n ge m v vl = Some (q, om) -> om=None;
+    initial_core_mem_congr: forall n ge m m' v vl,
+      initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl;
+    at_external_SEM_eq:
      forall ge c m, at_external Sem ge c m =
       match c with
       | State _ _ _ => None
       | ExtCall ef args _ _ _ _ => Some (ef, args)
-      end.
+      end }.
+
+  Instance ClightSem {CSEM : ClightSEM} : Semantics := { semG := G; semC := C; semSem := CLN_evsem }.
 
 End ClightSEM.

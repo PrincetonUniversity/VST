@@ -28,7 +28,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.shares.
 Require Import VST.veric.age_to_resource_at.
 Require Import VST.floyd.coqlib3.
@@ -60,7 +59,11 @@ Set Bullet Behavior "Strict Subproofs".
 
 Import Mem.
 
-Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Lemma load_at_phi_restrict i (tp : jstate) (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh R phi0 o :
   join_sub phi0 (getThreadR cnti) ->
   (LKspec LKSIZE R sh (b, ofs)) phi0 ->
@@ -93,10 +96,10 @@ Proof.
 
   assert (notnone : (snd (mem_access m)) ! b <> None). {
     destruct compat as (Phi & [_ _ W _ _]).
-    spec W b ofs. unfold lockGuts in *. cleanup.
+    specialize (W b ofs). unfold lockGuts in *. cleanup.
     unfold block in *.
     rewrite found in W.
-    autospec W. spec W ofs.
+    autospec W. specialize (W ofs).
     spec W. now split; simpl; auto; lkomega.
     unfold "!!" in W. destruct ((snd (mem_access m)) ! b). congruence.
     pose proof Max_isCanonical m as can. hnf in can. apply equal_f with (x := ofs) in can.
@@ -123,7 +126,7 @@ Proof.
     simpl.
     destruct ((snd (mem_access m)) ! b) eqn:E. 2:tauto. clear notnone.
     unfold perm_of_res_lock in *.
-    destruct lk as [lk Hg]; spec lk (b, ofs'). simpl in lk.
+    destruct lk as [lk Hg]; specialize (lk (b, ofs')). simpl in lk.
     if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
     apply resource_at_join with (loc := (b, ofs')) in j.
     if_tac [e|ne] in lk.
@@ -174,7 +177,7 @@ Proof.
   rewrite RR.
   simpl.
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite setPermBlock_lookup.
   repeat (if_tac; [constructor |]).
   exfalso.
@@ -186,7 +189,7 @@ Proof.
   split; auto; lkomega.
 Qed.
 
-Lemma permMapLt_local_locks m i tp Phi b ofs ophi
+Lemma permMapLt_local_locks m i (tp : jstate) Phi b ofs ophi
       (compat : mem_compatible_with tp m Phi)
       (cnti : containsThread tp i)
       (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi) :
@@ -201,7 +204,7 @@ Proof.
     by (unfold getMaxPerm in *; rewrite PMap.gmap; reflexivity).
 
   pose proof compat.(loc_writable) as LW.
-  spec LW b (Ptrofs.unsigned ofs). cleanup. rewrite Efind in LW. autospec LW. spec LW ofs'.
+  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite RR.
   rewrite setPermBlock_lookup; if_tac.
   { unfold LKSIZE_nat in H; rewrite Z2Nat.id in H by (pose proof LKSIZE_pos; omega).
@@ -239,7 +242,7 @@ Section Progress.
       state_step state state'.
   Proof.
     intros not_spawn I.
-    inversion I as [m ge sch tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m ge tr sch tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
 
     (* empty schedule: we loop in the same state *)
@@ -247,7 +250,7 @@ Section Progress.
       exists state. subst. constructor.
     }
 
-    destruct (ssrnat.leq (S i) tp.(ThreadPool.num_threads).(pos.n)) eqn:Ei; swap 1 2.
+    destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei; swap 1 2.
 
     (* bad schedule *)
     {
@@ -256,9 +259,11 @@ Section Progress.
       (* -  *)constructor.
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + unfold ThreadPool.containsThread.
+        + simpl.
+          unfold containsThread.
           now rewrite Ei; auto.
         + constructor.
+        + eexists; eauto.
         + reflexivity.
     }
 
@@ -289,7 +294,7 @@ Section Progress.
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
-          rewrite Eci in *.
+          simpl in Eci; rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
           2: now match goal with H : j_at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
@@ -307,11 +312,12 @@ Section Progress.
 
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp' := age_tp_to (level jmi') tp).
-        pose (tp'' := @ThreadPool.updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
-        pose (cm' := (m_dry jmi', ge, (i :: sch, tp''))).
+        pose (tp'' := @updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
+        pose (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
-        apply JuicyMachine.thread_step with
+        rewrite <- (seq.cats0 tr) at 2.
+        apply @JuicyMachine.thread_step with
         (tid := i)
           (ev := nil)
           (Htid := cnti)
@@ -324,8 +330,7 @@ Section Progress.
           split.
           * simpl.
             subst.
-            unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem.
+            rewrite ClightSemantincsForMachines.CLN_msem.
             apply stepi.
           * simpl.
             exact_eq decay.
@@ -346,8 +351,8 @@ Section Progress.
         + eapply mem_compatible_forget; eauto.
         + econstructor.
           * eassumption.
-          * unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem.
+          * simpl.
+            rewrite ClightSemantincsForMachines.CLN_msem.
             reflexivity.
           * constructor.
           * reflexivity.
@@ -364,7 +369,7 @@ Section Progress.
       {
         exfalso.
         pose proof (wellformed i cnti) as W.
-        rewrite Eci in W.
+        simpl in Eci; rewrite Eci in W.
         apply W; auto.
       }
       (* back to external step *)
@@ -373,7 +378,7 @@ Section Progress.
       assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
       {
         pose proof (safety i cnti tt) as safe_i.
-        rewrite Eci in safe_i.
+        simpl in Eci; rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -397,7 +402,7 @@ Section Progress.
                 Some (ext_link "spawn", CREATE_SIG) = (ef_id_sig ext_link (EF_external name sg))).
       {
         pose proof (safety i cnti tt) as safe_i.
-        rewrite Eci in safe_i.
+        simpl in Eci; rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -429,7 +434,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -495,7 +500,7 @@ Section Progress.
 
         (* next step depends on status of lock: *)
         pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
-        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (ThreadPool.lset tp))
+        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp))
           as [[unlockedphi|]|] eqn:Efind;
           swap 1 3.
         (* inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry]. *)
@@ -521,12 +526,11 @@ Section Progress.
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC & HG).
           injection EQ as <- <-.
-          exists (m, ge, (sch, tp))(* ; split *).
+          exists (m, ge, (seq.cat tr (Events.external i (Events.failacq (b, Ptrofs.intval ofs)) :: nil), sch, tp))(* ; split *).
           + apply state_step_c.
             apply JuicyMachine.sync_step with
             (Htid := cnti)
-              (Hcmpt := mem_compatible_forget compat)
-              (ev := Events.failacq (b, Ptrofs.intval (* replace with unsigned? *) ofs));
+              (Hcmpt := mem_compatible_forget compat);
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
@@ -566,11 +570,10 @@ Section Progress.
 
             assert (Ecall: EF_external name sg = LOCK) by congruence.
 
-            assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
+            assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
-              unfold SEM.Sem in *.
-              rewrite SEM.CLN_msem; simpl.
+              rewrite ClightSemantincsForMachines.CLN_msem; simpl.
               repeat f_equal; congruence.
             }
 
@@ -634,11 +637,10 @@ Section Progress.
 
           assert (Ecall: EF_external name sg = LOCK) by congruence.
 
-          assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
+          assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
-            unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem; simpl.
+            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
             repeat f_equal; congruence.
           }
 
@@ -684,7 +686,7 @@ Section Progress.
           pose proof (resource_at_join _ _ _ (b, Ptrofs.intval ofs) Join) as Join'.
           destruct (join_YES_l Join' ex) as (sh3 & sh3' & E3).
 
-          eexists (m', ge, (sch, _)).
+          eexists (m', ge, (seq.cat tr _, sch, _)).
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
@@ -704,8 +706,7 @@ Section Progress.
             * now auto.
             * eassumption.
             * simpl.
-              unfold SEM.Sem in *.
-              rewrite SEM.CLN_msem.
+              rewrite ClightSemantincsForMachines.CLN_msem.
               simpl.
               repeat f_equal; [ | | ].
               -- simpl in H_acquire.
@@ -734,7 +735,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -784,7 +785,7 @@ Section Progress.
 
         (* next step depends on status of lock: *)
         pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
-        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (ThreadPool.lset tp))
+        destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp))
           as [[unlockedphi|]|] eqn:Efind;
           swap 1 3.
 
@@ -831,11 +832,10 @@ Section Progress.
 
           assert (Ecall: EF_external name sg = UNLOCK) by congruence.
 
-          assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
+          assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
-            unfold SEM.Sem in *.
-            rewrite SEM.CLN_msem; simpl.
+            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
             auto.
           }
           subst z.
@@ -906,7 +906,7 @@ Section Progress.
               apply age_by_1. replace (level phi_sat) with (level Phi). omega. join_level_tac.
           }
 
-          eexists (m', ge, (sch, _)).
+          eexists (m', ge, (seq.cat tr _, sch, _)).
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
@@ -1017,7 +1017,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1071,11 +1071,10 @@ Section Progress.
 
         assert (Ecall: EF_external name sg = MKLOCK) by congruence.
 
-        assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
+        assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
-          unfold SEM.Sem in *.
-          rewrite SEM.CLN_msem; simpl.
+          rewrite ClightSemantincsForMachines.CLN_msem; simpl.
           repeat f_equal; congruence.
         }
 
@@ -1128,12 +1127,12 @@ Section Progress.
         match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
         pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RL0 Join as RL.
         destruct RL as (phi' & RLphi & j').
-        assert (ji : join_sub (getThreadR cnti) Phi) by join_sub_tac.
+        assert (ji : join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat).
         destruct ji as (psi & jpsi). cleanup.
         pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RLphi jpsi as RLPhi.
         destruct RLPhi as (Phi' & RLPhi & J').
 
-        eexists (m', ge, (sch, _)).
+        eexists (m', ge, (seq.cat tr _, sch, _)).
         constructor.
 
         eapply JuicyMachine.sync_step
@@ -1152,7 +1151,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1221,22 +1220,21 @@ Section Progress.
 
         assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
 
-        assert (Eae : at_external SEM.Sem ge (ExtCall (EF_external name sg) args lid ve te k) m =
+        assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (FREE_LOCK, Vptr b ofs :: nil)). {
           simpl.
-          unfold SEM.Sem in *.
-          rewrite SEM.CLN_msem; simpl.
+          rewrite ClightSemantincsForMachines.CLN_msem; simpl.
           repeat f_equal; congruence.
         }
 
         clear Post.
 
         assert (lock_not_none : lockRes tp (b, Ptrofs.intval ofs) <> None). {
-          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
+          specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
           destruct (AMap.find _ _) as [|] eqn:Ephi_sat. congruence.
           unfold lock_inv in *.
           destruct Hlockinv as (b_ & ofs_ & E_ & HH & HG).
-          spec HH (b, Ptrofs.intval ofs).
+          specialize (HH (b, Ptrofs.intval ofs)).
           simpl in HH.
           change Ptrofs.intval with Ptrofs.unsigned in *.
           injection E_ as <- <- .
@@ -1245,8 +1243,8 @@ Section Progress.
           destruct HH as (p & HH).
           assert (j : join_sub phi0lockinv Phi). {
             apply join_sub_trans with phi0. eexists; eauto.
-            apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
-            join_sub_tac.
+            apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+            apply compatible_threadRes_sub, compat.
           }
           destruct j as (psi' & j).
           apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
@@ -1258,14 +1256,14 @@ Section Progress.
         pose proof Hlockinv as COPY.
         apply (lock_inv_rmap_freelock CS) with (m := m) in COPY; auto; try apply lock_coh; swap 1 2; swap 2 3.
         {
-          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
+          specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
           remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
           rewrite <-Heqo in lock_not_none.
           destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
           tauto.
         }
         {
-          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
+          specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
           remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
           rewrite <-Heqo in lock_not_none.
           destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
@@ -1279,20 +1277,20 @@ Section Progress.
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ LKSIZE_pos Hrmap0 Join as Hrmap.
         pose proof Hrmap as Hrmap_.
         destruct Hrmap_ as (phi' & RLphi & j').
-        assert (ji : join_sub (@getThreadR _ _ cnti) Phi) by join_sub_tac.
+        assert (ji : join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat).
         destruct ji as (psi & jpsi). cleanup.
         pose proof rmap_freelock_join _ _ _ _ _ _ _ _ LKSIZE_pos RLphi jpsi as Hrmap'.
         destruct Hrmap' as (Phi' & Hrmap' & J').
 
         assert (locked : lockRes tp (b, Ptrofs.intval ofs) = Some None). {
-          spec lock_coh (b, Ptrofs.intval ofs). cleanup.
+          specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
           destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
           - (* positive and precise *)
             destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
 
             assert (J0 : join_sub phi0 Phi). {
-              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
-              join_sub_tac.
+              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply compatible_threadRes_sub, compat.
             }
             assert (Ja0 : join_sub phi0sat Phi).  {
               apply join_sub_trans with phi0; eauto. eexists; eauto.
@@ -1303,8 +1301,8 @@ Section Progress.
             }
             assert (J01 : join_sub phi0lockinv Phi). {
               apply join_sub_trans with phi0. eexists; eauto.
-              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
-              join_sub_tac.
+              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply compatible_threadRes_sub, compat.
             }
             assert (R01 : level phi0lockinv = level Phi) by join_level_tac.
             assert (Ra : level phi_sat = level Phi) by join_level_tac.
@@ -1352,7 +1350,7 @@ Section Progress.
               apply joins_sym.
               eapply @join_sub_joins_trans with (c := phi0); auto. apply Perm_rmap.
               * exists phi0lockinv. apply join_comm. auto.
-              * eapply @join_sub_joins_trans with (c := @getThreadR i tp cnti); auto. apply Perm_rmap.
+              * eapply @join_sub_joins_trans with (c := @getThreadR _ _ i tp cnti); auto. apply Perm_rmap.
                 -- exists phi1. auto.
                 -- eapply compatible_threadRes_lockRes_join. apply (mem_compatible_forget compat).
                    apply Ephi_sat.
@@ -1361,7 +1359,7 @@ Section Progress.
             simpl in Hlockinv.
             unfold lock_inv in *.
             destruct Hlockinv as (b_ & ofs_ & E_ & HH & HG).
-            spec HH (b, Ptrofs.intval ofs).
+            specialize (HH (b, Ptrofs.intval ofs)).
             simpl in HH.
             change Ptrofs.intval with Ptrofs.unsigned in *.
             injection E_ as <- <- .
@@ -1370,8 +1368,8 @@ Section Progress.
             destruct HH as (p & HH).
             assert (j : join_sub phi0lockinv Phi). {
               apply join_sub_trans with phi0. eexists; eauto.
-              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
-              join_sub_tac.
+              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply compatible_threadRes_sub, compat.
             }
             destruct j as (psi' & j).
             apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
@@ -1380,7 +1378,7 @@ Section Progress.
             inv j; hnf; eauto.
         }
 
-        eexists (m, ge, (sch, _)).
+        eexists (m, ge, (seq.cat tr _, sch, _)).
         constructor.
 
         eapply JuicyMachine.sync_step
@@ -1409,7 +1407,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        rewrite Eci in safei.
+        simpl in Eci; rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1448,7 +1446,7 @@ Section Progress.
 
       - (* contradiction: has to be an extcall *)
         specialize (wellformed i cnti).
-        rewrite Eci in wellformed.
+        simpl in Eci; rewrite Eci in wellformed.
         simpl in wellformed.
         tauto.
 
@@ -1458,25 +1456,20 @@ Section Progress.
                 | Some id => State ve (Maps.PTree.set id Vundef te) k
                 | None => State ve te k
                 end).
-        exists (m, ge, (i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
+        exists (m, ge, (tr, i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
         + (* taking the step Kresume->Krun *)
           constructor.
-          apply JuicyMachine.resume_step with (tid := i) (Htid := cnti).
+          apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
           * eapply mem_compatible_forget. eauto.
-          * unfold SEM.Sem in *.
-            eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci');
-              try rewrite SEM.CLN_msem in *;
+          * eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci');
+              simpl in *; try rewrite ClightSemantincsForMachines.CLN_msem in *;
               simpl.
             -- subst.
-               unfold SEM.Sem in *.
-               rewrite SEM.CLN_msem in *; simpl.
                reflexivity.
             -- subst.
-               unfold SEM.Sem in *.
-               rewrite SEM.CLN_msem in *; simpl.
                destruct lid.
-               ++ spec wellformed i cnti. rewrite Eci in wellformed. destruct wellformed.
+               ++ specialize (wellformed i cnti). rewrite Eci in wellformed. destruct wellformed.
                   unfold ci'. reflexivity.
                ++ reflexivity.
             -- rewrite Eci.
@@ -1493,7 +1486,7 @@ Section Progress.
 
     (* thread[i] is in Kinit *)
     {
-      spec safety i cnti tt. rewrite Eci in safety.
+      specialize (safety i cnti tt). simpl in Eci; rewrite Eci in safety.
       destruct safety as (q_new & Einit & safety).
       eexists(* ; split *).
       - constructor.
@@ -1502,8 +1495,8 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * unfold the_sem, SEM.Sem.
-            rewrite SEM.CLN_msem; simpl.
+          * simpl.
+            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
             rewrite Einit; reflexivity.
           * constructor.
           * reflexivity.
@@ -1513,3 +1506,5 @@ Section Progress.
 Qed. (* Theorem progress *)
 
 End Progress.
+
+End Sem.

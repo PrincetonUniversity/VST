@@ -291,12 +291,41 @@ match l with
 | a::b => a * fold_right_sepconx b
 end.
 
+Definition fold_left_sepconx (l: list mpred) : mpred :=
+match l with
+| nil => emp
+| a::l => (fix fold_left_sepconx (a: mpred) (l: list mpred) {struct l}: mpred :=
+          match l with
+          | nil => a
+          | b :: l => fold_left_sepconx (sepcon a b) l
+          end) a l
+end.
+
 Lemma fold_right_sepconx_eq:
   forall l, fold_right_sepconx l = fold_right_sepcon l.
 Proof.
 induction l; simpl; auto.
 rewrite IHl.
 destruct l; simpl; auto. rewrite sepcon_emp; auto.
+Qed.
+
+Lemma fold_left_sepconx_eq:
+  forall l, fold_left_sepconx l = fold_right_sepcon l.
+Proof.
+  intros.
+  rewrite <- fold_right_sepconx_eq.
+  destruct l; auto.
+  revert m; induction l; intros.
+  + auto.
+  + simpl in *.
+    rewrite <- IHl.
+    clear IHl.
+    revert m a; induction l; intros.
+    - auto.
+    - simpl.
+      rewrite sepcon_assoc.
+      rewrite IHl.
+      auto.
 Qed.
 
 Lemma fold_right_sepconx_eqx:
@@ -453,6 +482,248 @@ Ltac cancel :=
           | cancel_frame
           | idtac
           ].
+
+Inductive syntactic_cancel: list mpred -> list mpred -> list mpred -> list mpred -> Prop :=
+| syntactic_cancel_nil: forall R, syntactic_cancel R nil R nil
+| syntactic_cancel_cons_succeed: forall n R0 R L0 L F Res,
+    find_nth_preds (fun R0 => R0 |-- L0) R (Some (n, R0)) ->
+    syntactic_cancel (delete_nth n R) L F Res ->
+    syntactic_cancel R (L0 :: L) F Res
+| syntactic_cancel_cons_fail: forall R L0 L F Res,
+    find_nth_preds (fun R0 => R0 |-- L0) R None ->
+    syntactic_cancel R L F Res ->
+    syntactic_cancel R (L0 :: L) F (L0 :: Res).
+
+Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
+  find_nth_preds (fun R0 => R0 |-- L0) R nR0 ->
+  syntactic_cancel match nR0 with
+                   | Some (n, _) => delete_nth n R
+                   | None => R
+                   end L F Res ->
+  syntactic_cancel R (L0 :: L) F match nR0 with
+                                 | Some _ => Res
+                                 | None => L0 :: Res
+                                 end.
+Proof.
+  intros.
+  destruct nR0 as [[? ?]|].
+  + eapply syntactic_cancel_cons_succeed; eauto.
+  + eapply syntactic_cancel_cons_fail; eauto.
+Qed.
+
+Lemma delete_nth_SEP: forall R n R0,
+  nth_error R n = Some R0 ->
+  fold_right_sepcon R |-- R0 * fold_right_sepcon (delete_nth n R).
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R; try solve [inv H].
+  + inv H.
+    simpl.
+    auto.
+  + simpl in H.
+    apply IHn in H.
+    simpl.
+    rewrite <- sepcon_assoc, (sepcon_comm _ m), sepcon_assoc.
+    apply sepcon_derives; auto.
+Qed.
+
+Lemma syntactic_cancel_solve: forall F,
+  fold_right_sepcon F |-- fold_right_sepcon nil * fold_right_sepcon F.
+Proof.
+  intros.
+  simpl; rewrite emp_sepcon; auto.
+Qed.
+
+Lemma syntactic_cancel_spec1: forall G1 L1 G2 L2 F,
+  syntactic_cancel G1 L1 G2 L2 ->
+  fold_right_sepcon G2 |-- fold_right_sepcon L2 * F ->
+  fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
+Proof.
+  intros.
+  revert F H0; induction H; intros.
+  + auto.
+  + apply IHsyntactic_cancel in H1.
+    simpl.
+    rewrite sepcon_assoc.
+    eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply H1]].
+    clear IHsyntactic_cancel H1.
+    apply find_nth_preds_Some in H.
+    destruct H.
+    eapply derives_trans; [apply delete_nth_SEP; eauto |].
+    apply sepcon_derives; auto.
+  + simpl in H1.
+    rewrite (sepcon_comm L0), sepcon_assoc in H1.
+    apply (IHsyntactic_cancel (L0*F0)) in H1.
+    eapply derives_trans; [exact H1 |].
+    simpl.
+    rewrite <- sepcon_assoc.
+    apply sepcon_derives; auto.
+    rewrite sepcon_comm; auto.
+Qed.
+
+Lemma syntactic_cancel_spec2: forall G1 L1 G2 L2 G3 L3 F,
+  syntactic_cancel G1 L1 G2 L2 ->
+  syntactic_cancel G2 L2 G3 L3 ->
+  fold_right_sepcon G3 |-- fold_right_sepcon L3 * F ->
+  fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
+Proof.
+  intros.
+  eapply syntactic_cancel_spec1; eauto.
+  eapply syntactic_cancel_spec1; eauto.
+Qed.
+
+Lemma syntactic_cancel_spec3: forall G1 L1 G2 L2,
+  syntactic_cancel G1 L1 G2 L2 ->
+  fold_right_sepcon G2 |-- fold_right_sepcon L2 ->
+  fold_right_sepcon G1 |-- fold_right_sepcon L1.
+Proof.
+  intros.
+  rewrite <- (sepcon_emp (fold_right_sepcon L1)).
+  eapply syntactic_cancel_spec1; eauto.
+  rewrite sepcon_emp; auto.
+Qed.
+
+Ltac local_cancel_in_syntactic_cancel :=
+  cbv beta;
+  match goal with |- ?A |-- ?B => 
+    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel]
+  end.
+
+Ltac syntactic_cancel :=
+  eapply syntactic_cancel_spec1;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth local_cancel_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
+
+(*
+Ltac syntactic_cancel :=
+  eapply double_syntactic_cancel_spec;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth local_cancel1_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | cbv iota beta;
+    repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth local_cancel2_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
+*)
+
+(*
+Ltac syntactic_cancel :=
+  eapply syntactic_cancel_spec;
+  [ repeat first
+           [ simple apply syntactic_cancel_nil
+           | simple apply syntactic_cancel_cons;
+             [ find_nth local_cancel_in_syntactic_cancel
+             | cbv iota; unfold delete_nth; cbv zeta iota
+             ]
+           ]
+  | first [ match goal with
+            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            end;
+            simple apply syntactic_cancel_solve
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
+*)
+
+(*
+Export ListNotations.
+
+Goal forall A B C D: mpred, exists F: list mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
+Proof.
+  intros.
+  eexists.
+  syntactic_cancel.
+*)
+
+Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> Prop :=
+| construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
+    construct_fold_right_sepcon_rec Q R R' ->
+    construct_fold_right_sepcon_rec P R' R'' ->
+    construct_fold_right_sepcon_rec (P * Q) R R''
+| construct_fold_right_sepcon_rec_emp: forall R,
+    construct_fold_right_sepcon_rec emp R R
+| construct_fold_right_sepcon_rec_single: forall P R,
+    construct_fold_right_sepcon_rec P R (P :: R).
+
+Inductive construct_fold_right_sepcon: mpred -> list mpred-> Prop :=
+| construct_fold_right_sepcon_constr: forall P R,
+    construct_fold_right_sepcon_rec P nil R ->
+    construct_fold_right_sepcon P R.
+
+Lemma construct_fold_right_sepcon_spec: forall P R,
+  construct_fold_right_sepcon P R ->
+  fold_right_sepcon R = P.
+Proof.
+  intros.
+  destruct H.
+  rename R into R'.
+  transitivity (fold_right_sepcon nil * P).
+  Focus 2. {
+    simpl.
+    rewrite !emp_sepcon.
+    auto.
+  } Unfocus.
+  forget (@nil mpred) as R.
+  induction H.
+  + etransitivity; [eassumption |].
+    transitivity (fold_right_sepcon R * Q * P); [f_equal; eassumption |].
+    clear.
+    rewrite (sepcon_comm P).
+    rewrite !sepcon_assoc; auto.
+  + rewrite sepcon_emp; auto.
+  + simpl.
+    rewrite (sepcon_comm _ P).
+    auto.
+Qed.
+
+Ltac construct_fold_right_sepcon_rec :=
+  match goal with
+  | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
+         eapply construct_fold_right_sepcon_rec_sepcon;
+         [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
+  | |- construct_fold_right_sepcon_rec emp _ _ =>
+         apply construct_fold_right_sepcon_rec_emp
+  | _ =>
+         apply construct_fold_right_sepcon_rec_single
+  end.
+
+Ltac construct_fold_right_sepcon :=
+  apply construct_fold_right_sepcon_constr;
+  construct_fold_right_sepcon_rec.
 
 Ltac apply_find_core X :=
  match X with

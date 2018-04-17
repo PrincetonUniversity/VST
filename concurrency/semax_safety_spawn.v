@@ -56,13 +56,14 @@ Require Import VST.concurrency.semax_invariant.
 Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
+Import Events.
 
-Local Arguments getThreadR : clear implicits.
-Local Arguments getThreadC : clear implicits.
+Local Arguments getThreadR {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread : clear implicits.
-Local Arguments updThreadR : clear implicits.
-Local Arguments updThreadC : clear implicits.
+Local Arguments updThread {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -122,12 +123,16 @@ Proof.
     inversion L.
 Qed.
 
-Lemma lock_coherence_age_to n m tp Phi :
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
+Lemma lock_coherence_age_to n m (tp : jstate) Phi :
   lock_coherence (lset tp) Phi m ->
   lock_coherence (AMap.map (option_map (age_to n)) (lset tp)) (age_to n Phi) m.
 Proof.
   unfold lock_coherence.
-  intros C loc; spec C loc.
+  intros C loc; specialize (C loc).
   rewrite AMap_find_map_option_map.
   destruct (AMap.find _ _) as [[phi|]|].
   - destruct C as (A&B&C&R&D&E).
@@ -139,7 +144,7 @@ Proof.
       rewrite age_by_age_by.
       apply age_by_age_by_pred.
       omega.
-    * cut (level (age_to n Phi) <= 0). omega.
+    * cut (level (age_to n Phi) <= 0)%nat. omega.
       rewrite <-E. apply level_age_to_le.
   - destruct C as (A&B&C&R&D).
     repeat split; auto.
@@ -156,14 +161,14 @@ Qed.
 
 Lemma cond_approx_eq_app n A P1 P2 phi :
   cond_approx_eq n A P1 P2 ->
-  level phi < n ->
+  (level phi < n)%nat ->
   forall ts y z,
     app_pred (P1 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi ->
     app_pred (P2 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi.
 Proof.
   intros E lev ts y z.
   apply approx_eq_app_pred with n; auto.
-  spec E ts.
+  specialize (E ts).
   apply equal_f_dep with (x := y) in E.
   apply equal_f_dep with (x := z) in E.
   apply E.
@@ -195,7 +200,7 @@ Lemma safety_induction_spawn Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -289,7 +294,7 @@ Proof.
     join_sub_tac.
   }
 
-  spec gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default .
+  specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
   rewrite func_ptr_def in Func.
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
@@ -339,7 +344,7 @@ Proof.
   }
   *)
 
-  spec HEP PreA.
+  specialize (HEP PreA).
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
@@ -372,11 +377,11 @@ clear - Initcore.
       (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
-    { unfold SEM.Sem in *.
-      rewrite SEM.CLN_msem.
+    { simpl.
+      rewrite ClightSemantincsForMachines.CLN_msem.
       apply atex. }
-    { unfold SEM.Sem; rewrite SEM.CLN_msem; simpl.
-      unfold code in *.
+    { simpl.
+      rewrite ClightSemantincsForMachines.CLN_msem; simpl.
       instantiate (1:=None).
       specialize (Initcore (jm_ cnti compat)); clear - Initcore.
       simpl in Initcore. unfold j_initial_core in Initcore. 
@@ -404,9 +409,9 @@ clear - Initcore.
     rewrite joinlist_merge; eauto.
   }
 
-  apply (@mem_compatible_with_age n) in compat'.
+  apply (@mem_compatible_with_age _ n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
-  replace (S n - 1) with n by omega.
+  replace (S n - 1)%nat with n by omega.
 
   apply state_invariant_c with (mcompat := compat').
 
@@ -447,7 +452,7 @@ clear - Initcore.
       destruct (cl_initial_core (globalenv prog) (Vptr f_b Ptrofs.zero) (b :: nil)); inv Initcore; auto.
 
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
-      spec Safety jm ts.
+      specialize (Safety jm ts).
       intros Ejm.
       replace (level jm) with n in Safety; swap 1 2.
       { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
@@ -523,8 +528,8 @@ clear - Initcore.
 
     + (* safety of spawning thread *)
       subst j.
-      REWR. unshelve erewrite (@gsoAddCode i); auto. REWR. REWR.
-      unshelve erewrite (@gsoAddRes _ _ _ _ i); auto. REWR.
+      REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ i); auto. REWR. REWR.
+      unshelve erewrite (@gsoAddRes _ _ _ _ _ _ i); auto. REWR.
       intros c' afterex jm Ejm.
       specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
 
@@ -562,7 +567,7 @@ clear - Initcore.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
-      -- intros c' Ec'; spec safety c' Ec'.
+      -- intros c' Ec'; specialize (safety c' Ec').
          apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- destruct safety as (c_new & Einit & safety). exists c_new; split; auto.
@@ -593,3 +598,5 @@ clear - Initcore.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
 Qed. (* safety_induction_spawn *)
+
+End Sem.

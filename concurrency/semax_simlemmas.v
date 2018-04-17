@@ -58,6 +58,10 @@ Set Bullet Behavior "Strict Subproofs".
 
 (** Lemmas common to both parts of the progress/preservation simulation results *)
 
+Section Sem.
+
+Context {Sem : ClightSemantincsForMachines.ClightSEM}.
+
 Lemma lock_coherence_align lset Phi m b ofs :
   lock_coherence lset Phi m ->
   AMap.find (elt:=option rmap) (b, ofs) lset <> None ->
@@ -78,7 +82,7 @@ Proof.
   + tauto.
 Qed.
 
-Lemma lset_valid_access m m_any tp Phi b ofs
+Lemma lset_valid_access m m_any (tp : jstate) Phi b ofs
   (compat : mem_compatible_with tp m Phi) :
   lock_coherence (lset tp) Phi m_any ->
   AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None ->
@@ -91,7 +95,7 @@ Proof.
   - eapply lock_coherence_align; eauto.
 Qed.
 
-Lemma mem_compatible_with_age {n tp m phi} :
+Lemma mem_compatible_with_age {n} {tp : jstate} {m phi} :
   mem_compatible_with tp m phi ->
   mem_compatible_with (age_tp_to n tp) m (age_to n phi).
 Proof.
@@ -120,15 +124,15 @@ Qed.
 
 (* Most general lemma about preservation of matchfunspecs *)
 Lemma pures_eq_matchfunspecs e Gamma Phi Phi' :
-  (level Phi' <= level Phi) ->
+  (level Phi' <= level Phi)%nat ->
   pures_eq Phi Phi' ->
   matchfunspecs e Gamma Phi ->
   matchfunspecs e Gamma Phi'.
 Proof.
   intros lev (PS, SP) MFS b fsig cc A P Q E.
   simpl in E.
-  spec PS (b, Z0). spec SP (b, Z0). rewrite E in PS, SP.
-  spec MFS b fsig cc A.
+  specialize (PS (b, Z0)). specialize (SP (b, Z0)). rewrite E in PS, SP.
+  specialize (MFS b fsig cc A).
   simpl (func_at'' _ _ _ _ _ _ _) in MFS.
   destruct SP as (pp, EPhi).
   destruct pp as (A', pp').
@@ -197,7 +201,7 @@ Proof.
 Qed.
 
 Lemma matchfunspecs_age_to e Gamma n Phi :
-  (n <= level Phi) ->
+  (n <= level Phi)%nat ->
   matchfunspecs e Gamma Phi ->
   matchfunspecs e Gamma (age_to n Phi).
 Proof.
@@ -232,7 +236,7 @@ Proof.
 Qed.
 
 Lemma resource_decay_matchfunspecs e Gamma b Phi Phi' :
-  level Phi' <= level Phi ->
+  (level Phi' <= level Phi)%nat ->
   resource_decay b Phi Phi' ->
   matchfunspecs e Gamma Phi ->
   matchfunspecs e Gamma Phi'.
@@ -242,18 +246,18 @@ Proof.
 Qed.
 
 Lemma funassert_pures_eq G rho phi1 phi2 :
-  level phi1 >= level phi2 ->
+  (level phi1 >= level phi2)%nat ->
   pures_eq phi1 phi2 ->
   app_pred (funassert G rho) phi1 ->
   app_pred (funassert G rho) phi2.
 Proof.
   intros lev (PS, SP) (FA1, FA2); split.
   - intros id fs phi2' necr Gid.
-    spec FA1 id fs phi1 (necR_refl phi1) Gid.
+    specialize (FA1 id fs phi1 (necR_refl phi1) Gid).
     destruct FA1 as (b & ? & FAT). exists b; split; auto.
     apply pred_nec_hereditary with phi2; auto.
     clear -lev PS FAT. destruct fs; simpl in *.
-    spec PS (b, Z0). rewrite FAT in PS.
+    specialize (PS (b, Z0)). rewrite FAT in PS.
     exact_eq PS. f_equal. f_equal.
     simpl. f_equal. extensionality i a b' a1.
     rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)), fmap_comp.
@@ -261,9 +265,9 @@ Proof.
     rewrite approx_oo_approx'; auto.
     rewrite approx'_oo_approx; auto.
   - intros b fs phi2' necr. destruct fs eqn:Efs. intros [pp pat].
-    spec FA2 b fs phi1 (necR_refl phi1). subst fs.
+    specialize (FA2 b fs phi1 (necR_refl phi1)). subst fs.
     spec FA2; [ | auto]. simpl. clear -pat necr SP.
-    simpl in pat. spec SP (b, Z0).
+    simpl in pat. specialize (SP (b, Z0)).
     destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
     rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
     rewrite <-resource_at_approx, SP. reflexivity.
@@ -290,7 +294,7 @@ Proof.
 Qed.
 
 Lemma env_coherence_pures_eq Z Jspec ge G phi phi' :
-  level phi >= level phi' ->
+  (level phi >= level phi')%nat ->
   pures_eq phi phi' ->
   @env_coherence Z Jspec ge G phi ->
   @env_coherence Z Jspec ge G phi'.
@@ -307,7 +311,7 @@ Proof.
 Qed.
 
 Lemma env_coherence_resource_decay Z Jspec ge G b phi phi' :
-  level phi >= level phi' ->
+  (level phi >= level phi')%nat ->
   resource_decay b phi phi' ->
   @env_coherence Z Jspec ge G phi ->
   @env_coherence Z Jspec ge G phi'.
@@ -322,7 +326,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma islock_valid_access tp m b ofs p
+Lemma islock_valid_access (tp : jstate) m b ofs p
       (compat : mem_compatible tp m) :
   (align_chunk Mptr | ofs) ->
   lockRes tp (b, ofs) <> None ->
@@ -344,7 +348,7 @@ Proof.
   omega.
 Qed.
 
-Lemma LockRes_age_content1 js n a :
+Lemma LockRes_age_content1 (js : jstate) n a :
   lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
 Proof.
   cleanup.
@@ -389,12 +393,10 @@ Proof.
   apply join_comm; auto.
 Qed.
 
-Lemma Ejuicy_sem : juicy_sem = juicy_core_sem cl_core_sem.
+Lemma Ejuicy_sem : (@juicy_sem ClightSemantincsForMachines.ClightSem) = juicy_core_sem cl_core_sem.
 Proof.
   unfold juicy_sem; simpl.
-  f_equal.
-  unfold SEM.Sem, SEM.CLN_evsem.
-  rewrite SEM.CLN_msem.
+  rewrite ClightSemantincsForMachines.CLN_msem.
   reflexivity.
 Qed.
 
@@ -578,8 +580,8 @@ Proof.
   omega.
 Qed.
 
-Lemma m_phi_jm_ m tp phi i cnti compat :
-  m_phi (@jm_ tp m phi i cnti compat) = @getThreadR i tp cnti.
+Lemma m_phi_jm_ m (tp : jstate) phi i cnti compat :
+  m_phi (@jm_ _ tp m phi i cnti compat) = @getThreadR _ _ i tp cnti.
 Proof.
   reflexivity.
 Qed.
@@ -594,41 +596,6 @@ Lemma isVAL_join_sub r1 r2 : join_sub r1 r2 -> isVAL r1 -> isVAL r2.
 Proof.
   intros (r & j); inv j; simpl; tauto.
 Qed.
-
-Ltac join_sub_tac :=
-  try
-    match goal with
-      c : mem_compatible_with ?tp ?m ?Phi |- _ =>
-      match goal with
-      | cnt1 : containsThread tp _,
-        cnt2 : containsThread tp _,
-        cnt3 : containsThread tp _,
-        cnt4 : containsThread tp _ |- _ =>
-        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt4) Phi) by (apply compatible_threadRes_sub, c)
-      | cnt1 : containsThread tp _,
-        cnt2 : containsThread tp _,
-        cnt3 : containsThread tp _ |- _ =>
-        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c)
-      | cnt1 : containsThread tp _,
-        cnt2 : containsThread tp _ |- _ =>
-        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
-        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c)
-      | cnt1 : containsThread tp _ |- _ =>
-        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c)
-      end
-    end;
-  try
-    match goal with
-    | F : AMap.find (elt:=option rmap) ?loc (lset ?tp) = SSome ?phi,
-          c : mem_compatible_with ?tp _ ?Phi |- _
-      => assert (join_sub phi Phi) by eapply (@compatible_lockRes_sub tp loc phi F), c
-    end;
-  eauto using join_sub_trans.
 
 Lemma restrPermMap_Max' m p Hlt loc :
   access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.
@@ -688,8 +655,8 @@ Lemma pures_same_trans phi1 phi2 phi3 :
 Proof.
   intros A B.
   intros x k p.
-  spec A x k p.
-  spec B x k p.
+  specialize (A x k p).
+  specialize (B x k p).
   tauto.
 Qed.
 
@@ -717,20 +684,20 @@ Proof.
     pose proof @age_resource_at _ _ l A as Hx.
     pose proof @age_resource_at _ _ l Ay as Hy.
     rewrite Hx, Hy.
-    spec E l.
+    specialize (E l).
     destruct (x @ l), (y @ l); split; intro; simpl in *; breakhyps.
-    + spec E k0 p. destruct E as [_ E]. autospec E. discriminate.
-    + spec E k1 p0. destruct E as [_ E]. autospec E. discriminate.
-    + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
-    + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
-    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
-    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
+    + specialize (E k0 p). destruct E as [_ E]. autospec E. discriminate.
+    + specialize (E k1 p0). destruct E as [_ E]. autospec E. discriminate.
+    + specialize (E k0 p). destruct E as [E _]. autospec E. discriminate.
+    + specialize (E k0 p). destruct E as [E _]. autospec E. discriminate.
+    + specialize (E k0 p). destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
+    + specialize (E k0 p). destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
   - (* reflexivity case *)
     intuition eauto.
   - (* transitivity case *)
     intros x' Lx Ex.
-    spec IHn1 x' Lx Ex. destruct IHn1 as (y' & Ly & Ey & ny).
-    spec IHn2 y' Ly Ey. destruct IHn2 as (z' & Lz & Ez & nz).
+    specialize (IHn1 x' Lx Ex). destruct IHn1 as (y' & Ly & Ey & ny).
+    specialize (IHn2 y' Ly Ey). destruct IHn2 as (z' & Lz & Ez & nz).
     exists z'. split; auto. split; auto. apply necR_trans with y'; auto.
 Qed.
 
@@ -776,7 +743,7 @@ Proof.
   apply E.
 Qed.
 
-Lemma approx'_approx n n' x : n' <= n -> approx n (approx n' x) = approx n' x.
+Lemma approx'_approx n n' x : (n' <= n)%nat -> approx n (approx n' x) = approx n' x.
 Proof.
   intros l.
   pose proof approx'_oo_approx _ _ l as E.
@@ -784,7 +751,7 @@ Proof.
   apply E.
 Qed.
 
-Lemma approx_approx' n n' x : n' <= n -> approx n' (approx n x) = approx n' x.
+Lemma approx_approx' n n' x : (n' <= n)%nat -> approx n' (approx n x) = approx n' x.
 Proof.
   intros l.
   pose proof approx_oo_approx' _ _ l as E.
@@ -812,7 +779,7 @@ Proof.
     inversion L.
 Qed.
 
-Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_with tp m PHI) n
+Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate) PHI (mcompat : mem_compatible_with tp m PHI) n
   i (cnti : containsThread tp i) := forall (ora : Z),
     match getThreadC cnti with
     | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
@@ -842,7 +809,7 @@ Proof.
 Qed.
 
 Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
-  (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
+  (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
@@ -858,13 +825,13 @@ Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat n j cntj)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, ge, (sch, tp)).
+  state_bupd (state_invariant Jspec Gamma n) (m, ge, (tr, sch, tp)).
 Proof.
   intros; apply state_inv_upd with (mcompat0 := mcompat); auto; intros.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
   assert (join_all tp PHI) as Hj by (apply mcompat).
   rewrite join_all_joinlist in Hj.
-  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti := cnti)].
+  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti0 := cnti)].
   destruct Hj as (? & ? & Hphi).
   pose proof (ghost_of_join _ _ _ Hphi) as Hghost.
   destruct H; destruct (join_assoc Hghost H) as (c & HC & Hc).
@@ -893,12 +860,12 @@ Proof.
     - assert (forall t, containsThread (updThreadR cnti phi') t <-> containsThread tp t) as Hiff.
       { split; [apply cntUpdateR' | apply cntUpdateR]. }
       exists Hiff; split; auto; intros.
-      split; [unshelve erewrite gThreadRC; auto|].
+      split; [unshelve setoid_rewrite gThreadRC; auto|].
       destruct (eq_dec i t0).
       + subst.
-        setoid_rewrite (@JTP.gssThreadRes _ _ _ (getThreadC cnt)).
+        setoid_rewrite (@gssThreadRes _ _ _ _ _ (getThreadC cnt)).
         replace cnt with cnti by apply proof_irr; auto.
-      + setoid_rewrite (@JTP.gsoThreadRes _ _ _ _ _ n (getThreadC cnt)); auto. }
+      + setoid_rewrite (@gsoThreadRes _ _ _ _ _ _ _ n (getThreadC cnt)); split; reflexivity. }
   exists _, _, Hupd; split.
   - replace (level (getThreadR cnti)) with (level PHI) in HC' by omega.
     rewrite ghost_fmap_fmap, approx_oo_approx in HC'; eauto.
@@ -912,12 +879,12 @@ Proof.
       unfold jm_; f_equal.
       apply personal_mem_ext; simpl.
       rewrite eqtype_refl; auto.
-    + assert (getThreadR cntj = @getThreadR _ tp cntj) as Heq.
+    + assert (getThreadR cntj = @getThreadR _ _ _ tp cntj) as Heq.
       { simpl.
         rewrite eqtype_neq; auto. }
       rewrite Heq.
       specialize (Hrest _ cntj n ora).
-      destruct (@getThreadC j tp cntj); auto.
+      destruct (@getThreadC _ _ j tp cntj); auto.
       exact_eq Hrest; f_equal.
       apply juicy_mem_ext; [|rewrite !m_phi_jm_; auto].
       unfold jm_, personal_mem, m_dry, juicyRestrict.
@@ -930,6 +897,43 @@ assert (cnti = Htid) by apply proof_irr; subst Htid).
 assert (ctn = cnti) by apply proof_irr; subst cnt).
 destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
 *)
+
+End Sem.
+
+Ltac join_sub_tac :=
+  try
+    match goal with
+      c : mem_compatible_with ?tp ?m ?Phi |- _ =>
+      match goal with
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _,
+        cnt3 : containsThread tp _,
+        cnt4 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt4) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _,
+        cnt3 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c)
+      end
+    end;
+  try
+    match goal with
+    | F : AMap.find (elt:=option rmap) ?loc (lset ?tp) = Some (Some ?phi),
+          c : mem_compatible_with ?tp _ ?Phi |- _
+      => assert (join_sub phi Phi) by eapply (@compatible_lockRes_sub tp loc phi F), c
+    end;
+  eauto using join_sub_trans.
 
 Tactic Notation "REWR" :=
   first

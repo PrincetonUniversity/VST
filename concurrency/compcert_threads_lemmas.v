@@ -29,13 +29,13 @@ Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.HybridMachineSig.
-Require Import VST.concurrency.HybridMachine_lemmas.
-Require Import VST.concurrency.HybridMachine_step_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.mem_obs_eq.
 
-Module SimDefs (SEM: Semantics)
+Module SimDefs
        (SemAxioms: SemanticsAxioms SEM)
        (Machine: MachinesSig with Module SEM := SEM)
        (AsmContext: AsmContext SEM Machine)
@@ -47,7 +47,7 @@ Module SimDefs (SEM: Semantics)
 
   (* Memory Imports*)
   Import MemObsEq ValObsEq MemoryLemmas.
-  Import CI ValueWD MemoryWD Renamings.
+  Import CoreInjections ValueWD MemoryWD Renamings.
 
   (* Machine and Context Imports*)
   Import Machine DryMachine ThreadPool AsmContext HybridMachine.Concur.mySchedule.
@@ -60,6 +60,10 @@ Module SimDefs (SEM: Semantics)
   Notation fmachine_step := ((corestep fine_semantics) the_ge).
   Notation CoarseSem := coarse_semantics.
   Hint Unfold DryConc.MachStep FineConc.MachStep.
+
+  Section SimDefs.
+
+  Context {Sem : Semantics}.
 
   (** *** Simulations between individual threads. *)
 
@@ -255,6 +259,8 @@ Module SimDefs (SEM: Semantics)
     exists tr',
       (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf) mf) /\
       sim tpc mc tpf mf xs f fg fp (S fuelF).
+
+  End SimDefs.
 
 End SimDefs.
 

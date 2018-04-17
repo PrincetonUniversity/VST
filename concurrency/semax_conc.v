@@ -72,8 +72,8 @@ Proof.
     auto.
 Qed.
 
-(*Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
-Ad_itted. (* lock_inv_later *)*)
+Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
+Admitted. (* lock_inv_later *)
 
 Lemma selflock'_eq Q sh p : selflock' Q sh p =
   selflock_fun Q sh p (selflock' Q sh p).
@@ -477,10 +477,10 @@ Proof.
   apply selflock_eq.
 Qed.
 
-(*
+
 Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
 Proof.
-Ad_itted.
+Admitted.
 
 Lemma later_rec_lock : forall sh v (Q R: mpred), rec_inv sh v Q R -> rec_inv sh v (later Q) (later R).
 Proof.
@@ -488,7 +488,6 @@ Proof.
   rewrite H at 1.
   rewrite later_sepcon, lock_inv_later_eq; auto.
 Qed.
-*)
 
 Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)

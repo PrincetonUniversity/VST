@@ -77,5 +77,5 @@ Program Definition CLN_coop_sem :
 apply Build_CoopCoreSem with (coopsem := cl_core_sem).
 apply cln_forward.
 admit. (*This is the new readonly condition which should be easy to prove.*)
-Admitted.
+Abort.
 *)

@@ -2,6 +2,7 @@
 
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrnat.
 Require Import VST.concurrency.HybridMachineSig.
+Require Import VST.concurrency.threadPool.
 Require Import VST.msl.Axioms. (*for proof_irr *)
 
 Import HybridMachineSig.

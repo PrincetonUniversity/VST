@@ -9,7 +9,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.semantics.
-Require Import VST.concurrency.threadPool. Export threadPool.
+Require Import VST.concurrency.threadPool.
 
 Require Import VST.concurrency.machine_semantics.
 Require Import VST.concurrency.permissions.
@@ -25,12 +25,12 @@ Notation EXIT :=
 Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 Notation MKLOCK :=
-  (EF_external "makelock" (mksignature (AST.Tint::nil) None cc_default)).
+  (EF_external "makelock" (mksignature (AST.Tptr::nil) None cc_default)).
 Notation FREE_LOCK :=
-  (EF_external "freelock" (mksignature (AST.Tint::nil) None cc_default)).
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
+  (EF_external "freelock" (mksignature (AST.Tptr::nil) None cc_default)).
+Notation LOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
+Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Module Events.
@@ -125,13 +125,25 @@ End Events.
 
 Module HybridMachineSig.
   Import Events ThreadPool.
+
+
+  (** Used to erase permissions of the machine when needed, e.g. fine
+  machine erases max permissions, bare machine erases all permissions
+  *)
+  
+  Class DiluteMem :=
+    { diluteMem: mem -> mem;
+      diluteMem_valid: forall m,
+          forall b, Memory.Mem.valid_block (diluteMem m) b <-> Memory.Mem.valid_block m b
+    }.
   
   Section HybridMachineSig.
     
     Variable n: nat.
     Context {resources: Resources}
             {Sem: Semantics}
-            {ThreadPool : ThreadPool.ThreadPool}.
+            {ThreadPool : ThreadPool.ThreadPool}
+            {DilMem : DiluteMem}.
     Notation thread_pool := ThreadPool.t.
     Notation C:= (semC).
     Notation G:= (semG).
@@ -142,7 +154,6 @@ Module HybridMachineSig.
       {
         richMem: Type
         ; dryMem: richMem -> mem
-        ; diluteMem : mem -> mem
                               
         (** The thread pool respects the memory*)
         ; mem_compatible: thread_pool -> mem -> Prop
@@ -296,7 +307,7 @@ Module HybridMachineSig.
           (Hcmpt: mem_compatible ms m)
           (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
           machine_step U tr ms m (yield U)
-                       (tr ++ (List.map (fun mev => internal tid mev) ev)) ms' m'
+                       (tr ++ (List.map (fun mev => internal tid mev) ev)) ms' (diluteMem m')
     | suspend_step:
         forall tid U U' ms ms' m tr
           (HschedN: schedPeek U = Some tid)
@@ -405,7 +416,7 @@ Module HybridMachineSig.
             (Htid: containsThread ms tid)
             (Hcmpt: mem_compatible ms m)
             (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
-            internal_step U ms m ms' m'.
+            internal_step U ms m ms' (diluteMem m').
 
       Inductive external_step {genv:G}:
         schedule -> event_trace -> machine_state -> mem -> schedule ->
@@ -537,6 +548,12 @@ Module HybridMachineSig.
               {ThreadPool : ThreadPool.ThreadPool}
               {machineSig: MachineSig}.
 
+      Instance DilMem : DiluteMem :=
+        {| diluteMem := id |}.
+      intros.
+      split; auto.
+      Defined.
+      
       Instance scheduler : Scheduler :=
         {| yield := fun x => x |}.
 
@@ -586,6 +603,8 @@ Module HybridMachineSig.
       Notation machine_state := thread_pool.
       Notation schedule := (seq nat).  
       Notation event_trace := (seq machine_event).
+
+      Context {dilMem : DiluteMem}.
       
       Instance scheduler : Scheduler :=
         {| yield := fun x => schedSkip x |}.
@@ -610,98 +629,3 @@ Module HybridMachineSig.
 End HybridFineMachine.
 
 End HybridMachineSig.
-
-(*Module Events <: EventSig
-   with Module TID:=NatTID.
-
- Module TID := NatTID.
- Import TID event_semantics.
-
- (** Synchronization Events.  The release/acquire cases include the
-footprints of permissions moved  when applicable*)
- Definition evRes := (access_map * access_map)%type.
- Definition evDelta := (delta_map * delta_map)%type.
-
- Inductive sync_event : Type :=
- | release : address (*-> option (evRes * evDelta)*) -> option evRes -> sync_event
- | acquire : address -> option evDelta (*option (evRes * evDelta) -> option evRes*)  -> sync_event
- | mklock :  address -> sync_event
- | freelock : address -> sync_event
- | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
- | failacq: address -> sync_event.
-
- (** Machine Events *)
-  Inductive machine_event : Type :=
-  | internal: TID.tid -> mem_event -> machine_event
-  | external : TID.tid -> sync_event -> machine_event.
-
-  Definition thread_id ev : tid :=
-    match ev with
-    | internal i _ => i
-    | external i _ => i
-    end.
-
-  Inductive act : Type :=
-  | Read : act
-  | Write : act
-  | Alloc : act
-  | Free : act
-  | Release : act
-  | Acquire : act
-  | Mklock : act
-  | Freelock : act
-  | Failacq : act
-  | Spawn : act.
-
-  Definition is_internal ev :=
-    match ev with
-    | internal _ _ => true
-    | _ => false
-    end.
-
-  Definition is_external ev :=
-    match ev with
-    | external _ _ => true
-    | _ => false
-    end.
-
-  Definition action ev : act :=
-    match ev with
-    | internal _ mev =>
-      match mev with
-      | event_semantics.Write _ _ _ => Write
-      | event_semantics.Read _ _ _ _ => Read
-      | event_semantics.Alloc _ _ _ => Alloc
-      | event_semantics.Free _ => Free
-      end
-    | external _ sev =>
-      match sev with
-      | release _ _ => Release
-      | acquire _ _ => Acquire
-      | mklock _ => Mklock
-      | freelock _ => Freelock
-      | failacq _ => Failacq
-      | spawn _ _ _ => Spawn
-      end
-    end.
-
-  Definition location ev : option (address*nat) :=
-    match ev with
-    | internal _ mev =>
-      match mev with
-      | event_semantics.Write b ofs vs => Some ((b, ofs), length vs)
-      | event_semantics.Read b ofs _ vs => Some ((b, ofs), length vs)
-      | _ => None
-      end
-    | external _ sev =>
-      match sev with
-      | release addr _ => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
-      | mklock addr => Some (addr, lksize.LKSIZE_nat)
-      | freelock addr => Some (addr, lksize.LKSIZE_nat)
-      | spawn addr _ _ => Some (addr, lksize.LKSIZE_nat)
-      | failacq addr => Some (addr, lksize.LKSIZE_nat)
-      end
-    end.
-
-End Events.*)

@@ -22,6 +22,7 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.semantics.
@@ -42,14 +43,16 @@ high-level or low-level languages*)
 Module StepLemmas.
   Import HybridMachine ThreadPool.
   Import DryHybridMachine HybridMachineSig.
-  (* Module OP := OrdinalPool. *)
-  Section StepLemmas.
-    Context {asmSem : Semantics}.
-    Context {Sch: Scheduler}.
 
-    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-    Instance dryMachSig: @HybridMachineSig.MachineSig DryHybridMachine.resources
-                                                      asmSem dryPool := DryHybridMachine.DryHybridMachineSig.
+  Section StepLemmas.
+    Context {asmSem : Semantics}
+            {Sch: Scheduler}
+            {DilMem: DiluteMem}.
+
+    Existing Instance OrdinalPool.OrdinalThreadPool.
+    Existing Instance DryHybridMachine.dryResources.
+
+    Existing Instance DryHybridMachine.DryHybridMachineSig.
     
   (** [mem_compatible] is preserved by [updThreadC] *)
   Lemma updThreadC_compatible:
@@ -300,14 +303,6 @@ Module StepLemmas.
         by eauto.
   Qed.
 
-  Lemma diluteMem_valid :
-    forall b m,
-      Mem.valid_block m b <-> Mem.valid_block (diluteMem m) b.
-  Proof.
-    intros.
-    split; auto.
-  Qed.
-
   Lemma safeC_invariant:
     forall tpc mc n the_ge
       (Hn: n > 0)
@@ -376,8 +371,6 @@ Module StepLemmas.
 (** ** Definition of internal steps *)
   Module InternalSteps.
 
-  (* Import SEM event_semantics SemAxioms. *)
-  (* Import Machine DryMachine DryConc ThreadPool. *)
     Import StepLemmas ThreadPool.
     Import CoreLanguage HybridMachine.DryHybridMachine HybridMachineSig.
 
@@ -389,8 +382,9 @@ Module StepLemmas.
 
       Notation schedule := (seq nat).
 
-      Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-      Instance dryMachSig: @HybridMachineSig.MachineSig resources Sem dryPool := DryHybridMachineSig.
+      Existing Instance OrdinalPool.OrdinalThreadPool.
+      Existing Instance dryResources.
+      Existing Instance DryHybridMachineSig.
 
       (*Nick: not sure what these are about, but they probably shouldn't be here *)
      (* Lemma initial_core_nomem:
@@ -1678,14 +1672,14 @@ Module StepType.
          event_semantics HybridMachine DryHybridMachine HybridMachineSig InternalSteps.
   (** Distinguishing the various step types of the concurrent machine *)
   
-  Section StepLemmas.
+  Section StepType.
     Context {Sem : Semantics}
             {Sch: Scheduler}
             {ge: semG}.
 
-    Instance res : Resources := resources.
-    Instance dryPool : ThreadPool.ThreadPool := OrdinalPool.OrdinalThreadPool.
-    Instance dryMachSig: @HybridMachineSig.MachineSig resources Sem dryPool := DryHybridMachineSig.
+    Existing Instance dryResources.
+    Existing Instance OrdinalPool.OrdinalThreadPool.
+    Existing Instance DryHybridMachineSig.
   
   Inductive StepType : Type :=
     Internal | Concurrent | Halted | Suspend.
@@ -1802,19 +1796,20 @@ Module StepType.
   Section FineMachineInternal.
     Context {initU : seq nat}
             {init_mem : option Memory.Mem.mem}
-            {semAx: CoreLanguage.SemAxioms}.
+            {semAx: CoreLanguage.SemAxioms}
+            {dilMem: DiluteMem}.
     
   Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem) ge)).
 
   (*TODO: maybe move to tactics *)
   (** Solves absurd cases from fine-grained internal steps *)
   Ltac absurd_internal Hstep :=
-    inversion Hstep; try inversion Htstep; subst; simpl in *;
+    inversion Hstep; try inversion Htstep; subst; Tactics.pf_cleanup; simpl in *;
     try match goal with
         | [H: Some _ = Some _ |- _] => inversion H; subst
         end; Tactics.pf_cleanup;
     repeat match goal with
-           | [H: OrdinalPool.getThreadC ?Pf = _, Hint: ?Pf$_ @ I |- _] =>
+           | [H: getThreadC ?Pf = _, Hint: ?Pf$_ @ I |- _] =>
              unfold getStepType in Hint; simpl in *;
                rewrite H in Hint; simpl in Hint
            | [H1: match ?Expr with _ => _ end = _,
@@ -1829,6 +1824,8 @@ Module StepType.
                  [discriminate | by exfalso] |
                 rewrite Hcontra in H1; by exfalso]
            end; try discriminate; try (exfalso; by auto).
+
+  Opaque getThreadC updThreadC containsThread updThread updLockSet addThread remLockSet getThreadR lockSet.
   
   Lemma fstep_containsThread' :
     forall tp tp' m m' i j U tr tr'
@@ -1884,58 +1881,61 @@ Module StepType.
     (* eapply StepLemmas.mem_compatible_setMaxPerm. *)
     destruct (at_external semSem ge c mrestr) eqn:?; inversion Hinternal.
     destruct (halted semSem c); inversion H0.
+    eapply StepLemmas.mem_compatible_setMaxPerm.
     eapply corestep_compatible; simpl; eauto.
     (*TODO: absurd_internal is kind of broken now, doing this proof manually *)
     destruct (halted semSem c);
       destruct (at_external semSem ge c mrestr);
       try discriminate.
   Admitted.
-
+  
   Lemma gsoThreadC_fstepI:
     forall tp tp' m m' i j U tr tr'
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
       (pfi: containsThread tp i)
-      (Hinternal: pfi @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m')
-      (Hneq: i <> j),
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pfi).1) in
+      forall (Hinternal: pfi$mrestr @ I)
+        (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m')
+        (Hneq: i <> j),
       getThreadC pfj = getThreadC pfj'.
   Proof.
     intros.
     absurd_internal Hstep;
-      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try (erewrite gsoThreadCC with (cntj' := pfj');
-             by eauto);
-      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal;
-     destruct (halted Sem c); inversion H0; clear H0;
-      auto;
-      erewrite gsoThreadCode with (cntj' := pfj');
-        by eauto.
+            by eauto);
+     try (erewrite gsoThreadCode with (cntj := pfj);
+            by eauto);
+     try reflexivity.
   Qed.
 
   Lemma gsoLockSet_fstepI:
     forall tp tp' m m' i U tr tr'
       (pfi: containsThread tp i)
-      (Hinternal: pfi @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
-      lockSet tp = lockSet tp'.
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pfi).1) in
+      forall (Hinternal: pfi$mrestr @ I)
+        (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
+        lockSet tp = lockSet tp'.
   Proof.
     intros.
     absurd_internal Hstep;
       try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
       try (erewrite gsoThreadCLock;
              by eauto);
-      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal;
-     destruct (halted Sem c); inversion H0; clear H0;
-     auto;
-      erewrite gsoThreadLock;
-        by eauto.
+    try (erewrite gsoThreadLock;
+           by eauto).
+    reflexivity.
   Qed.
 
+  Opaque lockRes.
   Lemma gsoLockRes_fstepI :
-    forall (tp tp' : thread_pool) (m m' : mem) (i : tid) tr tr'
-      (U : seq tid) (pfi : containsThread tp i)
-      (Hinternal: pfi @ I)
+    forall tp tp' (m m' : mem) i tr tr'
+      U (pfi : containsThread tp i)
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pfi).1) in
+      forall (Hinternal: pfi$mrestr @ I)
       (Hstep: fmachine_step (i :: U,tr, tp) m (U, tr', tp') m'),
       lockRes tp' = lockRes tp.
   Proof.
@@ -1945,9 +1945,7 @@ Module StepType.
      extensionality addr;
       try (by rewrite gsoThreadCLPool);
       try (by rewrite gsoThreadLPool).
-      destruct (at_external Sem the_ge c Mem.empty) eqn:?; inversion Hinternal; clear Hinternal.
-     destruct (halted Sem c); inversion H0; clear H0.
-     inversion Hcant. 
+    reflexivity.
   Qed.
 
   Lemma fmachine_step_disjoint_val :
@@ -1957,24 +1955,25 @@ Module StepType.
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
       (Hcomp: mem_compatible tp m)
-      (Hcomp': mem_compatible tp' m')
-      (Hinv: pfi @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr', tp') m') b ofs
-      (Hreadable:
-         Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
-         Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
-      Maps.ZMap.get ofs (Mem.mem_contents m) # b =
-      Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+      (Hcomp': mem_compatible tp' m'),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) pfi).1) in
+      forall (Hinternal: pfi$mrestr @ I)
+        (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr', tp') m') b ofs
+        (Hreadable:
+           Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
+           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
   Proof.
     intros.
     absurd_internal Hstep;
-      try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj);
-      try reflexivity;
+      try reflexivity.
+    admit. (*TODO:initial_core stuff *)
     apply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val;
         by (simpl; eauto).
-  Qed.
-
+  Admitted.
+  
   Lemma fstep_valid_block:
     forall tpf tpf' mf mf' i U b tr tr'
       (Hvalid: Mem.valid_block mf b)
@@ -1984,19 +1983,24 @@ Module StepType.
     intros.
     inversion Hstep; clear Hstep; subst; auto.
     inversion Htstep; clear Htstep; subst.
-    apply initial_core_nomem in Hinitial; subst om. simpl. auto.
-    erewrite <- diluteMem_valid.
+    admit. (*initial core*)
+    erewrite diluteMem_valid.
     inversion Htstep; subst; eauto.
     eapply CoreLanguage.ev_step_validblock; eauto.
     simpl in *. inversion HschedN; clear HschedN; subst. clear HschedS.
-    admit. (* Check with Santiago about how to prove this *)
- Admitted.
-
-  End StepType.
+    inversion Htstep; subst;
+      eauto;
+    eapply Mem.store_valid_block_1; eauto.
+  Admitted.
+  End FineMachineInternal.
 
   Hint Resolve fmachine_step_compatible fmachine_step_invariant
-       fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
+       StepLemmas.step_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
 
-  Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
+  (* Hint Rewrite gsoThreadR_step permission_at_step : fstep. *)
+  
+  End StepType.
+
+
 
 End StepType.

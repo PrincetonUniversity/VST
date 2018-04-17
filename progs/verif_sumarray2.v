@@ -117,6 +117,7 @@ pose proof (Zlength_nonneg v1').
 pose proof (Zlength_nonneg v2').
 apply split2_data_at_Tarray with (v1'++v2'); auto.
 omega.
+list_solve.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
@@ -135,6 +136,7 @@ assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_content
  rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
     by now autorewrite with sublist.
 erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
@@ -146,8 +148,7 @@ forward_call (*  s = sumarray(four+2,2); *)
  entailer!.
  rewrite field_address0_offset. reflexivity.
  auto with field_compatible.
-+
- split. auto. computable.
++ split. auto. computable.
 +
   gather_SEP 1 2.
   erewrite <- (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.

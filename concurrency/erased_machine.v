@@ -43,15 +43,12 @@ Module BareMachine.
     Notation G:= (@semG Sem).
     Notation semSem:= (@semSem Sem).
 
-    Instance ordinalPool : (@ThreadPool.ThreadPool resources Sem) := @OrdinalPool.OrdinalThreadPool resources Sem.
-
+    Existing Instance OrdinalPool.OrdinalThreadPool.
+    
     (** Memories*)
     Definition richMem: Type := mem.
     Definition dryMem: richMem -> mem:= id.
-
-    (** Permissions on the memory are erased *)
-    Definition diluteMem: mem -> mem := erasePerm.
-
+    
     Notation thread_pool := (@t resources Sem).
 
     (** The state respects the memory*)
@@ -320,11 +317,10 @@ Module BareMachine.
       end.
 
     (** The signature of the Bare Machine *)
-    Definition BareMachineSig: @HybridMachineSig.MachineSig resources Sem ordinalPool :=
-      (@HybridMachineSig.Build_MachineSig resources Sem ordinalPool
+    Instance BareMachineSig: HybridMachineSig.MachineSig :=
+      (HybridMachineSig.Build_MachineSig
                                        richMem
                                        dryMem
-                                       diluteMem
                                        mem_compatible
                                        invariant
                                        threadStep
@@ -340,5 +336,6 @@ Module BareMachine.
       ).
 
   End BareMachine.
+  Set Printing All.
 End BareMachine.
 

@@ -2,7 +2,7 @@
 (** * Definitions and properties of machine executions *)
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.event_semantics.
 
@@ -27,22 +27,24 @@ Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.HybridMachine_lemmas.
-Require Import VST.concurrency.HybridMachine_step_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
 Require Import Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
+Module Executions (SemAxioms: SemanticsAxioms SEM)
        (Machines: MachinesSig with Module SEM := SEM)
        (AsmContext: AsmContext SEM Machines).
-  Module StepLemmas := StepLemmas SEM Machines.
-  Module StepType := StepType SEM SemAxioms Machines AsmContext.
+  Module StepLemmas := StepLemmas Machines.
+  Module StepType := StepType SemAxioms Machines AsmContext.
   Import Machines DryMachine StepLemmas StepType ThreadPool AsmContext.
   Import event_semantics.
   Import Events.
+
+  Section Executions.
 
   (** Reflexive-transitive closure of FineConc's step relation*)
   Inductive multi_fstep :
@@ -3877,5 +3879,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           econstructor; eauto.
           rewrite! app_assoc; eauto.
   Qed.
+
+  End Executions.
 
 End Executions.

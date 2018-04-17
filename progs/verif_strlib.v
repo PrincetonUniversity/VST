@@ -176,11 +176,15 @@ Proof.
 intros.
 unfold tarray.
 erewrite split2_data_at_Tarray.
-3: rewrite sublist_same; [eassumption | auto | auto ].
-3: rewrite sublist_app1.
-3: rewrite sublist_same; [eassumption | auto | auto ].
-5: rewrite sublist_app2.
-5: rewrite sublist_same; [eassumption | auto | auto ].
+4: rewrite sublist_same; [eassumption | auto | auto ].
+4: rewrite sublist_app1.
+4: rewrite sublist_same; [eassumption | auto | auto ].
+2: rewrite Zlength_app in H by list_solve; list_solve.
+2: rewrite Zlength_app in H by list_solve; list_solve.
+2: list_solve.
+2: omega.
+2: rewrite sublist_app2.
+2: rewrite sublist_same; [eassumption | auto | auto ].
 auto.
 all: rewrite Zlength_app in H; rep_omega.
 Qed.

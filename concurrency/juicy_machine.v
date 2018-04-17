@@ -49,6 +49,7 @@ Require Import VST.veric.res_predicates. (*For the precondition of lock make and
     Require Import VST.concurrency.lksize.  *)
 
 Require Import (*compcert_linking*) VST.concurrency.permissions VST.concurrency.threadPool.
+Import OrdinalPool.
 
 (* There are some overlaping definition conflicting.
    Here we fix that. But this is obviously ugly and
@@ -68,15 +69,15 @@ Notation "x < y" := (x < y)%nat.
 End LockPool.
 Export LockPool.*)
 
-Module LocksAndResources.
-  Definition res := rmap.
-  Definition lock_info: Type := option rmap.
-End LocksAndResources.
+Instance LocksAndResources : Resources := { res := rmap; lock_info := option rmap }.
 
-Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
-    with Module TID:= NatTID with Module SEM:=SEM
-    with Module RES:= LocksAndResources.
-  Include (OrdinalPool SEM LocksAndResources).
+Module ThreadPool.
+  Section ThreadPool.
+
+  Context {Sem: Semantics}.
+
+  Instance RmapThreadPool : ThreadPool.ThreadPool := OrdinalThreadPool.
+
   (** The Lock Resources Set *)
 
   Definition is_lock t:= fun loc => AMap.mem loc (lset t).
@@ -94,32 +95,29 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
      (pool tp)
      (perm_maps tp)
      (AMap.remove loc (lset tp)). *)
+  End ThreadPool.
 
 End ThreadPool.
 
 Module Concur.
 
-
   Module mySchedule := ListScheduler NatTID.
 
   (** Semantics of the coarse-grained juicy concurrent machine*)
-  Module JuicyMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
-      with Module ThreadPool.TID:=mySchedule.TID
-      with Module ThreadPool.SEM:= SEM
-      with Module ThreadPool.RES := LocksAndResources
-      with Module Events.TID := NatTID.
-      Import LocksAndResources.
-      (*Notation lockMap:=(address -> option (option rmap)).*)
-      Notation lockMap:= (AMap.t (option rmap)).
-      Notation SSome x:= (Some (Some x)).
-      Notation SNone:= (Some None).
-      Module Events := Events.
-      Module ThreadPool := ThreadPool SEM.
+  Section JuicyMachineShell.
 
-    Import ThreadPool.
-    Import ThreadPool.SEM.
     Import event_semantics Events.
-    Notation tid := NatTID.tid.
+
+
+    Context {Sem: Semantics}.
+
+    Notation C:= (semC).
+    Notation G:= (semG).
+    Notation tid:= nat.
+
+    Notation lockMap:= (AMap.t (option rmap)).
+    Notation SSome x:= (Some (Some x)).
+    Notation SNone:= (Some None).
 
     (** Memories*)
     Definition richMem: Type:= juicy_mem.
@@ -130,11 +128,11 @@ Module Concur.
     (* This all comes from the SEM. *)
     (*Parameter G : Type.
     Parameter Sem : CoreSemantics G code mem.*)
-    Notation the_sem := (csem (event_semantics.msem Sem)).
+    Notation the_sem := (csem (event_semantics.msem semSem)).
 
     (*thread pool*)
     Import ThreadPool.
-    Notation thread_pool := (ThreadPool.t).
+    Notation thread_pool := (@ThreadPool.t _ _ RmapThreadPool).
 
     (** Machine Variables*)
     Definition lp_id : tid:= (0)%nat. (*lock pool thread id*)
@@ -186,13 +184,13 @@ Module Concur.
     Qed.
 
     (*Join juice from all threads *)
-    Definition getThreadsR tp:=
+    Definition getThreadsR (tp : thread_pool):=
       map (perm_maps tp) (enums_equality.enum (num_threads tp)).
 
     Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
         app_pred emp r.  (*Or is is just [amp r]?*)
-    Definition join_threads tp r:= join_list (getThreadsR tp) r.
+    Definition join_threads (tp : thread_pool) r:= join_list (getThreadsR tp) r.
 
     Lemma getThreadsR_addThread tp v1 v2 phi :
       getThreadsR (addThread tp v1 v2 phi) = getThreadsR tp ++ phi :: nil.
@@ -206,7 +204,7 @@ Module Concur.
     Definition join_locks tp r:= join_list' (map snd (AMap.elements (lset tp))) r.
 
     (*Join all the juices*)
-    Inductive join_all: t -> res -> Prop:=
+    Inductive join_all: thread_pool -> res -> Prop:=
       AllJuice tp r0 r1 r:
         join_threads tp r0 ->
         join_locks tp r1 ->
@@ -252,7 +250,7 @@ Module Concur.
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->
                     Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
 
-    Record mem_compatible_with' tp m all_juice : Prop :=
+    Record mem_compatible_with' (tp : thread_pool) m all_juice : Prop :=
       {   juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
         ; loc_writable : lockSet_Writable (lockGuts tp) m
@@ -266,12 +264,12 @@ Module Concur.
 
     Lemma jlocinset_lr_valid: forall ls juice,
         lockSet_in_juicyLocks ls juice ->
-        lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
+        lr_valid (AMap.find (elt:=option rmap)^~ (ls)).
     Proof.
       unfold lr_valid, lockSet_in_juicyLocks; intros.
-      destruct (AMap.find (elt:=lock_info) (b, ofs) ls) eqn:MAP.
+      destruct (AMap.find (elt:=option rmap) (b, ofs) ls) eqn:MAP.
       - intros ofs0 ineq.
-        destruct (AMap.find (elt:=lock_info) (b, ofs0) ls) eqn:MAP'; try reflexivity.
+        destruct (AMap.find (elt:=option rmap) (b, ofs0) ls) eqn:MAP'; try reflexivity.
         assert (H':=H).
         specialize (H (b,ofs) ltac:(rewrite MAP; auto)).
         destruct H as [sh [psh [P H]]].
@@ -357,7 +355,7 @@ Module Concur.
 
 
     Lemma compatible_lockRes_join:
-      forall js (m : mem),
+      forall (js : thread_pool) (m : mem),
         mem_compatible js m ->
         forall (l1 l2 : address) (phi1 phi2 : rmap),
           l1 <> l2 ->
@@ -372,12 +370,12 @@ Module Concur.
            clear - Hneq H2 H H0. unfold lockRes,lockGuts in H, H0.
            apply AMap.find_2 in H. apply AMap.find_2 in H0.
   assert (forall x e, AMap.MapsTo x e (lset js) <->
-               SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (x,e) (AMap.elements (lset js))). {
+               SetoidList.InA (@AMap.eq_key_elt lock_info) (x,e) (AMap.elements (lset js))). {
     split; intros. apply AMap.elements_1; auto.  apply AMap.elements_2; auto.
   } forget (AMap.elements (elt:=lock_info) (lset js)) as el.
-  assert (SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (l1, Some phi1) el).
+  assert (SetoidList.InA (@AMap.eq_key_elt lock_info) (l1, Some phi1) el).
    apply H1; auto.
-  assert (SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (l2, Some phi2) el).
+  assert (SetoidList.InA (@AMap.eq_key_elt lock_info) (l2, Some phi2) el).
    apply H1; auto.
  clear - H2 H3 H4 Hneq.
  revert r1 H2 H3 H4; induction el; simpl; intros.
@@ -410,7 +408,7 @@ Module Concur.
   revert r2 H0; induction el; simpl in *; intros. inv H2.
   destruct H0 as [? [? ?]]. inv H2. destruct a; inv H3. simpl in *; subst.
   exists x; auto. destruct a; simpl in *.
-  apply IHel in H0; auto. apply join_sub_trans with x; auto. exists l; auto.
+  apply IHel in H0; auto. apply join_sub_trans with x; auto. exists o; auto.
   apply join_sub_refl.
  }
  { (* case 3 *)
@@ -420,13 +418,12 @@ Module Concur.
  }
 Qed.
 
-
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
     Definition disjoint_threads tp :=
       forall i j (cnti : containsThread tp i)
         (cntj: containsThread tp j) (Hneq: i <> j),
-        joins (getThreadR cnti)
+        joins (getThreadR(resources:=LocksAndResources) cnti)
               (getThreadR cntj).
     (* Per-lock disjointness definition*)
     Definition disjoint_locks tp :=
@@ -710,7 +707,7 @@ Qed.
              * eexists; eauto.
          - destruct k.
            + if_tac.
-             * hnf. if_tac; apply I.
+             * hnf. destruct (perm_of_sh _); apply I.
              * apply perm_order''_trans with (perm_of_sh sh3).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
@@ -719,7 +716,7 @@ Qed.
                   ++ pose proof @perm_of_empty_inv _ E; subst.
                      apply join_to_bot_l in RJ; subst; congruence.
            + if_tac.
-             * hnf. if_tac; apply I.
+             * hnf. destruct (perm_of_sh _); apply I.
              * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
@@ -727,7 +724,7 @@ Qed.
                   ++ constructor.
                   ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
            + if_tac.
-             * hnf. if_tac; apply I.
+             * hnf. destruct (perm_of_sh _); apply I.
              * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
@@ -735,7 +732,7 @@ Qed.
                   ++ constructor.
                   ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
            + if_tac.
-             * hnf. if_tac; apply I.
+             * hnf. destruct (perm_of_sh _); apply I.
              * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
@@ -798,7 +795,7 @@ Qed.
         forall js i (cnt:containsThread js i),
         forall all_juice,
           join_all js all_juice ->
-          join_sub (ThreadPool.getThreadR cnt) all_juice.
+          join_sub (getThreadR cnt) all_juice.
       Proof.
         intros. inv H.
         assert (H9: join_sub (Some (getThreadR cnt)) (Some all_juice));
@@ -846,7 +843,7 @@ Qed.
 
     Lemma mem_compat_thread_max_cohere {tp m} (compat: mem_compatible tp m):
       forall {i} cnti,
-        max_access_cohere m (@getThreadR i tp cnti).
+        max_access_cohere m (@getThreadR _ _ i tp cnti).
     Proof.
       destruct compat as [x compat] => i cnti loc.
       apply po_trans with (b:= perm_of_res' (x @ loc)).
@@ -869,7 +866,7 @@ Qed.
     Qed.
 
     Lemma compatible_lockRes_sub: forall js l phi,
-        ThreadPool.lockRes js l = Some (Some phi) ->
+        lockRes js l = Some (Some phi) ->
         forall all_juice,
           join_all js all_juice ->
           join_sub phi all_juice.
@@ -882,7 +879,7 @@ Qed.
      clear - H H2.
      hnf in H2. unfold lockRes in H.
      apply AMap.find_2 in H. unfold lockGuts in *.
-     apply AMap.elements_1 in H. unfold lock_info in *.
+     apply AMap.elements_1 in H. simpl in *.
      forget (AMap.elements (elt:= option rmap) (lset js)) as el.
      revert r1 H2; induction el; simpl; intros. inv H.
      destruct H2 as [? [? ?]]. destruct a; simpl in *. inv H. inv H3. simpl in *; subst.
@@ -897,7 +894,7 @@ Qed.
            inversion H.
            unfold mem_thcohere; intros.
           unfold mem_lock_cohere; intros.
-          eapply compatible_lockRes_sub in juice_join0; eauto.
+          eapply compatible_lockRes_sub in juice_join0; [|apply H0].
           eapply mem_cohere_sub; eauto.
     Qed.
 
@@ -917,7 +914,7 @@ Qed.
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
 
-    Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR 0%nat tp _).
+    Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR _ _ 0%nat tp _).
     Next Obligation.
       intros tp.
       unfold containsThread.
@@ -930,11 +927,11 @@ Qed.
 
     Definition tp_level_is_above n tp :=
       (forall i (cnti : containsThread tp i), le n (level (getThreadR cnti))) /\
-      (forall i phi, lockRes tp i = Some (Some phi) -> le n (level phi)).
+      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> le n (level phi)).
 
     Definition tp_level_is n tp :=
       (forall i (cnti : containsThread tp i), level (getThreadR cnti) = n) /\
-      (forall i phi, lockRes tp i = Some (Some phi) -> level phi = n).
+      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> level phi = n).
 
     (*
     Lemma mem_compatible_same_level tp m :
@@ -981,7 +978,7 @@ Qed.
       - intros i phi' IN. destruct tp as [n thds phis lset].
         simpl in IN.
         unfold lockRes in IN; simpl in IN.
-        destruct (@AMap_find_map_inv lock_info _ _ _ _ _ IN) as [phi [IN' E]].
+        destruct (@AMap_find_map_inv (option rmap) _ _ _ _ _ IN) as [phi [IN' E]].
         destruct phi as [phi | ]. 2:inversion E.
         simpl in E. injection E as ->.
         apply level_age_to.
@@ -1004,7 +1001,7 @@ Qed.
         apply IHl in la.
         + exists (age_to k a); split; auto.
           apply age_to_join_eq; auto.
-        + cut (level a = level Phi); [ intuition | ].
+        + cut (level a = level Phi); [intro X; setoid_rewrite X; auto|].
           eapply join_level; eauto.
     Qed.
 
@@ -1021,7 +1018,7 @@ Qed.
           * exists (Some (age_to k a)); split; auto.
             inversion aphi; subst; simpl; constructor.
             apply age_to_join_eq; auto.
-          * cut (level a = level Phi); [ intuition | ].
+          * cut (level a = level Phi); [ intro X; setoid_rewrite X; auto | ].
             inversion aphi; subst; simpl; auto.
             eapply join_level; eauto.
         + apply IHl in la.
@@ -1049,7 +1046,7 @@ Qed.
             pose proof join_level _ _ _ JJ. intuition. }
           rewrite E; auto.
         }
-      - hnf. (simpl ThreadPool.lset).
+      - hnf.
         hnf in JL. simpl in JL.
         revert JL.
         rewrite AMap_map.
@@ -1118,7 +1115,7 @@ Qed.
 
     Lemma age_getThreadCode:
       forall i tp age cnt cnt',
-        @getThreadC i tp cnt = @getThreadC i (age_tp_to age tp) cnt'.
+        @getThreadC _ _ i tp cnt = @getThreadC _ _ i (age_tp_to age tp) cnt'.
     Proof.
       intros i tp age cnt cnt'.
       destruct tp; simpl.
@@ -1129,13 +1126,13 @@ Qed.
     Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem -> list mem_event -> Prop :=
     | step_juicy :
-        forall (tp':thread_pool) c jm jm' m' (c' : code),
+        forall (tp':thread_pool) c jm jm' m' (c' : C),
           forall (Hpersonal_perm:
                personal_mem (thread_mem_compatible Hcompatible cnt) = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
-            (Htp': tp' = @updThread tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
+            (Htp': tp' = @updThread _ _ tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m' [::].
 
@@ -1303,15 +1300,15 @@ Qed.
     forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
     Proof.
       intros. split.
       - intros [cntj [ q running]].
         inversion H; subst.
         assert (cntj':=cntj).
         eapply cnt_age' in cntj'.
-        eapply (cntUpdate (Krun c') (m_phi jm') (cnt_age' cntj)) in cntj'.
+        eapply (cntUpdate(resources := LocksAndResources) (Krun c') (m_phi jm') (cnt_age' cntj)) in cntj'.
         exists cntj'.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c'.
@@ -1351,8 +1348,8 @@ Qed.
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
   Proof.
     intros b g i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
@@ -1370,20 +1367,19 @@ Qed.
           erewrite <- age_getThreadCode.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
           erewrite <- age_getThreadCode.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntAdd _ _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+        * exists (cnt_age' (cntAdd _ _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
           erewrite <- age_getThreadCode.
           erewrite gsoAddCode . (*i? *)
           rewrite gsoThreadCode; assumption.
-          eapply cntUpdate. eauto.
-        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
           erewrite <- age_getThreadCode.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntRemoveL _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+        * exists (cnt_age' (cntRemoveL _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
           erewrite <- age_getThreadCode.
           rewrite gRemLockSetCode.
           rewrite gsoThreadCode; assumption.
@@ -1444,7 +1440,7 @@ Qed.
   Lemma syncstep_not_running:
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+      forall cntj q, ~ @getThreadC _ _ i tp cntj = Krun q.
   Proof.
     intros.
     inversion H;
@@ -1456,7 +1452,7 @@ Qed.
   Qed.
 
   Inductive threadHalted': forall {tid0 ms},
-      containsThread ms tid0 -> Prop:=
+      containsThread(resources:=LocksAndResources) ms tid0 -> Prop:=
   | thread_halted':
       forall tp c tid0
         (cnt: containsThread tp tid0),
@@ -1474,7 +1470,7 @@ Qed.
     forall i j, i <> j ->
       forall tp cnt cnti c' cnt',
         (@threadHalted j tp cnt) <->
-        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+        (@threadHalted j (@updThreadC _ _ i tp cnti c') cnt') .
   Proof.
     intros; split; intros HH; inversion HH; subst;
     econstructor; eauto;
@@ -1597,7 +1593,7 @@ Qed.
       end.
 
 
-    Module JuicyMachineLemmas.
+    Section JuicyMachineLemmas.
 
 
       Lemma compat_lockLT': forall js m,
@@ -1616,7 +1612,7 @@ Qed.
        specialize (max_coh0 (b,ofs)).
        eapply max_coh0. }
       { apply po_join_sub'.
-        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
+        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto; apply H0. }
       Qed.
 
 
@@ -1637,7 +1633,7 @@ Qed.
        specialize (max_coh0 (b,ofs)).
        apply max_coh0. }
       { apply po_join_sub.
-        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
+        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto; apply H0. }
     Qed.
 
     Lemma access_cohere_sub': forall phi1 phi2 m,
@@ -1761,7 +1757,7 @@ Qed.
 
        unfold join_threads, join_list, getThreadsR in H.
        replace (enums_equality.enum (num_threads js)) with (ord_enum (num_threads js)) in H by apply ord_enum_enum.
-       forget  (AMap.elements (elt:=option rmap) (lset js)) as el.
+       simpl in *; forget  (AMap.elements (elt:=option rmap) (lset js)) as el.
        match goal with |- joins ?A ?B => assert (H3: joins (Some A) (Some B)) end.
       Focus 2. destruct H3; inv H3; eexists; eauto.
        eapply join_sub_joins'. 2: instantiate (1:=r1). instantiate (1:= Some r0).
@@ -1801,7 +1797,7 @@ Qed.
     Qed.
 
       Lemma compatible_lockRes_cohere: forall js m l phi,
-          ThreadPool.lockRes js l = Some (Some phi) ->
+          lockRes js l = Some (Some phi) ->
           mem_compatible js m ->
           mem_cohere' m phi .
       Proof.
@@ -1815,7 +1811,7 @@ Qed.
       Lemma compatible_threadRes_cohere:
         forall js m i (cnt:containsThread js i),
           mem_compatible js m ->
-          mem_cohere' m (ThreadPool.getThreadR cnt) .
+          mem_cohere' m (getThreadR cnt) .
       Proof.
         intros.
         inversion H as [all_juice M]; inversion M.
@@ -1825,7 +1821,7 @@ Qed.
       Qed.
 
       (** *Lemmas about aging*)
-      Lemma cnt_age {js i n} :
+      Lemma cnt_age_iff {js i n} :
           containsThread js i <->
           containsThread (age_tp_to n js) i.
       Proof.
@@ -1858,9 +1854,9 @@ Qed.
       Proof.
         destruct js.
         intros; unfold lockRes; simpl.
-        destruct (AMap.find (elt:=lock_info) a
+        destruct (AMap.find (elt:=option rmap) a
                             (AMap.map (option_map (age_to age)) lset0)) eqn:AA;
-          destruct (AMap.find (elt:=lock_info) a lset0) eqn:BB;
+          destruct (AMap.find (elt:=option rmap) a lset0) eqn:BB;
           try (reflexivity).
         - apply AMap_find_map_inv in AA. destruct AA as [x [BB' rest]].
           rewrite BB' in BB; inversion BB.
@@ -1909,7 +1905,7 @@ Qed.
         destruct (age1_levelS _ _ E) as [n L].
         eapply (age_age_to n) in E; auto.
         rewrite <-E in B.
-        spec B addr.
+        specialize (B addr).
         rewrite perm_of_age in B.
         apply B.
       Qed.
@@ -1949,6 +1945,12 @@ Qed.
       Qed.
 
     End JuicyMachineLemmas.
+
+    Instance JuicyMachineShell : @HybridMachineSig.MachineSig _ _ RmapThreadPool :=
+      HybridMachineSig.Build_MachineSig richMem dryMem diluteMem mem_compatible invariant threadStep
+        threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
+        (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts
+        init_mach.
 
   End JuicyMachineShell.
 

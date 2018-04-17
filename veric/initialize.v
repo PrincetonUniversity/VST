@@ -202,21 +202,21 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => TT
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
  end.
 
 Fixpoint init_data_list2pred  (dl: list init_data)
-                           (sh: share) (v: val)  (rho: environ) : pred rmap :=
+                           (sh: share) (v: val)  : environ -> pred rmap :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.lub extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
-  | nil => emp
+      lift2 sepcon (init_data2pred d sh v) 
+                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
+  | nil => lift0 emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
+  if rdonly then Ers else Ews.
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
   match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
@@ -704,7 +704,16 @@ Proof.
 Qed.
 *)
 
-Lemma readable_readonly2share: forall v, readable_share (readonly2share (@gvar_readonly type v)).
+Lemma snd_split_fullshare_not_bot: snd (Share.split fullshare) <> Share.bot.
+Proof.
+intro.
+case_eq (Share.split fullshare); intros.
+rewrite H0 in H. simpl in H. subst.
+apply Share.split_nontrivial in H0; auto.
+apply Share.nontrivial in H0. contradiction.
+Qed.
+
+Lemma readable_readonly2share: forall ro, readable_share (readonly2share ro).
 Proof.
   intros.
   unfold readable_share. intro.
@@ -714,11 +723,21 @@ Proof.
     destruct (Share.split Share.top) eqn:?.
     pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto. contradiction Share.nontrivial.
   }
-  destruct (gvar_readonly v); simpl in *.
+  clear H9.
+  destruct ro; simpl in *.
+  unfold Ers in H.
+  rewrite Share.distrib1 in H.
+  apply lub_bot_e in H. destruct H as [_ ?].
   rewrite glb_split_x in H.
   destruct (Share.split Share.Rsh) eqn:H0. simpl in *.
-  pose proof (Share.split_nontrivial _ _ _ H0). spec H1; auto.
-  rewrite Share.glb_idem in H; contradiction.
+  subst.
+  pose proof (Share.split_nontrivial _ _ _ H0). spec H; auto.
+  apply snd_split_fullshare_not_bot in H. auto.
+  unfold Ews in H.
+  rewrite Share.distrib1 in H.
+  apply lub_bot_e in H. destruct H as [_ ?].
+  rewrite Share.glb_idem in H.
+  apply snd_split_fullshare_not_bot in H. auto.
 Qed.
 
 (*
@@ -734,11 +753,13 @@ Proof.
 Qed.
 *)
 
+(*
 Lemma readable_splice_extern: forall v, readable_share (Share.lub extern_retainer (readonly2share (@gvar_readonly type v))).
 Proof.
   intros.
   apply readable_share_lub. apply readable_readonly2share.
 Qed.
+*)
 
 Lemma init_data_lem:
 forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
@@ -755,12 +776,12 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
          (RHO: ge_of rho = filter_genv ge),
-  (init_data2pred a  (Share.lub extern_retainer (readonly2share (gvar_readonly v)))
+  (init_data2pred a  (readonly2share (gvar_readonly v))
        (Vptr b (Ptrofs.repr z))) rho w1.
 Proof.
   intros.
   assert (APOS:= init_data_size_pos a).
-  assert (READABLE:= readable_splice_extern v).
+  assert (READABLE:= readable_readonly2share (gvar_readonly v)).
   Transparent load.
   unfold init_data2pred, mapsto.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
@@ -769,7 +790,7 @@ Proof.
   simpl.
   unfold mapsto, tc_val, is_int, is_long, is_float.
   destruct (readable_share_dec
-            (Share.lub extern_retainer (readonly2share (gvar_readonly v)))); [clear r | tauto].
+            (readonly2share (gvar_readonly v))); [clear r | tauto].
   destruct a; 
   repeat rewrite prop_true_andp by 
     first [apply I
@@ -921,6 +942,8 @@ Proof.
   apply nth_getN; simpl; omega.
 * (* address_mapsto_zeros *)
  rewrite address_mapsto_zeros_eq.
+ split; auto. 
+  split; auto. simpl in HI. clear - HI. destruct (Z.max_spec z0 0); destruct H; omega.
  split; auto.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
 rewrite Zmax_Z_of_nat.
@@ -961,6 +984,7 @@ if_tac; auto.
 * (* symbol case *)
  rewrite RHO.
   case_eq (filter_genv ge i); try destruct p0; auto; intros.
++
   unfold filter_genv in H4.
   revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
   inv H5.
@@ -994,6 +1018,33 @@ if_tac; auto.
   rewrite H0.
   destruct loc; destruct H5; subst b1.
   apply nth_getN; simpl; omega.
++
+  erewrite mapsto__exp_address_mapsto by (auto; reflexivity).
+  rewrite exp_address_mapsto_VALspec_range_eq.
+  rewrite Ptrofs.unsigned_repr by (change Ptrofs.max_unsigned with (Ptrofs.modulus-1); omega).
+  split.
+  simpl in AL|-*.
+  apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  hnf. split; auto. intro loc; specialize (H2 loc). hnf.
+  simpl init_data_size in H2.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
+ if_tac; [ | apply H2].
+ destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1.
+  eexists.
+  hnf. exists READABLE.
+  hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true
+   by (destruct loc, H,H5; subst; simpl;
+        unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H6.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1735,7 +1786,7 @@ Lemma init_datalist_hack:
    (init_data_list2pred dl sh (Vptr b z) rho) phi0 ->
   forall phi,
      hackfun phi0 phi ->
-   readable_share (Share.lub extern_retainer sh) ->
+   readable_share sh ->
    (init_data_list2pred dl sh (Vptr b z) rho) phi.
 Proof.
   induction dl; intros. destruct H0 as [H0' [Hg H0]]. simpl in *.
@@ -1754,7 +1805,7 @@ Proof.
   unfold init_data2pred in *;
   unfold mapsto, address_mapsto in *;
   destruct a; simpl in *;
-  (destruct (readable_share_dec (Share.lub extern_retainer sh)); [| tauto]);
+  (destruct (readable_share_dec sh); [| tauto]);
   try
   (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
         left; split;
@@ -1768,7 +1819,8 @@ Proof.
               | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
- destruct H1 as [H1 Hg1]; split; [|simpl; rewrite <- Hg; auto].
+ split.  destruct H1; omega.
+ destruct H1 as [H1' [H1 Hg1]]; split; [|simpl; rewrite <- Hg; auto].
  intro loc; specialize (H1 loc).
  assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
    apply Z.max_l. apply Zmax_bound_r. omega.
@@ -1796,6 +1848,23 @@ Proof.
  rewrite H8.
  apply YES_not_identity.
  intuition.
+ unfold mapsto_ in *.
+ unfold mapsto in *.
+  simpl in *.
+ rewrite if_true in H1|-* by auto.
+ destruct H1. destruct H. contradiction. destruct H as [ _ ?].
+ right. split. hnf; auto.
+ destruct H as [v2' ?]; exists v2'.
+ destruct H as [x ?]; exists x.
+ destruct H; split; auto.
+ destruct H; split; auto.
+ intros loc; specialize (H1 loc).
+ destruct (H4 loc).
+ rename H1 into H8.
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H3; auto. rewrite H8; apply YES_not_identity.
+ intuition.
+ hnf in H0|-*. rewrite <- Hg; auto.
 Qed.
 
 Lemma another_hackfun_lemma:
@@ -2295,7 +2364,7 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
   apply alloc_result in H3; subst b.
   eassumption.
  apply hackfun_beyond_block; auto.
- apply readable_splice_extern.
+ apply readable_readonly2share.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
 Qed.

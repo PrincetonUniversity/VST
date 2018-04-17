@@ -90,7 +90,7 @@ Lemma rel_expr_nested_load {cs: compspecs}:
   type_is_by_value (nested_field_type2 t_root gfs) = true ->
   P |-- rel_LR e lr p rho && efield_denote efs gfs rho && (data_at sh t_root v p * TT) ->
   P |-- rel_expr (nested_efield e efs tts) (repinject _ (proj_reptype t_root gfs v)) rho.
-Admitted.
+Abort. (* not needed *)
 
 Lemma sc_semax_load_store:  forall {Espec: OracleKind} {CS: compspecs},
  forall p (Delta: tycontext) t_root e lr efs tts gfs e2 sh v0 v2 P P',
