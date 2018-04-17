@@ -122,7 +122,8 @@ Module Concur.
     (** Memories*)
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
-    Definition diluteMem: mem -> mem := fun x => x.
+    Instance diluteMem : HybridMachineSig.DiluteMem := { diluteMem x := x }.
+    Proof. reflexivity. Defined.
 
     (** Environment and Threadwise semantics *)
     (* This all comes from the SEM. *)
@@ -1947,7 +1948,7 @@ Qed.
     End JuicyMachineLemmas.
 
     Instance JuicyMachineShell : @HybridMachineSig.MachineSig _ _ RmapThreadPool :=
-      HybridMachineSig.Build_MachineSig richMem dryMem diluteMem mem_compatible invariant threadStep
+      HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant threadStep
         threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
         (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts
         init_mach.

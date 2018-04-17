@@ -9,6 +9,7 @@ Require Import VST.veric.res_predicates.
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
+Require Export VST.concurrency.threadPool.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.juicy_machine. Import Concur.
@@ -68,6 +69,7 @@ Module THE_JUICY_MACHINE.
        exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
   Existing Instance JuicyMachineShell.
+  Existing Instance diluteMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
   Inductive jm_csafe ge (st : jmachine_state) (m : mem) : nat -> Prop :=

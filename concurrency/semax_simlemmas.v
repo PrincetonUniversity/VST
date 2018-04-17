@@ -39,6 +39,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.coqlib5.
 Require Import VST.concurrency.semax_conc_pred.
 Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.juicy_machine.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.

@@ -104,6 +104,7 @@ Lemma preservation_acquire
               LKSIZE_nat) (getMaxPerm m))
     (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint j) = Some m'),
     mem_compatible_with tp m Phi ->
+    (exists phi, join_sub phi Phi /\ exists sh R, LKspec LKSIZE sh R (b, Ptrofs.intval ofs) phi) ->
     mem_cohere' m' Phi)
   (personal_mem_equiv_spec
      : forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
@@ -163,7 +164,7 @@ Lemma preservation_acquire
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
   (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
-  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
+  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ diluteMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
   (Htstep : @syncStep ClightSemantincsForMachines.ClightSem true ge _ _ _ cnti Hcmpt
@@ -208,13 +209,79 @@ Proof.
     - (* mem_cohere' *)
       pose proof juice_join compat as J.
       pose proof all_cohere compat as MC.
-      clear safety lock_coh jmstep.
       eapply (mem_cohere'_store _ tp _ _ _ (Int.zero) _ _ cnti Hcmpt).
       + cleanup.
         rewrite His_unlocked. simpl. congruence.
       + (* there is this hcmpt which is redundant, we can prove they're equal or think more to factorize it *)
         apply Hstore.
       + auto.
+      + specialize (safety _ cnti tt).
+        rewrite Hthread in safety.
+        unshelve eapply jsafe_phi_jsafeN in safety; try apply compat.
+        inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha].
+        * (* not corestep *)
+          exfalso.
+          clear -Hat_external step.
+          apply (corestep_not_at_external (juicy_core_sem _)) in step.
+          rewrite jstep.JuicyFSem.t_obligation_3 in step.
+          set (u := at_external _ _ _ _) in Hat_external.
+          set (v := at_external _ _ _ _) in step.
+          assert (u = v).
+          { unfold u, v. rewrite ClightSemantincsForMachines.at_external_SEM_eq. reflexivity. }
+          congruence.
+        * assert (e = LOCK).
+          { simpl in ae.
+            clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
+            unfold j_at_external in ae. unfold cl_at_external in ae. 
+            congruence. }
+          subst e.
+          revert x Pre Post.
+          funspec_destruct "acquire"; swap 1 2.
+          { exfalso. unfold ef_id_sig, ef_sig in *.
+            unfold funsig2signature in Heq_name; simpl in Heq_name.
+            contradiction Heq_name; auto. }
+          intros (? & ? & [] & ? & ?) (Hargsty, Pre) Post.
+          destruct Pre as (phi0 & phi1 & j & Pre).
+          simpl in Pre.
+          destruct Pre as [(_ & (Hv & _) & Hlk)]; simpl in Hv, Hlk.
+          unfold canon.SEPx in Hlk; simpl in Hlk.
+          rewrite seplog.sepcon_emp in Hlk.
+          assert (args = Vptr b ofs :: nil). {
+            revert Hat_external ae; clear.
+            rewrite ClightSemantincsForMachines.CLN_msem. simpl.
+            intros. unfold cl_at_external in *.
+            congruence.
+          }
+          subst args.
+          assert (v = Vptr b ofs). {
+            rewrite Hv.
+            clear.
+            unfold expr.eval_id in *.
+            unfold expr.force_val in *.
+            unfold make_ext_args in *.
+            unfold te_of in *.
+            unfold filter_genv in *.
+            unfold Genv.find_symbol in *.
+            unfold expr.env_set in *.
+            rewrite Map.gss.
+            auto.
+          }
+          subst v.
+          destruct Hlk as (? & ? & Heq & ?); inv Heq.
+          exists phi0; split; eauto.
+          eapply join_sub_trans; [eexists; eauto|].
+          apply compatible_threadRes_sub; auto.
+        * (* not halted *)
+          exfalso.
+          clear -Hat_external Ha.
+          assert (Ae : at_external ClightSemantincsForMachines.CLN_evsem ge c m <> None). congruence.
+          eapply at_external_not_halted in Ae.
+          unfold juicy_core_sem in *.
+          unfold cl_core_sem in *.
+          simpl in *.
+          rewrite ClightSemantincsForMachines.CLN_msem in Ae, Hat_external.
+          simpl in *.
+          congruence.
 
     - (* lockSet_Writable *)
       eapply lockSet_Writable_updLockSet_updThread; eauto.

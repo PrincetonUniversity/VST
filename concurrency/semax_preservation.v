@@ -641,9 +641,10 @@ Lemma mem_cohere'_store m (tp : jstate) m' b ofs j i Phi (cnti : containsThread 
               LKSIZE_nat) (getMaxPerm m))
     (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint j) = Some m'),
     mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
+    (exists phi, join_sub phi Phi /\ exists sh R, LKspec LKSIZE sh R (b, Ptrofs.intval ofs) phi) ->
     mem_cohere' m' Phi.
 Proof.
-  intros Hcmpt lock Hlt' Hstore compat.
+  intros Hcmpt lock Hlt' Hstore compat HLKspec.
   pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
   destruct compat as [J MC LW JL LJ].
   destruct MC as [Co Ac Ma N].
@@ -655,28 +656,13 @@ Proof.
     specialize (Co1 b' ofs').
     destruct Co1 as [In|Out].
     + exfalso (* because there is no lock at (b', ofs') *).
-      specialize (LJ (b, Ptrofs.intval ofs)).
-      cleanup.
-      destruct (AMap.find (elt:=option rmap) (b, Ptrofs.intval ofs) (lset tp)).
-      2:tauto.
-      autospec LJ.
-      destruct LJ as (sh1 & sh1' & pp & EPhi).
-      destruct In as (<-, In).
-      destruct (eq_dec ofs' (Ptrofs.intval ofs)).
-      * subst ofs'.
-        congruence.
-      * pose (ii := (ofs' - Ptrofs.intval ofs)%Z).
-        assert (Hii : (0 < ii < LKSIZE)%Z).
-        { unfold ii; split. omega.
-          lkomega. }
-        pose proof rmap_valid_e1 Phi b (Ptrofs.intval ofs) _ _ Hii
-                          (shares.readable_part sh1')
-
-               as H.
-        assert_specialize H.
-        { rewrite EPhi. simpl. reflexivity. }
-        replace (Ptrofs.intval ofs + ii)%Z with ofs' in H by (unfold ii; omega).
-        rewrite E in H. simpl in H. congruence.
+      destruct HLKspec as (? & J' & ? & ? & HLKspec & ?).
+      apply (resource_at_join_sub _ _ (b', ofs')) in J' as [? J'].
+      rewrite E in J'.
+      specialize (HLKspec (b', ofs')); simpl in HLKspec.
+      rewrite if_true in HLKspec.
+      if_tac in HLKspec; destruct HLKspec as [? HLK]; rewrite HLK in J'; inv J'.
+      { destruct In; pose proof LKSIZE_int; split; auto; omega. }
 
     + rewrite <-Out.
       unfold juicyRestrict_locks in *.
@@ -957,7 +943,7 @@ Section Preservation.
   (sch : list nat)
   sch'
   (tp tp' : jstate)
-  (jmstep : @JuicyMachine.machine_step _ (ClightSemantincsForMachines.ClightSem) _ JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch'
+  (jmstep : @JuicyMachine.machine_step _ (ClightSemantincsForMachines.ClightSem) _ diluteMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch'
              tr' tp' m')
   (INV : @state_invariant _ (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
   (Phi : rmap)

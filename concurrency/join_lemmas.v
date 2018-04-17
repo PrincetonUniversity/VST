@@ -11,6 +11,7 @@ Require Import VST.msl.seplog.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.age_to.
 Require Import VST.veric.coqlib4.
+Require Import VST.concurrency.threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
 

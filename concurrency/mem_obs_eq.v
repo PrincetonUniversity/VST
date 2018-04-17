@@ -23,6 +23,7 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.dry_context.
@@ -3598,7 +3599,7 @@ Module ThreadPoolInjections.
   Section ThreadPoolInjections.
   Context {asmSem : Semantics}.
 
-  Instance res : Resources := DM.resources.
+  Existing Instance DM.dryResources.
   Context {tpool : ThreadPool.ThreadPool}.
 
   (** Renamings on Thread Pools *)

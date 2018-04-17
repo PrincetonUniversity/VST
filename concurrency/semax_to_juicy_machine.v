@@ -64,6 +64,7 @@ Section Sem.
 Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Existing Instance JuicyMachineShell.
+Existing Instance diluteMem.
 Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
 Inductive jmsafe : nat -> cm_state -> Prop :=

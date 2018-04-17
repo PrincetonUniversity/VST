@@ -317,7 +317,7 @@ Section Progress.
         exists cm'.
         apply state_step_c; [].
         rewrite <- (seq.cats0 tr) at 2.
-        apply @JuicyMachine.thread_step with
+        apply @JuicyMachine.thread_step with (DilMem := diluteMem)
         (tid := i)
           (ev := nil)
           (Htid := cnti)

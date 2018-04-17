@@ -251,6 +251,11 @@ Proof.
         rewrite His_locked. simpl. congruence.
       + eauto.
       + auto.
+      + exists phi0'; split.
+        * eapply join_sub_trans; [eexists; eauto|].
+          eapply join_sub_trans; [eexists; eauto|].
+          apply compatible_threadRes_sub; auto.
+        * destruct Hlockinv as (? & ? & Heq & ?); inv Heq; eauto.
 
     - (* lockSet_Writable *)
       eapply lockSet_Writable_updLockSet_updThread; eauto.
