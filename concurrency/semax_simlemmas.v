@@ -1005,8 +1005,6 @@ Tactic Notation "REWR" "in" "*" :=
       unshelve erewrite m_phi_age_to in *
     ]; auto.
 
-Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try omega.
-
 Lemma FF_orp:
  forall A (ND: NatDed A) (P: A), seplog.orp seplog.FF P = P.
 Proof.

@@ -39,5 +39,7 @@ Ltac pf_cleanup :=
                   H2: OrdinalPool.containsThread (@OrdinalPool.updThread _ ?TP _ _ _) ?M |- _] =>
              apply OrdinalPool.cntUpdate' in H2;
              assert (H1 = H2) by (by eapply OrdinalPool.cnt_irr); subst H2
+           | [H1: ThreadPool.containsThread ?TP ?M, H2: OrdinalPool.containsThread ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
            end.
 End Tactics.

@@ -20,70 +20,84 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.memory_lemmas.
+Require Import VST.concurrency.ClightSemantincsForMachines.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.dry_machine_lemmas.
 Require Import VST.concurrency.dry_machine_step_lemmas.
+Require Import VST.concurrency.erased_machine.
+Require Import VST.concurrency.tactics.
 Require Import Coqlib.
 Require Import VST.msl.Coqlib2.
+Import Tactics.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-Module Executions (SemAxioms: SemanticsAxioms SEM)
-       (Machines: MachinesSig with Module SEM := SEM)
-       (AsmContext: AsmContext SEM Machines).
-  Module StepLemmas := StepLemmas Machines.
-  Module StepType := StepType SemAxioms Machines AsmContext.
-  Import Machines DryMachine StepLemmas StepType ThreadPool AsmContext.
+Module Executions.
+
+  Import HybridMachineSig HybridMachine.DryHybridMachine StepLemmas StepType ThreadPool AsmContext.
   Import event_semantics.
   Import Events.
 
   Section Executions.
 
+  Context {CSem : ClightSEM}.
+  Existing Instance ClightSem.
+  Notation Sem := ClightSem.
+  Context {initU : seq.seq nat}
+            {init_mem : option Memory.Mem.mem}
+            {SemAx : CoreLanguage.SemAxioms}.
+  Variable (the_ge : semG).
+  Existing Instance FineDilMem.
+  Existing Instance HybridFineMachine.scheduler.
+  Existing Instance HybridMachine.DryHybridMachine.DryHybridMachineSig.
+  Existing Instance OrdinalPool.OrdinalThreadPool.
+
   (** Reflexive-transitive closure of FineConc's step relation*)
   Inductive multi_fstep :
-    FineConc.MachState -> mem -> FineConc.MachState -> mem -> Prop :=
+    MachState -> mem -> MachState -> mem -> Prop :=
   | fine_refl : forall ms (m : mem),
       multi_fstep ms m ms m
   | fine_trans : forall i U U'
-                        (tp tp' tp'': FineConc.machine_state)
-                        (tr tr' tr'': FineConc.event_trace)
+                        (tp tp' tp'' : CoreLanguageDry.OP.t)
+                        tr tr' tr''
                         (m m' m'' : mem),
-      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
+      MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
       multi_fstep (U, tr ++ tr', tp') m' (U', tr ++ tr' ++ tr'', tp'') m'' ->
       multi_fstep (i :: U,tr,tp) m (U',tr ++ tr' ++ tr'',tp'') m''.
 
   (** Complete executions (until the schedule is empty) of the FineConc machine*)
   Inductive fine_execution :
-    FineConc.MachState -> mem -> FineConc.MachState -> mem -> Prop :=
+    MachState -> mem -> MachState -> mem -> Prop :=
   | fine_completed : forall ms (m : mem),
-      FineConc.halted ms ->
+      halted_machine ms ->
       fine_execution ms m ms m
   | fine_exec : forall i U U'
-                        (tp tp' tp'': FineConc.machine_state)
-                        (tr tr' tr'': FineConc.event_trace)
+                        tp tp' tp''
+                        tr tr' tr''
                         (m m' m'' : mem),
-      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
+      MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
       fine_execution (U, tr ++ tr', tp') m' (U', tr ++ tr' ++ tr'', tp'') m'' ->
       fine_execution (i :: U,tr,tp) m (U',tr ++ tr' ++ tr'',tp'') m''.
 
   (** Complete executions of the SC machine *)
   Inductive sc_execution :
-    SC.MachState -> mem -> SC.MachState -> mem -> Prop :=
+    MachState(resources := BareMachine.resources) -> mem -> MachState(resources := BareMachine.resources) -> mem -> Prop :=
   | sc_completed : forall ms (m : mem),
-      SC.halted ms ->
+      halted_machine ms ->
       sc_execution ms m ms m
   | sc_exec : forall i U U'
-                      (tp tp' tp'': SC.machine_state)
-                      (tr tr' tr'': SC.event_trace)
+                      tp tp' tp''
+                      tr tr' tr''
                       (m m' m'' : mem),
-      SC.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
+      MachStep(machineSig := BareMachine.BareMachineSig) the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
       sc_execution (U, tr', tp') m' (U', tr'', tp'') m'' ->
       sc_execution (i :: U,tr,tp) m (U',tr'',tp'') m''.
 
@@ -117,12 +131,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
   (** A property of steps is that any sequence of events added by
     one external step is a singleton *)
   Lemma fstep_ext_trace:
-    forall (a : tid) U
-      (i : nat) (tr tr' : SC.event_trace) (tp tp' : thread_pool)
+    forall a U
+      (i : nat) tr tr' tp tp'
       (m m' : mem) (ev : machine_event),
       is_external ev ->
       nth_error tr' i = Some ev ->
-      FineConc.MachStep the_ge ((a :: U)%SEQ, tr, tp) m
+      MachStep the_ge ((a :: U)%SEQ, tr, tp) m
                         (U, tr ++ tr', tp') m' ->
       tr' = [:: ev].
   Proof.
@@ -152,7 +166,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
 
   Lemma fstep_event_sched:
     forall U tr tp m U' ev tr_pre tr_post tp' m'
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+      (Hstep: MachStep the_ge (U, tr, tp) m
                                 (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m'),
       U = (thread_id ev) :: U'.
   Proof.
@@ -177,8 +191,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
   Qed.
 
   Lemma fstep_ev_contains:
-    forall U tr tp m U' ev tr_pre tr_post tp' m'
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+    forall U tr tp m U' ev
+      tr_pre tr_post tp' m'
+      (Hstep: MachStep the_ge (U, tr, tp) m
                                 (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m'),
       containsThread tp (thread_id ev) /\ containsThread tp' (thread_id ev).
   Proof.
@@ -193,14 +208,14 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       split; eauto.
     inv HschedN.
     inv Htstep; split; eauto.
-    apply cntAdd.
-    apply cntUpdate.
+    apply OrdinalPool.cntAdd.
+    apply OrdinalPool.cntUpdate.
     assumption.
   Qed.
 
   Lemma fstep_event_tid:
     forall U tr tp m U' tr' tp' m'
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+      (Hstep: MachStep the_ge (U, tr, tp) m
                                 (U', tr ++ tr', tp') m'),
     forall ev ev', List.In ev tr' ->
               List.In ev' tr' ->
@@ -229,7 +244,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     intros.
     inversion Hexec; subst.
     right; auto.
-    eapply fstep_mem_compatible in H7.
+    eapply step_mem_compatible in H7.
     left; auto.
   Qed.
 
@@ -241,7 +256,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     intros.
     inversion Hexec; subst.
     right; auto.
-    eapply fstep_invariant in H7.
+    eapply step_invariant in H7.
     left; auto.
   Qed.
 
@@ -255,7 +270,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     inversion Hexec; subst; simpl in *; auto; try discriminate.
     intros.
     inversion Hexec; subst; eauto.
-    eapply fstep_containsThread with (j := i) in H9;
+    eapply step_containsThread with (j := i) in H9;
       now eauto.
   Qed.
 
@@ -270,12 +285,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     induction Hexec.
     assumption.
     eapply IHHexec.
-    eapply fstep_valid_block; eauto.
+    eapply (fstep_valid_block(initU := initU)(init_mem := init_mem)); eauto.
   Qed.
 
   Lemma fstep_trace_monotone:
     forall U tp m tr U' tp' m' tr'
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+      (Hstep: MachStep the_ge (U, tr, tp) m
                                 (U', tr', tp') m'),
     exists tr'',
       tr' = tr ++ tr''.
@@ -310,7 +325,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       (Hexec: multi_fstep (U, tr, tp) m (U', tr ++ tr', tp') m'),
     exists U'' U''' tp'' m'' tr'' tp''' m''',
       multi_fstep (U, tr, tp) m (U'', tr ++ tr'', tp'') m'' /\
-      FineConc.MachStep the_ge (U'', tr ++ tr'', tp'') m''
+      MachStep the_ge (U'', tr ++ tr'', tp'') m''
                         (U''', tr ++ tr'' ++ [:: ev], tp''') m''' /\
       multi_fstep (U''', tr ++ tr'' ++ [:: ev], tp''') m'''
                      (U', tr ++ tr', tp') m' /\
@@ -328,7 +343,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       + subst.
         apply app_inv_head in H6. subst.
         (* need a case analysis on whether it belongs on the first list or not*)
-        destruct (i < length tr'0) eqn:Hlt.
+        destruct (i < length tr'0)%nat eqn:Hlt.
         * erewrite nth_error_app1 in Hi by ssromega.
           exists (a :: U), U, tp, m, [::], tp'0, m'0.
           assert (tr'0 = [:: ev]) by (eapply fstep_ext_trace; eauto).
@@ -370,7 +385,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       (Hexec: multi_fstep (U, tr, tp) m (U', tr ++ tr', tp') m'),
     exists U'' U''' tp'' m'' tr'' pre_ev post_ev  tp''' m''',
       multi_fstep (U, tr, tp) m (U'', tr ++ tr'', tp'') m'' /\
-      FineConc.MachStep the_ge (U'', tr ++ tr'', tp'') m''
+      MachStep the_ge (U'', tr ++ tr'', tp'') m''
                         (U''', tr ++ tr'' ++ pre_ev ++ [:: ev] ++ post_ev, tp''') m''' /\
       multi_fstep (U''', tr ++ tr'' ++ pre_ev ++ [:: ev] ++ post_ev , tp''') m'''
                      (U', tr ++ tr', tp') m' /\
@@ -388,7 +403,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       + subst.
         apply app_inv_head in H6. subst.
         (* need a case analysis on whether it belongs on the first list or not*)
-        destruct (i < length tr'0) eqn:Hlt.
+        destruct (i < length tr'0)%nat eqn:Hlt.
         * erewrite nth_error_app1 in Hi by ssromega.
           eapply nth_error_split in Hi.
           destruct Hi as (l1 & l2 & Htr'0 & Hl1).
@@ -425,7 +440,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
 
   Lemma fstep_sched_inv:
     forall i U tp m tr U' tp' m' tr'
-      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m
+      (Hstep: MachStep the_ge (i :: U, tr, tp) m
                                 (U', tr', tp') m'),
       U' = U.
   Proof.
@@ -436,7 +451,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
   Lemma multi_fstep_snoc:
     forall U U' U'' tr tr' tr'' tp m tp' m' tp'' m''
       (Hexec: multi_fstep (U, tr, tp) m (U', tr ++ tr', tp') m')
-      (Hstep: FineConc.MachStep the_ge (U', tr ++ tr', tp') m' (U'', tr ++ tr' ++ tr'', tp'') m''),
+      (Hstep: MachStep the_ge (U', tr ++ tr', tp') m' (U'', tr ++ tr' ++ tr'', tp'') m''),
       multi_fstep (U, tr, tp) m (U'', tr ++ tr' ++ tr'', tp'') m''.
   Proof.
     induction U; intros.
@@ -478,9 +493,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
   machine. It's just a history of the memory operations *)
   Lemma fstep_trace_irr:
     forall U i tp m tp' m' tr tr'
-      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
+      (Hstep: MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
     forall tr'', exists ev,
-        FineConc.MachStep the_ge (i :: U, tr'', tp) m (U, tr'' ++ ev, tp') m'.
+        MachStep the_ge (i :: U, tr'', tp) m (U, tr'' ++ ev, tp') m'.
   Proof.
     intros.
     inversion Hstep; subst; simpl in *; subst; inv HschedN; pf_cleanup.
@@ -506,7 +521,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     - inversion Hexec.
       + destruct U'; eauto.
         inversion H2.
-        assert (length U = length ((U' ++ (t0 :: U))%list))
+        assert (length U = length ((U' ++ (n :: U))%list))
           by (erewrite <- H7; reflexivity).
         rewrite app_length in H5. clear - H5.
         simpl in H5. ssromega.
@@ -557,14 +572,14 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
 
    Lemma initial_core_valid_block:
    forall n ge m v args q m',
-      initial_core ThreadPool.SEM.Sem n ge m v args = Some (q, Some m') ->
+      initial_core semSem n ge m v args = Some (q, Some m') ->
       forall b, Mem.valid_block m b -> Mem.valid_block m' b.
    Admitted.
 
   Lemma fstep_deadLocation:
     forall U U' tr tp m tr' tp' m' b ofs
       (Hdead: deadLocation tp m b ofs)
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U',tr ++ tr', tp') m'),
+      (Hstep: MachStep the_ge (U, tr, tp) m (U',tr ++ tr', tp') m'),
       deadLocation tp' m' b ofs.
   Proof.
     intros;
@@ -576,13 +591,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       auto 1.
     - inv Hdead; constructor; auto.
        destruct om; [ | assumption]. simpl.
-       clear - Hvalid Hinitial. 
+       clear - initU init_mem SemAx Hvalid Hinitial.
        eapply initial_core_valid_block; eauto.
     - apply app_inv_head in H5; subst.
       inversion Hdead.
       econstructor.
-      + erewrite <- diluteMem_valid.
-        eapply CoreLanguageDry.CoreLanguage.ev_step_validblock; eauto.
+      + eapply CoreLanguage.ev_step_validblock in Hcorestep; eauto.
       + intros.
         destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
         * subst.
@@ -590,14 +604,14 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite gssThreadRes.
           simpl.
           destruct (Hthreads _ Htid).
-          eapply CoreLanguageDry.CoreLanguage.ev_step_decay in Hcorestep.
+          eapply CoreLanguage.ev_step_decay in Hcorestep.
           destruct (Hcorestep b ofs) as [_ Hsame].
           rewrite getCurPerm_correct. unfold permission_at.
           destruct (Hsame Hvalid) as [Heq | Heq];
             specialize (Heq Cur);
             [rewrite Heq.2 | rewrite <- Heq]; split;
               auto.
-          pose proof (restrPermMap_Cur (Hcmpt _ Htid).1 b ofs) as Hperm.
+          pose proof (restrPermMap_Cur (compat_th _ _ Hcmpt Htid).1 b ofs) as Hperm.
           unfold permission_at in Hperm.
           rewrite Hperm.
           assumption.
@@ -624,12 +638,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         * rewrite! gLockSetRes gsoThreadRes;
             now auto.
       + intros.
-        destruct (EqDec_address (b0, Int.intval ofs0) l); subst.
+        destruct (EqDec_address (b0, Ptrofs.intval ofs0) l); subst.
         * rewrite gssLockRes in H. inv H.
           simpl; split; rewrite empty_map_spec;
             now auto.
-        * rewrite gsoLockRes in H;
-            now eauto.
+        * rewrite gsoLockRes in H; eauto.
+          rewrite gsoThreadLPool in H; eauto.
     - inversion Hdead.
       econstructor; eauto using Mem.store_valid_block_1.
       + intros.
@@ -655,7 +669,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         * rewrite! gLockSetRes gsoThreadRes;
             now auto.
       + intros.
-        destruct (EqDec_address (b0, Int.intval ofs0) l); subst.
+        destruct (EqDec_address (b0, Ptrofs.intval ofs0) l); subst.
         * rewrite gssLockRes in H.
           inv H.
           specialize (Hangel1 b ofs).
@@ -676,12 +690,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
                    destruct X eqn:?
                  end;
             try (by exfalso); auto.
-        * rewrite gsoLockRes in H;
-            now eauto.
+        * rewrite gsoLockRes in H; eauto.
+          rewrite gsoThreadLPool in H; eauto.
     - inversion Hdead.
       econstructor; eauto.
       intros i cnti'.
-      destruct (cntAdd' cnti') as [[cnti ?] | Heq].
+      destruct (cntAdd' _ _ _ cnti') as [[cnti ?] | Heq].
       + rewrite gsoAddRes.
         destruct (tid == i) eqn:Heq; move/eqP:Heq=>Heq.
         * subst.
@@ -730,16 +744,16 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite gLockSetRes gssThreadRes.
           rewrite <- Hdata_perm, <- Hlock_perm.
           destruct (Pos.eq_dec b b0); subst.
-          destruct (Intv.In_dec ofs (Int.intval ofs0, (Int.intval ofs0) + lksize.LKSIZE)%Z).
+          destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, (Ptrofs.intval ofs0) + lksize.LKSIZE)%Z).
           exfalso.
           specialize (Hfreeable _ i0).
           unfold Mem.perm in Hfreeable.
           specialize (Hthreads _ Htid).
-          rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt i Htid).1) in Hthreads.
+          rewrite <- restrPermMap_Cur with (Hlt := (compat_th _ _ Hcmpt Htid).1) in Hthreads.
           unfold permission_at in Hthreads.
           rewrite Hthreads.1 in Hfreeable.
           simpl in Hfreeable; now auto.
-          eapply Intv.range_notin in n; try (simpl; unfold lksize.LKSIZE; omega).
+          eapply Intv.range_notin in n; try (simpl; lksize.lkomega).
           erewrite! setPermBlock_other_1 by eauto.
           now eauto.
           erewrite! setPermBlock_other_2 by eauto.
@@ -747,7 +761,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         * rewrite! gLockSetRes gsoThreadRes;
             now auto.
       + intros.
-        destruct (EqDec_address (b0, Int.intval ofs0) l); subst.
+        destruct (EqDec_address (b0, Ptrofs.intval ofs0) l); subst.
         * rewrite gssLockRes in H.
           inv H; rewrite empty_map_spec;
             split; reflexivity.
@@ -762,7 +776,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite gRemLockSetRes gssThreadRes.
           rewrite <- Hdata_perm, <- Hlock_perm.
           destruct (Pos.eq_dec b b0); subst.
-          destruct (Intv.In_dec ofs (Int.intval ofs0, (Int.intval ofs0) + lksize.LKSIZE)%Z).
+          destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, (Ptrofs.intval ofs0) + lksize.LKSIZE)%Z).
           exfalso.
           specialize (Hfreeable _ i0).
           unfold Mem.perm in Hfreeable.
@@ -771,7 +785,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           unfold permission_at in Hthreads.
           rewrite Hthreads.2 in Hfreeable.
           simpl in Hfreeable; now auto.
-          eapply Intv.range_notin in n; try (simpl; unfold lksize.LKSIZE; omega).
+          eapply Intv.range_notin in n; try (simpl; lksize.lkomega).
           erewrite! setPermBlock_other_1, setPermBlock_var_other_1 by eauto.
           now eauto.
           erewrite! setPermBlock_other_2, setPermBlock_var_other_2 by eauto.
@@ -779,7 +793,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         * rewrite! gRemLockSetRes gsoThreadRes;
             now auto.
       + intros.
-        destruct (EqDec_address (b0, Int.intval ofs0) l); subst.
+        destruct (EqDec_address (b0, Ptrofs.intval ofs0) l); subst.
         * rewrite gsslockResRemLock in H.
           discriminate.
         * rewrite gsolockResRemLock in H; auto;
@@ -811,7 +825,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
   will be in the [lockRes] and thread i will have lock permission on addr*)
   Lemma Mklock_lockRes:
     forall i U tr tp m tp' m' addr
-      (Hstep: FineConc.MachStep
+      (Hstep: MachStep
                 the_ge (i :: U, tr, tp) m
                 (U, tr ++ [:: external i (Events.mklock addr)], tp') m'),
       lockRes tp' addr /\
@@ -828,9 +842,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       inv H5.
     (** case it's an external step that generates a mklock event*)
     inv Htstep.
-    rewrite gsslockResUpdLock; split; auto.
+    rewrite OrdinalPool.gsslockResUpdLock; split; auto.
     intros cnti'.
-    rewrite gLockSetRes gssThreadRes.
+    rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes.
     rewrite <- Hlock_perm.
     intros.
     erewrite setPermBlock_same by eauto.
@@ -852,7 +866,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     forall i U tr tr' tp m tp' m' addr
       (Hlock: lockRes tp addr)
       (HisLock: isLock tp addr)
-      (Hstep: FineConc.MachStep
+      (Hstep: MachStep
                 the_ge (i :: U, tr, tp) m
                 (U, tr ++ tr', tp') m')
       (Hev: forall u ev, nth_error tr' u = Some ev ->
@@ -865,8 +879,8 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     inv Hstep; simpl in *;
       try (inversion Htstep;
            subst tp');
-      try (rewrite gsoThreadCLPool; auto);
-      try (rewrite gsoThreadLPool; auto);
+      try (rewrite OrdinalPool.gsoThreadCLPool; auto);
+      try (rewrite OrdinalPool.gsoThreadLPool; auto);
       try subst tp'0; try subst tp''.
     - (** [threadStep] case*)
       split; auto.
@@ -889,34 +903,33 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     - unfold isLock in *.
       inv HschedN.
       split.
-      destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-      rewrite gssLockRes; auto.
-      erewrite gsoLockRes by eauto.
-      rewrite gsoThreadLPool; auto.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) addr); subst.
+      rewrite OrdinalPool.gssLockRes; auto.
+      rewrite OrdinalPool.gsoLockRes; eauto.
       intros ofs0 Hintv.
       specialize (Hangel2 (addr.1) ofs0).
       apply permjoin_order in Hangel2.
       destruct Hangel2 as [Hlt1 Hlt2].
       destruct (HisLock ofs0 Hintv) as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
       + pose proof (cntUpdate (Kresume c Vundef) newThreadPerm Htid
-                              (cntUpdateL (b, Int.intval ofs) (empty_map, empty_map) cntj)) as cntj'.
+                              (cntUpdateL (b, Ptrofs.intval ofs) (empty_map, empty_map) cntj)) as cntj'.
         destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
         * subst.
           left.
           exists j, cntj'.
           rewrite gLockSetRes gssThreadRes.
           pf_cleanup.
-          now eauto using po_trans.
+          eauto using po_trans.
         * left.
           exists j, cntj'.
           rewrite gLockSetRes.
           erewrite @gsoThreadRes with (cntj := cntj) by eauto.
           now eauto using po_trans.
-      + destruct (EqDec_address (b, Int.intval ofs) laddr').
+      + destruct (EqDec_address (b, Ptrofs.intval ofs) laddr').
         * subst.
           left.
           pose proof (cntUpdate (Kresume c Vundef) newThreadPerm Htid
-                                (cntUpdateL (b, Int.intval ofs) (empty_map, empty_map) Htid)) as cnti'.
+                                (cntUpdateL (b, Ptrofs.intval ofs) (empty_map, empty_map) Htid)) as cnti'.
           exists tid, cnti'.
           rewrite gLockSetRes gssThreadRes.
           rewrite HisLock0 in Hres; inv Hres.
@@ -928,10 +941,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           split; now eauto.
     - unfold isLock in *.
       inv HschedN.        split.
-      destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-      rewrite gssLockRes; auto.
-      erewrite gsoLockRes by eauto.
-      rewrite gsoThreadLPool; auto.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) addr); subst.
+      rewrite OrdinalPool.gssLockRes; auto.
+      rewrite OrdinalPool.gsoLockRes; eauto.
       intros ofs0 Hintv.
       specialize (Hangel2 (addr.1) ofs0).
       destruct (HisLock ofs0 Hintv) as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
@@ -941,11 +953,11 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           apply permjoin_readable_iff in Hangel2.
           destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
           left.
-          exists j, Htid.
+          exists j, cntj.
           rewrite gLockSetRes gssThreadRes.
           now eauto.
           right.
-          exists (b, Int.intval ofs), virtueLP.
+          exists (b, Ptrofs.intval ofs), virtueLP.
           rewrite gssLockRes.
           split;
             now eauto.
@@ -954,7 +966,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite gLockSetRes.
           erewrite @gsoThreadRes with (cntj := cntj) by eauto.
           now eauto.
-      + destruct (EqDec_address (b, Int.intval ofs) laddr').
+      + destruct (EqDec_address (b, Ptrofs.intval ofs) laddr').
         * subst.
           rewrite HisLock0 in Hres; inv Hres.
           destruct (Hrmap addr.1 ofs0) as [_ Hrmap2].
@@ -969,7 +981,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     - unfold isLock in *.
       inv HschedN.
       split;
-        first by (rewrite gsoAddLPool gsoThreadLPool;
+        first by (rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool;
                   assumption).
       intros ofs0 Hintv.
       specialize (Hangel2 (addr.1) ofs0).
@@ -980,15 +992,15 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           pf_cleanup.
           destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
           left.
-          exists (latestThread tp), (contains_add_latest (updThread Htid (Kresume c Vundef) threadPerm') (Vptr b ofs) arg newThreadPerm).
+          exists (OrdinalPool.latestThread tp), (OrdinalPool.contains_add_latest (updThread cntj (Kresume c Vundef) threadPerm') (Vptr b ofs) arg newThreadPerm).
           erewrite gssAddRes by reflexivity.
           assumption.
           left.
-          exists j, (cntAdd (Vptr b ofs) arg newThreadPerm Htid).
+          exists j, (cntAdd(resources:=dryResources) (Vptr b ofs) arg newThreadPerm cntj).
           rewrite @gsoAddRes gssThreadRes.
           assumption.
         * left.
-          exists j, (cntAdd (Vptr b ofs) arg newThreadPerm cntj).
+          exists j, (cntAdd(resources:=dryResources) (Vptr b ofs) arg newThreadPerm cntj).
           rewrite @gsoAddRes.
           erewrite @gsoThreadRes with (cntj := cntj) by eauto.
           now eauto.
@@ -1000,11 +1012,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     - (** Makelock case*)
       inv HschedN.
       split.
-      destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-      rewrite gssLockRes; auto.
-      erewrite gsoLockRes by eauto.
-      rewrite gsoThreadLPool;
-        now auto.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) addr); subst.
+      rewrite OrdinalPool.gssLockRes; auto.
+      rewrite OrdinalPool.gsoLockRes; eauto.
       intros ofs0 Hintv.
       destruct (HisLock ofs0 Hintv) as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
       + left. exists j, cntj.
@@ -1014,12 +1024,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           pf_cleanup.
           rewrite gssThreadRes.
           rewrite <- Hlock_perm.
-          destruct (setPermBlock_or (Some Writable) b (Int.intval ofs) (lksize.LKSIZE_nat) (getThreadR Htid).2 addr.1 ofs0)
+          destruct (setPermBlock_or (Some Writable) b (Ptrofs.intval ofs) (lksize.LKSIZE_nat) (getThreadR cntj).2 addr.1 ofs0)
             as [Heq | Heq];
             rewrite Heq; simpl; auto using perm_order.
         * rewrite gsoThreadRes;
             now auto.
-      + assert ((b, Int.intval ofs) <> laddr')
+      + assert ((b, Ptrofs.intval ofs) <> laddr')
           by (intros Hcontra; subst; congruence).
         right.
         exists laddr', rmap'.
@@ -1029,13 +1039,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     - (** Interesting case: freelock *)
       unfold isLock in *.
       apply app_inv_head in H5; subst.
-      specialize (Hev 0 (external tid (freelock (b, Int.intval ofs)))
+      specialize (Hev O (external tid (freelock (b, Ptrofs.intval ofs)))
                       ltac:(reflexivity)).
       simpl in Hev.
       destruct Hev; first by exfalso.
-      erewrite gsolockResRemLock
-        by (intros Hcontra; subst; auto).
-      rewrite gsoThreadLPool.
+      rewrite OrdinalPool.gsolockResRemLock; [|intros Hcontra; subst; auto].
+      rewrite OrdinalPool.gsoThreadLPool.
       split; auto.
       intros ofs0 Hintv.
       destruct (HisLock ofs0 Hintv) as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
@@ -1047,30 +1056,32 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           pf_cleanup.
           rewrite gssThreadRes.
           rewrite <- Hlock_perm.
-          assert (Hneq: b <> addr.1 \/ (b = addr.1) /\ ((ofs0 < (Int.intval ofs))%Z \/ (ofs0 >= (Int.intval ofs) + lksize.LKSIZE)%Z)).
+          assert (Hneq: b <> addr.1 \/ (b = addr.1) /\ ((ofs0 < (Ptrofs.intval ofs))%Z \/ (ofs0 >= (Ptrofs.intval ofs) + lksize.LKSIZE)%Z)).
           { destruct (Pos.eq_dec b (addr.1)); subst; auto.
             destruct addr as [b' ofs']; simpl;
               right; split; auto.
             simpl in His_lock, Hintv.
-            assert (Hofs': (ofs' + lksize.LKSIZE <= Int.intval ofs \/ ofs' >= Int.intval ofs + lksize.LKSIZE)%Z).
-            { destruct (zle (ofs' + lksize.LKSIZE)%Z (Int.intval ofs)).
+            assert (Hofs': (ofs' + lksize.LKSIZE <= Ptrofs.intval ofs \/ ofs' >= Ptrofs.intval ofs + lksize.LKSIZE)%Z).
+            { destruct (zle (ofs' + lksize.LKSIZE)%Z (Ptrofs.intval ofs)).
               - left; auto.
-              - destruct (zlt ofs' (Int.intval ofs + lksize.LKSIZE)%Z); eauto.
-                destruct (zlt ofs' (Int.intval ofs)).
+              - destruct (zlt ofs' (Ptrofs.intval ofs + lksize.LKSIZE)%Z); eauto.
+                destruct (zlt ofs' (Ptrofs.intval ofs)).
                 + exfalso.
-                  pose proof (lockRes_valid Hinv b' ofs') as Hvalid.
-                  destruct (lockRes tp (b', ofs')) eqn:Hlock'; auto.
-                  specialize (Hvalid (Int.intval ofs)).
-                  erewrite Hvalid in His_lock.
+                  pose proof (lockRes_valid _ Hinv b' ofs') as Hvalid.
+                  destruct (lockRes(ThreadPool := OrdinalPool.OrdinalThreadPool) tp (b', ofs')) eqn:Hlock'; auto.
+                  specialize (Hvalid (Ptrofs.intval ofs)).
+                  setoid_rewrite Hvalid in His_lock.
                   congruence.
                   omega.
+                  setoid_rewrite Hlock' in Hlock; auto.
                 + exfalso.
-                  pose proof (lockRes_valid Hinv b' (Int.intval ofs)) as Hvalid.
+                  pose proof (lockRes_valid _ Hinv b' (Ptrofs.intval ofs)) as Hvalid.
+                  simpl in *.
                   rewrite His_lock in Hvalid.
                   specialize (Hvalid ofs').
                   erewrite Hvalid in Hlock.
                   now eauto.
-                  assert (Hneq: Int.intval ofs <> ofs')
+                  assert (Hneq: Ptrofs.intval ofs <> ofs')
                     by (intros Hcontra; subst; apply H; auto).
                   clear - g l g0 Hneq.
                   omega.
@@ -1084,7 +1095,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             auto.
         * rewrite gsoThreadRes;
             now auto.
-      + destruct (EqDec_address (b, Int.intval ofs) laddr').
+      + destruct (EqDec_address (b, Ptrofs.intval ofs) laddr').
         * subst.
           rewrite Hres in His_lock; inv His_lock.
           exfalso.
@@ -1572,7 +1583,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' tidn b ofs
         (cnt: containsThread tp tidn)
         (cnt': containsThread tp' tidn)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) (Some Readable))
         (Hperm': ~ Mem.perm_order'' ((getThreadR cnt').1 !! b ofs) (Some Readable)),
       exists ev,
@@ -1602,7 +1613,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gThreadCR in Hperm');
+          try (rewrite OrdinalPool.gThreadCR in Hperm');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
@@ -1636,39 +1647,38 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
                     simpl.
                     split; first by assumption.
                     (** To prove that there is no lock permission on that location we use the [invariant]*)
-                    pose proof ((thread_data_lock_coh Hinv cnt).1 _ cnt b ofs) as Hcoh.
+                    pose proof ((thread_data_lock_coh _ Hinv _ cnt).1 _ cnt b ofs) as Hcoh.
                     rewrite Hfreeable in Hcoh.
                     simpl in Hcoh.
-                    destruct ((getThreadR cnt).2 !! b ofs);
+                    destruct ((OrdinalPool.getThreadR cnt).2 !! b ofs);
                       [by exfalso | reflexivity].
                   * (** case i is a different thread than the one that stepped*)
                     (** by the invariant*)
-                    assert (cnti' := cntUpdate' cnti).
-                    erewrite! gsoThreadRes with (cntj := cnti')
-                      by (intro Hcontra; subst; auto).
+                    assert (cnti' := cntUpdate' _ _ _ cnti).
+                    rewrite gsoThreadRes; auto.
                     split.
-                    pose proof ((no_race_thr Hinv cnti' cnt Hij).1 b ofs) as Hno_race.
+                    pose proof ((no_race_thr _ Hinv _ _ cnti' cnt Hij).1 b ofs) as Hno_race.
                     rewrite Hfreeable in Hno_race.
                     rewrite perm_union_comm in Hno_race.
                     apply no_race_racy in Hno_race.
-                    inv Hno_race. reflexivity.
+                    inv Hno_race. auto.
                     now constructor.
-                    pose proof ((thread_data_lock_coh Hinv cnti').1 _ cnt b ofs) as Hcoh.
+                    pose proof ((thread_data_lock_coh _ Hinv _ cnti').1 _ cnt b ofs) as Hcoh.
                     rewrite Hfreeable in Hcoh.
                     simpl in Hcoh.
-                    destruct ((getThreadR cnti').2 !! b ofs);
-                      [by exfalso | reflexivity].
+                    destruct ((OrdinalPool.getThreadR cnti').2 !! b ofs) eqn: ?;
+                      [by exfalso | auto].
                 + (** no lock resource has permission on the location*)
                   intros laddr rmap Hres.
                   rewrite gsoThreadLPool in Hres.
                   split.
-                  * pose proof ((no_race Hinv _ cnt Hres).1 b ofs) as Hno_race.
+                  * pose proof ((no_race _ Hinv _ _ cnt _ Hres).1 b ofs) as Hno_race.
                     rewrite Hfreeable in Hno_race.
                     apply no_race_racy in Hno_race.
                     inversion Hno_race.
                     reflexivity.
                     now constructor.
-                  * pose proof (((locks_data_lock_coh Hinv) _ _ Hres).1 _ cnt b ofs) as Hcoh.
+                  * pose proof (((locks_data_lock_coh _ Hinv) _ _ Hres).1 _ cnt b ofs) as Hcoh.
                     rewrite Hfreeable in Hcoh.
                     simpl in Hcoh.
                     destruct (rmap.2 !! b ofs);
@@ -1692,12 +1702,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
                     simpl.
                     split; first by assumption.
                     erewrite restrPermMap_valid in Hinvalid.
-                    eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs := ofs) in Hinvalid; eauto.
-                    erewrite (Hinvalid.1 _ cnt).2.
+                    eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs0 := ofs) in Hinvalid; eauto.
+                    rewrite (Hinvalid.1 _ cnt).2.
                     reflexivity.
                   * (** case i is a different thread than the one that stepped*)
                     erewrite restrPermMap_valid in Hinvalid.
-                    eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs := ofs) in Hinvalid; eauto.
+                    eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs0 := ofs) in Hinvalid; eauto.
                     rewrite! gsoThreadRes; auto.
                     erewrite (Hinvalid.1 _ cnti).2, (Hinvalid.1 _ cnti).1.
                     split;
@@ -1705,7 +1715,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
                 + intros.
                   rewrite gsoThreadLPool in H.
                   erewrite restrPermMap_valid in Hinvalid.
-                  eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs := ofs) in Hinvalid; eauto.
+                  eapply ThreadPoolWF.mem_compatible_invalid_block with (ofs0 := ofs) in Hinvalid; eauto.
                   erewrite (Hinvalid.2 _ _ H).2, (Hinvalid.2 _ _ H).1.
                   split;
                     reflexivity.
@@ -1716,7 +1726,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             clear - Hlive Helim Hperm Hperm'.
             eapply ev_elim_free_2 in Hlive; eauto.
             rewrite restrPermMap_Cur in Hlive.
-            rewrite gssThreadRes in Hperm', Hperm. simpl in *.
+            rewrite OrdinalPool.gssThreadRes in Hperm', Hperm. simpl in *.
             rewrite getCurPerm_correct in Hperm', Hperm.
             apply Hperm'.
             eapply po_trans;
@@ -1724,8 +1734,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           }
         + (** case it was another thread that stepped *)
           exfalso.
-          erewrite gsoThreadRes with (cntj := cnt) in Hperm'
-            by assumption.
+          setoid_rewrite gsoThreadRes with (cntj := cnt) in Hperm'; [|assumption].
           now eauto.
       - (** lock acquire*)
         (** In this case the permissions of a thread can only increase,
@@ -1733,7 +1742,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         exfalso.
         clear - Hangel1 Hangel2 HisLock Hperm Hperm'.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
-        + rewrite gLockSetRes gssThreadRes in Hperm, Hperm'.
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm, Hperm'.
           specialize (Hangel1 b ofs).
           apply permjoin_order in Hangel1.
           destruct Hangel1 as [_ Hperm''].
@@ -1741,7 +1750,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           apply Hperm'.
           eapply po_trans;
             now eauto.
-        + rewrite gLockSetRes gsoThreadRes in Hperm';
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now auto.
       - (** lock release *)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -1750,9 +1759,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           do 3 right. repeat (split; eauto).
           exists virtueLP; split.
           reflexivity.
-          rewrite gssLockRes.
+          rewrite OrdinalPool.gssLockRes.
           split. reflexivity.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           specialize (Hangel1 b ofs).
           apply permjoin_readable_iff in Hangel1.
           rewrite! po_oo in Hangel1.
@@ -1760,7 +1769,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             first by (simpl in *; by exfalso).
           assumption.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** thread spawn*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -1771,7 +1780,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             simpl; split;
               now eauto.
         + exfalso.
-          rewrite gsoAddRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gsoAddRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** MkLock *)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -1780,38 +1789,38 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           do 2 right.
           left.
           do 3 (split; simpl; eauto).
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           destruct (Pos.eq_dec b b0).
           * subst.
             split; auto.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             rewrite <- Hdata_perm in Hperm'.
             rewrite setPermBlock_other_1 in Hperm'.
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. unfold lksize.LKSIZE. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             rewrite <- Hdata_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - exfalso.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
           clear - Hdata_perm Hperm Hperm' Hfreeable Hinv Hneq_perms.
-          rewrite gRemLockSetRes gssThreadRes in Hperm', Hperm.
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gssThreadRes in Hperm', Hperm.
           destruct (Pos.eq_dec b b0).
           * subst.
             rewrite <- Hdata_perm in Hperm'.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_var_same in Hperm' by eauto.
             apply Hperm'.
-            specialize (Hneq_perms (nat_of_Z (ofs - Int.intval ofs0))).
-            assert (Hrange: (0 <= Z.of_nat (nat_of_Z (ofs - Int.intval ofs0))
+            specialize (Hneq_perms (nat_of_Z (ofs - Ptrofs.intval ofs0))).
+            assert (Hrange: (0 <= Z.of_nat (nat_of_Z (ofs - Ptrofs.intval ofs0))
                              < lksize.LKSIZE)%Z).
             { unfold Intv.In, lksize.LKSIZE in *.
               rewrite nat_of_Z_eq.
@@ -1822,8 +1831,8 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               ssromega.
             }
             specialize (Hneq_perms Hrange).
-            replace ((nat_of_Z (ofs - Int.intval ofs0)).+1) with
-            (nat_of_Z (ofs - Int.intval ofs0 +1)) in Hneq_perms.
+            replace ((nat_of_Z (ofs - Ptrofs.intval ofs0)).+1) with
+            (nat_of_Z (ofs - Ptrofs.intval ofs0 +1)) in Hneq_perms.
             eapply po_trans;
               eauto; simpl; now constructor.
             destruct i.
@@ -1835,14 +1844,13 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            unfold lksize.LKSIZE.
-            simpl. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             rewrite <- Hdata_perm in Hperm'.
             erewrite setPermBlock_var_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gRemLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
     Qed.
 
@@ -1857,7 +1865,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hperm: ~ Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable)),
       exists tr_pre tru U'' U''' tp_pre m_pre tp_dec m_dec,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec /\
         multi_fstep (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec
                     (U', tr ++ tr',tpj) mj /\
@@ -1889,7 +1897,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
         + apply app_inv_head in H6; subst.
           assert (cnt': containsThread tp' tidn)
-            by (eapply fstep_containsThread with (tp := tpi); eauto).
+            by (eapply step_containsThread with (tp := tpi); eauto).
           (** Case the permissions were changed by the inductive step. There
                 are two subcases, either they increased and hence we can apply
                 the IH again by transitivity or they decreased and
@@ -2021,7 +2029,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' tidn b ofs
         (cnt: containsThread tp tidn)
         (cnt': containsThread tp' tidn)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: Mem.perm_order'' ((getThreadR cnt).2 !! b ofs) (Some Readable))
         (Hperm': ~ Mem.perm_order'' ((getThreadR cnt').2 !! b ofs) (Some Readable)),
       exists ev,
@@ -2051,7 +2059,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gThreadCR in Hperm');
+          try (rewrite OrdinalPool.gThreadCR in Hperm');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
@@ -2059,10 +2067,10 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         destruct (tidn == tid) eqn:Heq; move/eqP:Heq=>Heq.
         + subst.
           pf_cleanup.
-          rewrite gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gssThreadRes in Hperm'.
           simpl in Hperm'.
           auto.
-        + rewrite gsoThreadRes in Hperm';
+        + rewrite OrdinalPool.gsoThreadRes in Hperm';
           now auto.
       - (** lock acquire*)
         (** In this case the permissions of a thread can only increase,
@@ -2070,7 +2078,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         exfalso.
         clear - Hangel1 Hangel2 HisLock Hperm Hperm'.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
-        + rewrite gLockSetRes gssThreadRes in Hperm, Hperm'.
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm, Hperm'.
           specialize (Hangel2 b ofs).
           apply permjoin_order in Hangel2.
           destruct Hangel2 as [_ Hperm''].
@@ -2078,7 +2086,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           apply Hperm'.
           eapply po_trans;
             now eauto.
-        + rewrite gLockSetRes gsoThreadRes in Hperm';
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now auto.
       - (** lock release *)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2087,9 +2095,9 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           do 3 right. repeat (split; eauto).
           exists virtueLP; split.
           reflexivity.
-          rewrite gssLockRes.
+          rewrite OrdinalPool.gssLockRes.
           split. reflexivity.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           specialize (Hangel2 b ofs).
           apply permjoin_readable_iff in Hangel2.
           rewrite! po_oo in Hangel2.
@@ -2097,7 +2105,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             first by (simpl in *; by exfalso).
           assumption.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** thread spawn*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2108,17 +2116,17 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             simpl; split;
               now eauto.
         + exfalso.
-          rewrite gsoAddRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gsoAddRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** MkLock *)
         exfalso.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           rewrite <- Hlock_perm in Hperm'.
           destruct (Pos.eq_dec b b0).
           * subst.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_same in Hperm' by eauto.
             simpl in Hperm'.
             now eauto using perm_order.
@@ -2126,12 +2134,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. unfold lksize.LKSIZE. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
@@ -2139,23 +2147,23 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           do 2 right.
           left.
           do 3 (split; simpl; eauto).
-          rewrite gRemLockSetRes gssThreadRes in Hperm', Hperm.
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gssThreadRes in Hperm', Hperm.
           destruct (Pos.eq_dec b b0).
           * subst.
             rewrite <- Hlock_perm in Hperm'.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             rewrite setPermBlock_other_1 in Hperm'.
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl.  unfold lksize.LKSIZE. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             rewrite <- Hlock_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gRemLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
     Qed.
 
@@ -2170,7 +2178,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hperm: ~ Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable)),
       exists tr_pre tru U'' U''' tp_pre m_pre tp_dec m_dec,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec /\
         multi_fstep (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec
                     (U', tr ++ tr',tpj) mj /\
@@ -2202,7 +2210,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
         + apply app_inv_head in H6; subst.
           assert (cnt': containsThread tp' tidn)
-            by (eapply fstep_containsThread with (tp := tpi); eauto).
+            by (eapply step_containsThread with (tp := tpi); eauto).
           (** Case the permissions were changed by the inductive step. There
                 are two subcases, either they increased and hence we can apply
                 the IH again by transitivity or they decreased and
@@ -2338,7 +2346,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
                  ~ Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable))),
       exists tr_pre tru U'' U''' tp_pre m_pre tp_dec m_dec,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec /\
         multi_fstep (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec
                     (U', tr ++ tr',tpj) mj /\
@@ -2407,7 +2415,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' tidn b ofs
         (cnt: containsThread tp tidn)
         (cnt': containsThread tp' tidn)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm': Mem.perm_order'' ((getThreadR cnt').1 !! b ofs) (Some Readable))
         (Hperm: ~ Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) (Some Readable))
         (Hvalid: Mem.valid_block m b),
@@ -2436,7 +2444,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gThreadCR in Hperm');
+          try (rewrite OrdinalPool.gThreadCR in Hperm');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
@@ -2447,18 +2455,17 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           eapply ev_elim_stable with (b := b) (ofs := ofs) in Helim; eauto.
           rewrite restrPermMap_Cur in Helim.
           rewrite Helim in Hperm.
-          rewrite gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gssThreadRes in Hperm'.
           rewrite getCurPerm_correct in Hperm'.
           now auto.
           rewrite restrPermMap_Cur.
-          destruct ((getThreadR cnt).1 !! b ofs) as [p|];
+          destruct ((OrdinalPool.getThreadR cnt).1 !! b ofs) as [p|] eqn: Heq; rewrite Heq;
             try (destruct p); simpl in Hperm; simpl;
               eauto using perm_order;
               exfalso; now auto using perm_order.
         + (** case it was another thread that stepped *)
           exfalso.
-          erewrite gsoThreadRes with (cntj := cnt) in Hperm'
-            by assumption.
+          setoid_rewrite gsoThreadRes with (cntj := cnt) in Hperm'; [|assumption].
           now eauto.
       - (** lock acquire*)
         (** In this case the permissions of a thread can only increase*)
@@ -2472,25 +2479,25 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           assumption.
           specialize (Hangel1 b ofs).
           eapply permjoin_readable_iff in Hangel1.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           rewrite! po_oo in Hangel1.
           destruct (Hangel1.1 Hperm');
             [assumption | exfalso; now auto].
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** lock release *)
         exfalso.
         clear - Hangel1 Hangel2 HisLock Hperm Hperm'.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
-        + rewrite gLockSetRes gssThreadRes in Hperm, Hperm'.
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm, Hperm'.
           specialize (Hangel1 b ofs). pf_cleanup.
           simpl in Hangel1.
           apply permjoin_readable_iff in Hangel1.
           apply Hperm.
           eapply Hangel1.
           now eauto.
-        + rewrite gLockSetRes gsoThreadRes in Hperm';
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now auto.
       - (** thread spawn*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2500,17 +2507,17 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           simpl; split;
             now eauto.
         + exfalso.
-          rewrite gsoAddRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gsoAddRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** MkLock *)
         exfalso.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           destruct (Pos.eq_dec b b0).
           * subst.
             rewrite <- Hdata_perm in Hperm'.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_same in Hperm' by eauto.
             simpl in Hperm'.
             now inv Hperm'.
@@ -2519,12 +2526,12 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             simpl.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. unfold lksize.LKSIZE. now omega.
+            simpl. now lksize.lkomega.
           * rewrite <- Hdata_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** Freelock*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2532,22 +2539,22 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           eexists.
           right; left.
           do 3 split; simpl; eauto.
-          rewrite gRemLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           destruct (Pos.eq_dec b b0).
           * subst.
             rewrite <- Hdata_perm in Hperm'.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             erewrite setPermBlock_var_other_1 in Hperm'.
             now eauto.
             eapply Intv.range_notin in n; eauto.
-            unfold lksize.LKSIZE; simpl; now omega.
+            simpl; now lksize.lkomega.
           * exfalso.
             rewrite <- Hdata_perm in Hperm'.
             erewrite setPermBlock_var_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gRemLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
     Qed.
 
@@ -2562,7 +2569,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hvalid: Mem.valid_block mi b),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
         multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
                     (U', tr ++ tr',tpj) mj /\
@@ -2593,7 +2600,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
         + apply app_inv_head in H6; subst.
           assert (cnt': containsThread tp' tidn)
-            by (eapply fstep_containsThread with (tp := tpi); eauto).
+            by (eapply step_containsThread with (tp := tpi); eauto).
           (** Case the permissions were changed by the inductive step. There are
                 two subcases, either they went above readable and we don't need
                 the IH or they did not and we apply the IH*)
@@ -2625,7 +2632,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ H9 Hperm' Hstable)
               as (tr_pre & evu & U'' & U''' & tp_pre & m_pre & tp_inc
                   & m_inc & Hexec_pre & Hstep & Hexec_post & Hspec); eauto.
-            eapply StepType.fstep_valid_block; eauto.
+            eapply (StepType.fstep_valid_block(initU := initU)(init_mem := init_mem)); eauto.
             destruct Hspec as [Haction | [[Haction [Hthread_id Hloc]]
                                          | [Haction [Hthread_id Hrmap]]]].
             + (** case the increase was by a [Spawn] event *)
@@ -2681,7 +2688,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' tidn b ofs
         (cnt: containsThread tp tidn)
         (cnt': containsThread tp' tidn)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm': Mem.perm_order'' ((getThreadR cnt').2 !! b ofs) (Some Readable))
         (Hperm: ~ Mem.perm_order'' ((getThreadR cnt).2 !! b ofs) (Some Readable))
         (Hvalid: Mem.valid_block m b),
@@ -2710,20 +2717,19 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gThreadCR in Hperm');
+          try (rewrite OrdinalPool.gThreadCR in Hperm');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
           exfalso.
-          rewrite gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gssThreadRes in Hperm'.
           simpl in Hperm'.
           now auto.
         + (** case it was another thread that stepped *)
           exfalso.
-          erewrite gsoThreadRes with (cntj := cnt) in Hperm'
-            by assumption.
+          setoid_rewrite OrdinalPool.gsoThreadRes with (cntj := cnt) in Hperm'; [|assumption].
           now eauto.
       - (** lock acquire*)
         (** In this case the permissions of a thread can only increase*)
@@ -2737,25 +2743,25 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           assumption.
           specialize (Hangel2 b ofs).
           eapply permjoin_readable_iff in Hangel2.
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           rewrite! po_oo in Hangel2.
           destruct (Hangel2.1 Hperm');
             [assumption | exfalso; now auto].
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** lock release *)
         exfalso.
         clear - Hangel1 Hangel2 HisLock Hperm Hperm'.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
-        + rewrite gLockSetRes gssThreadRes in Hperm, Hperm'.
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm, Hperm'.
           specialize (Hangel2 b ofs). pf_cleanup.
           simpl in Hangel2.
           apply permjoin_readable_iff in Hangel2.
           apply Hperm.
           eapply Hangel2.
           now eauto.
-        + rewrite gLockSetRes gsoThreadRes in Hperm';
+        + rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now auto.
       - (** thread spawn*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2765,7 +2771,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           simpl; split;
             now eauto.
         + exfalso.
-          rewrite gsoAddRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gsoAddRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** MkLock *)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
@@ -2774,35 +2780,35 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           right.
           left.
           do 3 (split; simpl; eauto).
-          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gssThreadRes in Hperm'.
           destruct (Pos.eq_dec b b0).
           * subst.
             split; auto.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             exfalso.
             rewrite <- Hlock_perm in Hperm'.
             rewrite setPermBlock_other_1 in Hperm'.
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            simpl. unfold lksize.LKSIZE. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             rewrite <- Hlock_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
       - (** Freelock*)
         exfalso.
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
           clear - Hlock_perm Hperm Hperm' Hfreeable Hinv.
-          rewrite gRemLockSetRes gssThreadRes in Hperm', Hperm.
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gssThreadRes in Hperm', Hperm.
           destruct (Pos.eq_dec b b0).
           * subst.
             rewrite <- Hlock_perm in Hperm'.
-            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_same in Hperm' by eauto.
             simpl in Hperm';
               now auto.
@@ -2810,14 +2816,13 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
-            unfold lksize.LKSIZE.
-            simpl. now omega.
+            simpl. now lksize.lkomega.
           * exfalso.
             rewrite <- Hlock_perm in Hperm'.
             erewrite setPermBlock_other_2 in Hperm' by eauto.
             now auto.
         + exfalso.
-          rewrite gRemLockSetRes gsoThreadRes in Hperm';
+          rewrite OrdinalPool.gRemLockSetRes OrdinalPool.gsoThreadRes in Hperm';
             now eauto.
     Qed.
 
@@ -2832,7 +2837,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hvalid: Mem.valid_block mi b),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
         multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
                     (U', tr ++ tr',tpj) mj /\
@@ -2863,7 +2868,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
         + apply app_inv_head in H6; subst.
           assert (cnt': containsThread tp' tidn)
-            by (eapply fstep_containsThread with (tp := tpi); eauto).
+            by (eapply step_containsThread with (tp := tpi); eauto).
           (** Case the permissions were changed by the inductive step. There are
                 two subcases, either they went above readable and we don't need
                 the IH or they did not and we apply the IH*)
@@ -2895,7 +2900,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ H9 Hperm' Hstable)
               as (tr_pre & evu & U'' & U''' & tp_pre & m_pre & tp_inc
                   & m_inc & Hexec_pre & Hstep & Hexec_post & Hspec); eauto.
-            eapply StepType.fstep_valid_block; eauto.
+            eapply (StepType.fstep_valid_block(initU := initU)(init_mem := init_mem)); eauto.
             destruct Hspec as [Haction | [[Haction [Hthread_id Hloc]]
                                          | [Haction [Hthread_id Hrmap]]]].
             + (** case the increase was by a [Spawn] event *)
@@ -2956,7 +2961,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hvalid: Mem.valid_block mi b),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
         multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
                     (U', tr ++ tr',tpj) mj /\
@@ -3005,7 +3010,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap
         (Hres: lockRes tp laddr = None)
         (Hres': lockRes tp' laddr = Some rmap)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
       exists ev,
         tr' = [:: ev] /\ action ev = Mklock /\
         location ev = Some (laddr, lksize.LKSIZE_nat) /\
@@ -3017,22 +3022,22 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
-          try (rewrite gsoThreadLPool in Hres');
-          try (rewrite gsoAddLPool gsoThreadLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadLPool in Hres');
+          try (rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres');
           try (congruence);
           apply app_inv_head in H5; subst;
-            try (destruct (EqDec_address (b, Int.intval ofs) laddr); subst;
-                 [rewrite Hres in HisLock | erewrite gsoLockRes, gsoThreadLPool in Hres'];
+            try (destruct (EqDec_address (b, Ptrofs.intval ofs) laddr); subst;
+                 [setoid_rewrite Hres in HisLock | rewrite OrdinalPool.gsoLockRes in Hres'; auto; rewrite OrdinalPool.gsoThreadLPool in Hres'; auto];
                  congruence).
-      destruct (EqDec_address (b, Int.intval ofs) laddr); subst.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) laddr); subst.
       eexists; repeat split; eauto.
-      rewrite gssLockRes; reflexivity.
-      erewrite gsoLockRes, gsoThreadLPool in Hres' by eauto.
+      rewrite OrdinalPool.gssLockRes; reflexivity.
+      rewrite OrdinalPool.gsoLockRes in Hres'; auto; rewrite OrdinalPool.gsoThreadLPool in Hres'; auto.
       rewrite Hres in Hres'; discriminate.
-      destruct (EqDec_address (b, Int.intval ofs) laddr); subst;
-        first by congruence.
-      erewrite gsolockResRemLock, gsoThreadLPool in Hres' by eauto.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) laddr); subst.
+      setoid_rewrite Hres in His_lock; congruence.
+      rewrite OrdinalPool.gsolockResRemLock in Hres'; auto; rewrite OrdinalPool.gsoThreadLPool in Hres'; auto.
         by congruence.
     Qed.
 
@@ -3043,7 +3048,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
         multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
                     (U', tr ++ tr',tpj) mj /\
@@ -3060,7 +3065,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite Hres in Hres'; inv Hres';
             by congruence.
         + apply app_inv_head in H6; subst.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is created*)
             destruct (lockRes_mklock_step _ _ Hres Hres'' H8)
               as (ev & ? & Hact & Hloc & Hres_empty);
@@ -3088,7 +3093,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = None)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
       exists ev,
         tr' = [:: ev] /\ action ev = Freelock /\
         location ev = Some (laddr, lksize.LKSIZE_nat) /\
@@ -3100,19 +3105,19 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
-          try (rewrite gsoThreadLPool in Hres');
-          try (rewrite gsoAddLPool gsoThreadLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadLPool in Hres');
+          try (rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres');
           try (congruence);
           apply app_inv_head in H5; subst;
-            try (destruct (EqDec_address (b, Int.intval ofs) laddr); subst;
-                 [rewrite gssLockRes in Hres' | erewrite gsoLockRes, gsoThreadLPool in Hres'];
+            try (destruct (EqDec_address (b, Ptrofs.intval ofs) laddr); subst;
+                 [rewrite OrdinalPool.gssLockRes in Hres' | rewrite OrdinalPool.gsoLockRes in Hres'; auto; rewrite OrdinalPool.gsoThreadLPool in Hres'; auto];
                  congruence).
-      destruct (EqDec_address (b, Int.intval ofs) laddr); subst.
-      rewrite Hres in His_lock; inv His_lock.
+      destruct (EqDec_address (b, Ptrofs.intval ofs) laddr); subst.
+      setoid_rewrite Hres in His_lock; inv His_lock.
       eexists; repeat split; eauto;
         now eapply Hrmap.
-      erewrite gsolockResRemLock, gsoThreadLPool in Hres' by eauto.
+      rewrite OrdinalPool.gsolockResRemLock in Hres'; auto; rewrite OrdinalPool.gsoThreadLPool in Hres'; auto.
         by congruence.
     Qed.
 
@@ -3123,7 +3128,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
         multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+        MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                           (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
         multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
                     (U', tr ++ tr',tpj) mj /\
@@ -3143,7 +3148,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite Hres in Hres'; inv Hres';
             by congruence.
         + apply app_inv_head in H6; subst.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is not freed yet*)
             rewrite app_assoc in H9.
             destruct (IHU _ _ _ _ _ _ _ _ _ Hres'' Hres' H9)
@@ -3170,7 +3175,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = Some rmap')
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
         (Hperm': ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable)),
       exists ev,
@@ -3183,59 +3188,59 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
           try (rewrite Hres in Hres'; inv Hres');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
         exfalso.
-        rewrite gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres in Hres'; inv Hres';
           now auto.
       - (** lock acquire*)
         (** In this case the permissions of a lock can decrease*)
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
           eexists; split; eauto.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** lock release *)
         (** In this case the permissions of a lock can only increase; contradiction.*)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           rewrite (Hrmap b ofs).1 in Hperm.
           simpl in Hperm.
           assumption.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** thread spawn*)
-        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres' in Hres; inv Hres;
           now eauto.
       - (** MkLock *)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HlockRes.
+          setoid_rewrite Hres in HlockRes.
           discriminate.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite gsslockResRemLock in Hres'.
+          rewrite OrdinalPool.gsslockResRemLock in Hres'.
           discriminate.
-        + erewrite gsolockResRemLock in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsolockResRemLock in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
     Qed.
@@ -3261,7 +3266,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite Hres in Hres'; inv Hres';
             by congruence.
         + apply app_inv_head in H6; subst.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is still there*)
             destruct (perm_order''_dec (rmap'.1 !! b ofs)
                                        (Some Readable)) as [Hstable | Hdecr].
@@ -3270,7 +3275,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               (** And we can apply the IH*)
               destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3278,7 +3283,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             { (** Case permissions decreased *)
               destruct (lockRes_data_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
                 as (ev & ? & Hact & Hloc); subst.
-              exists 0, ev.
+              exists O, ev.
               simpl;
                 now auto.
             }
@@ -3298,7 +3303,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = Some rmap')
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
         (Hperm': ~ Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)),
       exists ev,
@@ -3311,59 +3316,59 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
           try (rewrite Hres in Hres'; inv Hres');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
         exfalso.
-        rewrite gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres in Hres'; inv Hres';
           now auto.
       - (** lock acquire*)
         (** In this case the permissions of a lock can decrease*)
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
           eexists; split; eauto.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** lock release *)
         (** In this case the permissions of a lock can only increase; contradiction.*)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           rewrite (Hrmap b ofs).2 in Hperm.
           simpl in Hperm.
           assumption.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** thread spawn*)
-        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres' in Hres; inv Hres;
           now eauto.
       - (** MkLock *)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HlockRes.
+          setoid_rewrite Hres in HlockRes.
           discriminate.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite gsslockResRemLock in Hres'.
+          rewrite OrdinalPool.gsslockResRemLock in Hres'.
           discriminate.
-        + erewrite gsolockResRemLock in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsolockResRemLock in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
     Qed.
@@ -3388,7 +3393,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           rewrite Hres in Hres'; inv Hres';
             by congruence.
         + apply app_inv_head in H6; subst.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is still there*)
             destruct (perm_order''_dec (rmap'.2 !! b ofs)
                                        (Some Readable)) as [Hstable | Hdecr].
@@ -3397,7 +3402,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               (** And we can apply the IH*)
               destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3405,7 +3410,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             { (** Case permissions decreased *)
               destruct (lockRes_lock_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
                 as (ev & ? & Hact & Hloc); subst.
-              exists 0, ev.
+              exists O, ev.
               simpl;
                 now auto.
             }
@@ -3444,7 +3449,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = Some rmap')
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: ~ Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
         (Hperm': Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable)),
       exists ev,
@@ -3457,65 +3462,65 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
           try (rewrite Hres in Hres'; inv Hres');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
         exfalso.
-        rewrite gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres in Hres'; inv Hres';
           now auto.
       - (** lock acquire*)
         (** In this case the permissions of a lock can only decrease; contradiction*)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           specialize (Hangel1 b ofs).
-          rewrite gssLockRes in Hres'.
+          rewrite OrdinalPool.gssLockRes in Hres'.
           inv Hres'.
           rewrite empty_map_spec in Hperm'.
           simpl in Hperm'.
           assumption.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** lock release *)
         (** In this case the permissions of a lock can increase.*)
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           eexists; split;
             now eauto.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** thread spawn*)
-        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres' in Hres; inv Hres;
           now eauto.
       - (** MkLock *)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HlockRes.
+          setoid_rewrite Hres in HlockRes.
           discriminate.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite gsslockResRemLock in Hres'.
+          rewrite OrdinalPool.gsslockResRemLock in Hres'.
           discriminate.
-        + erewrite gsolockResRemLock in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsolockResRemLock in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
     Qed.
@@ -3524,7 +3529,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = Some rmap')
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: ~ Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
         (Hperm': Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)),
       exists ev,
@@ -3537,65 +3542,65 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         try inv Htstep;
         destruct U; inversion HschedN; subst; pf_cleanup;
           try (inv Hhalted);
-          try (rewrite gsoThreadCLPool in Hres');
+          try (rewrite OrdinalPool.gsoThreadCLPool in Hres');
           try (rewrite Hres in Hres'; inv Hres');
           try  (exfalso; by eauto);
           apply app_inv_head in H5; subst.
       - (** internal step case *)
         exfalso.
-        rewrite gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres in Hres'; inv Hres';
           now auto.
       - (** lock acquire*)
         (** In this case the permissions of a lock can only decrease; contradiction*)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           specialize (Hangel2 b ofs).
-          rewrite gssLockRes in Hres'.
+          rewrite OrdinalPool.gssLockRes in Hres'.
           inv Hres'.
           rewrite empty_map_spec in Hperm'.
           simpl in Hperm'.
           assumption.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** lock release *)
         (** In this case the permissions of a lock can increase.*)
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HisLock; inv HisLock.
+          setoid_rewrite Hres in HisLock; inv HisLock.
           eexists; split;
             now eauto.
         + exfalso.
-          erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+          rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - (** thread spawn*)
-        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite OrdinalPool.gsoAddLPool OrdinalPool.gsoThreadLPool in Hres'.
         rewrite Hres' in Hres; inv Hres;
           now eauto.
       - (** MkLock *)
         exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite Hres in HlockRes.
+          setoid_rewrite Hres in HlockRes.
           discriminate.
-        + erewrite gsoLockRes in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsoLockRes in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
       - exfalso.
-        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        destruct (EqDec_address laddr (b0, Ptrofs.intval ofs0)).
         + inv e.
-          rewrite gsslockResRemLock in Hres'.
+          rewrite OrdinalPool.gsslockResRemLock in Hres'.
           discriminate.
-        + erewrite gsolockResRemLock in Hres' by eauto.
-          rewrite gsoThreadLPool in Hres'.
+        + rewrite OrdinalPool.gsolockResRemLock in Hres'; auto.
+          rewrite OrdinalPool.gsoThreadLPool in Hres'.
           rewrite Hres' in Hres; inv Hres;
             now eauto.
     Qed.
@@ -3629,7 +3634,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
             subst.
             apply app_inv_head in H6; subst. clear Hexec.
-            destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+            destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
             { (** Case the lock is there*)
               eapply lockRes_mklock_step in H8; eauto.
               destruct H8 as (ev & ? & ? & ? & ?); subst.
@@ -3647,7 +3652,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
                                                               Hres'' Hres' H9 Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3662,7 +3667,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           subst.
           apply app_inv_head in H6; subst.
           clear Hexec.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is there*)
             destruct (perm_order''_dec (rmap'.1 !! b ofs)
                                        (Some Readable)) as [Hincr | Hstable].
@@ -3670,7 +3675,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               eapply lockRes_data_permission_increase_step in H8; eauto.
               destruct H8 as (ev & ? & ? & ?).
               subst.
-              exists 0, ev. repeat split; auto.
+              exists O, ev. repeat split; auto.
             }
             { (** Case permissions did not increase*)
               rewrite app_assoc in H9.
@@ -3678,7 +3683,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               destruct (lockRes_data_permission_increase_execution
                           _ _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3689,7 +3694,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
                                                             Hres'' Hres' H9 Hperm')
               as (v & ev & Hnth & Hact & Hloc).
-            exists ((length tr'0) + v), ev.
+            exists ((length tr'0) + v)%nat, ev.
             split.
             rewrite <- nth_error_app; auto.
             now auto.
@@ -3726,7 +3731,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             by congruence.
             subst.
             apply app_inv_head in H6; subst. clear Hexec.
-            destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+            destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
             { (** Case the lock is there*)
               eapply lockRes_mklock_step in H8; eauto.
               destruct H8 as (ev & ? & ? & ? & ?); subst.
@@ -3745,7 +3750,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               destruct (lockRes_lock_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
                                                               Hres'' Hres' H9 Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3760,7 +3765,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
           subst.
           apply app_inv_head in H6; subst.
           clear Hexec.
-          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          destruct (OrdinalPool.lockRes tp' laddr) as [rmap'|] eqn:Hres''.
           { (** Case the lock is there*)
             destruct (perm_order''_dec (rmap'.2 !! b ofs)
                                        (Some Readable)) as [Hincr | Hstable].
@@ -3768,7 +3773,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               eapply lockRes_lock_permission_increase_step in H8; eauto.
               destruct H8 as (ev & ? & ? & ?).
               subst.
-              exists 0, ev. repeat split; auto.
+              exists O, ev. repeat split; auto.
             }
             { (** Case permissions did not increase*)
               rewrite app_assoc in H9.
@@ -3776,7 +3781,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
               destruct (lockRes_lock_permission_increase_execution
                           _ _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
-              exists ((length tr'0) + v), ev.
+              exists ((length tr'0) + v)%nat, ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
@@ -3787,7 +3792,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
             destruct (lockRes_lock_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
                                                             Hres'' Hres' H9 Hperm')
               as (v & ev & Hnth & Hact & Hloc).
-            exists ((length tr'0) + v), ev.
+            exists ((length tr'0) + v)%nat, ev.
             split.
             rewrite <- nth_error_app; auto.
             now auto.
@@ -3818,7 +3823,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
     forall U tr tp m U' tp' m' tr' tidn
       (cnt: ~ containsThread tp tidn)
       (cnt': containsThread tp' tidn)
-      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+      (Hstep: MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
     exists ev,
       tr' = [:: ev] /\ action ev = Spawn.
   Proof.
@@ -3842,7 +3847,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
       (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
     exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
       multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-      FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+      MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
                         (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
       multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
                   (U', tr ++ tr',tpj) mj /\
@@ -3856,7 +3861,7 @@ Module Executions (SemAxioms: SemanticsAxioms SEM)
         pf_cleanup;
           by congruence.
       + apply app_inv_head in H6; subst.
-        destruct (containsThread_dec tidn tp') as [cnt' | not_cnt'].
+        destruct (OrdinalPool.containsThread_dec tidn tp') as [cnt' | not_cnt'].
         * destruct (thread_spawn_step _ cnti cnt' H8) as [ev [? ?]].
           subst.
           exists [:: ], ev, (tid' :: U)%SEQ, U, tpi, mi, tp', m'.

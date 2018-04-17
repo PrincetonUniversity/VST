@@ -17,3 +17,5 @@ Proof.
   unfold LKSIZE; simpl.
   rewrite size_chunk_Mptr; destruct Archi.ptr64; omega.
 Qed.
+
+Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try omega.
