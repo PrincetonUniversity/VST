@@ -59,10 +59,6 @@ Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Existing Instance JuicyMachineShell.
 Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
 Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
@@ -144,8 +140,6 @@ Proof.
   all: eauto.
 
   inversion Hhalted.
-  simpl in Hcant; rewrite ClightSemantincsForMachines.CLN_msem in Hcant.
-  simpl in Hcant.
   inversion Hcant.
 
   intros E.
@@ -488,5 +482,3 @@ Section Safety.
   Qed.
 
 End Safety.
-
-End Sem.

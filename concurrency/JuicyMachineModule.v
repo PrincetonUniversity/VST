@@ -33,7 +33,6 @@ Module THE_JUICY_MACHINE.
 
   Section THE_JUICY_MACHINE.
 
-  Context {Sem : ClightSEM}.
   Existing Instance ClightSem.
   Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig := JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).

@@ -89,8 +89,6 @@ Import Concur OrdinalPool ThreadPool.
 
 Section Machine.
 
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
   same_locks phi phi' ->
   juicyLocks_in_lockSet lset phi ->

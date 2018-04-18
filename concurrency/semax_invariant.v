@@ -40,6 +40,7 @@ Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.ClightSemantincsForMachines.
 Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.join_lemmas.
@@ -75,8 +76,6 @@ Notation event_trace := (seq.seq machine_event).
 
 Section Machine.
 
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 (*+ Description of the invariant *)
 Definition cm_state := (Mem.mem * Clight.genv * (event_trace * schedule * jstate))%type.
 
@@ -86,7 +85,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
       (m, ge, (tr, nil, jstate))
       (m, ge, (tr, nil, jstate))
 | state_step_c ge m m' tr tr' sch sch' jstate jstate' :
-    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
+    @JuicyMachine.machine_step _ ClightSem _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
     state_step
       (m, ge, (tr, sch, jstate))
       (m', ge, (tr', sch', jstate')).

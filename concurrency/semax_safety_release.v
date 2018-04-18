@@ -78,10 +78,6 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma safety_induction_release Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
@@ -164,7 +160,7 @@ Proof.
   inv Hstep0.
   inv H5; try inversion HschedN; subst tid;
       try congruence; jmstep_inv; getThread_inv; try congruence;
-      inv H; simpl in Hat_external; rewrite ClightSemantincsForMachines.CLN_msem in Hat_external; simpl in Hat_external;
+      inv H; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external.
   clear dependent d_phi; clear dependent phi'.
 
@@ -193,7 +189,6 @@ Proof.
     eapply JuicyMachine.sync_step with (Htid := cnti); auto.
 
     eapply step_release with (d_phi := phi0d); eauto.
-    - simpl; rewrite ClightSemantincsForMachines.CLN_msem. assumption.
     - hnf. rewrite level_age_by.
       destruct (join_level _ _ _ jphi0) as [-> <-].
       assert (0 < level phi0d)%nat.
@@ -607,5 +602,3 @@ Proof.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
 Qed.
-
-End Sem.

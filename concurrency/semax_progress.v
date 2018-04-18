@@ -59,10 +59,6 @@ Set Bullet Behavior "Strict Subproofs".
 
 Import Mem.
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma load_at_phi_restrict i (tp : jstate) (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh R phi0 o :
   join_sub phi0 (getThreadR cnti) ->
@@ -330,7 +326,6 @@ Section Progress.
           split.
           * simpl.
             subst.
-            rewrite ClightSemantincsForMachines.CLN_msem.
             apply stepi.
           * simpl.
             exact_eq decay.
@@ -351,9 +346,7 @@ Section Progress.
         + eapply mem_compatible_forget; eauto.
         + econstructor.
           * eassumption.
-          * simpl.
-            rewrite ClightSemantincsForMachines.CLN_msem.
-            reflexivity.
+          * reflexivity.
           * constructor.
           * reflexivity.
       } (* end of Krun (at_ex c) -> Kblocked c *)
@@ -573,7 +566,6 @@ Section Progress.
             assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
-              rewrite ClightSemantincsForMachines.CLN_msem; simpl.
               repeat f_equal; congruence.
             }
 
@@ -640,7 +632,6 @@ Section Progress.
           assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
-            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
             repeat f_equal; congruence.
           }
 
@@ -706,8 +697,6 @@ Section Progress.
             * now auto.
             * eassumption.
             * simpl.
-              rewrite ClightSemantincsForMachines.CLN_msem.
-              simpl.
               repeat f_equal; [ | | ].
               -- simpl in H_acquire.
                  injection H_acquire as Ee.
@@ -835,7 +824,6 @@ Section Progress.
           assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                         Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
-            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
             auto.
           }
           subst z.
@@ -1074,7 +1062,6 @@ Section Progress.
         assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
-          rewrite ClightSemantincsForMachines.CLN_msem; simpl.
           repeat f_equal; congruence.
         }
 
@@ -1223,7 +1210,6 @@ Section Progress.
         assert (Eae : at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (ExtCall (EF_external name sg) args lid ve te k) m =
                       Some (FREE_LOCK, Vptr b ofs :: nil)). {
           simpl.
-          rewrite ClightSemantincsForMachines.CLN_msem; simpl.
           repeat f_equal; congruence.
         }
 
@@ -1495,9 +1481,7 @@ Section Progress.
         + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * simpl.
-            rewrite ClightSemantincsForMachines.CLN_msem; simpl.
-            rewrite Einit; reflexivity.
+          * simpl; rewrite Einit; reflexivity.
           * constructor.
           * reflexivity.
     }
@@ -1506,5 +1490,3 @@ Section Progress.
 Qed. (* Theorem progress *)
 
 End Progress.
-
-End Sem.

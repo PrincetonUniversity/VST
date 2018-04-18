@@ -80,11 +80,7 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Section Sem.
-
 Opaque containsThread.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 (* Weaker statement than preservation for freelock, enough to prove safety *)
 Lemma safety_induction_freelock Gamma n state
@@ -310,7 +306,6 @@ Proof.
                    (R := Rx) (phi'0 := phi').
     all: try reflexivity.
     all: try eassumption.
-    simpl; rewrite ClightSemantincsForMachines.CLN_msem. eassumption.
     apply (mem_compatible_forget compat).
   }
 
@@ -318,7 +313,7 @@ Proof.
 
   simpl (m_phi _).
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
-    rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+    rewrite getThread_level with (Phi := Phi). auto. apply compat.
   }
   assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
   cleanup.
@@ -358,7 +353,7 @@ Proof.
       rewrite maps_updthread.
       rewrite <-(maps_getlock2 _ (b, Ptrofs.unsigned ofs)) in j. 2:eassumption.
       assert (cnti' : containsThread (remLockSet tp (b, Ptrofs.unsigned ofs)) i) by auto.
-      rewrite maps_getthread with (i0 := i) (cnti0 := cnti') in j.
+      rewrite maps_getthread with (i := i) (cnti := cnti') in j.
       change Ptrofs.intval with Ptrofs.unsigned.
       clear Post B1.
       eapply (joinlist_merge phi0' phi1). apply j'.
@@ -815,5 +810,3 @@ Proof.
     instantiate (1 := cnti). simpl.
     congruence.
 Qed.
-
-End Sem.

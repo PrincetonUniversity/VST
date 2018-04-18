@@ -528,10 +528,6 @@ Ltac getThread_inv :=
 
 Ltac substwith x y := assert (x = y) by apply proof_irr; subst x.
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma load_restrPermMap m tp Phi b ofs m_any
   (compat : mem_compatible_with tp m Phi) :
   lock_coherence (lset tp) Phi m_any ->
@@ -791,8 +787,8 @@ Proof.
 Qed.
 
 Lemma jm_updThreadC i tp ctn c' m Phi cnti pr pr' :
-  @jm_ _ (updThreadC i tp ctn c') m Phi i cnti pr =
-  @jm_ _ tp m Phi i cnti pr'.
+  @jm_ (updThreadC i tp ctn c') m Phi i cnti pr =
+  @jm_ tp m Phi i cnti pr'.
 Proof.
   apply juicy_mem_ext.
   - apply juicyRestrict_ext.
@@ -945,14 +941,14 @@ Section Preservation.
   (tp tp' : jstate)
   (jmstep : @JuicyMachine.machine_step _ (ClightSemantincsForMachines.ClightSem) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch'
              tr' tp' m')
-  (INV : @state_invariant _ (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
+  (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
   (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : @lock_sparsity lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
-  (safety : @threads_safety _ (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
+  (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
@@ -960,8 +956,8 @@ Section Preservation.
   (v1 v2 : val)
   (Eci : getThreadC i tp cnti = @Kinit semC v1 v2) :
   (* ============================ *)
-  @state_invariant _ (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma n (m', ge, (tr', sch', tp')) \/
-  @state_invariant _ (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m', ge, (tr', sch', tp')).
+  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma n (m', ge, (tr', sch', tp')) \/
+  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m', ge, (tr', sch', tp')).
 
   Proof.
     inversion jmstep; subst; try inversion HschedN; subst tid;
@@ -969,7 +965,7 @@ Section Preservation.
       try congruence.
  *
    inv Htstep.
-   simpl in Hinitial; rewrite ClightSemantincsForMachines.CLN_msem in Hinitial; simpl in Hinitial.
+   simpl in Hinitial.
    pose proof safety as safety'.
    specialize (safety i cnti tt). rewr (getThreadC i tp cnti) in safety.
    destruct safety as (c_new_ & E_c_new & safety).
@@ -1167,7 +1163,7 @@ Qed. (* Lemma preservation_Kinit *)
         - (* not in Kinit *)
          
           inv Htstep.
-          simpl in Hinitial; rewrite ClightSemantincsForMachines.CLN_msem in Hinitial; simpl in Hinitial.
+          simpl in Hinitial.
           getThread_inv. congruence.
 
         - (* not in Kresume *)
@@ -1208,11 +1204,11 @@ Qed. (* Lemma preservation_Kinit *)
           injection H as <-.
           evar (mx: Memory.mem).
           assert (H: at_external (@semSem ClightSemantincsForMachines.ClightSem) ge (State ve te k) mx = Some X). {
-            simpl in *; rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
-            simpl; rewrite ClightSemantincsForMachines.at_external_SEM_eq. subst mx; eassumption.
+            simpl in *.
+            subst mx; eassumption.
           }
           erewrite corestep_not_at_external in H. discriminate.
-          simpl; rewrite ClightSemantincsForMachines.CLN_msem. subst mx.
+          subst mx.
           eapply stepi.
 
         - (* not in Kblocked *)
@@ -1224,7 +1220,6 @@ Qed. (* Lemma preservation_Kinit *)
           jmstep_inv. getThread_inv.
           injection H as <-.
           erewrite corestep_not_halted in Hcant. discriminate.
-          simpl; rewrite ClightSemantincsForMachines.CLN_msem.
           eapply stepi.
       }
       (* end of internal step *)
@@ -1353,7 +1348,6 @@ Qed. (* Lemma preservation_Kinit *)
           jmstep_inv. getThread_inv.
           injection H as <-.
           rewrite (at_external_not_halted _ _ _ _ ge _ m') in Hcant. discriminate.
-          simpl; rewrite ClightSemantincsForMachines.CLN_msem.
           simpl.
           congruence.
       } (* end of Krun (at_ex c) -> Kblocked c *)
@@ -1373,7 +1367,7 @@ Qed. (* Lemma preservation_Kinit *)
       (* left (* we need aging, because we're using the safety of the call *). *)
       assert (Htid = cnti) by apply proof_irr. subst Htid.
       assert (Ephi : 0 = 0 -> level (getThreadR _ _ cnti) = S n). {
-        rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+        rewrite getThread_level with (Phi := Phi). auto. apply compat.
       }
       assert (El : (0 = 0 -> level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
 
@@ -1393,13 +1387,10 @@ Qed. (* Lemma preservation_Kinit *)
         left.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
-        eapply state_bupd_intro', preservation_acquire with (Phi0 := Phi); eauto.
+        eapply state_bupd_intro', preservation_acquire with (Phi := Phi); eauto.
       - (* the case of release *)
         exfalso; apply not_release.
         repeat eexists; eauto.
-        rewrite <- Hat_external.
-        simpl; rewrite ClightSemantincsForMachines.CLN_msem.
-        reflexivity.
 
       - (* the case of spawn *)
         left.
@@ -1407,9 +1398,6 @@ Qed. (* Lemma preservation_Kinit *)
         (* disregarding the case of makelock by hypothesis *)
         exfalso; apply not_spawn.
         repeat eexists; eauto.
-        rewrite <- Hat_external.
-        simpl; rewrite ClightSemantincsForMachines.CLN_msem.
-        reflexivity.
 
       - (* the case of makelock *)
         left.
@@ -1417,9 +1405,6 @@ Qed. (* Lemma preservation_Kinit *)
         (* disregarding the case of makelock by hypothesis *)
         exfalso; apply not_makelock.
         repeat eexists; eauto.
-        rewrite <- Hat_external.
-        simpl; rewrite ClightSemantincsForMachines.CLN_msem.
-        reflexivity.
 
       - (* the case of freelock *)
         left.
@@ -1427,9 +1412,6 @@ Qed. (* Lemma preservation_Kinit *)
         (* disregarding the case of makelock by hypothesis *)
         exfalso; apply not_freelock.
         repeat eexists; eauto.
-        rewrite <- Hat_external.
-        simpl; rewrite ClightSemantincsForMachines.CLN_msem.
-        reflexivity.
 
       - (* the case of acq-fail *)
         right.
@@ -1558,5 +1540,3 @@ Qed. (* Lemma preservation_Kinit *)
   Qed.
 
 End Preservation.
-
-End Sem.

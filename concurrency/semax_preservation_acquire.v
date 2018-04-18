@@ -45,6 +45,7 @@ Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.ClightSemantincsForMachines.
 Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.sync_preds.
@@ -70,18 +71,14 @@ Set Bullet Behavior "Strict Subproofs".
 
 Open Scope string_scope.
 
+Existing Instance ClightSem.
+
 (* to make the proof faster, we avoid unfolding of those definitions *)
 Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
   ext_spec_stable juicy_mem_equiv (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
-
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
-Existing Instance ClightSemantincsForMachines.ClightSem.
 
 Lemma preservation_acquire
   (lockSet_Writable_updLockSet_updThread
@@ -276,8 +273,6 @@ Proof.
           eapply at_external_not_halted in Ae.
           unfold juicy_core_sem in *.
           unfold cl_core_sem in *.
-          simpl in *.
-          rewrite ClightSemantincsForMachines.CLN_msem in Ae, Hat_external.
           simpl in *.
           congruence.
 
@@ -538,8 +533,6 @@ Proof.
           unfold juicy_core_sem in *.
           unfold cl_core_sem in *.
           simpl in *.
-          rewrite ClightSemantincsForMachines.CLN_msem in Ae, Hat_external.
-          simpl in *.
           congruence.
 
         - (* at_external : we can now use safety *)
@@ -584,11 +577,11 @@ Proof.
               rewrite level_age_to; auto.
               replace (level phi') with (level Phi). omega.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
             }
             assert (level phi' = S n). {
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
             }
 
             split; [ | split].
@@ -649,7 +642,6 @@ Proof.
                  pose proof predat6 lkat as ER'.
                  assert (args = Vptr b ofs :: nil). {
                    revert Hat_external ae; clear.
-                   rewrite ClightSemantincsForMachines.CLN_msem. simpl.
                    intros. unfold cl_at_external in *.
                    congruence.
                  }
@@ -735,5 +727,3 @@ Proof.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
 Qed. (* preservation_acquire *)
-
-End Sem.

@@ -45,6 +45,7 @@ Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.ClightSemantincsForMachines.
 Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.sync_preds.
@@ -58,10 +59,6 @@ Require Import VST.concurrency.semax_invariant.
 Set Bullet Behavior "Strict Subproofs".
 
 (** Lemmas common to both parts of the progress/preservation simulation results *)
-
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Lemma lock_coherence_align lset Phi m b ofs :
   lock_coherence lset Phi m ->
@@ -394,10 +391,9 @@ Proof.
   apply join_comm; auto.
 Qed.
 
-Lemma Ejuicy_sem : (@juicy_sem ClightSemantincsForMachines.ClightSem) = juicy_core_sem cl_core_sem.
+Lemma Ejuicy_sem : (@juicy_sem ClightSem) = juicy_core_sem cl_core_sem.
 Proof.
   unfold juicy_sem; simpl.
-  rewrite ClightSemantincsForMachines.CLN_msem.
   reflexivity.
 Qed.
 
@@ -582,7 +578,7 @@ Proof.
 Qed.
 
 Lemma m_phi_jm_ m (tp : jstate) phi i cnti compat :
-  m_phi (@jm_ _ tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
+  m_phi (@jm_ tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
 Proof.
   reflexivity.
 Qed.
@@ -832,7 +828,7 @@ Proof.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
   assert (join_all tp PHI) as Hj by (apply mcompat).
   rewrite join_all_joinlist in Hj.
-  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti0 := cnti)].
+  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti := cnti)].
   destruct Hj as (? & ? & Hphi).
   pose proof (ghost_of_join _ _ _ Hphi) as Hghost.
   destruct H; destruct (join_assoc Hghost H) as (c & HC & Hc).
@@ -898,8 +894,6 @@ assert (cnti = Htid) by apply proof_irr; subst Htid).
 assert (ctn = cnti) by apply proof_irr; subst cnt).
 destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
 *)
-
-End Sem.
 
 Ltac join_sub_tac :=
   try

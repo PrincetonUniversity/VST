@@ -64,9 +64,6 @@ End DecayingSemantics. *)
 
 Set Bullet Behavior "Strict Subproofs".
 
-(* Putting this as an axiom for now. *)
-Context {CSem : ClightSemantincsForMachines.ClightSEM}.
-
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
   Import THE_DRY_MACHINE_SOURCE.

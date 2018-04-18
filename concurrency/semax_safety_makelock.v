@@ -80,10 +80,6 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 (* Weaker statement than preservation for makelock, enough to prove safety *)
 Lemma safety_induction_makelock Gamma n state
   (CS : compspecs)
@@ -210,7 +206,7 @@ Proof.
   destruct Hrmap_ as (phi' & RLphi & j').
   pose proof juice_join compat as j.
   rewrite join_all_joinlist in j.
-  rewrite maps_getthread with (cnti0 := cnti) in j.
+  rewrite maps_getthread with (cnti := cnti) in j.
   destruct j as (psi & jpsi1 & jpsi).
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
@@ -229,7 +225,6 @@ Proof.
     with (c := ci) (Hcompatible := mem_compatible_forget compat)
                    (R := Rx) (phi'0 := phi');
     try eassumption; try reflexivity.
-    simpl; rewrite ClightSemantincsForMachines.CLN_msem. assumption.
     subst tpx; reflexivity.
   }
   subst tpx.
@@ -238,7 +233,7 @@ Proof.
 
   unfold personal_mem, m_phi.
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
-    rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+    rewrite getThread_level with (Phi := Phi). auto. apply compat.
   }
   assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
   setoid_rewrite El.
@@ -859,5 +854,3 @@ Proof.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
 Qed.
-
-End Sem.

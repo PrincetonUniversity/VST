@@ -66,8 +66,6 @@ Section Initial_State.
     | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
     end init_mem_not_none.
 
-  Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      globalenv prog,

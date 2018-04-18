@@ -123,10 +123,6 @@ Proof.
     inversion L.
 Qed.
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma lock_coherence_age_to n m (tp : jstate) Phi :
   lock_coherence (lset tp) Phi m ->
   lock_coherence (AMap.map (option_map (age_to n)) (lset tp)) (age_to n Phi) m.
@@ -378,10 +374,6 @@ clear - Initcore.
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
     { simpl.
-      rewrite ClightSemantincsForMachines.CLN_msem.
-      apply atex. }
-    { simpl.
-      rewrite ClightSemantincsForMachines.CLN_msem; simpl.
       instantiate (1:=None).
       specialize (Initcore (jm_ cnti compat)); clear - Initcore.
       simpl in Initcore. unfold j_initial_core in Initcore. 
@@ -409,7 +401,7 @@ clear - Initcore.
     rewrite joinlist_merge; eauto.
   }
 
-  apply (@mem_compatible_with_age _ n) in compat'.
+  apply (@mem_compatible_with_age n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
   replace (S n - 1)%nat with n by omega.
 
@@ -598,5 +590,3 @@ clear - Initcore.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
 Qed. (* safety_induction_spawn *)
-
-End Sem.

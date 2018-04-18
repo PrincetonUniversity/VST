@@ -446,8 +446,6 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section Machine.
 
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Definition getLocksR (tp : jstate) := listoption_inv (map snd (AMap.elements (lset tp))).
 
 Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.

@@ -85,10 +85,6 @@ Proof.
   apply joinlist_age_to, h.
 Qed.
 
-Section Sem.
-
-Context {Sem : ClightSemantincsForMachines.ClightSEM}.
-
 Lemma resource_decay_join_all {tp : jstate} {m Phi} c' {phi' i} {cnti : containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
   resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
@@ -164,7 +160,7 @@ Proof.
 Qed.
 
 Lemma same_except_cur_jm_ tp m phi i cnti compat :
-  same_except_cur m (m_dry (@jm_ _ tp m phi i cnti compat)).
+  same_except_cur m (m_dry (@jm_ tp m phi i cnti compat)).
 Proof.
   repeat split.
   extensionality loc.
@@ -323,7 +319,7 @@ Proof.
   pose proof J as J_; move J_ before J.
   rewrite join_all_joinlist in J_.
   pose proof J_ as J__.
-  rewrite maps_getthread with (cnti0 := cnti) in J__.
+  rewrite maps_getthread with (cnti := cnti) in J__.
   destruct J__ as (ext & Hext & Jext).
   assert (Eni : level (jm_ cnti compat) = S n). {
     rewrite <-En, level_juice_level_phi.
@@ -394,7 +390,7 @@ Proof.
   subst ext''.
 
   assert (compat_ : mem_compatible_with tp (m_dry (jm_ cnti compat)) Phi).
-  { apply mem_compatible_with_same_except_cur with (m0 := m); auto.
+  { apply mem_compatible_with_same_except_cur with (m := m); auto.
     apply same_except_cur_jm_. }
 
   assert (compat' : mem_compatible_with tp' (m_dry (jm_ cnti compat)) (age_to n Phi)).
@@ -693,7 +689,7 @@ Proof.
         split.
         - apply Mem.range_perm_implies with Writable.
           + intros loc range.
-            eapply lset_range_perm with (ofs0 := ofs); eauto.
+            eapply lset_range_perm with (ofs := ofs); eauto.
             (* if LKSIZE>4:
               2:unfold size_chunk in *.
               2:unfold LKSIZE in *.
@@ -818,7 +814,7 @@ Proof.
         rewrite <-cnt_age_iff in cntj.
         apply cntj.
       }
-      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ _ tp m Phi j cntj' compat)).
+      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj' compat)).
 
       unshelve erewrite <-gtc_age; auto.
       pose proof safety _ cntj' ora as safej.
@@ -877,5 +873,3 @@ Proof.
       unshelve erewrite gsoThreadCode; auto.
       unshelve erewrite <-gtc_age; auto.
 Qed.
-
-End Sem.
