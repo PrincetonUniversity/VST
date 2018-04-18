@@ -49,7 +49,7 @@ Require Import VST.veric.res_predicates. (*For the precondition of lock make and
     Require Import VST.concurrency.lksize.  *)
 
 Require Import (*compcert_linking*) VST.concurrency.permissions VST.concurrency.threadPool.
-Import OrdinalPool.
+Import OrdinalPool ThreadPool.
 
 (* There are some overlaping definition conflicting.
    Here we fix that. But this is obviously ugly and
@@ -75,8 +75,6 @@ Module ThreadPool.
   Section ThreadPool.
 
   Context {Sem: Semantics}.
-
-  Instance RmapThreadPool : ThreadPool.ThreadPool := OrdinalThreadPool.
 
   (** The Lock Resources Set *)
 
@@ -115,15 +113,13 @@ Module Concur.
     Notation G:= (semG).
     Notation tid:= nat.
 
-    Notation lockMap:= (AMap.t (option rmap)).
+    Notation lockMap:= (AMap.t lock_info).
     Notation SSome x:= (Some (Some x)).
     Notation SNone:= (Some None).
 
     (** Memories*)
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
-    Instance diluteMem : HybridMachineSig.DiluteMem := { diluteMem x := x }.
-    Proof. reflexivity. Defined.
 
     (** Environment and Threadwise semantics *)
     (* This all comes from the SEM. *)
@@ -132,8 +128,8 @@ Module Concur.
     Notation the_sem := (csem (event_semantics.msem semSem)).
 
     (*thread pool*)
-    Import ThreadPool.
-    Notation thread_pool := (@ThreadPool.t _ _ RmapThreadPool).
+    Existing Instance OrdinalThreadPool.
+    Notation thread_pool := (@ThreadPool.t _ _ OrdinalThreadPool).
 
     (** Machine Variables*)
     Definition lp_id : tid:= (0)%nat. (*lock pool thread id*)
@@ -154,7 +150,7 @@ Module Concur.
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
-    Definition mem_thcohere tp m :=
+    Definition mem_thcohere (tp : thread_pool) m :=
       forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
 
     Definition mem_lock_cohere (ls:lockMap) m:=
@@ -265,9 +261,9 @@ Module Concur.
 
     Lemma jlocinset_lr_valid: forall ls juice,
         lockSet_in_juicyLocks ls juice ->
-        lr_valid (AMap.find (elt:=option rmap)^~ (ls)).
+        lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
     Proof.
-      unfold lr_valid, lockSet_in_juicyLocks; intros.
+      simpl; repeat intro.
       destruct (AMap.find (elt:=option rmap) (b, ofs) ls) eqn:MAP.
       - intros ofs0 ineq.
         destruct (AMap.find (elt:=option rmap) (b, ofs0) ls) eqn:MAP'; try reflexivity.
@@ -324,6 +320,7 @@ Module Concur.
             zify; omega. }
       destruct (Hdec LKSIZE_nat) as [(ofs0 & ? & ?)|].
       - erewrite lockSet_spec_2 by eauto.
+        simpl in *.
         eapply H; eauto.
       - rewrite lockSet_spec_3; auto.
         apply po_None.
@@ -844,7 +841,7 @@ Qed.
 
     Lemma mem_compat_thread_max_cohere {tp m} (compat: mem_compatible tp m):
       forall {i} cnti,
-        max_access_cohere m (@getThreadR _ _ i tp cnti).
+        max_access_cohere m (@getThreadR _ _ _ i tp cnti).
     Proof.
       destruct compat as [x compat] => i cnti loc.
       apply po_trans with (b:= perm_of_res' (x @ loc)).
@@ -878,8 +875,8 @@ Qed.
        [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
      apply join_sub_trans with (b:=r1); [ | eexists; eauto].
      clear - H H2.
-     hnf in H2. unfold lockRes in H.
-     apply AMap.find_2 in H. unfold lockGuts in *.
+     hnf in H2. simpl in H. simpl in *.
+     apply AMap.find_2 in H. unfold OrdinalPool.lockGuts in H.
      apply AMap.elements_1 in H. simpl in *.
      forget (AMap.elements (elt:= option rmap) (lset js)) as el.
      revert r1 H2; induction el; simpl; intros. inv H.
@@ -915,10 +912,11 @@ Qed.
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
 
-    Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR _ _ 0%nat tp _).
+    Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR _ _ _ 0%nat tp _).
     Next Obligation.
       intros tp.
-      unfold containsThread.
+      simpl.
+      unfold OrdinalPool.containsThread.
       destruct num_threads.
       simpl.
       ssromega.
@@ -1116,7 +1114,7 @@ Qed.
 
     Lemma age_getThreadCode:
       forall i tp age cnt cnt',
-        @getThreadC _ _ i tp cnt = @getThreadC _ _ i (age_tp_to age tp) cnt'.
+        @getThreadC _ _ _ i tp cnt = @getThreadC _ _ _ i (age_tp_to age tp) cnt'.
     Proof.
       intros i tp age cnt cnt'.
       destruct tp; simpl.
@@ -1133,7 +1131,7 @@ Qed.
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
-            (Htp': tp' = @updThread _ _ tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
+            (Htp': tp' = @updThread _ _ _ tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m' [::].
 
@@ -1301,8 +1299,8 @@ Qed.
     forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
     Proof.
       intros. split.
       - intros [cntj [ q running]].
@@ -1349,8 +1347,8 @@ Qed.
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
-        (exists cntj q, @getThreadC _ _ j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC _ _ j tp' cntj' = Krun q').
+        (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
   Proof.
     intros b g i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
@@ -1441,13 +1439,13 @@ Qed.
   Lemma syncstep_not_running:
     forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
-      forall cntj q, ~ @getThreadC _ _ i tp cntj = Krun q.
+      forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
   Proof.
     intros.
     inversion H;
       match goal with
       | [ H: getThreadC ?cnt = _ |- _ ] =>
-        erewrite (cnt_irr _ cnt);
+        erewrite (cnt_irr _ _ _ cnt);
           rewrite H; intros AA; inversion AA
       end.
   Qed.
@@ -1471,7 +1469,7 @@ Qed.
     forall i j, i <> j ->
       forall tp cnt cnti c' cnt',
         (@threadHalted j tp cnt) <->
-        (@threadHalted j (@updThreadC _ _ i tp cnti c') cnt') .
+        (@threadHalted j (@updThreadC _ _ _ i tp cnti c') cnt') .
   Proof.
     intros; split; intros HH; inversion HH; subst;
     econstructor; eauto;
@@ -1667,7 +1665,8 @@ Qed.
             sepalg.joins (getThreadR cnti) (getThreadR cntj).
       Proof.
         intros.
-        unfold getThreadR.
+        simpl.
+        unfold OrdinalPool.getThreadR.
        destruct H. destruct H as [JJ _ _ _ _].
        inv JJ. clear H1 H2. unfold join_threads in H.
        unfold getThreadsR in H.
@@ -1749,12 +1748,13 @@ Qed.
             sepalg.joins (getThreadR cnti) phi.
       Proof.
        intros.
-        unfold getThreadR.
+       simpl.
+       unfold OrdinalPool.getThreadR.
        destruct H. destruct H as [JJ _ _ _ _].
        inv JJ. unfold join_locks, join_threads in H1.
-       unfold lockRes in H0.
-       apply AMap.find_2 in H0. unfold lockGuts in H0.
-       apply AMap.elements_1 in H0. unfold lock_info in H1.
+       simpl in H0.
+       apply AMap.find_2 in H0. unfold OrdinalPool.lockGuts in H0.
+       apply AMap.elements_1 in H0. simpl in H1.
 
        unfold join_threads, join_list, getThreadsR in H.
        replace (enums_equality.enum (num_threads js)) with (ord_enum (num_threads js)) in H by apply ord_enum_enum.
@@ -1832,7 +1832,7 @@ Qed.
       Lemma gtc_age : forall js i n,
           forall (cnt: containsThread js i)
             (cnt': containsThread (age_tp_to n js) i),
-            getThreadC cnt= getThreadC cnt'.
+            getThreadC cnt = getThreadC cnt'.
       Proof.
         intros []. intros; simpl.
         repeat f_equal; apply proof_irr.
@@ -1854,7 +1854,7 @@ Qed.
           isSome (lockRes (age_tp_to age js) a) = isSome(lockRes js a).
       Proof.
         destruct js.
-        intros; unfold lockRes; simpl.
+        intros; simpl. unfold OrdinalPool.lockRes; simpl.
         destruct (AMap.find (elt:=option rmap) a
                             (AMap.map (option_map (age_to age)) lset0)) eqn:AA;
           destruct (AMap.find (elt:=option rmap) a lset0) eqn:BB;
@@ -1868,7 +1868,7 @@ Qed.
       Lemma LockRes_age_content1: forall js age a,
           lockRes (age_tp_to age js) a = Some None ->
           lockRes js a = Some None.
-        intros js age a. unfold lockRes; destruct js.
+        intros js age a. simpl; unfold OrdinalPool.lockRes; destruct js.
         simpl.
         intros AA.
             apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
@@ -1880,7 +1880,7 @@ Qed.
           lockRes (age_tp_to age js) a = Some (Some rm) ->
           exists r, lockRes js a = Some (Some r) /\ rm = age_to age r.
       Proof.
-        intros js age a rm. unfold lockRes; destruct js.
+        intros js age a rm. simpl; unfold OrdinalPool.lockRes; destruct js.
         simpl.
         intros AA.
         apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
@@ -1947,7 +1947,7 @@ Qed.
 
     End JuicyMachineLemmas.
 
-    Instance JuicyMachineShell : @HybridMachineSig.MachineSig _ _ RmapThreadPool :=
+    Instance JuicyMachineShell : HybridMachineSig.MachineSig :=
       HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant threadStep
         threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
         (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts

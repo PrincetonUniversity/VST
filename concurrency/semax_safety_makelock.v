@@ -61,12 +61,12 @@ Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.rmap_locking.
 Import Events.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -236,13 +236,12 @@ Proof.
 
   (* we move on to the preservation part *)
 
-  simpl (m_phi _).
+  unfold personal_mem, m_phi.
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
     rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
   }
   assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
-  cleanup.
-  rewrite El.
+  setoid_rewrite El.
 
   (*
   assert (j : join_sub (getThreadR i tp cnti) Phi) by apply compatible_threadRes_sub, compat.
@@ -411,8 +410,7 @@ Proof.
 
     + (* juicyLocks_in_lockSet *)
       intros loc sh psh P z E''.
-      unfold lockGuts in *.
-      rewrite lset_age_tp_to.
+      simpl in *.
       rewrite isSome_find_map.
       simpl.
       rewrite AMap_find_add. if_tac [<- | ne]. reflexivity.
@@ -436,7 +434,6 @@ Proof.
       simpl.
       rewrite isSome_find_map.
       simpl.
-      unfold lset.
       rewrite AMap_find_add.
       if_tac.
 
@@ -555,9 +552,8 @@ Proof.
           destruct nva. simpl.
           apply islock_valid_access. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|omega]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
           2:congruence.
-          unfold lockRes.
-          simpl.
-          rewrite AMap_find_map_option_map.
+          cleanup.
+          setoid_rewrite AMap_find_map_option_map.
           rewrite AMap_find_add. if_tac. 2:tauto.
           simpl; congruence.
         }
@@ -615,7 +611,7 @@ Proof.
           unfold lockSet.
           simpl.
           cleanup.
-          rewrite A2PMap_option_map.
+          setoid_rewrite A2PMap_option_map.
           symmetry.
           (* use lock sparsity again *)
           rewrite A2PMap_add_outside.
@@ -726,7 +722,7 @@ Proof.
               eauto.
            ++ destruct sat as [sat | ?]. 2:omega. left.
               unfold age_to. replace (level r) with (level Phi); swap 1 2.
-              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub; eauto. apply compat. }
+              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub; simpl; eauto. apply compat. }
               rewr (level Phi). replace (S n - n)%nat with 1%nat by omega.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
 

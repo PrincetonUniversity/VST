@@ -59,12 +59,12 @@ Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.semax_progress.
 Require Import VST.concurrency.semax_preservation.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -136,8 +136,8 @@ Proof.
 
   intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
   simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
-  simpl in Pre.
   destruct Pre as (phi0 & phi1 & j & Pre & HnecR).
+  rewrite m_phi_jm_ in j.
   simpl (and _).
   intros Post.
   unfold release_pre in Pre.
@@ -163,8 +163,7 @@ Proof.
   destruct (progress _ _ ext_link_inj _ _ _ Hnot_create I) as [? Hstep0].
   inv Hstep0.
   inv H5; try inversion HschedN; subst tid;
-      unfold containsThread, is_true in *;
-      try congruence; jmstep_inv; simpl in *; getThread_inv; try congruence;
+      try congruence; jmstep_inv; getThread_inv; try congruence;
       inv H; simpl in Hat_external; rewrite ClightSemantincsForMachines.CLN_msem in Hat_external; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external.
   clear dependent d_phi; clear dependent phi'.
@@ -179,7 +178,7 @@ Proof.
     destruct (join_assoc jphi0 j) as [? [_ j'']].
     apply resource_at_join with (loc := (bl, Ptrofs.unsigned ofsl)) in j''.
     destruct Hlockinv as [? Hlock]; rewrite Hlock in j''.
-    inv j''; unfold Ptrofs.unsigned in *; unfold pack_res_inv in *; congruence. }
+    inv j''; unfold Ptrofs.unsigned in *; unfold pack_res_inv in *; simpl in *; congruence. }
   rewrite HR in HJcanwrite.
   destruct (join_assoc (join_comm jphi0) j) as [phi' [? Hrem_lock_res]].
   assert (level (getThreadR i tp cnti) = S n) as Hn.
@@ -214,7 +213,6 @@ Proof.
             mem_compatible_with
               (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) (Some d_phi))
               m' Phi). {
-    cleanup.
     constructor.
     - (* joining to global map: the acquired rmap move from
             lockset to threads's maps *)
@@ -465,18 +463,18 @@ Proof.
           unfold permission_at in *.
           rewrite RR in *.
           rewrite lockSet_age_to.
-          rewrite <-lockSet_updLockSet.
+          setoid_rewrite <-lockSet_updLockSet.
           match goal with |- _ ?a _ => cut (a = Some Writable) end.
           { intros ->. constructor. }
 
           destruct SPA as [bOUT | [<- ofsOUT]].
-          + rewrite gsoLockSet_2; auto.
-            apply lockSet_spec_2 with ofs'.
+          + rewrite OrdinalPool.gsoLockSet_2; auto.
+            apply OrdinalPool.lockSet_spec_2 with ofs'.
             * hnf; simpl. eauto. clear -int0; simpl in *.
               unfold LKSIZE_nat; rewrite Z2Nat.id; lkomega.
             * cleanup. rewrite Eo. reflexivity.
-          + rewrite gsoLockSet_1; auto.
-            * apply lockSet_spec_2 with ofs'.
+          + rewrite OrdinalPool.gsoLockSet_1; auto.
+            * apply OrdinalPool.lockSet_spec_2 with ofs'.
               -- hnf; simpl. eauto.  clear -int0; simpl in *.
                  unfold LKSIZE_nat; rewrite Z2Nat.id; lkomega.
               -- cleanup. rewrite Eo. reflexivity.

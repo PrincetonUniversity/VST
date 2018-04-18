@@ -1,6 +1,7 @@
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.TheSchedule.
 Require Import VST.concurrency.HybridMachineSig.
@@ -18,31 +19,29 @@ Definition init_inj_ok (j: Values.Val.meminj) m:=
 
 Module Type ErasureSig.
 
-  Module SCH: Scheduler with Module TID:=NatTID:= THESCH.
-  Declare Module SEM: Semantics.
-  Import SCH SEM.
+(*  Module SCH: Scheduler with Module TID:=NatTID:= THESCH.
+  Import SCH.*)
 
-  Declare Module JMS: ConcurrentMachineSig
-      with Module ThreadPool.TID:= NatTID
-      with Module ThreadPool.SEM:= SEM.
-  Declare Module JuicyMachine: ConcurrentMachine
-      with Module SCH:=SCH
-      with Module TP:=JMS.ThreadPool
-      with Module SIG:= JMS.
-  Notation JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JMS.ThreadPool.t.
-  Notation jmachine_state:= JuicyMachine.MachState.
+  Import HybridMachineSig.
 
-  Declare Module DMS: ConcurrentMachineSig
-      with Module ThreadPool.TID:= NatTID
-      with Module ThreadPool.SEM:= SEM.
-  Declare Module DryMachine: ConcurrentMachine
-      with Module SCH:=SCH
-      with Module TP:=DMS.ThreadPool
-      with Module SIG:= DMS.
-  Notation DMachineSem:= DryMachine.MachineSemantics.
-  Notation dstate:= DMS.ThreadPool.t.
-  Notation dmachine_state:= DryMachine.MachState.
+  Declare Instance Sem : Semantics.
+
+  Declare Instance JR : Resources.
+  Declare Instance JTP : ThreadPool.ThreadPool.
+  Declare Instance JMS : MachineSig.
+  Declare Instance JuicyMachine : HybridMachine.
+  Notation JMachineSem := (MachineSemantics(HybridMachine := JuicyMachine)).
+  Notation jres := (@res JR).
+  Notation jstate := (@ThreadPool.t _ _ JTP).
+  Notation jmachine_state := (@MachState _ _ JTP).
+  Declare Instance DR : Resources.
+  Declare Instance DTP : ThreadPool.ThreadPool.
+  Declare Instance DMS : MachineSig.
+  Declare Instance DryMachine : HybridMachine.
+  Notation DMachineSem := (MachineSemantics(HybridMachine := DryMachine)).
+  Notation dres := (@res DR).
+  Notation dstate := (@ThreadPool.t _ _ DTP).
+  Notation dmachine_state := (@MachState _ _ DTP).
 
   (*Parameter parch_state : jstate ->  dstate.*)
   Parameter match_st : jstate ->  dstate -> Prop.
@@ -50,42 +49,42 @@ Module Type ErasureSig.
   (*match axioms*)
   Axiom MTCH_cnt: forall {js tid ds},
            match_st js ds ->
-           JMS.ThreadPool.containsThread js tid -> DMS.ThreadPool.containsThread ds tid.
+           ThreadPool.containsThread js tid -> ThreadPool.containsThread ds tid.
   Axiom MTCH_cnt': forall {js tid ds},
            match_st js ds ->
-           DMS.ThreadPool.containsThread ds tid -> JMS.ThreadPool.containsThread js tid.
+           ThreadPool.containsThread ds tid -> ThreadPool.containsThread js tid.
 
        Axiom  MTCH_getThreadC: forall js ds tid c,
-           forall (cnt: JMS.ThreadPool.containsThread js tid)
-             (cnt': DMS.ThreadPool.containsThread ds tid)
+           forall (cnt: ThreadPool.containsThread js tid)
+             (cnt': ThreadPool.containsThread ds tid)
              (M: match_st js ds),
-             JMS.ThreadPool.getThreadC cnt =  c ->
-             DMS.ThreadPool.getThreadC cnt'  =  c.
+             ThreadPool.getThreadC cnt =  c ->
+             ThreadPool.getThreadC cnt'  =  c.
 
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
-         JMS.mem_compatible js m ->
-         DMS.mem_compatible ds m.
+         mem_compatible js m ->
+         mem_compatible ds m.
 
        Axiom MTCH_updt:
            forall js ds tid c
              (H0:match_st js ds)
-             (cnt: JMS.ThreadPool.containsThread js tid)
-             (cnt': DMS.ThreadPool.containsThread ds tid),
-             match_st (JMS.ThreadPool.updThreadC cnt c)
-                       (DMS.ThreadPool.updThreadC cnt' c).
+             (cnt: ThreadPool.containsThread js tid)
+             (cnt': ThreadPool.containsThread ds tid),
+             match_st (ThreadPool.updThreadC cnt c)
+                       (ThreadPool.updThreadC cnt' c).
 
   (*Variable genv: G.
   Variable main: Values.val.*)
-       Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
-       Variable no_locks_perm: JuicyMachine.SIG.ThreadPool.RES.res ->  Prop.
+       Variable match_rmap_perm: jres -> dres -> Prop.
+       Variable no_locks_perm: jres ->  Prop.
 
 
 Axiom init_diagram:
-    forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
+    forall (j : Values.Val.meminj) (U:_) (js : jstate)
       (vals : list Values.val) (m : mem)
-      (rmap: JuicyMachine.SIG.ThreadPool.RES.res)
-      (pmap: DryMachine.SIG.ThreadPool.RES.res)
+      (rmap: jres)
+      (pmap: dres)
       main genv h,
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
@@ -93,39 +92,41 @@ Axiom init_diagram:
    initial_core (JMachineSem U (Some rmap)) h genv m main vals = Some ((U, nil, js),None) ->
    exists (ds : dstate),
      initial_core (DMachineSem U (Some pmap)) h genv m main vals = Some ((U, nil, ds),None) /\
-     DMS.invariant ds /\
+     invariant ds /\
      match_st js ds.
 
   Axiom core_diagram:
-    forall (m : mem)  (U0 U U': schedule) rmap pmap
-     (ds : dstate) (js js': jstate)
+    forall (m : mem)  (U0 U U': _) rmap pmap
+     (ds : dstate) dtr (js js': jstate) jtr jtr'
      (m' : mem) genv,
-   corestep (JMachineSem U0 rmap) genv (U, nil, js) m (U', nil, js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U, jtr, js) m (U', jtr', js') m' ->
    match_st js ds ->
-   DMS.invariant ds ->
+   invariant ds ->
    exists (ds' : dstate),
-     DMS.invariant ds' /\
+     invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0 pmap) genv (U, nil, ds) m (U', nil, ds') m'.
+     exists dtr', corestep (DMachineSem U0 pmap) genv (U, dtr, ds) m (U', dtr', ds') m'.
 
   Axiom halted_diagram:
     forall U (ds : dmachine_state) (js : jmachine_state)  rmap pmap,
       fst (fst js) = fst (fst ds) ->
       halted (JMachineSem U rmap) js = halted (DMachineSem U pmap) ds.
 
-  Axiom jstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
-      corestep (JMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
-      tr = nil /\ tr' = nil.
-
-  Axiom dstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
-      corestep (DMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
-      tr = nil /\ tr' = nil.
-
 End ErasureSig.
 
 Module ErasureFnctr (PC:ErasureSig).
-  Module SEM:=PC.SEM.
-  Import PC SEM DryMachine.SCH.
+  Import HybridMachineSig PC.
+
+  Section ErasureFnctr.
+
+  Notation jres := (@res JR).
+  Notation jstate := (@ThreadPool.t _ _ JTP).
+  Notation jmachine_state := (@MachState _ _ JTP).
+  Notation dres := (@res DR).
+  Notation dstate := (@ThreadPool.t _ _ DTP).
+  Notation dmachine_state := (@MachState _ _ DTP).
+  Existing Instance DMS.
+
 
   (*Parameter halt_inv: SM_Injection ->
                       G -> Values.val -> M ->
@@ -135,8 +136,8 @@ Module ErasureFnctr (PC:ErasureSig).
                       G ->  list Values.val -> M ->  Prop.*)
   (*Erasure is about drying memory. So the invariants are trivial. *)
     Inductive init_inv:  Values.Val.meminj ->
-                       G -> list Values.val -> mem ->
-                       G -> list Values.val -> mem -> Prop:=
+                       semG -> list Values.val -> mem ->
+                       semG -> list Values.val -> mem -> Prop:=
     |InitEq: forall j g1 args1 m1 g2 args2 m2,
         g1 = g2 ->
         args1 = args2 ->
@@ -145,15 +146,15 @@ Module ErasureFnctr (PC:ErasureSig).
         init_inv j g1 args1 m1 g2 args2 m2.
 
     Inductive halt_inv:  Values.Val.meminj ->
-                         G -> Values.val -> mem ->
-                         G -> Values.val -> mem -> Prop:=
+                         semG -> Values.val -> mem ->
+                         semG -> Values.val -> mem -> Prop:=
     |HaltEq: forall j g1 args1 m1 g2 args2 m2,
         g1 = g2 ->
         args1 = args2 ->
         m1 = m2 ->
         halt_inv j g1 args1 m1 g2 args2 m2.
 
-  Definition ge_inv: G -> G -> Prop:= @eq G.
+  Definition ge_inv: semG -> semG -> Prop:= @eq semG.
   Definition core_data:= unit.
   Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
 
@@ -161,7 +162,7 @@ Module ErasureFnctr (PC:ErasureSig).
   Inductive match_state :
     core_data ->  Values.Val.meminj -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
     MATCH: forall d j js ds U m,
-      DMS.invariant ds -> (*This could better go inside the state... but it's fine here. *)
+      invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds ->
       match_state d j  (U, nil, js) m (U, nil, ds) m.
 
@@ -213,6 +214,6 @@ Module ErasureFnctr (PC:ErasureSig).
       rewrite <- H1; symmetry. (apply halted_diagram); reflexivity.
   Qed.*)
 
+  End ErasureFnctr.
+
 End ErasureFnctr.
-
-

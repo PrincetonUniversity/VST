@@ -203,6 +203,17 @@ es (filter i) *)
                c' (cntj' : containsThread (updThreadC cnti c') j),
                getThreadC cntj' = if Nat.eq_dec i j then c' else getThreadC cntj
 
+        ;  gssThreadRR :
+             forall {tid tp} (cnt: containsThread tp tid) p'
+               (cnt': containsThread (updThreadR cnt p') tid),
+               getThreadR cnt' = p'
+
+        ;  gsoThreadRR :
+             forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+               (cntj: containsThread tp j) p'
+               (cntj': containsThread (updThreadR cnti p') j),
+               getThreadR cntj = getThreadR cntj'
+
         ;  gThreadCR :
              forall {i j tp} (cnti: containsThread tp i)
                (cntj: containsThread tp j) c'
@@ -393,7 +404,7 @@ es (filter i) *)
                  l =
                updThread cnti' c map
       }.
-    
+
   End ThreadPool.
 End ThreadPool.
 
@@ -1232,6 +1243,27 @@ Module OrdinalPool.
         now eauto.
     Qed.
 
+    Lemma gssThreadRR {tid tp} (cnt: containsThread tp tid) p'
+          (cnt': containsThread (updThreadR cnt p') tid) :
+      getThreadR cnt' = p'.
+    Proof.
+      simpl.
+      unfold eq_op; simpl. rewrite eq_refl. auto.
+    Qed.
+
+    Lemma gsoThreadRR {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+          (cntj: containsThread tp j) p'
+          (cntj': containsThread (updThreadR cnti p') j) :
+      getThreadR cntj = getThreadR cntj'.
+    Proof.
+      simpl.
+      unfold eq_op; simpl.
+      rewrite eq_op_false; auto.
+      unfold updThreadR in cntj'. unfold containsThread in *.
+      simpl in cntj'. unfold getThreadR.
+      do 2 apply f_equal. by apply proof_irr.
+    Qed.
+
     Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
           (cntj: containsThread tp j) c'
           (cntj': containsThread (updThreadC cnti c') j) :
@@ -1982,6 +2014,8 @@ Module OrdinalPool.
                                     (@gssThreadCC)
                                     (@gsoThreadCC)
                                     (@getThreadCC)
+                                    (@gssThreadRR)
+                                    (@gsoThreadRR)
                                     (@gThreadCR)
                                     (@gThreadRC)
                                     (@gsoThreadCLPool)

@@ -48,15 +48,16 @@ Import threadPool Events.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
-Definition schedule := SCH.schedule.
+Export OrdinalPool ThreadPool.
 Export Concur.
-Export OrdinalPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
 Ltac cleanup :=
-  unfold lockRes in *;
-  unfold lockGuts in *; simpl lock_info in *; simpl res in *.
+  simpl in *;
+  unfold OrdinalPool.lockRes in *;
+  unfold OrdinalPool.lockGuts in *; unfold OrdinalPool.lockSet in *;
+  simpl lock_info in *; simpl res in *.
 
 Ltac join_level_tac :=
   try
@@ -85,7 +86,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
       (m, ge, (tr, nil, jstate))
       (m, ge, (tr, nil, jstate))
 | state_step_c ge m m' tr tr' sch sch' jstate jstate' :
-    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ diluteMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
+    @JuicyMachine.machine_step _ (@ClightSemantincsForMachines.ClightSem Sem) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
     state_step
       (m, ge, (tr, sch, jstate))
       (m', ge, (tr', sch', jstate')).
@@ -305,11 +306,11 @@ Definition threads_wellformed (tp : jstate) :=
  * threads...)  *)
 Definition unique_Krun (tp : jstate) sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
-      @getThreadC _ _ i tp cnti = Krun q ->
+      @getThreadC _ _ _ i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
 
 Definition no_Krun (tp : jstate) :=
-  forall i cnti q, @getThreadC _ _ i tp cnti <> Krun q.
+  forall i cnti q, @getThreadC _ _ _ i tp cnti <> Krun q.
 
 Lemma no_Krun_unique_Krun tp sch : no_Krun tp -> unique_Krun tp sch.
 Proof.
@@ -337,7 +338,7 @@ Qed.
 Lemma no_Krun_stable tp i cnti c' phi' :
   (forall q, c' <> Krun q) ->
   no_Krun tp ->
-  no_Krun (@updThread _ _ i tp cnti c' phi').
+  no_Krun (@updThread _ _ _ i tp cnti c' phi').
 Proof.
   intros notkrun H j cntj q.
   destruct (eq_dec i j).
@@ -349,7 +350,7 @@ Qed.
 
 Lemma no_Krun_stableR tp i cnti phi' :
   no_Krun tp ->
-  no_Krun (@updThreadR _ _ i tp cnti phi').
+  no_Krun (@updThreadR _ _ _ i tp cnti phi').
 Proof.
   intros notkrun j cntj q.
   destruct (eq_dec i j).
@@ -360,7 +361,7 @@ Qed.
 
 Lemma no_Krun_unique_Krun_updThread tp i sch cnti q phi' :
   no_Krun tp ->
-  unique_Krun (@updThread _ _ i tp cnti (Krun q) phi') (i :: sch).
+  unique_Krun (@updThread _ _ _ i tp cnti (Krun q) phi') (i :: sch).
 Proof.
   intros NO H j cntj q'.
   destruct (eq_dec i j).
@@ -397,21 +398,20 @@ Lemma different_threads_means_several_threads i j (tp : jstate)
       (cntj : containsThread tp j) :
   i <> j -> (1 < pos.n (num_threads tp))%nat.
 Proof.
-  unfold containsThread in *.
+  simpl in *.
+  unfold OrdinalPool.containsThread in *.
   simpl in *.
   destruct tp as [n].
   simpl in *.
   remember (pos.n n) as k; clear Heqk n.
   apply ssr_leP_inv in cnti.
   apply ssr_leP_inv in cntj.
-  destruct k; try omega.
-  destruct k; try omega.
-  destruct i, j; try omega; contradiction.
+  omega.
 Qed.
 
 Lemma unique_Krun_no_Krun tp i sch cnti :
   unique_Krun tp (i :: sch) ->
-  (forall q, @getThreadC _ _ i tp cnti <> Krun q) ->
+  (forall q, @getThreadC _ _ _ i tp cnti <> Krun q) ->
   no_Krun tp.
 Proof.
   intros U N j cntj q E.
@@ -430,7 +430,7 @@ Qed.
 Lemma unique_Krun_no_Krun_updThread tp i sch cnti c' phi' :
   (forall q, c' <> Krun q) ->
   unique_Krun tp (i :: sch) ->
-  no_Krun (@updThread _ _ i tp cnti c' phi').
+  no_Krun (@updThread _ _ _ i tp cnti c' phi').
 Proof.
   intros notkrun uniq j cntj q.
   destruct (eq_dec i j) as [<-|N].
@@ -451,7 +451,7 @@ Lemma unique_Krun_neq i j tp sch
       (cntj : containsThread tp j) :
   i <> j ->
   unique_Krun tp (i :: sch) ->
-  forall q, @getThreadC _ _ j tp cntj <> Krun q.
+  forall q, @getThreadC _ _ _ j tp cntj <> Krun q.
 Proof.
   intros ne U q E.
   hnf in U.
@@ -510,7 +510,7 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
     (m, ge, (tr, sch, tp)) =>
     exists j cntj sch' c args,
       sch = j :: sch' /\
-      @getThreadC _ _ j tp cntj = Kblocked c /\
+      @getThreadC _ _ _ j tp cntj = Kblocked c /\
       cl_at_external c = Some (ef, args)
   end.
 
@@ -607,7 +607,7 @@ Proof.
   - repeat intro.
     specialize (lock_coh loc).
     simpl in Hguts.
-    unfold lockGuts in Hguts.
+    unfold OrdinalPool.lockGuts in Hguts.
     rewrite Hguts, Hl, Hr.
     destruct (AMap.find _ _); auto.
     assert (forall R, lkat R loc PHI -> lkat R loc PHI').
@@ -623,13 +623,12 @@ Proof.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
     replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
-    simpl in HC.
     rewrite <- HC; apply wellformed.
   - repeat intro.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
     replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
-    simpl in HC; rewrite <- HC in *.
+    rewrite <- HC in *.
     replace (num_threads tp') with (num_threads tp) in *; eauto.
     symmetry; apply contains_iff_num; auto.
 Qed.

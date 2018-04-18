@@ -58,12 +58,12 @@ Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
 Import Events.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -431,7 +431,7 @@ clear - Initcore.
     apply lock_coherence_age_to.
     exact_eq lock_coh. f_equal.
     match goal with |- restrPermMap ?p = restrPermMap ?p' => generalize p; generalize p' end.
-    unfold lockSet. simpl. cleanup. rewrite A2PMap_option_map.
+    simpl. cleanup. simpl. rewrite A2PMap_option_map.
     intros; f_equal. apply proof_irr.
 
   - (* thread_safety :
@@ -528,8 +528,8 @@ clear - Initcore.
 
     + (* safety of spawning thread *)
       subst j.
-      REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ i); auto. REWR. REWR.
-      unshelve erewrite (@gsoAddRes _ _ _ _ _ _ i); auto. REWR.
+      REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ _ i); auto. REWR. REWR.
+      unshelve erewrite (@gsoAddRes _ _ _ _ _ _ _ i); auto. REWR.
       intros c' afterex jm Ejm.
       specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
 

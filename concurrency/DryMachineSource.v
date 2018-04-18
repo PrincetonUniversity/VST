@@ -21,7 +21,7 @@ Require Import VST.concurrency.lksize.
 Require Import VST.concurrency.permissions.
 
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.HybridMachine_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
 Require Import VST.concurrency.erased_machine.
 
 (*Semantics*)
@@ -42,9 +42,9 @@ Set Bullet Behavior "Strict Subproofs".
 Import Concur threadPool.
 
 Module THE_DRY_MACHINE_SOURCE.
-  Module SCH:= THESCH.
-  Module SEM:= ClightSEM.
-  (*Import SCH SEM.*)
+(*  Module SEM:= ClightSEM.*)
+
+  Import HybridMachineSig.
 
   (*Module DSEM := DryMachineShell SEM.
   Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
@@ -54,6 +54,23 @@ Module THE_DRY_MACHINE_SOURCE.
   Notation dmachine_state:= DryMachine.MachState.
   (*Module DTP:= DryMachine.SIG.ThreadPool.*)
   Import DSEM.DryMachineLemmas event_semantics.*)
+
+  Module DMS.
+
+  Section DMS.
+
+  Context {CSem : ClightSEM}.
+  Existing Instance ClightSem.
+  Existing Instance OrdinalPool.OrdinalThreadPool.
+  Definition DMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig := DryHybridMachine.DryHybridMachineSig)).
+
+(*  Existing Instance DryHybridMachine.DryHybridMachineSig.
+  Existing Instance BareMachine.BareMachineSig.
+  Existing Instance HybridMachineSig.HybridCoarseMachine.HybridCoarseMachine.
+(*  Definition DMachineSem := HybridMachineSig.MachineSemantics(HybridMachine := HybridMachineSig.HybridCoarseMachine.HybridCoarseMachine).*)
+
+
+  Instance DMS : HybridMachineSig.MachineSig.
 
   Module DMS  <: MachinesSig with Module SEM := ClightSEM.
      Module SEM:= ClightSEM .
@@ -72,10 +89,11 @@ Module THE_DRY_MACHINE_SOURCE.
      Module SC := HybridMachineSig.FineMachine SCH ErasedMachine.
      Module DTP<: ThreadPoolSig:= DryConc.SIG.ThreadPool.
 
-     Import DryMachine DTP.
+     Import DryMachine DTP.*)
 
   End DMS.
-  Module DryMachineLemmas := ThreadPoolWF SEM DMS.
+
+  End DMS.
 
   Module FiniteBranching.
 
@@ -85,7 +103,7 @@ Module THE_DRY_MACHINE_SOURCE.
      1. Next block increases at most by one
      2. semantics is deterministic, so we know all possible changes to memory.
      3. it's finitely branching *)
-    Lemma schedule_not_halted: forall y i,
+(*    Lemma schedule_not_halted: forall y i,
           SCH.schedPeek y = Some i ->
           forall ge tr dm m y' tr' dm' m',
             DMS.DryConc.sem_with_halt ge (y, tr, dm) m (y', tr', dm') m' ->
@@ -103,16 +121,16 @@ Module THE_DRY_MACHINE_SOURCE.
              rewrite /semantics.halted
                      /DMS.DryMachine.ThreadPool.SEM.Sem
                      /DMS.SEM.Sem SEM.CLN_msem //.
-      Qed.
+      Qed.*)
 
-    Lemma finite_branching_sync: forall ds ge i cnti c,
-      @DMS.DTP.getThreadC i ds.1.2 cnti = Kblocked c ->
+(*    Lemma finite_branching_sync: forall ds ge i cnti c,
+      getThreadC i ds.1.2 cnti = Kblocked c ->
           safety.finite_on_x
             (@safety.possible_image
                DMS.DryConc.new_state
                DMS.DryConc.Sch
                (fun x y x' => exists y', (DMS.DryConc.new_step ge x y x' y'))
-               (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid_bound st y)
+               (fun st y => schedPeek y = Some i /\ DMS.DryConc.new_valid_bound st y)
                ds).
     Proof.
       move=> [] [] tr dm m ge i cnti c KRES.
@@ -1404,7 +1422,7 @@ Module THE_DRY_MACHINE_SOURCE.
             * rewrite ineq''; auto.
       }
   Qed.
-
+*)
 
 
   End FiniteBranching.

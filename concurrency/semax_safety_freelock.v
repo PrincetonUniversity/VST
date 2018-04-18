@@ -61,12 +61,12 @@ Require Import VST.concurrency.rmap_locking.
 Require Import VST.concurrency.semax_conc_pred.
 Import Events.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -81,6 +81,8 @@ Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
 Section Sem.
+
+Opaque containsThread.
 
 Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
@@ -180,19 +182,19 @@ Proof.
 
       assert (J0 : join_sub phi0 Phi). {
         apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
-        join_sub_tac.
+        apply compatible_threadRes_sub, compat.
       }
       assert (Ja0 : join_sub phi0sat Phi).  {
         apply join_sub_trans with phi0; eauto. eexists; eauto.
       }
       assert (Ja : join_sub phi_sat Phi). {
-        eapply compatible_lockRes_sub; eauto.
+        eapply compatible_lockRes_sub; simpl; eauto.
         apply compat.
       }
       assert (J01 : join_sub phi0lockinv Phi). {
         apply join_sub_trans with phi0. eexists; eauto.
         apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
-        join_sub_tac.
+        apply compatible_threadRes_sub, compat.
       }
       assert (R01 : level phi0lockinv = level Phi) by join_level_tac.
       assert (Ra : level phi_sat = level Phi) by join_level_tac.
@@ -266,7 +268,7 @@ Proof.
       assert (j : join_sub phi0lockinv Phi). {
         apply join_sub_trans with phi0. eexists; eauto.
         apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
-        join_sub_tac.
+        apply compatible_threadRes_sub, compat.
       }
       destruct j as (psi & j).
       apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
@@ -435,8 +437,7 @@ Proof.
 
     + (* juicyLocks_in_lockSet *)
       intros loc sh psh P z E''.
-      unfold lockGuts in *.
-      rewrite lset_age_tp_to.
+      simpl.
       rewrite isSome_find_map.
       simpl.
       rewrite AMap_find_remove. if_tac [<- | ne].
@@ -556,7 +557,7 @@ Proof.
               unfold lockSet in *.
               simpl.
               cleanup.
-              rewrite A2PMap_option_map.
+              setoid_rewrite A2PMap_option_map.
               pose proof SparseX as SparseX'.
               specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lkomega.
               unfold Mem.valid_access in *.
@@ -646,7 +647,7 @@ Proof.
               unfold lockSet in *.
               simpl.
               cleanup.
-              rewrite A2PMap_option_map.
+              setoid_rewrite A2PMap_option_map.
               pose proof SparseX as SparseX'.
               specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lkomega.
               unfold Mem.valid_access in *.
@@ -714,9 +715,9 @@ Proof.
         subst j.
         rewrite gssThreadCode.
         replace lj with cnti in safety by apply proof_irr.
-        rewrite Eci in safety.
+        simpl in safety; rewrite Eci in safety.
         specialize (wellformed i cnti).
-        rewrite Eci in wellformed.
+        simpl in wellformed; rewrite Eci in wellformed.
         intros c' Ec'.
         - (* at_external : we can now use safety *)
           intros jm' Ejm'.
@@ -801,7 +802,7 @@ Proof.
     + subst j.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
-      rewr (getThreadC i tp cnti) in wellformed.
+      simpl in wellformed; rewrite Eci in wellformed.
       destruct ci; auto.
     + unshelve erewrite gsoThreadCode; auto.
 
@@ -811,7 +812,7 @@ Proof.
     apply no_Krun_remLockSet.
     apply no_Krun_stable. congruence.
     eapply unique_Krun_no_Krun. eassumption.
-    instantiate (1 := cnti). rewr (getThreadC i tp cnti).
+    instantiate (1 := cnti). simpl.
     congruence.
 Qed.
 

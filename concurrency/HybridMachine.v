@@ -567,6 +567,8 @@ Module DryHybridMachine.
       erewrite (gsoThreadCC H); exact Hcode.
     Qed.
 
+    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map).
+
     Definition init_mach (pmap : option res) (genv:G) (m: mem)
                (v:val) (args:list val):option (thread_pool * option mem) :=
       match semantics.initial_core semSem 0 genv m v args with

@@ -58,12 +58,12 @@ Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
 Import Events.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -136,7 +136,7 @@ Lemma preservation_acquire
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
-  (Ei cnti : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
+  (Ei cnti : containsThread tp i)
   (ci : semC)
   (Eci : getThreadC i tp cnti = Kblocked ci)
   (Hcmpt : mem_compatible tp m)
@@ -164,7 +164,7 @@ Lemma preservation_acquire
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
   (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
-  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ diluteMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
+  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
   (Htstep : @syncStep ClightSemantincsForMachines.ClightSem true ge _ _ _ cnti Hcmpt
@@ -182,7 +182,6 @@ Proof.
   pose (tp__ := updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None).
   assert (compat'' : mem_compatible_with tp__ m' Phi). {
     subst tp__.
-    cleanup.
     constructor.
     - (* joining to global map: the acquired rmap move from
             lockset to threads's maps *)
@@ -198,9 +197,8 @@ Proof.
       rewrite (maps_getthread i _ pr) in J.
       rewrite gRemLockSetRes with (cnti0 := cnti) in J. clear pr.
       revert Hadd_lock_res J.
-      generalize (@getThreadR _ _ _ _ cnti) d_phi phi'.
+      generalize (getThreadR _ _ cnti) d_phi phi'.
       generalize (all_but i (maps (remLockSet tp (b, Ptrofs.intval ofs)))).
-      cleanup.
       clear -lev.
       intros l a b c j h.
       rewrite Permutation.perm_swap in h.
@@ -459,17 +457,17 @@ Proof.
           unfold permission_at in *.
           rewrite RR in *.
           rewrite lockSet_age_to.
-          rewrite <-lockSet_updLockSet.
+          setoid_rewrite <-lockSet_updLockSet.
           match goal with |- _ ?a _ => cut (a = Some Writable) end.
           { intros ->. constructor. }
 
           destruct SPA as [bOUT | [<- ofsOUT]].
-          + rewrite gsoLockSet_2; auto.
-            apply lockSet_spec_2 with ofs'.
+          + rewrite OrdinalPool.gsoLockSet_2; auto.
+            apply OrdinalPool.lockSet_spec_2 with ofs'.
             * hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; omega.
             * cleanup. rewrite Eo. reflexivity.
-          + rewrite gsoLockSet_1; auto.
-            * apply lockSet_spec_2 with ofs'.
+          + rewrite OrdinalPool.gsoLockSet_1; auto.
+            * apply OrdinalPool.lockSet_spec_2 with ofs'.
               -- hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; omega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
@@ -586,11 +584,11 @@ Proof.
               rewrite level_age_to; auto.
               replace (level phi') with (level Phi). omega.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
             assert (level phi' = S n). {
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
 
             split; [ | split].
@@ -673,7 +671,7 @@ Proof.
                  pose proof predat4 D as ERx.
                  assert (join_sub phi0 Phi).
                  { join_sub_tac.
-                   apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
+                   apply join_sub_trans with (OrdinalPool.getThreadR cnti). exists phi1. auto.
                    apply compatible_threadRes_sub, compat.
                  }
                  apply (@predat_join_sub _ Phi) in ERx; auto.

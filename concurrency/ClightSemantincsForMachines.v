@@ -32,7 +32,7 @@ Section ClightSEM.
   (* We might want to define this properly or
      factor the machines so we don't need events here. *)
 
-  Class ClightSEM := { CLN_evsem : @EvSem G C;
+  Class ClightSEM := { CLN_evsem :> @EvSem G C;
     CLN_msem : msem CLN_evsem = CLN_memsem;
     Sem := CLN_evsem;
     step_decay: forall g c m tr c' m',

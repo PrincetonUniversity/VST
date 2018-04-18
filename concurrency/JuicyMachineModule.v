@@ -27,17 +27,17 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.ClightSemantincsForMachines.
 
 Module THE_JUICY_MACHINE.
-  Module SCH:= THESCH.
+
   Module JuicyMachine := HybridMachineSig.
+  Export JuicyMachine.
 
   Section THE_JUICY_MACHINE.
-  Context {Sem : ClightSEM}.
-  Import SCH.
 
-  Notation JMachineSem:= JuicyMachine.MachineCoreSemantics.
-  Definition jstate:= @ThreadPool.t LocksAndResources (@ClightSem Sem) ThreadPool.RmapThreadPool.
-  Notation jmachine_state:= JuicyMachine.MachState.
-  Notation JTP := ThreadPool.RmapThreadPool.
+  Context {Sem : ClightSEM}.
+  Existing Instance ClightSem.
+  Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig := JuicyMachineShell)).
+  Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
+  Definition jmachine_state := MachState(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
 
   Import threadPool.ThreadPool.
 
@@ -48,7 +48,7 @@ Module THE_JUICY_MACHINE.
     exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
       (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
          level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt)) /\
-         resource_at (getThreadR(ThreadPool := JTP) cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
+         resource_at (getThreadR cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
       lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
       lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
 
@@ -69,21 +69,21 @@ Module THE_JUICY_MACHINE.
        exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
   Existing Instance JuicyMachineShell.
-  Existing Instance diluteMem.
+  Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
   Inductive jm_csafe ge (st : jmachine_state) (m : mem) : nat -> Prop :=
   | Safe_0 : jm_csafe ge st m 0
   | HaltedSafe : forall n : nat,
-                 is_true (ssrbool.isSome (JuicyMachine.halted_machine st)) ->
+                 is_true (ssrbool.isSome (halted_machine st)) ->
                  jm_csafe ge st m n
   | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-               (Hstep : JuicyMachine.MachStep ge st m (fst (fst st), tr', tp') m')
+               (Hstep : MachStep ge st m (fst (fst st), tr', tp') m')
                (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe ge st m (S n)
   | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-                (Hstep : JuicyMachine.MachStep ge st m
-                  (SCH.schedSkip (fst (fst st)), tr', tp') m')
+                (Hstep : MachStep ge st m
+                  (schedSkip (fst (fst st)), tr', tp') m')
                 (Hsafe : forall U'',
                  tp_bupd (fun tp' => jm_csafe ge (U'', tr', tp') m' n) tp'),
                 jm_csafe ge st m (S n).

@@ -144,9 +144,9 @@ Module HybridMachineSig.
             {Sem: Semantics}
             {ThreadPool : ThreadPool.ThreadPool}
             {DilMem : DiluteMem}.
-    Notation thread_pool := ThreadPool.t.
-    Notation C:= (semC).
-    Notation G:= (semG).
+    Definition thread_pool := ThreadPool.t.
+    Definition C:= (semC).
+    Definition G:= (semG).
     
     Local Notation ctl := (@ctl C).
 
@@ -218,9 +218,9 @@ Module HybridMachineSig.
                       -> option (thread_pool * option mem)}.
 
     Context {machineSig: MachineSig}.
-  
-    Notation event_trace := (seq machine_event).
-    Notation schedule := (seq nat).
+
+    Definition event_trace := (seq machine_event).
+    Definition schedule := (seq nat).
     
     Definition MachState : Type:= (schedule * event_trace * t)%type.
   
@@ -231,7 +231,7 @@ Module HybridMachineSig.
       end.
   
   Definition schedSkip sch: (seq nat):= List.tl sch.
-  Notation machine_state := thread_pool.
+  Definition machine_state := thread_pool.
 
   (** Resume and Suspend: threads running must be preceded by a Resume
      and followed by Suspend.  This functions wrap the state to
@@ -562,7 +562,7 @@ Module HybridMachineSig.
       Notation G:= (semG).
       Local Notation ctl := (@ctl C).
       Notation machine_state := thread_pool.
-      Notation schedule := (seq nat).  
+      Notation schedule := (seq nat).
       Notation event_trace := (seq machine_event).
 
       Definition HybridCoarseMachine : HybridMachine:=

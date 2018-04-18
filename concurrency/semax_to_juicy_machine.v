@@ -64,7 +64,7 @@ Section Sem.
 Context {Sem : ClightSemantincsForMachines.ClightSEM}.
 
 Existing Instance JuicyMachineShell.
-Existing Instance diluteMem.
+Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
 Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
 Inductive jmsafe : nat -> cm_state -> Prop :=
@@ -95,7 +95,7 @@ Qed.
 Require Import VST.concurrency.semax_simlemmas.
 
 Lemma schstep_norun ge i sch tr tr' tp m tp' m' :
-  JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+  JuicyMachine.machine_step(genv := ge)(machineSig := JuicyMachineShell) (i :: sch) tr tp m sch tr' tp' m' ->
   unique_Krun tp (i :: sch) ->
   (1 < pos.n (num_threads tp'))%nat ->
   no_Krun tp'.
@@ -104,7 +104,7 @@ Proof.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
   assert (D: (forall i j, containsThread tp i -> containsThread tp j -> i <> j -> 1 < pos.n tp.(num_threads))%nat).
   { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
-  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC _ _ j tp cntj <> @Krun _ q).
+  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC _ _ _ j tp cntj <> @Krun _ q).
   { intros j cntj q cnti ne E. autospec uniq. specialize (uniq j cntj q E). breakhyps. }
 
   inversion step; try tauto.
@@ -115,7 +115,6 @@ Proof.
   all: destruct (eq_dec i j).
   all: try subst j.
 
-  all: unfold ThreadPool.updThreadC, ThreadPool.RmapThreadPool, OrdinalThreadPool in *.
   all: try (assert (cnti = Htid) by apply proof_irr; subst Htid).
   all: try (assert (ctn = cnti) by apply proof_irr; subst cnt).
 
@@ -129,14 +128,14 @@ Proof.
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
-  destruct (@cntAdd' _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
-  destruct (@cntAdd' _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.
@@ -220,9 +219,8 @@ Section Safety.
       breakhyps.
 
     destruct state as ((m, ge) & [tr [ | i sch]] & tp). now t.
-    simpl.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
-    destruct (@getThreadC _ _ i tp cnti) as [c | c | c v | v v0] eqn:Ei;
+    destruct (@getThreadC _ _ _ i tp cnti) as [c | c | c v | v v0] eqn:Ei;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
@@ -340,7 +338,7 @@ Section Safety.
     assert (containsThread tp i) as cnt by (apply Hiff; auto).
     specialize (H _ cnt) as (H & _).
     replace (proj2 (Hiff i) cnt) with cnti in H by apply proof_irr.
-    simpl in H; rewrite <- H in *; eapply notkrun; eauto.
+    rewrite <- H in *; eapply notkrun; eauto.
   Qed.
 
   Lemma invariant_safe Gamma n state :

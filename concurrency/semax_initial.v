@@ -206,7 +206,7 @@ Section Initial_State.
           destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
           destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
           subst m.
-          rewrite personal_mem_of_same_jm; eauto.
+          setoid_rewrite personal_mem_of_same_jm; eauto.
       }
       subst jm. rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.

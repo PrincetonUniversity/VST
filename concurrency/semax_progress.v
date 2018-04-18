@@ -112,7 +112,7 @@ Proof.
   match goal with |- ?P = ?Q => cut (P /\ Q) end.
   { intros (?, ?). apply prop_ext; split; auto. }
   split.
-  - erewrite A2PMap_found; eauto; try lkomega.
+  - setoid_rewrite A2PMap_found; eauto; try lkomega.
     constructor.
   - unfold juice2Perm_locks in *.
     unfold mapmap in *.
@@ -132,26 +132,26 @@ Proof.
     if_tac [e|ne] in lk.
     + destruct lk as (p & E0). rewrite E0 in j. inv j.
       * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
+        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
         pose proof (readable_glb rsh3).
         repeat if_tac; try constructor; tauto.
       * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
+        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
         pose proof (readable_glb rsh3).
         repeat if_tac; try constructor; tauto.
     + destruct lk as (p & E0). rewrite E0 in j. inv j.
       * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
+        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
         pose proof (readable_glb rsh3).
         repeat if_tac; try constructor; tauto.
       * unfold block in *.
-        rewr (getThreadR cnti @ (b, ofs')).
+        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
         simpl.
         unfold perm_of_sh.
         pose proof (readable_glb rsh3).
@@ -260,7 +260,7 @@ Section Progress.
         apply JuicyMachine.schedfail with i.
         + reflexivity.
         + simpl.
-          unfold containsThread.
+          unfold OrdinalPool.containsThread.
           now rewrite Ei; auto.
         + constructor.
         + eexists; eauto.
@@ -294,7 +294,7 @@ Section Progress.
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
-          simpl in Eci; rewrite Eci in *.
+          rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
           2: now match goal with H : j_at_external _ _ _ _ = _ |- _ => inversion H end.
           2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
@@ -312,12 +312,12 @@ Section Progress.
 
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp' := age_tp_to (level jmi') tp).
-        pose (tp'' := @updThread _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
+        pose (tp'' := @updThread _ _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
         pose (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
         rewrite <- (seq.cats0 tr) at 2.
-        apply @JuicyMachine.thread_step with (DilMem := diluteMem)
+        apply @JuicyMachine.thread_step with (DilMem := HybridCoarseMachine.DilMem)
         (tid := i)
           (ev := nil)
           (Htid := cnti)
@@ -369,7 +369,7 @@ Section Progress.
       {
         exfalso.
         pose proof (wellformed i cnti) as W.
-        simpl in Eci; rewrite Eci in W.
+        rewrite Eci in W.
         apply W; auto.
       }
       (* back to external step *)
@@ -378,7 +378,7 @@ Section Progress.
       assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
       {
         pose proof (safety i cnti tt) as safe_i.
-        simpl in Eci; rewrite Eci in safe_i.
+        rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -402,7 +402,7 @@ Section Progress.
                 Some (ext_link "spawn", CREATE_SIG) = (ef_id_sig ext_link (EF_external name sg))).
       {
         pose proof (safety i cnti tt) as safe_i.
-        simpl in Eci; rewrite Eci in safe_i.
+        rewrite Eci in safe_i.
         fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -434,7 +434,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        simpl in Eci; rewrite Eci in safei.
+        rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -589,7 +589,7 @@ Section Progress.
                 (* [ > idtac ]. *)
               simpl.
               unfold Ptrofs.unsigned in *.
-              rewr (getThreadR cnti @ (b, Ptrofs.intval ofs)).
+              rewr (OrdinalPool.getThreadR cnti @ (b, Ptrofs.intval ofs)).
               reflexivity.
               
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
@@ -597,7 +597,7 @@ Section Progress.
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Ptrofs.unsigned in *.
-              rewr (getThreadR cnti @ (b, Ptrofs.intval ofs)).
+              rewr (OrdinalPool.getThreadR cnti @ (b, Ptrofs.intval ofs)).
               reflexivity.
 
         - (* acquire succeeds *)
@@ -719,7 +719,7 @@ Section Progress.
             * apply (mem_compatible_forget compat).
             * reflexivity.
             * unfold fold_right in *.
-              rewrite E3.
+              simpl; rewrite E3.
               f_equal.
             * reflexivity.
             * eapply load_at_phi_restrict with (phi0 := phi0) (cnti := cnti) in LOAD.
@@ -735,7 +735,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        simpl in Eci; rewrite Eci in safei.
+        rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -950,7 +950,7 @@ Section Progress.
           apply (predat_join_sub SUB) in E3.
           assert (level phi_lockinv = level Phi) by apply join_sub_level, SUB.
           assert (level unlockedphi = level Phi).
-          { eapply join_sub_level, compatible_lockRes_sub; eauto; apply compat. }
+          { eapply join_sub_level, compatible_lockRes_sub; simpl; eauto; apply compat. }
           rewr (level phi_lockinv) in E3.
           assert (join_sub phi_sat Phi). {
             apply join_sub_trans with phi0. hnf; eauto.
@@ -1017,7 +1017,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        simpl in Eci; rewrite Eci in safei.
+        rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1151,7 +1151,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        simpl in Eci; rewrite Eci in safei.
+        rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1243,7 +1243,7 @@ Section Progress.
           destruct HH as (p & HH).
           assert (j : join_sub phi0lockinv Phi). {
             apply join_sub_trans with phi0. eexists; eauto.
-            apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+            apply join_sub_trans with (@getThreadR _ _ _ i tp cnti). eexists; eauto.
             apply compatible_threadRes_sub, compat.
           }
           destruct j as (psi' & j).
@@ -1289,19 +1289,19 @@ Section Progress.
             destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
 
             assert (J0 : join_sub phi0 Phi). {
-              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply join_sub_trans with (@getThreadR _ _ _ i tp cnti). eexists; eauto.
               apply compatible_threadRes_sub, compat.
             }
             assert (Ja0 : join_sub phi0sat Phi).  {
               apply join_sub_trans with phi0; eauto. eexists; eauto.
             }
             assert (Ja : join_sub phi_sat Phi). {
-              eapply compatible_lockRes_sub; eauto.
+              eapply compatible_lockRes_sub; simpl; eauto.
               apply compat.
             }
             assert (J01 : join_sub phi0lockinv Phi). {
               apply join_sub_trans with phi0. eexists; eauto.
-              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply join_sub_trans with (@getThreadR _ _ _ i tp cnti). eexists; eauto.
               apply compatible_threadRes_sub, compat.
             }
             assert (R01 : level phi0lockinv = level Phi) by join_level_tac.
@@ -1350,7 +1350,7 @@ Section Progress.
               apply joins_sym.
               eapply @join_sub_joins_trans with (c := phi0); auto. apply Perm_rmap.
               * exists phi0lockinv. apply join_comm. auto.
-              * eapply @join_sub_joins_trans with (c := @getThreadR _ _ i tp cnti); auto. apply Perm_rmap.
+              * eapply @join_sub_joins_trans with (c := @getThreadR _ _ _ i tp cnti); auto. apply Perm_rmap.
                 -- exists phi1. auto.
                 -- eapply compatible_threadRes_lockRes_join. apply (mem_compatible_forget compat).
                    apply Ephi_sat.
@@ -1368,7 +1368,7 @@ Section Progress.
             destruct HH as (p & HH).
             assert (j : join_sub phi0lockinv Phi). {
               apply join_sub_trans with phi0. eexists; eauto.
-              apply join_sub_trans with (@getThreadR _ _ i tp cnti). eexists; eauto.
+              apply join_sub_trans with (@getThreadR _ _ _ i tp cnti). eexists; eauto.
               apply compatible_threadRes_sub, compat.
             }
             destruct j as (psi' & j).
@@ -1407,7 +1407,7 @@ Section Progress.
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
-        simpl in Eci; rewrite Eci in safei.
+        rewrite Eci in safei.
         fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1446,7 +1446,7 @@ Section Progress.
 
       - (* contradiction: has to be an extcall *)
         specialize (wellformed i cnti).
-        simpl in Eci; rewrite Eci in wellformed.
+        rewrite Eci in wellformed.
         simpl in wellformed.
         tauto.
 
@@ -1469,14 +1469,14 @@ Section Progress.
                reflexivity.
             -- subst.
                destruct lid.
-               ++ specialize (wellformed i cnti). rewrite Eci in wellformed. destruct wellformed.
+               ++ specialize (wellformed i cnti). simpl in wellformed. rewrite Eci in wellformed. destruct wellformed.
                   unfold ci'. reflexivity.
                ++ reflexivity.
             -- rewrite Eci.
                subst ci.
                f_equal.
                specialize (wellformed i cnti).
-               rewrite Eci in wellformed.
+               simpl in wellformed. rewrite Eci in wellformed.
                simpl in wellformed.
                tauto.
             -- constructor.
@@ -1486,7 +1486,7 @@ Section Progress.
 
     (* thread[i] is in Kinit *)
     {
-      specialize (safety i cnti tt). simpl in Eci; rewrite Eci in safety.
+      specialize (safety i cnti tt). rewrite Eci in safety.
       destruct safety as (q_new & Einit & safety).
       eexists(* ; split *).
       - constructor.

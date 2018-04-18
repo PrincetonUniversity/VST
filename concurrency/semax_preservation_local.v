@@ -56,12 +56,12 @@ Require Import VST.concurrency.semax_simlemmas.
 Require Import VST.concurrency.sync_preds.
 Require Import VST.concurrency.lksize.
 
-Local Arguments getThreadR {_} {_} _ _ _.
-Local Arguments getThreadC {_} {_} _ _ _.
+Local Arguments getThreadR {_} {_} {_} _ _ _.
+Local Arguments getThreadC {_} {_} {_} _ _ _.
 Local Arguments personal_mem : clear implicits.
-Local Arguments updThread {_} {_} _ _ _ _ _.
-Local Arguments updThreadR {_} {_} _ _ _ _.
-Local Arguments updThreadC {_} {_} _ _ _ _.
+Local Arguments updThread {_} {_} {_} _ _ _ _ _.
+Local Arguments updThreadR {_} {_} {_} _ _ _ _.
+Local Arguments updThreadC {_} {_} {_} _ _ _ _.
 Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -190,7 +190,7 @@ Proof.
   + rewrite E in R. destruct R as (sh'' & wsh'' & v & v' & R & H). discriminate.
   + specialize (LB loc).
     cut (fst loc < b)%positive. now intro; exfalso; eauto.
-    apply LB. destruct (AMap.find (elt:=option rmap) loc lset).
+    apply LB. simpl in *; destruct (AMap.find (elt:=option rmap) loc lset).
     * apply I.
     * inversion IT.
   + destruct R as (v & v' & R & N').
@@ -453,12 +453,12 @@ Proof.
       {
         pose proof juicyRestrictCurEq as H.
         unfold access_at in H.
-        replace b with (fst (b, ofs0)) by reflexivity.
-        replace ofs0 with (snd (b, ofs0)) by reflexivity.
+        change b with (fst (b, ofs0)).
+        change ofs0 with (snd (b, ofs0)).
         unfold mi.
         destruct compat_ as [_ MC _ _ _].
         destruct MC as [_ AC _ _].
-        unfold jm_, personal_mem; simpl m_dry.
+        unfold jm_, personal_mem, m_dry.
         rewrite (H _ _  _ (b, ofs0)).
         cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))). {
           destruct (perm_of_res (getThreadR _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
@@ -686,6 +686,7 @@ Proof.
         - constructor.
       }
 
+      rewrite if_true by auto.
       destruct (Mem.valid_access_dec (restrPermMap W') Mint32 b ofs Readable) as [r'|n']; swap 1 2.
       { (* can't be not readable *)
         destruct n'.
@@ -709,6 +710,7 @@ Proof.
           eapply lock_coherence_align; eauto.
       }
 
+      rewrite if_true by auto.
       f_equal.
       f_equal.
       apply Mem.getN_exten.
@@ -718,7 +720,7 @@ Proof.
       unfold contents_at in CW, CW'.
       simpl fst in CW, CW'.
       simpl snd in CW, CW'.
-      rewrite CW, CW'.
+      simpl lockSet in *. rewrite CW, CW'.
       pose proof cl_step_unchanged_on _ _ _ _ _ b ofs0 step as REW.
       rewrite <- REW.
       - reflexivity.
@@ -730,7 +732,7 @@ Proof.
         unfold access_at in *.
         simpl fst in h; simpl snd in h.
         unfold Mem.perm in *.
-        rewrite h.
+        setoid_rewrite h.
         cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))).
         { destruct (perm_of_res (getThreadR _ _ cnti @ (b, ofs0))); intros A B.
           all: inversion A; subst; inversion B; subst. }
@@ -821,7 +823,7 @@ Proof.
       unshelve erewrite <-gtc_age; auto.
       pose proof safety _ cntj' ora as safej.
 
-      destruct (@getThreadC _ _ j tp cntj') as [c | c | c v | v v0] eqn:Ej.
+      destruct (getThreadC j tp cntj') as [c | c | c v | v v0] eqn:Ej.
       * (* krun: impossible *)
         exfalso. eapply notkrun. unshelve erewrite <-age_getThreadCode; eauto.
       * unfold tp'', tp'.

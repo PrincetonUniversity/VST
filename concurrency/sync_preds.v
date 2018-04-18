@@ -85,8 +85,7 @@ Local Open Scope nat_scope.
 
 (* Instantiation of modules *)
 Import THE_JUICY_MACHINE.
-Definition schedule := SCH.schedule.
-Import Concur OrdinalPool.
+Import Concur OrdinalPool ThreadPool.
 
 Section Machine.
 
@@ -110,6 +109,7 @@ Proof.
   simpl; intros LW.
   intros (b, ofs) IN; simpl.
   specialize (LW b ofs).
+  simpl in *.
   destruct (AMap.find (elt:=option rmap) (b, ofs) lset). 2:inversion IN.
   specialize (LW eq_refl).
   cut (~ ~ (b < Mem.nextblock m)%positive). zify. omega. intros L.
@@ -144,7 +144,7 @@ Lemma join_all_level_lset (tp : jstate) Phi l phi :
 Proof.
   intros J F.
   apply rmap_join_sub_eq_level.
-  eapply compatible_lockRes_sub; eauto.
+  eapply compatible_lockRes_sub; eauto; simpl; eauto.
 Qed.
 
 Lemma lset_range_perm m (tp : jstate) b ofs
@@ -163,8 +163,9 @@ Proof.
   erewrite lockSet_spec_2.
   + constructor.
   + eauto.
-  + unfold lockRes in *.
-    unfold lockGuts in *.
+  + simpl in *.
+    unfold OrdinalPool.lockRes in *.
+    unfold OrdinalPool.lockGuts in *.
     simpl in *.
     destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
     * reflexivity.
@@ -172,11 +173,11 @@ Proof.
 Qed.
 
 Lemma age_to_updThread i (tp : jstate) n c phi cnti cnti' :
-  age_tp_to n (@updThread _ _ i tp cnti c phi) =
-  @updThread _ _ i (age_tp_to n tp) cnti' c (age_to n phi).
+  age_tp_to n (@updThread _ _ _ i tp cnti c phi) =
+  @updThread _ _ _ i (age_tp_to n tp) cnti' c (age_to n phi).
 Proof.
   destruct tp; simpl.
-  unfold updThread in *; simpl.
+  unfold OrdinalPool.updThread in *; simpl.
   f_equal. extensionality j.
   unfold "oo".
   do 2 match goal with
@@ -196,8 +197,8 @@ Proof.
 Qed.
 
 Lemma getThreadC_fun i (tp : jstate) cnti cnti' x y :
-  @getThreadC _ _ i tp cnti = x ->
-  @getThreadC _ _ i tp cnti' = y ->
+  @getThreadC _ _ _ i tp cnti = x ->
+  @getThreadC _ _ _ i tp cnti' = y ->
   x = y.
 Proof.
   intros <- <-.
@@ -207,8 +208,8 @@ Proof.
 Qed.
 
 Lemma getThreadR_fun i (tp : jstate) cnti cnti' x y :
-  @getThreadR _ _ i tp cnti = x ->
-  @getThreadR _ _ i tp cnti' = y ->
+  @getThreadR _ _ _ i tp cnti = x ->
+  @getThreadR _ _ _ i tp cnti' = y ->
   x = y.
 Proof.
   intros <- <-.

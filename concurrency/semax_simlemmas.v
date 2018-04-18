@@ -582,7 +582,7 @@ Proof.
 Qed.
 
 Lemma m_phi_jm_ m (tp : jstate) phi i cnti compat :
-  m_phi (@jm_ _ tp m phi i cnti compat) = @getThreadR _ _ i tp cnti.
+  m_phi (@jm_ _ tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
 Proof.
   reflexivity.
 Qed.
@@ -864,9 +864,9 @@ Proof.
       split; [unshelve setoid_rewrite gThreadRC; auto|].
       destruct (eq_dec i t0).
       + subst.
-        setoid_rewrite (@gssThreadRes _ _ _ _ _ (getThreadC cnt)).
+        rewrite gssThreadRR.
         replace cnt with cnti by apply proof_irr; auto.
-      + setoid_rewrite (@gsoThreadRes _ _ _ _ _ _ _ n (getThreadC cnt)); split; reflexivity. }
+      + erewrite gsoThreadRR by eauto; split; reflexivity. }
   exists _, _, Hupd; split.
   - replace (level (getThreadR cnti)) with (level PHI) in HC' by omega.
     rewrite ghost_fmap_fmap, approx_oo_approx in HC'; eauto.
@@ -880,12 +880,12 @@ Proof.
       unfold jm_; f_equal.
       apply personal_mem_ext; simpl.
       rewrite eqtype_refl; auto.
-    + assert (getThreadR cntj = @getThreadR _ _ _ tp cntj) as Heq.
+    + assert (getThreadR cntj = @getThreadR _ _ _ _ tp cntj) as Heq.
       { simpl.
         rewrite eqtype_neq; auto. }
       rewrite Heq.
       specialize (Hrest _ cntj n ora).
-      destruct (@getThreadC _ _ j tp cntj); auto.
+      destruct (@getThreadC _ _ _ j tp cntj); auto.
       exact_eq Hrest; f_equal.
       apply juicy_mem_ext; [|rewrite !m_phi_jm_; auto].
       unfold jm_, personal_mem, m_dry, juicyRestrict.
