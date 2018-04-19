@@ -493,6 +493,7 @@ Inductive state: Type :=
       (k: cont)
       (m: mem) : state.
 
+(**NEW *)
 Definition get_mem (s:state):=
   match s with
   | State _ _ _ _ _ m => m
@@ -500,18 +501,42 @@ Definition get_mem (s:state):=
   | Returnstate _ _ m => m
   end.
 
-Definition ext_call (s:state):=
-match s with
-  | Callstate (External ef _ _ _) args _ _ => Some (ef, args)
-  | _ => None
-end.
+(**NEW *)
+Definition set_mem (s:state)(m:mem):=
+  match s with
+  | State f s k e le _ => State f s k e le m
+  | Callstate fd args k _ => Callstate fd args k m
+  | Returnstate res k _ => Returnstate res k m
+  end.
 
-Definition cl_after_external (ge: genv) (vret: option val) (c: state) m' : option state :=
-   match c with
-   | Callstate (External ef _ _ _) _ k m => 
-        Some (Returnstate (match vret with Some v => v | _ => Vundef end) k m')
+(**NEW *)
+Definition at_external (c: state) : option (external_function * signature * list val) :=
+  match c with
+  | State _ _ _ _ _ _ => None
+  | Callstate fd args k _ =>
+      match fd with
+        Internal f => None
+      | External ef targs tres cc => 
+          Some (ef, ef_sig ef, args)
+      end
+  | Returnstate _ _ _ => None
+ end.
+
+(**NEW *)
+Definition after_external (rv: option val) (c: state) (m:mem): option state :=
+  match c with
+     Callstate fd vargs k m =>
+        match fd with
+          Internal _ => None
+        | External ef tps tp cc =>
+            match rv with
+              Some v => Some(Returnstate v k m)
+            | None  => Some(Returnstate Vundef k m)
+            end
+        end
    | _ => None
-   end.
+  end.
+
 
 (** Find the statement and manufacture the continuation
   corresponding to a label *)
@@ -689,6 +714,17 @@ Inductive step: state -> trace -> state -> Prop :=
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty continuation. *)
 
+
+(*Inductive initial_core (p: program): mem -> state -> val -> list val -> Prop :=
+  | initial_core_intro: forall b f args m0,
+      let ge := Genv.globalenv p in
+      Genv.init_mem p = Some m0 ->
+      Genv.find_symbol ge p.(prog_main) = Some b ->
+      Genv.find_funct_ptr ge b = Some f ->
+      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
+      initial_core p m0 (Callstate f nil Kstop m0) (Vptr b Ptrofs.zero) args.*)
+
+(*
 Inductive initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
@@ -697,9 +733,63 @@ Inductive initial_state (p: program): state -> Prop :=
       Genv.find_funct_ptr ge b = Some f ->
       type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
       initial_state p (Callstate f nil Kstop m0).
+*)
+
+(*NEW*)
+(* The following parameters are simple and reasonable, *)
+(* but might not be needed. All definitions come from  *)
+(* compcomp/core/val_casted.v                          *)
+
+(*Parameter val_casted_list_func: list val -> typelist -> bool. (* TODO *)
+Parameter tys_nonvoid: typelist -> bool .
+Parameter vals_defined: list val -> bool.
+ *)
+
+(*Following definition mimics *_not_fresh lemmas from common/Globalenvs.v*)
+Record globals_not_fresh {F V} (ge:Genv.t F V) m:=
+  {
+    find_symbol_not_fresh:
+       forall id b, Genv.find_symbol ge id = Some b -> Mem.valid_block m b;
+    find_funct_ptr_not_fresh:
+      forall b fp, Genv.find_funct_ptr ge b = Some fp -> Mem.valid_block m b;
+    find_var_info_not_fresh:
+      forall b def, Genv.find_var_info ge b = Some def -> Mem.valid_block m b;
+}. 
+  
+    
+(* No dangling pointers. 
+   In particular, nothing pointing after nextblock *)      
+Definition mem_well_formed m:=
+  Mem.inject (Mem.flat_inj (Mem.nextblock m)) m m.
+
+Definition arg_well_formed args m0:=
+      Val.inject_list (Mem.flat_inj (Mem.nextblock m0)) args args.
+
+Inductive val_casted_list: list val -> typelist -> Prop :=
+  | vcl_nil:
+      val_casted_list nil Tnil
+  | vcl_cons: forall v1 vl ty1 tyl,
+      val_casted v1 ty1 -> val_casted_list vl tyl ->
+      val_casted_list (v1 :: vl) (Tcons  ty1 tyl).
+
+(*NOTE: DOUBLE CHECK TARGS (it's not used right now)*)
+Inductive initial_core  (p:program): mem -> state -> val -> list val -> Prop :=
+| initi_core:
+    let ge := globalenv p in
+    forall f fb m args targs tres,
+      Genv.find_funct_ptr ge fb = Some f ->
+      type_of_fundef f = Tfunction targs tres cc_default ->
+      globals_not_fresh ge m ->
+      mem_well_formed m ->
+      arg_well_formed args m ->
+      val_casted_list args targs ->
+      (*val_casted_list_func args targs 
+                           && tys_nonvoid targs 
+                           && vals_defined args
+                           && zlt (4*(2*(Zlength args))) Int.max_unsigned = true ->*)
+      initial_core p m (Callstate f args Kstop m) (Vptr fb (Ptrofs.of_ints Int.zero)) args.
 
 (** A final state is a [Returnstate] with an empty continuation. *)
-
 Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall r m,
       final_state (Returnstate (Vint r) Kstop m) r.
@@ -735,11 +825,23 @@ Definition step2 (ge: genv) := step ge (function_entry2 ge).
 
 Definition semantics1 (p: program) :=
   let ge := globalenv p in
-  Semantics_gen step1 (initial_state p) final_state ge ge.
+  let main :=p.(prog_main) in
+  let init_mem:=(Genv.init_mem p) in
+  Semantics_gen get_mem set_mem step1
+                (initial_core p)
+                at_external
+                after_external
+                final_state ge main init_mem ge.
 
 Definition semantics2 (p: program) :=
   let ge := globalenv p in
-  Semantics_gen step2 (initial_state p) final_state ge ge.
+  let main :=p.(prog_main) in
+  let init_mem:=(Genv.init_mem p) in
+  Semantics_gen get_mem set_mem step2
+                (initial_core p)
+                at_external
+                after_external
+                final_state ge main init_mem ge.
 
 (** This semantics is receptive to changes in events. *)
 

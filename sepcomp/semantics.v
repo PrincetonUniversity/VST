@@ -9,8 +9,6 @@ Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import VST.sepcomp.mem_lemmas.
-
 (** * Interaction Semantics *)
 
 (** NOTE: In the code, we call interaction semantics [CoreSemantics]. *)

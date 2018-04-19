@@ -11,7 +11,7 @@ Require Import compcert.common.Globalenvs.
 Require Import VST.msl.Extensionality.
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 
 Require Import VST.msl.Coqlib2.
 

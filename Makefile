@@ -115,6 +115,7 @@ SEPCOMP_FILES = \
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
 CONCUR_FILES= \
+  core_semantics.v memsem_lemmas.v \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
