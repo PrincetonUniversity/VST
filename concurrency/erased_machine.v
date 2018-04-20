@@ -72,8 +72,8 @@ Module BareMachine.
     | step_acquire :
         forall (tp' : thread_pool) c m' b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external semSem genv c m =
-                         Some (LOCK, Vptr b ofs::nil))
+          (Hat_external: at_external semSem c m =
+                         Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
           (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.one))
           (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
@@ -82,8 +82,8 @@ Module BareMachine.
     | step_release :
         forall (tp':thread_pool) c m' b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external semSem genv c m =
-                         Some (UNLOCK, Vptr b ofs::nil))
+          (Hat_external: at_external semSem c m =
+                         Some (UNLOCK, UNLOCK_SIG, Vptr b ofs::nil))
           (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
           ext_step genv cnt0 Hcompat tp' m' (release (b, Ptrofs.intval ofs) None)
@@ -91,8 +91,8 @@ Module BareMachine.
     | step_create :
         forall (tp_upd tp':thread_pool) c b ofs arg
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external semSem genv c m =
-                         Some (CREATE, Vptr b ofs::arg::nil))
+          (Hat_external: at_external semSem c m =
+                         Some (CREATE, CREATE_SIG, Vptr b ofs::arg::nil))
           (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
           ext_step genv cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
@@ -100,8 +100,8 @@ Module BareMachine.
     | step_mklock :
         forall  (tp': thread_pool) c m' b ofs
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external semSem genv c m =
-                          Some (MKLOCK, Vptr b ofs::nil))
+           (Hat_external: at_external semSem c m =
+                          Some (MKLOCK, UNLOCK_SIG, Vptr b ofs::nil))
            (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
            (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
           ext_step genv cnt0 Hcompat tp' m' (mklock (b, Ptrofs.intval ofs))
@@ -109,27 +109,27 @@ Module BareMachine.
     | step_freelock :
         forall (tp' tp'': thread_pool) c b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external semSem genv c m =
-                         Some (FREE_LOCK, Vptr b ofs::nil))
+          (Hat_external: at_external semSem c m =
+                         Some (FREE_LOCK, UNLOCK_SIG, Vptr b ofs::nil))
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
           ext_step genv cnt0 Hcompat  tp' m (freelock (b,Ptrofs.intval ofs))
 
     | step_acqfail :
         forall  c b ofs
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external semSem genv c m =
-                          Some (LOCK, Vptr b ofs::nil))
+           (Hat_external: at_external semSem c m =
+                          Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
            (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
     Inductive threadHalted': forall {tid0 ms},
         containsThread ms tid0 -> Prop:=
     | thread_halted':
-        forall tp c tid0
+        forall tp c tid0 i
           (cnt: containsThread tp tid0)
           (*Hinv: invariant tp*)
           (Hcode: getThreadC cnt = Krun c)
-          (Hcant: semantics.halted semSem c),
+          (Hcant: core_semantics.halted semSem c i),
           threadHalted' cnt.
 
     Definition threadStep (genv : G): forall {tid0 ms m},
@@ -203,7 +203,7 @@ Module BareMachine.
         end.
     Qed.
     
-    Lemma threadStep_not_unhalts:
+(*    Lemma threadStep_not_unhalts:
       forall g i tp m cnt cmpt tp' m' tr,
         @threadStep g i tp m cnt cmpt tp' m' tr ->
         forall j cnt cnt',
@@ -221,7 +221,7 @@ Module BareMachine.
         rewrite Hcorestep in Hcant; inversion Hcant.
       - econstructor; eauto.
         erewrite <- gsoThreadCC; eauto.
-    Qed.
+    Qed.*)
 
     
 
@@ -308,13 +308,9 @@ Module BareMachine.
       erewrite (gsoThreadCC H); exact Hcode.
     Qed.
 
-    Definition init_mach (_ : option unit) (ge:G) (m: mem)
-               (v:val)(args:list val):option (thread_pool * option mem) :=
-      match initial_core semSem 0 ge m v args with
-      | Some (c, m') =>
-        Some (mkPool (Krun c) tt, m')
-      | None => None
-      end.
+    Definition init_mach (_ : option unit) (m: mem)
+               (tp:thread_pool)(v:val)(args:list val) : Prop :=
+      exists c, initial_core semSem 0 m c v args /\ tp = mkPool (Krun c) tt.
 
     (** The signature of the Bare Machine *)
     Instance BareMachineSig: HybridMachineSig.MachineSig :=
@@ -331,7 +327,7 @@ Module BareMachine.
                                        (@threadHalted)
                                        threadHalt_update
                                        syncstep_equal_halted
-                                       threadStep_not_unhalts
+(*                                       threadStep_not_unhalts*)
                                        init_mach
       ).
 

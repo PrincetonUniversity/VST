@@ -401,6 +401,20 @@ split3; auto.
 econstructor; eauto.
 Qed.
 
+Lemma jsafe_corestep_forward:
+  forall ge c m c' m' n z,
+    jstep (cl_core_sem ge) ge c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
+    jm_bupd (jsafeN (@OK_spec Espec) ge n z c') m'.
+Proof.
+  intros.
+  inv H0.
+  assert ((c',m') = (c'0,m'0)).
+  { eapply juicy_core_sem_preserves_corestep_fun with (csem := cl_core_sem ge); eauto. }
+  inv H0; auto.
+  setoid_rewrite (core_semantics.corestep_not_at_external (juicy_core_sem _)) in H2; eauto; congruence.
+  contradiction.
+Qed.
+
 Lemma semax_extract_prop:
   forall {CS: compspecs} Delta (PP: Prop) P c Q,
            (PP -> semax Espec Delta P c Q) ->

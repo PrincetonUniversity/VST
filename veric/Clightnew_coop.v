@@ -1,4 +1,4 @@
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.veric.base.
@@ -24,9 +24,9 @@ Proof. intros.
 + eapply mem_step_trans; try eassumption.
   eapply mem_step_storebytes; eassumption.
 Qed.
-Program Definition CLN_memsem :
+Program Definition CLN_memsem (ge : Clight.genv) :
   @MemSem Clight.genv (*(Genv.t fundef type)*) corestate.
-apply Build_MemSem with (csem := cl_core_sem).
+apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
   induction CS; try apply mem_step_refl; trivial.
   + destruct H3.

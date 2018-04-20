@@ -771,22 +771,18 @@ Module ThreadPoolWF.
 
   (** The initial thread is thread 0*)
   Lemma init_thread:
-    forall the_ge m pmap f arg tp i om
-      (Hinit: init_mach pmap the_ge m f arg = Some (tp, om)),
+    forall m pmap f arg tp i
+      (Hinit: init_mach pmap m tp f arg),
       containsThread tp i ->
       i = 0.
   Proof.
     intros.
     simpl in Hinit.
     unfold DryHybridMachine.init_mach in *.
-    simpl in Hinit.
+    destruct Hinit as (? & Hinit & Hpmap).
+    destruct pmap; inversion Hpmap; subst.
+    simpl in H.
     unfold OP.mkPool in *. simpl in *.
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate
-           end.
-    simpl in Hinit; inversion Hinit; subst.
-    simpl in *.
     unfold OrdinalPool.containsThread in *. simpl in *.
     clear - H.
     destruct i.
@@ -797,54 +793,42 @@ Module ThreadPoolWF.
   (** [getThreadR] on the initial thread returns the [access_map] that was used
   in [init_mach] and the [empty_map]*)
   Lemma getThreadR_init:
-    forall the_ge pmap m f arg tp om
-      (Hinit: init_mach (Some pmap) the_ge m f arg = Some (tp, om))
+    forall pmap m f arg tp
+      (Hinit: init_mach (Some pmap) m tp f arg)
       (cnt: containsThread tp 0),
       getThreadR cnt = (pmap.1, empty_map).
   Proof.
     intros.
     simpl in *.
     unfold DryHybridMachine.init_mach in *.
-    simpl in Hinit;
-    unfold OrdinalPool.mkPool in *.
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate
-           end.
-    inversion Hinit.
-    subst.
+    destruct Hinit as (? & Hinit & ?); subst.
     reflexivity.
   Qed.
 
   (** If there was no [access_map] provided [init_mach] is not defined*)
   Lemma init_mach_none:
-    forall the_ge m f arg,
-      init_mach None the_ge m f arg = None.
+    forall m tp f arg,
+      ~init_mach None m tp f arg.
   Proof.
     intros.
     simpl in *.
     unfold DryHybridMachine.init_mach.
-    destruct (initial_core (event_semantics.msem semSem) 0 the_ge m f arg)
-     as [[? ?]|];
-      reflexivity.
+    intros (? & ? & ?); contradiction.
   Qed.
 
   (** There are no locks in the initial machine *)
   Lemma init_lockRes_empty:
-    forall the_ge m pmap f arg tp laddr om
-      (Hinit: init_mach pmap the_ge m f arg = Some (tp, om)),
+    forall m pmap f arg tp laddr
+      (Hinit: init_mach pmap m tp f arg),
       lockRes tp laddr = None.
   Proof.
     intros.
     simpl in *.
     unfold DryHybridMachine.init_mach in Hinit.
-    destruct (initial_core (event_semantics.msem semSem) 0 the_ge m f arg) as [[? ?]|]; try discriminate.
-    destruct pmap; try discriminate.
-    simpl in Hinit.
-    unfold OP.mkPool in Hinit.
-    inversion Hinit;
-      simpl in *;
-      subst.
+    destruct Hinit as (? & Hinit & ?).
+    destruct pmap; try contradiction; subst.
+    simpl.
+    unfold OP.mkPool.
     unfold OrdinalPool.lockRes.
     rewrite OP.find_empty.
     reflexivity.
@@ -852,15 +836,15 @@ Module ThreadPoolWF.
 
   (** The [invariant] holds for the initial state*)
   Lemma initial_invariant:
-    forall the_ge m pmap f arg tp om
-      (Hinit: init_mach pmap the_ge m f arg = Some (tp, om)),
+    forall m pmap f arg tp
+      (Hinit: init_mach pmap m tp f arg),
       invariant tp.
   Proof.
     intros.
     constructor.
     - intros.
-      pose proof (init_thread _ _ _ _ _ Hinit cnti); subst.
-      pose proof (init_thread _ _ _ _ _ Hinit cntj); subst.
+      pose proof (init_thread Hinit cnti); subst.
+      pose proof (init_thread Hinit cntj); subst.
       exfalso. auto.
     - intros.
       erewrite init_lockRes_empty in Hres1 by eauto.
@@ -872,9 +856,9 @@ Module ThreadPoolWF.
       split.
       + intros.
         destruct pmap as [pmap |];
-          [|rewrite init_mach_none in Hinit; discriminate].
-        pose proof (init_thread _ _ _ _ _ Hinit cnti); subst.
-        pose proof (init_thread _ _ _ _ _ Hinit cntj); subst.
+          [|apply init_mach_none in Hinit; contradiction].
+        pose proof (init_thread Hinit cnti); subst.
+        pose proof (init_thread Hinit cntj); subst.
         Tactics.pf_cleanup.
         erewrite getThreadR_init by eauto.
         simpl.

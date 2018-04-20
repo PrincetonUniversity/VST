@@ -89,6 +89,8 @@ Import Concur OrdinalPool ThreadPool.
 
 Section Machine.
 
+Context (ge : genv).
+
 Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
   same_locks phi phi' ->
   juicyLocks_in_lockSet lset phi ->
@@ -119,7 +121,7 @@ Proof.
   inversion LW.
 Qed.
 
-Lemma join_all_age_updThread_level (tp : jstate) i (cnti : ThreadPool.containsThread tp i) c phi Phi :
+Lemma join_all_age_updThread_level (tp : jstate ge) i (cnti : ThreadPool.containsThread tp i) c phi Phi :
   join_all (age_tp_to (level phi) (ThreadPool.updThread cnti c phi)) Phi ->
   level Phi = level phi.
 Proof.
@@ -135,7 +137,7 @@ Proof.
   apply H.
 Qed.
 
-Lemma join_all_level_lset (tp : jstate) Phi l phi :
+Lemma join_all_level_lset (tp : jstate ge) Phi l phi :
   join_all tp Phi ->
   AMap.find l (lset tp) = Some (Some phi) ->
   level phi = level Phi.
@@ -145,7 +147,7 @@ Proof.
   eapply compatible_lockRes_sub; eauto; simpl; eauto.
 Qed.
 
-Lemma lset_range_perm m (tp : jstate) b ofs
+Lemma lset_range_perm m (tp : jstate ge) b ofs
   (compat : mem_compatible tp m)
   (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
   Mem.range_perm
@@ -170,7 +172,7 @@ Proof.
     * tauto.
 Qed.
 
-Lemma age_to_updThread i (tp : jstate) n c phi cnti cnti' :
+Lemma age_to_updThread i (tp : jstate ge) n c phi cnti cnti' :
   age_tp_to n (@updThread _ _ _ i tp cnti c phi) =
   @updThread _ _ _ i (age_tp_to n tp) cnti' c (age_to n phi).
 Proof.
@@ -188,13 +190,13 @@ Proof.
   all:rewrite <-E, <-E0; repeat f_equal; apply proof_irr.
 Qed.
 
-Lemma lset_age_tp_to n (tp : jstate) :
+Lemma lset_age_tp_to n (tp : jstate ge) :
   lset (age_tp_to n tp) = AMap.map (option_map (age_to n)) (lset tp).
 Proof.
   destruct tp; reflexivity.
 Qed.
 
-Lemma getThreadC_fun i (tp : jstate) cnti cnti' x y :
+Lemma getThreadC_fun i (tp : jstate ge) cnti cnti' x y :
   @getThreadC _ _ _ i tp cnti = x ->
   @getThreadC _ _ _ i tp cnti' = y ->
   x = y.
@@ -205,7 +207,7 @@ Proof.
   apply proof_irr.
 Qed.
 
-Lemma getThreadR_fun i (tp : jstate) cnti cnti' x y :
+Lemma getThreadR_fun i (tp : jstate ge) cnti cnti' x y :
   @getThreadR _ _ _ i tp cnti = x ->
   @getThreadR _ _ _ i tp cnti' = y ->
   x = y.
@@ -216,7 +218,7 @@ Proof.
   apply proof_irr.
 Qed.
 
-Lemma lockSet_Writable_age n (tp : jstate) m :
+Lemma lockSet_Writable_age n (tp : jstate ge) m :
   lockSet_Writable (lset tp) m ->
   lockSet_Writable (lset (age_tp_to n tp)) m.
 Proof.
@@ -227,7 +229,7 @@ Proof.
   apply isSome_find_map.
 Qed.
 
-Lemma lockSet_age_to n (tp : jstate) :
+Lemma lockSet_age_to n (tp : jstate ge) :
   lockSet (age_tp_to n tp) = lockSet tp.
 Proof.
   destruct tp as [num thds phis lset].
@@ -236,7 +238,7 @@ Proof.
   apply A2PMap_option_map.
 Qed.
 
-Lemma juicyLocks_in_lockSet_age n (tp : jstate) phi :
+Lemma juicyLocks_in_lockSet_age n (tp : jstate ge) phi :
   juicyLocks_in_lockSet (lset tp) phi ->
   juicyLocks_in_lockSet (lset (age_tp_to n tp)) (age_to n phi).
 Proof.
@@ -254,7 +256,7 @@ Proof.
     apply isSome_find_map.
 Qed.
 
-Lemma lockSet_in_juicyLocks_age n (tp : jstate) phi :
+Lemma lockSet_in_juicyLocks_age n (tp : jstate ge) phi :
   lockSet_in_juicyLocks (lset tp) phi ->
   lockSet_in_juicyLocks (lset (age_tp_to n tp)) (age_to n phi).
 Proof.
@@ -290,7 +292,7 @@ Proof.
     auto.
 Qed.
 
-Lemma mem_compatible_with_same_except_cur (tp : jstate) m m' phi :
+Lemma mem_compatible_with_same_except_cur (tp : jstate ge) m m' phi :
   same_except_cur m m' ->
   mem_compatible_with tp m phi ->
   mem_compatible_with tp m' phi.

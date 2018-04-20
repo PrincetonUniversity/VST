@@ -83,7 +83,7 @@ Definition Jspec'_hered_def CS ext_link :=
 Opaque containsThread.
 
 (* Weaker statement than preservation for freelock, enough to prove safety *)
-Lemma safety_induction_freelock Gamma n state
+Lemma safety_induction_freelock ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
   (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
@@ -99,14 +99,14 @@ Lemma safety_induction_freelock Gamma n state
   blocked_at_external state FREE_LOCK ->
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
-    state_step state state' /\
+    state_step(ge := ge) state state' /\
     (state_invariant Jspec' Gamma n state' \/
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros isfreelock.
   intros I.
-  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isfreelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -114,7 +114,7 @@ Proof.
   rewrite Eci in safei.
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ?????? bad | n0 z c m0 e sig args0 x at_ex Pre SafePost | ????? bad ].
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.

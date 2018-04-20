@@ -33,7 +33,8 @@ Module THE_JUICY_MACHINE.
 
   Section THE_JUICY_MACHINE.
 
-  Existing Instance ClightSem.
+  Variable (ge : genv).
+  Instance JSem : Semantics := ClightSem ge.
   Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig := JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
   Definition jmachine_state := MachState(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
@@ -71,21 +72,21 @@ Module THE_JUICY_MACHINE.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
-  Inductive jm_csafe ge (st : jmachine_state) (m : mem) : nat -> Prop :=
-  | Safe_0 : jm_csafe ge st m 0
+  Inductive jm_csafe (st : jmachine_state) (m : mem) : nat -> Prop :=
+  | Safe_0 : jm_csafe st m 0
   | HaltedSafe : forall n : nat,
                  is_true (ssrbool.isSome (halted_machine st)) ->
-                 jm_csafe ge st m n
+                 jm_csafe st m n
   | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-               (Hstep : MachStep ge st m (fst (fst st), tr', tp') m')
-               (Hsafe : tp_bupd (fun tp' => jm_csafe ge (fst (fst st), tr', tp') m' n) tp'),
-               jm_csafe ge st m (S n)
+               (Hstep : MachStep(Sem := JSem) ge st m (fst (fst st), tr', tp') m')
+               (Hsafe : tp_bupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
+               jm_csafe st m (S n)
   | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-                (Hstep : MachStep ge st m
+                (Hstep : MachStep(Sem := JSem) ge st m
                   (schedSkip (fst (fst st)), tr', tp') m')
                 (Hsafe : forall U'',
-                 tp_bupd (fun tp' => jm_csafe ge (U'', tr', tp') m' n) tp'),
-                jm_csafe ge st m (S n).
+                 tp_bupd (fun tp' => jm_csafe (U'', tr', tp') m' n) tp'),
+                jm_csafe st m (S n).
 
   End THE_JUICY_MACHINE.
 

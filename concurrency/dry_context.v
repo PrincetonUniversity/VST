@@ -24,31 +24,32 @@ Module AsmContext.
 
     Existing Instance OrdinalPool.OrdinalThreadPool.
     Existing Instance DryHybridMachine.dryResources.
-    
+    Existing Instance DryHybridMachine.DryHybridMachineSig.
+
     (** Instantiating the Dry Fine Concurrency Machine *)
     Instance FineDilMem : DiluteMem :=
       {| diluteMem := setMaxPerm |}.
     intros.
     split; auto.
     Defined.
-    Instance dryFineMach : HybridMachine :=
-      @HybridFineMachine.HybridFineMachine
-        DryHybridMachine.dryResources _ _
-        (@DryHybridMachine.DryHybridMachineSig _ _) FineDilMem.
-    
+    Instance dryFineMach : @HybridMachine _ _ _ _ _ _ :=
+      HybridFineMachine.HybridFineMachine.
+
+    Existing Instance HybridCoarseMachine.DilMem.
+
     (** Instantiating the Dry Coarse Concurrency Machine *)
-    Instance dryCoarseMach : HybridMachine  :=
-      @HybridCoarseMachine.HybridCoarseMachine DryHybridMachine.dryResources _ _ (@DryHybridMachine.DryHybridMachineSig _ _).
+    Instance dryCoarseMach : @HybridMachine _ _ _ _ _ _ :=
+      HybridCoarseMachine.HybridCoarseMachine.
 
     (** Instatiating the Bare Concurrency Machine *)
     Existing Instance BareMachine.resources.
-    
+
     Instance BareDilMem : DiluteMem :=
       {| diluteMem := erasePerm |}.
     intros.
     split; auto.
     Defined.
-    Instance bareMach : @HybridMachine BareMachine.resources _ OrdinalPool.OrdinalThreadPool :=
+    Instance bareMach : @HybridMachine BareMachine.resources _ OrdinalPool.OrdinalThreadPool _ _ _ :=
       @HybridFineMachine.HybridFineMachine BareMachine.resources _ _ BareMachine.BareMachineSig BareDilMem.
 
     Variable initU : seq nat.
@@ -60,13 +61,13 @@ Module AsmContext.
       end.
 
     Definition coarse_semantics:=
-      @MachineSemantics _ _ _ dryCoarseMach initU init_perm.
+      MachineSemantics(HybridMachine := dryCoarseMach) initU init_perm.
 
     Definition fine_semantics:=
-      @MachineSemantics _ _ _ dryFineMach initU init_perm.
+      MachineSemantics(HybridMachine := dryFineMach) initU init_perm.
 
     Definition bare_semantics :=
-      @MachineSemantics _ _ _ bareMach initU None.
+      MachineSemantics(HybridMachine := bareMach) initU None.
 
     Definition tpc_init the_ge m f arg := initial_core coarse_semantics 0 the_ge m f arg.
     Definition tpf_init the_ge m f arg := initial_core fine_semantics 0 the_ge m f arg.

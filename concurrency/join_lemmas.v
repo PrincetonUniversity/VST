@@ -446,7 +446,9 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section Machine.
 
-Definition getLocksR (tp : jstate) := listoption_inv (map snd (AMap.elements (lset tp))).
+Variable (ge : Clight.genv).
+
+Definition getLocksR (tp : jstate ge) := listoption_inv (map snd (AMap.elements (lset tp))).
 
 Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.
 
@@ -644,7 +646,7 @@ Proof.
       omega.
 Qed.
 
-Existing Instance ClightSemantincsForMachines.ClightSem.
+Instance JSem : Semantics := ClightSemantincsForMachines.ClightSem ge.
 
 Lemma getThreadR_nth i tp cnti :
   nth_error (getThreadsR tp) i = Some (@getThreadR _ _ _ i tp cnti).
@@ -822,7 +824,7 @@ Proof.
   apply perm_swap.
 Qed.
 
-Lemma getLocksR_updLockSet_None (tp : jstate) addr :
+Lemma getLocksR_updLockSet_None (tp : jstate ge) addr :
   getLocksR (updLockSet tp addr None) = getLocksR (remLockSet tp addr).
 Proof.
   unfold lockRes, getLocksR, remLockSet, lset.
@@ -834,7 +836,7 @@ Proof.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
 
-Lemma getLocksR_SSome (tp : jstate) addr phi :
+Lemma getLocksR_SSome (tp : jstate ge) addr phi :
   lockRes tp addr = Some (Some phi) ->
   Permutation
     (getLocksR tp)
@@ -852,7 +854,7 @@ Proof.
 Qed.
 
 
-Lemma getLocksR_SNone (tp : jstate) addr :
+Lemma getLocksR_SNone (tp : jstate ge) addr :
   lockRes tp addr = Some None ->
   getLocksR (remLockSet tp addr) = getLocksR tp.
 Proof.
@@ -866,7 +868,7 @@ Proof.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
 
-Lemma getLocksR_None (tp : jstate) addr :
+Lemma getLocksR_None (tp : jstate ge) addr :
   lockRes tp addr = None ->
   getLocksR (remLockSet tp addr) = getLocksR tp.
 Proof.
@@ -910,14 +912,14 @@ Proof.
   apply Permutation_refl.
 Qed.
 
-Lemma maps_updlock1 (tp : jstate) addr :
+Lemma maps_updlock1 (tp : jstate ge) addr :
   maps (updLockSet tp addr None) = maps (remLockSet tp addr).
 Proof.
   unfold maps; f_equal.
   apply getLocksR_updLockSet_None.
 Qed.
 
-Lemma maps_updlock2 (tp : jstate) addr phi :
+Lemma maps_updlock2 (tp : jstate ge) addr phi :
   Permutation (maps (updLockSet tp addr (Some phi)))
               (phi :: maps (remLockSet tp addr)).
 Proof.
@@ -935,7 +937,7 @@ Proof.
   rewrite getLocksR_None; auto.
 Qed.
 
-Lemma maps_getlock2 (tp : jstate) addr :
+Lemma maps_getlock2 (tp : jstate ge) addr :
   lockRes tp addr = Some None ->
   maps (remLockSet tp addr) = maps tp.
 Proof.
@@ -943,7 +945,7 @@ Proof.
   rewrite getLocksR_SNone; auto.
 Qed.
 
-Lemma maps_getlock3 (tp : jstate) addr phi :
+Lemma maps_getlock3 (tp : jstate ge) addr phi :
   lockRes tp addr = Some (Some phi) ->
   Permutation (maps tp) (phi :: maps (remLockSet tp addr)).
 Proof.

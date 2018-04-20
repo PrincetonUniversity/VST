@@ -123,7 +123,7 @@ Proof.
     inversion L.
 Qed.
 
-Lemma lock_coherence_age_to n m (tp : jstate) Phi :
+Lemma lock_coherence_age_to ge n m (tp : jstate ge) Phi :
   lock_coherence (lset tp) Phi m ->
   lock_coherence (AMap.map (option_map (age_to n)) (lset tp)) (age_to n Phi) m.
 Proof.
@@ -175,7 +175,7 @@ Proof.
   intro p. apply p.
 Qed.
 
-Lemma safety_induction_spawn Gamma n state
+Lemma safety_induction_spawn ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
   (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
@@ -191,12 +191,12 @@ Lemma safety_induction_spawn Gamma n state
   blocked_at_external state CREATE ->
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
-    state_step state state' /\
+    state_step(ge := ge) state state' /\
     (state_invariant Jspec' Gamma n state' \/
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -205,7 +205,7 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ?????? bad | n0 z c m0 e sig args0 x at_ex Pre SafePost | ????? bad ].
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.
@@ -374,12 +374,7 @@ clear - Initcore.
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
     { simpl.
-      instantiate (1:=None).
-      specialize (Initcore (jm_ cnti compat)); clear - Initcore.
-      simpl in Initcore. unfold j_initial_core in Initcore. 
-      destruct (initial_core cl_core_sem 0 (globalenv prog)
-               (m_dry (jm_ cnti compat)) (Vptr f_b Ptrofs.zero) (b :: nil)) as [[? [|]]|] eqn:?; inv Initcore.
-     apply Heqo. }
+      apply (Initcore (jm_ cnti compat)). }
   }
   (* "progress" part finished. *)
 
@@ -397,11 +392,11 @@ clear - Initcore.
     rewrite join_all_joinlist in *.
     rewrite maps_addthread.
     rewrite maps_updthread.
-    rewrite (maps_getthread _ _ cnti) in jj.
+    rewrite (maps_getthread _ _ _ cnti) in jj.
     rewrite joinlist_merge; eauto.
   }
 
-  apply (@mem_compatible_with_age n) in compat'.
+  apply (@mem_compatible_with_age _ n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
   replace (S n - 1)%nat with n by omega.
 
@@ -438,10 +433,7 @@ clear - Initcore.
       rewrite gssAddCode. 2:reflexivity.
       exists q_new.
       split.
-      specialize (Initcore (jm_ cnti compat)); clear - Initcore.
-      simpl in Initcore. unfold j_initial_core in Initcore.
-      unfold cl_core_sem, initial_core in Initcore.
-      destruct (cl_initial_core (globalenv prog) (Vptr f_b Ptrofs.zero) (b :: nil)); inv Initcore; auto.
+      apply (Initcore (jm_ cnti compat)).
 
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
       specialize (Safety jm ts).

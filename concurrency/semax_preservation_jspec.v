@@ -148,13 +148,13 @@ Section Jspec'_properties.
     destruct n as [ | n]. intros; constructor.
     intros safe.
     inversion safe as [ | ? ? ? ? c' jm' step safe' H H2 H3 H4
-                        | ? ? ? ? ef args x atex' Pre Post | ]; subst.
+                        | ? ? ? ? ef sig args x atex' Pre Post | ]; subst.
     - (* corestep: not at external *)
       destruct step as [step rd].
       erewrite cl_corestep_not_at_external in atex. discriminate. eauto.
     - (* at_ex: interesting case *)
       intros jm_ Ejm_.
-      constructor 3 with (e := ef) (args := args) (x := x).
+      constructor 3 with (e := ef) (sig := sig) (args := args) (x := x).
       + auto.
 
       + (* precondition only cares about phi *)
@@ -192,8 +192,8 @@ Section Jspec'_properties.
         all: do 2 rewrite level_juice_level_phi.
         all: rewrite Ejm_; try reflexivity.
 
-    - (* halted: not at external *)
-      destruct (Clight_new.cl_core_sem_obligation_1 c); discriminate.
+    - (* halted *)
+      repeat intro; apply jsafeN_halted with (i0 := i); auto.
   Qed.
 
 End Jspec'_properties.

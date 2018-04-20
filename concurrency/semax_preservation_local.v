@@ -85,7 +85,7 @@ Proof.
   apply joinlist_age_to, h.
 Qed.
 
-Lemma resource_decay_join_all {tp : jstate} {m Phi} c' {phi' i} {cnti : containsThread tp i}:
+Lemma resource_decay_join_all ge {tp : jstate ge} {m Phi} c' {phi' i} {cnti : containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
   resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
   level (getThreadR i tp cnti) = S (level phi') /\
@@ -98,7 +98,7 @@ Lemma resource_decay_join_all {tp : jstate} {m Phi} c' {phi' i} {cnti : contains
 Proof.
   do 2 rewrite join_all_joinlist.
   intros B (rd & lev & g) j.
-  rewrite (maps_getthread _ _ cnti) in j.
+  rewrite (maps_getthread _ _ _ cnti) in j.
   destruct (resource_decay_joinlist _ _ _ _ _ B rd g j) as (Phi' & j' & rd').
   exists Phi'; split; [ | split]; auto.
   - rewrite maps_updthread.
@@ -159,8 +159,8 @@ Proof.
     rewrite !ghost_core; auto.
 Qed.
 
-Lemma same_except_cur_jm_ tp m phi i cnti compat :
-  same_except_cur m (m_dry (@jm_ tp m phi i cnti compat)).
+Lemma same_except_cur_jm_ ge tp m phi i cnti compat :
+  same_except_cur m (m_dry (@jm_(ge := ge) tp m phi i cnti compat)).
 Proof.
   repeat split.
   extensionality loc.

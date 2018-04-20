@@ -80,7 +80,7 @@ Proof.
   + tauto.
 Qed.
 
-Lemma lset_valid_access m m_any (tp : jstate) Phi b ofs
+Lemma lset_valid_access ge m m_any (tp : jstate ge) Phi b ofs
   (compat : mem_compatible_with tp m Phi) :
   lock_coherence (lset tp) Phi m_any ->
   AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None ->
@@ -93,7 +93,7 @@ Proof.
   - eapply lock_coherence_align; eauto.
 Qed.
 
-Lemma mem_compatible_with_age {n} {tp : jstate} {m phi} :
+Lemma mem_compatible_with_age ge {n} {tp : jstate ge} {m phi} :
   mem_compatible_with tp m phi ->
   mem_compatible_with (age_tp_to n tp) m (age_to n phi).
 Proof.
@@ -324,7 +324,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma islock_valid_access (tp : jstate) m b ofs p
+Lemma islock_valid_access ge (tp : jstate ge) m b ofs p
       (compat : mem_compatible tp m) :
   (align_chunk Mptr | ofs) ->
   lockRes tp (b, ofs) <> None ->
@@ -338,15 +338,15 @@ Proof.
   eapply Mem.valid_access_implies with (p1 := Writable).
   2:destruct p; constructor || tauto.
   pose proof lset_range_perm.
-  do 6 autospec H;
-  split; auto;
-  intros loc range;
+  do 7 autospec H.
+  split; auto.
+  intros loc range.
   apply H;
   unfold LKSIZE in *;
   omega.
 Qed.
 
-Lemma LockRes_age_content1 (js : jstate) n a :
+Lemma LockRes_age_content1 ge (js : jstate ge) n a :
   lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
 Proof.
   cleanup.
@@ -391,15 +391,15 @@ Proof.
   apply join_comm; auto.
 Qed.
 
-Lemma Ejuicy_sem : (@juicy_sem ClightSem) = juicy_core_sem cl_core_sem.
+Lemma Ejuicy_sem : forall ge, (@juicy_sem (ClightSem ge)) = juicy_core_sem (cl_core_sem ge).
 Proof.
   unfold juicy_sem; simpl.
   reflexivity.
 Qed.
 
-Lemma level_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+Lemma level_jm_ ge m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
-  level (jm_ cnti compat) = level Phi.
+  level (jm_(ge := ge) cnti compat) = level Phi.
 Proof.
   rewrite level_juice_level_phi.
   apply join_sub_level.
@@ -472,9 +472,9 @@ Proof.
   apply pures_eq_refl.
 Qed.
 
-Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+Lemma pures_same_jm_ ge m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
-  pures_same (m_phi (jm_ cnti compat)) Phi.
+  pures_same (m_phi (jm_(ge := ge) cnti compat)) Phi.
 Proof.
   apply join_sub_pures_same, compatible_threadRes_sub, compat.
 Qed.
@@ -577,8 +577,8 @@ Proof.
   omega.
 Qed.
 
-Lemma m_phi_jm_ m (tp : jstate) phi i cnti compat :
-  m_phi (@jm_ tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
+Lemma m_phi_jm_ ge m (tp : jstate ge) phi i cnti compat :
+  m_phi (@jm_ ge tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
 Proof.
   reflexivity.
 Qed.
@@ -776,7 +776,7 @@ Proof.
     inversion L.
 Qed.
 
-Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate) PHI (mcompat : mem_compatible_with tp m PHI) n
+Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate ge) PHI (mcompat : mem_compatible_with tp m PHI) n
   i (cnti : containsThread tp i) := forall (ora : Z),
     match getThreadC cnti with
     | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
@@ -843,7 +843,7 @@ Proof.
   { eapply ghost_same_level_gen.
     rewrite <- (ghost_of_approx phi') in Hg'.
     exact_eq Hg'; f_equal; f_equal; f_equal; rewrite ?Hl'; auto. }
-  assert (tp_update tp PHI (updThreadR cnti phi') PHI') as Hupd.
+  assert (tp_update _ tp PHI (updThreadR cnti phi') PHI') as Hupd.
   { repeat split; auto.
     - rewrite join_all_joinlist.
       eapply joinlist_permutation; [symmetry; apply maps_updthreadR|].

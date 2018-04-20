@@ -75,7 +75,7 @@ Section Initial_State.
                    (proj1_sig init_m) 0 all_safe (proj2_sig init_m) in
       let q : corestate := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
-      @OrdinalPool.mk LocksAndResources ClightSemantincsForMachines.ClightSem
+      @OrdinalPool.mk LocksAndResources (ClightSemantincsForMachines.ClightSem (globalenv prog))
         (pos.mkPos (le_n 1))
         (* (fun _ => Kresume q Vundef) *)
         (fun _ => Krun q)
@@ -84,7 +84,7 @@ Section Initial_State.
      )
     ).
 
-  Lemma personal_mem_of_same_jm (tp : jstate) jm i (cnti : ThreadPool.containsThread tp i) mc :
+  Lemma personal_mem_of_same_jm (tp : jstate (globalenv prog)) jm i (cnti : ThreadPool.containsThread tp i) mc :
     (ThreadPool.getThreadR cnti = m_phi jm) ->
     m_dry (@personal_mem (m_dry jm) (getThreadR cnti) mc) = m_dry jm.
   Proof.

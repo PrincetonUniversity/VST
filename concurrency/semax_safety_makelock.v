@@ -81,7 +81,7 @@ Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
 (* Weaker statement than preservation for makelock, enough to prove safety *)
-Lemma safety_induction_makelock Gamma n state
+Lemma safety_induction_makelock ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
   (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
@@ -97,14 +97,14 @@ Lemma safety_induction_makelock Gamma n state
   blocked_at_external state MKLOCK ->
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
-    state_step state state' /\
+    state_step(ge := ge) state state' /\
     (state_invariant Jspec' Gamma n state' \/
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -113,7 +113,7 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ?????? bad | n0 z c m0 e sig args0 x at_ex Pre SafePost | ????? bad ].
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
   2: inversion bad.
@@ -212,7 +212,7 @@ Proof.
   destruct Hrmap' as (Phi' & Hrmap' & J').
 
   subst args.
-  evar (tpx: jstate).
+  evar (tpx: jstate ge).
   eexists (m', ge, (seq.cat tr (external i (mklock (b, Ptrofs.intval ofs)) :: nil), sch, tpx)); split.
 
   { (* "progress" part of the proof *)
@@ -828,7 +828,7 @@ Proof.
         gLockSetRes; auto.
       specialize (safety j cntj ora).
       destruct (getThreadC j tp cntj) eqn: Hget.
-      * edestruct (unique_Krun_neq i j); eauto.
+      * edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       * apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       * intros ? Hc'; apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. auto.
       * destruct safety as (q_new & Einit & safety). exists q_new; split; auto.

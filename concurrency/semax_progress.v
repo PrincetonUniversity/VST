@@ -59,7 +59,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Import Mem.
 
-Lemma load_at_phi_restrict i (tp : jstate) (cnti : containsThread tp i) m
+Lemma load_at_phi_restrict ge i (tp : jstate ge) (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh R phi0 o :
   join_sub phi0 (getThreadR cnti) ->
   (LKspec LKSIZE R sh (b, ofs)) phi0 ->
@@ -154,9 +154,9 @@ Proof.
         repeat if_tac; try constructor; tauto.
 Qed.
 
-Lemma valid_access_restrPermMap m i tp Phi b ofs ophi
+Lemma valid_access_restrPermMap ge m i tp Phi b ofs ophi
   (compat : mem_compatible_with tp m Phi)
-  (lock_coh : lock_coherence' tp Phi m compat)
+  (lock_coh : lock_coherence'(ge := ge) tp Phi m compat)
   (cnti : containsThread tp i)
   (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi)
   (align : (4 | snd (b, Ptrofs.unsigned ofs)))
@@ -185,7 +185,7 @@ Proof.
   split; auto; lkomega.
 Qed.
 
-Lemma permMapLt_local_locks m i (tp : jstate) Phi b ofs ophi
+Lemma permMapLt_local_locks ge m i (tp : jstate ge) Phi b ofs ophi
       (compat : mem_compatible_with tp m Phi)
       (cnti : containsThread tp i)
       (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi) :
@@ -231,14 +231,14 @@ Section Progress.
 
   Open Scope string_scope.
 
-  Theorem progress Gamma n state :
+  Theorem progress ge Gamma n state :
     ~ blocked_at_external state CREATE ->
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
-      state_step state state'.
+      state_step(ge := ge) state state'.
   Proof.
     intros not_spawn I.
-    inversion I as [m ge tr sch tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m tr sch tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
 
     (* empty schedule: we loop in the same state *)
@@ -257,7 +257,7 @@ Section Progress.
         + reflexivity.
         + simpl.
           unfold OrdinalPool.containsThread.
-          now rewrite Ei; auto.
+          now setoid_rewrite Ei; auto.
         + constructor.
         + eexists; eauto.
         + reflexivity.
@@ -285,15 +285,15 @@ Section Progress.
       {
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
-                   corestep (juicy_core_sem cl_core_sem) ge ci jmi ci' jmi'
+                   corestep (juicy_core_sem (cl_core_sem ge)) ge ci jmi ci' jmi'
                    /\ forall ora, jm_bupd (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : j_at_external _ _ _ _ = _ |- _ => inversion H end.
-          2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : j_at_external _ _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : halted _ _ _ |- _ => inversion H end.
           exists c', m'. split; [ apply step | ].
           revert step safety safe; clear.
           generalize (jm_ cnti compat).
@@ -301,7 +301,6 @@ Section Progress.
           unfold jsafeN.
           intros c j step safety safe ora.
           eapply jsafe_corestep_forward.
-          - apply semax_lemmas.cl_corestep_fun'.
           - apply step.
           - apply safety.
         }

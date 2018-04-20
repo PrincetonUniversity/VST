@@ -34,7 +34,7 @@ Section ClightSEM.
 
   (* This should be a version of CLN_memsem annotated with memory events. 
      Or should we just put the empty list of events at every step? *)
-  Program Definition CLN_evsem : @EvSem G C := {| msem := CLN_memsem |}.
+  Program Definition CLN_evsem ge : @EvSem G C := {| msem := CLN_memsem ge |}.
   Next Obligation.
   Admitted.
   Next Obligation.
@@ -46,34 +46,27 @@ Section ClightSEM.
   Next Obligation.
   Admitted.
 
-  Lemma CLN_msem : msem CLN_evsem = CLN_memsem.
+  Lemma CLN_msem : forall ge, msem (CLN_evsem ge) = CLN_memsem ge.
   Proof. auto. Qed.
 
   Notation Sem := CLN_evsem.
   Lemma step_decay: forall g c m tr c' m',
-      event_semantics.ev_step (Sem) g c m tr c' m' ->
+      event_semantics.ev_step (Sem g) g c m tr c' m' ->
       decay m m'.
   Admitted.
 
-  Lemma initial_core_nomem: forall n ge m v vl q om,
-      initial_core Sem n ge m v vl = Some (q, om) -> om=None.
-  Proof.
-    simpl; intros.
-    destruct (cl_initial_core _ _ _); inv H; auto.
-  Qed.
-
-  Lemma initial_core_mem_congr: forall n ge m m' v vl,
-    initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
-  Proof. auto. Qed.
+  Lemma initial_core_mem_congr: forall n ge m m' q v vl,
+    initial_core (Sem ge) n m q v vl <-> initial_core (Sem ge) n m' q v vl.
+  Proof. reflexivity. Qed.
 
   Lemma at_external_SEM_eq:
-     forall ge c m, at_external Sem ge c m =
+     forall ge c m, at_external (Sem ge) c m =
       match c with
       | State _ _ _ => None
-      | ExtCall ef args _ _ _ _ => Some (ef, args)
+      | ExtCall ef args _ _ _ _ => Some (ef, ef_sig ef, args)
       end.
   Proof. auto. Qed.
 
-  Instance ClightSem : Semantics := { semG := G; semC := C; semSem := CLN_evsem }.
+  Instance ClightSem ge : Semantics := { semG := G; semC := C; semSem := CLN_evsem ge }.
 
 End ClightSEM.

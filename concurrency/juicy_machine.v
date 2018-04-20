@@ -1,6 +1,7 @@
 Require Import compcert.lib.Axioms.
 
 Require Import VST.msl.age_to.
+Require Import VST.veric.base.
 Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
@@ -25,7 +26,9 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 
+Require Import List.
 Require Import Coq.ZArith.ZArith.
 
 (*From msl get the juice! *)
@@ -34,16 +37,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
-Require Import VST.veric.res_predicates.
-
-
 
 Set Bullet Behavior "Strict Subproofs".
-
-
-
-(**)
-Require Import VST.veric.res_predicates. (*For the precondition of lock make and free*)
 
 (*  This shoul be replaced by global:
     Require Import VST.concurrency.lksize.  *)
@@ -184,6 +179,7 @@ Module Concur.
     Definition getThreadsR (tp : thread_pool):=
       map (perm_maps tp) (enums_equality.enum (num_threads tp)).
 
+Typeclasses eauto := 2.
     Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
         app_pred emp r.  (*Or is is just [amp r]?*)
@@ -277,10 +273,9 @@ Module Concur.
         rewrite H in VALID; simpl in VALID.
         assert (ineq': (0< ofs0 - ofs < LKSIZE)%Z).
         { clear - ineq.
-          unfold LKSIZE; simpl.
-          unfold lksize.LKSIZE in ineq; simpl in ineq. xomega. }
+          lkomega. }
         apply VALID in ineq'.
-        replace (ofs + (ofs0 - ofs))%Z with ofs0 in ineq' by xomega.
+        replace (ofs + (ofs0 - ofs))%Z with ofs0 in ineq' by omega.
         rewrite H' in ineq'. inversion ineq'.
         - auto.
     Qed.
@@ -312,7 +307,7 @@ Module Concur.
         - destruct H as (? & ? & ?); left; eexists; split; eauto.
           unfold Intv.In, fst, snd in *; zify; omega.
         - destruct (lockRes js (b, (ofs - Z.of_nat n)%Z)) eqn: Hres.
-          + left; eexists; split; [|setoid_rewrite Hres; auto].
+          + left; eexists; split; [|erewrite Hres; auto].
             unfold Intv.In, fst, snd in *; zify; omega.
           + right; intro.
             destruct (eq_dec ofs0 (ofs - Z.of_nat n)%Z); [subst; auto|].
@@ -914,8 +909,6 @@ Qed.
 
     Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR _ _ _ 0%nat tp _).
     Next Obligation.
-      intros tp.
-      simpl.
       unfold OrdinalPool.containsThread.
       destruct num_threads.
       simpl.
@@ -1000,7 +993,7 @@ Qed.
         apply IHl in la.
         + exists (age_to k a); split; auto.
           apply age_to_join_eq; auto.
-        + cut (level a = level Phi); [intro X; setoid_rewrite X; auto|].
+        + cut (level a = level Phi); [intro X; rewrite X; auto|].
           eapply join_level; eauto.
     Qed.
 
@@ -1017,7 +1010,7 @@ Qed.
           * exists (Some (age_to k a)); split; auto.
             inversion aphi; subst; simpl; constructor.
             apply age_to_join_eq; auto.
-          * cut (level a = level Phi); [ intro X; setoid_rewrite X; auto | ].
+          * cut (level a = level Phi); [ intro X; rewrite X; auto | ].
             inversion aphi; subst; simpl; auto.
             eapply join_level; eauto.
         + apply IHl in la.
@@ -1083,7 +1076,7 @@ Qed.
     Qed.
 
     Lemma almost_empty_perm: forall rm,
-        almost_empty rm ->
+        res_predicates.almost_empty rm ->
         forall loc, Mem.perm_order'' (Some Nonempty) (perm_of_res (rm @ loc)).
     Proof.
       intros rm H loc.
@@ -1139,7 +1132,7 @@ Qed.
 
     Notation Kblocked := (threadPool.Kblocked).
     Open Scope Z_scope.
-    Inductive syncStep' {isCoarse: bool} genv {tid0 tp m}
+    Inductive syncStep' {isCoarse: bool} (genv: semG) {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
@@ -1147,8 +1140,8 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (LOCK, Vptr b ofs::nil))
+            (Hat_external: at_external the_sem c m =
+                           Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (*Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm*)
@@ -1180,8 +1173,8 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (UNLOCK, Vptr b ofs::nil))
+            (Hat_external: at_external the_sem c m =
+                           Some (UNLOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (* Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm *)
@@ -1211,13 +1204,13 @@ Qed.
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (release (b, Ptrofs.intval ofs) None)
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs om (* P Q *),
+        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs (* P Q *),
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (CREATE, vf::arg::nil))
-            (Hinitial: initial_core the_sem 0 genv m vf (arg::nil) = Some (c_new, om)) (* FIXME:
+            (Hat_external: at_external the_sem c m =
+                           Some (CREATE, CREATE_SIG, vf::arg::nil))
+            (Hinitial: initial_core the_sem 0 m c_new vf (arg::nil)) (* FIXME:
                     This line should not be necessary, says Andrew to Santiago, June 29, 2017 *)
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
@@ -1234,8 +1227,8 @@ Qed.
             phi' m'
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (MKLOCK, Vptr b ofs::nil))
+            (Hat_external: at_external the_sem c m =
+                           Some (MKLOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (*Hright_juice:  m = m_dry jm*)
             (Hpersonal_perm:
@@ -1259,8 +1252,8 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (FREE_LOCK, Vptr b ofs::nil))
+            (Hat_external: at_external the_sem c m =
+                           Some (FREE_LOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*First check the lock is acquired:*)
@@ -1278,8 +1271,8 @@ Qed.
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external the_sem genv c m =
-                           Some (LOCK, Vptr b ofs::nil))
+            (Hat_external: at_external the_sem c m =
+                           Some (LOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
@@ -1453,11 +1446,11 @@ Qed.
   Inductive threadHalted': forall {tid0 ms},
       containsThread(resources:=LocksAndResources) ms tid0 -> Prop:=
   | thread_halted':
-      forall tp c tid0
+      forall tp c tid0 i
         (cnt: containsThread tp tid0),
       forall
         (Hthread: getThreadC cnt = Krun c)
-        (Hcant: halted the_sem c),
+        (Hcant: halted the_sem c i),
         threadHalted' cnt.
 
 
@@ -1544,7 +1537,7 @@ Qed.
           eauto. eauto.
   Qed.
 
-  Lemma threadStep_not_unhalts:
+(*  Lemma threadStep_not_unhalts:
     forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j cnt cnt',
@@ -1565,7 +1558,7 @@ Qed.
       Set Printing Implicit.
       rewrite gsoThreadCode; auto;
       erewrite <- age_getThreadCode; eauto.
-  Qed.
+  Qed.*)
 
     (* The initial machine has to be redefined.
        Right now its build by default with empty maps,
@@ -1581,15 +1574,9 @@ Qed.
         (fun _ => rmap)
         (AMap.empty (option res)).
 
-    Definition init_mach rmap (genv:G) (m: mem) (v:val)(args:list val) : option (thread_pool * option mem):=
-      match initial_core the_sem 0 genv m v args with
-      | Some (c, None) =>
-        match rmap with
-        | Some rmap => Some (initial_machine rmap c, None)
-        | None => None
-        end
-      | _ => None
-      end.
+    Definition init_mach rmap (m: mem) (tp:thread_pool) (v:val) (args:list val) : Prop :=
+      exists c, initial_core the_sem 0 m c v args /\
+        match rmap with Some rmap => tp = initial_machine rmap c | None => False end.
 
 
     Section JuicyMachineLemmas.
@@ -1950,7 +1937,7 @@ Qed.
     Instance JuicyMachineShell : HybridMachineSig.MachineSig :=
       HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant threadStep
         threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
-        (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts
+        (@threadHalted) threadHalt_update syncstep_equal_halted (*threadStep_not_unhalts*)
         init_mach.
 
   End JuicyMachineShell.

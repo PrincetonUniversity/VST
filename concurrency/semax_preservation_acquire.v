@@ -45,7 +45,6 @@ Require Import VST.concurrency.semantics.
 Require Import VST.concurrency.scheduler.
 Require Import VST.concurrency.addressFiniteMap.
 Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.ClightSemantincsForMachines.
 Require Import VST.concurrency.JuicyMachineModule.
 Require Import VST.concurrency.sync_preds_defs.
 Require Import VST.concurrency.sync_preds.
@@ -71,8 +70,6 @@ Set Bullet Behavior "Strict Subproofs".
 
 Open Scope string_scope.
 
-Existing Instance ClightSem.
-
 (* to make the proof faster, we avoid unfolding of those definitions *)
 Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
   ext_spec_stable juicy_mem_equiv (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
@@ -82,7 +79,7 @@ Definition Jspec'_hered_def CS ext_link :=
 
 Lemma preservation_acquire
   (lockSet_Writable_updLockSet_updThread
-     : forall (m m' : Memory.mem) (i : nat) (tp : jstate),
+     : forall ge (m m' : Memory.mem) (i : nat) (tp : jstate ge),
        forall (cnti : containsThread tp i) (b : block) (ofs : ptrofs) (ophi : option rmap)
          (ophi' : lock_info) (c' : ctl) (phi' : res)
          (z : int) (Hcmpt : mem_compatible tp m)
@@ -122,7 +119,7 @@ Lemma preservation_acquire
   (tr : event_trace)
   (i : nat)
   (sch : list nat)
-  (tp : jstate)
+  (tp : jstate ge)
   (INV : state_invariant Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
@@ -130,7 +127,7 @@ Lemma preservation_acquire
   (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
-  (safety : threads_safety Jspec' m ge tp Phi compat (S n))
+  (safety : threads_safety Jspec' m tp Phi compat (S n))
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei cnti : containsThread tp i)
@@ -148,7 +145,7 @@ Lemma preservation_acquire
   (psh : shares.readable_share sh)
   (R : pred rmap)
   (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external ClightSemantincsForMachines.CLN_evsem ge c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
+  (Hat_external : at_external (ClightSemantincsForMachines.CLN_evsem ge) c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = Some (Some d_phi))
   (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
                     b (Ptrofs.intval ofs) =

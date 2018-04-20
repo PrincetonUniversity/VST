@@ -48,13 +48,11 @@ Module Executions.
 
   Section Executions.
 
-  Context {CSem : ClightSEM}.
-  Existing Instance ClightSem.
-  Notation Sem := ClightSem.
+  Variable (the_ge : Clight.genv).
+  Instance Sem : Semantics := ClightSem the_ge.
   Context {initU : seq.seq nat}
             {init_mem : option Memory.Mem.mem}
             {SemAx : CoreLanguage.SemAxioms}.
-  Variable (the_ge : semG).
   Existing Instance FineDilMem.
   Existing Instance HybridFineMachine.scheduler.
   Existing Instance HybridMachine.DryHybridMachine.DryHybridMachineSig.
@@ -570,12 +568,6 @@ Module Executions.
     constructor; eauto.
   Qed.
 
-   Lemma initial_core_valid_block:
-   forall n ge m v args q m',
-      initial_core semSem n ge m v args = Some (q, Some m') ->
-      forall b, Mem.valid_block m b -> Mem.valid_block m' b.
-   Admitted.
-
   Lemma fstep_deadLocation:
     forall U U' tr tp m tr' tp' m' b ofs
       (Hdead: deadLocation tp m b ofs)
@@ -589,10 +581,6 @@ Module Executions.
     destruct U; inversion HschedN; subst; pf_cleanup;
       try (eapply updThreadC_deadLocation; eauto);
       auto 1.
-    - inv Hdead; constructor; auto.
-       destruct om; [ | assumption]. simpl.
-       clear - initU init_mem SemAx Hvalid Hinitial.
-       eapply initial_core_valid_block; eauto.
     - apply app_inv_head in H5; subst.
       inversion Hdead.
       econstructor.
