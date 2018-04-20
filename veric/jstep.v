@@ -1,6 +1,6 @@
 Require Import VST.msl.Axioms.
 Require Import compcert.common.Memory.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 
 Module FSem.
 Record t M TM := mk {
@@ -10,12 +10,13 @@ Record t M TM := mk {
   ; step  : forall G C sem ge c m c' m',
             @corestep _ _ _ (F G C sem) ge c m c' m' =
            (@corestep _ _ _ sem ge c (E m) c' (E m') /\ P m m')
-  ; init : forall G C sem n ge m v vl q, 
-     initial_core (F G C sem) n ge m v vl = Some (q,None) <->
-     initial_core sem n ge (E m) v vl = Some (q, None)
-  ; atext  : forall G C sem g c m , 
-      at_external (F G C sem) g c m = at_external sem g c (E m)
-  ; aftext : forall G C sem, after_external (F G C sem) = after_external sem
+  ; init : forall G C sem n m v vl q,
+     initial_core (F G C sem) n m q v vl <->
+     initial_core sem n (E m) q v vl
+  ; atext  : forall G C sem c m,
+      at_external (F G C sem) c m = at_external sem c (E m)
+  ; aftext : forall G C sem ret c m,
+      after_external (F G C sem) ret c m = after_external sem ret c (E m)
   ; halted : forall G C sem, halted (F G C sem) = halted sem
   }.
 End FSem.
@@ -53,14 +54,7 @@ Program Definition t : FSem.t mem juicy_mem :=
        ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)))
     _ _ _ _ _.
 Next Obligation.
-unfold j_initial_core.
-destruct (initial_core sem n ge (m_dry m) v vl) as [[? ?] | ] eqn:?;
-  [ | intuition congruence].
-destruct o. intuition congruence.
-split; intro.
-inversion H; clear H; subst.
-split; auto.
-congruence.
+reflexivity.
 Qed.
 End JuicyFSem.
 

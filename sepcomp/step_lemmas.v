@@ -5,7 +5,7 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 
 Require Import VST.sepcomp.extspec.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Definition has_opttyp (v : option val) (t : option typ) :=
@@ -32,8 +32,8 @@ Section safety.
       safeN_ n z c' m' ->
       safeN_ (S n) z c m
   | safeN_external:
-      forall n z c m e args x,
-      at_external Hcore ge c m = Some (e,args) ->
+      forall n z c m e sig args x,
+      at_external Hcore c m = Some (e,sig,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
@@ -42,13 +42,13 @@ Section safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           after_external Hcore ge ret c = Some c' /\
+           after_external Hcore ret c m' = Some c' /\
            safeN_ n' z' c' m') ->
       safeN_ (S n) z c m
   | safeN_halted:
       forall n z c m i,
-      halted Hcore c = Some i ->
-      ext_spec_exit Hspec (Some i) z m ->
+      halted Hcore c i ->
+      ext_spec_exit Hspec (Some (Vint i)) z m ->
       safeN_ n z c m.
 
   Definition corestep_fun  :=
@@ -66,8 +66,10 @@ Section safety.
     assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
     inv H1; auto.
     erewrite corestep_not_at_external in H3; eauto; congruence.
-    erewrite corestep_not_halted in H2; eauto; congruence.
-  Qed.
+    eapply safeN_halted; eauto.
+(*    erewrite corestep_not_halted in H2; eauto; congruence.
+  Qed.*)
+  Abort.
 
   Lemma safe_corestep_backward:
     forall c m c' m' n z,
@@ -112,8 +114,9 @@ Section safety.
     apply (IHn0 _ _ _ _ n STEPN).
     assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
     rewrite Heq in H1.
-    eapply safe_corestep_forward in H1; eauto.
-  Qed.
+(*    eapply safe_corestep_forward in H1; eauto.
+  Qed.*)
+  Abort.
 
   Lemma safe_step'_back2 :
     forall
@@ -150,9 +153,9 @@ Section safety.
 
   Lemma convergent_controls_safe :
     forall m q1 q2,
-      (at_external Hcore ge q1 m = at_external Hcore ge q2 m) ->
-      (forall ret q', after_external Hcore ge ret q1 = Some q' ->
-                      after_external Hcore ge ret q2 = Some q') ->
+      (at_external Hcore q1 m = at_external Hcore q2 m) ->
+      (forall ret m q', after_external Hcore ret q1 m = Some q' ->
+                      after_external Hcore ret q2 m = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
       (forall q' m', corestep Hcore ge q1 m q' m' ->
                      corestep Hcore ge q2 m q' m') ->
@@ -162,7 +165,7 @@ Section safety.
     inv H3.
     + econstructor; eauto.
     + eapply safeN_external; eauto.
-      rewrite <-H; auto.
+      rewrite <-H; eauto.
       intros ???? Hargsty Hretty ? H8 H9.
       specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
       destruct H7 as [c' [? ?]].

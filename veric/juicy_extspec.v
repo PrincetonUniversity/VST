@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
@@ -24,16 +24,17 @@ Class OracleKind := {
 }.
 
 Definition j_initial_core {G C} (csem: @CoreSemantics G C mem)
-     (n: nat) (ge: G) (m: juicy_mem) (v: val) (args: list val) 
-     : option (C * option juicy_mem) :=
- match semantics.initial_core csem n ge (m_dry m) v args with
-  | Some (q,None) => Some (q, None)  (* NOTE:  This works only if m'=m, which is the case for Clight *)
-  | _ => None
- end.
+     (n: nat) (m: juicy_mem) (q: C) (v: val) (args: list val) 
+     : Prop :=
+  core_semantics.initial_core csem n (m_dry m) q v args.
 
 Definition j_at_external {G C} (csem: @CoreSemantics G C mem)
-   (ge: G)  (q: C) (jm: juicy_mem) : option (external_function * list val) :=
- semantics.at_external csem ge q (m_dry jm).
+   (q: C) (jm: juicy_mem) : option (external_function * signature * list val) :=
+ core_semantics.at_external csem q (m_dry jm).
+
+Definition j_after_external {G C} (csem: @CoreSemantics G C mem)
+    (ret: option val) (q: C) (jm: juicy_mem) :=
+  core_semantics.after_external csem ret q (m_dry jm).
 
 Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
@@ -43,29 +44,29 @@ Definition jstep {G C} (csem: @CoreSemantics G C mem)
  ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
 
 Definition j_halted {G C} (csem: @CoreSemantics G C mem)
-       (c: C) : option val :=
-     halted csem c.
+       (c: C) (i: int): Prop :=
+     halted csem c i.
 
 Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
-  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem ge q (m_dry m) = None.
+  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q (m_dry m) = None.
 Proof.
   intros.
   destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
+(*Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
 Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
-Qed.
+Qed.*)
 
-Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
+(*Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
   forall ge (q : C) m,
-  j_at_external csem ge q m= None \/ j_halted csem q = None.
+  j_at_external csem ge q m = None \/ j_halted csem q = None.
 Proof.
  intros. unfold j_at_external, j_halted.
  destruct (at_external_halted_excl csem ge q (m_dry m)); [left | right]; auto.
-Qed.
+Qed.*)
 
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
@@ -87,12 +88,12 @@ Definition juicy_core_sem
   @Build_CoreSemantics _ _ juicy_mem
     (j_initial_core csem)
     (j_at_external csem)
-    (after_external csem)
+    (j_after_external csem)
     (j_halted csem)
     (jstep csem)
     (jstep_not_at_external csem)
-    (jstep_not_halted csem)
-    (j_at_external_halted_excl csem).
+(*    (jstep_not_halted csem)
+    (j_at_external_halted_excl csem)*).
 
 Section upd_exit.
   Context {Z : Type}.
@@ -449,8 +450,8 @@ Section juicy_safety.
       jm_bupd (jsafeN_ n z c') m' ->
       jsafeN_ (S n) z c m
   | jsafeN_external:
-      forall n z c m e args x,
-      j_at_external Hcore ge c m = Some (e,args) ->
+      forall n z c m e sig args x,
+      j_at_external Hcore c m = Some (e,sig,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
@@ -459,16 +460,16 @@ Section juicy_safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           semantics.after_external Hcore ge ret c = Some c' /\
+           core_semantics.after_external Hcore ret c (m_dry m') = Some c' /\
            jm_bupd (jsafeN_ n' z' c') m') ->
       jsafeN_ (S n) z c m
   | jsafeN_halted:
       forall n z c m i,
-      semantics.halted Hcore c = Some i ->
-      ext_spec_exit Hspec (Some i) z m ->
+      core_semantics.halted Hcore c i ->
+      ext_spec_exit Hspec (Some (Vint i)) z m ->
       jsafeN_ n z c m.
 
-  Lemma jsafe_corestep_forward:
+(*  Lemma jsafe_corestep_forward:
      corestep_fun Hcore ->
     forall c m c' m' n z,
     jstep Hcore ge c m c' m' -> jsafeN_ (S n) z c m -> jm_bupd (jsafeN_ n z c') m'.
@@ -479,7 +480,7 @@ Section juicy_safety.
     inv H1; auto.
     setoid_rewrite (corestep_not_at_external (juicy_core_sem _)) in H3; eauto; congruence.
     setoid_rewrite (corestep_not_halted (juicy_core_sem _)) in H2; eauto; congruence.
-  Qed.
+  Qed.*)
 
   Lemma jsafe_corestep_backward:
     forall c m c' m' n z,
@@ -570,10 +571,10 @@ Section juicy_safety.
 
   Lemma convergent_controls_jsafe :
     forall m q1 q2,
-      (j_at_external Hcore ge q1 m = j_at_external Hcore ge q2 m) ->
-      (forall ret q', semantics.after_external Hcore ge ret q1 = Some q' ->
-                      semantics.after_external Hcore ge ret q2 = Some q') ->
-      (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
+      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
+      (forall ret m q', core_semantics.after_external Hcore ret q1 m = Some q' ->
+                      core_semantics.after_external Hcore ret q2 m = Some q') ->
+      (core_semantics.halted Hcore q1 = core_semantics.halted Hcore q2) ->
       (forall q' m', jstep Hcore ge q1 m q' m' ->
                      jstep Hcore ge q2 m q' m') ->
       (forall n z, jsafeN_ n z q1 m -> jsafeN_ n z q2 m).
@@ -582,7 +583,7 @@ Section juicy_safety.
     inv H3.
     + econstructor; eauto.
     + eapply jsafeN_external; eauto.
-      rewrite <-H; auto.
+      rewrite <-H; eauto.
       intros ???? Hargsty Hretty ? H8 H9.
       specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
       destruct H7 as [c' [? ?]].
@@ -651,7 +652,7 @@ Proof.
    eapply IHN; eauto; omega.
   + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
     { unfold j_at_external in *.
-      rewrite <- (age_jm_dry H2); auto. }
+      rewrite <- (age_jm_dry H2); eauto. }
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     - assert (level (m_phi jm) < level (m_phi jm0)).

@@ -163,15 +163,6 @@ Proof.
   forward.
 Qed.
 
-Lemma lock_struct : forall p, data_at_ Ews (Tstruct _lock_t noattr) p |-- data_at_ Ews tlock p.
-Proof.
-  intros.
-  unfold data_at_, field_at_; unfold_field_at 1%nat.
-  unfold field_at; simpl.
-  rewrite field_compatible_cons; simpl; entailer.
-  (* temporarily broken *)
-Admitted.
-
 Lemma thread_ghost : forall sh g1 g2 ctr lock lockt,
   thread_lock_inv sh g1 g2 ctr lock lockt =
   ghost_var gsh2 1 g1 * (ghost_var gsh2 1 g1 -* thread_lock_inv sh g1 g2 ctr lock lockt).
@@ -194,7 +185,7 @@ Proof.
   ghost_alloc (ghost_var Tsh 0).
   Intro g2.
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
-  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
     rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.
@@ -202,7 +193,7 @@ Proof.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).
-  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
   make_func_ptr _thread_func.
   set (f_ := gv _thread_func).
   forward_spawn (val * share * val * val * gname * gname)%type (f_, Vint (Int.repr 0),
