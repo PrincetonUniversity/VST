@@ -1379,7 +1379,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (H15 : (believe_external Espec psi (Vptr b Ptrofs.zero) (params, retty) cc A P Q')
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
-  jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
+  jstep (cl_core_sem psi) psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
   jm_bupd (jsafeN OK_spec psi n ora c') m'.
 Proof.
 intros.
@@ -2692,7 +2692,7 @@ clear - Hsafe.
 destruct (level (m_phi jm0)); simpl in *. constructor.
 inv Hsafe. econstructor; eauto. inv H0. inv H. split; auto.
 simpl in *. congruence.
-simpl in *. unfold cl_halted in H. congruence.
+contradiction.
 apply age_level in H20x.
 rewrite <- level_juice_level_phi in *; congruence.
 Qed.

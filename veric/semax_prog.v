@@ -1074,8 +1074,8 @@ Lemma semax_prog_rule {CS: compspecs} :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) jm (Vptr b Ptrofs.zero) nil = Some (q, None)) *
+       (forall jm, m_dry jm = m -> core_semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q (Vptr b Ptrofs.zero) nil) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -1115,10 +1115,11 @@ Proof.
   pose proof I.
   destruct EXx as [b [? ?]]; auto.
   exists b.
-  unfold semantics.initial_core. simpl (_ = Some _).
-  unfold j_initial_core, semantics.initial_core. simpl (_ = Some _).
-  unfold fundef in *; rewrite H7.
+  unfold core_semantics.initial_core, juicy_core_sem.
+  unfold j_initial_core, core_semantics.initial_core, cl_core_sem, cl_initial_core.
   rewrite if_true by auto.
+  simpl (_ = Some _).
+  unfold fundef in *; rewrite H7.
   (* unfold is_Internal in HInt. *)
   (* rewrite H6 in HInt. *)
   (* rewrite H7 in HInt. *)
@@ -1363,9 +1364,9 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
           (PTree.set id_arg arg (PTree.empty val))) in
 
   { q : corestate |
-    (forall jm, semantics.initial_core
-      (juicy_core_sem cl_core_sem) h
-      (globalenv prog) jm (Vptr b Ptrofs.zero) (arg :: nil) = Some (q, None)) /\
+    (forall jm, core_semantics.initial_core
+      (juicy_core_sem (cl_core_sem (globalenv prog))) h
+      jm q (Vptr b Ptrofs.zero) (arg :: nil)) /\
 
     forall (jm : juicy_mem) ts a,
       app_pred (P ts a rho1) (m_phi jm) ->
@@ -1390,8 +1391,8 @@ Proof.
                       cc_default A P Q _ (necR_refl _)).
   spec Believe.
   { exists id_fun, NEP, NEQ. split; auto. exists b; split; auto. }
-  simpl (semantics.initial_core _). unfold j_initial_core.
-  simpl (semantics.initial_core _). unfold cl_initial_core.
+  simpl (core_semantics.initial_core _). unfold j_initial_core.
+  simpl (core_semantics.initial_core _). unfold cl_initial_core.
   if_tac [_|?]. 2:tauto.
 
   destruct (Genv.find_funct_ptr (globalenv prog) b) as [f|] eqn:Eb; swap 1 2.

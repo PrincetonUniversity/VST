@@ -1,5 +1,4 @@
-Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.simulations.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
@@ -78,10 +77,10 @@ Inductive corestate :=
 Fixpoint strip_skip (k: cont) : cont :=
  match k with Kseq Sskip :: k' => strip_skip k' | _ => k end.
 
-Definition cl_at_external (c: corestate) : option (external_function * list val) :=
+Definition cl_at_external (c: corestate) : option (external_function * signature * list val) :=
   match c with
   | State _ _ k => None
-  | ExtCall ef args lid ve te k => Some (ef, args)
+  | ExtCall ef args lid ve te k => Some (ef, ef_sig ef, args)
  end.
 
 Definition cl_after_external (vret: option val) (c: corestate) : option corestate :=
@@ -285,7 +284,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
       | _ => None end
     else None
   | _ => None
-  end.
+end.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
@@ -311,17 +310,17 @@ destruct lid; try congruence; inv H; auto.
 destruct lid; try congruence; inv H; auto.
 Qed.
 
-Program Definition cl_core_sem :
+Program Definition cl_core_sem (ge: genv):
   @CoreSemantics genv corestate mem :=
   @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
-    (fun _ g m v lv => option_map (fun a => (a, None)) (cl_initial_core g v lv))
-    (fun _ c _ => cl_at_external c)
-    (fun _ => cl_after_external)
-    cl_halted
+    (fun _ _ c v args => cl_initial_core ge v args = Some c)
+    (fun c _ => cl_at_external c)
+    (fun ret c _ => cl_after_external ret c)
+    (fun _ _ => False)
     cl_step
     cl_corestep_not_at_external
-    cl_corestep_not_halted _.
+(*    cl_corestep_not_halted _*).
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
     cl_step ge q m q1 m1 ->

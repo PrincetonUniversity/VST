@@ -6,7 +6,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.semantics.
 Require Import VST.concurrency.threadPool.
@@ -214,7 +214,7 @@ Module HybridMachineSig.
                  (@threadHalted j tp cnt) ->
                  (@threadHalted j tp' cnt') 
 
-        ; init_mach : option res -> G -> mem -> val -> list val
+        ; init_mach : option res -> mem -> val -> list val
                       -> option (thread_pool * option mem)}.
 
     Context {machineSig: MachineSig}.
@@ -238,23 +238,23 @@ Module HybridMachineSig.
      indicate it's ready to take a syncronisation step or resume
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
-   Inductive start_thread genv: forall (m: mem) {tid0} {ms:machine_state},
+   Inductive start_thread (genv : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> mem -> Prop:=
-  | StartThread: forall m tid0 ms ms' c_new om vf arg
+  | StartThread: forall m tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
                     (Hcode: getThreadC ctn = Kinit vf arg)
                     (Hinitial: initial_core semSem tid0
-                                            genv m vf (arg::nil) = Some (c_new, om))
+                                            m c_new vf (arg::nil))
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
-      start_thread genv m ctn ms' (option_proj m om).
+      start_thread genv m ctn ms' m.
 
-   Inductive resume_thread' ge: forall (m: mem) {tid0} {ms:machine_state},
+   Inductive resume_thread' (ge : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall m tid0 ms ms' c c' X
                     (ctn: containsThread ms tid0)
-                    (Hat_external: at_external semSem ge c m = Some X)
-                    (Hafter_external: after_external semSem ge None c = Some c')
+                    (Hat_external: at_external semSem c m = Some X)
+                    (Hafter_external: after_external semSem None c m = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -263,12 +263,12 @@ Module HybridMachineSig.
       containsThread ms tid0 -> machine_state -> Prop:=
     @resume_thread' ge.
 
-  Inductive suspend_thread' ge: forall m {tid0} {ms:machine_state},
+  Inductive suspend_thread' (ge : semG) : forall m {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | SuspendThread: forall m tid0 ms ms' c X
                      (ctn: containsThread ms tid0)
                      (Hcode: getThreadC ctn = Krun c)
-                     (Hat_external: at_external semSem ge c m = Some X)
+                     (Hat_external: at_external semSem c m = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kblocked c) = ms'),
       suspend_thread' ge m ctn ms'.
@@ -347,10 +347,10 @@ Module HybridMachineSig.
       @machine_step G (fst (fst c)) (snd (fst c)) (snd c)  m
                     (fst (fst c')) (snd (fst c')) (snd c')  m'.
 
-    Definition at_external_mach (ge: G) (st : MachState) (m: mem)
-      : option (external_function * list val) := None.
+    Definition at_external_mach (st : MachState) (m: mem)
+      : option (external_function * signature * list val) := None.
     
-    Definition after_external_mach (ge: G) (ov : option val) (st : MachState) :
+    Definition after_external_mach (ov : option val) (st : MachState) (m : mem) :
       option (MachState) := None.
     
     (*not clear what the value of halted should be*)
@@ -363,10 +363,10 @@ Module HybridMachineSig.
       | _ => Some Vundef
       end.
 
-    Definition init_machine (U:schedule) (r : option res) the_ge (m: mem)
+    Definition init_machine (U:schedule) (r : option res) (m: mem)
                (f : val) (args : list val)
       : option (MachState * option mem) :=
-      match init_mach r the_ge m f args with
+      match init_mach r m f args with
       | None => None
       | Some (c, om) => Some ((U, [::], c), om)
       end.
@@ -375,21 +375,21 @@ Module HybridMachineSig.
       CoreSemantics G MachState mem.
     intros.
     apply (@Build_CoreSemantics _ MachState _
-                                (fun n => init_machine U r)
+                                (fun n m c f args => init_machine U r m f args = Some (c, None))
                                 at_external_mach
                                 after_external_mach
-                                halted_machine
+                                (fun st i => halted_machine st = Some (Vint i)) (* this is False *)
                                 MachStep
           );
       unfold at_external_mach, halted_machine; try reflexivity.
-    intros. inversion H; subst; rewrite HschedN; reflexivity.
-    auto.
+(*    intros. inversion H; subst; rewrite HschedN; reflexivity.
+    auto.*)
     Defined.
-    
-    Definition init_machine' (r : option res) the_ge m
+
+    Definition init_machine' (r : option res) (the_ge : semG) m
                (f : val) (args : list val)
       : option (machine_state * option mem) :=
-      init_mach r the_ge m f args.
+      init_mach r m f args.
     
     Definition unique_Krun tp i :=
       forall j cnti q,
@@ -398,12 +398,12 @@ Module HybridMachineSig.
         eq_nat_dec i j.
 
     (* XXX: Wrong? *)
-    Lemma hybrid_initial_schedule: forall genv m main vals U U' p c tr om n,
-        initial_core (MachineCoreSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
-        U' = U /\ tr = nil.
+    Lemma hybrid_initial_schedule: forall m main vals U p st n,
+        initial_core (MachineCoreSemantics U p) n m st main vals ->
+        exists c, st = (U, nil, c).
       simpl. unfold init_machine. intros.
-      destruct (init_mach p genv m main vals) as [[? ?]|]; try solve[inversion H].
-      inversion H; subst; split; auto.
+      destruct (init_mach p m main vals) as [[? ?]|]; try solve[inversion H].
+      inversion H; subst; eauto.
     Qed.
 
       (** The new semantics below makes internal (thread) and external (machine)
@@ -532,9 +532,9 @@ Module HybridMachineSig.
                           CoreSemantics G MachState mem
         ; ConcurMachineSemantics: schedule -> option res ->
                                   @ConcurSemantics G nat (seq.seq nat) event_trace t mem
-        ; initial_schedule: forall genv m main vals U U' p c tr om n,
-            initial_core (MachineSemantics U p) n genv m main vals = Some ((U',tr,c),om) ->
-            U' = U /\ tr = nil (*XXX:this seems wrong *)
+        ; initial_schedule: forall m main vals U p st n,
+            initial_core (MachineCoreSemantics U p) n m st main vals ->
+            exists c, st = (U, nil, c) (*XXX:this seems wrong *)
       }.
 
   End HybridMachineSig.
@@ -566,7 +566,7 @@ Module HybridMachineSig.
       Notation event_trace := (seq machine_event).
 
       Definition HybridCoarseMachine : HybridMachine:=
-        @Build_HybridMachine resources Sem ThreadPool
+        @Build_HybridMachine resources Sem ThreadPool _ _ _
                              (MachineCoreSemantics)
                              (new_MachineSemantics)
                              (hybrid_initial_schedule).
@@ -610,7 +610,7 @@ Module HybridMachineSig.
         {| yield := fun x => schedSkip x |}.
 
       Definition HybridFineMachine : HybridMachine:=
-        @Build_HybridMachine resources Sem ThreadPool
+        @Build_HybridMachine resources Sem ThreadPool _ _ _
                              (MachineCoreSemantics)
                              (new_MachineSemantics)
                              (hybrid_initial_schedule).

@@ -21,8 +21,8 @@ Local Open Scope pred.
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
-Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) :=
-  jsafeN_(genv_symb := fun ge: genv => Genv.genv_symb ge) cl_core_sem Hspec.
+Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) ge :=
+  jsafeN_(genv_symb := fun ge: genv => Genv.genv_symb ge) (cl_core_sem ge) Hspec ge.
 
 Program Definition assert_safe
      (Espec : OracleKind)

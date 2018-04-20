@@ -224,10 +224,10 @@ Qed.
 Ltac inv_safe H :=
   inv H;
   try solve[match goal with
-    | H : j_at_external _ _ _ _ = _ |- _ =>
+    | H : j_at_external _ _ _ = _ |- _ =>
       simpl in H; congruence
-    | H : semantics.halted _ _ = _ |- _ =>
-      simpl in H; unfold cl_halted in H; congruence
+    | H : core_semantics.halted _ _ _ |- _ =>
+      contradiction
   end].
 (*
 Lemma seq_assoc2:
@@ -458,7 +458,6 @@ inv_safe H.
    { destruct H1 as (?&?&?). econstructor; eauto. inv H. auto. }
    { econstructor; eauto. }
 }
-
 Qed.
 
 Lemma semax_skip_seq {CS: compspecs}:
