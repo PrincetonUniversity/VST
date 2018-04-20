@@ -7,7 +7,7 @@ Require Import compcert.lib.Integers.
 
 Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.semantics.
 Require Export VST.concurrency.lksize.
@@ -24,7 +24,6 @@ Require Import VST.concurrency.coinductive_safety.
 
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
 
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.CoreSemantics_sum.
@@ -154,7 +153,7 @@ Module DryHybridMachine.
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: semantics.at_external semSem genv c m = Some (LOCK, Vptr b ofs::nil))
+            (Hat_external: core_semantics.at_external semSem c m = Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
             (** install the thread's permissions on lock locations*)
             (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
             (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -197,8 +196,8 @@ Module DryHybridMachine.
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: semantics.at_external semSem genv c m =
-                           Some (UNLOCK, Vptr b ofs::nil))
+            (Hat_external: core_semantics.at_external semSem c m =
+                           Some (UNLOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (** install the thread's permissions on lock locations *)
             (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
             (** To release the lock the thread must have [Readable] permission on it*)
@@ -241,7 +240,7 @@ Module DryHybridMachine.
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: semantics.at_external semSem genv c m = Some (CREATE, Vptr b ofs::arg::nil))
+            (Hat_external: core_semantics.at_external semSem c m = Some (CREATE, CREATE_SIG, Vptr b ofs::arg::nil))
             (** we do not need to enforce the almost empty predicate on thread
            spawn as long as it's considered a synchronizing operation *)
             (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)
@@ -259,7 +258,7 @@ Module DryHybridMachine.
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: semantics.at_external semSem genv c m = Some (MKLOCK, Vptr b ofs::nil))
+            (Hat_external: core_semantics.at_external semSem c m = Some (MKLOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (** install the thread's data permissions*)
             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).1 = m1)
             (** To create the lock the thread must have [Writable] permission on it*)
@@ -297,7 +296,7 @@ Module DryHybridMachine.
           forall
             (Hinv: invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: semantics.at_external semSem genv c m = Some (FREE_LOCK, Vptr b ofs::nil))
+            (Hat_external: core_semantics.at_external semSem c m = Some (FREE_LOCK, UNLOCK_SIG, Vptr b ofs::nil))
             (** If this address is a lock*)
             (His_lock: lockRes tp (b, (Ptrofs.intval ofs)) = Some rmap)
             (** And the lock is taken *)
@@ -332,7 +331,7 @@ Module DryHybridMachine.
         forall  c b ofs m1
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: semantics.at_external semSem genv c m = Some (LOCK, Vptr b ofs::nil))
+           (Hat_external: core_semantics.at_external semSem c m = Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** To acquire the lock the thread must have [Readable] permission on it*)
@@ -545,11 +544,11 @@ Module DryHybridMachine.
     Inductive threadHalted': forall {tid0 ms},
         containsThread ms tid0 -> Prop:=
     | thread_halted':
-        forall tp c tid0
+        forall tp c tid0 i
                (cnt: containsThread tp tid0)
                (*Hinv: invariant tp*)
                (Hcode: getThreadC cnt = Krun c)
-               (Hcant: semantics.halted semSem c),
+               (Hcant: core_semantics.halted semSem c i),
           threadHalted' cnt.
 
     Definition threadHalted: forall {tid0 ms},
@@ -569,16 +568,13 @@ Module DryHybridMachine.
 
     Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map).
 
-    Definition init_mach (pmap : option res) (genv:G) (m: mem)
-               (v:val) (args:list val):option (thread_pool * option mem) :=
-      match semantics.initial_core semSem 0 genv m v args with
-      | Some (c, om) =>
+    Definition init_mach (pmap : option res) (m: mem)
+               (ms:thread_pool) (v:val) (args:list val) : Prop :=
+      exists c, core_semantics.initial_core semSem 0 m c v args /\
         match pmap with
-        | Some pmap => Some (mkPool (Krun c) (pmap.1, empty_map), om)
-        | None => None
-        end
-      | None => None
-      end.
+        | Some pmap => ms = mkPool (Krun c) (pmap.1, empty_map)
+        | None => False
+        end.
 
     Section HybDryMachineLemmas.
 
@@ -604,7 +600,7 @@ Module DryHybridMachine.
 
 
     (** *More Properties of halted thread*)
-    Lemma threadStep_not_unhalts:
+(*    Lemma threadStep_not_unhalts:
       forall g i tp m cnt cmpt tp' m' tr,
         @threadStep g i tp m cnt cmpt tp' m' tr ->
         forall j cnt cnt',
@@ -624,7 +620,7 @@ Module DryHybridMachine.
       - econstructor; eauto.
         rewrite gsoThreadCode; auto;
           erewrite <- age_getThreadCode; eauto.
-    Qed.
+    Qed.*)
 
 
     Lemma syncstep_equal_halted:
@@ -715,7 +711,7 @@ Module DryHybridMachine.
                              (@threadHalted)
                              threadHalt_update
                              syncstep_equal_halted
-                             threadStep_not_unhalts
+(*                             threadStep_not_unhalts*)
                              init_mach
       ).
 

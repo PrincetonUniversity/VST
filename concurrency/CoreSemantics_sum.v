@@ -1,19 +1,16 @@
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.concurrency.semantics.
 Require Import VST.sepcomp.event_semantics.
 
 (*
 
-  { initial_core : G -> Values.val -> list Values.val -> option C;
-    at_external : C -> option (AST.external_function * list Values.val);
-    after_external : option Values.val -> C -> option C;
-    halted : C -> option Values.val;
+{ initial_core : nat -> M -> C -> Values.val -> list Values.val -> Prop;
+    at_external : C -> M -> option (AST.external_function * AST.signature * list Values.val);
+    after_external : option Values.val -> C -> M -> option C;
+    halted : C -> Integers.Int.int -> Prop;
     corestep : G -> C -> M -> C -> M -> Prop;
     corestep_not_at_external : forall (ge : G) (m : M) (q : C) (m' : M) (q' : C),
-                               corestep ge q m q' m' -> at_external q = None;
-    corestep_not_halted : forall (ge : G) (m : M) (q : C) (m' : M) (q' : C),
-                          corestep ge q m q' m' -> halted q = None;
-    at_external_halted_excl : forall q : C, at_external q = None \/ halted q = None }
+                               corestep ge q m q' m' -> at_external q m = None }
 
  *)
 
@@ -49,15 +46,15 @@ Definition lt_op (n: nat) (no:option nat): bool :=
     | Some n' => Nat.ltb n n' 
   end.
 
-Definition initial_core_sum (no:option nat) (Gs Gt:Type) (Cs Ct:Type) (M: Type)
-           (sinitial_core : nat -> Gs -> M -> Values.val -> list Values.val -> option (Cs * option M))
-           (tinitial_core : nat -> Gt -> M -> Values.val -> list Values.val -> option (Ct * option M)):
-  nat -> (Gs*Gt) -> M -> Values.val -> list Values.val -> option ((state_sum Cs Ct) * option M):=
-  fun (n:nat) g m val vals =>
-    if lt_op n no
-    then state_sum_optionms (sinitial_core n (fst g) m val vals)
-    else state_sum_optionmt (tinitial_core n (snd g) m val vals).
-
+Definition initial_core_sum (no:option nat) (Cs Ct:Type) (M: Type)
+           (sinitial_core : nat -> M -> Cs -> Values.val -> list Values.val -> Prop)
+           (tinitial_core : nat -> M -> Ct -> Values.val -> list Values.val -> Prop):
+  nat -> M -> state_sum Cs Ct -> Values.val -> list Values.val -> Prop :=
+  fun (n:nat) m c val vals =>
+    match c with
+    | SState c => sinitial_core n m c val vals
+    | TState c => tinitial_core n m c val vals
+    end.
 
 Definition sum_func {Cs Ct X:Type} (fs:Cs -> X) (ft:Ct-> X) s:=
   match s with
@@ -72,21 +69,22 @@ Definition sum_func_option {Cs Ct Cs' Ct':Type}
   | TState c => state_sum_optiont (ft c) 
   end.
 
-Definition at_external_sum (Gs Gt Cs Ct M: Type)
-           (sat_external: Gs -> Cs -> M -> option (AST.external_function * list Values.val))
-           (tat_external: Gt -> Ct -> M -> option (AST.external_function * list Values.val)) 
-           (g: Gs*Gt) :=
-  sum_func (sat_external (fst g)) (tat_external (snd g)).
+Definition at_external_sum (Cs Ct M: Type)
+           (sat_external: Cs -> M -> option (AST.external_function * AST.signature * list Values.val))
+           (tat_external: Ct -> M -> option (AST.external_function * AST.signature * list Values.val))
+           :=
+  sum_func sat_external tat_external.
 
-Definition after_external_sum (Gs Gt Cs Ct: Type)
-           (safter_external: Gs -> option Values.val -> Cs -> option Cs)
-           (tafter_external: Gt -> option Values.val -> Ct -> option Ct)
-           (g: Gs*Gt) :=
-  fun vals => sum_func_option (safter_external (fst g) vals) (tafter_external (snd g) vals).
+Definition after_external_sum (Cs Ct M: Type)
+           (safter_external: option Values.val -> Cs -> M -> option Cs)
+           (tafter_external: option Values.val -> Ct -> M -> option Ct)
+           :=
+  fun vals c m => sum_func_option (fun c => safter_external vals c m)
+                                  (fun c => tafter_external vals c m) c.
 
 Definition halted_sum Cs Ct
-           (shalted: Cs -> option Values.val)
-           (thalted: Ct -> option Values.val):=
+           (shalted: Cs -> Integers.Int.int -> Prop)
+           (thalted: Ct -> Integers.Int.int -> Prop) :=
   sum_func shalted thalted.
 
 Inductive corestep_sum {Gs Gt M Cs Ct}
@@ -103,29 +101,29 @@ Inductive corestep_sum {Gs Gt M Cs Ct}
 Lemma corestep_not_at_external_sum:
   forall Gs Gt M Cs Ct
     (scorestep: Gs -> Cs -> M -> Cs -> M -> Prop) 
-    (sat_external: Gs -> Cs -> M -> option (AST.external_function * list Values.val))
+    (sat_external: Cs -> M -> option (AST.external_function * AST.signature * list Values.val))
     (scorestep_not_at_external: forall (ge : Gs) (m : M) (q : Cs) (m' : M) (q' : Cs),
-        scorestep ge q m q' m' -> sat_external ge q m = None)
+        scorestep ge q m q' m' -> sat_external q m = None)
     (tcorestep: Gt -> Ct -> M -> Ct -> M -> Prop)
-    (tat_external: Gt -> Ct -> M -> option (AST.external_function * list Values.val))
+    (tat_external: Ct -> M -> option (AST.external_function * AST.signature * list Values.val))
     (tcorestep_not_at_external: forall (ge : Gt) (m : M) (q : Ct) (m' : M) (q' : Ct),
-        tcorestep ge q m q' m' -> tat_external ge q m = None),
+        tcorestep ge q m q' m' -> tat_external q m = None),
   forall (ge : Gs * Gt) (m : M) (q : state_sum Cs Ct) (m' : M) (q' : state_sum Cs Ct),
     corestep_sum scorestep tcorestep ge q m q' m' ->
-    at_external_sum _ _ _ _ _ sat_external tat_external ge q m = None.
+    at_external_sum _ _ _ sat_external tat_external q m = None.
 Proof.
   intros.
   inversion H; subst; simpl; eauto.
 Qed.
 
-Lemma corestep_not_halted_sum:
+(*Lemma corestep_not_halted_sum:
   forall Gs Gt  M Cs Ct
     (scorestep: Gs -> Cs -> M -> Cs -> M -> Prop) 
-    (shalted : Cs -> option Values.val)
+    (shalted : Cs -> Integers.Int.int -> Prop)
     (scorestep_not_halted: forall (ge : Gs) (m : M) (q : Cs) (m' : M) (q' : Cs),
         scorestep ge q m q' m' -> shalted q = None)
     (tcorestep: Gt -> Ct -> M -> Ct -> M -> Prop)
-    (thalted : Ct -> option Values.val)
+    (thalted : Ct -> Integers.Int.int -> Prop)
     (tcorestep_not_halted: forall (ge : Gt) (m : M) (q : Ct) (m' : M) (q' : Ct),
         tcorestep ge q m q' m' -> thalted q = None),
   forall (ge : Gs * Gt) (m : M) (q : state_sum Cs Ct) (m' : M) (q' : state_sum Cs Ct),
@@ -152,28 +150,28 @@ Lemma at_external_halted_excl_sum:
 Proof.
   intros.
   destruct q; simpl; auto.
-Qed.
+Qed.*)
 
 Program Definition CoreSemanticsSum hb Gs Gt M Cs Ct
         (CSs: CoreSemantics Gs Cs M )
         (CSt: CoreSemantics Gt Ct M ): CoreSemantics (Gs * Gt) (state_sum Cs Ct) M :=
   Build_CoreSemantics (Gs * Gt) _ _
-    (initial_core_sum hb _ _ _ _ _ (initial_core CSs) (initial_core CSt))
-    (at_external_sum _ _ _ _ _ (at_external CSs) (at_external CSt))
-    (after_external_sum _ _ _ _ (after_external CSs) (after_external CSt))
+    (initial_core_sum hb _ _ _ (initial_core CSs) (initial_core CSt))
+    (at_external_sum _ _ _ (at_external CSs) (at_external CSt))
+    (after_external_sum _ _ _ (after_external CSs) (after_external CSt))
     (halted_sum _ _  (halted CSs) (halted CSt))
     (corestep_sum (corestep CSs) (corestep CSt)) 
-    _ _ _     
+    _
 .
 Next Obligation.
   intros; eapply corestep_not_at_external_sum; eauto; first [apply CSs|apply CSt].
 Qed.
-Next Obligation.
+(*Next Obligation.
   intros; eapply corestep_not_halted_sum; eauto; first [apply CSs|apply CSt].
 Qed.
 Next Obligation.
   intros; eapply (at_external_halted_excl_sum Gs Gt); eauto; first [apply CSs|apply CSt].
-Qed.
+Qed.*)
 
 Program Definition MemSemanticsSum (hb:option nat) Gs Gt Cs Ct
         (CSs: MemSem Gs Cs )

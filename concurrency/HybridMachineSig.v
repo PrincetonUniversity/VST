@@ -207,15 +207,14 @@ Module HybridMachineSig.
                  (@threadHalted j tp cnt) <->
                  (@threadHalted j tp' cnt')
 
-        ;  threadStep_not_unhalts:
+(*        ;  threadStep_not_unhalts:
              forall g i tp m cnt cmpt tp' m' tr,
                @threadStep g i tp m cnt cmpt tp' m' tr ->
                forall j cnt cnt',
                  (@threadHalted j tp cnt) ->
-                 (@threadHalted j tp' cnt') 
+                 (@threadHalted j tp' cnt') *)
 
-        ; init_mach : option res -> mem -> val -> list val
-                      -> option (thread_pool * option mem)}.
+        ; init_mach : option res -> mem -> thread_pool -> val -> list val -> Prop}.
 
     Context {machineSig: MachineSig}.
 
@@ -364,18 +363,15 @@ Module HybridMachineSig.
       end.
 
     Definition init_machine (U:schedule) (r : option res) (m: mem)
-               (f : val) (args : list val)
-      : option (MachState * option mem) :=
-      match init_mach r m f args with
-      | None => None
-      | Some (c, om) => Some ((U, [::], c), om)
-      end.
+               (st : MachState) (f : val) (args : list val)
+      : Prop :=
+      match st with (U', [::], c) => U' = U /\ init_mach r m c f args | _ => False end.
 
     Program Definition MachineCoreSemantics (U:schedule) (r : option res):
       CoreSemantics G MachState mem.
     intros.
     apply (@Build_CoreSemantics _ MachState _
-                                (fun n m c f args => init_machine U r m f args = Some (c, None))
+                                (fun n => init_machine U r)
                                 at_external_mach
                                 after_external_mach
                                 (fun st i => halted_machine st = Some (Vint i)) (* this is False *)
@@ -387,9 +383,9 @@ Module HybridMachineSig.
     Defined.
 
     Definition init_machine' (r : option res) (the_ge : semG) m
-               (f : val) (args : list val)
-      : option (machine_state * option mem) :=
-      init_mach r m f args.
+               (c : machine_state) (f : val) (args : list val) 
+      : Prop :=
+      init_mach r m c f args.
     
     Definition unique_Krun tp i :=
       forall j cnti q,
@@ -401,9 +397,9 @@ Module HybridMachineSig.
     Lemma hybrid_initial_schedule: forall m main vals U p st n,
         initial_core (MachineCoreSemantics U p) n m st main vals ->
         exists c, st = (U, nil, c).
-      simpl. unfold init_machine. intros.
-      destruct (init_mach p m main vals) as [[? ?]|]; try solve[inversion H].
-      inversion H; subst; eauto.
+      simpl. destruct st as ((?, ?), ?); simpl; intros.
+      destruct e; [|contradiction].
+      destruct H; subst; eauto.
     Qed.
 
       (** The new semantics below makes internal (thread) and external (machine)
