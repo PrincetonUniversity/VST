@@ -552,13 +552,13 @@ Proof.
     rewrite Hr; auto.
 Qed.
 
-Lemma join_all_eq : forall tp phi phi', join_all tp phi -> join_all tp phi' ->
-  (getThreadsR tp = nil /\ getLocksR ge tp = nil /\ identity phi /\ identity phi') \/ phi = phi'.
+Lemma join_all_eq : forall (tp : jstate ge) phi phi', join_all tp phi -> join_all tp phi' ->
+  (getThreadsR tp = nil /\ getLocksR tp = nil /\ identity phi /\ identity phi') \/ phi = phi'.
 Proof.
   intros ???; rewrite join_all_joinlist.
   unfold maps.
   destruct (getThreadsR tp); [|intros; right; eapply joinlist_inj; eauto; discriminate].
-  destruct (getLocksR ge tp); [auto | intros; right; eapply joinlist_inj; eauto; discriminate].
+  destruct (getLocksR tp); [auto | intros; right; eapply joinlist_inj; eauto; discriminate].
 Qed.
 
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
@@ -588,7 +588,7 @@ Proof.
     split; [erewrite <- ghost_core; apply identity_core, ghost_of_identity; auto|].
     apply state_invariant_c with (mcompat := mcompat); auto.
     repeat intro.
-    generalize (getThreadR_nth _ _ _ cnti); setoid_rewrite Ht; rewrite nth_error_nil; discriminate. }
+    generalize (getThreadR_nth _ _ cnti); setoid_rewrite Ht; rewrite nth_error_nil; discriminate. }
   subst.
   specialize (safety _ J) as (tp' & PHI' & Hupd & J' & safety).
   eexists; split; eauto; do 2 eexists; split; eauto; split; auto.

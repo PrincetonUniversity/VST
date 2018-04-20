@@ -90,7 +90,7 @@ Lemma preservation_acquire
                  LKSIZE_nat) (getMaxPerm m))
          (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint z) = Some m'),
        lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
-  (mem_cohere'_store : forall m tp m' b ofs j i Phi (cnti : containsThread tp i)
+  (mem_cohere'_store : forall ge m (tp : jstate ge) m' b ofs j i Phi (cnti : containsThread tp i)
     (Hcmpt : mem_compatible tp m)
     (lock : lockRes tp (b, Ptrofs.intval ofs) <> None)
     (Hlt' : permMapLt
@@ -145,7 +145,7 @@ Lemma preservation_acquire
   (psh : shares.readable_share sh)
   (R : pred rmap)
   (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external (ClightSemantincsForMachines.CLN_evsem ge) c m = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
+  (Hat_external : at_external (ClightSemantincsForMachines.CLN_evsem ge) c m = Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = Some (Some d_phi))
   (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
                     b (Ptrofs.intval ofs) =
@@ -158,16 +158,16 @@ Lemma preservation_acquire
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
   (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
-  (jmstep : @JuicyMachine.machine_step _ ClightSemantincsForMachines.ClightSem _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
+  (jmstep : @JuicyMachine.machine_step _ (ClightSemantincsForMachines.ClightSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m')
-  (Htstep : @syncStep ClightSemantincsForMachines.ClightSem true ge _ _ _ cnti Hcmpt
+  (Htstep : @syncStep (ClightSemantincsForMachines.ClightSem ge) true ge _ _ _ cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
              (Events.acquire (b, Ptrofs.intval ofs) None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m', ge, (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil), sch, age_tp_to n
-           (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate)).
+           (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate ge)).
 
 Proof.
   (* we prove [mem_compatible_with] BEFORE aging, as it it slightly
@@ -201,7 +201,7 @@ Proof.
     - (* mem_cohere' *)
       pose proof juice_join compat as J.
       pose proof all_cohere compat as MC.
-      eapply (mem_cohere'_store _ tp _ _ _ (Int.zero) _ _ cnti Hcmpt).
+      eapply (mem_cohere'_store _ _ tp _ _ _ (Int.zero) _ _ cnti Hcmpt).
       + cleanup.
         rewrite His_unlocked. simpl. congruence.
       + (* there is this hcmpt which is redundant, we can prove they're equal or think more to factorize it *)
@@ -210,21 +210,21 @@ Proof.
       + specialize (safety _ cnti tt).
         rewrite Hthread in safety.
         unshelve eapply jsafe_phi_jsafeN in safety; try apply compat.
-        inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha].
+        inversion safety as [ | ?????? step | ???????? ae Pre Post Safe | ????? Ha].
         * (* not corestep *)
           exfalso.
           clear -Hat_external step.
           apply (corestep_not_at_external (juicy_core_sem _)) in step.
           rewrite jstep.JuicyFSem.t_obligation_3 in step.
-          set (u := at_external _ _ _ _) in Hat_external.
-          set (v := at_external _ _ _ _) in step.
+          set (u := at_external _ _ _) in Hat_external.
+          set (v := at_external _ _ _) in step.
           assert (u = v).
           { unfold u, v. rewrite ClightSemantincsForMachines.at_external_SEM_eq. reflexivity. }
           congruence.
         * assert (e = LOCK).
           { simpl in ae.
             clear - ae Hat_external. rewrite ClightSemantincsForMachines.at_external_SEM_eq in Hat_external.
-            unfold j_at_external in ae. unfold cl_at_external in ae. 
+            unfold j_at_external in ae. unfold cl_at_external in ae.
             congruence. }
           subst e.
           revert x Pre Post.
@@ -264,14 +264,7 @@ Proof.
           eapply join_sub_trans; [eexists; eauto|].
           apply compatible_threadRes_sub; auto.
         * (* not halted *)
-          exfalso.
-          clear -Hat_external Ha.
-          assert (Ae : at_external ClightSemantincsForMachines.CLN_evsem ge c m <> None). congruence.
-          eapply at_external_not_halted in Ae.
-          unfold juicy_core_sem in *.
-          unfold cl_core_sem in *.
-          simpl in *.
-          congruence.
+          contradiction.
 
     - (* lockSet_Writable *)
       eapply lockSet_Writable_updLockSet_updThread; eauto.
@@ -306,7 +299,7 @@ Proof.
         rewrite E. simpl. eauto.
   }
 
-  pose proof mem_compatible_with_age compat'' (n := n) as compat'.
+  pose proof mem_compatible_with_age _ compat'' (n := n) as compat'.
   unfold tp__ in *; clear tp__.
 
   apply state_invariant_c with (mcompat := compat').
@@ -509,28 +502,21 @@ Proof.
         intros c' Ec'.
 
         eapply jsafe_phi_jsafeN with (compat0 := compat) in safety.
-        inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha]; swap 2 3.
+        inversion safety as [ | ?????? step | ???????? ae Pre Post Safe | ????? Ha]; swap 2 3.
         - (* not corestep *)
           exfalso.
           clear -Hat_external step.
           apply (corestep_not_at_external (juicy_core_sem _)) in step.
           rewrite jstep.JuicyFSem.t_obligation_3 in step.
-          set (u := at_external _ _ _ _) in Hat_external.
-          set (v := at_external _ _ _ _) in step.
+          set (u := at_external _ _ _) in Hat_external.
+          set (v := at_external _ _ _) in step.
           assert (u = v).
           { unfold u, v. rewrite ClightSemantincsForMachines.at_external_SEM_eq. reflexivity.
          }
           congruence.
 
         - (* not halted *)
-          exfalso.
-          clear -Hat_external Ha.
-          assert (Ae : at_external ClightSemantincsForMachines.CLN_evsem ge c m <> None). congruence.
-          eapply at_external_not_halted in Ae.
-          unfold juicy_core_sem in *.
-          unfold cl_core_sem in *.
-          simpl in *.
-          congruence.
+          contradiction.
 
         - (* at_external : we can now use safety *)
           subst z c0 m0.
@@ -574,11 +560,11 @@ Proof.
               rewrite level_age_to; auto.
               replace (level phi') with (level Phi). omega.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
             assert (level phi' = S n). {
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
             }
 
             split; [ | split].
@@ -695,7 +681,7 @@ Proof.
 
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq i j); eauto.
+      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto.
          apply jsafe_phi_bupd_downward. assumption.

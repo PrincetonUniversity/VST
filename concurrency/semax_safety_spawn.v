@@ -392,7 +392,7 @@ clear - Initcore.
     rewrite join_all_joinlist in *.
     rewrite maps_addthread.
     rewrite maps_updthread.
-    rewrite (maps_getthread _ _ _ cnti) in jj.
+    rewrite (maps_getthread _ _ cnti) in jj.
     rewrite joinlist_merge; eauto.
   }
 
@@ -548,7 +548,7 @@ clear - Initcore.
       specialize (safety j cntj ora).
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
-      -- edestruct (unique_Krun_neq i j); eauto.
+      -- edestruct (unique_Krun_neq(ge := globalenv prog) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- intros c' Ec'; specialize (safety c' Ec').

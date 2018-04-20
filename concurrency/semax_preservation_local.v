@@ -98,7 +98,7 @@ Lemma resource_decay_join_all ge {tp : jstate ge} {m Phi} c' {phi' i} {cnti : co
 Proof.
   do 2 rewrite join_all_joinlist.
   intros B (rd & lev & g) j.
-  rewrite (maps_getthread _ _ _ cnti) in j.
+  rewrite (maps_getthread _ _ cnti) in j.
   destruct (resource_decay_joinlist _ _ _ _ _ B rd g j) as (Phi' & j' & rd').
   exists Phi'; split; [ | split]; auto.
   - rewrite maps_updthread.
@@ -160,7 +160,7 @@ Proof.
 Qed.
 
 Lemma same_except_cur_jm_ ge tp m phi i cnti compat :
-  same_except_cur m (m_dry (@jm_(ge := ge) tp m phi i cnti compat)).
+  same_except_cur m (m_dry (@jm_ ge tp m phi i cnti compat)).
 Proof.
   repeat split.
   extensionality loc.
@@ -278,7 +278,7 @@ Lemma invariant_thread_step
      : forall (c c' : corestate) (jm jm' : juicy_mem) (Phi X : rmap) (ge : genv),
        mem_cohere' (m_dry jm) Phi ->
        join (m_phi jm) X Phi ->
-       @corestep genv corestate juicy_mem (@juicy_core_sem genv corestate cl_core_sem) ge c jm c' jm' ->
+       @corestep genv corestate juicy_mem (@juicy_core_sem genv corestate (cl_core_sem ge)) ge c jm c' jm' ->
        exists Phi' : rmap,
          join (m_phi jm') (@age_to (@level rmap ag_rmap (m_phi jm')) rmap ag_rmap X) Phi' /\
          mem_cohere' (m_dry jm') Phi')
@@ -298,15 +298,15 @@ Lemma invariant_thread_step
   (lock_bound : lockSet_block_bound (lset tp) (Mem.nextblock m))
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
-  (safety : threads_safety Jspec m ge tp Phi compat (S n))
+  (safety : threads_safety Jspec m tp Phi compat (S n))
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
-  (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
+  (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ge ci (jm_ cnti compat) ci' jmi')
   (safei' : forall ora, jm_bupd (jsafeN Jspec ge n ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
-  (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate)
+  (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)
   (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))) :
   state_bupd (state_invariant Jspec Gamma n) cm'.
 Proof.
@@ -319,7 +319,7 @@ Proof.
   pose proof J as J_; move J_ before J.
   rewrite join_all_joinlist in J_.
   pose proof J_ as J__.
-  rewrite maps_getthread with (cnti := cnti) in J__.
+  rewrite maps_getthread with (cnti0 := cnti) in J__.
   destruct J__ as (ext & Hext & Jext).
   assert (Eni : level (jm_ cnti compat) = S n). {
     rewrite <-En, level_juice_level_phi.
@@ -329,7 +329,7 @@ Proof.
 
   (** * Getting new global rmap (Phi'') with smaller level [n] *)
   assert (B : rmap_bound (Mem.nextblock m) Phi) by apply compat.
-  destruct (resource_decay_join_all (Krun ci') B (proj2 stepi) J)
+  destruct (resource_decay_join_all _ (Krun ci') B (proj2 stepi) J)
     as [Phi'' [J'' [RD L]]].
   rewrite join_all_joinlist in J''.
   assert (Eni'' : level (m_phi jmi') = n). {
@@ -814,7 +814,7 @@ Proof.
         rewrite <-cnt_age_iff in cntj.
         apply cntj.
       }
-      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj' compat)).
+      pose (jmj' := age_to (level (m_phi jmi')) (@jm_ _ tp m Phi j cntj' compat)).
 
       unshelve erewrite <-gtc_age; auto.
       pose proof safety _ cntj' ora as safej.

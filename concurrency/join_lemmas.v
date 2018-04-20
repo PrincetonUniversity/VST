@@ -446,7 +446,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section Machine.
 
-Variable (ge : Clight.genv).
+Context {ge : Clight.genv}.
 
 Definition getLocksR (tp : jstate ge) := listoption_inv (map snd (AMap.elements (lset tp))).
 

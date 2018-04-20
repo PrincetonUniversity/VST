@@ -313,7 +313,7 @@ Proof.
 
   simpl (m_phi _).
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
-    rewrite getThread_level with (Phi := Phi). auto. apply compat.
+    rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
   }
   assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
   cleanup.
@@ -353,7 +353,7 @@ Proof.
       rewrite maps_updthread.
       rewrite <-(maps_getlock2 _ (b, Ptrofs.unsigned ofs)) in j. 2:eassumption.
       assert (cnti' : containsThread (remLockSet tp (b, Ptrofs.unsigned ofs)) i) by auto.
-      rewrite maps_getthread with (i := i) (cnti := cnti') in j.
+      rewrite maps_getthread with (i0 := i) (cnti0 := cnti') in j.
       change Ptrofs.intval with Ptrofs.unsigned.
       clear Post B1.
       eapply (joinlist_merge phi0' phi1). apply j'.
@@ -781,7 +781,7 @@ Proof.
 
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq i j); eauto.
+      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.

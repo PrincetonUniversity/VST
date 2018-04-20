@@ -78,7 +78,7 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Lemma safety_induction_release Gamma n state
+Lemma safety_induction_release ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
   (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
@@ -94,13 +94,13 @@ Lemma safety_induction_release Gamma n state
   blocked_at_external state UNLOCK ->
   state_invariant Jspec' Gamma (S n) state ->
   exists state',
-    state_step state state' /\
+    state_step(ge := ge) state state' /\
     (state_invariant Jspec' Gamma n state' \/
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isrelease.
   intros I.
-  inversion I as [m ge tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isrelease as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -109,7 +109,7 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
+    as [ | ?????? bad | n0 z c m0 e sig args0 x at_ex Pre SafePost | ????? bad ];
     [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
     | subst | now inversion bad ].
   subst.
@@ -156,9 +156,9 @@ Proof.
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
 
   (* use progress to get the parts that don't depend on choice of phi *)
-  destruct (progress _ _ ext_link_inj _ _ _ Hnot_create I) as [? Hstep0].
+  destruct (progress _ _ ext_link_inj _ _ _ _ Hnot_create I) as [? Hstep0].
   inv Hstep0.
-  inv H5; try inversion HschedN; subst tid;
+  inv H4; try inversion HschedN; subst tid;
       try congruence; jmstep_inv; getThread_inv; try congruence;
       inv H; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external.

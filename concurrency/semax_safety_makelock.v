@@ -206,7 +206,7 @@ Proof.
   destruct Hrmap_ as (phi' & RLphi & j').
   pose proof juice_join compat as j.
   rewrite join_all_joinlist in j.
-  rewrite maps_getthread with (cnti := cnti) in j.
+  rewrite maps_getthread with (cnti0 := cnti) in j.
   destruct j as (psi & jpsi1 & jpsi).
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
@@ -233,7 +233,7 @@ Proof.
 
   unfold personal_mem, m_phi.
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
-    rewrite getThread_level with (Phi := Phi). auto. apply compat.
+    rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
   }
   assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
   setoid_rewrite El.

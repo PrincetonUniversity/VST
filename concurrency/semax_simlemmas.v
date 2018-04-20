@@ -828,7 +828,7 @@ Proof.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
   assert (join_all tp PHI) as Hj by (apply mcompat).
   rewrite join_all_joinlist in Hj.
-  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti := cnti)].
+  eapply joinlist_permutation in Hj; [|apply maps_getthread with (cnti0 := cnti)].
   destruct Hj as (? & ? & Hphi).
   pose proof (ghost_of_join _ _ _ Hphi) as Hghost.
   destruct H; destruct (join_assoc Hghost H) as (c & HC & Hc).
