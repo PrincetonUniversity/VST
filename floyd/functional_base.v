@@ -515,31 +515,21 @@ pose_const_equations
   ];
  pose_const_equations [Int.wordsize; Int64.wordsize; Ptrofs.wordsize].
 
-Ltac pose_lemma F F' A L :=
+Ltac pose_lemma F A L :=
   match type of (L A) with ?T =>
      lazymatch goal with
-      | H:  T |- _ => idtac
-      | H:  T /\ _ |- _ => idtac
+      | H:  T |- _ => fail
+      | H:  T /\ _ |- _ => fail
       | |- _ => pose proof (L A)
-     end;  change (F A) with (F' A) in *
+     end
   end.
 
-Ltac pose_lemmas F F' L :=
+Ltac pose_lemmas F L :=
  repeat
   match goal with
-  | |- context [F ?A] => pose_lemma F F' A L
-  | H: context [F ?A] |- _ => pose_lemma F F' A L
-(*  | H:= context [F ?A] |- _ => pose_lemma F F' A L *)
- end;
-  unfold F' in *.
-
-Definition byte_unsigned' := Byte.unsigned.
-Definition byte_signed' := Byte.signed.
-Definition int_unsigned' := Int.unsigned.
-Definition int_signed' := Int.signed.
-Definition int64_unsigned' := Int64.unsigned.
-Definition int64_signed' := Int64.signed.
-Definition ptrofs_unsigned' := Ptrofs.unsigned.
+  | |- context [F ?A] => pose_lemma F A L
+  | H: context [F ?A] |- _ => pose_lemma F A L
+ end.
 
 Ltac rep_omega_setup := 
  repeat match goal with
@@ -550,13 +540,13 @@ Ltac rep_omega_setup :=
   try autorewrite with rep_omega in *;
   unfold repable_signed in *;
   pose_Zlength_nonneg;
-  pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range;
-  pose_lemmas Byte.signed byte_signed' Byte.signed_range;
-  pose_lemmas Int.unsigned int_unsigned' Int.unsigned_range;
-  pose_lemmas Int.signed int_signed' Int.signed_range;
-  pose_lemmas Int64.unsigned int64_unsigned' Int64.unsigned_range;
-  pose_lemmas Int64.signed int64_unsigned' Int64.signed_range;
-  pose_lemmas Ptrofs.unsigned ptrofs_unsigned' Ptrofs.unsigned_range;
+  pose_lemmas Byte.unsigned Byte.unsigned_range;
+  pose_lemmas Byte.signed Byte.signed_range;
+  pose_lemmas Int.unsigned Int.unsigned_range;
+  pose_lemmas Int.signed Int.signed_range;
+  pose_lemmas Int64.unsigned Int64.unsigned_range;
+  pose_lemmas Int64.signed Int64.signed_range;
+  pose_lemmas Ptrofs.unsigned Ptrofs.unsigned_range;
   pose_standard_const_equations.
 
 Ltac rep_omega2 := 
