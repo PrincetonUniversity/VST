@@ -43,7 +43,7 @@ Lemma own_update: forall `{BUPD: BupdSepLog} {RA: Ghost} g (a: G) b pp, fp_updat
     own g a pp |-- |==> (own g b pp).
 Proof.
   intros.
-  eapply derives_trans; [apply own_update_ND with (B := Singleton _ b)|].
+  eapply derives_trans; [apply own_update_ND with (B := Ensembles.Singleton _ b)|].
   - intros ? J; destruct (H _ J).
     do 2 eexists; [constructor | eauto].
   - apply bupd_mono.
