@@ -39,11 +39,14 @@ Proof.
   apply bupd_mono, bupd_frame_r.
 Qed.
 
+Inductive Singleton {A} (x : A) : A -> Prop :=
+| Singleton_I : Singleton x x.
+
 Lemma own_update: forall `{BUPD: BupdSepLog} {RA: Ghost} g (a: G) b pp, fp_update a b ->
     own g a pp |-- |==> (own g b pp).
 Proof.
   intros.
-  eapply derives_trans; [apply own_update_ND with (B := Ensembles.Singleton _ b)|].
+  eapply derives_trans; [apply own_update_ND with (B := Singleton b)|].
   - intros ? J; destruct (H _ J).
     do 2 eexists; [constructor | eauto].
   - apply bupd_mono.
