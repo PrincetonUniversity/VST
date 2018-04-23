@@ -53,7 +53,7 @@ Proof.
       intros; rewrite In_upto in *.
       destruct (eq_dec a 0); auto.
       destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
-      { apply mpred_ext; Intros sh; Exists sh; entailer!.
+      { apply pred_ext; Intros sh; Exists sh; entailer!.
         * constructor.
         * match goal with H : sepalg_list.list_join sh0 _ sh |- _ => inv H; auto end. }
       generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.

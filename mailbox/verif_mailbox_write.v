@@ -684,7 +684,7 @@ Proof.
     subst l0.
     destruct (eq_dec j b).
     + subst; rewrite upd_Znth_same; auto.
-      apply mpred_ext.
+      apply pred_ext.
       * Exists bsh'; entailer!.
       * Intros sh.
         assert (sh = bsh') by (eapply list_join_eq; eauto; apply HshP).
