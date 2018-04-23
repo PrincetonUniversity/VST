@@ -239,11 +239,7 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Instance ext_PCM Z : ghost.Ghost := { valid a := True; Join_G := Join_equiv Z }.
-Proof. auto. Defined.
-
-Definition ext_ghost {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
-  existT _ (ext_PCM _) (exist _ ora I).
+Definition has_ext {Z} (ora : Z) : pred rmap := @own (ext_PCM _) 0 ora NoneP.
 
 (* use the external state to restrict the ghost moves *)
 Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
