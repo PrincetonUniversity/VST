@@ -239,11 +239,19 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Definition jm_bupd P m := forall C : ghost, joins (ghost_of (m_phi m)) ((ghost_approx m) C) ->
-  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
+Instance ext_PCM Z : ghost.Ghost := { valid a := True; Join_G := Join_equiv Z }.
+Proof. auto. Defined.
+
+Definition ext_ghost {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
+  existT _ (ext_PCM _) (exist _ ora I).
+
+(* use the external state to restrict the ghost moves *)
+Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
+  joins (ghost_of (m_phi m)) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) ->
+  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) /\
     jm_update m m' /\ P m'.
 
-Lemma jm_bupd_intro: forall (P : juicy_mem -> Prop) m, P m -> jm_bupd P m.
+Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
 Proof.
   repeat intro.
   eexists; split; eauto; repeat split; auto.
@@ -267,7 +275,7 @@ Section juicy_safety.
   | jsafeN_step:
       forall n z c m c' m',
       jstep Hcore ge c m c' m' ->
-      jm_bupd (jsafeN_ n z c') m' ->
+      jm_bupd z (jsafeN_ n z c') m' ->
       jsafeN_ (S n) z c m
   | jsafeN_external:
       forall n z c m e args x,
@@ -281,7 +289,7 @@ Section juicy_safety.
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
            semantics.after_external Hcore ret c = Some c' /\
-           jm_bupd (jsafeN_ n' z' c') m') ->
+           jm_bupd z' (jsafeN_ n' z' c') m') ->
       jsafeN_ (S n) z c m
   | jsafeN_halted:
       forall n z c m i,
@@ -366,6 +374,21 @@ Section juicy_safety.
     apply H. omega.
   Qed.
 
+Lemma make_join_ext : forall {Z} (ora : Z) a c m,
+  joins (ghost_approx m a) (ghost_approx m (Some (ext_ghost ora, NoneP) :: c)) ->
+  make_join a (Some (ext_ghost ora, NoneP) :: c) = Some (ext_ghost ora, NoneP) :: make_join (tl a) c.
+Proof.
+  intros.
+  destruct a; auto; simpl.
+  destruct o as [[]|]; auto.
+  destruct H as [? J]; inv J.
+  inv H4.
+  inv H1; simpl in *.
+  inv H0.
+  destruct p; inv H1; inj_pair_tac.
+  unfold NoneP; repeat f_equal; auto.
+Qed.
+
 Lemma age_safe:
   forall jm jm0, age jm0 jm ->
   forall ora c,
@@ -403,10 +426,11 @@ Proof.
    rewrite !level_juice_level_phi; congruence.
    intros ? J.
    rewrite (age1_ghost_of _ _ (age_jm_phi H6)) in J.
-   destruct (ghost_joins_approx _ _ _ J) as (C1 & J1 & HC1).
+   destruct (ghost_joins_approx _ _ _ J) as (J1 & HC1).
    rewrite <- (age_level _ _ (age_jm_phi H6)) in *.
-   destruct (H3 C1) as (m'' & ? & Hupd & ?).
-   { rewrite <- ghost_of_approx; auto. }
+   rewrite (make_join_ext _ _ _ _ J) in *.
+   rewrite ghost_of_approx in J1.
+   destruct (H3 _ J1) as (m'' & ? & Hupd & ?).
    destruct (jm_update_age _ _ _ Hupd H6) as (jm1'' & Hupd1 & Hage1).
    exists jm1''; split.
    { rewrite (age1_ghost_of _ _ (age_jm_phi Hage1)).
