@@ -118,7 +118,7 @@ Proof.
   hnf in x.
   revert x Pre SafePost.
 
-  assert (~ blocked_at_external (m, ge, (tr, i :: sch, tp)) CREATE) as Hnot_create.
+  assert (~ blocked_at_external (m, (tr, i :: sch, tp)) CREATE) as Hnot_create.
   { unfold blocked_at_external; intros (? & cnti' & ? & ? & ? & Heq & Hc & HC); inv Heq.
     assert (cnti' = cnti) by apply proof_irr; subst.
     rewrite Hc in Eci; inv Eci.
@@ -159,7 +159,7 @@ Proof.
   destruct (progress _ _ ext_link_inj _ _ _ _ Hnot_create I) as [? Hstep0].
   inv Hstep0.
   inv H4; try inversion HschedN; subst tid;
-      try congruence; jmstep_inv; getThread_inv; try congruence;
+      try contradiction; jmstep_inv; getThread_inv; try congruence;
       inv H; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external.
   clear dependent d_phi; clear dependent phi'.
@@ -174,14 +174,14 @@ Proof.
     destruct (join_assoc jphi0 j) as [? [_ j'']].
     apply resource_at_join with (loc := (bl, Ptrofs.unsigned ofsl)) in j''.
     destruct Hlockinv as [? Hlock]; rewrite Hlock in j''.
-    inv j''; unfold Ptrofs.unsigned in *; unfold pack_res_inv in *; simpl in *; congruence. }
+    inv j''; unfold JSem, Ptrofs.unsigned in *; unfold pack_res_inv in *; simpl in *; congruence. }
   rewrite HR in HJcanwrite.
   destruct (join_assoc (join_comm jphi0) j) as [phi' [? Hrem_lock_res]].
   assert (level (getThreadR i tp cnti) = S n) as Hn.
   { pose proof (getThread_level _ _ cnti _ (juice_join compat)).
     setoid_rewrite En in H0; auto. }
-  evar (tpx: jstate).
-  eexists (m', ge, (seq.cat tr _, sch, tpx)); split.
+  evar (tpx: jstate ge).
+  eexists (m', (seq.cat tr _, sch, tpx)); split.
 
   { (* "progress" part of the proof *)
     constructor.
@@ -234,14 +234,14 @@ Proof.
       pose proof juice_join compat as J.
       pose proof all_cohere compat as MC.
       clear safety lock_coh.
-      eapply (mem_cohere'_store _ tp _ _ _ (Int.one) _ _ cnti Hcmpt).
+      eapply (mem_cohere'_store _ _ tp _ _ _ (Int.one) _ _ cnti Hcmpt).
       (* eapply mem_cohere'_store with *)
       (* (tp := tp) *)
       (*   (Hcmpt := Hcmpt) *)
       (*   (cnti := cnti) *)
       (*   (j := Int.one). *)
       + cleanup.
-        rewrite His_locked. simpl. congruence.
+        setoid_rewrite His_locked. simpl. congruence.
       + eauto.
       + auto.
       + exists phi0'; split.
@@ -277,14 +277,14 @@ Proof.
       + intros _. subst loc.
         assert_specialize lj. {
           cleanup.
-          rewrite His_locked.
+          setoid_rewrite His_locked.
           reflexivity.
         }
         destruct lj as (sh' & psh' & P & E).
         rewrite E. simpl. eauto.
   }
 
-  pose proof mem_compatible_with_age compat'' (n := n) as compat'.
+  pose proof mem_compatible_with_age _ compat'' (n := n) as compat'.
 
   assert (level (getThreadR i tp cnti) - 1 = n)%nat as El by omega.
   setoid_rewrite El; left; apply state_invariant_c with (mcompat := compat').
@@ -304,7 +304,7 @@ Proof.
     * apply lset_same_support_sym.
       apply same_support_change_lock.
       cleanup.
-      rewrite His_locked. congruence.
+      setoid_rewrite His_locked. congruence.
 
   + (* lock coherence *)
     intros loc.
@@ -331,7 +331,7 @@ Proof.
             - revert AP. apply age_to_ind, lkat_hered.
             - cleanup. rewrite El in *. auto. }
           cleanup.
-          rewrite His_locked in lock_coh.
+          unfold JSem in *; rewrite His_locked in lock_coh.
           destruct lock_coh as (Load & align & bound & (* sh0 &  *)R0 & lk).
           repeat (split; auto).
           exists (* sh0,  *)R0; split.
@@ -404,7 +404,7 @@ Proof.
         clear lock_coh.
         destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
         pose proof sparse (b, Ptrofs.intval ofs) (b', ofs') as SPA.
-        assert_specialize SPA by (cleanup; congruence).
+        assert_specialize SPA by (cleanup; unfold JSem in *; congruence).
         assert_specialize SPA by (cleanup; congruence).
         simpl in SPA.
         destruct SPA as [SPA|SPA]; [ tauto | ].
@@ -574,7 +574,7 @@ Proof.
       }
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq i j); eauto.
+      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
@@ -589,7 +589,7 @@ Proof.
     * subst j.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
-      rewrite Hthread in wellformed.
+      unfold JSem in *; rewrite Hthread in wellformed.
       auto.
     * unshelve erewrite gsoThreadCode; auto.
 
@@ -599,6 +599,6 @@ Proof.
     apply no_Krun_updLockSet.
     apply no_Krun_stable. congruence.
     eapply unique_Krun_no_Krun. eassumption.
-    instantiate (1 := cnti). rewrite Hthread.
+    instantiate (1 := cnti). unfold JSem; rewrite Hthread.
     congruence.
 Qed.

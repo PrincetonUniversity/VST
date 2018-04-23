@@ -213,7 +213,7 @@ Proof.
 
   subst args.
   evar (tpx: jstate ge).
-  eexists (m', ge, (seq.cat tr (external i (mklock (b, Ptrofs.intval ofs)) :: nil), sch, tpx)); split.
+  eexists (m', (seq.cat tr (external i (mklock (b, Ptrofs.intval ofs)) :: nil), sch, tpx)); split.
 
   { (* "progress" part of the proof *)
     constructor.

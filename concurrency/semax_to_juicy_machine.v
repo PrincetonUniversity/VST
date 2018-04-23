@@ -59,25 +59,29 @@ Require Import VST.concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Section juicy.
+
 Existing Instance JuicyMachineShell.
 Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
 Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
-Inductive jmsafe : nat -> cm_state -> Prop :=
-| jmsafe_0 m ge tr sch tp : jmsafe 0 (m, ge, (tr, sch, tp))
-| jmsafe_halted n m ge tr tp : jmsafe n (m, ge, (tr, nil, tp))
-| jmsafe_core n m m' ge tr tr' sch (tp tp' : jstate):
-    JuicyMachine.machine_step(genv := ge) sch tr tp m sch tr' tp' m' ->
-    tp_bupd (fun tp' => jmsafe n (m', ge, (tr', sch, tp'))) tp' ->
-    jmsafe (S n) (m, ge, (tr, sch, tp))
-| jmsafe_sch n m m' ge i tr tr' sch (tp tp' : jstate):
-    JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
-    (forall sch', tp_bupd (fun tp' => jmsafe n (m', ge, (tr', sch', tp'))) tp') ->
-    jmsafe (S n) (m, ge, (tr, i :: sch, tp)).
+Context (ge : genv).
 
-Lemma step_sch_irr ge i tr tr' sch sch' (tp : jstate) m tp' m' :
-  JuicyMachine.machine_step(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
-  JuicyMachine.machine_step(genv := ge) (i :: sch') tr tp m sch' tr' tp' m'.
+Inductive jmsafe : nat -> cm_state -> Prop :=
+| jmsafe_0 m tr sch tp : jmsafe 0 (m, (tr, sch, tp))
+| jmsafe_halted n m tr tp : jmsafe n (m, (tr, nil, tp))
+| jmsafe_core n m m' tr tr' sch (tp tp' : jstate ge):
+    JuicyMachine.machine_step(Sem := JSem)(genv := ge) sch tr tp m sch tr' tp' m' ->
+    tp_bupd (fun tp' => jmsafe n (m', (tr', sch, tp'))) tp' ->
+    jmsafe (S n) (m, (tr, sch, tp))
+| jmsafe_sch n m m' i tr tr' sch (tp tp' : jstate ge):
+    JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+    (forall sch', tp_bupd (fun tp' => jmsafe n (m', (tr', sch', tp'))) tp') ->
+    jmsafe (S n) (m, (tr, i :: sch, tp)).
+
+Lemma step_sch_irr i tr tr' sch sch' (tp : jstate ge) m tp' m' :
+  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch') tr tp m sch' tr' tp' m'.
 Proof.
   intros step.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
@@ -90,11 +94,11 @@ Qed.
 
 Require Import VST.concurrency.semax_simlemmas.
 
-Lemma schstep_norun ge i sch tr tr' tp m tp' m' :
-  JuicyMachine.machine_step(genv := ge)(machineSig := JuicyMachineShell) (i :: sch) tr tp m sch tr' tp' m' ->
+Lemma schstep_norun i sch tr tr' tp m tp' m' :
+  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
   unique_Krun tp (i :: sch) ->
   (1 < pos.n (num_threads tp'))%nat ->
-  no_Krun tp'.
+  no_Krun(ge := ge) tp'.
 Proof.
   intros step uniq more.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
@@ -148,6 +152,8 @@ Proof.
   specialize (uniq j cnti q E). breakhyps.
 Qed.
 
+End juicy.
+
 (*+ Final instantiation *)
 
 Record CSL_proof := {
@@ -178,21 +184,21 @@ Section Safety.
   (* another, looser invariant to have more standard preservation
   statement *)
   Definition inv Gamma n state :=
-    exists m, (n <= m)%nat /\ state_invariant Jspec' Gamma m state.
+    exists m, (n <= m)%nat /\ state_invariant(ge := globalenv prog) Jspec' Gamma m state.
 
-  Lemma inv_sch_irr Gamma n m ge i tr sch sch' tp :
-    inv Gamma n (m, ge, (tr, i :: sch, tp)) ->
-    inv Gamma n (m, ge, (tr, i :: sch', tp)).
+  Lemma inv_sch_irr Gamma n m i tr sch sch' tp :
+    inv Gamma n (m, (tr, i :: sch, tp)) ->
+    inv Gamma n (m, (tr, i :: sch', tp)).
   Proof.
     intros (k & lkm & Hk).
     exists k; split; auto.
     eapply state_invariant_sch_irr, Hk.
   Qed.
 
-  Lemma no_Krun_inv Gamma n m ge tr sch sch' tp :
+  Lemma no_Krun_inv Gamma n m tr sch sch' tp :
     (1 < pos.n (num_threads tp) -> no_Krun tp)%nat ->
-    inv Gamma n (m, ge, (tr, sch, tp)) ->
-    inv Gamma n (m, ge, (tr, sch', tp)).
+    inv Gamma n (m, (tr, sch, tp)) ->
+    inv Gamma n (m, (tr, sch', tp)).
   Proof.
     intros nokrun.
     intros (x & lx & i).
@@ -203,7 +209,7 @@ Section Safety.
     apply no_Krun_unique_Krun, nokrun.
   Qed.
 
-  Lemma blocked_at_external_dec state ef : {blocked_at_external state ef} + {~blocked_at_external state ef}.
+  Lemma blocked_at_external_dec state ef : {blocked_at_external state ef} + {~blocked_at_external(ge := globalenv prog) state ef}.
   Proof.
     Local Ltac t := solve [right; intros []; intros; breakhyps].
     Ltac t' i cnti :=
@@ -212,22 +218,24 @@ Section Safety.
       try (assert (cnti' = cnti) by apply proof_irr; subst cnti');
       breakhyps.
 
-    destruct state as ((m, ge) & [tr [ | i sch]] & tp). now t.
+    destruct state as (m & [tr [ | i sch]] & tp). now t.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
     destruct (@getThreadC _ _ _ i tp cnti) as [c | c | c v | v v0] eqn:Ei;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
-    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo;
+    destruct (cl_at_external c) as [((ef', sig), args) | ] eqn:Eo;
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     destruct (eq_dec ef ef'); try subst ef';
     try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     (* destruct (EqDec_external_function ef ef'). subst ef'. 2: now t' i cnti. *)
+    destruct (signature_eq sig (ef_sig ef)); try subst sig;
+    try solve [right; intros [i' [cnti' [sch' [c0 [? [H [? ?]]]]]]]; inv H; proof_irr; congruence].
     now left; repeat eexists; eauto.
   Qed.
 
   Lemma safety_bupd : forall state n Gamma, (exists state', state_step state state' /\
     (state_invariant Jspec' Gamma n state' \/ state_invariant Jspec' Gamma (S n) state')) ->
     exists state',
-      state_step state state' /\
+      state_step(ge := globalenv prog) state state' /\
       (state_bupd (state_invariant Jspec' Gamma n) state' \/
        state_bupd (state_invariant Jspec' Gamma (S n)) state').
   Proof.
@@ -239,7 +247,7 @@ Section Safety.
   Theorem safety_induction Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
-      state_step state state' /\
+      state_step(ge := globalenv prog) state state' /\
       (state_bupd (state_invariant Jspec' Gamma n) state' \/
        state_bupd (state_invariant Jspec' Gamma (S n)) state').
   Proof.
@@ -285,13 +293,13 @@ Section Safety.
       - apply personal_mem_equiv_spec.
     }
 
-    destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
+    destruct (progress CS ext_link ext_link_inj _ _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
     apply ext_link_inj.
   Qed.
 
-  Lemma tp_bupd_mono : forall (P Q : jstate -> Prop) tp,
+  Lemma tp_bupd_mono : forall (P Q : jstate (globalenv prog) -> Prop) tp,
     (forall phi tp' phi', tp_update tp phi tp' phi' ->
        P tp' -> Q tp') ->
     tp_bupd P tp -> tp_bupd Q tp.
@@ -319,14 +327,14 @@ Section Safety.
       intros ???? Hinv; exists m. split. omega. simpl in *. exact_eq Hinv; f_equal. omega.
   Qed.
 
-  Lemma num_tp_update : forall tp tp' phi phi', tp_update tp phi tp' phi' ->
+  Lemma num_tp_update : forall tp tp' phi phi', tp_update(ge := globalenv prog) tp phi tp' phi' ->
     num_threads tp' = num_threads tp.
   Proof.
     intros; apply contains_iff_num, H.
   Qed.
 
   Lemma no_Krun_stable_update tp tp' phi phi' : no_Krun tp -> tp_update tp phi tp' phi' ->
-    no_Krun tp'.
+    no_Krun(ge := globalenv prog) tp'.
   Proof.
     intros notkrun (_ & _ & _ & Hiff & H & _) ????.
     assert (containsThread tp i) as cnt by (apply Hiff; auto).
@@ -336,17 +344,17 @@ Section Safety.
   Qed.
 
   Lemma invariant_safe Gamma n state :
-    inv Gamma n state -> jmsafe n state.
+    inv Gamma n state -> jmsafe (globalenv prog) n state.
   Proof.
     intros INV.
     pose proof (inv_step) as Step.
     revert state INV.
-    induction n; intros ((m, ge), ((tr, sch), tp)) INV.
+    induction n; intros (m, ((tr, sch), tp)) INV.
     - apply jmsafe_0.
     - destruct sch.
       + apply jmsafe_halted.
       + destruct (Step _ _ _ INV) as (state' & step & INV').
-        inversion step as [ | ge' m0 m' tr' tr'' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
+        inversion step as [ | m0 m' tr' tr'' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
         inversion jmstep; subst.
         all: try solve [ eapply jmsafe_core; eauto; eapply tp_bupd_mono; eauto; auto ].
         all: eapply jmsafe_sch; eauto.
@@ -371,7 +379,7 @@ Section Safety.
   Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
 
   Definition initial_machine_state (n : nat) :=
-    @OrdinalPool.mk LocksAndResources ClightSemantincsForMachines.ClightSem
+    @OrdinalPool.mk LocksAndResources (@JSem (globalenv prog))
       (pos.mkPos (le_n 1))
       (fun _ => Krun initial_corestate)
       (fun _ => m_phi (initial_jm n))
@@ -452,16 +460,16 @@ Section Safety.
   time a part of the schedule is consumed *)
 
   Theorem jmsafe_initial_state sch n :
-    jmsafe n ((proj1_sig init_mem, globalenv prog), (nil, sch, initial_machine_state n)).
+    jmsafe (globalenv prog) n ((proj1_sig init_mem), (nil, sch, initial_machine_state n)).
   Proof.
     eapply invariant_safe.
     exists n; split; auto; apply initial_invariant.
   Qed.
 
-  Lemma jmsafe_csafe n m ge tr sch s : jmsafe n (m, ge, (tr, sch, s)) -> jm_csafe ge (sch, tr, s) m n.
+  Lemma jmsafe_csafe n m tr sch s : jmsafe (globalenv prog) n (m, (tr, sch, s)) -> jm_csafe (sch, tr, s) m n.
   Proof.
     clear.
-    revert m ge tr sch s; induction n; intros m ge tr sch s SAFE.
+    revert m tr sch s; induction n; intros m tr sch s SAFE.
     now constructor 1.
     inversion SAFE; subst.
     - constructor 2. reflexivity.
@@ -476,7 +484,7 @@ Section Safety.
   directly *)
 
   Theorem safety_initial_state (sch : schedule) (n : nat) :
-    jm_csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
+    jm_csafe (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
   Proof.
     apply jmsafe_csafe, jmsafe_initial_state.
   Qed.

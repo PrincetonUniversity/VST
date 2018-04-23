@@ -33,7 +33,7 @@ Module THE_JUICY_MACHINE.
 
   Section THE_JUICY_MACHINE.
 
-  Variable (ge : genv).
+  Context {ge : genv}.
   Instance JSem : Semantics := ClightSem ge.
   Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig := JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
@@ -89,5 +89,7 @@ Module THE_JUICY_MACHINE.
                 jm_csafe st m (S n).
 
   End THE_JUICY_MACHINE.
+
+  Arguments jstate : clear implicits.
 
 End THE_JUICY_MACHINE.

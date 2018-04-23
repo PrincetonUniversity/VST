@@ -293,7 +293,7 @@ Proof.
 
   subst args.
 
-  eexists (m, ge, (seq.cat tr (external i (freelock (b, Ptrofs.intval ofs)) :: nil), sch, _)); split.
+  eexists (m, (seq.cat tr (external i (freelock (b, Ptrofs.intval ofs)) :: nil), sch, _)); split.
 
   { (* "progress" part of the proof *)
     constructor.

@@ -307,7 +307,7 @@ Lemma invariant_thread_step
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)
-  (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))) :
+  (cm' := (m_dry jmi', (tr, i :: sch, tp''))) :
   state_bupd (state_invariant Jspec Gamma n) cm'.
 Proof.
   (** * Two steps : [x] -> [x'] -> [x'']

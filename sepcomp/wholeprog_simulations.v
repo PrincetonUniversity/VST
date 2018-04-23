@@ -11,7 +11,7 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.structured_injections.
 Require Import VST.sepcomp.reach.
@@ -45,11 +45,11 @@ Record Wholeprog_sim :=
 ; genv_inv : ge_inv ge1 ge2
 ; core_initial :
     forall j c1 vals1 m1 vals2 m2 n,
-    initial_core Sem1 n ge1 m1 main vals1 = Some (c1, None) ->
+    initial_core Sem1 n m1 c1 main vals1 ->
     init_inv j ge1 vals1 m1 ge2 vals2 m2 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
-      /\*) initial_core Sem2 n ge2 m2 main vals2 = Some (c2, None)
+      /\*) initial_core Sem2 n m2 c2 main vals2
       /\ match_state cd (*mu*)j c1 m1 c2 m2
 ; core_diagram :
     forall st1 m1 st1' m1',
@@ -63,10 +63,10 @@ Record Wholeprog_sim :=
 ; core_halted :
     forall cd mu c1 m1 c2 m2 v1,
     match_state cd mu c1 m1 c2 m2 ->
-    halted Sem1 c1 = Some v1 ->
+    halted Sem1 c1 v1 ->
     exists j v2,
-       halt_inv j ge1 v1 m1 ge2 v2 m2
-    /\ halted Sem2 c2 = Some v2 }.
+       halt_inv j ge1 (Vint v1) m1 ge2 (Vint v2) m2
+    /\ halted Sem2 c2 v2 }.
 
 End Wholeprog_sim.
 

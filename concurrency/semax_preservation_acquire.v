@@ -120,7 +120,7 @@ Lemma preservation_acquire
   (i : nat)
   (sch : list nat)
   (tp : jstate ge)
-  (INV : state_invariant Jspec' Gamma (S n) (m, ge, (tr, i :: sch, tp)))
+  (INV : state_invariant Jspec' Gamma (S n) (m, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
@@ -166,7 +166,7 @@ Lemma preservation_acquire
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None)) m'
              (Events.acquire (b, Ptrofs.intval ofs) None)) :
   (* ============================ *)
-  state_invariant Jspec' Gamma n (m', ge, (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil), sch, age_tp_to n
+  state_invariant Jspec' Gamma n (m', (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil), sch, age_tp_to n
            (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Ptrofs.intval ofs) None) : jstate ge)).
 
 Proof.

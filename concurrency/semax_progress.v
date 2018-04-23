@@ -308,7 +308,7 @@ Section Progress.
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp' := age_tp_to (level jmi') tp).
         pose (tp'' := @updThread _ _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
-        pose (cm' := (m_dry jmi', ge, (tr, i :: sch, tp''))).
+        pose (cm' := (m_dry jmi', (tr, i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
         rewrite <- (seq.cats0 tr) at 2.
@@ -518,7 +518,7 @@ Section Progress.
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC & HG).
           injection EQ as <- <-.
-          exists (m, ge, (seq.cat tr (Events.external i (Events.failacq (b, Ptrofs.intval ofs)) :: nil), sch, tp))(* ; split *).
+          exists (m, (seq.cat tr (Events.external i (Events.failacq (b, Ptrofs.intval ofs)) :: nil), sch, tp))(* ; split *).
           + apply state_step_c.
             apply JuicyMachine.sync_step with
             (Htid := cnti)
@@ -676,7 +676,7 @@ Section Progress.
           pose proof (resource_at_join _ _ _ (b, Ptrofs.intval ofs) Join) as Join'.
           destruct (join_YES_l Join' ex) as (sh3 & sh3' & E3).
 
-          eexists (m', ge, (seq.cat tr _, sch, _)).
+          eexists (m', (seq.cat tr _, sch, _)).
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
@@ -886,7 +886,7 @@ Section Progress.
               apply age_by_1. replace (level phi_sat) with (level Phi). omega. join_level_tac.
           }
 
-          eexists (m', ge, (seq.cat tr _, sch, _)).
+          eexists (m', (seq.cat tr _, sch, _)).
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
@@ -1111,7 +1111,7 @@ Section Progress.
         pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RLphi jpsi as RLPhi.
         destruct RLPhi as (Phi' & RLPhi & J').
 
-        eexists (m', ge, (seq.cat tr _, sch, _)).
+        eexists (m', (seq.cat tr _, sch, _)).
         constructor.
 
         eapply JuicyMachine.sync_step
@@ -1356,7 +1356,7 @@ Section Progress.
             inv j; hnf; eauto.
         }
 
-        eexists (m, ge, (seq.cat tr _, sch, _)).
+        eexists (m, (seq.cat tr _, sch, _)).
         constructor.
 
         eapply JuicyMachine.sync_step
@@ -1434,7 +1434,7 @@ Section Progress.
                 | Some id => State ve (Maps.PTree.set id Vundef te) k
                 | None => State ve te k
                 end).
-        exists (m, ge, (tr, i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
+        exists (m, (tr, i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
         + (* taking the step Kresume->Krun *)
           constructor.
           apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).

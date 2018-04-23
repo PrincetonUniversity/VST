@@ -79,18 +79,18 @@ Section Machine.
 Context {ZT : Type} (Jspec : juicy_ext_spec ZT) {ge : genv}.
 
 (*+ Description of the invariant *)
-Definition cm_state := (Mem.mem * Clight.genv * (event_trace * schedule * jstate ge))%type.
+Definition cm_state := (Mem.mem * (event_trace * schedule * jstate ge))%type.
 
 Inductive state_step : cm_state -> cm_state -> Prop :=
 | state_step_empty_sched m tr jstate :
     state_step
-      (m, ge, (tr, nil, jstate))
-      (m, ge, (tr, nil, jstate))
+      (m, (tr, nil, jstate))
+      (m, (tr, nil, jstate))
 | state_step_c m m' tr tr' sch sch' jstate jstate':
     @JuicyMachine.machine_step _ (ClightSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge sch tr jstate m sch' tr' jstate' m' ->
     state_step
-      (m, ge, (tr, sch, jstate))
-      (m', ge, (tr', sch', jstate')).
+      (m, (tr, sch, jstate))
+      (m',(tr', sch', jstate')).
 
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
@@ -488,12 +488,12 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (safety : threads_safety m tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
-    : state_invariant Gamma n (m, ge, (tr, sch, tp)).
+    : state_invariant Gamma n (m, (tr, sch, tp)).
 
 (* Schedule irrelevance of the invariant *)
 Lemma state_invariant_sch_irr Gamma n m i tr sch sch' tp :
-  state_invariant Gamma n (m, ge, (tr, i :: sch, tp)) ->
-  state_invariant Gamma n (m, ge, (tr, i :: sch', tp)).
+  state_invariant Gamma n (m, (tr, i :: sch, tp)) ->
+  state_invariant Gamma n (m, (tr, i :: sch', tp)).
 Proof.
   intros INV.
   inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
@@ -508,18 +508,18 @@ Qed.
 
 Definition blocked_at_external (state : cm_state) (ef : external_function) :=
   match state with
-    (m, ge, (tr, sch, tp)) =>
+    (m, (tr, sch, tp)) =>
     exists j cntj sch' c args,
       sch = j :: sch' /\
       @getThreadC _ _ _ j tp cntj = Kblocked c /\
       cl_at_external c = Some (ef, ef_sig ef, args)
   end.
 
-Definition state_bupd P (state : cm_state) := let '(m, ge', (tr, sch, tp)) := state in
-  tp_bupd ge (fun tp' => P (m, ge', (tr, sch, tp'))) tp.
+Definition state_bupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
+  tp_bupd (fun tp' => P (m, (tr, sch, tp'))) tp.
 
-Lemma state_bupd_intro : forall (P : _ -> Prop) m ge' tr sch tp phi, join_all tp phi ->
-  P (m, ge', (tr, sch, tp)) -> state_bupd P (m, ge', (tr, sch, tp)).
+Lemma state_bupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
+  P (m, (tr, sch, tp)) -> state_bupd P (m, (tr, sch, tp)).
 Proof.
   intros; split; eauto; intros.
   eexists; split; eauto.
@@ -536,7 +536,7 @@ Proof.
 Qed.
 
 Lemma mem_compatible_upd : forall tp m phi tp' phi', mem_compatible_with tp m phi ->
-  tp_update ge tp phi tp' phi' -> mem_compatible_with tp' m phi'.
+  tp_update(ge := ge) tp phi tp' phi' -> mem_compatible_with tp' m phi'.
 Proof.
   intros ?????? (Hl & Hr & ? & ? & ? & Hguts & ? & ? & ?).
   inv H; constructor; auto.
@@ -570,12 +570,12 @@ Lemma state_inv_upd : forall Gamma (n : nat)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : forall C, joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) ->
-        exists tp' PHI' (Hupd : tp_update ge tp PHI tp' PHI'),
+        exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
         joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
         threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Gamma n) (m, ge, (tr, sch, tp)).
+  state_bupd (state_invariant Gamma n) (m, (tr, sch, tp)).
 Proof.
   intros.
   split; [eexists; apply mcompat|].

@@ -822,7 +822,7 @@ Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat n j cntj)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, ge, (tr, sch, tp)).
+  state_bupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
 Proof.
   intros; apply state_inv_upd with (mcompat0 := mcompat); auto; intros.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
@@ -843,7 +843,7 @@ Proof.
   { eapply ghost_same_level_gen.
     rewrite <- (ghost_of_approx phi') in Hg'.
     exact_eq Hg'; f_equal; f_equal; f_equal; rewrite ?Hl'; auto. }
-  assert (tp_update _ tp PHI (updThreadR cnti phi') PHI') as Hupd.
+  assert (tp_update tp PHI (updThreadR cnti phi') PHI') as Hupd.
   { repeat split; auto.
     - rewrite join_all_joinlist.
       eapply joinlist_permutation; [symmetry; apply maps_updthreadR|].

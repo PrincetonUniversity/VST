@@ -941,7 +941,7 @@ Section Preservation.
   (tp tp' : jstate ge)
   (jmstep : @JuicyMachine.machine_step _ (ClightSemantincsForMachines.ClightSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler ge (i :: sch) tr tp m sch'
              tr' tp' m')
-  (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m, ge, (tr, i :: sch, tp)))
+  (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
@@ -956,8 +956,8 @@ Section Preservation.
   (v1 v2 : val)
   (Eci : getThreadC i tp cnti = @Kinit semC v1 v2) :
   (* ============================ *)
-  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma n (m', ge, (tr', sch', tp')) \/
-  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m', ge, (tr', sch', tp')).
+  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma n (m', (tr', sch', tp')) \/
+  @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m', (tr', sch', tp')).
 
   Proof.
     inversion jmstep; subst; try inversion HschedN; subst tid;
@@ -1150,7 +1150,7 @@ Qed. (* Lemma preservation_Kinit *)
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp'' := updThread i tp cnti (Krun ci') (m_phi jmi')).
         pose (tp''' := age_tp_to (level jmi') tp').
-        pose (cm' := (m_dry jmi', ge, (i :: sch, tp'''))).
+        pose (cm' := (m_dry jmi', (i :: sch, tp'''))).
 
         (* now, the step that has been taken in jmstep must correspond
         to this cm' *)
@@ -1242,7 +1242,7 @@ Qed. (* Lemma preservation_Kinit *)
           right. (* no aging *)
 
           unfold state_bupd.
-          match goal with |- tp_bupd _ _ ?tp => set (tp' := tp) end.
+          match goal with |- tp_bupd _ ?tp => set (tp' := tp) end.
           assert (compat' : mem_compatible_with tp' m Phi).
           {
             clear safety wellformed unique.
@@ -1257,7 +1257,7 @@ Qed. (* Lemma preservation_Kinit *)
             - apply LJ.
           }
 
-          eapply (state_bupd_intro' _ _ _ (_, _, (_, _, _))), state_invariant_c with (PHI := Phi) (mcompat := compat').
+          eapply (state_bupd_intro' _ _ _ (_, (_, _, _))), state_invariant_c with (PHI := Phi) (mcompat := compat').
           + assumption.
 
           + (* env_coherence *)
