@@ -19,8 +19,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
-Require Import VST.floyd.sublist.
-Require Import VST.floyd.sublist2.
+Require Import VST.floyd.functional_base.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
@@ -241,18 +240,20 @@ match goal with
   end
 end.
 
-Ltac hint_progress := 
- first [
-   print_sumbool_hint_hyp
- | tryif (try (progress autorewrite with sublist; fail 1)) then fail
+Ltac hint_progress any n :=
+ lazymatch n with 7%nat => constr_eq any true
+ | _ =>
+ tryif lazymatch n with
+ | 0%nat => print_sumbool_hint_hyp
+ | 1%nat => tryif (try (progress autorewrite with sublist; fail 1)) then fail
      else  idtac "Hint:  try 'autorewrite with sublist'"
- | tryif (try (progress autorewrite with sublist in *|-; fail 1)) then fail
+ | 2%nat => tryif (try (progress autorewrite with sublist in *|-; fail 1)) then fail
      else  idtac "Hint:  try 'autorewrite with sublist in *|-'"
- | tryif (try (progress autorewrite with norm; fail 1)) then fail
+ | 3%nat => tryif (try (progress autorewrite with norm; fail 1)) then fail
      else  idtac "Hint:  try 'autorewrite with norm'"
- | match goal with H: ?p = nullval |- _ => idtac "Hint: try 'subst " p "'" end
- | match goal with |- ?A = ?B => hint_field_address_offset' (A=B) end
- | lazymatch goal with
+ | 4%nat => match goal with H: ?p = nullval |- _ => idtac "Hint: try 'subst " p "'" end
+ | 5%nat => match goal with |- ?A = ?B => hint_field_address_offset' (A=B) end
+ | 6%nat => lazymatch goal with
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
@@ -267,10 +268,14 @@ Ltac hint_progress :=
               tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) 
                 then cancel_frame_hint
                 else  idtac "Hint:  try 'cancel'" 
-   end].
+   end
+  end
+  then hint_progress true (S n)
+  else hint_progress any (S n)
+ end.
 
 Ltac hint_whatever :=
- match goal with  |- @derives mpred _ ?A ?B =>
+ try match goal with  |- @derives mpred _ ?A ?B =>
             hint_saturate_local A;
             tryif (try (assert True; [ | progress entailer!]; fail 1)) then idtac
               else  idtac "Hint:  try 'entailer!'";
@@ -291,5 +296,5 @@ Ltac hint_whatever :=
 Ltac hint_special := idtac.
 
 Ltac hint :=
-   first [hint_solves | hint_special; hint_exists; first [hint_progress | hint_whatever]].
+   first [hint_solves | hint_special; hint_exists; first [hint_progress false O | hint_whatever]].
 

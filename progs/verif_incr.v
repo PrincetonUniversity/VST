@@ -198,8 +198,8 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  get_global_function'' _thread_func.
-  apply extract_exists_pre; intros f_.
+  make_func_ptr _thread_func.
+  set (f_ := gv _thread_func).
   forward_spawn (val * share * val * val * gname * gname)%type (f_, Vint (Int.repr 0),
     fun x : val * share * val * val * gname * gname => let '(ctr, sh, lock, lockt, g1, g2) := x in
       [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)], (ctr, sh1, lock, lockt, g1, g2),
@@ -222,6 +222,7 @@ Proof.
   forward_call (ctr, sh2, lock, g1, g2, false).
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   rewrite thread_ghost at 2.
+  Intros.
   forward_call (ctr, sh2, lock, g1, g2, 1, 1).
   gather_SEP 1 4; rewrite <- thread_ghost.
   (* We've proved that t is 2! *)

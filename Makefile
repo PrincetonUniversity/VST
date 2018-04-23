@@ -204,7 +204,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
+  base.v val_lemmas.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
   binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v binop_lemmas5.v binop_lemmas6.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
@@ -218,12 +218,12 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v \
-   base2.v go_lower.v \
+   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v \
+   base2.v functional_base.v go_lower.v \
    library.v proofauto.v computable_theorems.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
-   sublist.v sublist2.v smt_test.v extract_smt.v \
+   sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
@@ -255,7 +255,7 @@ PROGS_FILES= \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
-  verif_strlib.v
+  verif_strlib.v bug83.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -408,7 +408,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1
+COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1 or-else 8.8.0
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else

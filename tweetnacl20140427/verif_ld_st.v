@@ -17,13 +17,6 @@ Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
 start_function.
-(*assert (M1: Int.modulus = 4294967296) by reflexivity.
-assert (HM1: Int.half_modulus = 2147483648) by reflexivity.
-assert (iWS:Int.iwordsize = Int.repr 32) by reflexivity.
-assert (X: Int.unsigned (Int.repr 32) = 32). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
-assert (zWS: Int.zwordsize = 32) by reflexivity.
-specialize (Int.unsigned_range c); intros Y.
-*)
 Time forward. (*8.8*)   
 entailer!. 
 - 
@@ -46,16 +39,13 @@ entailer!.
   unfold sem_shift; simpl.
   unfold Int.ltu.
  change (Int.unsigned Int.iwordsize) with 32.
- rewrite if_true by rep_omega.
- rewrite if_true. simpl.
+ simpl.
 unfold Int.rol, Int.shl, Int.shru. rewrite or_repr.
 rewrite Z.mod_small; simpl; try omega.
 unfold Int.sub.
 rewrite Int.and_mone,Int.unsigned_repr; trivial.
 rewrite Int.unsigned_repr; rep_omega.
 rep_omega.
-rewrite <- (Int.repr_unsigned c).
- normalize. omega.
 Qed.
 (*
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs

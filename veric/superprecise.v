@@ -1,7 +1,6 @@
 Require Import Reals.
 Require Export VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 
 (* This file contains lemmas regarding "superprecise",

@@ -249,7 +249,7 @@ Lemma Own_update: forall a b, ghost_fp_update a b ->
   Own a |-- bupd (Own b).
 Proof.
   intros; eapply derives_trans.
-  - eapply (Own_update_ND _ (Ensembles.Singleton _ _)).
+  - eapply (Own_update_ND _ (eq _)).
     repeat intro.
     eexists; split; [constructor|].
     apply H; eauto.
@@ -451,7 +451,7 @@ Lemma ghost_update: forall {RA: Ghost} g (a b: G) pp,
   fp_update a b -> own g a pp |-- bupd (own g b pp).
 Proof.
   intros; eapply derives_trans.
-  - apply (ghost_update_ND g a (Ensembles.Singleton _ b)).
+  - apply (ghost_update_ND g a (eq b)).
     intros ? J; destruct (H _ J).
     do 2 eexists; [constructor | eauto].
   - apply bupd_mono.

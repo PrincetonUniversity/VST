@@ -667,8 +667,8 @@ Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
 end.
 
-Ltac cancel_for_forward_call := cancel.
-Ltac default_cancel_for_forward_call := cancel.
+Ltac cancel_for_forward_call := syntactic_cancel.
+Ltac default_cancel_for_forward_call := syntactic_cancel.
 
 Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
   [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);
@@ -985,7 +985,7 @@ Ltac prove_call_setup witness :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | try apply trivial_Forall_inclusion; try apply trivial_Forall_inclusion0
- | unfold fold_right_sepcon at 1 2; try change_compspecs CS; cancel_for_forward_call
+ | try change_compspecs CS; cancel_for_forward_call
  |
  ]
  end].
@@ -2126,12 +2126,15 @@ match goal with
        abbreviate_semax
      ]
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
-    unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true;
-    apply semax_if_seq; forward_if'_new
+    tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
+    then (apply semax_if_seq; forward_if'_new)
+    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+| |- semax _ (@exp _ _ _ _) _ _ =>
+      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
@@ -2278,15 +2281,6 @@ Ltac ensure_open_normal_ret_assert :=
  match goal with
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
-
-Ltac get_global_fun_def Delta f fsig cc A Pre Post :=
-    let VT := fresh "VT" in let GT := fresh "GT" in
-      assert (VT: (var_types Delta) ! f = None) by
-               (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
-      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig cc A Pre Post))
-                    by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) ||
-                          fail 1 "Function " f " has no specification in the type context");
-     clear VT GT.
 
 Definition This_is_a_warning := tt.
 
@@ -2834,17 +2828,15 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
-try eapply semax_seq';
- [match goal with
-  | |- @semax _ ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-     clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
- end
- | .. ].
+ prove_call_setup1;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+  lazymatch A with
+  | rmaps.ConstType ?T => 
+             fail "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail "This function has a complex calling convention not recognized by forward_call"
+ end 
+end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
@@ -2937,16 +2929,6 @@ Ltac forward_advise_while :=
    | |- semax _ _ (Swhile _ _) _ =>
        fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.
-
-Ltac forward_advise_call :=
- lazymatch goal with
-   | |- semax ?Delta _ (Scall _ (Evar ?f _) ?bl) _ =>
-      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig cc A Pre Post;
-      clear fsig cc Pre Post;
-      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
-end.
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
@@ -3133,19 +3115,30 @@ Ltac assert_gvar i :=
   | ]
  end.
 
+Ltac make_func_ptr id :=
+ match goal with |- semax _ (PROPx _ (LOCALx ?Q _)) _ _ =>
+   lazymatch Q with context [gvar id _] => idtac | _ => assert_gvar id end
+ end;
+ eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].
+
 Ltac change_mapsto_gvar_to_data_at :=
-match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
-  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
-   lazymatch L with
-   | context [gvar _ g] => idtac 
-   | _ => match g with (?gv ?i)  => assert_gvar i end
-   end;
-   assert_PROP (headptr (offset_val 0 g));
-       [entailer!; apply <- headptr_offset_zero; auto |];
-   erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
-       [| reflexivity | now auto | assumption | apply JMeq_refl ];
-   match goal with H: _ |- _ => clear H end;
-     rewrite <- ? data_at_offset_zero
+match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with
+  | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
+      lazymatch L with context [gvar _ (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (offset_val 0 (gv i)));
+          [entailer!;  apply <- headptr_offset_zero; auto |];
+      erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ (gv i)));
+          [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end;
+          rewrite <- ? data_at_offset_zero
+  | context [mapsto ?sh ?t (gv ?i) ?v] =>
+      lazymatch L with context [gvar i (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (gv i));
+          [entailer! |];
+      erewrite (mapsto_data_at'' _ _ _ _ (gv i));
+           [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end
    end
 end.
 
@@ -3160,11 +3153,11 @@ Ltac clear_Delta_specs_if_leaf_function :=
 
 Ltac type_lists_compatible al bl :=
  match al with
- | Tcons ?a ?al' => match bl with Tcons ?b ?bl' => 
+ | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
                  unify (classify_cast a b) cast_case_pointer;
                  type_lists_compatible al' bl'
                 end
- | Tnil => match bl with Tnil => idtac end
+ | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end
  end.
 
 Ltac function_types_compatible t1 t2 :=
@@ -3210,6 +3203,7 @@ Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : 
  | Sskip => x
  | Sassign e1 e2 => f e1 (f e2 x)
  | Sset _ e => f e x
+ | Scall _ (Evar _ _) el => fold_right f x el
  | Scall _ e el => f e (fold_right f x el)
  | Sbuiltin _ _ _ el => fold_right f x el
  | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
@@ -3256,9 +3250,9 @@ Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t un
  end.
 Arguments another_gvar i !ml .
 
-Definition find_gvars (DS: PTree.t funspec) (locals: list localdef) (c: statement) : list ident :=
+Definition find_gvars (locals: list localdef) (c: statement) : list ident :=
  snd (find_expressions (find_vars another_gvar) c 
-                (find_lvars locals (PTree.map1 (fun _ => tt) DS), nil)).
+                (find_lvars locals (PTree.empty _), nil)).
 
 Ltac assert_gvars' x := 
  match x with
@@ -3267,9 +3261,9 @@ Ltac assert_gvars' x :=
  end.
 
 Ltac assert_gvars := 
- match goal with DS := @abbreviate (PTree.t funspec) _ |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
+ match goal with |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
    tryif match l with context [gvars _] => idtac end
-    then let x := constr:(find_gvars DS l c) in
+    then let x := constr:(find_gvars l c) in
             let x := eval unfold find_gvars, find_lvars in x in
             let x := eval simpl in x in 
             assert_gvars' x
@@ -3285,7 +3279,11 @@ Ltac start_function :=
    let D := eval hnf in D in let D := eval simpl in D in 
    let S := eval hnf in S in let S := eval simpl in S in 
    tryif (unify D S) then idtac else
-   tryif function_types_compatible D S then idtac else
+   tryif function_types_compatible D S 
+   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
+Function body:" D "
+Function spec:" S
+   else
    (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
 Function body: " D "
 Function spec: " S)

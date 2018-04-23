@@ -1555,7 +1555,6 @@ Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,
   sepalg.nonidentity sh ->
-  field_compatible t nil p ->
   0 < sizeof t ->
   data_at sh t v p * data_at sh t v' p |-- FF.
 Proof.
@@ -2407,7 +2406,6 @@ Qed.
 Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  readable_share sh ->
   isptr p ->
   size_compatible t p ->
   align_compatible t p ->
@@ -2418,10 +2416,10 @@ Proof.
   intros.
   unfold data_at, field_at, at_offset, offset_val.
   simpl.
-  destruct p; inv H2.
+  destruct p; inv H1.
   rewrite ptrofs_add_repr_0_r.
   rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H6; apply JMeq_eq in H6.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H5; apply JMeq_eq in H5.
   rewrite prop_true_andp; auto.
   f_equal. auto.
   repeat split; auto.
@@ -2430,7 +2428,6 @@ Qed.
 Lemma mapsto_data_at' {cs: compspecs} sh t v v' p:
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  readable_share sh ->
   field_compatible t nil p ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.
@@ -2440,9 +2437,9 @@ Proof.
   simpl.
   rewrite prop_true_andp by auto.
   rewrite by_value_data_at_rec_nonvolatile by auto.
-  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H3; apply JMeq_eq in H3.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H2; apply JMeq_eq in H2.
   f_equal; auto.
-  destruct H2. destruct p; try contradiction.
+  destruct H1. destruct p; try contradiction.
   rewrite ptrofs_add_repr_0_r. auto.
 Qed.
 
@@ -2490,7 +2487,6 @@ Qed.
 
 Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
   ((type_is_by_value t) && (complete_legal_cosu_type t) && (negb (type_is_volatile t)) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
-  readable_share sh ->
   headptr p ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.
@@ -2498,12 +2494,12 @@ Proof.
   intros.
   rewrite !andb_true_iff in H.
   destruct H as [[[? ?] ?] ?].
-  rewrite negb_true_iff in H4.
+  rewrite negb_true_iff in H3.
   apply mapsto_data_at'; auto.
   apply headptr_field_compatible; auto.
   + destruct t; inv H; simpl; auto.
   + destruct t as [| [ |  |  | ] ? | | [ | ] | | | | |]; inv H; reflexivity.
-  + apply la_env_cs_sound in H5; auto.
+  + apply la_env_cs_sound in H4; auto.
 Qed.
 
 Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,

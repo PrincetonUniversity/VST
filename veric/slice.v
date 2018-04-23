@@ -6,6 +6,104 @@ Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 
+Definition cleave (sh: share) :=
+  (Share.lub (fst (Share.split (Share.glb Share.Lsh sh))) (fst (Share.split (Share.glb Share.Rsh sh))),
+   Share.lub (snd (Share.split (Share.glb Share.Lsh sh))) (snd (Share.split (Share.glb Share.Rsh sh)))).
+
+Lemma cleave_join:
+ forall sh: share, sepalg.join (fst (cleave sh)) (snd (cleave sh)) sh.
+Proof.
+intros.
+unfold cleave.
+destruct (Share.split (Share.glb Share.Lsh sh)) as [a b] eqn:?H.
+apply split_join in H.
+destruct (Share.split (Share.glb Share.Rsh sh)) as [e f] eqn:?H.
+apply split_join in H0.
+destruct (Share.split sh) as [c g] eqn:?H.
+apply split_join in H1.
+simpl.
+destruct H1.
+subst sh.
+destruct H.
+destruct H0.
+split.
+*
+rewrite !Share.distrib1.
+rewrite !(Share.glb_commute (Share.lub _ _)).
+rewrite !Share.distrib1.
+rewrite (Share.glb_commute b a), (Share.glb_commute f e).
+rewrite H,H0.
+rewrite (Share.lub_commute Share.bot).
+rewrite !Share.lub_bot.
+rewrite Share.distrib2.
+rewrite !(Share.lub_commute (Share.glb _ _)).
+rewrite !Share.distrib2.
+rewrite (Share.lub_commute f e), H3, H2.
+rewrite (Share.glb_commute (Share.lub _ _)).
+rewrite (Share.glb_assoc Share.Lsh).
+rewrite !(Share.glb_assoc Share.Rsh).
+rewrite (Share.glb_commute _ (Share.glb Share.Lsh _)).
+rewrite (Share.glb_assoc Share.Lsh).
+rewrite <- (Share.glb_assoc Share.Rsh).
+rewrite (Share.glb_commute Share.Rsh).
+rewrite glb_Lsh_Rsh.
+rewrite Share.glb_commute. apply Share.glb_bot.
+*
+rewrite Share.lub_assoc.
+rewrite (Share.lub_commute e).
+rewrite (Share.lub_assoc b).
+rewrite <- Share.lub_assoc.
+rewrite H2.
+rewrite (Share.lub_commute f e), H3.
+clear.
+do 2 rewrite (Share.glb_commute _ (Share.lub _ _)).
+rewrite <- Share.distrib1.
+rewrite lub_Lsh_Rsh.
+apply Share.glb_top.
+Qed.
+
+Lemma cleave_readable1:
+ forall sh, readable_share sh -> readable_share (fst (cleave sh)).
+Proof.
+intros.
+hnf in H|-*. contradict H.
+apply identity_share_bot in H.
+unfold cleave in H.
+simpl in H.
+rewrite Share.distrib1 in H.
+apply lub_bot_e in H. destruct H as [_ ?].
+destruct (Share.split (Share.glb Share.Rsh sh)) as [c d] eqn:H1.
+apply (split_nontrivial' _ _ _ H1).
+left.
+apply split_join in H1.
+simpl in *.
+destruct (join_parts1 comp_Rsh_Lsh H1).
+rewrite <- H0, H.
+apply bot_identity.
+Qed.
+
+Lemma cleave_readable2:
+ forall sh, readable_share sh -> readable_share (snd (cleave sh)).
+Proof.
+intros.
+hnf in H|-*. contradict H.
+apply identity_share_bot in H.
+unfold cleave in H.
+simpl in H.
+rewrite Share.distrib1 in H.
+apply lub_bot_e in H. destruct H as [_ ?].
+destruct (Share.split (Share.glb Share.Rsh sh)) as [c d] eqn:H1.
+apply (split_nontrivial' _ _ _ H1).
+simpl in *.
+right.
+apply split_join in H1.
+apply join_comm in H1.
+simpl in *.
+destruct (join_parts1 comp_Rsh_Lsh H1).
+rewrite <- H0, H.
+apply bot_identity.
+Qed.
+
 Lemma rshare_sh_readable:
  forall r, readable_share (rshare_sh r).
 Proof.
@@ -14,70 +112,135 @@ destruct p;
 auto.
 Qed.
 
-Lemma split_NO_ok1:
-  forall sh, ~readable_share sh -> ~ readable_share (fst (Share.split sh)).
+Lemma cleave_nonreadable1:
+  forall sh, ~readable_share sh -> ~ readable_share (fst (cleave sh)).
 Proof.
 intros.
-destruct (Share.split sh) eqn:?H.
+contradict H.
+do 3 red in H|-*.
+contradict H.
+unfold cleave. simpl.
+apply identity_share_bot in H.
+rewrite H. clear H.
+destruct (Share.split Share.bot) as [a b] eqn:?H.
+apply split_join in H.
 simpl.
-contradict H.
-do 3 red in H|-*.
-contradict H.
-pose proof (split_join _ _ _ H0).
-apply (join_comp_parts comp_Lsh_Rsh) in H1.
-destruct H1 as [_ ?].
-apply split_identity in H1; auto.
-Qed.
-
-Lemma split_NO_ok2:
-  forall sh, ~readable_share sh -> ~ readable_share (snd (Share.split sh)).
-Proof.
-intros.
-destruct (Share.split sh) eqn:?H.
+apply split_identity in H; [ | apply bot_identity].
+apply identity_share_bot in H. subst.
+rewrite Share.lub_bot.
+clear.
+destruct (Share.split (Share.glb Share.Lsh sh)) as [a b] eqn:H.
+apply split_join in H.
 simpl.
-contradict H.
-do 3 red in H|-*.
-contradict H.
-pose proof (split_join _ _ _ H0).
-apply (join_comp_parts comp_Lsh_Rsh) in H1.
-destruct H1 as [_ ?].
-apply join_comm in H1.
-apply split_identity in H1; auto.
+replace (Share.glb Share.Rsh a) with Share.bot.
+apply bot_identity.
+symmetry.
+destruct H.
+apply (f_equal (Share.glb Share.Rsh)) in H0.
+rewrite <- Share.glb_assoc in H0.
+rewrite (Share.glb_commute _ Share.Lsh) in H0.
+rewrite glb_Lsh_Rsh in H0.
+rewrite (Share.glb_commute Share.bot) in H0.
+rewrite Share.glb_bot in H0.
+rewrite Share.distrib1 in H0.
+apply lub_bot_e in H0. destruct H0 as [? _].
+auto.
 Qed.
 
-Lemma split_YES_ok1:
- forall sh, readable_share sh -> readable_share (fst (Share.split sh)).
+Lemma cleave_nonreadable2:
+  forall sh, ~readable_share sh -> ~ readable_share (snd (cleave sh)).
 Proof.
 intros.
-destruct (Share.split sh) eqn:?H.
-simpl in *.
+contradict H.
 do 3 red in H|-*.
 contradict H.
-replace t with (fst (Share.split sh)) in H by (rewrite H0; reflexivity).
-apply fst_split_glb_orthogonal; auto.
+unfold cleave. simpl.
+apply identity_share_bot in H.
+rewrite H. clear H.
+destruct (Share.split Share.bot) as [a b] eqn:?H.
+apply split_join in H.
+simpl.
+apply join_comm in H.
+apply split_identity in H; [ | apply bot_identity].
+apply identity_share_bot in H. subst.
+rewrite Share.lub_bot.
+clear.
+destruct (Share.split (Share.glb Share.Lsh sh)) as [a b] eqn:H.
+apply split_join in H.
+simpl.
+replace (Share.glb Share.Rsh b) with Share.bot.
+apply bot_identity.
+symmetry.
+destruct H.
+apply (f_equal (Share.glb Share.Rsh)) in H0.
+rewrite <- Share.glb_assoc in H0.
+rewrite (Share.glb_commute _ Share.Lsh) in H0.
+rewrite glb_Lsh_Rsh in H0.
+rewrite (Share.glb_commute Share.bot) in H0.
+rewrite Share.glb_bot in H0.
+rewrite Share.lub_commute in H0.
+rewrite Share.distrib1 in H0.
+apply lub_bot_e in H0. destruct H0 as [? _].
+auto.
 Qed.
-
-Lemma split_YES_ok2:
- forall sh, readable_share sh -> readable_share (snd (Share.split sh)).
-Proof.
-intros.
-destruct (Share.split sh) eqn:?H.
-simpl in *.
-do 3 red in H|-*.
-contradict H.
-replace t0 with (snd (Share.split sh)) in H by (rewrite H0; reflexivity).
-apply snd_split_glb_orthogonal; auto.
-Qed.
-
 
 Definition split_resource r :=
   match r with YES sh rsh k pp => 
-               (YES (fst (Share.split sh)) (split_YES_ok1 _ rsh) k pp , 
-                YES (snd (Share.split sh)) (split_YES_ok2 _ rsh) k pp)
+               (YES (fst (cleave sh)) (cleave_readable1 _ rsh) k pp , 
+                YES (snd (cleave sh)) (cleave_readable2 _ rsh) k pp)
              | PURE k pp => (PURE k pp, PURE k pp)
-             | NO sh nsh => (NO (fst (Share.split sh)) (split_NO_ok1 _ nsh),
-                             NO (snd (Share.split sh)) (split_NO_ok2 _ nsh))
+             | NO sh nsh => (NO (fst (cleave sh)) (cleave_nonreadable1 _ nsh),
+                             NO (snd (cleave sh)) (cleave_nonreadable2 _ nsh))
   end.
+
+
+Lemma glb_cleave_lemma1: forall sh0 sh,
+  Share.glb Share.Rsh sh0 = Share.glb Share.Rsh sh ->
+ Share.glb Share.Rsh (fst (cleave sh0)) =
+ Share.glb Share.Rsh (fst (cleave sh)).
+Proof.
+intros.
+unfold cleave; simpl.
+destruct (Share.split (Share.glb Share.Lsh sh0)) as [a0 b0]  eqn:H0.
+apply split_join in H0.
+destruct (Share.split (Share.glb Share.Lsh sh)) as [a b]  eqn:H1.
+apply split_join in H1.
+destruct (Share.split (Share.glb Share.Rsh sh0)) as [c0 d0]  eqn:H2.
+rewrite H in H2. rewrite H2.
+simpl.
+apply split_join in H2.
+rewrite !Share.distrib1.
+apply (join_parts1 comp_Lsh_Rsh) in H1.
+destruct H1 as [_ ?]. rewrite H1.
+apply (join_parts1 comp_Lsh_Rsh) in H0.
+destruct H0 as [_ ?]. rewrite H0.
+auto.
+Qed.
+
+Lemma glb_cleave_lemma2: forall sh0 sh,
+  Share.glb Share.Rsh sh0 = Share.glb Share.Rsh sh ->
+ Share.glb Share.Rsh (snd (cleave sh0)) =
+ Share.glb Share.Rsh (snd (cleave sh)).
+Proof.
+intros.
+unfold cleave; simpl.
+destruct (Share.split (Share.glb Share.Lsh sh0)) as [a0 b0]  eqn:H0.
+apply split_join in H0.
+destruct (Share.split (Share.glb Share.Lsh sh)) as [a b]  eqn:H1.
+apply split_join in H1.
+apply join_comm in H0.
+apply join_comm in H1.
+destruct (Share.split (Share.glb Share.Rsh sh0)) as [c0 d0]  eqn:H2.
+rewrite H in H2. rewrite H2.
+simpl.
+apply split_join in H2.
+rewrite !Share.distrib1.
+apply (join_parts1 comp_Lsh_Rsh) in H1.
+destruct H1 as [_ ?]. rewrite H1.
+apply (join_parts1 comp_Lsh_Rsh) in H0.
+destruct H0 as [_ ?]. rewrite H0.
+auto.
+Qed.
 
 Lemma split_rmap_valid1:
   forall m, CompCert_AV.valid (res_option oo (fun l => fst (split_resource (m@l)))).
@@ -89,13 +252,14 @@ destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
 *
 intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
 simpl. f_equal. f_equal. apply exist_ext.
-apply glb_split_lemma1; auto.
+fold (cleave sh0).
+apply glb_cleave_lemma1; auto.
 *
 destruct H as [n [? ?]].
 exists n; split; auto.
 destruct (m @ (b,ofs-z)); inv H0; auto.
 simpl. f_equal. f_equal. apply exist_ext.
-apply glb_split_lemma1; auto.
+apply glb_cleave_lemma1; auto.
 Qed.
 
 Lemma split_rmap_valid2:
@@ -108,13 +272,13 @@ destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
 *
 intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
 simpl. f_equal. f_equal. apply exist_ext.
-apply glb_split_lemma2; auto.
+apply glb_cleave_lemma2; auto.
 *
 destruct H as [n [? ?]].
 exists n; split; auto.
 destruct (m @ (b,ofs-z)); inv H0; auto.
 simpl. f_equal. f_equal. apply exist_ext.
-apply glb_split_lemma2; auto.
+apply glb_cleave_lemma2; auto.
 Qed.
 
 Lemma split_rmap_ok1: forall m,
@@ -173,10 +337,11 @@ Definition split_rmap (m: rmap) : rmap * rmap :=
   proj1_sig (make_rmap _ (split_rmap_valid2 m) (level m) (split_rmap_ok2 m))).
 *)
 
-Lemma split_resource_join: forall r, join (fst (split_resource r)) (snd (split_resource r)) r.
+Lemma split_resource_join: 
+  forall r, join (fst (split_resource r)) (snd (split_resource r)) r.
 Proof.
 intro.
-destruct r; simpl; constructor; auto; try (apply split_join; apply surjective_pairing).
+destruct r; simpl; constructor; auto; try (apply cleave_join; apply surjective_pairing).
 Qed.
 
 (*Lemma split_rmap_join:

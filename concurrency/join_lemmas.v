@@ -10,7 +10,6 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.msl.seplog.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.age_to.
-Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.coqlib4.
 
 Set Bullet Behavior "Strict Subproofs".

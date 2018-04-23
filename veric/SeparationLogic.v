@@ -352,9 +352,10 @@ Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n)
-                          (b, Ptrofs.unsigned z)
-  | _ => TT
+  | Vptr b z => 
+    !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
+    mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+  | _ => FF
   end.
 
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
@@ -369,7 +370,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
-       | _ => TT
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
  end.
 
@@ -393,17 +394,17 @@ Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
   | i :: il' => init_data_size i + init_data_list_size il'
   end.
 
-Fixpoint init_data_list2pred (dl: list init_data)
-                           (sh: share) (v: val)  (rho: environ) : mpred :=
+Fixpoint init_data_list2pred  (dl: list init_data)
+                           (sh: share) (v: val)  : environ -> mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.lub extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
+      sepcon (init_data2pred d sh v) 
+                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v))
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
+  if rdonly then Ers else Ews.
 
 Definition globals := ident -> val.
 
@@ -526,12 +527,10 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof. exact @memory_block_valid_pointer. Qed.
 
-Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Ptrofs.modulus ->
-  Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
+Lemma mapsto_zeros_memory_block: forall sh n p,
   readable_share sh ->
-  mapsto_zeros n sh (Vptr b ofs) |--
-  memory_block sh n (Vptr b ofs).
+  mapsto_zeros n sh p |--
+  memory_block sh n p.
 Proof. exact mapsto_memory_block.mapsto_zeros_memory_block. Qed.
 
 Lemma mapsto_pointer_void:

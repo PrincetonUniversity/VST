@@ -2,7 +2,6 @@ Require Import VST.msl.log_normalize.
 Require Import VST.msl.alg_seplog.
 Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
@@ -11,6 +10,7 @@ Require Import VST.veric.expr_lemmas3.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.address_conflict.
 Require Import VST.veric.shares.
+Require Import VST.veric.slice.
 
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
@@ -386,9 +386,10 @@ Qed.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => address_mapsto_zeros sh (nat_of_Z n)
-                          (b, Ptrofs.unsigned z)
-  | _ => TT
+  | Vptr b z => 
+    !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
+    address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+  | _ => FF
   end.
 
 Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
@@ -406,7 +407,7 @@ Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
 Lemma memory_block'_eq:
  forall sh n b i,
   0 <= i ->
-  Z_of_nat n + i <= Ptrofs.modulus ->
+  Z_of_nat n + i < Ptrofs.modulus ->
   memory_block' sh n b i = memory_block'_alt sh n b i.
 Proof.
   intros.
@@ -772,6 +773,18 @@ Proof.
     auto.
 Qed.
 
+Lemma Nat2Z_add_lt: forall n i, Ptrofs.unsigned i + n < Ptrofs.modulus ->
+  Z.of_nat (nat_of_Z n) + Ptrofs.unsigned i < Ptrofs.modulus.
+Proof.
+  intros.
+  destruct (zle 0 n).
+  + rewrite Coqlib.nat_of_Z_eq by omega. omega.
+  + rewrite nat_of_Z_neg by omega.
+    pose proof Ptrofs.unsigned_range i.
+    simpl.
+    omega.
+Qed.
+
 Lemma Nat2Z_add_le: forall n i, Ptrofs.unsigned i + n <= Ptrofs.modulus ->
   Z.of_nat (nat_of_Z n) + Ptrofs.unsigned i <= Ptrofs.modulus.
 Proof.
@@ -794,9 +807,9 @@ Proof.
   rewrite sepcon_andp_prop1.
   rewrite sepcon_andp_prop2.
   apply normalize.derives_extract_prop; intros.
-  apply normalize.derives_extract_prop; intros.
-  rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i; omega | apply Nat2Z_add_le; omega].
-  rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i0; omega | apply Nat2Z_add_le; omega].
+  apply normalize.derives_extract_prop; intros. 
+  rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i; omega | apply Nat2Z_add_lt; omega].
+  rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i0; omega | apply Nat2Z_add_lt; omega].
   unfold memory_block'_alt.
   if_tac.
   + clear H2.
@@ -894,22 +907,28 @@ Proof.
   omega.
 Qed.
 
-Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Ptrofs.modulus ->
-  Ptrofs.unsigned ofs+n < Ptrofs.modulus ->
+Lemma mapsto_zeros_memory_block: forall sh n p,
   readable_share sh ->
-  mapsto_zeros n sh (Vptr b ofs) |--
-  memory_block sh n (Vptr b ofs).
+  mapsto_zeros n sh p |--
+  memory_block sh n p.
 Proof.
-  unfold mapsto_zeros.
   intros.
-  rename H0 into H'. rename H1 into RS.
+  unfold mapsto_zeros.
+  destruct p; try solve [intros ? ?; contradiction].
+  rename i into ofs.
+  intros. rename H into RS. pose proof I.
   unfold memory_block.
-  repeat rewrite Int.unsigned_repr by omega.
-  apply andp_right.
-  + intros ? _; auto.
-  + rewrite <- (Z2Nat.id n) in H' by omega.
-    rewrite <- (Z2Nat.id n) in H by omega.
+  destruct (zlt n 0).   {
+     rewrite nat_of_Z_neg by omega. simpl.
+     apply andp_derives; auto.
+     intros ? ?. simpl in *. destruct H0.
+     omega. 
+  }
+ apply prop_andp_left; intros [? ?].
+ rewrite prop_true_andp by omega.
+ assert (n <= Ptrofs.modulus) by omega. clear H H0. rename H1 into H'.
+ assert (0 <= n <= Ptrofs.modulus) by omega. clear H2 g.
+    rewrite <- (Z2Nat.id n) in H', H by omega.
     change nat_of_Z with Z.to_nat.
     forget (Z.to_nat n) as n'.
     clear n.
@@ -950,7 +969,7 @@ Qed.
 Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
-    j <= j+ofs <= Ptrofs.modulus ->
+    j <= j+ofs < Ptrofs.modulus ->
    memory_block' sh (nat_of_Z j) b ofs =
       memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
 Proof.

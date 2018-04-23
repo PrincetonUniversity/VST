@@ -3,7 +3,6 @@ Require Import VST.msl.alg_seplog.
 Require Export VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.

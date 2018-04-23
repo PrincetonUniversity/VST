@@ -510,3 +510,13 @@ Proof.
   unfold comm_loc, AE_loc.
   rewrite lock_inv_isptr; entailer!.
 Qed.
+
+Lemma make_shares_out : forall b lasts shs
+  (Hb : ~In b lasts) (Hlen : Zlength lasts = Zlength shs), make_shares shs lasts b = shs.
+Proof.
+  induction lasts; auto; simpl; intros.
+  { rewrite Zlength_nil in *; destruct shs; auto; rewrite Zlength_cons, Zlength_correct in *; omega. }
+  destruct (eq_dec a b); [contradiction Hb; auto|].
+  destruct shs; rewrite !Zlength_cons in *; [rewrite Zlength_nil, Zlength_correct in *; omega|].
+  simpl; rewrite IHlasts; auto; omega.
+Qed.
