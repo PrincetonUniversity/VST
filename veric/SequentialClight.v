@@ -41,33 +41,50 @@ Definition dryspec : ext_spec unit :=
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule NullExtension.Espec CS _ _ _ _ 
+ destruct (@semax_prog_rule' NullExtension.Espec CS _ _ _ _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      H H0) as [b [q [[H1 H2] H3]]].
  exists b, q.
  split3; auto.
  intro n.
- specialize (H3 n).
- destruct H3 as [jm [? [? [? _]]]].
- specialize (H5 tt).
- unfold semax.jsafeN in H5.
+ specialize (H3 n tt).
+ destruct H3 as [jm [? [? [? [? _]]]]].
+ unfold semax.jsafeN in H6.
  subst m.
- clear - H4 H5.
- revert jm q H4 H5; induction n; simpl; intros. constructor.
- inv H5.
+ assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
+   (Some (initial_world.ext_ghost tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+ { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
+   eexists; constructor; constructor.
+   instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
+   constructor; auto. }
+ clear - H4 J H6.
+ revert jm q H4 J H6; induction n; simpl; intros. constructor.
+ inv H6.
  - destruct H0 as (?&?&?&Hg).
    econstructor.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (core (compcert_rmaps.RML.R.ghost_of (m_phi m')))) as (m'' & ? & (? & ? & ?) & ?).
-     { rewrite compcert_rmaps.RML.R.ghost_core; simpl.
-       erewrite <- compcert_rmaps.RML.R.ghost_core.
-       eexists; apply join_comm, core_unit. }
+   + destruct (H1 (core (tl (compcert_rmaps.RML.R.ghost_of (m_phi m'))))) as (m'' & J'' & (? & ? & ?) & ?).
+     { rewrite Hg.
+       destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); [eexists; constructor|].
+       destruct J as [? J]; inv J.
+       eexists; simpl; constructor.
+       * inv H9; simpl; [constructor|].
+         destruct a1, a0; inv H6; simpl in *.
+         constructor; constructor; simpl; auto.
+         inv H5; constructor; auto.
+       * rewrite compcert_rmaps.RML.R.ghost_core; simpl.
+         erewrite <- compcert_rmaps.RML.R.ghost_core.
+         apply join_comm, core_unit. }
      replace (m_dry m') with (m_dry m'') by auto.
      apply IHn; auto.
-     change (level (m_phi jm)) with (level jm) in H4.
-     rewrite H4 in H2; inv H2; auto.
+     * change (level (m_phi jm)) with (level jm) in H4.
+       rewrite H4 in H2; inv H2; auto.
+     * destruct (compcert_rmaps.RML.R.ghost_of (m_phi m'')); [eexists; constructor|].
+       destruct J'' as [? J'']; inv J''.
+       eexists; constructor; eauto; constructor.
  - exfalso; auto.
  - eapply safeN_halted; eauto.
+ Unshelve. apply I.
 Qed.
 
 Require Import VST.veric.juicy_safety.
