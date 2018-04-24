@@ -59,7 +59,7 @@ Proof.
       generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
       destruct (eq_dec 1 a); [contradiction n0; auto|].
        rewrite Heq; auto; [|omega].
-      apply mpred_ext; Intros sh; Exists sh; entailer!.
+      apply pred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
