@@ -1,11 +1,10 @@
 Require Import VST.floyd.base2.
+Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
-Require Import VST.floyd.sublist.
-Require Import VST.floyd.sublist2.
 
 Local Open Scope logic.
 
@@ -512,7 +511,7 @@ Lemma try_conjuncts_start: forall A B: Prop,
  Proof. intuition. Qed.
 
 Ltac try_conjuncts_solver :=
-    match goal with H:_ |- ?A =>
+    lazymatch goal with H:_ |- ?A =>
          no_evars A;
          clear H; try immediate; auto; prove_it_now; fail
     end.

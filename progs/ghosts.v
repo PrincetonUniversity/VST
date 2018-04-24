@@ -1,5 +1,5 @@
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.msl.ghost.
+Require Export VST.msl.ghost.
 Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.SeparationLogic.
@@ -22,7 +22,7 @@ Lemma own_op' : forall g a1 a2 pp,
   own g a1 pp * own g a2 pp = EX a3 : _, !!(join a1 a2 a3 /\ valid a3) && own g a3 pp.
 Proof.
   intros.
-  apply mpred_ext.
+  apply pred_ext.
   - assert_PROP (valid_2 a1 a2) as Hjoin by (apply own_valid_2).
     destruct Hjoin as (a3 & ? & ?); Exists a3; entailer!.
     erewrite <- own_op by eauto.  apply derives_refl.
@@ -33,7 +33,7 @@ Qed.
 Lemma own_op_gen : forall g a1 a2 a3 pp, (valid_2 a1 a2 -> join a1 a2 a3) ->
   own g a1 pp * own g a2 pp = !!(valid_2 a1 a2) && own g a3 pp.
 Proof.
-  intros; apply mpred_ext.
+  intros; apply pred_ext.
   - assert_PROP (valid_2 a1 a2) as Hv by apply own_valid_2.
     erewrite <- own_op by eauto; entailer!.
   - Intros.
@@ -97,12 +97,29 @@ Proof.
   rewrite !Znth_repeat'; auto.
 Qed.
 
+Lemma own_list_dealloc : forall {A} (l : list A) g a p,
+  fold_right sepcon emp (map (fun i => own (g i) (a i) (p i)) l) |-- |==> emp.
+Proof.
+  induction l; simpl; intros.
+  - apply bupd_intro.
+  - eapply derives_trans; [apply sepcon_derives, IHl; apply own_dealloc|].
+    eapply derives_trans, bupd_mono; [apply bupd_sepcon | cancel].
+Qed.
+
 End ghost.
 
 Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
 Proof. auto. Defined.
 
 Definition excl {A} g a := @own _ _ _ _ _ _ (exclusive_PCM A) g (Some a) NoneP.
+
+Lemma exclusive_update : forall {A} (v v' : A) p, excl p v |-- |==> excl p v'.
+Proof.
+  intros; apply own_update.
+  intros ? (? & ? & _).
+  exists (Some v'); split; simpl; auto; inv H; constructor.
+  inv H1.
+Qed.
 
 Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
   valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
@@ -274,7 +291,7 @@ Qed.
 Lemma ghost_snap_join' : forall v1 v2 p,
   ghost_snap v1 p * ghost_snap v2 p = EX v : _, !!(join v1 v2 v) && ghost_snap v p.
 Proof.
-  intros; apply mpred_ext.
+  intros; apply pred_ext.
   - assert_PROP (joins v1 v2) as H by apply ghost_snap_conflict.
     destruct H as [v]; Exists v; entailer!.
     erewrite ghost_snap_join; eauto.  apply derives_refl.
@@ -287,7 +304,7 @@ Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
   ghost_snap v1 p * ghost_master sh v2 p = !!(ord v1 v2) && ghost_master sh v2 p.
 Proof.
   intros; setoid_rewrite own_op'.
-  apply mpred_ext.
+  apply pred_ext.
   - Intros a3.
     destruct a3 as (sh', ?), H0 as [Hsh Hj]; simpl in *.
     apply bot_identity in Hsh; subst sh'.
@@ -300,6 +317,20 @@ Proof.
     + apply bot_join_eq.
     + if_tac; auto; contradiction.
     + apply derives_refl.
+Qed.
+
+Corollary snaps_master_join : forall lv sh v2 p, sh <> Share.bot ->
+  fold_right sepcon emp (map (fun v => ghost_snap v p) lv) * ghost_master sh v2 p =
+  !!(Forall (fun v1 => ord v1 v2) lv) && ghost_master sh v2 p.
+Proof.
+  induction lv; simpl; intros.
+  - rewrite emp_sepcon, prop_true_andp; auto.
+  - rewrite sepcon_comm, <- sepcon_assoc, (sepcon_comm (ghost_master _ _ _)), snap_master_join by auto.
+    apply pred_ext.
+    + Intros; rewrite sepcon_comm, IHlv by auto; entailer!.
+    + Intros.
+      match goal with H : Forall _ _ |- _ => inv H end.
+      rewrite prop_true_andp, sepcon_comm, IHlv by auto; entailer!.
 Qed.
 
 Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- |==> ghost_master Tsh v' p.
@@ -382,7 +413,7 @@ Lemma master_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> read
   sepalg.join sh1 sh2 sh ->
   ghost_master sh1 v1 p * ghost_master sh2 v2 p = !!(v1 = v2) && ghost_master sh v2 p.
 Proof.
-  intros; apply mpred_ext.
+  intros; apply pred_ext.
   - assert_PROP (v1 = v2) by (apply master_inj; auto).
     subst; erewrite master_share_join; eauto; entailer!.
   - Intros; subst.
@@ -521,7 +552,7 @@ Lemma ghost_var_share_join_gen : forall sh1 sh2 v1 v2 p,
   !!(v1 = v2 /\ sh1 <> Share.bot /\ sh2 <> Share.bot /\ sepalg.join sh1 sh2 sh) && ghost_var sh v1 p.
 Proof.
   intros; setoid_rewrite own_op'.
-  apply mpred_ext.
+  apply pred_ext.
   - Intros a.
     destruct a as [(sh, v')|]; inv H.
     destruct H2 as (? & ? & Hv); inv Hv.
@@ -544,7 +575,7 @@ Lemma ghost_var_share_join' : forall sh1 sh2 sh v1 v2 p, sh1 <> Share.bot -> sh2
   ghost_var sh1 v1 p * ghost_var sh2 v2 p = !!(v1 = v2) && ghost_var sh v2 p.
 Proof.
   intros; rewrite ghost_var_share_join_gen.
-  apply mpred_ext.
+  apply pred_ext.
   - Intros sh'; entailer!.
     eapply join_eq in H1; eauto; subst; auto.
   - Intros; Exists sh; entailer!.
@@ -805,7 +836,8 @@ Proof.
   - auto.
 Defined.
 
-Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3), compatible m1 m2.
+Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3),
+  compatible m1 m2.
 Proof.
   intros; intros ??? Hk1 Hk2.
   apply Hincl1 in Hk1; apply Hincl2 in Hk2.
@@ -837,7 +869,7 @@ Lemma map_snap_join : forall m1 m2 p,
   ghost_snap m1 p * ghost_snap m2 p = !!(compatible m1 m2) && ghost_snap (map_add m1 m2) p.
 Proof.
   intros; rewrite ghost_snap_join'.
-  apply mpred_ext.
+  apply pred_ext.
   - Intros m.
     rewrite map_join_spec in H; destruct H; subst; entailer!.
   - Intros; Exists (map_add m1 m2).
@@ -987,7 +1019,7 @@ Lemma ghost_hist_join : forall sh1 sh2 sh h1 h2 p (Hsh : sepalg.join sh1 sh2 sh)
 Proof.
   intros; unfold ghost_hist.
   erewrite own_op_gen.
-  apply mpred_ext; Intros; apply andp_right, derives_refl; apply prop_right.
+  apply pred_ext; Intros; apply andp_right, derives_refl; apply prop_right.
   - destruct H as (? & [] & ?); simpl in *.
     destruct (fst x) as [[]|]; [|contradiction].
     rewrite map_join_spec in H; tauto.
@@ -1135,7 +1167,7 @@ Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
   ghost_hist sh h p * ghost_ref l p =
   EX h' : hist_part, !!(hist_list h' l /\ hist_sub sh h h') && ghost_hist_ref sh h h' p.
 Proof.
-  unfold ghost_hist, ghost_ref; intros; apply mpred_ext.
+  unfold ghost_hist, ghost_ref; intros; apply pred_ext.
   - Intros hr; Exists hr.
     erewrite own_op_gen.
     + Intros; apply andp_right, derives_refl; apply prop_right.
@@ -1154,7 +1186,7 @@ Corollary hist_ref_join_nil : forall sh p, sh <> Share.bot ->
   ghost_hist sh empty_map p * ghost_ref [] p = ghost_hist_ref sh empty_map empty_map p.
 Proof.
   intros; rewrite hist_ref_join by auto.
-  apply mpred_ext; entailer!.
+  apply pred_ext; entailer!.
   - apply hist_list_nil_inv2 in H0; subst; auto.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].

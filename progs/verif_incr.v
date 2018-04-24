@@ -1,5 +1,5 @@
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -211,7 +211,7 @@ Proof.
     { apply derives_refl'. f_equal.
       f_equal; extensionality.
       destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply mpred_ext; entailer!. }
+      extensionality; apply pred_ext; entailer!. }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }

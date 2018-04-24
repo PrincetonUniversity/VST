@@ -1,6 +1,6 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.atomic_exchange.
@@ -223,7 +223,7 @@ Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 (Hjoin : sepalg.join sh1 s
 Proof.
   intros; unfold AE_loc.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) = _ => transitivity ((P1 * P2) * (Q1 * Q2));
-    [apply mpred_ext; cancel|] end.
+    [apply pred_ext; cancel|] end.
   erewrite lock_inv_share_join, ghost_hist_join by (eauto; intro; subst; contradiction unreadable_bot).
   rewrite prop_true_andp; auto.
 Qed.

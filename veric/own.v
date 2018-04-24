@@ -267,6 +267,19 @@ Proof.
   - rewrite ghost_of_approx; auto.
 Qed.
 
+Lemma Own_dealloc: forall a, Own a |-- bupd emp.
+Proof.
+  intros ? w [] ??.
+  exists (core ((ghost_approx w) c)); split; [eexists; apply core_unit|].
+  destruct (make_rmap _ (core (ghost_approx w c)) (rmap_valid w) (level w)) as (w' & ? & Hr & Hg).
+  { extensionality; apply resource_at_approx. }
+  { rewrite ghost_core; auto. }
+  exists w'; repeat split; auto.
+  apply all_resource_at_identity.
+  - rewrite Hr; auto.
+  - rewrite Hg; apply core_identity.
+Qed.
+
 Definition singleton {A} k (x : A) : list (option A) := repeat None k ++ Some x :: nil.
 
 Definition gname := nat.
@@ -443,4 +456,11 @@ Proof.
     do 2 eexists; [constructor | eauto].
   - apply bupd_mono.
     apply exp_left; intro; apply prop_andp_left; intro X; inv X; auto.
+Qed.
+
+Lemma ghost_dealloc: forall {RA: Ghost} g a pp,
+  own g a pp |-- bupd emp.
+Proof.
+  intros; unfold own.
+  apply exp_left; intro; apply Own_dealloc.
 Qed.

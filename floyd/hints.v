@@ -19,8 +19,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
-Require Import VST.floyd.sublist.
-Require Import VST.floyd.sublist2.
+Require Import VST.floyd.functional_base.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.deadvars.
