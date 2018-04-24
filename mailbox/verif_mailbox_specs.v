@@ -377,33 +377,6 @@ Proof.
   split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; omega.
 Qed.
 
-Lemma comm_R_precise : forall bufs sh gsh g0 g1 g2 h v,
-  TT |-- weak_precise_mpred (comm_R bufs sh gsh g0 g1 g2 h v).
-Proof.
-  unfold comm_R; intros; apply precise_weak_precise.
-  apply derives_precise with (Q := EX b : Z, EX b2 : Z, !!(repable_signed b /\ repable_signed b2 /\
-    v = vint b /\ snd (last_two_reads (rev h)) = vint b2) &&
-    ((EX v : val, ghost_var gsh v g0) * (EX v : val, ghost_var gsh v g1) * (EX v : val, ghost_var gsh v g2) *
-     data_at_ sh tbuffer (Znth (if eq_dec v Empty then b2 else b) bufs))).
-  { Intros b b1 b2.
-    assert (repable_signed b) by (apply repable_buf; auto).
-    Exists b b2 (vint b1) (prev_taken (rev h)) (last_write (rev h)); entailer!.
-    { replace (last_two_reads (rev h)) with (vint b1, vint b2); auto. }
-    destruct (eq_dec (vint b) Empty).
-    - apply Empty_inj in e; auto.
-      subst; rewrite eq_dec_refl; entailer!.
-    - destruct (eq_dec b (-1)); [subst; contradiction n; auto | entailer!]. }
-  intros ??? (b & b2 & (? & ? & ? & ?) & ?) (b' & b2' & (? & ? & ? & ?) & ?); subst.
-  assert (b = b' /\ b2 = b2') as (? & ?) by (split; apply repr_inj_signed; auto; congruence).
-  subst.
-  assert (precise ((EX v : val, ghost_var gsh v g0) * (EX v : val, ghost_var gsh v g1) *
-        (EX v : val, ghost_var gsh v g2) *
-        data_at_ sh tbuffer (Znth (if eq_dec (vint b') Empty then b2' else b') bufs))) as Hp;
-    [|apply Hp; auto].
-  repeat apply precise_sepcon; auto.
-Qed.
-Hint Resolve comm_R_precise.
-
 Lemma last_two_reads_cons : forall r w h, last_two_reads (AE r w :: h) =
   if eq_dec w Empty then if eq_dec r Empty then last_two_reads h else (r, fst (last_two_reads h))
   else last_two_reads h.

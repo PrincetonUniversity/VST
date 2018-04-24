@@ -589,51 +589,18 @@ Proof.
   - exists (Some (Tsh, v')); split; [constructor | auto].
 Qed.
 
-Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
+Lemma ex_ghost_var_exclusive : forall sh p, exclusive_mpred (EX v : A, ghost_var sh v p).
 Proof.
-  intros ????? (v1 & H1 & ? & Hg1) (v2 & H2 & ? & Hg2) J1 J2; simpl in *.
-  destruct J1 as [? J1], J2 as [? J2].
-  pose proof (join_level _ _ _ J1); pose proof (join_level _ _ _ J2).
-  apply rmap_ext.
-  - omega.
-  - intro; apply join_sub_same_identity with (a := w1 @ l)(c := w @ l); auto.
-    + apply identity_unit'; auto.
-    + eapply join_sub_unit_for, resource_at_join_sub; [|eexists; eauto].
-      apply identity_unit'; auto.
-    + apply resource_at_join_sub; eexists; eauto.
-  - replace (level w1) with (level w2) in * by omega.
-    apply ghost_of_join in J1; apply ghost_of_join in J2.
-    rewrite Hg1, Hg2, !own.ghost_fmap_singleton in *.
-    apply own.singleton_join_inv_gen in J1; apply own.singleton_join_inv_gen in J2.
-    assert (H2 = H1) by apply proof_irr; subst.
-    inv J1; inv J2.
-    + congruence.
-    + rewrite <- H8 in H7; inv H7.
-      inv H9; simpl in *.
-      inv H2; repeat inj_pair_tac.
-      destruct b0 as [[]|]; hnf in H10.
-      * destruct H10 as (_ & _ & _ & J); inv J; auto.
-      * inv H10; auto.
-    + rewrite <- H6 in H10; inv H10.
-      inv H7; simpl in *.
-      inv H2; repeat inj_pair_tac.
-      destruct b0 as [[]|]; hnf in H10.
-      * destruct H10 as (_ & _ & _ & J); inv J; auto.
-      * inv H10; auto.
-    + rewrite <- H6 in H9; inv H9.
-      inv H7; inv H10; simpl in *.
-      inv H2; inv H7; repeat inj_pair_tac.
-      rewrite <- H18 in H15; inv H15; repeat inj_pair_tac.
-      destruct b0 as [[]|], b1 as [[]|], c1 as [[]|]; hnf in H10, H12; try contradiction;
-        decompose [and] H10; decompose [and] H12;
-        repeat match goal with H : join v1 _ _ |- _ => inv H | H : join v2 _ _ |- _ => inv H
-          | H : (_, _) = (_, _) |- _ => inv H end; auto.
+  intros; unfold exclusive_mpred.
+  Intros v v'; setoid_rewrite own_op'.
+  Intros a; destruct a as [[]|]; simpl in *; try contradiction.
+  destruct H as (? & _ & ?%sepalg.join_self%identity_share_bot & _); contradiction.
 Qed.
 
-Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).
+Lemma ghost_var_exclusive : forall sh v p, exclusive_mpred (ghost_var sh v p).
 Proof.
-  intros; apply derives_precise with (Q := EX v : A, ghost_var sh v p);
-    [Exists v; auto | apply ghost_var_precise].
+  intros; eapply derives_exclusive, ex_ghost_var_exclusive.
+  Exists v; apply derives_refl.
 Qed.
 
 End GVar.
@@ -1400,7 +1367,7 @@ Qed.
 End GHist.
 
 Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil.
-Hint Resolve ghost_var_precise ghost_var_precise'.
+Hint Resolve ghost_var_exclusive ex_ghost_var_exclusive.
 Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
 Ltac ghost_alloc G :=
