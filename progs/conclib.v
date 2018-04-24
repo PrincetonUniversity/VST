@@ -2626,15 +2626,10 @@ Proof.
 Qed.
 
 (* These lemmas should probably be in veric. *)
-Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
-Proof.
-  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
-Qed.
-
 Lemma exp_comm : forall {A B} P,
   (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
 Proof.
-  intros; apply mpred_ext; Intros x y; Exists y x; auto.
+  intros; apply seplog.pred_ext; Intros x y; Exists y x; auto.
 Qed.
 
 Lemma mapsto_value_eq: forall sh1 sh2 t p v1 v2, readable_share sh1 -> readable_share sh2 ->
@@ -2891,18 +2886,26 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma sepcon_rotate : forall lP m n, 0 <= n - m < Zlength lP ->
+  fold_right sepcon emp lP = fold_right sepcon emp (rotate lP m n).
+Proof.
+  intros.
+  unfold rotate.
+  rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
+Qed.
+
 (* wand lemmas *)
 Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
 Proof.
   intros.
-  apply mpred_ext, modus_ponens_wand.
+  apply seplog.pred_ext, modus_ponens_wand.
   subst; cancel.
   rewrite <- wand_sepcon_adjoint; auto.
 Qed.
 
 Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
 Proof.
-  intros; apply mpred_ext.
+  intros; apply seplog.pred_ext.
   - rewrite <- wand_sepcon_adjoint.
     rewrite <- sepcon_assoc, wand_sepcon_adjoint.
     rewrite sepcon_comm; apply modus_ponens_wand.
@@ -3419,8 +3422,8 @@ Lemma call_setup2'_i:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var)  ->
-  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   Forall (fun x => In x G) G' ->
+  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   call_setup2' cs Qtemp Qvar G a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness' Frame Ppre Qpre Rpre Qpre_temp Qpre_var G'.
 Proof.
@@ -4036,7 +4039,7 @@ Qed.
 
 Ltac  forward_call_id1_wow' := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -4075,7 +4078,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow' :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type

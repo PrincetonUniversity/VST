@@ -310,7 +310,7 @@ Definition release_pre: val * share * mpred -> environ -> mpred :=
   | (v, sh, R) =>
      PROP (readable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_precise_mpred R && weak_positive_mpred R && emp; lock_inv sh v R; R)
+     SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
   end.
 
 Notation release_post :=
@@ -328,16 +328,15 @@ Proof.
   intros.
   destruct x as [[v sh] R]; simpl in *.
   apply (nonexpansive_super_non_expansive
-   (fun R => (PROP (readable_share sh)  LOCAL (temp _lock v)  SEP (weak_precise_mpred R && weak_positive_mpred R && emp; lock_inv sh v R; R)) rho)).
+   (fun R => (PROP (readable_share sh)  LOCAL (temp _lock v)  SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)) rho)).
   apply (PROP_LOCAL_SEP_nonexpansive
           ((fun _ => readable_share sh) :: nil)
           ((temp _lock v) :: nil)
-          ((fun R => weak_precise_mpred R && weak_positive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
+          ((fun R => weak_exclusive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_precise_mpred R && weak_positive_mpred R)%logic); [apply (conj_nonexpansive weak_precise_mpred) |].
-    - apply precise_mpred_nonexpansive.
-    - apply positive_mpred_nonexpansive.
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
+    - apply exclusive_mpred_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
   + apply identity_nonexpansive.
@@ -418,7 +417,7 @@ Program Definition freelock_spec cs: funspec := mk_funspec
    | (v, sh, R) =>
      PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_precise_mpred R && weak_positive_mpred R && emp; lock_inv sh v R; R)
+     SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
    end)
   (fun _ x =>
    match x with
@@ -435,7 +434,6 @@ Next Obligation.
   intros.
   destruct x as [[v sh] R]; simpl in *.
 Admitted. (* super_non_expansive obligation of freelock_spec' *)
-(* I added "weak_precise_mpred &&" to freelock's precondition *)
 (*
   apply (nonexpansive_super_non_expansive
    (fun R => (PROP (writable_share sh)
@@ -498,7 +496,7 @@ Program Definition freelock2_spec cs: funspec := mk_funspec
    | (v, sh, sh', Q, R) =>
      PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
    end)
   (fun _ x =>
    match x with
@@ -517,26 +515,26 @@ Next Obligation.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)) rho));
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)) rho));
   [ clear Q R; intros Q;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
+            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
   | clear Q R; intros R;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
+            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_positive_mpred) |].
-    - apply positive_mpred_nonexpansive.
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_exclusive_mpred) |].
+    - apply exclusive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_positive_mpred R)) |].
+  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_exclusive_mpred R)) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.
@@ -558,7 +556,7 @@ Program Definition release2_spec: funspec := mk_funspec
    | (v, sh, Q, R) =>
      PROP (readable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R && emp; R)
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R)
    end)
   (fun _ x =>
    match x with
@@ -577,27 +575,26 @@ Next Obligation.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (readable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R && emp; R)) rho));
+     SEP (weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp; R)) rho));
   [ clear Q R; intros Q;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => readable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun R => weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => R) :: nil))
+            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => R) :: nil))
   | clear Q R; intros R;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => readable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun Q => weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => R) :: nil))];
+            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun R => weak_precise_mpred R && weak_positive_mpred R)%logic); [apply (conj_nonexpansive weak_precise_mpred) |] |].
-    - apply precise_mpred_nonexpansive.
-    - apply positive_mpred_nonexpansive.
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic) |].
+    - apply exclusive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply identity_nonexpansive.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_precise_mpred R && weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun Q => weak_precise_mpred R && weak_positive_mpred R)%logic) |].
+  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R)%logic) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.

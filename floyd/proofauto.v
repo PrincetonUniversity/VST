@@ -1,8 +1,7 @@
 From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
 Export Cop.
 Require Export VST.floyd.base2.
-Require Export VST.floyd.sublist.
-Require Export VST.floyd.sublist2.
+Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
 Require Export VST.floyd.closed_lemmas.

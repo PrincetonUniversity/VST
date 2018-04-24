@@ -1,5 +1,5 @@
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -70,32 +70,23 @@ Definition main_spec :=
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
 
-Lemma ctr_inv_precise : forall g1 g2 p,
-  precise (cptr_lock_inv g1 g2 p).
-Proof.
-  intros; eapply derives_precise, precise_sepcon;
-  [| apply data_at__precise with (sh := Ews)(t := tuint)
-   | apply precise_sepcon; apply (ghost_var_precise(A := Z))].
-  unfold cptr_lock_inv; Intros x y z.
-  Exists y z; entailer!; apply derives_refl.
-Qed.
-Hint Resolve ctr_inv_precise.
-
-Lemma ctr_inv_positive : forall g1 g2 ctr,
-  positive_mpred (cptr_lock_inv g1 g2 ctr).
+Lemma ctr_inv_exclusive : forall g1 g2 p,
+  exclusive_mpred (cptr_lock_inv g1 g2 p).
 Proof.
   intros; unfold cptr_lock_inv.
-  apply ex_positive; intro.
-  apply positive_sepcon1; auto.
+  intros; eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _),
+    data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+  Intro z; apply sepcon_derives; [cancel|].
+  Intros x y; Exists x y; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_positive.
+Hint Resolve ctr_inv_exclusive.
 
-Lemma thread_inv_precise : forall sh g1 g2 ctr lock lockt,
-  precise (thread_lock_inv sh g1 g2 ctr lock lockt).
+Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
+  exclusive_mpred (thread_lock_inv sh g1 g2 ctr lock lockt).
 Proof.
-  intros; apply selflock_precise, precise_sepcon; auto.
+  intros; apply selflock_exclusive.
 Qed.
-Hint Resolve thread_inv_precise.
+Hint Resolve thread_inv_exclusive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -157,7 +148,6 @@ Proof.
   forward_call (ctr, sh, lock, g1, g2, true).
   forward_call (lockt, sh, thread_lock_R sh g1 g2 ctr lock, thread_lock_inv sh g1 g2 ctr lock lockt).
   { unfold thread_lock_inv; lock_props.
-    { apply thread_inv_precise. }
     rewrite selflock_eq at 2; unfold thread_lock_R; cancel.
     eapply derives_trans; [apply lock_inv_later | cancel]. }
   forward.
@@ -211,7 +201,7 @@ Proof.
     { apply derives_refl'. f_equal.
       f_equal; extensionality.
       destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply mpred_ext; entailer!. }
+      extensionality; apply pred_ext; entailer!. }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
@@ -225,7 +215,7 @@ Proof.
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
   forward_call (lockt, Ews, sh1, |>thread_lock_R sh1 g1 g2 ctr lock, |>thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { unfold thread_lock_inv; lock_props.
-    - apply later_positive; auto.
+    - apply later_exclusive; auto.
     - unfold rec_inv.
       rewrite selflock_eq at 1.
       rewrite later_sepcon; f_equal.

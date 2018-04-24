@@ -404,7 +404,7 @@ Qed.
 Lemma jsafe_corestep_forward:
   forall ge c m c' m' n z,
     jstep (cl_core_sem ge) ge c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
-    jm_bupd (jsafeN (@OK_spec Espec) ge n z c') m'.
+    jm_bupd z (jsafeN (@OK_spec Espec) ge n z c') m'.
 Proof.
   intros.
   inv H0.
@@ -1168,7 +1168,7 @@ Lemma safe_step_forward:
    cl_at_external st = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
-   jstep (cl_core_sem psi) psi st m st' m' /\ jm_bupd (jsafeN (@OK_spec Espec) psi n ora  st') m'.
+   jstep (cl_core_sem psi) psi st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
 Proof.
  intros.
  inv H0.
@@ -1349,8 +1349,8 @@ Qed.
 Lemma control_as_safe_bupd: forall ge n ctl1 ctl2, control_as_safe ge n ctl1 ctl2 ->
  forall (ora : OK_ty) (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
      n' <= n ->
-     jm_bupd (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl1)) m ->
-     jm_bupd (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl2)) m.
+     jm_bupd ora (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl1)) m ->
+     jm_bupd ora (jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl2)) m.
 Proof.
   repeat intro.
   destruct (H1 _ H2) as (? & ? & ? & ?); eauto.
@@ -1362,11 +1362,11 @@ Lemma corestep_preservation_lemma:
       (forall k : list cont', control_as_safe ge n (k ++ ctl1) (k ++ ctl2)) ->
       control_as_safe ge (S n) ctl1 ctl2 ->
       jstep (cl_core_sem ge) ge (State ve te (c :: l ++ ctl1)) m c' m' ->
-      jm_bupd (jsafeN (@OK_spec Espec) ge n ora c') m' ->
+      jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c') m' ->
    exists c2 : corestate,
      exists m2 : juicy_mem,
        jstep (cl_core_sem ge) ge (State ve te (c :: l ++ ctl2)) m c2 m2 /\
-       jm_bupd (jsafeN (@OK_spec Espec) ge n ora c2) m2.
+       jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c2) m2.
 Proof. intros until m'. intros H0 H4 CS0 H H1.
   remember (State ve te (c :: l ++ ctl1)) as q. rename c' into q'.
   destruct H as [H [Hb [Hc Hg]]].
@@ -2082,7 +2082,7 @@ Qed.
 
 Lemma assert_safe_jsafe: forall Espec ge ve te ctl ora jm,
   assert_safe Espec ge ve te ctl (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
-  jm_bupd (jsafeN OK_spec ge (level jm) ora (State ve te ctl)) jm.
+  jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State ve te ctl)) jm.
 Proof.
   repeat intro.
   destruct (H _ H0) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.

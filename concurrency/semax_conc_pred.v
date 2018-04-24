@@ -25,7 +25,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.concurrency.lksize.
 
-Definition positive_mpred (R : mpred) :=
+(*Definition positive_mpred (R : mpred) :=
   forall phi, app_pred R phi -> exists l sh rsh k p, phi @ l = YES sh rsh k p.
 
 Program Definition weak_positive_mpred (P: mpred): mpred :=
@@ -127,6 +127,69 @@ Proof.
     - destruct H4; split; auto.
       apply H0; auto.
       apply necR_level in H1; omega.
+Qed.*)
+
+Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
+Proof.
+  intros; change (predicates_hered.derives (approx n P) (approx m P)).
+  intros ? []; split; auto; omega.
+Qed.
+
+Lemma approx_derives : forall P n, approx n P |-- P.
+Proof.
+  exact approx_p.
+Qed.
+
+Definition exclusive_mpred (R : mpred) :=
+  (R * R |-- FF)%logic.
+
+Program Definition weak_exclusive_mpred (P: mpred): mpred :=
+  fun w => exclusive_mpred (approx (S (level w)) P).
+Next Obligation.
+  intros; hnf; intros.
+  unfold exclusive_mpred in *.
+  apply age_level in H.
+  eapply derives_trans, H0.
+  apply sepcon_derives; apply approx_derives_ge; omega.
+Defined.
+
+Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
+Proof.
+  change (corable.corable (weak_exclusive_mpred R)).
+  intro; simpl.
+  rewrite level_core; auto.
+Qed.
+
+Lemma exclusive_mpred_nonexpansive:
+  nonexpansive weak_exclusive_mpred.
+Proof.
+  hnf; intros.
+  intros n ?.
+  simpl in H |- *.
+  assert (forall y, (n >= level y)%nat -> (P y <-> Q y)).
+  Focus 1. {
+    intros; specialize (H y H0).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H1 y). spec H1; [auto |].
+    tauto.
+  } Unfocus.
+  clear H.
+  intros; split; intros.
+  + unfold exclusive_mpred in *.
+    eapply derives_trans, H2.
+    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    intros ? (? & ? & J & [] & []).
+    pose proof (join_level _ _ _ J) as [].
+    apply necR_level in H1.
+    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
+  + unfold exclusive_mpred in *.
+    eapply derives_trans, H2.
+    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    intros ? (? & ? & J & [] & []).
+    pose proof (join_level _ _ _ J) as [].
+    apply necR_level in H1.
+    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
 Qed.
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
@@ -142,7 +205,7 @@ Definition rec_inv sh v (Q R: mpred): Prop :=
 Definition weak_rec_inv sh v (Q R: mpred): mpred :=
   (! (R <=> Q * lock_inv sh v (|> R)))%pred.
 
-Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! expr.isptr v && lock_inv sh v R)%logic.
+Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! isptr v && lock_inv sh v R)%logic.
 Proof.
   assert (D : isptr v \/ ~isptr v) by (destruct v; simpl; auto).
   destruct D.
@@ -381,29 +444,16 @@ Proof.
   split; intros; hnf; intros; auto.
 Qed.
 
-Lemma positive_weak_positive: forall R,
-  positive_mpred R ->
-  TT |-- weak_positive_mpred R.
+Lemma exclusive_weak_exclusive: forall R,
+  exclusive_mpred R ->
+  TT |-- weak_exclusive_mpred R.
 Proof.
   intros.
-  change (predicates_hered.derives TT (weak_positive_mpred R)).
+  change (predicates_hered.derives TT (weak_exclusive_mpred R)).
   intros w _.
-  hnf in H |- *.
-  intros; apply H.
-  eapply approx_p; eauto.
-Qed.
-
-Lemma precise_weak_precise: forall R,
-  precise R ->
-  TT |-- weak_precise_mpred R.
-Proof.
-  intros.
-  change (predicates_hered.derives TT (weak_precise_mpred R)).
-  intros w _.
-  hnf in H |- *.
-  intros; apply (H w0); auto.
-  + eapply approx_p; eauto.
-  + eapply approx_p; eauto.
+  simpl.
+  eapply derives_trans, H.
+  apply sepcon_derives; apply approx_derives.
 Qed.
 
 Lemma rec_inv_weak_rec_inv: forall sh v Q R,
@@ -418,5 +468,3 @@ Proof.
   rewrite H at 1 4.
   split; intros; hnf; intros; auto.
 Qed.
-
-

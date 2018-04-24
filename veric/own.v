@@ -53,28 +53,49 @@ Proof.
       rewrite Hl1, Hl2; apply ghost_fmap_join; auto.
 Qed.
 
+Fixpoint make_join (a c : ghost) : ghost :=
+  match a, c with
+  | nil, _ => c
+  | _, nil => nil
+  | None :: a', x :: c' => x :: make_join a' c'
+  | _ :: a', None :: c' => None :: make_join a' c'
+  | Some (ga, pa) :: a', Some (gc, _) :: c' => Some (gc, pa) :: make_join a' c'
+  end.
+
+Lemma make_join_nil : forall a, make_join a nil = nil.
+Proof.
+  destruct a; auto.
+  destruct o as [[]|]; auto.
+Qed.
+
+Lemma make_join_nil_cons : forall o a c, make_join (o :: a) (None :: c) = None :: make_join a c.
+Proof.
+  destruct o as [[]|]; auto.
+Qed.
+
 Lemma ghost_joins_approx: forall n a c,
   joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
-  exists c', joins (ghost_fmap (approx (S n)) (approx (S n)) a) (ghost_fmap (approx (S n)) (approx (S n)) c') /\
+  let c' := make_join a c in
+  joins (ghost_fmap (approx (S n)) (approx (S n)) a) (ghost_fmap (approx (S n)) (approx (S n)) c') /\
     forall b, joins b (ghost_fmap (approx (S n)) (approx (S n)) c') ->
       joins (ghost_fmap (approx n) (approx n) b) (ghost_fmap (approx n) (approx n) c).
 Proof.
-  intros ???; revert a; induction c; intros.
-  - exists nil; split.
+  intros ???; revert a; induction c; intros; subst c'; simpl.
+  - rewrite make_join_nil; split.
     + eexists; constructor.
     + eexists; constructor.
   - destruct H; inv H.
     + destruct a0; inv H1.
-      exists (a :: c); split.
+      split.
       { eexists; constructor. }
       intros ? []; eexists.
       apply ghost_fmap_join with (f := approx n)(g := approx n) in H.
       rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx in H by auto; eauto.
     + destruct a0; inv H0.
-      destruct (IHc a0) as (c' & ? & Hc'); eauto.
+      destruct (IHc a0) as (H & Hc'); eauto.
       inv H3.
       * destruct o; inv H1.
-        exists (a :: c'); split.
+        split.
         { destruct H; eexists; constructor; eauto; constructor. }
         intros ? [? J]; inv J; [eexists; constructor|].
         destruct (Hc' m1); eauto.
@@ -89,18 +110,19 @@ Proof.
            inv H2.
            rewrite preds_fmap_fmap, approx_oo_approx', approx'_oo_approx by auto; constructor; auto.
       * destruct a; inv H2.
-        exists (None :: c'); split.
+        rewrite make_join_nil_cons.
+        split.
         { destruct H; eexists; constructor; eauto; constructor. }
         intros ? [? J]; inv J; [eexists; constructor|].
         destruct (Hc' m1); eauto.
         eexists; constructor; eauto; constructor.
       * destruct o as [[]|], a as [[]|]; inv H0; inv H1.
-        eexists (Some (s0, _) :: c'); split.
+        split.
         { destruct H.
           destruct a4; inv H2; simpl in *.
-          inv H.
+          inv H1.
           eexists (Some (_, _) :: _); constructor; eauto; constructor.
-          constructor; [constructor; eauto | simpl; constructor; eauto]. }
+          constructor; simpl; eauto; constructor; eauto. }
         intros ? [? J]; inv J; [eexists; constructor|].
         destruct (Hc' m1); eauto.
         eexists; constructor; eauto.
@@ -113,8 +135,6 @@ Proof.
            destruct a2, a4, a6; inv H2; inv H6; constructor; auto; simpl in *.
            inv H3; inv H4.
            rewrite <- H6, preds_fmap_fmap, approx_oo_approx', approx'_oo_approx by auto; constructor; auto.
-  Unshelve.
-  auto.
 Qed.
 
 Program Definition bupd (P: pred rmap): pred rmap :=
@@ -126,7 +146,7 @@ Proof.
   repeat intro.
   rewrite (age1_ghost_of _ _ H) in H1.
   rewrite <- ghost_of_approx in H0.
-  destruct (ghost_joins_approx _ _ _ H1) as (c0 & J0 & Hc0).
+  destruct (ghost_joins_approx _ _ _ H1) as (J0 & Hc0).
   rewrite <- (age_level _ _ H) in *.
   specialize (H0 _ J0); destruct H0 as (b & J & Hrb).
   pose proof (age_level _ _ H).
@@ -265,6 +285,19 @@ Proof.
   - apply ghost_of_identity; auto.
   - intro; apply resource_at_identity; auto.
   - rewrite ghost_of_approx; auto.
+Qed.
+
+Lemma Own_dealloc: forall a, Own a |-- bupd emp.
+Proof.
+  intros ? w [] ??.
+  exists (core ((ghost_approx w) c)); split; [eexists; apply core_unit|].
+  destruct (make_rmap _ (core (ghost_approx w c)) (rmap_valid w) (level w)) as (w' & ? & Hr & Hg).
+  { extensionality; apply resource_at_approx. }
+  { rewrite ghost_core; auto. }
+  exists w'; repeat split; auto.
+  apply all_resource_at_identity.
+  - rewrite Hr; auto.
+  - rewrite Hg; apply core_identity.
 Qed.
 
 Definition singleton {A} k (x : A) : list (option A) := repeat None k ++ Some x :: nil.
@@ -443,4 +476,11 @@ Proof.
     do 2 eexists; [constructor | eauto].
   - apply bupd_mono.
     apply exp_left; intro; apply prop_andp_left; intro X; inv X; auto.
+Qed.
+
+Lemma ghost_dealloc: forall {RA: Ghost} g a pp,
+  own g a pp |-- bupd emp.
+Proof.
+  intros; unfold own.
+  apply exp_left; intro; apply Own_dealloc.
 Qed.

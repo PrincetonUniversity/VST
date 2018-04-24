@@ -156,10 +156,8 @@ Proof.
   rewrite lockinv_isptr in AT.
   rewrite log_normalize.sepcon_andp_prop' in AT.
   rewrite seplog.corable_andp_sepcon1 in AT; swap 1 2.
-  { apply seplog.corable_andp.
-    apply corable_weak_precise.
-    apply corable_weak_positive. }
-  destruct AT as ((Hprecise, Hpositive), AT).
+  { apply corable_weak_exclusive. }
+  destruct AT as (Hexclusive, AT).
   rewrite seplog.sepcon_comm in AT.
   rewrite seplog.sepcon_emp in AT.
   destruct AT as (IsPtr, AT).
@@ -199,21 +197,14 @@ Proof.
       pose proof predat4 Hlockinv as E3.
       apply (predat_join_sub J01) in E3.
 
-      pose proof positive_precise_joins_false
+      pose proof exclusive_joins_false
            (approx (level Phi) Rx) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
       apply PP.
-      + (* positive *)
-        apply positive_approx with (n := level Phi) in Hpositive.
-        rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
-        replace (level phi0) with (level Phi) in Hpositive. 2:join_level_tac.
-        exact_eq Hpositive; f_equal.
-        rewrite approx_oo_approx'. auto. omega.
-
-      + (* precise *)
-        apply precise_approx with (n := level Phi) in Hprecise.
-        rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
-        replace (level phi0) with (level Phi) in Hprecise. 2:join_level_tac.
-        exact_eq Hprecise; f_equal.
+      + (* exclusive *)
+        apply exclusive_approx with (n := level Phi) in Hexclusive.
+        rewrite (compose_rewr (approx _) (approx _)) in Hexclusive.
+        replace (level phi0) with (level Phi) in Hexclusive. 2:join_level_tac.
+        exact_eq Hexclusive; f_equal.
         rewrite approx_oo_approx'. auto. omega.
 
       + (* sat 1 *)

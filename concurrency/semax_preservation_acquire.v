@@ -249,7 +249,7 @@ Proof.
             rewrite Hv.
             clear.
             unfold expr.eval_id in *.
-            unfold expr.force_val in *.
+            unfold val_lemmas.force_val in *.
             unfold make_ext_args in *.
             unfold te_of in *.
             unfold filter_genv in *.
@@ -633,7 +633,7 @@ Proof.
                    destruct C as [-> _].
                    clear.
                    unfold expr.eval_id in *.
-                   unfold expr.force_val in *.
+                   unfold val_lemmas.force_val in *.
                    unfold make_ext_args in *.
                    unfold te_of in *.
                    unfold filter_genv in *.

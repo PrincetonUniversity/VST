@@ -87,7 +87,7 @@ Proof.
   intros Hargsty Nu.
   assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
   unfold expr.eval_id.
-  unfold expr.force_val.
+  unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
   subst v. 2: tauto.
@@ -110,7 +110,7 @@ Proof.
   intros Hargsty Nu.
   assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
   unfold expr.eval_id.
-  unfold expr.force_val.
+  unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
   subst v. 2: tauto.
@@ -255,7 +255,7 @@ Proof.
     assumption.
   }
   pose proof func_ptr_isptr _ _ _ Func as isp.
-  unfold expr.isptr in *.
+  unfold val_lemmas.isptr in *.
   destruct f as [ | | | | | f_b f_ofs]; try contradiction.
 (*  destruct b as [ | | | | | b_b b_ofs]; try contradiction. *)
   clear isp.
@@ -472,7 +472,7 @@ clear - Initcore.
         simpl.
         unfold liftx, lift. simpl.
         unfold expr.eval_id in *.
-        unfold expr.force_val in *.
+        unfold val_lemmas.force_val in *.
         unfold te_of in *.
         unfold construct_rho in *.
         unfold make_tenv in *.

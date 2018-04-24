@@ -1,6 +1,6 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
@@ -213,9 +213,7 @@ Proof.
 (*    { entailer!. }
     { entailer!. }
 *)
-    { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
-        [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
-      { apply AE_inv_precise; auto. }
+    { lock_props.
       fast_cancel.
       unfold AE_inv.
       Exists (@nil AE_hist_el) (vint 0).
@@ -225,10 +223,7 @@ Proof.
         [apply prop_right; auto|].
       apply andp_right; [apply prop_right; repeat (split; auto); computable|].
       change_compspecs CompSpecs.
-      Exists 0; fast_cancel.
-      rewrite <- emp_sepcon at 1; apply sepcon_derives.
-      { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
-      cancel_frame. }
+      Exists 0; fast_cancel. }
     Exists (locks ++ [l]) (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
       (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try omega.
     rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite <- !app_assoc.

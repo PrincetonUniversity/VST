@@ -547,16 +547,17 @@ Proof.
   destruct (oracle_unage jm' phi) as (jm & Aj & <-). congruence.
   intros ? J.
   rewrite (age1_ghost_of _ _ (age_jm_phi Aj)) in J.
-  apply own.ghost_joins_approx in J as (c' & J & Hc').
-  erewrite <- age_level in J by eauto.
-  rewrite level_juice_level_phi, ghost_of_approx in J.
-  specialize (S _ eq_refl _ J) as (jm1 & ? & Hupd & ?).
+  destruct (own.ghost_joins_approx _ _ _ J) as (J' & Hc').
+  rewrite (make_join_ext _ _ _ _ J) in *.
+  erewrite <- age_level in J' by (eapply age_jm_phi; eauto).
+  rewrite ghost_of_approx in J'.
+  specialize (S _ eq_refl _ J') as (jm1 & ? & Hupd & ?).
   destruct (jm_update_age _ _ _ Hupd Aj) as (jm1' & Hupd' & Aj').
   exists jm1'; split.
   - rewrite (age1_ghost_of _ _ (age_jm_phi Aj')), <- level_juice_level_phi.
     destruct Hupd' as (_ & -> & _).
     apply Hc'.
-    erewrite <- age_level by eauto; auto.
+    erewrite <- age_level by (eapply age_jm_phi; eauto); auto.
   - split; auto; eapply jsafeN_age; eauto.
     destruct Hupd' as (_ & -> & _).
     exact_eq l; f_equal.
@@ -764,7 +765,7 @@ Proof.
   intros Hargsty.
   assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
   unfold expr.eval_id.
-  unfold expr.force_val.
+  unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
   subst v. 2: discriminate.
@@ -814,8 +815,8 @@ Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : exists i (cnti : containsThread tp i), let phi := getThreadR cnti in
        (exists k, getThreadC cnti = Krun k /\
-       forall c, joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
-        exists b, joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
+       forall c, joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) (Some (ext_ghost tt, NoneP) :: c)) ->
+        exists b, joins b (ghost_fmap (approx (level phi)) (approx (level phi)) (Some (ext_ghost tt, NoneP) :: c)) /\
         exists phi' (Hr : resource_at phi' = resource_at phi), level phi' = level phi /\ ghost_of phi' = b /\
         forall ora, jsafeN Jspec ge n ora k
           (personal_mem (mem_cohere'_res _ _ _ (compatible_threadRes_cohere cnti (mem_compatible_forget mcompat)) Hr))) /\
@@ -832,8 +833,17 @@ Proof.
   destruct Hj as (? & ? & Hphi).
   pose proof (ghost_of_join _ _ _ Hphi) as Hghost.
   destruct H; destruct (join_assoc Hghost H) as (c & HC & Hc).
+  assert (exists c', c = Some (ext_ghost tt, NoneP) :: c') as [c' ?]; subst.
+  { inv HC; simpl; eauto.
+    inv H4; eauto.
+    destruct a0, a4; inv H5; simpl in *.
+    inv H2; inv H3.
+    inv H9; inj_pair_tac.
+    eexists; repeat f_equal.
+    unfold ext_ghost; f_equal.
+    apply exist_ext; auto. }
   eapply ghost_fmap_join in Hc; rewrite ghost_of_approx in Hc.
-  destruct (Hsafe c) as (? & [? Hj'] & phi' & Hr' & Hl' & ? & Hsafe'); eauto; subst.
+  destruct (Hsafe c') as (? & [? Hj'] & phi' & Hr' & Hl' & ? & Hsafe'); eauto; subst.
   apply ghost_fmap_join with (f := approx (level (getThreadR cnti)))
     (g := approx (level (getThreadR cnti))) in HC.
   destruct (join_assoc (join_comm HC) (join_comm Hj')) as (g' & Hg' & HC').

@@ -303,7 +303,7 @@ Lemma invariant_thread_step
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ge ci (jm_ cnti compat) ci' jmi')
-  (safei' : forall ora, jm_bupd (jsafeN Jspec ge n ora ci') jmi')
+  (safei' : forall ora, jm_bupd ora (jsafeN Jspec ge n ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)

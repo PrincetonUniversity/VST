@@ -182,7 +182,7 @@ Proof.
                  (fun (i : Z) (v : val) =>
                     SeparationLogic.mapsto
                       sh (Tpointer Tvoid noattr)
-                      (expr.offset_val (size_chunk Mptr * i)%Z v)
+                      (offset_val (size_chunk Mptr * i)%Z v)
                       Vundef) (Vptr b (Ptrofs.add ofs (Ptrofs.repr 0)))) phi).
   {
     exact_eq H. repeat (f_equal || extensionality).

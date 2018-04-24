@@ -12,7 +12,7 @@ Fixpoint index_of (m : list (Z * Z)) (k : Z) :=
   end.
 
 Lemma index_of_spec : forall k m, match index_of m k with
-  | Some i => 0 <= i < Zlength m /\ fst (Znth i m (0, 0)) = k /\ Forall (fun x => fst x <> k) (sublist 0 i m)
+  | Some i => 0 <= i < Zlength m /\ fst (Znth i m) = k /\ Forall (fun x => fst x <> k) (sublist 0 i m)
   | None => ~In k (map fst m) end.
 Proof.
   induction m; simpl; auto; intros.
@@ -62,10 +62,10 @@ Definition lookup (m : list (Z * Z)) (k : Z) :=
 
 Definition set m k v := option_map (fun i => upd_Znth i m (k, v)) (lookup m k).
 
-Definition get m k := match lookup m k with Some i => let '(k', v') := Znth i m (0, 0) in
+Definition get m k := match lookup m k with Some i => let '(k', v') := Znth i m in
   if eq_dec k' 0 then None else Some v' | None => None end.
 
-Lemma rebase_0 : forall {A} (m : list A) i d, 0 <= i < Zlength m -> Znth 0 (rebase m i) d = Znth i m d.
+Lemma rebase_0 : forall {A} {d : Inhabitant A} (m : list A) i, 0 <= i < Zlength m -> Znth 0 (rebase m i) = Znth i m.
 Proof.
   intros; unfold rebase.
   destruct (eq_dec (Zlength m) 0).
@@ -80,7 +80,7 @@ Proof.
 Qed.
 
 Lemma index_of'_spec : forall k m, match index_of' m k with
-  | Some i => 0 <= i < Zlength m /\ (fst (Znth i m (0, 0)) = k \/ fst (Znth i m (0, 0)) = 0) /\
+  | Some i => 0 <= i < Zlength m /\ (fst (Znth i m) = k \/ fst (Znth i m) = 0) /\
               Forall (fun x => fst x <> 0 /\ fst x <> k) (sublist 0 i m)
   | None => ~In k (map fst m) /\ ~In 0 (map fst m)
   end.
@@ -104,8 +104,8 @@ Proof.
   - tauto.
 Qed.
 
-Lemma Znth_rebase : forall {A} (m : list A) i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
-  Znth i (rebase m j) d = Znth ((i + j) mod Zlength m) m d.
+Lemma Znth_rebase : forall {A} {d : Inhabitant A} (m : list A) i j, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+  Znth i (rebase m j) = Znth ((i + j) mod Zlength m) m.
 Proof.
   intros; unfold rebase.
   destruct (eq_dec (Zlength m) 0); [omega|].
@@ -115,8 +115,8 @@ Proof.
   rewrite Z.mod_add; auto.
 Qed.
 
-Corollary Znth_rebase' : forall {A} (m : list A) i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
-  Znth ((i - j) mod Zlength m) (rebase m j) d = Znth i m d.
+Corollary Znth_rebase' : forall {A} {d : Inhabitant A} (m : list A) i j, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+  Znth ((i - j) mod Zlength m) (rebase m j) = Znth i m.
 Proof.
   intros; rewrite Znth_rebase; auto.
   - rewrite Zplus_mod_idemp_l, Z.sub_simpl_r, Zmod_small; auto.
@@ -124,7 +124,7 @@ Proof.
 Qed.
 
 Lemma index_of'_upd : forall m k v i (Hrange : 0 <= i < Zlength m)
-  (Hi : fst (Znth i m (0, 0)) = k \/ fst (Znth i m (0, 0)) = 0),
+  (Hi : fst (Znth i m) = k \/ fst (Znth i m) = 0),
   index_of' (upd_Znth i m (k, v)) k = index_of' m k.
 Proof.
   intros.
@@ -138,11 +138,7 @@ Proof.
       rewrite Forall_forall in Hall; specialize (Hall _ (upd_Znth_In _ _ _)); tauto. }
     rewrite sublist_upd_Znth_l in Hall by omega.
     f_equal; destruct (eq_dec i z0); [subst | rewrite upd_Znth_diff' in Hz by auto];
-      eapply Forall_sublist_first; eauto; simpl; try omega.
-    + destruct Hi as [-> | ->]; tauto.
-    + destruct Hk as [-> | ->]; tauto.
-    + destruct Hz as [-> | ->]; tauto.
-    + destruct Hk as [-> | ->]; tauto.
+      eapply (Forall_sublist_first(A := Z * Z)); eauto; omega.
   - rewrite <- upd_Znth_map in Hk'; destruct Hk' as (Hk' & _); contradiction Hk'.
     apply upd_Znth_In.
   - destruct Hk as (Hk & Hz); destruct Hi; [contradiction Hk | contradiction Hz]; rewrite in_map_iff;
@@ -213,12 +209,11 @@ Proof.
     { subst; rewrite upd_Znth_same in Hz by auto; tauto. }
     rewrite upd_Znth_diff' in Hz by auto.
     f_equal; apply Z.le_antisymm.
-    + eapply Forall_sublist_le; try eassumption; simpl; try omega.
+    + eapply (Forall_sublist_le(A := Z * Z)); try eassumption; simpl; try omega.
       { rewrite upd_Znth_Zlength; auto; omega. }
       rewrite upd_Znth_diff' by auto.
       destruct Hk as [-> | ->]; tauto.
-    + eapply Forall_sublist_le; try eassumption; simpl; try omega.
-      destruct Hz as [-> | ->]; tauto.
+    + eapply (Forall_sublist_le(A := Z * Z)); try eassumption; omega.
   - destruct Hk as (? & Hk & ?).
     erewrite <- upd_Znth_diff' with (j := i) in Hk by auto.
     destruct Hk' as (Hk' & Hz'); destruct Hk; [contradiction Hk' | contradiction Hz'];
@@ -383,13 +378,13 @@ Qed.
 
 Lemma index_of'_succeeds : forall k m i (Hi : 0 <= i < Zlength m)
   (Hnz : Forall (fun x => fst x <> 0 /\ fst x <> k) (sublist 0 i m))
-  (Hk : fst (Znth i m (0, 0)) = k \/ fst (Znth i m (0, 0)) = 0), index_of' m k = Some i.
+  (Hk : fst (Znth i m) = k \/ fst (Znth i m) = 0), index_of' m k = Some i.
 Proof.
   intros.
   pose proof (index_of'_spec k m).
   destruct (index_of' m k).
   - destruct H as (? & Hz & Hnz').
-    f_equal; eapply Forall_sublist_first with (d := (0, 0)); eauto; omega.
+    f_equal; eapply (Forall_sublist_first(A := Z * Z)); eauto; omega.
   - destruct H as (Hk' & Hz'); destruct Hk; [contradiction Hk' | contradiction Hz'];
       rewrite in_map_iff; do 2 eexists; eauto; apply Znth_In; auto.
 Qed.
@@ -411,15 +406,14 @@ Proof.
   assert (0 <= (z - hash k) mod Zlength m < Zlength m) by (apply Z_mod_lt; omega).
   assert (((z - hash k) mod Zlength m + hash k) mod Zlength m = z) as Hmod.
   { rewrite Zplus_mod_idemp_l, Z.sub_simpl_r, Zmod_small; auto. }
-  assert (fst (Znth ((z - hash k) mod Zlength m) (rebase m (hash k)) (0, 0)) = k).
+  assert (fst (Znth ((z - hash k) mod Zlength m) (rebase m (hash k))) = k).
   { rewrite Znth_rebase, Hmod; auto; omega. }
   erewrite index_of'_succeeds; eauto; simpl.
   rewrite <- Hlen, Hmod; auto.
   + rewrite Zlength_rebase; auto; omega.
   + rewrite Forall_forall; intros ? Hin'.
     split; [rewrite Forall_forall in Hchain; apply Hchain; rewrite !Hlen in *; auto|].
-    intro Heq; apply In_Znth with (d := (0, 0)) in Hin'.
-    destruct Hin' as (i & Hi & ?); subst x.
+    intro Heq; apply In_Znth in Hin' as (i & Hi & ?); subst x.
     rewrite Zlength_sublist in Hi; try omega.
     rewrite Znth_sublist, Znth_rebase, Z.add_0_r in Heq by omega.
     eapply NoDup_Znth_inj with (i0 := z)(j := (i + hash k) mod (Zlength m)) in Hwf.
@@ -430,8 +424,22 @@ Proof.
       apply Z_mod_lt; omega.
     * rewrite Zlength_map; auto.
     * rewrite Zlength_map; apply Z_mod_lt; omega.
-    * rewrite !Znth_map'; subst k; eauto.
+    * rewrite !Znth_map; subst k; eauto.
+      apply Z_mod_lt; omega.
     * rewrite Zlength_rebase; omega.
 Qed.
 
 End Hashtable.
+
+Lemma sepcon_rebase : forall l m, 0 <= m <= Zlength l ->
+  fold_right sepcon emp l = fold_right sepcon emp (rebase l m).
+Proof.
+  intros; unfold rebase, rotate.
+  rewrite sepcon_app, subsub1, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
+Qed.
+
+Lemma rebase_map : forall {A B} (f : A -> B) l m, rebase (map f l) m = map f (rebase l m).
+Proof.
+  intros; unfold rebase.
+  rewrite Zlength_map; apply rotate_map.
+Qed.

@@ -1,6 +1,6 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
@@ -684,7 +684,7 @@ Proof.
     subst l0.
     destruct (eq_dec j b).
     + subst; rewrite upd_Znth_same; auto.
-      apply mpred_ext.
+      apply pred_ext.
       * Exists bsh'; entailer!.
       * Intros sh.
         assert (sh = bsh') by (eapply list_join_eq; eauto; apply HshP).
@@ -849,9 +849,6 @@ Proof.
       rewrite <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 2sepcon_assoc.
       eapply derives_trans; [apply sepcon_derives, derives_refl; apply bupd_sepcon|].
       eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
-      rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
-      rewrite <- emp_sepcon at 1; rewrite !sepcon_assoc; apply sepcon_derives.
-      { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
       erewrite <- !(ghost_var_share_join _ _ Tsh) by eauto.
       Exists b b1 b2; entailer!.
       { rewrite Forall_app; repeat constructor; auto.

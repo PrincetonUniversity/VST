@@ -50,6 +50,25 @@ Axiom semax_prog_rule :
        app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 
+(* This version lets the user choose the external state instead of quantifying over it. *)
+Axiom semax_prog_rule' :
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall V G prog m h,
+     @semax_prog Espec CS prog V G ->
+     Genv.init_mem prog = Some m ->
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (forall jm, m_dry jm = m -> core_semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q (Vptr b Ptrofs.zero) nil) *
+       forall n z, { jm |
+       m_dry jm = m /\ level jm = n /\
+       nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
+       no_locks (m_phi jm) /\
+       matchfunspecs (globalenv prog) G (m_phi jm) /\
+       app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
+     } } }%type.
+
 End SEPARATION_LOGIC_SOUNDNESS.
 
 Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
@@ -142,5 +161,6 @@ Qed.
 End CSL.
 
 Definition semax_prog_rule := @semax_prog_rule.
+Definition semax_prog_rule' := @semax_prog_rule'.
 
 End SoundSeparationLogic.

@@ -210,12 +210,12 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
     apply andp_right.
     unfold tc_expr;
     unfold typecheck_expr; fold typecheck_expr.
-    repeat rewrite denote_tc_assert_andp.
+    repeat rewrite denote_tc_assert_andp. simpl.
     repeat apply andp_right; try apply @TT_right.
     rewrite TI. apply @TT_right.
     unfold tc_temp_id, typecheck_temp_id.
     rewrite TI.
-    rewrite denote_tc_assert_andp;
+    rewrite denote_tc_assert_andp; simpl;
     repeat apply andp_right; apply @TT_right.
   + destruct Post as [?Po ?Po ?Po ?Po]; simpl_ret_assert.
     intro rho.
