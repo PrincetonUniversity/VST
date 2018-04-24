@@ -20,8 +20,8 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
     own g a1 pp * own g a2 pp |-- !!valid_2 a1 a2;
   own_update_ND: forall {RA: Ghost} g (a: G) B pp, fp_update_ND a B ->
     own g a pp |-- bupd (EX b : _, !!(B b) && own g b pp);
-  own_update: forall {RA: Ghost} g (a: G) b pp, fp_update a b ->
-    own g a pp |-- bupd (own g b pp)
+  own_dealloc: forall {RA: Ghost} g (a: G) pp,
+    own g a pp |-- bupd emp
   }.
 
 Notation "|==> P" := (bupd P) (at level 62): logic.
@@ -39,14 +39,41 @@ Proof.
   apply bupd_mono, bupd_frame_r.
 Qed.
 
+Inductive Singleton {A} (x : A) : A -> Prop :=
+| Singleton_I : Singleton x x.
+
+Lemma own_update: forall `{BUPD: BupdSepLog} {RA: Ghost} g (a: G) b pp, fp_update a b ->
+    own g a pp |-- |==> (own g b pp).
+Proof.
+  intros.
+  eapply derives_trans; [apply own_update_ND with (B := Singleton b)|].
+  - intros ? J; destruct (H _ J).
+    do 2 eexists; [constructor | eauto].
+  - apply bupd_mono.
+    apply exp_left; intro.
+    rewrite imp_andp_adjoint; apply prop_left; intro X.
+    inversion X; auto.
+    rewrite <- imp_andp_adjoint; apply andp_left2, derives_refl.
+Qed.
+
 Lemma own_valid: forall `{BupdSepLog} {RA: Ghost} g (a: G) pp,
-    own g a pp |-- !!valid a.
+  own g a pp |-- !!valid a.
 Proof.
   intros.
   erewrite own_op by apply core_unit.
   eapply derives_trans; [apply own_valid_2|].
   apply prop_left; intros (a' & J & ?); apply prop_right.
   apply core_identity in J; subst; auto.
+Qed.
+
+Lemma own_core: forall `{BupdSepLog} {RA: Ghost} g (a: G) pp,
+  own g a pp |-- |==> own g (core a) pp.
+Proof.
+  intros; apply own_update.
+  intros ? (? & J & ?).
+  exists c; split.
+  - rewrite (join_core J), <- (join_core (join_comm J)); apply core_unit.
+  - eapply join_valid; eauto.
 Qed.
 
 Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
@@ -61,5 +88,5 @@ Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdS
  extensionality rho; apply own_op; auto.
  apply own_valid_2.
  apply own_update_ND; auto.
- apply own_update; auto.
+ apply own_dealloc; auto.
 Defined.
