@@ -144,12 +144,10 @@ Proof.
   unfold base.fold_right_sepcon in *.
   rewrite seplog.sepcon_emp in PreC.
   rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
-  { apply seplog.corable_andp.
-  apply corable_weak_precise.
-  apply corable_weak_positive. }
+  { apply corable_weak_exclusive. }
   rewrite seplog.sepcon_comm in PreC.
   rewrite seplog.sepcon_emp in PreC.
-  destruct PreC as ((Hprecise & Hpositive), PreC).
+  destruct PreC as (Hexclusive, PreC).
   destruct PreC as (phi0' & phi0d & jphi0 & Hlockinv & Hsat).
   rewrite lockinv_isptr in Hlockinv.
   destruct Hlockinv as (IsPtr, Hlockinv).

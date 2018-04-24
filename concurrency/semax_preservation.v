@@ -1127,7 +1127,7 @@ Qed. (* Lemma preservation_Kinit *)
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (cl_core_sem ge)) ge ci jmi ci' jmi'
-                   /\ forall ora, jm_bupd (jsafeN Jspec' ge n ora ci') jmi').
+                   /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.

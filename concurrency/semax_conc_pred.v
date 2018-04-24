@@ -129,30 +129,40 @@ Proof.
       apply necR_level in H1; omega.
 Qed.*)
 
+Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
+Proof.
+  intros; change (predicates_hered.derives (approx n P) (approx m P)).
+  intros ? []; split; auto; omega.
+Qed.
+
+Lemma approx_derives : forall P n, approx n P |-- P.
+Proof.
+  exact approx_p.
+Qed.
+
 Definition exclusive_mpred (R : mpred) :=
-  R * R |-- False.
+  (R * R |-- FF)%logic.
 
 Program Definition weak_exclusive_mpred (P: mpred): mpred :=
   fun w => exclusive_mpred (approx (S (level w)) P).
 Next Obligation.
   intros; hnf; intros.
   unfold exclusive_mpred in *.
-  intros.
-  apply H0.
-  simpl in H1 |- *.
-  destruct H1; split; auto.
   apply age_level in H.
-  omega.
+  eapply derives_trans, H0.
+  apply sepcon_derives; apply approx_derives_ge; omega.
 Defined.
 
 Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
 Proof.
-Admitted. (* corable_weak_positive *)
+  change (corable.corable (weak_exclusive_mpred R)).
+  intro; simpl.
+  rewrite level_core; auto.
+Qed.
 
 Lemma exclusive_mpred_nonexpansive:
   nonexpansive weak_exclusive_mpred.
 Proof.
-  intros.
   hnf; intros.
   intros n ?.
   simpl in H |- *.
@@ -166,22 +176,20 @@ Proof.
   } Unfocus.
   clear H.
   intros; split; intros.
-  + hnf in H2 |- *.
-    intros.
-    apply H2; clear H2.
-    simpl in H3 |- *.
-    destruct H3; split; auto.
-    apply H0; auto.
+  + unfold exclusive_mpred in *.
+    eapply derives_trans, H2.
+    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    intros ? (? & ? & J & [] & []).
+    pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
-    omega.
-  + hnf in H2 |- *.
-    intros.
-    apply H2; clear H2.
-    simpl in H3 |- *.
-    destruct H3; split; auto.
-    apply H0; auto.
+    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
+  + unfold exclusive_mpred in *.
+    eapply derives_trans, H2.
+    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+    intros ? (? & ? & J & [] & []).
+    pose proof (join_level _ _ _ J) as [].
     apply necR_level in H1.
-    omega.
+    do 3 eexists; eauto; split; split; try omega; apply H0; auto; omega.
 Qed.
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
@@ -443,9 +451,9 @@ Proof.
   intros.
   change (predicates_hered.derives TT (weak_exclusive_mpred R)).
   intros w _.
-  hnf in H |- *.
-  intros; apply H.
-  eapply approx_p; eauto.
+  simpl.
+  eapply derives_trans, H.
+  apply sepcon_derives; apply approx_derives.
 Qed.
 
 Lemma rec_inv_weak_rec_inv: forall sh v Q R,
@@ -460,5 +468,3 @@ Proof.
   rewrite H at 1 4.
   split; intros; hnf; intros; auto.
 Qed.
-
-

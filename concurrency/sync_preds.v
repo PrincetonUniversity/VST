@@ -501,78 +501,45 @@ Proof.
   split; auto.
 Qed.
 
-Lemma positive_approx R n : positive_mpred R -> positive_mpred (approx n R).
+Lemma exclusive_approx R n : exclusive_mpred R -> exclusive_mpred (approx n R).
 Proof.
-  intros P phi a; eapply P, approx_p, a.
-Qed.
-
-Lemma precise_approx R n : precise R -> precise (approx n R).
-Proof.
-  intros P phi.
-  intros w1 w2 H H0 H1 H2.
-  hnf in P.
-  apply (P phi w1 w2); auto; eapply approx_p; eassumption.
+  unfold exclusive_mpred; intros.
+  eapply seplog.derives_trans, H.
+  apply seplog.sepcon_derives; apply approx_derives.
 Qed.
 
 Import shares.
 
-Lemma positive_precise_joins_false R phi1 phi2 :
-  positive_mpred R ->
-  precise R ->
+Lemma exclusive_joins_false R phi1 phi2 :
+  exclusive_mpred R ->
   app_pred R phi1 ->
   app_pred R phi2 ->
   joins phi1 phi2 ->
   False.
 Proof.
-  intros pos prec S1 S2 j.
-  assert (phi1 = phi2). {
-    destruct j as (phi3, j).
-    eapply prec; auto.
-    - exists phi2; apply j.
-    - exists phi1. apply join_comm, j.
-  }
-  subst phi2.
-  specialize (pos _ S1).
-  destruct pos as (l & sh & rsh & k & pp & E).
-  apply resource_at_joins with (loc := l) in j.
-  rewrite E in j.
-  destruct j as (r3, j).
-  inv j.
- clear - RJ rsh0.
- destruct RJ.
- rewrite Share.glb_idem in H. subst.
- apply bot_unreadable; auto.
+  unfold exclusive_mpred; intros.
+  change (predicates_hered.derives (R * R) FF) in H.
+  destruct H2.
+  eapply H.
+  do 3 eexists; eauto.
 Qed.
 
-Lemma weak_positive_precise_joins_false R phi phi1 phi2 :
+Lemma weak_exclusive_joins_false R phi phi1 phi2 :
   level phi = level phi1 ->
-  app_pred (weak_positive_mpred R) phi ->
-  app_pred (weak_precise_mpred R) phi ->
+  app_pred (weak_exclusive_mpred R) phi ->
   app_pred R phi1 ->
   app_pred R phi2 ->
   joins phi1 phi2 ->
   False.
 Proof.
-  intros lev pos prec S1 S2 j.
-  assert (phi1 = phi2). {
-    destruct j as (phi3, j).
-    eapply prec; auto.
-    - split. omega. auto.
-    - split. apply join_level in j. omega. auto.
-    - exists phi2; apply j.
-    - exists phi1. apply join_comm, j.
-  }
-  subst phi2.
-  specialize (pos phi1). spec pos. split. omega. auto.
-  destruct pos as (l & sh & rsh & k & pp & E).
-  apply resource_at_joins with (loc := l) in j.
-  rewrite E in j.
-  destruct j as (r3, j).
-  inv j.
- clear - RJ rsh0.
- destruct RJ.
- rewrite Share.glb_idem in H. subst.
- apply bot_unreadable; auto.
+  intros.
+  simpl in H0.
+  change (predicates_hered.derives (approx (S (level phi)) R * approx (S (level phi)) R) FF) in H0.
+  destruct H3.
+  eapply H0.
+  do 3 eexists; eauto.
+  apply join_level in H3.
+  repeat split; auto; omega.
 Qed.
 
 Lemma isLKCT_rewrite r :

@@ -129,10 +129,11 @@ Proof.
       econstructor 2; eauto.
       intros C J.
       rewrite (age1_ghost_of _ _ (age_jm_phi A')) in J.
-      destruct (own.ghost_joins_approx _ _ _ J) as (d' & J' & Hd').
+      destruct (own.ghost_joins_approx _ _ _ J) as (J' & Hd').
       rewrite <- level_juice_level_phi in *.
       rewrite <- (age_level _ _ A') in *.
       rewrite level_juice_level_phi, ghost_of_approx in J'.
+      rewrite (make_join_ext _ _ _ _ J) in *.
       destruct (H1 _ J') as (b & ? & Hupd & Hsafe).
       destruct (jm_update_age _ _ _ Hupd A') as (b' & Hupd' & Hage').
       eapply IHn in Hsafe; eauto.

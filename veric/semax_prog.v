@@ -1281,8 +1281,8 @@ Lemma semax_prog_rule' {CS: compspecs} :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
+       (forall jm, m_dry jm = m -> core_semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q (Vptr b Ptrofs.zero) nil) *
        forall n z,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -1323,9 +1323,11 @@ Proof.
   pose proof I.
   destruct EXx as [b [? ?]]; auto.
   exists b.
-  unfold semantics.initial_core. simpl (_ = Some _).
-  unfold fundef in *; rewrite H7.
+  unfold core_semantics.initial_core, juicy_core_sem.
+  unfold j_initial_core, core_semantics.initial_core, cl_core_sem, cl_initial_core.
   rewrite if_true by auto.
+  simpl (_ = Some _).
+  unfold fundef in *; rewrite H7.
   (* unfold is_Internal in HInt. *)
   (* rewrite H6 in HInt. *)
   (* rewrite H7 in HInt. *)

@@ -58,8 +58,8 @@ Axiom semax_prog_rule' :
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
+       (forall jm, m_dry jm = m -> core_semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q (Vptr b Ptrofs.zero) nil) *
        forall n z, { jm |
        m_dry jm = m /\ level jm = n /\
        nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\

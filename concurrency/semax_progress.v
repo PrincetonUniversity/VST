@@ -286,7 +286,7 @@ Section Progress.
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (cl_core_sem ge)) ge ci jmi ci' jmi'
-                   /\ forall ora, jm_bupd (jsafeN Jspec' ge n ora ci') jmi').
+                   /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).
           pose proof (safety tt) as safei.
@@ -745,12 +745,10 @@ Section Progress.
         unfold base.fold_right_sepcon in *.
         rewrite seplog.sepcon_emp in PreC.
         rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
-        { apply seplog.corable_andp.
-          apply corable_weak_precise.
-          apply corable_weak_positive. }
+        { apply corable_weak_exclusive. }
         rewrite seplog.sepcon_comm in PreC.
         rewrite seplog.sepcon_emp in PreC.
-        destruct PreC as ((Hprecise & Hpositive), PreC).
+        destruct PreC as (Hexclusive, PreC).
         destruct PreC as (phi_lockinv & phi_sat & jphi & Hlockinv & SAT).
         pose proof Hlockinv as islock.
         apply lock_inv_at in islock.
@@ -939,28 +937,18 @@ Section Progress.
           }
           assert (level phi_sat = level Phi) by (apply join_sub_level; auto).
 
-          pose proof (* weak_ *)positive_precise_joins_false
+          pose proof (* weak_ *)exclusive_joins_false
                (approx (level Phi) R) (age_by 1 unlockedphi) (age_by 1 phi_sat) (* phi0 *) as PP.
           apply PP.
           (* + (* level *) *)
           (*   rewrite !level_age_by. f_equal. join_level_tac. *)
 
-          + (* positive *)
-            apply positive_approx with (n := level Phi) in Hpositive.
-            rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
-            replace (level phi0) with (level Phi) in Hpositive. 2:join_level_tac.
-            exact_eq Hpositive; f_equal.
+          + (* exclusive *)
+            apply exclusive_approx with (n := level Phi) in Hexclusive.
+            replace (level phi0) with (level Phi) in Hexclusive. 2:join_level_tac.
+            exact_eq Hexclusive; f_equal.
             eapply predat_inj; eauto.
-            rewrite approx_oo_approx'. auto. omega.
-
-          + (* precise *)
-            unfold approx.
-            apply precise_approx with (n := level Phi) in Hprecise.
-            rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
-            replace (level phi0) with (level Phi) in Hprecise. 2:join_level_tac.
-            exact_eq Hprecise; f_equal.
-            eapply predat_inj; eauto.
-            rewrite approx_oo_approx'. auto. omega.
+            setoid_rewrite approx_approx'. auto. omega.
 
           + (* sat 1 *)
             split.
@@ -1169,12 +1157,10 @@ Section Progress.
         unfold base.fold_right_sepcon in *.
         rewrite seplog.sepcon_emp in PreC.
         rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
-        { apply seplog.corable_andp.
-          apply corable_weak_precise.
-          apply corable_weak_positive. }
+        { apply corable_weak_exclusive. }
         rewrite seplog.sepcon_comm in PreC.
         rewrite seplog.sepcon_emp in PreC.
-        destruct PreC as ((Hprecise & Hpositive), AT).
+        destruct PreC as (Hexclusive, AT).
         (* pose proof AT as islock. *)
         (* apply lock_inv_at in islock. *)
         assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
@@ -1289,20 +1275,13 @@ Section Progress.
             pose proof predat4 Hlockinv as E3.
             apply (predat_join_sub J01) in E3.
 
-            pose proof positive_precise_joins_false
+            pose proof exclusive_joins_false
                  (approx (level Phi) Rx) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
             apply PP.
-            + (* positive *)
-              apply positive_approx with (n := level Phi) in Hpositive.
-              rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
-              rewrite approx_oo_approx' in Hpositive. auto.
-              replace (level phi0) with (level Phi). 2:join_level_tac.
-              omega.
-
-            + (* precise *)
-              apply precise_approx with (n := level Phi) in Hprecise.
-              rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
-              rewrite approx_oo_approx' in Hprecise. auto.
+            + (* exclusive *)
+              apply exclusive_approx with (n := level Phi) in Hexclusive.
+              rewrite (compose_rewr (approx _) (approx _)) in Hexclusive.
+              rewrite approx_oo_approx' in Hexclusive. auto.
               replace (level phi0) with (level Phi). 2:join_level_tac.
               omega.
 

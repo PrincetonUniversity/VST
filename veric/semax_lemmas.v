@@ -404,7 +404,7 @@ Qed.
 Lemma jsafe_corestep_forward:
   forall ge c m c' m' n z,
     jstep (cl_core_sem ge) ge c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
-    jm_bupd (jsafeN (@OK_spec Espec) ge n z c') m'.
+    jm_bupd z (jsafeN (@OK_spec Espec) ge n z c') m'.
 Proof.
   intros.
   inv H0.

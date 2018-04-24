@@ -259,7 +259,7 @@ Definition jsafe_phi ge n ora c phi :=
 Definition jsafe_phi_bupd ge n ora c phi :=
   forall jm,
     m_phi jm = phi ->
-    jm_bupd (@semax.jsafeN ZT Jspec ge n ora c) jm.
+    jm_bupd ora (@semax.jsafeN ZT Jspec ge n ora c) jm.
 
 Lemma jsafe_phi_jsafeN n ora c i (tp : jstate ge) m (cnti : containsThread tp i) Phi compat :
   @jsafe_phi ge n ora c (getThreadR cnti) ->
@@ -569,9 +569,9 @@ Lemma state_inv_upd : forall Gamma (n : nat)
       (mcompat : mem_compatible_with tp m PHI)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
-      (safety : forall C, joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) ->
+      (safety : forall C, joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) (Some (ext_ghost tt, NoneP) :: C)) ->
         exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
-        joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
+        joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) (Some (ext_ghost tt, NoneP) :: C)) /\
         threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
