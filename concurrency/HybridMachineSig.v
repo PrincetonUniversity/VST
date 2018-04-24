@@ -579,6 +579,15 @@ Module HybridMachineSig.
                      (Hstep: MachStep ge st m (schedSkip (fst (fst st)),tr',tp') m')
                      (Hsafe: forall U'', csafe ge (U'',tr',tp') m' n),
           csafe ge st m (S n).
+
+      (* TODO: Make a new file with safety lemmas. *)
+      Lemma csafe_reduce:
+        forall ge sched tp mem n m,
+          csafe ge (sched, [::], tp) mem n ->
+          m <= n ->
+          csafe ge (sched, [::], tp) mem m.
+      Proof.
+        Admitted.
       
     End HybridCoarseMachine.
   End HybridCoarseMachine.
