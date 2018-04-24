@@ -43,7 +43,7 @@ Module ThreadPool.
 
   Context {Sem: Semantics}.
 
-  Global Instance RmapThreadPool : ThreadPool.ThreadPool := OrdinalThreadPool.
+  Global Instance DryThreadPool : ThreadPool.ThreadPool := OrdinalThreadPool.
 
   End ThreadPool.
 
@@ -721,7 +721,7 @@ Module Concur.
         eauto. eauto. eauto.
   Qed.
 
-  Instance DryMachineShell : @HybridMachineSig.MachineSig _ _ RmapThreadPool :=
+  Instance DryMachineShell : @HybridMachineSig.MachineSig _ _ DryThreadPool :=
     HybridMachineSig.Build_MachineSig richMem dryMem diluteMem mem_compatible invariant threadStep
       threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
       (@threadHalted) threadHalt_update syncstep_equal_halted threadStep_not_unhalts

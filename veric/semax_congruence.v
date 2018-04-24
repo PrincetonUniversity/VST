@@ -40,7 +40,7 @@ Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
   ghost_of (m_phi m') = ghost_approx m' (ghost_of (m_phi jm)) /\
-  jm_bupd (@jsafeN_ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) (cl_core_sem gx) OK_spec gx n ora c') m').
+  jm_bupd ora (@jsafeN_ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) (cl_core_sem gx) OK_spec gx n ora c') m').
 Proof.
   intros.
   split; intros.

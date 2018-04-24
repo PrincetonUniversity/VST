@@ -60,18 +60,32 @@ Definition agree_snap g (P : mpred) :=
 (* Our ghost state construction makes it awkward to put agree inside other ghost state constructions.
    As a workaround, instead of having one ghost location with a map from indices to agrees,
    we have a map from indices to ghost locations, each with an agree. *)
-Class invG := { g_inv : Z -> gname; g_dis : gname; g_en : gname }.
+Class invG := { g_inv : Z -> gname; g_dis : Z -> gname; g_en : Z -> gname }.
 
 Context {inv_names : invG}.
 
-Definition world_sat : mpred := EX I : list mpred,
+Definition wsat : mpred := EX I : list mpred,
   fold_right sepcon emp (map (fun i => agree_auth (g_inv i) (Znth i I)) (upto (length I))) *
-  fold_right sepcon emp (map (fun i => (|> Znth i I * excl g_dis i) || excl g_en i) (upto (length I))).
+  fold_right sepcon emp (map (fun i => (|> Znth i I * excl (g_dis i) i) || excl (g_en i) i) (upto (length I))).
 
 Definition invariant i P : mpred := agree_snap (g_inv i) P.
 
+Lemma wsat_alloc : forall P, wsat * |> P |-- |==> wsat * EX i : _, invariant i P.
+Proof.
+  intro; unfold wsat.
+  Intros I.
+  rewrite <- emp_sepcon at 1; eapply derives_trans; [apply sepcon_derives, derives_refl|].
+  { apply (own_alloc(RA := @snap_PCM _ _ unit_order) (Tsh, tt) (SomeP rmaps.Mpred (fun _ => P))).
+    simpl; auto. }
+  eapply derives_trans; [apply bupd_frame_r|].
+  eapply derives_trans, bupd_trans; apply bupd_mono.
+  Intros gi.
+  intro; change (predicates_hered.derives (wsat * |> P) (|==> wsat * EX i : _, invariant i P)).
+  intros ? (? & ? & ? & (I & ? & ? & ? & Hagree & Htokens) & ?).
+
 (* define fancy update, prove invariant rules *)
 
-(* If we're ultimately going to put fancy updates in semax, this will have to go to msl. *)
+(* Consider putting invariants and fancy updates in msl (a la ghost_seplog), and these proofs in
+   veric (a la own). *)
 
 End Invariants.

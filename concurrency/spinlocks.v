@@ -1,7 +1,7 @@
 (** * Spinlock well synchronized and spinlock clean*)
 Require Import compcert.lib.Axioms.
 
-Require Import VST.sepcomp. Import SepComp.
+Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
@@ -26,8 +26,8 @@ Require Import VST.concurrency.permjoin_def.
 Require Import VST.concurrency.HybridMachineSig.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.dry_context.
-Require Import VST.concurrency.HybridMachine_lemmas.
-Require Import VST.concurrency.HybridMachine_step_lemmas.
+Require Import VST.concurrency.dry_machine_lemmas.
+Require Import VST.concurrency.dry_machine_step_lemmas.
 Require Import VST.concurrency.executions.
 Require Import Coqlib.
 Require Import VST.msl.Coqlib2.
