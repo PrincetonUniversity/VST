@@ -68,30 +68,22 @@ Definition main_spec :=
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
 
-Lemma ctr_inv_precise : forall p,
-  precise (cptr_lock_inv p).
-Proof.
-  intros; eapply derives_precise;
-  [| apply data_at__precise with (sh := Ews)(t := tuint)].
-  unfold cptr_lock_inv; Intros z.
-  entailer!.
-Qed.
-Hint Resolve ctr_inv_precise.
-
-Lemma ctr_inv_positive : forall ctr,
-  positive_mpred (cptr_lock_inv ctr).
+Lemma ctr_inv_exclusive : forall p,
+  exclusive_mpred (cptr_lock_inv p).
 Proof.
   intros; unfold cptr_lock_inv.
-  apply ex_positive; intro; auto.
+  eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
+  Intro z; cancel.
 Qed.
-Hint Resolve ctr_inv_positive.
+Hint Resolve ctr_inv_exclusive.
 
-Lemma thread_inv_precise : forall sh ctr lock lockt,
-  precise (thread_lock_inv sh ctr lock lockt).
+Lemma thread_inv_exclusive : forall sh ctr lock lockt,
+  exclusive_mpred (thread_lock_inv sh ctr lock lockt).
 Proof.
-  intros; apply selflock_precise, lock_inv_precise.
+  intros; apply selflock_exclusive.
+  unfold thread_lock_R; auto.
 Qed.
-Hint Resolve thread_inv_precise.
+Hint Resolve thread_inv_exclusive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -130,10 +122,10 @@ Proof.
   forward.
   forward_call (ctr, sh, lock).
   forward_call (lockt, sh, thread_lock_R sh ctr lock, thread_lock_inv sh ctr lock lockt).
-  { unfold thread_lock_inv; lock_props.
-    { apply thread_inv_precise. }
-    rewrite selflock_eq at 2; unfold thread_lock_R; cancel.
-    eapply derives_trans; [apply lock_inv_later | cancel]. }
+  { lock_props.
+    unfold thread_lock_inv, thread_lock_R.
+    rewrite selflock_eq at 2; cancel.
+    eapply derives_trans; [apply now_later | cancel]. }
   forward.
 Qed.
 
@@ -169,29 +161,24 @@ Proof.
     { apply derives_refl'. f_equal.
       f_equal; extensionality.
       destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply mpred_ext; entailer!. }
+      extensionality; apply pred_ext; entailer!. }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
   forward_call (ctr, sh2, lock).
   forward_call (lockt, sh2, thread_lock_inv sh1 ctr lock lockt).
+  unfold thread_lock_inv at 2; unfold thread_lock_R.
+  rewrite selflock_eq.
   forward_call (ctr, sh2, lock).
   Intros z.
+  (* Does call not remove a later? How can we remove it? *)
   forward_call (lock, sh2, cptr_lock_inv ctr).
-  forward_call (lockt, Ews, sh1, |>thread_lock_R sh1 ctr lock, |>thread_lock_inv sh1 ctr lock lockt).
-  { unfold thread_lock_inv; lock_props.
-    - apply later_positive; auto.
-    - unfold rec_inv.
-      rewrite selflock_eq at 1.
-      rewrite later_sepcon; f_equal.
-      apply lock_inv_later_eq.
-    - rewrite selflock_eq at 2.
-      erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-      rewrite (sepcon_comm _ (lock_inv sh2 lockt _)), !sepcon_assoc.
-      apply sepcon_derives; [apply lock_inv_later | cancel]. }
+  replace_SEP 4 (lock_inv sh1 lockt (thread_lock_inv sh1 ctr lock lockt)) by admit.
+  forward_call (lockt, Ews, sh1, thread_lock_R sh1 ctr lock, thread_lock_inv sh1 ctr lock lockt).
+  { lock_props.
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { lock_props.
-    unfold thread_lock_R.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
 Qed.

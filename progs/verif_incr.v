@@ -74,7 +74,7 @@ Lemma ctr_inv_exclusive : forall g1 g2 p,
   exclusive_mpred (cptr_lock_inv g1 g2 p).
 Proof.
   intros; unfold cptr_lock_inv.
-  intros; eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _),
+  eapply derives_exclusive, exclusive_sepcon1 with (Q := EX x : Z, EX y : Z, _),
     data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
   Intro z; apply sepcon_derives; [cancel|].
   Intros x y; Exists x y; apply derives_refl.
@@ -85,6 +85,8 @@ Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
   exclusive_mpred (thread_lock_inv sh g1 g2 ctr lock lockt).
 Proof.
   intros; apply selflock_exclusive.
+  unfold thread_lock_R.
+  apply exclusive_sepcon1; auto.
 Qed.
 Hint Resolve thread_inv_exclusive.
 
@@ -147,20 +149,11 @@ Proof.
   forward.
   forward_call (ctr, sh, lock, g1, g2, true).
   forward_call (lockt, sh, thread_lock_R sh g1 g2 ctr lock, thread_lock_inv sh g1 g2 ctr lock lockt).
-  { unfold thread_lock_inv; lock_props.
-    rewrite selflock_eq at 2; unfold thread_lock_R; cancel.
-    eapply derives_trans; [apply lock_inv_later | cancel]. }
+  { lock_props.
+    unfold thread_lock_inv, thread_lock_R.
+    rewrite selflock_eq at 2; cancel.
+    eapply derives_trans; [apply now_later | cancel]. }
   forward.
-Qed.
-
-Lemma thread_ghost : forall sh g1 g2 ctr lock lockt,
-  thread_lock_inv sh g1 g2 ctr lock lockt =
-  ghost_var gsh2 1 g1 * (ghost_var gsh2 1 g1 -* thread_lock_inv sh g1 g2 ctr lock lockt).
-Proof.
-  intros; eapply wand_eq.
-  unfold thread_lock_inv, thread_lock_R.
-  rewrite selflock_eq.
-  rewrite (sepcon_comm _ (ghost_var _ _ _)), sepcon_assoc; eauto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -207,26 +200,18 @@ Proof.
     entailer!. }
   forward_call (ctr, sh2, lock, g1, g2, false).
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
-  rewrite thread_ghost at 2.
+  unfold thread_lock_inv at 2; unfold thread_lock_R.
+  rewrite selflock_eq.
   Intros.
   forward_call (ctr, sh2, lock, g1, g2, 1, 1).
-  gather_SEP 1 4; rewrite <- thread_ghost.
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
-  forward_call (lockt, Ews, sh1, |>thread_lock_R sh1 g1 g2 ctr lock, |>thread_lock_inv sh1 g1 g2 ctr lock lockt).
-  { unfold thread_lock_inv; lock_props.
-    - apply later_exclusive; auto.
-    - unfold rec_inv.
-      rewrite selflock_eq at 1.
-      rewrite later_sepcon; f_equal.
-      apply lock_inv_later_eq.
-    - rewrite selflock_eq at 1.
-      erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-      rewrite sepcon_comm.
-      apply sepcon_derives; [apply lock_inv_later | cancel]. }
+  replace_SEP 6 (lock_inv sh1 lockt (thread_lock_inv sh1 g1 g2 ctr lock lockt)) by admit.
+  forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).
+  { lock_props.
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
-    unfold thread_lock_R.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
 Qed.

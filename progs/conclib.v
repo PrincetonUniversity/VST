@@ -4,9 +4,6 @@ Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 
-Notation precise := predicates_sl.precise.
-Arguments precise _%assert.
-
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
 Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
@@ -1882,292 +1879,138 @@ Qed.
 
 (* We could also consider an alpha-renaming axiom, although this may be unnecessary. *)
 
-(* precise and positive *)
-Lemma weak_precise_positive_conflict : forall P,
-  predicates_hered.derives ((weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P) FF.
+(* exclusive *)
+Lemma weak_exclusive_conflict : forall P,
+  predicates_hered.derives ((weak_exclusive_mpred P && emp) * P * P) FF.
 Proof.
-  repeat intro.
-  destruct H as (r1 & r2 & ? & (? & ? & Hj1 & (? & ? & Hj2 & (Hprecise & Hemp1) & (Hpositive & Hemp2)) & ?) & ?).
-  specialize (Hemp1 _ _ Hj2); subst.
-  specialize (Hemp2 _ _ Hj1); subst.
-  destruct (age_sepalg.join_level _ _ _ Hj1), (age_sepalg.join_level _ _ _ Hj2),
-    (age_sepalg.join_level _ _ _ H).
-  exploit (Hprecise a r1 r2); simpl; try (split; auto; omega).
-  { exists r2; auto. }
-  { exists r1; apply sepalg.join_comm; auto. }
-  intro; subst.
-  destruct (Hpositive r2) as (l & ? & ? & ? & ? & HYES).
-  { split; auto; omega. }
-  apply (compcert_rmaps.RML.resource_at_join _ _ _ l) in H.
-  rewrite HYES in H; inv H.
+  intros ?? (r1 & r2 & ? & (? & ? & Hj & [Hexclusive Hemp] & ?) & ?).
+  destruct (age_sepalg.join_level _ _ _ H), (age_sepalg.join_level _ _ _ Hj).
+  apply Hemp in Hj; subst.
+  simpl in Hexclusive.
+  match goal with H : exclusive_mpred ?P |- _ => change (predicates_hered.derives (P * P) FF) in H end.
+  apply Hexclusive.
+  do 3 eexists; eauto; repeat split; auto; omega.
+Qed.
+
+Lemma exclusive_sepcon1 : forall (P Q : mpred) (HP : exclusive_mpred P), exclusive_mpred (P * Q).
+Proof.
+  unfold exclusive_mpred; intros.
+  eapply derives_trans, sepcon_FF_derives' with (P := Q * Q), HP; cancel.
+Qed.
+
+Lemma exclusive_sepcon2 : forall (P Q : mpred) (HP : exclusive_mpred Q), exclusive_mpred (P * Q).
+Proof.
+  intros; rewrite sepcon_comm; apply exclusive_sepcon1; auto.
+Qed.
+
+Lemma exclusive_andp1 : forall P Q (HP : exclusive_mpred P), exclusive_mpred (P && Q).
+Proof.
+  unfold exclusive_mpred; intros.
+  eapply derives_trans, HP.
+  apply sepcon_derives; apply andp_left1; auto.
+Qed.
+
+Lemma exclusive_andp2 : forall P Q (HQ : exclusive_mpred Q), exclusive_mpred (P && Q).
+Proof.
+  intros; rewrite andp_comm; apply exclusive_andp1; auto.
+Qed.
+
+Lemma lock_inv_exclusive : forall v sh R, exclusive_mpred (lock_inv sh v R).
+Proof.
+  intros; unfold exclusive_mpred, lock_inv.
+  Intros b1 ofs1 b2 ofs2; subst.
+  inv H0.
+  match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
+  intros ? (? & ? & ? & Hlock1 & Hlock2).
+  exploit (res_predicates.LKspec_precise _ _ _ _ a _ _ Hlock1 Hlock2); try (eexists; eauto).
+  intros; subst.
+  destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
+  specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
+  rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; omega).
+  rewrite if_true in Hlock1 by auto.
+  destruct Hlock1 as [? Hl1].
+  apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
+  rewrite Hl1 in H; inv H.
   apply sepalg.join_self in RJ.
   eapply readable_not_identity; eauto.
 Qed.
 
-Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
-Proof.
-  intros.
-  apply derives_trans with (Q := (weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P);
-    [|apply weak_precise_positive_conflict].
-  Transparent mpred. cancel. Opaque mpred.
-  rewrite <- sepcon_emp at 1.
-  apply sepcon_derives; apply andp_right; auto; try apply derives_refl;
-  apply derives_trans with (Q := TT);
-    auto; [apply precise_weak_precise | apply positive_weak_positive]; auto.
-Qed.
-
-Lemma precise_sepcon : forall (P Q : mpred) (HP : precise P) (HQ : precise Q), precise (P * Q).
-Proof.
-  unfold precise; intros ??????? (l1 & r1 & Hjoin1 & HP1 & HQ1) (l2 & r2 & Hjoin2 & HP2 & HQ2)
-    Hsub1 Hsub2.
-  specialize (HP w _ _ HP1 HP2); specialize (HQ w _ _ HQ1 HQ2).
-  rewrite HP, HQ in Hjoin1.
-  eapply sepalg.join_eq; eauto.
-  - apply sepalg.join_sub_trans with (b := w1); auto.
-    eapply sepalg.join_join_sub'; eauto.
-  - apply sepalg.join_sub_trans with (b := w2); auto.
-    eapply sepalg.join_join_sub'; eauto.
-  - apply sepalg.join_sub_trans with (b := w1); auto.
-    eapply sepalg.join_join_sub; eauto.
-  - apply sepalg.join_sub_trans with (b := w2); auto.
-    eapply sepalg.join_join_sub; eauto.
-Qed.
-
-Lemma precise_andp1 : forall P Q (HP : precise P), precise (P && Q).
-Proof.
-  intros ?????? (? & ?) (? & ?) ??; eauto.
-Qed.
-
-Lemma precise_andp2 : forall P Q (HQ : precise Q), precise (P && Q).
-Proof.
-  intros ?????? (? & ?) (? & ?) ??; eauto.
-Qed.
-
-Lemma ex_address_mapsto_precise: forall ch sh l,
-  precise (EX v : val, res_predicates.address_mapsto ch v sh l).
-Proof.
-  intros.
-  eapply predicates_sl.derives_precise, res_predicates.VALspec_range_precise.
-  repeat intro.
-  destruct H.
-  eapply res_predicates.address_mapsto_VALspec_range; eauto.
-Qed.
-
-Lemma lock_inv_precise : forall v sh R, precise (lock_inv sh v R).
-Proof.
-  intros ?????? (b1 & o1 & Hv1 & Hlock1) (b2 & o2 & Hv2 & Hlock2) ??.
-  rewrite Hv2 in Hv1; inv Hv1.
-  eapply res_predicates.LKspec_precise; eauto.
-Qed.
-
-Lemma lock_inv_positive : forall sh v R,
-  positive_mpred (lock_inv sh v R).
-Proof.
-  repeat intro.
-  destruct H as (b & o & Hv & Hlock & Hg).
-  simpl in Hlock.
-  specialize (Hlock (b, Ptrofs.unsigned o)).
-  if_tac [r|nr] in Hlock.
-  - if_tac [e|ne] in Hlock.
-    + destruct Hlock; eauto 6.
-    + contradiction ne; auto.
-  - contradiction nr; unfold adr_range; split; auto.
-    pose proof lksize.LKSIZE_pos; omega.
-Qed.
-
-Lemma selflock_precise : forall R sh v, precise R -> precise (selflock R v sh).
+Lemma selflock_exclusive : forall R sh v, exclusive_mpred R -> exclusive_mpred (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
-  apply precise_sepcon; auto.
-  apply lock_inv_precise.
+  apply exclusive_sepcon1; auto.
 Qed.
 
-Lemma positive_sepcon1 : forall P Q (HP : positive_mpred P),
-  positive_mpred (P * Q).
+Lemma exclusive_FF : exclusive_mpred FF.
 Proof.
-  repeat intro.
-  destruct H as (? & ? & ? & HP1 & ?).
-  specialize (HP _ HP1).
-  destruct HP as (l & sh & rsh & k & p & HP).
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  rewrite HP in H; inversion H; eauto 6.
+  unfold exclusive_mpred.
+  rewrite FF_sepcon; auto.
 Qed.
 
-Lemma positive_sepcon2 : forall P Q (HQ : positive_mpred Q),
-  positive_mpred (P * Q).
+Lemma derives_exclusive : forall P Q (Hderives : P |-- Q) (HQ : exclusive_mpred Q),
+  exclusive_mpred P.
 Proof.
-  repeat intro.
-  destruct H as (? & ? & ? & ? & HQ1).
-  specialize (HQ _ HQ1).
-  destruct HQ as (l & sh & rsh & k & p & HQ).
-  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
-  rewrite HQ in H; inversion H; eauto 6.
+  unfold exclusive_mpred; intros.
+  eapply derives_trans, HQ.
+  apply sepcon_derives; auto.
 Qed.
 
-Lemma positive_andp1 : forall P Q (HP : positive_mpred P),
-  positive_mpred (P && Q).
+Lemma mapsto_exclusive : forall (sh : Share.t) (t : type) (v : val),
+  sepalg.nonunit sh -> exclusive_mpred (EX v2 : _, mapsto sh t v v2).
 Proof.
-  intros ???? (? & ?); auto.
+  intros; unfold exclusive_mpred.
+  Intros v1 v2; apply mapsto_conflict; auto.
 Qed.
 
-Lemma positive_andp2 : forall P Q (HQ : positive_mpred Q),
-  positive_mpred (P && Q).
+Lemma field_at__exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) (p : val),
+  sepalg.nonidentity sh ->
+  0 < sizeof (nested_field_type t fld) -> exclusive_mpred (field_at_ sh t fld p).
 Proof.
-  intros ???? (? & ?); auto.
+  intros; apply field_at__conflict; auto.
 Qed.
 
-Lemma selflock_positive : forall R sh v, positive_mpred (selflock R v sh).
+Lemma ex_field_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) (p : val),
+  sepalg.nonidentity sh ->
+  0 < sizeof (nested_field_type t fld) -> exclusive_mpred (EX v : _, field_at sh t fld v p).
 Proof.
-  intros.
-  rewrite selflock_eq.
-  apply positive_sepcon2, lock_inv_positive.
+  intros; unfold exclusive_mpred.
+  Intros v v'; apply field_at_conflict; auto.
 Qed.
 
-(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Admitted. (* still needed in verif_incr.v and verif_cond.v *)
-(* The solution to this is probably to introduce the Timeless modality. *)
-
-Lemma positive_FF : positive_mpred FF.
+Corollary field_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (fld : list gfield) v (p : val),
+  sepalg.nonidentity sh -> 0 < sizeof (nested_field_type t fld) -> exclusive_mpred (field_at sh t fld v p).
 Proof.
-  repeat intro; contradiction.
+  intros; eapply derives_exclusive, ex_field_at_exclusive; eauto.
+  Exists v; apply derives_refl.
 Qed.
 
-Lemma derives_positive : forall P Q (Hderives : P |-- Q) (HQ : positive_mpred Q), positive_mpred P.
+Lemma ex_data_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (p : val),
+  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (EX v : _, data_at sh t v p).
 Proof.
-  repeat intro.
-  specialize (Hderives _ H); auto.
+  intros; unfold exclusive_mpred.
+  Intros v v'; apply data_at_conflict; auto.
 Qed.
 
-Lemma ex_address_mapsto_positive: forall ch sh l,
-  positive_mpred (EX v : val, res_predicates.address_mapsto ch v sh l).
+Corollary data_at_exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) v (p : val),
+  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (data_at sh t v p).
 Proof.
-  intros ???? (? & ? & [? Hp] & ?); simpl in Hp.
-  specialize (Hp l); destruct (adr_range_dec _ _ _).
-  destruct Hp; eauto 6.
-  { contradiction n; unfold adr_range.
-    destruct l; repeat split; auto; try omega.
-    destruct ch; simpl; omega. }
+  intros; eapply derives_exclusive, ex_data_at_exclusive; eauto.
+  Exists v; apply derives_refl.
 Qed.
 
-Corollary mapsto_positive : forall sh t p v, readable_share sh -> positive_mpred (mapsto sh t p v).
+Corollary data_at__exclusive : forall (cs : compspecs) (sh : Share.t) (t : type) (p : val),
+  sepalg.nonidentity sh -> 0 < sizeof t -> exclusive_mpred (data_at_ sh t p).
 Proof.
-  intros; unfold mapsto.
-  destruct (access_mode t); try apply positive_FF.
-  destruct (type_is_volatile t); try apply positive_FF.
-  destruct p; try apply positive_FF.
-  destruct (readable_share_dec sh); [|contradiction n; auto].
-  eapply derives_positive, ex_address_mapsto_positive.
-  Transparent mpred. apply orp_left; entailer.
-  - Exists v; eauto. apply derives_refl.
-  - Exists v2'; auto.
-Opaque mpred.
+  intros; eapply derives_exclusive, data_at_exclusive; eauto.
+  apply data_at__data_at; eauto.
 Qed.
 
-Corollary data_at__positive : forall {cs} sh t p (Hsh : readable_share sh)
-  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
-  positive_mpred (@data_at_ cs sh t p).
+Lemma cond_var_exclusive : forall {cs} sh p, sepalg.nonidentity sh ->
+  exclusive_mpred (@cond_var cs sh p).
 Proof.
-  intros; unfold data_at_, field_at_, field_at, at_offset; rewrite by_value_data_at_rec_nonvolatile; auto;
-    simpl.
-  rewrite repinject_default_val.
-  apply positive_andp2, mapsto_positive; auto.
-Qed.
-
-Corollary data_at_positive : forall {cs} sh t v p (Hsh : readable_share sh)
-  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
-  positive_mpred (@data_at cs sh t v p).
-Proof.
-  intros; eapply derives_positive, data_at__positive; eauto.
-  apply data_at_data_at_.
-Qed.
-
-Lemma ex_positive : forall t P, (forall x, positive_mpred (P x)) -> positive_mpred (EX x : t, P x).
-Proof.
-  intros ???? (? & ?).
-  eapply H; eauto.
-Qed.
-
-Lemma precise_emp : precise emp.
-Proof.
-  apply predicates_sl.precise_emp.
-Qed.
-
-Lemma derives_precise : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
-Proof.
-  intros; eapply predicates_sl.derives_precise; [|eassumption]; auto.
-Qed.
-
-Lemma precise_FF : precise FF.
-Proof.
-  repeat intro; contradiction.
-Qed.
-
-Hint Resolve precise_emp precise_FF.
-
-Lemma mapsto_precise : forall sh t p v, precise (mapsto sh t p v).
-Proof.
-  intros; unfold mapsto.
-  destruct (access_mode t); auto.
-  destruct (type_is_volatile t); auto.
-  destruct p; auto.
-  destruct (readable_share_dec sh).
-  - eapply predicates_sl.derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
-  - apply precise_andp2, res_predicates.nonlock_permission_bytes_precise.
-Qed.
-Hint Resolve mapsto_precise.
-
-Corollary memory_block_precise : forall sh n v, precise (memory_block sh n v).
-Proof.
-  destruct v; auto; apply precise_andp2.
-  forget (Ptrofs.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
-  - apply precise_emp.
-  - apply precise_sepcon; auto.
-    apply mapsto_precise.
-Qed.
-Hint Resolve memory_block_precise.
-
-Corollary field_at__precise : forall {cs : compspecs} sh t gfs p,
-  precise (field_at_ sh t gfs p).
-Proof.
-  intros; rewrite field_at__memory_block; auto.
-Qed.
-Hint Resolve field_at__precise.
-
-Corollary data_at__precise : forall {cs : compspecs} sh t p, precise (data_at_ sh t p).
-Proof.
-  intros; unfold data_at_; auto.
-Qed.
-Hint Resolve data_at__precise.
-
-Corollary field_at_precise : forall {cs : compspecs} sh t gfs v p,
-  precise (field_at sh t gfs v p).
-Proof.
-  intros; eapply derives_precise, field_at__precise; apply field_at_field_at_.
-Qed.
-Hint Resolve field_at_precise.
-
-Corollary data_at_precise : forall {cs : compspecs} sh t v p, precise (data_at sh t v p).
-Proof.
-  intros; unfold data_at; auto.
-Qed.
-Hint Resolve data_at_precise.
-
-Lemma cond_var_precise : forall {cs} sh p, readable_share sh ->
-  precise (@cond_var cs sh p).
-Proof.
-  intros; apply data_at__precise; auto.
-Qed.
-
-Lemma cond_var_positive : forall {cs} sh p, readable_share sh ->
-  positive_mpred (@cond_var cs sh p).
-Proof.
-  intros; unfold cond_var, data_at_, field_at_, field_at, at_offset; simpl.
-  destruct p; try (rewrite prop_false_andp; [|intros (? & ?); contradiction]; apply positive_FF).
-  apply positive_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply mapsto_positive; auto.
+  intros; apply data_at__exclusive; auto.
+  unfold tcond; simpl; omega.
 Qed.
 
 Lemma lock_inv_isptr : forall sh v R, lock_inv sh v R = !!isptr v && lock_inv sh v R.
@@ -2192,19 +2035,8 @@ Proof.
   intros; unfold cond_var; apply data_at__share_join; auto.
 Qed.
 
-Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right sepcon emp l).
-Proof.
-  induction l; simpl; auto; intros.
-  inv H; apply precise_sepcon; auto.
-Qed.
-
-Lemma precise_False : precise (!!False).
-Proof.
-  repeat intro.
-  inversion H.
-Qed.
-
 (* Sometimes, in order to prove precise, we actually need to know that the data is the same as well. *)
+(* Do we still need this? Probably not.
 Lemma mapsto_inj : forall sh t v1 v2 p r1 r2 r
   (Hsh : readable_share sh)
   (Hp1 : predicates_hered.app_pred (mapsto sh t p v1) r1)
@@ -2378,11 +2210,10 @@ Proof.
     { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
     intros (? & ?); subst.
     split; [eapply sepalg.join_eq|]; auto.
-Qed.
+Qed. *)
 
-Hint Resolve lock_inv_precise lock_inv_positive selflock_precise selflock_positive
-  cond_var_precise cond_var_positive positive_FF mapsto_precise mapsto_positive
-  data_at_precise data_at_positive data_at__precise data_at__positive selflock_rec.
+Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
+  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec.
 
 Lemma eq_dec_refl : forall {A B} {A_eq : EqDec A} (a : A) (b c : B), (if eq_dec a a then b else c) = b.
 Proof.
@@ -3124,7 +2955,7 @@ Qed.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |
+   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto |
    try timeout 20 cancel].
 
 Ltac join_sub := repeat (eapply sepalg.join_sub_trans;

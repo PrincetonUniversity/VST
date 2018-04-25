@@ -45,7 +45,7 @@ Goal forall (cenv: composite_env), @sizeof cenv tlock = LKSIZE.
 Proof. reflexivity. Qed.
 
 Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=
-  fun R _ => (Q * lock_inv sh p (|> R tt))%logic.
+  fun R _ => (Q * |>lock_inv sh p (R tt))%logic.
 
 Definition selflock' Q sh p : unit -> mpred := HORec (selflock_fun Q sh p).
 Definition selflock Q sh p : mpred := selflock' Q sh p tt.
@@ -72,21 +72,33 @@ Proof.
     auto.
 Qed.
 
-Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
-Admitted. (* lock_inv_later *)
-
 Lemma selflock'_eq Q sh p : selflock' Q sh p =
   selflock_fun Q sh p (selflock' Q sh p).
 Proof.
   apply HORec_fold_unfold, prove_HOcontractive.
   intros P1 P2 u.
   apply subp_sepcon; [ apply subp_refl | ].
-  eapply derives_trans.
-  + apply HOnonexpansive_nonexpansive; apply (nonexpansive_lock_inv sh p).
-  + apply allp_left with tt, fash_derives, andp_left1, derives_refl.
+  rewrite <- subp_later.
+  repeat intro.
+  match goal with |- app_pred (?P >=> ?Q)%logic ?a => change (subtypes.fash (P --> Q) a) end.
+  unfold lock_inv; repeat intro.
+  destruct H3 as (b & ofs & ? & Hl & ?); exists b, ofs; split; auto; split; auto.
+  intro l; specialize (Hl l); simpl in *.
+  if_tac; auto.
+  if_tac; auto.
+  destruct Hl as [rsh Hl]; exists rsh; rewrite Hl; repeat f_equal.
+  extensionality.
+  specialize (H tt); rewrite <- eqp_later in H.
+  specialize (H _ H0).
+  apply necR_level in H2.
+  apply predicates_hered.pred_ext; intros ? []; split; auto.
+  - destruct (H a0) as [X _]; [omega|].
+    specialize (X _ (necR_refl _)); auto.
+  - destruct (H a0) as [_ X]; [omega|].
+    specialize (X _ (necR_refl _)); auto.
 Qed.
 
-Lemma selflock_eq Q sh p : selflock Q sh p = (Q * lock_inv sh p (|> selflock Q sh p))%logic.
+Lemma selflock_eq Q sh p : selflock Q sh p = (Q * |>lock_inv sh p (selflock Q sh p))%logic.
 Proof.
   unfold selflock at 1.
   rewrite selflock'_eq.
@@ -475,18 +487,6 @@ Proof.
   apply selflock_eq.
 Qed.
 
-
-Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
-Proof.
-Admitted.
-
-Lemma later_rec_lock : forall sh v (Q R: mpred), rec_inv sh v Q R -> rec_inv sh v (later Q) (later R).
-Proof.
-  unfold rec_inv; intros.
-  rewrite H at 1.
-  rewrite later_sepcon, lock_inv_later_eq; auto.
-Qed.
-
 Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default
@@ -759,19 +759,12 @@ Definition signal_spec cs :=
 
 (* Notes about spawn_thread:
 
-As in makelock/acquire/... we get a universe inconsistency when we add
-"WITH P" to the specification.  This universe inconsistency will
-eventually disappear in a different model for rmaps tracking
-covariance and contravariance.  In the meantime, we use a the deep
-embedding [Pred] and an embedding [PrePost] of the pre- and
-post-condition depending on Type term [ty].
-
 The spawned function has for argument name [_y], which is
 existentially quantified.  The function also can use a list of global
 variables [globals].
 
 For now, the specification of the spawned function has to be exactly
-of the form that you can see below (inside the "match PrePost ...").
+of the form that you can see below (inside the "match ...").
 Cao Qinxiang is working on a notion of sub-specification that might
 enable us to have smoother specifications.
 
@@ -783,7 +776,7 @@ To enable joinable threads, the postcondition would be [tptr tthread]
 with a type [tthread] related to the postcondition through a [thread]
 predicate in the logic.  The [join] would then also be implemented
 using the oracle, as [acquire] is.  The postcondition would be [match
-PrePost with existT ty (w, pre, post) => thread th (Interp (post w b))
+PrePost with existT ty (w, pre, post) => thread th (post w b)
 end] *)
 
 Definition gvars := map (fun x => gvar (fst x) (snd x)).

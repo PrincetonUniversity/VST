@@ -1934,9 +1934,13 @@ Qed.
 
     End JuicyMachineLemmas.
 
+    Definition install_perm {tp m tid} (Hcompat : mem_compatible tp m) (cnt : containsThread tp tid) :=
+      juicyRestrict (max_acc_coh_acc_coh (max_coh (thread_mem_compatible Hcompat cnt))).
+
     Instance JuicyMachineShell : HybridMachineSig.MachineSig :=
-      HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant threadStep
-        threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
+      HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant
+        (fun _ _ _ compat cnt m => m = install_perm compat cnt)
+        threadStep threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
         (@threadHalted) threadHalt_update syncstep_equal_halted (*threadStep_not_unhalts*)
         init_mach.
 

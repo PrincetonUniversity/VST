@@ -200,10 +200,10 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
         R sh (b, Ptrofs.unsigned ofs))%logic.
 
 Definition rec_inv sh v (Q R: mpred): Prop :=
-  (R = Q * lock_inv sh v (|> R))%logic.
+  (R = Q * |>lock_inv sh v R)%logic.
 
 Definition weak_rec_inv sh v (Q R: mpred): mpred :=
-  (! (R <=> Q * lock_inv sh v (|> R)))%pred.
+  (! (R <=> Q * |>lock_inv sh v R))%pred.
 
 Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! isptr v && lock_inv sh v R)%logic.
 Proof.
@@ -420,8 +420,9 @@ Proof.
     intros n ?.
     split; intros; hnf; intros; auto.
   } Unfocus.
-  eapply predicates_hered.derives_trans; [| apply nonexpansive_lock_inv].
-  apply later_equiv.
+  rewrite <- subtypes.eqp_later.
+  eapply predicates_hered.derives_trans, predicates_hered.now_later.
+  apply nonexpansive_lock_inv.
 Qed.
 
 Lemma rec_inv2_nonexpansive: forall sh v R,

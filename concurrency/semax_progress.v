@@ -342,9 +342,9 @@ Section Progress.
         eapply JuicyMachine.suspend_step.
         + reflexivity.
         + reflexivity.
-        + eapply mem_compatible_forget; eauto.
         + econstructor.
           * eassumption.
+          * instantiate (2 := mem_compatible_forget compat); reflexivity.
           * reflexivity.
           * constructor.
           * reflexivity.
@@ -1418,10 +1418,11 @@ Section Progress.
           constructor.
           apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
-          * eapply mem_compatible_forget. eauto.
-          * eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci');
+          * eapply JuicyMachine.ResumeThread with (Hcmpt := mem_compatible_forget compat)
+              (c := ci) (c' := ci');
               simpl in *; try rewrite ClightSemantincsForMachines.CLN_msem in *;
               simpl.
+            -- reflexivity.
             -- subst.
                reflexivity.
             -- subst.
