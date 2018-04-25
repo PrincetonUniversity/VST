@@ -694,8 +694,8 @@ Module DryHybridMachine.
         
     Admitted.
 
-    Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) :=
-      restrPermMap (Hcmpt tid Hcnt).1.
+    Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) m' :=
+      m' = restrPermMap (Hcmpt tid Hcnt).1.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)

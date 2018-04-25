@@ -1421,11 +1421,6 @@ Module StepLemmas.
         simpl.
         erewrite @OrdinalPool.gsoThreadRes;
           now eauto.
-        simpl (install_perm) in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
-        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcomp j ctn).1); eauto.
-        simpl.
-        erewrite @OrdinalPool.gsoThreadRes;
-          now eauto.
         erewrite @gsoThreadCode with (cntj := ctn); eauto.
         Tactics.pf_cleanup. auto.
         simpl.
@@ -1520,11 +1515,6 @@ Module StepLemmas.
         simpl.
         erewrite OrdinalPool.gsoAddRes;
           now eauto.
-        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
-        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
-        simpl.
-        erewrite OrdinalPool.gsoAddRes;
-          now eauto.
         erewrite gsoAddCode with (cntj := ctn); eauto.
           by rewrite add_updateC_comm.
       - destruct Hinit; subst.
@@ -1606,15 +1596,8 @@ Module StepLemmas.
         simpl.
         erewrite OrdinalPool.gRemLockSetRes;
           now eauto.
-        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
-        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
-        simpl.
-        erewrite OrdinalPool.gRemLockSetRes;
-          now eauto.
         rewrite gRemLockSetCode; auto.
         eapply ThreadPoolWF.remLock_inv; eauto.
-        rewrite remLock_updThreadC_comm.
-        reflexivity.
       - subst.
         inversion H; subst.
         do 2 right.
@@ -1670,11 +1653,8 @@ Module StepLemmas.
         by rewrite restrPermMap_nextblock in Hcorestep.
       apply Pos.le_refl.
       inversion H. subst.
-     (* apply initial_core_nomem in Hinitial. subst.
-      apply Pos.le_refl. *)
-      (*initial_core *)
-      admit.
-    Admitted.
+      reflexivity.
+    Qed.
 
     Lemma internal_execution_nextblock:
       forall tp m tp' m' xs
@@ -1906,20 +1886,13 @@ Module StepType.
     absurd_internal Hstep; auto;
       (* try (apply initial_core_nomem in Hinitial; subst om; simpl machine_semantics.option_proj); *)
       try (eapply StepLemmas.updThreadC_compatible;
-             by eauto).
-    (* initial_core stuff*)
-(*    admit.*)
-    
-    (* eapply StepLemmas.mem_compatible_setMaxPerm. *)
-    destruct (at_external semSem c mrestr) eqn:?; try discriminate.
-(*    destruct (halted semSem c); inversion H0.*)
+             by eauto).    
     eapply StepLemmas.mem_compatible_setMaxPerm.
+    destruct (at_external semSem c mrestr) eqn:?; try discriminate.
+    destruct Hinternal as [[? Hhalted] ?|]; try discriminate.
+    (*    destruct (halted semSem c); inversion H0.*)
     eapply corestep_compatible; simpl; eauto.
-(*    (*TODO: absurd_internal is kind of broken now, doing this proof manually *)
-    destruct (halted semSem c);
-      destruct (at_external semSem ge c mrestr);
-      try discriminate.*)
-  Admitted.
+  Qed.
   
   Lemma gsoThreadC_fstepI:
     forall tp tp' m m' i j U tr tr'
@@ -2015,7 +1988,7 @@ Module StepType.
     intros.
     inversion Hstep; clear Hstep; subst; auto.
     inversion Htstep; clear Htstep; subst.
-    admit. (*initial core*)
+    eauto.
     erewrite diluteMem_valid.
     inversion Htstep; subst; eauto.
     eapply CoreLanguage.ev_step_validblock; eauto.
@@ -2023,7 +1996,7 @@ Module StepType.
     inversion Htstep; subst;
       eauto;
     eapply Mem.store_valid_block_1; eauto.
-  Admitted.
+  Qed.
   End FineMachineInternal.
 
   Hint Resolve fmachine_step_compatible fmachine_step_invariant

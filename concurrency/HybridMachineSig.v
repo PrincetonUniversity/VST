@@ -160,7 +160,7 @@ Module HybridMachineSig.
         ; invariant: thread_pool -> Prop
 
         ; install_perm: forall {ms m tid},
-            mem_compatible ms m -> containsThread ms tid -> mem
+            mem_compatible ms m -> containsThread ms tid -> mem -> Prop
                                      
         (** Step relations *)
         ; threadStep:
@@ -254,15 +254,14 @@ Module HybridMachineSig.
       start_thread genv m ctn ms' m.
 
 
-
-         
    Inductive resume_thread' (ge : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
-  | ResumeThread: forall m tid0 ms ms' c c' X
+  | ResumeThread: forall m tid0 ms ms' c c' X m'
                     (ctn: containsThread ms tid0)
                     (Hcmpt: mem_compatible ms m)
-                    (Hat_external: at_external semSem c (install_perm Hcmpt ctn) = Some X)
-                    (Hafter_external: after_external semSem None c (install_perm Hcmpt ctn) = Some c')
+                    (Hperm: install_perm Hcmpt ctn m')
+                    (Hat_external: at_external semSem c m' = Some X)
+                    (Hafter_external: after_external semSem None c m' = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -273,11 +272,12 @@ Module HybridMachineSig.
 
   Inductive suspend_thread' (ge : semG) : forall m {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
-  | SuspendThread: forall m tid0 ms ms' c X
+  | SuspendThread: forall m tid0 ms ms' c X m'
                      (ctn: containsThread ms tid0)
                      (Hcmpt: mem_compatible ms m)
                      (Hcode: getThreadC ctn = Krun c)
-                     (Hat_external: at_external semSem c (install_perm Hcmpt ctn)  = Some X)
+                     (Hperm: install_perm Hcmpt ctn m')
+                     (Hat_external: at_external semSem c m'  = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kblocked c) = ms'),
       suspend_thread' ge m ctn ms'.
