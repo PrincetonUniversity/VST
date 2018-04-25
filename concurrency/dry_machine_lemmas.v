@@ -36,7 +36,6 @@ Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 Module ThreadPoolWF.
   Import HybridMachine ThreadPool DryHybridMachine HybridMachineSig.
-  Module OP := OrdinalPool.
   Section ThreadPoolWF.
     Context {Sem : Semantics}.
     
@@ -47,24 +46,24 @@ Module ThreadPoolWF.
 
     
   Lemma unlift_m_inv :
-    forall tp tid (Htid : tid < (OP.num_threads tp).+1) ord
-      (Hunlift: unlift (ordinal_pos_incr (OP.num_threads tp))
-                       (Ordinal (n:=(OP.num_threads tp).+1)
+    forall tp tid (Htid : tid < (OrdinalPool.num_threads tp).+1) ord
+      (Hunlift: unlift (ordinal_pos_incr (OrdinalPool.num_threads tp))
+                       (Ordinal (n:=(OrdinalPool.num_threads tp).+1)
                                 (m:=tid) Htid)=Some ord),
       nat_of_ord ord = tid.
   Proof.
     intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr (OP.num_threads tp))
-                                 (Ordinal (n:=(OP.num_threads tp).+1)
+    assert (Hcontra: unlift_spec (ordinal_pos_incr (OrdinalPool.num_threads tp))
+                                 (Ordinal (n:=(OrdinalPool.num_threads tp).+1)
                                           (m:=tid) Htid) (Some ord)).
     rewrite <- Hunlift.
     apply/unliftP.
     inversion Hcontra; subst.
     inversion H0.
     unfold bump.
-    assert (pf: ord < (OP.num_threads tp))
+    assert (pf: ord < (OrdinalPool.num_threads tp))
       by (by rewrite ltn_ord).
-    assert (H: (OP.num_threads tp) <= ord = false).
+    assert (H: (OrdinalPool.num_threads tp) <= ord = false).
     rewrite ltnNge in pf.
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
@@ -138,17 +137,17 @@ Module ThreadPoolWF.
   Proof.
     intros pmap c.
     pose (IM:=mkPool c (pmap,empty_map)); fold IM.
-    assert (isZ: forall i, OP.containsThread IM i -> (i = 0)%N).
+    assert (isZ: forall i, OrdinalPool.containsThread IM i -> (i = 0)%N).
     { rewrite /containsThread /IM /=.
       move => i; destruct i; first[reflexivity | intros HH; inversion HH].
     }
     assert (noLock: forall l rm,
-               OP.lockRes IM l = Some rm -> False).
-    { rewrite /OP.lockRes /IM /=.
+               OrdinalPool.lockRes IM l = Some rm -> False).
+    { rewrite /OrdinalPool.lockRes /IM /=.
       move => l rm.
       rewrite /lockRes
-              /OP.mkPool
-              /OP.empty_lset /= OP.find_empty => HH.
+              /OrdinalPool.mkPool
+              /OrdinalPool.empty_lset /= OrdinalPool.find_empty => HH.
       inversion HH.
     }
 
@@ -782,7 +781,7 @@ Module ThreadPoolWF.
     destruct Hinit as (? & Hinit & Hpmap).
     destruct pmap; inversion Hpmap; subst.
     simpl in H.
-    unfold OP.mkPool in *. simpl in *.
+    unfold OrdinalPool.mkPool in *. simpl in *.
     unfold OrdinalPool.containsThread in *. simpl in *.
     clear - H.
     destruct i.
@@ -828,9 +827,9 @@ Module ThreadPoolWF.
     destruct Hinit as (? & Hinit & ?).
     destruct pmap; try contradiction; subst.
     simpl.
-    unfold OP.mkPool.
+    unfold OrdinalPool.mkPool.
     unfold OrdinalPool.lockRes.
-    rewrite OP.find_empty.
+    rewrite OrdinalPool.find_empty.
     reflexivity.
   Qed.
 
@@ -1000,8 +999,7 @@ End CoreLanguage.
 Module CoreLanguageDry.
   Import CoreLanguage.
   Import HybridMachine ThreadPool event_semantics HybridMachineSig.
-  Module OP := OrdinalPool.
-  
+
   Section CoreLanguageDry.
     Context {Sem : Semantics}
             {SemAx : SemAxioms}.
@@ -1172,9 +1170,10 @@ Module CoreLanguageDry.
         assumption.
     }
     { (*likewise for lock resources*)
+      simpl.
       intros l pmaps Hres.
       (* the resources in the lockpool did not change*)
-      rewrite gsoThreadLPool in Hres.
+      rewrite OrdinalPool.gsoThreadLPool in Hres.
       (* proving something more convenient*)
       assert (Hgoal: forall b ofs, Mem.perm_order'' ((getMaxPerm m') !! b ofs) (pmaps.1 !! b ofs) /\
                               Mem.perm_order'' ((getMaxPerm m') !! b ofs) (pmaps.2 !! b ofs)).
@@ -1248,8 +1247,9 @@ Module CoreLanguageDry.
       }
       split; intros b ofs; destruct (Hgoal b ofs); now auto.
     }
-    { intros.
-      rewrite gsoThreadLPool in H.
+    { simpl.
+      intros.
+      rewrite OrdinalPool.gsoThreadLPool in H.
       eapply corestep_validblock; eauto using ev_step_ax1.
       eapply (DryHybridMachine.lockRes_blocks _ _ Hcompatible);
         by eauto.
@@ -1356,7 +1356,8 @@ Module CoreLanguageDry.
       pose proof (DryHybridMachine.no_race_thr _ Hinv) as Hno_race; clear Hinv.
       intros j k.
       Opaque getThreadR.
-      destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk; move/eqP:Heqj=>Heqj;
+      destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk;
+        move/eqP:Heqj=>Heqj;
                                                                      move/eqP:Heqk=>Heqk; intros cntj' cntk' Hneq;
                                                                                      assert (cntk: containsThread tp k)
                                                                                      by (eapply cntUpdate'; eauto);

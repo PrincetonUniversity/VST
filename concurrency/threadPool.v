@@ -403,6 +403,11 @@ es (filter i) *)
                  (updThread cnti c map)
                  l =
                updThread cnti' c map
+        ;  remLock_updThreadC_comm :
+             forall ds,
+             forall i (cnti: containsThread ds i) c l,
+             forall (cnti': containsThread (remLockSet ds l) i),
+               remLockSet (updThreadC cnti c) l = updThreadC cnti' c
       }.
 
   End ThreadPool.
@@ -836,6 +841,14 @@ Module OrdinalPool.
       f_equal.
     Qed.
 
+    Lemma remLock_updThreadC_comm :
+      forall ds i (cnti: containsThread ds i) c l
+        (cnti': containsThread (remLockSet ds l) i),
+        remLockSet (updThreadC cnti c) l = updThreadC cnti' c.
+    Proof.
+      unfold remLockSet, updThreadC; simpl; intros.
+      f_equal.
+    Qed.
 
     (* TODO: most of these proofs are similar, automate them*)
     (** Getters and Setters Properties*)
@@ -2050,6 +2063,7 @@ Module OrdinalPool.
                                     (@gsoAddRes)
                                     updLock_updThread_comm
                                     remLock_updThread_comm
+                                    remLock_updThreadC_comm
       ).
 
   End OrdinalThreadPool.

@@ -228,7 +228,8 @@ Module StepLemmas.
   Proof.
     intros.
     inversion Hstep; simpl in *; subst;
-       now eauto. 
+      try (now eauto);
+      try (inversion Htstep; now eauto).
   Qed.
 
   (** Any state that steps satisfies the [invariant] *)
@@ -1382,7 +1383,7 @@ Module StepLemmas.
         + by eauto.
     Qed.
 
-
+    Opaque OrdinalPool.getThreadR.
     Lemma updThread_internal_step:
       forall tp tp' m m' i j c pmap
         (Hneq: i <> j)
@@ -1413,11 +1414,22 @@ Module StepLemmas.
         inversion H; subst.
         right. left.
         split; auto.
+        Tactics.pf_cleanup.
         econstructor; eauto.
-        erewrite @gsoThreadCode with (cntj := cntj); eauto.
+        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcomp j ctn).1); eauto.
+        simpl.
+        erewrite @OrdinalPool.gsoThreadRes;
+          now eauto.
+        simpl (install_perm) in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcomp j ctn).1); eauto.
+        simpl.
+        erewrite @OrdinalPool.gsoThreadRes;
+          now eauto.
+        erewrite @gsoThreadCode with (cntj := ctn); eauto.
         Tactics.pf_cleanup. auto.
         simpl.
-        rewrite CoreLanguageDry.OP.updThread_updThreadC_comm; auto.
+        rewrite OrdinalPool.updThread_updThreadC_comm; auto.
       - subst.
         inversion H; subst.
         do 2 right.
@@ -1425,8 +1437,10 @@ Module StepLemmas.
         erewrite @gsoThreadCode with (cntj := cntj); eauto.
         Tactics.pf_cleanup. auto.
         simpl.
-        rewrite CoreLanguageDry.OP.updThread_updThreadC_comm;
+        rewrite OrdinalPool.updThread_updThreadC_comm;
           now auto.
+        Unshelve.
+        assumption.
     Qed.
 
 
@@ -1501,6 +1515,16 @@ Module StepLemmas.
         right; left.
         split; auto.
         econstructor; eauto.
+        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
+        simpl.
+        erewrite OrdinalPool.gsoAddRes;
+          now eauto.
+        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
+        simpl.
+        erewrite OrdinalPool.gsoAddRes;
+          now eauto.
         erewrite gsoAddCode with (cntj := ctn); eauto.
           by rewrite add_updateC_comm.
       - destruct Hinit; subst.
@@ -1508,6 +1532,8 @@ Module StepLemmas.
         econstructor; eauto.
         erewrite gsoAddCode; eauto.
           by rewrite add_updateC_comm.
+          Unshelve.
+          assumption.
     Qed.
 
 
@@ -1575,14 +1601,28 @@ Module StepLemmas.
         right. left.
         split; auto.
         econstructor; eauto.
+        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
+        simpl.
+        erewrite OrdinalPool.gRemLockSetRes;
+          now eauto.
+        simpl in *. unfold HybridMachine.DryHybridMachine.install_perm in *.
+        erewrite restrPermMap_irr with (m2 := m') (P2 := (Hcmpt _ ctn).1); eauto.
+        simpl.
+        erewrite OrdinalPool.gRemLockSetRes;
+          now eauto.
         rewrite gRemLockSetCode; auto.
         eapply ThreadPoolWF.remLock_inv; eauto.
+        rewrite remLock_updThreadC_comm.
+        reflexivity.
       - subst.
         inversion H; subst.
         do 2 right.
         econstructor; eauto.
         rewrite gRemLockSetCode; auto.
         eapply ThreadPoolWF.remLock_inv; eauto.
+        Unshelve.
+        assumption.
     Qed.
 
     Lemma remLock_internal_execution:
