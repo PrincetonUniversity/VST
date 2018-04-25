@@ -312,6 +312,8 @@ Module BareMachine.
                (tp:thread_pool)(v:val)(args:list val) : Prop :=
       exists c, initial_core semSem 0 m c v args /\ tp = mkPool (Krun c) tt.
 
+    Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) :=
+      m. 
     (** The signature of the Bare Machine *)
     Instance BareMachineSig: HybridMachineSig.MachineSig :=
       (HybridMachineSig.Build_MachineSig
@@ -319,6 +321,7 @@ Module BareMachine.
                                        dryMem
                                        mem_compatible
                                        invariant
+                                       install_perm
                                        threadStep
                                        threadStep_equal_run
                                        syncStep

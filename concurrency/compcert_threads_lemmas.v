@@ -24,6 +24,7 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
+Require Import VST.concurrency.threadPool.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.permjoin_def.
@@ -34,44 +35,43 @@ Require Import VST.concurrency.dry_machine_step_lemmas.
 Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.mem_obs_eq.
-Require Import VST.concurrency.ClightSemantincsForMachines.
+
+Import ThreadPool CoreLanguage AsmContext
+       HybridMachine DryHybridMachine HybridMachineSig.
+Import CoreInjections ThreadPoolInjections.
+(** Step Type Imports*)
+Import StepType InternalSteps.
+(** Memory Imports*)
+Import MemObsEq ValObsEq MemoryLemmas.
+Import CoreInjections ValueWD MemoryWD Renamings.
 
 Module SimDefs.
 
-  (* Step Imports*)
-  Import StepType InternalSteps.
+  Section SimDefs.
+  Context {asmSem : Semantics}
+          {semAxioms : SemAxioms}
+          {CI: CoreInj}
+          {the_ge : semG}
+          {initU : seq nat}
+          {init_mem : option Memory.Mem.mem}.
 
-  (* Memory Imports*)
-  Import MemObsEq ValObsEq MemoryLemmas.
-  Import CoreInjections ValueWD MemoryWD Renamings.
+  Existing Instance OrdinalPool.OrdinalThreadPool.
+  Existing Instance DryHybridMachine.DryHybridMachineSig.
+  Existing Instance dryFineMach.
+  Existing Instance dryCoarseMach.
+
 
   (* Machine and Context Imports*)
-  Import AsmContext Concur.mySchedule.
-  Import ThreadPoolInjections.
-  Import HybridMachine.DryHybridMachine ThreadPool.
+  (* Import Machine DryMachine ThreadPool AsmContext HybridMachine.Concur.mySchedule. *)
+  (* Machine and Context Imports*)
 
   Notation Sch := schedule.
   Notation CoarseSem := coarse_semantics.
-  Hint Unfold CoreLanguageDry.HBS.MachStep.
 
-  Section SimDefs.
 
-  Context {CSem : ClightSEM}.
-  Existing Instance ClightSem.
-  Notation Sem := ClightSem.
-  Context {SemAx : CoreLanguage.SemAxioms}.
-  Variable (the_ge : G).
-  Variables (initU : seq nat) (init_mem : option mem).
-  Context {MachSig : HybridMachineSig.MachineSig}.
-
-  Notation threadStep := (threadStep the_ge).
-  Notation cmachine_step := ((corestep (coarse_semantics initU init_mem)) the_ge).
-  Notation fmachine_step := ((corestep (fine_semantics initU init_mem)) the_ge).
-
-  Notation "cnt '$' m '@'  'I'" := (getStepType(ge := the_ge) cnt m = Internal) (at level 80).
-  Notation "cnt '$' m '@'  'E'" := (getStepType(ge := the_ge) cnt m = Concurrent) (at level 80).
-  Notation "cnt '$' m '@'  'S'" := (getStepType(ge := the_ge) cnt m = Suspend) (at level 80).
-  Notation "cnt '$' m '@'  'H'" := (getStepType(ge := the_ge) cnt m = Halted) (at level 80).
+  Notation threadStep := (HybridMachineSig.threadStep the_ge).
+  Notation cmachine_step := ((corestep (AsmContext.coarse_semantics initU init_mem)) the_ge).
+  Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem)) the_ge).
 
   (** *** Simulations between individual threads. *)
 
@@ -85,16 +85,16 @@ Module SimDefs.
   something about those threads as well. The fact that the permissions
   of the coarse grained machine are above the ones on the fine is
   enough to establish non-interference for the fine grained machine *)
-  Record weak_tsim {tpc tpf : threadPool.ThreadPool.t} (mc mf : Mem.mem)
+  Record weak_tsim {tpc tpf : t} (mc mf : Mem.mem)
              {i} (f: memren) (pfc : containsThread tpc i)
              (pff : containsThread tpf i) (compc: mem_compatible tpc mc)
              (compf: mem_compatible tpf mf) : Prop :=
     { weak_tsim_data:
-        weak_mem_obs_eq f (restrPermMap (fst (compc i pfc)))
-                        (restrPermMap (proj1 (compf i pff)));
+        weak_mem_obs_eq f (restrPermMap (((compat_th _ _ compc) pfc).1))
+                        (restrPermMap (((compat_th _ _ compf) pff).1));
       weak_tsim_locks:
-        weak_mem_obs_eq f (restrPermMap (snd (compc i pfc)))
-                        (restrPermMap (snd (compf i pff)))}.
+        weak_mem_obs_eq f (restrPermMap (((compat_th _ _ compc) pfc).2))
+                        (restrPermMap (((compat_th _ _ compf) pff).2))}.
 
   Record strong_tsim {tpc tpf : threadPool.ThreadPool.t} (mc mf : Mem.mem) {i}
          (f: memren) (pfc : containsThread tpc i)
@@ -137,12 +137,12 @@ Module SimDefs.
 - The state, memory, and genv of DryConc are well-formed (no dangling pointers)
 - the delta list [xs] contains only valid thread ids. *)
 
-  Record sim (tpc : threadPool.ThreadPool.t) mc (tpf : threadPool.ThreadPool.t) mf (xs : Sch) (f fg: memren) (fp: fpool tpc) fuelF : Prop :=
+  Record sim tpc mc tpf mf (xs : seq nat) (f fg: memren) (fp: fpool tpc) fuelF : Prop :=
     { numThreads : forall i, containsThread tpc i <-> containsThread tpf i;
       mem_compc: mem_compatible tpc mc;
       mem_compf: mem_compatible tpf mf;
       safeCoarse: forall sched,
-          HybridMachineSig.HybridCoarseMachine.csafe(Sem := Sem) the_ge (sched,[::],tpc) mc (fuelF + size xs);
+          HybridCoarseMachine.csafe the_ge (sched,[::],tpc) mc (fuelF + size xs);
       simWeak:
         forall tid
           (pfc: containsThread tpc tid)
@@ -203,12 +203,16 @@ Module SimDefs.
       maxF: max_inv mf;
       memc_wd: valid_mem mc;
       tpc_wd: tp_wd f tpc;
-      thege_wd: ge_wd(Sem := Sem) fg the_ge;
+      thege_wd: ge_wd fg the_ge;
       fg_spec: ren_incr fg f /\ forall b b', fg b = Some b' -> b = b';
       xs_wd: forall i, List.In i xs -> containsThread tpc i
     }.
 
-  Global Arguments sim : clear implicits.
+  Arguments sim : clear implicits.
+  Notation "cnt '$' m '@'  'I'" := (getStepType cnt m Internal) (at level 80).
+  Notation "cnt '$' m '@'  'E'" := (getStepType cnt m Concurrent) (at level 80).
+  Notation "cnt '$' m '@'  'S'" := (getStepType cnt m Suspend) (at level 80).
+  Notation "cnt '$' m '@'  'H'" := (getStepType cnt m Halted) (at level 80).
 
   (** *** Simulations Diagrams *)
 
@@ -218,9 +222,11 @@ Module SimDefs.
       (pff: containsThread tpf i)
       (Hinternal: pff $ mf @ I)
       (Hsim: sim tpc mc tpf mf xs f fg fp (S (S fuelF))),
-    exists tpf' mf' fp' tr',
-      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
-      sim tpc mc tpf' mf' (i :: xs) f fg fp' (S fuelF).
+      let mrestr := restrPermMap (((compat_th _ _ (mem_compf Hsim)) pff).1) in
+      forall (Hinternal: pff$mrestr @ I),
+      exists tpf' mf' fp' tr',
+        (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
+        sim tpc mc tpf' mf' (i :: xs) f fg fp' (S fuelF).
 
   Definition sim_external_def :=
     forall tpc tpf (mc mf : Mem.mem) tr fuelF
@@ -229,6 +235,8 @@ Module SimDefs.
       (Hexternal: pff $ mf @ E)
       (Hsynced: ~ List.In i xs)
       (Hsim: sim tpc mc tpf mf xs f fg fp (S (S fuelF))),
+      let mrestr := restrPermMap (((compat_th _ _ (mem_compf Hsim)) pff).1) in
+      forall (Hinternal: pff$mrestr @ E),
     exists tpc' mc' tpf' mf' f' fp' tr',
       (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       sim tpc' mc' tpf' mf' xs f' fg fp' (S fuelF).
@@ -242,8 +250,9 @@ Module SimDefs.
     forall tpc tpf (mc mf : Mem.mem) tr fuelF
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
-      (Hexternal: pff $ mf @ S)
       (Hsim: sim tpc mc tpf mf xs f fg fp (S (S fuelF))),
+      let mrestr := restrPermMap (((compat_th _ _ (mem_compf Hsim)) pff).1) in
+      forall (Hinternal: pff$mrestr @ S),
     exists tpc' mc' tpf' mf' f' fp' tr',
       (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       sim tpc' mc' tpf' mf' [seq x <- xs | x != i] f' fg fp'
@@ -253,8 +262,9 @@ Module SimDefs.
     forall tpc tpf (mc mf : Mem.mem) tr fuelF
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
-      (Hinternal: pff $ mf @ H)
       (Hsim: sim tpc mc tpf mf xs f fg fp (S (S fuelF))),
+      let mrestr := restrPermMap (((compat_th _ _ (mem_compf Hsim)) pff).1) in
+      forall (Hinternal: pff$mrestr @ H),
       exists tr',
         (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf) mf) /\
         sim tpc mc tpf mf xs f fg fp (S fuelF).
@@ -270,71 +280,68 @@ Module SimDefs.
 
   End SimDefs.
 
+  Arguments sim {asmSem} {CI} the_ge tpc mc tpf mf xs f fg fp fuelF.
+
 End SimDefs.
 
 (** ** Proofs *)
 Module SimProofs.
 
-  Import SimDefs.
-  Import StepType InternalSteps StepLemmas.
-  Import CoreLanguage CoreLanguageDry.
-
-  (* Memory Imports*)
-  Import MemObsEq ValObsEq MemoryLemmas.
-  Import CoreInjections ValueWD MemoryWD Renamings.
-
-  (* Machine and Context Imports*)
-  Import HybridMachine.DryHybridMachine ThreadPool AsmContext Concur.mySchedule.
-  Import ThreadPoolInjections ThreadPoolWF.
-  Import event_semantics Events.
-
   Section SimProofs.
+    Context {asmSem : Semantics}
+            {semAxioms : SemAxioms}
+            {CI: CoreInj}
+            {the_ge : semG}
+            {initU : seq nat}
+            {init_mem : option Memory.Mem.mem}.
 
-  Context {CSem : ClightSEM}.
-  Existing Instance ClightSem.
-  Notation Sem := ClightSem.
-  Context {SemAx : CoreLanguage.SemAxioms}.
-  Variable (the_ge : G).
-  Variables (initU : seq nat) (init_mem : option mem).
-  Context {MachSig : HybridMachineSig.MachineSig}.
+    Existing Instance OrdinalPool.OrdinalThreadPool.
+    Existing Instance DryHybridMachine.DryHybridMachineSig.
+    Existing Instance dryFineMach.
+    Existing Instance dryCoarseMach.
 
-  Notation threadStep := (threadStep the_ge).
-  Notation cmachine_step := ((corestep (coarse_semantics initU init_mem)) the_ge).
-  Notation fmachine_step := ((corestep (fine_semantics initU init_mem)) the_ge).
+    Import SimDefs ThreadPoolWF.
+    Import event_semantics Events.
 
-  Notation csafe := (HBS.HybridCoarseMachine.csafe).
+  Notation csafe := (HybridCoarseMachine.csafe the_ge).
+  Notation sim_halted_def := (@sim_halted_def _ _ the_ge initU init_mem).
+  Notation sim_fail_def := (@sim_fail_def _ _ the_ge initU init_mem).
+  Notation threadStep := (HybridMachineSig.threadStep the_ge).
+  Notation cmachine_step := ((corestep (AsmContext.coarse_semantics initU init_mem)) the_ge).
+  Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem)) the_ge).
+
   Notation internal_step := (internal_step the_ge).
   Notation internal_execution := (internal_execution the_ge).
 
   Lemma ctlType_inj :
-    forall c c' (f: memren)
-      (Hge_wd: ge_wd f the_ge)
+    forall st c c' m m' (f: memren)
+      (* (Hge_wd: ge_wd f the_ge) *)
+      (Hvalid: valid_mem m)
+      (Hmem: mem_obs_eq f m m')
       (Hinj: ctl_inj f c c'),
-      ctlType(ge := the_ge) c = ctlType(ge := the_ge) c'.
+      ctlType c m st <-> ctlType c' m' st.
   Proof.
     intros. unfold ctl_inj in Hinj.
     destruct c; destruct c'; try (by exfalso);
-    unfold ctlType in *; auto.
-    assert  (VME: valid_mem Mem.empty). {
-      hnf; intros.
-      hnf in H. simpl Mem.nextblock in H. destruct b; inversion H.
-   }
-    assert (DME: domain_memren f Mem.empty). {
-      admit. (* False *)
-   }
-    assert (Hat_ext := @core_inj_ext _ the_ge Mem.empty _ _ _ Hge_wd VME DME Hinj).
-    assert (Hhalted := core_inj_halted Hinj); auto.
-    destruct (at_external (@semSem ClightSem) the_ge s Mem.empty) as [[? ?]|]; simpl in *;
-    destruct (at_external (@semSem ClightSem) the_ge s0 Mem.empty) as [[? ?]|]; simpl in *; auto;
-    try (by exfalso).
-    destruct (halted _ s), (halted _ s0); try tauto.
-Admitted.
+      unfold ctlType in *; try tauto.
+    assert (Hat_ext := core_inj_ext _ _  Hvalid Hinj Hmem).
+    destruct (at_external semSem s m) as [[[? ?] ?]|] eqn:Hext; simpl in *.
+    - destruct (at_external semSem s0 m') as [[[? ?] ?]|];
+          tauto.
+    - destruct (at_external semSem s0 m') as [[[? ?] ?]|]; [tauto|].
+        assert (Hhalted := core_inj_halted _ _ _ Hinj); auto.
+        split; intros [[[? ?] ?] |?]; subst;
+          try (right; reflexivity);
+          left; split;
+            try (eexists; eapply Hhalted; now eauto).
+  Qed.
 
   Lemma stepType_inj:
-    forall tpc tpf i (pffi:containsThread tpf i) (pfci: containsThread tpc i) f      
-      (Hge_wd: ge_wd f the_ge),
+    forall tpc tpf i (pffi:containsThread tpf i) (pfci: containsThread tpc i) m m' f st
+      (Hvalid_mem: valid_mem m)
+      (Hmem_obs_eq: mem_obs_eq f m m'),
       ctl_inj f (getThreadC pfci) (getThreadC pffi) ->
-      getStepType(ge := the_ge) pfci = getStepType(ge := the_ge) pffi.
+      getStepType pfci m st <-> getStepType pffi m' st.
   Proof.
     intros.
     eapply ctlType_inj;
@@ -351,68 +358,153 @@ Admitted.
     inversion H.
     econstructor; eauto.
     intros.
-    eapply HBS.HybridCoarseMachine.csafe_reduce; eauto.
+    eapply HybridCoarseMachine.csafe_reduce; eauto.
     ssromega.
   Qed.
 
+  
   (** Proof of simulation of trivial halted step*)
 
-  Lemma sim_halted: sim_halted_def the_ge initU init_mem.
+  Lemma sim_halted: sim_halted_def.
   Proof.
     unfold sim_halted_def.
     intros.
-    pose proof (mem_compf Hsim).
-    pose proof (invF Hsim).
-    unfold getStepType in Hinternal; simpl in Hinternal.
-    destruct (OrdinalPool.getThreadC pff) eqn:Hget; simpl in *;
+    pose proof (mem_compf Hsim) as Hcompf.
+    pose proof (invF Hsim) as HinvF.
+    unfold getStepType in Hinternal.
+    destruct (getThreadC pff) eqn:Hget; simpl in *;
     try discriminate.
-    destruct (at_external CLN_evsem the_ge s mf), (halted CLN_evsem s) eqn:?; try discriminate.
+    destruct (at_external semSem s (restrPermMap (proj1 ((mem_compf Hsim) i pff)))) eqn:Hext;
+      rewrite Hext in Hinternal; try discriminate.
+    destruct Hinternal as [[[? ?] _]|?]; try discriminate.
     exists tr.
     split.
     intros.
     econstructor 6; simpl; eauto.
     econstructor; eauto.
-    rewrite Heqo; eauto.
-    eapply sim_reduce; eauto.
+    eapply sim_reduce;
+      now eauto.
   Qed.
 
-  Lemma sim_fail: sim_fail_def the_ge initU init_mem.
+  Lemma sim_fail: sim_fail_def.
   Proof.
     unfold sim_fail_def.
     intros.
     exists tr.
     split.
     intros. econstructor 7; simpl; eauto.
-    { (* invariant? *) admit. }
+    eapply (invF Hsim); eauto.
     eapply (mem_compf Hsim); eauto.
     eapply sim_reduce; eauto.
-(*    Grab Existential Variables.
-    econstructor.
-    instantiate (1:=fuelF).
-    ssromega.
-  Qed.*)
-  Admitted.
+  Qed.
 
   (** Proofs about [internal_execution] and [internal_step] *)
+  Existing Instance HybridCoarseMachine.DilMem.
+  Existing Instance HybridCoarseMachine.scheduler.
+  Import TheSchedule.THESCH.
 
+  Import VST.concurrency.tactics.
   Lemma internal_step_cmachine_step :
-    forall (i : NatTID.tid) tp tp' tr tr' (m m' : mem)
-      (U : list NatTID.tid)
+    forall (i : NatTID.tid) (tp tp' : thread_pool) (m m' : mem)
+      (U : list nat) tr
       (Hcnt: containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (Hstep_internal: internal_step Hcnt Hcomp tp' m'),
+      exists tr',
       cmachine_step ((buildSched (i :: U)), tr, tp) m
-                    ((buildSched (i :: U)), tr', tp') m' /\
-      (forall tp'' m'' U',
-          cmachine_step ((buildSched (i :: U)), tr, tp) m
-                        ((buildSched U'), tr', tp'') m'' ->
+                    ((buildSched (i :: U)), tr ++ tr', tp') m' /\
+      (forall tp'' tr'' m'' U',
+          cmachine_step ((buildSched (i :: U)), tr,tp) m
+                        ((buildSched U'), tr ++ tr'', tp'') m'' ->
           tp' = tp'' /\ m' = m'' /\ i :: U = U').
   Proof.
-    intros. split.
+    intros.
+    inversion Hstep_internal as [[? Hcore] | [[Hresume ?] | Hstart]]; subst;
+      autounfold.
+    - exists (List.map (fun mev => internal i mev) x).
+      split.
+      + replace m' with (diluteMem m') by reflexivity.
+        replace (buildSched (i :: U)) with (yield (buildSched (i :: U))) at 2 by reflexivity.
+        eapply thread_step.
+        reflexivity.
+        simpl.
+        eapply Hcore.
+      + intros tp'' tr'' m'' U' Hstep.
+        assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
+        { inversion Hstep; subst; clear Hstep; Tactics.pf_cleanup;
+            simpl in *; inversion HschedN; subst;
+              Tactics.pf_cleanup;
+              unfold buildSched in *;
+          unfold internal_step; try (by eexists; eauto);
+            eapply internal_step_type in Hstep_internal.
+          exfalso; simpl in *;
+          unfold getStepType, ctlType in Hstep_internal;
+            try inversion Htstep;
+            try (inversion Hhalted); subst; Tactics.pf_cleanup.
+          repeat match goal with
+                 | [H1: context[match ?Expr with | _ => _ end],
+                        H2: ?Expr = _ |- _] =>
+                   rewrite H2 in H1
+                 end; try discriminate.
+          
+          destruct (at_external semSem c (restrPermMap (proj1 (Hcomp tid ctn)))) eqn:Hext.
+            rewrite Hext in Hstep_internal;
+            try discriminate.
+          
+
+                 { inversion Hstep; subst; clear Hstep;
+      simpl in *; inversion HschedN; subst; pf_cleanup;
+      unfold internal_step; try (by eexists; eauto);
+      apply internal_step_type in Hstep_internal; exfalso;
+      unfold getStepType, ctlType in Hstep_internal;
+      try inversion Htstep;
+      try (inversion Hhalted); subst;
+      unfold getThreadC in *; Tactics.pf_cleanup;
+      try rewrite (at_external_congr the_ge the_ge m'' Mem.empty) in Hat_external;
+      repeat match goal with
+             | [H1: context[match ?Expr with | _ => _ end],
+                    H2: ?Expr = _ |- _] =>
+               rewrite H2 in H1
+             end; try discriminate.
+      destruct (at_external_halted_excl SEM.Sem the_ge c Mem.empty) as [Hnot_ext | Hcontra].
+      rewrite Hnot_ext in Hstep_internal; try discriminate.
+      destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
+      rewrite Hcontra in Hcant;
+        by auto.
+    }
+    destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
+    destruct (internal_step_det Hstep_internal Hstep_internal'); subst.
+    auto.
+  Qed.
+
+  
+          eapply List.app_inv_head in H5; subst.
+          split; [|now auto].
+          left.
+          unfold Datatypes.id.
+          simpl in *. Tactics.pf_cleanup.
+          eexists; now eauto.
+
+ 
+
+    eexists. split.
     destruct Hstep_internal as [[? Hcore] | [[Hresume ?] | Hstart]]; subst;
+<<<<<<< HEAD
+      autounfold.
+    replace m' with (diluteMem m') by reflexivity.
+    replace (buildSched (i :: U)) with (yield (buildSched (i :: U))) at 2 by reflexivity.
+    eapply thread_step.
+    reflexivity.
+    simpl.
+    eapply Hcore.
+    econstructor; eauto.
+    simpl.
+    apply Hcore.
+=======
     autounfold.
     eapply (@HybridMachineSig.thread_step _ Sem dryPool _ HBS.HybridCoarseMachine.scheduler) with (tid := i)(ev := x).
     reflexivity. simpl in *. apply Hcore.
+>>>>>>> 0cb23a3dd01015a96d558ac6ded1b69a7ec099bf
     econstructor 2; simpl; eauto.
     econstructor 1; simpl; eauto.
     intros tp'' m'' U' Hstep.

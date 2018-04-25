@@ -49,7 +49,7 @@ Module DryHybridMachine.
     Notation thread_pool := (@t dryResources Sem).
     (** Memories*)
     Definition richMem: Type:= mem.
-    Definition dryMem: richMem -> mem:= id.
+    Definition dryMem: richMem -> mem:= fun x => x.
     
     (** The state respects the memory*)
     
@@ -694,6 +694,8 @@ Module DryHybridMachine.
         
     Admitted.
 
+    Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) :=
+      restrPermMap (Hcmpt tid Hcnt).1.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)
@@ -703,6 +705,7 @@ Module DryHybridMachine.
                              dryMem
                              mem_compatible
                              invariant
+                             install_perm
                              threadStep
                              threadStep_equal_run
                              syncStep

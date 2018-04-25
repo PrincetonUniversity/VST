@@ -154,10 +154,13 @@ Module HybridMachineSig.
       {
         richMem: Type
         ; dryMem: richMem -> mem
-                              
+
         (** The thread pool respects the memory*)
         ; mem_compatible: thread_pool -> mem -> Prop
         ; invariant: thread_pool -> Prop
+
+        ; install_perm: forall {ms m tid},
+            mem_compatible ms m -> containsThread ms tid -> mem
                                      
         (** Step relations *)
         ; threadStep:
@@ -216,6 +219,7 @@ Module HybridMachineSig.
 
         ; init_mach : option res -> mem -> thread_pool -> val -> list val -> Prop}.
 
+
     Context {machineSig: MachineSig}.
 
     Definition event_trace := (seq machine_event).
@@ -237,6 +241,7 @@ Module HybridMachineSig.
      indicate it's ready to take a syncronisation step or resume
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
+  (*TODO: probably need to update the permissions for initial core too*)
    Inductive start_thread (genv : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> mem -> Prop:=
   | StartThread: forall m tid0 ms ms' c_new vf arg
@@ -248,12 +253,16 @@ Module HybridMachineSig.
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread genv m ctn ms' m.
 
+
+
+         
    Inductive resume_thread' (ge : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall m tid0 ms ms' c c' X
                     (ctn: containsThread ms tid0)
-                    (Hat_external: at_external semSem c m = Some X)
-                    (Hafter_external: after_external semSem None c m = Some c')
+                    (Hcmpt: mem_compatible ms m)
+                    (Hat_external: at_external semSem c (install_perm Hcmpt ctn) = Some X)
+                    (Hafter_external: after_external semSem None c (install_perm Hcmpt ctn) = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -266,8 +275,9 @@ Module HybridMachineSig.
       containsThread ms tid0 -> machine_state -> Prop:=
   | SuspendThread: forall m tid0 ms ms' c X
                      (ctn: containsThread ms tid0)
+                     (Hcmpt: mem_compatible ms m)
                      (Hcode: getThreadC ctn = Krun c)
-                     (Hat_external: at_external semSem c m = Some X)
+                     (Hat_external: at_external semSem c (install_perm Hcmpt ctn)  = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kblocked c) = ms'),
       suspend_thread' ge m ctn ms'.
@@ -296,7 +306,6 @@ Module HybridMachineSig.
         forall tid U ms ms' m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
-          (Hcmpt: mem_compatible ms m)
           (Htstep: resume_thread genv m Htid ms'),
           machine_step U tr ms m (yield U) tr ms' m
     | thread_step:
@@ -312,7 +321,6 @@ Module HybridMachineSig.
           (HschedN: schedPeek U = Some tid)
           (HschedS: schedSkip U = U')        (*Schedule Forward*)
           (Htid: containsThread ms tid)
-          (Hcmpt: mem_compatible ms m)
           (Htstep:suspend_thread genv m Htid ms'),
           machine_step U tr ms m U' tr ms' m
     | sync_step:
@@ -427,7 +435,6 @@ Module HybridMachineSig.
           forall tid U ms ms' m tr
             (HschedN: schedPeek U = Some tid)
             (Htid: containsThread  ms tid)
-            (Hcmpt: mem_compatible ms m)
             (Htstep: resume_thread genv m Htid ms'),
             external_step U tr ms m (yield U) tr ms' m
       | suspend_step':
@@ -435,7 +442,6 @@ Module HybridMachineSig.
             (HschedN: schedPeek U = Some tid)
             (HschedS: schedSkip U = U')        (*Schedule Forward*)
             (Htid: containsThread ms tid)
-            (Hcmpt: mem_compatible ms m)
             (Htstep:suspend_thread genv m Htid ms'),
             external_step U tr ms m U' tr ms' m
       | sync_step':
@@ -579,6 +585,15 @@ Module HybridMachineSig.
                      (Hstep: MachStep ge st m (schedSkip (fst (fst st)),tr',tp') m')
                      (Hsafe: forall U'', csafe ge (U'',tr',tp') m' n),
           csafe ge st m (S n).
+
+      (* TODO: Make a new file with safety lemmas. *)
+      Lemma csafe_reduce:
+        forall ge sched tp mem n m,
+          csafe ge (sched, [::], tp) mem n ->
+          m <= n ->
+          csafe ge (sched, [::], tp) mem m.
+      Proof.
+        Admitted.
       
     End HybridCoarseMachine.
   End HybridCoarseMachine.
