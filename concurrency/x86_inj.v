@@ -1,6 +1,6 @@
 (** * Injections on X86 cores*)
 
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.pos.
