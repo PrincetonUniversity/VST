@@ -2718,9 +2718,9 @@ Lemma semax_call {CS: compspecs}:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
-       (fun rho => |> (tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  &&
+       (fun rho => (|>(tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho))  &&
            (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (F rho * P ts x (make_args (map (@fst  _ _) argsig)
+          (|>(F rho * P ts x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho )))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -2742,16 +2742,14 @@ rewrite !later_andp in H3.
 apply extend_sepcon_andp in H3; auto.
 destruct H3 as [H2 H3].
 normalize in H3. unfold func_ptr in *.
-rewrite (later_ex _ _ 1%positive) in H3.
-destruct H3 as [[b H3] H5].
-rewrite later_andp in H3; destruct H3 as [H3 H6].
+destruct H3 as [[b [H3 H6]] H5].
 generalize H4; intros [_ H7].
 destruct (level w) eqn: Hl.
 { apply own.bupd_intro; repeat intro.
   rewrite Hl; constructor. }
+rewrite <- Hl in *.
 destruct (levelS_age w n) as (w' & Hage & Hw'); auto.
-specialize (H6 _ (age_laterR Hage)).
-specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) _ (rt_step _ _ _ _ Hage)).
+specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) _ (necR_refl _)).
 spec H7.
 1: apply func_at_func_at'; apply H6.
 destruct H7 as [id [H7 H9]].
@@ -2767,7 +2765,6 @@ unfold func_at in H13.
 (* rewrite H12 in H13.*)
 destruct fs as [fsig' cc' A' P' Q' NEP' NEQ'].
 hnf in H6,H13.
-erewrite (age1_resource_at _ _ Hage) in H6 by (symmetry; apply resource_at_approx).
 inversion2 H13 H6.
 apply inj_pair2 in H14. rename H14 into H15.
 pose (H6:=True).
@@ -2779,31 +2776,22 @@ set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
 rename H11 into H10'.
 
-destruct (function_pointer_aux A' P P' Q Q' w' NEP NEQ NEP' NEQ') as [H10 H11].
-f_equal.
-transitivity (fmap (fpi (fun ts0 => dependent_type_functor_rec ts0 (SpecTT A')))
-  (approx (level w') oo approx (level w)) (approx (level w) oo approx (level w')) (packPQ P' Q')); auto.
-etransitivity; [apply H15|].
-extensionality x1 x2 x3 x4; simpl.
-rewrite fmap_app; reflexivity.
-rewrite approx_oo_approx', approx'_oo_approx by omega; reflexivity.
+destruct (function_pointer_aux A' P P' Q Q' w NEP NEQ NEP' NEQ') as [H10 H11].
+f_equal; auto.
 clear H15.
 specialize (H10 ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
 specialize (H11 ts x).
 assert (H14: app_pred (|> (F0 rho * F rho * P' ts x (make_args (map (@fst  _ _) argsig)
   (eval_exprlist (snd (split argsig)) bl rho) rho))) w).
 Focus 1. {
-  rewrite !later_sepcon in *.
-  rewrite sepcon_assoc.
-  destruct H5 as (? & ? & ? & ? & ? & ? & ? & ? & ?); do 3 eexists; eauto.
-  split; [apply now_later; auto|].
-  
   do 3 red in H10.
   apply eqp_later1 in H10.
-  rewrite later_sepcon.
   apply pred_eq_e2 in H10.
+  rewrite later_sepcon.
   eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level w)); eauto.
-  rewrite <- later_sepcon. apply now_later; auto.
+  rewrite <- later_sepcon, sepcon_assoc, later_sepcon.
+  eapply derives_e, H5.
+  apply sepcon_derives, derives_refl; apply now_later.
 } Unfocus.
 assert (typecheck_environ Delta rho) as TC4.
 Focus 1. {
@@ -2811,8 +2799,8 @@ Focus 1. {
   eapply typecheck_environ_sub in TC3; [| eauto].
   auto.
 } Unfocus.
-apply (tc_exprlist_sub _ _ _ TS) in TC2; [| eauto].
-apply (tc_expr_sub _ _ _ TS) in TC1; [| eauto].
+eapply later_derives in TC2; [|apply (tc_exprlist_sub _ _ _ TS); auto].
+eapply later_derives in TC1; [|apply (tc_expr_sub _ _ _ TS); auto].
 assert (TC7': tc_fn_return Delta' ret retsig).
 Focus 1. {
   clear - TC7 TS.
@@ -2842,10 +2830,10 @@ Lemma semax_call_alt {CS: compspecs}:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
-       (fun rho => |> tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  &&
+       (fun rho => (|> (tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho))  &&
            (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (F rho * P ts x (make_args (map (@fst  _ _) argsig)
-                (eval_exprlist (snd (split argsig)) bl rho) rho ))))
+          (|>(F rho * P ts x (make_args (map (@fst  _ _) argsig)
+                (eval_exprlist (snd (split argsig)) bl rho) rho )))))
          (Scall ret a bl)
          (normal_ret_assert
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q ts x) retsig ret rho))).

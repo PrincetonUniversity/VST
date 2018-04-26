@@ -996,7 +996,7 @@ lazymatch goal with
   eapply semax_seq';
     [prove_call_setup witness;
      clear_Delta_specs; clear_MORE_POST;
-     [ .. | 
+     [ .. | hoist_later_in_pre;
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
@@ -1013,7 +1013,7 @@ lazymatch goal with
        eapply semax_seq';
          [prove_call_setup witness;
           clear_Delta_specs; clear_MORE_POST;
-             [ .. | forward_call_id1_x_wow ]
+             [ .. | hoist_later_in_pre; forward_call_id1_x_wow ]
          |  after_forward_call ]
 | |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
@@ -1021,7 +1021,7 @@ lazymatch goal with
        eapply semax_seq';
          [prove_call_setup witness;
           clear_Delta_specs; clear_MORE_POST;
-             [ .. | forward_call_id1_y_wow ]
+             [ .. | hoist_later_in_pre; forward_call_id1_y_wow ]
          |  after_forward_call ]
 | |- _ => rewrite <- seq_assoc; fwd_call' witness
 end.

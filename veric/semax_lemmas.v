@@ -431,10 +431,10 @@ split; auto.
 split; auto.
 Qed.
 
-Lemma semax_extract_later_prop:
-  forall {CS: compspecs} Delta (PP: Prop) P c Q,
-           (PP -> semax Espec Delta (fun rho => (P rho)) c Q) ->
-           semax Espec Delta (fun rho => (|> !!PP) && P rho) c Q.
+Lemma semax_remove_later_prop:
+  forall {CS: compspecs} Delta PP P c Q,
+           semax Espec Delta (fun rho => (!!(PP rho) && P rho)) c Q ->
+           semax Espec Delta (fun rho => (|> !!(PP rho)) && P rho) c Q.
 Proof.
 intros.
 intro w.
@@ -442,39 +442,46 @@ rewrite semax_fold_unfold.
 intros gx Delta'.
 apply prop_imp_i; intros [TS HGG].
 intros w' ? ? k F w'' ? ?.
-intros te ve w''' ? w4 ? [[[? ?] ?] ?].
+intros te ve w''' ? w4 ? [[? ?] ?].
 
 replace ((F (construct_rho (filter_genv gx) ve te) *
-        (|>(!!PP) && (P (construct_rho (filter_genv gx) ve te))))%pred) with
-        (|>!!PP && (F (construct_rho (filter_genv gx) ve te) *
-         (P (construct_rho (filter_genv gx) ve te)))%pred) in H8.
+        (|>(!!PP (construct_rho (filter_genv gx) ve te)) && (P (construct_rho (filter_genv gx) ve te))))%pred) with
+        (|>!!(PP (construct_rho (filter_genv gx) ve te)) && (F (construct_rho (filter_genv gx) ve te) *
+         (P (construct_rho (filter_genv gx) ve te)))%pred) in H7.
 Focus 2. {
   rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
-    (|>!!PP && P (construct_rho (filter_genv gx) ve te))).
+    (|>!!(PP (construct_rho (filter_genv gx) ve te)) && P (construct_rho (filter_genv gx) ve te))).
 
  rewrite corable_andp_sepcon1 by (apply corable_later; apply corable_prop).
 
  rewrite sepcon_comm.
  reflexivity.
 } Unfocus.
-destruct H8.
-simpl in H8.
+destruct H7.
+simpl in H7.
 destruct (age1 w4) eqn:?H.
 + assert (age w4 r) by auto.
-  apply age_laterR in H12.
-  specialize (H8 r H12).
-  specialize (H H8); clear PP H8.
+  apply age_laterR in H11.
+  specialize (H7 r H11).
   hnf in H. rewrite semax_fold_unfold in H.
   eapply H. apply necR_refl. split; eassumption.
   apply necR_refl. eassumption. eassumption. eassumption.
   eassumption. eassumption.
   split; auto.
   split; auto.
-  split; auto.
+  rewrite sepcon_andp_prop2; split; auto.
 + apply bupd_intro; repeat intro.
-  eapply af_level1 in H11; [| apply compcert_rmaps.R.ag_rmap].
-  rewrite H11.
+  eapply af_level1 in H10; [| apply compcert_rmaps.R.ag_rmap].
+  rewrite H10.
   constructor.
+Qed.
+
+Lemma semax_extract_later_prop:
+  forall {CS: compspecs} Delta (PP: Prop) P c Q,
+           (PP -> semax Espec Delta (fun rho => (P rho)) c Q) ->
+           semax Espec Delta (fun rho => (|> !!PP) && P rho) c Q.
+Proof.
+  intros; apply semax_remove_later_prop, semax_extract_prop; auto.
 Qed.
 
 Lemma semax_unfold {CS: compspecs}:

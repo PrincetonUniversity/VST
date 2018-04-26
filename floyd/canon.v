@@ -1613,6 +1613,21 @@ apply semax_extract_prop.
 auto.
 Qed.
 
+Lemma semax_later_SEP:
+  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R c Post,
+           semax Delta (PROPx P (LOCALx Q (|>SEPx R))) c Post ->
+           semax Delta (|> PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  unfold PROPx, LOCALx; rewrite !later_andp.
+  apply semax_extract_later_prop; intro; simpl.
+  apply semax_remove_later_prop.
+  eapply semax_pre, H.
+  apply andp_right; [apply prop_right; auto|].
+  unfold SEPx.
+  apply andp_left2, derives_refl.
+Qed.
+
 Lemma semax_extract_later_prop1:
   forall {cs: compspecs} {Espec: OracleKind} Delta (PP: Prop) P c Q,
            (PP -> semax Delta (|> P) c Q) ->

@@ -1268,9 +1268,9 @@ Axiom semax_call :
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)  &&
+          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          (F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -1443,6 +1443,12 @@ Axiom semax_extract_prop:
   forall Delta (PP: Prop) P c Q,
            (PP -> @semax CS Espec Delta P c Q) ->
            @semax CS Espec Delta (!!PP && P) c Q.
+
+Axiom semax_remove_later_prop:
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta PP P c Q,
+           @semax CS Espec Delta (fun rho => !!(PP rho) && P rho) c Q ->
+           @semax CS Espec Delta (fun rho => (|> !!PP rho) && P rho) c Q.
 
 Axiom semax_extract_later_prop:
   forall {Espec: OracleKind}{CS: compspecs},

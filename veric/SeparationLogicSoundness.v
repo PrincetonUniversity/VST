@@ -137,6 +137,7 @@ Definition semax_frame := @semax_frame.
 Definition semax_pre_post_bupd := @semax_pre_post_bupd.
 Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
+Definition semax_remove_later_prop := @semax_remove_later_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
