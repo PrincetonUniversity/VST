@@ -166,7 +166,7 @@ Hint Rewrite deref_noload_Tarray : norm.
 
 Lemma flip_lifted_eq:
   forall (v1: environ -> val) (v2: val),
-    `eq v1 `v2 = `(eq v2) v1.
+    `eq v1 `(v2) = `(eq v2) v1.
 Proof.
 intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
 Qed.

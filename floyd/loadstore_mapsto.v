@@ -26,7 +26,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `(v2) * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id e1)
        (normal_ret_assert
@@ -81,7 +81,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `(v2) * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert
@@ -163,7 +163,7 @@ Proof.
   rewrite <- local_sepcon_assoc1.
   eapply derives_trans.
   + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `(v) * `TT).
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
   + rewrite sepcon_assoc.
@@ -199,7 +199,7 @@ Proof.
   rewrite <- local_sepcon_assoc1.
   eapply derives_trans.
   + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `(v) * `TT).
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
   + rewrite sepcon_assoc.

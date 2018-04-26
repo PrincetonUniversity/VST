@@ -1336,9 +1336,9 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
           (EX old:val,
-                 local (`eq (eval_id id)  (subst id `old
+                 local (`eq (eval_id id)  (subst id `(old)
                      (eval_expr (Ebinop cmp e1 e2 ty)))) &&
-                            subst id `old P)).
+                            subst id `(old) P)).
 
 Axiom semax_load :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -1389,7 +1389,7 @@ forall (Delta: tycontext) P id e v t,
     tc_val t v ->
     @semax CS Espec Delta
         ( |> P ) (Sset id e)
-        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `old P)).
+        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `(old) P)).
 
 Axiom semax_loadstore:
   forall {Espec: OracleKind}{CS: compspecs},

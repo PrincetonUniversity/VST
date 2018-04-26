@@ -277,7 +277,7 @@ Lemma LOCALx_nonexpansive: forall Q R rho,
 Proof.
   intros.
   unfold LOCALx.
-  apply (conj_nonexpansive (fun S => local (fold_right ` and ` True (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
+  apply (conj_nonexpansive (fun S => local (fold_right `(and) `(True) (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
   apply const_nonexpansive.
 Qed.
 
@@ -532,8 +532,8 @@ Hint Rewrite @fold_right_cons : subst.
 
 Lemma fold_right_and_app:
   forall (Q1 Q2: list (environ -> Prop)) rho,
-   fold_right `and `True (Q1 ++ Q2) rho =
-   (fold_right `and `True Q1 rho /\  fold_right `and `True Q2 rho).
+   fold_right `(and) `(True) (Q1 ++ Q2) rho =
+   (fold_right `(and) `(True) Q1 rho /\  fold_right `(and) `(True) Q2 rho).
 Proof.
 intros.
 induction Q1; simpl; auto.
