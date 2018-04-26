@@ -15,9 +15,7 @@ Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
-Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
-
 Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.
@@ -387,14 +385,6 @@ Module StepLemmas.
       Existing Instance dryResources.
       Existing Instance DryHybridMachineSig.
 
-      (*Nick: not sure what these are about, but they probably shouldn't be here *)
-     (* Lemma initial_core_nomem:
-        forall n ge m v args q m', initial_core Sem n ge m v args = Some (q,m') -> m'=None.
-      Proof.  
-      Admitted.  (* true of Clight *)
-      Lemma initial_core_mem_congr: forall n ge m m' v vl,
-          initial_core Sem n ge m v vl = initial_core Sem n ge m' v vl.
-      Admitted.  (* true of Clight *) *)
       
       (** Internal steps are just thread coresteps or resume steps or start steps,
           they mimic fine-grained internal steps *)
@@ -439,30 +429,29 @@ Module StepLemmas.
     Qed.
 
     (** [internal_step] is deterministic *)
-(*    Lemma internal_step_det :
+    Lemma internal_step_det :
       forall tp tp' tp'' m m' m'' i
-        (Hcnt: containsThread tp i)
-        (Hcomp: mem_compatible tp m)
-        (Hstep: internal_step Hcnt Hcomp tp' m')
-        (Hstep': internal_step Hcnt Hcomp tp'' m''),
+             (Hcnt: containsThread tp i)
+             (Hcomp: mem_compatible tp m)
+             (Hstep: internal_step Hcnt Hcomp tp' m')
+             (Hstep': internal_step Hcnt Hcomp tp'' m''),
         tp' = tp'' /\ m' = m''.
     Proof.
       intros.
       destruct Hstep as [[? Htstep] | [[Htstep ?] | Htstep]],
                         Hstep' as [[? Htstep'] | [[Htstep' ?] | Htstep']]; subst;
-      inversion Htstep; inversion Htstep'; subst; Tactics.pf_cleanup;
-        try (rewrite Hcode in Hcode0; inversion Hcode0; subst).
+        inversion Htstep; inversion Htstep'; subst; Tactics.pf_cleanup;
+          try (rewrite Hcode in Hcode0; inversion Hcode0; subst).
       - apply event_semantics.ev_step_ax1 in Hcorestep0;
           apply event_semantics.ev_step_ax1 in Hcorestep.
         assert (Heq: c' = c'0 /\ m' = m'')
           by (eapply corestep_det; eauto).
         now solve [destruct Heq; subst; auto].
-      - rewrite Hafter_external in Hafter_external0;
+      - inversion Hperm; inversion Hperm0; subst.
+        rewrite Hafter_external in Hafter_external0;
           now inversion Hafter_external0.
-      - unfold initial_core, csem, event_semantics.msem, semSem, Sem in Hinitial.
-        rewrite Hinitial in Hinitial0;
-          now inversion Hinitial0.
-    Qed.*)
+      - admit.
+    Admitted.
 
     Ltac exec_induction base_case :=
       intros;
@@ -589,7 +578,9 @@ Module StepLemmas.
       intros.
       inversion Hstart; subst.
       eapply updThreadC_compatible.
-      Admitted.
+      assumption.
+    Qed.
+      
       (* apply initial_core_nomem in Hinitial. subst. eauto. *)
 
     (** [mem_compatible] is preserved by [internal_step]*)
@@ -890,11 +881,11 @@ Module StepLemmas.
       inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply event_semantics.ev_step_ax1 in Hcorestep;
         eapply CoreLanguageDry.corestep_disjoint_val;
-        by eauto.
-      (* inversion Htstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity. *)
-      admit. (*initial_core problem *)
-    Admitted.
-
+          by eauto.
+      inversion Htstep; subst.
+      reflexivity.
+    Qed.
+      
     Lemma internal_exec_disjoint_val :
       forall tp tp' m m' i j xs
         (Hneq: i <> j)
@@ -971,11 +962,9 @@ Module StepLemmas.
         eapply CoreLanguageDry.corestep_disjoint_locks;
           by eauto.
       inversion Htstep. subst.
-      (*initial_core issues *)
-      (* apply initial_core_nomem in Hinitial. subst. reflexivity. *)
-      admit.
-    Admitted.
-
+      reflexivity.
+    Qed.
+    
     Lemma internal_exec_disjoint_locks:
       forall tp tp' m m' i j xs
         (pfi: containsThread tp i)
@@ -1040,11 +1029,9 @@ Module StepLemmas.
       inversion Hstep as [[? Htstep] | [[Htstep Heq] | Htstep]]; subst; auto.
       inversion Htstep; subst; eapply ev_unchanged_on in Hcorestep;
         by eauto.
-      inversion Htstep. subst.
-      (* apply initial_core_nomem in Hinitial. subst. reflexivity. *)
-      (*initial core issue *)
-      admit.
-    Admitted.
+      inversion Htstep; subst.
+      reflexivity.
+    Qed.
 
     (** Data resources of a thread that took an internal step are related by [decay]*)
     Lemma internal_step_decay:
@@ -1139,19 +1126,18 @@ Module StepLemmas.
                    (Mem.mem_access (restrPermMap (((compat_th _ _ Hcomp') cnt').1))) # b ofs k =
                    (Mem.mem_access (restrPermMap (((compat_th _ _ Hcomp) cnt).1))) # b ofs k).
         { intros k.
-          admit. (*initial_core related *)
-          (* destruct k. *)
-          (* rewrite HpermMax. *)
-          (* assert (H := restrPermMap_Max (((compat_th _ _ Hcomp) cnt).1) b ofs). *)
-          (* rewrite getMaxPerm_correct in H. *)
-          (* apply initial_core_nomem in Hinitial. subst. *)
-          (* unfold permission_at in H; *)
-          (*   by rewrite H. *)
-          (* rewrite HpermCur. *)
-          (* rewrite Hpmap. *)
-          (* assert (H := restrPermMap_Cur (((compat_th _ _ Hcomp) cnt).1) b ofs). *)
-          (* unfold permission_at in H; *)
-          (*   by rewrite H. *)
+          inversion Hstart; subst.
+          destruct k.
+          rewrite HpermMax.
+          assert (H := restrPermMap_Max (((compat_th _ _ Hcomp) cnt).1) b ofs).
+          rewrite getMaxPerm_correct in H.
+          unfold permission_at in H;
+            by rewrite H.
+          rewrite HpermCur.
+          rewrite Hpmap.
+          assert (H := restrPermMap_Cur (((compat_th _ _ Hcomp) cnt).1) b ofs).
+          unfold permission_at in H;
+            by rewrite H.
         }
         split.
         intros.
@@ -1162,7 +1148,7 @@ Module StepLemmas.
         rewrite H;
           by assumption.
         intros; auto.
-    Admitted.
+    Qed.
     
     (** [Mem.valid_block] is preserved by [internal_step]*)
     Lemma internal_step_valid:
@@ -1178,10 +1164,8 @@ Module StepLemmas.
          eapply ev_step_validblock;
            by eauto | by subst | subst].
       inversion H. subst.
-      (*initial_core issue *)
-      admit.
-      (* apply initial_core_nomem in Hinitial. subst. assumption. *)
-    Admitted.
+      assumption.
+    Qed.
 
     Lemma internal_execution_valid :
       forall tp m tp' m' xs
@@ -1322,11 +1306,9 @@ Module StepLemmas.
       inversion Hcstep; subst; eapply event_semantics.ev_step_ax1 in Hcorestep;
       eapply CoreLanguageDry.corestep_disjoint_val_lockpool;
         by eauto.
-      (* initial_core issue*)
-    (*   inversion Hsstep. subst. apply initial_core_nomem in Hinitial. subst. reflexivity. *)
-      (* Qed. *)
-      admit.
-    Admitted.
+      inversion Hsstep; subst;
+        reflexivity.
+    Qed.
 
     Lemma internal_exec_disjoint_val_lockPool:
       forall (tp tp' : t) (m m' : mem) (i : nat) xs bl ofsl pmap
@@ -1742,8 +1724,8 @@ Module StepType.
     rewrite H1.
     right. split; [reflexivity |].
     intros i0 Hcontra.
-    assert (forall c m c' m', corestep ge q m q' m' -> forall i, ~ halted c i)
-    
+    eapply corestep_not_halted in Hcorestep;
+      now eauto.
     inversion Hresume; subst.
     Tactics.pf_cleanup;
       by rewrite Hcode.
@@ -1768,7 +1750,7 @@ Module StepType.
     try rewrite gssThreadCode in Hcontra;
     try rewrite gssThreadCC in Hcontra; unfold ctlType in Hcontra;
     repeat destruct (at_external _ _ _); try discriminate;
-    destruct Hcontra as [[]|]; discriminate.
+    destruct Hcontra as [[]|[]]; discriminate.
   Qed.
 
   Lemma internal_execution_result_type:
@@ -1893,8 +1875,7 @@ Module StepType.
              by eauto).    
     eapply StepLemmas.mem_compatible_setMaxPerm.
     destruct (at_external semSem c mrestr) eqn:?; try discriminate.
-    destruct Hinternal as [[? Hhalted] ?|]; try discriminate.
-    (*    destruct (halted semSem c); inversion H0.*)
+    destruct Hinternal as [[? Hhalted]|[_ ?]]; try discriminate.
     eapply corestep_compatible; simpl; eauto.
   Qed.
   

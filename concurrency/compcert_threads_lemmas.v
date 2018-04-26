@@ -36,6 +36,9 @@ Require Import VST.concurrency.dry_context.
 Require Import VST.concurrency.memory_lemmas.
 Require Import VST.concurrency.mem_obs_eq.
 
+Set Bullet Behavior "None".
+Set Bullet Behavior "Strict Subproofs".
+
 Import ThreadPool CoreLanguage AsmContext
        HybridMachine DryHybridMachine HybridMachineSig.
 Import CoreInjections ThreadPoolInjections.
@@ -309,6 +312,10 @@ Module SimProofs.
   Notation threadStep := (HybridMachineSig.threadStep the_ge).
   Notation cmachine_step := ((corestep (AsmContext.coarse_semantics initU init_mem)) the_ge).
   Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem)) the_ge).
+  Notation "cnt '$' m '@'  'I'" := (getStepType cnt m Internal) (at level 80).
+  Notation "cnt '$' m '@'  'E'" := (getStepType cnt m Concurrent) (at level 80).
+  Notation "cnt '$' m '@'  'S'" := (getStepType cnt m Suspend) (at level 80).
+  Notation "cnt '$' m '@'  'H'" := (getStepType cnt m Halted) (at level 80).
 
   Notation internal_step := (internal_step the_ge).
   Notation internal_execution := (internal_execution the_ge).
@@ -327,13 +334,15 @@ Module SimProofs.
     assert (Hat_ext := core_inj_ext _ _  Hvalid Hinj Hmem).
     destruct (at_external semSem s m) as [[[? ?] ?]|] eqn:Hext; simpl in *.
     - destruct (at_external semSem s0 m') as [[[? ?] ?]|];
-          tauto.
+        now tauto.
     - destruct (at_external semSem s0 m') as [[[? ?] ?]|]; [tauto|].
         assert (Hhalted := core_inj_halted _ _ _ Hinj); auto.
-        split; intros [[[? ?] ?] |?]; subst;
-          try (right; reflexivity);
-          left; split;
-            try (eexists; eapply Hhalted; now eauto).
+        split; intros [[[? ?] ?] |[? ?]]; subst;
+          try (left; split;
+               eexists; eapply Hhalted; now eauto);
+        try (right; split; [reflexivity|
+                            intros i Hcontra; destruct (Hhalted i);
+                            eapply H0; now eauto]).
   Qed.
 
   Lemma stepType_inj:
@@ -376,7 +385,7 @@ Module SimProofs.
     try discriminate.
     destruct (at_external semSem s (restrPermMap (proj1 ((mem_compf Hsim) i pff)))) eqn:Hext;
       rewrite Hext in Hinternal; try discriminate.
-    destruct Hinternal as [[[? ?] _]|?]; try discriminate.
+    destruct Hinternal as [[[? ?] _]|[Hcontra _]]; try discriminate.
     exists tr.
     split.
     intros.
@@ -454,114 +463,108 @@ Module SimProofs.
                    destruct (at_external A B C) eqn:Hext
                  end);
             try discriminate.
-          destruct Hstep_internal as [[_ ?]|_]; [discriminate|].
-          
-          destruct (at_external_halted_excl (csem semSem)) the_ge c (restrPermMap (proj1 (Hcomp tid cnt)))) as [Hnot_ext | Hcontra].
-          rewrite Hnot_ext in Hstep_internal; try discriminate.
-          destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
-          
-          
-
-          try (destruct (at_external semSem c (restrPermMap (proj1 (Hcomp tid ctn)))) eqn:Hext;
-               rewrite Hext in Hstep_internal);
-            try discriminate.
-          
-                 { inversion Hstep; subst; clear Hstep;
-      simpl in *; inversion HschedN; subst; pf_cleanup;
-      unfold internal_step; try (by eexists; eauto);
-      apply internal_step_type in Hstep_internal; exfalso;
-      unfold getStepType, ctlType in Hstep_internal;
-      try inversion Htstep;
-      try (inversion Hhalted); subst;
-      unfold getThreadC in *; Tactics.pf_cleanup;
-      try rewrite (at_external_congr the_ge the_ge m'' Mem.empty) in Hat_external;
-      repeat match goal with
-             | [H1: context[match ?Expr with | _ => _ end],
-                    H2: ?Expr = _ |- _] =>
-               rewrite H2 in H1
-             end; try discriminate.
-      destruct (at_external_halted_excl SEM.Sem the_ge c Mem.empty) as [Hnot_ext | Hcontra].
-      rewrite Hnot_ext in Hstep_internal; try discriminate.
-      destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
-      rewrite Hcontra in Hcant;
-        by auto.
-    }
-    destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
-    destruct (internal_step_det Hstep_internal Hstep_internal'); subst.
-    auto.
+          destruct Hstep_internal as [[_ ?]|[? ?]]; [discriminate|].
+          eapply H0;
+            now eauto.
+        }
+        destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
+        destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
+          now auto.
+    - exists [::].
+      rewrite cats0.
+      split.
+      + replace (buildSched (i :: U)) with (yield (buildSched (i :: U))) at 2 by reflexivity.
+        eapply resume_step;
+          now eauto.
+      + intros tp'' tr'' m'' U' Hstep.
+        Opaque mem_compatible.
+        assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
+        { inversion Hstep; subst; clear Hstep; Tactics.pf_cleanup;
+            simpl in *;
+            inversion HschedN; subst;
+              Tactics.pf_cleanup;
+              unfold buildSched in *;
+              unfold internal_step; try (by eexists; eauto);
+                eapply internal_step_type in Hstep_internal;
+                exfalso; simpl in *;
+                  unfold getStepType, ctlType in Hstep_internal;
+                  try inversion Htstep;
+                  try (inversion Hhalted); subst; Tactics.pf_cleanup;
+                    try inversion Hperm; subst;
+                      repeat match goal with
+                             | [H1: context[match ?Expr with | _ => _ end],
+                                    H2: ?Expr = _ |- _] =>
+                               rewrite H2 in H1
+                             end; try discriminate;
+                        try (match goal with
+                             | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
+                               destruct (at_external A B C) eqn:Hext
+                             end);
+                        try discriminate.
+          destruct Hstep_internal as [[_ ?]|[? ?]]; [discriminate|].
+          eapply H0;
+            now eauto.
+        }
+        destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
+        destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
+          now auto.
+    - exists [::].
+      rewrite cats0.
+      split.
+      + replace (buildSched (i :: U)) with (yield (buildSched (i :: U))) at 2 by reflexivity.
+        eapply start_step;
+          now eauto.
+      + intros tp'' tr'' m'' U' Hstep.
+        Opaque mem_compatible.
+        assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
+        { inversion Hstep; subst; clear Hstep; Tactics.pf_cleanup;
+            simpl in *;
+            inversion HschedN; subst;
+              Tactics.pf_cleanup;
+              unfold buildSched in *;
+              unfold internal_step; try (by eexists; eauto);
+                eapply internal_step_type in Hstep_internal;
+                exfalso; simpl in *;
+                  unfold getStepType, ctlType in Hstep_internal;
+                  try inversion Htstep;
+                  try (inversion Hhalted); subst; Tactics.pf_cleanup;
+                    try inversion Hperm; subst;
+                      repeat match goal with
+                             | [H1: context[match ?Expr with | _ => _ end],
+                                    H2: ?Expr = _ |- _] =>
+                               rewrite H2 in H1
+                             end; try discriminate;
+                        try (match goal with
+                             | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
+                               destruct (at_external A B C) eqn:Hext
+                             end);
+                        try discriminate.
+          destruct Hstep_internal as [[_ ?]|[? ?]]; [discriminate|].
+          eapply H0;
+            now eauto.
+        }
+        destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
+        destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
+          now auto.
   Qed.
 
-  
-          eapply List.app_inv_head in H5; subst.
-          split; [|now auto].
-          left.
-          unfold Datatypes.id.
-          simpl in *. Tactics.pf_cleanup.
-          eexists; now eauto.
-
- 
-
-    eexists. split.
-    destruct Hstep_internal as [[? Hcore] | [[Hresume ?] | Hstart]]; subst;
-<<<<<<< HEAD
-      autounfold.
-    replace m' with (diluteMem m') by reflexivity.
-    replace (buildSched (i :: U)) with (yield (buildSched (i :: U))) at 2 by reflexivity.
-    eapply thread_step.
-    reflexivity.
-    simpl.
-    eapply Hcore.
-    econstructor; eauto.
-    simpl.
-    apply Hcore.
-=======
-    autounfold.
-    eapply (@HybridMachineSig.thread_step _ Sem dryPool _ HBS.HybridCoarseMachine.scheduler) with (tid := i)(ev := x).
-    reflexivity. simpl in *. apply Hcore.
->>>>>>> 0cb23a3dd01015a96d558ac6ded1b69a7ec099bf
-    econstructor 2; simpl; eauto.
-    econstructor 1; simpl; eauto.
-    intros tp'' m'' U' Hstep.
-    assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
-    { inversion Hstep; subst; clear Hstep;
-      simpl in *; inversion HschedN; subst; pf_cleanup;
-      unfold internal_step; try (by eexists; eauto);
-      apply internal_step_type in Hstep_internal; exfalso;
-      unfold getStepType, ctlType in Hstep_internal;
-      try inversion Htstep;
-      try (inversion Hhalted); subst;
-      unfold getThreadC in *; pf_cleanup;
-      try rewrite (at_external_congr the_ge the_ge m'' Mem.empty) in Hat_external;
-      repeat match goal with
-             | [H1: context[match ?Expr with | _ => _ end],
-                    H2: ?Expr = _ |- _] =>
-               rewrite H2 in H1
-             end; try discriminate.
-      destruct (at_external_halted_excl SEM.Sem the_ge c Mem.empty) as [Hnot_ext | Hcontra].
-      rewrite Hnot_ext in Hstep_internal; try discriminate.
-      destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
-      rewrite Hcontra in Hcant;
-        by auto.
-    }
-    destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
-    destruct (internal_step_det Hstep_internal Hstep_internal'); subst.
-    auto.
-  Qed.
-
- Lemma safety_det_corestepN_internal:
-    forall xs i U tpc mc tpc' mc' fuelF
-      (Hsafe : csafe the_ge (buildSched (i :: U),[::],tpc) mc
+  Notation corestepN := (corestepN (AsmContext.coarse_semantics initU init_mem)).
+  Lemma safety_det_corestepN_internal:
+    forall xs i U tpc trc mc tpc' mc' fuelF
+      (Hsafe : csafe (buildSched (i :: U),trc,tpc) mc
                      (fuelF.+1 + size xs))
       (Hexec : internal_execution [seq x <- xs | x == i] tpc mc tpc' mc'),
-      corestepN CoarseSem the_ge (size [seq x <- xs | x == i])
-                (buildSched (i :: U), [::], tpc) mc (buildSched (i :: U), [::], tpc') mc'
-      /\ csafe the_ge (buildSched (i :: U),[::],tpc') mc'
+      exists trc',
+      corestepN the_ge (size [seq x <- xs | x == i])
+                (buildSched (i :: U), trc, tpc) mc (buildSched (i :: U), trc ++ trc', tpc') mc'
+      /\ csafe (buildSched (i :: U),trc ++ trc',tpc') mc'
               (fuelF.+1 + size [seq x <- xs | x != i]).
   Proof.
     intros xs.
     induction xs as [ | x xs]; intros.
     { simpl in *. inversion Hexec; subst.
-      eexists; eauto.
+      exists [::]; rewrite cats0;
+        now eauto.
       simpl in HschedN. discriminate.
     }
     { simpl in *.
@@ -573,52 +576,93 @@ Module SimProofs.
           inversion Hexec; subst; simpl in *; clear Hexec;
           inversion HschedN; subst i.
           assert (Hmach_step_det :=
-                    internal_step_cmachine_step U Hstep0).
-          destruct Hmach_step_det as [Hmach_step' Hmach_det].
-          specialize (Hmach_det _ _ _ Hstep).
+                    internal_step_cmachine_step U trc Hstep0).
+          destruct Hmach_step_det as [tr' [Hmach_step' Hmach_det]].
+          specialize (Hmach_det _ _ _ _ Hstep).
           destruct Hmach_det as [? [? ?]]; subst.
           rewrite <- addSnnS in Hsafe0.
-          destruct (IHxs tid U tp' m' tpc' mc' _ Hsafe0 Htrans)
-            as [HcorestepN Hsafe'].
-          split; eauto.
+          destruct (IHxs tid U tp' _ m' tpc' mc' _ Hsafe0 Htrans)
+            as [trc' [HcorestepN Hsafe']].
+          exists (tr ++ trc').
+          rewrite catA.
+          split;
+            now eauto.
         + exfalso.
           inversion Hexec; subst; simpl in *; clear Hexec;
           inversion HschedN; subst i.
-          assert (Hmach_step_det := internal_step_cmachine_step U Hstep0).
-          destruct Hmach_step_det as [Hmach_step' Hmach_det].
-          specialize (Hmach_det _ _ _ Hstep).
-          destruct Hmach_det as [? [? ?]].
+          assert (Hmach_step_det := internal_step_cmachine_step U trc Hstep0).
+          destruct Hmach_step_det as [tr' [Hmach_step' Hmach_det]].
+          specialize (Hmach_det _ _ _ _ Hstep).
+          destruct Hmach_det as [? [? ?]]; subst.
           exfalso;
-            eapply list_cons_irrefl; eauto.
+            eapply list_cons_irrefl;
+            now eauto.
       - simpl.
         rewrite <- addSnnS in Hsafe.
-        destruct (IHxs i U tpc mc tpc' mc' (fuelF.+1) Hsafe Hexec).
-        split; auto.
-        rewrite <- addSnnS.
-        eapply IHxs; eauto.
+        destruct (IHxs i U tpc trc mc tpc' mc' (fuelF.+1) Hsafe Hexec) as [? [? ?]].
+        eexists; split;
+          [now eauto| rewrite <- addSnnS; now eauto].
     }
   Qed.
 
+  (*NOTE: how can we have tactics inside sections? *)
+  (** Solves absurd cases from fine-grained internal steps *)
+  Ltac absurd_internal Hstep :=
+    inversion Hstep; try inversion Htstep; subst; Tactics.pf_cleanup; simpl in *;
+    try match goal with
+        | [H: Some _ = Some _ |- _] => inversion H; subst
+        end; Tactics.pf_cleanup;
+    repeat match goal with
+           | [H: getThreadC ?Pf = _, Hint: ?Pf$_ @ I |- _] =>
+             unfold getStepType in Hint; simpl in *;
+             rewrite H in Hint; simpl in Hint
+           | [H1: match ?Expr with _ => _ end = _,
+                  H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H: DryHybridMachine.threadHalted _ |- _] =>
+             inversion H; clear H; subst; simpl in *; Tactics.pf_cleanup;  simpl in *
+           (*     | [H1: is_true (isSome (halted ?Sem ?C)),
+                  H2: match at_external _ _ _ with _ => _ end = _ |- _] =>
+             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
+               [rewrite Hext in H2;
+                 destruct (halted Sem C) eqn:Hh;
+                 [discriminate | by exfalso] |
+                rewrite Hcontra in H1; by exfalso]*)
+           end; try discriminate; try (exfalso; by auto).
+
   Lemma at_internal_cmachine_step :
-    forall i U U' tp tp' m m' (cnt: containsThread tp i)
-      (isInternal: cnt @ I)
+    forall i U U' tp tp' m m'
+      (cnt: containsThread tp i)
+      (Hcomp: mem_compatible tp m),
+      let mrestr := restrPermMap (((compat_th _ _ Hcomp) cnt).1) in
+      forall (Hinternal: cnt$mrestr @ I)
       (Hstep: cmachine_step (buildSched (i :: U), [::],tp) m (U', [::], tp') m'),
-    exists (Hcomp : mem_compatible tp m),
-      internal_step cnt Hcomp tp' m' /\ U' = buildSched (i :: U).
+        internal_step cnt Hcomp tp' m' /\ U' = buildSched (i :: U).
   Proof.
     intros.
     absurd_internal Hstep.
-   exists Hcmpt. split; auto.
-    do 2 right;
-      by auto.
-    exists Hcmpt. split; auto.
-    right; left;
-      by auto.
-    exists Hcmpt. split; auto.
-    left; eauto.
-    rewrite (at_external_congr the_ge the_ge Mem.empty m') in isInternal; rewrite Hat_external in isInternal. discriminate.
-    destruct (at_external SEM.Sem the_ge c Mem.empty) eqn:?; try discriminate.
-    destruct (halted SEM.Sem c); try discriminate.
+    - split; auto.
+      do 2 right;
+        by auto.
+    - split; auto.
+      right; left;
+        by auto.
+    - split; auto.
+      left; now eauto.
+    - unfold getStepType, ctlType in Hinternal.
+      simpl in *.
+      rewrite Hcode in Hinternal.
+      inversion Hperm; subst.
+      subst mrestr.
+      rewrite Hat_external in Hinternal.
+      discriminate.
+    - unfold getStepType, ctlType in Hinternal.
+      simpl in *.
+      rewrite Hcode in Hinternal.
+      destruct (at_external semSem c mrestr); [discriminate|].
+      destruct Hinternal as [[? ?]| [? Hcontra]]; [discriminate|].
+      exfalso.
+      eapply Hcontra;
+        now eauto.
   Qed.
 
   (** Starting from a well-defined state, an internal execution

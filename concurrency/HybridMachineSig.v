@@ -386,8 +386,7 @@ Module HybridMachineSig.
                                 MachStep
           );
       unfold at_external_mach, halted_machine; try reflexivity.
-(*    intros. inversion H; subst; rewrite HschedN; reflexivity.
-    auto.*)
+    intros. inversion H; subst; rewrite HschedN; intro Hcontra; discriminate.
     Defined.
 
     Definition init_machine' (r : option res) (the_ge : semG) m
@@ -578,12 +577,12 @@ Module HybridMachineSig.
       | Safe_0: csafe ge st m 0
       | HaltedSafe: forall n, halted_machine st -> csafe ge st m n
       | CoreSafe : forall tp' m' n tr
-                     (Hstep: MachStep ge st m (fst (fst st),tr,tp') m')
-                     (Hsafe: csafe ge (fst (fst st),tr,tp') m' n),
+                     (Hstep: MachStep ge st m (fst (fst st),(snd (fst st)) ++ tr,tp') m')
+                     (Hsafe: csafe ge (fst (fst st),(snd (fst st)) ++ tr,tp') m' n),
           csafe ge st m (S n)
-      | AngelSafe: forall tp' m' n (tr tr': event_trace)
-                     (Hstep: MachStep ge st m (schedSkip (fst (fst st)),tr',tp') m')
-                     (Hsafe: forall U'', csafe ge (U'',tr',tp') m' n),
+      | AngelSafe: forall tp' m' n (tr: event_trace)
+                     (Hstep: MachStep ge st m (schedSkip (fst (fst st)),(snd (fst st)) ++ tr,tp') m')
+                     (Hsafe: forall U'', csafe ge (U'',(snd (fst st)) ++ tr,tp') m' n),
           csafe ge st m (S n).
 
       (* TODO: Make a new file with safety lemmas. *)

@@ -15,9 +15,8 @@ Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
-Require Import compcert.common.Events.
+(* Require Import compcert.common.Events. *)
 Require Import compcert.lib.Integers.
-
 Require Import Coq.ZArith.ZArith.
 
 Require Import VST.concurrency.threads_lemmas.

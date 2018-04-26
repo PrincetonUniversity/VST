@@ -23,10 +23,10 @@ Require Import VST.concurrency.safety.
 Require Import VST.concurrency.coinductive_safety.
 
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.Clight_new.
+(* Require Import VST.veric.Clight_new. *)
 
 Require Import VST.concurrency.HybridMachineSig.
-Require Import VST.concurrency.CoreSemantics_sum.
+(* Require Import VST.concurrency.CoreSemantics_sum. *)
 
 
 Module DryHybridMachine.
