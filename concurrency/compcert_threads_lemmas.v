@@ -430,28 +430,42 @@ Module SimProofs.
         simpl.
         eapply Hcore.
       + intros tp'' tr'' m'' U' Hstep.
+        Opaque mem_compatible.
         assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
         { inversion Hstep; subst; clear Hstep; Tactics.pf_cleanup;
-            simpl in *; inversion HschedN; subst;
-              Tactics.pf_cleanup;
+          simpl in *;
+          inversion HschedN; subst;
+          Tactics.pf_cleanup;
               unfold buildSched in *;
           unfold internal_step; try (by eexists; eauto);
-            eapply internal_step_type in Hstep_internal.
+            eapply internal_step_type in Hstep_internal;
           exfalso; simpl in *;
           unfold getStepType, ctlType in Hstep_internal;
             try inversion Htstep;
-            try (inversion Hhalted); subst; Tactics.pf_cleanup.
+            try (inversion Hhalted); subst; Tactics.pf_cleanup;
+              try inversion Hperm; subst;
           repeat match goal with
                  | [H1: context[match ?Expr with | _ => _ end],
                         H2: ?Expr = _ |- _] =>
                    rewrite H2 in H1
-                 end; try discriminate.
-          
-          destruct (at_external semSem c (restrPermMap (proj1 (Hcomp tid ctn)))) eqn:Hext.
-            rewrite Hext in Hstep_internal;
+                 end; try discriminate;
+            try (match goal with
+                 | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
+                   destruct (at_external A B C) eqn:Hext
+                 end);
             try discriminate.
+          destruct Hstep_internal as [[_ ?]|_]; [discriminate|].
+          
+          destruct (at_external_halted_excl (csem semSem)) the_ge c (restrPermMap (proj1 (Hcomp tid cnt)))) as [Hnot_ext | Hcontra].
+          rewrite Hnot_ext in Hstep_internal; try discriminate.
+          destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
+          
           
 
+          try (destruct (at_external semSem c (restrPermMap (proj1 (Hcomp tid ctn)))) eqn:Hext;
+               rewrite Hext in Hstep_internal);
+            try discriminate.
+          
                  { inversion Hstep; subst; clear Hstep;
       simpl in *; inversion HschedN; subst; pf_cleanup;
       unfold internal_step; try (by eexists; eauto);
