@@ -543,7 +543,7 @@ Lemma check_specs_lemma:
    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
           (PTree.elements Qpre_temp) ->
    fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
-  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
   fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
 Proof.
  intros. rename H2 into H8.
@@ -857,8 +857,8 @@ Qed.
 
 Lemma in_gvars_sub:
   forall rho G G', Forall (fun x : globals => In x G) G' ->
-  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
-  fold_right ` and ` True (map locald_denote (map gvars G')) rho.
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G')) rho.
 Proof.
 intros.
 pose proof (proj1 (Forall_forall _ G') H).
