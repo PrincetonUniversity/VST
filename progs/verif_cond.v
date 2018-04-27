@@ -47,19 +47,13 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec]).
 
-Lemma inv_precise : forall p,
-  precise (dlock_inv p).
+Lemma inv_exclusive : forall p, exclusive_mpred (dlock_inv p).
 Proof.
-  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
-  intros ? (? & H); apply data_at_data_at_ in H; eauto.
+  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try omega.
+  unfold dlock_inv.
+  Intros i; cancel.
 Qed.
-
-Lemma inv_positive : forall ctr,
-  positive_mpred (dlock_inv ctr).
-Proof.
-  intro; apply ex_positive; auto.
-Qed.
-Hint Resolve inv_precise inv_positive.
+Hint Resolve inv_exclusive.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -80,9 +74,8 @@ Proof.
   forward_call (lockt, sh, cond_var sh cond * lock_inv sh lock (dlock_inv data),
                 tlock_inv sh lockt lock cond data).
   { unfold tlock_inv; lock_props.
-    - apply selflock_precise, precise_sepcon; auto.
-    - rewrite selflock_eq at 2; cancel.
-      eapply derives_trans; [apply lock_inv_later | cancel]. }
+    rewrite selflock_eq at 2; cancel.
+    eapply derives_trans; [apply lock_inv_later | cancel]. }
   forward.
 Qed.
 
@@ -163,7 +156,7 @@ Proof.
     forward_call (lockt, Ews, sh1, |>(cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data)),
                   |>tlock_inv sh1 lockt lock cond data).
     { unfold tlock_inv; lock_props.
-      + apply later_positive; auto.
+      + apply later_exclusive; auto.
       + unfold rec_inv.
         rewrite selflock_eq at 1.
         rewrite later_sepcon; f_equal.
