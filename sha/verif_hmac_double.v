@@ -84,6 +84,7 @@ rename H into Pk.
 forward_call (c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
     destruct k; try contradiction.
+    unfold t_struct_hmac_ctx_st.
     entailer!.
   }
 
