@@ -860,7 +860,7 @@ Qed.
 
 Lemma insert_locals:
   forall P A B C,
-  local (fold_right `and `True (map locald_denote A)) && PROPx P (LOCALx B C) =
+  local (fold_right `(and) `(True) (map locald_denote A)) && PROPx P (LOCALx B C) =
   PROPx P (LOCALx (A++B) C).
 Proof.
 intros.
@@ -923,7 +923,7 @@ Proof.
     simpl app;
      rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
     destruct (T2a ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q');
     inv H8.
@@ -975,7 +975,7 @@ Proof.
     simpl app;
      rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
      rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ;
     destruct (T2a ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q');
@@ -1040,7 +1040,7 @@ Proof.
         simpl app;
         rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
      rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ).
     -
      rewrite <- (PTree.gsident _ _ H8) by auto.
@@ -1131,7 +1131,7 @@ Proof.
   extensionality rho; unfold SEPx; simpl. rewrite sepcon_emp. reflexivity.
 Qed.
 
-Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `and `True Q rho -> Q0 rho.
+Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `(and) `(True) Q rho -> Q0 rho.
 Proof.
   intros.
   induction Q.
@@ -1146,7 +1146,7 @@ Proof.
       tauto.
 Qed.
 
-Lemma local_ext_rev: forall (Q: list (environ -> Prop)) rho, (forall Q0, In Q0 Q -> Q0 rho) -> fold_right `and `True Q rho.
+Lemma local_ext_rev: forall (Q: list (environ -> Prop)) rho, (forall Q0, In Q0 Q -> Q0 rho) -> fold_right `(and) `(True) Q rho.
 Proof.
   intros.
   induction Q.

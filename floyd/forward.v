@@ -2222,9 +2222,54 @@ match goal with
         simpl_ret_assert (*autorewrite with ret_assert*)]
 end.
 
+Ltac remove_LOCAL name Q :=
+  let i := eval hnf in (find_LOCAL_index name O Q) in
+    match i with
+    | Some ?i' =>
+        let r := eval cbv iota zeta beta delta [delete_nth] in (delete_nth i' Q) in
+        constr:(r)
+    | None =>
+        constr:(Q)
+    end.
+
+Ltac remove_LOCAL2 Qr Q :=
+  match Qr with
+  | nil => constr:(Q)
+  | cons ?Qr_head ?Qr_tail =>
+      match Qr_head with
+      | temp ?name _ =>
+          let Q' := remove_LOCAL name Q in remove_LOCAL2 Qr_tail Q'
+      | _ =>
+          remove_LOCAL2 Qr_tail Q
+      end
+  end.
+
 Tactic Notation "forward_if" constr(post) :=
   lazymatch type of post with
-  | Prop => match goal with |-semax _ (PROPx (?P) ?Q) _ _ => forward_if_tac (PROPx (post :: P) Q) end
+  | Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          forward_if_tac (PROPx (post :: P) Q)
+      end
+  | list Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          let P' := eval cbv iota zeta beta delta [app] in (post ++ P) in
+          forward_if_tac (PROPx P' Q)
+      end
+  | localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 constr:(cons post nil) Q in
+          forward_if_tac (PROPx (P) (LOCALx (post :: Q') R))
+      end
+  | list localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 post Q in
+          let Q'' := eval cbv iota zeta beta delta [app] in (post ++ Q') in
+          forward_if_tac (PROPx (P) (LOCALx Q'' R))
+      end
   | _ => forward_if_tac post
   end.
 

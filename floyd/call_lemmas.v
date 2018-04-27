@@ -333,8 +333,8 @@ Qed.
 
 Lemma fold_right_and_app_lifted:
   forall (Q1 Q2: list (environ -> Prop)),
-  fold_right `and `True (Q1 ++ Q2)  =
-  `and (fold_right `and `True Q1) (fold_right `and `True Q2).
+  fold_right `(and) `(True) (Q1 ++ Q2)  =
+  `and (fold_right `(and) `(True) Q1) (fold_right `(and) `(True) Q2).
 Proof.
 induction Q1; intros; simpl; auto.
 extensionality rho; apply prop_ext; intuition.
@@ -381,7 +381,7 @@ f_equal; auto.
 Qed.
 
 Lemma isolate_LOCAL_lem1:
-  forall Q, PROPx nil (LOCALx Q (SEPx (TT::nil))) = local (fold_right `and `True (map locald_denote Q)).
+  forall Q, PROPx nil (LOCALx Q (SEPx (TT::nil))) = local (fold_right `(and) `(True) (map locald_denote Q)).
 Proof.
  intros.
  extensionality rho.
@@ -393,9 +393,9 @@ Qed.
 Lemma fold_right_and_LocalD_i:
   forall T1 T2 Q rho,
   (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) ->
-  (forall i vd, T2 ! i = Some vd -> fold_right `and `True (map locald_denote (denote_vardesc nil i vd)) rho) ->
-  (fold_right `and `True (map locald_denote Q) rho) ->
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho.
+  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) ->
+  (fold_right `(and) `(True) (map locald_denote Q) rho) ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho.
 Proof.
  intros.
  unfold LocalD.
@@ -437,10 +437,10 @@ Qed.
 
 Lemma fold_right_and_LocalD_e:
   forall T1 T2 Q rho,
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
   (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) /\
-  (forall i vd, T2 ! i = Some vd -> fold_right `and `True (map locald_denote (denote_vardesc nil i vd)) rho) /\
-  (fold_right `and `True (map locald_denote Q) rho).
+  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) /\
+  (fold_right `(and) `(True) (map locald_denote Q) rho).
 Proof.
 unfold LocalD; intros.
  repeat rewrite PTree.fold_spec in H.
@@ -550,9 +550,9 @@ Lemma check_specs_lemma:
     Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->
    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
           (PTree.elements Qpre_temp) ->
-   fold_right `and `True (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
-  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
-  fold_right `and `True (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
+   fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
 Proof.
  intros. rename H2 into H8.
  apply fold_right_and_LocalD_e in H1.
@@ -656,7 +656,7 @@ Definition check_retty t :=
 
 Lemma PROP_LOCAL_SEP_f:
   forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
-     local (fold_right `and `True (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
+     local (fold_right `(and) `(True) (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
      && PROPx P (LOCALx nil (SEPx R)).
 Proof. intros. extensionality rho.
 cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
@@ -948,8 +948,8 @@ Qed.
 
 Lemma in_gvars_sub:
   forall rho G G', Forall (fun x : globals => In x G) G' ->
-  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
-  fold_right ` and ` True (map locald_denote (map gvars G')) rho.
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G')) rho.
 Proof.
 intros.
 pose proof (proj1 (Forall_forall _ G') H).
@@ -1065,8 +1065,8 @@ apply andp_left2. apply andp_left1.
     simpl; intros; auto.
  inv LEN.
  forget (argtypes argsig) as tys.
- cut (local (fold_right `and `True (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
-            `(local (fold_right `and `True (map locald_denote Qpre)))
+ cut (local (fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
+            `(local (fold_right `(and) `(True) (map locald_denote Qpre)))
                (fun rho => (make_args (var_names argsig) (eval_exprlist tys bl rho) rho)) rho).
  intro. eapply derives_trans; [apply H  |].
  unfold make_args'. simpl @fst. change (map fst argsig) with (var_names argsig).

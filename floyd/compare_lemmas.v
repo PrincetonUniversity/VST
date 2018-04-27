@@ -41,7 +41,7 @@ Qed.
 
 Lemma typed_true_Oeq_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_true tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) |--
    local (`(eq nullval) v).
 Proof.
 intros.
@@ -217,7 +217,7 @@ Qed.
 
 Lemma typed_false_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) |--
     local (`(eq nullval) v).
 Proof.
 intros.
@@ -238,7 +238,7 @@ Qed.
 
 Lemma typed_true_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_true tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros.
@@ -259,7 +259,7 @@ Qed.
 
 Lemma typed_false_Oeq_nullval:
  forall  {cs: compspecs} v t t',
-   local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros. subst.
