@@ -208,10 +208,11 @@ Proof.
   forward_call (ctr, sh2, lock, g1, g2, 1, 1).
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
-  replace_SEP 6 (lock_inv sh1 lockt (thread_lock_inv sh1 g1 g2 ctr lock lockt)) by admit.
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { lock_props.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
+    unfold thread_lock_inv, thread_lock_R.
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
+    cancel. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
