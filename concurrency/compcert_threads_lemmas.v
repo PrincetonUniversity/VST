@@ -301,7 +301,12 @@ Module SimProofs.
     Existing Instance OrdinalPool.OrdinalThreadPool.
     Existing Instance DryHybridMachine.DryHybridMachineSig.
     Existing Instance dryFineMach.
+    Existing Instance FineDilMem.
     Existing Instance dryCoarseMach.
+    Existing Instance HybridFineMachine.scheduler.
+    Existing Instance HybridCoarseMachine.scheduler.
+    Existing Instance FineDilMem.
+    Existing Instance HybridCoarseMachine.DilMem.
 
     Import SimDefs ThreadPoolWF.
     Import event_semantics Events.
@@ -319,6 +324,8 @@ Module SimProofs.
 
   Notation internal_step := (internal_step the_ge).
   Notation internal_execution := (internal_execution the_ge).
+  Notation fyield := (@yield HybridFineMachine.scheduler).
+  Notation fdiluteMem := (@diluteMem FineDilMem).
 
   Lemma ctlType_inj :
     forall st c c' m m' (f: memren)
@@ -685,9 +692,10 @@ Module SimProofs.
     intros.
     inversion Hstep as [[? Htstep] | [[Htstep ?] | Htstep]].
     - inversion Htstep; subst.
-      erewrite restrPermMap_mem_valid with (Hlt := fst (Hcomp i cnti)) in Hmem_wd.
+      erewrite restrPermMap_mem_valid with (Hlt := fst (compat_th _ _ Hcomp cnti)) in Hmem_wd.
       eapply ev_step_ax1 in Hcorestep.
-      apply corestep_wd with (f := f) (fg := fg) in Hcorestep; eauto.
+      eapply @corestep_wd with (f := f) (fg := fg) in Hcorestep;
+        eauto.
       destruct Hcorestep as [Hmem_wd' [Hf' Hcore_wd']].
       destruct Hf' as [f' [Hincr Hdomain']].
       assert (Hcore_wd_f':= Hcore_wd' _ Hdomain').
@@ -725,13 +733,16 @@ Module SimProofs.
             apply ren_domain_incr_refl).
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
       + rewrite gssThreadCC.
-        pf_cleanup.
+        Tactics.pf_cleanup.
         specialize (Htp_wd _ ctn).
         rewrite Hcode in Htp_wd.
-      destruct X as [? ?].
+      destruct X as [[? ?] ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
-      assert (Hargs:= at_external_wd the_ge Hmem_wd Hdomain Hcore_wd Hat_external).
+      inversion Hperm; subst.
+      erewrite restrPermMap_domain with (Hlt := (compat_th _ _ Hcomp ctn)#1) in Hdomain.
+      erewrite restrPermMap_mem_valid with (Hlt := (compat_th _ _ Hcomp ctn)#1) in Hmem_wd.
+      assert (Hargs:= at_external_wd _ Hmem_wd Hdomain Hcore_wd Hat_external).
       eapply after_external_wd; eauto.
       eapply core_wd_incr; eauto.
       eapply valid_val_list_incr;
@@ -741,16 +752,15 @@ Module SimProofs.
         specialize (Htp_wd _ cntj).
         eapply ctl_wd_incr;
           by eauto.
-    - assert (m'=m). {
-         inversion Htstep. apply initial_core_nomem in Hinitial. subst. reflexivity.
-       } subst m'.
+    - assert (m'=m)
+        by (inversion Htstep; now auto).
+      subst m'.
       subst; split; auto.
       inversion Htstep; subst.
       split.
-      exists f. rewrite H4.
+      exists f.
       split; unfold ren_domain_incr;
         by auto.
-     rewrite H4.
       intros f'' Hdomain''.
       intros j cntj'.
       assert (cntj: containsThread tp j)
@@ -759,30 +769,24 @@ Module SimProofs.
         by (eapply domain_memren_incr with (f' := f) (f'' := f''); eauto;
             apply ren_domain_incr_refl).
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
-      rewrite gssThreadCC.
-      pf_cleanup.
-      simpl.
-      (* eapply initial_core_wd; try apply Hinitial; eauto.*)
-
-
-      admit.
-      admit.
-
-      (*
-      specialize (Htp_wd _ ctn).
-      rewrite Hcode in Htp_wd.
-      simpl in Htp_wd.
-      destruct Htp_wd.
-      eapply valid_val_incr;
-        by eauto.
-      eapply ge_wd_incr; eauto.
-      eapply ren_domain_incr_trans;
-        by eauto.
-      erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
-      specialize (Htp_wd _ cntj).
-      eapply ctl_wd_incr;
-        by eauto. *)
-  Admitted.
+      + rewrite gssThreadCC.
+        Tactics.pf_cleanup.
+        simpl.
+        eapply initial_core_wd; eauto.
+        specialize (Htp_wd _ ctn).
+        rewrite Hcode in Htp_wd.
+        simpl in Htp_wd.
+        destruct Htp_wd.
+        eapply valid_val_incr;
+          by eauto.
+      (* eapply ge_wd_incr; eauto. *)
+      (* eapply ren_domain_incr_trans; *)
+      (*   by eauto. *)
+      + erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
+        specialize (Htp_wd _ cntj).
+        eapply ctl_wd_incr;
+          by eauto.
+  Qed.
 
   Lemma internal_execution_wd:
     forall tp m tp' m' i xs f fg
@@ -801,43 +805,43 @@ Module SimProofs.
     generalize dependent f.
     generalize dependent tp.
     induction xs; intros.
-    simpl in Hexec; inversion Hexec; subst;
-    [idtac| simpl in HschedN; by discriminate];
-    split; auto;
-    split; [exists f; split; unfold ren_domain_incr; auto | eauto].
-    intros.
-    eapply tp_wd_domain;
-      by eauto.
-    simpl in Hexec.
-    destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; try eauto.
-    subst a. inversion Hexec; subst.
-    simpl in Htrans.
-    simpl in HschedN; inversion HschedN; subst tid.
-    assert (H := internal_step_wd Hmem_wd Hdomain Htp_wd Hge_wd Hge_incr Hstep).
-    destruct H as [Hmem_wd0' [[f' [Hincr Hdomain0']] Htp_wd0']].
-    specialize (Htp_wd0' f' Hdomain0').
-    assert (Hge_incr0': ren_domain_incr fg f')
-      by ( eapply ren_domain_incr_trans; eauto).
-    assert (Hge_wd0': ge_wd f' the_ge)
-      by (eapply ge_wd_incr; eauto).
-    destruct (IHxs _ f' Htp_wd0' Hge_incr0'  m'0 Hdomain0' Hmem_wd0' Htrans)
-      as (Hwd_mem' & Hf'' & Htp_wd').
-    destruct Hf'' as [f'' [Hincr'' Hdomain'']].
-    specialize (Htp_wd' _ Hdomain'').
-    assert (ren_domain_incr f f'')
-      by (eapply ren_domain_incr_trans; eauto).
-    repeat match goal with
-           | [|- _ /\ _] => split; eauto
-           | [|- exists _, _] => eexists; eauto
-           | [|- forall _, _] => intros
-           end.
-    eapply tp_wd_domain;
-      by eauto.
+    - simpl in Hexec; inversion Hexec; subst;
+        [idtac| simpl in HschedN; by discriminate];
+        split; auto;
+          split; [exists f; split; unfold ren_domain_incr; auto | eauto].
+      intros.
+      eapply tp_wd_domain;
+        by eauto.
+    - simpl in Hexec.
+      destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; try eauto.
+      subst a. inversion Hexec; subst.
+      simpl in Htrans.
+      simpl in HschedN; inversion HschedN; subst tid.
+      assert (H := internal_step_wd Hmem_wd Hdomain Htp_wd Hge_wd Hge_incr Hstep).
+      destruct H as [Hmem_wd0' [[f' [Hincr Hdomain0']] Htp_wd0']].
+      specialize (Htp_wd0' f' Hdomain0').
+      assert (Hge_incr0': ren_domain_incr fg f')
+        by ( eapply ren_domain_incr_trans; eauto).
+      assert (Hge_wd0': ge_wd f' the_ge)
+        by (eapply ge_wd_incr; eauto).
+      destruct (IHxs _ f' Htp_wd0' Hge_incr0'  m'0 Hdomain0' Hmem_wd0' Htrans)
+        as (Hwd_mem' & Hf'' & Htp_wd').
+      destruct Hf'' as [f'' [Hincr'' Hdomain'']].
+      specialize (Htp_wd' _ Hdomain'').
+      assert (ren_domain_incr f f'')
+        by (eapply ren_domain_incr_trans; eauto).
+      repeat match goal with
+             | [|- _ /\ _] => split; eauto
+             | [|- exists _, _] => eexists; eauto
+             | [|- forall _, _] => intros
+             end.
+      eapply tp_wd_domain;
+        by eauto.
   Qed.
 
   Lemma suspend_tp_wd:
     forall m tpc tpc' (f : memren) i (pfc : containsThread tpc i)
-      (Hsuspend: DryConc.suspend_thread the_ge m pfc tpc')
+      (Hsuspend: suspend_thread the_ge m pfc tpc')
       (Htp_wd: tp_wd f tpc),
       tp_wd f tpc'.
   Proof.
@@ -1044,6 +1048,7 @@ Module SimProofs.
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hren_incr: ren_incr fg fi)
       (Hstrong_sim: strong_tsim fi pfc pff Hcompc Hcompf)
+      (Hmem_wd: valid_mem mc)
       (Hstep_internal: internal_step pfc Hcompc tpc' mc'),
     exists tpf' mf' fi' tr',
       (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
@@ -1063,7 +1068,7 @@ Module SimProofs.
             fi b1 = None ->
             forall ofs, (getThreadR pffj).1 # b2 ofs = None /\ (getThreadR pffj).2 # b2 ofs = None) /\
       (forall (bl : block) (ofsl : Z)
-         (rmap : HybridMachine.LocksAndResources.lock_info)
+         rmap
          (b1 b2 : block) (ofs : Z),
           fi' b1 = Some b2 ->
           fi b1 = None ->
@@ -1077,16 +1082,17 @@ Module SimProofs.
       destruct Hstrong_sim as [Hcode_eq memObsEq_data memObsEq_locks].
       rewrite Hcode in Hcode_eq.
       (* getThreadC pff returns a Krun*)
-      simpl in Hcode_eq. destruct (getThreadC pff) as [cf| ? | ? | ?] eqn:Hcodef;
+      simpl in Hcode_eq.
+      destruct (OrdinalPool.getThreadC pff) as [cf| ? | ? | ?] eqn:Hcodef;
         try (by exfalso).
       assert (H' := Hcorestep).
       apply ev_step_ax1 in Hcorestep.
-      eapply corestep_obs_eq in Hcorestep; eauto.
+      eapply corestep_obs_eq in Hcorestep; eauto. 
       destruct Hcorestep as
           (cf' & mf' & fi' & HcorestepF & Hcode_eq'
            & Hobs_eq' & Hincr & Hseparated
            & Hblocks & _ & _ & Hperm_unmapped).
-      remember (restrPermMap (fst (Hcompf _ pff))) as mf1 eqn:Hrestrict.
+      remember (restrPermMap (fst (compat_th _ _ Hcompf pff))) as mf1 eqn:Hrestrict.
       symmetry in Hrestrict.
       remember (updThread pff (Krun cf') (getCurPerm mf', (getThreadR pff).2))
         as tpf' eqn:Hupd.
@@ -1095,8 +1101,15 @@ Module SimProofs.
       exists tpf', (setMaxPerm mf'), fi', (tr ++ (List.map (fun mev => internal i mev) evF)).
       split.
       { (* FineConc machine steps *)
-        intros U. eapply FineConc.thread_step; simpl; eauto.
-        econstructor; eauto.
+        intros U.
+        simpl.
+        unfold MachStep. simpl.
+
+        replace U with (fyield (i :: U)) at 2 by reflexivity.
+        replace (setMaxPerm mf') with (fdiluteMem mf') by reflexivity.
+        eapply thread_step; simpl; eauto.
+        econstructor;
+          now eauto.
       }
       {
         split.
@@ -1168,16 +1181,16 @@ Module SimProofs.
               eapply strong_mem_obs_eq_disjoint_step; eauto.
               (* stability of contents of DryConc *)
               intros.
-              pose proof (fst (thread_data_lock_coh Hinv pfc) _ pfc).
+              pose proof (fst (thread_data_lock_coh _ Hinv _ pfc) _ pfc).
               apply ev_step_ax1 in H'.
-              eapply corestep_stable_val with (Hlt2 := Hlt); eauto.
+              eapply CoreLanguageDry.corestep_stable_val with (Hlt2 := Hlt); eauto.
               rewrite gssThreadRes; simpl;
                 by eauto.
               (* stability of contents of FineConc *)
               intros.
-              pose proof (fst (thread_data_lock_coh HinvF pff) _ pff).
+              pose proof (fst (thread_data_lock_coh _ HinvF _ pff) _ pff).
               simpl.
-              eapply corestep_stable_val with (Hlt2 := HltF); eauto.
+              eapply CoreLanguageDry.corestep_stable_val with (Hlt2 := HltF); eauto.
               rewrite gssThreadRes; simpl;
                 by eauto.
           - (** unmapped blocks*)
@@ -1201,26 +1214,25 @@ Module SimProofs.
           destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
           subst mf1.
           erewrite restrPermMap_valid in Hinvalidmf1.
-          pose proof (invalid_block_empty (fst (Hcompf _ pffj)) Hinvalidmf1 ofs).
-          pose proof (invalid_block_empty (snd (Hcompf _ pffj)) Hinvalidmf1 ofs);
+          pose proof (invalid_block_empty (fst (compat_th _ _ Hcompf pffj)) Hinvalidmf1 ofs).
+          pose proof (invalid_block_empty (snd (compat_th _ _ Hcompf pffj)) Hinvalidmf1 ofs);
             split; by assumption.
         * intros bl ofsl rmap b1 b2 ofs Hfi' Hfi Hres.
           specialize (Hseparated _ _ Hfi Hfi').
           destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
           subst mf1.
           erewrite restrPermMap_valid in Hinvalidmf1.
-          pose proof (invalid_block_empty (fst (compat_lp Hcompf _ Hres)) Hinvalidmf1 ofs).
-          pose proof (invalid_block_empty (snd (compat_lp Hcompf _ Hres)) Hinvalidmf1 ofs);
+          pose proof (invalid_block_empty (fst (compat_lp _ _ Hcompf _ _ Hres)) Hinvalidmf1 ofs).
+          pose proof (invalid_block_empty (snd (compat_lp _ _ Hcompf _ _ Hres)) Hinvalidmf1 ofs);
             split; by assumption.
-
       }
     }
     { destruct Hresume as [Hresume Heq]; subst.
-      inversion Hresume; subst; clear Hresume; pf_cleanup.
+      inversion Hresume; subst; clear Hresume; Tactics.pf_cleanup.
       destruct Hstrong_sim as [Hcode_eq memObsEq].
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
-      destruct (getThreadC pff) as [?|?|cf |? ] eqn:HcodeF;
+      destruct (OrdinalPool.getThreadC pff) as [?|?|cf |? ] eqn:HcodeF;
         try (by exfalso).
       destruct Hcode_eq as [Hcode_eq Hval_eq].
       inversion Hval_eq; subst.
@@ -1230,29 +1242,39 @@ Module SimProofs.
                           | None => True
                           end)
         by (by simpl).
+      inversion Hperm; subst.
       assert (Hafter_externalF :=
-                core_inj_after_ext the_ge None Hcode_eq
-                                   Hvalid_val Hafter_external).
+                core_inj_after_ext _ _ None Hcode_eq
+                                   memObsEq Hvalid_val Hafter_external).
       destruct Hafter_externalF as [ov2 [cf' [Hafter_externalF [Hcode_eq' Hval_obs]]]].
       destruct ov2 as [v2 |]; try by exfalso.
       inversion Hval_obs; subst.
+      erewrite restrPermMap_mem_valid with (Hlt := (compat_th _ _ Hcompc pfc)#1) in Hmem_wd.
       (* cf is at external*)
-      assert (Hat_externalF_spec := core_inj_ext the_ge mc' Hcode_eq).
+      assert (Hat_externalF_spec := core_inj_ext _ _ Hmem_wd Hcode_eq memObsEq).
       rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
-      rewrite (at_external_congr the_ge the_ge mc' mf) in Hat_externalF_spec.
-      destruct X as [ef val].
-      destruct (at_external SEM.Sem the_ge cf mf) as [[ef' val']|] eqn:Hat_externalF;
+      destruct X as [[ef sig] val].
+      destruct (at_external semSem cf (restrPermMap (proj1 (compat_th _ _ Hcompf pff))))
+        as [[[ef' sig'] val']|] eqn:Hat_externalF;
+        rewrite Hat_externalF in Hat_externalF_spec;
         try by exfalso.
-      destruct Hat_externalF_spec as [?  Harg_obs]; subst.
+      destruct Hat_externalF_spec as [?  [? Harg_obs]]; subst.
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
       exists tpf', mf, fi, tr.
       split.
       { (* The fine-grained machine steps *)
-        intros. eapply FineConc.resume_step with (Htid := pff); simpl; eauto.
-        eapply FineConc.ResumeThread with (c := cf); try eassumption.
+        intros.
+        simpl.
+        unfold MachStep. simpl.
+        replace U with (fyield (i :: U)) at 2 by reflexivity.
+        eapply @resume_step with (Htid := pff); simpl; eauto.
+        subst.
 
-          by eauto.
+        eapply @ResumeThread with (c := cf);
+          eauto.
+        simpl. unfold DryHybridMachine.install_perm.
+        reflexivity.
       }
       { split; first by auto.
         split; first by auto.
@@ -1262,30 +1284,29 @@ Module SimProofs.
         split.
         constructor;
           first by (subst tpf';
-                     do 2 rewrite gssThreadCC; by simpl).
+                    do 2 rewrite gssThreadCC; by simpl).
         erewrite restrPermMap_irr' with
-        (Hlt' := fst (Hcompf _ pff)) by (subst; by erewrite @gThreadCR with (cntj := pff)).
+        (Hlt' := fst (compat_th _ _ Hcompf pff)) by (subst; by erewrite @gThreadCR with (cntj := pff)).
         erewrite restrPermMap_irr; eauto;
           by rewrite gThreadCR.
         erewrite restrPermMap_irr' with
-        (Hlt' := snd (Hcompf _ pff)) by (subst; by erewrite @gThreadCR with (cntj := pff)).
+        (Hlt' := snd (compat_th _ _ Hcompf pff)) by (subst; by erewrite @gThreadCR with (cntj := pff)).
         erewrite restrPermMap_irr; eauto;
           by rewrite gThreadCR.
         intros. subst. rewrite gThreadCR; auto.
         split; [ | split]; intros; by congruence.
       }
     }
-    { (*destruct Hstart as [Hstart Heq]; subst. *)
-      inversion Hstart; subst; clear Hstart; pf_cleanup.
+    { inversion Hstart; subst; clear Hstart; Tactics.pf_cleanup.
       destruct Hstrong_sim as [Hcode_eq memObsEq].
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
-      destruct (getThreadC pff) as [?|?|? |vf' arg'] eqn:HcodeF;
+      destruct (OrdinalPool.getThreadC pff) as [?|?|? |vf' arg'] eqn:HcodeF;
         try (by exfalso).
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init mc (HybridMachine.Concur.mySchedule.TID.tid2nat i) Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
+      assert (HinitF := core_inj_init _ i Harg_obs_list Hvf memObsEq Hinitial).
       destruct HinitF as [c_newF [m' [HinitialF Hcode_eq]]].
       assert (m'=None) by (apply initial_core_nomem in HinitialF; auto); subst m'.
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
@@ -1297,7 +1318,7 @@ Module SimProofs.
         change mf with (machine_semantics.option_proj mf None) at 2.
         eapply FineConc.StartThread with (c_new := c_newF);
           try eauto.
-       clear - HinitialF.  admit.  (*  Clight oblivious to memory *)
+        clear - HinitialF.  admit.  (*  Clight oblivious to memory *)
       }
       { split; first by auto.
         split; first by auto.
@@ -1307,7 +1328,7 @@ Module SimProofs.
         split.
         constructor;
           first by (subst tpf';
-                     do 2 rewrite gssThreadCC; by simpl).
+                    do 2 rewrite gssThreadCC; by simpl).
         erewrite restrPermMap_irr' with
         (Hlt' := fst (Hcompf _ pff)) by (subst; by erewrite @gThreadCR with (cntj := pff)).
         erewrite restrPermMap_irr; eauto;
@@ -1320,7 +1341,7 @@ Module SimProofs.
         split; [|split]; intros; by congruence.
       }
     }
- Admitted.
+  Admitted.
 
   Global Ltac absurd_internal Hstep :=
     inversion Hstep; try inversion Htstep; subst; simpl in *;
@@ -1330,7 +1351,7 @@ Module SimProofs.
     repeat match goal with
            | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
              unfold getStepType in Hint;
-               rewrite H in Hint; simpl in Hint
+             rewrite H in Hint; simpl in Hint
            | [H1: match ?Expr with _ => _ end = _,
                   H2: ?Expr = _ |- _] => rewrite H2 in H1
            | [H: threadHalted _ |- _] =>
@@ -1339,10 +1360,10 @@ Module SimProofs.
            | [H1: is_true (isSome (halted ?Sem ?C)),
                   H2: match at_external _ ?g _ ?m with _ => _ end = _ |- _] =>
              destruct (at_external_halted_excl Sem ge C m) as [Hext | Hcontra];
-               [rewrite Hext in H2;
-                 destruct (halted Sem C) eqn:Hh;
-                 [discriminate | by exfalso] |
-                rewrite Hcontra in H1; by exfalso]
+             [rewrite Hext in H2;
+              destruct (halted Sem C) eqn:Hh;
+              [discriminate | by exfalso] |
+              rewrite Hcontra in H1; by exfalso]
            end; try discriminate; try (exfalso; by auto).
 
   Lemma weak_tsim_fstep:
@@ -1366,7 +1387,7 @@ Module SimProofs.
       as [Hdomain_invalid Hdomain_valid Hcodomain_valid Hinjective Hperm_obs_weak_data].
     pose proof (perm_obs_weak Hweak_locks) as Hperm_obs_weak_lock.
     absurd_internal Hstep;
-    try (assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om);
+      try (assert (om=None) by (apply initial_core_nomem in Hinitial; auto); subst om);
       do 2 constructor; auto.
     (* Case of start step*)
     intros b1 b2 ofs Hf.
@@ -1382,7 +1403,7 @@ Module SimProofs.
     erewrite gThreadCR with (cntj := pffj);
       by assumption.
     (* Case of resume step*)
-     intros b1 b2 ofs Hf.
+    intros b1 b2 ofs Hf.
     specialize (Hperm_obs_weak_data b1 b2 ofs Hf).
     do 2 rewrite restrPermMap_Cur.
     do 2 rewrite restrPermMap_Cur in Hperm_obs_weak_data.
@@ -1450,11 +1471,11 @@ Module SimProofs.
       + erewrite gsoThreadRes with (cntj := pffj) by eauto.
         assumption.
 
-  rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
-    rewrite Hat_external in Hinternal. discriminate.
+        rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
+          rewrite Hat_external in Hinternal. discriminate.
 
-  rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
-    rewrite Hat_external in Hinternal. discriminate.
+        rewrite (at_external_congr the_ge the_ge Mem.empty mf') in Hinternal;
+          rewrite Hat_external in Hinternal. discriminate.
   Qed.
 
   Lemma cmachine_step_invariant:
@@ -1505,7 +1526,7 @@ Module SimProofs.
               let n := Ordinal cntj in
               match unlift (ordinal_pos_incr (num_threads tp)) n with
               | Some (Ordinal _ cntj') => _
-                | None => f'
+              | None => f'
               end).
     simpl in *.
     eapply (fp n0 cntj').

@@ -244,11 +244,13 @@ Module HybridMachineSig.
   (*TODO: probably need to update the permissions for initial core too*)
    Inductive start_thread (genv : semG) : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> mem -> Prop:=
-  | StartThread: forall m tid0 ms ms' c_new vf arg
+  | StartThread: forall m m' tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
                     (Hcode: getThreadC ctn = Kinit vf arg)
+                    (Hcmpt: mem_compatible ms m)
+                    (Hperm: install_perm Hcmpt ctn m')
                     (Hinitial: initial_core semSem tid0
-                                            m c_new vf (arg::nil))
+                                            m' c_new vf (arg::nil))
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
       start_thread genv m ctn ms' m.
@@ -299,7 +301,6 @@ Module HybridMachineSig.
         forall tid U ms ms' m m' tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
-          (Hcmpt: mem_compatible ms m)
           (Htstep: start_thread genv m Htid ms' m'),
           machine_step U tr ms m (yield U) tr ms' m'
     | resume_step:
@@ -427,7 +428,6 @@ Module HybridMachineSig.
       | start_state': forall tid U ms ms' m m' tr
                         (HschedN: schedPeek U = Some tid)
                         (Htid: containsThread ms tid)
-                        (Hcmpt: mem_compatible ms m)
                         (Htstep: start_thread genv m Htid ms' m'),
           external_step U tr ms m (yield U) tr ms' m'
       | resume_step':

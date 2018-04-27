@@ -1410,9 +1410,17 @@ Module StepLemmas.
       - subst.
         inversion H; subst.
         do 2 right.
-        econstructor; eauto.
+        eapply @StartThread with (Hcmpt := Hcomp'); eauto.
         erewrite @gsoThreadCode with (cntj := cntj); eauto.
-        Tactics.pf_cleanup. auto.
+        Tactics.pf_cleanup. now auto.
+        simpl in *.
+        unfold HybridMachine.DryHybridMachine.install_perm in *.
+        subst.
+        eapply restrPermMap_irr'.
+        simpl.
+        erewrite @OrdinalPool.gsoThreadRes with (cntj' := cntj');
+          now eauto.
+        subst.
         simpl.
         rewrite OrdinalPool.updThread_updThreadC_comm;
           now auto.
@@ -1501,11 +1509,16 @@ Module StepLemmas.
           by rewrite add_updateC_comm.
       - destruct Hinit; subst.
         right; right.
-        econstructor; eauto.
+        eapply @StartThread with (Hcmpt := Hcomp'); eauto.
         erewrite gsoAddCode; eauto.
-          by rewrite add_updateC_comm.
-          Unshelve.
-          assumption.
+        simpl in *.
+        unfold HybridMachine.DryHybridMachine.install_perm in *. subst.
+        eapply restrPermMap_irr'.
+        simpl.
+        erewrite @OrdinalPool.gsoAddRes; now eauto.
+        now rewrite add_updateC_comm.
+        Unshelve.
+        assumption.
     Qed.
 
 
@@ -1585,9 +1598,14 @@ Module StepLemmas.
         do 2 right.
         econstructor; eauto.
         rewrite gRemLockSetCode; auto.
+        simpl in *.
+        unfold HybridMachine.DryHybridMachine.install_perm in *. subst.
+        eapply restrPermMap_irr'.
+        simpl.
+        erewrite @OrdinalPool.gRemLockSetRes; now eauto.
         eapply ThreadPoolWF.remLock_inv; eauto.
         Unshelve.
-        assumption.
+        all:assumption.
     Qed.
 
     Lemma remLock_internal_execution:
