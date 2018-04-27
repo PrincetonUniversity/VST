@@ -539,15 +539,7 @@ Proof. intros.
   (*change (Z.of_nat SHA256.DigestLength) with 32.*)
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
-  forward_if (
-      PROP  ()
-      LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
-      temp _ctx ctx;
-      lvar _sep (tarray tuchar 1) sep;
-      temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp _t'2 (Val.of_bool na);
-      gvars gv)
-      SEP  (FRZL (FR2))).
+  forward_if (temp _t'2 (Val.of_bool na)).
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.
@@ -579,16 +571,7 @@ Proof. intros.
   }
 
   remember (update_rounds na) as rounds. unfold update_rounds in Heqrounds.
-  forward_if ( PROP  ()
-      LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
-      temp _ctx ctx;
-      lvar _sep (tarray tuchar 1) sep;
-      temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp _t'3 (Vint (Int.repr rounds));
-      gvars gv
-             )
-      SEP  (FRZL FR2)
-  ).
+  forward_if (temp _t'3 (Vint (Int.repr rounds))).
   {
     (* non_empty_additional = true *)
     forward. rewrite H4 in *; clear H4.
@@ -601,7 +584,6 @@ Proof. intros.
   }
 
   forward.
-  drop_LOCAL 7%nat.
   remember (hmac256drbgabs_key initial_state_abs) as initial_key.
   remember (hmac256drbgabs_value initial_state_abs) as initial_value.
 

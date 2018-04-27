@@ -71,26 +71,20 @@ destruct MSG as [dl data]. simpl CONT in *; simpl LEN in *.
 rewrite memory_block_isptr. normalize.
 rename H into KL. rename H0 into DL.
 
-forward_if  (
-  PROP  (isptr c)
-   LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
-   temp _key_len (Vint (Int.repr kl)); temp _d d;
-   temp _n (Vint (Int.repr dl)); gvars gv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
-   data_block Tsh data d; K_vector gv;
-   memory_block shmd 64 md)).
+forward_if (isptr c).
   { apply denote_tc_test_eq_split.
        apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
        apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. }
-normalize.
+Intros.
 assert_PROP (isptr k).
 { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *)
 rename H into Pk.
 forward_call (c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
     destruct k; try contradiction.
+    unfold t_struct_hmac_ctx_st.
     entailer!.
   }
 
