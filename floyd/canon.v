@@ -1620,7 +1620,7 @@ Lemma semax_later_SEP:
 Proof.
   intros.
   unfold PROPx, LOCALx; rewrite !later_andp.
-  apply semax_extract_later_prop; intro; simpl.
+  apply semax_extract_later_prop; intro.
   apply semax_remove_later_prop.
   eapply semax_pre, H.
   apply andp_right; [apply prop_right; auto|].

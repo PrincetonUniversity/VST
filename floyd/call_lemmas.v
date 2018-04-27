@@ -40,11 +40,11 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
    end ->
    tc_fn_return Delta ret retsig ->
   @semax cs Espec Delta
-          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl
+          (|>(tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl)
            &&
-   (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
+   (|>`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
                       `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)) (eval_expr a)
-     * PROPx P (LOCALx Q (|>SEPx R))))
+     * |>PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert
             (maybe_retval (Post ts x) retsig ret *
@@ -64,15 +64,12 @@ Proof.
     normalize;
     progress (autorewrite with subst norm1 norm2; normalize).
     apply andp_derives; auto.
-    rewrite !sepcon_assoc.
-    eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
+    rewrite sepcon_assoc, sepcon_comm.
     rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
     rewrite sepcon_comm. rewrite emp_sepcon.
-    rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
     apply andp_derives; auto.
-    unfold PROPx, LOCALx.
+    rewrite sepcon_comm, <- later_sepcon.
     progress (autorewrite with subst norm1 norm2; normalize).
-    rewrite <- later_sepcon; apply derives_refl.
   + intros.
     autorewrite with ret_assert.
     normalize.
@@ -100,10 +97,10 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
    end ->
    tc_fn_return Delta (Some id) retsig ->
   @semax cs Espec Delta
-         (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl
-           && (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
+         (|>(tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl)
+           && (|>`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
                  `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)) (eval_expr a) *
-                  PROPx P (LOCALx Q (|>SEPx R))))
+                  |>PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert
             (`(Post ts x: environ -> mpred) (get_result1 id)
@@ -116,12 +113,20 @@ Qed.
 Definition ifvoid {T} t (A B: T) :=
  match t with Tvoid => A | _ => B end.
 
+Lemma PROP_later : forall P Q R, PROPx P (LOCALx Q (|> SEPx R)) |-- |> PROPx P (LOCALx Q (SEPx R)).
+Proof.
+  intros.
+  unfold PROPx, LOCALx.
+  rewrite <- !andp_assoc, later_andp.
+  apply andp_derives; [apply now_later | apply derives_refl].
+Qed.
+
 Lemma semax_call0: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x
       argsig retty cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
   @semax cs Espec Delta
-         (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl
-           && (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)))
+         (|>(tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl)
+           && (|>`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)))
                  * `(func_ptr' (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)) (eval_expr a)
                  * PROPx P (LOCALx Q (|>SEPx R))))
           (Scall None a bl)
@@ -141,15 +146,12 @@ eapply semax_pre_post'; [ | |
 unfold func_ptr'.
 rewrite !sepcon_assoc.
 apply andp_derives; auto.
-eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
 rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite emp_sepcon, sepcon_comm.
 rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 apply andp_derives; auto.
-unfold PROPx, LOCALx.
-simpl.
-progress (autorewrite with subst norm1 norm2; normalize).
-rewrite <- later_sepcon; apply derives_refl.
+rewrite later_sepcon; apply sepcon_derives, derives_refl.
+apply PROP_later.
 intros.
 apply andp_left2.
 normalize.
@@ -160,22 +162,29 @@ apply Coq.Init.Logic.I.
 Qed.
 
 Lemma semax_fun_id':
-      forall id f TC
+      forall id f P TC
               Espec {cs: compspecs} Delta (PQR: environ->mpred) PostCond c
             (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some f ->
        (glob_types Delta) ! id = Some (type_of_funspec f) ->
        @semax cs Espec Delta
-        (TC && (local (tc_environ Delta) &&
+        (P && |>TC && (local (tc_environ Delta) &&
                      (`(func_ptr' f) (eval_var id (type_of_funspec f))
-                     * PQR)))
+                     * |>PQR)))
                               c PostCond ->
-       @semax cs Espec Delta (TC && PQR) c PostCond.
+       @semax cs Espec Delta (P && |>(TC && PQR)) c PostCond.
 Proof.
 intros.
 apply (semax_fun_id id f Delta); auto.
 eapply semax_pre_post; try apply H1;
  try (apply andp_left2; apply derives_refl).
+rewrite 2andp_assoc.
+apply andp_right.
+apply andp_left2, andp_left1, derives_refl.
+rewrite later_andp.
+rewrite <- !andp_assoc.
+rewrite (andp_comm _ P).
+rewrite !andp_assoc; apply andp_left2.
 rewrite <- !andp_assoc.
 rewrite (andp_comm (local _)).
 rewrite !andp_assoc.
@@ -215,9 +224,9 @@ Lemma semax_call_id0:
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) ->
        (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost)) ->
-  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
+  @semax cs Espec Delta (|> (tc_exprlist Delta (argtypes argsig) bl
                   && (`(Pre ts x: environ -> mpred) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
-                         * PROPx P (LOCALx Q (|>SEPx R))))
+                         * PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc)) bl)
     (normal_ret_assert
        ((ifvoid retty (`(Post ts x: environ -> mpred) (make_args nil nil))
@@ -228,13 +237,26 @@ intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
                Cop.fun_case_f (type_of_params argsig) retty cc).
 simpl. subst. reflexivity.
-apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)
+unfold PROPx, LOCALx at 1.
+rewrite sepcon_andp_prop, local_sepcon_assoc2.
+rewrite andp_comm.
+rewrite <- andp_assoc.
+rewrite (andp_assoc (_ && _)).
+rewrite later_andp.
+unfold local, lift1.
+replace (|> (!! fold_right and True P && (fun rho => !! fold_right ` and ` True (map locald_denote Q) rho)))
+  with ((fun rho => |> !! (fold_right and True P /\ fold_right ` and ` True (map locald_denote Q) rho))).
+apply semax_remove_later_prop.
+rewrite (andp_comm (_ * _)).
+apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) _
   (tc_exprlist Delta (argtypes argsig) bl)); auto.
 subst.
 
 eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost ts x argsig _ cc _ bl P Q R)].
+rewrite later_andp.
 apply andp_right.
 apply andp_right.
+eapply derives_trans, now_later.
 apply andp_left1.
 intro rho; unfold tc_expr; simpl.
 subst.
@@ -247,14 +269,19 @@ simpl. auto.
 unfold_lift; auto.
 rewrite eqb_type_refl. simpl.
 apply eqb_calling_convention_refl.
-apply andp_left2; apply andp_left1; auto.
-apply andp_left2; apply andp_left2; auto.
+rewrite !andp_assoc.
+apply andp_left2, andp_left2, andp_left1; auto.
 apply andp_left2.
-rewrite <- sepcon_assoc.
-apply sepcon_derives; auto.
-rewrite sepcon_comm.
- apply derives_refl.
+rewrite (andp_comm _ (|>tc_exprlist _ _ _)), !andp_assoc; apply andp_left2.
+rewrite <- !andp_assoc, (andp_comm _ (local _)), !andp_assoc; apply andp_left2.
+intro; simpl.
+rewrite later_sepcon, <- !sepcon_andp_prop.
+unfold PROPx, LOCALx.
+rewrite <- sepcon_assoc, prop_and, andp_assoc; apply sepcon_derives, derives_refl.
+rewrite sepcon_comm; apply derives_refl.
 auto.
+extensionality; simpl.
+rewrite prop_and; auto.
 Qed.
 
 Lemma semax_call_id1:
@@ -267,9 +294,9 @@ Lemma semax_call_id1:
    | _ => True
    end ->
    tc_fn_return Delta (Some ret) retty ->
-  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl &&
+  @semax cs Espec Delta (|>(tc_exprlist Delta (argtypes argsig) bl &&
                 (`(Pre ts x: environ -> mpred) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl))
-                  * PROPx P (LOCALx Q (|>SEPx R))))
+                  * PROPx P (LOCALx Q (SEPx R)))))
     (Scall (Some ret)
              (Evar id (Tfunction (type_of_params argsig) retty cc))
              bl)
@@ -282,11 +309,13 @@ intros. rename H0 into Ht. rename H1 into H0.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
                Cop.fun_case_f (type_of_params argsig) retty cc).
 subst; reflexivity.
+eapply semax_pre; [apply andp_left2, derives_refl'; symmetry; apply TT_andp|].
 apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)); auto.
 subst.
 eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post NEPre NEPost ts x ret argsig retty cc _ bl P Q R H1 H0); auto].
 apply andp_right.
-apply andp_right.
+rewrite later_andp; apply andp_right.
+eapply derives_trans, now_later.
 apply andp_left1.
 intro rho; unfold tc_expr, local,lift1; simpl.
 subst.
@@ -298,12 +327,13 @@ rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
 simpl. apply prop_right; apply eqb_calling_convention_refl.
 apply andp_left2.
+rewrite andp_assoc; apply andp_left2.
 apply andp_left1.
 auto.
 apply andp_left2.
 apply andp_left2.
 apply andp_left2.
-rewrite <- sepcon_assoc.
+rewrite later_sepcon, <- sepcon_assoc.
 apply sepcon_derives; auto.
 rewrite sepcon_comm.
 apply derives_refl.
@@ -608,6 +638,23 @@ Qed.
 
 Lemma PROP_combine:
  forall P P' Q Q' R R',
+  PROPx P (LOCALx Q (SEPx R)) * PROPx P' (LOCALx Q' (SEPx R')) =
+  PROPx (P++P') (LOCALx (Q++Q') (SEPx (R++R'))).
+Proof.
+intros.
+unfold PROPx, LOCALx, SEPx, local, lift1.
+extensionality rho. simpl.
+normalize.
+f_equal. rewrite map_app.
+rewrite fold_right_and_app.
+rewrite fold_right_and_app_low.
+f_equal. apply prop_ext; intuition.
+rewrite fold_right_sepcon_app.
+auto.
+Qed.
+
+Lemma PROP_combine_later:
+ forall P P' Q Q' R R',
   PROPx P (LOCALx Q (|>SEPx R)) * PROPx P' (LOCALx Q' (|>SEPx R')) =
   PROPx (P++P') (LOCALx (Q++Q') (|>SEPx (R++R'))).
 Proof.
@@ -619,7 +666,7 @@ f_equal. rewrite map_app.
 rewrite fold_right_and_app.
 rewrite fold_right_and_app_low.
 f_equal. apply prop_ext; intuition.
-rewrite fold_right_sepcon_app.
+rewrite fold_right_sepcon_app, later_sepcon.
 auto.
 Qed.
 
@@ -649,6 +696,24 @@ replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x
 induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
+
+Lemma PROP_LOCAL_SEP_f_later:
+  forall P Q R f, `(PROPx P (LOCALx Q (|>SEPx R))) f =
+     local (fold_right `and `True (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
+     && PROPx P (LOCALx nil (|>SEPx R)).
+Proof. intros. extensionality rho.
+cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
+normalize.
+f_equal. f_equal.
+replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x1)
+   (fun _ : environ => True) (map locald_denote Q) (f rho))
+  with (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x1)
+   (fun _ : environ => True)
+   (map (fun (q : environ -> Prop) (x : environ) => q (f x))
+      (map locald_denote Q)) rho);  [apply prop_ext; intuition | ].
+induction Q; simpl; auto. f_equal; auto.
+Qed.
+Hint Rewrite PROP_LOCAL_SEP_f_later: norm2.
 
 Definition global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost :=
    (var_types Delta) ! id = None /\
@@ -695,6 +760,38 @@ Proof.
   apply eq_sym, (msubst_eval_expr_eq_aux T1 T2); auto.
 Qed.
 
+Lemma msubst_eval_exprlist_eq': forall {cs: compspecs} P T1 T2 Q R tys el vl,
+  force_list (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el)) = Some vl ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (|>SEPx R)) |--
+    local (`(eq vl) (eval_exprlist tys el)).
+Proof.
+intros.
+revert tys vl H; induction el; destruct tys, vl; intros;
+  try solve [inv H];
+  try solve [go_lowerx;  apply prop_right; reflexivity].
+ simpl map in H.
+ unfold force_list in H; fold (@force_list val) in H.
+ destruct (msubst_eval_expr T1 T2 a) eqn:?.
+ simpl in H.
+ destruct (force_list
+        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
+ simpl in H. inv H.
+ simpl in H.
+ destruct (option_map (force_val1 (sem_cast (typeof a) t))
+        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
+  destruct ( force_list
+         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
+  specialize (IHel _ _ Heqo0).
+  simpl eval_exprlist.
+  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
+  apply msubst_eval_expr_eq' with (P0:=P)(Q0:=Q)(R0:=R) in Heqo1.
+  apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
+  apply andp_right; auto.
+  go_lowerx. unfold_lift. intros. apply prop_right.
+  rewrite <- H. rewrite <- H0.
+ auto.
+Qed.
+
 Definition can_assume_funcptr cs Delta P Q R a fs :=
  forall Espec c Post,
  @semax cs Espec Delta ((EX v: val, (lift0 (func_ptr fs v) && local (`(eq v) (eval_expr a)))) &&
@@ -710,9 +807,9 @@ Definition call_setup1
   local2ptree Q = (Qtemp, Qvar, nil, map gvars G) /\
   can_assume_funcptr  cs Delta P Q R a (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc /\
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R)) 
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
          |-- (tc_expr Delta a)  /\
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
           |--  (tc_exprlist Delta (argtypes argsig) bl) /\
   force_list (map (msubst_eval_expr Qtemp Qvar)
                     (explicit_cast_exprlist (argtypes argsig) bl))
@@ -729,9 +826,9 @@ Lemma call_setup1_i:
   msubst_eval_expr Qtemp Qvar a = Some v ->
   |>fold_right_sepcon R |--  func_ptr (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) v ->
   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R)) 
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
          |-- (tc_expr Delta a)  ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
           |--  (tc_exprlist Delta (argtypes argsig) bl) ->
   force_list (map (msubst_eval_expr Qtemp Qvar)
                     (explicit_cast_exprlist (argtypes argsig) bl))
@@ -767,9 +864,9 @@ Lemma call_setup1_i2:
   local2ptree Q = (Qtemp, Qvar, nil, map gvars G) ->
   can_assume_funcptr  cs Delta P Q R (Evar id ty) (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
   Cop.classify_fun ty = Cop.fun_case_f (type_of_params argsig) retty cc ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R)) 
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
          |-- (tc_expr Delta (Evar id ty))  ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
           |--  (tc_exprlist Delta (argtypes argsig) bl) ->
   force_list (map (msubst_eval_expr Qtemp Qvar)
                     (explicit_cast_exprlist (argtypes argsig) bl))
@@ -839,9 +936,9 @@ Definition call_setup2
  call_setup1 cs Qtemp Qvar G a Delta P Q R argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals /\
   Pre nil witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) /\
   local2ptree Qpre = (Qpre_temp, Qpre_var, nil, map gvars G') /\
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) /\
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) /\
   Forall (fun x => In x G) G' /\
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame.
@@ -858,9 +955,9 @@ Lemma call_setup2_i:
   (Qpre_temp : PTree.t _) (Qpre_var: PTree.t vardesc) G',
   Pre nil witness' = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
   local2ptree Qpre = (Qpre_temp, Qpre_var, nil, map gvars G') ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
-  ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var)  ->
   Forall (fun x => In x G) G' ->
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
@@ -895,38 +992,40 @@ Lemma semax_call_aux55:
      Delta P Q R argsig retty cc A Pre Post NEPre NEPost 
     witness Frame bl Ppre Qpre Rpre Qactuals Qpre_temp G' Qpre_var vl
  (PTREE : local2ptree Q = (Qtemp, Qvar, nil, map gvars G))
- (TC0 : ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R)) |-- tc_expr Delta a)
- (TC1 : ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
+ (TC0 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta a)
+ (TC1 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
              |-- tc_exprlist Delta (argtypes argsig) bl)
  (MSUBST : force_list (map (msubst_eval_expr Qtemp Qvar)
               (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl)
  (PTREE'' : pTree_from_elements (combine (var_names argsig) vl) = Qactuals)
  (PRE1 : Pre nil witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
  (PTREE' : local2ptree Qpre = (Qpre_temp, Qpre_var, nil, map gvars G')) 
- (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
-            |-- !! Forall (check_one_temp_spec Qactuals)
-                     (PTree.elements Qpre_temp))
- (CHECKVAR : ENTAIL Delta, PROPx P (LOCALx Q (|>SEPx R))
-           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
+ (CHECKTEMP : Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
+ (CHECKVAR : Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
  (CHECKG: Forall (fun x => In x G) G')
  (FRAME : fold_right_sepcon R
            |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
- (PPRE : fold_right_and True Ppre),
+ (PPRE : fold_right_and True Ppre)
+ (LEN : length (argtypes argsig) = length bl),
 ENTAIL Delta,
 (EX v : val,
  lift0 (func_ptr (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) v) &&
  local (` (eq v) (eval_expr a))) && PROPx P (LOCALx Q (|>SEPx R))
-|-- tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl &&
-    (` |>(Pre nil witness)
+|-- |> (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl) &&
+    (|> ` (Pre nil witness)
        (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) *
      ` (func_ptr' (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost))
        (eval_expr a) * PROPx P (LOCALx Q (|>SEPx Frame))).
 Proof.
 intros.
 rewrite !exp_andp1. Intros v.
-repeat apply andp_right; auto.
-eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
-eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
+rewrite later_andp; repeat apply andp_right; auto.
+{ eapply derives_trans, later_derives, TC0.
+  rewrite later_andp; apply andp_derives; [apply now_later|].
+  apply andp_left2, PROP_later. }
+{ eapply derives_trans, later_derives, TC1.
+  rewrite later_andp; apply andp_derives; [apply now_later|].
+  apply andp_left2, PROP_later. }
 rewrite PRE1.
 match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
 rewrite sepcon_comm.
@@ -941,30 +1040,13 @@ intro rho; unfold_lift; unfold local, lift0, lift1; simpl. normalize.
 apply andp_right.
 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl] |].
- match goal with |- ?D && PROPx ?A ?B |-- ?C =>
-  apply derives_trans with (D && PROPx ((length (argtypes argsig) = length bl) :: A) B);
-    [ rewrite <- insert_prop | ]
- end.
- apply andp_right; [apply andp_left1; auto | ].
- apply andp_right; [| apply andp_left2; auto].
- eapply derives_trans; [apply TC1 | ].
- clear. go_lowerx.
- unfold tc_exprlist.
- revert bl; induction (argtypes argsig); destruct bl;
-   simpl; try apply @FF_left.
- apply prop_right; auto.
- repeat rewrite denote_tc_assert_andp; simpl. apply andp_left2.
- eapply derives_trans; [ apply IHl | ]. normalize.
-apply derives_extract_PROP; intro LEN.
-subst Qactuals. 
+subst Qactuals.
 clear - PTREE LEN PTREE' MSUBST CHECKVAR FRAME PPRE CHECKTEMP CHECKG.
- progress (autorewrite with norm1 norm2); normalize.
- eapply derives_trans.
- apply andp_right. apply andp_right. apply CHECKVAR. apply CHECKTEMP. apply derives_refl.
- rewrite andp_assoc. apply derives_extract_prop; intro CVAR.
- apply derives_extract_prop; intro CTEMP.
- clear CHECKTEMP CHECKVAR.
-rewrite PROP_combine.
+apply derives_trans with (`(PROPx Ppre (LOCALx Qpre (|> SEPx Rpre)))
+    (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) *
+  PROPx P (LOCALx Q (|> SEPx Frame))).
+ progress (autorewrite with norm1 norm2).
+rewrite PROP_combine_later.
 rewrite (andp_comm (local (fold_right _ _ _))).
 apply andp_right.
 +
@@ -979,14 +1061,16 @@ apply andp_left2.
 apply andp_left2.
 apply andp_derives.
 apply derives_refl.
+apply later_derives.
 intro rho; unfold SEPx.
  rewrite fold_right_sepcon_app.
  assumption.
 +
- apply (local2ptree_soundness P _ R) in PTREE.
+ eapply local2ptree_soundness' in PTREE.
  simpl app in PTREE.
- apply msubst_eval_exprlist_eq with (P:=P)(R:=R)(Q:=map gvars G) in MSUBST.
- rewrite PTREE.
+ apply msubst_eval_exprlist_eq' with (P0:=P)(R0:=R)(Q0:=map gvars G) in MSUBST.
+ rewrite <- PTREE, app_nil_r in MSUBST.
+ rewrite app_nil_r in PTREE; rewrite PTREE in *.
  intro rho.
  unfold local, lift1. unfold_lift. simpl.
  apply andp_left2.
@@ -1029,6 +1113,23 @@ apply andp_left2. apply andp_left1.
   destruct H as [? [? ?]].
   clear - H1 CHECKG.
  eapply in_gvars_sub; eauto.
++
+ apply sepcon_derives, derives_refl.
+ unfold_lift; intro.
+ apply PROP_later.
+Qed.
+
+Lemma tc_exprlist_len : forall {cs : compspecs} Delta argsig bl,
+  tc_exprlist Delta (argtypes argsig) bl |-- !!(length (argtypes argsig) = length bl).
+Proof.
+ intros.
+ go_lowerx.
+ unfold tc_exprlist.
+ revert bl; induction (argtypes argsig); destruct bl;
+   simpl; try apply @FF_left.
+ apply prop_right; auto.
+ repeat rewrite denote_tc_assert_andp. simpl. apply andp_left2.
+ eapply derives_trans; [ apply IHl | ]. normalize.
 Qed.
 
 Lemma semax_call_id00_wow:
@@ -1058,9 +1159,13 @@ Lemma semax_call_id00_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-apply semax_later_SEP.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR [CHECKG FRAME]]]]]].
+eapply assert_later_PROP; intros.
+{ eapply derives_trans; [apply TC1 | apply tc_exprlist_len]. }
+eapply assert_later_PROP; [apply CHECKTEMP | intro].
+eapply assert_later_PROP; [apply CHECKVAR | intro].
+apply semax_later_SEP.
 apply SPEC. clear SPEC.
 eapply semax_pre_post' ; [ | |
    apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost 
@@ -1113,9 +1218,13 @@ Lemma semax_call_id1_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-apply semax_later_SEP.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR [CHECKG FRAME]]]]]].
+eapply assert_later_PROP; intros.
+{ eapply derives_trans; [apply TC1 | apply tc_exprlist_len]. }
+eapply assert_later_PROP; [apply CHECKTEMP | intro].
+eapply assert_later_PROP; [apply CHECKVAR | intro].
+apply semax_later_SEP.
 apply SPEC. clear SPEC.
 eapply semax_pre_post'; [ | |
    apply (@semax_call1 Espec cs Delta A Pre Post NEPre NEPost 
@@ -1127,7 +1236,8 @@ eapply semax_pre_post'; [ | |
       destruct ((temp_types Delta) ! ret) as [[? ?] | ]; inv TYret; auto
  ].
 *
-eapply semax_call_aux55; eauto.
+eapply derives_trans; [eapply semax_call_aux55; eauto|].
+apply andp_derives, sepcon_derives, PROP_later; auto.
 *
  subst.
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
@@ -1150,7 +1260,7 @@ eapply semax_call_aux55; eauto.
  go_lowerx.
  repeat apply andp_right; try apply prop_right; auto.
  rewrite !fold_right_and_app_low.
- rewrite !fold_right_and_app_low in H2. destruct H2; split; auto.
+ rewrite !fold_right_and_app_low in H5. destruct H5; split; auto.
 Qed.
 
 Lemma semax_call_id1_x_wow:
@@ -1193,7 +1303,6 @@ Lemma semax_call_id1_x_wow:
 Proof.
 intros.
 eapply semax_seq'.
-apply semax_later_SEP.
 eapply semax_call_id1_wow; try eassumption; auto.
   unfold typeof_temp; rewrite RETinit; reflexivity.
  simpl update_tycon.
@@ -1317,7 +1426,6 @@ Lemma semax_call_id1_y_wow:
 Proof.
 intros.
 eapply semax_seq'.
-apply semax_later_SEP.
 eapply semax_call_id1_wow; try eassumption; auto;
   unfold typeof_temp; rewrite RETinit; reflexivity.
  simpl update_tycon.
@@ -1421,9 +1529,13 @@ Lemma semax_call_id01_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-apply semax_later_SEP.
 destruct SETUP as [[PTREE [SPEC [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]] 
                             [PRE1 [PTREE' [CHECKTEMP [CHECKVAR [CHECKG FRAME]]]]]].
+eapply assert_later_PROP; intros.
+{ eapply derives_trans; [apply TC1 | apply tc_exprlist_len]. }
+eapply assert_later_PROP; [apply CHECKTEMP | intro].
+eapply assert_later_PROP; [apply CHECKVAR | intro].
+apply semax_later_SEP.
 apply SPEC. clear SPEC.
 eapply semax_pre_post';
    [ |

@@ -1383,8 +1383,9 @@ Proof.
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
+    + simpl; auto.
     + simpl snd.
-      replace (params_of_fundef f) with (@nil type). auto. clear -E.
+      replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
       destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
     + clear - GV H2 H0.
       split.
@@ -1585,8 +1586,9 @@ Proof.
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
+    + simpl; auto.
     + simpl snd.
-      replace (params_of_fundef f) with (@nil type). auto. clear -E.
+      replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
       destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
     + clear - GV H2 H0.
       split.
@@ -1877,6 +1879,7 @@ Proof.
   rewrite Ef. reflexivity.
 
   (* tc_expr *)
+  simpl.
   rewrite Ef. reflexivity.
 
   (* tc_exprlist *)
