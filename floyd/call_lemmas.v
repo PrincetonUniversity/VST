@@ -113,14 +113,6 @@ Qed.
 Definition ifvoid {T} t (A B: T) :=
  match t with Tvoid => A | _ => B end.
 
-Lemma PROP_later : forall P Q R, PROPx P (LOCALx Q (|> SEPx R)) |-- |> PROPx P (LOCALx Q (SEPx R)).
-Proof.
-  intros.
-  unfold PROPx, LOCALx.
-  rewrite <- !andp_assoc, later_andp.
-  apply andp_derives; [apply now_later | apply derives_refl].
-Qed.
-
 Lemma semax_call0: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x
       argsig retty cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
@@ -334,7 +326,7 @@ Qed.
 Lemma fold_right_and_app_lifted:
   forall (Q1 Q2: list (environ -> Prop)),
   fold_right `(and) `(True) (Q1 ++ Q2)  =
-  `and (fold_right `(and) `(True) Q1) (fold_right `(and) `(True) Q2).
+  `(and) (fold_right `(and) `(True) Q1) (fold_right `(and) `(True) Q2).
 Proof.
 induction Q1; intros; simpl; auto.
 extensionality rho; apply prop_ext; intuition.
@@ -551,7 +543,7 @@ Lemma check_specs_lemma:
    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
           (PTree.elements Qpre_temp) ->
    fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
-  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
   fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
 Proof.
  intros. rename H2 into H8.
@@ -628,23 +620,6 @@ rewrite fold_right_sepcon_app.
 auto.
 Qed.
 
-Lemma PROP_combine_later:
- forall P P' Q Q' R R',
-  PROPx P (LOCALx Q (|>SEPx R)) * PROPx P' (LOCALx Q' (|>SEPx R')) =
-  PROPx (P++P') (LOCALx (Q++Q') (|>SEPx (R++R'))).
-Proof.
-intros.
-unfold PROPx, LOCALx, SEPx, local, lift1.
-extensionality rho. simpl.
-normalize.
-f_equal. rewrite map_app.
-rewrite fold_right_and_app.
-rewrite fold_right_and_app_low.
-f_equal. apply prop_ext; intuition.
-rewrite fold_right_sepcon_app, later_sepcon.
-auto.
-Qed.
-
 Inductive Parameter_types_in_funspec_different_from_call_statement : Prop := .
 Inductive Result_type_in_funspec_different_from_call_statement : Prop := .
 
@@ -671,24 +646,6 @@ replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x
 induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
-
-Lemma PROP_LOCAL_SEP_f_later:
-  forall P Q R f, `(PROPx P (LOCALx Q (|>SEPx R))) f =
-     local (fold_right `and `True (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
-     && PROPx P (LOCALx nil (|>SEPx R)).
-Proof. intros. extensionality rho.
-cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
-normalize.
-f_equal. f_equal.
-replace (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x1)
-   (fun _ : environ => True) (map locald_denote Q) (f rho))
-  with (fold_right (fun (x x0 : environ -> Prop) (x1 : environ) => x x1 /\ x0 x1)
-   (fun _ : environ => True)
-   (map (fun (q : environ -> Prop) (x : environ) => q (f x))
-      (map locald_denote Q)) rho);  [apply prop_ext; intuition | ].
-induction Q; simpl; auto. f_equal; auto.
-Qed.
-Hint Rewrite PROP_LOCAL_SEP_f_later: norm2.
 
 Definition global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost :=
    (var_types Delta) ! id = None /\
@@ -717,54 +674,6 @@ unfold_lift. unfold func_ptr'.
 simpl.
 rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite emp_sepcon; auto.
-Qed.
-
-Lemma msubst_eval_expr_eq': forall {cs: compspecs} P T1 T2 Q R e v,
-  msubst_eval_expr T1 T2 e = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (|>SEPx R)) |--
-    local (`(eq v) (eval_expr e)).
-Proof.
-  intros.
-  apply andp_left2.
-  apply andp_left1.
-  simpl; intro rho.
-  simpl in H.
-  normalize; intros.
-      autorewrite with subst norm1 norm2; normalize.
-  destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  apply eq_sym, (msubst_eval_expr_eq_aux T1 T2); auto.
-Qed.
-
-Lemma msubst_eval_exprlist_eq': forall {cs: compspecs} P T1 T2 Q R tys el vl,
-  force_list (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el)) = Some vl ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (|>SEPx R)) |--
-    local (`(eq vl) (eval_exprlist tys el)).
-Proof.
-intros.
-revert tys vl H; induction el; destruct tys, vl; intros;
-  try solve [inv H];
-  try solve [go_lowerx;  apply prop_right; reflexivity].
- simpl map in H.
- unfold force_list in H; fold (@force_list val) in H.
- destruct (msubst_eval_expr T1 T2 a) eqn:?.
- simpl in H.
- destruct (force_list
-        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
- simpl in H. inv H.
- simpl in H.
- destruct (option_map (force_val1 (sem_cast (typeof a) t))
-        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
-  destruct ( force_list
-         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
-  specialize (IHel _ _ Heqo0).
-  simpl eval_exprlist.
-  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
-  apply msubst_eval_expr_eq' with (P0:=P)(Q0:=Q)(R0:=R) in Heqo1.
-  apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
-  apply andp_right; auto.
-  go_lowerx. unfold_lift. intros. apply prop_right.
-  rewrite <- H. rewrite <- H0.
- auto.
 Qed.
 
 Definition can_assume_funcptr cs Delta P Q R a fs :=
@@ -948,8 +857,8 @@ Qed.
 
 Lemma in_gvars_sub:
   forall rho G G', Forall (fun x : globals => In x G) G' ->
-  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
-  fold_right `(and) `(True) (map locald_denote (map gvars G')) rho.
+  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
+  fold_right ` and ` True (map locald_denote (map gvars G')) rho.
 Proof.
 intros.
 pose proof (proj1 (Forall_forall _ G') H).
