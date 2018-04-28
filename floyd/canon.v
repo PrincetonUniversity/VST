@@ -3,52 +3,11 @@ Require Import VST.floyd.base2.
 
 Local Open Scope logic.
 
-(*
-
-(**** New experiments regarding TEMP and VAR *)
-
-Definition temp (i: ident) (v: val) : environ -> Prop :=
-   `(eq v) (eval_id i).
-
-Definition var (i: ident) (t: type) (v: val) : environ -> Prop :=
-   `(eq v) (eval_var i t).
-
-Definition lvar {cs: compspecs} (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
-     (* local variable *)
-   match Map.get (ve_of rho) i with
-   | Some (b, ty') =>
-       if eqb_type t ty'
-       then v = Vptr b Int.zero /\ size_compatible t v
-       else False
-   | None => False
-   end.
-
-Definition gvar (i: ident) (v: val) (rho: environ) : Prop :=
-    (* visible global variable *)
-   match Map.get (ve_of rho) i with
-   | Some (b, ty') => False
-   | None =>
-       match ge_of rho i with
-       | Some b => v = Vptr b Int.zero
-       | None => False
-       end
-   end.
-
-Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
-    (* (possibly) shadowed global variable *)
-   match ge_of rho i with
-       | Some b => v = Vptr b Int.zero
-       | None => False
-   end.
-
-*)
-
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
- | lvar: ident -> type -> val -> localdef
- | gvar: ident -> val -> localdef
- | sgvar: ident -> val -> localdef
-(* | tc_env: tycontext -> localdef *)
+ | lvar: ident -> type -> val -> localdef   (* local variable *)
+ | gvar: ident -> val -> localdef           (* visible global variable *)
+ | sgvar: ident -> val -> localdef          (* (possibly) shadowed global variable *)
  | localprop: Prop -> localdef
  | gvars: globals -> localdef.
 
@@ -85,7 +44,6 @@ Definition locald_denote (d: localdef) : environ -> Prop :=
  | lvar i t v => lvar_denote i t v
  | gvar i v =>  gvar_denote i v
  | sgvar i v => sgvar_denote i v
-(* | tc_env D => tc_environ D *)
  | localprop P => `P
  | gvars gv => gvars_denote gv
  end.
@@ -319,7 +277,7 @@ Lemma LOCALx_nonexpansive: forall Q R rho,
 Proof.
   intros.
   unfold LOCALx.
-  apply (conj_nonexpansive (fun S => local (fold_right ` and ` True (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
+  apply (conj_nonexpansive (fun S => local (fold_right `(and) `(True) (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
   apply const_nonexpansive.
 Qed.
 
@@ -444,23 +402,6 @@ Ltac go_lowerx' simpl_tac :=
 Ltac go_lowerx := go_lowerx' simpl.
 
 Ltac go_lowerx_no_simpl := go_lowerx' idtac.
-
-(*
-Lemma grab_tc_environ:
-  forall Delta P Q R S rho,
-    (tc_environ Delta rho -> (PROPx P (LOCALx Q R)) rho |-- S) ->
-    (PROPx P (LOCALx (tc_env Delta :: Q) R)) rho |-- S.
-Proof.
-intros.
-unfold PROPx,LOCALx in *; simpl in *.
-normalize.
-change (!! tc_environ Delta rho &&
-              local  (fold_right `and `True (map locald_denote Q)) rho && R rho |-- S).
-normalize.
-rewrite (prop_true_andp _ _ H0) in H.
-auto.
-Qed.
-*)
 
 Lemma grab_nth_LOCAL:
    forall n P Q R,
@@ -591,8 +532,8 @@ Hint Rewrite @fold_right_cons : subst.
 
 Lemma fold_right_and_app:
   forall (Q1 Q2: list (environ -> Prop)) rho,
-   fold_right `and `True (Q1 ++ Q2) rho =
-   (fold_right `and `True Q1 rho /\  fold_right `and `True Q2 rho).
+   fold_right `(and) `(True) (Q1 ++ Q2) rho =
+   (fold_right `(and) `(True) Q1 rho /\  fold_right `(and) `(True) Q2 rho).
 Proof.
 intros.
 induction Q1; simpl; auto.
@@ -2205,6 +2146,9 @@ Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
 | return_outer_gen_loop1: forall inv P Q,
     return_outer_gen P Q ->
     return_outer_gen (loop1_ret_assert inv P) Q
+| return_outer_gen_loop1x: forall inv P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (loop1x_ret_assert inv P) Q
 | return_outer_gen_loop1a: forall inv P Q,
     return_outer_gen P Q ->
     return_outer_gen (loop1a_ret_assert inv P) Q
@@ -2380,3 +2324,206 @@ Proof.
     normalize.
 Qed.
 
+Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
+Proof.
+  intros.
+  go_lowerx.
+  normalize.
+Qed.
+
+Lemma remove_PROP_LOCAL_left':
+     forall P Q R S, `R |-- S ->
+     PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
+Proof.
+  intros.
+  go_lowerx.
+  normalize. apply H.
+Qed.
+
+Lemma SEP_nth_isolate:
+  forall n R Rn, nth_error R n = Some Rn ->
+      SEPx R = SEPx (Rn :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ intros. extensionality rho.
+ revert R H;
+ induction n; destruct R; intros; inv H.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m * fold_right_sepcon R).
+ reflexivity.
+ rewrite (IHn R H1).
+ simpl.
+ rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm Rn).
+ simpl.
+ repeat rewrite sepcon_assoc.
+ f_equal. rewrite sepcon_comm; reflexivity.
+Qed.
+
+Lemma nth_error_SEP_sepcon_TT: forall P Q R n Rn S,
+  PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
+  nth_error R n = Some Rn ->
+  PROPx P (LOCALx Q (SEPx R)) |-- S * TT.
+Proof.
+  intros.
+  erewrite SEP_nth_isolate by eauto.
+  unfold PROPx, LOCALx, SEPx in *.
+  unfold local, lift1 in H |- *.
+  unfold_lift in H.
+  unfold_lift.
+  simpl in H |- *.
+  intros rho.
+  specialize (H rho).
+  rewrite <- !andp_assoc in H |- *.
+  rewrite <- !prop_and in H |- *.
+  rewrite sepcon_emp in H.
+  rewrite <- sepcon_andp_prop'.
+  apply sepcon_derives.
+  exact H.
+  apply prop_right.
+  auto.
+Qed.
+
+Lemma SEP_replace_nth_isolate:
+  forall n R Rn Rn',
+       nth_error R n = Some Rn ->
+      SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ intros.
+ extensionality rho.
+ revert R H.
+ induction n; destruct R; intros; inv H; intros.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m * fold_right_sepcon (replace_nth n R Rn')).
+ reflexivity.
+ rewrite (IHn R H1). clear IHn.
+ simpl.
+ repeat rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm Rn').
+ rewrite sepcon_assoc.
+ reflexivity.
+Qed.
+
+Lemma local_andp_lemma:
+  forall P Q, P |-- local Q -> P = local Q && P.
+Proof.
+intros.
+apply pred_ext.
+apply andp_right; auto.
+apply andp_left2; auto.
+Qed.
+
+Lemma SEP_TT_right:
+  forall R, R |-- SEPx(TT::nil).
+Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
+Qed.
+
+Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
+Proof.
+  simpl.
+  intros.
+  normalize.
+  autorewrite with subst norm1 norm2; normalize.
+  apply andp_right; [apply prop_right; auto | auto].
+  unfold_lift.
+  revert R.
+  induction n.
+  + destruct R.
+    - simpl. auto.
+    - simpl. cancel.
+  + destruct R.
+    - simpl. cancel.
+    - intros. simpl in *. cancel.
+Qed.
+
+Lemma replace_nth_SEP':
+  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' ->
+  (local A && PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
+Proof.
+  simpl. unfold local, lift1.
+  intros.
+  specialize (H x).
+  normalize. rewrite prop_true_andp in H by auto. clear H0.
+      autorewrite with subst norm1 norm2; normalize.
+    autorewrite with subst norm1 norm2 in H; normalize in H.
+  apply andp_right; [apply prop_right; auto | auto].
+  unfold_lift.
+  revert R.
+  induction n.
+  + destruct R.
+    - simpl. cancel.
+    - simpl. cancel.
+  + destruct R.
+    - simpl. cancel.
+    - intros. simpl in *. cancel.
+Qed.
+
+Lemma replace_nth_SEP_andp_local:
+   forall P Q R n (Rn Rn': mpred) (Rn'': Prop) x,
+  nth_error R n = Some Rn ->
+  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((prop Rn'') && Rn'))))) x
+  = (PROPx P (LOCALx (localprop Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
+Proof.
+  intros.
+  normalize.
+  f_equal.
+  extensionality rho.
+  unfold LOCALx, SEPx, local, lift1; simpl.
+  unfold_lift. simpl.
+  fold locald_denote.
+  forget (fold_right
+     (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)
+     (fun _ : environ => True) (map locald_denote Q) rho) as Q'.
+ rewrite <- gather_prop_right.
+ rewrite andp_comm. f_equal.
+  revert R H. clear.
+  induction n; intros.
+  + destruct R; inversion H.
+    subst m.
+    simpl. normalize.
+  + destruct R; inversion H.
+    pose proof IHn R H1.
+    unfold replace_nth in *.
+    fold (@replace_nth mpred) in *.
+    simpl fold_right_sepcon in *.
+    rewrite H0.
+    normalize.
+Qed.
+
+Lemma nth_error_SEP_prop:
+  forall P Q R n (Rn: mpred) (Rn': Prop),
+    nth_error R n = Some Rn ->
+    Rn |-- !! Rn' ->
+    PROPx P (LOCALx Q (SEPx R)) |-- !! Rn'.
+Proof.
+  intros.
+  apply andp_left2.
+  apply andp_left2.
+  unfold SEPx.
+  hnf; simpl; intros _.
+  revert R H; induction n; intros; destruct R; inv H.
+  + simpl.
+    rewrite (add_andp _ _ H0).
+    normalize.
+  + apply IHn in H2.
+    simpl.
+    rewrite (add_andp _ _ H2).
+    normalize.
+Qed.
+    
+Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
+  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) =
+  (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
+Proof.
+  intros.
+  extensionality.
+  apply pred_ext; normalize;
+  autorewrite with subst norm1 norm2; normalize;
+  (apply andp_right; [apply prop_right; auto | auto]);
+  unfold_lift;
+  unfold_lift in H0;
+  split; simpl in *; tauto.
+Qed.

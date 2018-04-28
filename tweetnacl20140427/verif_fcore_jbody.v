@@ -158,8 +158,9 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
-      entailer!. match goal with H: _ /\ _ |- _ => destruct H as [_ H]; inversion H end.
+      entailer!.
    }
+    entailer!. destruct H5. inv H6.
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -170,7 +171,8 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       intros mm ?.
       destruct (zeq mm m); subst.
       + rewrite upd_Znth_same; try omega. autorewrite with sublist. trivial.
-      + rewrite upd_Znth_diff; try omega. apply HT; omega. }
+      + rewrite upd_Znth_diff; try omega. apply HT; omega.
+    }
   }
   entailer!.
 Qed. 

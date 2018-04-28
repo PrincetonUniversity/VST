@@ -230,7 +230,7 @@ intro rho; unfold tc_expr; simpl.
 subst.
 norm_rewrite. apply prop_left; intro.
 unfold get_var_type. rewrite GLBL. rewrite H0.
-rewrite denote_tc_assert_bool. apply prop_right.
+rewrite denote_tc_assert_bool; simpl. apply prop_right.
 simpl.
 rewrite eqb_typelist_refl.
 simpl. auto.
@@ -318,8 +318,8 @@ Qed.
 
 Lemma fold_right_and_app_lifted:
   forall (Q1 Q2: list (environ -> Prop)),
-  fold_right `and `True (Q1 ++ Q2)  =
-  `and (fold_right `and `True Q1) (fold_right `and `True Q2).
+  fold_right `(and) `(True) (Q1 ++ Q2)  =
+  `and (fold_right `(and) `(True) Q1) (fold_right `(and) `(True) Q2).
 Proof.
 induction Q1; intros; simpl; auto.
 extensionality rho; apply prop_ext; intuition.
@@ -366,7 +366,7 @@ f_equal; auto.
 Qed.
 
 Lemma isolate_LOCAL_lem1:
-  forall Q, PROPx nil (LOCALx Q (SEPx (TT::nil))) = local (fold_right `and `True (map locald_denote Q)).
+  forall Q, PROPx nil (LOCALx Q (SEPx (TT::nil))) = local (fold_right `(and) `(True) (map locald_denote Q)).
 Proof.
  intros.
  extensionality rho.
@@ -378,9 +378,9 @@ Qed.
 Lemma fold_right_and_LocalD_i:
   forall T1 T2 Q rho,
   (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) ->
-  (forall i vd, T2 ! i = Some vd -> fold_right `and `True (map locald_denote (denote_vardesc nil i vd)) rho) ->
-  (fold_right `and `True (map locald_denote Q) rho) ->
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho.
+  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) ->
+  (fold_right `(and) `(True) (map locald_denote Q) rho) ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho.
 Proof.
  intros.
  unfold LocalD.
@@ -422,10 +422,10 @@ Qed.
 
 Lemma fold_right_and_LocalD_e:
   forall T1 T2 Q rho,
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
   (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) /\
-  (forall i vd, T2 ! i = Some vd -> fold_right `and `True (map locald_denote (denote_vardesc nil i vd)) rho) /\
-  (fold_right `and `True (map locald_denote Q) rho).
+  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) /\
+  (fold_right `(and) `(True) (map locald_denote Q) rho).
 Proof.
 unfold LocalD; intros.
  repeat rewrite PTree.fold_spec in H.
@@ -535,9 +535,9 @@ Lemma check_specs_lemma:
     Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->
    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
           (PTree.elements Qpre_temp) ->
-   fold_right `and `True (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
-  fold_right ` and ` True (map locald_denote (map gvars G)) rho ->
-  fold_right `and `True (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
+   fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
 Proof.
  intros. rename H2 into H8.
  apply fold_right_and_LocalD_e in H1.
@@ -624,7 +624,7 @@ Definition check_retty t :=
 
 Lemma PROP_LOCAL_SEP_f:
   forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
-     local (fold_right `and `True (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
+     local (fold_right `(and) `(True) (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
      && PROPx P (LOCALx nil (SEPx R)).
 Proof. intros. extensionality rho.
 cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
@@ -839,6 +839,26 @@ Proof.
  intros. split. auto. repeat split; auto.
 Qed.
 
+Lemma in_gvars_sub:
+  forall rho G G', Forall (fun x : globals => In x G) G' ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+  fold_right `(and) `(True) (map locald_denote (map gvars G')) rho.
+Proof.
+intros.
+pose proof (proj1 (Forall_forall _ G') H).
+clear H.
+revert H1; induction G'; simpl; intros; constructor.
+assert (In a G).
+apply H1; auto.
+clear - H0 H.
+induction G; destruct H. subst. destruct H0. auto.
+destruct H0.
+auto.
+apply IHG'.
+intros.
+apply H1. right; auto.
+Qed.
+
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t vardesc) G (a: expr)
      Delta P Q R argsig retty cc A Pre Post NEPre NEPost 
@@ -876,13 +896,6 @@ rewrite !exp_andp1. Intros v.
 repeat apply andp_right; auto.
 eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
 eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl ] | auto].
-(*
-normalize.
-assert (H0 := @msubst_eval_expr_eq cs P Qtemp Qvar nil R a v).
-assert (H1 := local2ptree_soundness P Q R Qtemp Qvar nil nil PTREE).
-simpl app in H1. rewrite <- H1 in H0. apply H0 in EVAL. 
-clear H0 H1.
-*)
 rewrite PRE1.
 match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
 rewrite sepcon_comm.
@@ -909,7 +922,7 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
  revert bl; induction (argtypes argsig); destruct bl;
    simpl; try apply @FF_left.
  apply prop_right; auto.
- repeat rewrite denote_tc_assert_andp. apply andp_left2.
+ repeat rewrite denote_tc_assert_andp; simpl. apply andp_left2.
  eapply derives_trans; [ apply IHl | ]. normalize.
 apply derives_extract_PROP; intro LEN.
 subst Qactuals. 
@@ -962,8 +975,8 @@ apply andp_left2. apply andp_left1.
     simpl; intros; auto.
  inv LEN.
  forget (argtypes argsig) as tys.
- cut (local (fold_right `and `True (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
-            `(local (fold_right `and `True (map locald_denote Qpre)))
+ cut (local (fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
+            `(local (fold_right `(and) `(True) (map locald_denote Qpre)))
                (fun rho => (make_args (var_names argsig) (eval_exprlist tys bl rho) rho)) rho).
  intro. eapply derives_trans; [apply H  |].
  unfold make_args'. simpl @fst. change (map fst argsig) with (var_names argsig).
@@ -979,13 +992,13 @@ apply andp_left2. apply andp_left1.
  destruct H as [? [? ?]].
  apply fold_right_and_LocalD_i; auto.
  clear - CHECKG H1.
- admit.  (* easy *)
+ eapply in_gvars_sub; eauto.
  clear - CHECKG H.
  apply fold_right_and_LocalD_e in H.
   destruct H as [? [? ?]].
   clear - H1 CHECKG.
- admit. (* easy *)
-Admitted.
+ eapply in_gvars_sub; eauto.
+Qed.
 
 Lemma semax_call_id00_wow:
  forall  
@@ -1179,7 +1192,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty) retty = true). {
   destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
@@ -1187,7 +1200,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
   try solve [inv NEUTRAL].
   unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
   }
- apply andp_right. apply prop_right; auto.
+ simpl; apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
@@ -1301,13 +1314,13 @@ end.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty') retty = true).
  replace (implicit_deref retty') with retty'
  by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
  auto.
- apply andp_right. apply prop_right; auto.
+ simpl; apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.

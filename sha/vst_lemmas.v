@@ -69,7 +69,7 @@ Lemma sepcon_fold: forall Frame P rho,
 Frame = cons `(P) nil ->
 P |-- fold_right
       (fun (P Q : environ -> mpred) (rho0 : environ) => P rho0 * Q rho0)
-      `emp Frame rho.
+      `(emp) Frame rho.
 Proof. intros. subst. simpl. entailer. Qed.
 
 Lemma nth_mapVint: forall i (l:list Z) (Hi: (0 <= i < length l)%nat),

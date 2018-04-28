@@ -1,5 +1,6 @@
 Require Export VST.floyd.base.
 Require Export VST.floyd.typecheck_lemmas.
+Require Export VST.floyd.functional_base.
 Require Export VST.floyd.val_lemmas.
 Require Export VST.floyd.seplog_tactics.
 Require Export VST.floyd.assert_lemmas.
@@ -22,7 +23,7 @@ Definition cc_of_fundef (fd: fundef) : calling_convention :=
  | External _ _ _ c => c
  end.
 
-Definition funsig_of_fundef (fd: fundef) : funsig :=
+Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  match fd with
  | Internal {| fn_return := fn_return; fn_params := fn_params |} =>
     (fn_params, fn_return)

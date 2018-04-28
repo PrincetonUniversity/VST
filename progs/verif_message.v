@@ -162,23 +162,26 @@ Proof.
 name buf _buf.
 name q _q.
 name p _p.
+
 (*
 name ipm _intpair_message.
 *)
 start_function.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.
-rename v_intpair_deserialize into des.
-rename v_intpair_serialize into ser.
 make_func_ptr _intpair_deserialize.
 make_func_ptr _intpair_serialize.
+set (des := gv _intpair_deserialize).
+set (ser := gv _intpair_serialize).
 gather_SEP 5 6 7.
 replace_SEP 0 
     (data_at Ews t_struct_message
       (Vint (Int.repr (mf_size intpair_message)), (ser, des)) ipm). {
  entailer!.
- unfold_data_at 1%nat.
- rewrite <- (mapsto_field_at _ _ [StructField _bufsize] (Vint (Int.repr 8))) by auto with field_compatible.
+ unfold_data_at 2%nat.
+ rewrite (field_at_data_at _ _ _ _ ipm).
+rewrite data_at_tuint_tint.
+(* rewrite <- (mapsto_field_at _ _ [StructField _bufsize] (Vint (Int.repr 8))) by auto with field_compatible. *)
  rewrite <- (mapsto_field_at _ _ [StructField _deserialize] des) by auto with field_compatible.
  rewrite <- (mapsto_field_at _ _ [StructField _serialize] ser) by auto with field_compatible.
  rewrite !field_compatible_field_address by auto with field_compatible.

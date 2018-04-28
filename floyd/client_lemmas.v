@@ -288,8 +288,8 @@ Hint Rewrite andp_makeargs: norm2.
 
 Lemma local_makeargs:
    forall (f: val -> Prop) v,
-   `(local (`f retval)) (make_args (cons ret_temp nil) (cons v nil))
-    = (local (`f `v)).
+   `(local (`(f) retval)) (make_args (cons ret_temp nil) (cons v nil))
+    = (local (`(f) `(v))).
 Proof. intros. reflexivity. Qed.
 Hint Rewrite local_makeargs: norm2.
 
@@ -1424,7 +1424,7 @@ Qed.
 Hint Rewrite @subst_stackframe_of : subst.
 
 Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
-  EX old: val, subst i `old (PROPx P (LOCALx Q (SEPx R))) |--
+  EX old: val, subst i `(old) (PROPx P (LOCALx Q (SEPx R))) |--
   PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
 Proof.
   intros.
@@ -1693,7 +1693,7 @@ Proof.
  autorewrite with subst. f_equal; auto.
 Qed.
 
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
+Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
 Proof.
  intros. extensionality rho. unfold subst.
  f_equal.

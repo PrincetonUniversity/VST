@@ -1380,7 +1380,7 @@ forall (Delta : tycontext) (A : TypeTree)
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
   jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
-  jm_bupd (jsafeN OK_spec psi n ora c') m'.
+  jm_bupd ora (jsafeN OK_spec psi n ora c') m'.
 Proof.
 intros.
 destruct TC3 as [TC3 TC3'].

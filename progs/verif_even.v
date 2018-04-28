@@ -10,12 +10,11 @@ Definition Gprog : funspecs :=
 Lemma body_even : semax_body Vprog Gprog f_even even_spec.
 Proof.
 start_function.
-forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
+forward_if.
 *
  forward.
 *
- forward. entailer!.
-* normalize.
+  forward.
   forward_call (z-1, tt).
   (* Prove that PROP precondition is OK *)
   rep_omega.

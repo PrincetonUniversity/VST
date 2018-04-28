@@ -117,6 +117,7 @@ pose proof (Zlength_nonneg v1').
 pose proof (Zlength_nonneg v2').
 apply split2_data_at_Tarray with (v1'++v2'); auto.
 omega.
+list_solve.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.

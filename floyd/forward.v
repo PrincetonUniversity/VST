@@ -2218,9 +2218,54 @@ match goal with
         simpl_ret_assert (*autorewrite with ret_assert*)]
 end.
 
+Ltac remove_LOCAL name Q :=
+  let i := eval hnf in (find_LOCAL_index name O Q) in
+    match i with
+    | Some ?i' =>
+        let r := eval cbv iota zeta beta delta [delete_nth] in (delete_nth i' Q) in
+        constr:(r)
+    | None =>
+        constr:(Q)
+    end.
+
+Ltac remove_LOCAL2 Qr Q :=
+  match Qr with
+  | nil => constr:(Q)
+  | cons ?Qr_head ?Qr_tail =>
+      match Qr_head with
+      | temp ?name _ =>
+          let Q' := remove_LOCAL name Q in remove_LOCAL2 Qr_tail Q'
+      | _ =>
+          remove_LOCAL2 Qr_tail Q
+      end
+  end.
+
 Tactic Notation "forward_if" constr(post) :=
   lazymatch type of post with
-  | Prop => match goal with |-semax _ (PROPx (?P) ?Q) _ _ => forward_if_tac (PROPx (post :: P) Q) end
+  | Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          forward_if_tac (PROPx (post :: P) Q)
+      end
+  | list Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          let P' := eval cbv iota zeta beta delta [app] in (post ++ P) in
+          forward_if_tac (PROPx P' Q)
+      end
+  | localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 constr:(cons post nil) Q in
+          forward_if_tac (PROPx (P) (LOCALx (post :: Q') R))
+      end
+  | list localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 post Q in
+          let Q'' := eval cbv iota zeta beta delta [app] in (post ++ Q') in
+          forward_if_tac (PROPx (P) (LOCALx Q'' R))
+      end
   | _ => forward_if_tac post
   end.
 
@@ -2833,8 +2878,8 @@ Ltac advise_forward_call :=
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
-             fail 99 "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
-  | _ => fail 99 "This function has a complex calling convention not recognized by forward_call"
+             fail "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+  | _ => fail "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
 
@@ -3115,19 +3160,30 @@ Ltac assert_gvar i :=
   | ]
  end.
 
+Ltac make_func_ptr id :=
+ match goal with |- semax _ (PROPx _ (LOCALx ?Q _)) _ _ =>
+   lazymatch Q with context [gvar id _] => idtac | _ => assert_gvar id end
+ end;
+ eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].
+
 Ltac change_mapsto_gvar_to_data_at :=
-match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
-  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
-   lazymatch L with
-   | context [gvar _ g] => idtac 
-   | _ => match g with (?gv ?i)  => assert_gvar i end
-   end;
-   assert_PROP (headptr (offset_val 0 g));
-       [entailer!; apply <- headptr_offset_zero; auto |];
-   erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ g));
-       [| reflexivity | now auto | assumption | apply JMeq_refl ];
-   match goal with H: _ |- _ => clear H end;
-     rewrite <- ? data_at_offset_zero
+match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with
+  | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
+      lazymatch L with context [gvar _ (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (offset_val 0 (gv i)));
+          [entailer!;  apply <- headptr_offset_zero; auto |];
+      erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ (gv i)));
+          [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end;
+          rewrite <- ? data_at_offset_zero
+  | context [mapsto ?sh ?t (gv ?i) ?v] =>
+      lazymatch L with context [gvar i (gv i)] => idtac |  _ => assert_gvar i end;
+      assert_PROP (headptr (gv i));
+          [entailer! |];
+      erewrite (mapsto_data_at'' _ _ _ _ (gv i));
+           [| reflexivity | assumption | apply JMeq_refl ];
+      match goal with H: _ |- _ => clear H end
    end
 end.
 
@@ -3192,6 +3248,7 @@ Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : 
  | Sskip => x
  | Sassign e1 e2 => f e1 (f e2 x)
  | Sset _ e => f e x
+ | Scall _ (Evar _ _) el => fold_right f x el
  | Scall _ e el => f e (fold_right f x el)
  | Sbuiltin _ _ _ el => fold_right f x el
  | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
@@ -3238,9 +3295,9 @@ Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t un
  end.
 Arguments another_gvar i !ml .
 
-Definition find_gvars (DS: PTree.t funspec) (locals: list localdef) (c: statement) : list ident :=
+Definition find_gvars (locals: list localdef) (c: statement) : list ident :=
  snd (find_expressions (find_vars another_gvar) c 
-                (find_lvars locals (PTree.map1 (fun _ => tt) DS), nil)).
+                (find_lvars locals (PTree.empty _), nil)).
 
 Ltac assert_gvars' x := 
  match x with
@@ -3249,9 +3306,9 @@ Ltac assert_gvars' x :=
  end.
 
 Ltac assert_gvars := 
- match goal with DS := @abbreviate (PTree.t funspec) _ |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
+ match goal with |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
    tryif match l with context [gvars _] => idtac end
-    then let x := constr:(find_gvars DS l c) in
+    then let x := constr:(find_gvars l c) in
             let x := eval unfold find_gvars, find_lvars in x in
             let x := eval simpl in x in 
             assert_gvars' x

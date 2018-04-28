@@ -1,6 +1,6 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import mailbox.mailbox.
@@ -9,9 +9,18 @@ Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.
 
+Lemma gvar_denote_env_set:
+  forall rho i vi j vj, gvar_denote i vi (env_set rho j vj) = gvar_denote i vi rho.
+Proof.
+intros.
+unfold gvar_denote.
+simpl. auto.
+Qed.
+
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  simpl readonly2share.  (* TODO: delete this line when possible *)
   assert_gvar _bufs. assert_gvar _lock. assert_gvar _comm. assert_gvar _reading.
   assert_gvar _last_read. assert_gvar _last_taken. assert_gvar _writing.
   assert_gvar _last_given.
@@ -43,8 +52,11 @@ Proof.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold N; omega|].
     unfold unfold_reptype; simpl.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
-  get_global_function'' _writer; Intros.
-  apply extract_exists_pre; intros writer_.
+  simpl fst in *. simpl snd in *.
+  set (writer_ := gv _writer).
+  make_func_ptr _writer.
+(*  get_global_function'' _writer; Intros. 
+  apply extract_exists_pre; intros writer_. *)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh1 & shs1 & ? & ? & ? & ?).
   assert_PROP (Zlength bufs = B).
   { go_lowerx; rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ buf)), !sepcon_assoc.
@@ -91,9 +103,13 @@ Proof.
     apply andp_right; [apply prop_right; repeat split; auto|].
     apply andp_right; [apply prop_right|].
     { unfold liftx; simpl; unfold lift, make_args'; simpl.
-      erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ writer_) by eauto.
+      rewrite ?gvar_denote_env_set. 
       rewrite eval_id_same, eval_id_other, eval_id_same; [|discriminate].
-      repeat split; auto; apply gvar_denote_global; auto. }
+     repeat split; auto; try apply gvar_denote_global; auto.
+     erewrite gvar_eval_var by eauto.
+     erewrite !(force_val_sem_cast_neutral_gvar' _writer writer_) by eauto.
+     auto.
+      }
     Exists _arg.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'.

@@ -758,14 +758,325 @@ Qed.
 
 End extensions.
 
-Lemma update_join_update:
-  forall Delta c1 c2 c,
-  update_tycon (join_tycon (update_tycon Delta c1) (update_tycon Delta c2)) c =
-  join_tycon (update_tycon (update_tycon Delta c1) c) (update_tycon (update_tycon Delta c2) c).
+Lemma update_tycon_te_same' : forall c Delta id t b,
+(temp_types (update_tycon Delta c)) ! id = Some (t,b) ->
+exists b2,  (temp_types Delta) ! id = Some (t,b2)
+with update_labeled_te_same' : forall ls Delta id t b,
+(temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b) ->
+exists b2, (temp_types Delta) ! id = Some (t,b2).
+*
+clear update_tycon_te_same'.
+induction c; intros; simpl; try_false; try (eexists; eassumption).
++
+simpl in H.
+unfold initialized in H. destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?H.
+simpl in H.
+destruct (ident_eq id i).
+subst.
+rewrite PTree.gss in H. inv H. eauto.
+rewrite PTree.gso in H by auto. eauto.
+eauto.
++
+destruct o.
+simpl in H.
+unfold initialized in H. destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?H.
+simpl in H.
+destruct (ident_eq id i).
+subst.
+rewrite PTree.gss in H. inv H. eauto.
+rewrite PTree.gso in H by auto. eauto.
+eauto.
+eauto.
++
+unfold update_tycon in H. fold update_tycon in H.
+apply IHc2 in H.
+destruct H as [b1 ?].
+apply IHc1 in H.
+auto.
++
+unfold update_tycon in H; fold update_tycon in H.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+destruct ((temp_types (update_tycon Delta c1)) ! id) as [[? ?]|] eqn:?H.
+destruct ((temp_types (update_tycon Delta c2)) ! id) as [[? ?]|] eqn:?H.
+inv H.
+apply IHc1 in H0.
+apply IHc2 in H1.
+destruct H0, H1.
+inversion2 H H0.
+eauto.
+inv H.
+inv H.
++
+simpl in H.
+apply update_labeled_te_same' in H.
+auto.
++
+simpl in H.
+eauto.
+*
+clear update_labeled_te_same'.
+induction ls; intros.
+simpl in H. eauto.
+simpl in H.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+destruct ((temp_types (update_tycon Delta s)) ! id) as [[? ?]|] eqn:?H.
+destruct ((temp_types (join_tycon_labeled ls Delta)) ! id) as [[? ?]|] eqn:?H.
+inv H.
+apply IHls in H1.
+destruct H1.
+apply update_tycon_te_same' in H0.
+destruct H0.
+inversion2 H0 H.
+eauto.
+inv H.
+inv H.
+Qed.
+
+(*
+Lemma initialized_join_tycon: forall Delta Delta' i c1 c2,
+tycontext_eqv Delta Delta' ->
+tycontext_eqv
+  (initialized i
+     (join_tycon (update_tycon Delta c1) (update_tycon Delta' c2)))
+  (join_tycon (initialized i (update_tycon Delta c1))
+     (initialized i (update_tycon Delta' c2))).
+Proof.
+intros. rename H into Heqv.
+unfold initialized.
+destruct ((temp_types
+     (join_tycon (update_tycon Delta c1) (update_tycon Delta' c2))) ! i)
+        as [[? ?]|] eqn:?H.
+destruct ((temp_types (update_tycon Delta c1)) ! i)
+       as [[? ?]|] eqn:?H.
+destruct ((temp_types (update_tycon Delta' c2)) ! i)
+       as [[? ?]|] eqn:?H.
+unfold join_tycon at 7.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intro.
+rewrite temp_types_update_dist.
+unfold temp_types at 1 4.
+destruct (ident_eq id i).
+subst. 
+rewrite join_te_denote2.
+rewrite !PTree.gss.
+unfold te_one_denote. f_equal. f_equal.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+rewrite H0 in H. rewrite H1 in H.
+inv H. auto.
+rewrite PTree.gso by auto.
+rewrite !join_te_denote2.
+rewrite !PTree.gso by auto.
+auto.
+rewrite !var_types_update_dist.
+rewrite !ret_type_update_dist.
+rewrite !glob_types_update_dist.
+rewrite !glob_specs_update_dist.
+rewrite !annotations_update_dist.
+split; auto.
+intro.
+unfold temp_types at 1.
+rewrite !temp_types_update_dist.
+apply update_tycon_te_same' in H0.
+destruct H0.
+apply update_tycon_te_same with (c:=c2) in H0.
+destruct H0.
+pose proof (update_tycontext_eqv _ _ Heqv c2).
+destruct H2 as [? _].
+rewrite <- H2 in H1.  congruence.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+rewrite H0 in H. inv H.
+rewrite H1 in H3. inv H3.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+destruct ((temp_types (update_tycon Delta c1)) ! i)
+       as [[? ?]|] eqn:?H.
+destruct ((temp_types (update_tycon Delta c2)) ! i)
+       as [[? ?]|] eqn:?H.
+pose proof (update_tycontext_eqv _ _ Heqv c2).
+destruct H3 as [? _].
+rewrite <- H3 in H. rewrite H2 in H.  congruence.
+pose proof (update_tycontext_eqv _ _ Heqv c2).
+destruct H3 as [? _].
+rewrite <- H3 in H. rewrite H2 in H.  congruence.
+inv H.
+rewrite temp_types_update_dist in H.
+rewrite join_te_denote2 in H.
+unfold te_one_denote in H.
+destruct ((temp_types (update_tycon Delta c1)) ! i)
+       as [[? ?]|] eqn:?H.
+destruct ((temp_types (update_tycon Delta' c2)) ! i)
+       as [[? ?]|] eqn:?H.
+inv H.
+apply update_tycon_te_same' in H0.
+destruct H0.
+destruct Heqv as [? _]. rewrite H2 in H0.
+apply update_tycon_te_same with (c:=c2) in H0.
+destruct H0. congruence.
+destruct ((temp_types (update_tycon Delta' c2)) ! i)
+       as [[? ?]|] eqn:?H.
+pose proof (update_tycontext_eqv _ _ Heqv c2).
+destruct H2 as [? _].
+rewrite <- H2 in H1.
+apply update_tycon_te_same' in H1.
+destruct H1.
+apply update_tycon_te_same with (c:=c1) in H1.
+destruct H1. congruence.
+apply tycontext_eqv_refl.
+Qed.
+
+*)
+
+
+Lemma join_tycon_assoc':
+ forall D1 D2 D3,
+ tycontext_eqv
+  (join_tycon (join_tycon D1 D2) D3)
+  (join_tycon D1 (join_tycon D2 D3)).
 Proof.
 intros.
-Admitted.  (* Certainly true, but it might not be worth proving now, because
-   Qinxiang's remove-init branch might succeed in getting rid of update_tycon entirely. *)
+apply tycontext_eqv_symm.
+apply join_tycon_assoc.
+Qed.
+
+Lemma update_join_update:
+  forall Delta c Delta1 Delta2,
+ tycontext_evolve Delta Delta1 ->
+ tycontext_evolve Delta Delta2 ->
+ tycontext_eqv 
+  (update_tycon (join_tycon Delta1 Delta2) c)
+  (join_tycon (update_tycon Delta1 c) 
+                   (update_tycon Delta2 c))
+with update_joinlabeled_update:
+  forall Delta l Delta1 Delta2,
+ tycontext_evolve Delta Delta1 ->
+ tycontext_evolve Delta Delta2 ->
+tycontext_eqv (join_tycon_labeled l (join_tycon Delta1 Delta2))
+  (join_tycon (join_tycon_labeled l Delta1) (join_tycon_labeled l Delta2)).
+Proof.
+- clear update_join_update.
+induction c; intros ? ? Hev1 Hev2; try apply tycontext_eqv_refl; auto.
+* simpl.
+ apply initialized_join_tycon. 
+* destruct o; [apply initialized_join_tycon | apply tycontext_eqv_refl].
+*
+simpl.
+eapply tycontext_eqv_trans.
+2: apply IHc2; (eapply tycontext_evolve_trans; [ | apply tycontext_evolve_update_tycon]; auto).
+clear IHc2.
+apply update_tycontext_eqv.
+apply IHc1; auto.
+*
+simpl.
+eapply tycontext_eqv_trans.
+apply join_tycontext_eqv.
+apply IHc1; auto.
+apply IHc2; auto.
+eapply tycontext_eqv_trans; [ | apply join_tycon_assoc].
+eapply tycontext_eqv_trans; [ apply join_tycon_assoc' |].
+apply join_tycontext_eqv.
+apply tycontext_eqv_refl.
+eapply tycontext_eqv_trans; [ eapply join_context_com | ].
+eapply tycontext_evolve_trans.
+apply Hev2.
+apply tycontext_evolve_update_tycon.
+apply tycontext_evolve_join.
+eapply tycontext_evolve_trans.
+apply Hev1.
+apply tycontext_evolve_update_tycon.
+eapply tycontext_evolve_trans.
+apply Hev2.
+apply tycontext_evolve_update_tycon.
+eapply tycontext_eqv_trans; [ apply join_tycon_assoc' |].
+apply join_tycontext_eqv.
+apply tycontext_eqv_refl.
+eapply join_context_com.
+eapply tycontext_evolve_trans.
+apply Hev2.
+apply tycontext_evolve_update_tycon.
+eapply tycontext_evolve_trans.
+apply Hev2.
+apply tycontext_evolve_update_tycon.
+*
+simpl.
+eapply update_joinlabeled_update; eauto.
+*
+simpl.
+auto.
+- clear update_joinlabeled_update.
+induction l; intros.
+simpl.
+apply tycontext_eqv_refl.
+simpl.
+eapply tycontext_eqv_trans.
+eapply join_tycontext_eqv.
+eapply update_join_update; eauto.
+apply IHl; auto.
+clear - H H0.
+eapply tycontext_eqv_trans; [ | apply join_tycon_assoc].
+eapply tycontext_eqv_trans; [ apply join_tycon_assoc' |].
+apply join_tycontext_eqv.
+apply tycontext_eqv_refl.
+eapply tycontext_eqv_trans; [ eapply join_context_com | ].
+eapply tycontext_evolve_trans.
+apply H0.
+apply tycontext_evolve_update_tycon.
+apply tycontext_evolve_join.
+eapply tycontext_evolve_trans.
+apply H.
+apply tycontext_evolve_join_labeled.
+eapply tycontext_evolve_trans.
+apply H0.
+apply tycontext_evolve_join_labeled.
+eapply tycontext_eqv_trans; [ apply join_tycon_assoc' |].
+apply join_tycontext_eqv.
+apply tycontext_eqv_refl.
+eapply join_context_com.
+eapply tycontext_evolve_trans.
+apply H0.
+apply tycontext_evolve_join_labeled.
+eapply tycontext_evolve_trans.
+apply H0.
+apply tycontext_evolve_update_tycon.
+Qed.
+
+Lemma funassert_tycontext_eqv:
+ forall Delta1 Delta2 rho w,
+  tycontext_eqv Delta1 Delta2 ->
+  app_pred (funassert Delta1 rho) w ->
+  app_pred (funassert Delta2 rho) w.
+Proof.
+intros.
+hnf in H0|-*.
+destruct H0.
+split; [clear H1 | clear H0].
+intros ? ? ? ? ?.
+apply H0; auto.
+simpl in H2|-*.
+clear - H H2.
+destruct H as [_ [_ [_ [_ [? _]]]]].
+rewrite H; auto.
+intros ? ? ? ? ?.
+specialize (H1 b b0 a' H0 H2).
+destruct H1 as [id [? ?]].
+exists id; split; auto.
+destruct H3 as [fs ?]; exists fs.
+destruct H as [_ [_ [_ [_ [? _]]]]].
+rewrite <- H; auto.
+Qed.
 
 Lemma semax_if_seq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
@@ -840,10 +1151,33 @@ reflexivity.
   + econstructor 3; eauto.
   + econstructor 4; eauto.
 -
-replace (exit_tycon (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Delta)
-  with (exit_tycon (Ssequence (Sifthenelse e c1 c2) c) Delta); auto.
-extensionality ek. destruct ek; simpl; auto.
-apply update_join_update.
+clear - H1.
+hnf in H1|-*.
+intro b; specialize (H1 b).
+intro vl; specialize (H1 vl).
+intro tx; specialize (H1 tx).
+intro vx; specialize (H1 vx).
+cbv beta in *.
+forget (construct_rho (filter_genv psi) vx tx) as rho .
+cbv zeta in *.
+assert (EQ: tycontext_eqv
+           (exit_tycon (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Delta b)
+           (exit_tycon (Ssequence (Sifthenelse e c1 c2) c) Delta b)
+ ). {
+  apply tycontext_eqv_symm.
+ destruct b; try apply tycontext_eqv_refl.
+ unfold exit_tycon.
+ simpl.
+ eapply update_join_update; apply tycontext_evolve_update_tycon.
+} 
+intros ? ? ? ? [[? ?] ?].
+specialize (H1 y H a' H0).
+apply H1.
+clear - H2 H3 H4 EQ.
+split; [split|]; auto.
+simpl in H2|-*.
+eapply guard_environ_eqv; try eassumption.
+eapply funassert_tycontext_eqv; try eassumption.
 Qed.
 
 

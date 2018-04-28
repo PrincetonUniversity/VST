@@ -70,6 +70,8 @@ Proof.
   forward_call (key, internal_r, Vptr b i, data, data1, gv).
   {
     unfold spec_sha.data_block.
+    entailer!. 
+    change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
     entailer!.
   }
 
@@ -79,6 +81,7 @@ Proof.
   (* prove the post condition *)
   unfold spec_sha.data_block.
   unfold md_relate (*; unfold convert_abs*).
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   entailer!.
 Qed.
 
@@ -101,6 +104,7 @@ Proof.
   (* return 0 *)
   unfold spec_sha.data_block.
   forward.
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   cancel.
 Qed.
 
@@ -130,12 +134,7 @@ Proof.
   forward_call (Tstruct _hmac_ctx_st noattr).
   Intros vret.
 
-  forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info;
-   temp _ctx c; temp _hmac h)
-      SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
-           data_at_ Tsh (Tstruct _hmac_ctx_st noattr) vret;
-           malloc_token Tsh (Tstruct _hmac_ctx_st noattr) vret *
-           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
+  forward_if.
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
@@ -148,11 +147,9 @@ Proof.
     subst vret. simpl. forward.
     Exists (-20864). entailer!.
   }
-  { destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
-    forward. entailer!.
-  }
-   Intros.
+  destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
+  Intros.
   unfold_data_at 1%nat.
-  forward. forward. forward. Exists 0. simpl. entailer!.
+  forward. forward. forward. forward. Exists 0. simpl. entailer!.
   Exists vret. unfold_data_at 1%nat. entailer!.
 Qed.

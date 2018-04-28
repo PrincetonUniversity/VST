@@ -64,7 +64,7 @@ Parameter body_exit:
     (EF_external "exit"
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
    exit_spec'.
-
+Print malloc_compatible.
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
@@ -72,6 +72,23 @@ Hint Resolve malloc_token_valid_pointer : valid_pointer.
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- !! malloc_compatible (sizeof t) p.
 Hint Resolve malloc_token_local_facts : saturate_local.
+Parameter malloc_token_change_composite: forall {cs_from cs_to} {CCE : change_composite_env cs_from cs_to} sh t,
+  cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
+  @malloc_token cs_from sh t = @malloc_token cs_to sh t.
+Ltac change_compspecs' cs cs' ::=
+  match goal with
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
+  | |- context [@malloc_token cs' ?sh ?t] => erewrite (@malloc_token_change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [?A cs'] => change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
+ end.
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
 

@@ -176,11 +176,15 @@ Proof.
 intros.
 unfold tarray.
 erewrite split2_data_at_Tarray.
-3: rewrite sublist_same; [eassumption | auto | auto ].
-3: rewrite sublist_app1.
-3: rewrite sublist_same; [eassumption | auto | auto ].
-5: rewrite sublist_app2.
-5: rewrite sublist_same; [eassumption | auto | auto ].
+4: rewrite sublist_same; [eassumption | auto | auto ].
+4: rewrite sublist_app1.
+4: rewrite sublist_same; [eassumption | auto | auto ].
+2: rewrite Zlength_app in H by list_solve; list_solve.
+2: rewrite Zlength_app in H by list_solve; list_solve.
+2: list_solve.
+2: omega.
+2: rewrite sublist_app2.
+2: rewrite sublist_same; [eassumption | auto | auto ].
 auto.
 all: rewrite Zlength_app in H; rep_omega.
 Qed.
@@ -363,9 +367,7 @@ forward_loop (EX i : Z,
     intro X; lapply (Znth_In i ls2); [|omega]. cstring. }
   forward. normalize.
   forward. fold_Vbyte.
-  match goal with |-semax _ (PROP () (LOCALx ?Q ?R)) _ _ =>
-    forward_if (PROP ()
-      (LOCALx (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2))) :: Q) R)) end.
+  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
     simpl force_val.
     rewrite Hs1 in *.
@@ -745,9 +747,7 @@ forward_loop (EX i : Z,
     intro X; lapply (Znth_In i ls2); [|omega]. cstring. }
   forward. normalize.
   forward. fold_Vbyte.
-  match goal with |-semax _ (PROP () (LOCALx ?Q ?R)) _ _ =>
-    forward_if (PROP ()
-      (LOCALx (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2))) :: Q) R)) end.
+  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
     simpl force_val. normalize.
     rewrite Hs1 in *.

@@ -2462,22 +2462,22 @@ Proof.
 Qed.
 
 (* It's often useful to split Tsh in half. *)
-Definition gsh1 := fst (Share.split Tsh).
-Definition gsh2 := snd (Share.split Tsh).
+Definition gsh1 := fst (slice.cleave Tsh).
+Definition gsh2 := snd (slice.cleave Tsh).
 
 Lemma readable_gsh1 : readable_share gsh1.
 Proof.
-  apply slice.split_YES_ok1; auto.
+  apply slice.cleave_readable1; auto.
 Qed.
 
 Lemma readable_gsh2 : readable_share gsh2.
 Proof.
-  apply slice.split_YES_ok2; auto.
+  apply slice.cleave_readable2; auto.
 Qed.
 
 Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
 Proof.
-  apply split_join; unfold gsh1, gsh2; destruct (Share.split Tsh); auto.
+  apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
 Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
@@ -2517,10 +2517,12 @@ Lemma split_readable_share sh :
     sepalg.join sh1 sh2 sh.
 Proof.
   intros.
-  pose proof (slice.split_YES_ok1 _ H); pose proof (slice.split_YES_ok2 _ H).
-  destruct (Share.split sh) as (sh1, sh2) eqn: Hsplit.
+  pose proof (slice.cleave_readable1 _ H); pose proof (slice.cleave_readable2 _ H).
+  destruct (slice.cleave sh) as (sh1, sh2) eqn: Hsplit.
   exists sh1, sh2; split; [|split]; auto.
-  apply split_join; auto.
+  replace sh1 with (fst (slice.cleave sh)) by (rewrite Hsplit; auto).
+  replace sh2 with (snd (slice.cleave sh)) by (rewrite Hsplit; auto).
+  apply slice.cleave_join; auto.
 Qed.
 
 Lemma split_Ews :
@@ -2626,15 +2628,10 @@ Proof.
 Qed.
 
 (* These lemmas should probably be in veric. *)
-Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
-Proof.
-  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
-Qed.
-
 Lemma exp_comm : forall {A B} P,
   (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
 Proof.
-  intros; apply mpred_ext; Intros x y; Exists y x; auto.
+  intros; apply seplog.pred_ext; Intros x y; Exists y x; auto.
 Qed.
 
 Lemma mapsto_value_eq: forall sh1 sh2 t p v1 v2, readable_share sh1 -> readable_share sh2 ->
@@ -2891,11 +2888,19 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma sepcon_rotate : forall lP m n, 0 <= n - m < Zlength lP ->
+  fold_right sepcon emp lP = fold_right sepcon emp (rotate lP m n).
+Proof.
+  intros.
+  unfold rotate.
+  rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
+Qed.
+
 (* wand lemmas *)
 Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
 Proof.
   intros.
-  apply mpred_ext, modus_ponens_wand.
+  apply seplog.pred_ext, modus_ponens_wand.
   subst; cancel.
   rewrite <- wand_sepcon_adjoint; auto.
   rewrite sepcon_comm; auto.
@@ -2903,7 +2908,7 @@ Qed.
 
 Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
 Proof.
-  intros; apply mpred_ext.
+  intros; apply seplog.pred_ext.
   - rewrite <- wand_sepcon_adjoint.
     rewrite <- sepcon_assoc, wand_sepcon_adjoint.
     rewrite sepcon_comm; apply modus_ponens_wand.
@@ -3420,8 +3425,8 @@ Lemma call_setup2'_i:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var)  ->
-  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   Forall (fun x => In x G) G' ->
+  fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   call_setup2' cs Qtemp Qvar G a Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness' Frame Ppre Qpre Rpre Qpre_temp Qpre_var G'.
 Proof.
@@ -3547,8 +3552,9 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
  unfold tc_exprlist.
  revert bl; induction (argtypes argsig); destruct bl;
    simpl; try apply @FF_left.
+   
  apply prop_right; auto.
- repeat rewrite denote_tc_assert_andp. apply andp_left2.
+ repeat rewrite denote_tc_assert_andp; simpl. apply andp_left2.
  eapply derives_trans; [ apply IHl | ]. normalize.
 apply derives_extract_PROP; intro LEN.
 subst Qactuals. 
@@ -3601,8 +3607,8 @@ apply andp_left2. apply andp_left1.
     simpl; intros; auto.
  inv LEN.
  forget (argtypes argsig) as tys.
- cut (local (fold_right `and `True (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
-            `(local (fold_right `and `True (map locald_denote Qpre)))
+ cut (local (fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G)))) rho |--
+            `(local (fold_right `(and) `(True) (map locald_denote Qpre)))
                (fun rho => (make_args (var_names argsig) (eval_exprlist tys bl rho) rho)) rho).
  intro. eapply derives_trans; [apply H  |].
  unfold make_args'. simpl @fst. change (map fst argsig) with (var_names argsig).
@@ -3814,7 +3820,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty) retty = true). {
   destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
@@ -3822,7 +3828,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
   try solve [inv NEUTRAL].
   unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
   }
- apply andp_right. apply prop_right; auto.
+ apply andp_right; simpl. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
@@ -3935,13 +3941,13 @@ end.
  unfold typeof_temp in TYret.
  destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
- repeat rewrite denote_tc_assert_andp.
+ repeat rewrite denote_tc_assert_andp; simpl.
  rewrite denote_tc_assert_bool.
  assert (is_neutral_cast (implicit_deref retty') retty = true).
  replace (implicit_deref retty') with retty'
  by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
  auto.
- apply andp_right. apply prop_right; auto.
+ apply andp_right. simpl; apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  subst Qnew; clear - H3. rename H3 into H.
@@ -4036,7 +4042,7 @@ Qed.
 
 Ltac  forward_call_id1_wow' := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -4075,7 +4081,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow' :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type

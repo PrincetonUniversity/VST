@@ -1762,7 +1762,7 @@ rewrite Share.glb_commute; auto.
 *
 inv H.
 admit.
-Admitted.
+Abort.
 
 Instance Cross_rmap:
       @Cross_alg _ (Join_prop _ Join_trace AV.valid) ->

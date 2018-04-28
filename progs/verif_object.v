@@ -123,18 +123,18 @@ Proof.
 intros.
 unfold object_methods.
 Intros sh reset twiddle.
-Exists (fst (Share.split sh)) reset twiddle.
-Exists (snd (Share.split sh)) reset twiddle.
+
+Exists (fst (slice.cleave sh)) reset twiddle.
+Exists (snd (slice.cleave sh)) reset twiddle.
 rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
 rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
 entailer!.
 split.
-apply slice.split_YES_ok1; auto.
-apply slice.split_YES_ok2; auto.
-rewrite (data_at_share_join (fst (Share.split sh)) (snd (Share.split sh)) sh).
+apply slice.cleave_readable1; auto.
+apply slice.cleave_readable2; auto.
+rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).
 auto.
-apply split_join.
-destruct (Share.split sh) as [a b]; reflexivity.
+apply slice.cleave_join.
 Qed.
 
 Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
@@ -206,15 +206,15 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *)
+(* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 set (mtable := gv _foo_methods).
-rename v_foo_twiddle into twiddle;
-rename v_foo_reset into reset.
 fold noattr cc_default.
 
 (* 1. Prove that [mtable] is a proper method-table for foo-objects *)
 make_func_ptr _foo_twiddle.
 make_func_ptr _foo_reset.
+set (twiddle := gv _foo_twiddle).
+set (reset := gv _foo_reset).
 gather_SEP 0 1 2 3.
 replace_SEP 0 (object_methods foo_invariant mtable).
  {
@@ -222,9 +222,12 @@ replace_SEP 0 (object_methods foo_invariant mtable).
   unfold object_methods.
   Exists Ews reset twiddle.
   entailer!.
-  unfold_data_at 1%nat.
-  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible.
-  rewrite <- mapsto_field_at with (v:=twiddle) by auto with field_compatible.
+  unfold_data_at 2%nat.
+  rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:=twiddle)
+      by auto with field_compatible.
+  rewrite field_at_data_at.
+  clear H3 H4 H2 H0.
+  (*  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible. *)
   rewrite !field_compatible_field_address by auto with field_compatible.
   rewrite !isptr_offset_val_zero by auto.
   rewrite sepcon_comm.

@@ -493,7 +493,7 @@ apply derives_refl.
 apply (semax_switch); auto.
 intro n'.
 assert_PROP (n = Int.unsigned n').
-apply derives_trans with (local (`( eq (Vint (Int.repr n))) (eval_expr a)) && local (` eq (eval_expr a) ` (Vint n'))).
+apply derives_trans with (local (`( eq (Vint (Int.repr n))) (eval_expr a)) && local (` eq (eval_expr a) `(Vint n'))).
 apply andp_right.
 eapply derives_trans; [ | eassumption].
 intro rho.

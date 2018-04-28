@@ -142,7 +142,7 @@ Definition rec_inv sh v (Q R: mpred): Prop :=
 Definition weak_rec_inv sh v (Q R: mpred): mpred :=
   (! (R <=> Q * lock_inv sh v (|> R)))%pred.
 
-Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! expr.isptr v && lock_inv sh v R)%logic.
+Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! isptr v && lock_inv sh v R)%logic.
 Proof.
   assert (D : isptr v \/ ~isptr v) by (destruct v; simpl; auto).
   destruct D.
