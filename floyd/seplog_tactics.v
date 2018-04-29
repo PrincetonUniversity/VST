@@ -500,10 +500,11 @@ Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
                    | Some (n, _) => delete_nth n R
                    | None => R
                    end L F Res ->
-  syntactic_cancel R (L0 :: L) F match nR0 with
-                                 | Some _ => Res
-                                 | None => L0 :: Res
-                                 end.
+  syntactic_cancel R (L0 :: L) F (let Res' := Res in
+                                 match nR0 with
+                                 | Some _ => Res'
+                                 | None => L0 :: Res'
+                                 end).
 Proof.
   intros.
   destruct nR0 as [[? ?]|].
@@ -616,7 +617,7 @@ Ltac syntactic_cancel :=
 Ltac cancel_for_evar_frame :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel
-  | cbv iota beta;
+  | cbv zeta iota beta;
     first [ match goal with
             | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
             end;
@@ -631,7 +632,7 @@ Ltac cancel_for_evar_frame :=
 Ltac cancel_for_TT :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel
-  | cbv iota beta;
+  | cbv zeta iota beta;
     first [ simple apply syntactic_cancel_solve2
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
@@ -642,7 +643,7 @@ Ltac cancel_for_TT :=
 Ltac cancel_for_normal :=
   eapply syntactic_cancel_spec3;
   [ syntactic_cancel
-  | cbv iota beta;
+  | cbv zeta iota beta;
     first [ simple apply syntactic_cancel_solve3
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
@@ -838,16 +839,16 @@ Ltac new_cancel :=
   | fold_abnormal_mpred
   | match goal with
     | |- before_symbol_cancel _ _ None =>
-           cbv zeta beta delta [before_symbol_cancel];
+           cbv iota beta delta [before_symbol_cancel];
            cancel_for_normal
     | |- before_symbol_cancel _ _ (Some (fold_right_sepcon _)) =>
-           cbv zeta beta delta [before_symbol_cancel];
+           cbv iota beta delta [before_symbol_cancel];
            cancel_for_evar_frame
     | |- before_symbol_cancel _ _ (Some TT) =>
-           cbv zeta beta delta [before_symbol_cancel];
+           cbv iota beta delta [before_symbol_cancel];
            cancel_for_TT
     | |- before_symbol_cancel _ _ (Some (prop True)) =>
-           cbv zeta beta delta [before_symbol_cancel];
+           cbv iota beta delta [before_symbol_cancel];
            cancel_for_TT
     end
   ].
