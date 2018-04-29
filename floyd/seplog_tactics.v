@@ -855,6 +855,8 @@ Ltac new_cancel :=
 
 Ltac cancel ::= new_cancel.
 
+(*
+
 Export ListNotations.
 
 Goal forall A B C D E F G H I J K L: mpred,
@@ -864,28 +866,49 @@ Goal forall A B C D E F G H I J K L: mpred,
   (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G).
 Proof.
   intros.
-  eapply symbolic_cancel_setup;
-  [ construct_fold_right_sepcon
-  | construct_fold_right_sepcon
-  | fold_abnormal_mpred
-  | ..].
-  cbv iota beta delta [before_symbol_cancel].
-  eapply syntactic_cancel_spec3; [syntactic_cancel |].
-  
-  cbv iota; cbv zeta beta.
-    first [ simple apply syntactic_cancel_solve3
-          | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
-            end;
-            unfold fold_left_sepconx; cbv iota beta ]
-  ].
-  
   Time
   do 4
   match goal with
   | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
   end;
+  (rewrite ?sepcon_assoc;
+  repeat match goal with |- ?A * _ |-- ?B * _ => 
+     constr_eq A B;  simple apply (cancel_left A)
+  end;
+  match goal with |- ?P |-- _ => qcancel P end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  try match goal with |- ?A |-- ?B => 
+       constr_eq A B; simple apply (derives_refl A)
+  end;
+  match goal with |- ?P |-- _ =>
+   (* The "emp" is a marker to notice when one complete pass has been made *)
+   rewrite <- (emp_sepcon P)
+  end;
+  repeat rewrite <- sepcon_assoc;
+  repeat match goal with
+    | |- sepcon _ emp |-- _ => fail 1
+    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
+    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
+   end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  pull_left (@TT mpred _);
+  first [ simpl; apply derives_refl'; solve [careful_unify]
+            (* this is NOT a _complete_ tactic;
+                 for example, "simple apply derives_refl" would be more complete.  But that
+                 tactic can sometimes take minutes to discover that something doesn't unify;
+                 what I have here is a compromise between reliable speed, and (in)completeness.
+               *)
+          | apply TT_right
+          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
+          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
+          | cancel_frame
+          | idtac
+          ]).
 
+
+  cancel. (* New cancel: 8.983 9.199 8.599 *)
+          (* Old cancel: 133.919 133.224 138.729 *)
+Abort
 
 
 
