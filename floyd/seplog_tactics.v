@@ -617,7 +617,7 @@ Ltac syntactic_cancel :=
 Ltac cancel_for_evar_frame :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel
-  | cbv zeta iota beta;
+  | cbv iota; cbv zeta beta;
     first [ match goal with
             | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
             end;
@@ -632,7 +632,7 @@ Ltac cancel_for_evar_frame :=
 Ltac cancel_for_TT :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel
-  | cbv zeta iota beta;
+  | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve2
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
@@ -643,7 +643,7 @@ Ltac cancel_for_TT :=
 Ltac cancel_for_normal :=
   eapply syntactic_cancel_spec3;
   [ syntactic_cancel
-  | cbv zeta iota beta;
+  | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve3
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
@@ -855,8 +855,40 @@ Ltac new_cancel :=
 
 Ltac cancel ::= new_cancel.
 
-(*
 Export ListNotations.
+
+Goal forall A B C D E F G H I J K L: mpred,
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) *
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) |--
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G) *
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G).
+Proof.
+  intros.
+  eapply symbolic_cancel_setup;
+  [ construct_fold_right_sepcon
+  | construct_fold_right_sepcon
+  | fold_abnormal_mpred
+  | ..].
+  cbv iota beta delta [before_symbol_cancel].
+  eapply syntactic_cancel_spec3; [syntactic_cancel |].
+  
+  cbv iota; cbv zeta beta.
+    first [ simple apply syntactic_cancel_solve3
+          | match goal with
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            end;
+            unfold fold_left_sepconx; cbv iota beta ]
+  ].
+  
+  Time
+  do 4
+  match goal with
+  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
+  end;
+
+
+
+
 
 Goal forall A B C D: mpred,
   A * B * (C * A) * B |-- B * (A * A) * TT.
