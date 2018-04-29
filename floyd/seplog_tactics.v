@@ -500,10 +500,11 @@ Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
                    | Some (n, _) => delete_nth n R
                    | None => R
                    end L F Res ->
-  syntactic_cancel R (L0 :: L) F match nR0 with
-                                 | Some _ => Res
-                                 | None => L0 :: Res
-                                 end.
+  syntactic_cancel R (L0 :: L) F (let Res' := Res in
+                                 match nR0 with
+                                 | Some _ => Res'
+                                 | None => L0 :: Res'
+                                 end).
 Proof.
   intros.
   destruct nR0 as [[? ?]|].
@@ -527,11 +528,19 @@ Proof.
     apply sepcon_derives; auto.
 Qed.
 
-Lemma syntactic_cancel_solve: forall F,
+Lemma syntactic_cancel_solve1: forall F,
   fold_right_sepcon F |-- fold_right_sepcon nil * fold_right_sepcon F.
 Proof.
   intros.
   simpl; rewrite emp_sepcon; auto.
+Qed.
+
+Lemma syntactic_cancel_solve2: forall G,
+  fold_right_sepcon G |-- fold_right_sepcon nil * TT.
+Proof.
+  intros.
+  simpl; rewrite emp_sepcon.
+  apply TT_right.
 Qed.
 
 Lemma syntactic_cancel_spec1: forall G1 L1 G2 L2 F,
@@ -572,6 +581,12 @@ Proof.
   eapply syntactic_cancel_spec1; eauto.
 Qed.
 
+Lemma syntactic_cancel_solve3:
+  fold_right_sepcon nil |-- fold_right_sepcon nil.
+Proof.
+  auto.
+Qed.
+
 Lemma syntactic_cancel_spec3: forall G1 L1 G2 L2,
   syntactic_cancel G1 L1 G2 L2 ->
   fold_right_sepcon G2 |-- fold_right_sepcon L2 ->
@@ -586,88 +601,127 @@ Qed.
 Ltac local_cancel_in_syntactic_cancel :=
   cbv beta;
   match goal with |- ?A |-- ?B => 
-    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel]
+    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel | apply derives_refl'; solve [careful_unify]]
   end.
 
 Ltac syntactic_cancel :=
+  repeat first
+         [ simple apply syntactic_cancel_nil
+         | simple apply syntactic_cancel_cons;
+           [ find_nth local_cancel_in_syntactic_cancel
+           | cbv iota; unfold delete_nth; cbv zeta iota
+           ]
+         ].
+
+(* To solve: Frame := ?Frame |- fold_right_sepcon G |-- fold_right_sepcon L * fold_right_sepcon Frame *)
+Ltac cancel_for_evar_frame :=
   eapply syntactic_cancel_spec1;
-  [ repeat first
-           [ simple apply syntactic_cancel_nil
-           | simple apply syntactic_cancel_cons;
-             [ find_nth local_cancel_in_syntactic_cancel
-             | cbv iota; unfold delete_nth; cbv zeta iota
-             ]
-           ]
-  | first [ match goal with
+  [ syntactic_cancel
+  | cbv iota; cbv zeta beta;
+    first [ match goal with
             | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
             end;
-            simple apply syntactic_cancel_solve
+            simple apply syntactic_cancel_solve1
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
 
-(*
-Ltac syntactic_cancel :=
-  eapply double_syntactic_cancel_spec;
-  [ repeat first
-           [ simple apply syntactic_cancel_nil
-           | simple apply syntactic_cancel_cons;
-             [ find_nth local_cancel1_in_syntactic_cancel
-             | cbv iota; unfold delete_nth; cbv zeta iota
-             ]
-           ]
-  | cbv iota beta;
-    repeat first
-           [ simple apply syntactic_cancel_nil
-           | simple apply syntactic_cancel_cons;
-             [ find_nth local_cancel2_in_syntactic_cancel
-             | cbv iota; unfold delete_nth; cbv zeta iota
-             ]
-           ]
-  | first [ match goal with
-            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
-            end;
-            simple apply syntactic_cancel_solve
+(* To solve: |- fold_right_sepcon G |-- fold_right_sepcon L * TT *)
+Ltac cancel_for_TT :=
+  eapply syntactic_cancel_spec1;
+  [ syntactic_cancel
+  | cbv iota; cbv zeta beta;
+    first [ simple apply syntactic_cancel_solve2
           | match goal with
             | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
-*)
 
-(*
-Ltac syntactic_cancel :=
-  eapply syntactic_cancel_spec;
-  [ repeat first
-           [ simple apply syntactic_cancel_nil
-           | simple apply syntactic_cancel_cons;
-             [ find_nth local_cancel_in_syntactic_cancel
-             | cbv iota; unfold delete_nth; cbv zeta iota
-             ]
-           ]
-  | first [ match goal with
-            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
-            end;
-            simple apply syntactic_cancel_solve
+Ltac cancel_for_normal :=
+  eapply syntactic_cancel_spec3;
+  [ syntactic_cancel
+  | cbv iota; cbv zeta beta;
+    first [ simple apply syntactic_cancel_solve3
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * _ => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
+            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B => rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B)
             end;
             unfold fold_left_sepconx; cbv iota beta ]
   ].
-*)
 
-(*
-Export ListNotations.
+(* return Some true exists TT, return Some false if exists fold_right_sepcon. *)
+Ltac Check_normal_mpred_list_rec L :=
+  match L with
+  | nil => constr:(@None bool)
+  | cons TT _ => constr:(Some true)
+  | cons (fold_right_sepcon _) _ => constr:(Some false)
+  | cons _ ?L0 => Check_normal_mpred_list_rec L0
+  end.
 
-Goal forall A B C D: mpred, exists F: list mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
+Ltac Check_pre_no_TT L :=
+  let res := Check_normal_mpred_list_rec L in
+  match res with
+  | Some true => fail 1000 "No TT should appear in the SEP clause of a funcspec's precondition"
+  | _ => idtac
+  end.
+
+Inductive merge_abnormal_mpred: mpred -> option mpred -> option mpred -> Prop :=
+| merge_abnormal_mpred_None: forall P, merge_abnormal_mpred P None (Some P)
+| merge_abnormal_mpred_TT_Some: forall P, merge_abnormal_mpred TT (Some P) (Some P)
+| merge_abnormal_mpred_Some_TT: forall P, merge_abnormal_mpred P (Some TT) (Some P).
+
+Inductive fold_abnormal_mpred: list mpred -> list mpred -> option mpred -> Prop :=
+| fold_abnormal_mpred_nil:
+    fold_abnormal_mpred nil nil None
+| fold_abnormal_mpred_TT: forall R res R' res',
+    fold_abnormal_mpred R R' res ->
+    merge_abnormal_mpred TT res res' ->
+    fold_abnormal_mpred (TT :: R) R' res'
+| fold_abnormal_mpred_fold: forall F R res R' res',
+    fold_abnormal_mpred R R' res ->
+    merge_abnormal_mpred (fold_right_sepcon F) res res' ->
+    fold_abnormal_mpred ((fold_right_sepcon F) :: R) R' res'
+| fold_abnormal_mpred_normal: forall P R R' res,
+    fold_abnormal_mpred R R' res ->
+    fold_abnormal_mpred (P :: R) (P :: R') res.
+
+Definition Some_or_emp (res: option mpred) := match res with | Some P => P | _ => emp end.
+
+Lemma merge_abnormal_mpred_spec: forall P res res',
+  merge_abnormal_mpred P res res' ->
+  Some_or_emp res' |-- P * Some_or_emp res.
 Proof.
   intros.
-  eexists.
-  syntactic_cancel.
-*)
+  inv H; simpl.
+  + rewrite sepcon_emp; auto.
+  + apply TT_sepcon.
+  + apply sepcon_TT.
+Qed.
+
+Lemma fold_abnormal_mpred_spec: forall R R' res,
+  fold_abnormal_mpred R R' res ->
+  fold_right_sepcon R' * Some_or_emp res |-- fold_right_sepcon R.
+Proof.
+  intros.
+  induction H; simpl.
+  + rewrite emp_sepcon; auto.
+  + apply merge_abnormal_mpred_spec in H0.
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H0] |].
+    rewrite <- sepcon_assoc.
+    rewrite (sepcon_comm _ TT).
+    rewrite sepcon_assoc.
+    apply sepcon_derives; auto.
+  + apply merge_abnormal_mpred_spec in H0.
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H0] |].
+    rewrite <- sepcon_assoc.
+    rewrite (sepcon_comm _ (fold_right_sepcon F)).
+    rewrite sepcon_assoc.
+    apply sepcon_derives; auto.
+  + rewrite sepcon_assoc.
+    apply sepcon_derives; auto.
+Qed.
 
 Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> Prop :=
 | construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
@@ -710,6 +764,30 @@ Proof.
     auto.
 Qed.
 
+Definition before_symbol_cancel (P Q: list mpred) (res: option mpred): Prop :=
+  match res with
+  | Some R => fold_right_sepcon P |-- fold_right_sepcon Q * R
+  | None => fold_right_sepcon P |-- fold_right_sepcon Q
+  end.
+
+Lemma symbolic_cancel_setup: forall P P' Q Q' Q'' Qr,
+  construct_fold_right_sepcon P P' ->
+  construct_fold_right_sepcon Q Q' ->
+  fold_abnormal_mpred Q' Q'' Qr ->
+  before_symbol_cancel P' Q'' Qr ->
+  P |-- Q.
+Proof.
+  intros.
+  apply construct_fold_right_sepcon_spec in H.
+  apply construct_fold_right_sepcon_spec in H0.
+  apply fold_abnormal_mpred_spec in H1.
+  rewrite <- H, <- H0.
+  eapply derives_trans; [| exact H1].
+  destruct Qr; auto.
+  simpl in H2 |- *.
+  rewrite sepcon_emp; auto.
+Qed.
+
 Ltac construct_fold_right_sepcon_rec :=
   match goal with
   | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
@@ -721,9 +799,177 @@ Ltac construct_fold_right_sepcon_rec :=
          apply construct_fold_right_sepcon_rec_single
   end.
 
+Ltac merge_abnormal_mpred :=
+  first
+  [ simple apply merge_abnormal_mpred_None
+  | simple apply merge_abnormal_mpred_TT_Some
+  | simple apply merge_abnormal_mpred_Some_TT
+  | fail 1000 "There should not be two fold_right_sepcon in the right side."
+  ].
+
 Ltac construct_fold_right_sepcon :=
   apply construct_fold_right_sepcon_constr;
   construct_fold_right_sepcon_rec.
+
+Ltac is_evar_def F := try first [is_var F; unfold F; fail 1 | fail 2 F "is not evar definition"].
+
+Ltac fold_abnormal_mpred :=
+  match goal with
+  | |- fold_abnormal_mpred nil _ _ =>
+         simple apply fold_abnormal_mpred_nil
+  | |- fold_abnormal_mpred (?P :: _) _ _ =>
+         match P with
+         | TT => simple eapply fold_abnormal_mpred_TT; [fold_abnormal_mpred | merge_abnormal_mpred]
+         | prop True => simple eapply fold_abnormal_mpred_TT; [fold_abnormal_mpred | merge_abnormal_mpred]
+         | fold_right_sepcon ?F =>
+              is_evar_def F;
+              simple eapply fold_abnormal_mpred_fold; [fold_abnormal_mpred | merge_abnormal_mpred]
+         | _ => simple apply fold_abnormal_mpred_normal; fold_abnormal_mpred
+         end
+  end.
+
+Ltac new_cancel :=
+  match goal with
+  | |- @derives mpred Nveric _ _ => idtac
+  | _ => fail 1000 "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
+  end;
+  eapply symbolic_cancel_setup;
+  [ construct_fold_right_sepcon
+  | construct_fold_right_sepcon
+  | fold_abnormal_mpred
+  | match goal with
+    | |- before_symbol_cancel _ _ None =>
+           cbv iota beta delta [before_symbol_cancel];
+           cancel_for_normal
+    | |- before_symbol_cancel _ _ (Some (fold_right_sepcon _)) =>
+           cbv iota beta delta [before_symbol_cancel];
+           cancel_for_evar_frame
+    | |- before_symbol_cancel _ _ (Some TT) =>
+           cbv iota beta delta [before_symbol_cancel];
+           cancel_for_TT
+    | |- before_symbol_cancel _ _ (Some (prop True)) =>
+           cbv iota beta delta [before_symbol_cancel];
+           cancel_for_TT
+    end
+  ].
+
+Ltac cancel ::= new_cancel.
+
+(*
+
+Export ListNotations.
+
+Goal forall A B C D E F G H I J K L: mpred,
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) *
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) |--
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G) *
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G).
+Proof.
+  intros.
+  Time
+  do 4
+  match goal with
+  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
+  end;
+  (rewrite ?sepcon_assoc;
+  repeat match goal with |- ?A * _ |-- ?B * _ => 
+     constr_eq A B;  simple apply (cancel_left A)
+  end;
+  match goal with |- ?P |-- _ => qcancel P end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  try match goal with |- ?A |-- ?B => 
+       constr_eq A B; simple apply (derives_refl A)
+  end;
+  match goal with |- ?P |-- _ =>
+   (* The "emp" is a marker to notice when one complete pass has been made *)
+   rewrite <- (emp_sepcon P)
+  end;
+  repeat rewrite <- sepcon_assoc;
+  repeat match goal with
+    | |- sepcon _ emp |-- _ => fail 1
+    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
+    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
+   end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  pull_left (@TT mpred _);
+  first [ simpl; apply derives_refl'; solve [careful_unify]
+            (* this is NOT a _complete_ tactic;
+                 for example, "simple apply derives_refl" would be more complete.  But that
+                 tactic can sometimes take minutes to discover that something doesn't unify;
+                 what I have here is a compromise between reliable speed, and (in)completeness.
+               *)
+          | apply TT_right
+          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
+          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
+          | cancel_frame
+          | idtac
+          ]).
+
+
+  cancel. (* New cancel: 8.983 9.199 8.599 *)
+          (* Old cancel: 133.919 133.224 138.729 *)
+Abort
+
+
+
+
+Goal forall A B C D: mpred,
+  A * B * (C * A) * B |-- B * (A * A) * TT.
+Proof.
+  intros.
+  Time
+  do 4
+  match goal with
+  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
+  end;
+(* cancel. (* 4.323 4.275 3.887 3.763 3.684 3.66 3.6 3.534 3.616 3.6 3.591 3.606 *) *)
+(*  new_cancel. (* 0.615 0.656 0.655 0.653 0.687 *) *)
+
+Goal forall A B C D: mpred,
+  A * B * (C * fold_right_sepcon [A; B] * A) * B |-- B * (A * A) * fold_right_sepcon [A; B].
+Proof.
+  intros.
+  cancel.
+
+Goal forall A B C D: mpred,
+  A * B * (C * A) * B |-- B * TT * (A * A).
+Proof.
+  intros.
+  new_cancel.
+
+Goal forall A B C D: mpred, exists F': list mpred,
+  let F := F' in
+  A * B * (C * A) * B |-- B * (A * A) * fold_right_sepcon F.
+Proof.
+  intros; eexists; intros.
+  new_cancel.
+
+Goal forall A B C D: mpred,
+  A * B * (C * A) * B |-- B * (A * D).
+Proof.
+  intros.
+  new_cancel.
+
+
+Goal forall A B C D: mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A; D].
+Proof.
+  intros.
+  cancel_for_normal.
+
+Goal forall A B C D: mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * TT.
+Proof.
+  intros.
+  cancel_for_TT.
+
+Goal forall A B C D: mpred, exists F: list mpred,
+  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
+Proof.
+  intros.
+  eexists.
+  cancel_for_evar_frame.
+*)
 
 Ltac apply_find_core X :=
  match X with

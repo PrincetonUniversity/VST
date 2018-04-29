@@ -2903,6 +2903,7 @@ Proof.
   apply seplog.pred_ext, modus_ponens_wand.
   subst; cancel.
   rewrite <- wand_sepcon_adjoint; auto.
+  rewrite sepcon_comm; auto.
 Qed.
 
 Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
