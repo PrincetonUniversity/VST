@@ -914,7 +914,7 @@ Proof.
   eexists.
   cancel_for_evar_frame.
 *)
-
+(*
 Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> Prop :=
 | construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
     construct_fold_right_sepcon_rec Q R R' ->
@@ -970,7 +970,7 @@ Ltac construct_fold_right_sepcon_rec :=
 Ltac construct_fold_right_sepcon :=
   apply construct_fold_right_sepcon_constr;
   construct_fold_right_sepcon_rec.
-
+*)
 Ltac apply_find_core X :=
  match X with
  | ?U -> ?V => match type of U with Prop => apply_find_core V end
