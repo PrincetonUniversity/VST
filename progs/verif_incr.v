@@ -151,8 +151,7 @@ Proof.
   forward_call (lockt, sh, thread_lock_R sh g1 g2 ctr lock, thread_lock_inv sh g1 g2 ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
-    rewrite selflock_eq at 2; cancel.
-    eapply derives_trans; [apply now_later | cancel]. }
+    rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
 
@@ -211,8 +210,7 @@ Proof.
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-    cancel. }
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }

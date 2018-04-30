@@ -75,8 +75,7 @@ Proof.
                 tlock_inv sh lockt lock cond data).
   { unfold tlock_inv; lock_props.
     { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
-    rewrite selflock_eq at 2; cancel.
-    eapply derives_trans; [apply now_later | cancel]. }
+    rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
 
