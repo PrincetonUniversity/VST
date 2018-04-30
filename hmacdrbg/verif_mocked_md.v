@@ -145,7 +145,9 @@ Proof.
   }
   { (*null*)
     subst vret. simpl. forward.
-    Exists (-20864). entailer!.
+    Exists (-20864).
+    rewrite if_false by omega.
+    entailer!.
   }
   destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
   Intros.

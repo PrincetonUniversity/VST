@@ -288,7 +288,7 @@ Proof.
     Exists (M1, (M2, M3), (V, (RC, (EL, (PR, RI))))); unfold hmac256drbgstate_md_info_pointer; simpl.
     entailer!. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. apply derives_refl. }
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v; clear Hv. rewrite if_true; trivial.
   forward.
   Intros p. rename H into MCp.
@@ -321,7 +321,7 @@ Proof.
   freeze [0;1;3;4] FR3. rewrite lenV.
   forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    eapply derives_trans. apply data_at_memory_block. cancel.
+    eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel. 
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.

@@ -247,7 +247,7 @@ rewrite H0, <- H1, H. clear - H2.
 Time normalize. (*1.4*)
  Exists intsums.
  go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
- Time entailer!; split; auto. (*6.8*)
+ Time entailer!; auto. (*6.8*)
 Qed.
 
 Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT:
@@ -265,7 +265,7 @@ Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
 go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
 Time entailer!. (*3.4*)
-Intros intsums. Time Exists intsums; entailer!. (*0.8*)
+Intros intsums. Exists intsums; entailer!. apply H2.
 Qed.
 
 Opaque HTruePostCond. Opaque HFalsePostCond.

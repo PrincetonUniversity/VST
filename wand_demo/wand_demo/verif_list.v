@@ -557,7 +557,7 @@ Proof.
   forward_if. (* if (x == NULL) *)
   + forward. (* return y; *)
     rewrite (listrep_null _ _ nullval) by auto.
-    Exists y; entailer!.
+    Exists y; entailer!. simpl app; auto.
   + rewrite (listrep_nonnull _ _ x) by auto.
     Intros a s1b x'.
     subst s1.

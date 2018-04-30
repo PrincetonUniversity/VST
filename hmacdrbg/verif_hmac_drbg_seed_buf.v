@@ -79,7 +79,7 @@ Proof.
   freeze [0;1;3;4] FR3. rewrite lenV.
   forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
-    eapply derives_trans. apply data_at_memory_block. cancel.
+    eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel.
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.

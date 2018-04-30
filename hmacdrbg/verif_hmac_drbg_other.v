@@ -190,10 +190,9 @@ Proof.
   unfold hmac256drbgabs_common_mpreds; simpl.
   cancel.
   eapply derives_trans.
-  + apply sepcon_derives. apply derives_refl.
-    instantiate (1:=emp).  
+  + instantiate (1:=emp).  
     apply orp_left; [ auto | normalize; apply derives_refl].
-  + cancel. 
+  + cancel.
 Qed.
 (*
 Definition myProp s n I (i F:hmac256drbgstate): Prop :=
