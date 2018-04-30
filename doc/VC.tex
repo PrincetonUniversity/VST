@@ -1,5 +1,9 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
+\newcommand\vstversion{2.1}
+\newcommand\coqversion{8.8}
+\newcommand\compcertversion{3.2}
+
 \usepackage{xr-hyper}
 \input{setup}
 \input{macros}
@@ -38,7 +42,7 @@ Applying the Verified Software Toolchain\\
 to C programs}%
 
 \vskip50pt
-  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 2.1 \\ \today}
+  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version \vstversion{} \\ \today}
 \vskip100pt
 \par
 \vskip10pt
@@ -157,15 +161,15 @@ The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
 \begin{description}
-\item[Coq 8.7.1,] from coq.inria.fr.  Follow the standard installation instructions.
-\item[CompCert 3.2,] from \href{http://compcert.inria.fr/download.html}{http://compcert.inria.fr/download.html}.
+\item[Coq \coqversion{},] from coq.inria.fr.  Follow the standard installation instructions.
+\item[CompCert \compcertversion{},] from \href{http://compcert.inria.fr/download.html}{http://compcert.inria.fr/download.html}.
   Build the \emph{clightgen} tool, using these commands:
   \textsf{./configure -clightgen x86\_32-linux; make}.  You might replace
   x86\_32-linux with x86\_32-macosx or x86\_32-cygwin.  Verifiable C should work
   on other 32-bit architectures as well, but has not been extensively tested.
   Verifiable C has not been tested on 64-bit architectures, but
   a near-future release will support these.
-\item[VST 2.0,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
+\item[VST \vstversion{},] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
   or else an appropriate
   version from \href{https://github.com/PrincetonUniversity/VST}{https://github.com/PrincetonUniversity/VST}.
   After unpacking, read the \textsc{build\_organization} file
@@ -196,27 +200,28 @@ both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--
 \newthought{Load paths.}
 \label{loadpaths}
 Interactive development environments (CoqIDE or Proof General)
-will need their load paths properly initialized through
-command-line arguments.  Running \textsf{make} in
-\lstinline{vst} creates a file \lstinline{.loadpath} with
-the right arguments \emph{for proof development of the VST itself
+will need their load paths properly initialized.
+Running \textsf{make} in
+\lstinline{vst} creates a file \lstinline{_CoqProject} file with
+the right load paths \emph{for proof development of the VST itself
 or of its \lstinline{progs/} examples.}
-For example,
+From the VST current directory, you can say (for example),
 \newline
-\lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v &}
+\lstinline{coqide progs/verif_reverse.v &}
 
 \newthought{In normal use}
 (if you are not simply browsing the \textsf{progs} examples)
 your own files ($F$.c, $F$.v, verif\_$F$.v) will not be inside
 the VST directory.  You will need to run coqc or coqide (or Proof General)
 with ``coq flags'' to access the VST components.  For this, use
-the file \lstinline{.loadpath-export} or \lstinline{_CoqProject-export},
+the file \lstinline{_CoqProject-export},
 created by \textsf{make} in VST.
 
 Example:
 \begin{lstlisting}
 cd my-own-directory
-coqide `cat my/path/to/VST/.loadpath-export` myfile.v
+cp my/path/to/VST/_CoqProject-export _CoqProject
+coqide myfile.v &
 \end{lstlisting}
 
 
