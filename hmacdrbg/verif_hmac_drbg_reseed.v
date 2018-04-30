@@ -60,13 +60,7 @@ Proof.
   (* if (len > MBEDTLS_HMAC_DRBG_MAX_INPUT ||
         entropy_len + len > MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT) *)
   freeze [0;1] FR2.
-  forward_if (PROP  ()
-      LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
-      lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
-      temp _additional additional; temp _len (Vint (Int.repr add_len));
-      temp _t'1 (Val.of_bool add_len_too_high);
-      gvars gv)
-      SEP  (FRZL FR2)).
+  forward_if (temp _t'1 (Val.of_bool add_len_too_high)).
   { forward. entailer!. }
   { forward. entailer!. simpl.
       unfold Int.ltu; simpl.
@@ -76,13 +70,7 @@ Proof.
       + rep_omega.
   }
 
-  forward_if (PROP  (add_len_too_high = false)
-      LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
-      lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
-      temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvars gv)
-      SEP (FRZL FR2)
-  ).
+  forward_if. 
   { rewrite H in *. subst add_len_too_high. forward.
     Exists (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
     unfold reseedPOST. simpl; rewrite <- Heqadd_len_too_high.
@@ -91,10 +79,7 @@ Proof.
     normalize. apply andp_right. apply prop_right; repeat split; trivial.
     thaw FR2. thaw FR1. cancel.
   }
-  {
-    forward.
-    entailer!.
-  }
+  forward.
   Intros. rewrite H in *; clear H add_len_too_high.
   symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
 
@@ -123,7 +108,7 @@ Proof.
     solve [rewrite Zplus_minus; assumption].
     rewrite list_repeat_app, Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try omega.
   }
-  flatten_sepcon_in_SEP.
+  Intros.
 
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   {
@@ -159,8 +144,7 @@ Proof.
   
   (* if( get_entropy(seed, entropy_len ) != 0 ) *)
   freeze [0;1;2] FR5.
-  forward_if (
-      PROP  (vret=Vzero)
+  forward_if (PROP  (vret=Vzero)
       LOCAL  (temp _t'2 vret;
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
@@ -235,6 +219,7 @@ Proof.
 
   rename l into entropy_bytes.
   thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
+  Locate reseed_REST.
   eapply reseed_REST with (s0:=s0)(contents':=contents'); trivial.
 idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
 Time Qed. (*May23th, Coq8.6:12secs

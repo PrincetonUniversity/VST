@@ -119,18 +119,11 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG gv shmd md buf
 Proof. intros. abbreviate_semax.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl LEN in *; simpl CONT in *.
-rewrite memory_block_isptr. normalize.
+rewrite memory_block_isptr. Intros.
 (*NEW: crypto proof requires that we first extract isbyteZ key*)
 assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 simpl fn_body.
-forward_if  (
-  PROP  (isptr buf)
-   LOCAL  (lvar _c t_struct_hmac_ctx_st buf; temp _md md; temp _key k;
-      temp _key_len (Vint (Int.repr kl)); temp _d msg;
-       temp _n (Vint (Int.repr dl)); gvars gv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st buf; data_block Tsh key k;
-         data_block Tsh data msg; K_vector gv;
-         memory_block shmd 32 md)).
+forward_if (isptr buf).
   { apply denote_tc_test_eq_split.
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
@@ -138,6 +131,7 @@ forward_if  (
   { (* Branch2 *) forward. entailer. }
 Intros.
 assert_PROP (isptr k) as isPtrK by entailer!.
+change (Tstruct _hmac_ctx_st noattr) with (t_struct_hmac_ctx_st).  
 forward_call (buf, k, kl, key, HMACabs nil nil nil, gv).
   { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
     unfold initPre. entailer!.

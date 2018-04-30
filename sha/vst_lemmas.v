@@ -12,7 +12,7 @@ Proof. induction n; simpl; intros. trivial.
 Qed.
 
 Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
-Proof. intros; subst. cancel. Qed.
+Proof. intros; subst. auto. Qed.
 
 Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.

@@ -182,16 +182,7 @@ Proof.
 
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
-          data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-          malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
@@ -199,13 +190,11 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
+  subst v. clear Hv. simpl. forward.
+  Intros. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
-  deadvars!. (*
-  drop_LOCAL 0%nat.
-  drop_LOCAL 0%nat.*)
+  deadvars!.
   forward_call tt.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
@@ -248,15 +237,10 @@ Proof.
     cancel.
   }
   thaw FIELDS1. forward.
+
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
-
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
-   temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
+  forward_if (temp _t'4 (Vint (Int.repr 32))).
   { elim H; trivial. }
   { clear H.
     forward_if.
@@ -469,16 +453,7 @@ Proof.
 
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
-          data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-          malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
@@ -486,8 +461,8 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
+  subst v. clear Hv. simpl. forward.
+  Intros. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -537,12 +512,7 @@ Proof.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); 
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
-   temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
+  forward_if (temp _t'4 (Vint (Int.repr 32))).
   { elim H; trivial. }
   { clear H.
     forward_if.
@@ -796,16 +766,7 @@ Proof.
   Intros v. rename H into Hv.
   freeze [0] FR1. forward. thaw FR1.
 
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
-          data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-          malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
@@ -813,8 +774,8 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp.
+  subst v. clear Hv. simpl. forward.
+  Intros p. rename H into MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!. 
@@ -870,19 +831,14 @@ Proof.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 (*  set (ent_len := new_ent_len (Zlength V0)) in *.*)
 
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
-   temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
+  forward_if (temp _t'4 (Vint (Int.repr 32))).
   { elim H; trivial. }
   { clear H.
     forward_if.
     { elim H; trivial. }
     { clear H. forward. forward. entailer!. }
   }
-  forward. simpl. drop_LOCAL 7%nat. (*_t'4*)
+  forward. simpl. drop_LOCAL 1%nat. (*_t'4*)
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -968,8 +924,8 @@ Proof.
       unfold return_value_relate_result in RV.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
-      - unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl. normalize.
-        Exists p. thaw OLD_MD. cancel. normalize.
+      - unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl.
+        Intros. Exists p. thaw OLD_MD. cancel. normalize.
         apply andp_right. apply prop_right; repeat split; trivial.
         cancel.
   }

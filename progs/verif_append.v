@@ -40,6 +40,7 @@ forward_if (PROP (False) LOCAL () SEP ()).
 *
  forward.
  Exists y.
+ simpl app.
  entailer!.
 *
  forward.

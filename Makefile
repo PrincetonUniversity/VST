@@ -443,7 +443,7 @@ travis: default_target progs sha hmac mailbox
 
 files: _CoqProject version.vo $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes atomics
+all: default_target files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)

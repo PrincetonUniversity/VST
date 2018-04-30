@@ -172,14 +172,7 @@ replace (Int.and
     Int.repr_unsigned; reflexivity).
 pose (carry := ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)
                         -  (Int.unsigned (lo_part n) + len * 8) mod Int.modulus)/Int.modulus).
-forward_if (
-   PROP  ()
-   LOCAL  (temp _l (Vint (Int.repr (Int.unsigned (lo_part n) + len * 8)));
-     temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)));
-     temp _cNl (Vint (lo_part n)); temp _len (Vint (Int.repr len));
-     temp _c c)
-   SEP  (field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c;
-       field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c)).
+forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
 * (* then-clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
