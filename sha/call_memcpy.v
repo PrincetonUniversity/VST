@@ -213,9 +213,9 @@ Lemma semax_call_id0_alt:
        (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    tfun = type_of_params argsig ->
-  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
+  @semax cs Espec Delta (|> (tc_exprlist Delta (argtypes argsig) bl
                   && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
-                         * PROPx P (LOCALx Q (SEPx R))))
+                         * PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
     (normal_ret_assert
        ((ifvoid retty (`(Post x) (make_args nil nil))
@@ -375,6 +375,7 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
+ eapply derives_trans, now_later.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
  apply andp_derives; auto.  apply derives_refl.
@@ -608,6 +609,7 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
+ eapply derives_trans, now_later.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
  apply andp_derives; auto.  apply derives_refl.

@@ -93,7 +93,9 @@ Proof.
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B)))]).
-  { apply andp_right.
+  { eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
+    rewrite <- later_andp; apply later_derives.
+    apply andp_right.
     { entailer!. }
     unfold spawn_pre, PROPx, LOCALx, SEPx.
     go_lowerx.
@@ -213,7 +215,9 @@ Proof.
           comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 empty_map;
           EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs);
           ghost_var gsh1 (vint 1) g0]).
-    - apply andp_right.
+    - eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
+      rewrite <- later_andp; apply later_derives.
+      apply andp_right.
       { entailer!. }
       unfold spawn_pre. simpl fst in *. simpl snd in *.
       assert_PROP (isptr d) by (entailer!; eauto).

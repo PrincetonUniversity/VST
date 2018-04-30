@@ -3,7 +3,7 @@
 /* typedef struct {char a[8]; void* b[4];} lock_t; */
 /* typedef struct lock_t {char a[8]; void* b[4];} lock_t; //for mutex */
 /* typedef struct lock_t {void* b[6];} lock_t; //for semaphore */
-typedef struct lock_t {void* a[4];} lock_t; //for semaphore
+typedef void* lock_t[2]; //for semaphore
 typedef unsigned long int thread_t; // like pthread_t
 typedef int cond_t;
 

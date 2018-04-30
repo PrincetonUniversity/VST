@@ -86,13 +86,9 @@ Proof.
     - assert (b = -1) by (apply Empty_inj; auto; apply repable_buf; auto).
       subst; rewrite eq_dec_refl; entailer!.
       rewrite latest_read_Empty; auto.
-      { apply andp_right; auto.
-        eapply derives_trans; eauto. }
     - destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
       entailer!.
-      apply latest_read_new; auto.
-      { apply andp_right; auto.
-        eapply derives_trans; eauto. } }
+      apply latest_read_new; auto. }
   { repeat (split; auto); computable. }
   Intros x b'; destruct x as (t, v). simpl fst in *; simpl snd in *.
   assert (exists b, v = vint b /\ -1 <= b < B /\ if eq_dec b (-1) then b' = b0 else b' = b) as (b & ? & ? & ?).
