@@ -585,6 +585,29 @@ Qed.
     omega.
   Qed.
 
+  Lemma ex_level0: exists phi, age1 phi = None.
+  Proof.
+    Print sig.
+    set (g := nil: ghost).
+    set (m := (fun _ : AV.address => NO emptyshare nonreadable_emptyshare): AV.address -> resource).
+    set (r := exist _ (m, g) AV.valid_empty: rmap').
+    exists (squash (0%nat, r)).
+    rewrite rmap_age1_eq.
+    rewrite unsquash_squash.
+    auto.
+  Qed.
+
+  Lemma ex_level: forall n, exists phi, level phi = n.
+  Proof.
+    intros.
+    destruct ex_level0 as [phi ?].
+    rewrite age1_level0 in H.
+    destruct (unageN n phi) as [phi' ?].
+    exists phi'.
+    apply ageN_level in H0.
+    omega.
+  Qed.
+
 Lemma YES_join_full: 
    forall sh rsh n P r2 r3,
        join (R.YES sh rsh n P) r2 r3 ->

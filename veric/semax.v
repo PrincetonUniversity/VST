@@ -316,7 +316,414 @@ apply subp_exp; intros.
 auto 50 with contractive.
 Qed.
 
+Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c Q: assert :=
+  fun rho: environ =>
+  ALL gx: genv, ALL Delta': tycontext,
+       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
+       unfash (believe Espec Delta' gx Delta') -->
+     ALL k: cont, ALL F: assert,
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert Q F) k) -->
+        (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
+        ALL tx : Clight.temp_env, ALL vx : env,
+          (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
+          ((!! guard_environ Delta' (current_function (Kseq c :: k)) rho && funassert Delta' rho) -->
+             (F rho -* assert_safe Espec gx vx tx (Kseq c :: k) rho)).
+
 Opaque semax'.
 
 Definition semax {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) P c Q :=
   forall n, semax' Espec Delta P c Q n.
+
+Lemma any_level_pred_nat: forall P: pred nat, (forall n, P n) <-> TT |-- P.
+Proof.
+  intros.
+  split; intros.
+  + hnf; intros; auto.
+  + hnf in H; auto.
+Qed.
+
+Lemma semax_weakest_pre_aux: forall {A: Type} (P: pred nat) (Q R: A -> pred rmap),
+  P = fash (ALL x: A, Q x --> R x) ->
+  (TT |-- P <-> forall x, Q x |-- R x).
+Proof.
+  intros.
+  assert (TT |-- ALL x: A, Q x --> R x <-> (forall x : A, Q x |-- R x)).
+  + split; intros.
+    - rewrite <- (TT_and (Q x)).
+      rewrite imp_andp_adjoint.
+      eapply derives_trans; [exact H0 |].
+      apply (allp_left _ x); intros.
+      auto.
+    - apply allp_right; intros.
+      rewrite <- imp_andp_adjoint.
+      rewrite (TT_and (Q v)).
+      auto.
+  + rewrite <- H0, H.
+    clear; forget (ALL x : A , Q x --> R x) as P; clear.
+    split; intros.
+    - unfold fash in H.
+      hnf in H |- *.
+      intros; simpl in H.
+      eapply H; auto.
+    - unfold fash.
+      hnf in H |- *.
+      intros; simpl.
+      intros.
+      apply H.
+      auto.
+Qed.
+
+(* Copied from semax_switch. *)
+
+Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
+  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
+Proof.
+intros.
+apply pred_ext.
+intros ? ? ?.
+specialize (H b). auto.
+repeat intro. apply (H b).
+Qed.
+
+Lemma fash_TT: forall {A} {agA: ageable A}, @unfash A agA TT = TT.
+Proof.
+intros.
+apply pred_ext; intros ? ?; apply I.
+Qed.
+
+Lemma allp_andp: 
+  forall {A} {NA: ageable A} {B: Type} (b0: B) (P: B -> pred A) (Q: pred A),
+   (allp P && Q = allp (fun x => P x && Q))%pred.
+Proof.
+intros.
+apply pred_ext.
+intros ? [? ?] b. split; auto.
+intros ? ?.
+split.
+intro b. apply (H b).
+apply (H b0).
+Qed.
+
+Lemma unfash_prop_imp:
+  forall {A} {agA: ageable A} (P: Prop) (Q: pred nat),
+  (@unfash _ agA (prop P --> Q) = prop P --> @unfash _ agA Q)%pred.
+Proof.
+intros.
+apply pred_ext; repeat intro.
+apply H; auto. apply necR_level'; auto.
+hnf in H.
+specialize (H a (necR_refl _) H1).
+eapply pred_nec_hereditary; try apply H0.
+apply H.
+Qed.
+
+Import age_to.
+
+Lemma unfash_imp:
+  forall {A} {NA: ageable A} (P Q: pred nat),
+  (@unfash A _ (P --> Q) = (@unfash A _ P) --> @unfash A _ Q)%pred.
+Proof.
+intros.
+apply pred_ext; repeat intro.
+apply H; auto. apply necR_level'; auto.
+specialize (H (age_to a' a)).
+spec H.
+apply age_to_necR.
+spec H.
+do 3 red. 
+rewrite level_age_to; auto.
+apply necR_level in H0. apply H0.
+do 3 red in H.
+rewrite level_age_to in H; auto.
+apply necR_level in H0.
+apply H0.
+Qed.
+
+Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q: pred nat),
+  (@unfash A agA (andp P Q) = andp (@unfash A agA P) (@unfash A agA Q)).
+Proof.
+intros.
+apply pred_ext.
+intros ? ?.
+destruct H.
+split; auto.
+intros ? [? ?].
+split; auto.
+Qed.
+
+Lemma andp_imp_e':
+  forall (A : Type) (agA : ageable A) (P Q : pred A),
+   P && (P --> Q) |-- P && Q.
+Proof.
+intros.
+apply andp_right.
+apply andp_left1; auto.
+intros ? [? ?].
+eapply H0; auto.
+Qed.
+
+(* End copied from semax_switch. *)
+
+Lemma unfash_fash:
+  forall (A : Type) (agA : ageable A) (P : pred A),
+   unfash (fash P) |-- P.
+Proof.
+  intros.
+  unfold fash, unfash.
+  simpl.
+  hnf; simpl; intros.
+  apply (H a).
+  omega.
+Qed.
+
+Lemma imp_imp:
+  forall (A : Type) (agA : ageable A) (P Q R: pred A),
+    P --> (Q --> R) = P && Q --> R.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply imp_andp_adjoint.
+    rewrite <- andp_assoc.
+    apply imp_andp_adjoint.
+    rewrite andp_comm.
+    eapply derives_trans; [apply andp_imp_e' | apply andp_left2].
+    auto.
+  + rewrite <- !imp_andp_adjoint.
+    rewrite andp_assoc.
+    rewrite imp_andp_adjoint.
+    auto.
+Qed.
+
+Lemma imp_allp:
+  forall B (A : Type) (agA : ageable A) (P: pred A) (Q: B -> pred A),
+    P --> allp Q  = ALL x: B, P --> Q x.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply allp_right; intros x.
+    rewrite <- imp_andp_adjoint, andp_comm.
+    eapply derives_trans; [apply andp_imp_e' |].
+    apply andp_left2.
+    apply (allp_left _ x).
+    auto.
+  + rewrite <- imp_andp_adjoint.
+    apply allp_right; intros x.
+    rewrite imp_andp_adjoint.
+    apply (allp_left _ x).
+    auto.
+Qed.
+
+Lemma fash_prop: forall P: Prop,
+  fash (!! P: pred rmap) = !! P.
+Proof.
+  intros.
+  apply pred_ext; unfold fash; hnf; simpl; intros.
+  + destruct (ex_level a) as [r ?].
+    apply (H r).
+    omega.
+  + auto.
+Qed.
+
+Lemma fash_unfash:
+  forall (P : pred nat),
+   fash (unfash P: pred rmap) = P.
+Proof.
+  intros.
+  unfold fash, unfash.
+  apply pred_ext; hnf; simpl; intros.
+  + destruct (ex_level a) as [r ?].
+    specialize (H r).
+    rewrite H0 in H.
+    apply H; omega.
+  + eapply pred_nec_hereditary; [| eassumption].
+    rewrite nec_nat; omega.
+Qed.
+
+Lemma prop_true_imp:
+  forall (P: Prop) (Q: pred rmap),
+    P -> !! P --> Q = Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + rewrite <- (True_andp_eq P (!! P --> Q)) by auto.
+    eapply derives_trans; [apply andp_imp_e' |].
+    apply andp_left2; auto.
+  + apply imp_andp_adjoint.
+    apply andp_left1.
+    auto.
+Qed.
+
+Lemma corable_unfash:
+  forall (A : Type) (JA : Join A) (PA : Perm_alg A) (SA : Sep_alg A) (agA : ageable A) 
+    (AgeA : Age_alg A) (P : pred nat), corable (! P).
+Proof.
+  intros.
+  unfold unfash; simpl.
+  hnf; simpl; intros.
+  rewrite level_core.
+  auto.
+Qed.
+
+Lemma semax_weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext):
+  forall P c Q,
+    semax Espec Delta P c Q <-> (forall rho, derives (P rho) (weakest_pre Espec Delta c Q rho)).
+Proof.
+  intros.
+  unfold semax; rewrite semax_fold_unfold.
+  rewrite any_level_pred_nat.
+  apply semax_weakest_pre_aux.
+  unfold weakest_pre, guard.
+
+  apply pred_ext.
+  + rewrite fash_allp.
+    apply allp_right; intro rho.
+
+    apply subp_i1.
+    rewrite -> imp_andp_adjoint.
+    
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro gx.
+    apply imp_andp_adjoint.
+    apply (allp_left _ gx).
+    
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro Delta'.
+    apply imp_andp_adjoint.
+    apply (allp_left _ Delta').
+    
+    rewrite unfash_prop_imp, unfash_imp.
+    do 2 rewrite <- imp_andp_adjoint.
+    rewrite andp_comm, <- andp_assoc.
+    rewrite -> imp_andp_adjoint.
+    eapply derives_trans; [apply andp_imp_e' |].
+    apply andp_left2.
+    (* apply prop_andp_left; intros [H_Delta H_cs]. *)
+    
+    do 2 rewrite <- imp_andp_adjoint.
+    rewrite andp_comm, <- andp_assoc.
+    rewrite -> imp_andp_adjoint.
+    eapply derives_trans; [apply andp_imp_e' |].
+    apply andp_left2.
+
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro k.
+    apply imp_andp_adjoint.
+    apply (allp_left _ k).
+    
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro F.
+    apply imp_andp_adjoint.
+    apply (allp_left _ F).
+    
+    rewrite unfash_imp.
+    do 2 rewrite <- imp_andp_adjoint.
+    rewrite andp_comm, <- andp_assoc.
+    rewrite -> imp_andp_adjoint.
+    eapply derives_trans; [apply andp_imp_e' |].
+    apply andp_left2.
+
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro tx.
+    apply imp_andp_adjoint.
+    apply (allp_left _ tx).
+
+    rewrite unfash_allp.
+    apply imp_andp_adjoint.
+    apply allp_right; intro vx.
+    apply imp_andp_adjoint.
+    apply (allp_left _ vx).
+
+    do 2 rewrite <- imp_andp_adjoint.
+    rewrite andp_comm.
+    apply prop_andp_left; intros H_rho.
+    subst rho.
+    rewrite -> imp_andp_adjoint.
+
+    rewrite (andp_comm _ (_ * _)), andp_assoc, (andp_comm (_ * _)).
+    rewrite <- imp_imp.
+    do 2 rewrite <- imp_andp_adjoint.
+    rewrite andp_comm, <- andp_assoc.
+    rewrite <- wand_sepcon_adjoint.
+    rewrite corable_andp_sepcon1.
+    2: apply corable_andp; [apply corable_andp |];
+        [apply corable_prop | apply corable_funassert | apply corable_unfash].
+    rewrite imp_andp_adjoint.
+    rewrite (andp_comm (_ && _)).
+    rewrite imp_andp_adjoint.
+    rewrite sepcon_comm; apply unfash_fash.
+  + apply allp_right; intro gx.
+    apply allp_right; intro Delta'.
+    do 2 rewrite <- imp_andp_adjoint.
+    apply allp_right; intro k.
+    apply allp_right; intro F.
+    rewrite <- imp_andp_adjoint.
+    apply allp_right; intro tx.
+    apply allp_right; intro vx.
+
+    do 3 rewrite imp_andp_adjoint.
+    rewrite fash_allp.
+    apply (allp_left _ (construct_rho (filter_genv gx) vx tx)).
+
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ gx).
+    
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ Delta').
+
+    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
+    eapply derives_trans; [apply fash_K |].
+    rewrite fash_prop.
+    apply imp_derives; [auto |].
+
+    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
+    eapply derives_trans; [apply fash_K |].
+    rewrite fash_unfash.
+    apply imp_derives; [auto |].
+
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ k).
+
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ F).
+
+    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
+    eapply derives_trans; [apply fash_K |].
+    rewrite fash_unfash.
+    apply imp_derives; [auto |].
+
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ tx).
+    
+    rewrite imp_allp, fash_allp.
+    apply (allp_left _ vx).
+
+    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
+    rewrite prop_true_imp by auto.
+
+    rewrite andp_assoc, (andp_comm (_ * _)), <- andp_assoc.
+    rewrite ! imp_imp.
+    rewrite <- corable_sepcon_andp2.
+    2: apply corable_andp;
+        [apply corable_prop | apply corable_funassert].
+
+    forget (P (construct_rho (filter_genv gx) vx tx) &&
+  (!! guard_environ Delta' (current_function (Kseq c :: k)) (construct_rho (filter_genv gx) vx tx) &&
+      funassert Delta' (construct_rho (filter_genv gx) vx tx))) as P'.
+    forget (F (construct_rho (filter_genv gx) vx tx)) as F'.
+    forget (assert_safe Espec gx vx tx (Kseq c :: k) (construct_rho (filter_genv gx) vx tx)) as Q'.
+    clear.
+
+    apply subp_i1.
+    rewrite <- corable_sepcon_andp2 by apply corable_unfash.
+    rewrite sepcon_comm.
+    rewrite wand_sepcon_adjoint.
+    rewrite andp_comm.
+    apply imp_andp_adjoint.
+    apply unfash_fash.
+Qed.
+    

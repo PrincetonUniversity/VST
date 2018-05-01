@@ -1113,3 +1113,13 @@ Lemma readable_glb:
    intros.
    unfold readable_share in *. rewrite glb_twice. auto.
  Qed.
+
+  Lemma nonreadable_emptyshare: ~ readable_share emptyshare.
+  Proof.
+    unfold emptyshare.
+    intro.
+    hnf in H.
+    rewrite Share.glb_bot in H.
+    apply H; auto.
+  Qed.
+  
