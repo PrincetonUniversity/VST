@@ -35,7 +35,7 @@ Definition thread_func_spec :=
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
-         SEP (emp).
+         SEP ().
 
 Definition main_spec :=
  DECLARE _main
@@ -114,28 +114,9 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  make_func_ptr _thread_func.
-  set (f_ := gv _thread_func).
-  forward_spawn (val * share * val * val * val)%type (f_, Vint (Int.repr 0),
-    fun x : val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
-      [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)], (data, sh1, lock, lockt, cond),
-    fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
-         !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
-         lock_inv sh lockt (tlock_inv sh lockt lock cond data)).
-  { eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-    rewrite <- later_andp; apply later_derives.
-    simpl spawn_pre; entailer!.
-    { rewrite (gvar_eval_var _thread_func _ (gv _thread_func)) by auto.
-      erewrite !(force_val_sem_cast_neutral_gvar' _ (gv _thread_func)) by eauto.
-    rewrite ?gvar_denote_env_set.
-    repeat split; try eapply gvar_denote_global; auto. }
-    Exists _args; entailer!.
-    rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'. f_equal.
-      f_equal; extensionality.
-      destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply pred_ext; entailer!. }
-    erewrite <- lock_inv_share_join; try apply Hsh; auto.
+  forward_spawn (val * share * val * val * val)%type _thread_func (Vint (Int.repr 0))
+    (data, sh1, lock, lockt, cond).
+  { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     erewrite <- cond_var_share_join; try apply Hsh; auto.
     entailer!. }

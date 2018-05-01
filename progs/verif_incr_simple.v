@@ -144,33 +144,8 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
   { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
-  make_func_ptr _thread_func.
-  set (f_ := gv _thread_func).
-(*  forward_call_dep [(val * share * val * val)%type]
-    (f_, Vint (Int.repr 0),
-    fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
-      [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)], (ctr, sh1, lock, lockt),
-    fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, lockt) := x in
-         !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
-         lock_inv sh lockt (thread_lock_inv sh ctr lock lockt)).*)
-  forward_spawn (val * share * val * val)%type (f_, Vint (Int.repr 0),
-    fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
-      [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)], (ctr, sh1, lock, lockt),
-    fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, lockt) := x in
-         !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
-         lock_inv sh lockt (thread_lock_inv sh ctr lock lockt)).
-  { eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-    rewrite <- later_andp; apply later_derives.
-    simpl spawn_pre; entailer!.
-    { erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ f_) by eauto.
-      split; auto; repeat split; apply gvar_denote_global; auto. }
-    Exists _args; entailer!.
-    rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'. f_equal.
-      f_equal; extensionality.
-      destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply pred_ext; entailer!. }
-    erewrite <- lock_inv_share_join; try apply Hsh; auto.
+  forward_spawn (val * share * val * val)%type _thread_func (Vint (Int.repr 0)) (ctr, sh1, lock, lockt).
+  { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
   forward_call (ctr, sh2, lock).
