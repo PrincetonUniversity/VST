@@ -9,7 +9,7 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Errors.
 Require Import compcert.common.Globalenvs.
 (*Require Import Cminor.*)
-Require Import VST.ccc26x86.Op.
+Require Import compcert.x86.Op.
 
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.structured_injections.
@@ -60,10 +60,9 @@ Definition sig_ll_l := mksignature (Tlong :: Tlong :: nil) (Some Tlong) cc_defau
 Definition sig_li_l := mksignature (Tlong :: Tint :: nil) (Some Tlong) cc_default.
 Definition sig_ii_l := mksignature (Tint :: Tint :: nil) (Some Tlong) cc_default.
 
-
 (** Setting up the helper functions *)
-Require Import VST.ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)
-Definition globdef := AST.globdef Cminor.fundef unit.
+(*Require Import VST.ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)*)
+(*Definition globdef := AST.globdef fundef unit.
 
 Definition globdef_of_interest (gd: globdef) : bool :=
   match gd with
@@ -96,12 +95,12 @@ Definition lookup_helper (globs: PTree.t globdef)
   match PTree.fold (lookup_helper_aux name sg) globs None with
   | Some id => OK id
   | None    => Error (MSG name :: MSG ": missing or incorrect declaration" :: nil)
-  end.
+  end.*)
 
 Local Open Scope string_scope.
 Local Open Scope error_monad_scope.
 
-Definition get_helpers (p: Cminor.program) : res helper_functions :=
+(*Definition get_helpers (p: Cminor.program) : res helper_functions :=
   let globs := record_globdefs p in
   do i64_dtos <- lookup_helper globs "__i64_dtos" sig_f_l ;
   do i64_dtou <- lookup_helper globs "__i64_dtou" sig_f_l ;
@@ -119,7 +118,7 @@ Definition get_helpers (p: Cminor.program) : res helper_functions :=
   OK (mk_helper_functions
      i64_dtos i64_dtou i64_stod i64_utod i64_stof i64_utof
      i64_sdiv i64_udiv i64_smod i64_umod
-     i64_shl i64_shr i64_sar).
+     i64_shl i64_shr i64_sar).*)
 
 
 Inductive is_I64_helper hf : ident -> signature -> Prop :=

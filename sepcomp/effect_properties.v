@@ -11,11 +11,10 @@ Require Import compcert.common.Globalenvs.
 Require Import VST.msl.Axioms.
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.effect_semantics.
 Require Import VST.sepcomp.structured_injections.
 Require Import VST.sepcomp.reach.
-Require Import VST.sepcomp.effect_simulations.
 
 Goal forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             (TgtHyp: forall b ofs, Etgt b ofs = true ->

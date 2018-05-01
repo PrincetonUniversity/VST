@@ -319,8 +319,8 @@ Program Definition cl_core_sem (ge: genv):
     (fun ret c _ => cl_after_external ret c)
     (fun _ _ => False)
     cl_step
-    cl_corestep_not_at_external
-(*    cl_corestep_not_halted _*).
+    _
+    cl_corestep_not_at_external.
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
     cl_step ge q m q1 m1 ->
