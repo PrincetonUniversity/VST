@@ -4023,7 +4023,7 @@ end.
 
 Tactic Notation "forward_call_dep" constr(ts) constr(witness) := fwd_call_dep ts witness.
 
-Ltac forward_spawn sig id arg wit :=
+Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
@@ -4039,4 +4039,4 @@ Ltac forward_spawn sig id arg wit :=
        repeat match goal with |- _ = [] => instantiate (1 := []); simpl; reflexivity 
          | _ => instantiate (1 := (_, _) :: _); simpl; f_equal end |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
-  forward_call_dep [sig] (f, arg, Q, wit, R); subst Q R; [Exists y; subst y; simpl; cancel|] end end.
+  forward_call_dep [A] (f, arg, Q, wit, R); subst Q R; [Exists y; subst y; simpl; cancel|] end end.

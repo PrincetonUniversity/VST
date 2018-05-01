@@ -114,8 +114,7 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  forward_spawn (val * share * val * val * val)%type _thread_func (Vint (Int.repr 0))
-    (data, sh1, lock, lockt, cond).
+  forward_spawn _thread_func nullval (data, sh1, lock, lockt, cond).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     erewrite <- cond_var_share_join; try apply Hsh; auto.

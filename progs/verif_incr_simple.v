@@ -144,7 +144,7 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
   { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
-  forward_spawn (val * share * val * val)%type _thread_func (Vint (Int.repr 0)) (ctr, sh1, lock, lockt).
+  forward_spawn _thread_func nullval (ctr, sh1, lock, lockt).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
