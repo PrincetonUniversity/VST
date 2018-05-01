@@ -667,8 +667,8 @@ Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
 end.
 
-Ltac cancel_for_forward_call := syntactic_cancel.
-Ltac default_cancel_for_forward_call := syntactic_cancel.
+Ltac cancel_for_forward_call := cancel_for_evar_frame.
+Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
 Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
   [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);
@@ -708,7 +708,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
 *)
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H; 
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -721,7 +721,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -737,7 +737,7 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -752,7 +752,7 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -763,7 +763,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -940,7 +940,8 @@ Ltac prove_call_setup1 :=
 match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  lazymatch c with
  | context [Scall _ (Evar ?id ?ty) ?bl] =>
-    exploit (call_setup1_i2 CS Delta P Q R id ty bl);
+    let R' := strip1_later R in
+    exploit (call_setup1_i2 CS Delta P Q R' R id ty bl);
     [check_prove_local2ptree
     | apply can_assume_funcptr2;
       [ check_function_name
@@ -948,6 +949,7 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
       | find_spec_in_globals'
       | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
       ]
+    | auto 50 with derives
     | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
     |check_typecheck
     |check_typecheck
@@ -956,10 +958,12 @@ match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
     | ..
     ]
  | context [Scall _ ?a ?bl] =>
- exploit (call_setup1_i CS Delta P Q R a bl);
+    let R' := strip1_later R in
+ exploit (call_setup1_i CS Delta P Q R R' a bl);
  [check_prove_local2ptree
  |reflexivity
  |prove_func_ptr
+ |auto 50 with derives
  |check_parameter_types
  |check_typecheck
  |check_typecheck
@@ -972,14 +976,14 @@ end.
 Ltac prove_call_setup witness :=
  prove_call_setup1;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type A witness
  end;
  let H := fresh in
  intro H;
  match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
@@ -996,11 +1000,11 @@ lazymatch goal with
   eapply semax_seq';
     [prove_call_setup witness;
      clear_Delta_specs; clear_MORE_POST;
-     [ .. | 
+     [ .. |
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -2218,9 +2222,54 @@ match goal with
         simpl_ret_assert (*autorewrite with ret_assert*)]
 end.
 
+Ltac remove_LOCAL name Q :=
+  let i := eval hnf in (find_LOCAL_index name O Q) in
+    match i with
+    | Some ?i' =>
+        let r := eval cbv iota zeta beta delta [delete_nth] in (delete_nth i' Q) in
+        constr:(r)
+    | None =>
+        constr:(Q)
+    end.
+
+Ltac remove_LOCAL2 Qr Q :=
+  match Qr with
+  | nil => constr:(Q)
+  | cons ?Qr_head ?Qr_tail =>
+      match Qr_head with
+      | temp ?name _ =>
+          let Q' := remove_LOCAL name Q in remove_LOCAL2 Qr_tail Q'
+      | _ =>
+          remove_LOCAL2 Qr_tail Q
+      end
+  end.
+
 Tactic Notation "forward_if" constr(post) :=
   lazymatch type of post with
-  | Prop => match goal with |-semax _ (PROPx (?P) ?Q) _ _ => forward_if_tac (PROPx (post :: P) Q) end
+  | Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          forward_if_tac (PROPx (post :: P) Q)
+      end
+  | list Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          let P' := eval cbv iota zeta beta delta [app] in (post ++ P) in
+          forward_if_tac (PROPx P' Q)
+      end
+  | localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 constr:(cons post nil) Q in
+          forward_if_tac (PROPx (P) (LOCALx (post :: Q') R))
+      end
+  | list localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 post Q in
+          let Q'' := eval cbv iota zeta beta delta [app] in (post ++ Q') in
+          forward_if_tac (PROPx (P) (LOCALx Q'' R))
+      end
   | _ => forward_if_tac post
   end.
 

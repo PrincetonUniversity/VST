@@ -39,26 +39,15 @@ Proof.
   Intros v. rename H into Hv. simpl.
   freeze [0] FR1.
   forward. thaw FR1.
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
-   temp _data data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
-            data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-            malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-            FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!. thaw FR0. cancel. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  { subst v; clear Hv. rewrite if_true; trivial.
-    forward. entailer!.
-  }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp.
-
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
+  subst v; clear Hv. rewrite if_true; trivial.
+  Intros. Intros p. rename H into MCp.
+  forward.
   forward_call tt.
 
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
@@ -90,7 +79,7 @@ Proof.
   freeze [0;1;3;4] FR3. rewrite lenV.
   forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
-    eapply derives_trans. apply data_at_memory_block. cancel.
+    eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel.
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.

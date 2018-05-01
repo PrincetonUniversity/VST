@@ -128,7 +128,7 @@ Proof.
 Qed.
 
 Lemma msubst_eval_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
   (forall i v, T1 ! i = Some v -> eval_id i rho = v) /\
   (forall i t v, eval_vardesc t (T2 ! i) = Some v ->
       eval_var i t rho = v).
@@ -174,7 +174,7 @@ Proof.
 Qed.
 
 Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
-  fold_right `and `True (map locald_denote (LocalD T1 T2 Q)) rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
   (forall i t v, eval_lvardesc t (T2 ! i) = Some v ->
       eval_lvar i t rho = v).
 Proof.

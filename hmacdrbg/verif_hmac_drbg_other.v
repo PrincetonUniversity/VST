@@ -30,13 +30,10 @@ Proof.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
                    [StructField _md_ctx] (Vptr b i)) as FC_mdctx.
     { entailer!. (*unfold_data_at 1%nat. simpl. entailer.*) }
-    forward_if (PROP ( )
-       LOCAL (temp _ctx (Vptr b i))
-       SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
-            hmac256drbg_relate ABS CTX; (*FreeBLK*)malloc_token Tsh spec_hmac.t_struct_hmac_ctx_st (snd (snd (fst CTX))))).
+    forward_if.
     + elim H; trivial.
-    + clear H. forward. entailer!.
-    + destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
+    + clear H. Intros. forward.
+      destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
@@ -193,10 +190,9 @@ Proof.
   unfold hmac256drbgabs_common_mpreds; simpl.
   cancel.
   eapply derives_trans.
-  + apply sepcon_derives. apply derives_refl.
-    instantiate (1:=emp).  
+  + instantiate (1:=emp).  
     apply orp_left; [ auto | normalize; apply derives_refl].
-  + cancel. 
+  + cancel.
 Qed.
 (*
 Definition myProp s n I (i F:hmac256drbgstate): Prop :=
@@ -409,14 +405,7 @@ Proof.
            Exists k. entailer!.
   apply extract_exists_pre. intros k. Intros. rename H into K.
   forward. forward. 
-    forward_if 
-  (PROP ( n-k<>0 )
-   LOCAL (temp _n (Vint (Int.sub (Int.repr (n - k)) (Int.repr 1)));
-   temp _t'1 (Vint (Int.repr (n - k))); temp _p (offset_val k (Vptr b i));
-   temp _v (Vptr b i))
-   SEP (data_at Tsh (tarray tuchar n)
-          (list_repeat (Z.to_nat k) (Vint Int.zero) ++
-           list_repeat (Z.to_nat (n - k)) Vundef) (Vptr b i))).
+    forward_if (n-k<>0).
     - forward. entailer!.
     - 
       assert (NK: n = k) by (apply repr_inj_unsigned in H; rep_omega).

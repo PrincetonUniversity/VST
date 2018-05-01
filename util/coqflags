@@ -25,7 +25,8 @@ done
 if [ -v WINDIR ]
 then  # hacks necessary for cygwin
 VST=`/bin/pwd | awk '/^[/]cygdrive[/]/{sub(/^[/]cygdrive[/]/,""); sub("/",":/"); print $0}'`
-FLAGS="-async-proofs off"
+# FLAGS="-async-proofs off"
+FLAGS=
 else
 VST=`/bin/pwd`
 FLAGS=

@@ -12,7 +12,7 @@ Proof. induction n; simpl; intros. trivial.
 Qed.
 
 Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
-Proof. intros; subst. cancel. Qed.
+Proof. intros; subst. auto. Qed.
 
 Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
@@ -69,7 +69,7 @@ Lemma sepcon_fold: forall Frame P rho,
 Frame = cons `(P) nil ->
 P |-- fold_right
       (fun (P Q : environ -> mpred) (rho0 : environ) => P rho0 * Q rho0)
-      `emp Frame rho.
+      `(emp) Frame rho.
 Proof. intros. subst. simpl. entailer. Qed.
 
 Lemma nth_mapVint: forall i (l:list Z) (Hi: (0 <= i < length l)%nat),

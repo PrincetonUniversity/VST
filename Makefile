@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: .loadpath version.vo msl veric floyd progs
+default_target: _CoqProject version.vo msl veric floyd progs
 
 COMPCERT ?= compcert
 -include CONFIGURE
@@ -446,9 +446,9 @@ endif
 
 travis: default_target progs sha hmac mailbox
 
-files: .loadpath version.vo $(FILES:.v=.vo)
+files: _CoqProject version.vo $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes atomics
+all: default_target files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)
@@ -461,29 +461,29 @@ all: default_target files travis hmacdrbg tweetnacl aes atomics
 # msl/Coqlib2.vo: compcert
 # endif
  
-msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
-sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
-concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
-paco: .loadpath $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
-linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo)
-veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
-floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
-progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
-wand_demo:   .loadpath $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
-sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
-hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
-hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
-fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
-hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
-tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
-hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
-hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
-aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
-hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
-# drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: .loadpath mailbox/verif_mailbox_all.vo
-atomics: .loadpath mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
+msl:     _CoqProject version.vo $(MSL_FILES:%.v=msl/%.vo)
+sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
+ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
+concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
+paco: _CoqProject $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
+linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
+veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo)
+floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
+progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
+wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
+sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
+hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+fcf:     _CoqProject $(FCF_FILES:%.v=fcf/%.vo)
+hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
+hmac0: _CoqProject sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
+hmacdrbg:   _CoqProject $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
+aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
+hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
+# drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
+mailbox: _CoqProject mailbox/verif_mailbox_all.vo
+atomics: _CoqProject mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
 
 CGFLAGS =  -DCOMPCERT
 
@@ -521,11 +521,9 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export .loadpath .loadpath-export: Makefile util/coqflags 
-	echo $(COQFLAGS) > .loadpath
-	util/coqflags > .loadpath-export
-	cp .loadpath-export _CoqProject-export
-	cp .loadpath _CoqProject
+_CoqProject _CoqProject-export: Makefile util/coqflags 
+	echo $(COQFLAGS) > _CoqProject
+	util/coqflags > _CoqProject-export
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
@@ -540,7 +538,7 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .loadpath .depend _CoqProject $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
+	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
 	rm -fr doc/html
 
 clean-concur:

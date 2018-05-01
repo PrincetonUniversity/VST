@@ -1268,9 +1268,9 @@ Axiom semax_call :
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)  &&
+          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          (F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -1336,9 +1336,9 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
           (EX old:val,
-                 local (`eq (eval_id id)  (subst id `old
+                 local (`eq (eval_id id)  (subst id `(old)
                      (eval_expr (Ebinop cmp e1 e2 ty)))) &&
-                            subst id `old P)).
+                            subst id `(old) P)).
 
 Axiom semax_load :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -1389,7 +1389,7 @@ forall (Delta: tycontext) P id e v t,
     tc_val t v ->
     @semax CS Espec Delta
         ( |> P ) (Sset id e)
-        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `old P)).
+        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `(old) P)).
 
 Axiom semax_loadstore:
   forall {Espec: OracleKind}{CS: compspecs},

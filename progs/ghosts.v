@@ -64,7 +64,7 @@ Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la
 Proof.
   intros until 1; revert lp; induction H; intros.
   - eapply derives_trans, bupd_intro.
-    Exists (@nil own.gname); entailer!.
+    Exists (@nil own.gname). simpl. entailer!.
   - destruct lp; inv H1.
     rewrite <- emp_sepcon at 1.
     eapply derives_trans; [apply sepcon_derives; [apply IHForall; eauto | apply own_alloc; eauto]|].

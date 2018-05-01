@@ -74,8 +74,8 @@ Proof.
   forward_call (lockt, sh, cond_var sh cond * lock_inv sh lock (dlock_inv data),
                 tlock_inv sh lockt lock cond data).
   { unfold tlock_inv; lock_props.
-    rewrite selflock_eq at 2; cancel.
-    eapply derives_trans; [apply lock_inv_later | cancel]. }
+    { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
+    rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
 
@@ -122,7 +122,9 @@ Proof.
     fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
          !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
          lock_inv sh lockt (tlock_inv sh lockt lock cond data)).
-  { simpl spawn_pre; entailer!.
+  { eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
+    rewrite <- later_andp; apply later_derives.
+    simpl spawn_pre; entailer!.
     { rewrite (gvar_eval_var _thread_func _ (gv _thread_func)) by auto.
       erewrite !(force_val_sem_cast_neutral_gvar' _ (gv _thread_func)) by eauto.
     rewrite ?gvar_denote_env_set.
@@ -153,17 +155,14 @@ Proof.
     unfold dlock_inv; Exists i'; entailer!.
     Exists i'; entailer!.
   - forward_call (lockt, sh2, tlock_inv sh1 lockt lock cond data).
-    forward_call (lockt, Ews, sh1, |>(cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data)),
-                  |>tlock_inv sh1 lockt lock cond data).
+    unfold tlock_inv at 2.
+    rewrite selflock_eq.
+    Intros.
+    forward_call (lockt, Ews, sh1, cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data),
+                  tlock_inv sh1 lockt lock cond data).
     { unfold tlock_inv; lock_props.
-      + apply later_exclusive; auto.
-      + unfold rec_inv.
-        rewrite selflock_eq at 1.
-        rewrite later_sepcon; f_equal.
-        apply lock_inv_later_eq.
-      + rewrite selflock_eq at 2.
-        erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-        rewrite !sepcon_assoc; eapply sepcon_derives; [apply lock_inv_later | cancel]. }
+      { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
+      erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     forward_call (lock, Ews, dlock_inv data).
     { lock_props.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }

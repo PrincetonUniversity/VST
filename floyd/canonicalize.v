@@ -33,8 +33,8 @@ Ltac check_nonlocal :=
  end.
 
 Lemma canon3: forall R1 B P Q R,
-    nonlocal `R1 ->
-    do_canon (B * `R1) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
+    nonlocal `(R1) ->
+    do_canon (B * `(R1)) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 clear H.
@@ -48,11 +48,11 @@ normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma canon3b: forall R1 B P Q R,
-    nonlocal `R1 ->
-    do_canon (`R1* B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
+    nonlocal `(R1) ->
+    do_canon (`(R1)* B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
-rewrite (sepcon_comm `R1 B).
+rewrite (sepcon_comm `(R1) B).
 apply canon3. auto.
 Qed.
 
@@ -62,8 +62,8 @@ apply emp_sepcon.
 Qed.
 
 Lemma canon7: forall R1 P Q R,
-   nonlocal `R1 ->
-   do_canon `R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
+   nonlocal `(R1) ->
+   do_canon `(R1) (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
@@ -153,7 +153,7 @@ Hint Rewrite canon17 : canon.
 
 
 Lemma finish_canon: forall R1 P Q R,
-   do_canon `R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
+   do_canon `(R1) (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.

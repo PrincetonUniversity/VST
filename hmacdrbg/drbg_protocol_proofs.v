@@ -55,16 +55,7 @@ Proof.
 
   Intros v. rename H into Hv. 
   freeze [0] FR1. forward. thaw FR1.
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
-          data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-          malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
@@ -74,9 +65,9 @@ Proof.
     entailer!.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
+  subst v. clear Hv. simpl. forward.
+  Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -125,12 +116,7 @@ Proof.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvars gv;
-   temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
+  forward_if (temp _t'4 (Vint (Int.repr 32))).
   { elim H; trivial. }
   { clear H.
     forward_if.
@@ -294,16 +280,7 @@ Proof.
 
   Intros v. rename H into Hv. simpl.
   freeze [0] FR1. forward. thaw FR1. 
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
-   temp _data data; gvars gv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
-            data_at_ Tsh (Tstruct _hmac_ctx_st noattr) p *
-            malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
-            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-            FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
     entailer!.
@@ -311,11 +288,10 @@ Proof.
     Exists (M1, (M2, M3), (V, (RC, (EL, (PR, RI))))); unfold hmac256drbgstate_md_info_pointer; simpl.
     entailer!. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. apply derives_refl. }
-  { subst v; clear Hv. rewrite if_true; trivial.
-    forward. entailer!.
-  }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp.
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
+  subst v; clear Hv. rewrite if_true; trivial.
+  forward.
+  Intros p. rename H into MCp.
 
   forward_call tt.
 
@@ -345,7 +321,7 @@ Proof.
   freeze [0;1;3;4] FR3. rewrite lenV.
   forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    eapply derives_trans. apply data_at_memory_block. cancel.
+    eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel. 
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
@@ -453,13 +429,7 @@ Proof.
   (* if (len > MBEDTLS_HMAC_DRBG_MAX_INPUT ||
         entropy_len + len > MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT) *)
   freeze [0;1] FR2.
-  forward_if (PROP  ()
-      LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
-      lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
-      temp _additional additional; temp _len (Vint (Int.repr add_len));
-      temp _t'1 (Val.of_bool add_len_too_high);
-      gvars gv)
-      SEP  (FRZL FR2)).
+  forward_if (temp _t'1 (Val.of_bool add_len_too_high)).
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
@@ -470,13 +440,7 @@ Proof.
         rep_omega.
   }
 
-  forward_if (PROP  (add_len_too_high = false)
-      LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
-      lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
-      temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvars gv)
-      SEP (FRZL FR2)
-  ).
+  forward_if.
   { rewrite H in *. subst add_len_too_high. forward.
     Exists (Vint (Int.neg (Int.repr 5))). unfold AREP.
     rewrite <- Heqadd_len_too_high.
@@ -491,10 +455,7 @@ Proof.
     simpl; cancel. entailer!.
     thaw FR1. cancel.
   }
-  {
-    forward.
-    entailer!.
-  }
+  forward.
   Intros. unfold POSTCONDITION, abbreviate; clear POSTCONDITION. rewrite H in *; clear H add_len_too_high.
   abbreviate_semax.
   symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
@@ -831,15 +792,7 @@ Proof. start_function.
 
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
-  forward_if (
-      PROP  ()
-      LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
-      temp _ctx ctx;
-      lvar _sep (tarray tuchar 1) sep;
-      temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp _t'2 (Val.of_bool na);
-      gvars gv)
-      SEP  (FRZL (FR2))).
+  forward_if (temp _t'2 (Val.of_bool na)).
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.
@@ -872,15 +825,7 @@ Proof. start_function.
   }
 
   remember (update_rounds na) as rounds. unfold update_rounds in Heqrounds.
-  forward_if ( PROP  ()
-      LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
-      temp _ctx ctx;
-      lvar _sep (tarray tuchar 1) sep;
-      temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp _t'3 (Vint (Int.repr rounds));
-      gvars gv)
-      SEP  (FRZL FR2)
-  ).
+  forward_if (temp _t'3 (Vint (Int.repr rounds))).
   {
     (* non_empty_additional = true *)
     forward. rewrite H in *; clear H.
@@ -894,7 +839,7 @@ Proof. start_function.
 
   forward. 
   (*deadvars!. VST Issue: statement IS a semax (but with an unabbreviated statement - abbreviate_semax also fails*)
-  drop_LOCAL 7%nat. (*_t'3*) 
+  drop_LOCAL 1%nat. (*_t'3*) 
   remember (hmac256drbgabs_key I) as initial_key.
   remember (hmac256drbgabs_value I) as initial_value.
 

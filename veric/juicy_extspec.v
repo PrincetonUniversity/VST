@@ -54,11 +54,11 @@ Proof.
   destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
 Qed.
 
-(*Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
-  forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
+Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
+  forall ge m q m' q' i, jstep csem ge q m q' m' -> ~j_halted csem q i.
 Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
-Qed.*)
+Qed.
 
 (*Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
   forall ge (q : C) m,
@@ -91,9 +91,9 @@ Definition juicy_core_sem
     (j_after_external csem)
     (j_halted csem)
     (jstep csem)
+    (jstep_not_halted csem)
     (jstep_not_at_external csem)
-(*    (jstep_not_halted csem)
-    (j_at_external_halted_excl csem)*).
+(*  (j_at_external_halted_excl csem)*).
 
 Section upd_exit.
   Context {Z : Type}.
