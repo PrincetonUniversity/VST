@@ -7,13 +7,13 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.common.Smallstep.
-Require Import VST.ccc26x86.Op.
-Require Import VST.ccc26x86.Locations.
-Require Import VST.ccc26x86.Conventions.
-Require VST.ccc26x86.Stacklayout.
+Require Import compcert.x86.Op.
+Require Import compcert.backend.Locations.
+Require Import compcert.backend.Conventions.
+Require compcert.x86.Stacklayout.
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.val_casted.
 Require Import VST.ccc26x86.BuiltinEffects.
@@ -22,11 +22,11 @@ Require Import VST.sepcomp.effect_properties.
 Require Import VST.sepcomp.reach.
 Require Import VST.msl.Axioms.
 
-Definition load_stack (m: mem) (sp: val) (ty: typ) (ofs: int) :=
-  Mem.loadv (chunk_of_type ty) m (Val.add sp (Vint ofs)).
+Definition load_stack (m: mem) (sp: val) (ty: typ) (ofs: ptrofs) :=
+  Mem.loadv (chunk_of_type ty) m (Val.offset_ptr sp ofs).
 
-Definition store_stack (m: mem) (sp: val) (ty: typ) (ofs: int) (v: val) :=
-  Mem.storev (chunk_of_type ty) m (Val.add sp (Vint ofs)) v.
+Definition store_stack (m: mem) (sp: val) (ty: typ) (ofs: ptrofs) (v: val) :=
+  Mem.storev (chunk_of_type ty) m (Val.offset_ptr sp ofs) v.
 
 (*NOTE [store_args_simple] is used to model program loading of
   initial arguments.  Cf. NOTE [loader] below. *)
@@ -36,7 +36,7 @@ Fixpoint store_args0 (m: mem) (sp: val) (ofs: Z) (args: list val) (tys: list typ
   match args,tys with
     | nil,nil => Some m
     | a::args',ty::tys' =>
-      match store_stack m sp ty (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs)) a with
+      match store_stack m sp ty (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*ofs)) a with
         | None => None
         | Some m' => store_args0 m' sp (ofs+typesize ty) args' tys'
       end
@@ -48,17 +48,17 @@ Fixpoint store_args0 (m: mem) (sp: val) (ofs: Z) (args: list val) (tys: list typ
    satisfactory that argument encoding code is duplicated like this. *)
 
 Fixpoint store_args_rec m sp ofs args tys : option mem :=
-  let vsp := Vptr sp Int.zero in
+  let vsp := Vptr sp Ptrofs.zero in
   match tys, args with
     | nil, nil => Some m
     | ty'::tys',a'::args' =>
       match ty', a' with
         | Tlong, Vlong n =>
-          match store_stack m vsp Tint (Int.repr (Stacklayout.fe_ofs_arg + 4*(ofs+1)))
+          match store_stack m vsp Tptr (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*(ofs+1)))
                             (Vint (Int64.hiword n)) with
             | None => None
             | Some m' =>
-              match store_stack m' vsp Tint (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs))
+              match store_stack m' vsp Tptr (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*ofs))
                                 (Vint (Int64.loword n)) with
                 | None => None
                 | Some m'' => store_args_rec m'' sp (ofs+2) args' tys'
@@ -66,7 +66,7 @@ Fixpoint store_args_rec m sp ofs args tys : option mem :=
           end
         | Tlong, _ => None
         | _,_ =>
-          match store_stack m vsp ty' (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs)) a' with
+          match store_stack m vsp ty' (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*ofs)) a' with
             | None => None
             | Some m' => store_args_rec m' sp (ofs+typesize ty') args' tys'
           end
@@ -79,7 +79,7 @@ Lemma store_stack_fwd m sp t i a m' :
   mem_forward m m'.
 Proof.
 unfold store_stack, Mem.storev.
-destruct (Val.add sp (Vint i)); try solve[inversion 1].
+destruct (Val.offset_ptr sp i); try solve[inversion 1].
 apply store_forward.
 Qed.
 
@@ -93,45 +93,37 @@ solve[apply mem_forward_refl].
 intros ofs m. simpl. inversion 1.
 destruct args; try solve[inversion 1].
 destruct a; simpl; intros ofs m.
-- case_eq (store_stack m (Vptr sp Int.zero) Tint
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tint
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. apply store_stack_fwd in EQ. intros H.
 eapply mem_forward_trans; eauto. intros; congruence.
-- case_eq (store_stack m (Vptr sp Int.zero) Tfloat
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tfloat
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. apply store_stack_fwd in EQ. intros H.
 eapply mem_forward_trans; eauto. intros; congruence.
 - destruct v; try solve[congruence].
-case_eq (store_stack m (Vptr sp Int.zero) Tint
-           (Int.repr match ofs+1 with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                      | Z.neg y' => Z.neg y'~0~0 end)
+case_eq (store_stack m (Vptr sp Ptrofs.zero) Tptr
+           (Ptrofs.repr (size_chunk Mptr * (ofs + 1)))
         (Vint (Int64.hiword i))).
 intros m0 EQ. apply store_stack_fwd in EQ.
-case_eq (store_stack m0 (Vptr sp Int.zero) Tint
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end)
+case_eq (store_stack m0 (Vptr sp Ptrofs.zero) Tptr
+           (Ptrofs.repr (size_chunk Mptr * ofs))
         (Vint (Int64.loword i))). intros m1 H H2.
 eapply mem_forward_trans; eauto.
 eapply mem_forward_trans; eauto.
 eapply store_stack_fwd; eauto. intros; congruence. intros; congruence.
-- case_eq (store_stack m (Vptr sp Int.zero) Tsingle
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tsingle
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. apply store_stack_fwd in EQ. intros H.
 eapply mem_forward_trans; eauto. intros; congruence.
-- case_eq (store_stack m (Vptr sp Int.zero) Tany32
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tany32
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. apply store_stack_fwd in EQ. intros H.
 eapply mem_forward_trans; eauto. intros; congruence.
-- case_eq (store_stack m (Vptr sp Int.zero) Tany64
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tany64
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. apply store_stack_fwd in EQ. intros H.
 eapply mem_forward_trans; eauto. intros; congruence.
-
 Qed.
 
 Lemma store_stack_unch_on stk z t i a m m' :
@@ -139,9 +131,8 @@ Lemma store_stack_unch_on stk z t i a m m' :
   Mem.unchanged_on (fun b ofs => b<>stk) m m'.
 Proof.
 unfold store_stack, Mem.storev.
-case_eq (Val.add (Vptr stk z) (Vint i)); try solve[inversion 1].
+case_eq (Val.add (Vptr stk z) (Vptrofs i)); try solve[inversion 1].
 intros b i0 H H2. eapply Mem.store_unchanged_on in H2; eauto.
-intros i2 H3 H4. inv H. apply H4; auto.
 Qed.
 
 Lemma store_args_unch_on stk ofs args tys m m' :
@@ -154,48 +145,41 @@ simpl. destruct args. intros ofs. inversion 1; subst.
 intros ofs m. simpl. inversion 1.
 destruct args; try solve[inversion 1].
 destruct a; simpl; intros ofs m.
-- case_eq (store_stack m (Vptr stk Int.zero) Tint
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr stk Ptrofs.zero) Tint
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 solve[eapply store_stack_fwd; eauto]. intros; congruence.
-- case_eq (store_stack m (Vptr stk Int.zero) Tfloat
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr stk Ptrofs.zero) Tfloat
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 solve[eapply store_stack_fwd; eauto]. intros; congruence.
 - destruct v; try solve[inversion 1].
-case_eq (store_stack m (Vptr stk Int.zero) Tint
-           (Int.repr match ofs+1 with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                      | Z.neg y' => Z.neg y'~0~0 end)
+case_eq (store_stack m (Vptr stk Ptrofs.zero) Tptr
+           (Ptrofs.repr (size_chunk Mptr * (ofs + 1)))
         (Vint (Int64.hiword i))).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ.
-case_eq (store_stack m0 (Vptr stk Int.zero) Tint
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end)
+case_eq (store_stack m0 (Vptr stk Ptrofs.zero) Tptr
+           (Ptrofs.repr (size_chunk Mptr * ofs))
         (Vint (Int64.loword i))).
 intros m1 EQ2. generalize EQ2 as EQ2'. intro. apply store_stack_unch_on in EQ2. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 eapply unchanged_on_trans with (m2 := m1); eauto.
 eapply store_stack_fwd; eauto. eapply store_stack_fwd; eauto.
 intros; congruence. intros; congruence.
-- case_eq (store_stack m (Vptr stk Int.zero) Tsingle
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr stk Ptrofs.zero) Tsingle
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 solve[eapply store_stack_fwd; eauto]. intros; congruence.
-- case_eq (store_stack m (Vptr stk Int.zero) Tany32
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr stk Ptrofs.zero) Tany32
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 solve[eapply store_stack_fwd; eauto]. intros; congruence.
-- case_eq (store_stack m (Vptr stk Int.zero) Tany64
-           (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-                                    | Z.neg y' => Z.neg y'~0~0 end) v).
+- case_eq (store_stack m (Vptr stk Ptrofs.zero) Tany64
+           (Ptrofs.repr (size_chunk Mptr * ofs)) v).
 intros m0 EQ. generalize EQ as EQ'. intro. apply store_stack_unch_on in EQ. intros H.
 eapply unchanged_on_trans with (m2 := m0); eauto.
 solve[eapply store_stack_fwd; eauto]. intros; congruence.
@@ -213,6 +197,11 @@ Fixpoint args_len_rec args tys : option Z :=
           end
         | Tlong, _ => None
         | Tfloat,_ =>
+          match args_len_rec args' tys' with
+            | None => None
+            | Some z => Some (2+z)
+          end
+        | Tany64,_ =>
           match args_len_rec args' tys' with
             | None => None
             | Some z => Some (2+z)
@@ -273,41 +262,38 @@ intros ? ?; inversion 1. constructor.
 intros ? ? ?; congruence.
 destruct args; simpl. intros; congruence. intros z m.
 generalize
- (Int.repr match z with
-             | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-             | Z.neg y' => Z.neg y'~0~0 end) as z'.
+ (Ptrofs.repr (size_chunk Mptr * z)) as z'.
 generalize
- (Int.repr match z+1 with
-             | 0 => 0 | Z.pos y' => Z.pos y'~0~0
-             | Z.neg y' => Z.neg y'~0~0 end) as z''.
+ (Ptrofs.repr (size_chunk Mptr * (z + 1))) as z''.
 intros z'' z'. destruct a.
-- case_eq (store_stack m (Vptr sp Int.zero) Tint z' v);
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tint z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H.
 solve[eapply only_stores_cons; eauto].
-- case_eq (store_stack m (Vptr sp Int.zero) Tfloat z' v);
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tfloat z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H.
 solve[eapply only_stores_cons; eauto].
 - destruct v; try solve[intros; congruence].
-case_eq (store_stack m (Vptr sp Int.zero) Tint z'' (Vint (Int64.hiword i)));
+case_eq (store_stack m (Vptr sp Ptrofs.zero) Tptr z'' (Vint (Int64.hiword i)));
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE.
-case_eq (Mem.store Mint32 m0 sp (Int.unsigned (Int.add Int.zero z'))
+rewrite chunk_of_Tptr in *.
+case_eq (Mem.store Mptr m0 sp (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero z'))
                    (Vint (Int64.loword i)));
   try solve[intros; congruence].
 intros m1 STORE' H.
 eapply only_stores_cons; eauto.
 solve[eapply only_stores_cons; eauto].
-- case_eq (store_stack m (Vptr sp Int.zero) Tsingle z' v);
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tsingle z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H.
 solve[eapply only_stores_cons; eauto].
-- case_eq (store_stack m (Vptr sp Int.zero) Tany32 z' v);
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tany32 z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H.
 solve[eapply only_stores_cons; eauto].
-- case_eq (store_stack m (Vptr sp Int.zero) Tany64 z' v);
+- case_eq (store_stack m (Vptr sp Ptrofs.zero) Tany64 z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H.
 solve[eapply only_stores_cons; eauto].
@@ -316,7 +302,7 @@ Qed.
 Lemma args_len_recD: forall v args tp tys sz,
      args_len_rec (v :: args) (tp :: tys) = Some sz ->
      exists z1 z2, sz = z1+z2 /\ args_len_rec args tys = Some z2 /\
-        match tp with Tlong => z1=2 | Tfloat => z1=2 | _ => z1=1 end.
+        match tp with Tlong => z1=2 | Tfloat => z1=2 | Tany64 => z1=2 | _ => z1=1 end.
 Proof.
 simpl. intros.
 destruct tp; simpl in *.
@@ -332,7 +318,7 @@ destruct (args_len_rec args tys); inv H.
 destruct (args_len_rec args tys); inv H.
   exists 1, z; repeat split; trivial.
 destruct (args_len_rec args tys); inv H.
-  exists 1, z; repeat split; trivial.
+  exists 2, z; repeat split; trivial.
 Qed.
 
 Lemma args_len_rec_nonneg: forall tys args sz,
@@ -380,13 +366,13 @@ Qed.
 Definition store_arg m sp ofs ty' a' :=
       match ty', a' with
         | Tlong, Vlong n =>
-          match store_stack m (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*(ofs+1)))
+          match store_stack m (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*(ofs+1)))
                             (Vint (Int64.hiword n)) with
             | None => None
             | Some m' =>
-                match  store_stack m' (Vptr sp Int.zero) Tint
-                      (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs))
+                match  store_stack m' (Vptr sp Ptrofs.zero) Tptr
+                      (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*ofs))
                                 (Vint (Int64.loword n)) with
                 | None => None
                 | Some m'' => Some (m'',ofs+2)
@@ -394,8 +380,8 @@ Definition store_arg m sp ofs ty' a' :=
           end
         | Tlong, _ => None
         | _,_ =>
-          match store_stack m (Vptr sp Int.zero) ty'
-                 (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs)) a' with
+          match store_stack m (Vptr sp Ptrofs.zero) ty'
+                 (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*ofs)) a' with
             | None => None
             | Some m' => Some (m', ofs+typesize ty')
           end
@@ -404,41 +390,41 @@ Definition store_arg m sp ofs ty' a' :=
 Lemma store_argSZ m sp z ty v m' ofs:
       store_arg m sp z ty v = Some(m',ofs) -> ofs = z + typesize ty.
 Proof. destruct ty; simpl; intros.
-+ remember (store_stack m (Vptr sp Int.zero) Tint
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tint
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs in H. clear Heqs.
     destruct s; inv H. trivial.
-+ remember (store_stack m (Vptr sp Int.zero) Tfloat
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tfloat
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs in H. clear Heqs.
     destruct s; inv H. trivial.
 + destruct v; inv H.
-  - remember (store_stack m (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*(z+1)))
+  - remember (store_stack m (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*(z+1)))
                             (Vint (Int64.hiword i))) as s1.
     unfold Stacklayout.fe_ofs_arg in Heqs1. simpl in Heqs1.
     rewrite <- Heqs1 in *. clear Heqs1.
     destruct s1; inv H1.
-    remember (store_stack m0 (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*z))
+    remember (store_stack m0 (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*z))
                             (Vint (Int64.loword i))) as s2.
     unfold Stacklayout.fe_ofs_arg in Heqs2. simpl in Heqs2.
     rewrite <- Heqs2 in *. clear Heqs2.
     destruct s2; inv H0. trivial.
-+ remember (store_stack m (Vptr sp Int.zero) Tsingle
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tsingle
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs in *. clear Heqs.
     destruct s; inv H. trivial.
-+ remember (store_stack m (Vptr sp Int.zero) Tany32
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany32
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs in *. clear Heqs.
     destruct s; inv H. trivial.
-+ remember (store_stack m (Vptr sp Int.zero) Tany64
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany64
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs in *. clear Heqs.
     destruct s; inv H. trivial.
@@ -451,41 +437,41 @@ Lemma store_args_cons m sp z v args ty tys m1 z1:
 Proof. intros.
 simpl. unfold store_arg in H.
 destruct ty.
-+ remember (store_stack m (Vptr sp Int.zero) Tint
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tint
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs. clear Heqs.
     destruct s; inv H. simpl. assumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tfloat
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tfloat
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs. clear Heqs.
     destruct s; inv H. simpl. assumption.
 + destruct v; inv H.
-  - remember (store_stack m (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*(z+1)))
+  - remember (store_stack m (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*(z+1)))
                             (Vint (Int64.hiword i))) as s1.
     unfold Stacklayout.fe_ofs_arg in Heqs1. simpl in Heqs1.
     rewrite <- Heqs1 in *. clear Heqs1.
     destruct s1; inv H2.
-    remember (store_stack m0 (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*z))
+    remember (store_stack m0 (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*z))
                             (Vint (Int64.loword i))) as s2.
     unfold Stacklayout.fe_ofs_arg in Heqs2. simpl in Heqs2.
     rewrite <- Heqs2 in *. clear Heqs2.
     destruct s2; inv H1. assumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tsingle
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tsingle
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs. clear Heqs.
     destruct s; inv H. simpl. assumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tany32
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany32
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs. clear Heqs.
     destruct s; inv H. simpl. assumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tany64
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany64
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     unfold Stacklayout.fe_ofs_arg in Heqs. simpl in Heqs.
     rewrite <- Heqs. clear Heqs.
     destruct s; inv H. simpl. assumption.
@@ -498,25 +484,25 @@ Lemma store_arg_perm1: forall m sp z ty v mm zz
 Proof. intros.
 simpl. unfold store_arg in STA.
 destruct ty.
-+ remember (store_stack m (Vptr sp Int.zero) Tint
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tint
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     destruct s; inv STA. apply eq_sym in Heqs.
     unfold store_stack in Heqs; simpl in Heqs.
     eapply Mem.perm_store_1; eassumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tfloat
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tfloat
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     destruct s; inv STA. apply eq_sym in Heqs.
     unfold store_stack in Heqs; simpl in Heqs.
     eapply Mem.perm_store_1; eassumption.
 + destruct v; inv STA.
-  - remember (store_stack m (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*(z+1)))
+  - remember (store_stack m (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*(z+1)))
                             (Vint (Int64.hiword i))) as s1.
     unfold Stacklayout.fe_ofs_arg in Heqs1. simpl in Heqs1.
     rewrite <- Heqs1 in *. apply eq_sym in Heqs1.
     destruct s1; inv H1.
-    remember (store_stack m0 (Vptr sp Int.zero) Tint
-                  (Int.repr (Stacklayout.fe_ofs_arg + 4*z))
+    remember (store_stack m0 (Vptr sp Ptrofs.zero) Tptr
+                  (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr*z))
                             (Vint (Int64.loword i))) as s2.
     unfold Stacklayout.fe_ofs_arg in Heqs2. simpl in Heqs2.
     rewrite <- Heqs2 in *. apply eq_sym in Heqs2.
@@ -524,18 +510,18 @@ destruct ty.
     unfold store_stack in *; simpl in *.
     eapply Mem.perm_store_1; try eassumption.
     eapply Mem.perm_store_1; eassumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tsingle
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tsingle
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     destruct s; inv STA. apply eq_sym in Heqs.
     unfold store_stack in Heqs; simpl in Heqs.
     eapply Mem.perm_store_1; eassumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tany32
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany32
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     destruct s; inv STA. apply eq_sym in Heqs.
     unfold store_stack in Heqs; simpl in Heqs.
     eapply Mem.perm_store_1; eassumption.
-+ remember (store_stack m (Vptr sp Int.zero) Tany64
-          (Int.repr (Stacklayout.fe_ofs_arg + 4 * z)) v) as s.
++ remember (store_stack m (Vptr sp Ptrofs.zero) Tany64
+          (Ptrofs.repr (Stacklayout.fe_ofs_arg + size_chunk Mptr * z)) v) as s.
     destruct s; inv STA. apply eq_sym in Heqs.
     unfold store_stack in Heqs; simpl in Heqs.
     eapply Mem.perm_store_1; eassumption.
@@ -562,29 +548,29 @@ intros tys. induction tys.
  apply args_len_recD in ALR.
  destruct ALR as [sizeA [sz' [SZ [AL SzA]]]].
  assert (sizeA = typesize a).
- { clear - SzA H. destruct a; try solve[trivial]. simpl. admit. (*TODO (Gordon?): In CompCert 2.6, this assert is not true any longer*) }
+ { clear - SzA H. destruct a; try solve[trivial]. }
  clear SzA.
  subst sz sizeA.
  assert (STARG: exists mm zz, store_arg m sp z a v = Some(mm,zz)).
  { clear IHtys H0.
-   destruct (typ_eq a Tlong). subst a.
+(*   destruct (typ_eq a Tlong). subst a.
    { simpl. destruct v; try solve[simpl in VALSDEF; congruence | inv H].
      assert (H1: sz' >= 0) by (apply args_len_rec_nonneg in AL; omega).
-     destruct (Mem.valid_access_store m (chunk_of_type Tint) sp (4*(z+1)) (Vint (Int64.hiword i)))
+     destruct (Mem.valid_access_store m (chunk_of_type Tptr) sp (4*(z+1)) (Vint (Int64.hiword i)))
        as [mm ST].
       split. red; intros. eapply RP; clear RP.
         split. omega.
-        assert (1 + size_chunk (chunk_of_type Tint) <= 4 * (typesize Tlong + sz')).
+        assert (1 + size_chunk (chunk_of_type Tptr) <= 4 * (typesize Tlong + sz')).
          { clear - AL. apply args_len_rec_nonneg in AL.
            unfold typesize. simpl size_chunk. omega. }
         destruct H0. simpl size_chunk in H3. simpl typesize. clear - H1 H3. omega.
         clear - POS. rewrite Zmult_comm. solve[simpl align_chunk; eapply Zdivide_intro; eauto].
-     destruct (Mem.valid_access_store mm (chunk_of_type Tint) sp (4*z) (Vint (Int64.loword i)))
+     destruct (Mem.valid_access_store mm (chunk_of_type Tptr) sp (4*z) (Vint (Int64.loword i)))
        as [mm' ST'].
       split. red; intros.
         eapply Mem.perm_store_1; eauto.
         eapply RP; eauto. clear RP. split. omega.
-        assert (size_chunk (chunk_of_type Tint) <= 4 * (typesize Tlong + sz')).
+        assert (size_chunk (chunk_of_type Tptr) <= 4 * (typesize Tlong + sz')).
          { clear - AL. apply args_len_rec_nonneg in AL.
            unfold typesize. simpl size_chunk. omega. }
         destruct H0. simpl size_chunk in H3. simpl typesize. clear - H1 H3. omega.
@@ -596,7 +582,7 @@ intros tys. induction tys.
        unfold Int.max_unsigned. omega. }
      assert (B: 0 <= 4*z <= Int.max_unsigned) by omega.
      rewrite !Int.add_zero_l, !Int.unsigned_repr, ST, ST'.
-       exists mm', (z+2); trivial. solve[apply B]. solve[apply A]. }
+       exists mm', (z+2); trivial. solve[apply B]. solve[apply A]. }*)
    destruct (Mem.valid_access_store m (chunk_of_type a) sp (4*z) v) as [mm ST].
     split. red; intros. eapply RP; clear RP.
         split. omega.
@@ -612,7 +598,7 @@ intros tys. induction tys.
                destruct p; try xomega.  }
          remember (size_chunk (chunk_of_type a)) as p1.
          remember (typesize a + sz') as p2. clear - H0 H1. omega.
-      clear - POS n. rewrite Zmult_comm.
+      clear - POS. rewrite Zmult_comm.
       destruct a; simpl align_chunk; eapply Zdivide_intro; eauto. congruence.
    clear RP.
    destruct a; simpl in ST; simpl.
@@ -711,7 +697,7 @@ Require Import VST.ccc26x86.Conventions1.
   end.*)
 
 Fixpoint agree_args_contains_aux m' sp' ofs args tys : Prop :=
-  let vsp := Vptr sp' Int.zero in
+  let vsp := Vptr sp' Ptrofs.zero in
   match tys with
     | nil => args=nil
     | ty'::tys' =>
@@ -722,9 +708,9 @@ Fixpoint agree_args_contains_aux m' sp' ofs args tys : Prop :=
             | Tlong =>
               match a' with
                 | Vlong n =>
-                  load_stack m' vsp Tint (Int.repr (4*(ofs+1)))
+                  load_stack m' vsp Tptr (Int.repr (4*(ofs+1)))
                   = Some (Vint (Int64.hiword n))
-                  /\ load_stack m' vsp Tint (Int.repr (4*ofs))
+                  /\ load_stack m' vsp Tptr (Int.repr (4*ofs))
                      = Some (Vint (Int64.loword n))
                   /\ agree_args_contains_aux m' sp' (ofs+2) args' tys'
                 | _ => False
@@ -753,7 +739,7 @@ intros m'; destruct args; simpl; auto. destruct a.
         end) as z.
   intros z [H H2] [H3 H4]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -766,7 +752,7 @@ intros m'; destruct args; simpl; auto. destruct a.
         end) as z.
   intros z [H H2] [H3 H4]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -787,7 +773,7 @@ intros m'; destruct args; simpl; auto. destruct a.
   destruct v; try inversion 3.
   intros z1 z [H H2] [H3 [H4 H5]]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -802,7 +788,7 @@ intros m'; destruct args; simpl; auto. destruct a.
         end) as z.
   intros z [H H2] [H3 H4]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -815,7 +801,7 @@ intros m'; destruct args; simpl; auto. destruct a.
         end) as z.
   intros z [H H2] [H3 H4]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -828,7 +814,7 @@ intros m'; destruct args; simpl; auto. destruct a.
         end) as z.
   intros z [H H2] [H3 H4]. split; eauto.
   unfold load_stack, Mem.loadv in H3|-*.
-  revert H3; case_eq (Val.add (Vptr sp Int.zero) (Vint z));
+  revert H3; case_eq (Val.add (Vptr sp Ptrofs.zero) (Vint z));
     try solve[inversion 1].
   simpl; intros ? ?; inversion 1; subst.
   eapply Mem.load_unchanged_on. eapply H0. intros. solve[simpl; auto].
@@ -866,14 +852,14 @@ generalize
              | 0 => 0 | Z.pos y' => Z.pos y'~0~0
              | Z.neg y' => Z.neg y'~0~0 end) as z''.
 intros z'' z'. destruct a.
-- case_eq (store_stack m (Vptr b Int.zero) Tint z' v);
+- case_eq (store_stack m (Vptr b Ptrofs.zero) Tptr z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
 exploit Mem.store_mapped_inject; try eassumption.
 intros [m0' [STORE' INJ]].
 rewrite Zplus_0_r in STORE'. rewrite STORE'. intros H3.
 eapply IHtys; eauto.
-- case_eq (store_stack m (Vptr b Int.zero) Tfloat z' v);
+- case_eq (store_stack m (Vptr b Ptrofs.zero) Tfloat z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
 exploit Mem.store_mapped_inject; try eassumption.
@@ -881,7 +867,7 @@ intros [m0' [STORE' INJ]].
 rewrite Zplus_0_r in STORE'. rewrite STORE'. intros H3.
 eapply IHtys; eauto.
 - inv H0; try solve[inversion 1].
-case_eq (store_stack m (Vptr b Int.zero) Tint z'' (Vint (Int64.hiword i)));
+case_eq (store_stack m (Vptr b Ptrofs.zero) Tptr z'' (Vint (Int64.hiword i)));
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
 exploit Mem.store_mapped_inject; eauto.
@@ -894,21 +880,21 @@ unfold store_stack, Mem.storev. simpl. intros m1 STORE1 H3.
 exploit Mem.store_mapped_inject; eauto.
 intros [m1' [STORE1' INJ']]. rewrite Zplus_0_r in STORE1'. rewrite STORE1'.
 eapply IHtys; eauto.
-- case_eq (store_stack m (Vptr b Int.zero) Tsingle z' v);
+- case_eq (store_stack m (Vptr b Ptrofs.zero) Tsingle z' v);
   try solve[intros; congruence].
 unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
 exploit Mem.store_mapped_inject; try eassumption. eauto.
 intros [m0' [STORE' INJ]].
 rewrite Zplus_0_r in STORE'. rewrite STORE'. intros H3.
 eapply IHtys; eauto.
-- case_eq (store_stack m (Vptr b Int.zero) Tany32 z' v);
+- case_eq (store_stack m (Vptr b Ptrofs.zero) Tany32 z' v);
   try solve[intros; congruence].
   unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
   exploit Mem.store_mapped_inject; try eassumption.
   intros [m0' [STORE' INJ]].
   rewrite Zplus_0_r in STORE'. rewrite STORE'. intros H3.
   eapply IHtys; eauto.
-- case_eq (store_stack m (Vptr b Int.zero) Tany64 z' v);
+- case_eq (store_stack m (Vptr b Ptrofs.zero) Tany64 z' v);
   try solve[intros; congruence].
   unfold store_stack, Mem.storev. simpl. intros m0 STORE H2.
   exploit Mem.store_mapped_inject; try eassumption.
@@ -1085,7 +1071,7 @@ revert args ofs m; induction tys.
   - intros ofs m. simpl. inversion 1.
 + destruct args; try solve[inversion 1].
   destruct a; simpl; intros ofs m.
-  - case_eq (store_stack m (Vptr sp Int.zero) Tint
+  - case_eq (store_stack m (Vptr sp Ptrofs.zero) Tptr
            (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
                                     | Z.neg y' => Z.neg y'~0~0 end) v).
     * intros.
@@ -1093,7 +1079,7 @@ revert args ofs m; induction tys.
        apply (store_stack_mem _ _ _ _ _ _ H).
        eapply IHtys; eassumption.
     * intros; congruence.
-  - case_eq (store_stack m (Vptr sp Int.zero) Tfloat
+  - case_eq (store_stack m (Vptr sp Ptrofs.zero) Tfloat
            (Int.repr match ofs with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
                                     | Z.neg y' => Z.neg y'~0~0 end) v).
     * intros.
@@ -1102,12 +1088,12 @@ revert args ofs m; induction tys.
        eapply IHtys; eassumption.
     * intros; congruence.
   - destruct v; try solve[congruence].
-    case_eq (store_stack m (Vptr sp Int.zero) Tint
+    case_eq (store_stack m (Vptr sp Ptrofs.zero) Tptr
            (Int.repr match ofs+1 with | 0 => 0 | Z.pos y' => Z.pos y'~0~0
                                       | Z.neg y' => Z.neg y'~0~0 end)
         (Vint (Int64.hiword i))).
     * intros.
-       remember (store_stack m0 (Vptr sp Int.zero) Tint
+       remember (store_stack m0 (Vptr sp Ptrofs.zero) Tptr
         (Int.repr
            match ofs with
            | 0 => 0
@@ -1122,7 +1108,7 @@ revert args ofs m; induction tys.
       eapply IHtys; eassumption.
     * intros; congruence.
   - intros.
-    remember (store_stack m (Vptr sp Int.zero) Tsingle
+    remember (store_stack m (Vptr sp Ptrofs.zero) Tsingle
         (Int.repr
            match ofs with
            | 0 => 0
@@ -1134,7 +1120,7 @@ revert args ofs m; induction tys.
        apply (store_stack_mem _ _ _ _ _ _ Heqo).
        eapply IHtys; eassumption.
   - intros.
-    remember (store_stack m (Vptr sp Int.zero) Tany32
+    remember (store_stack m (Vptr sp Ptrofs.zero) Tany32
         (Int.repr
            match ofs with
            | 0 => 0
@@ -1146,7 +1132,7 @@ revert args ofs m; induction tys.
        apply (store_stack_mem _ _ _ _ _ _ Heqo).
        eapply IHtys; eassumption.
   - intros.
-    remember (store_stack m (Vptr sp Int.zero) Tany64
+    remember (store_stack m (Vptr sp Ptrofs.zero) Tany64
         (Int.repr
            match ofs with
            | 0 => 0

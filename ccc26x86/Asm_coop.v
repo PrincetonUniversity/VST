@@ -8,21 +8,21 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Smallstep.
-Require Import VST.ccc26x86.Locations.
+Require Import compcert.backend.Locations.
 (*Require Import Stacklayout.*)
-Require Import VST.ccc26x86.Conventions.
+Require Import compcert.backend.Conventions.
 
-Require Import VST.ccc26x86.Asm.
+Require Import compcert.x86.Asm.
 (*LENB: In CompComp, we used a modified Asm.v, called Asm.comp.v*)
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.val_casted.
 Require Import VST.ccc26x86.BuiltinEffects.
-Require Import VST.ccc26x86.load_frame.
+(*Require Import VST.ccc26x86.load_frame.*)
 
-Notation SP := ESP (only parsing).
+(*Notation SP := ESP (only parsing).
 
 Notation "a # b" := (a b) (at level 1, only parsing).
 Notation "a # b <- c" := (Pregmap.set b c a) (at level 1, b at next level).
@@ -31,12 +31,12 @@ Inductive load_frame: Type :=
 | mk_load_frame:
     forall (sp: block)           (**r pointer to argument frame *)
            (retty: option typ),  (**r return type *)
-    load_frame.
+    load_frame.*)
 
 Section ASM_MEM.
 (*Variable hf : I64Helpers.helper_functions.*)
 
-Section RELSEM.
+(*Section RELSEM.
 Variable ge: genv.
 
 Inductive state: Type :=
@@ -241,50 +241,17 @@ Definition Asm_halted (q : state): option val :=
                        end
                   else None
     | _ => None
-    end.
+    end.*)
 
 Section ASM_CORESEM.
-Lemma Asm_at_external_halted_excl :
-       forall q, Asm_at_external q = None \/ Asm_halted q = None.
-   Proof. intros. destruct q; auto. Qed.
 
-Lemma Asm_after_at_external_excl : forall retv q q',
-      Asm_after_external retv q = Some q' -> Asm_at_external q' = None.
-  Proof. intros.
-    destruct q; simpl in *; try inv H.
-    destruct retv; inv H1; simpl; trivial.
-  Qed.
-
-Lemma Asm_corestep_not_at_external:
-       forall ge m q m' q', asm_step ge q m q' m' ->
-              Asm_at_external q = None.
-  Proof. intros. inv H; try reflexivity.
-  simpl. destruct (observableEF_dec (*hf*) callee); simpl; trivial.
-  exfalso. eapply EFhelpers; eassumption.
-Qed.
-
-Lemma Asm_corestep_not_halted : forall ge m q m' q',
-       asm_step ge q m q' m' ->
-       Asm_halted q = None.
-  Proof. intros. inv H; simpl in *; try contradiction.
-  +  rewrite H0; simpl. trivial. destruct lf; auto.
-  (*+ rewrite H0; simpl. trivial. destruct lf; auto.*)
-  + rewrite H0; simpl. trivial. destruct lf; auto.
-  (*+  trivial.*)
-  + auto.
-  Qed.
-
-Definition Asm_core_sem : CoreSemantics genv state mem.
-Proof.
-  eapply (@Build_CoreSemantics _ _ _
-            ( fun _ => Asm_initial_core)
-            Asm_at_external
-            Asm_after_external
-            Asm_halted
-            asm_step).
-    apply Asm_corestep_not_at_external.
-    apply Asm_corestep_not_halted.
-    apply Asm_at_external_halted_excl.
+(* Ask Santiago whether we can replace the program argument to semantics with a genv. *)
+Program Definition Asm_core_sem prog : CoreSemantics _ _ _ := sem2coresem (semantics prog) _.
+Next Obligation.
+  inv H; simpl in *.
+  intro H; inv H.
+  unfold Vnullptr in *.
+  inv H0; destruct Archi.ptr64; congruence.
 Defined.
 
 End ASM_CORESEM.
@@ -325,16 +292,32 @@ Lemma exec_instr_mem_step ge c i rs m rs' m': forall
       (EI: exec_instr ge c i rs m = Next rs' m'),
       mem_step m m'.
 Proof. intros.
-   destruct i; simpl in *; inv EI; try apply mem_step_refl;
+   destruct i; inv EI; try apply mem_step_refl;
    try (eapply exec_load_mem_step; eassumption);
    try (eapply exec_store_mem_step; eassumption).
 
-   destruct (Val.divu (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
-   destruct (Val.modu (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
+   destruct (rs RDX); try discriminate.
+   destruct (rs RAX); try discriminate.
+   destruct (rs r1); try discriminate.
+   destruct (Int.divmodu2 _ _ _) as [[]|]; inv H0.
    apply mem_step_refl.
 
-   destruct (Val.divs (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
-   destruct (Val.mods (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
+   destruct (rs RDX); try discriminate.
+   destruct (rs RAX); try discriminate.
+   destruct (rs r1); try discriminate.
+   destruct (Int64.divmodu2 _ _ _) as [[]|]; inv H0.
+   apply mem_step_refl.
+
+   destruct (rs RDX); try discriminate.
+   destruct (rs RAX); try discriminate.
+   destruct (rs r1); try discriminate.
+   destruct (Int.divmods2 _ _ _) as [[]|]; inv H0.
+   apply mem_step_refl.
+
+   destruct (rs RDX); try discriminate.
+   destruct (rs RAX); try discriminate.
+   destruct (rs r1); try discriminate.
+   destruct (Int64.divmods2 _ _ _) as [[]|]; inv H0.
    apply mem_step_refl.
 
    destruct (eval_testcond c0 rs); inv H0.
@@ -362,10 +345,10 @@ Proof. intros.
      eapply goto_label_mem_step; eassumption.
   remember (Mem.alloc m 0 sz) as d; apply eq_sym in Heqd.
     destruct d; inv H0.
-    remember (Mem.store Mint32 m0 b (Int.unsigned (Int.add Int.zero ofs_link))
-         (rs ESP)) as q.
+    remember (Mem.store Mptr m0 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link))
+         (rs RSP)) as q.
     apply eq_sym in Heqq; destruct q; inv H1.
-    remember (Mem.store Mint32 m1 b (Int.unsigned (Int.add Int.zero ofs_ra))
+    remember (Mem.store Mptr m1 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra))
          (rs RA)) as w.
     destruct w; apply eq_sym in Heqw; inv H0.
     eapply mem_step_trans.
@@ -373,27 +356,33 @@ Proof. intros.
     eapply mem_step_trans.
       eapply mem_step_store; eassumption.
       eapply mem_step_store; eassumption.
-  destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))); inv H0.
-    destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))); inv H1.
-    destruct (rs ESP); inv H0.
+  destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_ra)); inv H0.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_link)); inv H1.
+    destruct (rs RSP); inv H0.
     remember (Mem.free m b 0 sz) as t.
     destruct t; inv H1; apply eq_sym in Heqt.
     eapply mem_step_free; eassumption.
 Qed.
 
-Lemma asm_mem_step : forall ge c m c' m' (CS: asm_step ge c m c' m'), mem_step m m'.
+Lemma asm_mem_step : forall prog c m t c' m' (CS: step (Genv.globalenv prog) (State c m) t (State c' m'))
+  (Hext : Asm.at_external prog (State c m) = None), mem_step m m'.
 Proof. intros.
-  inv CS; simpl in *; try apply mem_step_refl; try contradiction.
+  inv CS; simpl in *.
 + eapply exec_instr_mem_step; eassumption.
 (*+ eapply extcall_mem_step; eassumption. *)
 (*+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
   destruct callee; simpl in *; solve [intros NN; trivial].*)
-+ eapply mem_step_trans.
++ admit. (* builtin *)
++ rewrite H3 in Hext.
+  destruct (Ptrofs.eq_dec _ _); [|contradiction].
+  rewrite H4 in Hext.
+(*eapply mem_step_trans.
   eapply mem_step_alloc; eassumption.
   eapply store_args_mem_step; try eassumption.
-Qed.
+Qed.*)
+Admitted.
 
-Lemma ple_exec_load:
+(*Lemma ple_exec_load:
     forall g ch m a rs rd rs' m'
        m1 (PLE: perm_lesseq m m1),
        exec_load g ch m a rs rd = Next rs' m' ->
@@ -443,14 +432,16 @@ intros; inv CS; simpl in *; try contradiction.
 (*+ exists m1; split; trivial. econstructor; try eassumption. admit.
 + admit.
 *)
-Abort.
+Abort.*)
 
-Program Definition Asm_mem_sem : @MemSem genv state.
+Program Definition Asm_mem_sem prog : @MemSem genv state := {| csem := Asm_core_sem prog |}.
+Next Obligation.
 Proof.
-apply Build_MemSem with (csem := Asm_core_sem).
-  apply (asm_mem_step).
-(*  apply asm_inc_perm.*)
-Defined.
+  inv CS; simpl in *.
+  destruct c, c'; simpl in H.
+  eapply asm_mem_step; eauto.
+(*Defined.*)
+Admitted. (* need to connect prog and genv *)
 
 Lemma exec_instr_forward g c i rs m rs' m': forall
       (EI: exec_instr g c i rs m = Next rs' m'),
@@ -464,7 +455,7 @@ End ASM_MEMSEM.
 
 End ASM_MEM.
 
-Lemma load_frame_store_args_rec_nextblock:
+(*Lemma load_frame_store_args_rec_nextblock:
   forall args m m2 stk ofs tys
     (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
     Mem.nextblock m2 = Mem.nextblock m.
@@ -494,4 +485,4 @@ Proof.
   intros.
   unfold load_frame.store_args in *.
   eapply load_frame_store_args_rec_nextblock; eauto.
-Qed.
+Qed.*)
