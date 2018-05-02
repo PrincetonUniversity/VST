@@ -12,15 +12,14 @@ Require Import compcert.backend.Locations.
 (*Require Import Stacklayout.*)
 Require Import compcert.backend.Conventions.
 
-Require Import compcert.ia32.Asm.
+Require Import compcert.x86.Asm.
 (*LENB: In CompComp, we used a modified Asm.v, called Asm.comp.v*)
 
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.val_casted.
-Require Import ccc26x86.BuiltinEffects.
-Require Import VST.concurrency.load_frame.
+Require Import VST.concurrency.BuiltinEffects.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.Asm_core.
 
@@ -45,149 +44,160 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
            : option (list mem_event)  :=
   match i with
   | Pfstps_m a => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mfloat32 (rs ST0))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mfloat32 (rs ST0))]
                   | _ => None
                  end
   | Pfstpl_m a => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mfloat64 (rs ST0))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mfloat64 (rs ST0))]
                   | _ => None
                  end
   | Pmovss_mf a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mfloat32 (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mfloat32 (rs r1))]
                   | _ => None
                  end
-  | Pmov_mr a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mint32 (rs r1))]
+  | Pmovl_mr a r1 => match eval_addrmode ge a rs with
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mint32 (rs r1))]
+                  | _ => None
+                 end
+  | Pmovq_mr a r1 => match eval_addrmode ge a rs with
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mint64 (rs r1))]
                   | _ => None
                  end
   | Pmov_mr_a a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Many32 (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Many32 (rs r1))]
                   | _ => None
                  end
   | Pmovsd_mf a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mfloat64 (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mfloat64 (rs r1))]
                   | _ => None
                  end
   | Pmovsd_mf_a a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs)  (encode_val Many64 (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs)  (encode_val Many64 (rs r1))]
                   | _ => None
                  end
   | Pmovb_mr a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mint8unsigned (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mint8unsigned (rs r1))]
                   | _ => None
                  end
   | Pmovw_mr a r1 => match eval_addrmode ge a rs with
-                    Vptr b ofs => Some [Write b (Int.unsigned ofs) (encode_val Mint16unsigned (rs r1))]
+                    Vptr b ofs => Some [Write b (Ptrofs.unsigned ofs) (encode_val Mint16unsigned (rs r1))]
                   | _ => None
                  end
 
-  | Pmov_rm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mint32) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mint32) bytes]
+  | Pmovl_rm rd a => match eval_addrmode ge a rs with
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint32) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint32) bytes]
+                                  | None => None
+                                  end
+                  | _ => None
+                 end
+  | Pmovq_rm rd a => match eval_addrmode ge a rs with
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint64) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint64) bytes]
                                   | None => None
                                   end
                   | _ => None
                  end
   | Pmovsd_fm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mfloat64) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mfloat64) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mfloat64) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mfloat64) bytes]
                                   | None => None
                                   end
                   | _ => None
                  end
   | Pmovss_fm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mfloat32) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mfloat32) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mfloat32) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mfloat32) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pfldl_m a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mfloat64) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mfloat64) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mfloat64) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mfloat64) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pflds_m a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mfloat32) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mfloat32) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mfloat32) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mfloat32) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmovzb_rm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mint8unsigned) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mint8unsigned) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint8unsigned) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint8unsigned) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmovsb_rm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mint8signed) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mint8signed) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint8signed) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint8signed) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmovzw_rm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mint16unsigned) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mint16unsigned) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint16unsigned) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint16unsigned) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmovsw_rm rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Mint16signed) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Mint16signed) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Mint16signed) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Mint16signed) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmov_rm_a rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Many32) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Many32) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Many32) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Many32) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pmovsd_fm_a rd a => match eval_addrmode ge a rs with
-                    Vptr b ofs => match Mem.loadbytes m b (Int.unsigned ofs) (size_chunk Many64) with
-                                    Some bytes => Some [Read b (Int.unsigned ofs) (size_chunk Many64) bytes]
+                    Vptr b ofs => match Mem.loadbytes m b (Ptrofs.unsigned ofs) (size_chunk Many64) with
+                                    Some bytes => Some [Read b (Ptrofs.unsigned ofs) (size_chunk Many64) bytes]
                                   | None => None
                                   end
                   | _ => None
                   end
   | Pallocframe sz ofs_ra ofs_link =>
       let (m1, stk) := Mem.alloc m 0 sz in
-      let sp := Vptr stk Int.zero in
-      match Mem.storev Mint32 m1 (Val.add sp (Vint ofs_link)) rs#ESP with
+      let sp := Vptr stk Ptrofs.zero in
+      match Mem.storev Mptr m1 (Val.offset_ptr sp ofs_link) rs#RSP with
       | None => None
       | Some m2 =>
-          match Mem.storev Mint32 m2 (Val.add sp (Vint ofs_ra)) rs#RA with
+          match Mem.storev Mptr m2 (Val.offset_ptr sp ofs_ra) rs#RA with
           | None => None
           | Some m3 => Some [Alloc stk 0 sz;
-                             Write stk (Int.unsigned ofs_link) (encode_val Mint32 (rs ESP));
-                             Write stk (Int.unsigned ofs_ra) (encode_val Mint32 (rs RA))]
+                             Write stk (Ptrofs.unsigned ofs_link) (encode_val Mptr (rs RSP));
+                             Write stk (Ptrofs.unsigned ofs_ra) (encode_val Mptr (rs RA))]
           end
       end
   | Pfreeframe sz ofs_ra ofs_link =>
-      match Mem.loadv Mint32 m (Val.add rs#ESP (Vint ofs_ra)) with
+      match Mem.loadv Mptr m (Val.offset_ptr rs#RSP ofs_ra) with
       | None => None
       | Some ra =>
-          match Mem.loadv Mint32 m (Val.add rs#ESP (Vint ofs_link)) with
+          match Mem.loadv Mptr m (Val.offset_ptr rs#RSP ofs_link) with
           | None => None
           | Some sp =>
-              match rs#ESP with
+              match rs#RSP with
               | Vptr stk ofs =>
                   match Mem.free m stk 0 sz with
                   | None => None
-                  | Some m' => match (Val.add rs#ESP (Vint ofs_ra)), (Val.add rs#ESP (Vint ofs_link)) with
+                  | Some m' => match (Val.offset_ptr rs#RSP ofs_ra), (Val.offset_ptr rs#RSP ofs_link) with
                                 Vptr b1 ofs1, Vptr b2 ofs2 =>
-                                  match Mem.loadbytes m b1 (Int.unsigned ofs1) (size_chunk Mint32), Mem.loadbytes m b2 (Int.unsigned ofs2) (size_chunk Mint32)
+                                  match Mem.loadbytes m b1 (Ptrofs.unsigned ofs1) (size_chunk Mptr), Mem.loadbytes m b2 (Ptrofs.unsigned ofs2) (size_chunk Mptr)
                                   with Some bytes1, Some bytes2=>
-                                     Some [Read b1 (Int.unsigned ofs1) (size_chunk Mint32) bytes1;
-                                           Read b2 (Int.unsigned ofs2) (size_chunk Mint32) bytes2;
+                                     Some [Read b1 (Ptrofs.unsigned ofs1) (size_chunk Mptr) bytes1;
+                                           Read b2 (Ptrofs.unsigned ofs2) (size_chunk Mptr) bytes2;
                                            Free [(stk, 0, sz)]]
                                    | _, _ => None
                                   end
@@ -707,7 +717,7 @@ Inductive asm_ev_step ge: regset -> mem -> list mem_event -> regset -> mem -> Pr
       forall b ofs f i rs m rs' m' T,
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) f.(fn_code) = Some i ->
+      find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some i ->
       exec_instr ge f i rs m = Next rs' m' ->
       drf_instr ge (fn_code f) i rs m = T ->
       asm_ev_step ge rs m (option_list_to_list T) rs' m'
@@ -715,8 +725,8 @@ Inductive asm_ev_step ge: regset -> mem -> list mem_event -> regset -> mem -> Pr
       forall b ofs f ef args res rs m vargs t vres rs' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
-      eval_builtin_args ge rs (rs ESP) m args vargs ->
+      find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
+      eval_builtin_args ge rs (rs RSP) m args vargs ->
       builtin_event ef m vargs t ->
       ev_elim m t m' ->
       external_call ef ge vargs m nil vres m' ->
@@ -727,14 +737,14 @@ Inductive asm_ev_step ge: regset -> mem -> list mem_event -> regset -> mem -> Pr
 
 Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*):
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), 
-      corestep (Asm_mem_sem (*hf*)) g c m c' m'.
+      corestep (Asm_mem_sem g (*hf*)) g c m c' m'.
 Proof.
  induction 1; try contradiction.
  econstructor; eauto.
  econstructor 2; eauto.
 Qed.
 
-Lemma asm_ev_ax2 g: forall c m c' m' (CS:corestep (Asm_mem_sem (*hf*)) g c m c' m'),
+Lemma asm_ev_ax2 g: forall c m c' m' (CS:corestep (Asm_mem_sem g (*hf*)) g c m c' m'),
    exists T, asm_ev_step g c m T c' m'.
 Proof. induction 1; try contradiction.
 *
@@ -787,34 +797,32 @@ try solve [
          simpl; split; auto);
    try (apply Mem.store_storebytes in H; simpl; eexists; split; eauto);
    repeat match goal with
-   | H: match ?X with Some _ => _ | None => _ end = _ |- _ => destruct X; inv H
+   | H: match ?X with Vundef => _ | Vint _ => _ | Vlong _ => _ | Vfloat _ => _ | Vsingle _ => _ | Vptr _ _ => _ end = _ |- _ => destruct X; inv H
+   | H: match ?X with Some _ => _ | None => _ end = _ |- _ => first [destruct X as [[]|] | destruct X]; inv H
    | H: (if ?B then _ else _) = _ |- _ => destruct b; try discriminate
    | H: goto_label _ _ _ _ = Next _ _ |- _ => apply goto_label_mem_same in H; subst
    | H: Next _ _ = Next _ _ |- _ => inv H 
    end;
    eexists; split; eauto].
-destruct (c r); inv H0.
-destruct (list_nth_z tbl (Int.unsigned i)); inv H1.
-apply goto_label_mem_same in H0; subst; eexists; split; eauto.
 
   - (*Pallocframe*)
     destruct (Mem.alloc m 0 sz) eqn:?H.
-    destruct (Mem.store Mint32 m0 b (Int.unsigned (Int.add Int.zero ofs_link)) (c ESP)) eqn:?H;
+    destruct (Mem.store Mptr m0 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link)) (c RSP)) eqn:?H;
       try discriminate.
-    destruct (Mem.store Mint32 m1 b (Int.unsigned (Int.add Int.zero ofs_ra))  (c RA)) eqn:?H;
+    destruct (Mem.store Mptr m1 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra))  (c RA)) eqn:?H;
       try discriminate.
     inv H0.
     apply Mem.store_storebytes in H1.
     apply Mem.store_storebytes in H2.
-    rewrite Int.add_zero_l in *.
+    rewrite Ptrofs.add_zero_l in *.
     econstructor. split. eassumption.
     econstructor. split. eassumption.
     econstructor. split. eassumption.
     econstructor.
   - (*Pfreeframe*)
-    destruct (Mem.loadv Mint32 m (Val.add (c ESP) (Vint ofs_ra))) eqn:?H; try discriminate.
-    destruct (Mem.loadv Mint32 m (Val.add (c ESP) (Vint ofs_link))) eqn:?H; try discriminate.
-    destruct (c ESP); try discriminate.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (c RSP) ofs_ra)) eqn:?H; try discriminate.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (c RSP) ofs_link)) eqn:?H; try discriminate.
+    destruct (c RSP); try discriminate.
     destruct (Mem.free m b 0 sz) eqn:?H; inv H0.
     simpl.
     destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes1 [Bytes1 LD1]].
@@ -922,6 +930,68 @@ Proof.
  assert (m1'=m2') by congruence. subst m2'. eauto.
 Qed.
 
+Lemma eval_builtin_arg_mem {A} ge (rs: A -> val) sp m a v (EV: eval_builtin_arg ge rs sp m a v):
+  forall mm, eval_builtin_arg ge rs sp mm a v.
+Proof.
+  induction EV; intro; econstructor; auto.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split.
+  - constructor; trivial. constructor.
+  - intros mm mm' MM; inv MM; split.
+    * inv H5; trivial.
+    * inv H5. rewrite H3 in *.
+      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
+      constructor; try eassumption; trivial.
+      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split.
+  - constructor; trivial. constructor.
+  - intros mm mm' MM; inv MM; split.
+    * inv H5; trivial.
+    * inv H5. rewrite H3 in *.
+      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
+      constructor; try eassumption; trivial.
+      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
+  split. eapply ev_elim_app; eassumption.
+  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
+  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
+  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
+  split; trivial.
+  constructor; eassumption.
++ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
+  split. eapply ev_elim_app; eassumption.
+  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
+  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
+  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
+  split; trivial.
+  constructor; eassumption.
+Qed.
+
+Lemma eval_builtin_args_ev_elim_strong {A} ge (rs: A -> val) sp m al vl T (EV: eval_builtin_args_ev A ge rs sp m al vl T):
+  ev_elim m T m /\
+  (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ eval_builtin_args_ev A ge rs sp mm al vl T).
+Proof.
+  induction EV.
++ split. constructor.
+  intros mm mm' MM; inv MM; split; trivial. constructor.
++ destruct IHEV as [EV2 HEV2].
+  apply eval_builtin_arg_ev_elim_strong in H. destruct H as [EV1 HEV1].
+  split. eapply ev_elim_app; eassumption.
+  intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [m' [EV1' EV2']].
+  destruct (HEV1 _ _ EV1') as [? HE1]; subst.
+  destruct (HEV2 _ _ EV2') as [? HE2]; subst.
+  split; trivial.
+  constructor; trivial.
+Qed.
+
 Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
       ev_elim m T m' /\ (forall mm mm', ev_elim mm T mm' -> exists cc', asm_ev_step g c mm T cc' mm').
 Proof.
@@ -931,7 +1001,7 @@ destruct i; inv H2; try solve [split;
                intros mm mm' EV'; inv EV'; destruct H2 as [FL EV']; inv EV'; inv FL;
                  eexists; econstructor; try eassumption; reflexivity]];
   simpl.
-  - (*Pmov_rm*)
+  - (*Pmovl_rm*)
     unfold exec_load in H5.
     remember (Mem.loadv Mint32 m (eval_addrmode g a rs)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -946,9 +1016,38 @@ destruct i; inv H2; try solve [split;
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl. erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
-  - (*Pmov_mr*)
+  - (*Pmovq_rm*)
+    unfold exec_load in H5.
+    remember (Mem.loadv Mint64 m (eval_addrmode g a rs)) as p.
+    destruct p; try discriminate; symmetry in Heqp.
+    remember (eval_addrmode g a rs) as q.
+    destruct q; try discriminate.
+    destruct (Mem.load_loadbytes _ _ _ _ _ Heqp) as [bytes [LB V]]; simpl in LB.
+    rewrite LB. (* in H4; inv H4. *) inv H5.
+    split.
+    * constructor; simpl; trivial.
+    * intros mm mm' EV'; inv EV'. inv H3.
+      destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
+      eexists; econstructor; try eassumption; simpl.
+      ++ unfold exec_load. rewrite <- Heqq; simpl. erewrite (Mem.loadbytes_load); trivial; eassumption.
+      ++ rewrite <- Heqq, H2; reflexivity.
+  - (*Pmovl_mr*)
     unfold exec_store in H5.
     remember (Mem.storev Mint32 m (eval_addrmode g a rs) (rs rs0)) as p.
+    destruct p; try discriminate; symmetry in Heqp.
+    remember (eval_addrmode g a rs) as q.
+    destruct q; try discriminate. inv H5 (*; inv H4 *) .
+    destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGN].
+    apply Mem.store_storebytes in Heqp.
+    split.
+    * econstructor. split; simpl; trivial. eassumption.
+    * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
+      eexists; econstructor; try eassumption; simpl.
+      ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
+      ++ rewrite <- Heqq; reflexivity.
+  - (*Pmovq_mr*)
+    unfold exec_store in H5.
+    remember (Mem.storev Mint64 m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5 (*; inv H4 *) .
@@ -1162,24 +1261,50 @@ destruct i; inv H2; try solve [split;
       eexists; econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
-  - (*Pdiv*)
-    remember (Val.divu (rs EAX) (rs # EDX <- Vundef r1)) as p; destruct p; inv H5.
-    remember (Val.modu (rs EAX) (rs # EDX <- Vundef r1)) as q; destruct q; inv H3.
+  - (*Pdivl*)
+    remember (rs RDX) as d; destruct d; inv H5.
+    remember (rs RAX) as a; destruct a; inv H3.
+    remember (rs r1) as r; destruct r; inv H4.
+    remember (Int.divmodu2 _ _ _) as v; destruct v as [[]|]; inv H3.
     split.
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
       eexists; econstructor; try eassumption; simpl; trivial.
-      rewrite <- Heqp, <- Heqq; reflexivity.
-  - (*Pidiv*)
-    remember (Val.divs (rs EAX) (rs # EDX <- Vundef r1)) as p; destruct p; inv H5.
-    remember ( Val.mods (rs EAX) (rs # EDX <- Vundef r1)) as q; destruct q; inv H3.
+      rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
+  - (*Pdivq*)
+    remember (rs RDX) as d; destruct d; inv H5.
+    remember (rs RAX) as a; destruct a; inv H3.
+    remember (rs r1) as r; destruct r; inv H4.
+    remember (Int64.divmodu2 _ _ _) as v; destruct v as [[]|]; inv H3.
     split.
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
       eexists; econstructor; try eassumption; simpl; trivial.
-      rewrite <- Heqp, <- Heqq; reflexivity.
+      rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
+  - (*Pidivl*)
+    remember (rs RDX) as d; destruct d; inv H5.
+    remember (rs RAX) as a; destruct a; inv H3.
+    remember (rs r1) as r; destruct r; inv H4.
+    remember (Int.divmods2 _ _ _) as v; destruct v as [[]|]; inv H3.
+    split.
+    * eexists; simpl; split; reflexivity.
+    * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
+      change [Free[]] with (option_list_to_list (Some [Free[]])).
+      eexists; econstructor; try eassumption; simpl; trivial.
+      rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
+  - (*Pidivq*)
+    remember (rs RDX) as d; destruct d; inv H5.
+    remember (rs RAX) as a; destruct a; inv H3.
+    remember (rs r1) as r; destruct r; inv H4.
+    remember (Int64.divmods2 _ _ _) as v; destruct v as [[]|]; inv H3.
+    split.
+    * eexists; simpl; split; reflexivity.
+    * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
+      change [Free[]] with (option_list_to_list (Some [Free[]])).
+      eexists; econstructor; try eassumption; simpl; trivial.
+      rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
   - (*Pcmov*)
     remember (eval_testcond c rs) as p; destruct p; inv H5.
     * destruct b0; inv H3.
@@ -1247,17 +1372,17 @@ destruct i; inv H2; try solve [split;
   - (*Pjmptbl*)
     remember (rs r) as p; destruct p; inv H5.
     remember (list_nth_z tbl (Int.unsigned i)) as q; destruct q; inv H3.
-    unfold goto_label in H4. rewrite H in *.
+    unfold goto_label in H4. rewrite !Pregmap.gso, H in * by discriminate.
     remember (label_pos l 0 (fn_code f)) as w; destruct w; inv H4.
     split.
       * econstructor. split. reflexivity. constructor.
       * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
-        unfold goto_label. rewrite <- Heqw, H; reflexivity.
+        unfold goto_label. rewrite <- Heqw, !Pregmap.gso, H by discriminate; reflexivity.
   - (*Pmov_rm_a*)
     unfold exec_load in H5.
-    remember (Mem.loadv Many32 m (eval_addrmode g a rs)) as p.
+    remember (Mem.loadv _ m (eval_addrmode g a rs)) as p.
     destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate.
@@ -1272,7 +1397,7 @@ destruct i; inv H2; try solve [split;
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmov_mr_a*)
     unfold exec_store in H5.
-    remember (Mem.storev Many32 m (eval_addrmode g a rs) (rs rs0)) as p.
+    remember (Mem.storev _ m (eval_addrmode g a rs) (rs rs0)) as p.
     destruct p; try discriminate; symmetry in Heqp.
     remember (eval_addrmode g a rs) as q.
     destruct q; try discriminate. inv H5.
@@ -1315,32 +1440,32 @@ destruct i; inv H2; try solve [split;
       ++ rewrite <- Heqq; reflexivity.
   - (*Pallocframe*)
     remember (Mem.alloc m 0 sz) as a; symmetry in Heqa; destruct a as [m1 stk].
-    remember (Mem.store Mint32 m1 stk
-         (Int.unsigned (Int.add Int.zero ofs_link))
-         (rs ESP)) as p.
+    remember (Mem.store Mptr m1 stk
+         (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link))
+         (rs RSP)) as p.
     destruct p; try discriminate; symmetry in Heqp.
-    remember (Mem.store Mint32 m0 stk (Int.unsigned (Int.add Int.zero ofs_ra))
+    remember (Mem.store Mptr m0 stk (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra))
          (rs RA)) as q.
     destruct q; try discriminate; symmetry in Heqq. inv H5.
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqp) as [_ ALIGNp].
     destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALIGNq].
     apply Mem.store_storebytes in Heqp.
     apply Mem.store_storebytes in Heqq.
-    rewrite Int.add_zero_l in *.
+    rewrite Ptrofs.add_zero_l in *.
     split.
     * econstructor. split. eassumption.
       econstructor. split. eassumption.
       econstructor. split. eassumption.
       econstructor.
     * intros mm mm' EV'; inv EV'. destruct H2 as [ALLOC EV]. inv EV. inv H2. inv H4. destruct H2. inv H4.
-      eexists; econstructor; try eassumption; simpl; repeat rewrite Int.add_zero_l; rewrite ALLOC;
+      eexists; econstructor; try eassumption; simpl; repeat rewrite Ptrofs.add_zero_l; rewrite ALLOC;
       repeat erewrite Mem.storebytes_store; try eassumption; reflexivity.
   - (*Pfreeframe*)
-    remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))) as p.
+    remember (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_ra)) as p.
     destruct p; try discriminate; symmetry in Heqp.
-    remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))) as q.
+    remember (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_link)) as q.
     destruct q; try discriminate; symmetry in Heqq.
-    remember (rs ESP) as w; destruct w; try discriminate.
+    remember (rs RSP) as w; destruct w; try discriminate.
     remember (Mem.free m b0 0 sz) as t; destruct t; try discriminate.
     inv H5.
     destruct (Mem.load_loadbytes _ _ _ _ _  Heqp) as [bytes1 [Bytes1 LD1]].
@@ -1353,20 +1478,120 @@ destruct i; inv H2; try solve [split;
       split. simpl. rewrite <- Heqt; trivial. econstructor.
     * intros mm mm' EV'. inv EV'. inv H3. inv H5. destruct H3. inv H5. simpl in H3.
       remember (Mem.free mm b0 0 sz) as d; destruct d; try discriminate. inv H3.
-      exploit (Mem.loadbytes_load Mint32). apply H2. assumption.
-      exploit (Mem.loadbytes_load Mint32). apply H4. assumption.
+      exploit (Mem.loadbytes_load Mptr). apply H2. assumption.
+      exploit (Mem.loadbytes_load Mptr). apply H4. assumption.
       eexists; econstructor; try eassumption.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
 -
  split; auto.
  intros.
+ inv H3.
+ + inv H7.
+  eexists; eapply exec_step_builtin; try eassumption; try eassumption; eauto.
+  destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H5) as [EV EVS].
+  inversion H6; subst ef.
+  - (*malloc*)
+    inv H3. rewrite Vptrofs_inj with (o2 := n) in H7 by congruence.
+    rewrite H7 in ALLOC. inv ALLOC.
+    replace (Vptrofs sz) with (Vptrofs n) in H11 by congruence.
+    apply Mem.store_storebytes in H11.
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. split. eassumption.
+      econstructor. split. eassumption. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
+      inv EV2. destruct H3. inv H4. destruct H8. inv H8.
+      rename x into mm2. rename x0 into mm3.
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor. eassumption. erewrite Mem.storebytes_store; try reflexivity; eassumption.
+      ++ econstructor; try eassumption.
+  - (*free*)
+    inv H3. inv H13.
+    destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [bytes1 [LB1 SZ1]].
+    rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ. rewrite (Vptrofs_inj _ _ SZ) in *.
+    rewrite H12 in FR; inv FR.
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. eassumption.
+      econstructor. split. simpl. rewrite H12. reflexivity. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
+      inv EV2. inv H4. destruct H8. inv H8.
+      rename x into mm2.
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      simpl in H4.
+      remember (Mem.free mm b0 (Ptrofs.unsigned lo - size_chunk Mptr) (Ptrofs.unsigned lo + Ptrofs.unsigned sz0)) as d.
+      destruct d; inv H4; symmetry in Heqd.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor; try eassumption.
+         rewrite SZ1. apply Mem.loadbytes_load; assumption.
+      ++ econstructor; eassumption.
+  - (*memcpy*)
+    inv H3. inv H18. rewrite LB in H16; inv H16. rewrite ST in H17; inv H17.
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. eassumption.
+      econstructor. split. eassumption. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
+      inv EV2. inv H4. destruct H8. inv H8.
+      rename x into mm2.
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor; try eassumption.
+      ++ econstructor; eassumption.
+  - subst.
+    split.
+    * eapply ev_elim_app. eassumption.
+      (*EFexternal helpers don't change memory - should follow from HFD*)
+      admit.
+    * intros mm mm' MM. rewrite app_nil_r in MM.
+      destruct (EVS _ _ MM); subst mm'.
+      (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+        2: reflexivity.
+        2: constructor; trivial. *)
+      admit.
+  - subst.
+    split.
+    * eapply ev_elim_app. eassumption.
+      (*EFbuiltin helpers don't change memory - should follow from HFD*)
+      admit.
+    * intros mm mm' MM. rewrite app_nil_r in MM.
+      destruct (EVS _ _ MM); subst mm'.
+       (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+        2: reflexivity.
+        2: constructor; trivial. *)
+      admit.
+(*+ (*Step-to-external*)
+  exploit extcall_arguments_ev_aux_elim_strong. apply H2. intros [EV HEV].
+  split; trivial; intros.
+  destruct (HEV _ _ H3); subst.
+  eexists. eapply asm_ev_step_to_external; try eassumption. eapply extcall_arguments_ev_extcall_arguments. eassumption.
+(*+ inv H1.
+  destruct callee; simpl in *; try solve [contradiction].
+  - inv H3. (*EFexternal helpers don't change memory - should follow from HFD*)
+  - inv H3. (*EFbuiltin helpers don't change memory - should follow from HFD*)*)
++ (*loadframe*)
+   destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [TT [HTT EV]].
+   unfold store_args_events in H2. rewrite H2 in HTT. inv HTT.
+   split.
+   * econstructor. split; eassumption.
+   * intros mm mm' EV'. inv EV'. destruct H3.
+     exploit store_args_rec_transfer. eassumption. eassumption. eassumption. intros SAR.
+     eexists. econstructor; try eassumption.*)
  admit.   (* difficulty here... *)
 Admitted.
 
-Program Definition Asm_EvSem : @EvSem genv regset.
+Program Definition Asm_EvSem (ge : genv) : @EvSem genv regset.
 Proof.
-eapply Build_EvSem with (msem := Asm_mem_sem (*hf*)) (ev_step:=asm_ev_step).
+eapply Build_EvSem with (msem := Asm_mem_sem ge (*hf*)) (ev_step:=asm_ev_step).
 + intros. eapply asm_ev_ax1; try eassumption. (*helper_functions declared*)
 + eapply asm_ev_ax2; eassumption.
 + eapply asm_ev_fun; eassumption.

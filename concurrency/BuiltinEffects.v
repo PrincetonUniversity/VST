@@ -11,10 +11,10 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.cfrontend.Ctypes. (*for type and access_mode*)
 Require Import VST.sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
 
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import VST.sepcomp.structured_injections.
 Require Import VST.sepcomp.reach.
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.effect_semantics.
 Require Import VST.sepcomp.effect_properties.
@@ -25,14 +25,14 @@ Require Import VST.concurrency.I64Helpers.
 Definition memcpy_Effect sz vargs m:=
        match vargs with
           Vptr b1 ofs1 :: Vptr b2 ofs2 :: _ => (*CompCert2.1 had pattern Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil here*)
-          fun b z => eq_block b b1 && zle (Int.unsigned ofs1) z && zle 0 sz &&
-                     zlt z (Int.unsigned ofs1 + sz) && valid_block_dec m b
+          fun b z => eq_block b b1 && zle (Ptrofs.unsigned ofs1) z && zle 0 sz &&
+                     zlt z (Ptrofs.unsigned ofs1 + sz) && valid_block_dec m b
        | _ => fun b z => false
        end.
 
 Lemma memcpy_Effect_unchOn: forall m bsrc osrc sz bytes bdst odst m'
-        (LD: Mem.loadbytes m bsrc (Int.unsigned osrc) sz = Some bytes)
-        (ST: Mem.storebytes m bdst (Int.unsigned odst) bytes = Some m')
+        (LD: Mem.loadbytes m bsrc (Ptrofs.unsigned osrc) sz = Some bytes)
+        (ST: Mem.storebytes m bdst (Ptrofs.unsigned odst) bytes = Some m')
         (SZ: sz >= 0),
     Mem.unchanged_on
       (fun b z=> memcpy_Effect sz (Vptr bdst odst :: Vptr bsrc osrc :: nil)
@@ -49,9 +49,9 @@ Proof. intros.
       rewrite PMap.gss. apply Mem.setN_other.
       intros. intros N; subst.
         rewrite (Mem.loadbytes_length _ _ _ _ _ LD), nat_of_Z_eq in H1; trivial.
-          destruct (zle (Int.unsigned odst) ofs); simpl in *.
+          destruct (zle (Ptrofs.unsigned odst) ofs); simpl in *.
             destruct (zle 0 sz); simpl in *. 2: omega.
-            destruct (zlt ofs (Int.unsigned odst + sz)). inv H.
+            destruct (zlt ofs (Ptrofs.unsigned odst + sz)). inv H.
             omega. omega.
     clear H. rewrite PMap.gso; trivial.
   elim n. eapply Mem.perm_valid_block; eassumption.
@@ -82,14 +82,31 @@ Proof. intros.
   destruct (valid_block_dec m b); try discriminate. trivial.
 Qed.
 
+Definition get_ptrofs (v : val) :=
+  match v with
+  | Vint z => Some (Ptrofs.of_int z)
+  | Vlong z => Some (Ptrofs.of_int64 z)
+  | _ => None end.
+
+Lemma Vptrofs_ofs : forall z, get_ptrofs (Vptrofs z) = Some z.
+Proof.
+  intro; unfold Vptrofs.
+  destruct Archi.ptr64 eqn: H64; simpl.
+  - rewrite Ptrofs.of_int64_to_int64; auto.
+  - rewrite Ptrofs.of_int_to_int; auto.
+Qed.
+
 Definition free_Effect vargs m:=
        match vargs with
           Vptr b1 lo :: _ =>  (*LENB: For CompCert2.1, had pattern Vptr b1 lo :: nil => here*)
-          match Mem.load Mint32 m b1 (Int.unsigned lo - 4)
-          with Some (Vint sz) =>
-            fun b z => eq_block b b1 && zlt 0 (Int.unsigned sz) &&
-                     zle (Int.unsigned lo - 4) z &&
-                     zlt z (Int.unsigned lo + Int.unsigned sz)
+          match Mem.load Mptr m b1 (Ptrofs.unsigned lo - size_chunk Mptr)
+            with Some v =>
+          match get_ptrofs v with Some sz =>
+            fun b z => eq_block b b1 && zlt 0 (Ptrofs.unsigned sz) &&
+                     zle (Ptrofs.unsigned lo - size_chunk Mptr) z &&
+                     zlt z (Ptrofs.unsigned lo + Ptrofs.unsigned sz)
+          | _ => fun b z => false
+          end
           | _ => fun b z => false
           end
        | _ => fun b z => false
@@ -100,14 +117,13 @@ Lemma free_Effect_unchOn: forall {F V : Type} (g : Genv.t F V)
      Mem.unchanged_on (fun b z => free_Effect vargs m b z = false) m m'.
 Proof. intros. inv FR.
   eapply Mem.free_unchanged_on. eassumption.
-  intros. unfold free_Effect. rewrite H.
-    destruct (eq_block b b); simpl.
-      clear e. destruct (zlt 0 (Int.unsigned sz)); simpl; try omega.
-      clear l. destruct (zlt 0 (Int.unsigned sz)); simpl; try omega.
-      clear l. destruct (zle (Int.unsigned lo - 4) i); simpl; try omega.
-      clear l. destruct (zlt i (Int.unsigned lo + Int.unsigned sz)); simpl; try omega.
-      discriminate.
-   elim n; trivial.
+  intros. unfold free_Effect. rewrite H, Vptrofs_ofs.
+  destruct (eq_block b b); [simpl | contradiction].
+  clear e. destruct (zlt 0 (Ptrofs.unsigned sz)); simpl; try omega.
+  clear l. destruct (zlt 0 (Ptrofs.unsigned sz)); simpl; try omega.
+  clear l. destruct (zle (Ptrofs.unsigned lo - size_chunk Mptr) i); simpl; try omega.
+  clear l. destruct (zlt i (Ptrofs.unsigned lo + Ptrofs.unsigned sz)); simpl; try omega.
+  discriminate.
 Qed.
 
 Lemma freeEffect_valid_block vargs m: forall b z
@@ -117,18 +133,18 @@ Proof. intros.
   destruct vargs; inv FR.
   destruct v; inv H0.
   destruct vargs; inv H1.
-  + remember (Mem.load Mint32 m b0 (Int.unsigned i - 4)) as d.
+  + remember (Mem.load Mptr m b0 (Ptrofs.unsigned i - size_chunk Mptr)) as d.
   destruct d; apply eq_sym in Heqd.
-    destruct v; inv H0.
+    destruct (get_ptrofs v); inv H0.
     destruct (eq_block b b0); subst; simpl in *.
       apply Mem.load_valid_access in Heqd.
       eapply Mem.valid_access_valid_block.
       eapply Mem.valid_access_implies; try eassumption. constructor.
     inv H1.
   inv H0.
-  + remember (Mem.load Mint32 m b0 (Int.unsigned i - 4)) as d.
+  + remember (Mem.load Mptr m b0 (Ptrofs.unsigned i - size_chunk Mptr)) as d.
   destruct d; apply eq_sym in Heqd; try discriminate.
-    destruct v0; inv H0.
+    destruct (get_ptrofs v0); inv H0.
     destruct (eq_block b b0); subst; simpl in *.
       apply Mem.load_valid_access in Heqd.
       eapply Mem.valid_access_valid_block.
@@ -745,9 +761,9 @@ Proof.
     destruct (zlt z (Int.unsigned lo + Int.unsigned sz)); try discriminate; simpl in *.
     eapply Mem.perm_implies. apply H1. omega. constructor.
   - destruct (eq_block b bdst); try discriminate; subst bdst; simpl in *.
-    destruct (zle (Int.unsigned odst) z); try discriminate; simpl in *.
+    destruct (zle (Ptrofs.unsigned odst) z); try discriminate; simpl in *.
     destruct (zle 0 sz); simpl in *; try discriminate.
-    destruct (zlt z (Int.unsigned odst + sz)); try discriminate; simpl in *.
+    destruct (zlt z (Ptrofs.unsigned odst + sz)); try discriminate; simpl in *.
     apply Mem.loadbytes_length in H5.
     eapply Mem.storebytes_range_perm; eauto.
     rewrite H5, nat_of_Z_eq; omega.
@@ -866,7 +882,7 @@ Proof.
   destruct (zeq sz 0).
 + (* special case sz = 0 *)
   assert (bytes = nil).
-  { exploit (Mem.loadbytes_empty m1 bsrc (Int.unsigned osrc) sz). omega. congruence. }
+  { exploit (Mem.loadbytes_empty m1 bsrc (Ptrofs.unsigned osrc) sz). omega. congruence. }
   subst.
   destruct (Mem.range_perm_storebytes m1' b0 (Int.unsigned (Int.add odst (Int.repr delta0))) nil)
   as [m2' SB].
@@ -887,15 +903,15 @@ Proof.
   red; intros; congruence.
 + (* general case sz > 0 *)
   exploit Mem.loadbytes_length; eauto. intros LEN.
-  assert (RPSRC: Mem.range_perm m1 bsrc (Int.unsigned osrc) (Int.unsigned osrc + sz) Cur Nonempty).
+  assert (RPSRC: Mem.range_perm m1 bsrc (Ptrofs.unsigned osrc) (Ptrofs.unsigned osrc + sz) Cur Nonempty).
     eapply Mem.range_perm_implies. eapply Mem.loadbytes_range_perm; eauto. auto with mem.
-  assert (RPDST: Mem.range_perm m1 bdst (Int.unsigned odst) (Int.unsigned odst + sz) Cur Nonempty).
+  assert (RPDST: Mem.range_perm m1 bdst (Ptrofs.unsigned odst) (Ptrofs.unsigned odst + sz) Cur Nonempty).
     replace sz with (Z_of_nat (length bytes)).
     eapply Mem.range_perm_implies. eapply Mem.storebytes_range_perm; eauto. auto with mem.
     rewrite LEN. apply nat_of_Z_eq. omega.
-  assert (PSRC: Mem.perm m1 bsrc (Int.unsigned osrc) Cur Nonempty).
+  assert (PSRC: Mem.perm m1 bsrc (Ptrofs.unsigned osrc) Cur Nonempty).
     apply RPSRC. omega.
-  assert (PDST: Mem.perm m1 bdst (Int.unsigned odst) Cur Nonempty).
+  assert (PDST: Mem.perm m1 bdst (Ptrofs.unsigned odst) Cur Nonempty).
     apply RPDST. omega.
   exploit Mem.address_inject.  eauto. eexact PSRC. eauto. intros EQ1.
   exploit Mem.address_inject.  eauto. eexact PDST. eauto. intros EQ2.
@@ -1168,9 +1184,9 @@ destruct ef; simpl in H0.
 
   - (* general case sz > 0 *)
 
-  assert (RPSRC: Mem.range_perm m bsrc (Int.unsigned osrc) (Int.unsigned osrc + sz) Cur Nonempty).
+  assert (RPSRC: Mem.range_perm m bsrc (Ptrofs.unsigned osrc) (Ptrofs.unsigned osrc + sz) Cur Nonempty).
     eapply Mem.range_perm_implies. eapply Mem.loadbytes_range_perm; eauto. auto with mem.
-  assert (RPDST: Mem.range_perm m bdst (Int.unsigned odst) (Int.unsigned odst + sz) Cur Nonempty).
+  assert (RPDST: Mem.range_perm m bdst (Ptrofs.unsigned odst) (Ptrofs.unsigned odst + sz) Cur Nonempty).
     replace sz with (Z_of_nat (Datatypes.length bytes)).
     eapply Mem.range_perm_implies. eapply Mem.storebytes_range_perm; eauto. auto with mem.
     rewrite LEN. apply nat_of_Z_eq. omega.
@@ -1317,8 +1333,8 @@ Proof.
         destruct (joinD_Some _ _ _ _ _ H12) as [FRG | [FRG LOC]]; clear H12.
           split; trivial. split; trivial.
           destruct (eq_block bdst bdst); simpl. clear e.
-            destruct (zle (Int.unsigned odst) (ofs - delta)); simpl.
-              destruct (zlt (ofs - delta) (Int.unsigned odst + sz)); simpl.
+            destruct (zle (Ptrofs.unsigned odst) (ofs - delta)); simpl.
+              destruct (zlt (ofs - delta) (Ptrofs.unsigned odst + sz)); simpl.
                 destruct (valid_block_dec m bdst); trivial.
                 elim n. eapply Mem.perm_valid_block; eassumption.
               omega.
@@ -1441,8 +1457,8 @@ Proof.
     destruct (joinD_Some _ _ _ _ _ H5) as [FRG | [FRG LOC]]; clear H5.
     split; trivial. split; trivial.
     destruct (eq_block bdst bdst); simpl. clear e.
-    destruct (zle (Int.unsigned odst) (ofs - delta)); simpl.
-    destruct (zlt (ofs - delta) (Int.unsigned odst + sz)); simpl.
+    destruct (zle (Ptrofs.unsigned odst) (ofs - delta)); simpl.
+    destruct (zlt (ofs - delta) (Ptrofs.unsigned odst + sz)); simpl.
     destruct (valid_block_dec m bdst); trivial.
     elim n. eapply Mem.perm_valid_block; eassumption.
     omega.
@@ -1464,7 +1480,7 @@ destruct ef; simpl in *; try reflexivity.
 contradiction. contradiction.
 Qed.
 *)
-Require Import ccc26x86.Conventions.
+Require Import VST.ccc26x86.Conventions.
 Lemma BuiltinEffect_decode: forall F V (ge: Genv.t F V) ef tls,
  BuiltinEffect ge ef (map tls (loc_arguments (ef_sig ef))) =
  BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef))

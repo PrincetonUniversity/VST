@@ -8,12 +8,12 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Events.
-Require Import compcert.ia32.Asm.
+Require Import compcert.x86.Asm.
 Require Import Values.
 Import AST.
 
 (*To prove memsem*)
-Require Import VST.sepcomp.semantics.
+Require Import VST.concurrency.core_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.mem_lemmas.
@@ -31,7 +31,7 @@ Definition get_extcall_arg (inout: Locations.slot) (rs: regset) (m: mem) (l: Loc
   | Locations.S inout ofs ty => 
       let bofs := (Stacklayout.fe_ofs_arg + 4 * ofs)%Z  in
       Mem.loadv (chunk_of_type ty) m
-                (Val.add (rs (IR ESP)) (Vint (Int.repr bofs)))
+                (Val.add (rs (IR RSP)) (Vint (Int.repr bofs)))
   end.
 
 Fixpoint get_extcall_arguments
@@ -63,45 +63,66 @@ Fixpoint get_extcall_arguments
 
 Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
   BE_malloc: forall m n m'' b m'
-         (ALLOC: Mem.alloc m (-4) (Int.unsigned n) = (m'', b))
-         (ALGN : (align_chunk Mint32 | (-4)))
-         (ST: Mem.storebytes m'' b (-4) (encode_val Mint32 (Vint n)) = Some m'),
-         builtin_event EF_malloc m [Vint n]
-               [Alloc b (-4) (Int.unsigned n); Write b (-4) (encode_val Mint32 (Vint n))]
+         (ALLOC: Mem.alloc m (-size_chunk Mptr) (Ptrofs.unsigned n) = (m'', b))
+         (ALGN : (align_chunk Mptr | (-size_chunk Mptr)))
+         (ST: Mem.storebytes m'' b (-size_chunk Mptr) (encode_val Mptr (Vptrofs n)) = Some m'),
+         builtin_event EF_malloc m [Vptrofs n]
+               [Alloc b (-size_chunk Mptr) (Ptrofs.unsigned n);
+                Write b (-size_chunk Mptr) (encode_val Mptr (Vptrofs n))]
 | BE_free: forall m b lo bytes sz m'
-        (POS: Int.unsigned sz > 0)
-        (LB : Mem.loadbytes m b (Int.unsigned lo - 4) (size_chunk Mint32) = Some bytes)
-        (FR: Mem.free m b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) = Some m')
-        (ALGN : (align_chunk Mint32 | Int.unsigned lo - 4))
-        (SZ : Vint sz = decode_val Mint32 bytes),
+        (POS: Ptrofs.unsigned sz > 0)
+        (LB : Mem.loadbytes m b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) = Some bytes)
+        (FR: Mem.free m b (Ptrofs.unsigned lo - size_chunk Mptr) (Ptrofs.unsigned lo + Ptrofs.unsigned sz) = Some m')
+        (ALGN : (align_chunk Mptr | Ptrofs.unsigned lo - size_chunk Mptr))
+        (SZ : Vptrofs sz = decode_val Mptr bytes),
         builtin_event EF_free m [Vptr b lo]
-              [Read b (Int.unsigned lo - 4) (size_chunk Mint32) bytes;
-               Free [(b,Int.unsigned lo - 4, Int.unsigned lo + Int.unsigned sz)]]
+              [Read b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) bytes;
+               Free [(b,Ptrofs.unsigned lo - size_chunk Mptr, Ptrofs.unsigned lo + Ptrofs.unsigned sz)]]
 | BE_memcpy: forall m al bsrc bdst sz bytes osrc odst m'
         (AL: al = 1 \/ al = 2 \/ al = 4 \/ al = 8)
         (POS : sz >= 0)
         (DIV : (al | sz))
-        (OSRC : sz > 0 -> (al | Int.unsigned osrc))
-        (ODST: sz > 0 -> (al | Int.unsigned odst))
+        (OSRC : sz > 0 -> (al | Ptrofs.unsigned osrc))
+        (ODST: sz > 0 -> (al | Ptrofs.unsigned odst))
         (RNG: bsrc <> bdst \/
-                Int.unsigned osrc = Int.unsigned odst \/
-                Int.unsigned osrc + sz <= Int.unsigned odst \/ Int.unsigned odst + sz <= Int.unsigned osrc)
-        (LB: Mem.loadbytes m bsrc (Int.unsigned osrc) sz = Some bytes)
-        (ST: Mem.storebytes m bdst (Int.unsigned odst) bytes = Some m'),
+                Ptrofs.unsigned osrc = Ptrofs.unsigned odst \/
+                Ptrofs.unsigned osrc + sz <= Ptrofs.unsigned odst \/ Ptrofs.unsigned odst + sz <= Ptrofs.unsigned osrc)
+        (LB: Mem.loadbytes m bsrc (Ptrofs.unsigned osrc) sz = Some bytes)
+        (ST: Mem.storebytes m bdst (Ptrofs.unsigned odst) bytes = Some m'),
         builtin_event (EF_memcpy sz al) m [Vptr bdst odst; Vptr bsrc osrc]
-              [Read bsrc (Int.unsigned osrc) sz bytes;
-               Write bdst (Int.unsigned odst) bytes]
+              [Read bsrc (Ptrofs.unsigned osrc) sz bytes;
+               Write bdst (Ptrofs.unsigned odst) bytes]
 | BE_EFexternal: forall name sg m vargs,
         I64Helpers.is_I64_helperS name sg ->
          builtin_event (EF_external name sg) m vargs []
 | BE_EFbuiltin: forall name sg m vargs, is_I64_builtinS name sg ->
          builtin_event (EF_builtin name sg) m vargs [].
 
+Lemma Vptrofs_inj : forall o1 o2, Vptrofs o1 = Vptrofs o2 ->
+  Ptrofs.unsigned o1 = Ptrofs.unsigned o2.
+Proof.
+  unfold Vptrofs; intros.
+  pose proof (Ptrofs.unsigned_range o1); pose proof (Ptrofs.unsigned_range o2).
+  destruct Archi.ptr64 eqn: H64.
+  - assert (Int64.unsigned (Ptrofs.to_int64 o1) = Int64.unsigned (Ptrofs.to_int64 o2)) by congruence.
+    unfold Ptrofs.to_int64 in *.
+    rewrite Ptrofs.modulus_eq64 in * by auto.
+    rewrite !Int64.unsigned_repr in * by (unfold Int64.max_unsigned; omega); auto.
+  - assert (Int.unsigned (Ptrofs.to_int o1) = Int.unsigned (Ptrofs.to_int o2)) by congruence.
+    unfold Ptrofs.to_int in *.
+    rewrite Ptrofs.modulus_eq32 in * by auto.
+    rewrite !Int.unsigned_repr in * by (unfold Int.max_unsigned; omega); auto.
+Qed.
+
 Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
-inv BE1; inv BE2; simpl in *; trivial.
-+ rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
-+ rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0; inv SZ0. trivial.
-+ rewrite LB0 in LB; inv LB; trivial.
+inversion BE1; inv BE2; try discriminate; simpl in *; trivial.
++ assert (Vptrofs n0 = Vptrofs n) as H by congruence.
+  rewrite H; rewrite (Vptrofs_inj _ _ H) in *.
+  rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
++ inv H5.
+  rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0. rewrite (Vptrofs_inj _ _ SZ0); trivial.
++ inv H3; inv H5.
+  rewrite LB0 in LB; inv LB; trivial.
 Qed.
 
 Definition funsig (fd: Asm.fundef) :=
@@ -122,38 +143,27 @@ Fixpoint store_arguments (tys: list typ) (args: list val) (loc: val) (m: mem): o
  | _, _ => None
  end.
 
-Definition cl_initial_core (ge: genv) (m: mem) (v: val) (args: list val) : option (regset * option mem) :=
-  match v with
-  | Vptr b i =>  if Int.eq_dec i Int.zero then
-    match  Genv.find_funct_ptr ge b with
-    | Some f =>
-       let fsig := funsig f in
-       let (m', stk) := Mem.alloc m 0 (Conventions1.size_arguments fsig) in
-       match store_arguments fsig.(sig_args) args (Vptr stk Int.zero) m' with
-        | Some m'' => 
-           Some ( (Pregmap.init Vundef)
-                      # PC <- v
-                      # ESP <- (Vptr stk Int.zero)
-                      # RA <- Vzero,
-                      Some m'')
-        | _ => None
-       end
-     | _ => None
-   end else None
-   | _ => None
-  end.
+Inductive cl_initial_core (ge: genv) (m: mem) (rs0: regset) (v: val) (args: list val) : Prop :=
+ INIT_CORE : forall f b,
+      v = Vptr b (Ptrofs.zero) ->
+      rs0 = (Pregmap.init Vundef)
+            # PC <- (Vptr b Ptrofs.zero) 
+            # RA <- Vzero
+            # RSP <- Vnullptr ->
+      Genv.find_funct_ptr ge b = Some (Internal f) ->
+      extcall_arguments rs0 m (fn_sig f) args ->
+      cl_initial_core ge m rs0 v args.
 
-
-Definition cl_at_external  (ge: genv) (rs: regset) (m: mem) : option (external_function * list val) :=
+Definition cl_at_external  (ge: genv) (rs: regset) (m: mem) : option (external_function * signature * list val) :=
   match rs PC with
-  | Vptr b i => if Int.eq_dec i Int.zero then
+  | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
     match  Genv.find_funct_ptr ge b with
     | Some (External ef) =>
      match ef with
      | EF_external _ _ => 
       match get_extcall_arguments Locations.Outgoing rs m
                  (Conventions1.loc_arguments (ef_sig ef)) with
-      | Some args => Some (ef, args)
+      | Some args => Some (ef, ef_sig ef, args)
       | None => None
      end
     | _ => None
@@ -166,7 +176,7 @@ end.
 
 Definition cl_after_external  (ge: genv) (vret: option val) (rs: regset) : option regset :=
   match rs PC with
-  | Vptr b i => if Int.eq_dec i Int.zero then
+  | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
     match  Genv.find_funct_ptr ge b with
     | Some (External ef) =>
       match vret with
@@ -186,21 +196,21 @@ Inductive cl_step ge: regset -> mem -> regset -> mem -> Prop :=
       forall b ofs f i rs m rs' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) f.(fn_code) = Some i ->
+      find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some i ->
       exec_instr ge f i rs m = Next rs' m' ->
       cl_step ge rs m rs' m'
   | exec_step_builtin:
       forall b ofs f ef args res rs m vargs t vres rs' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
-      eval_builtin_args ge rs (rs ESP) m args vargs ->
+      find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
+      eval_builtin_args ge rs (rs RSP) m args vargs ->
       builtin_event ef m vargs t ->
       ev_elim m t m' ->
       external_call ef ge vargs m nil vres m' ->
       rs' = nextinstr_nf
              (set_res res vres
-               (undef_regs (map preg_of (backend.Machregs.destroyed_by_builtin ef)) rs)) ->
+               (undef_regs (map preg_of (Machregs.destroyed_by_builtin ef)) rs)) ->
       cl_step ge rs m rs' m'.
 
 Lemma cl_corestep_not_at_external:
@@ -212,11 +222,11 @@ Proof.
   inv H.
  *
    rewrite H0.
-  destruct (Int.eq_dec ofs Int.zero); auto.
+  destruct (Ptrofs.eq_dec ofs Ptrofs.zero); auto.
   unfold Asm.fundef. rewrite H1. auto.
  *
   rewrite H0.
-  destruct (Int.eq_dec ofs Int.zero); auto.
+  destruct (Ptrofs.eq_dec ofs Ptrofs.zero); auto.
   unfold Asm.fundef. rewrite H1. auto.
 Qed.
 
@@ -227,17 +237,19 @@ Proof.
   simpl; auto.
 Qed.
 
-Program Definition cl_core_sem :
+Program Definition cl_core_sem (ge : genv) :
   @CoreSemantics genv regset mem :=
   @Build_CoreSemantics _ _ _
-    (*deprecated cl_init_mem*)
-    (fun _ => cl_initial_core)
-    cl_at_external
-    cl_after_external
-    cl_halted
+    (fun _ => cl_initial_core ge)
+    (cl_at_external ge)
+    (fun v q m => cl_after_external ge v q)
+    (fun _ _ => False)
     cl_step
-    cl_corestep_not_at_external
-    cl_corestep_not_halted _.
+    _
+    cl_corestep_not_at_external.
+Next Obligation.
+Proof.
+Admitted.
 
 Section ASM_MEMSEM.
 
@@ -284,12 +296,28 @@ Proof. intros.
    try (eapply exec_load_mem_step; eassumption);
    try (eapply exec_store_mem_step; eassumption).
 
-   destruct (Val.divu (rs EAX) (rs # EDX <- Vundef r1)); inversion H0; clear H0; subst.
-   destruct (Val.modu (rs EAX) (rs # EDX <- Vundef r1)); inversion H1; clear H1; subst.
+   destruct (rs RDX); inv H0.
+   destruct (rs RAX); inv H1.
+   destruct (rs r1); inv H0.
+   destruct (Int.divmodu2 _ _ _) as [[]|]; inv H1.
    apply mem_step_refl.
 
-   destruct (Val.divs (rs EAX) (rs # EDX <- Vundef r1)); inversion H0; clear H0; subst.
-   destruct (Val.mods (rs EAX) (rs # EDX <- Vundef r1)); inversion H1; clear H1; subst.
+   destruct (rs RDX); inv H0.
+   destruct (rs RAX); inv H1.
+   destruct (rs r1); inv H0.
+   destruct (Int64.divmodu2 _ _ _) as [[]|]; inv H1.
+   apply mem_step_refl.
+
+   destruct (rs RDX); inv H0.
+   destruct (rs RAX); inv H1.
+   destruct (rs r1); inv H0.
+   destruct (Int.divmods2 _ _ _) as [[]|]; inv H1.
+   apply mem_step_refl.
+
+   destruct (rs RDX); inv H0.
+   destruct (rs RAX); inv H1.
+   destruct (rs r1); inv H0.
+   destruct (Int64.divmods2 _ _ _) as [[]|]; inv H1.
    apply mem_step_refl.
 
    destruct (eval_testcond c0 rs); inversion H0; clear H0; subst.
@@ -317,10 +345,10 @@ Proof. intros.
      eapply goto_label_mem_step; eassumption.
   remember (Mem.alloc m 0 sz) as d; apply eq_sym in Heqd.
     destruct d; inv H0.
-    remember (Mem.store Mint32 m0 b (Int.unsigned (Int.add Int.zero ofs_link))
-         (rs ESP)) as q.
+    remember (Mem.store Mptr m0 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link))
+         (rs RSP)) as q.
     apply eq_sym in Heqq; destruct q; inversion H1; clear H1; subst.
-    remember (Mem.store Mint32 m1 b (Int.unsigned (Int.add Int.zero ofs_ra))
+    remember (Mem.store Mptr m1 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra))
          (rs RA)) as w.
     destruct w; apply eq_sym in Heqw; inv H0.
     eapply mem_step_trans.
@@ -328,9 +356,9 @@ Proof. intros.
     eapply mem_step_trans.
       eapply mem_step_store; eassumption.
       eapply mem_step_store; eassumption.
-  destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))); inv H0.
-    destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))); inv H1.
-    destruct (rs ESP); inv H0.
+  destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_ra)); inv H0.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_link)); inv H1.
+    destruct (rs RSP); inv H0.
     remember (Mem.free m b 0 sz) as t.
     destruct t; inv H1; apply eq_sym in Heqt.
     eapply mem_step_free; eassumption.
@@ -355,7 +383,7 @@ eapply mem_step_trans; [ | eauto].
 eapply mem_step_freelist; eauto.
 Qed.
 
-Lemma asm_mem_step : forall ge c m c' m' (CS: corestep cl_core_sem ge c m c' m'), mem_step m m'.
+Lemma asm_mem_step : forall ge c m c' m' (CS: corestep (cl_core_sem ge) ge c m c' m'), mem_step m m'.
 Proof. intros.
   inv CS; simpl in *; try apply mem_step_refl; try contradiction.
  inv H0.
@@ -392,9 +420,9 @@ intros.
 Qed.
 
 Lemma asm_inc_perm: forall (g : genv) c m c' m'
-      (CS:corestep cl_core_sem g c m c' m')
+      (CS:corestep (cl_core_sem g) g c m c' m')
       m1 (PLE: perm_lesseq m m1),
-      exists m1', corestep cl_core_sem g c m1 c' m1' /\ perm_lesseq m' m1'.
+      exists m1', corestep (cl_core_sem g) g c m1 c' m1' /\ perm_lesseq m' m1'.
 Proof.
 intros; inv CS; simpl in *; try contradiction.
 inv H0.
@@ -416,9 +444,9 @@ inv H0.
 *)
 Abort.
 
-Program Definition Asm_mem_sem : @MemSem genv regset.
+Program Definition Asm_mem_sem (ge : genv) : @MemSem genv regset.
 Proof.
-apply Build_MemSem with (csem := cl_core_sem).
+apply Build_MemSem with (csem := cl_core_sem ge).
   apply (asm_mem_step).
 Defined.
 
@@ -432,7 +460,7 @@ Qed.
 
 End ASM_MEMSEM.
 
-Require Import VST.concurrency.load_frame.
+(*Require Import VST.concurrency.load_frame.
 Lemma load_frame_store_args_rec_nextblock:
   forall args m m2 stk ofs tys
     (Hload_frame: store_args_rec m stk ofs args tys = Some m2),
@@ -463,5 +491,5 @@ Proof.
   intros.
   unfold load_frame.store_args in *.
   eapply load_frame_store_args_rec_nextblock; eauto.
-Qed.
+Qed.*)
 

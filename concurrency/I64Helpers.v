@@ -9,13 +9,14 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Errors.
 Require Import compcert.common.Globalenvs.
 (*Require Import Cminor.*)
-Require Import VST.ccc26x86.Op.
+Require Import compcert.x86.Op.
 
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.structured_injections.
 Require Import VST.sepcomp.reach.
-Require Import msl.Axioms.
+Require Import VST.msl.Axioms.
 Require Import VST.sepcomp.globalSep.
+Import String.
 
   (** * Axiomatization of the helper functions *)
 
@@ -62,7 +63,7 @@ Definition sig_ii_l := mksignature (Tint :: Tint :: nil) (Some Tlong) cc_default
 
 
 (** Setting up the helper functions *)
-Require Import ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)
+(*Require Import ccc26x86.Cminor. (*LENB: Imported for globdef - should we really use Cminor globdefs, though?*)
 Definition globdef := AST.globdef Cminor.fundef unit.
 
 Definition globdef_of_interest (gd: globdef) : bool :=
@@ -119,7 +120,7 @@ Definition get_helpers (p: Cminor.program) : res helper_functions :=
   OK (mk_helper_functions
      i64_dtos i64_dtou i64_stod i64_utod i64_stof i64_utof
      i64_sdiv i64_udiv i64_smod i64_umod
-     i64_shl i64_shr i64_sar).
+     i64_shl i64_shr i64_sar).*)
 
 
 Inductive is_I64_helper hf : ident -> signature -> Prop :=
