@@ -4023,6 +4023,17 @@ end.
 
 Tactic Notation "forward_call_dep" constr(ts) constr(witness) := fwd_call_dep ts witness.
 
+Lemma PROP_into_SEP : forall P Q R, PROPx P (LOCALx Q (SEPx R)) =
+  PROPx [] (LOCALx Q (SEPx (!!fold_right and True P && emp :: R))).
+Proof.
+  intros; unfold PROPx, LOCALx, SEPx; extensionality; simpl.
+  rewrite <- andp_assoc, (andp_comm _ (fold_right_sepcon R)), <- andp_assoc.
+  rewrite prop_true_andp by auto.
+  rewrite andp_comm; f_equal.
+  rewrite andp_comm.
+  rewrite sepcon_andp_prop', emp_sepcon; auto.
+Qed.
+
 Ltac forward_spawn id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
@@ -4035,8 +4046,8 @@ Ltac forward_spawn id arg wit :=
       repeat (destruct x as (x, ?);
         instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
         instantiate (1 := fun '(a, b) => _ a) in (Value of R));
-      f_equal; f_equal; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal;
+      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal;
        repeat match goal with |- _ = [] => instantiate (1 := []); simpl; reflexivity 
          | _ => instantiate (1 := (_, _) :: _); simpl; f_equal end |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
-  forward_call_dep [A] (f, arg, Q, wit, R); subst Q R; [Exists y; subst y; simpl; cancel|] end end.
+  forward_call_dep [A] (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel) end end.

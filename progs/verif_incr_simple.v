@@ -50,9 +50,9 @@ Definition thread_func_spec :=
   WITH y : val, x : val * share * val * val
   PRE [ _args OF (tptr tvoid) ]
          let '(ctr, sh, lock, lockt) := x in
-         PROP  ()
+         PROP  (readable_share sh)
          LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
-         SEP   ((!!readable_share sh && emp); lock_inv sh lock (cptr_lock_inv ctr);
+         SEP   (lock_inv sh lock (cptr_lock_inv ctr);
                 lock_inv sh lockt (thread_lock_inv sh ctr lock lockt))
   POST [ tptr tvoid ]
          PROP ()

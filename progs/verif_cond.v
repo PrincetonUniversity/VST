@@ -26,10 +26,10 @@ Definition thread_func_spec :=
   WITH y : val, x : val * share * val * val * val
   PRE [ _args OF (tptr tvoid) ]
          let '(data, sh, lock, lockt, cond) := x in
-         PROP  ()
+         PROP  (readable_share sh)
          LOCAL (temp _args y; gvar _data data; gvar _mutex lock; gvar _tlock lockt;
                 gvar _cond cond)
-         SEP   ((!!readable_share sh && emp); cond_var sh cond;
+         SEP   (cond_var sh cond;
                 lock_inv sh lock (dlock_inv data);
                 lock_inv sh lockt (tlock_inv sh lockt lock cond data))
   POST [ tptr tvoid ]
