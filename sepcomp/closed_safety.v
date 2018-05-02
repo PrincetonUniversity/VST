@@ -9,6 +9,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+(*
 Section closed_safety.
 
 Variable (G C D Z M : Type).
@@ -95,3 +96,4 @@ eapply IHn; eauto.
 Qed.
 
 End closed_safety.
+*)

@@ -19,7 +19,7 @@ Section safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
   Context {Hrel: nat -> M -> M -> Prop}.
-  Context (Hcore:@CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics C M).
   Variable (Hspec:external_specification M external_function Z).
 
   Variable ge : G.
@@ -28,7 +28,7 @@ Section safety.
   | safeN_0: forall z c m, safeN_ O z c m
   | safeN_step:
       forall n z c m c' m',
-      corestep Hcore ge c m c' m' ->
+      corestep Hcore c m c' m' ->
       safeN_ n z c' m' ->
       safeN_ (S n) z c m
   | safeN_external:
@@ -52,15 +52,15 @@ Section safety.
       safeN_ n z c m.
 
   Definition corestep_fun  :=
-       forall ge m q m1 q1 m2 q2 ,
-       corestep Hcore ge q m q1 m1 ->
-       corestep Hcore ge q m q2 m2 ->
+       forall m q m1 q1 m2 q2 ,
+       corestep Hcore q m q1 m1 ->
+       corestep Hcore q m q2 m2 ->
        (q1, m1) = (q2, m2).
 
   Lemma safe_corestep_forward:
      corestep_fun ->
     forall c m c' m' n z,
-    corestep Hcore ge c m c' m' -> safeN_ (S n) z c m -> safeN_ n z c' m'.
+    corestep Hcore c m c' m' -> safeN_ (S n) z c m -> safeN_ n z c' m'.
   Proof.
     simpl; intros; inv H1.
     assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
@@ -73,7 +73,7 @@ Section safety.
 
   Lemma safe_corestep_backward:
     forall c m c' m' n z,
-    corestep Hcore ge c m c' m' -> safeN_ n z c' m' -> safeN_ (S n) z c m.
+    corestep Hcore c m c' m' -> safeN_ n z c' m' -> safeN_ (S n) z c m.
   Proof.
     intros; eapply safeN_step; eauto.
   Qed.
@@ -101,7 +101,7 @@ Section safety.
   Lemma safe_corestepN_forward:
     corestep_fun ->
     forall z c m c' m' n n0,
-      corestepN Hcore ge n0 c m c' m' ->
+      corestepN Hcore n0 c m c' m' ->
       safeN_ (n + S n0) z c m ->
       safeN_ n z c' m'.
   Proof.
@@ -121,7 +121,7 @@ Section safety.
   Lemma safe_step'_back2 :
     forall
       {ora st m st' m' n},
-      corestep Hcore ge st m st' m' ->
+      corestep Hcore st m st' m' ->
       safeN_ (n-1) ora st' m' ->
       safeN_ n ora st m.
   Proof.
@@ -135,7 +135,7 @@ Section safety.
 
   Lemma safe_corestepN_backward:
     forall z c m c' m' n n0,
-      corestepN Hcore ge n0 c m c' m' ->
+      corestepN Hcore n0 c m c' m' ->
       safeN_ (n - n0) z c' m' ->
       safeN_ n z c m.
   Proof.
@@ -157,8 +157,8 @@ Section safety.
       (forall ret m q', after_external Hcore ret q1 m = Some q' ->
                       after_external Hcore ret q2 m = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
-      (forall q' m', corestep Hcore ge q1 m q' m' ->
-                     corestep Hcore ge q2 m q' m') ->
+      (forall q' m', corestep Hcore q1 m q' m' ->
+                     corestep Hcore q2 m q' m') ->
       (forall n z, safeN_ n z q1 m -> safeN_ n z q2 m).
   Proof.
     intros. destruct n; simpl in *; try constructor.
@@ -188,7 +188,7 @@ End safety.
 Section dry_safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
-  Context (Hcore:@CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics C M).
   Variable (Hspec:external_specification M external_function Z).
   Definition dry_safeN := @safeN_ G C M Z genv_symb (fun n' m m' => True) Hcore Hspec.
 End dry_safety.

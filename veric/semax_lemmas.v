@@ -350,7 +350,8 @@ apply semax'_post; auto.
 Qed.
 
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
-Proof. repeat intro. eapply cl_corestep_fun; eauto. Qed.
+Proof. repeat intro. eapply cl_corestep_fun; simpl in *; eauto.
+Qed.
 Hint Resolve cl_corestep_fun'.
 
 Lemma derives_skip:
@@ -403,7 +404,7 @@ Qed.
 
 Lemma jsafe_corestep_forward:
   forall ge c m c' m' n z,
-    jstep (cl_core_sem ge) ge c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
+    jstep (cl_core_sem ge) c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
     jm_bupd z (jsafeN (@OK_spec Espec) ge n z c') m'.
 Proof.
   intros.
@@ -1175,7 +1176,7 @@ Lemma safe_step_forward:
    cl_at_external st = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
-   jstep (cl_core_sem psi) psi st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
+   jstep (cl_core_sem psi) st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
 Proof.
  intros.
  inv H0.
@@ -1368,11 +1369,11 @@ Lemma corestep_preservation_lemma:
        filter_seq ctl1 = filter_seq ctl2 ->
       (forall k : list cont', control_as_safe ge n (k ++ ctl1) (k ++ ctl2)) ->
       control_as_safe ge (S n) ctl1 ctl2 ->
-      jstep (cl_core_sem ge) ge (State ve te (c :: l ++ ctl1)) m c' m' ->
+      jstep (cl_core_sem ge) (State ve te (c :: l ++ ctl1)) m c' m' ->
       jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c') m' ->
    exists c2 : corestate,
      exists m2 : juicy_mem,
-       jstep (cl_core_sem ge) ge (State ve te (c :: l ++ ctl2)) m c2 m2 /\
+       jstep (cl_core_sem ge) (State ve te (c :: l ++ ctl2)) m c2 m2 /\
        jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c2) m2.
 Proof. intros until m'. intros H0 H4 CS0 H H1.
   remember (State ve te (c :: l ++ ctl1)) as q. rename c' into q'.
@@ -1427,14 +1428,14 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
    simpl.
      destruct H2 as [H2 [H2b H2c]].
     split3; auto.
-    rewrite <- strip_step. simpl. rewrite strip_step; auto.
+    simpl; rewrite <- strip_step. simpl. rewrite strip_step; auto.
     destruct (IHcl_step c l _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _))
       as [c2 [m2 [? ?]]]; clear IHcl_step.
     exists c2; exists m2; split; auto.
     destruct H2 as [H2 [H2b H2c]].
    simpl.
    split3; auto.
-   rewrite <- strip_step.
+   simpl; rewrite <- strip_step.
    change (strip_skip (Kseq Sskip :: c :: l ++ ctl2)) with (strip_skip (c::l++ctl2)).
    rewrite strip_step; auto. }
   (* continue *)
@@ -1496,7 +1497,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (core_semantics.corestep (juicy_core_sem (cl_core_sem ge)) ge (State ve te ctl1) m0 st' m'0).
+  assert (core_semantics.corestep (juicy_core_sem (cl_core_sem ge)) (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (jsafeN_step (cl_core_sem ge) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
@@ -1514,7 +1515,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (core_semantics.corestep (juicy_core_sem (cl_core_sem ge)) ge (State ve te ctl1) m0 st' m'0).
+  assert (core_semantics.corestep (juicy_core_sem (cl_core_sem ge)) (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (jsafeN_step (cl_core_sem ge) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.

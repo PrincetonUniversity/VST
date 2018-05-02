@@ -1379,7 +1379,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (H15 : (believe_external Espec psi (Vptr b Ptrofs.zero) (params, retty) cc A P Q')
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
-  jstep (cl_core_sem psi) psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
+  jstep (cl_core_sem psi) (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
   jm_bupd ora (jsafeN OK_spec psi n ora c') m'.
 Proof.
 intros.

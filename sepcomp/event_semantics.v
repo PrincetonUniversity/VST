@@ -167,31 +167,31 @@ Qed.
     of a set of memory access traces associated with each internal
     step of the semantics. *)
 
-Record EvSem {G C} :=
+Record EvSem {C} :=
   { (** [sem] is a memory semantics. *)
-    msem :> @MemSem G C
+    msem :> @MemSem C
 
     (** The step relation of the new semantics. *)
-  ; ev_step: G -> C -> mem -> list mem_event -> C -> mem -> Prop
+  ; ev_step: C -> mem -> list mem_event -> C -> mem -> Prop
 
     (** The next four fields axiomatize [drfstep] and its relation to the
         underlying step relation of [msem]. *)
-  ; ev_step_ax1: forall g c m T c' m',
-       ev_step g c m T c' m' ->
-            corestep msem g c m c' m'
-  ; ev_step_ax2: forall g c m c' m',
-       corestep msem g c m c' m' ->
-       exists T, ev_step g c m T c' m'
-  ; ev_step_fun: forall g c m T' c' m' T'' c'' m'',
-       ev_step g c m T' c' m' -> ev_step g c m T'' c'' m'' -> T'=T''
+  ; ev_step_ax1: forall c m T c' m',
+       ev_step c m T c' m' ->
+            corestep msem c m c' m'
+  ; ev_step_ax2: forall c m c' m',
+       corestep msem c m c' m' ->
+       exists T, ev_step c m T c' m'
+  ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
+       ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T''
 (*  ; ev_step_elim: forall g c m T c' m',
        ev_step g c m T c' m' -> ev_elim m T m'*)
-  ; ev_step_elim: forall g c m T c' m' (STEP: ev_step g c m T c' m'),
+  ; ev_step_elim: forall c m T c' m' (STEP: ev_step c m T c' m'),
        ev_elim m T m' /\
-       (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step g c mm T cc' mm')
+       (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step c mm T cc' mm')
   }.
 
-Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'):
+Lemma Ev_sem_cur_perm {C} (R: @EvSem C) c m T c' m' b ofs (D: ev_step R c m T c' m'):
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
 Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
 (*

@@ -19,6 +19,8 @@ Require Import VST.sepcomp.mem_wd.
 
 Require Import VST.sepcomp.effect_semantics. (*for specialization below*)
 
+
+(*
 Module Wholeprog_sim. Section Wholeprog_sim.
 
 Context {G1 C1 M1 G2 C2 M2 : Type}
@@ -305,3 +307,4 @@ eapply Wholeprog_sim.Build_Wholeprog_sim with
   exists j12', j23', v2, m2; auto. }
 Qed.
 End WholeSimTrans.
+*)

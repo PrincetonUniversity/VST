@@ -40,7 +40,7 @@ Lemma semax_straight_simple:
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
                 guard_environ (update_tycon Delta' c) (current_function k) rho'  /\
-                jstep (cl_core_sem ge) ge (State ve te (Kseq c :: k)) jm
+                jstep (cl_core_sem ge) (State ve te (Kseq c :: k)) jm
                                  (State ve te' k) jm' /\
               ((F rho' * Q rho') && funassert Delta' rho) (m_phi jm')) ->
   semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).

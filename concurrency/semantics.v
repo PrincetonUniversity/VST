@@ -11,7 +11,7 @@ Class Semantics:=
   semV: Type; *)
     semG: Type;
     semC: Type;
-    semSem: @EvSem semG semC;
+    semSem: @EvSem semC;
     (* getEnv : semG -> Genv.t semF semV *)
   }.
 
@@ -26,5 +26,5 @@ Class Resources:=
 Module Type SEMANTICS.
   Parameter G : Type.
   Parameter C : Type.
-  Parameter SEM : @EvSem G C.
+  Parameter SEM : @EvSem C.
 End SEMANTICS.

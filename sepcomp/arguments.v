@@ -5,7 +5,7 @@ Require Import VST.sepcomp.mem_lemmas.
 
 Import SM_simulation.
 
-Arguments match_sm_wd : default implicits.
+(* Arguments match_sm_wd : default implicits. 
 Arguments core_at_external : default implicits.
 Arguments core_halted : default implicits.
 Arguments disjoint_extern_local_Src : default implicits.
@@ -26,3 +26,4 @@ Arguments match_validblocks
 
 Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.
 Arguments genvs_domain_eq_match_genvs [_ _ _ _ _ _] _.
+*)

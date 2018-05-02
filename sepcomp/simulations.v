@@ -20,6 +20,8 @@ Require Import VST.sepcomp.semantics_lemmas.
 
 (** * Structured Simulations *)
 
+
+(*
 Module SM_simulation. Section SharedMemory_simulation_inject.
 
 (** Structured simulations are parameterized by a source interaction semantics
@@ -393,3 +395,4 @@ End SharedMemory_simulation_inject.
 
 End SM_simulation.
 
+*)

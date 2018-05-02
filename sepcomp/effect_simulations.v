@@ -21,6 +21,9 @@ Require Import VST.sepcomp.semantics_lemmas.
 
 Module SM_simulation. Section SharedMemory_simulation_inject.
 
+
+                        (*
+
 Context
   {F1 V1 C1 F2 V2 C2 : Type}
   (Sem1 : @EffectSem (Genv.t F1 V1) C1)
@@ -244,6 +247,7 @@ left. exists n. assumption.
 right; split; trivial. exists n. assumption.
 Qed.
 
+*)
 End SharedMemory_simulation_inject.
 
 End SM_simulation.

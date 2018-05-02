@@ -16,6 +16,7 @@ Require Import VST.sepcomp.wholeprog_simulations.
 Require Import VST.sepcomp.closed_safety.
 Require Import VST.sepcomp.effect_semantics.
 
+(*
 Import Wholeprog_sim.
 
 Arguments match_state : default implicits.
@@ -398,3 +399,4 @@ destruct A as [n A]; eapply termination_reflection; eauto.
 Qed.
 
 End equitermination.
+*)

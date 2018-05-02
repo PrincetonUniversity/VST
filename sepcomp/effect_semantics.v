@@ -18,24 +18,24 @@ Require Import VST.sepcomp.semantics_lemmas.
     of a set of locations [block -> Z -> bool] associated with each internal
     step of the semantics. *)
 
-Record EffectSem {G C} :=
+Record EffectSem { C} :=
   { (** [sem] is a memory semantics. *)
-    sem :> @MemSem G C
+    sem :> @MemSem C
 
     (** The step relation of the new semantics. *)
-  ; effstep: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop
+  ; effstep: (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop
 
     (** The next three fields axiomatize [effstep] and its relation to the
         underlying step relation of [sem]. *)
-  ; effax1: forall M g c m c' m',
-       effstep g M c m c' m' ->
-            corestep sem g c m c' m'
+  ; effax1: forall M c m c' m',
+       effstep M c m c' m' ->
+            corestep sem c m c' m'
          /\ Mem.unchanged_on (fun b ofs => M b ofs = false) m m'
-  ; effax2: forall g c m c' m',
-       corestep sem g c m c' m' ->
-       exists M, effstep g M c m c' m'
-  ; effstep_perm: forall M g c m c' m',
-       effstep g M c m c' m' ->
+  ; effax2: forall c m c' m',
+       corestep sem c m c' m' ->
+       exists M, effstep M c m c' m'
+  ; effstep_perm: forall M c m c' m',
+       effstep M c m c' m' ->
        forall b z, M b z = true -> Mem.perm m b z Cur Writable
   }.
 (*
@@ -44,28 +44,28 @@ Arguments EffectSem [].
 (** * Lemmas and auxiliary definitions *)
 
 Section effsemlemmas.
-  Context {G C:Type} (Sem: @EffectSem G C) (g:G).
+  Context {C:Type} (Sem: @EffectSem C).
 
   Lemma effstep_valid: forall M c m c' m',
-       effstep Sem g M c m c' m' ->
+       effstep Sem M c m c' m' ->
        forall b z, M b z = true -> Mem.valid_block m b.
   Proof. intros. eapply Mem.perm_valid_block. eapply effstep_perm; eassumption. Qed.
 
-  Lemma effstep_corestep: forall M g c m c' m',
-      effstep Sem g M c m c' m' -> corestep Sem g c m c' m'.
+  Lemma effstep_corestep: forall M c m c' m',
+      effstep Sem M c m c' m' -> corestep Sem c m c' m'.
   Proof. intros. apply effax1 in H. apply H. Qed.
 
-  Lemma effstep_unchanged: forall M g c m c' m',
-        effstep Sem g M c m c' m' ->
+  Lemma effstep_unchanged: forall M c m c' m',
+        effstep Sem M c m c' m' ->
         Mem.unchanged_on (fun b ofs => M b ofs = false) m m'.
   Proof. intros. apply effax1 in H. apply H. Qed.
 
-  Lemma effstep_mem U c m c' m' (EF: effstep Sem g U c m c' m'): mem_step m m'.
+  Lemma effstep_mem U c m c' m' (EF: effstep Sem U c m c' m'): mem_step m m'.
   Proof. intros. apply effax1 in EF. destruct EF as [EF _].
          eapply corestep_mem. apply EF.
   Qed.
 
-  Lemma effstep_fwd U c m c' m' (EF: effstep Sem g U c m c' m'): mem_forward m m'.
+  Lemma effstep_fwd U c m c' m' (EF: effstep Sem U c m c' m'): mem_forward m m'.
   Proof. apply preserve_mem. apply mem_forward_preserve.
          eapply effstep_mem. apply EF.
   Qed.
@@ -74,7 +74,7 @@ Section effsemlemmas.
     match n with
       | O => fun U c m c' m' => (c,m) = (c',m') /\ U = (fun b z => false)
       | S k => fun U c1 m1 c3 m3 => exists c2, exists m2, exists U1, exists U2,
-        effstep Sem g U1 c1 m1 c2 m2 /\
+        effstep Sem U1 c1 m1 c2 m2 /\
         effstepN k U2 c2 m2 c3 m3 /\
         U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
     end.
@@ -85,7 +85,7 @@ Section effsemlemmas.
     induction n; simpl; intros. destruct H; subst. discriminate.
     destruct H as [c [m [U1 [U2 [Step [StepN UU]]]]]]; subst; simpl.
     specialize (IHn _ _ _ _ _ StepN).
-    specialize (effstep_perm _ _ _ _ _ _ _ Step b z). intros.
+    specialize (effstep_perm _ _ _ _ _ _ Step b z). intros.
     remember (U1 b z) as d.
     destruct d; simpl in *.
     + apply H; trivial.
@@ -117,7 +117,7 @@ Section effsemlemmas.
   Qed.
 
   Lemma effstepN_corestepN: forall n E c m c' m',
-      effstepN n E c m c' m' -> corestepN Sem g n c m c' m'.
+      effstepN n E c m c' m' -> corestepN Sem n c m c' m'.
   Proof. intros n.
     induction n; intros; simpl in *.
         apply H.
@@ -217,11 +217,11 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
     exists n, effstepN n U c m c' m'.
 
   Lemma effstep_plus_corestep_plus U c m c' m' (EFF: effstep_plus U c m c' m'):
-        corestep_plus Sem g c m c' m'.
+        corestep_plus Sem c m c' m'.
   Proof. destruct EFF. apply effstepN_corestepN in H. exists x; trivial. Qed.
 
   Lemma effstep_star_corestep_star U c m c' m' (EFF: effstep_star U c m c' m'):
-        corestep_star Sem g c m c' m'.
+        corestep_star Sem c m c' m'.
   Proof. destruct EFF. apply effstepN_corestepN in H. exists x; trivial. Qed.
 
   Lemma effstep_plus_star : forall U c1 c2 m1 m2,
@@ -282,7 +282,7 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
   Proof. intros; subst. eapply effstep_star_trans; eassumption. Qed.
 
   Lemma effstep_plus_one: forall U c m c' m',
-    effstep Sem g U c m c' m' -> effstep_plus U c m c' m'.
+    effstep Sem U c m c' m' -> effstep_plus U c m c' m'.
   Proof. intros. exists O. simpl. exists c', m', U, (fun b z =>false).
     intuition.
     extensionality b; extensionality z; simpl.
@@ -290,7 +290,7 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
   Qed.
 
   Lemma effstep_plus_two: forall U1 c m c' m' U2 c'' m'',
-    effstep  Sem g U1 c m c' m' -> effstep Sem g U2 c' m' c'' m'' ->
+    effstep  Sem U1 c m c' m' -> effstep Sem U2 c' m' c'' m'' ->
     effstep_plus (fun b z => U1 b z || (U2 b z && valid_block_dec m b)) c m c'' m''.
   Proof. intros.
     exists (S O). exists c', m', U1, U2. split; trivial.
@@ -305,7 +305,7 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
   Proof. intros. exists O. simpl. split; reflexivity. Qed.
 
   Lemma effstep_star_one: forall U c m c' m',
-    effstep  Sem g U c m c' m' -> effstep_star U c m c' m'.
+    effstep  Sem U c m c' m' -> effstep_star U c m c' m'.
   Proof. intros.
     exists (S O). exists c', m', U, (fun b z =>false).
     simpl; split; trivial. split. split; reflexivity.
@@ -316,7 +316,7 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
   Lemma effstep_plus_split: forall U c m c' m',
     effstep_plus U c m c' m' ->
     exists c'', exists m'', exists U1, exists U2,
-      effstep Sem g U1 c m c'' m'' /\
+      effstep Sem U1 c m c'' m'' /\
       effstep_star U2 c'' m'' c' m' /\
       U = (fun b z => U1 b z || (U2 b z && valid_block_dec m b)).
   Proof. intros.

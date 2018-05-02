@@ -21,6 +21,8 @@ Require Import VST.sepcomp.simulations.
 
 (** This file specializes [simulations] in a number of useful ways. *)
 
+
+(*
 Section Eff_INJ_SIMU_DIAGRAMS.
   Context {F1 V1 C1 F2 V2 C2:Type}
           {Sem1 : @EffectSem (Genv.t F1 V1) C1}
@@ -1279,3 +1281,4 @@ Proof. intros.
   remember (X b) as d.
   destruct d; trivial.
 Qed.
+*)

@@ -311,16 +311,16 @@ destruct lid; try congruence; inv H; auto.
 Qed.
 
 Program Definition cl_core_sem (ge: genv):
-  @CoreSemantics genv corestate mem :=
-  @Build_CoreSemantics _ _ _
+  @CoreSemantics corestate mem :=
+  @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
     (fun _ _ c v args => cl_initial_core ge v args = Some c)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun _ _ => False)
-    cl_step
+    (cl_step ge)
     _
-    cl_corestep_not_at_external.
+    (cl_corestep_not_at_external ge).
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
     cl_step ge q m q1 m1 ->

@@ -15,6 +15,7 @@ Require Import VST.sepcomp.mem_wd.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.reach.
 
+(*
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -230,3 +231,4 @@ Qed.
 End nucular_semantics_lemmas.
 
 End Nuke_sem.
+*)

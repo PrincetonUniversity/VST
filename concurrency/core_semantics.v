@@ -13,18 +13,18 @@ Require Import compcert.common.Smallstep.
 
 (** * Core Semantics *)
 
-Record CoreSemantics {G C M : Type} : Type :=
+Record CoreSemantics {C M : Type} : Type :=
   { initial_core : nat -> M -> C -> val -> list val -> Prop
   ; at_external : C -> M -> option (external_function * signature * list val)
   ; after_external : option val -> C -> M -> option C
   ; halted : C -> int -> Prop
-  ; corestep : G -> C -> M -> C -> M -> Prop
+  ; corestep : C -> M -> C -> M -> Prop
 
   
   ; corestep_not_halted:
-      forall ge m q m' q' i, corestep ge q m q' m' -> ~ halted q i
+      forall m q m' q' i, corestep q m q' m' -> ~ halted q i
   ; corestep_not_at_external:
-      forall ge m q m' q', corestep ge q m q' m' -> at_external q m = None }.
+      forall m q m' q', corestep q m q' m' -> at_external q m = None }.
 
 (* Extract a CoreSemantics from a part_semantics*)
 Inductive step2corestep (sem:part_semantics):(genvtype sem) -> (state sem) -> mem -> (state sem) -> mem -> Prop :=
@@ -39,7 +39,7 @@ Program Definition sem2coresem (sem:part_semantics) corestep_not_halted : CoreSe
     ; at_external := fun s m => Smallstep.at_external sem (set_mem s m) 
     ; after_external := Smallstep.after_external sem
     ; halted:= final_state sem
-    ; corestep := step2corestep sem
+    ; corestep := step2corestep sem (globalenv sem)
     ; corestep_not_halted:=corestep_not_halted
 |}.
 Next Obligation.
@@ -76,10 +76,10 @@ Record perm_lesseq (m m': mem):= {
 (* Memory semantics are CoreSemantics that are specialized to CompCert memories
    and evolve memory according to mem_step. Previous notion CoopCoreSem is deprecated,
    but for now retained in file CoopCoreSem.v *)
-Record MemSem {G C} :=
-  { csem :> @CoreSemantics G C mem
+Record MemSem {C} :=
+  { csem :> @CoreSemantics C mem
 
-  ; corestep_mem : forall g c m c' m' (CS: corestep csem g c m c' m'), mem_step m m'
+  ; corestep_mem : forall c m c' m' (CS: corestep csem c m c' m'), mem_step m m'
   (*later, we'll want to add the following constraint
   ; corestep_incr_perm: forall g c m c' m' (CS: corestep csem g c m c' m')  m1 (PLE: perm_lesseq m m1),
          exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'*)

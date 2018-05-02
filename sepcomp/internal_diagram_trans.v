@@ -25,7 +25,7 @@ Require Import Relations.
 Require Import VST.sepcomp.full_composition.
 
 
-
+(*
 Definition entrypoints_compose
   (ep12 ep23 ep13 : list (val * val * signature)): Prop :=
   forall v1 v3 sig, In (v1,v3,sig) ep13 =
@@ -666,3 +666,4 @@ split. unfold compose_sm; simpl.
     intros. inv Ub.
 Qed.
 End CoreDiagrams_trans.
+*)
