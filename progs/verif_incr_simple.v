@@ -97,7 +97,7 @@ Proof.
   forward_call (lock, sh, cptr_lock_inv ctr).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
-    rewrite add_repr; cancel. }
+    entailer!. }
   forward.
 Qed.
 

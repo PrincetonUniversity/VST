@@ -18,15 +18,15 @@ Definition cptr_lock_inv g1 g2 ctr := EX z : Z, data_at Ews tuint (Vint (Int.rep
 
 Definition incr_spec :=
  DECLARE _incr
-  WITH ctr : val, sh : share, lock : val, g1 : gname, g2 : gname, left : bool
+  WITH ctr : val, sh : share, lock : val, g1 : gname, g2 : gname, left : bool, n : Z
   PRE [ ]
          PROP  (readable_share sh)
          LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 0 (if left then g1 else g2))
+         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 1 (if left then g1 else g2)).
+         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 (n+1) (if left then g1 else g2)).
 
 Definition read_spec :=
  DECLARE _read
@@ -100,7 +100,7 @@ Proof.
   forward.
   forward.
   gather_SEP 2 3 4.
-  viewshift_SEP 0 (!!((if left then x else y) = 0) && ghost_var Tsh 1 (if left then g1 else g2) *
+  viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
   { go_lower.
     destruct left.
@@ -115,10 +115,10 @@ Proof.
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
     erewrite <- ghost_var_share_join by eauto.
-    unfold Frame; instantiate (1 := [ghost_var gsh2 1 (if left then g1 else g2)]); simpl.
+    unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2)]); simpl.
     destruct left.
-    - Exists 1 y; entailer!.
-    - Exists x 1; entailer!. }
+    - Exists (n+1) y; entailer!.
+    - Exists x (n+1); entailer!. }
   forward.
 Qed.
 
@@ -147,7 +147,8 @@ Proof.
   start_function.
   Intros.
   forward.
-  forward_call (ctr, sh, lock, g1, g2, true).
+  forward_call (ctr, sh, lock, g1, g2, true, 0).
+  simpl.
   forward_call (lockt, sh, thread_lock_R sh g1 g2 ctr lock, thread_lock_inv sh g1 g2 ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
@@ -180,7 +181,8 @@ Proof.
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
-  forward_call (ctr, sh2, lock, g1, g2, false).
+  forward_call (ctr, sh2, lock, g1, g2, false, 0).
+  simpl.
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq.
