@@ -22,8 +22,7 @@ Ltac simpl_ret_assert :=
  cbn [RA_normal RA_break RA_continue RA_return 
       normal_ret_assert overridePost loop1_ret_assert
       loop2_ret_assert function_body_ret_assert frame_ret_assert
-      switch_ret_assert loop1x_ret_assert loop1y_ret_assert
-       loop1a_ret_assert ].
+      switch_ret_assert loop1x_ret_assert loop1y_ret_assert].
 
 Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
   forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
@@ -73,33 +72,6 @@ Qed.
 Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
 Hint Resolve @TT_right.
-
-Lemma frame_for1a:
-  forall Q R F,
-   frame_ret_assert (loop1a_ret_assert Q R) F =
-   loop1a_ret_assert (Q * F) (frame_ret_assert R F).
-Proof.
-intros.
-destruct R; simpl; normalize.
-f_equal. extensionality rho. normalize.
-Qed.
-
-
-Hint Rewrite frame_for1a:  ret_assert.
-
-Lemma loop1a_ret_assert_EK_break:
- forall P Q, RA_break (loop1a_ret_assert P Q) = RA_normal Q.
-Proof. destruct Q;   reflexivity.
-Qed.
-
-Hint Rewrite loop1a_ret_assert_EK_break : ret_assert.
-
-Lemma loop1a_ret_assert_normal:
-  forall P Q, RA_normal (loop1a_ret_assert P Q) = P.
-Proof. 
-  destruct Q; reflexivity.
-Qed.
-Hint Rewrite loop1a_ret_assert_normal: ret_assert.
 
 Lemma overridePost_overridePost:
  forall P Q R, overridePost P (overridePost Q R) = overridePost P R.

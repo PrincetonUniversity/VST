@@ -1919,10 +1919,9 @@ Ltac check_nocontinue s :=
  | _ => fail 100 "applied forward_loop to something that is not a loop"
 end.
 
-Axiom trust_me : trust_loop_nocontinue.
-
 Ltac forward_loop_nocontinue2 Inv :=
-  apply (semax_loop_nocontinue trust_me Inv); delete_skip; abbreviate_semax.
+  apply semax_loop_nocontinue; 
+   [ reflexivity | reflexivity | delete_skip; abbreviate_semax].
 
 Ltac forward_loop_nocontinue1 Inv :=
   lazymatch goal with

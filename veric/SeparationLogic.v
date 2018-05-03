@@ -71,8 +71,6 @@ Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric Bveric.
 
-Inductive trust_loop_nocontinue : Prop := .
-
 (* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
          match v with
@@ -723,15 +721,6 @@ Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
      RA_return := r |}
  end.
 
-Definition loop1a_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Inv;
-     RA_break := n; 
-     RA_continue := FF;
-     RA_return := r |}
- end.
-
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -746,6 +735,29 @@ Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert
     RA_break := seplog.FF; 
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.
+
+Fixpoint nojumps s :=
+ match s with
+ | Ssequence s1 s2 => if nojumps s1 then nojumps s2 else false
+ | Sifthenelse _ s1 s2 => if nojumps s1 then nojumps s2 else false
+ | Sset _ _ => true
+ | Sassign _ _ => true
+ | Sskip => true
+ | _ => false
+end.
+
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
@@ -1226,10 +1238,12 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta Q (Sloop body incr) R.
 
 Axiom semax_loop_nocontinue:
- trust_loop_nocontinue ->
- forall {Espec: OracleKind} {CS: compspecs} Q Delta P body incr R,
- semax Delta Q (Ssequence body incr) (loop1a_ret_assert Q R) ->
- semax Delta P (Sloop body incr) R.
+  forall {Espec: OracleKind}{CS: compspecs} ,
+ forall Delta P body incr R,
+ nocontinue body = true ->
+ nojumps incr = true ->
+ @semax CS Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
+ @semax CS Espec Delta P (Sloop body incr) R.
 
 Axiom semax_if_seq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,

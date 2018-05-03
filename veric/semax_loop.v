@@ -692,6 +692,91 @@ Proof.
   apply assert_safe_jsafe; auto.
 Qed.
 
+Fixpoint nojumps s :=
+ match s with
+ | Ssequence s1 s2 => if nojumps s1 then nojumps s2 else false
+ | Sifthenelse _ s1 s2 => if nojumps s1 then nojumps s2 else false
+ | Sset _ _ => true
+ | Sassign _ _ => true
+ | Sskip => true
+ | _ => false
+end.
+
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
+
+Lemma jsafeN_relate_semax:
+ forall {CS: compspecs} s1 s2,
+ (forall OK_spec psi n (ora: OK_ty) vx b k jm,
+  jsafeN OK_spec psi n ora (State vx b (Kseq s2 :: k)) jm ->
+  jsafeN OK_spec psi n ora (State vx b (Kseq s1 :: k)) jm) ->
+forall  Delta P R,
+ (forall F, closed_wrt_modvars s1 F -> closed_wrt_modvars s2 F) ->
+ exit_tycon s1 = exit_tycon s2 ->
+ semax Espec Delta P s2 R ->
+ semax Espec Delta P s1 R.
+Proof.
+intros.
+rewrite semax_unfold in H2|-*.
+intros.
+specialize (H2 psi Delta' w TS HGG Prog_OK k F).
+specialize (H2 (H0 _ H3)).
+rewrite <- H1 in H2; specialize (H2 H4).
+clear - H2 H.
+hnf in H2|-*.
+intros b vx rho H5 H6 H7 H8.
+specialize (H2 b vx rho H5 H6 H7 H8).
+clear - H2 H.
+hnf in H2|-*.
+intros.
+specialize (H2 c H0).
+destruct H2 as [b0 [? ?]];
+exists b0; split; auto.
+destruct H2 as [m' [? [? [? ?]]]].
+exists m'; split3; auto.
+split; auto.
+simpl in H5|-*.
+intros.
+apply  H; auto.
+Qed.
+
+Lemma semax_loop_incr_into_body_equisafe:
+ forall body incr OK_spec psi n (ora: OK_ty) vx tx k jm,
+ nocontinue body = true ->
+ nojumps incr = true ->
+jsafeN OK_spec psi n ora
+      (State vx tx (Kseq (Sloop (Ssequence body incr) Sskip) :: k)) jm ->
+jsafeN OK_spec psi n ora (State vx tx (Kseq (Sloop body incr) :: k)) jm.
+Admitted.
+
+Lemma semax_loop_nocontinue:
+ forall {CS: compspecs} Delta P body incr R,
+ nocontinue body = true ->
+ nojumps incr = true ->
+ semax Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
+ semax Espec Delta P (Sloop body incr) R.
+Proof.
+  intros ? ? ? ? ?  POST Hbody Hincr H.
+  apply jsafeN_relate_semax with (Sloop (Ssequence body incr) Sskip); auto.
+2: apply semax_loop with P; auto;
+ eapply semax_post; try apply semax_skip;
+   intros; normalize; destruct POST; simpl; try apply derives_refl.
+ clear - Hbody Hincr.
+ intros.
+ rename b into tx.
+ apply semax_loop_incr_into_body_equisafe; auto.
+Qed.
+
 Lemma semax_break {CS: compspecs}:
    forall Delta Q,        semax Espec Delta (RA_break Q) Sbreak Q.
 Proof.

@@ -2149,9 +2149,6 @@ Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
 | return_outer_gen_loop1x: forall inv P Q,
     return_outer_gen P Q ->
     return_outer_gen (loop1x_ret_assert inv P) Q
-| return_outer_gen_loop1a: forall inv P Q,
-    return_outer_gen P Q ->
-    return_outer_gen (loop1a_ret_assert inv P) Q
 | return_outer_gen_loop2: forall inv P Q,
     return_outer_gen P Q ->
     return_outer_gen (loop2_ret_assert inv P) Q.
