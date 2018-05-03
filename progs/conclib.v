@@ -2977,16 +2977,6 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
   rewrite memory_block_data_at_ by auto].
 *)
 
-(* This should probably be replaced with a use of forward_call_dep from below. *)
-Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
-  try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
-  rewrite <- ?seq_assoc; eapply semax_seq';
-  [match goal with |- semax _ (PROP () (LOCALx ?locals _)) _ _ => hoist_later_in_pre; eapply semax_pre, semax_call_id0 with
-      (argsig := [(_f, tptr voidstar_funtype); (_args, tptr tvoid)])(P := [])
-      (Q := locals)(R := Frame)(ts := [sig])
-      (A := spawn_arg_type)(x := wit); try reflexivity end |
-   after_forward_call; unfold spawn_post; rewrite void_ret; subst Frame; normalize].
-
 Lemma semax_fun_id'' id f Espec {cs} Delta P Q R Post c :
   (var_types Delta) ! id = None ->
   (glob_specs Delta) ! id = Some f ->
@@ -3301,6 +3291,7 @@ Ltac prove_call_setup' ts witness :=
  end;
  let H := fresh in
  intro H;
+ match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
  exploit (call_setup2'_i _ _ _ _ _ _ _ _ _ _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
@@ -3309,9 +3300,10 @@ Ltac prove_call_setup' ts witness :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | try apply trivial_Forall_inclusion; try apply trivial_Forall_inclusion0
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | try change_compspecs CS; cancel_for_forward_call
  | 
- ]].
+ ]
+ end].
 
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t vardesc) G (a: expr)
@@ -3989,7 +3981,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow'
-      | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow'
@@ -4031,4 +4023,31 @@ end.
 
 Tactic Notation "forward_call_dep" constr(ts) constr(witness) := fwd_call_dep ts witness.
 
-(*Ltac forward_spawn sig wit ::= forward_call_dep [sig] wit.*)
+Lemma PROP_into_SEP : forall P Q R, PROPx P (LOCALx Q (SEPx R)) =
+  PROPx [] (LOCALx Q (SEPx (!!fold_right and True P && emp :: R))).
+Proof.
+  intros; unfold PROPx, LOCALx, SEPx; extensionality; simpl.
+  rewrite <- andp_assoc, (andp_comm _ (fold_right_sepcon R)), <- andp_assoc.
+  rewrite prop_true_andp by auto.
+  rewrite andp_comm; f_equal.
+  rewrite andp_comm.
+  rewrite sepcon_andp_prop', emp_sepcon; auto.
+Qed.
+
+Ltac forward_spawn id arg wit :=
+  match goal with gv : globals |- _ =>
+  make_func_ptr id; let f := fresh "f_" in set (f := gv id);
+  match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
+    let y := fresh "y" in let Q := fresh "Q" in let R := fresh "R" in
+    evar (y : ident); evar (Q : A -> list (ident * val)); evar (R : A -> val -> mpred);
+    replace Pre with (fun '(a, w) => PROPx [] (LOCALx (temp y a :: semax_conc.gvars (Q w)) (SEPx [R w a])));
+    [|let x := fresh "x" in extensionality x; destruct x as (?, x);
+      instantiate (1 := fun w a => _ w) in (Value of R);
+      repeat (destruct x as (x, ?);
+        instantiate (1 := fun '(a, b) => _ a) in (Value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (Value of R));
+      etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal;
+       repeat match goal with |- _ = [] => instantiate (1 := []); simpl; reflexivity 
+         | _ => instantiate (1 := (_, _) :: _); simpl; f_equal end |
+       unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
+  forward_call_dep [A] (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel) end end.

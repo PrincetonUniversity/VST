@@ -53,10 +53,6 @@ Proof.
     unfold unfold_reptype; simpl.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
   simpl fst in *. simpl snd in *.
-  set (writer_ := gv _writer).
-  make_func_ptr _writer.
-(*  get_global_function'' _writer; Intros. 
-  apply extract_exists_pre; intros writer_. *)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh1 & shs1 & ? & ? & ? & ?).
   assert_PROP (Zlength bufs = B).
   { go_lowerx; rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ buf)), !sepcon_assoc.
@@ -64,63 +60,9 @@ Proof.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold B, N; omega|].
     unfold unfold_reptype; simpl.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
-  forward_spawn (val * val * val * val * val * val * list val * list val * list val *
-                 share * share * share * list share * list gname * list gname * list gname * list gname)%type
-    (writer_, vint 0, fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
-      share * list share * list gname * list gname * list gname * list gname) =>
-      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
-            g, g0, g1, g2) := x in
-      [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
-       (_lock, lock); (_comm, comm); (_bufs, buf)],
-    (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs,
-                       g, g0, g1, g2),
-    fun (x : (val * val * val * val * val * val * list val * list val * list val *
-              share * share * share * list share * list gname * list gname * list gname * list gname)%type)
-        (arg : val) =>
-    let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
-          g, g0, g1, g2) := x in
-      fold_right sepcon emp [!!(fold_right and True [Zlength shs = N; readable_share sh1; readable_share lsh;
-        Forall readable_share shs; sepalg_list.list_join sh0 shs Tsh;
-        Zlength g1 = N; Zlength g2 = N; Forall isptr comms]) && emp;
-        data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
-        data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
-        data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-        fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks) (Znth r comms)
-          (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
-          (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
-        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
-        fold_right sepcon emp (map (fun i => EX sh : share,
-          !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
-          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B)))]).
-  { eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-    rewrite <- later_andp; apply later_derives.
-    apply andp_right.
-    { entailer!. }
-    unfold spawn_pre, PROPx, LOCALx, SEPx.
-    go_lowerx.
-    rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
-    apply andp_right; [apply prop_right; auto|].
-    apply andp_right; [apply prop_right; repeat split; auto|].
-    apply andp_right; [apply prop_right; repeat split; auto|].
-    apply andp_right; [apply prop_right|].
-    { unfold liftx; simpl; unfold lift, make_args'; simpl.
-      rewrite ?gvar_denote_env_set. 
-      rewrite eval_id_same, eval_id_other, eval_id_same; [|discriminate].
-     repeat split; auto; try apply gvar_denote_global; auto.
-     erewrite gvar_eval_var by eauto.
-     erewrite !(force_val_sem_cast_neutral_gvar' _writer writer_) by eauto.
-     auto.
-      }
-    Exists _arg.
-    rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'.
-      f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      rewrite !sepcon_andp_prop'; extensionality.
-      rewrite <- andp_assoc, prop_true_andp with (P := True); auto.
-      rewrite (andp_comm (!! _) (!! _)), andp_assoc; f_equal; f_equal.
-      rewrite emp_sepcon, !sepcon_emp; auto. }
-    rewrite sepcon_andp_prop'.
+  forward_spawn _writer (vint 0) (writing, last_given, last_taken, lock, comm, buf, locks, comms,
+                                  bufs, sh1, gsh1, sh0, shs, g, g0, g1, g2).
+  { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     unfold comm_loc; erewrite map_ext;
       [|intro; erewrite <- AE_loc_join with (h1 := empty_map)(h2 := empty_map);
@@ -129,9 +71,9 @@ Proof.
     do 3 (erewrite <- (data_at_shares_join Ews); eauto).
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map;
       rewrite ?Zlength_map, ?Zlength_sublist; try (unfold B, N in *; omega).
-    erewrite <- (data_at_shares_join Tsh); eauto.
+    erewrite <- (data_at_shares_join Tsh) by eauto.
     rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs)))),
-      (sepcon_assoc _ (data_at sh0 _ _ _)).
+      (sepcon_assoc _ (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs)))).
     rewrite replace_nth_sepcon.
     fast_cancel.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh0 _ _ _)).
@@ -163,7 +105,8 @@ Proof.
   assert_PROP (Zlength lasts = N) by entailer!.
   forward_for_simple_bound N (EX i : Z, PROP ( )
    LOCAL (gvar _last_given last_given; gvar _writing writing; gvar _last_taken last_taken;
-          gvar _last_read last_read; gvar _reading reading; gvar _comm comm; gvar _lock lock; gvar _bufs buf)
+          gvar _last_read last_read; gvar _reading reading; gvar _comm comm; gvar _lock lock;
+          gvar _bufs buf; gvar _reader (gv _reader))
    SEP (EX sh' : share, !!(sepalg_list.list_join sh1 (sublist i N shs1) sh') &&
           data_at sh' (tarray (tptr tint) N) lasts last_read * data_at sh' (tarray (tptr tint) N) reads reading;
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms comm) (sublist i N shs1));
@@ -186,63 +129,14 @@ Proof.
   { Intros sh'.
     forward_call tint. split3; simpl; auto; computable. Intros d.
     forward.
-    get_global_function'' _reader; Intros.
-    apply extract_exists_pre; intros reader_.
     match goal with H : sepalg_list.list_join sh1 _ sh' |- _ => rewrite sublist_next in H;
       auto; [inversion H as [|????? Hj1 Hj2]; subst |
       match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end] end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
-    forward_spawn (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                   share * share * share * gname * gname * gname * gname)%type
-      (reader_, d, fun x : (Z * val * val * val * val * val * list val * list val * list val * list val *
-        list val * share * share * share * gname * gname * gname * gname) =>
-        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
-              g, g0, g1, g2) := x in
-        [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)],
-      (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
-                    Znth i shs1, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2),
-      fun (x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                share * share * share * gname * gname * gname * gname)%type) (arg : val) =>
-        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
-              g, g0, g1, g2) := x in
-        fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1; 
-          readable_share sh2; isptr (Znth r comms)]) && emp;
-          data_at Tsh tint (vint r) arg; malloc_token Tsh tint arg;
-          data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
-          data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
-          data_at_ Tsh tint (Znth r reads); data_at_ Tsh tint (Znth r lasts);
-          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-          comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 empty_map;
-          EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs);
-          ghost_var gsh1 (vint 1) g0]).
-    - eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-      rewrite <- later_andp; apply later_derives.
-      apply andp_right.
-      { entailer!. }
-      unfold spawn_pre. simpl fst in *. simpl snd in *.
-      assert_PROP (isptr d) by (entailer!; eauto).
-      unfold spawn_pre, PROPx, LOCALx, SEPx.
-      go_lowerx.
-      rewrite !sepcon_andp_prop, !sepcon_andp_prop'.
-      apply andp_right; [apply prop_right; auto|].
-      apply andp_right; [apply prop_right; repeat split; auto|].
-      apply andp_right; [apply prop_right; repeat split; auto|].
-      apply andp_right; [apply prop_right|].
-      { unfold liftx; simpl; unfold lift, make_args'; simpl.
-        erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ reader_) by eauto.
-        rewrite eval_id_same, eval_id_other, eval_id_same; [|discriminate].
-        replace (eval_id _d rho) with d.
-        rewrite force_val_sem_cast_neutral_isptr'; rewrite force_val_sem_cast_neutral_isptr'; auto.
-        repeat split; auto; apply gvar_denote_global; auto. }
-      Exists _arg.
-      rewrite !sepcon_assoc; apply sepcon_derives.
-      { apply derives_refl'.
-        f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-        rewrite !sepcon_andp_prop'; extensionality.
-        rewrite <- andp_assoc, prop_true_andp with (P := True); auto.
-        rewrite (andp_comm (!! _) (!! _)), andp_assoc; f_equal; f_equal.
-        rewrite emp_sepcon, !sepcon_emp; auto. }
-      rewrite sepcon_andp_prop'.
+    assert_PROP (isptr d) by entailer!.
+    forward_spawn _reader d (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms,
+      bufs, Znth i shs1, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2).
+    - rewrite !sepcon_andp_prop'.
       apply andp_right; [apply prop_right; repeat (split; auto)|].
       { apply Forall_Znth; auto; match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; auto end. }
       { apply Forall_Znth; auto; match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; auto end. }
@@ -259,6 +153,7 @@ Proof.
       rewrite (@sublist_next Share.t _ i); auto; simpl.
       Exists 0; cancel.
       { match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; unfold N; omega end. }
+    - (* Why didn't forward_call_dep discharge this? *) apply isptr_is_pointer_or_null; auto.
     - Exists sh1'; entailer!. }
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
