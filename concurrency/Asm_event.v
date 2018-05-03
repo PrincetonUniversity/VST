@@ -31,12 +31,6 @@ Notation "a # b" := (a b) (at level 1, only parsing).
 Notation "a # b <- c" := (Pregmap.set b c a) (at level 1, b at next level).
 *)
 
-Inductive load_frame: Type :=
-| mk_load_frame:
-    forall (sp: block)           (**r pointer to argument frame *)
-           (retty: option typ),  (**r return type *)
-    load_frame.
-
 Section ASM_EV.
 (*Variable hf : I64Helpers.helper_functions.*)
 
@@ -712,73 +706,158 @@ Qed.
 Definition option_list_to_list {A} (x: option (list A)) : list A :=
  match x with Some al => al | None => nil end.
 
-Inductive asm_ev_step ge: regset -> mem -> list mem_event -> regset -> mem -> Prop :=
+Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
+  BE_malloc: forall m n m'' b m'
+         (ALLOC: Mem.alloc m (-size_chunk Mptr) (Ptrofs.unsigned n) = (m'', b))
+         (ST: Mem.storebytes m'' b (-size_chunk Mptr) (encode_val Mptr (Vptrofs n)) = Some m'),
+         builtin_event EF_malloc m [Vptrofs n]
+               [Alloc b (-size_chunk Mptr) (Ptrofs.unsigned n);
+                Write b (-size_chunk Mptr) (encode_val Mptr (Vptrofs n))]
+| BE_free: forall m b lo bytes sz m'
+        (POS: Ptrofs.unsigned sz > 0)
+        (LB : Mem.loadbytes m b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) = Some bytes)
+        (FR: Mem.free m b (Ptrofs.unsigned lo - size_chunk Mptr) (Ptrofs.unsigned lo + Ptrofs.unsigned sz) = Some m')
+        (SZ : Vptrofs sz = decode_val Mptr bytes),
+        builtin_event EF_free m [Vptr b lo]
+              [Read b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) bytes;
+               Free [(b,Ptrofs.unsigned lo - size_chunk Mptr, Ptrofs.unsigned lo + Ptrofs.unsigned sz)]]
+| BE_memcpy: forall m al bsrc bdst sz bytes osrc odst m'
+        (AL: al = 1 \/ al = 2 \/ al = 4 \/ al = 8)
+        (POS : sz >= 0)
+        (DIV : (al | sz))
+        (OSRC : sz > 0 -> (al | Ptrofs.unsigned osrc))
+        (ODST: sz > 0 -> (al | Ptrofs.unsigned odst))
+        (RNG: bsrc <> bdst \/
+                Ptrofs.unsigned osrc = Ptrofs.unsigned odst \/
+                Ptrofs.unsigned osrc + sz <= Ptrofs.unsigned odst \/ Ptrofs.unsigned odst + sz <= Ptrofs.unsigned osrc)
+        (LB: Mem.loadbytes m bsrc (Ptrofs.unsigned osrc) sz = Some bytes)
+        (ST: Mem.storebytes m bdst (Ptrofs.unsigned odst) bytes = Some m'),
+        builtin_event (EF_memcpy sz al) m [Vptr bdst odst; Vptr bsrc osrc]
+              [Read bsrc (Ptrofs.unsigned osrc) sz bytes;
+               Write bdst (Ptrofs.unsigned odst) bytes]
+(*| BE_EFexternal: forall name sg m vargs,
+(*        I64Helpers.is_I64_helperS name sg ->*)
+         builtin_event (EF_external name sg) m vargs []
+| BE_EFbuiltin: forall name sg m vargs, (*is_I64_builtinS name sg ->*)
+         builtin_event (EF_builtin name sg) m vargs []*)
+| BE_other: forall ef m vargs,
+  match ef with EF_malloc | EF_free | EF_memcpy _ _ => False | _ => True end ->
+  builtin_event ef m vargs [].
+
+Lemma Vptrofs_inj : forall o1 o2, Vptrofs o1 = Vptrofs o2 ->
+  Ptrofs.unsigned o1 = Ptrofs.unsigned o2.
+Proof.
+  unfold Vptrofs; intros.
+  pose proof (Ptrofs.unsigned_range o1); pose proof (Ptrofs.unsigned_range o2).
+  destruct Archi.ptr64 eqn: H64.
+  - assert (Int64.unsigned (Ptrofs.to_int64 o1) = Int64.unsigned (Ptrofs.to_int64 o2)) by congruence.
+    unfold Ptrofs.to_int64 in *.
+    rewrite Ptrofs.modulus_eq64 in * by auto.
+    rewrite !Int64.unsigned_repr in * by (unfold Int64.max_unsigned; omega); auto.
+  - assert (Int.unsigned (Ptrofs.to_int o1) = Int.unsigned (Ptrofs.to_int o2)) by congruence.
+    unfold Ptrofs.to_int in *.
+    rewrite Ptrofs.modulus_eq32 in * by auto.
+    rewrite !Int.unsigned_repr in * by (unfold Int.max_unsigned; omega); auto.
+Qed.
+
+Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
+inversion BE1; inv BE2; try discriminate; try contradiction; simpl in *; trivial.
++ assert (Vptrofs n0 = Vptrofs n) as H by congruence.
+  rewrite H; rewrite (Vptrofs_inj _ _ H) in *.
+  rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
++ inv H5.
+  rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0. rewrite (Vptrofs_inj _ _ SZ0); trivial.
++ inv H3; inv H5.
+  rewrite LB0 in LB; inv LB; trivial.
+Qed.
+
+Inductive asm_ev_step ge: state -> mem -> list mem_event -> state -> mem -> Prop :=
   | exec_step_internal:
-      forall b ofs f i rs m rs' m' T,
+      forall b ofs f i rs m1 m rs' m1' m' T,
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some i ->
       exec_instr ge f i rs m = Next rs' m' ->
       drf_instr ge (fn_code f) i rs m = T ->
-      asm_ev_step ge rs m (option_list_to_list T) rs' m'
+      asm_ev_step ge (State rs m1) m (option_list_to_list T) (State rs' m1') m'
   | exec_step_builtin:
-      forall b ofs f ef args res rs m vargs t vres rs' m',
+      forall b ofs f ef args res rs m1 m vargs t T vres rs' m1' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
       eval_builtin_args ge rs (rs RSP) m args vargs ->
       builtin_event ef m vargs t ->
       ev_elim m t m' ->
-      external_call ef ge vargs m nil vres m' ->
+  (* Must it be the case that builtins don't produce trace events? *)
+      external_call ef ge vargs m (*nil*) T vres m' ->
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      asm_ev_step ge rs m t rs' m'.
+      asm_ev_step ge (State rs m1) m t (State rs' m1') m'.
 
-Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*):
+Lemma asm_ev_ax1 g (Hsafe : safe_genv g) (*(HFD: helper_functions_declared g hf)*):
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), 
-      corestep (Asm_mem_sem g (*hf*)) g c m c' m'.
+      corestep (Asm_mem_sem g Hsafe (*hf*)) c m c' m'.
 Proof.
- induction 1; try contradiction.
- econstructor; eauto.
- econstructor 2; eauto.
+ induction 1.
+ - econstructor; [econstructor; eauto | simpl].
+   rewrite H.
+   destruct (Ptrofs.eq_dec _ _); auto.
+   unfold fundef; rewrite H0; auto.
+ - econstructor; [econstructor 2; eauto | simpl].
+   rewrite H.
+   destruct (Ptrofs.eq_dec _ _); auto.
+   unfold fundef; rewrite H0; auto.
 Qed.
 
-Lemma asm_ev_ax2 g: forall c m c' m' (CS:corestep (Asm_mem_sem g (*hf*)) g c m c' m'),
+Lemma asm_ev_ax2 g (Hsafe : safe_genv g) :
+  forall c m c' m' (CS:corestep (Asm_mem_sem g Hsafe (*hf*)) c m c' m'),
    exists T, asm_ev_step g c m T c' m'.
-Proof. induction 1; try contradiction.
-*
- econstructor; eauto. econstructor; eauto.
-*
-  econstructor. econstructor 2; eauto.
+Proof. inversion 1; subst.
+  destruct c, c'; simpl in *.
+  inv H.
+- eexists; econstructor; eauto.
+- exploit Hsafe; eauto.
+  destruct ef; intro; subst; try solve [exists nil; econstructor 2; eauto; constructor; auto].
+  + inv H10.
+    pose proof (Mem.store_storebytes _ _ _ _ _ _ H2).
+    eexists; econstructor 2; eauto; [eapply BE_malloc; eauto | | econstructor; eauto].
+    eexists; split; eauto.
+    eexists; split; simpl; eauto.
+  + inv H10.
+    pose proof (Mem.load_loadbytes _ _ _ _ _ H1) as (? & ? & ?).
+    eexists; econstructor 2; eauto; [eapply BE_free; eauto | | econstructor; eauto].
+    split; eauto.
+    eexists; split; simpl; eauto.
+    rewrite H3; auto.
+  + inv H10.
+    eexists; econstructor 2; eauto; [eapply BE_memcpy; eauto | | econstructor; eauto].
+    split; eauto.
+    eexists; split; simpl; eauto.
+- simpl in *.
+  rewrite H5 in H0.
+  destruct (Ptrofs.eq_dec _ _); [|contradiction].
+  rewrite H6 in H0.
+  apply get_extcall_arguments_spec in H8; rewrite H8 in H0; discriminate.
 Qed.
 
 Lemma asm_ev_fun g: forall c m T' c' m' T'' c'' m''
     (Estep': asm_ev_step g c m T' c' m') (Estep'': asm_ev_step g c m T'' c'' m''), T' = T''.
 Proof. intros.
-inv Estep'; inv Estep''; trivial; try contradiction; try congruence.
-rewrite H in H3; symmetry in H3; inv H3.
-rewrite H0 in H4; symmetry in H4; inv H4.
-rewrite H1 in H5; inv H5.
+inv Estep'; inv Estep''; trivial; try contradiction; try congruence;
+  repeat match goal with H1 : ?a = _, H2 : ?a = _ |- _ => rewrite H1 in H2; inv H2 end.
 inv H2.
-rewrite H in H6; symmetry in H6; inv H6.
-rewrite H0 in H7; symmetry in H7; inv H7.
-rewrite H1 in H8; inv H8.
-inv H9.
-rewrite H in H6; symmetry in H6; inv H6.
-rewrite H0 in H7; symmetry in H7; inv H7.
-rewrite H1 in H8; inv H8.
-pose proof (eval_builtin_args_determ H2 H9). subst vargs0.
-clear - H3 H10.
+inv H11.
+pose proof (eval_builtin_args_determ H2 H11). subst vargs0.
+clear - H3 H12.
 eapply builtin_event_determ; eauto.
 Qed.
 
-Lemma asm_ev_elim g: forall c m T c' m' 
+Lemma asm_ev_elim g (Hsafe : safe_genv g): forall c m T c' m' 
      (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
 Proof.
 intros.
-inv Estep; try contradiction.
-*
+inv Estep; try contradiction; auto.
 clear - H2.
 destruct i; inv H2;
   try solve [simpl; eexists; split; eauto];
@@ -807,9 +886,9 @@ try solve [
 
   - (*Pallocframe*)
     destruct (Mem.alloc m 0 sz) eqn:?H.
-    destruct (Mem.store Mptr m0 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link)) (c RSP)) eqn:?H;
+    destruct (Mem.store Mptr m0 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link)) (rs RSP)) eqn:?H;
       try discriminate.
-    destruct (Mem.store Mptr m1 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra))  (c RA)) eqn:?H;
+    destruct (Mem.store Mptr m1 b (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_ra)) (rs RA)) eqn:?H;
       try discriminate.
     inv H0.
     apply Mem.store_storebytes in H1.
@@ -820,9 +899,9 @@ try solve [
     econstructor. split. eassumption.
     econstructor.
   - (*Pfreeframe*)
-    destruct (Mem.loadv Mptr m (Val.offset_ptr (c RSP) ofs_ra)) eqn:?H; try discriminate.
-    destruct (Mem.loadv Mptr m (Val.offset_ptr (c RSP) ofs_link)) eqn:?H; try discriminate.
-    destruct (c RSP); try discriminate.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_ra)) eqn:?H; try discriminate.
+    destruct (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_link)) eqn:?H; try discriminate.
+    destruct (rs RSP); try discriminate.
     destruct (Mem.free m b 0 sz) eqn:?H; inv H0.
     simpl.
     destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes1 [Bytes1 LD1]].
@@ -833,8 +912,6 @@ try solve [
     econstructor. trivial.
     econstructor. split. simpl. rewrite H2; trivial.
     econstructor.
-*
- auto.
 Qed.
 
 (*
@@ -930,7 +1007,7 @@ Proof.
  assert (m1'=m2') by congruence. subst m2'. eauto.
 Qed.
 
-Lemma eval_builtin_arg_mem {A} ge (rs: A -> val) sp m a v (EV: eval_builtin_arg ge rs sp m a v):
+(*Lemma eval_builtin_arg_mem {A} ge (rs: A -> val) sp m a v (EV: eval_builtin_arg ge rs sp m a v):
   forall mm, eval_builtin_arg ge rs sp mm a v.
 Proof.
   induction EV; intro; econstructor; auto.
@@ -990,7 +1067,7 @@ Proof.
   destruct (HEV2 _ _ EV2') as [? HE2]; subst.
   split; trivial.
   constructor; trivial.
-Qed.
+Qed.*)
 
 Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
       ev_elim m T m' /\ (forall mm mm', ev_elim mm T mm' -> exists cc', asm_ev_step g c mm T cc' mm').
@@ -1439,8 +1516,8 @@ destruct i; inv H2; try solve [split;
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pallocframe*)
-    remember (Mem.alloc m 0 sz) as a; symmetry in Heqa; destruct a as [m1 stk].
-    remember (Mem.store Mptr m1 stk
+    remember (Mem.alloc m 0 sz) as a; symmetry in Heqa; destruct a as [ma stk].
+    remember (Mem.store Mptr ma stk
          (Ptrofs.unsigned (Ptrofs.add Ptrofs.zero ofs_link))
          (rs RSP)) as p.
     destruct p; try discriminate; symmetry in Heqp.
@@ -1486,8 +1563,9 @@ destruct i; inv H2; try solve [split;
 -
  split; auto.
  intros.
- inv H3.
- + inv H7.
+(* inv H3.
+ + inv H2.
+   inv H9.
   eexists; eapply exec_step_builtin; try eassumption; try eassumption; eauto.
   destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H5) as [EV EVS].
   inversion H6; subst ef.
@@ -1585,13 +1663,13 @@ destruct i; inv H2; try solve [split;
    * econstructor. split; eassumption.
    * intros mm mm' EV'. inv EV'. destruct H3.
      exploit store_args_rec_transfer. eassumption. eassumption. eassumption. intros SAR.
-     eexists. econstructor; try eassumption.*)
+     eexists. econstructor; try eassumption.*)*)
  admit.   (* difficulty here... *)
 Admitted.
 
-Program Definition Asm_EvSem (ge : genv) : @EvSem genv regset.
+Program Definition Asm_EvSem (ge : genv) (Hsafe : safe_genv ge) : @EvSem state.
 Proof.
-eapply Build_EvSem with (msem := Asm_mem_sem ge (*hf*)) (ev_step:=asm_ev_step).
+eapply Build_EvSem with (msem := Asm_mem_sem ge Hsafe (*hf*)) (ev_step:=asm_ev_step ge).
 + intros. eapply asm_ev_ax1; try eassumption. (*helper_functions declared*)
 + eapply asm_ev_ax2; eassumption.
 + eapply asm_ev_fun; eassumption.

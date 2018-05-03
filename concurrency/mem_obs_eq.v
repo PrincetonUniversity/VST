@@ -3452,8 +3452,10 @@ Module CoreInjections.
         core_inj: memren -> semC -> semC -> Prop;
 
         core_inj_ext:
-          forall m m' c c' (f : memren),
-            (* ge_wd f ge -> *)
+          forall m m' c c' (f fg : memren)
+            (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
+            (Hge_wd: ge_wd fg the_ge)
+            (Hincr: ren_incr fg f),
             valid_mem m ->
             (* domain_memren f m -> *)
             core_inj f c c' ->
@@ -3478,8 +3480,10 @@ Module CoreInjections.
         (* Nick: There was no signature back when I wrote this, but it doesn't matter, this only specifies that they will have similar return values, not what the return value is *)
         core_inj_after_ext:
           forall c cc c' (ov1 : option val) m m'
-            (f : memren),
-            (* ge_wd f ge -> *)
+            (f fg : memren)
+            (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
+            (Hge_wd: ge_wd fg the_ge)
+            (Hincr: ren_incr fg f),
             core_inj f c c' ->
             mem_obs_eq f m m' -> 
             match ov1 with
@@ -3546,7 +3550,7 @@ Module CoreInjections.
             core_inj f'' c' c'';
 
         corestep_obs_eq:
-          forall cc cf cc' mc mf mc' f fg the_ge
+          forall cc cf cc' mc mf mc' f fg
             (Hobs_eq: mem_obs_eq f mc mf)
             (Hcode_eq: core_inj f cc cf)
             (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))

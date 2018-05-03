@@ -32,8 +32,7 @@ Section ClightSEM.
   (* We might want to define this properly or
      factor the machines so we don't need events here. *)
 
-  (* This should be a version of CLN_memsem annotated with memory events. 
-     Or should we just put the empty list of events at every step? *)
+  (* This should be a version of CLN_memsem annotated with memory events. *)
   Program Definition CLN_evsem ge : @EvSem G C := {| msem := CLN_memsem ge |}.
   Next Obligation.
   Admitted.
@@ -67,6 +66,6 @@ Section ClightSEM.
       end.
   Proof. auto. Qed.
 
-  Instance ClightSem ge : Semantics := { semG := G; semC := C; semSem := CLN_evsem ge }.
+  Instance ClightSem ge : Semantics := { semG := G; semC := C; semSem := CLN_evsem ge; the_ge := ge }.
 
 End ClightSEM.

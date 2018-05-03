@@ -13,6 +13,7 @@ Class Semantics:=
     semC: Type;
     semSem: @EvSem semC;
     (* getEnv : semG -> Genv.t semF semV *)
+    the_ge: semG
   }.
 
 Class Resources:=
