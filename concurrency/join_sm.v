@@ -186,7 +186,7 @@ Proof.
   rewrite map1.
   case => //=.
 Qed.
-
+(*
 Lemma join_sm_wd (mu1 : Inj.t) (mu2 : Inj.t) :
   DisjointLS mu1 mu2 ->
   DisjointLT mu1 mu2 ->
@@ -232,6 +232,7 @@ move=> b; move/andP=> [].
 move/frgntgt_sub_exttgt; rewrite/in_mem/= => ->.
 by move/frgntgt_sub_exttgt; rewrite/in_mem/= => ->.
 Qed.
+ *)
 
 (* The following definitions/lemmas extend [join2] to nonempty sequences  *)
 (* of struct. injections.                                                 *)
@@ -417,6 +418,7 @@ rewrite /= /consistent=> A b1 b2 b2' d2 d2' B C.
 by case: (A _ _ _ _ _ C B)=> -> ->.
 Qed.
 
+(*
 Lemma join_all_wd mu (mus : seq Inj.t) :
   AllDisjoint locBlocksSrc $ map Inj.mu (mu :: mus) ->
   AllDisjoint locBlocksTgt $ map Inj.mu (mu :: mus) ->
@@ -438,6 +440,7 @@ by apply: join_all_disjoint_src.
 by apply: join_all_disjoint_tgt.
 by apply join_all_consistent.
 Qed.
+*)
 
 Lemma join_sm_frgn (mu1 mu2 : Inj.t) b :
   frgnBlocksSrc mu1 b ->
@@ -510,6 +513,7 @@ Qed.
 Lemma join_all_id mu : join_all mu [::] = mu.
 Proof. by []. Qed.
 
+(*
 Lemma join_all_preserves_globals
       F V (ge : Genv.t F V) (mu : Inj.t) (mus : seq Inj.t) :
   Events.meminj_preserves_globals ge (extern_of mu) ->
@@ -533,6 +537,7 @@ change (Events.meminj_preserves_globals ge
 apply: join_sm_preserves_globals=> //.
 by apply: IH.
 Qed.
+ *)
 
 Lemma join_all_isGlob F V (ge : Genv.t F V) (mu : Inj.t) (mus : seq Inj.t) :
  (forall b, isGlobalBlock ge b -> frgnBlocksSrc mu b) ->
@@ -597,15 +602,18 @@ move: mu m1; elim: mus=> // mu' mus' IH mu m1 A /= []B C.
 by apply: join_smvalid_src=> //; apply: IH.
 Qed.
 
+(*
 Lemma DisjointLS_restrict mu1 mu2 X Y :
   DisjointLS mu1 mu2 ->
   DisjointLS (restrict_sm mu1 X) (restrict_sm mu2 Y).
 Proof. by case: mu1; case: mu2. Qed.
 
+
 Lemma DisjointLT_restrict mu1 mu2 X Y :
   DisjointLT mu1 mu2 ->
   DisjointLT (restrict_sm mu1 X) (restrict_sm mu2 Y).
 Proof. by case: mu1; case: mu2. Qed.
+*)
 
 Lemma DisjointLS_E1 mu1 mu2 b :
   DisjointLS mu1 mu2 ->
@@ -702,7 +710,7 @@ elim: mus=> // mu0 mus' IH /= []A B C D E []F G.
 split; first by apply: (DisjointLT_incr A C D E F).
 by apply: IH.
 Qed.
-
+(*
 Lemma vis_join_sm mu1 mu2 :
   vis (join_sm mu1 mu2)
   = [predU [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
@@ -716,7 +724,7 @@ Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; left. Qed.
 
 Lemma frgnBlocksSrc_vis mu : {subset (frgnBlocksSrc mu) <= vis mu}.
 Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; right. Qed.
-
+*)
 Lemma join_sm_incr mu1 mu1' mu2 mu2' :
   disjoint (local_of mu1') (local_of mu2') ->
   intern_incr mu1 mu1' ->
@@ -826,7 +834,7 @@ rewrite/restrict; case B: (j b)=> // [[b' ofs]|].
 by move: A; move/restrictD_None; move/(_ b' ofs B)=> ->.
 by case: (X b).
 Qed.
-
+(*
 Lemma join_sm_restrict mu1 mu2 X :
   restrict_sm (join_sm mu1 mu2) X
   = join_sm (restrict_sm mu1 X) (restrict_sm mu2 X).
@@ -841,7 +849,7 @@ by rewrite !restrict_sm_frgnBlocksSrc.
 by rewrite !restrict_sm_frgnBlocksTgt.
 by rewrite -!join2_restrict !restrict_sm_extern.
 Qed.
-
+*)
 Lemma disjoint_restrict j k X :
   disjoint j k ->
   disjoint (restrict j X) (restrict k X).
@@ -871,7 +879,7 @@ rewrite notin_predD; move/orP; case.
 by rewrite/in_mem/= D.
 by rewrite/in_mem/= C.
 Qed.
-
+(*
 Lemma intern_incr_restrict mu mu' X X' :
   intern_incr mu mu' ->
   {subset X <= X'} ->
@@ -915,6 +923,7 @@ have J: locBlocksSrc mu1' b.
   by move: E; rewrite G I=> /=; move/orP; case=> //; move/orP; case.
 by split.
 Qed.
+
 
 Lemma join_sm_vis_dom mu1 (mu1' : Inj.t) mu2 b :
   intern_incr mu1 mu1' ->
@@ -1946,7 +1955,7 @@ by rewrite join2A (join2C (extern_of a)) -join2A.
 Qed.
 
 End join_all_shift.
-
+*)
 Definition replace_externs' (mu : SM_Injection) (eSrc' eTgt' : block -> bool) :=
   match mu with
     | {| locBlocksSrc := locBSrc; locBlocksTgt := locBTgt; pubBlocksSrc := pSrc;
@@ -2018,6 +2027,7 @@ rewrite replace_externs'_extBlocksSrc.
 rewrite replace_externs'_extBlocksTgt.
 Abort. (*FIXME*)
 
+(*
 Lemma vis_restrict_sm mu X : vis (restrict_sm mu X) = vis mu.
 Proof.
 by extensionality b; case: mu.
@@ -2046,9 +2056,9 @@ rewrite /sharedTgt /DomTgt=> b; move/orP; case.
 by move/(frgnBlocksExternTgt _ (Inj_wd _) _)=> ->; apply/orP; right.
 by move/(pubBlocksLocalTgt _ (Inj_wd _) _)=> ->; apply/orP; left.
 Qed.
-
+*)
 Section getBlocks_lems.
-
+(*
 Context args1 args2 j (vinj : Val.inject_list j args1 args2).
 
 Lemma getBlocks_tail v vs b :
@@ -2095,5 +2105,5 @@ move=> A; inversion 1; subst; case/andP=> B C.
 case: (IH _ H4 C A)=> x []y []? ?; exists x,y; split=> //.
 by apply: getBlocks_tail.
 Qed.
-
+*)
 End getBlocks_lems.

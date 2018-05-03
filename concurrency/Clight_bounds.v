@@ -199,7 +199,7 @@ Lemma CLight_step_mem_bound' ge c m c' m':
   veric.Clight_new.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
 Proof.
   intros.
-  apply (memsem_preserves (CLN_memsem ge) _ preserve_bnd _ _ _ _ _ H H0).
+  apply (memsem_preserves (CLN_memsem ge) _ preserve_bnd _ _ _ _ H H0).
 Qed.
 
 (*This proof is already in juicy_machine.

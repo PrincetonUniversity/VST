@@ -29,6 +29,7 @@ Record disjinv mu0 mu : Type :=
                       pub_of mu0 b1 = Some (b2, d)
   ; disj_consistent : Consistent mu0 mu }.
 
+(*
 Lemma disjinv_restrict mu0 mu X :
   disjinv mu0 mu -> disjinv (restrict_sm mu0 X) (restrict_sm mu X).
 Proof.
@@ -288,3 +289,4 @@ Qed.
 (*   sm_inject_separated mu mu' m1 m2  ->  *)
 (*   sm_valid mu0 m10 m20 ->  *)
 (*   disjinv mu0 mu'. *)
+*)

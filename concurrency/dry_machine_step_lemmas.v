@@ -81,9 +81,9 @@ Module StepLemmas.
 
   (** [suspend_thread] is deterministic*)
   Lemma suspend_step_det:
-    forall ge m tp tp' tp'' i (cnt: containsThread tp i)
-      (Hstep: suspend_thread ge m cnt tp')
-      (Hstep': suspend_thread ge m cnt tp''),
+    forall m tp tp' tp'' i (cnt: containsThread tp i)
+      (Hstep: suspend_thread m cnt tp')
+      (Hstep': suspend_thread m cnt tp''),
       tp' = tp''.
   Proof.
     intros.
@@ -94,8 +94,8 @@ Module StepLemmas.
 
   (** [suspend_thread] does not change the number of threads*)
   Lemma suspend_containsThread:
-    forall ge m tp tp' i j (cnti: containsThread tp i)
-      (Hsuspend: suspend_thread ge m cnti tp'),
+    forall m tp tp' i j (cnti: containsThread tp i)
+      (Hsuspend: suspend_thread m cnti tp'),
       containsThread tp j <-> containsThread tp' j.
   Proof.
     intros; inversion Hsuspend; subst.
@@ -105,9 +105,9 @@ Module StepLemmas.
 
   (** [mem_compatible] is preserved by [suspend_thread]*)
   Corollary suspend_compatible:
-    forall ge tp tp' m i (cnt: containsThread tp i)
+    forall tp tp' m i (cnt: containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (Hsuspend: suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread m cnt tp'),
       mem_compatible tp' m.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -124,9 +124,9 @@ Module StepLemmas.
   Qed.
 
   Corollary gsoThreadC_suspend:
-    forall ge m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
+    forall m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j) (Hneq: i <> j)
-      (Hsuspend: suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread m cnt tp'),
       getThreadC cntj = getThreadC cntj'.
   Proof.
     intros; inversion Hsuspend; subst;
@@ -134,9 +134,9 @@ Module StepLemmas.
   Qed.
   
   Lemma gsoThreadR_suspend:
-    forall ge m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
+    forall m tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j)
-      (Hsuspend: suspend_thread ge m cnt tp'),
+      (Hsuspend: suspend_thread m cnt tp'),
       getThreadR cntj = getThreadR cntj'.
   Proof.
     intros. inversion Hsuspend. subst.
@@ -145,10 +145,10 @@ Module StepLemmas.
 
   (** [invariant] is preserved by [suspend_thread]*)
   Lemma suspend_invariant:
-    forall ge m tp tp' i
+    forall m tp tp' i
       (pff: containsThread tp i)
       (Hinv: invariant tp)
-      (Hsuspend: suspend_thread ge m pff tp'),
+      (Hsuspend: suspend_thread m pff tp'),
       invariant tp'.
   Proof.
     intros.
@@ -158,9 +158,9 @@ Module StepLemmas.
 
   (** [lockRes] is not changed by [suspend_thread]*)
   Lemma suspend_lockRes:
-    forall ge m tp tp' i
+    forall m tp tp' i
       (pff: containsThread tp i)
-      (Hsuspend: suspend_thread ge m pff tp'),
+      (Hsuspend: suspend_thread m pff tp'),
       lockRes tp = lockRes tp'.
   Proof.
     intros.
@@ -170,8 +170,8 @@ Module StepLemmas.
   Qed.
 
   Lemma suspend_lockPool :
-    forall ge m (tp tp' : t) i (pfc : containsThread tp i)
-      (Hsuspend: suspend_thread ge m pfc tp') addr,
+    forall m (tp tp' : t) i (pfc : containsThread tp i)
+      (Hsuspend: suspend_thread m pfc tp') addr,
       lockRes tp addr = lockRes tp' addr.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -220,8 +220,8 @@ Module StepLemmas.
   (** Any state that steps, requires its threadpool and memory to be
   [mem_compatible]*)
   Lemma step_mem_compatible:
-    forall the_ge U tr tp m U' tr' tp' m'
-      (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+    forall U tr tp m U' tr' tp' m'
+      (Hstep: MachStep (U, tr, tp) m (U', tr', tp') m'),
       mem_compatible tp m.
   Proof.
     intros.
@@ -232,8 +232,8 @@ Module StepLemmas.
 
   (** Any state that steps satisfies the [invariant] *)
   Lemma step_invariant:
-    forall the_ge U tr tp m U' tr' tp' m'
-      (Hstep: MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+    forall U tr tp m U' tr' tp' m'
+      (Hstep: MachStep (U, tr, tp) m (U', tr', tp') m'),
       invariant tp.
   Proof.
     intros.
@@ -244,9 +244,9 @@ Module StepLemmas.
   Qed.
 
   Lemma step_containsThread :
-    forall the_ge tp tp' m m' i j U tr tr'
+    forall tp tp' m m' i j U tr tr'
       (cntj: containsThread tp j)
-      (Hstep: MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
+      (Hstep: MachStep (i :: U, tr, tp) m (U, tr', tp') m'),
       containsThread tp' j.
   Proof.
     intros.
@@ -268,11 +268,11 @@ Module StepLemmas.
   Qed.
 
   Lemma gsoThreadR_step:
-    forall the_ge tp tp' m m' i j U tr tr'
+    forall tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
-      (Hstep: MachStep the_ge (i :: U,tr, tp) m (U,tr', tp') m'),
+      (Hstep: MachStep (i :: U,tr, tp) m (U,tr', tp') m'),
       getThreadR pfj = getThreadR pfj'.
   Proof.
     intros.    
@@ -286,13 +286,13 @@ Module StepLemmas.
   Qed.
 
   Lemma permission_at_step:
-    forall the_ge tp tp' m m' i j U tr tr'
+    forall tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
       (Hcomp: mem_compatible tp m)
       (Hcomp': mem_compatible tp' m')
-      (Hstep: MachStep the_ge (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
+      (Hstep: MachStep (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
       permission_at (restrPermMap ((compat_th _ _ Hcomp) pfj).1) b ofs Cur =
       permission_at (restrPermMap ((compat_th _ _ Hcomp') pfj').1) b ofs Cur.
   Proof.
@@ -303,10 +303,10 @@ Module StepLemmas.
   Qed.
 
   Lemma safeC_invariant:
-    forall tpc mc n the_ge
+    forall tpc mc n
       (Hn: n > 0)
       (Hsafe: forall U,
-          HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
+          HybridCoarseMachine.csafe (U,[::],tpc) mc n),
       invariant tpc.
   Proof.
     intros.
@@ -319,10 +319,10 @@ Module StepLemmas.
   Qed.
 
   Lemma safeC_compatible:
-    forall tpc mc n the_ge
+    forall tpc mc n
       (Hn: n > 0)
       (Hsafe: forall U,
-          HybridCoarseMachine.csafe the_ge (U,[::],tpc) mc n),
+          HybridCoarseMachine.csafe (U,[::],tpc) mc n),
       mem_compatible tpc mc.
   Proof.
     intros.
@@ -337,10 +337,10 @@ Module StepLemmas.
   Opaque containsThread.
 
   Lemma step_schedule:
-    forall the_ge tpc tpc' mc mc' i U1 U2 U1' tr tr'
-      (Hstep: MachStep the_ge (i :: U1, tr, tpc) mc (U2, tr ++ tr', tpc') mc'),
+    forall tpc tpc' mc mc' i U1 U2 U1' tr tr'
+      (Hstep: MachStep (i :: U1, tr, tpc) mc (U2, tr ++ tr', tpc') mc'),
       exists U2',
-      MachStep the_ge (i :: U1', tr, tpc) mc (U2', tr ++ tr', tpc') mc'.
+      MachStep (i :: U1', tr, tpc) mc (U2', tr ++ tr', tpc') mc'.
   Proof.
     intros.
     inversion Hstep; subst; simpl in *;
@@ -376,8 +376,7 @@ Module StepLemmas.
     Section InternalSteps.
 
       Context {Sem : Semantics}
-              {SemAx : SemAxioms}
-              {ge  : semG}.
+              {SemAx : SemAxioms}.
 
       Notation schedule := (seq nat).
 
@@ -390,9 +389,9 @@ Module StepLemmas.
           they mimic fine-grained internal steps *)
       Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
                  (Hcomp: mem_compatible tp m) tp' m' :=
-      (exists ev, threadStep ge cnt Hcomp tp' m' ev) \/
-      (resume_thread ge m cnt tp' /\ m = m') \/
-      (start_thread ge m cnt tp' m').
+      (exists ev, threadStep cnt Hcomp tp' m' ev) \/
+      (resume_thread m cnt tp' /\ m = m') \/
+      (start_thread m cnt tp' m').
 
     (* For now we don't emit events from internal_execution*)
     (*NOTE: we will probably never need to do so*)
@@ -548,7 +547,7 @@ Module StepLemmas.
     Lemma dry_step_compatible :
       forall (tp tp' : t) m m' (i : nat) ev (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hdry: dry_step ge pf Hcompatible tp' m' ev),
+        (Hdry: dry_step pf Hcompatible tp' m' ev),
         mem_compatible tp' m'.
     Proof.
       intros.
@@ -559,7 +558,7 @@ Module StepLemmas.
     Corollary resume_compatible :
       forall (tp tp' : t) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hresume: resume_thread ge m pf tp'),
+        (Hresume: resume_thread m pf tp'),
         mem_compatible tp' m.
     Proof.
       intros.
@@ -572,7 +571,7 @@ Module StepLemmas.
     Corollary start_compatible :
       forall (tp tp' : t) m m' (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hstart: start_thread ge m pf tp' m'),
+        (Hstart: start_thread m pf tp' m'),
         mem_compatible tp' m'.
     Proof.
       intros.
@@ -1677,7 +1676,7 @@ Module StepLemmas.
 
     End InternalSteps.
 
-    Arguments internal_step {Sem} ge {tid} {tp} {m}.
+    Arguments internal_step {Sem} {tid} {tp} {m}.
     Arguments internal_execution {Sem} ge.
     
 End InternalSteps.
@@ -1695,8 +1694,7 @@ Module StepType.
   
   Section StepType.
     Context {Sem : Semantics}
-            {Sch: Scheduler}
-            {ge: semG}.
+            {Sch: Scheduler}.
 
     Existing Instance dryResources.
     Existing Instance OrdinalPool.OrdinalThreadPool.
@@ -1729,7 +1727,7 @@ Module StepType.
   Lemma internal_step_type :
     forall  i tp tp' m m' (cnt : containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (Hstep_internal: internal_step ge cnt Hcomp tp' m'),
+      (Hstep_internal: internal_step cnt Hcomp tp' m'),
       let mrestr := restrPermMap (((compat_th _ _ Hcomp) cnt).1) in
       cnt$mrestr @ I.
   Proof.
@@ -1738,7 +1736,7 @@ Module StepType.
     destruct Hstep_internal as [[? Hcstep] | [[Hresume Heq] | [Hstart Heq]]].
     inversion Hcstep. subst. rewrite Hcode.
     apply ev_step_ax1 in Hcorestep.
-    assert (H1:= corestep_not_at_external semSem _ _ _ _ _ Hcorestep).
+    assert (H1:= corestep_not_at_external semSem _ _ _ _ Hcorestep).
     rewrite H1.
     right. split; [reflexivity |].
     intros i0 Hcontra.
@@ -1757,7 +1755,7 @@ Module StepType.
       (cnti': containsThread tp' i)
       (Hcomp: mem_compatible tp m)
       (Hcomp': mem_compatible tp' m')
-      (Hinternal: internal_step ge cnti Hcomp tp' m'),
+      (Hinternal: internal_step cnti Hcomp tp' m'),
       let mrestr := restrPermMap (((compat_th _ _ Hcomp') cnti').1) in
       ~ (cnti'$mrestr @ E).
   Proof.
@@ -1776,7 +1774,7 @@ Module StepType.
       (cnti': containsThread tp' i)
       (Hin: List.In i xs)
       (Hcomp': mem_compatible tp' m')
-      (Hexec: internal_execution ge [seq x <- xs | x == i] tp m tp' m'),
+      (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       let mrestr := restrPermMap (((compat_th _ _ Hcomp') cnti').1) in
       ~ (cnti'$mrestr @ E).
   Proof.
@@ -1817,7 +1815,7 @@ Module StepType.
             {semAx: CoreLanguage.SemAxioms}
             {dilMem: DiluteMem}.
     
-  Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem) ge)).
+  Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU init_mem))).
 
   (*TODO: maybe move to tactics *)
   (** Solves absurd cases from fine-grained internal steps *)

@@ -113,7 +113,7 @@ Module DryHybridMachine.
       }.
 
     (** Steps*)
-    Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
+    Inductive dry_step {tid0 tp m} (cnt: containsThread tp tid0)
               (Hcompatible: mem_compatible tp m) :
       thread_pool -> mem -> seq.seq mem_event -> Prop :=
     | step_dry :
@@ -122,11 +122,11 @@ Module DryHybridMachine.
           (Hrestrict_pmap: restrPermMap (Hcompatible tid0 cnt).1 = m1)
           (Hinv: invariant tp)
           (Hcode: getThreadC cnt = Krun c)
-          (Hcorestep: ev_step semSem genv c m1 ev c' m')
+          (Hcorestep: ev_step semSem c m1 ev c' m')
           (** the new data resources of the thread are the ones on the
            memory, the lock ones are unchanged by internal steps*)
           (Htp': tp' = updThread cnt (Krun c') (getCurPerm m', (getThreadR cnt).2)),
-          dry_step genv cnt Hcompatible tp' m' ev.
+          dry_step cnt Hcompatible tp' m' ev.
 
     Definition option_function {A B} (opt_f: option (A -> B)) (x:A): option B:=
       match opt_f with
@@ -135,7 +135,7 @@ Module DryHybridMachine.
       end.
     Infix "??" := option_function (at level 80, right associativity).
 
-    Inductive ext_step {isCoarse:bool} (genv:G) {tid0 tp m}
+    Inductive ext_step {isCoarse:bool} {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
@@ -173,7 +173,7 @@ Module DryHybridMachine.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) newThreadPerm)
             (** acquiring the lock leaves empty permissions at the resource pool*)
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) (empty_map, empty_map)),
-            ext_step genv cnt0 Hcompat tp'' m'
+            ext_step cnt0 Hcompat tp'' m'
                      (acquire (b, Ptrofs.intval ofs)
                               (Some virtueThread))
 
@@ -218,7 +218,7 @@ Module DryHybridMachine.
                                    (computeMap (getThreadR cnt0).1 virtueThread.1,
                                     computeMap (getThreadR cnt0).2 virtueThread.2))
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) virtueLP),
-            ext_step genv cnt0 Hcompat tp'' m'
+            ext_step cnt0 Hcompat tp'' m'
                      (release (b, Ptrofs.intval ofs)
                               (Some virtueLP))
     | step_create :
@@ -247,7 +247,7 @@ Module DryHybridMachine.
             (Hangel2: permMapJoin newThreadPerm.2 threadPerm'.2 (getThreadR cnt0).2)
             (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef) threadPerm')
             (Htp': tp' = addThread tp_upd (Vptr b ofs) arg newThreadPerm),
-            ext_step genv cnt0 Hcompat tp' m
+            ext_step cnt0 Hcompat tp' m
                      (spawn (b, Ptrofs.intval ofs)
                             (Some (getThreadR cnt0, virtue1)) (Some virtue2))
 
@@ -284,7 +284,7 @@ Module DryHybridMachine.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
             (** the lock has no resources initially *)
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) (empty_map, empty_map)),
-            ext_step genv cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
+            ext_step cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
 
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata rmap
@@ -326,7 +326,7 @@ Module DryHybridMachine.
                            LKSIZE_nat = pmap_tid'.1)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
             (Htp'': tp'' = remLockSet tp' (b, Ptrofs.intval ofs)),
-            ext_step genv cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
+            ext_step cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
     | step_acqfail :
         forall  c b ofs m1
            (Hinv : invariant tp)
@@ -338,16 +338,16 @@ Module DryHybridMachine.
            (Haccess: Mem.range_perm m1 b (Ptrofs.intval ofs) ((Ptrofs.intval ofs) + LKSIZE) Cur Readable)
            (** Lock is already acquired.*)
            (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
-          ext_step genv cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
+          ext_step cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
-    Definition threadStep (genv : G): forall {tid0 ms m},
+    Definition threadStep: forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> seq.seq mem_event -> Prop:=
-      @dry_step genv.
+      @dry_step.
 
     Lemma threadStep_equal_run:
-      forall g i tp m cnt cmpt tp' m' tr,
-        @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall i tp m cnt cmpt tp' m' tr,
+        @threadStep i tp m cnt cmpt tp' m' tr ->
         forall j,
           (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
           (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
@@ -379,20 +379,20 @@ Module DryHybridMachine.
           rewrite gsoThreadCode in running; auto.
     Qed.
 
-    Definition syncStep (isCoarse:bool) (genv :G) :
+    Definition syncStep (isCoarse:bool) :
       forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> sync_event -> Prop:=
-      @ext_step isCoarse genv.
+      @ext_step isCoarse.
 
     Lemma syncstep_equal_run:
-      forall b g i tp m cnt cmpt tp' m' tr,
-        @syncStep b g i tp m cnt cmpt tp' m' tr ->
+      forall b i tp m cnt cmpt tp' m' tr,
+        @syncStep b i tp m cnt cmpt tp' m' tr ->
         forall j,
           (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
           (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
     Proof.
-      intros b g i tp m cnt cmpt tp' m' tr H j; split.
+      intros b i tp m cnt cmpt tp' m' tr H j; split.
       - intros [cntj [ q running]].
         destruct (NatTID.eq_tid_dec i j).
         + subst j. generalize running; clear running.
@@ -528,8 +528,8 @@ Module DryHybridMachine.
     Qed.
 
     Lemma syncstep_not_running:
-      forall b g i tp m cnt cmpt tp' m' tr,
-        @syncStep b g i tp m cnt cmpt tp' m' tr ->
+      forall b i tp m cnt cmpt tp' m' tr,
+        @syncStep b i tp m cnt cmpt tp' m' tr ->
         forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
     Proof.
       intros.
@@ -624,8 +624,8 @@ Module DryHybridMachine.
 
 
     Lemma syncstep_equal_halted:
-      forall b g i tp m cnti cmpt tp' m' tr,
-        @syncStep b g i tp m cnti cmpt tp' m' tr ->
+      forall b i tp m cnti cmpt tp' m' tr,
+        @syncStep b i tp m cnti cmpt tp' m' tr ->
         forall j cnt cnt',
           (@threadHalted j tp cnt) <->
           (@threadHalted j tp' cnt').
@@ -706,9 +706,9 @@ Module DryHybridMachine.
                              mem_compatible
                              invariant
                              install_perm
-                             threadStep
+                             (@threadStep)
                              threadStep_equal_run
-                             syncStep
+                             (@syncStep)
                              syncstep_equal_run
                              syncstep_not_running
                              (@threadHalted)

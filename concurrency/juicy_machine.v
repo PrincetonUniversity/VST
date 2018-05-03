@@ -904,7 +904,7 @@ Qed.
         (juicyRestrictMaxCoh (acc_coh pr) (max_coh pr))
         (juicyRestrictAllocCoh (acc_coh pr) (all_coh pr)).
 
-    Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
+    Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
 
     Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR _ _ _ 0%nat tp _).
@@ -1115,7 +1115,7 @@ Qed.
       apply cnt_irr.
     Qed.
 
-    Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
+    Inductive juicy_step  {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem -> list mem_event -> Prop :=
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : C),
@@ -1123,16 +1123,16 @@ Qed.
                personal_mem (thread_mem_compatible Hcompatible cnt) = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
-            (Hcorestep: corestep juicy_sem genv c jm c' jm')
+            (Hcorestep: corestep juicy_sem c jm c' jm')
             (Htp': tp' = @updThread _ _ _ tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m'),
-            juicy_step genv cnt Hcompatible tp' m' [::].
+            juicy_step  cnt Hcompatible tp' m' [::].
 
     Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R) .
 
     Notation Kblocked := (threadPool.Kblocked).
     Open Scope Z_scope.
-    Inductive syncStep' {isCoarse: bool} (genv: semG) {tid0 tp m}
+    Inductive syncStep' {isCoarse: bool} {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
@@ -1167,7 +1167,7 @@ Qed.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) None )
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Ptrofs.intval ofs) None)
+            syncStep' cnt0 Hcompat tp''' m' (acquire (b, Ptrofs.intval ofs) None)
     | step_release :
         forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
           forall
@@ -1202,7 +1202,7 @@ Qed.
             (Htp'': tp'' =
                     updLockSet tp' (b, Ptrofs.intval ofs) (Some d_phi))
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Ptrofs.intval ofs) None)
+            syncStep' cnt0 Hcompat tp''' m' (release (b, Ptrofs.intval ofs) None)
     | step_create :
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs (* P Q *),
           forall
@@ -1219,7 +1219,7 @@ Qed.
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%coq_nat (addThread tp_upd vf arg d_phi)),
-            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
+            syncStep' cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
           let: phi := m_phi jm in
@@ -1246,7 +1246,7 @@ Qed.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
                     (updLockSet tp' (b, Ptrofs.intval ofs) None )),
-            syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
+            syncStep' cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi R phi',
           forall
@@ -1263,7 +1263,7 @@ Qed.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
                     (remLockSet tp' (b, Ptrofs.intval ofs) )),
-            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
+            syncStep' cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
 
     | step_acqfail :
         forall  c b ofs jm m1,
@@ -1281,16 +1281,16 @@ Qed.
             (sh:Share.t) psh(R:pred rmap)
             (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
-            syncStep' genv cnt0 Hcompat tp m (failacq (b,Ptrofs.intval ofs)).
+            syncStep' cnt0 Hcompat tp m (failacq (b,Ptrofs.intval ofs)).
 
-    Definition threadStep (genv:G): forall {tid0 ms m},
+    Definition threadStep : forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> list mem_event -> Prop:=
-      @juicy_step genv.
+      @juicy_step.
 
     Lemma threadStep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr,
-      @threadStep g i tp m cnt cmpt tp' m' tr ->
+    forall i tp m cnt cmpt tp' m' tr,
+      @threadStep i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
@@ -1330,20 +1330,20 @@ Qed.
           apply cnt_irr.
     Qed.
 
-    Definition syncStep (isCoarse:bool) (genv:G):
+    Definition syncStep (isCoarse:bool) :
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
                      thread_pool -> mem -> sync_event ->  Prop:=
-      @syncStep' isCoarse genv.
+      @syncStep' isCoarse.
 
 
   Lemma syncstep_equal_run:
-    forall b g i tp m cnt cmpt tp' m' tr,
-      @syncStep b g i tp m cnt cmpt tp' m' tr ->
+    forall b i tp m cnt cmpt tp' m' tr,
+      @syncStep b i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
   Proof.
-    intros b g i tp m cnt cmpt tp' m' tr H j; split.
+    intros b i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
       destruct (NatTID.eq_tid_dec i j).
       + subst j. generalize running; clear running.
@@ -1430,8 +1430,8 @@ Qed.
 
 
   Lemma syncstep_not_running:
-    forall b g i tp m cnt cmpt tp' m' tr,
-      @syncStep b g i tp m cnt cmpt tp' m' tr ->
+    forall b i tp m cnt cmpt tp' m' tr,
+      @syncStep b i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
   Proof.
     intros.
@@ -1470,8 +1470,8 @@ Qed.
   Qed.
 
   Lemma syncstep_equal_halted:
-    forall b g i tp m cnti cmpt tp' m' tr,
-      @syncStep b g i tp m cnti cmpt tp' m' tr ->
+    forall b i tp m cnti cmpt tp' m' tr,
+      @syncStep b i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').
@@ -1940,7 +1940,8 @@ Qed.
     Instance JuicyMachineShell : HybridMachineSig.MachineSig :=
       HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant
         (fun _ _ _ compat cnt m => m = install_perm compat cnt)
-        threadStep threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
+        (@threadStep)
+        threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
         (@threadHalted) threadHalt_update syncstep_equal_halted (*threadStep_not_unhalts*)
         init_mach.
 

@@ -77,10 +77,10 @@ by move/(_ erefl). by right. by left. by left.
 Qed.
 
 End Inj_lems.
-
+(*
 Lemma restrict_sm_domsrc mu b1 X :
   DomSrc (restrict_sm mu X) b1 -> DomSrc mu b1.
-Proof. by rewrite/restrict_sm; case: mu. Qed.
+Proof. by rewrite/restrict_sm; case: mu. Qed. 
 
 Lemma restrict_sm_domtgt mu b2 X :
   DomTgt (restrict_sm mu X) b2 -> DomTgt mu b2.
@@ -655,3 +655,4 @@ move=> b; case/orP; rewrite /DomSrc.
 by rewrite /in_mem /= => ->.
 by move/frgnsrc_sub_extsrc=> H; apply/orP; right.
 Qed.
+*)

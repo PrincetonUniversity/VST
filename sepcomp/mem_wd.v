@@ -222,8 +222,6 @@ Proof.
    rewrite Ptrofs.add_zero. reflexivity.
 Qed.
 
-Require Import VST.sepcomp.reach.
-
 Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type :=
   mk_valid_genv :
     (forall b, isGlobalBlock ge b=true -> val_valid (Vptr b Ptrofs.zero) m) ->

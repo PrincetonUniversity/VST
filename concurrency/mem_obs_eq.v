@@ -3552,9 +3552,9 @@ Module CoreInjections.
             (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
             (Hge_wd: ge_wd fg the_ge)
             (Hincr: ren_incr fg f)
-            (Hstep: corestep semSem the_ge cc mc cc' mc'),
+            (Hstep: corestep semSem cc mc cc' mc'),
           exists cf' mf' f',
-            corestep semSem the_ge cf mf cf' mf'
+            corestep semSem cf mf cf' mf'
             /\ core_inj f' cc' cf'
             /\ mem_obs_eq f' mc' mf'
             /\ ren_incr f f'
@@ -3589,7 +3589,7 @@ Module CoreInjections.
             (Hge_wd: ge_wd fg the_ge)
             (Hincr: ren_domain_incr fg f)
             (Hdomain: domain_memren f m)
-            (Hcorestep: corestep semSem the_ge c m c' m'),
+            (Hcorestep: corestep semSem c m c' m'),
             valid_mem m' /\
             (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
             forall f', domain_memren f' m' ->

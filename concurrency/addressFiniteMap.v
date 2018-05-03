@@ -8,7 +8,7 @@ Require Import compcert.common.Memtype.
 
 Require Import VST.msl.eq_dec.
 Require Import VST.msl.Coqlib2.
-Require Import VST.sepcomp.semantics_lemmas.
+(* Require Import VST.sepcomp.semantics_lemmas. *)
 Require Import VST.concurrency.sepcomp. Import SepComp.
 Require Import VST.concurrency.permissions.
 Require Import VST.concurrency.lksize.

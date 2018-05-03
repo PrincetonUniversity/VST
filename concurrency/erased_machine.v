@@ -56,17 +56,17 @@ Module BareMachine.
     Definition invariant (tp : thread_pool) := True.
 
     (** Steps*)
-    Inductive thread_step genv {tid0 tp m} (cnt: containsThread tp tid0)
+    Inductive thread_step {tid0 tp m} (cnt: containsThread tp tid0)
               (Hcompatible: mem_compatible tp m) :
       thread_pool -> mem -> seq mem_event -> Prop :=
     | step_thread :
         forall (tp':thread_pool) c m' (c' : C) ev
           (Hcode: getThreadC cnt = Krun c)
-          (Hcorestep: ev_step semSem genv c m ev c' m')
+          (Hcorestep: ev_step semSem c m ev c' m')
           (Htp': tp' = updThreadC cnt (Krun c')),
-          thread_step genv cnt Hcompatible tp' m' ev.
+          thread_step cnt Hcompatible tp' m' ev.
 
-    Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
+    Inductive ext_step {tid0 tp m} (*Can we remove genv from here?*)
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
@@ -77,7 +77,7 @@ Module BareMachine.
           (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.one))
           (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (acquire (b, Ptrofs.intval ofs) None)
+          ext_step cnt0 Hcompat tp' m' (acquire (b, Ptrofs.intval ofs) None)
 
     | step_release :
         forall (tp':thread_pool) c m' b ofs
@@ -86,7 +86,7 @@ Module BareMachine.
                          Some (UNLOCK, UNLOCK_SIG, Vptr b ofs::nil))
           (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (release (b, Ptrofs.intval ofs) None)
+          ext_step cnt0 Hcompat tp' m' (release (b, Ptrofs.intval ofs) None)
 
     | step_create :
         forall (tp_upd tp':thread_pool) c b ofs arg
@@ -95,7 +95,7 @@ Module BareMachine.
                          Some (CREATE, CREATE_SIG, Vptr b ofs::arg::nil))
           (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
-          ext_step genv cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
+          ext_step cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
 
     | step_mklock :
         forall  (tp': thread_pool) c m' b ofs
@@ -104,7 +104,7 @@ Module BareMachine.
                           Some (MKLOCK, UNLOCK_SIG, Vptr b ofs::nil))
            (Hstore: Mem.store Mint32 m b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
            (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat tp' m' (mklock (b, Ptrofs.intval ofs))
+          ext_step cnt0 Hcompat tp' m' (mklock (b, Ptrofs.intval ofs))
 
     | step_freelock :
         forall (tp' tp'': thread_pool) c b ofs
@@ -112,7 +112,7 @@ Module BareMachine.
           (Hat_external: at_external semSem c m =
                          Some (FREE_LOCK, UNLOCK_SIG, Vptr b ofs::nil))
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-          ext_step genv cnt0 Hcompat  tp' m (freelock (b,Ptrofs.intval ofs))
+          ext_step cnt0 Hcompat  tp' m (freelock (b,Ptrofs.intval ofs))
 
     | step_acqfail :
         forall  c b ofs
@@ -120,7 +120,7 @@ Module BareMachine.
            (Hat_external: at_external semSem c m =
                           Some (LOCK, LOCK_SIG, Vptr b ofs::nil))
            (Hload: Mem.load Mint32 m b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
-          ext_step genv cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
+          ext_step cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
     Inductive threadHalted': forall {tid0 ms},
         containsThread ms tid0 -> Prop:=
@@ -132,23 +132,23 @@ Module BareMachine.
           (Hcant: core_semantics.halted semSem c i),
           threadHalted' cnt.
 
-    Definition threadStep (genv : G): forall {tid0 ms m},
+    Definition threadStep: forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> seq mem_event -> Prop:=
-      @thread_step genv.
+      @thread_step.
 
     Definition threadHalted: forall {tid0 ms},
         containsThread ms tid0 -> Prop:= @threadHalted'.
 
-    Definition syncStep (isCoarse:bool) (genv :G) :
+    Definition syncStep (isCoarse:bool) :
       forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> sync_event -> Prop:=
-      @ext_step genv.
+      @ext_step.
 
    Lemma threadStep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr,
-      @threadStep g i tp m cnt cmpt tp' m' tr ->
+    forall i tp m cnt cmpt tp' m' tr,
+      @threadStep i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
@@ -180,8 +180,8 @@ Module BareMachine.
 
 
     Lemma syncstep_equal_run:
-      forall b g i tp m cnt cmpt tp' m' tr,
-        @syncStep b g i tp m cnt cmpt tp' m' tr ->
+      forall b i tp m cnt cmpt tp' m' tr,
+        @syncStep b i tp m cnt cmpt tp' m' tr ->
         forall j,
           (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
           (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
@@ -190,8 +190,8 @@ Module BareMachine.
     (*NOTE: Admit for now, but proof is same as HybridMachine. The question is do we want this lemma to be part of the spec? *)
 
     Lemma syncstep_not_running:
-      forall b g i tp m cnt cmpt tp' m' tr,
-        @syncStep b g i tp m cnt cmpt tp' m' tr ->
+      forall b i tp m cnt cmpt tp' m' tr,
+        @syncStep b i tp m cnt cmpt tp' m' tr ->
         forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q.
     Proof.
       intros.
@@ -226,8 +226,8 @@ Module BareMachine.
     
 
     Lemma syncstep_equal_halted:
-      forall b g i tp m cnti cmpt tp' m' tr,
-        @syncStep b g i tp m cnti cmpt tp' m' tr ->
+      forall b i tp m cnti cmpt tp' m' tr,
+        @syncStep b i tp m cnti cmpt tp' m' tr ->
         forall j cnt cnt',
           (@threadHalted j tp cnt) <->
           (@threadHalted j tp' cnt').
@@ -322,9 +322,9 @@ Module BareMachine.
                                        mem_compatible
                                        invariant
                                        install_perm
-                                       threadStep
+                                       (@threadStep)
                                        threadStep_equal_run
-                                       syncStep
+                                       (@syncStep)
                                        syncstep_equal_run
                                        syncstep_not_running
                                        (@threadHalted)

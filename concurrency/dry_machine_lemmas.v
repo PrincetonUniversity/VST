@@ -893,29 +893,29 @@ Module CoreLanguage.
           (** If the [Cur] permission is below [Writable] on some location then
               a thread step cannot change the contents at this location *)
           corestep_unchanged_on:
-            forall the_ge c m c' m' b ofs
-              (Hstep: corestep (msem semSem) the_ge c m c' m')
+            forall  c m c' m' b ofs
+              (Hstep: corestep (msem semSem) c m c' m')
               (Hvalid: Mem.valid_block m b)
               (Hstable: ~ Mem.perm m b ofs Cur Writable),
               Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
               Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));          
           (** Memories between thread steps are related by [decay] of permissions*)
           corestep_decay:
-            forall ge c c' m m',
-              corestep semSem ge c m c' m' ->
+            forall c c' m m',
+              corestep semSem c m c' m' ->
               decay m m';
           (** [Mem.nextblock] is monotonic with respect to thread steps*)
           corestep_nextblock:
-            forall ge c m c' m',
-              corestep semSem ge c m c' m' ->
+            forall c m c' m',
+              corestep semSem c m c' m' ->
               (Mem.nextblock m <= Mem.nextblock m')%positive
         }.
           
       Context {SemAx : SemAxioms}.
 
       Lemma corestep_validblock:
-        forall ge c m c' m',
-          corestep semSem ge c m c' m' ->
+        forall c m c' m',
+          corestep semSem c m c' m' ->
           forall b, Mem.valid_block m b ->
                Mem.valid_block m' b.
       Proof.
@@ -927,22 +927,22 @@ Module CoreLanguage.
       Qed.
 
       Definition ev_step_det:
-        forall (m m' m'' : mem) (ge : semG) (c c' c'' : semC) ev ev',
-          ev_step semSem ge c m ev c' m' ->
-          ev_step semSem ge c m ev' c'' m'' -> c' = c'' /\ m' = m'' /\ ev = ev'.
+        forall (m m' m'' : mem) (c c' c'' : semC) ev ev',
+          ev_step semSem c m ev c' m' ->
+          ev_step semSem c m ev' c'' m'' -> c' = c'' /\ m' = m'' /\ ev = ev'.
       Proof.
         intros.
-        assert (Hcore := ev_step_ax1 _ _ _ _ _ _ _ H).
-        assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ _ H0).
-        assert (Heq := corestep_det _ _ _  _ _ _ _ Hcore Hcore').
+        assert (Hcore := ev_step_ax1 _ _ _ _ _ _ H).
+        assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ H0).
+        assert (Heq := corestep_det _ _  _ _ _ _ Hcore Hcore').
         destruct Heq; repeat split; auto.
         eapply ev_step_fun;
           now eauto.
       Qed.
 
       Lemma ev_unchanged_on:
-        forall the_ge c m c' m' b ofs ev
-          (Hstep: ev_step semSem the_ge c m ev c' m')
+        forall c m c' m' b ofs ev
+          (Hstep: ev_step semSem c m ev c' m')
           (Hvalid: Mem.valid_block m b)
           (Hstable: ~ Mem.perm m b ofs Cur Writable),
           Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
@@ -955,8 +955,8 @@ Module CoreLanguage.
       Qed.
 
       Lemma ev_step_decay:
-        forall ge c c' m m' ev,
-          ev_step semSem ge c m ev c' m' ->
+        forall c c' m m' ev,
+          ev_step semSem c m ev c' m' ->
           decay m m'.
       Proof.
         intros.
@@ -966,8 +966,8 @@ Module CoreLanguage.
       Qed.
 
       Lemma ev_step_nextblock:
-        forall ge c m ev c' m',
-          ev_step semSem ge c m ev c' m' ->
+        forall  c m ev c' m',
+          ev_step semSem c m ev c' m' ->
           (Mem.nextblock m <= Mem.nextblock m')%positive.
       Proof.
         intros.
@@ -977,8 +977,8 @@ Module CoreLanguage.
       Qed.
 
       Lemma ev_step_validblock:
-        forall ge c m ev c' m',
-          ev_step semSem ge c m ev c' m' ->
+        forall  c m ev c' m',
+          ev_step semSem c m ev c' m' ->
           forall b, Mem.valid_block m b ->
                Mem.valid_block m' b.
       Proof.
@@ -1012,10 +1012,10 @@ Module CoreLanguageDry.
   (** Lemmas about containsThread and coresteps *)
 
   Lemma corestep_containsThread:
-    forall (tp : t) ge c c' m m' p i j ev
+    forall (tp : t)  c c' m m' p i j ev
       (Hcnti : containsThread tp i)
       (Hcntj: containsThread tp j)
-      (Hcorestep: ev_step semSem ge c m ev c' m')
+      (Hcorestep: ev_step semSem c m ev c' m')
       (Hcode: getThreadC Hcnti = Krun c),
       containsThread (updThread Hcnti (Krun c') p) j.
   Proof.
@@ -1024,10 +1024,10 @@ Module CoreLanguageDry.
   Qed.
 
   Lemma corestep_containsThread':
-    forall (tp : t) ge c c' m m' p i j ev
+    forall (tp : t)  c c' m m' p i j ev
       (Hcnti : containsThread tp i)
       (Hcntj : containsThread (updThread Hcnti (Krun c') p) j)
-      (Hcorestep: ev_step semSem ge c m ev c' m')
+      (Hcorestep: ev_step semSem c m ev c' m')
       (Hcode: getThreadC Hcnti = Krun c),
       containsThread tp j.
   Proof.
@@ -1039,12 +1039,12 @@ Module CoreLanguageDry.
 
   (** [mem_compatible] is preserved by coresteps*)
   Lemma corestep_compatible:
-    forall (tp : t) ge (m m' : mem) i ev
+    forall (tp : t)  (m m' : mem) i ev
       (pf : containsThread tp i) (c c': semC)
       (Hinv: invariant tp)
       (Hcode: getThreadC pf = Krun c)
       (Hcompatible : mem_compatible tp m)
-      (Hcorestep: ev_step semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) ev c' m'),
+      (Hcorestep: ev_step semSem c (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) ev c' m'),
       mem_compatible (updThread pf (Krun c') (getCurPerm m', (getThreadR pf).2)) m'.
   Proof.
     intros.
@@ -1056,7 +1056,7 @@ Module CoreLanguageDry.
       (* and it's resources are below the maximum permissions on the memory*)
       destruct (DryHybridMachine.compat_th _ _ Hcompatible cnt0) as [Hlt1 Hlt2].
       (* by decay of permissions*)
-      assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
+      assert (Hdecay := ev_step_decay _ _ _ _ _ Hcorestep).
       (* let's prove a slightly different statement that will reduce proof duplication*)
       assert (Hhelper: forall b ofs, Mem.perm_order'' ((getMaxPerm m') !! b ofs) ((getThreadR cnt).1 !! b ofs)  /\
                                 Mem.perm_order''  ((getMaxPerm m') !! b ofs) ((getThreadR cnt).2 !! b ofs)).
@@ -1137,7 +1137,7 @@ Module CoreLanguageDry.
               rewrite Hrestr_max;
                 by eauto.
         - (*case it is an invalid block*)
-          (* since the lock permissions don't change and that block was
+          (* since the lock permissions don't chan and that block was
                invalid before it must be that the lock/data permissions the threads
                had are empty*)
           apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
@@ -1180,7 +1180,7 @@ Module CoreLanguageDry.
         (* the resources on the lp are below the maximum permissions on the memory*)
         destruct (DryHybridMachine.compat_lp _ _ Hcompatible l _ Hres) as [Hlt1 Hlt2].
         (* by decay of permissions*)
-        assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
+        assert (Hdecay := ev_step_decay _ _ _ _ _ Hcorestep).
         intros b ofs.
         (* by cases analysis on whether b was a valid block*)
         destruct (valid_block_dec (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) b)
@@ -1339,12 +1339,12 @@ Module CoreLanguageDry.
 
   (** [invariant] is preserved by a corestep *)
   Lemma corestep_invariant:
-    forall (tp : t) ge (m : mem) (i : nat)
+    forall (tp : t)  (m : mem) (i : nat)
       (pf : containsThread tp i) c m1 m1' c'
       (Hinv: invariant tp)
       (Hcompatible: mem_compatible tp m)
       (Hrestrict_pmap: restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1 = m1)
-      (Hcorestep: corestep semSem ge c m1 c' m1')
+      (Hcorestep: corestep semSem c m1 c' m1')
       (Hcore: getThreadC pf = Krun c),
       invariant (updThread pf (Krun c') (getCurPerm m1', (getThreadR pf).2)).
   Proof.
@@ -1505,11 +1505,11 @@ Module CoreLanguageDry.
 
   (** A corestep cannot change the contents of memory locations where permission is not above [Readable]*)
   Lemma corestep_stable_val:
-    forall ge c c' m m' pmap1 pmap2
+    forall  c c' m m' pmap1 pmap2
       (Hlt1: permMapLt pmap1 (getMaxPerm m))
       (Hlt2: permMapLt pmap2 (getMaxPerm m))
       (Hdisjoint: permMapsDisjoint pmap1 pmap2 \/ permMapCoherence pmap1 pmap2)
-      (Hstep: corestep semSem ge c (restrPermMap Hlt1) c' m'),
+      (Hstep: corestep semSem c (restrPermMap Hlt1) c' m'),
     forall b ofs (Hreadable: Mem.perm (restrPermMap Hlt2) b ofs Cur Readable),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1551,13 +1551,13 @@ Module CoreLanguageDry.
   (** If some thread has permission above readable on some address then
     stepping another thread cannot change the value of that location*)
   Corollary corestep_disjoint_val:
-    forall (tp : t) ge (m m' : mem) i j (Hneq: i <> j)
+    forall (tp : t)  (m m' : mem) i j (Hneq: i <> j)
       (c c' : semC)
       (pfi : containsThread tp i) (pfj : containsThread tp j)
       (Hcomp : mem_compatible tp m) (b : block) (ofs : Z)
       (Hreadable: Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).1) b ofs Cur Readable \/
                   Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hcorestep: corestep semSem c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1570,11 +1570,11 @@ Module CoreLanguageDry.
   Qed.
 
   Corollary corestep_disjoint_locks:
-    forall (tp : t) ge (m m' : mem) i j (c c' : semC)
+    forall (tp : t) (m m' : mem) i j (c c' : semC)
       (pfi : containsThread tp i) (pfj : containsThread tp j)
       (Hcomp : mem_compatible tp m) (b : block) (ofs : Z)
       (Hreadable: Mem.perm (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfj).2) b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hcorestep: corestep semSem c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1589,7 +1589,7 @@ Module CoreLanguageDry.
   (** If some lock has permission above [Readable] on some address then
     stepping a thread cannot change the value of that location*)
   Lemma corestep_disjoint_val_lockpool :
-    forall (tp : t) ge (m m' : mem) i (c c' : semC)
+    forall (tp : t)  (m m' : mem) i (c c' : semC)
       (pfi : containsThread tp i) (Hcomp : mem_compatible tp m) addr pmap
       (Hlock: lockRes tp addr = Some pmap)
       (b : block) (ofs : Z)
@@ -1597,7 +1597,7 @@ Module CoreLanguageDry.
                            b ofs Cur Readable \/
                   Mem.perm (restrPermMap (DryHybridMachine.compat_lp _ _ Hcomp _ _ Hlock).2)
                            b ofs Cur Readable)
-      (Hcorestep: corestep semSem ge c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
+      (Hcorestep: corestep semSem c (restrPermMap (DryHybridMachine.compat_th _ _ Hcomp pfi).1) c' m')
       (Hinv: invariant tp),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.

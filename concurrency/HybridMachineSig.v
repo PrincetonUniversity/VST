@@ -164,33 +164,33 @@ Module HybridMachineSig.
                                      
         (** Step relations *)
         ; threadStep:
-            G -> forall {tid0 ms m},
+            forall {tid0 ms m},
               containsThread ms tid0 -> mem_compatible ms m ->
               thread_pool -> mem -> seq mem_event -> Prop
 
         ;  threadStep_equal_run:
-             forall g i tp m cnt cmpt tp' m' tr,
-               @threadStep g i tp m cnt cmpt tp' m' tr ->
+             forall i tp m cnt cmpt tp' m' tr,
+               @threadStep i tp m cnt cmpt tp' m' tr ->
                forall (j: nat),
                  (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
                  (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q')
 
         ; syncStep:
             bool -> (* if it's a Coarse machine. Temp solution to propagating changes. *)
-            G -> forall {tid0 ms m},
+            forall {tid0 ms m},
                 containsThread ms tid0 -> mem_compatible ms m ->
                 thread_pool -> mem -> sync_event -> Prop
                                                    
         ;  syncstep_equal_run:
-             forall b g i tp m cnt cmpt tp' m' tr,
-               @syncStep b g i tp m cnt cmpt tp' m' tr ->
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
                forall j,
                  (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
                  (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q')
                    
         ;  syncstep_not_running:
-             forall b g i tp m cnt cmpt tp' m' tr,
-               @syncStep b g i tp m cnt cmpt tp' m' tr ->
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
                forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q
                                                             
         ; threadHalted:
@@ -204,8 +204,8 @@ Module HybridMachineSig.
                       (@threadHalted j (@updThreadC _ _ _ i tp cnti c') cnt') 
                         
         ;  syncstep_equal_halted:
-             forall b g i tp m cnti cmpt tp' m' tr,
-               @syncStep b g i tp m cnti cmpt tp' m' tr ->
+             forall b i tp m cnti cmpt tp' m' tr,
+               @syncStep b i tp m cnti cmpt tp' m' tr ->
                forall j cnt cnt',
                  (@threadHalted j tp cnt) <->
                  (@threadHalted j tp' cnt')
@@ -242,7 +242,7 @@ Module HybridMachineSig.
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
   (*TODO: probably need to update the permissions for initial core too*)
-   Inductive start_thread (genv : semG) : forall (m: mem) {tid0} {ms:machine_state},
+   Inductive start_thread : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> mem -> Prop:=
   | StartThread: forall m m' tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
@@ -253,10 +253,10 @@ Module HybridMachineSig.
                                             m' c_new vf (arg::nil))
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
-      start_thread genv m ctn ms' m.
+      start_thread m ctn ms' m.
 
 
-   Inductive resume_thread' (ge : semG) : forall (m: mem) {tid0} {ms:machine_state},
+   Inductive resume_thread' : forall (m: mem) {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall m tid0 ms ms' c c' X m'
                     (ctn: containsThread ms tid0)
@@ -267,12 +267,12 @@ Module HybridMachineSig.
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
-      resume_thread' ge m ctn ms'.
-  Definition resume_thread ge: forall m {tid0 ms},
+      resume_thread' m ctn ms'.
+  Definition resume_thread: forall m {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
-    @resume_thread' ge.
+    @resume_thread'.
 
-  Inductive suspend_thread' (ge : semG) : forall m {tid0} {ms:machine_state},
+  Inductive suspend_thread': forall m {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | SuspendThread: forall m tid0 ms ms' c X m'
                      (ctn: containsThread ms tid0)
@@ -282,10 +282,10 @@ Module HybridMachineSig.
                      (Hat_external: at_external semSem c m'  = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kblocked c) = ms'),
-      suspend_thread' ge m ctn ms'.
-  Definition suspend_thread ge: forall (m: mem) {tid0 ms},
+      suspend_thread' m ctn ms'.
+  Definition suspend_thread: forall (m: mem) {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
-    @suspend_thread' ge.
+    @suspend_thread'.
 
     (** Provides control over scheduling. For example,
         for FineMach this is schedSkip, for CoarseMach this is just id *)
@@ -294,27 +294,27 @@ Module HybridMachineSig.
   
   Context {scheduler : Scheduler}.
 
-  Inductive machine_step {genv:G}:
+  Inductive machine_step:
     schedule -> event_trace -> machine_state -> mem -> schedule ->
     event_trace -> machine_state -> mem -> Prop :=
   | start_step:
         forall tid U ms ms' m m' tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
-          (Htstep: start_thread genv m Htid ms' m'),
+          (Htstep: start_thread m Htid ms' m'),
           machine_step U tr ms m (yield U) tr ms' m'
     | resume_step:
         forall tid U ms ms' m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
-          (Htstep: resume_thread genv m Htid ms'),
+          (Htstep: resume_thread m Htid ms'),
           machine_step U tr ms m (yield U) tr ms' m
     | thread_step:
         forall tid U ms ms' m m' ev tr
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
           (Hcmpt: mem_compatible ms m)
-          (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
+          (Htstep: threadStep Htid Hcmpt ms' m' ev),
           machine_step U tr ms m (yield U)
                        (tr ++ (List.map (fun mev => internal tid mev) ev)) ms' (diluteMem m')
     | suspend_step:
@@ -322,7 +322,7 @@ Module HybridMachineSig.
           (HschedN: schedPeek U = Some tid)
           (HschedS: schedSkip U = U')        (*Schedule Forward*)
           (Htid: containsThread ms tid)
-          (Htstep:suspend_thread genv m Htid ms'),
+          (Htstep:suspend_thread m Htid ms'),
           machine_step U tr ms m U' tr ms' m
     | sync_step:
         forall tid U U' ms ms' m m' ev tr
@@ -330,7 +330,7 @@ Module HybridMachineSig.
           (HschedS: schedSkip U = U')        (*Schedule Forward*)
           (Htid: containsThread ms tid)
           (Hcmpt: mem_compatible ms m)
-          (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
+          (Htstep: syncStep true Htid Hcmpt ms' m' ev),
           machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'
     | halted_step:
         forall tid U U' ms m tr
@@ -350,9 +350,9 @@ Module HybridMachineSig.
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
           machine_step U tr ms m U' tr ms m.
 
-    Definition MachStep G (c:MachState) (m:mem)
+    Definition MachStep (c:MachState) (m:mem)
                (c':MachState) (m':mem) :=
-      @machine_step G (fst (fst c)) (snd (fst c)) (snd c)  m
+      @machine_step (fst (fst c)) (snd (fst c)) (snd c)  m
                     (fst (fst c')) (snd (fst c')) (snd c')  m'.
 
     Definition at_external_mach (st : MachState) (m: mem)
@@ -377,9 +377,9 @@ Module HybridMachineSig.
       match st with (U', [::], c) => U' = U /\ init_mach r m c f args | _ => False end.
 
     Program Definition MachineCoreSemantics (U:schedule) (r : option res):
-      CoreSemantics G MachState mem.
+      CoreSemantics MachState mem.
     intros.
-    apply (@Build_CoreSemantics _ MachState _
+    apply (@Build_CoreSemantics MachState _
                                 (fun n => init_machine U r)
                                 at_external_mach
                                 after_external_mach
@@ -412,36 +412,36 @@ Module HybridMachineSig.
 
       (** The new semantics below makes internal (thread) and external (machine)
           steps explicit *)
-      Inductive internal_step {genv:G}:
+      Inductive internal_step:
         schedule -> machine_state -> mem -> machine_state -> mem -> Prop :=
       | thread_step':
           forall tid U ms ms' m m' ev
             (HschedN: schedPeek U = Some tid)
             (Htid: containsThread ms tid)
             (Hcmpt: mem_compatible ms m)
-            (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
+            (Htstep: threadStep Htid Hcmpt ms' m' ev),
             internal_step U ms m ms' (diluteMem m').
 
-      Inductive external_step {genv:G}:
+      Inductive external_step:
         schedule -> event_trace -> machine_state -> mem -> schedule ->
         event_trace -> machine_state -> mem -> Prop :=
       | start_state': forall tid U ms ms' m m' tr
                         (HschedN: schedPeek U = Some tid)
                         (Htid: containsThread ms tid)
-                        (Htstep: start_thread genv m Htid ms' m'),
+                        (Htstep: start_thread m Htid ms' m'),
           external_step U tr ms m (yield U) tr ms' m'
       | resume_step':
           forall tid U ms ms' m tr
             (HschedN: schedPeek U = Some tid)
             (Htid: containsThread  ms tid)
-            (Htstep: resume_thread genv m Htid ms'),
+            (Htstep: resume_thread m Htid ms'),
             external_step U tr ms m (yield U) tr ms' m
       | suspend_step':
           forall tid U U' ms ms' m tr
             (HschedN: schedPeek U = Some tid)
             (HschedS: schedSkip U = U')        (*Schedule Forward*)
             (Htid: containsThread ms tid)
-            (Htstep:suspend_thread genv m Htid ms'),
+            (Htstep:suspend_thread m Htid ms'),
             external_step U tr ms m U' tr ms' m
       | sync_step':
           forall tid U U' ms ms' m m' ev tr
@@ -449,7 +449,7 @@ Module HybridMachineSig.
             (HschedS: schedSkip U = U')        (*Schedule Forward*)
             (Htid: containsThread ms tid)
             (Hcmpt: mem_compatible ms m)
-            (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
+            (Htstep: syncStep true Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
       | halted_step':
           forall tid U U' ms m tr
@@ -471,29 +471,29 @@ Module HybridMachineSig.
 
       (*Symmetry*)
       (* These steps are basically the same: *)
-      Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',
-          @machine_step ge U tr st m U' tr' st' m' ->
-          (U' = yield U /\ @internal_step ge U st m st' m') \/
-          @external_step ge U tr st m U' tr' st' m'.
+      Lemma step_equivalence1: forall U tr st m U' tr' st' m',
+          @machine_step U tr st m U' tr' st' m' ->
+          (U' = yield U /\ @internal_step U st m st' m') \/
+          @external_step U tr st m U' tr' st' m'.
       Proof.
-        move=> ge U tr st m U' tr' st' m' ms.
+        move=> U tr st m U' tr' st' m' ms.
         inversion ms; simpl in *;
           try solve [ left; repeat split=>//; econstructor; eauto];
           try solve[right; subst; econstructor; eauto].
       Qed.
 
-      Lemma step_equivalence2: forall ge U st m st' m' tr,
-          @internal_step ge U st m st' m' ->
+      Lemma step_equivalence2: forall U st m st' m' tr,
+          @internal_step U st m st' m' ->
           exists tr',
-            @machine_step ge U tr st m (yield U) tr' st' m'.
+            @machine_step U tr st m (yield U) tr' st' m'.
       Proof.
-        move=>  ge U st m st' m' tr istp;
+        move=>  U st m st' m' tr istp;
                  inversion istp; eexists; solve [econstructor; eauto].
       Qed.
-      Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
-          @external_step ge U tr st m U' tr' st' m' ->
-          @machine_step ge U tr st m U' tr' st' m'.
-      Proof. move=>  ge U tr st m U' nil st' m' estp.
+      Lemma step_equivalence3: forall U tr st m U' tr' st' m',
+          @external_step U tr st m U' tr' st' m' ->
+          @machine_step U tr st m U' tr' st' m'.
+      Proof. move=>  U tr st m U' nil st' m' estp.
              inversion estp;
                [
                  solve[econstructor 1 ; eauto]|
@@ -510,11 +510,11 @@ Module HybridMachineSig.
                                     (init_machine' r)
                                     (fun U st => halted_machine (U, nil, st))
                                     (fun ge U st m st' m' =>
-                                       @internal_step ge U st m
+                                       @internal_step U st m
                                                       st' m'
                                     )
                                     (fun ge U (tr:event_trace) st m U' tr' st' m' =>
-                                       @external_step ge U tr st m
+                                       @external_step U tr st m
                                                       U' tr' st' m'
                                     )
                                     unique_Krun)
@@ -530,7 +530,7 @@ Module HybridMachineSig.
     Class HybridMachine:=
       {
         MachineSemantics: schedule -> option res ->
-                          CoreSemantics G MachState mem
+                          CoreSemantics MachState mem
         ; ConcurMachineSemantics: schedule -> option res ->
                                   @ConcurSemantics G nat (seq.seq nat) event_trace t mem
         ; initial_schedule: forall m main vals U p st n,
@@ -573,24 +573,24 @@ Module HybridMachineSig.
                              (hybrid_initial_schedule).
 
       (** Schedule safety of the coarse-grained machine*)
-      Inductive csafe (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
-      | Safe_0: csafe ge st m 0
-      | HaltedSafe: forall n, halted_machine st -> csafe ge st m n
+      Inductive csafe (st : MachState) (m : mem) : nat -> Prop :=
+      | Safe_0: csafe st m 0
+      | HaltedSafe: forall n, halted_machine st -> csafe st m n
       | CoreSafe : forall tp' m' n tr
-                     (Hstep: MachStep ge st m (fst (fst st),(snd (fst st)) ++ tr,tp') m')
-                     (Hsafe: csafe ge (fst (fst st),(snd (fst st)) ++ tr,tp') m' n),
-          csafe ge st m (S n)
+                     (Hstep: MachStep st m (fst (fst st),(snd (fst st)) ++ tr,tp') m')
+                     (Hsafe: csafe (fst (fst st),(snd (fst st)) ++ tr,tp') m' n),
+          csafe st m (S n)
       | AngelSafe: forall tp' m' n (tr: event_trace)
-                     (Hstep: MachStep ge st m (schedSkip (fst (fst st)),(snd (fst st)) ++ tr,tp') m')
-                     (Hsafe: forall U'', csafe ge (U'',(snd (fst st)) ++ tr,tp') m' n),
-          csafe ge st m (S n).
+                     (Hstep: MachStep st m (schedSkip (fst (fst st)),(snd (fst st)) ++ tr,tp') m')
+                     (Hsafe: forall U'', csafe (U'',(snd (fst st)) ++ tr,tp') m' n),
+          csafe st m (S n).
 
       (* TODO: Make a new file with safety lemmas. *)
       Lemma csafe_reduce:
-        forall ge sched tp mem n m,
-          csafe ge (sched, [::], tp) mem n ->
+        forall sched tp mem n m,
+          csafe (sched, [::], tp) mem n ->
           m <= n ->
-          csafe ge (sched, [::], tp) mem m.
+          csafe (sched, [::], tp) mem m.
       Proof.
         Admitted.
       
@@ -632,7 +632,7 @@ Module HybridMachineSig.
       | HaltedSafe : forall n tr, halted_machine (U, tr, tp) -> fsafe ge tp m U n
       | StepSafe : forall (tp' : thread_pool) (m' : mem)
                      (tr tr': event_trace) n,
-          MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
+          MachStep (U, tr, tp) m (schedSkip U, tr', tp') m' ->
           fsafe ge tp' m' (schedSkip U) n ->
           fsafe ge tp m U (S n).
     End HybridFineMachine.

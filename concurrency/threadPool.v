@@ -619,7 +619,7 @@ Module OrdinalPool.
       mk new_num_threads
          (fun (n : 'I_new_num_threads) =>
             match unlift new_tid n with
-            | None => Kinit vf arg  (*Could be a new state Kinit?? *)
+            | None => Kinit vf arg
             | Some n' => tp n'
             end)
          (fun (n : 'I_new_num_threads) =>

@@ -7,10 +7,12 @@ Require Import compcert.common.Events.
 Require Import compcert.cfrontend.Clight.
 
 (*To prove memsem*)
-Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.semantics_lemmas.
+(*Require Import VST.sepcomp.semantics.
+Require Import VST.sepcomp.semantics_lemmas.*)
 Require Import VST.sepcomp.mem_lemmas.
+Require Import VST.concurrency.core_semantics.
 
+(*
 Inductive CC_core : Type :=
     CC_core_State : function ->
             statement -> cont -> env -> temp_env -> CC_core
@@ -152,7 +154,7 @@ destruct q; inv H. destruct f; inv H1. reflexivity.
 Qed.
 
 Program Definition cl_core_sem :
-  @CoreSemantics genv CC_core mem :=
+  @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
     (fun _ g m v lv => option_map (fun a => (a, None)) (cl_initial_core g v lv))
@@ -166,7 +168,7 @@ Program Definition cl_core_sem :
 
 (*Clight_core is also a memsem!*)
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
-      (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.
+      (M: alloc_variables cenv e m vars e2 m'), core_semantics.mem_step m m'.
 Proof. intros.
   induction M.
   apply mem_step_refl.
@@ -231,3 +233,4 @@ apply Build_MemSem with (csem := cl_core_sem).
  inv H4.
 Qed.
 
+*)

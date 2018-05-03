@@ -3,7 +3,7 @@ Require Export VST.concurrency.core_semantics.
 Require Export VST.sepcomp.mem_lemmas.
 Require Export VST.sepcomp.structured_injections.
 Require Export VST.sepcomp.effect_semantics.
-Require Export VST.sepcomp.reach.
+(*Require Export VST.sepcomp.reach.*)
 (*Require Export VST.sepcomp.simulations.*)
 (*Require Export VST.sepcomp.closed_simulations.*)
 (*Require Export VST.sepcomp.barebones_simulations.*)
