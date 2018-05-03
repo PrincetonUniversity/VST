@@ -1,5 +1,4 @@
 Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.simulations.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
@@ -234,3 +233,14 @@ apply Build_MemSem with (csem := cl_core_sem).
 Qed.
 
 *)
+
+Lemma cl_corestep_not_halted : forall ge m q m' q' i,
+  step2corestep (part_semantics2 ge) q m q' m' -> ~final_state q i.
+Proof.
+  repeat intro.
+  inv H0.
+  inv H.
+  inv H0.
+Qed.
+
+Definition cl_core_sem (ge : genv) := sem2coresem (part_semantics2 ge) (cl_corestep_not_halted ge).

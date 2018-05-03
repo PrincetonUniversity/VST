@@ -20,7 +20,7 @@ Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.concurrency.I64Helpers.
 Require Import VST.concurrency.BuiltinEffects.
 
-Definition cl_halted (c: regset) : option val := None.
+(*Definition Asm_halted (c: regset) : option val := None.
 
 Definition empty_function : function := 
   mkfunction (mksignature nil None cc_default) nil.
@@ -143,7 +143,7 @@ Fixpoint store_arguments (tys: list typ) (args: list val) (loc: val) (m: mem): o
  | _, _ => None
  end.
 
-Inductive cl_initial_core (ge: genv) (m: mem) (rs0: regset) (v: val) (args: list val) : Prop :=
+Inductive Asm_initial_core (ge: genv) (m: mem) (rs0: regset) (v: val) (args: list val) : Prop :=
  INIT_CORE : forall f b,
       v = Vptr b (Ptrofs.zero) ->
       rs0 = (Pregmap.init Vundef)
@@ -152,9 +152,9 @@ Inductive cl_initial_core (ge: genv) (m: mem) (rs0: regset) (v: val) (args: list
             # RSP <- Vnullptr ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       extcall_arguments rs0 m (fn_sig f) args ->
-      cl_initial_core ge m rs0 v args.
+      Asm_initial_core ge m rs0 v args.
 
-Definition cl_at_external  (ge: genv) (rs: regset) (m: mem) : option (external_function * signature * list val) :=
+Definition Asm_at_external  (ge: genv) (rs: regset) (m: mem) : option (external_function * signature * list val) :=
   match rs PC with
   | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
     match  Genv.find_funct_ptr ge b with
@@ -174,7 +174,7 @@ Definition cl_at_external  (ge: genv) (rs: regset) (m: mem) : option (external_f
   | _ => None
 end.
 
-Definition cl_after_external  (ge: genv) (vret: option val) (rs: regset) : option regset :=
+Definition Asm_after_external  (ge: genv) (vret: option val) (rs: regset) : option regset :=
   match rs PC with
   | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
     match  Genv.find_funct_ptr ge b with
@@ -191,14 +191,14 @@ Definition cl_after_external  (ge: genv) (vret: option val) (rs: regset) : optio
  | _ => None
  end.
 
-Inductive cl_step ge: regset -> mem -> regset -> mem -> Prop :=
-  | cl_step_internal:
+Inductive Asm_step ge: regset -> mem -> regset -> mem -> Prop :=
+  | Asm_step_internal:
       forall b ofs f i rs m rs' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some i ->
       exec_instr ge f i rs m = Next rs' m' ->
-      cl_step ge rs m rs' m'
+      Asm_step ge rs m rs' m'
   | exec_step_builtin:
       forall b ofs f ef args res rs m vargs t vres rs' m',
       rs PC = Vptr b ofs ->
@@ -211,14 +211,14 @@ Inductive cl_step ge: regset -> mem -> regset -> mem -> Prop :=
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (Machregs.destroyed_by_builtin ef)) rs)) ->
-      cl_step ge rs m rs' m'.
+      Asm_step ge rs m rs' m'.
 
-Lemma cl_corestep_not_at_external:
+Lemma Asm_corestep_not_at_external:
   forall ge m q m' q', 
-          cl_step ge q m q' m' -> cl_at_external ge q m = None.
+          Asm_step ge q m q' m' -> Asm_at_external ge q m = None.
 Proof.
   intros.
-  unfold cl_at_external. 
+  unfold Asm_at_external. 
   inv H.
  *
    rewrite H0.
@@ -228,28 +228,32 @@ Proof.
   rewrite H0.
   destruct (Ptrofs.eq_dec ofs Ptrofs.zero); auto.
   unfold Asm.fundef. rewrite H1. auto.
-Qed.
+Qed.*)
 
-Lemma cl_corestep_not_halted :
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_halted q = None.
+Lemma Asm_corestep_not_halted :
+  forall ge m q m' q' i, step2corestep (part_semantics ge) q m q' m' -> ~final_state q i.
 Proof.
-  intros.
-  simpl; auto.
+  repeat intro.
+  inv H0.
+  inv H.
+  inv H0.
+  - rewrite H1 in H6; inv H6.
+  - rewrite H1 in H6; inv H6.
+  - rewrite H1 in H6; inv H6.
 Qed.
 
-Program Definition cl_core_sem (ge : genv) :
-  @CoreSemantics genv regset mem :=
-  @Build_CoreSemantics _ _ _
-    (fun _ => cl_initial_core ge)
-    (cl_at_external ge)
-    (fun v q m => cl_after_external ge v q)
+(*Program Definition Asm_core_sem (ge : genv) :
+  @CoreSemantics regset mem :=
+  @Build_CoreSemantics _ _
+    (fun _ => Asm_initial_core ge)
+    (Asm_at_external ge)
+    (fun v q m => Asm_after_external ge v q)
     (fun _ _ => False)
-    cl_step
+    (Asm_step ge)
     _
-    cl_corestep_not_at_external.
-Next Obligation.
-Proof.
-Admitted.
+    (Asm_corestep_not_at_external ge).*)
+
+Definition Asm_core_sem (ge : genv) := sem2coresem (part_semantics ge) (Asm_corestep_not_halted ge).
 
 Section ASM_MEMSEM.
 
@@ -383,12 +387,73 @@ eapply mem_step_trans; [ | eauto].
 eapply mem_step_freelist; eauto.
 Qed.
 
-Lemma asm_mem_step : forall ge c m c' m' (CS: corestep (cl_core_sem ge) ge c m c' m'), mem_step m m'.
+Lemma get_extcall_arg_spec : forall r m l v,
+  get_extcall_arg r m l = Some v <-> extcall_arg r m l v.
+Proof.
+  split; intro.
+  - destruct l; simpl in *.
+    + inv H; constructor.
+    + destruct sl; try discriminate.
+      econstructor; eauto.
+  - inv H; auto.
+Qed.
+
+Lemma get_extcall_arguments_spec : forall r m sig args,
+  get_extcall_arguments r m (Conventions1.loc_arguments sig) = Some args <->
+  extcall_arguments r m sig args.
+Proof.
+  unfold extcall_arguments; split; intro.
+  - revert dependent args; induction (Conventions1.loc_arguments sig); simpl; intros.
+    { inv H; constructor. }
+    destruct a.
+    + destruct (get_extcall_arg _ _ _) eqn: Hget; [|discriminate].
+      destruct (get_extcall_arguments _ _ _); inv H.
+      constructor; auto.
+      constructor; apply get_extcall_arg_spec; auto.
+    + destruct (get_extcall_arg _ _ _) eqn: Hget1; [|discriminate].
+      destruct (get_extcall_arg _ _ rlo) eqn: Hget2; [|discriminate].
+      destruct (get_extcall_arguments _ _ _); inv H.
+      constructor; auto.
+      constructor; apply get_extcall_arg_spec; auto.
+  - induction H; auto; simpl.
+    rewrite IHlist_forall2.
+    inv H; repeat match goal with H : extcall_arg _ _ _ _ |- _ =>
+      apply get_extcall_arg_spec in H; rewrite H end; auto.
+Qed.
+
+(* A safe genv only marks as Internal functions that either have known semantics or don't change
+   memory. *)
+Definition safe_genv (ge : genv) :=
+  forall b ofs f ef args res r m vargs t vres m', Genv.find_funct_ptr ge b = Some (Internal f) ->
+    find_instr (Ptrofs.unsigned ofs) (fn_code f) = Some (Pbuiltin ef args res) ->
+    eval_builtin_args (Genv.to_senv ge) r (r (IR RSP)) m args vargs ->
+    external_call ef (Genv.to_senv ge) vargs m t vres m' ->
+  match ef with
+  | EF_malloc | EF_free | EF_memcpy _ _ => True
+  | _ => m' = m
+  end.
+
+Lemma asm_mem_step : forall ge c m c' m' (CS: corestep (Asm_core_sem ge) c m c' m')
+  (Hsafe : safe_genv ge), mem_step m m'.
 Proof. intros.
-  inv CS; simpl in *; try apply mem_step_refl; try contradiction.
- inv H0.
+  inv CS.
+  destruct c, c'; simpl in *.
+  inv H; simpl in *; try apply mem_step_refl; try contradiction.
  + eapply exec_instr_mem_step; try eassumption.
- + eapply ev_elim_mem_step; eauto.
+ + exploit Hsafe; eauto.
+   destruct ef; intro; subst; try apply mem_step_refl.
+   * (* malloc *) inv H10.
+     eapply mem_step_trans.
+     -- eapply mem_step_alloc; eauto.
+     -- eapply mem_step_storebytes, Mem.store_storebytes; eauto.
+   * (* free *) inv H10.
+     eapply mem_step_free; eauto.
+   * (* memcpy *) inv H10.
+     eapply mem_step_storebytes; eauto.
+ + rewrite H5 in H0.
+   destruct (Ptrofs.eq_dec _ _); [|contradiction].
+   rewrite H6 in H0.
+   apply get_extcall_arguments_spec in H8; rewrite H8 in H0; discriminate.
 Qed.
 
 Lemma ple_exec_load:
@@ -419,35 +484,10 @@ intros.
  rewrite H0. auto.
 Qed.
 
-Lemma asm_inc_perm: forall (g : genv) c m c' m'
-      (CS:corestep (cl_core_sem g) g c m c' m')
-      m1 (PLE: perm_lesseq m m1),
-      exists m1', corestep (cl_core_sem g) g c m1 c' m1' /\ perm_lesseq m' m1'.
+Program Definition Asm_mem_sem (ge : genv) (Hsafe : safe_genv ge) : @MemSem state.
 Proof.
-intros; inv CS; simpl in *; try contradiction.
-inv H0.
- destruct i; simpl in *; inv H2;
-     try solve [
-      exists m1; split; trivial; econstructor; try eassumption; reflexivity
-     | destruct (ple_exec_load _ _ _ _ _ _ _ _ _ PLE H3); subst m';
-        exists m1; split;  simpl; auto; econstructor; eassumption
-     | destruct (ple_exec_store _ _ _ _ _ _ _ _ _ _ PLE H3) as [m1' [? ?]];
-        exists m1'; split; auto; econstructor; eassumption
-    |  exists m1; split; auto; [ econstructor; try eassumption; simpl | ];
-       repeat match type of H3 with match ?A with Some _ => _ | None => _ end = _ =>
-         destruct A; try now inv H3 end;
-       eassumption
-    ].
- - (* Pcmp_rr case fails! *)
-(*+ exists m1; split; trivial. econstructor; try eassumption. ad_it.
-+ ad_it.
-*)
-Abort.
-
-Program Definition Asm_mem_sem (ge : genv) : @MemSem genv regset.
-Proof.
-apply Build_MemSem with (csem := cl_core_sem ge).
-  apply (asm_mem_step).
+apply Build_MemSem with (csem := Asm_core_sem ge).
+intros; eapply asm_mem_step; eauto.
 Defined.
 
 Lemma exec_instr_forward g c i rs m rs' m': forall
@@ -459,37 +499,3 @@ Proof. intros.
 Qed.
 
 End ASM_MEMSEM.
-
-(*Require Import VST.concurrency.load_frame.
-Lemma load_frame_store_args_rec_nextblock:
-  forall args m m2 stk ofs tys
-    (Hload_frame: store_args_rec m stk ofs args tys = Some m2),
-    Mem.nextblock m2 = Mem.nextblock m.
-Proof.
-  intro args.
-  induction args; intros; simpl in *.
-  destruct tys; inv Hload_frame; auto.
-  destruct tys; try discriminate;
-  destruct t;
-  repeat match goal with
-         | [H: match ?Expr with _ => _ end = _ |- _] =>
-           destruct Expr eqn:?; try discriminate;
-             unfold load_frame.store_stack in *
-         | [H: Mem.storev _ _ _ _ = _ |- _] =>
-           eapply nextblock_storev in H
-         | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
-           rewrite <- H
-         end;
-  eauto.
-Qed.
-
-Lemma load_frame_store_nextblock:
-  forall m m2 stk args tys
-    (Hload_frame: store_args m stk args tys = Some m2),
-    Mem.nextblock m2 = Mem.nextblock m.
-Proof.
-  intros.
-  unfold load_frame.store_args in *.
-  eapply load_frame_store_args_rec_nextblock; eauto.
-Qed.*)
-

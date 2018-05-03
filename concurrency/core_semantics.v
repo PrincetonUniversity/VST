@@ -27,11 +27,11 @@ Record CoreSemantics {C M : Type} : Type :=
       forall m q m' q', corestep q m q' m' -> at_external q m = None }.
 
 (* Extract a CoreSemantics from a part_semantics*)
-Inductive step2corestep (sem:part_semantics):(genvtype sem) -> (state sem) -> mem -> (state sem) -> mem -> Prop :=
-  coreify: forall ge s1 m1 t s2 m2,
-    step sem ge (set_mem s1 m1) t (set_mem s2 m2) ->
+Inductive step2corestep (sem:part_semantics):(state sem) -> mem -> (state sem) -> mem -> Prop :=
+  coreify: forall s1 m1 t s2 m2,
+    step sem (set_mem s1 m1) t (set_mem s2 m2) ->
     Smallstep.at_external sem (set_mem s1 m1) = None ->
-    step2corestep sem ge s1 m1 s2 m2.
+    step2corestep sem s1 m1 s2 m2.
     
 Program Definition sem2coresem (sem:part_semantics) corestep_not_halted : CoreSemantics:=
   {|
@@ -39,7 +39,7 @@ Program Definition sem2coresem (sem:part_semantics) corestep_not_halted : CoreSe
     ; at_external := fun s m => Smallstep.at_external sem (set_mem s m) 
     ; after_external := Smallstep.after_external sem
     ; halted:= final_state sem
-    ; corestep := step2corestep sem (globalenv sem)
+    ; corestep := step2corestep sem
     ; corestep_not_halted:=corestep_not_halted
 |}.
 Next Obligation.
