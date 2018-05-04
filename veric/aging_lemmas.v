@@ -83,13 +83,13 @@ Qed.
 
 (** * Aging and operational steps *)
 
-Lemma jstep_age_sim {G C} {csem : @core_semantics.CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
+Lemma jstep_age_sim {C} {csem : @core_semantics.CoreSemantics C mem} {c c' jm1 jm2 jm1'} :
   age jm1 jm2 ->
-  jstep csem ge c jm1 c' jm1' ->
+  jstep csem c jm1 c' jm1' ->
   level jm2 <> O ->
   exists jm2',
     age jm1' jm2' /\
-    jstep csem ge c jm2 c' jm2'.
+    jstep csem c jm2 c' jm2'.
 Proof.
   intros A [step [rd [lev Hg]]] nz.
   destruct (age1 jm1') as [jm2'|] eqn:E.

@@ -285,7 +285,7 @@ Section Progress.
       {
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
-                   corestep (juicy_core_sem (cl_core_sem ge)) ge ci jmi ci' jmi'
+                   corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
                    /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).
@@ -1450,15 +1450,15 @@ Section Progress.
       - constructor.
         apply JuicyMachine.start_step with (tid := i) (Htid := cnti).
         + reflexivity.
-        + eapply mem_compatible_forget. eauto.
         + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * simpl; rewrite Einit; reflexivity.
-          * constructor.
+          * simpl; reflexivity.
+          * auto.
+          * reflexivity.
           * reflexivity.
     }
     (* end of Kinit *)
-    Unshelve. eexists; eauto.
+    Unshelve. eexists; eauto. eexists; eauto.
 Qed. (* Theorem progress *)
 
 End Progress.

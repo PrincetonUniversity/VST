@@ -151,7 +151,7 @@ Section Jspec'_properties.
                         | ? ? ? ? ef sig args x atex' Pre Post | ]; subst.
     - (* corestep: not at external *)
       destruct step as [step rd].
-      erewrite cl_corestep_not_at_external in atex. discriminate. eauto.
+      erewrite cl_corestep_not_at_external in atex. discriminate. apply step.
     - (* at_ex: interesting case *)
       intros jm_ Ejm_.
       constructor 3 with (e := ef) (sig := sig) (args := args) (x := x).

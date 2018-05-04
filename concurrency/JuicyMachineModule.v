@@ -78,11 +78,11 @@ Module THE_JUICY_MACHINE.
                  is_true (ssrbool.isSome (halted_machine st)) ->
                  jm_csafe st m n
   | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-               (Hstep : MachStep(Sem := JSem) ge st m (fst (fst st), tr', tp') m')
+               (Hstep : MachStep(Sem := JSem) st m (fst (fst st), tr', tp') m')
                (Hsafe : tp_bupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe st m (S n)
   | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
-                (Hstep : MachStep(Sem := JSem) ge st m
+                (Hstep : MachStep(Sem := JSem) st m
                   (schedSkip (fst (fst st)), tr', tp') m')
                 (Hsafe : forall U'',
                  tp_bupd (fun tp' => jm_csafe (U'', tr', tp') m' n) tp'),

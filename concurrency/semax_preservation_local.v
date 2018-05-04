@@ -278,7 +278,7 @@ Lemma invariant_thread_step
      : forall (c c' : corestate) (jm jm' : juicy_mem) (Phi X : rmap) (ge : genv),
        mem_cohere' (m_dry jm) Phi ->
        join (m_phi jm) X Phi ->
-       @corestep genv corestate juicy_mem (@juicy_core_sem genv corestate (cl_core_sem ge)) ge c jm c' jm' ->
+       @corestep corestate juicy_mem (@juicy_core_sem corestate (cl_core_sem ge)) c jm c' jm' ->
        exists Phi' : rmap,
          join (m_phi jm') (@age_to (@level rmap ag_rmap (m_phi jm')) rmap ag_rmap X) Phi' /\
          mem_cohere' (m_dry jm') Phi')
@@ -302,7 +302,7 @@ Lemma invariant_thread_step
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
-  (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ge ci (jm_ cnti compat) ci' jmi')
+  (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
   (safei' : forall ora, jm_bupd ora (jsafeN Jspec ge n ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
