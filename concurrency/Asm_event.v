@@ -209,334 +209,6 @@ Definition drf_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem)
   | _ => Some [Free nil]
   end.
 
-(*
-
-Lemma store_stack_ev_elim m sp ty ofs v m' (SS: store_stack m sp ty ofs v = Some m'):
-  exists b z, sp =Vptr b z /\
-  ev_elim m [Write b (Int.unsigned (Int.add z ofs)) (encode_val (chunk_of_type ty) v)] m'.
-Proof.
-  destruct sp; try discriminate. unfold store_stack in SS.
-  exists b, i; split; trivial.
-  apply Mem.store_storebytes in SS.
-  econstructor. split. eassumption. constructor.
-Qed.
-
-Fixpoint store_args_ev_rec sp ofs args tys : option (list mem_event) :=
-  match tys, args with
-    | nil, nil => Some nil
-    | ty'::tys',a'::args' =>
-      match ty', a' with
-        | Tlong, Vlong n =>
-           match store_args_ev_rec sp (ofs+2) args' tys' with
-             None => None
-           | Some tailEvents =>
-               Some ((Write sp (Int.unsigned (Int.repr(Stacklayout.fe_ofs_arg + 4*(ofs+1))))
-                              (encode_val (chunk_of_type Tint) (Vint (Int64.hiword n)))) ::
-                     (Write sp (Int.unsigned (Int.repr(Stacklayout.fe_ofs_arg + 4*ofs)))
-                            (encode_val (chunk_of_type Tint) (Vint (Int64.loword n)))) ::
-                     tailEvents)
-           end
-        | Tlong, _ => None
-        | _,_ =>
-           match store_args_ev_rec sp (ofs+typesize ty') args' tys' with
-             None => None
-           | Some tailEvents =>
-               Some ((Write sp (Int.unsigned (Int.repr (Stacklayout.fe_ofs_arg + 4*ofs))) (encode_val (chunk_of_type ty') a'))
-                      :: tailEvents)
-           end
-      end
-    | _, _ => None
-  end.
-
-Lemma store_args_ev_elim sp: forall args tys ofs m m' (SA: store_args_rec m sp ofs args tys = Some m'),
-  exists T, store_args_ev_rec sp ofs args tys = Some T /\ ev_elim m T m'.
-Proof.
-induction args; intros tys; destruct tys; simpl; intros; try discriminate.
-+ inv SA. exists nil. split. trivial. constructor.
-+ destruct t.
-  - remember (store_stack m (Vptr sp Int.zero) Tint
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) a) as p.
-    destruct p; inv SA.
-    destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b [z [B EV]]]; inv B.
-    rewrite Int.add_zero_l in EV.
-    simpl in EV. destruct EV as [mm [SB MM]]; subst m0.
-    eexists; split. reflexivity.
-    econstructor. split; eassumption.
-  - remember (store_stack m (Vptr sp Int.zero) Tfloat
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) a) as p.
-    destruct p; inv SA.
-    destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b [z [B EV]]]; inv B.
-    rewrite Int.add_zero_l in EV.
-    simpl in EV. destruct EV as [mm [SB MM]]; subst m0.
-    eexists; split. reflexivity.
-    econstructor. split; eassumption.
-  - destruct a; try discriminate.
-    remember (store_stack m (Vptr sp Int.zero) Tint
-         (Int.repr
-            match ofs + 1 with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) (Vint (Int64.hiword i))) as p.
-    destruct p; inv SA.
-    remember (store_stack m0 (Vptr sp Int.zero) Tint
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) (Vint (Int64.loword i))) as q.
-    destruct q; inv H0.
-    destruct (IHargs _ _ _ _ H1) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b1 [z1 [B1 EV1]]]; inv B1.
-    rewrite Int.add_zero_l in EV1.
-    simpl in EV1. destruct EV1 as [mm1 [SB1 MM1]]. subst m0.
-    symmetry in Heqq. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqq) as [b2 [z2 [B2 EV2]]]; inv B2.
-    rewrite Int.add_zero_l in EV2.
-    simpl in EV2. destruct EV2 as [mm2 [SB2 MM2]]. subst m1. clear - SB1 SB2 EVT.
-    eexists; split. reflexivity.
-    econstructor. split. apply SB1.
-    econstructor. split. apply SB2. assumption.
-  - remember (store_stack m (Vptr sp Int.zero) Tsingle
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) a) as p.
-    destruct p; inv SA.
-    destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b1 [z1 [B1 EV1]]]; inv B1.
-    rewrite Int.add_zero_l in EV1.
-    simpl in EV1. destruct EV1 as [mm1 [SB1 MM1]]. subst m0.
-    eexists; split. reflexivity.
-    econstructor. split. apply SB1. assumption.
-  - remember (store_stack m (Vptr sp Int.zero) Tany32
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) a) as p.
-    destruct p; inv SA.
-    destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b1 [z1 [B1 EV1]]]; inv B1.
-    rewrite Int.add_zero_l in EV1.
-    simpl in EV1. destruct EV1 as [mm1 [SB1 MM1]]. subst m0.
-    eexists; split. reflexivity.
-    econstructor. split. apply SB1. assumption.
-  - remember (store_stack m (Vptr sp Int.zero) Tany64
-         (Int.repr
-            match ofs with
-            | 0 => 0
-            | Z.pos y' => Z.pos y'~0~0
-            | Z.neg y' => Z.neg y'~0~0
-            end) a) as p.
-    destruct p; inv SA.
-    destruct (IHargs _ _ _ _ H0) as [T [SAT EVT]]. simpl. rewrite SAT.
-    symmetry in Heqp. destruct (store_stack_ev_elim _ _ _ _ _ _ Heqp) as [b1 [z1 [B1 EV1]]]; inv B1.
-    rewrite Int.add_zero_l in EV1.
-    simpl in EV1. destruct EV1 as [mm1 [SB1 MM1]]. subst m0.
-    eexists; split. reflexivity.
-    econstructor. split. apply SB1. assumption.
-Qed.
-
-Definition store_args_events sp args tys := store_args_ev_rec sp 0 args tys.
-
-Lemma AR n: match n with
-                  | 0 => 0
-                  | Z.pos y' => Z.pos y'~0~0
-                  | Z.neg y' => Z.neg y'~0~0
-                  end = 4*n.
-destruct n; simpl; trivial. Qed.
-
-Section EXTCALL_ARG_EVENT.
-
-Inductive extcall_arg_ev (rs: regset) (m: mem): loc -> val -> list mem_event -> Prop :=
-  | extcall_arg_reg: forall r,
-      extcall_arg_ev rs m (R r) (rs (preg_of r)) nil
-  | extcall_arg_stack: forall ofs v ty bofs bytes chunk b z,
-      bofs = Stacklayout.fe_ofs_arg + 4 * ofs ->
-      Val.add (rs (IR ESP)) (Vint (Int.repr bofs)) = Vptr b z ->
-      chunk = chunk_of_type ty ->
-(*      Mem.loadv chunk m (Vptr b z) = Some v ->
-      extcall_arg_ev rs m (S Outgoing ofs ty) v [Read b (Int.unsigned z) (size_chunk chunk) (encode_val chunk v)].*)
-      (*(align_chunk (chunk_of_type ty) (Int.unsigned z)) ->*)
-      (align_chunk (chunk_of_type ty) | Int.unsigned z) -> (*(Int.add i (Int.repr (4 * ofs))))*)
-      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
-      v= decode_val chunk bytes ->
-      extcall_arg_ev rs m (S Outgoing ofs ty) v [Read b (Int.unsigned z) (size_chunk chunk) bytes].
-
-Lemma extcall_arg_extcall_arg_ev rs m l u (EA:extcall_arg rs m l u) : exists T, extcall_arg_ev rs m l u T.
-Proof.
-  inv EA.
-+ exists nil; constructor.
-+ remember (rs ESP) as p; destruct p; inv H0.
-  destruct (Mem.load_loadbytes _ _ _ _ _ H1) as [bytes [Bytes U]]. rewrite AR in *.
-  destruct (Mem.load_valid_access _ _ _ _ _ H1) as [ ALGN].
-  eexists; econstructor; try eassumption; try rewrite <- Heqp; reflexivity.
-Qed.
-
-Lemma extcall_arg_ev_extcall_arg rs m l u T (EA:extcall_arg_ev rs m l u T): extcall_arg rs m l u.
-Proof.
-  inv EA.
-+ constructor.
-+ remember (rs ESP) as p; destruct p; inv H0. rewrite AR in *.
-  econstructor. reflexivity. rewrite <- Heqp. simpl. rewrite AR.
-  erewrite Mem.loadbytes_load; try reflexivity; eassumption.
-Qed.
-
-Lemma extcall_arg_ev_determ rs m l u T (EAV:extcall_arg_ev rs m l u T) T' (EAV':extcall_arg_ev rs m l u T'): T=T'.
-Proof. inv EAV; inv EAV'; trivial. rewrite H5 in H0; inv H0. rewrite H8 in H3; inv H3. trivial. Qed.
-
-Inductive extcall_arg_pair_ev (rs: regset) (m: mem): rpair loc -> val -> list mem_event -> Prop :=
-  | extcall_arg_ev_one: forall l v T,
-      extcall_arg_ev rs m l v T ->
-      extcall_arg_pair_ev rs m (One l) v T
-  | extcall_arg_ev_twolong: forall hi lo vhi vlo T1 T2,
-      extcall_arg_ev rs m hi vhi T1 ->
-      extcall_arg_ev rs m lo vlo T2 ->
-      extcall_arg_pair_ev rs m (Twolong hi lo) (Val.longofwords vhi vlo) (T1++T2).
-
-
-Inductive extcall_arguments_ev_aux: regset -> mem -> list (rpair loc) -> list val -> list mem_event -> Prop :=
-  extcall_arguments_ev_nil: forall rs m, extcall_arguments_ev_aux rs m nil nil nil
-| extcall_arguments_ev_cons: forall rs m l locs v T1 vl T2 ,
-                         extcall_arg_pair_ev rs m l v T1 ->
-                         extcall_arguments_ev_aux rs m locs vl T2 ->
-                         extcall_arguments_ev_aux rs m (l::locs) (v::vl) (T1++T2).
-
-Definition extcall_arguments_ev (rs:regset) (m: mem) (sg:signature) (args: list val) (T: list mem_event): Prop :=
-  extcall_arguments_ev_aux rs m (loc_arguments sg) args T.
-
-Lemma extcall_arguments_extcall_arguments_ev rs m sg args:
-      extcall_arguments rs m sg args -> exists T, extcall_arguments_ev rs m sg args T.
-Proof.
-unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
-intros LF; induction LF.
-+ exists nil; constructor.
-+ destruct IHLF as [T2 HT2].
-  destruct H.
-  - destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [T1 HT1].
-    exists (T1++T2). econstructor. econstructor. eassumption. eassumption.
-  - destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [Thi Hhi].
-    destruct (extcall_arg_extcall_arg_ev _ _ _ _ H0) as [Tlo Hlo]. simpl.
-    exists ((Thi++Tlo)++T2). econstructor. econstructor. eassumption. eassumption. eassumption.
-Qed.
-
-Lemma extcall_arg_pair_ev_determ rs m: forall l v T1 (HT1: extcall_arg_pair_ev rs m l v T1)
-      T2 (HT2: extcall_arg_pair_ev rs m l v T2), T1=T2.
-Proof. intros.
-  induction HT1.
-  + inv HT2. eapply extcall_arg_ev_determ; eassumption.
-  + inv HT2.
-    inv H.
-    - inv H4. inv H0. inv H6. trivial. inv H6. rewrite H7 in H1. inv H1.
-      rewrite H5 in H10. inv H10. trivial.
-    - inv H4. rewrite H9 in H2. inv H2. rewrite H8 in H12. inv H12. f_equal.
-      inv H0.
-      * inv H6; trivial.
-      * inv H6. rewrite H1 in H10. inv H10. rewrite H14 in H5. inv H5. trivial.
-Qed.
-
-Lemma extcall_arguments_ev_aux_determ rs m: forall locs args T (EA: extcall_arguments_ev_aux rs m locs args T)
-      T' (EA': extcall_arguments_ev_aux rs m locs args T'), T=T'.
-Proof.
-  induction 1; simpl; intros; inv EA'; trivial. f_equal.
-  eapply extcall_arg_pair_ev_determ; eassumption.
-  eauto.
-Qed.
-
-Lemma extcall_arguments_ev_determ rs m sg args T (EA: extcall_arguments_ev rs m sg args T)
-      T' (EA': extcall_arguments_ev rs m sg args T'): T=T'.
-Proof. eapply extcall_arguments_ev_aux_determ; eassumption. Qed.
-
-Lemma extcall_arguments_ev_extcall_arguments rs m sg args T:
-      extcall_arguments_ev rs m sg args T -> extcall_arguments rs m sg args.
-Proof.
-unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
-intros LF; induction LF.
-+ constructor.
-+ inv H.
-  - apply extcall_arg_ev_extcall_arg in H0. econstructor; eauto. constructor. trivial.
-  - apply extcall_arg_ev_extcall_arg in H0. apply extcall_arg_ev_extcall_arg in H1.
-    econstructor; eauto. constructor; trivial.
-Qed.
-
-Lemma extcall_arg_ev_elim rs m : forall l v T (EA: extcall_arg_ev rs m l v T), ev_elim m T m.
-Proof. induction 1; repeat constructor; eauto. Qed.
-
-Lemma extcall_arg_ev_elim_strong rs m : forall l v T (EA: extcall_arg_ev rs m l v T),
-      ev_elim m T m /\ (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ extcall_arg_ev rs mm l v T).
-Proof.
- induction 1.
-+ split.
-  - constructor.
-  - intros. inv H. split. trivial. constructor.
-+ split.
-  - repeat constructor; eauto.
-  - intros. inv H4. inv H5. inv H1.
-    split. trivial.
-    econstructor; try eassumption; reflexivity.
-Qed.
-
-Lemma extcall_arguments_ev_aux_elim rs m:
-      forall l args T (EA: extcall_arguments_ev_aux rs m l args T), ev_elim m T m.
-Proof. induction 1.
-+ constructor.
-+ inv H.
-  - apply extcall_arg_ev_elim in H0. eapply ev_elim_app; eassumption.
-  - apply extcall_arg_ev_elim in H0. apply extcall_arg_ev_elim in H1.
-    rewrite <- app_assoc. eapply ev_elim_app. eassumption. eapply ev_elim_app; eassumption.
-Qed.
-
-Lemma extcall_arguments_ev_aux_elim_strong rs m:
-      forall l args T (EA: extcall_arguments_ev_aux rs m l args T),
-      ev_elim m T m /\ (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ extcall_arguments_ev_aux rs mm l args T).
-Proof. induction 1.
-+ split.
-  - constructor.
-  - intros. inv H. split; trivial. constructor.
-+ destruct IHEA as [IH1 IH2].
-  split.
-  - inv H.
-    * apply extcall_arg_ev_elim in H0. eapply ev_elim_app; eassumption.
-    * apply extcall_arg_ev_elim in H0. apply extcall_arg_ev_elim in H1.
-      rewrite <- app_assoc. eapply ev_elim_app. eassumption. eapply ev_elim_app; eassumption.
-  - intros. (* destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].*)
-    apply ev_elim_split in H0; destruct H0 as [m2 [EV1 EV2]].
-    destruct (IH2 _ _ EV2) as [MM EA2]; subst; clear IH2.
-(*    destruct (HT1 _ _ EV1) as [MM EA1]; subst.
-    split. trivial.
-    constructor; eassumption.*)
-    destruct H.
-    * destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].
-      destruct (HT1 _ _ EV1) as [MM EA1]; subst.
-      split. trivial.
-      econstructor. econstructor. eassumption. eassumption.
-    * destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [Ehi Hhi]; clear H.
-      destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H0) as [Elo Hlo]; clear H0.
-      apply ev_elim_split in EV1; destruct EV1 as [m3 [EV1 EV3]].
-      destruct (Hhi _ _ EV1) as [MHI EAhi]; subst; clear Hhi.
-      destruct (Hlo _ _ EV3) as [MLO EAlo]; subst; clear Hlo.
-      split. trivial.
-      econstructor. econstructor. eassumption. eassumption. eassumption.
-Qed.
-
-End EXTCALL_ARG_EVENT.
-
 Section EVAL_BUILTIN_ARG_EV.
 
 Variable A: Type.
@@ -557,26 +229,29 @@ Inductive eval_builtin_arg_ev: builtin_arg A -> val -> list mem_event -> Prop :=
   | eval_BA_ev_single: forall n,
       eval_builtin_arg_ev (BA_single n) (Vsingle n) nil
   | eval_BA_ev_loadstack: forall chunk ofs v b z bytes,
-      Mem.loadv chunk m (Val.add sp (Vint ofs)) = Some v ->
-      (align_chunk chunk | (Int.unsigned z)) ->
-      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
+      Mem.loadv chunk m (Val.offset_ptr sp ofs) = Some v ->
+      (align_chunk chunk | (Ptrofs.unsigned z)) ->
+      Mem.loadbytes m b (Ptrofs.unsigned z) (size_chunk chunk) = Some bytes ->
       v= decode_val chunk bytes ->
-      Val.add sp (Vint ofs) = Vptr b z ->
-      eval_builtin_arg_ev (BA_loadstack chunk ofs) v [Read b (Int.unsigned z) (size_chunk chunk) bytes]
+      Val.offset_ptr sp ofs = Vptr b z ->
+      eval_builtin_arg_ev (BA_loadstack chunk ofs) v [Read b (Ptrofs.unsigned z) (size_chunk chunk) bytes]
   | eval_BA_ev_addrstack: forall ofs,
-      eval_builtin_arg_ev (BA_addrstack ofs) (Val.add sp (Vint ofs)) nil
+      eval_builtin_arg_ev (BA_addrstack ofs) (Val.offset_ptr sp ofs) nil
   | eval_BA_ev_loadglobal: forall chunk id ofs v b z bytes,
       Mem.loadv chunk m (Senv.symbol_address ge id ofs) = Some v ->
-      (align_chunk chunk | (Int.unsigned z)) ->
-      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
+      (align_chunk chunk | (Ptrofs.unsigned z)) ->
+      Mem.loadbytes m b (Ptrofs.unsigned z) (size_chunk chunk) = Some bytes ->
       v= decode_val chunk bytes ->
       Senv.symbol_address ge id ofs = Vptr b z ->
-      eval_builtin_arg_ev (BA_loadglobal chunk id ofs) v [Read b (Int.unsigned z) (size_chunk chunk) bytes]
+      eval_builtin_arg_ev (BA_loadglobal chunk id ofs) v [Read b (Ptrofs.unsigned z) (size_chunk chunk) bytes]
   | eval_BA_ev_addrglobal: forall id ofs,
       eval_builtin_arg_ev (BA_addrglobal id ofs) (Senv.symbol_address ge id ofs) nil
   | eval_BA_ev_splitlong: forall hi lo vhi vlo Thi Tlo,
       eval_builtin_arg_ev hi vhi Thi -> eval_builtin_arg_ev lo vlo Tlo->
-      eval_builtin_arg_ev (BA_splitlong hi lo) (Val.longofwords vhi vlo) (Thi++Tlo).
+      eval_builtin_arg_ev (BA_splitlong hi lo) (Val.longofwords vhi vlo) (Thi++Tlo)
+  | eval_BA_ev_addptr: forall a1 a2 v1 v2 T1 T2,
+      eval_builtin_arg_ev a1 v1 T1 -> eval_builtin_arg_ev a2 v2 T2->
+      eval_builtin_arg_ev (BA_addptr a1 a2) (if Archi.ptr64 then Val.addl v1 v2 else Val.add v1 v2) (T1++T2).
 
 Lemma eval_builtin_arg_ev_determ: forall a v1 T1 (HT1:eval_builtin_arg_ev a v1 T1)
       v2 T2 (HT2:eval_builtin_arg_ev a v2 T2), v1=v2 /\ T1=T2.
@@ -584,6 +259,8 @@ Proof.
 induction a; intros; inv HT1; inv HT2; try solve [split; trivial].
 + rewrite H11 in H7; inv H7. rewrite H6 in H3; inv H3. split; trivial.
 + rewrite H12 in H8; inv H8. rewrite H7 in H4; inv H4. split; trivial.
++ destruct (IHa1 _ _ H2 _ _ H1); subst.
+  destruct (IHa2 _ _ H6 _ _ H4); subst. split; trivial.
 + destruct (IHa1 _ _ H2 _ _ H1); subst.
   destruct (IHa2 _ _ H6 _ _ H4); subst. split; trivial.
 Qed.
@@ -602,6 +279,8 @@ Proof.
   destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
   eexists. econstructor; try eassumption; trivial. rewrite SA; trivial.
 + destruct IHeval_builtin_arg1 as [Thi HThi]. destruct IHeval_builtin_arg2 as [Tlo HTlo].
+  eexists. econstructor; eassumption.
++ destruct IHeval_builtin_arg1 as [T1 HT1]. destruct IHeval_builtin_arg2 as [T2 HT2].
   eexists. econstructor; eassumption.
 Qed.
 
@@ -682,6 +361,13 @@ Proof.
   destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
   split; trivial.
   constructor; eassumption.
++ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
+  split. eapply ev_elim_app; eassumption.
+  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
+  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
+  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
+  split; trivial.
+  constructor; eassumption.
 Qed.
 
 Lemma eval_builtin_args_ev_elim_strong {A} ge (rs: A -> val) sp m al vl T (EV: eval_builtin_args_ev A ge rs sp m al vl T):
@@ -701,14 +387,13 @@ Proof.
   constructor; trivial.
 Qed.
 
-*)
-
 Definition option_list_to_list {A} (x: option (list A)) : list A :=
  match x with Some al => al | None => nil end.
 
 Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
   BE_malloc: forall m n m'' b m'
          (ALLOC: Mem.alloc m (-size_chunk Mptr) (Ptrofs.unsigned n) = (m'', b))
+         (ALGN : (align_chunk Mptr | (-size_chunk Mptr)))
          (ST: Mem.storebytes m'' b (-size_chunk Mptr) (encode_val Mptr (Vptrofs n)) = Some m'),
          builtin_event EF_malloc m [Vptrofs n]
                [Alloc b (-size_chunk Mptr) (Ptrofs.unsigned n);
@@ -717,6 +402,7 @@ Inductive builtin_event: external_function -> mem -> list val -> list mem_event 
         (POS: Ptrofs.unsigned sz > 0)
         (LB : Mem.loadbytes m b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) = Some bytes)
         (FR: Mem.free m b (Ptrofs.unsigned lo - size_chunk Mptr) (Ptrofs.unsigned lo + Ptrofs.unsigned sz) = Some m')
+        (ALGN : (align_chunk Mptr | Ptrofs.unsigned lo - size_chunk Mptr))
         (SZ : Vptrofs sz = decode_val Mptr bytes),
         builtin_event EF_free m [Vptr b lo]
               [Read b (Ptrofs.unsigned lo - size_chunk Mptr) (size_chunk Mptr) bytes;
@@ -781,19 +467,19 @@ Inductive asm_ev_step ge: state -> mem -> list mem_event -> state -> mem -> Prop
       drf_instr ge (fn_code f) i rs m = T ->
       asm_ev_step ge (State rs m1) m (option_list_to_list T) (State rs' m1') m'
   | exec_step_builtin:
-      forall b ofs f ef args res rs m1 m vargs t T vres rs' m1' m',
+      forall b ofs f ef args res rs m1 m vargs t T1 T2 vres rs' m1' m',
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Ptrofs.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
-      eval_builtin_args ge rs (rs RSP) m args vargs ->
-      builtin_event ef m vargs t ->
-      ev_elim m t m' ->
+      eval_builtin_args_ev _ ge rs (rs RSP) m args vargs T1 ->
+      builtin_event ef m vargs T2 ->
+(*      ev_elim m (T1++T2) m' ->*)
   (* Must it be the case that builtins don't produce trace events? *)
-      external_call ef ge vargs m (*nil*) T vres m' ->
+      external_call ef ge vargs m (*nil*) t vres m' ->
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      asm_ev_step ge (State rs m1) m t (State rs' m1') m'.
+      asm_ev_step ge (State rs m1) m (T1++T2) (State rs' m1') m'.
 
 Lemma asm_ev_ax1 g (Hsafe : safe_genv g) (*(HFD: helper_functions_declared g hf)*):
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), 
@@ -805,9 +491,10 @@ Proof.
    destruct (Ptrofs.eq_dec _ _); auto.
    unfold fundef; rewrite H0; auto.
  - econstructor; [econstructor 2; eauto | simpl].
-   rewrite H.
-   destruct (Ptrofs.eq_dec _ _); auto.
-   unfold fundef; rewrite H0; auto.
+   + eapply eval_builtin_args_ev_eval_builtin_args; eauto.
+   + rewrite H.
+     destruct (Ptrofs.eq_dec _ _); auto.
+     unfold fundef; rewrite H0; auto.
 Qed.
 
 Lemma asm_ev_ax2 g (Hsafe : safe_genv g) :
@@ -818,22 +505,16 @@ Proof. inversion 1; subst.
   inv H.
 - eexists; econstructor; eauto.
 - exploit Hsafe; eauto.
-  destruct ef; intro; subst; try solve [exists nil; econstructor 2; eauto; constructor; auto].
+  apply eval_builtin_args_eval_builtin_args_ev in H9 as [T H9].
+  destruct ef; try solve [intros []; subst; exists (T ++ nil); econstructor 2; eauto; constructor; auto]; intros _.
+  + inv H10. destruct (Mem.store_valid_access_3 _ _ _ _ _ _ H1) as [_ ALGN].
+    pose proof (Mem.store_storebytes _ _ _ _ _ _ H1).
+    eexists; econstructor 2; eauto; econstructor; eauto.
+  + inv H10. destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
+    pose proof (Mem.load_loadbytes _ _ _ _ _ H) as (? & ? & ?).
+    eexists; econstructor 2; eauto; econstructor; eauto.
   + inv H10.
-    pose proof (Mem.store_storebytes _ _ _ _ _ _ H2).
-    eexists; econstructor 2; eauto; [eapply BE_malloc; eauto | | econstructor; eauto].
-    eexists; split; eauto.
-    eexists; split; simpl; eauto.
-  + inv H10.
-    pose proof (Mem.load_loadbytes _ _ _ _ _ H1) as (? & ? & ?).
-    eexists; econstructor 2; eauto; [eapply BE_free; eauto | | econstructor; eauto].
-    split; eauto.
-    eexists; split; simpl; eauto.
-    rewrite H3; auto.
-  + inv H10.
-    eexists; econstructor 2; eauto; [eapply BE_memcpy; eauto | | econstructor; eauto].
-    split; eauto.
-    eexists; split; simpl; eauto.
+    eexists; econstructor 2; eauto; econstructor; eauto.
 - simpl in *.
   rewrite H5 in H0.
   destruct (Ptrofs.eq_dec _ _); [|contradiction].
@@ -847,17 +528,17 @@ Proof. intros.
 inv Estep'; inv Estep''; trivial; try contradiction; try congruence;
   repeat match goal with H1 : ?a = _, H2 : ?a = _ |- _ => rewrite H1 in H2; inv H2 end.
 inv H2.
-inv H11.
-pose proof (eval_builtin_args_determ H2 H11). subst vargs0.
-clear - H3 H12.
-eapply builtin_event_determ; eauto.
+inv H10.
+pose proof (eval_builtin_args_ev_determ _ _ _ _ _ _ _ _ H2 _ _ H10) as []. subst.
+clear - H3 H11.
+f_equal; eapply builtin_event_determ; eauto.
 Qed.
 
 Lemma asm_ev_elim g (Hsafe : safe_genv g): forall c m T c' m' 
      (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
 Proof.
 intros.
-inv Estep; try contradiction; auto.
+inv Estep; try contradiction.
 clear - H2.
 destruct i; inv H2;
   try solve [simpl; eexists; split; eauto];
@@ -912,81 +593,33 @@ try solve [
     econstructor. trivial.
     econstructor. split. simpl. rewrite H2; trivial.
     econstructor.
+- destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H2).
+  eapply ev_elim_app; eauto.
+  exploit Hsafe; eauto.
+  { eapply eval_builtin_args_ev_eval_builtin_args; eauto. }
+  inversion H3; subst ef; [.. | destruct ef0; try contradiction; intros []; simpl; auto]; intros _.
+  + (*malloc*)
+    inv H4.
+    rewrite Vptrofs_inj with (o2 := n) in H7 by congruence.
+    rewrite H7 in ALLOC. inv ALLOC.
+    apply Mem.store_storebytes in H11.
+    replace (Vptrofs sz) with (Vptrofs n) in H11 by congruence.
+    econstructor. split. eassumption.
+    econstructor. split. eassumption. constructor.
+  + (*free*)
+    inv H4.
+    inv H13.
+    destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [bytes1 [LB1 SZ1]].
+    rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ.
+    rewrite (Vptrofs_inj _ _ SZ) in *.
+    rewrite H12 in FR; inv FR.
+    econstructor. eassumption.
+    econstructor. split. simpl. rewrite H12. reflexivity. constructor.
+  + (*memcpy*)
+    inv H4. inv H18. rewrite LB in H16; inv H16. rewrite ST in H17; inv H17.
+    econstructor. eassumption.
+    econstructor. split. eassumption. constructor.
 Qed.
-
-(*
-Lemma store_args_rec_transfer stk m2 mm': forall args tys m1 n
- (STARGS: store_args_rec m1 stk n args tys = Some m2) TT
- (STARGSEV: store_args_ev_rec stk n args tys = Some TT) x
- (EV: ev_elim x TT mm'), store_args_rec x stk n args tys = Some mm'.
-Proof.
- induction args; simpl; intros; destruct tys; try discriminate.
-+ inv STARGS. inv STARGSEV. inv EV.  trivial.
-+ rewrite AR in *. Opaque Z.mul.
-  destruct t.
-  - remember (store_args_ev_rec stk (n + typesize Tint) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tint (Int.repr (4*n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
-    specialize (IHargs _ _ _ H0 _ Heqp _ EV).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *.
-    erewrite Mem.storebytes_store; eassumption.
-  - remember ( store_args_ev_rec stk (n + typesize Tfloat) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tfloat
-             (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
-    specialize (IHargs _ _ _ H0 _ Heqp _ EV).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *.
-    erewrite Mem.storebytes_store; eassumption.
-  - destruct a; try discriminate.
-    remember (store_args_ev_rec stk (n + 2) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV]. inv EV. destruct H.
-    remember (store_stack m1 (Vptr stk Int.zero) Tint
-             (Int.repr
-                match n + 1 with
-                | 0 => 0
-                | Z.pos y' => Z.pos y'~0~0
-                | Z.neg y' => Z.neg y'~0~0
-                end) (Vint (Int64.hiword i))) as q. destruct q; inv STARGS.
-    remember (store_stack m (Vptr stk Int.zero) Tint (Int.repr (4 * n))
-         (Vint (Int64.loword i))) as w; destruct w; inv H2.
-    symmetry in Heqq, Heqp, Heqw.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGNhi].
-    unfold store_stack in Heqw; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqw) as [_ ALGNlo].
-    specialize (IHargs _ _ _ H3 _ Heqp _ H0).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *; simpl in *.
-    erewrite Mem.storebytes_store; try eassumption.
-    erewrite Mem.storebytes_store; try eassumption.
-    rewrite Int.add_zero_l; assumption. rewrite Int.add_zero_l; assumption.
-  - remember (store_args_ev_rec stk (n + typesize Tsingle) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tsingle (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
-    specialize (IHargs _ _ _ H0 _ Heqp _ EV).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *.
-    erewrite Mem.storebytes_store; eassumption.
-  - remember (store_args_ev_rec stk (n + typesize Tany32) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tany32 (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
-    specialize (IHargs _ _ _ H0 _ Heqp _ EV).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *.
-    erewrite Mem.storebytes_store; eassumption.
-  - remember (store_args_ev_rec stk (n + typesize Tany64) args tys) as p; destruct p; inv STARGSEV.
-    inv EV. destruct H as [ST EV].
-    remember (store_stack m1 (Vptr stk Int.zero) Tany64 (Int.repr (4 * n)) a) as q; destruct q; inv STARGS.
-    symmetry in Heqq, Heqp.
-    unfold store_stack in Heqq; destruct (Mem.store_valid_access_3 _ _ _ _ _ _ Heqq) as [_ ALGN].
-    specialize (IHargs _ _ _ H0 _ Heqp _ EV).
-    unfold store_stack; simpl. rewrite Int.add_zero_l in *.
-    erewrite Mem.storebytes_store; eassumption.
-Qed.
-*)
 
 Lemma ev_elim_determ:
    forall t m m1 m2, ev_elim m t m1 -> ev_elim m t m2 -> m1=m2.
@@ -1007,76 +640,14 @@ Proof.
  assert (m1'=m2') by congruence. subst m2'. eauto.
 Qed.
 
-(*Lemma eval_builtin_arg_mem {A} ge (rs: A -> val) sp m a v (EV: eval_builtin_arg ge rs sp m a v):
-  forall mm, eval_builtin_arg ge rs sp mm a v.
-Proof.
-  induction EV; intro; econstructor; auto.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split.
-  - constructor; trivial. constructor.
-  - intros mm mm' MM; inv MM; split.
-    * inv H5; trivial.
-    * inv H5. rewrite H3 in *.
-      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
-      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
-      constructor; try eassumption; trivial.
-      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ split.
-  - constructor; trivial. constructor.
-  - intros mm mm' MM; inv MM; split.
-    * inv H5; trivial.
-    * inv H5. rewrite H3 in *.
-      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
-      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
-      constructor; try eassumption; trivial.
-      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
-+ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
-+ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
-  split. eapply ev_elim_app; eassumption.
-  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
-  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
-  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
-  split; trivial.
-  constructor; eassumption.
-+ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
-  split. eapply ev_elim_app; eassumption.
-  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
-  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
-  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
-  split; trivial.
-  constructor; eassumption.
-Qed.
-
-Lemma eval_builtin_args_ev_elim_strong {A} ge (rs: A -> val) sp m al vl T (EV: eval_builtin_args_ev A ge rs sp m al vl T):
-  ev_elim m T m /\
-  (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ eval_builtin_args_ev A ge rs sp mm al vl T).
-Proof.
-  induction EV.
-+ split. constructor.
-  intros mm mm' MM; inv MM; split; trivial. constructor.
-+ destruct IHEV as [EV2 HEV2].
-  apply eval_builtin_arg_ev_elim_strong in H. destruct H as [EV1 HEV1].
-  split. eapply ev_elim_app; eassumption.
-  intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [m' [EV1' EV2']].
-  destruct (HEV1 _ _ EV1') as [? HE1]; subst.
-  destruct (HEV2 _ _ EV2') as [? HE2]; subst.
-  split; trivial.
-  constructor; trivial.
-Qed.*)
-
-Lemma asm_ev_elim_strong g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
+Lemma asm_ev_elim_strong g (Hsafe : safe_genv g): forall c m T c' m' (Estep: asm_ev_step g c m T c' m'),
       ev_elim m T m' /\ (forall mm mm', ev_elim mm T mm' -> exists cc', asm_ev_step g c mm T cc' mm').
 Proof.
 induction 1; intros; try contradiction.
 destruct i; inv H2; try solve [split;
         first [eexists; split; reflexivity |
                intros mm mm' EV'; inv EV'; destruct H2 as [FL EV']; inv EV'; inv FL;
-                 eexists; econstructor; try eassumption; reflexivity]];
+                 eexists (State _ m1); econstructor; try eassumption; reflexivity]];
   simpl.
   - (*Pmovl_rm*)
     unfold exec_load in H5.
@@ -1090,7 +661,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl. erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovq_rm*)
@@ -1105,7 +676,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl. erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovl_mr*)
@@ -1119,7 +690,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovq_mr*)
@@ -1133,7 +704,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovsd_fm*)
@@ -1148,7 +719,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsd_mf*)
@@ -1162,7 +733,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovss_fm*)
@@ -1177,7 +748,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovss_mf*)
@@ -1191,7 +762,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pfldl_m*)
@@ -1206,7 +777,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pfstpl_m*)
@@ -1220,7 +791,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pflds_m*)unfold exec_load in H5.
@@ -1234,7 +805,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pfstps_m*)
@@ -1248,7 +819,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovb_mr*)
@@ -1262,7 +833,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial; eassumption.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovw_mr*)
@@ -1276,7 +847,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovzb_rm*)
@@ -1291,7 +862,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsb_rm*)unfold exec_load in H5.
@@ -1305,7 +876,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovzw_rm*)
@@ -1320,7 +891,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsw_rm*)
@@ -1335,7 +906,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pdivl*)
@@ -1347,7 +918,7 @@ destruct i; inv H2; try solve [split;
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; trivial.
       rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
   - (*Pdivq*)
     remember (rs RDX) as d; destruct d; inv H5.
@@ -1358,7 +929,7 @@ destruct i; inv H2; try solve [split;
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; trivial.
       rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
   - (*Pidivl*)
     remember (rs RDX) as d; destruct d; inv H5.
@@ -1369,7 +940,7 @@ destruct i; inv H2; try solve [split;
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; trivial.
       rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
   - (*Pidivq*)
     remember (rs RDX) as d; destruct d; inv H5.
@@ -1380,7 +951,7 @@ destruct i; inv H2; try solve [split;
     * eexists; simpl; split; reflexivity.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
       change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; trivial.
       rewrite <- Heqd, <- Heqa, <- Heqr, <- Heqv; reflexivity.
   - (*Pcmov*)
     remember (eval_testcond c rs) as p; destruct p; inv H5.
@@ -1388,15 +959,15 @@ destruct i; inv H2; try solve [split;
       ++ split. econstructor. split. reflexivity. constructor.
          intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
+         eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
       ++ split. econstructor. split. reflexivity. constructor.
          intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
+         eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
     * split. econstructor. split. reflexivity. constructor.
       intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
   - (*Pjmp_l*)
     unfold goto_label in H5. rewrite H in *.
     remember (label_pos l 0 (fn_code f)) as p; destruct p; inv H5.
@@ -1404,7 +975,7 @@ destruct i; inv H2; try solve [split;
     * econstructor. split. reflexivity. constructor.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-      eexists; econstructor; try eassumption; simpl; trivial.
+      eexists (State _ m1); econstructor; try eassumption; simpl; trivial.
       unfold goto_label. rewrite <- Heqp, H. reflexivity.
   - (*Pjcc*)
     remember (eval_testcond c rs) as p;destruct p; inv H5.
@@ -1415,13 +986,13 @@ destruct i; inv H2; try solve [split;
       ++ econstructor. split. reflexivity. constructor.
       ++ intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
+         eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
          unfold goto_label. rewrite <- Heqq, H; reflexivity.
     * split.
       ++ econstructor. split. reflexivity. constructor.
       ++ intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
+         eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp; trivial.
   - (*Pjcc2*)
     remember (eval_testcond c1 rs) as p; destruct p; inv H5.
     destruct b0; inv H3.
@@ -1433,19 +1004,19 @@ destruct i; inv H2; try solve [split;
          -- econstructor. split. reflexivity. constructor.
          -- intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-            eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
+            eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
             unfold goto_label. rewrite <- Heqw, H; reflexivity.
       ++ split.
          -- econstructor. split. reflexivity. constructor.
          -- intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-            eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
+            eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
     * remember (eval_testcond c2 rs) as q; destruct q; inv H4.
       split.
       ++ econstructor. split. reflexivity. constructor.
       ++ intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-         eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
+         eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
   - (*Pjmptbl*)
     remember (rs r) as p; destruct p; inv H5.
     remember (list_nth_z tbl (Int.unsigned i)) as q; destruct q; inv H3.
@@ -1455,7 +1026,7 @@ destruct i; inv H2; try solve [split;
       * econstructor. split. reflexivity. constructor.
       * intros mm mm' EV'; inv EV'. destruct H2. inv H3. inv H2.
          change [Free[]] with (option_list_to_list (Some [Free[]])).
-        eexists; econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
+        eexists (State _ m1); econstructor; try eassumption; simpl; try rewrite <- Heqp, <- Heqq; trivial.
         unfold goto_label. rewrite <- Heqw, !Pregmap.gso, H by discriminate; reflexivity.
   - (*Pmov_rm_a*)
     unfold exec_load in H5.
@@ -1469,7 +1040,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmov_mr_a*)
@@ -1483,7 +1054,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pmovsd_fm_a*)
@@ -1498,7 +1069,7 @@ destruct i; inv H2; try solve [split;
     * constructor; simpl; trivial.
     * intros mm mm' EV'; inv EV'. inv H3.
       destruct (Mem.load_valid_access _ _ _ _ _ Heqp) as [_ ALIGN].
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_load. rewrite <- Heqq; simpl; erewrite (Mem.loadbytes_load); trivial; eassumption.
       ++ rewrite <- Heqq, H2; reflexivity.
   - (*Pmovsd_mf_a*)
@@ -1512,7 +1083,7 @@ destruct i; inv H2; try solve [split;
     split.
     * econstructor. split; simpl; trivial. eassumption.
     * intros mm mm' EV'; inv EV'. destruct H2. inv H3.
-      eexists; econstructor; try eassumption; simpl.
+      eexists (State _ m1); econstructor; try eassumption; simpl.
       ++ unfold exec_store. rewrite <- Heqq; simpl. erewrite (Mem.storebytes_store); trivial.
       ++ rewrite <- Heqq; reflexivity.
   - (*Pallocframe*)
@@ -1535,7 +1106,7 @@ destruct i; inv H2; try solve [split;
       econstructor. split. eassumption.
       econstructor.
     * intros mm mm' EV'; inv EV'. destruct H2 as [ALLOC EV]. inv EV. inv H2. inv H4. destruct H2. inv H4.
-      eexists; econstructor; try eassumption; simpl; repeat rewrite Ptrofs.add_zero_l; rewrite ALLOC;
+      eexists (State _ m1); econstructor; try eassumption; simpl; repeat rewrite Ptrofs.add_zero_l; rewrite ALLOC;
       repeat erewrite Mem.storebytes_store; try eassumption; reflexivity.
   - (*Pfreeframe*)
     remember (Mem.loadv Mptr m (Val.offset_ptr (rs RSP) ofs_ra)) as p.
@@ -1557,115 +1128,70 @@ destruct i; inv H2; try solve [split;
       remember (Mem.free mm b0 0 sz) as d; destruct d; try discriminate. inv H3.
       exploit (Mem.loadbytes_load Mptr). apply H2. assumption.
       exploit (Mem.loadbytes_load Mptr). apply H4. assumption.
-      eexists; econstructor; try eassumption.
+      eexists (State _ m1); econstructor; try eassumption.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
--
- split; auto.
- intros.
-(* inv H3.
- + inv H2.
-   inv H9.
-  eexists; eapply exec_step_builtin; try eassumption; try eassumption; eauto.
-  destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H5) as [EV EVS].
-  inversion H6; subst ef.
-  - (*malloc*)
-    inv H3. rewrite Vptrofs_inj with (o2 := n) in H7 by congruence.
-    rewrite H7 in ALLOC. inv ALLOC.
-    replace (Vptrofs sz) with (Vptrofs n) in H11 by congruence.
-    apply Mem.store_storebytes in H11.
+- (*builtin*)
+  destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H2) as [EV EVS].
+  exploit Hsafe; eauto.
+  { eapply eval_builtin_args_ev_eval_builtin_args; eauto. }
+  inversion H3; subst ef.
+  + (*malloc*)
+    intros _.
+    inv H4. rewrite Vptrofs_inj with (o2 := n) in H6 by congruence.
+    rewrite H6 in ALLOC. inv ALLOC.
+    replace (Vptrofs sz) with (Vptrofs n) in H10 by congruence.
+    apply Mem.store_storebytes in H10.
     split.
     * eapply ev_elim_app. eassumption.
       econstructor. split. eassumption.
       econstructor. split. eassumption. constructor.
     * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
-      inv EV2. destruct H3. inv H4. destruct H8. inv H8.
-      rename x into mm2. rename x0 into mm3.
+      inv EV2. destruct H4. inv H5. destruct H7. inv H7.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
-      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
-      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
-      ++ econstructor. eassumption. erewrite Mem.storebytes_store; try reflexivity; eassumption.
+      eexists (State _ m1). econstructor 2; try eassumption; simpl; trivial.
       ++ econstructor; try eassumption.
-  - (*free*)
-    inv H3. inv H13.
-    destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [bytes1 [LB1 SZ1]].
+      ++ econstructor. eassumption. erewrite Mem.storebytes_store; auto.
+  + (*free*)
+    intros _.
+    inv H4. inv H12.
+    destruct (Mem.load_loadbytes _ _ _ _ _ H6) as [bytes1 [LB1 SZ1]].
     rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ. rewrite (Vptrofs_inj _ _ SZ) in *.
-    rewrite H12 in FR; inv FR.
+    rewrite H11 in FR; inv FR.
     split.
     * eapply ev_elim_app. eassumption.
       econstructor. eassumption.
-      econstructor. split. simpl. rewrite H12. reflexivity. constructor.
+      econstructor. split. simpl. rewrite H11. reflexivity. constructor.
     * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
-      inv EV2. inv H4. destruct H8. inv H8.
-      rename x into mm2.
+      inv EV2. inv H5. destruct H7. inv H7.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
-      simpl in H4.
+      simpl in H5.
       remember (Mem.free mm b0 (Ptrofs.unsigned lo - size_chunk Mptr) (Ptrofs.unsigned lo + Ptrofs.unsigned sz0)) as d.
-      destruct d; inv H4; symmetry in Heqd.
-      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
-      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      destruct d; inv H5; symmetry in Heqd.
+      eexists (State _ m1). econstructor 2; try eassumption; simpl; trivial.
+      ++ econstructor; eassumption.
       ++ econstructor; try eassumption.
          rewrite SZ1. apply Mem.loadbytes_load; assumption.
-      ++ econstructor; eassumption.
-  - (*memcpy*)
-    inv H3. inv H18. rewrite LB in H16; inv H16. rewrite ST in H17; inv H17.
+  + (*memcpy*)
+    intros _.
+    inv H4. inv H17. rewrite LB in H15; inv H15. rewrite ST in H16; inv H16.
     split.
     * eapply ev_elim_app. eassumption.
       econstructor. eassumption.
       econstructor. split. eassumption. constructor.
     * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]].
-      inv EV2. inv H4. destruct H8. inv H8.
-      rename x into mm2.
+      inv EV2. inv H5. destruct H7. inv H7.
       specialize (EVS _ _ EV1); destruct EVS; subst mm1.
-      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
-      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
-      ++ econstructor; try eassumption.
+      eexists (State _ m1). econstructor 2; try eassumption; simpl; trivial.
       ++ econstructor; eassumption.
-  - subst.
-    split.
-    * eapply ev_elim_app. eassumption.
-      (*EFexternal helpers don't change memory - should follow from HFD*)
-      admit.
-    * intros mm mm' MM. rewrite app_nil_r in MM.
-      destruct (EVS _ _ MM); subst mm'.
-      (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
-      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
-        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
-        2: reflexivity.
-        2: constructor; trivial. *)
-      admit.
-  - subst.
-    split.
-    * eapply ev_elim_app. eassumption.
-      (*EFbuiltin helpers don't change memory - should follow from HFD*)
-      admit.
-    * intros mm mm' MM. rewrite app_nil_r in MM.
-      destruct (EVS _ _ MM); subst mm'.
-       (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
-      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
-        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
-        2: reflexivity.
-        2: constructor; trivial. *)
-      admit.
-(*+ (*Step-to-external*)
-  exploit extcall_arguments_ev_aux_elim_strong. apply H2. intros [EV HEV].
-  split; trivial; intros.
-  destruct (HEV _ _ H3); subst.
-  eexists. eapply asm_ev_step_to_external; try eassumption. eapply extcall_arguments_ev_extcall_arguments. eassumption.
-(*+ inv H1.
-  destruct callee; simpl in *; try solve [contradiction].
-  - inv H3. (*EFexternal helpers don't change memory - should follow from HFD*)
-  - inv H3. (*EFbuiltin helpers don't change memory - should follow from HFD*)*)
-+ (*loadframe*)
-   destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [TT [HTT EV]].
-   unfold store_args_events in H2. rewrite H2 in HTT. inv HTT.
-   split.
-   * econstructor. split; eassumption.
-   * intros mm mm' EV'. inv EV'. destruct H3.
-     exploit store_args_rec_transfer. eassumption. eassumption. eassumption. intros SAR.
-     eexists. econstructor; try eassumption.*)*)
- admit.   (* difficulty here... *)
-Admitted.
+      ++ econstructor; try eassumption.
+  + intro; assert (m' = m /\ forall mm, external_call ef0 g vargs mm t vres mm) as []
+      by (destruct ef0; auto; contradiction); subst.
+    split; [rewrite app_nil_r; auto|].
+    intros ?? Hmm; rewrite app_nil_r in Hmm.
+    destruct (EVS _ _ Hmm); subst.
+    eexists (State _ m1); econstructor 2; try eassumption; [constructor; auto | ..]; eauto.
+Qed.
 
 Program Definition Asm_EvSem (ge : genv) (Hsafe : safe_genv ge) : @EvSem state.
 Proof.

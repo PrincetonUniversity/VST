@@ -222,7 +222,7 @@ Proof.
       apply get_extcall_arg_spec in H; rewrite H end; auto.
 Qed.
 
-(* A safe genv only marks as Internal functions that either have known semantics or don't change
+(* A safe genv only marks as Internal functions that either have known semantics or don't touch
    memory. *)
 Definition safe_genv (ge : genv) :=
   forall b ofs f ef args res r m vargs t vres m', Genv.find_funct_ptr ge b = Some (Internal f) ->
@@ -231,7 +231,7 @@ Definition safe_genv (ge : genv) :=
     external_call ef (Genv.to_senv ge) vargs m t vres m' ->
   match ef with
   | EF_malloc | EF_free | EF_memcpy _ _ => True
-  | _ => m' = m
+  | _ => m' = m /\ forall mm, external_call ef (Genv.to_senv ge) vargs mm t vres mm
   end.
 
 Lemma asm_mem_step : forall ge c m c' m' (CS: corestep (Asm_core_sem ge) c m c' m')
@@ -242,7 +242,7 @@ Proof. intros.
   inv H; simpl in *; try apply mem_step_refl; try contradiction.
  + eapply exec_instr_mem_step; try eassumption.
  + exploit Hsafe; eauto.
-   destruct ef; intro; subst; try apply mem_step_refl.
+   destruct ef; try solve [intros []; subst; apply mem_step_refl]; intros _.
    * (* malloc *) inv H10.
      eapply mem_step_trans.
      -- eapply mem_step_alloc; eauto.
