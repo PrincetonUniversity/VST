@@ -12,7 +12,7 @@ Require Import VST.concurrency.Asm_event.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import Coqlib.
-Require Import msl.Coqlib2.
+Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -22,16 +22,18 @@ Module X86Context.
   
   Section X86Context.
 
-    Instance X86Sem: Semantics:=
-      {| semG:= Asm.genv;
-         semC:= Asm.regset;
-         semSem:= Asm_EvSem
-      |}.
-
     Variable initU: seq.seq nat.
     Variable the_program: Asm.program.
 
     Definition the_ge := Globalenvs.Genv.globalenv the_program.
+    Hypothesis Hsafe : safe_genv the_ge.
+
+    Instance X86Sem: Semantics:=
+      { semG:= Asm.genv;
+         semC:= Asm.state;
+         semSem:= Asm_EvSem the_ge Hsafe;
+         the_ge := the_ge
+      }.
 
     Definition coarse_semantics:=
       coarse_semantics initU (Genv.init_mem the_program).
@@ -43,15 +45,29 @@ Module X86Context.
   End X86Context.
 End X86Context.
 
-  Module X86SEMAxioms <: SemanticsAxioms X86SEM.
+  Module X86SEMAxioms.
 
     Import Asm Asm_core event_semantics semantics_lemmas
-           X86SEM Memory.
+           X86Context Memory.
 
-    Lemma corestep_det: corestep_fun Sem.
+    Section X86Context.
+
+    Variable initU: seq.seq nat.
+    Variable the_program: Asm.program.
+
+    Definition the_ge := Globalenvs.Genv.globalenv the_program.
+    Hypothesis Hsafe : safe_genv the_ge.
+
+    Instance X86Sem: Semantics := X86Sem the_program Hsafe.
+
+(*    Lemma corestep_det: forall m m' m'' c c' c'' m1 m1' m1'',
+      corestep semSem (State c m1) m (State c' m1') m' ->
+      corestep semSem (State c m1) m (State c'' m1'') m'' ->
+      c' = c'' /\ m' = m''.
     Proof.
       hnf; intros.
-      inv H; inv H0;
+      inv H; inv H0; simpl in *.
+      inv H; inv H1;
         repeat
           match goal with
           | H: ?A = _, H':?A=_ |- _ => inversion2 H H'
@@ -59,12 +75,13 @@ End X86Context.
           end;
         try congruence; try now (split; auto).
       assert (vargs0=vargs) by (eapply Events.eval_builtin_args_determ; eauto).
-      subst vargs0; clear H10.
-      assert (t0=t) by (eapply builtin_event_determ; eauto). subst t0. clear H11.
-      destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H7 H13).
+      subst vargs0.
+      exploit Hsafe; eauto.
+      assert (t0=t) by (eapply builtin_event_determ; eauto). subst t0.
+      destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H12 H16).
       specialize (H0 (eq_refl _)). destruct H0; subst m'' vres0.
       auto.
-    Qed.
+    Qed.*)
 
     Lemma mem_step_decay:
       forall m m',
@@ -261,9 +278,9 @@ End X86Context.
     Qed.
 
     Lemma corestep_unchanged_on:
-      forall the_ge c m
+      forall c m
         c' m' b (ofs : Z),
-        corestep X86SEM.Sem the_ge c m c' m' ->
+        corestep semSem c m c' m' ->
         Memory.Mem.valid_block m b ->
         ~ Memory.Mem.perm m b ofs Memtype.Cur Memtype.Writable ->
         ZMap.get ofs (Memory.Mem.mem_contents m) !! b =
@@ -271,26 +288,29 @@ End X86Context.
     Proof.
       intros.
       hnf in H.
-      apply asm_mem_step in H.
+      apply asm_mem_step in H; auto.
       eapply mem_step_obeys_cur_write; auto.
     Qed.
 
     Lemma corestep_decay:
-      forall ge c c' m m',
-        corestep X86SEM.Sem ge c m c' m' -> decay m m'.
+      forall c c' m m',
+        corestep semSem c m c' m' -> decay m m'.
     Proof.
       intros.
       apply mem_step_decay.
+      simpl in H.
       apply asm_mem_step in H; auto.
     Qed.
 
     Lemma corestep_nextblock :
-      forall ge c m c' m',
-        corestep X86SEM.Sem ge c m c' m' ->
+      forall c m c' m',
+        corestep semSem c m c' m' ->
         (Memory.Mem.nextblock m <= Memory.Mem.nextblock m')%positive.
     Proof.
       intros.
       apply mem_step_nextblock.
+      simpl in H.
       apply asm_mem_step in H; auto.
     Qed.
+  End X86Context.
   End X86SEMAxioms.

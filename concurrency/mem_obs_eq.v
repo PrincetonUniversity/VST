@@ -3516,13 +3516,13 @@ Module CoreInjections.
         (* end. *)
 
         core_inj_init:
-          forall m m' vf vf' arg arg' c_new f h
+          forall m m' vf vf' arg arg' c_new f fg h
+            (Hge_wd: ge_wd fg the_ge)
+            (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
+            (Hincr: ren_incr fg f)
             (Harg: val_obs_list f arg arg')
             (Hvf: val_obs f vf vf')
-            (* (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2) *)
-            (* (Hge_wd: ge_wd fg the_ge) *)
             (Hmem: mem_obs_eq f m m')
-            (* (Hincr: ren_incr fg f) *)
             (Hinit: initial_core semSem h m c_new vf arg),
           (* (Hf: forall b b', f b = Some b' -> Mem.valid_block m b), *)
           exists c_new' : semC,

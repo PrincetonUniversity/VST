@@ -24,10 +24,14 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.concurrency.threads_lemmas.
 Require Import VST.concurrency.mem_obs_eq.
 Require Import VST.concurrency.memory_lemmas.
-Require Import VST.ccc26x86.Asm ccc26x86.Asm_coop.
+Require Import compcert.x86.Asm.
+Require Import VST.concurrency.Asm_core VST.concurrency.Asm_event.
 Require Import VST.concurrency.x86_context.
+Require Import VST.concurrency.core_semantics.
 
-Import ValObsEq Renamings event_semantics.
+Import ValObsEq Renamings MemObsEq event_semantics.
+
+Set Bullet Behavior "Strict Subproofs".
 
 (** ** Well defined X86 cores *)
 Module X86WD.
@@ -38,22 +42,8 @@ Module X86WD.
     Definition regset_wd rs : Prop :=
       forall r, valid_val f (Pregmap.get r rs).
 
-    Definition loader_wd (loader : load_frame) : Prop :=
-      match loader with
-      | mk_load_frame b _ =>
-        f b
-      end.
-
-    Definition core_wd (c : state) : Prop :=
-      match c with
-      | State rs loader =>
-        regset_wd rs /\
-        loader_wd loader
-      | Asm_CallstateIn vf args _ _ =>
-        f vf /\ valid_val_list f args
-      | Asm_CallstateOut ef vals rs loader =>
-        valid_val_list f vals /\ regset_wd rs /\ loader_wd loader
-      end.
+    Definition core_wd c : Prop :=
+      match c with State rs _ => regset_wd rs end.
 
     Definition ge_wd (the_ge: genv) : Prop :=
       (forall b, Maps.PTree.get b (genv_defs the_ge) ->
@@ -87,18 +77,6 @@ Module X86WD.
     destruct (Pregmap.elt_eq r' r); subst; auto.
   Qed.
 
-  Lemma loader_wd_incr:
-    forall f1 f2 loader
-      (Hwd: loader_wd f1 loader)
-      (Hincr: ren_domain_incr f1 f2),
-      loader_wd f2 loader.
-  Proof.
-    intros.
-    unfold loader_wd in *.
-    destruct loader.
-      by eauto.
-  Qed.
-
   Lemma regset_wd_domain :
     forall f1 f2 m rs
       (Hdomain1: domain_memren f1 m)
@@ -112,18 +90,15 @@ Module X86WD.
       by eauto.
   Qed.
 
-  Lemma loader_wd_domain :
-    forall f1 f2 m loader
-      (Hdomain1: domain_memren f1 m)
-      (Hdomain2: domain_memren f2 m)
-      (Hwd: loader_wd f1 loader),
-      loader_wd f2 loader.
+  Lemma longofwords_valid_val:
+    forall f v1 v2,
+      valid_val f v1 -> valid_val f v2 ->
+      valid_val f (Val.longofwords v1 v2).
   Proof.
-    intros; unfold loader_wd in *.
-    destruct loader;
-      unfold domain_memren in *;
-      destruct (Hdomain1 sp), (Hdomain2 sp);
-        by eauto.
+    intros.
+    unfold Val.longofwords.
+    destruct v1; try constructor.
+    destruct v2; constructor.
   Qed.
 
   Lemma decode_longs_valid_val:
@@ -141,12 +116,9 @@ Module X86WD.
        destruct a; inversion H; subst];
       try econstructor; eauto.
     destruct vals; first by constructor.
-    unfold Val.longofwords.
-    inversion H3; subst.
-    destruct v;
-      constructor; try constructor; eauto.
-    destruct v0;
-      by constructor.
+    inv H3.
+    constructor; auto.
+    apply longofwords_valid_val; auto.
   Qed.
 
   Hint Extern 1 (valid_val _ (@Pregmap.set _ _ _ _ _)) => eapply regset_wd_set : wd.
@@ -204,7 +176,7 @@ Module X86WD.
 
   Hint Extern 0 (valid_val _ (undef_regs _ _ # _ <- _ _)) => eapply regset_wd_set : wd.
 
-  Hint Resolve loader_wd_domain regset_wd_domain
+  Hint Resolve regset_wd_domain
        valid_val_list_incr valid_val_domain
        valid_val_list_domain regset_wd_undef : wd.
 
@@ -250,7 +222,7 @@ Module X86WD.
     destruct base; eauto with wd.
     apply valid_val_add.
     destruct ofs; eauto with wd.
-    destruct p. destruct (Int.eq i0 Int.one);
+    destruct p. destruct (zeq z 1);
       eauto with wd.
     destruct const; simpl; auto.
     destruct p.
@@ -338,7 +310,9 @@ End X86WD.
 
 (** ** Injections/Renamings on X86 cores *)
 
-Module X86Inj <: CoreInjections X86SEM.
+Module X86Inj.
+
+  Import CoreInjections.
 
 (** Injections on registers *)
 
@@ -348,24 +322,8 @@ Module X86Inj <: CoreInjections X86SEM.
   Definition regset_ren f rs rs' : Prop :=
     forall r, reg_ren f r rs rs'.
 
-  Definition loader_ren f (l l' : load_frame) : Prop :=
-    match l, l' with
-    | mk_load_frame b ty, mk_load_frame b' ty' =>
-      f b = Some b' /\ ty = ty'
-    end.
-
   Definition core_inj f c c' :=
-    match c, c' with
-    | State rs loader, State rs' loader' =>
-      regset_ren f rs rs' /\ loader_ren f loader loader'
-    | Asm_CallstateIn vf args tys retty, Asm_CallstateIn vf' args' tys' retty' =>
-      f vf = Some vf' /\ val_obs_list f args args' /\
-      tys = tys' /\ retty = retty'
-    | Asm_CallstateOut ef vals rs loader, Asm_CallstateOut ef' vals' rs' loader' =>
-      ef = ef' /\ val_obs_list f vals vals'
-      /\ regset_ren f rs rs' /\ loader_ren f loader loader'
-    | _, _ => False
-    end.
+    match c, c' with State rs _, State rs' _ => regset_ren f rs rs' end.
 
   Import ValueWD MemoryWD Genv.
   Include X86WD.
@@ -544,47 +502,6 @@ Module X86Inj <: CoreInjections X86SEM.
       auto.
   Qed.
 
-  Lemma loader_ren_trans:
-    forall f f' f'' loader loader' loader'',
-      loader_ren f loader loader'' ->
-      loader_ren f' loader loader' ->
-      (forall b b' b'' : block,
-          f b = Some b'' -> f' b = Some b' -> f'' b' = Some b'') ->
-      loader_ren f'' loader' loader''.
-  Proof.
-    intros.
-    unfold loader_ren in *.
-    destruct loader, loader', loader''.
-    destruct H, H0; split; subst; eauto.
-  Qed.
-
-  Lemma loader_ren_id:
-    forall f loader
-      (Hloader_wd: loader_wd f loader)
-      (Hf: forall b1 b2, f b1 = Some b2 -> b1 = b2),
-      loader_ren f loader loader.
-  Proof.
-    intros.
-    unfold loader_ren, loader_wd in *.
-    destruct loader; split; auto.
-    destruct (f sp) eqn:Hfsp;
-      [apply Hf in Hfsp;
-         by subst | by exfalso].
-  Qed.
-
-  Lemma loader_ren_incr:
-    forall f f' loader loader',
-      loader_ren f loader loader' ->
-      ren_incr f f' ->
-      loader_ren f' loader loader'.
-  Proof.
-    intros.
-    unfold loader_ren, ren_incr in *.
-    destruct loader, loader';
-      destruct H;
-        by auto.
-  Qed.
-
   Lemma gso_undef_regs:
     forall (rs : regset) r regs,
       ~ List.In r regs ->
@@ -614,7 +531,6 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Hint Resolve
-       loader_ren_incr loader_ren_id loader_ren_trans
        val_obs_reg regset_ren_set : reg_renamings.
   Hint Rewrite gso_undef_regs : reg_renamings.
 
@@ -656,7 +572,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Hint Resolve regset_ren_undef : reg_renamings.
 
   Lemma ge_wd_incr :
-    forall (f f' : memren) (g : X86SEM.G),
+    forall (f f' : memren) (g : genv),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
   Proof with (eauto with renamings val_renamings).
     intros.
@@ -667,7 +583,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Lemma ge_wd_domain :
-    forall (f f' : memren) (m : mem) (g : X86SEM.G),
+    forall (f f' : memren) (m : mem) (g : genv),
       ge_wd f g -> domain_memren f m -> domain_memren f' m -> ge_wd f' g.
   Proof.
     intros.
@@ -684,61 +600,60 @@ Module X86Inj <: CoreInjections X86SEM.
     eapply valid_val_domain; eauto.
   Qed.
 
-  Lemma core_wd_incr :
-    forall (f f' : memren) c,
-      core_wd f c -> ren_domain_incr f f' -> core_wd f' c.
+  Lemma get_extcall_arg_wd : forall f rs m l v
+    (Hm : valid_mem m)
+    (Hdom : domain_memren f m)
+    (Hrs : regset_wd f rs)
+    (Hv : get_extcall_arg rs m l = Some v),
+    valid_val f v.
   Proof.
-    intros.
-    unfold core_wd in *.
-    destruct c;
-      repeat match goal with
-             | [H: _ /\ _ |- _ ] => destruct H
-             | [|- _ /\ _] => split
-             | [|- regset_wd _ _] => eapply regset_wd_incr; eauto
-             | [|- loader_wd _ _] => eapply loader_wd_incr; eauto
-             | [|- valid_val_list _ _] =>
-               eapply valid_val_list_incr; eauto
-             end;
-        by eauto.
+    destruct l; unfold get_extcall_arg; intros.
+    - inv Hv.
+      apply Hrs.
+    - destruct sl; try discriminate.
+      eapply loadv_wd in Hv; eauto.
   Qed.
 
-  Lemma core_wd_domain :
-    forall (f f' : memren) (m : mem) c,
-      core_wd f c ->
-      domain_memren f m -> domain_memren f' m -> core_wd f' c.
+  Lemma get_extcall_arguments_wd : forall f rs m l v
+    (Hm : valid_mem m)
+    (Hdom : domain_memren f m)
+    (Hrs : regset_wd f rs)
+    (Hv : get_extcall_arguments rs m l = Some v),
+    valid_val_list f v.
   Proof.
-    intros.
-    unfold core_wd.
-    destruct c; simpl in H;
-    repeat match goal with
-           | [H: _ /\ _ |- _ ] => destruct H
-           | [|- _ /\ _] => split
-           | [|- regset_wd _ _] => eapply regset_wd_domain with (f1 := f); eauto
-           | [|- loader_wd _ _] => eapply loader_wd_domain with (f1 := f); eauto
-           | [|- valid_val_list _ _] =>
-             eapply valid_val_list_domain with (f := f); eauto
-           end.
-    destruct (H0 f0), (H1 f0);
-      by eauto.
+    induction l; simpl; intros.
+    - inv Hv; constructor.
+    - destruct a.
+      + destruct (get_extcall_arg _ _ _) eqn: Harg; inv Hv.
+        destruct (get_extcall_arguments _ _ _); inv H0.
+        constructor; [eapply get_extcall_arg_wd|]; eauto.
+      + destruct (get_extcall_arg _ _ _) eqn: Harg1; inv Hv.
+        destruct (get_extcall_arg _ _ rlo) eqn: Harg2; inv H0.
+        destruct (get_extcall_arguments _ _ _); inv H1.
+        constructor; auto.
+        apply longofwords_valid_val; eapply get_extcall_arg_wd; eauto.
   Qed.
 
   Lemma at_external_wd :
-    forall (f : memren) c
+    forall the_ge m (f : memren) c
       (ef : external_function)
+      (ef_sig : signature)
       (args : seq val),
+      valid_mem m ->
+      domain_memren f m ->
       core_wd f c ->
-      at_external X86SEM.Sem c = Some (ef, args) -> valid_val_list f args.
+      at_external (Asm_core_sem the_ge) c m = Some (ef, ef_sig, args) -> valid_val_list f args.
   Proof.
     intros.
-    unfold core_wd in H.
-    simpl in H0.
-    unfold Asm_at_external in H0.
-    destruct c; try discriminate.
-    destruct (BuiltinEffects.observableEF_dec f0); try discriminate.
-    inversion H0.
-    subst.
-    destruct H;
-      by eapply decode_longs_valid_val.
+    destruct c; simpl in *.
+    pose proof (H1 PC) as HPC.
+    unfold Pregmap.get in HPC.
+    destruct r; try discriminate.
+    destruct (Ptrofs.eq_dec _ _); try discriminate.
+    destruct (find_funct_ptr _ _); try discriminate.
+    destruct f0; try discriminate.
+    destruct (get_extcall_arguments _ _ _) eqn: Hargs; inv H2.
+    eapply get_extcall_arguments_wd; eauto.
   Qed.
 
   Lemma valid_val_hiword:
@@ -760,12 +675,12 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Lemma after_external_wd :
-    forall (c c' : state) (f : memren) (ef : external_function)
+    forall the_ge m (c c' : state) (f : memren) (ef : external_function) (sig : signature)
       (args : seq val) (ov : option val)
-      (Hat_external: at_external X86SEM.Sem c = Some (ef, args))
+      (Hat_external: at_external (Asm_core_sem the_ge) c m = Some (ef, sig, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
-      (Hafter_external: after_external X86SEM.Sem ov c = Some c')
+      (Hafter_external: after_external (Asm_core_sem the_ge) ov c m = Some c')
       (Hov: match ov with
             | Some v => valid_val f v
             | None => True
@@ -773,19 +688,20 @@ Module X86Inj <: CoreInjections X86SEM.
       core_wd f c'.
   Proof.
     intros.
+    destruct c, c'; simpl in *.
+    unfold after_external_regset in *.
+    destruct r eqn: HPC; try discriminate.
+    destruct (Ptrofs.eq_dec _ _); try discriminate.
+    destruct (find_funct_ptr _ _) eqn: Hfind; try discriminate.
+    destruct f0; try discriminate.
     simpl in *.
-    unfold core_wd, Asm_at_external, Asm_after_external in *.
-    destruct c; try discriminate.
-    destruct (BuiltinEffects.observableEF_dec f0); try discriminate.
-    destruct Hcore_wd as (Hval_vals & Hrs_wd & Hloader_wd).
-    inversion Hat_external; subst.
+    destruct (get_extcall_arguments _ _ _) eqn: Hargs; inv Hat_external.
     destruct ov; inversion Hafter_external; subst.
-    - split; auto.
-      intros r.
-      unfold regset_wd, Pregmap.get in Hrs_wd.
-      assert (Hr := Hrs_wd r).
+    - intros r1.
+      unfold regset_wd, Pregmap.get in Hcore_wd.
+      assert (Hr := Hcore_wd r1).
       rewrite Pregmap.gsspec.
-      destruct (Pregmap.elt_eq r PC); subst;
+      destruct (Pregmap.elt_eq r1 PC); subst;
       simpl; first by auto.
       (* it's easier to do the case analysis than try to write a lemma
     for set_regs (are the registers unique and more similar problems)*)
@@ -795,88 +711,165 @@ Module X86Inj <: CoreInjections X86SEM.
       eapply valid_val_loword; auto.
       eapply regset_wd_set; eauto.
       eapply valid_val_hiword; auto.
-      simpl.
-      split.
-      destruct (loc_external_result (ef_sig ef)) as [|r' regs];
-        simpl;
-        repeat (eapply regset_wd_set; eauto).
-      assumption.
+    - repeat (eapply regset_wd_set; eauto).
+  Qed.
+
+  Lemma valid_val_nullptr : forall f, valid_val f Vnullptr.
+  Proof.
+    unfold valid_val, Vnullptr; intro.
+    destruct Archi.ptr64; auto.
   Qed.
 
   Lemma initial_core_wd :
-    forall the_ge (f : memren) (vf arg : val) (c_new : state) h,
-      initial_core X86SEM.Sem h the_ge vf [:: arg] = Some c_new ->
+    forall the_ge (f : memren) (vf arg : val) m (c_new : state) h,
+      initial_core (Asm_core_sem the_ge) h m c_new vf [:: arg] ->
       valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.
   Proof.
     intros.
     simpl in *.
-    unfold core_wd, Asm_initial_core in *.
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?;
-                      try discriminate
-           end; subst.
-    apply Bool.andb_true_iff in Heqb0.
-    destruct Heqb0.
-    apply Bool.andb_true_iff in H2.
-    destruct H2.
-    inversion H; subst.
-    split.
-    unfold find_funct_ptr in Heqo.
-    destruct (find_def the_ge b) as[[|]|] eqn:Hg; try discriminate.
-    unfold find_def in Hg.
-      by specialize ((proj1 H1) b ltac:(rewrite Hg; auto)).
-    constructor;
-      by [auto | constructor].
+    inv H.
+    apply regset_wd_set; auto with wd.
+    apply regset_wd_set; auto with wd.
+    apply regset_wd_set; [|intro; auto with wd].
+    destruct H1.
+    unfold find_funct_ptr, find_def in *.
+    specialize (H b).
+    destruct (Maps.PTree.get _ _); [|discriminate].
+    unfold valid_val.
+    destruct (f b); eauto.
+    lapply H; auto; discriminate.
   Qed.
 
+  Lemma get_extcall_arg_inj : forall f rs rs' m m' l v,
+    regset_ren f rs rs' -> mem_obs_eq f m m' ->
+    get_extcall_arg rs m l = Some v ->
+    exists v', get_extcall_arg rs' m' l = Some v' /\ val_obs f v v'.
+  Proof.
+    destruct l; simpl; intros.
+    - inv H1.
+      eexists; split; eauto.
+      apply val_obs_reg; auto.
+    - destruct sl; inv H1.
+      edestruct loadv_val_obs; eauto; try apply H0.
+      specialize (H RSP); hnf in H.
+      unfold Pregmap.get in H.
+      destruct rs; inv H; constructor; auto.
+  Qed.
+
+  Lemma get_extcall_arguments_inj : forall f rs rs' m m' l v,
+    regset_ren f rs rs' -> mem_obs_eq f m m' ->
+    get_extcall_arguments rs m l = Some v ->
+    exists v', get_extcall_arguments rs' m' l = Some v' /\ val_obs_list f v v'.
+  Proof.
+    induction l; simpl; intros.
+    { inv H1; exists nil; split; auto; constructor. }
+    destruct a.
+    - destruct (get_extcall_arg rs m r) eqn: Hget; try discriminate.
+      eapply get_extcall_arg_inj in Hget as (? & -> & ?); eauto.
+      destruct (get_extcall_arguments rs m l) eqn: Hargs; inv H1.
+      destruct (IHl l0) as (? & -> & ?); auto.
+      eexists; split; eauto; constructor; auto.
+    - destruct (get_extcall_arg rs m rhi) eqn: Hget; try discriminate.
+      eapply get_extcall_arg_inj in Hget as (? & -> & ?); eauto.
+      destruct (get_extcall_arg rs m rlo) eqn: Hget; try discriminate.
+      eapply get_extcall_arg_inj in Hget as (? & -> & ?); eauto.
+      destruct (get_extcall_arguments rs m l) eqn: Hargs; inv H1.
+      destruct (IHl l0) as (? & -> & ?); auto.
+      eexists; split; eauto; constructor; auto.
+      apply val_obs_longofwords; auto.
+  Qed.
+
+  Lemma find_funct_ptr_inj : forall g (f fg : memren) b b' h
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f),
+    find_funct_ptr g b = Some h -> f b = Some b' -> b' = b.
+  Proof.
+    intros.
+    destruct Hge_wd as [Hge_wd _].
+    specialize (Hge_wd b).
+    unfold find_funct_ptr, find_def in *.
+    destruct (Maps.PTree.get _ _) eqn: Hget; [|discriminate].
+    lapply Hge_wd; auto.
+    destruct (fg b) eqn: Hb; [|discriminate].
+    rewrite (Hincr _ _ Hb) in H0; inv H0.
+    specialize (Hfg _ _ Hb); auto.
+  Qed.
+
+  Lemma find_funct_ptr_inj' : forall g (f fg : memren) m m' b b' h
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Hmem : mem_obs_eq f m m'),
+    find_funct_ptr g b' = Some h -> f b = Some b' -> b' = b.
+  Proof.
+    intros.
+    destruct Hge_wd as [Hge_wd _].
+    specialize (Hge_wd b').
+    unfold find_funct_ptr, find_def in *.
+    destruct (Maps.PTree.get _ _) eqn: Hget; [|discriminate].
+    lapply Hge_wd; auto.
+    destruct (fg b') eqn: Hb; [|discriminate].
+    pose proof (Hincr _ _ Hb).
+    specialize (Hfg _ _ Hb); subst.
+    intro; eapply Hmem; eauto.
+  Qed.
+
+  (* Does this need to be so strong? Right now, it's possible for at_external to be true in the
+     injection but not in the original, because the evaluation of arguments succeeds in the larger
+     memory but fails in the smaller. *)
   Lemma core_inj_ext :
-    forall c c' (f : memren),
-      core_inj f c c' ->
-      match at_external X86SEM.Sem c with
-      | Some (ef, vs) =>
-        match at_external X86SEM.Sem c' with
-        | Some (ef', vs') =>
-          ef = ef'/\ val_obs_list f vs vs'
+    forall the_ge m m' c c' (f fg : memren)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hincr: ren_incr fg f)
+      (Hinj : core_inj f c c')
+      (Hmem : mem_obs_eq f m m'),
+      match at_external (Asm_core_sem the_ge) c m with
+      | Some (ef, sig, vs) =>
+        match at_external (Asm_core_sem the_ge) c' m' with
+        | Some (ef', sig', vs') =>
+          ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
-        match at_external X86SEM.Sem c' with
+        match at_external (Asm_core_sem the_ge) c' m' with
         | Some _ => False
         | None => True
         end
       end.
   Proof.
-    intros c c' f Hinj.
-    simpl.
-    unfold core_inj in Hinj.
-    destruct (Asm_at_external c) as [[ef vs]|] eqn:Hat_external;
-      destruct (Asm_at_external c') as [[ef' vs']|] eqn:Hat_external';
-      destruct c, c'; try discriminate; auto;
-      destruct Hinj as (? & ? & ? & ?);
-      simpl in *; subst;
-      match goal with
-      | [H: match ?Expr with _ => _ end = _ |- _] =>
-        destruct Expr
-      end;
-      inversion Hat_external;
-      inversion Hat_external'; subst.
-    subst.
-    split; auto.
-    eapply decode_longs_val_obs_list; eauto.
-  Qed.
+    intros.
+    destruct c, c'; simpl in *.
+    pose proof (Hinj PC) as HPC; unfold reg_ren, Pregmap.get in HPC.
+    destruct r, r0; try discriminate; inv HPC; auto.
+    destruct (Ptrofs.eq_dec _ _); auto.
+    destruct (find_funct_ptr the_ge b) eqn: Hfind.
+    - exploit find_funct_ptr_inj; eauto; intro; subst.
+      rewrite Hfind.
+      destruct f0; auto.
+      destruct (get_extcall_arguments _ _ _) eqn: Hargs.
+      eapply get_extcall_arguments_inj in Hargs as (? & -> & ?); eauto.
+      admit. (* other direction *)
+    - destruct (find_funct_ptr the_ge b0) eqn: Hfind'; auto.
+      exploit find_funct_ptr_inj'; eauto; intro; subst.
+      congruence.
+  Admitted.
 
   Lemma core_inj_after_ext :
-    forall c cc c' (ov1 : option val)
-      (f : memren),
+    forall the_ge c cc c' m (ov1 : option val)
+      (f fg : memren)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hincr: ren_incr fg f),
       core_inj f c c' ->
       match ov1 with
       | Some v1 => valid_val f v1
       | None => True
       end ->
-      after_external X86SEM.Sem ov1 c = Some cc ->
+      after_external (Asm_core_sem the_ge) ov1 c m = Some cc ->
       exists (ov2 : option val) (cc' : state),
-        after_external X86SEM.Sem ov2 c' = Some cc' /\
+        after_external (Asm_core_sem the_ge) ov2 c' m = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
         | Some v1 =>
@@ -890,143 +883,115 @@ Module X86Inj <: CoreInjections X86SEM.
                  end
         end.
   Proof.
-    intros c cc c' ov1 f Hinj Hov1 Hafter_external.
+    intros the_ge c cc c' m ov1 f ???? Hinj Hov1 Hafter_external.
     simpl in *.
-    unfold core_inj in Hinj.
-    unfold Asm_after_external in Hafter_external.
-    destruct c; try discriminate.
-    destruct c'; try by exfalso.
-    destruct Hinj as (? & ? & ? & ?).
-    subst.
-    simpl.
+    destruct c, c'; simpl in *.
+    unfold after_external_regset in *.
+    pose proof (Hinj PC) as HPC.
+    unfold reg_ren, Pregmap.get in HPC.
+    destruct r; try discriminate.
+    inv HPC.
+    destruct (Ptrofs.eq_dec _ _); try discriminate.
+    destruct (find_funct_ptr _ _) eqn: Hfind; try discriminate.
+    exploit find_funct_ptr_inj; eauto; intro; subst.
+    rewrite Hfind.
+    destruct f0; try discriminate.
     assert (Hov:
               forall v v',
                 val_obs f v v' ->
                 regset_ren f
-                           ((set_pair (loc_external_result (ef_sig f1)) v rs)
-                           # PC <- (rs RA))
-                           ((set_pair (loc_external_result (ef_sig f1)) v' rs0)
-                              # PC <- (rs0 RA))).
+                           ((set_pair (loc_external_result (ef_sig e)) v r)
+                           # PC <- (r RA))
+                           ((set_pair (loc_external_result (ef_sig e)) v' r0)
+                              # PC <- (r0 RA))).
     { intros.
-      intros r.
+      intros r1.
       unfold regset_ren, reg_ren in *.
       do 2 rewrite Pregmap.gsspec.
-      destruct (Pregmap.elt_eq r PC); subst;
+      destruct (Pregmap.elt_eq r1 PC); subst;
       simpl;
       first by eauto.
-      destruct (loc_external_result (ef_sig f1)) as [|r' regs]; simpl;
+      destruct (loc_external_result (ef_sig e)) as [|r' regs]; simpl;
       repeat (eapply regset_ren_set; eauto with val_renamings).
     }
-    simpl in Hafter_external.
-    inversion Hafter_external.
     destruct ov1 as [v1 |];
-      inversion H3; subst.
+      inversion Hafter_external; subst.
     exists (Some (val_obsC f v1)).
     eexists; split; eauto.
     simpl.
     split.
-    split; auto.
     eapply Hov.
     all: try (eapply val_obsC_correct; eauto).
     exists None.
     eexists; split; eauto.
     simpl.
     split; auto.
-    split; auto.
-    eapply Hov;
-      by constructor.
+    apply regset_ren_set; auto.
+    apply Hinj.
   Qed.
 
   Lemma core_inj_halted :
-    forall c c' (f : memren),
+    forall the_ge c c' (f : memren) v,
       core_inj f c c' ->
-      match halted X86SEM.Sem c with
-      | Some v =>
-        match halted X86SEM.Sem c' with
-        | Some v' => val_obs f v v'
-        | None => False
-        end
-      | None =>
-        match halted X86SEM.Sem c' with
-        | Some _ => False
-        | None => True
-        end
-      end.
+      halted (Asm_core_sem the_ge) c v <-> halted (Asm_core_sem the_ge) c' v.
   Proof.
     intros.
     simpl.
-    unfold core_inj in *.
-    destruct (Asm_halted c) eqn:Hhalted;
-      unfold Asm_halted in Hhalted;
-      destruct c; try discriminate;
-      destruct c'; try discriminate;
-      simpl;
-      unfold loader_ren in *;
-      repeat match goal with
-             | [H: _ /\ _ |- _] => destruct H
-             | [H: context[match ?Expr with _ => _ end] |- _] =>
-               destruct Expr eqn:?
-             | [H: Some _ = Some _ |- _] => inversion H; clear H
-             end; auto;
-      subst; try discriminate; try (by exfalso);
-      unfold regset_ren, reg_ren in *;
-      try (erewrite <- ren_cmp_bool with (v := rs PC); eauto;
-           rewrite Heqo);
-      eauto;
-      simpl in Heql0.
-    inv Heql0;
-    eauto with val_renamings.
+    destruct c, c'; simpl in *.
+    pose proof (H PC) as HPC; pose proof (H RAX) as HRAX.
+    unfold reg_ren, Pregmap.get in *.
+    split; intro Hfinal; inv Hfinal.
+    - erewrite H2, H4 in *.
+      inv HPC; inv HRAX.
+      constructor; auto.
+    - erewrite H2, H4 in *.
+      inv HRAX.
+      constructor; auto.
+      unfold Vnullptr in *.
+      destruct Archi.ptr64; inv HPC; auto.
+  Qed.
+
+  Lemma val_obs_inj : forall f v v1 v2, val_obs f v v1 -> val_obs f v v2 -> v1 = v2.
+  Proof.
+    intros; inv H; inv H0; auto.
+    congruence.
+  Qed.
+
+  Lemma val_obs_list_inj : forall f v v1 v2, val_obs_list f v v1 -> val_obs_list f v v2 -> v1 = v2.
+  Proof.
+    intros; revert dependent v2; induction H; inversion 1; auto; subst.
+    f_equal; auto.
+    eapply val_obs_inj; eauto.
   Qed.
 
   Lemma core_inj_init :
-    forall vf vf' arg arg' c_new f fg the_ge h
-      (Harg: val_obs_list f arg arg')
-      (Hvf: val_obs f vf vf')
+    forall the_ge m m' vf vf' arg arg' c_new f fg h
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core X86SEM.Sem h the_ge vf arg = Some c_new),
+      (Harg: val_obs_list f arg arg')
+      (Hvf: val_obs f vf vf')
+      (Hmem: mem_obs_eq f m m')
+      (Hinit: initial_core (Asm_core_sem the_ge) h m c_new vf arg),
       exists c_new' : state,
-        initial_core X86SEM.Sem h the_ge vf' arg' = Some c_new' /\
+        initial_core (Asm_core_sem the_ge) h m' c_new' vf' arg' /\
         core_inj f c_new c_new'.
   Proof.
     intros.
     simpl in *.
-    unfold Asm_initial_core in *.
-    destruct vf; try discriminate.
-    inversion Hvf; subst.
-    destruct (Int.eq_dec i Int.zero); subst; try discriminate.
-    unfold Genv.find_funct_ptr in *.
-    destruct (find_def the_ge b) as [[|]|] eqn:Hget; try discriminate.
-    destruct f0; try discriminate.
-    destruct Hge_wd as (Hge_wd1 & Hge_wd2).
-    unfold find_def in *.
-    specialize (Hge_wd1 b ltac:(rewrite Hget; eauto)).
-    assert (Hfg_b: b = b2).
-    { destruct (fg b) eqn:Hfg'.
-      assert (b = b0)
-        by (apply Hfg in Hfg'; by subst).
-      subst b0.
-      apply Hincr in Hfg'. rewrite H2 in Hfg'; by inversion Hfg'.
-        by exfalso.
-    } subst b2.
-    rewrite Hget.
-    match goal with
-    | [H: context[match ?Expr with _ => _ end] |- _] =>
-      destruct Expr eqn:Hguard
-    end; try discriminate.
-    move/andP:Hguard => [Hguard1 Hguard2].
-    move/andP:Hguard1 => [Hguard1 Hguard3].
-    eexists.
-    do 2 rewrite Bool.andb_if.
-    repeat rewrite if_true.
-    split; eauto.
-    inversion Hinit.
-    simpl.
-    repeat (split; auto).
-    erewrite <- zlength_obs; eauto.
-    erewrite <- vals_defined_obs; eauto.
-    erewrite <- val_has_type_list_obs; eauto.
+    inv Hinit.
+    inv Hvf.
+    exploit find_funct_ptr_inj; eauto; intro; subst.
+    assert (core_inj f (State rs0 m) (State (((Pregmap.init Vundef) # PC <-
+      (Vptr b Ptrofs.zero)) # RA <- Vzero) # (IR RSP) <- Vnullptr m')).
+    { simpl.
+      repeat (eapply regset_ren_set; eauto with val_renamings; try constructor). }
+    eexists; split; eauto.
+    econstructor; eauto.
+    apply get_extcall_arguments_spec.
+    apply get_extcall_arguments_spec in H0.
+    eapply get_extcall_arguments_inj in H0 as (? & ? & ?); eauto.
+    eapply val_obs_list_inj in Harg; eauto; subst; auto.
   Qed.
 
   Lemma core_inj_id :
@@ -1042,8 +1007,6 @@ Module X86Inj <: CoreInjections X86SEM.
              | [H: _ /\ _ |- _] => destruct H
              | [|- regset_ren _ _ _] =>
                eapply regset_ren_id
-             | [|- loader_ren _ _ _] =>
-               eapply loader_ren_id
              | [H: forall _ _, _ |- f ?X = Some ?X]  =>
                destruct (f X) eqn:Hf;
                  [eapply H in Hf; by subst | by exfalso]
@@ -1069,8 +1032,6 @@ Module X86Inj <: CoreInjections X86SEM.
            | [|- _ /\ _] => split
            | [|- regset_ren _ _ _] =>
              eapply regset_ren_trans; eauto
-           | [|- loader_ren _ _ _] =>
-             eapply loader_ren_trans; eauto
            | [|- val_obs_list _ _ _] =>
              eapply val_obs_list_trans; eauto
            end; subst; eauto.
@@ -1127,9 +1088,9 @@ Module X86Inj <: CoreInjections X86SEM.
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg g)
       (Hincr: ren_incr fg f)
-      (Heval: eval_builtin_arg g rs (rs ESP) m arg varg),
+      (Heval: eval_builtin_arg g rs (rs RSP) m arg varg),
     exists varg',
-      eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
+      eval_builtin_arg g rs' (rs' RSP) m' arg varg' /\
       val_obs f varg varg'.
   Proof with eauto with renamings reg_renamings val_renamings.
     intros.
@@ -1137,7 +1098,7 @@ Module X86Inj <: CoreInjections X86SEM.
     pose proof (injective weak_obs_eq0).
     induction Heval; subst;
     try by (eexists; split)...
-    - eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
+    - eapply loadv_val_obs with (vptr2 := Val.add (rs' RSP) (Vint ofs)) in H...
       destruct H as (varg' & Hload' & Hval_obs)...
     - assert (Hb: val_obs f (Senv.symbol_address g id ofs)
                         (Senv.symbol_address g id ofs))
@@ -1159,9 +1120,9 @@ Module X86Inj <: CoreInjections X86SEM.
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg g)
       (Hincr: ren_incr fg f)
-      (Heval: eval_builtin_args g rs (rs ESP) m args vargs),
+      (Heval: eval_builtin_args g rs (rs RSP) m args vargs),
     exists vargs',
-      eval_builtin_args g rs' (rs' ESP) m' args vargs' /\
+      eval_builtin_args g rs' (rs' RSP) m' args vargs' /\
       val_obs_list f vargs vargs'.
   Proof.
     intros.
@@ -2061,9 +2022,9 @@ Module X86Inj <: CoreInjections X86SEM.
           (f' & Hf' & Hmem_obs_eq' & Hincr' & Hsep & Hnextblock & Hinverse & Hid).
       assert (regset_ren f'
                          ((((Pregmap.init Vundef) # PC <- (Vptr f0 Int.zero)) # RA <- Vzero)
-                            # ESP <- (Vptr stk Int.zero))
+                            # RSP <- (Vptr stk Int.zero))
                          ((((Pregmap.init Vundef) # PC <- (Vptr f1 Int.zero)) # RA <- Vzero)
-                            # ESP <- (Vptr stk' Int.zero))).
+                            # RSP <- (Vptr stk' Int.zero))).
       { eapply regset_ren_set...
         eapply regset_ren_set.
         eapply regset_ren_set...
@@ -2096,7 +2057,7 @@ Module X86Inj <: CoreInjections X86SEM.
       assert (Hnb' := Asm_coop.load_frame_store_nextblock _ _ _ _ _ Hload_frame').
 
       exists (State ((((Pregmap.init Vundef) # PC <- (Vptr f1 Int.zero)) # RA <- Vzero)
-                  # ESP <- (Vptr stk' Int.zero)) (mk_load_frame stk' retty0)), m2', f'.
+                  # RSP <- (Vptr stk' Int.zero)) (mk_load_frame stk' retty0)), m2', f'.
       unfold Mem.valid_block in *.
       rewrite Hnb Hnb'.
       repeat match goal with
@@ -2507,6 +2468,8 @@ Qed.
       destruct H3. rewrite H3. auto.
     - inversion Hcorestep; by exfalso.
   Qed.
+
+  Instance X86Inj : CoreInj.
 
 End X86Inj.
 
