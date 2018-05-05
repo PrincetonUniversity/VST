@@ -71,17 +71,17 @@ Inductive jmsafe : nat -> cm_state -> Prop :=
 | jmsafe_0 m tr sch tp : jmsafe 0 (m, (tr, sch, tp))
 | jmsafe_halted n m tr tp : jmsafe n (m, (tr, nil, tp))
 | jmsafe_core n m m' tr tr' sch (tp tp' : jstate ge):
-    JuicyMachine.machine_step(Sem := JSem)(genv := ge) sch tr tp m sch tr' tp' m' ->
+    JuicyMachine.machine_step(Sem := JSem) sch tr tp m sch tr' tp' m' ->
     tp_bupd (fun tp' => jmsafe n (m', (tr', sch, tp'))) tp' ->
     jmsafe (S n) (m, (tr, sch, tp))
 | jmsafe_sch n m m' i tr tr' sch (tp tp' : jstate ge):
-    JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+    JuicyMachine.machine_step(Sem := JSem) (i :: sch) tr tp m sch tr' tp' m' ->
     (forall sch', tp_bupd (fun tp' => jmsafe n (m', (tr', sch', tp'))) tp') ->
     jmsafe (S n) (m, (tr, i :: sch, tp)).
 
 Lemma step_sch_irr i tr tr' sch sch' (tp : jstate ge) m tp' m' :
-  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
-  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch') tr tp m sch' tr' tp' m'.
+  JuicyMachine.machine_step(Sem := JSem) (i :: sch) tr tp m sch tr' tp' m' ->
+  JuicyMachine.machine_step(Sem := JSem) (i :: sch') tr tp m sch' tr' tp' m'.
 Proof.
   intros step.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
@@ -95,7 +95,7 @@ Qed.
 Require Import VST.concurrency.semax_simlemmas.
 
 Lemma schstep_norun i sch tr tr' tp m tp' m' :
-  JuicyMachine.machine_step(Sem := JSem)(genv := ge) (i :: sch) tr tp m sch tr' tp' m' ->
+  JuicyMachine.machine_step(Sem := JSem) (i :: sch) tr tp m sch tr' tp' m' ->
   unique_Krun tp (i :: sch) ->
   (1 < pos.n (num_threads tp'))%nat ->
   no_Krun(ge := ge) tp'.

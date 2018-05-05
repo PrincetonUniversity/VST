@@ -385,6 +385,13 @@ Module ValueWD.
     simpl; auto.
   Qed.
 
+  Lemma valid_val_long:
+    forall f n,
+      valid_val f (Vlong n).
+  Proof.
+    simpl; auto.
+  Qed.
+
   Lemma valid_val_one:
     forall f, valid_val f Vone.
   Proof.
@@ -405,6 +412,20 @@ Module ValueWD.
     simpl; auto.
   Qed.
 
+  Lemma valid_val_hiword:
+    forall f v,
+      valid_val f (Val.hiword v).
+  Proof.
+    destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_loword:
+    forall f v,
+      valid_val f (Val.loword v).
+  Proof.
+    destruct v; simpl; auto.
+  Qed.
+
   Lemma valid_val_add:
     forall f v1 v2,
       valid_val f v1 ->
@@ -413,6 +434,25 @@ Module ValueWD.
   Proof.
     intros.
     destruct v1, v2; simpl in *; auto.
+  Qed.
+
+  Lemma valid_val_addl:
+    forall f v1 v2,
+      valid_val f v1 ->
+      valid_val f v2 ->
+      valid_val f (Val.addl v1 v2).
+  Proof.
+    intros.
+    destruct v1, v2; simpl in *; auto.
+  Qed.
+
+  Lemma valid_val_offset_ptr:
+    forall f v ofs,
+      valid_val f v ->
+      valid_val f (Val.offset_ptr v ofs).
+  Proof.
+    intros.
+    destruct v; simpl in *; auto.
   Qed.
 
   Lemma valid_val_sub:
@@ -429,6 +469,19 @@ Module ValueWD.
        destruct (eq_block b b0); simpl; auto].
   Qed.
 
+  Lemma valid_val_subl:
+    forall f v1 v2,
+      valid_val f v1 ->
+      valid_val f v2 ->
+      valid_val f (Val.subl v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+      destruct v2; simpl; auto.
+    destruct (Archi.ptr64);
+      [destruct (eq_block b b0); simpl; auto | now simpl].
+  Qed.
+
   Lemma valid_val_mul:
     forall f v1 v2,
       valid_val f (Val.mul v1 v2).
@@ -441,6 +494,24 @@ Module ValueWD.
   Lemma valid_val_mulhu:
     forall f v1 v2,
       valid_val f (Val.mulhu v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_mull:
+    forall f v1 v2,
+      valid_val f (Val.mull v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_mullhu:
+    forall f v1 v2,
+      valid_val f (Val.mullhu v1 v2).
   Proof.
     intros.
     destruct v1; simpl; auto;
@@ -468,6 +539,33 @@ Module ValueWD.
   Lemma valid_val_xor:
     forall f v1 v2,
       valid_val f (Val.xor v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_andl:
+    forall f v1 v2,
+      valid_val f (Val.andl v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_orl:
+    forall f v1 v2,
+      valid_val f (Val.orl v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_xorl:
+    forall f v1 v2,
+      valid_val f (Val.xorl v1 v2).
   Proof.
     intros.
     destruct v1; simpl; auto;
@@ -522,6 +620,54 @@ Module ValueWD.
     end; simpl; auto.
   Qed.
 
+  Lemma valid_longoffloat:
+    forall f v,
+      valid_val f (Val.maketotal (Val.longoffloat v)).
+  Proof.
+    destruct v; simpl; auto; unfold Val.maketotal;
+    unfold option_map;
+    match goal with
+    | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_longofsingle:
+    forall f v,
+      valid_val f (Val.maketotal (Val.longofsingle v)).
+  Proof.
+    destruct v; simpl; auto; unfold Val.maketotal;
+    unfold option_map;
+    match goal with
+    | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_singleoflong:
+    forall f v,
+      valid_val f (Val.maketotal (Val.singleoflong v)).
+  Proof.
+    destruct v; simpl; auto; unfold Val.maketotal;
+    unfold option_map;
+    match goal with
+    | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_floatoflong:
+    forall f v,
+      valid_val f (Val.maketotal (Val.floatoflong v)).
+  Proof.
+    destruct v; simpl; auto; unfold Val.maketotal;
+    unfold option_map;
+    match goal with
+    | [|- context[match match ?Expr with _ => _ end with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
   Lemma valid_val_singleoffloat:
     forall f v,
       valid_val f (Val.singleoffloat v).
@@ -543,9 +689,30 @@ Module ValueWD.
     destruct v; simpl; auto.
   Qed.
 
+  Lemma valid_val_negl:
+    forall f v,
+      valid_val f (Val.negl v).
+  Proof.
+    destruct v; simpl; auto.
+  Qed.
+
   Lemma valid_val_sign_ext:
     forall f v n,
       valid_val f (Val.sign_ext n v).
+  Proof.
+    intros; destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_longofintu:
+    forall f v,
+      valid_val f (Val.longofintu v).
+  Proof.
+    intros; destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_longofint:
+    forall f v,
+      valid_val f (Val.longofint v).
   Proof.
     intros; destruct v; simpl; auto.
   Qed.
@@ -561,6 +728,15 @@ Module ValueWD.
   Lemma valid_val_mulhs:
     forall f v1 v2,
       valid_val f (Val.mulhs v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto.
+  Qed.
+
+  Lemma valid_val_mullhs:
+    forall f v1 v2,
+      valid_val f (Val.mullhs v1 v2).
   Proof.
     intros.
     destruct v1; simpl; auto;
@@ -616,6 +792,58 @@ Module ValueWD.
   Lemma valid_val_ror:
     forall f v1 v2,
       valid_val f (Val.ror v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto;
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_val_shll:
+    forall f v1 v2,
+      valid_val f (Val.shll v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto;
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_val_shrlu:
+    forall f v1 v2,
+      valid_val f (Val.shrlu v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto;
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_val_shrl:
+    forall f v1 v2,
+      valid_val f (Val.shrl v1 v2).
+  Proof.
+    intros.
+    destruct v1; simpl; auto;
+    destruct v2; simpl; auto;
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr
+    end; simpl; auto.
+  Qed.
+
+  Lemma valid_val_rorl:
+    forall f v1 v2,
+      valid_val f (Val.rorl v1 v2).
   Proof.
     intros.
     destruct v1; simpl; auto;
@@ -780,9 +1008,66 @@ Module ValueWD.
     inv H; simpl; auto.
   Qed.
 
+  Lemma valid_val_divlu:
+    forall f v1 v2 v,
+      Val.divlu v1 v2 = Some v ->
+      valid_val f v.
+  Proof.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int64.eq i0 Int64.zero); try discriminate.
+    inv H; simpl; auto.
+  Qed.
+
+  Lemma valid_val_modlu:
+    forall f v1 v2 v,
+      Val.modlu v1 v2 = Some v ->
+      valid_val f v.
+  Proof.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int64.eq i0 Int64.zero); try discriminate.
+    inv H; simpl; auto.
+  Qed.
+
+  Lemma valid_val_divls:
+    forall f v1 v2 v,
+      Val.divls v1 v2 = Some v ->
+      valid_val f v.
+  Proof.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate;
+    match goal with
+    | [H: context[match ?Expr with _ => _ end] |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inv H; simpl; auto.
+  Qed.
+
+  Lemma valid_val_modls:
+    forall f v1 v2 v,
+      Val.modls v1 v2 = Some v ->
+      valid_val f v.
+  Proof.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate;
+    match goal with
+    | [H: context[match ?Expr with _ => _ end] |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inv H; simpl; auto.
+  Qed.
+
   Lemma valid_val_notint:
     forall f v,
       valid_val f (Val.notint v).
+  Proof.
+    destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_notl:
+    forall f v,
+      valid_val f (Val.notl v).
   Proof.
     destruct v; simpl; auto.
   Qed.
@@ -818,9 +1103,23 @@ Module ValueWD.
     destruct v1,v2; simpl; auto.
   Qed.
 
+  Lemma valid_val_subl_overflow:
+    forall f v1 v2,
+      valid_val f (Val.subl_overflow v1 v2).
+  Proof.
+    destruct v1,v2; simpl; auto.
+  Qed.
+
   Lemma valid_val_negative:
     forall f v,
       valid_val f (Val.negative v).
+  Proof.
+    destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_negativel:
+    forall f v,
+      valid_val f (Val.negativel v).
   Proof.
     destruct v; simpl; auto.
   Qed.
@@ -832,27 +1131,35 @@ Module ValueWD.
     destruct b; simpl; auto.
   Qed.
 
-  Hint Resolve valid_val_sub : wd.
-  Hint Immediate  valid_val_int valid_val_one valid_val_undef
-       valid_val_single valid_val_float valid_val_add
+  Hint Resolve valid_val_sub valid_val_subl : wd.
+  Hint Immediate  valid_val_int valid_val_long valid_val_one valid_val_undef
+       valid_val_single valid_val_float valid_val_hiword valid_val_loword
+       valid_val_add valid_val_addl valid_val_offset_ptr
        valid_val_mul valid_val_mulhu valid_val_mulhs
+       valid_val_mull valid_val_mullhu valid_val_mullhs
        valid_val_and valid_val_or valid_val_xor
+       valid_val_andl valid_val_orl valid_val_xorl
        valid_intoffloat valid_intofsingle
        valid_singleofint valid_floatofint
+       valid_longoffloat valid_longofsingle
+       valid_singleoflong valid_floatoflong
        valid_val_singleoffloat valid_val_floatofsingle
-       valid_val_neg valid_val_sign_ext valid_val_zero_ext
+       valid_val_neg valid_val_negl valid_val_longofintu valid_val_longofint valid_val_sign_ext valid_val_zero_ext
        valid_val_divu valid_val_modu
        valid_val_divs valid_val_mods
-       valid_val_notint valid_val_vzero
+       valid_val_divlu valid_val_modlu
+       valid_val_divls valid_val_modls
+       valid_val_notint valid_val_notl valid_val_vzero
        valid_val_shl valid_val_shru valid_val_shr
-       valid_val_ror valid_val_addf valid_val_mulf
+       valid_val_shll valid_val_shrlu valid_val_shrl
+       valid_val_ror valid_val_rorl valid_val_addf valid_val_mulf
        valid_val_subf valid_val_divf
        valid_val_addfs valid_val_mulfs
        valid_val_subfs valid_val_divfs
        valid_val_negf valid_val_absf
        valid_val_negfs valid_val_absfs
-       valid_val_of_optbool valid_val_sub_overflow
-       valid_val_negative valid_val_of_bool : wd.
+       valid_val_of_optbool valid_val_sub_overflow valid_val_subl_overflow
+       valid_val_negative valid_val_negativel valid_val_of_bool : wd.
 End ValueWD.
 
 (** ** Well-defined Memories*)
@@ -1429,6 +1736,28 @@ Module ValObsEq.
                                  destruct Archi.ptr64; simpl; eauto with val_renamings].
   Qed.
 
+  Lemma val_obs_addl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.addl v1 v1') (Val.addl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+      inversion Hval_obs'; subst;
+        solve [simpl; eauto with val_renamings].
+  Qed.
+
+  Lemma val_obs_offset_ptr:
+    forall f v1 v2 ofs
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.offset_ptr v1 ofs) (Val.offset_ptr v2 ofs).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+        solve [simpl; eauto with val_renamings].
+  Qed.
+
   Lemma val_obs_sign_ext:
     forall f v v' n
       (Hval_obs: val_obs f v v'),
@@ -1437,6 +1766,23 @@ Module ValObsEq.
     intros; destruct v; inversion Hval_obs; subst; simpl...
   Qed.
 
+  Lemma val_obs_longofintu:
+    forall f v v'
+      (Hobs: val_obs f v v'),
+      val_obs f (Val.longofintu v) (Val.longofintu v').
+  Proof with eauto with val_renamings.
+    intros;
+    destruct v; inversion Hobs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_longofint:
+    forall f v v'
+      (Hobs: val_obs f v v'),
+      val_obs f (Val.longofint v) (Val.longofint v').
+  Proof with eauto with val_renamings.
+    intros;
+    destruct v; inversion Hobs; subst; simpl...
+  Qed.
 
   Lemma val_obs_singleoffloat:
     forall f v v'
@@ -1506,11 +1852,74 @@ Module ValObsEq.
     inversion Hval_obs; subst; simpl...
   Qed.
 
+  Lemma val_obs_longoffloat:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.longoffloat v))
+              (Val.maketotal (Val.longoffloat v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr eqn:?
+    end...
+    unfold Coqlib.option_map in Heqo.
+    destruct (Floats.Float.to_long f0); inversion Heqo...
+  Qed.
+
+  Lemma val_obs_floatoflong:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.floatoflong v))
+              (Val.maketotal (Val.floatoflong v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_longofsingle:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.longofsingle v))
+              (Val.maketotal (Val.longofsingle v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr eqn:?
+    end...
+    unfold Coqlib.option_map in Heqo.
+    destruct (Floats.Float32.to_long f0); inversion Heqo...
+  Qed.
+
+  Lemma val_obs_singleoflong:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.singleoflong v))
+              (Val.maketotal (Val.singleoflong v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+  Qed.
+
   Lemma val_obs_mul:
     forall f v1 v2 v1' v2'
       (Hval_obs': val_obs f v1' v2')
       (Hval_obs: val_obs f v1 v2),
       val_obs f (Val.mul v1 v1') (Val.mul v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mull:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mull v1 v1') (Val.mull v2 v2').
   Proof with eauto with val_renamings.
     intros.
     destruct v1, v1'; inversion Hval_obs;
@@ -1533,6 +1942,28 @@ Module ValObsEq.
       (Hval_obs': val_obs f v1' v2')
       (Hval_obs: val_obs f v1 v2),
       val_obs f (Val.mulhu v1 v1') (Val.mulhu v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mullhs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mullhs v1 v1') (Val.mullhs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mullhu:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mullhu v1 v1') (Val.mullhu v2 v2').
   Proof with eauto with val_renamings.
     intros.
     destruct v1, v1'; inversion Hval_obs;
@@ -1572,10 +2003,53 @@ Module ValObsEq.
     inversion Hval_obs'; subst; simpl...
   Qed.
 
+  Lemma val_obs_andl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.andl v1 v1') (Val.andl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_orl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.orl v1 v1') (Val.orl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_xorl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.xorl v1 v1') (Val.xorl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
   Lemma val_obs_notint:
     forall f v1 v2
       (Hval_obs: val_obs f v1 v2),
       val_obs f (Val.notint v1) (Val.notint v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_notl:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.notl v1) (Val.notl v2).
   Proof with eauto with val_renamings.
     intros.
     destruct v1; inversion Hval_obs; subst;
@@ -1628,11 +2102,67 @@ Module ValObsEq.
     destruct v1; inversion Hval_obs; subst; simpl...
   Qed.
 
+  Lemma val_obs_shll:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shll v1 v1') (Val.shll v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int64.iwordsize')...
+  Qed.
+
+  Lemma val_obs_shrl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shrl v1 v1') (Val.shrl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int64.iwordsize')...
+  Qed.
+
+  Lemma val_obs_shrlu:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shrlu v1 v1') (Val.shrlu v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int64.iwordsize')...
+  Qed.
+
+  Lemma val_obs_rorl:
+  forall f v1 v2 ofs
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.rorl v1 (Vint ofs)) (Val.rorl v2 (Vint ofs)).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst; simpl...
+  Qed.
+
   Lemma val_obs_suboverflow:
     forall f v1 v2 v1' v2'
       (Hval_obs': val_obs f v1' v2')
       (Hval_obs: val_obs f v1 v2),
       val_obs f (Val.sub_overflow v1 v1') (Val.sub_overflow v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_subloverflow:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.subl_overflow v1 v1') (Val.subl_overflow v2 v2').
   Proof with eauto with val_renamings.
     intros.
     destruct v1, v1'; inversion Hval_obs;
@@ -1653,6 +2183,26 @@ Module ValObsEq.
     forall f v1 v2
       (Hval_obs: val_obs f v1 v2),
       val_obs f (Val.neg v1) (Val.neg v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_negativel:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.negativel v1) (Val.negativel v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_negl:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.negl v1) (Val.negl v2).
   Proof with eauto with val_renamings.
     intros.
     destruct v1; inversion Hval_obs; subst;
@@ -1681,6 +2231,19 @@ Module ValObsEq.
         by (eapply Hinjective; eauto).
       subst.
         by exfalso.
+  Qed.
+
+  Lemma val_obs_subl:
+    forall f v1 v2 v1' v2'
+      (Hinjective: forall b1 b1' b2,
+          f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.subl v1 v1') (Val.subl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+      inversion Hval_obs'; subst; simpl; eauto with val_renamings.
   Qed.
 
   (** Floating point functions *)
@@ -1910,6 +2473,104 @@ Module ValObsEq.
     inversion H...
   Qed.
 
+  Lemma divlu_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.divlu v1 v2 = Val.divlu v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma modlu_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.modlu v1 v2 = Val.modlu v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma val_obs_divlu_id:
+    forall f v1 v2 v,
+      Val.divlu v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int64.eq i0 Int64.zero); try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma val_obs_modlu_id:
+    forall f v1 v2 v,
+      Val.modlu v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int64.eq i0 Int64.zero); try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma divls_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.divls v1 v2 = Val.divls v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma modls_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.modls v1 v2 = Val.modls v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma val_obs_divls_id:
+    forall f v1 v2 v,
+      Val.divls v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    match goal with
+    | [H: match ?Expr with _ => _ end = _ |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma val_obs_modls_id:
+    forall f v1 v2 v,
+      Val.modls v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    match goal with
+    | [H: match ?Expr with _ => _ end = _ |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inversion H...
+  Qed.
+
   Lemma val_obs_of_bool:
     forall f b,
       val_obs f (Val.of_bool b) (Val.of_bool b).
@@ -1919,23 +2580,27 @@ Module ValObsEq.
   Qed.
 
   Hint Resolve
-       val_obs_add valid_val_incr val_obs_incr val_obsC_correct
+       val_obs_add val_obs_addl val_obs_offset_ptr valid_val_incr val_obs_incr val_obsC_correct
        val_obs_load_result val_obs_hiword val_obs_loword
        val_obs_longofwords val_obs_load_result val_obs_ext
-       val_obs_sign_ext val_obs_singleoffloat val_obs_floatofsingle
+       val_obs_sign_ext val_obs_longofintu val_obs_longofint val_obs_singleoffloat val_obs_floatofsingle
        val_obs_intoffloat val_obs_floatofint val_obs_intofsingle
-       val_obs_singleofint val_obs_neg
-       val_obs_mul val_obs_mulhs val_obs_mulhu
-       val_obs_and val_obs_sub
-       val_obs_or val_obs_xor val_obs_notint
+       val_obs_singleofint val_obs_longoffloat val_obs_floatoflong val_obs_longofsingle val_obs_singleoflong
+       val_obs_neg val_obs_negl val_obs_mul val_obs_mull val_obs_mulhs val_obs_mulhu val_obs_mullhs val_obs_mullhu
+       val_obs_and val_obs_sub val_obs_andl val_obs_subl
+       val_obs_or val_obs_xor val_obs_orl val_obs_xorl val_obs_notint val_obs_notl
        val_obs_shl val_obs_shr val_obs_shru
+       val_obs_shll val_obs_shrl val_obs_shrlu
        val_obs_ror val_obs_suboverflow val_obs_negative
+       val_obs_rorl val_obs_subloverflow val_obs_negativel
        val_obs_addf val_obs_addfs val_obs_mulf
        val_obs_mulfs val_obs_negf val_obs_negfs
        val_obs_absf val_obs_absfs val_obs_subf
        val_obs_subfs val_obs_divf val_obs_divfs
        val_obs_divu_id val_obs_modu_id
-       val_obs_divs_id val_obs_mods_id val_obs_of_bool : val_renamings.
+       val_obs_divs_id val_obs_mods_id
+       val_obs_divlu_id val_obs_modlu_id
+       val_obs_divls_id val_obs_modls_id val_obs_of_bool : val_renamings.
 
 End ValObsEq.
 
@@ -3336,6 +4001,22 @@ Lemma setPermBlock_var_eq:
 
   Hint Resolve val_obs_cmpu : val_renamings.
 
+  Lemma val_obs_cmplu:
+    forall f v1 v2 v1' v2' m m' (comp : comparison)
+      (Hval_obs': val_obs f v2 v2')
+      (Hval_obs: val_obs f v1 v1')
+      (Hmem_obs_eq: mem_obs_eq f m m'),
+      val_obs f (Val.maketotal (Val.cmplu (Mem.valid_pointer m) comp v1 v2))
+              (Val.maketotal (Val.cmplu (Mem.valid_pointer m') comp v1' v2')).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl; eauto with val_renamings;
+    unfold Val.cmpu,Val.of_optbool, Val.cmpu_bool, Vtrue, Vfalse...
+  Qed.
+
+  Hint Resolve val_obs_cmplu : val_renamings.
+
   Lemma mem_obs_eq_of_weak_strong:
     forall m m' f pmap1 pmap1' pmap2 pmap2'
       (Hlt1: permMapLt pmap1 (getMaxPerm m))
@@ -3443,7 +4124,7 @@ Module CoreInjections.
             domain_memren f m ->
             initial_core semSem h m c_new vf [:: arg] ->
             valid_val f arg ->
-            (* ge_wd f the_ge ->  *)
+            ge_wd f the_ge ->
             core_wd f c_new;
         (* exists f', core_wd f' c_new /\ ren_domain_incr f f' /\  *)
         (*    (forall b1 b2, f b1 = None -> f' b1 = Some b2 -> ~Mem.valid_block m b1). *)
@@ -3526,7 +4207,7 @@ Module CoreInjections.
             (Hinit: initial_core semSem h m c_new vf arg),
           (* (Hf: forall b b', f b = Some b' -> Mem.valid_block m b), *)
           exists c_new' : semC,
-            initial_core semSem h m' c_new' vf' arg';
+            initial_core semSem h m' c_new' vf' arg' /\ core_inj f c_new c_new';
         (* exists f',  *)
         (*   core_inj f' c_new c_new' /\ *)
         (* match om with *)
@@ -3587,7 +4268,7 @@ Module CoreInjections.
      cannot say anything about the codomain, i.e. that f' is an
      extension of f.*)
         corestep_wd:
-          forall c m c' m' f fg the_ge
+          forall c m c' m' f fg
             (Hwd: core_wd f c)
             (Hmem_wd: valid_mem m)
             (Hge_wd: ge_wd fg the_ge)
