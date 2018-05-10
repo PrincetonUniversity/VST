@@ -13,7 +13,6 @@ Require Import VST.floyd.proofauto.
 
 Inductive statement : Type :=
   | Sassert : (environ -> mpred) -> statement
-  | Sassume : Prop -> statement (* assert_PROP *)
   | Sgiven: forall A: Type, (A -> statement) -> statement
   | Sskip : statement                   (**r do nothing *)
   | Sassign : expr -> expr -> statement (**r assignment [lvalue = rvalue] *)
@@ -141,17 +140,6 @@ Proof.
   eapply semax_pre.
   + exact H.
   + exact H0.
-Qed.
-
-Lemma decorate_C_assume:
-  forall {Espec: OracleKind} {cs: compspecs},
-    forall Pure d1 Delta P c Post,
-      ENTAIL Delta, P |-- !! Pure ->
-      (Pure -> let d := @abbreviate _ d1 in semax Delta P c Post) ->
-      (let d := @abbreviate _ (Ssequence (Sassume Pure) d1) in semax Delta P c Post).
-Proof.
-  intros.
-  assert_PROP Pure; auto.
 Qed.
 
 Lemma decorate_C_given:
