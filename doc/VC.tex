@@ -2697,6 +2697,7 @@ H(2,1)*A*C |-- E
 As illustrated here, you must fully instantiate the arguments of the
 lemma, that is, write \lstinline{(L 2 1)} and not just \lstinline{L}.
 
+\lstinline{sep_apply} also works on the precondition of \lstinline{semax} or on the \lstinline{SEP} part of an \lstinline{ENTAIL} goal.
 
 \textbf{Pure propositions:} If your hypothesis or lemma has the form,
 \lstinline{P*Q |-- !!S} then
@@ -2704,6 +2705,8 @@ lemma, that is, write \lstinline{(L 2 1)} and not just \lstinline{L}.
 \lstinline{P*Q |-- !!S && (P*Q)}.
 That is, if the right-hand side is a pure proposition,
 then the left-hand-side is not deleted.
+
+
 
 \ychapter{Welltypedness of variables}{}
 \label{refcard:tcval2}

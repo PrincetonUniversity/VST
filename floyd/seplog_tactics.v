@@ -988,7 +988,7 @@ Ltac adjust_sep_apply H :=
  | _ => apply H
  end.
 
-Ltac sep_apply H :=
+Ltac sep_apply_in_entailment H :=
     match goal with |- ?A |-- ?B =>
      match type of H with ?TH =>
      match apply_find_core TH with  ?C |-- ?D =>
@@ -1128,7 +1128,7 @@ Qed.
 
 Ltac allp_left x := 
  match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
-   sep_apply (@allp_instantiate T ND B P x)
+   sep_apply_in_entailment (@allp_instantiate T ND B P x)
  end end.
 
 Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}

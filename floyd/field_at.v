@@ -1662,6 +1662,9 @@ Qed.
 
 End CENV.
 
+Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
+  (apply memory_block_valid_ptr; [auto with valid_pointer | rep_omega]) : valid_pointer.
+
 Ltac field_at_conflict z fld :=
 eapply derives_trans with FF; [ | apply FF_left];
  rewrite <- ?sepcon_assoc;
