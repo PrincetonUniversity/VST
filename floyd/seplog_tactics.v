@@ -977,27 +977,18 @@ Ltac apply_find_core X :=
  | @derives mpred _ _ _ => constr:(X)
  end.
 
-Ltac sep_apply_with_tac H tac :=
-  match goal with |- ?A |-- ?B =>
-    match type of H with ?TH =>
-      match apply_find_core TH with  ?C |-- ?D =>
-        let frame := fresh "frame" in evar (frame: list mpred);
-        apply derives_trans with (C * fold_right_sepcon frame);
-        [ pattern C;
-          let FF := fresh "F" in
-          match goal with | |- ?F C => set (FF := F) end;
-          tac; subst FF; cbv beta;
-          solve [cancel] 
-        | eapply derives_trans; 
-          [ apply sepcon_derives; [clear frame; apply H | apply derives_refl] 
-          | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
-          ]
-        ]
-     end
-    end
-  end.
+Lemma adjust_sep_apply:  forall (Q: mpred) (P: Prop),
+   Q |-- !! P ->
+   Q |-- !! P && Q.
+Proof. intros. apply andp_right; auto. Qed.
 
-Ltac sep_apply_without_tac H :=
+Ltac adjust_sep_apply H :=
+ match type of H with 
+ | _ |-- !! _ => apply (adjust_sep_apply _ _ H)
+ | _ => apply H
+ end.
+
+Ltac sep_apply H :=
     match goal with |- ?A |-- ?B =>
      match type of H with ?TH =>
      match apply_find_core TH with  ?C |-- ?D =>
@@ -1005,19 +996,13 @@ Ltac sep_apply_without_tac H :=
        apply derives_trans with (C * fold_right_sepcon frame);
              [solve [cancel] 
              | eapply derives_trans; 
-                 [apply sepcon_derives; [clear frame; apply H | apply derives_refl] 
-                 | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
-                 ]
+                [apply sepcon_derives; [clear frame; adjust_sep_apply H | apply derives_refl] 
+                | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
+                ]
              ]
      end
      end
     end.
-
-Tactic Notation "sep_apply" constr(H) "using" tactic(tac) :=
-  sep_apply_with_tac H tac.
-
-Tactic Notation "sep_apply" constr(H) :=
-  sep_apply_without_tac H.
 
 Lemma wand_refl_cancel_right:
   forall {A}{ND: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}
