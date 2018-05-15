@@ -12,6 +12,15 @@ Require Import VST.veric.NullExtension.
 
 Local Open Scope logic.
 
+Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
+ end.
+
 Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ -> mpred) -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall P (b: expr) c d R,
@@ -22,7 +31,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 | semax_seq:
   forall R P Q h t,
     @semax CS Espec Delta P h (overridePost Q R) ->
-    @semax CS Espec (update_tycon Delta h) Q t R ->
+    @semax CS Espec Delta Q t R ->
     @semax CS Espec Delta P (Ssequence h t) R
 | semax_break: forall Q,
     @semax CS Espec Delta (RA_break Q) Sbreak Q
@@ -129,7 +138,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
 | semax_pre_post_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
     local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
     local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
@@ -138,7 +147,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
     @semax CS Espec Delta P (Ssequence h t) R ->
     exists Q, @semax CS Espec Delta P h (overridePost Q R) /\
-              @semax CS Espec (update_tycon Delta h) Q t R.
+              @semax CS Espec Delta Q t R.
 Proof.
   intros.
   remember (Ssequence h t) as c eqn:?H.
@@ -159,29 +168,55 @@ Proof.
       * destruct R, R'; auto.
     - apply (semax_pre_post_bupd _ Q R'); auto.
       * apply andp_left2, bupd_intro.
-      * admit.
-      * admit.
-      * admit.
-Admitted.
+Qed.
+
+Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
+ end.
 
 Lemma semax_loop_nocontinue:
   forall {Espec: OracleKind}{CS: compspecs} ,
  forall Delta P body incr R,
- nocontinue body = true ->
- nojumps incr = true ->
- @semax CS Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
+ @semax CS Espec Delta P (Ssequence body incr) (loop_nocontinue_ret_assert P R) ->
  @semax CS Espec Delta P (Sloop body incr) R.
 Proof.
   intros.
-  apply semax_seq_inv in H1.
-  destruct H1 as [Q [? ?]].
+  apply semax_seq_inv in H.
+  destruct H as [Q [? ?]].
   eapply (semax_loop _ P Q).
-  +
-Abort.
+  + clear - H.
+    unfold overridePost, loop_nocontinue_ret_assert, loop1_ret_assert in *.
+    eapply semax_pre_post_bupd; [| | | | | exact H].
+    - apply andp_left2.
+      apply bupd_intro.
+    - apply andp_left2.
+      destruct R.
+      apply bupd_intro.
+    - apply andp_left2.
+      destruct R.
+      apply bupd_intro.
+    - apply andp_left2.
+      destruct R.
+      apply FF_left.
+    - intro.
+      apply andp_left2.
+      destruct R.
+      apply bupd_intro.
+  + clear - H0.
+    unfold overridePost, loop_nocontinue_ret_assert, loop2_ret_assert in *.
+    auto.
+Qed.
 
-Axiom semax_if_seq:
+Lemma semax_if_seq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P e c1 c2 c Q,
  semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
  semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
-
+Proof.
+  intros.
+Abort.
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
