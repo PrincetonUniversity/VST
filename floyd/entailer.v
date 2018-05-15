@@ -773,18 +773,20 @@ Hint Rewrite Zmax0r using (try computable; rep_omega (*Omega0*)) : norm.
 
 Import ListNotations.
 
-Definition cstring {CS : compspecs} (s: list byte) p := 
+Definition cstring {CS : compspecs} sh (s: list byte) p := 
   !!(~In Byte.zero s) &&
-  data_at Tsh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
+  data_at sh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
 
-Lemma cstring_local_facts: forall {CS : compspecs} s p, cstring s p |-- !! (isptr p).
+Lemma cstring_local_facts: forall {CS : compspecs} sh s p, cstring sh s p |-- !! (isptr p).
 Proof.
   intros; unfold cstring; entailer!.
 Qed.
 
 Hint Resolve cstring_local_facts : saturate_local.
 
-Lemma cstring_valid_pointer: forall {CS : compspecs} s p, cstring s p |-- valid_pointer p.
+Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p, 
+   nonempty_share sh -> 
+   cstring sh s p |-- valid_pointer p.
 Proof.
   intros; unfold cstring; Intros.
   apply data_at_valid_ptr; auto.
@@ -794,18 +796,19 @@ Proof.
 Qed.
 
 Hint Resolve cstring_valid_pointer : valid_pointer.
-Definition cstringn {CS : compspecs} (s: list byte) n p :=
+Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   !!(~In Byte.zero s) &&
-  data_at Tsh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
+  data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
     list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
 
-Lemma cstringn_equiv : forall {CS : compspecs} s p, cstring s p = cstringn s (Zlength s + 1) p.
+Lemma cstringn_equiv : forall {CS : compspecs} sh s p, cstring sh s p = cstringn sh s (Zlength s + 1) p.
 Proof.
   intros; unfold cstring, cstringn.
   rewrite Zminus_diag, app_nil_r; auto.
 Qed.
 
-Lemma cstringn_local_facts: forall {CS : compspecs} s n p, cstringn s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
+Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p, 
+   cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
 Proof.
   intros; unfold cstringn; entailer!.
   autorewrite with sublist in H1.
@@ -816,7 +819,9 @@ Qed.
 
 Hint Resolve cstringn_local_facts : saturate_local.
 
-Lemma cstringn_valid_pointer: forall {CS : compspecs} s n p, cstringn s n p |-- valid_pointer p.
+Lemma cstringn_valid_pointer: forall {CS : compspecs} sh s n p, 
+     nonempty_share sh -> 
+     cstringn sh s n p |-- valid_pointer p.
 Proof.
   intros.
   entailer!. 
