@@ -1395,9 +1395,19 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
   ].
 
+Ltac check_expression_by_value e :=
+  let t := constr:(access_mode (typeof e)) in let t := eval hnf in t
+   in match t with
+       | By_value _ => idtac
+       | By_reference => fail 100 "Assignment to a variable whose type is By_reference"
+       | By_copy => fail 100 "At present, Verifiable C does not support assignment to variables of struct or union type.  Rewrite your program to copy field-by-field"
+       | By_nothing => fail 100 "Assignment to variable of void type"
+      end.
+
 Ltac store_tac :=
   match goal with
   | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+    check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
     let G := fresh "G" in evar (G: list localdef);
