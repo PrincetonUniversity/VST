@@ -488,9 +488,9 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   end;
   fail 0.
 
-Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 G e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
-  local2ptree Q = (T1, T2, nil, nil) ->
+  local2ptree Q = (T1, T2, nil, G) ->
   compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
   msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
