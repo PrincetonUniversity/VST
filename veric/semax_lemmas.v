@@ -85,17 +85,14 @@ Qed.
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
-    (forall t : type * bool,
-        (temp_types Delta) ! id = Some t -> tc_val (fst t) v) ->
- guard_environ (initialized id Delta) k (mkEnviron ge ve (Map.set id v te)).
+    (forall t,
+        (temp_types Delta) ! id = Some t -> tc_val' t v) ->
+ guard_environ Delta k (mkEnviron ge ve (Map.set id v te)).
 Proof.
  intros.
  destruct H; split.
- apply typecheck_environ_put_te'; auto.
+ apply typecheck_environ_put_te; auto.
  destruct k; auto.
- destruct H1; split.
- apply H1.
- unfold initialized. destruct ((temp_types Delta) ! id); try destruct p; auto.
 Qed.
 
 Lemma prop_imp_derives {A}{agA: ageable A}:
@@ -145,12 +142,10 @@ split; [ | split; [ | split]].
  hnf; intros.
  specialize (H id); rewrite H0 in H.
  destruct ((temp_types Delta') ! id) eqn:?H; try contradiction.
- destruct p. destruct H; subst.
- specialize (H3 id b0 t H1).
+ destruct H; subst.
+ specialize (H3 id ty H1).
  destruct H3 as [v [? ?]].
- exists v; split; auto. destruct H3; [left | right]; auto.
- destruct b0; try contradiction.
- destruct (negb b); inv H2. apply I.
+ exists v; split; auto.
 * clear - H0 H4.
   red in H4|-*.
  intros id ty. specialize (H4 id ty). rewrite <- H4.
@@ -196,7 +191,7 @@ Qed.
 
 Lemma semax'_post_bupd:
  forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) && 
+   (forall ek vl rho,  !!(typecheck_environ Delta rho ) && 
                 proj_ret_assert R' ek vl rho 
          |-- bupd (proj_ret_assert R ek vl rho)) ->
    semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
@@ -218,7 +213,6 @@ apply allp_derives; intro te.
 apply allp_derives; intro ve.
 intros ? ?.
 intros ? ? ? ? ?.
-
 destruct H3 as [[? HFP] ?].
 assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
   (construct_rho (filter_genv psi) ve te)) a') as HFP'.
@@ -250,8 +244,7 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
-  * destruct H3; eapply typecheck_environ_sub; eauto.
-    apply exit_tycon_sub; auto. }
+  * destruct H3; eapply typecheck_environ_sub; eauto. }
 assert ((bupd (assert_safe Espec psi ve te (exit_cont ek vl k)
   (construct_rho (filter_genv psi) ve te))) a') as Hsafe.
 { intros ? J.
@@ -267,7 +260,7 @@ Qed.
 
 Lemma semax'_post:
  forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) && 
+   (forall ek vl rho,  !!(typecheck_environ Delta rho) && 
                 proj_ret_assert R' ek vl rho 
          |-- proj_ret_assert R ek vl rho) ->
    semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
@@ -323,7 +316,7 @@ Lemma semax'_pre_post_bupd:
  forall
       {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ Delta rho ->   P rho |-- bupd (P' rho)) ->
-   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+   (forall ek vl rho, !!(typecheck_environ Delta rho) 
                        &&  proj_ret_assert R ek vl rho 
                     |-- bupd (proj_ret_assert R' ek vl rho)) ->
    semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
@@ -338,7 +331,7 @@ Lemma semax'_pre_post:
  forall
       {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+   (forall ek vl rho, !!(typecheck_environ Delta rho) 
                        &&  proj_ret_assert R ek vl rho 
                     |-- proj_ret_assert R' ek vl rho) ->
    semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
@@ -491,7 +484,7 @@ Lemma semax_unfold {CS: compspecs}:
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R F) k w ->
+       rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k w ->
        guard Espec psi Delta' (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
@@ -508,7 +501,7 @@ Qed.
 
 Lemma semax_post'_bupd {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+   (forall ek vl rho,  !!(typecheck_environ Delta rho) 
                       &&  proj_ret_assert R' ek vl rho
                         |-- bupd (proj_ret_assert R ek vl rho)) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
@@ -522,7 +515,7 @@ Qed.
 
 Lemma semax_post_bupd {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+   (forall rho,  !!(typecheck_environ Delta rho) 
                       &&  RA_normal R' rho |-- bupd (RA_normal R rho)) ->
    (forall rho, !! (typecheck_environ Delta rho) 
                       && RA_break R' rho |-- bupd (RA_break R rho)) ->
@@ -544,7 +537,7 @@ Qed.
 
 Lemma semax_post' {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) 
+   (forall ek vl rho,  !!(typecheck_environ Delta rho) 
                       &&  proj_ret_assert R' ek vl rho
                         |-- proj_ret_assert R ek vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
@@ -558,7 +551,7 @@ Qed.
 
 Lemma semax_post {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+   (forall rho,  !!(typecheck_environ Delta rho) 
                       &&  RA_normal R' rho |-- RA_normal R rho) ->
    (forall rho, !! (typecheck_environ Delta rho) 
                       && RA_break R' rho |-- RA_break R rho) ->
@@ -607,7 +600,7 @@ Qed.
 Lemma semax_pre_post_bupd {CS: compspecs}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- bupd (P' rho) )%pred ->
-   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+   (forall rho,  !!(typecheck_environ Delta rho) 
                       &&  RA_normal R' rho |-- bupd (RA_normal R rho)) ->
    (forall rho, !! (typecheck_environ Delta rho) 
                       && RA_break R' rho |-- bupd (RA_break R rho)) ->
@@ -625,7 +618,7 @@ Qed.
 Lemma semax_pre_post {CS: compspecs}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-   (forall rho,  !!(typecheck_environ (update_tycon Delta c) rho) 
+   (forall rho,  !!(typecheck_environ Delta rho) 
                       &&  RA_normal R' rho |-- RA_normal R rho) ->
    (forall rho, !! (typecheck_environ Delta rho) 
                       && RA_break R' rho |-- RA_break R rho) ->
@@ -823,7 +816,7 @@ specialize (H5 gx Delta'' _ (necR_refl _)
 
 intros k F w4 Hw4 [? ?].
 specialize (H5 k F w4 Hw4).
-assert ((rguard Espec gx (exit_tycon c Delta'') (frame_ret_assert R F) k) w4).
+assert ((rguard Espec gx (fun _ => Delta'') (frame_ret_assert R F) k) w4).
 do 9 intro.
 apply (H9 b b0 b1 b2 y H10 a' H11).
 destruct H12; split; auto; clear H13.
@@ -1917,7 +1910,7 @@ Lemma semax_eq:
          ALL k : cont ,
          ALL F : assert ,
          !! closed_wrt_modvars c F &&
-         rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R F) k -->
+         rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k -->
          guard Espec psi Delta' (fun rho : environ => F rho * P rho) (Kseq c :: k))).
 Proof.
 intros.
@@ -1952,7 +1945,6 @@ apply prop_imp_derives; intros TC.
 apply imp_derives; [ apply derives_refl | ].
 apply allp_derives; intros k.
 apply allp_derives; intros F.
-rewrite closed_Slabel, exit_typcon_Slabel'.
 apply imp_derives; [ apply derives_refl | ].
 apply guard_safe_adj; [ trivial | intros].
 apply safe_kseq_Slabel; trivial.
@@ -1997,7 +1989,6 @@ apply prop_imp_derives; intros TC.
 apply imp_derives; [ apply derives_refl | ].
 apply allp_derives; intros k.
 apply allp_derives; intros F.
-rewrite closed_Slabel, exit_typcon_Slabel'.
 apply imp_derives; [ apply derives_refl | ].
 apply guard_safe_adj; [ trivial | intros].
 apply safe_seq_Slabel; trivial.
@@ -2007,7 +1998,6 @@ apply prop_imp_derives; intros TC.
 apply imp_derives; [ apply derives_refl | ].
 apply allp_derives; intros k.
 apply allp_derives; intros F.
-rewrite closed_Slabel, exit_typcon_Slabel'.
 apply imp_derives; [ apply derives_refl | ].
 apply guard_safe_adj; [ trivial | intros].
 apply safe_seq_Slabel; trivial.

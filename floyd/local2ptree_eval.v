@@ -142,7 +142,7 @@ Proof.
       eauto.
     pose proof local_ext _ _ _ H1 H.
     unfold_lift in H2.
-    auto.
+    destruct H2; auto.
   + intros.
       unfold eval_vardesc in H0.
       destruct (T2 ! i) as [ [?|?|?|?] | ] eqn:HT; simpl in *.

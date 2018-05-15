@@ -47,6 +47,7 @@ Ltac clear_abbrevs :=  repeat match goal with
 
 Arguments var_types !Delta / .
 
+(*
 Fixpoint initialized_list ids D :=
  match ids with
  | nil => D
@@ -63,7 +64,7 @@ Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 ann d',
     initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5 ann) = d'.
 Proof. intros; subst; reflexivity.
 Qed.
-
+*)
 
 Ltac reduce_snd S1 :=
 match goal with
@@ -152,6 +153,7 @@ Ltac compute_in_Delta :=
 
 Ltac simplify_Delta' Delta D DD := 
        match DD with
+(*
        | context [update_tycon Delta ?c] =>
            let C := fresh "C" in set (C:=c);
            let U := fresh "U" in pose (U := @abbreviate tycontext (update_tycon D C));
@@ -165,6 +167,7 @@ Ltac simplify_Delta' Delta D DD :=
            replace (initialized I Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
+*)
        | context [with_Delta_specs ?DS Delta] =>
            let U := fresh "U" in pose (U := @abbreviate tycontext (with_Delta_specs DS Delta));
            (* change (with_Delta_specs DS Delta) with U; *)
@@ -172,22 +175,32 @@ Ltac simplify_Delta' Delta D DD :=
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
        end.
-
+(*
 Ltac simplify_Delta'' DD := 
        match DD with
        | context [initialized_list _ _] => unfold initialized_list
        | context [initialized _ ?D] => try (revert D; fail 1); unfold D
        | context [update_tycon ?D _] => try (revert D; fail 1); unfold D
        end.
-
+*)
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
+
 Ltac simplify_Delta :=
 match goal with
  | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
  | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
  | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
+(*                 
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
+     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
+     change e with (@abbreviate (PTree.t funspec) e) in DS;
+     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
+     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
+*)
  | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
  | |- semax ?D _ _ _ => unfold D; simplify_Delta
@@ -197,8 +210,8 @@ match goal with
       |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
       |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
- | |- semax ?DD _ _ _ =>  simplify_Delta'' DD; simplify_Delta
- | |- ENTAIL ?DD, _ |-- _ =>  simplify_Delta'' DD; simplify_Delta
+ | |- semax ?DD _ _ _ =>  simplify_Delta
+ | |- ENTAIL ?DD, _ |-- _ => simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -322,7 +335,7 @@ Ltac weak_normalize_postcondition := (* does not insist on normal_ret_assert *)
  autorewrite with ret_assert.
 
 (**** BEGIN semax_subcommand stuff  *)
-
+(*
 (* Two small-step tactics -- will probbaly not be used very much once the tactics are stable*)
 Ltac replaceIdent_and_solve D i DD :=
   replace D with (initialized i DD); try (simplify_Delta; reflexivity); try clear D.
@@ -373,11 +386,13 @@ Ltac mkConciseDelta V G F Ann Delta :=
     change Delta with (initialized_list inits (func_tycontext F V G Ann))(*;
     refold_temp_names F;
   clear Delta*).
-
+*)
 Ltac semax_subcommand V G F Ann :=
   abbreviate_semax;
   match goal with |- semax ?Delta _ _ _ =>
+(*
       mkConciseDelta V G F Ann Delta;
+*)
       repeat
          match goal with
           | P := @abbreviate statement _ |- _ => unfold abbreviate in P; subst P
@@ -388,7 +403,6 @@ Ltac semax_subcommand V G F Ann :=
 
 (**** END semax_subcommand stuff *)
 
-Arguments join_te te1 te2 / .
 Arguments PTree.fold {A} {B} f m v / .
 
 Ltac no_reassociate_stmt S := S.

@@ -1571,8 +1571,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
   destruct (get_var_type Delta i); simpl; auto with closed.
 +
   destruct ((temp_types Delta) ! i); simpl; auto with closed.
-  destruct (is_neutral_cast (fst p) t || same_base_type (fst p) t)%bool; simpl; auto with closed.
-  destruct (snd p);  simpl; auto with closed.
+  destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; simpl; auto with closed.
   clear -  H.
   hnf; intros.
   specialize (H0 i).

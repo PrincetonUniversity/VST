@@ -229,10 +229,11 @@ FLOYD_FILES= \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v \
-   local2ptree_denote.v local2ptree_eval.v fieldlist.v mapsto_memory_block.v\
+   local2ptree_denote.v local2ptree_eval.v local2ptree_typecheck.v \
+   fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
-   for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
+   for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v
 #real_forward.v
 

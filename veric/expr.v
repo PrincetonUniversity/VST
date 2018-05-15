@@ -724,7 +724,7 @@ end.
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
-Fixpoint typecheck_expr {CS: compspecs}(Delta : tycontext) (e: expr) : tc_assert :=
+Fixpoint typecheck_expr {CS: compspecs} (Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT
@@ -732,9 +732,9 @@ match e with
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty =>
                        match (temp_types Delta)!id with
-                         | Some ty' => if is_neutral_cast (fst ty') ty || same_base_type (fst ty') ty then
-                                         if (snd ty') then tc_TT else (tc_initialized id ty)
-                                       else tc_FF (mismatch_context_type ty (fst ty'))
+                         | Some ty' => if is_neutral_cast ty' ty || same_base_type ty' ty then
+                                         tc_initialized id ty'
+                                       else tc_FF (mismatch_context_type ty ty')
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
@@ -829,7 +829,7 @@ Definition implicit_deref (t: type) : type :=
 
 Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) =>
+  | Some t =>
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t))
                   (isCastResultType (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
@@ -869,12 +869,12 @@ end.
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
-(te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ tc_val ty v)).
+(te: tenviron) (tc: PTree.t type) :=
+forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
+forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
@@ -909,7 +909,7 @@ Definition all_var_ids (Delta : tycontext) : list positive :=
 (fst (split (PTree.elements (glob_types Delta)))).
 *)
 
-Definition typecheck_environ (Delta: tycontext)  (rho : environ) :=
+Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta) /\

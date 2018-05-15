@@ -5,9 +5,7 @@ Local Open Scope logic.
 
 Lemma denote_tc_assert_andp:
   forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_andp a b) =
-  andp (denote_tc_assert a)
-    (denote_tc_assert b).
+  denote_tc_assert (tc_andp a b) = andp (denote_tc_assert a) (denote_tc_assert b).
 Proof.
   intros.
   extensionality rho.
@@ -17,9 +15,7 @@ Qed.
 
 Lemma denote_tc_assert_orp:
   forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_orp a b) =
-  orp (denote_tc_assert a)
-    (denote_tc_assert b).
+  denote_tc_assert (tc_orp a b) = orp (denote_tc_assert a) (denote_tc_assert b).
 Proof.
   intros.
   extensionality rho.
@@ -117,28 +113,26 @@ Definition tc_LR {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR De
 (*
 Definition tc_LR_strong {cs: compspecs} Delta e lr :=
   match lr with
-  | LLLL => tc_lvalue Delta e
-  | RRRR => tc_expr Delta e
+  | LLLL => typecheck_lvalue Delta e
+  | RRRR => typecheck_expr Delta e
   end.
-
-Definition tc_LR {cs: compspecs} Delta e lr :=
+  
+Definition typecheck_LR {cs: compspecs} Delta e lr: tc_assert :=
   match e with
   | Ederef e0 t =>
      match lr with
-     | LLLL => denote_tc_assert
-                 (tc_andp
-                   (typecheck_expr Delta e0)
-                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-     | RRRR => denote_tc_assert
-                match access_mode t with
-                | By_reference =>
-                   (tc_andp
-                      (typecheck_expr Delta e0)
-                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-                | _ => tc_FF (deref_byvalue t)
-                end
+     | LLLL => tc_andp
+                 (typecheck_expr Delta e0)
+                 (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+     | RRRR => match access_mode t with
+               | By_reference =>
+                   tc_andp
+                     (typecheck_expr Delta e0)
+                     (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+               | _ => tc_FF (deref_byvalue t)
+               end
     end
-  | _ => tc_LR_strong Delta e lr
+  | _ => typecheck_LR_strong Delta e lr
   end.
 *)
 Definition eval_LR {cs: compspecs} e lr :=

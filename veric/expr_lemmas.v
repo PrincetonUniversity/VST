@@ -16,6 +16,7 @@ Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
 
+(*
 Lemma typecheck_environ_update_te:
   forall rho c Delta, typecheck_temp_environ (te_of rho) (temp_types (update_tycon Delta c))
      ->
@@ -131,7 +132,7 @@ repeat rewrite update_tycon_same_ge in *. specialize (H3 H).
 destruct H3; auto. destruct H0.
 rewrite update_tycon_same_ve in *. eauto.
 Qed.
-
+*)
 Lemma tc_bool_val:
   forall v t,
        tc_val t v ->
@@ -301,8 +302,8 @@ destruct H1. rewrite H1. auto.
 Qed.
 
 Definition func_tycontext_t_denote :=
-forall p t id ty b,  list_norepet (map fst p ++ map fst t ) ->
-((make_tycontext_t p t) ! id = Some (ty,b) <-> (In (id,ty) p /\ b=true) \/ (In (id,ty) t /\ b=false)).
+forall p t id ty ,  list_norepet (map fst p ++ map fst t ) ->
+((make_tycontext_t p t) ! id = Some ty <-> (In (id,ty) p \/ In (id,ty) t)).
 
 Definition func_tycontext_v_denote :=
 forall v id ty, list_norepet (map fst v) ->
@@ -394,73 +395,112 @@ induction t.
 Qed.
 
 Lemma func_tycontext_t_sound : func_tycontext_t_denote.
-unfold func_tycontext_t_denote.
-split; intros;
+Proof.
+  unfold func_tycontext_t_denote.
+  split; intros;
   unfold make_tycontext_t in *;
   apply list_norepet_app in H; destruct H as [? [? ?]].
-  induction t; induction p; simpl in *.
-
-    rewrite PTree.gempty in *; congruence.
-
-    left. destruct a; simpl in *. rewrite PTree.gsspec in *. if_tac in H0.
-    inv H0. auto.
-    inv H.  destruct IHp; auto. unfold list_disjoint.  intros. inv H4.
-    destruct H. subst. auto. intuition.
-
-    right. destruct a. simpl in *. rewrite PTree.gsspec in *.
-    if_tac in H0. subst. inv H0. auto. destruct IHt. inv H1; auto.
-    unfold list_disjoint in *. intros. inv H4. auto. intuition. intuition.
-
-
-    simpl in *. rewrite PTree.gsspec in *. if_tac in H0. destruct a0. simpl in *.
-    subst. inv H0. intuition. destruct a0. simpl in *.  destruct a. simpl in *.
-    destruct IHp. inv H; auto. intro; intros. apply H2; simpl in *; auto.
-    auto. intros. destruct IHt. inv H1; auto. intro; intros; apply H2; simpl in *; auto.
-    auto. destruct H7. destruct H7. inv H7. intuition. auto. auto. left.
-    split. right. apply H4. apply H4. right. auto.
-
-
-  induction t; induction p; simpl in *.
-
-    intuition.
-
-    rewrite PTree.gsspec. if_tac. subst. destruct a. simpl in *.
-    destruct H0. destruct H0. destruct H0. inv H0. auto. subst.
-    clear - H H0. inv H. rewrite in_map_iff in *. destruct H3.
-    exists (i,ty). auto. inv H0. inv H3. destruct H0. destruct H0.
-    destruct a. destruct H0. subst. inv H0. intuition.
-
-    simpl in *. apply IHp. inv H; auto. intro. intros. inv H6. left.
-    subst. auto. destruct H0. inv H0. destruct H0. destruct H0. destruct H0.
-    destruct H0. destruct H0. destruct a. simpl in *. inv H0; subst.
-    rewrite PTree.gsspec. rewrite peq_true. auto. subst.
-    destruct a. simpl in *. rewrite PTree.gsspec. if_tac.
-    subst. clear -H0 H1. inv H1. rewrite in_map_iff in *.
-    destruct H3. exists (i,ty); auto. apply IHt. inv H1; auto.
-    intro; auto. right. auto.
-
-    spec IHt. inv H1; auto.  spec IHt. intro; intros; apply H2; simpl in *; auto.
-    spec IHp.  inv H; auto. spec IHp. intro; intros; apply H2; simpl in *; auto.
-    destruct a. destruct a0. destruct H0. simpl in *.
-    destruct H0. destruct H0. inv H0.
-    rewrite PTree.gsspec in *. rewrite peq_true. auto. subst.
-    rewrite PTree.gsspec in *. if_tac. subst. inv H. rewrite in_map_iff in H5.
-    destruct H5. exists (i0,ty); auto. spec IHp. auto. spec IHp; auto.
-
-
-    simpl in *. rewrite PTree.gsspec. if_tac. subst. destruct H0. destruct H0.
-    inv H0. specialize (H2 i0 i0). destruct H2; simpl; auto. subst.
-    spec IHt. auto. rewrite PTree.gsspec in *. rewrite peq_true in *. auto.
-
-    destruct H0. destruct H0. inv H0. spec IHp. auto.
-    spec IHp; auto. intros; auto. destruct H5. destruct H5; congruence. destruct H5.
-    clear - H5 H1. inv H1. destruct H2. apply in_map_iff. exists (id, ty). auto. subst.
-    spec IHp. auto. spec IHp; auto. spec IHt; auto. rewrite PTree.gsspec in *.
-    if_tac in IHt. intuition. intros. auto.
-
+  + induction t; induction p; simpl in *.
+    - rewrite PTree.gempty in *; congruence.
+    - left.
+      destruct a; simpl in *. rewrite PTree.gsspec in *. if_tac in H0.
+      inv H0. auto.
+      inv H.  destruct IHp; auto. unfold list_disjoint.  intros. inv H4.
+      destruct H.
+    - right.
+      destruct a. simpl in *. rewrite PTree.gsspec in *.
+      if_tac in H0. subst. inv H0. auto. destruct IHt. inv H1; auto.
+      unfold list_disjoint in *. intros. inv H4. auto. intuition. intuition.
+    - simpl in *.
+      rewrite PTree.gsspec in *.
+      if_tac in H0.
+      * destruct a0. simpl in *.
+        subst. inv H0. intuition.
+      * destruct a0. simpl in *.  destruct a. simpl in *.
+        destruct IHp.
+        ++ inv H; auto.
+        ++ intro; intros. apply H2; simpl in *; auto.
+        ++ auto.
+        ++ intros. destruct IHt.
+          -- inv H1; auto.
+          -- intro; intros; apply H2; simpl in *; auto.
+          -- auto.
+          -- destruct H7.
+            ** inv H7; intuition.
+            ** auto.
+          -- auto.
+        ++ left.
+           right. apply H4.
+        ++ right. auto.
+  + induction t; induction p; simpl in *.
+    - intuition.
+    - rewrite PTree.gsspec. if_tac.
+      * subst. destruct a. simpl in *.
+        destruct H0; [destruct H0 |].
+       ++ inv H0. auto.
+       ++ subst.
+          clear - H H0. inv H. rewrite in_map_iff in *. destruct H3.
+          exists (i,ty). auto.
+       ++ inv H0.
+      * destruct H0.
+       ++ destruct a. destruct H0.
+         -- subst. inv H0. intuition.
+         -- simpl in *. apply IHp.
+           ** inv H; auto.
+           ** intro. intros. inv H5.
+           ** left. subst. auto.
+       ++ inv H0.
+    - destruct H0; [| destruct H0].
+      * inv H0.
+      * destruct a. simpl in *. inv H0; subst.
+        rewrite PTree.gsspec. rewrite peq_true. auto.
+      * destruct a. simpl in *. rewrite PTree.gsspec.
+        if_tac.
+       ++ subst. clear -H0 H1. inv H1. rewrite in_map_iff in *.
+          destruct H3. exists (i,ty); auto.
+       ++ apply IHt. inv H1; auto.
+          intro; auto. right. auto.
+    - spec IHt; [inv H1; auto |].
+      spec IHt; [intro; intros; apply H2; simpl in *; auto |].
+      spec IHp; [inv H; auto |].
+      spec IHp; [intro; intros; apply H2; simpl in *; auto |].
+      destruct a. destruct a0. destruct H0.
+      * simpl in *.
+        destruct H0.
+       ++ inv H0.
+          rewrite PTree.gsspec in *. rewrite peq_true. auto.
+       ++ subst.
+          rewrite PTree.gsspec in *. if_tac.
+         -- subst. inv H. rewrite in_map_iff in H5.
+            destruct H5. exists (i0,ty); auto.
+         -- spec IHp. auto. spec IHp; auto.
+      * simpl in *. rewrite PTree.gsspec. if_tac.
+       ++ subst. destruct H0.
+         -- inv H0. specialize (H2 i0 i0). destruct H2; simpl; auto.
+         -- subst.
+            spec IHt; [auto |].
+            rewrite PTree.gsspec in *. rewrite peq_true in *. auto.
+       ++ destruct H0.
+         -- inv H0.
+            spec IHp; [auto |].
+            spec IHp; [| auto].
+            intros; auto. destruct H5.
+           ** clear - H5 H2.
+              apply list_disjoint_cons_left, list_disjoint_sym in H2.
+              eapply list_disjoint_notin in H2; [| left; eauto].
+              destruct H2. apply in_map_iff. exists (id, ty). auto.
+           ** clear - H5 H1. inv H1. destruct H2. apply in_map_iff. exists (id, ty). auto.
+         -- subst.
+            spec IHp; [auto |].
+            spec IHp; [| auto].
+            spec IHt; [auto |].
+            rewrite PTree.gsspec in *.
+            if_tac in IHt.
+           ** intuition.
+           ** intros. auto.
 Qed.
 
- Definition cast_no_val_change (from: type)(to:type) : bool :=
+Definition cast_no_val_change (from: type)(to:type) : bool :=
 match from, to with
 | Tint _ _ _, Tint I32 _ _ => true
 | Tpointer _ _, Tpointer _ _ => 
@@ -567,8 +607,7 @@ Opaque Int.repr.
 Definition typecheck_tid_ptr_compare
 Delta id :=
 match (temp_types Delta) ! id with
-| Some (t, _) =>
-   is_int_type t
+| Some t => is_int_type t
 | None => false
 end.
 
@@ -582,8 +621,8 @@ unfold typecheck_tid_ptr_compare;
 intros.
 destruct H as [? _].
 specialize (H id).
-destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
-destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta) ! id) as [? |]; try discriminate.
+destruct ((temp_types Delta') ! id) as [? |]; try contradiction.
  destruct H; subst; auto.
 Qed.
 

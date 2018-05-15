@@ -321,8 +321,7 @@ Definition cast_expropt {CS: compspecs} (e: option expr) t : environ -> option v
 Definition typecheck_tid_ptr_compare
 Delta id :=
 match (temp_types Delta) ! id with
-| Some (t, _) =>
-   is_int_type t
+| Some t => is_int_type t
 | None => false
 end.
 
@@ -613,7 +612,7 @@ Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  match ret with
  | None => True
- | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
+ | Some i => match (temp_types Delta) ! i with Some t' => t=t' | _ => False end
  end.
 
 Definition globals_only (rho: environ) : environ :=
@@ -766,9 +765,10 @@ Definition tc_temp_id  (id: ident)  (ty: type) {CS: compspecs} (Delta: tycontext
                        (e:expr): environ -> mpred :=
       denote_tc_assert (typecheck_temp_id id ty Delta e).
 
+(* TODO: remove this kind of definitions. *)
 Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  match (temp_types Delta) ! id with
- | Some (t, _) => Some t
+ | Some t => Some t
  | None => None
  end.
 
@@ -830,12 +830,6 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
 
 Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
-
-Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
-  match ek with
-  | EK_normal => update_tycon Delta c
-  | _ => Delta
-  end.
 
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
@@ -1203,7 +1197,7 @@ Axiom semax_seq:
   forall {Espec: OracleKind}{CS: compspecs} ,
 forall Delta R P Q h t,
     @semax CS Espec Delta P h (overridePost Q R) ->
-    @semax CS Espec (update_tycon Delta h) Q t R ->
+    @semax CS Espec Delta Q t R ->
     @semax CS Espec Delta P (Ssequence h t) R.
 
 Axiom seq_assoc:
@@ -1426,7 +1420,7 @@ Axiom semax_pre_post_bupd:
   forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
     local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
     local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->

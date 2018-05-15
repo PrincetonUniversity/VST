@@ -247,7 +247,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+              rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -287,7 +287,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
@@ -322,7 +322,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert Q F) k) -->
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert Q F) k) -->
         (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
@@ -726,4 +726,3 @@ Proof.
     apply imp_andp_adjoint.
     apply unfash_fash.
 Qed.
-    
