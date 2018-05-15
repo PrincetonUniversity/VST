@@ -514,14 +514,6 @@ destruct (Map.get (ve_of rho) id); auto.
 Qed.
 Hint Resolve closed_wrt_lvar : closed.
 
-Lemma closed_wrt_gvar:
-  forall S id v, closed_wrt_vars S (locald_denote (gvar id v)).
-Proof.
-intros.
-hnf; intros; simpl. auto.
-Qed.
-Hint Resolve closed_wrt_gvar : closed.
-
 Lemma closed_wrt_gvars:
   forall S gv, closed_wrt_vars S (locald_denote (gvars gv)).
 Proof.
@@ -538,14 +530,6 @@ hnf; intros; simpl. reflexivity.
 Qed.
 Hint Resolve closed_wrtl_gvars : closed.
 
-Lemma closed_wrt_sgvar:
-  forall S id v, closed_wrt_vars S (locald_denote (sgvar id v)).
-Proof.
-intros.
-hnf; intros; simpl. auto.
-Qed.
-Hint Resolve closed_wrt_sgvar : closed.
-
 Lemma closed_wrtl_lvar:
  forall  {cs: compspecs} S id t v,
     ~ S id -> closed_wrt_lvars S (locald_denote (lvar id t v)).
@@ -557,25 +541,6 @@ destruct (H0 id); try contradiction.
 rewrite H1; auto.
 Qed.
 Hint Resolve closed_wrtl_lvar : closed.
-
-Lemma closed_wrtl_gvar:
- forall S id v,   ~ S id -> closed_wrt_lvars S (locald_denote (gvar id v)).
-Proof.
-intros.
-hnf; intros; simpl.
-unfold gvar_denote.
-destruct (H0 id); try contradiction.
-rewrite H1; auto.
-Qed.
-Hint Resolve closed_wrtl_gvar : closed.
-
-Lemma closed_wrtl_sgvar:
- forall S id v,  closed_wrt_lvars S (locald_denote (sgvar id v)).
-Proof.
-intros.
-hnf; intros; simpl. auto.
-Qed.
-Hint Resolve closed_wrtl_sgvar : closed.
 
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
   forall (cs: compspecs) rho ve',
