@@ -161,7 +161,7 @@ Ltac simpl_compare :=
          revert H; simpl_compare; intro H;
          try (simpl in H; apply Vint_inj in H;
                match type of H with ?a = ?b =>
-                  first [subst a | subst b | idtac]
+                  first [safe_subst a | safe_subst b | idtac]
                end)
  | H: typed_true _ _ |- _ =>
          simpl in H; revert H; simpl_compare; intro H;
@@ -395,7 +395,7 @@ Ltac ent_iter :=
    repeat erewrite unfold_reptype_elim in * by (apply JMeq_refl; reflexivity);
    simpl_compare;
    simpl_denote_tc;
-   subst_any;
+   safe_subst_any;
    try autorewrite with entailer_rewrite in *;
    try solve_valid_pointer;
    repeat data_at_conflict_neq.
@@ -674,7 +674,7 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
  | H: isptr ?x |- _ =>
      let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
      destruct x as [ | | | | | x1 x2]; inv H
- | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; subst_any
+ | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; safe_subst_any
  end.
 
 Ltac aggressive :=
